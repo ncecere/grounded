@@ -1,0 +1,304 @@
+import type { Browser } from "playwright";
+import { db } from "@kcb/db";
+import { sourceRuns, sourceRunPages, sources, tenantUsage } from "@kcb/db/schema";
+import { eq, sql, and } from "drizzle-orm";
+import { addPageProcessJob, addSourceRunFinalizeJob } from "@kcb/queue";
+import {
+  normalizeUrl,
+  getEnv,
+  SCRAPE_TIMEOUT_MS,
+  MAX_PAGE_SIZE_BYTES,
+  type PageFetchJob,
+  FetchMode,
+} from "@kcb/shared";
+
+const FIRECRAWL_API_KEY = getEnv("FIRECRAWL_API_KEY", "");
+const FIRECRAWL_API_URL = getEnv("FIRECRAWL_API_URL", "https://api.firecrawl.dev");
+
+export async function processPageFetch(
+  data: PageFetchJob,
+  browser: Browser
+): Promise<void> {
+  const { tenantId, runId, url, fetchMode, depth = 0 } = data;
+
+  console.log(`Fetching: ${url} (mode: ${fetchMode}, depth: ${depth})`);
+
+  // Get run and source
+  const run = await db.query.sourceRuns.findFirst({
+    where: eq(sourceRuns.id, runId),
+  });
+
+  if (!run) {
+    throw new Error(`Run ${runId} not found`);
+  }
+
+  // Check if run was canceled
+  if (run.status === "canceled") {
+    console.log(`Run ${runId} was canceled, skipping page fetch`);
+    return;
+  }
+
+  const source = await db.query.sources.findFirst({
+    where: eq(sources.id, run.sourceId),
+  });
+
+  if (!source) {
+    throw new Error(`Source ${run.sourceId} not found`);
+  }
+
+  let html: string;
+  let title: string | null = null;
+
+  try {
+    // Try different fetch methods based on mode
+    if (fetchMode === "firecrawl" || (fetchMode === "auto" && source.config.firecrawlEnabled)) {
+      // Use Firecrawl
+      const result = await fetchWithFirecrawl(url);
+      html = result.html;
+      title = result.title;
+    } else if (fetchMode === "headless") {
+      // Use Playwright directly
+      const result = await fetchWithPlaywright(url, browser);
+      html = result.html;
+      title = result.title;
+    } else {
+      // Auto mode: try HTML first, fall back to Playwright
+      try {
+        const result = await fetchWithHttp(url);
+        html = result.html;
+        title = result.title;
+
+        // Check if content looks like it needs JS rendering
+        if (needsJsRendering(html)) {
+          console.log(`Page ${url} needs JS rendering, using Playwright`);
+          const playwrightResult = await fetchWithPlaywright(url, browser);
+          html = playwrightResult.html;
+          title = playwrightResult.title;
+        }
+      } catch (error) {
+        // Fall back to Playwright
+        console.log(`HTTP fetch failed for ${url}, trying Playwright:`, error);
+        const result = await fetchWithPlaywright(url, browser);
+        html = result.html;
+        title = result.title;
+      }
+    }
+
+    // Update usage
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    await db
+      .update(tenantUsage)
+      .set({
+        scrapedPages: sql`${tenantUsage.scrapedPages} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(tenantUsage.tenantId, tenantId),
+          eq(tenantUsage.month, currentMonth)
+        )
+      );
+
+    // Queue page processing
+    await addPageProcessJob({
+      tenantId,
+      runId,
+      url,
+      html,
+      title,
+      depth,
+    });
+
+    console.log(`Page fetched successfully: ${url}`);
+  } catch (error) {
+    console.error(`Error fetching ${url}:`, error);
+
+    // Record failure
+    await db.insert(sourceRunPages).values({
+      tenantId,
+      sourceRunId: runId,
+      url,
+      normalizedUrl: normalizeUrl(url),
+      title: null,
+      status: "failed",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+
+    // Check if this was the last page
+    await checkAndFinalize(runId, tenantId);
+  }
+}
+
+async function fetchWithHttp(
+  url: string
+): Promise<{ html: string; title: string | null }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SCRAPE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (compatible; KCB-Bot/1.0; +https://kcb.example.com/bot)",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const contentLength = response.headers.get("content-length");
+    if (contentLength && parseInt(contentLength) > MAX_PAGE_SIZE_BYTES) {
+      throw new Error("Page too large");
+    }
+
+    const html = await response.text();
+
+    // Extract title
+    const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].trim() : null;
+
+    return { html, title };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchWithPlaywright(
+  url: string,
+  browser: Browser
+): Promise<{ html: string; title: string | null }> {
+  const context = await browser.newContext({
+    userAgent:
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    viewport: { width: 1280, height: 720 },
+  });
+
+  const page = await context.newPage();
+
+  try {
+    await page.goto(url, {
+      waitUntil: "networkidle",
+      timeout: SCRAPE_TIMEOUT_MS,
+    });
+
+    // Wait for any dynamic content
+    await page.waitForTimeout(1000);
+
+    const html = await page.content();
+    const title = await page.title();
+
+    return { html, title: title || null };
+  } finally {
+    await page.close();
+    await context.close();
+  }
+}
+
+async function fetchWithFirecrawl(
+  url: string
+): Promise<{ html: string; title: string | null }> {
+  if (!FIRECRAWL_API_KEY) {
+    throw new Error("Firecrawl API key not configured");
+  }
+
+  const response = await fetch(`${FIRECRAWL_API_URL}/v1/scrape`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+    },
+    body: JSON.stringify({
+      url,
+      formats: ["html"],
+      waitFor: 2000,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Firecrawl error: ${error}`);
+  }
+
+  const result = await response.json();
+
+  return {
+    html: result.data?.html || "",
+    title: result.data?.metadata?.title || null,
+  };
+}
+
+function needsJsRendering(html: string): boolean {
+  // Heuristics to detect if page needs JS rendering
+  const bodyContent = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1] || "";
+  const textContent = bodyContent.replace(/<[^>]+>/g, "").trim();
+
+  // If body has very little text content, it might need JS
+  if (textContent.length < 500) {
+    return true;
+  }
+
+  // Check for common JS framework indicators
+  const jsFrameworkIndicators = [
+    "data-reactroot",
+    "ng-app",
+    "ng-controller",
+    "__NEXT_DATA__",
+    "__NUXT__",
+    "id=\"app\"",
+    "id=\"root\"",
+  ];
+
+  for (const indicator of jsFrameworkIndicators) {
+    if (html.includes(indicator)) {
+      // But only if there's not much visible content
+      if (textContent.length < 1000) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+async function checkAndFinalize(runId: string, tenantId: string): Promise<void> {
+  // Get the run to check how many pages were expected
+  const run = await db.query.sourceRuns.findFirst({
+    where: eq(sourceRuns.id, runId),
+  });
+
+  if (!run) {
+    console.error(`Run ${runId} not found during finalization check`);
+    return;
+  }
+
+  // If already finished, skip
+  if (run.finishedAt || run.status !== "running") {
+    return;
+  }
+
+  const expectedPages = run.stats?.pagesSeen || 0;
+  if (expectedPages === 0) {
+    // No pages to process, finalize anyway
+    await addSourceRunFinalizeJob({ tenantId, runId });
+    return;
+  }
+
+  // Count how many pages have been processed (any terminal status)
+  const processedCount = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(sourceRunPages)
+    .where(eq(sourceRunPages.sourceRunId, runId));
+
+  const processedPages = Number(processedCount[0]?.count || 0);
+
+  console.log(`Run ${runId}: ${processedPages}/${expectedPages} pages processed (from page-fetch)`);
+
+  // If all pages are processed, queue the finalize job
+  if (processedPages >= expectedPages) {
+    console.log(`All pages processed for run ${runId}, queueing finalize job`);
+    await addSourceRunFinalizeJob({ tenantId, runId });
+  }
+}

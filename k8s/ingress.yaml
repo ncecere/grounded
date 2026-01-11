@@ -1,0 +1,41 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kcb-ingress
+  namespace: kcb
+  annotations:
+    # Nginx ingress controller annotations
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # For streaming responses
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    # TLS (uncomment for production)
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  # TLS (uncomment for production)
+  # tls:
+  #   - hosts:
+  #       - kcb.example.com
+  #     secretName: kcb-tls
+  rules:
+    - host: kcb.example.com  # Change to your domain
+      http:
+        paths:
+          # API routes
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 3000
+          # Web frontend (catch-all)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80

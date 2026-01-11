@@ -1,0 +1,29 @@
+{
+  "name": "@kcb/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kcb/ai-providers": "workspace:*",
+    "@kcb/db": "workspace:*",
+    "@kcb/embeddings": "workspace:*",
+    "@kcb/llm": "workspace:*",
+    "@kcb/queue": "workspace:*",
+    "@kcb/shared": "workspace:*",
+    "@hono/zod-validator": "^0.4.2",
+    "drizzle-orm": "^0.38.3",
+    "hono": "^4.6.15",
+    "jose": "^5.9.6",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.14",
+    "typescript": "^5.7.2"
+  }
+}

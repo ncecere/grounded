@@ -1,0 +1,161 @@
+services:
+  # PostgreSQL with pgvector
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: kcb-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kcb}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kcb_password}
+      POSTGRES_DB: ${POSTGRES_DB:-kcb}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kcb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kcb-network
+
+  # Redis for queues and caching
+  redis:
+    image: redis:7-alpine
+    container_name: kcb-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kcb-network
+
+  # API service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: kcb-api
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:-kcb}:${POSTGRES_PASSWORD:-kcb_password}@postgres:5432/${POSTGRES_DB:-kcb}
+      REDIS_URL: redis://redis:6379
+      # OIDC Authentication (optional)
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-}
+      SESSION_SECRET: ${SESSION_SECRET:-change_me_in_production}
+      # Initial admin (optional - for first-time setup)
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # CORS - allow web frontend origin for local dev
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8088}
+    ports:
+      - "3001:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - kcb-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+
+  # Ingestion worker
+  ingestion-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.ingestion
+    container_name: kcb-ingestion
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-kcb}:${POSTGRES_PASSWORD:-kcb_password}@postgres:5432/${POSTGRES_DB:-kcb}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kcb-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+  # Scraper worker
+  scraper-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.scraper
+    container_name: kcb-scraper
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-kcb}:${POSTGRES_PASSWORD:-kcb_password}@postgres:5432/${POSTGRES_DB:-kcb}
+      REDIS_URL: redis://redis:6379
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kcb-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2G
+
+  # Web frontend (static files only - K8s Ingress handles routing in prod)
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: kcb-web
+    environment:
+      # Runtime config - injected at container startup
+      # For local dev: point to API on separate port
+      # For K8s: leave empty, Ingress handles /api routing
+      API_URL: ${API_URL:-http://localhost:3001}
+    ports:
+      - "8088:80"
+    depends_on:
+      - api
+    networks:
+      - kcb-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  kcb-network:
+    driver: bridge

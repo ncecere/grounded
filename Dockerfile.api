@@ -1,0 +1,19 @@
+FROM oven/bun:1
+WORKDIR /app
+
+# Copy everything at once for workspace resolution
+COPY package.json bun.lockb* ./
+COPY packages ./packages
+COPY apps/api ./apps/api
+COPY migrations ./migrations
+
+# Install dependencies after source is available
+RUN bun install || true
+
+# Copy entrypoint script
+COPY docker-entrypoint-api.sh /docker-entrypoint-api.sh
+RUN chmod +x /docker-entrypoint-api.sh
+
+ENV NODE_ENV=production
+EXPOSE 3000
+ENTRYPOINT ["/docker-entrypoint-api.sh"]

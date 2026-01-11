@@ -1,0 +1,13 @@
+FROM oven/bun:1
+WORKDIR /app
+
+# Copy everything at once for workspace resolution
+COPY package.json bun.lockb* ./
+COPY packages ./packages
+COPY apps/ingestion-worker ./apps/ingestion-worker
+
+# Install dependencies after source is available
+RUN bun install || true
+
+ENV NODE_ENV=production
+CMD ["bun", "run", "apps/ingestion-worker/src/index.ts"]

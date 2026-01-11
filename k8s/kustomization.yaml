@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kcb
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - postgres.yaml
+  - redis.yaml
+  - api.yaml
+  - web.yaml
+  - ingestion-worker.yaml
+  - scraper-worker.yaml
+  - ingress.yaml
+
+# Override images for your registry
+images:
+  - name: kcb-api
+    newName: your-registry.com/kcb-api
+    newTag: latest
+  - name: kcb-web
+    newName: your-registry.com/kcb-web
+    newTag: latest
+  - name: kcb-ingestion-worker
+    newName: your-registry.com/kcb-ingestion-worker
+    newTag: latest
+  - name: kcb-scraper-worker
+    newName: your-registry.com/kcb-scraper-worker
+    newTag: latest

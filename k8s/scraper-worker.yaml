@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scraper-worker
+  namespace: kcb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scraper-worker
+  template:
+    metadata:
+      labels:
+        app: scraper-worker
+    spec:
+      containers:
+        - name: scraper-worker
+          image: kcb-scraper-worker:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: kcb-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: kcb-secrets
+                  key: DATABASE_URL
+            - name: FIRECRAWL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kcb-secrets
+                  key: FIRECRAWL_API_KEY
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"

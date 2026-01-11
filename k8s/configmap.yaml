@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kcb-config
+  namespace: kcb
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+
+  # Database
+  POSTGRES_DB: "kcb"
+  POSTGRES_USER: "kcb"
+
+  # Redis
+  REDIS_URL: "redis://redis:6379"
+
+  # Note: LLM and Embedding models are configured via Admin UI (Settings > AI Models)

@@ -1,0 +1,40 @@
+# Development compose file - only runs infrastructure services
+# Application services run locally for hot reloading
+
+services:
+  # PostgreSQL with pgvector
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: kcb-postgres-dev
+    environment:
+      POSTGRES_USER: kcb
+      POSTGRES_PASSWORD: kcb_dev_password
+      POSTGRES_DB: kcb
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kcb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for queues and caching
+  redis:
+    image: redis:7-alpine
+    container_name: kcb-redis-dev
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data_dev:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data_dev:
+  redis_data_dev:

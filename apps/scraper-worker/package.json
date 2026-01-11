@@ -1,0 +1,23 @@
+{
+  "name": "@kcb/scraper-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kcb/db": "workspace:*",
+    "@kcb/queue": "workspace:*",
+    "@kcb/shared": "workspace:*",
+    "drizzle-orm": "^0.38.3",
+    "playwright": "^1.49.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.14",
+    "typescript": "^5.7.2"
+  }
+}

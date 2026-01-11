@@ -1,0 +1,738 @@
+// Runtime config injected via config.js at container startup
+// In K8s, set API_URL="" so Ingress handles /api routing
+// In local dev, set API_URL="http://localhost:3001"
+declare global {
+  interface Window {
+    __KCB_CONFIG__?: { API_URL?: string };
+  }
+}
+const API_BASE = (window.__KCB_CONFIG__?.API_URL || "") + "/api/v1";
+
+// Token storage
+const TOKEN_KEY = "kcb_auth_token";
+const TENANT_KEY = "kcb_current_tenant";
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+export function getCurrentTenantId(): string | null {
+  return localStorage.getItem(TENANT_KEY);
+}
+
+export function setCurrentTenantId(tenantId: string): void {
+  localStorage.setItem(TENANT_KEY, tenantId);
+}
+
+export function clearCurrentTenantId(): void {
+  localStorage.removeItem(TENANT_KEY);
+}
+
+async function request<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const token = getToken();
+  const tenantId = getCurrentTenantId();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  if (tenantId) {
+    headers["X-Tenant-ID"] = tenantId;
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: "Request failed" }));
+    if (response.status === 401) {
+      clearToken();
+    }
+    throw new Error(error.message || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string | null;
+  avatarUrl: string | null;
+  tenantId: string;
+  role: string;
+  isSystemAdmin: boolean;
+}
+
+export interface SystemSetting {
+  key: string;
+  value: string | number | boolean;
+  category: string;
+  isSecret: boolean;
+  description: string;
+  isConfigured: boolean;
+  updatedAt: string | null;
+}
+
+export interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+  memberCount?: number;
+}
+
+export interface UserTenant {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+}
+
+export interface TenantMember {
+  userId: string;
+  email: string;
+  role: string;
+  createdAt: string;
+}
+
+export interface KnowledgeBase {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string | null;
+  sourceCount?: number;
+  chunkCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Source {
+  id: string;
+  kbId: string;
+  name: string;
+  type: "web" | "upload" | "api";
+  config: Record<string, unknown>;
+  status: "active" | "paused" | "error";
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SourceRunStats {
+  pagesSeen: number;
+  pagesIndexed: number;
+  pagesFailed: number;
+  tokensEstimated: number;
+}
+
+export interface SourceRun {
+  id: string;
+  sourceId: string;
+  tenantId: string;
+  status: "pending" | "running" | "partial" | "succeeded" | "failed" | "canceled";
+  trigger: "manual" | "scheduled";
+  startedAt: string | null;
+  finishedAt: string | null;
+  stats: SourceRunStats;
+  error: string | null;
+  createdAt: string;
+}
+
+export interface Agent {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string | null;
+  systemPrompt: string;
+  welcomeMessage: string | null;
+  logoUrl: string | null;
+  isEnabled: boolean;
+  suggestedQuestions: string[];
+  kbIds: string[];
+  llmModelConfigId: string | null;
+  widgetConfig: {
+    primaryColor: string;
+    position: "bottom-right" | "bottom-left";
+    headerTitle: string;
+  } | null;
+  retrievalConfig: {
+    topK: number;
+    candidateK: number;
+    maxCitations: number;
+    rerankerEnabled: boolean;
+    rerankerType: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LLMModel {
+  id: string;
+  modelId: string;
+  displayName: string;
+  providerName: string;
+  isDefault: boolean;
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  citations?: Array<{
+    title: string;
+    url: string;
+    snippet: string;
+  }>;
+}
+
+export interface AnalyticsData {
+  totalQueries: number;
+  totalConversations: number;
+  avgResponseTime: number;
+  topQueries: Array<{ query: string; count: number }>;
+  queriesByDay: Array<{ date: string; count: number }>;
+}
+
+export interface AuthResponse {
+  user: { id: string; email: string };
+  token: string;
+  token_type: string;
+}
+
+// AI Provider Types
+export type ProviderType = "openai" | "anthropic" | "google" | "openai-compatible";
+export type ModelType = "chat" | "embedding";
+
+export interface ModelProvider {
+  id: string;
+  name: string;
+  displayName: string;
+  type: ProviderType;
+  baseUrl: string | null;
+  apiKey: string; // Will be "***REDACTED***" from API
+  isEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ModelConfiguration {
+  id: string;
+  providerId: string;
+  modelId: string;
+  displayName: string;
+  modelType: ModelType;
+  maxTokens: number | null;
+  temperature: string | null;
+  supportsStreaming: boolean;
+  supportsTools: boolean;
+  dimensions: number | null;
+  isEnabled: boolean;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+  provider?: ModelProvider;
+}
+
+export interface RegistryStatus {
+  initialized: boolean;
+  providerCount: number;
+  chatModelCount: number;
+  embeddingModelCount: number;
+  defaultChatModel: string | null;
+  defaultEmbeddingModel: string | null;
+  error?: string;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string | null;
+  createdAt: string;
+  isSystemAdmin: boolean;
+  isDisabled: boolean;
+  tenantCount: number;
+}
+
+export interface AdminUserDetail extends Omit<AdminUser, "tenantCount"> {
+  tenants: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    role: string;
+  }>;
+}
+
+export const api = {
+  // Auth
+  getMe: () => request<User>("/auth/me"),
+  logout: () => {
+    clearToken();
+    return Promise.resolve();
+  },
+  login: async (email: string, password: string): Promise<AuthResponse> => {
+    const response = await request<AuthResponse>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    setToken(response.token);
+    return response;
+  },
+  register: async (email: string, password: string): Promise<AuthResponse> => {
+    const response = await request<AuthResponse>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    setToken(response.token);
+    return response;
+  },
+
+  // User's tenants (the tenants a user belongs to)
+  getMyTenants: () => request<{ tenants: UserTenant[] }>("/auth/tenants"),
+
+  // Admin Tenant Management (System Admin only)
+  listAllTenants: () => request<{ tenants: Tenant[] }>("/tenants"),
+  createTenant: (data: { name: string; slug: string; ownerEmail?: string }) =>
+    request<{ tenant: Tenant }>("/tenants", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  getTenant: (id: string) => request<{ tenant: Tenant }>(`/tenants/${id}`),
+  updateTenant: (id: string, data: { name?: string }) =>
+    request<{ tenant: Tenant }>(`/tenants/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteTenant: (id: string) =>
+    request<{ message: string }>(`/tenants/${id}`, { method: "DELETE" }),
+
+  // Tenant Members
+  listTenantMembers: (tenantId: string) =>
+    request<{ members: TenantMember[] }>(`/tenants/${tenantId}/members`),
+  addTenantMember: (tenantId: string, data: { email: string; role: string }) =>
+    request<{ message: string; userId: string }>(`/tenants/${tenantId}/members`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateTenantMember: (tenantId: string, userId: string, data: { role: string }) =>
+    request<{ message: string }>(`/tenants/${tenantId}/members/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  removeTenantMember: (tenantId: string, userId: string) =>
+    request<{ message: string }>(`/tenants/${tenantId}/members/${userId}`, {
+      method: "DELETE",
+    }),
+
+  // Knowledge Bases
+  listKnowledgeBases: async () => {
+    const res = await request<{ knowledgeBases: KnowledgeBase[] }>("/knowledge-bases");
+    return res.knowledgeBases;
+  },
+  getKnowledgeBase: async (id: string) => {
+    const res = await request<{ knowledgeBase: KnowledgeBase }>(`/knowledge-bases/${id}`);
+    return res.knowledgeBase;
+  },
+  createKnowledgeBase: async (data: { name: string; description?: string; embeddingModelId?: string }) => {
+    const res = await request<{ knowledgeBase: KnowledgeBase }>("/knowledge-bases", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return res.knowledgeBase;
+  },
+  updateKnowledgeBase: async (id: string, data: { name?: string; description?: string }) => {
+    const res = await request<{ knowledgeBase: KnowledgeBase }>(`/knowledge-bases/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+    return res.knowledgeBase;
+  },
+  deleteKnowledgeBase: (id: string) =>
+    request<void>(`/knowledge-bases/${id}`, { method: "DELETE" }),
+
+  // Sources
+  listSources: async (kbId: string) => {
+    const res = await request<{ sources: Source[] }>(`/sources/kb/${kbId}`);
+    return res.sources;
+  },
+  getSource: async (_kbId: string, id: string) => {
+    const res = await request<{ source: Source }>(`/sources/${id}`);
+    return res.source;
+  },
+  createSource: async (
+    kbId: string,
+    data: { name: string; type: string; config: Record<string, unknown> }
+  ) => {
+    const res = await request<{ source: Source }>(`/sources`, {
+      method: "POST",
+      body: JSON.stringify({ ...data, kbId }),
+    });
+    return res.source;
+  },
+  updateSource: async (
+    _kbId: string,
+    id: string,
+    data: { name?: string; config?: Record<string, unknown>; status?: string }
+  ) => {
+    const res = await request<{ source: Source }>(`/sources/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+    return res.source;
+  },
+  deleteSource: (_kbId: string, id: string) =>
+    request<void>(`/sources/${id}`, { method: "DELETE" }),
+  triggerSourceRun: async (_kbId: string, id: string, options?: { forceReindex?: boolean }) => {
+    const res = await request<{ run: SourceRun }>(`/sources/${id}/runs`, {
+      method: "POST",
+      body: JSON.stringify({ forceReindex: options?.forceReindex ?? false }),
+    });
+    return res.run;
+  },
+  listSourceRuns: async (_kbId: string, id: string) => {
+    const res = await request<{ runs: SourceRun[] }>(`/sources/${id}/runs`);
+    return res.runs;
+  },
+  getSourceStats: async (_kbId: string, id: string) => {
+    const res = await request<{ stats: { pageCount: number; chunkCount: number } }>(`/sources/${id}/stats`);
+    return res.stats;
+  },
+
+  // Agents
+  listAgents: async () => {
+    const res = await request<{ agents: Agent[] }>("/agents");
+    return res.agents;
+  },
+  listLLMModels: async () => {
+    const res = await request<{ models: LLMModel[] }>("/agents/models");
+    return res.models;
+  },
+  getAgent: async (id: string) => {
+    const res = await request<{ agent: Agent }>(`/agents/${id}`);
+    return res.agent;
+  },
+  createAgent: async (data: {
+    name: string;
+    description?: string;
+    systemPrompt: string;
+    welcomeMessage?: string;
+    suggestedQuestions?: string[];
+    kbIds: string[];
+    llmModelConfigId?: string;
+  }) => {
+    const res = await request<{ agent: Agent }>("/agents", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return res.agent;
+  },
+  updateAgent: async (
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      systemPrompt?: string;
+      welcomeMessage?: string;
+      logoUrl?: string | null;
+      isEnabled?: boolean;
+      suggestedQuestions?: string[];
+      kbIds?: string[];
+      llmModelConfigId?: string | null;
+      widgetConfig?: Record<string, unknown>;
+      retrievalConfig?: Record<string, unknown>;
+    }
+  ) => {
+    const res = await request<{ agent: Agent }>(`/agents/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+    return res.agent;
+  },
+  deleteAgent: (id: string) => request<void>(`/agents/${id}`, { method: "DELETE" }),
+  getWidgetToken: (id: string) => request<{ token: string }>(`/agents/${id}/widget-token`),
+  getRetrievalConfig: async (agentId: string) => {
+    const res = await request<{ retrievalConfig: Agent["retrievalConfig"] }>(`/agents/${agentId}/retrieval-config`);
+    return res.retrievalConfig;
+  },
+  updateRetrievalConfig: async (
+    agentId: string,
+    data: {
+      topK?: number;
+      candidateK?: number;
+      maxCitations?: number;
+      rerankerEnabled?: boolean;
+    }
+  ) => {
+    const res = await request<{ retrievalConfig: Agent["retrievalConfig"] }>(`/agents/${agentId}/retrieval-config`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+    return res.retrievalConfig;
+  },
+
+  // Chat
+  chat: async (
+    agentId: string,
+    message: string,
+    conversationId?: string
+  ): Promise<{ response: string; conversationId: string; citations: ChatMessage["citations"] }> => {
+    return request(`/chat/${agentId}`, {
+      method: "POST",
+      body: JSON.stringify({ message, conversationId }),
+    });
+  },
+
+  // Streaming Chat
+  chatStream: async (
+    agentId: string,
+    message: string,
+    conversationId: string | undefined,
+    onChunk: (text: string) => void,
+    onDone: (data: { conversationId: string; citations: ChatMessage["citations"] }) => void,
+    onError: (error: string) => void
+  ): Promise<void> => {
+    const token = getToken();
+    const tenantId = getCurrentTenantId();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    if (tenantId) {
+      headers["X-Tenant-ID"] = tenantId;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/chat/stream/${agentId}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ message, conversationId }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: "Request failed" }));
+        throw new Error(error.message || `HTTP ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data) {
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.type === "text") {
+                  onChunk(parsed.content);
+                } else if (parsed.type === "done") {
+                  onDone({
+                    conversationId: parsed.conversationId,
+                    citations: parsed.citations,
+                  });
+                } else if (parsed.type === "error") {
+                  onError(parsed.message);
+                }
+              } catch (e) {
+                // Ignore parse errors for incomplete chunks
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "Stream failed");
+    }
+  },
+
+  // Analytics
+  getAnalytics: (params?: { startDate?: string; endDate?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.set("startDate", params.startDate);
+    if (params?.endDate) searchParams.set("endDate", params.endDate);
+    const query = searchParams.toString();
+    return request<AnalyticsData>(`/analytics${query ? `?${query}` : ""}`);
+  },
+
+  // Uploads
+  uploadFile: async (kbId: string, _sourceId: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch(
+      `${API_BASE}/uploads/kb/${kbId}`,
+      {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      }
+    );
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: "Upload failed" }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+    return response.json();
+  },
+
+  // Admin Settings
+  getAdminSettings: (category?: string) =>
+    request<{ settings: SystemSetting[] }>(
+      `/admin/settings${category ? `?category=${category}` : ""}`
+    ),
+  getAdminSetting: (key: string) =>
+    request<SystemSetting & { exists: boolean }>(`/admin/settings/${key}`),
+  updateAdminSetting: (key: string, value: string | number | boolean) =>
+    request<{ message: string; key: string }>(`/admin/settings/${key}`, {
+      method: "PUT",
+      body: JSON.stringify({ value }),
+    }),
+  bulkUpdateAdminSettings: (settings: Array<{ key: string; value: string | number | boolean }>) =>
+    request<{ message: string; count: number }>("/admin/settings", {
+      method: "PUT",
+      body: JSON.stringify({ settings }),
+    }),
+
+  // Admin Model Providers
+  listProviders: () =>
+    request<{ providers: ModelProvider[] }>("/admin/models/providers"),
+  getProvider: (id: string) =>
+    request<{ provider: ModelProvider & { models: ModelConfiguration[] } }>(`/admin/models/providers/${id}`),
+  createProvider: (data: {
+    name: string;
+    displayName: string;
+    type: ProviderType;
+    baseUrl?: string | null;
+    apiKey: string;
+    isEnabled?: boolean;
+  }) =>
+    request<{ message: string; provider: ModelProvider }>("/admin/models/providers", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateProvider: (id: string, data: {
+    displayName?: string;
+    type?: ProviderType;
+    baseUrl?: string | null;
+    apiKey?: string;
+    isEnabled?: boolean;
+  }) =>
+    request<{ message: string; provider: ModelProvider }>(`/admin/models/providers/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteProvider: (id: string) =>
+    request<{ message: string }>(`/admin/models/providers/${id}`, { method: "DELETE" }),
+  testProvider: (id: string) =>
+    request<{ success: boolean; message: string; modelsFound?: number }>(`/admin/models/providers/${id}/test`, {
+      method: "POST",
+    }),
+
+  // Admin Model Configurations
+  listModels: (params?: { type?: ModelType; providerId?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.set("type", params.type);
+    if (params?.providerId) searchParams.set("providerId", params.providerId);
+    const query = searchParams.toString();
+    return request<{ models: ModelConfiguration[] }>(`/admin/models/models${query ? `?${query}` : ""}`);
+  },
+  getModel: (id: string) =>
+    request<{ model: ModelConfiguration }>(`/admin/models/models/${id}`),
+  createModel: (data: {
+    providerId: string;
+    modelId: string;
+    displayName: string;
+    modelType: ModelType;
+    maxTokens?: number;
+    temperature?: number;
+    supportsStreaming?: boolean;
+    supportsTools?: boolean;
+    dimensions?: number | null;
+    isEnabled?: boolean;
+    isDefault?: boolean;
+  }) =>
+    request<{ message: string; model: ModelConfiguration }>("/admin/models/models", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateModel: (id: string, data: {
+    displayName?: string;
+    maxTokens?: number;
+    temperature?: number;
+    supportsStreaming?: boolean;
+    supportsTools?: boolean;
+    dimensions?: number | null;
+    isEnabled?: boolean;
+    isDefault?: boolean;
+  }) =>
+    request<{ message: string; model: ModelConfiguration }>(`/admin/models/models/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteModel: (id: string) =>
+    request<{ message: string }>(`/admin/models/models/${id}`, { method: "DELETE" }),
+  setDefaultModel: (id: string) =>
+    request<{ message: string; modelType: ModelType }>(`/admin/models/models/${id}/set-default`, {
+      method: "POST",
+    }),
+
+  // Registry Status
+  getRegistryStatus: () =>
+    request<RegistryStatus>("/admin/models/status"),
+  refreshRegistry: () =>
+    request<{ message: string }>("/admin/models/refresh", { method: "POST" }),
+
+  // Admin Users
+  listUsers: () =>
+    request<{ users: AdminUser[] }>("/admin/users"),
+  getUser: (id: string) =>
+    request<AdminUserDetail>(`/admin/users/${id}`),
+  createUser: (data: { email: string; password?: string; isSystemAdmin?: boolean }) =>
+    request<{ id: string; email: string; isSystemAdmin: boolean }>("/admin/users", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateUser: (id: string, data: { isSystemAdmin?: boolean; disabled?: boolean }) =>
+    request<{ message: string }>(`/admin/users/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteUser: (id: string) =>
+    request<{ message: string }>(`/admin/users/${id}`, { method: "DELETE" }),
+  resetUserPassword: (id: string, newPassword: string) =>
+    request<{ message: string }>(`/admin/users/${id}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify({ newPassword }),
+    }),
+};
