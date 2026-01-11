@@ -9,6 +9,7 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { tenants, users } from "./tenants";
 import { modelConfigurations } from "./ai-models";
 import type { SourceConfig, SourceRunStats } from "@kcb/shared";
@@ -57,7 +58,7 @@ export const tenantKbSubscriptions = pgTable(
   (table) => [
     uniqueIndex("tenant_kb_subscriptions_unique")
       .on(table.tenantId, table.kbId)
-      .where("deleted_at IS NULL"),
+      .where(sql`deleted_at IS NULL`),
     index("tenant_kb_subscriptions_kb_id_idx").on(table.kbId),
   ]
 );

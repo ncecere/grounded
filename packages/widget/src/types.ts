@@ -1,9 +1,27 @@
+export type ButtonStyle = 'circle' | 'pill' | 'square';
+export type ButtonSize = 'small' | 'medium' | 'large';
+export type ButtonIcon = 'chat' | 'help' | 'question' | 'message';
+
+export interface WidgetTheme {
+  primaryColor?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  buttonPosition?: 'bottom-right' | 'bottom-left';
+  borderRadius?: number;
+  buttonStyle?: ButtonStyle;
+  buttonSize?: ButtonSize;
+  buttonText?: string;
+  buttonIcon?: ButtonIcon;
+  buttonColor?: string;
+  customIconUrl?: string | null;
+}
+
 export interface WidgetConfig {
   agentName: string;
   description?: string;
   welcomeMessage?: string;
   logoUrl?: string | null;
-  theme?: Record<string, unknown>;
+  theme?: WidgetTheme;
   isPublic: boolean;
 }
 

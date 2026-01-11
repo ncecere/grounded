@@ -2,12 +2,18 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { db } from "@kcb/db";
-import { uploads, sources, knowledgeBases, tenantQuotas, tenantUsage } from "@kcb/db/schema";
+import { uploads, sources, knowledgeBases, tenantQuotas, tenantUsage, sourceRuns } from "@kcb/db/schema";
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { addPageProcessJob } from "@kcb/queue";
 import { generateId } from "@kcb/shared";
 import { auth, requireRole, requireTenant } from "../middleware/auth";
 import { NotFoundError, QuotaExceededError, BadRequestError } from "../middleware/error-handler";
+
+// Document parsing libraries
+import pdf from "pdf-parse";
+import mammoth from "mammoth";
+import * as XLSX from "xlsx";
+import { parse as csvParse } from "csv-parse/sync";
 
 export const uploadRoutes = new Hono();
 
@@ -16,11 +22,46 @@ export const uploadRoutes = new Hono();
 // ============================================================================
 
 const SUPPORTED_MIME_TYPES: Record<string, string> = {
+  // Documents
   "application/pdf": "pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/msword": "doc",
+
+  // Spreadsheets
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/vnd.ms-excel": "xls",
+  "text/csv": "csv",
+
+  // Presentations
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+  "application/vnd.ms-powerpoint": "ppt",
+
+  // Text formats
   "text/plain": "txt",
   "text/markdown": "md",
   "text/html": "html",
+  "application/json": "json",
+  "application/xml": "xml",
+  "text/xml": "xml",
+};
+
+// File extension to MIME type mapping (for fallback detection)
+const EXTENSION_TO_MIME: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".doc": "application/msword",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".xls": "application/vnd.ms-excel",
+  ".csv": "text/csv",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".txt": "text/plain",
+  ".md": "text/markdown",
+  ".markdown": "text/markdown",
+  ".html": "text/html",
+  ".htm": "text/html",
+  ".json": "application/json",
+  ".xml": "application/xml",
 };
 
 // ============================================================================
@@ -107,30 +148,56 @@ uploadRoutes.post("/kb/:kbId", auth(), requireTenant(), requireRole("owner", "ad
     throw new BadRequestError("No file uploaded");
   }
 
-  const mimeType = file.type;
+  // Determine MIME type - use file type or fallback to extension
+  let mimeType = file.type;
   if (!SUPPORTED_MIME_TYPES[mimeType]) {
+    // Try to detect by extension
+    const ext = "." + file.name.split(".").pop()?.toLowerCase();
+    if (ext && EXTENSION_TO_MIME[ext]) {
+      mimeType = EXTENSION_TO_MIME[ext];
+    }
+  }
+
+  if (!SUPPORTED_MIME_TYPES[mimeType]) {
+    const supportedExtensions = Object.keys(EXTENSION_TO_MIME).join(", ");
     throw new BadRequestError(
-      `Unsupported file type: ${mimeType}. Supported: ${Object.keys(SUPPORTED_MIME_TYPES).join(", ")}`
+      `Unsupported file type. Supported formats: ${supportedExtensions}`
     );
   }
 
-  // Get or create upload source for this KB
-  let uploadSource = await db.query.sources.findFirst({
-    where: and(
-      eq(sources.kbId, kbId),
-      eq(sources.type, "upload"),
-      isNull(sources.deletedAt)
-    ),
-  });
+  // Get source name from form data, or use filename
+  const sourceName = formData["sourceName"];
+  const sourceNameStr = typeof sourceName === "string" && sourceName.trim()
+    ? sourceName.trim()
+    : file.name;
 
-  if (!uploadSource) {
+  // Check if sourceId was provided (to add to existing source)
+  const existingSourceId = formData["sourceId"];
+  let uploadSource;
+
+  if (typeof existingSourceId === "string" && existingSourceId.trim()) {
+    // Use existing source
+    uploadSource = await db.query.sources.findFirst({
+      where: and(
+        eq(sources.id, existingSourceId),
+        eq(sources.kbId, kbId),
+        eq(sources.type, "upload"),
+        isNull(sources.deletedAt)
+      ),
+    });
+
+    if (!uploadSource) {
+      throw new BadRequestError("Source not found");
+    }
+  } else {
+    // Create a new source for this upload
     [uploadSource] = await db
       .insert(sources)
       .values({
         tenantId: authContext.tenantId!,
         kbId,
         type: "upload",
-        name: "Document Uploads",
+        name: sourceNameStr,
         config: {
           mode: "single",
           depth: 1,
@@ -201,10 +268,35 @@ uploadRoutes.post("/kb/:kbId", auth(), requireTenant(), requireRole("owner", "ad
     })
     .where(eq(uploads.id, upload.id));
 
+  // Create a source run for this upload
+  const [sourceRun] = await db
+    .insert(sourceRuns)
+    .values({
+      tenantId: authContext.tenantId!,
+      sourceId: uploadSource.id,
+      status: "running",
+      trigger: "manual",
+      forceReindex: false,
+      startedAt: new Date(),
+      stats: {
+        pagesSeen: 1,
+        pagesIndexed: 0,
+        pagesFailed: 0,
+        tokensEstimated: 0,
+      },
+    })
+    .returning();
+
+  // Update upload with source run reference
+  await db
+    .update(uploads)
+    .set({ sourceRunId: sourceRun.id })
+    .where(eq(uploads.id, upload.id));
+
   // Queue for chunking and embedding
   await addPageProcessJob({
     tenantId: authContext.tenantId!,
-    runId: upload.id, // Use upload ID as run ID
+    runId: sourceRun.id,
     url: `upload://${upload.id}/${file.name}`,
     html: extractedText,
     title: file.name,
@@ -214,6 +306,7 @@ uploadRoutes.post("/kb/:kbId", auth(), requireTenant(), requireRole("owner", "ad
     {
       upload: {
         id: upload.id,
+        sourceId: uploadSource.id,
         filename: upload.filename,
         mimeType: upload.mimeType,
         sizeBytes: upload.sizeBytes,
@@ -290,37 +383,196 @@ async function extractText(
   filename: string
 ): Promise<string> {
   const decoder = new TextDecoder("utf-8");
+  const buffer = Buffer.from(content);
 
   switch (mimeType) {
+    // Plain text formats
     case "text/plain":
     case "text/markdown":
       return decoder.decode(content);
 
+    // HTML
     case "text/html":
-      // Simple HTML to text - in production use a proper library
-      const html = decoder.decode(content);
-      return htmlToText(html);
+      return htmlToText(decoder.decode(content));
 
+    // JSON - pretty print for readability
+    case "application/json":
+      try {
+        const json = JSON.parse(decoder.decode(content));
+        return JSON.stringify(json, null, 2);
+      } catch {
+        return decoder.decode(content);
+      }
+
+    // XML
+    case "application/xml":
+    case "text/xml":
+      return xmlToText(decoder.decode(content));
+
+    // PDF
     case "application/pdf":
-      // PDF extraction requires pdf-parse library
-      // For now, return a placeholder - implement with actual library
-      throw new Error("PDF extraction not yet implemented - install pdf-parse");
+      return await extractPdfText(buffer);
 
+    // Word documents
     case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-      // DOCX extraction requires mammoth library
-      throw new Error("DOCX extraction not yet implemented - install mammoth");
+      return await extractDocxText(buffer);
+
+    case "application/msword":
+      // .doc files are harder to parse - try as binary text or throw helpful error
+      throw new Error("Legacy .doc format not fully supported. Please convert to .docx format.");
+
+    // Excel spreadsheets
+    case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+    case "application/vnd.ms-excel":
+      return extractExcelText(buffer);
+
+    // CSV
+    case "text/csv":
+      return extractCsvText(decoder.decode(content));
+
+    // PowerPoint
+    case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+      return extractPptxText(buffer);
+
+    case "application/vnd.ms-powerpoint":
+      throw new Error("Legacy .ppt format not fully supported. Please convert to .pptx format.");
 
     default:
       throw new Error(`Unsupported file type: ${mimeType}`);
   }
 }
 
+// ============================================================================
+// Format-Specific Extractors
+// ============================================================================
+
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  try {
+    const data = await pdf(buffer);
+    return data.text || "";
+  } catch (err) {
+    throw new Error(`Failed to extract PDF text: ${err instanceof Error ? err.message : "Unknown error"}`);
+  }
+}
+
+async function extractDocxText(buffer: Buffer): Promise<string> {
+  try {
+    const result = await mammoth.extractRawText({ buffer });
+    return result.value || "";
+  } catch (err) {
+    throw new Error(`Failed to extract DOCX text: ${err instanceof Error ? err.message : "Unknown error"}`);
+  }
+}
+
+function extractExcelText(buffer: Buffer): string {
+  try {
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const textParts: string[] = [];
+
+    for (const sheetName of workbook.SheetNames) {
+      const sheet = workbook.Sheets[sheetName];
+      textParts.push(`## Sheet: ${sheetName}\n`);
+
+      // Convert to CSV for text representation
+      const csv = XLSX.utils.sheet_to_csv(sheet);
+      textParts.push(csv);
+      textParts.push("\n");
+    }
+
+    return textParts.join("\n");
+  } catch (err) {
+    throw new Error(`Failed to extract Excel text: ${err instanceof Error ? err.message : "Unknown error"}`);
+  }
+}
+
+function extractCsvText(content: string): string {
+  try {
+    // Parse CSV to get structured data
+    const records = csvParse(content, {
+      skip_empty_lines: true,
+      relax_column_count: true,
+    });
+
+    // Convert back to formatted text
+    if (records.length === 0) return content;
+
+    // Assume first row is headers
+    const headers = records[0] as string[];
+    const rows = records.slice(1) as string[][];
+
+    const textParts: string[] = [];
+    textParts.push(`Columns: ${headers.join(", ")}\n`);
+    textParts.push(`Total rows: ${rows.length}\n\n`);
+
+    // Format each row as key-value pairs for better context
+    for (let i = 0; i < Math.min(rows.length, 1000); i++) {
+      const row = rows[i];
+      const rowText = headers
+        .map((h, j) => `${h}: ${row[j] || ""}`)
+        .join(" | ");
+      textParts.push(`Row ${i + 1}: ${rowText}`);
+    }
+
+    if (rows.length > 1000) {
+      textParts.push(`\n... and ${rows.length - 1000} more rows`);
+    }
+
+    return textParts.join("\n");
+  } catch {
+    // If parsing fails, return raw content
+    return content;
+  }
+}
+
+function extractPptxText(buffer: Buffer): string {
+  try {
+    // XLSX can also read PPTX files to extract text content
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const textParts: string[] = [];
+
+    for (const sheetName of workbook.SheetNames) {
+      const sheet = workbook.Sheets[sheetName];
+      textParts.push(`## Slide: ${sheetName}\n`);
+
+      // Extract text from cells
+      const text = XLSX.utils.sheet_to_txt(sheet);
+      if (text.trim()) {
+        textParts.push(text);
+      }
+      textParts.push("\n");
+    }
+
+    return textParts.join("\n") || "No text content found in presentation.";
+  } catch (err) {
+    throw new Error(`Failed to extract PowerPoint text: ${err instanceof Error ? err.message : "Unknown error"}`);
+  }
+}
+
 function htmlToText(html: string): string {
-  // Simple HTML to text conversion
   return html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<\/h[1-6]>/gi, "\n\n")
+    .replace(/<li>/gi, "• ")
+    .replace(/<\/li>/gi, "\n")
     .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
     .replace(/\s+/g, " ")
+    .trim();
+}
+
+function xmlToText(xml: string): string {
+  // Extract text content from XML, preserving structure somewhat
+  return xml
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/<[^>]+>/g, "\n")
+    .replace(/\n+/g, "\n")
     .trim();
 }

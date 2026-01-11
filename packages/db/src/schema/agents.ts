@@ -9,6 +9,7 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { tenants, users } from "./tenants";
 import { knowledgeBases } from "./knowledge";
 import { modelConfigurations } from "./ai-models";
@@ -64,7 +65,7 @@ export const agentKbs = pgTable(
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => [
-    uniqueIndex("agent_kbs_unique").on(table.agentId, table.kbId).where("deleted_at IS NULL"),
+    uniqueIndex("agent_kbs_unique").on(table.agentId, table.kbId).where(sql`deleted_at IS NULL`),
     index("agent_kbs_kb_idx").on(table.kbId),
   ]
 );
@@ -85,6 +86,12 @@ export const agentWidgetConfigs = pgTable(
       textColor: "#1a1a1a",
       buttonPosition: "bottom-right",
       borderRadius: 12,
+      buttonStyle: "circle",
+      buttonSize: "medium",
+      buttonText: "Chat with us",
+      buttonIcon: "chat",
+      buttonColor: "#2563eb",
+      customIconUrl: null,
     }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

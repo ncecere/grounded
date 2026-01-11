@@ -123,53 +123,74 @@ export function Analytics() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Queries Over Time */}
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Queries Over Time</h3>
-          {analytics?.queriesByDay && analytics.queriesByDay.length > 0 ? (
-            <div className="h-64 flex items-end gap-1">
-              {analytics.queriesByDay.map((day, i) => {
-                const maxCount = Math.max(...analytics.queriesByDay.map((d) => d.count));
-                const height = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
-                return (
-                  <div
-                    key={i}
-                    className="flex-1 bg-blue-500 rounded-t hover:bg-blue-600 transition-colors relative group"
-                    style={{ height: `${Math.max(height, 2)}%` }}
-                  >
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      {day.date}: {day.count}
+      {/* Queries Over Time */}
+      <div className="bg-white rounded-lg border border-gray-200 p-5">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Queries Over Time</h3>
+        {analytics?.queriesByDay && analytics.queriesByDay.length > 0 ? (
+          (() => {
+            const maxCount = Math.max(...analytics.queriesByDay.map((d) => d.count));
+            const yMax = Math.max(maxCount, 1);
+            const yLabels = [yMax, Math.round(yMax * 0.75), Math.round(yMax * 0.5), Math.round(yMax * 0.25), 0];
+
+            return (
+              <div className="h-72">
+                {/* Y-axis labels and chart area */}
+                <div className="flex h-56">
+                  {/* Y-axis */}
+                  <div className="flex flex-col justify-between text-xs text-gray-500 pr-2 py-1 w-8">
+                    {yLabels.map((val, i) => (
+                      <span key={i} className="text-right">{val}</span>
+                    ))}
+                  </div>
+                  {/* Chart area with bars */}
+                  <div className="flex-1 border-l border-b border-gray-200 relative">
+                    {/* Grid lines */}
+                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                      {yLabels.map((_, i) => (
+                        <div key={i} className="border-t border-gray-100 w-full" />
+                      ))}
+                    </div>
+                    {/* Bars container */}
+                    <div className="absolute inset-0 flex items-end justify-around px-2 pb-1">
+                      {analytics.queriesByDay.map((day, i) => {
+                        const heightPercent = yMax > 0 ? (day.count / yMax) * 100 : 0;
+                        return (
+                          <div
+                            key={i}
+                            className="flex-1 flex justify-center max-w-[60px] h-full items-end"
+                          >
+                            <div
+                              className="w-8 bg-blue-500 rounded-t hover:bg-blue-600 transition-colors relative group cursor-pointer"
+                              style={{ height: `${Math.max(heightPercent, 2)}%` }}
+                            >
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                {day.count} queries
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="h-64 flex items-center justify-center text-gray-500">
-              No data available for this period
-            </div>
-          )}
-        </div>
-
-        {/* Top Queries */}
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Queries</h3>
-          {analytics?.topQueries && analytics.topQueries.length > 0 ? (
-            <div className="space-y-3">
-              {analytics.topQueries.slice(0, 10).map((query, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700 truncate flex-1 mr-4">{query.query}</span>
-                  <span className="text-sm font-medium text-gray-500">{query.count}</span>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="h-64 flex items-center justify-center text-gray-500">
-              No queries recorded yet
-            </div>
-          )}
-        </div>
+                {/* X-axis labels */}
+                <div className="flex ml-8 mt-2 justify-around px-2">
+                  {analytics.queriesByDay.map((day, i) => (
+                    <div key={i} className="flex-1 max-w-[60px] text-center">
+                      <span className="text-xs text-gray-500">
+                        {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()
+        ) : (
+          <div className="h-64 flex items-center justify-center text-gray-500">
+            No data available for this period
+          </div>
+        )}
       </div>
     </div>
   );

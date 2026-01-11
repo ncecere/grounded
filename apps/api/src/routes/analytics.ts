@@ -8,6 +8,61 @@ import { NotFoundError } from "../middleware/error-handler";
 export const analyticsRoutes = new Hono();
 
 // ============================================================================
+// Dashboard Analytics (matches frontend AnalyticsData interface)
+// ============================================================================
+
+analyticsRoutes.get("/", auth(), requireTenant(), async (c) => {
+  const authContext = c.get("auth");
+  const startDate = c.req.query("startDate");
+  const endDate = c.req.query("endDate");
+
+  // Build date filter
+  const dateFilters = [eq(chatEvents.tenantId, authContext.tenantId!)];
+  if (startDate) {
+    dateFilters.push(gte(chatEvents.startedAt, new Date(startDate)));
+  }
+  if (endDate) {
+    // Set to end of day to include all events on the end date
+    const endOfDay = new Date(endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    dateFilters.push(lte(chatEvents.startedAt, endOfDay));
+  }
+
+  // Get total queries and avg response time
+  const stats = await db
+    .select({
+      totalQueries: sql<number>`count(*)`,
+      avgResponseTime: sql<number>`coalesce(avg(latency_ms), 0)`,
+    })
+    .from(chatEvents)
+    .where(and(...dateFilters));
+
+  // Get queries by day
+  const queriesByDay = await db
+    .select({
+      date: sql<string>`to_char(started_at, 'YYYY-MM-DD')`,
+      count: sql<number>`count(*)`,
+    })
+    .from(chatEvents)
+    .where(and(...dateFilters))
+    .groupBy(sql`to_char(started_at, 'YYYY-MM-DD')`)
+    .orderBy(sql`to_char(started_at, 'YYYY-MM-DD')`);
+
+  // For now, return empty topQueries (would need to store query text to implement)
+  // and estimate conversations (each unique session could be a conversation)
+  return c.json({
+    totalQueries: Number(stats[0]?.totalQueries) || 0,
+    totalConversations: Number(stats[0]?.totalQueries) || 0, // Approximation for now
+    avgResponseTime: Math.round(Number(stats[0]?.avgResponseTime) || 0),
+    topQueries: [], // Would need to store query text to implement
+    queriesByDay: queriesByDay.map(d => ({
+      date: d.date,
+      count: Number(d.count),
+    })),
+  });
+});
+
+// ============================================================================
 // Agent Analytics
 // ============================================================================
 

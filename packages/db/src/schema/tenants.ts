@@ -1,4 +1,5 @@
 import { pgTable, uuid, text, timestamp, uniqueIndex, index, boolean } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const tenants = pgTable(
   "tenants",
@@ -10,7 +11,7 @@ export const tenants = pgTable(
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => [
-    uniqueIndex("tenants_slug_unique").on(table.slug).where("deleted_at IS NULL"),
+    uniqueIndex("tenants_slug_unique").on(table.slug).where(sql`deleted_at IS NULL`),
     index("tenants_deleted_at_idx").on(table.deletedAt),
   ]
 );
@@ -24,7 +25,7 @@ export const users = pgTable(
     disabledAt: timestamp("disabled_at", { withTimezone: true }),
   },
   (table) => [
-    uniqueIndex("users_email_unique").on(table.primaryEmail).where("primary_email IS NOT NULL"),
+    uniqueIndex("users_email_unique").on(table.primaryEmail).where(sql`primary_email IS NOT NULL`),
   ]
 );
 
@@ -61,7 +62,7 @@ export const tenantMemberships = pgTable(
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => [
-    uniqueIndex("tenant_memberships_unique").on(table.tenantId, table.userId).where("deleted_at IS NULL"),
+    uniqueIndex("tenant_memberships_unique").on(table.tenantId, table.userId).where(sql`deleted_at IS NULL`),
     index("tenant_memberships_user_id_idx").on(table.userId),
   ]
 );

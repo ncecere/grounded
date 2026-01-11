@@ -79,7 +79,7 @@ export const kbChunks = pgTable(
     index("kb_chunks_source_run_idx").on(table.sourceRunId),
     uniqueIndex("kb_chunks_unique")
       .on(table.tenantId, table.sourceId, table.normalizedUrl, table.chunkIndex, table.contentHash)
-      .where("deleted_at IS NULL"),
+      .where(sql`deleted_at IS NULL`),
     // GIN index for full-text search will be created in migration
   ]
 );
@@ -121,6 +121,8 @@ export const uploads = pgTable(
     sourceId: uuid("source_id")
       .notNull()
       .references(() => sources.id, { onDelete: "cascade" }),
+    sourceRunId: uuid("source_run_id")
+      .references(() => sourceRuns.id, { onDelete: "set null" }),
     filename: text("filename").notNull(),
     mimeType: text("mime_type").notNull(),
     sizeBytes: integer("size_bytes").notNull(),

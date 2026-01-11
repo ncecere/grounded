@@ -82,11 +82,8 @@ export const styles = `
     left: var(--kcb-space-lg);
   }
 
-  /* Launcher Button */
+  /* Launcher Button - Base Styles */
   .kcb-launcher {
-    width: 56px;
-    height: 56px;
-    border-radius: var(--kcb-radius-full);
     border: none;
     background: var(--kcb-accent);
     color: var(--kcb-text-inverse);
@@ -94,6 +91,7 @@ export const styles = `
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: var(--kcb-space-sm);
     box-shadow: var(--kcb-shadow-lg);
     transition:
       transform var(--kcb-duration-normal) var(--kcb-ease-out),
@@ -101,6 +99,8 @@ export const styles = `
       background var(--kcb-duration-fast);
     position: relative;
     overflow: hidden;
+    font-family: var(--kcb-font-sans);
+    font-weight: 500;
   }
 
   .kcb-launcher::before {
@@ -127,9 +127,8 @@ export const styles = `
   }
 
   .kcb-launcher svg {
-    width: 24px;
-    height: 24px;
     transition: transform var(--kcb-duration-normal) var(--kcb-ease-out);
+    flex-shrink: 0;
   }
 
   .kcb-launcher.open {
@@ -140,6 +139,103 @@ export const styles = `
 
   .kcb-launcher.open svg {
     transform: rotate(90deg) scale(0.9);
+  }
+
+  /* Button text for pill style */
+  .kcb-launcher-text {
+    white-space: nowrap;
+  }
+
+  /* Custom icon image */
+  .kcb-launcher-custom-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    flex-shrink: 0;
+    transition: transform var(--kcb-duration-normal) var(--kcb-ease-out);
+  }
+
+  .kcb-launcher--small .kcb-launcher-custom-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .kcb-launcher--large .kcb-launcher-custom-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  /* Button Style: Circle (default) */
+  .kcb-launcher--circle {
+    border-radius: var(--kcb-radius-full);
+  }
+
+  /* Button Style: Pill */
+  .kcb-launcher--pill {
+    border-radius: var(--kcb-radius-full);
+    padding-left: var(--kcb-space-md);
+    padding-right: var(--kcb-space-lg);
+  }
+
+  /* Button Style: Square */
+  .kcb-launcher--square {
+    border-radius: var(--kcb-radius-md);
+  }
+
+  /* Button Size: Small */
+  .kcb-launcher--small {
+    height: 44px;
+    font-size: 13px;
+  }
+  .kcb-launcher--small.kcb-launcher--circle,
+  .kcb-launcher--small.kcb-launcher--square {
+    width: 44px;
+  }
+  .kcb-launcher--small svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Button Size: Medium (default) */
+  .kcb-launcher--medium {
+    height: 56px;
+    font-size: 15px;
+  }
+  .kcb-launcher--medium.kcb-launcher--circle,
+  .kcb-launcher--medium.kcb-launcher--square {
+    width: 56px;
+  }
+  .kcb-launcher--medium svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Button Size: Large */
+  .kcb-launcher--large {
+    height: 64px;
+    font-size: 16px;
+  }
+  .kcb-launcher--large.kcb-launcher--circle,
+  .kcb-launcher--large.kcb-launcher--square {
+    width: 64px;
+  }
+  .kcb-launcher--large svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  /* Pill adjustments for sizes */
+  .kcb-launcher--pill.kcb-launcher--small {
+    padding-left: 12px;
+    padding-right: 16px;
+  }
+  .kcb-launcher--pill.kcb-launcher--medium {
+    padding-left: 16px;
+    padding-right: 20px;
+  }
+  .kcb-launcher--pill.kcb-launcher--large {
+    padding-left: 20px;
+    padding-right: 24px;
   }
 
   /* Chat Window */

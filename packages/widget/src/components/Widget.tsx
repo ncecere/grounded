@@ -3,8 +3,8 @@ import type { JSX } from 'preact';
 import { useChat } from '../hooks/useChat';
 import { useConfig } from '../hooks/useConfig';
 import { Message, TypingIndicator } from './Message';
-import { ChatIcon, CloseIcon, SendIcon, SparklesIcon, ExpandIcon, ShrinkIcon } from './Icons';
-import type { WidgetOptions } from '../types';
+import { ChatIcon, CloseIcon, SendIcon, SparklesIcon, ExpandIcon, ShrinkIcon, HelpIcon, QuestionIcon, MessageIcon } from './Icons';
+import type { WidgetOptions, ButtonIcon, ButtonStyle, ButtonSize } from '../types';
 
 interface WidgetProps {
   options: WidgetOptions;
@@ -36,6 +36,16 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
+
+  // Refocus input after response is received (isLoading goes from true to false)
+  const wasLoadingRef = useRef(false);
+  useEffect(() => {
+    if (wasLoadingRef.current && !isLoading && isOpen) {
+      // Response just finished, refocus input
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+    wasLoadingRef.current = isLoading;
+  }, [isLoading, isOpen]);
 
   // Notify parent of open state changes
   useEffect(() => {
@@ -82,6 +92,28 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
   const description = config?.description || "Ask me anything. I'm here to assist you.";
   const logoUrl = config?.logoUrl;
   const showEmptyState = messages.length === 0 && !isLoading;
+
+  // Button customization from theme
+  const buttonStyle: ButtonStyle = config?.theme?.buttonStyle || 'circle';
+  const buttonSize: ButtonSize = config?.theme?.buttonSize || 'medium';
+  const buttonText = config?.theme?.buttonText || 'Chat with us';
+  const buttonIcon: ButtonIcon = config?.theme?.buttonIcon || 'chat';
+  const buttonColor = config?.theme?.buttonColor || '#2563eb';
+  const customIconUrl = config?.theme?.customIconUrl;
+
+  // Get the appropriate icon component or custom image
+  const getButtonIcon = () => {
+    if (customIconUrl) {
+      return <img src={customIconUrl} alt="" className="kcb-launcher-custom-icon" />;
+    }
+    switch (buttonIcon) {
+      case 'help': return <HelpIcon />;
+      case 'question': return <QuestionIcon />;
+      case 'message': return <MessageIcon />;
+      case 'chat':
+      default: return <ChatIcon />;
+    }
+  };
 
   return (
     <div className={`kcb-container ${isLeft ? 'left' : ''}`}>
@@ -166,11 +198,19 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
 
       {/* Launcher Button */}
       <button
-        className={`kcb-launcher ${isOpen ? 'open' : ''}`}
+        className={`kcb-launcher kcb-launcher--${buttonStyle} kcb-launcher--${buttonSize} ${isOpen ? 'open' : ''}`}
         onClick={handleToggle}
         aria-label={isOpen ? 'Close chat' : 'Open chat'}
+        style={{ backgroundColor: buttonColor }}
       >
-        {isOpen ? <CloseIcon /> : <ChatIcon />}
+        {isOpen ? (
+          <CloseIcon />
+        ) : (
+          <>
+            {getButtonIcon()}
+            {buttonStyle === 'pill' && <span className="kcb-launcher-text">{buttonText}</span>}
+          </>
+        )}
       </button>
     </div>
   );

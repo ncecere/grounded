@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Source, type SourceRun } from "../lib/api";
 import {
@@ -13,6 +13,22 @@ interface SourcesProps {
   kbId: string;
   onBack: () => void;
 }
+
+// Supported file formats for upload
+const SUPPORTED_FORMATS = [
+  { ext: ".pdf", desc: "PDF Documents" },
+  { ext: ".docx", desc: "Word Documents" },
+  { ext: ".xlsx/.xls", desc: "Excel Spreadsheets" },
+  { ext: ".pptx", desc: "PowerPoint Presentations" },
+  { ext: ".csv", desc: "CSV Files" },
+  { ext: ".txt", desc: "Text Files" },
+  { ext: ".md", desc: "Markdown Files" },
+  { ext: ".html", desc: "HTML Files" },
+  { ext: ".json", desc: "JSON Files" },
+  { ext: ".xml", desc: "XML Files" },
+];
+
+const ACCEPTED_FILE_TYPES = ".pdf,.docx,.doc,.xlsx,.xls,.csv,.pptx,.ppt,.txt,.md,.markdown,.html,.htm,.json,.xml";
 
 export function Sources({ kbId, onBack }: SourcesProps) {
   const queryClient = useQueryClient();
@@ -32,9 +48,16 @@ export function Sources({ kbId, onBack }: SourcesProps) {
   const [editSource, setEditSource] = useState<{
     id: string;
     name: string;
+    type: "web" | "upload";
     schedule: "daily" | "weekly" | null;
     depth: number;
   } | null>(null);
+
+  // File upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, "pending" | "uploading" | "success" | "error">>({});
+  const [isDragging, setIsDragging] = useState(false);
 
   // Auto-dismiss notifications
   const showNotification = (type: "success" | "error" | "info", message: string) => {
@@ -120,6 +143,94 @@ export function Sources({ kbId, onBack }: SourcesProps) {
     },
   });
 
+  // File upload handlers
+  const handleFileSelect = (files: FileList | null) => {
+    if (!files) return;
+    const newFiles = Array.from(files);
+    setSelectedFiles((prev) => [...prev, ...newFiles]);
+    // Initialize progress for new files
+    const newProgress: Record<string, "pending"> = {};
+    newFiles.forEach((f) => {
+      newProgress[f.name] = "pending";
+    });
+    setUploadProgress((prev) => ({ ...prev, ...newProgress }));
+  };
+
+  const handleRemoveFile = (fileName: string) => {
+    setSelectedFiles((prev) => prev.filter((f) => f.name !== fileName));
+    setUploadProgress((prev) => {
+      const newProgress = { ...prev };
+      delete newProgress[fileName];
+      return newProgress;
+    });
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFileSelect(e.dataTransfer.files);
+  };
+
+  const handleUploadFiles = async () => {
+    if (selectedFiles.length === 0) return;
+
+    let successCount = 0;
+    let errorCount = 0;
+    let createdSourceId: string | undefined;
+
+    // Use the user-provided name, or default to first filename
+    const sourceName = newSource.name.trim() || selectedFiles[0].name;
+
+    for (const file of selectedFiles) {
+      setUploadProgress((prev) => ({ ...prev, [file.name]: "uploading" }));
+
+      try {
+        // First file creates the source, subsequent files use the same source
+        const result = await api.uploadFile(kbId, file, {
+          sourceName: createdSourceId ? undefined : sourceName,
+          sourceId: createdSourceId,
+        });
+
+        // Capture the source ID from the first upload for subsequent files
+        if (!createdSourceId && result.upload?.sourceId) {
+          createdSourceId = result.upload.sourceId;
+        }
+
+        setUploadProgress((prev) => ({ ...prev, [file.name]: "success" }));
+        successCount++;
+      } catch (err) {
+        setUploadProgress((prev) => ({ ...prev, [file.name]: "error" }));
+        errorCount++;
+      }
+    }
+
+    // Refresh sources list
+    queryClient.invalidateQueries({ queryKey: ["sources", kbId] });
+
+    // Show summary notification
+    if (successCount > 0 && errorCount === 0) {
+      showNotification("success", `Successfully uploaded ${successCount} file(s)`);
+      // Clear files after successful upload
+      setTimeout(() => {
+        setSelectedFiles([]);
+        setUploadProgress({});
+        setShowCreateModal(false);
+        // Reset the form
+        setNewSource({
+          name: "",
+          type: "web",
+          mode: "single",
+          url: "",
+          urls: "",
+          depth: 3,
+          schedule: null,
+        });
+      }, 1500);
+    } else if (errorCount > 0) {
+      showNotification("error", `${errorCount} file(s) failed to upload`);
+    }
+  };
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSource.name.trim()) return;
@@ -185,6 +296,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
     setEditSource({
       id: source.id,
       name: source.name,
+      type: source.type as "web" | "upload",
       schedule: (source.config?.schedule as "daily" | "weekly" | null) || null,
       depth: (source.config?.depth as number) || 3,
     });
@@ -495,17 +607,206 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
                     <Select
                       value={newSource.type}
-                      onValueChange={(value) => setNewSource({ ...newSource, type: value as "web" | "upload" })}
+                      onValueChange={(value) => {
+                        setNewSource({ ...newSource, type: value as "web" | "upload" });
+                        // Reset file state when switching types
+                        if (value === "web") {
+                          setSelectedFiles([]);
+                          setUploadProgress({});
+                        }
+                      }}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select source type" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="web">Web Scraping</SelectItem>
-                        <SelectItem value="upload" disabled>File Upload (coming soon)</SelectItem>
+                        <SelectItem value="upload">File Upload</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* File Upload UI */}
+                  {newSource.type === "upload" && (
+                    <div className="space-y-4">
+                      {/* Drag and Drop Zone */}
+                      <div
+                        className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                          isDragging
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-300 hover:border-gray-400"
+                        }`}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setIsDragging(true);
+                        }}
+                        onDragLeave={() => setIsDragging(false)}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          multiple
+                          accept={ACCEPTED_FILE_TYPES}
+                          className="hidden"
+                          onChange={(e) => handleFileSelect(e.target.files)}
+                        />
+                        <svg
+                          className="mx-auto h-12 w-12 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                          />
+                        </svg>
+                        <p className="mt-2 text-sm text-gray-600">
+                          <span className="font-medium text-blue-600 hover:text-blue-500 cursor-pointer">
+                            Click to upload
+                          </span>{" "}
+                          or drag and drop
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          PDF, Word, Excel, PowerPoint, CSV, TXT, Markdown, HTML, JSON, XML
+                        </p>
+                      </div>
+
+                      {/* Selected Files List */}
+                      {selectedFiles.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-gray-700">
+                            Selected Files ({selectedFiles.length})
+                          </p>
+                          <div className="max-h-40 overflow-y-auto space-y-2">
+                            {selectedFiles.map((file) => (
+                              <div
+                                key={file.name}
+                                className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                              >
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <svg
+                                    className="w-5 h-5 text-gray-400 flex-shrink-0"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    />
+                                  </svg>
+                                  <span className="text-sm text-gray-700 truncate">
+                                    {file.name}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    ({(file.size / 1024).toFixed(1)} KB)
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {uploadProgress[file.name] === "uploading" && (
+                                    <svg
+                                      className="w-4 h-4 text-blue-500 animate-spin"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                      />
+                                      <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                      />
+                                    </svg>
+                                  )}
+                                  {uploadProgress[file.name] === "success" && (
+                                    <svg
+                                      className="w-4 h-4 text-green-500"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                  )}
+                                  {uploadProgress[file.name] === "error" && (
+                                    <svg
+                                      className="w-4 h-4 text-red-500"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                      />
+                                    </svg>
+                                  )}
+                                  {uploadProgress[file.name] === "pending" && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveFile(file.name)}
+                                      className="p-1 text-gray-400 hover:text-red-500"
+                                    >
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M6 18L18 6M6 6l12 12"
+                                        />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Supported Formats Info */}
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-xs font-medium text-gray-700 mb-2">Supported Formats:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {SUPPORTED_FORMATS.map((format) => (
+                            <span
+                              key={format.ext}
+                              className="px-2 py-0.5 bg-white border border-gray-200 rounded text-xs text-gray-600"
+                              title={format.desc}
+                            >
+                              {format.ext}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {newSource.type === "web" && (
                     <>
                       <div>
@@ -616,18 +917,35 @@ export function Sources({ kbId, onBack }: SourcesProps) {
               <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setSelectedFiles([]);
+                    setUploadProgress({});
+                  }}
                   className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  {createMutation.isPending ? "Creating..." : "Create"}
-                </button>
+                {newSource.type === "upload" ? (
+                  <button
+                    type="button"
+                    onClick={handleUploadFiles}
+                    disabled={selectedFiles.length === 0 || Object.values(uploadProgress).some(s => s === "uploading")}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  >
+                    {Object.values(uploadProgress).some(s => s === "uploading")
+                      ? "Uploading..."
+                      : `Upload ${selectedFiles.length} File${selectedFiles.length !== 1 ? "s" : ""}`}
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={createMutation.isPending}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  >
+                    {createMutation.isPending ? "Creating..." : "Create"}
+                  </button>
+                )}
               </div>
             </form>
           </div>
@@ -652,43 +970,52 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                       required
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Max Depth</label>
-                    <Select
-                      value={String(editSource.depth)}
-                      onValueChange={(value) => setEditSource({ ...editSource, depth: parseInt(value) })}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select max depth" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">1 level</SelectItem>
-                        <SelectItem value="2">2 levels</SelectItem>
-                        <SelectItem value="3">3 levels</SelectItem>
-                        <SelectItem value="5">5 levels</SelectItem>
-                        <SelectItem value="10">10 levels</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Auto-Refresh Schedule</label>
-                    <Select
-                      value={editSource.schedule || "none"}
-                      onValueChange={(value) => setEditSource({ ...editSource, schedule: value === "none" ? null : value as "daily" | "weekly" })}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select refresh schedule" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No auto-refresh</SelectItem>
-                        <SelectItem value="daily">Daily</SelectItem>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Automatically re-scrape this source on a schedule
+                  {editSource.type === "web" && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Max Depth</label>
+                        <Select
+                          value={String(editSource.depth)}
+                          onValueChange={(value) => setEditSource({ ...editSource, depth: parseInt(value) })}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select max depth" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1 level</SelectItem>
+                            <SelectItem value="2">2 levels</SelectItem>
+                            <SelectItem value="3">3 levels</SelectItem>
+                            <SelectItem value="5">5 levels</SelectItem>
+                            <SelectItem value="10">10 levels</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Auto-Refresh Schedule</label>
+                        <Select
+                          value={editSource.schedule || "none"}
+                          onValueChange={(value) => setEditSource({ ...editSource, schedule: value === "none" ? null : value as "daily" | "weekly" })}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select refresh schedule" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No auto-refresh</SelectItem>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Automatically re-scrape this source on a schedule
+                        </p>
+                      </div>
+                    </>
+                  )}
+                  {editSource.type === "upload" && (
+                    <p className="text-sm text-gray-500">
+                      File upload sources can only have their name edited. To add more files, create a new upload source.
                     </p>
-                  </div>
+                  )}
                 </div>
               </div>
               <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">

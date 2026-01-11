@@ -36,6 +36,30 @@ const defaultRetrievalConfig = {
   rerankerEnabled: true,
 };
 
+const defaultButtonConfig = {
+  buttonStyle: "circle" as "circle" | "pill" | "square",
+  buttonSize: "medium" as "small" | "medium" | "large",
+  buttonText: "Chat with us",
+  buttonIcon: "chat" as "chat" | "help" | "question" | "message",
+  buttonColor: "#2563eb",
+  buttonPosition: "bottom-right" as "bottom-right" | "bottom-left",
+  customIconUrl: "" as string,
+};
+
+// Preset color options
+const colorPresets = [
+  { name: "Blue", value: "#2563eb" },
+  { name: "Indigo", value: "#4f46e5" },
+  { name: "Purple", value: "#7c3aed" },
+  { name: "Pink", value: "#db2777" },
+  { name: "Red", value: "#dc2626" },
+  { name: "Orange", value: "#ea580c" },
+  { name: "Green", value: "#16a34a" },
+  { name: "Teal", value: "#0d9488" },
+  { name: "Slate", value: "#475569" },
+  { name: "Black", value: "#18181b" },
+];
+
 export function Agents({ onSelectAgent }: AgentsProps) {
   const queryClient = useQueryClient();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -45,6 +69,8 @@ export function Agents({ onSelectAgent }: AgentsProps) {
   const [editAgent, setEditAgent] = useState(defaultAgentForm);
   const [retrievalConfig, setRetrievalConfig] = useState(defaultRetrievalConfig);
   const [searchSettingsOpen, setSearchSettingsOpen] = useState(false);
+  const [buttonConfig, setButtonConfig] = useState(defaultButtonConfig);
+  const [copied, setCopied] = useState(false);
 
   const { data: agents, isLoading } = useQuery({
     queryKey: ["agents"],
@@ -130,10 +156,35 @@ export function Agents({ onSelectAgent }: AgentsProps) {
     }
   }, [showEditModal]);
 
-  const { data: widgetToken } = useQuery({
-    queryKey: ["widget-token", showConfigModal?.id],
-    queryFn: () => api.getWidgetToken(showConfigModal!.id),
+  const { data: widgetConfigData } = useQuery({
+    queryKey: ["widget-config", showConfigModal?.id],
+    queryFn: () => api.getWidgetConfig(showConfigModal!.id),
     enabled: !!showConfigModal,
+  });
+
+  // Load button config when widget config is fetched
+  useEffect(() => {
+    if (widgetConfigData?.widgetConfig) {
+      const theme = widgetConfigData.widgetConfig.theme as any;
+      setButtonConfig({
+        buttonStyle: theme?.buttonStyle || "circle",
+        buttonSize: theme?.buttonSize || "medium",
+        buttonText: theme?.buttonText || "Chat with us",
+        buttonIcon: theme?.buttonIcon || "chat",
+        buttonColor: theme?.buttonColor || "#2563eb",
+        buttonPosition: theme?.buttonPosition || "bottom-right",
+        customIconUrl: theme?.customIconUrl || "",
+      });
+    }
+  }, [widgetConfigData]);
+
+  const updateWidgetConfigMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Omit<typeof buttonConfig, 'customIconUrl'> & { customIconUrl: string | null } }) =>
+      api.updateWidgetConfig(id, { theme: data }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["agents"] });
+      queryClient.invalidateQueries({ queryKey: ["widget-config", variables.id] });
+    },
   });
 
   const handleCreate = (e: React.FormEvent) => {
@@ -448,14 +499,231 @@ export function Agents({ onSelectAgent }: AgentsProps) {
       {/* Widget Config Modal */}
       {showConfigModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <h2 className="text-lg font-semibold text-gray-900">Widget Embed Code</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Widget Configuration</h2>
               <p className="mt-2 text-sm text-gray-500">
-                Add this script to your website to embed the chat widget.
+                Customize your chat widget appearance and get the embed code.
               </p>
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Embed Script</label>
+
+              {/* Button Style Options */}
+              <div className="mt-6 space-y-4">
+                <h3 className="text-sm font-medium text-gray-900">Button Appearance</h3>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Style</label>
+                    <Select
+                      value={buttonConfig.buttonStyle}
+                      onValueChange={(value: "circle" | "pill" | "square") => setButtonConfig({ ...buttonConfig, buttonStyle: value })}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="circle">Circle</SelectItem>
+                        <SelectItem value="pill">Pill (with text)</SelectItem>
+                        <SelectItem value="square">Square</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Size</label>
+                    <Select
+                      value={buttonConfig.buttonSize}
+                      onValueChange={(value: "small" | "medium" | "large") => setButtonConfig({ ...buttonConfig, buttonSize: value })}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="small">Small</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="large">Large</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                    <Select
+                      value={buttonConfig.buttonPosition}
+                      onValueChange={(value: "bottom-right" | "bottom-left") => setButtonConfig({ ...buttonConfig, buttonPosition: value })}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                        <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Icon</label>
+                    <Select
+                      value={buttonConfig.customIconUrl ? "custom" : buttonConfig.buttonIcon}
+                      onValueChange={(value: string) => {
+                        if (value === "custom") {
+                          // Keep current icon, user will provide URL
+                        } else {
+                          setButtonConfig({ ...buttonConfig, buttonIcon: value as "chat" | "help" | "question" | "message", customIconUrl: "" });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="chat">Chat bubble</SelectItem>
+                        <SelectItem value="message">Message</SelectItem>
+                        <SelectItem value="help">Help circle</SelectItem>
+                        <SelectItem value="question">Question mark</SelectItem>
+                        <SelectItem value="custom">Custom Image</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {buttonConfig.buttonStyle === "pill" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Button Text</label>
+                    <input
+                      type="text"
+                      value={buttonConfig.buttonText}
+                      onChange={(e) => setButtonConfig({ ...buttonConfig, buttonText: e.target.value })}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                      placeholder="Chat with us"
+                    />
+                  </div>
+                )}
+
+                {/* Custom Icon URL */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Custom Icon URL (optional)</label>
+                  <input
+                    type="url"
+                    value={buttonConfig.customIconUrl}
+                    onChange={(e) => setButtonConfig({ ...buttonConfig, customIconUrl: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="https://example.com/icon.png"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Paste a URL to your own icon image. Leave empty to use the selected icon above.</p>
+                </div>
+
+                {/* Color Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Button Color</label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {colorPresets.map((color) => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        onClick={() => setButtonConfig({ ...buttonConfig, buttonColor: color.value })}
+                        className={`w-8 h-8 rounded-full border-2 transition-all ${
+                          buttonConfig.buttonColor === color.value
+                            ? "border-gray-900 scale-110"
+                            : "border-transparent hover:scale-105"
+                        }`}
+                        style={{ backgroundColor: color.value }}
+                        title={color.name}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <label className="text-xs text-gray-500">Custom:</label>
+                    <input
+                      type="color"
+                      value={buttonConfig.buttonColor}
+                      onChange={(e) => setButtonConfig({ ...buttonConfig, buttonColor: e.target.value })}
+                      className="w-8 h-8 rounded cursor-pointer border border-gray-300"
+                    />
+                    <input
+                      type="text"
+                      value={buttonConfig.buttonColor}
+                      onChange={(e) => setButtonConfig({ ...buttonConfig, buttonColor: e.target.value })}
+                      className="w-24 rounded border border-gray-300 px-2 py-1 text-xs font-mono"
+                      placeholder="#2563eb"
+                    />
+                  </div>
+                </div>
+
+                {/* Preview */}
+                <div className="mt-4 p-4 bg-gray-100 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-3">Preview</p>
+                  <div className="flex items-center justify-center">
+                    <div
+                      className={`
+                        flex items-center justify-center gap-2 text-white font-medium shadow-lg
+                        ${buttonConfig.buttonStyle === "circle" ? "rounded-full" : ""}
+                        ${buttonConfig.buttonStyle === "pill" ? "rounded-full px-4" : ""}
+                        ${buttonConfig.buttonStyle === "square" ? "rounded-xl" : ""}
+                        ${buttonConfig.buttonSize === "small" ? "h-11 text-sm" : ""}
+                        ${buttonConfig.buttonSize === "medium" ? "h-14 text-base" : ""}
+                        ${buttonConfig.buttonSize === "large" ? "h-16 text-lg" : ""}
+                        ${buttonConfig.buttonStyle !== "pill" && buttonConfig.buttonSize === "small" ? "w-11" : ""}
+                        ${buttonConfig.buttonStyle !== "pill" && buttonConfig.buttonSize === "medium" ? "w-14" : ""}
+                        ${buttonConfig.buttonStyle !== "pill" && buttonConfig.buttonSize === "large" ? "w-16" : ""}
+                      `}
+                      style={{ backgroundColor: buttonConfig.buttonColor }}
+                    >
+                      {buttonConfig.customIconUrl ? (
+                        <img
+                          src={buttonConfig.customIconUrl}
+                          alt=""
+                          className={`object-contain ${
+                            buttonConfig.buttonSize === "small" ? "w-5 h-5" : ""
+                          } ${buttonConfig.buttonSize === "medium" ? "w-6 h-6" : ""} ${
+                            buttonConfig.buttonSize === "large" ? "w-7 h-7" : ""
+                          }`}
+                        />
+                      ) : (
+                        <svg
+                          className={`
+                            ${buttonConfig.buttonSize === "small" ? "w-5 h-5" : ""}
+                            ${buttonConfig.buttonSize === "medium" ? "w-6 h-6" : ""}
+                            ${buttonConfig.buttonSize === "large" ? "w-7 h-7" : ""}
+                          `}
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          {buttonConfig.buttonIcon === "chat" && <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />}
+                          {buttonConfig.buttonIcon === "message" && <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />}
+                          {buttonConfig.buttonIcon === "help" && <><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></>}
+                          {buttonConfig.buttonIcon === "question" && <><path d="M8.5 8.5a3.5 3.5 0 1 1 5 3.15c-.65.4-1.5 1.15-1.5 2.35v1" /><circle cx="12" cy="19" r="0.5" fill="currentColor" /></>}
+                        </svg>
+                      )}
+                      {buttonConfig.buttonStyle === "pill" && <span>{buttonConfig.buttonText}</span>}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    updateWidgetConfigMutation.mutate({
+                      id: showConfigModal.id,
+                      data: {
+                        ...buttonConfig,
+                        customIconUrl: buttonConfig.customIconUrl || null,
+                      },
+                    });
+                  }}
+                  disabled={updateWidgetConfigMutation.isPending}
+                  className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {updateWidgetConfigMutation.isPending ? "Saving..." : "Save Button Style"}
+                </button>
+              </div>
+
+              {/* Embed Code */}
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h3 className="text-sm font-medium text-gray-900 mb-2">Embed Script</h3>
                 <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-xs overflow-x-auto">
 {`<script>
   (function(w,d,s,o,f,js,fjs){
@@ -464,20 +732,29 @@ export function Agents({ onSelectAgent }: AgentsProps) {
     js=d.createElement(s);fjs=d.getElementsByTagName(s)[0];
     js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);
   })(window,document,'script','kcb','/widget.js');
-  kcb('init', { token: '${widgetToken?.token || "loading..."}' });
+  kcb('init', { token: '${widgetConfigData?.tokens?.[0]?.token || "loading..."}' });
 </script>`}
                 </pre>
-                <div className="mt-3 flex gap-4">
+                <div className="mt-3 flex gap-4 items-center">
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        `<script>\n  (function(w,d,s,o,f,js,fjs){\n    w['KCBWidget']=o;w[o]=w[o]||function(){\n    (w[o].q=w[o].q||[]).push(arguments)};\n    js=d.createElement(s);fjs=d.getElementsByTagName(s)[0];\n    js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);\n  })(window,document,'script','kcb','/widget.js');\n  kcb('init', { token: '${widgetToken?.token || ""}' });\n</script>`
+                        `<script>\n  (function(w,d,s,o,f,js,fjs){\n    w['KCBWidget']=o;w[o]=w[o]||function(){\n    (w[o].q=w[o].q||[]).push(arguments)};\n    js=d.createElement(s);fjs=d.getElementsByTagName(s)[0];\n    js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);\n  })(window,document,'script','kcb','/widget.js');\n  kcb('init', { token: '${widgetConfigData?.tokens?.[0]?.token || ""}' });\n</script>`
                       );
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
                     }}
                     className="text-sm text-blue-600 hover:text-blue-700"
                   >
-                    Copy to clipboard
+                    {copied ? "Copied!" : "Copy to clipboard"}
                   </button>
+                  {copied && (
+                    <span className="text-sm text-green-600 flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -501,7 +778,7 @@ export function Agents({ onSelectAgent }: AgentsProps) {
   <p>This is a test page for the <strong>${showConfigModal?.name || 'Agent'}</strong> widget.</p>
   <div class="info">
     <p>The chat widget should appear in the bottom-right corner. Click the button to open it and test the conversation.</p>
-    <p>Token: <code>${widgetToken?.token || 'loading...'}</code></p>
+    <p>Token: <code>${widgetConfigData?.tokens?.[0]?.token || 'loading...'}</code></p>
   </div>
   <p>Try asking questions to test your agent's responses and knowledge base integration.</p>
 
@@ -512,7 +789,7 @@ export function Agents({ onSelectAgent }: AgentsProps) {
       js=d.createElement(s);fjs=d.getElementsByTagName(s)[0];
       js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);
     })(window,document,'script','kcb','${window.location.origin}/widget.js');
-    kcb('init', { token: '${widgetToken?.token || ''}', apiBase: '${window.__KCB_CONFIG__?.API_URL || window.location.origin}' });
+    kcb('init', { token: '${widgetConfigData?.tokens?.[0]?.token || ''}', apiBase: '${window.__KCB_CONFIG__?.API_URL || window.location.origin}' });
   </script>
 </body>
 </html>`;

@@ -128,12 +128,41 @@ export const retrievalConfigSchema = z.object({
 });
 export type RetrievalConfig = z.infer<typeof retrievalConfigSchema>;
 
+export const ButtonStyle = {
+  CIRCLE: "circle",
+  PILL: "pill",
+  SQUARE: "square",
+} as const;
+export type ButtonStyle = (typeof ButtonStyle)[keyof typeof ButtonStyle];
+
+export const ButtonSize = {
+  SMALL: "small",
+  MEDIUM: "medium",
+  LARGE: "large",
+} as const;
+export type ButtonSize = (typeof ButtonSize)[keyof typeof ButtonSize];
+
+export const ButtonIcon = {
+  CHAT: "chat",
+  HELP: "help",
+  QUESTION: "question",
+  MESSAGE: "message",
+} as const;
+export type ButtonIcon = (typeof ButtonIcon)[keyof typeof ButtonIcon];
+
 export const widgetThemeSchema = z.object({
   primaryColor: z.string().default("#0066cc"),
   backgroundColor: z.string().default("#ffffff"),
   textColor: z.string().default("#1a1a1a"),
   buttonPosition: z.enum(["bottom-right", "bottom-left"]).default("bottom-right"),
   borderRadius: z.number().default(12),
+  // Button customization options
+  buttonStyle: z.enum(["circle", "pill", "square"]).default("circle"),
+  buttonSize: z.enum(["small", "medium", "large"]).default("medium"),
+  buttonText: z.string().default("Chat with us"),
+  buttonIcon: z.enum(["chat", "help", "question", "message"]).default("chat"),
+  buttonColor: z.string().default("#2563eb"),
+  customIconUrl: z.string().url().nullable().default(null),
 });
 export type WidgetTheme = z.infer<typeof widgetThemeSchema>;
 

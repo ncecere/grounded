@@ -207,6 +207,17 @@ sourceRoutes.delete(
       throw new NotFoundError("Source");
     }
 
+    // Also soft-delete all chunks from this source
+    await db
+      .update(kbChunks)
+      .set({ deletedAt: new Date() })
+      .where(
+        and(
+          eq(kbChunks.sourceId, sourceId),
+          isNull(kbChunks.deletedAt)
+        )
+      );
+
     return c.json({ message: "Source scheduled for deletion" });
   }
 );
@@ -402,26 +413,18 @@ sourceRoutes.get(
       throw new NotFoundError("Source");
     }
 
-    // Get unique page count (from the most recent successful run)
-    const latestRun = await db.query.sourceRuns.findFirst({
-      where: and(
-        eq(sourceRuns.sourceId, sourceId),
-        eq(sourceRuns.status, "succeeded")
-      ),
-      orderBy: [desc(sourceRuns.createdAt)],
-    });
-
-    let pageCount = 0;
-    if (latestRun) {
-      const pageResult = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(sourceRunPages)
-        .where(and(
-          eq(sourceRunPages.sourceRunId, latestRun.id),
-          eq(sourceRunPages.status, "succeeded")
-        ));
-      pageCount = pageResult[0]?.count || 0;
-    }
+    // Get total unique page count across all runs for this source
+    // Count distinct normalized URLs that succeeded
+    const pageResult = await db.execute(sql`
+      SELECT COUNT(DISTINCT srp.normalized_url)::int as count
+      FROM source_run_pages srp
+      JOIN source_runs sr ON sr.id = srp.source_run_id
+      WHERE sr.source_id = ${sourceId}
+        AND srp.status = 'succeeded'
+    `);
+    // db.execute returns array directly or { rows: [...] } depending on driver
+    const pageRows = Array.isArray(pageResult) ? pageResult : (pageResult as any).rows || [];
+    const pageCount = (pageRows[0] as any)?.count || 0;
 
     // Get chunk count for this source
     const chunkResult = await db

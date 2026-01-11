@@ -171,9 +171,26 @@ export interface Agent {
   kbIds: string[];
   llmModelConfigId: string | null;
   widgetConfig: {
-    primaryColor: string;
-    position: "bottom-right" | "bottom-left";
-    headerTitle: string;
+    id: string;
+    agentId: string;
+    isPublic: boolean;
+    allowedDomains: string[];
+    oidcRequired: boolean;
+    theme: {
+      primaryColor: string;
+      backgroundColor: string;
+      textColor: string;
+      buttonPosition: "bottom-right" | "bottom-left";
+      borderRadius: number;
+      buttonStyle: "circle" | "pill" | "square";
+      buttonSize: "small" | "medium" | "large";
+      buttonText: string;
+      buttonIcon: "chat" | "help" | "question" | "message";
+      buttonColor: string;
+      customIconUrl: string | null;
+    };
+    createdAt: string;
+    updatedAt: string;
   } | null;
   retrievalConfig: {
     topK: number;
@@ -467,6 +484,37 @@ export const api = {
   },
   deleteAgent: (id: string) => request<void>(`/agents/${id}`, { method: "DELETE" }),
   getWidgetToken: (id: string) => request<{ token: string }>(`/agents/${id}/widget-token`),
+  getWidgetConfig: async (agentId: string) => {
+    const res = await request<{ widgetConfig: Agent["widgetConfig"]; tokens: { id: string; name: string; token: string }[] }>(`/agents/${agentId}/widget`);
+    return res;
+  },
+  updateWidgetConfig: async (
+    agentId: string,
+    data: {
+      isPublic?: boolean;
+      allowedDomains?: string[];
+      oidcRequired?: boolean;
+      theme?: {
+        primaryColor?: string;
+        backgroundColor?: string;
+        textColor?: string;
+        buttonPosition?: "bottom-right" | "bottom-left";
+        borderRadius?: number;
+        buttonStyle?: "circle" | "pill" | "square";
+        buttonSize?: "small" | "medium" | "large";
+        buttonText?: string;
+        buttonIcon?: "chat" | "help" | "question" | "message";
+        buttonColor?: string;
+        customIconUrl?: string | null;
+      };
+    }
+  ) => {
+    const res = await request<{ widgetConfig: Agent["widgetConfig"] }>(`/agents/${agentId}/widget`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+    return res.widgetConfig;
+  },
   getRetrievalConfig: async (agentId: string) => {
     const res = await request<{ retrievalConfig: Agent["retrievalConfig"] }>(`/agents/${agentId}/retrieval-config`);
     return res.retrievalConfig;
@@ -588,14 +636,32 @@ export const api = {
   },
 
   // Uploads
-  uploadFile: async (kbId: string, _sourceId: string, file: File) => {
+  uploadFile: async (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string }) => {
+    const token = getToken();
+    const tenantId = getCurrentTenantId();
+    const headers: Record<string, string> = {};
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    if (tenantId) {
+      headers["X-Tenant-ID"] = tenantId;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
+    if (options?.sourceName) {
+      formData.append("sourceName", options.sourceName);
+    }
+    if (options?.sourceId) {
+      formData.append("sourceId", options.sourceId);
+    }
     const response = await fetch(
       `${API_BASE}/uploads/kb/${kbId}`,
       {
         method: "POST",
         body: formData,
+        headers,
         credentials: "include",
       }
     );

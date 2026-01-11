@@ -183,6 +183,16 @@ agentRoutes.post(
       agentId: agent.id,
     });
 
+    // Create default widget token
+    const token = `wt_${generateId().replace(/-/g, "")}`;
+    await db.insert(widgetTokens).values({
+      tenantId: authContext.tenantId!,
+      agentId: agent.id,
+      token,
+      name: "Default",
+      createdBy: authContext.user.id,
+    });
+
     // Attach KBs if provided
     if (body.kbIds && body.kbIds.length > 0) {
       await attachKbs(authContext.tenantId!, agent.id, body.kbIds);
@@ -468,12 +478,25 @@ agentRoutes.get("/:agentId/widget", auth(), requireTenant(), async (c) => {
   });
 
   // Get widget tokens
-  const tokens = await db.query.widgetTokens.findMany({
+  let tokens = await db.query.widgetTokens.findMany({
     where: and(
       eq(widgetTokens.agentId, agentId),
       isNull(widgetTokens.revokedAt)
     ),
   });
+
+  // Auto-create a token if none exists (for existing agents without tokens)
+  if (tokens.length === 0) {
+    const newToken = `wt_${generateId().replace(/-/g, "")}`;
+    const [created] = await db.insert(widgetTokens).values({
+      tenantId: authContext.tenantId!,
+      agentId,
+      token: newToken,
+      name: "Default",
+      createdBy: authContext.user.id,
+    }).returning();
+    tokens = [created];
+  }
 
   return c.json({
     widgetConfig: config,
