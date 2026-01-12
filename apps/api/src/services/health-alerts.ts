@@ -374,15 +374,15 @@ async function sendPerTenantAlerts(
 
     if (notifyOwners) {
       const ownerEmails = tenantMembers
-        .filter((m) => m.role === "owner")
-        .map((m) => m.email);
+        .filter((m) => m.role === "owner" && m.email)
+        .map((m) => m.email as string);
       recipients.push(...ownerEmails);
     }
 
     if (notifyAdmins) {
       const adminEmails = tenantMembers
-        .filter((m) => m.role === "admin")
-        .map((m) => m.email);
+        .filter((m) => m.role === "admin" && m.email)
+        .map((m) => m.email as string);
       recipients.push(...adminEmails);
     }
 

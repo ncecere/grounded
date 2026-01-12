@@ -1,4 +1,4 @@
-import { generateText, streamText, smoothStream, type CoreMessage } from "ai";
+import { generateText, streamText, smoothStream, type ModelMessage } from "ai";
 import { getAIRegistry } from "@grounded/ai-providers";
 import { retry, type Citation } from "@grounded/shared";
 
@@ -17,8 +17,8 @@ export interface ChunkContext {
 export interface RAGResponse {
   answer: string;
   citations: Citation[];
-  promptTokens: number;
-  completionTokens: number;
+  inputTokens: number;
+  outputTokens: number;
 }
 
 export interface EnrichmentResult {
@@ -154,7 +154,7 @@ export async function generateRAGResponse(
     throw new Error("No chat model configured. Please configure a chat model in AI Models.");
   }
 
-  const messages: CoreMessage[] = [
+  const messages: ModelMessage[] = [
     {
       role: "system",
       content: buildRAGSystemPrompt(options.systemPrompt),
@@ -184,7 +184,7 @@ export async function generateRAGResponse(
       const response = await generateText({
         model,
         messages,
-        maxTokens: 1024,
+        maxOutputTokens: 1024,
         temperature: 0.1,
       });
 
@@ -196,8 +196,8 @@ export async function generateRAGResponse(
       return {
         answer,
         citations,
-        promptTokens: response.usage?.promptTokens || 0,
-        completionTokens: response.usage?.completionTokens || 0,
+        inputTokens: response.usage?.inputTokens || 0,
+        outputTokens: response.usage?.outputTokens || 0,
       };
     },
     { maxAttempts: 3, initialDelayMs: 1000 }
@@ -240,7 +240,7 @@ export async function* generateRAGResponseStream(
     throw new Error("No chat model configured. Please configure a chat model in AI Models.");
   }
 
-  const messages: CoreMessage[] = [
+  const messages: ModelMessage[] = [
     {
       role: "system",
       content: buildRAGSystemPrompt(options.systemPrompt),
@@ -264,7 +264,7 @@ export async function* generateRAGResponseStream(
   const { textStream, usage } = streamText({
     model,
     messages,
-    maxTokens: 1024,
+    maxOutputTokens: 1024,
     temperature: 0.1,
     experimental_transform: smoothStream({
       delayInMs: 15,
@@ -286,8 +286,8 @@ export async function* generateRAGResponseStream(
   return {
     answer: fullAnswer,
     citations,
-    promptTokens: finalUsage?.promptTokens || 0,
-    completionTokens: finalUsage?.completionTokens || 0,
+    inputTokens: finalUsage?.inputTokens || 0,
+    outputTokens: finalUsage?.outputTokens || 0,
   };
 }
 
@@ -396,7 +396,7 @@ Respond in JSON format:
             content: prompt,
           },
         ],
-        maxTokens: 1024,
+        maxOutputTokens: 1024,
         temperature: 0.1,
       });
 

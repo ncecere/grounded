@@ -159,8 +159,8 @@ chatRoutes.post(
       channel: authContext.apiKeyId ? "api" : "admin_ui",
       status: "ok",
       latencyMs,
-      promptTokens: ragResponse.promptTokens,
-      completionTokens: ragResponse.completionTokens,
+      promptTokens: ragResponse.inputTokens,
+      completionTokens: ragResponse.outputTokens,
       retrievedChunks: chunks.length,
       rerankerUsed: rerankerEnabled,
     });
@@ -252,7 +252,7 @@ chatRoutes.post(
 
     return streamSSE(c, async (stream) => {
       let fullAnswer = "";
-      let finalResponse: { answer: string; citations: Citation[]; promptTokens: number; completionTokens: number } | null = null;
+      let finalResponse: { answer: string; citations: Citation[]; inputTokens: number; outputTokens: number } | null = null;
       let chunks: Array<typeof kbChunks.$inferSelect & { score: number }> = [];
 
       try {
@@ -354,8 +354,8 @@ chatRoutes.post(
           channel: authContext.apiKeyId ? "api" : "admin_ui",
           status: "ok",
           latencyMs,
-          promptTokens: finalResponse?.promptTokens || 0,
-          completionTokens: finalResponse?.completionTokens || 0,
+          promptTokens: finalResponse?.inputTokens || 0,
+          completionTokens: finalResponse?.outputTokens || 0,
           retrievedChunks: chunks.length,
           rerankerUsed: rerankerEnabled,
         });

@@ -249,7 +249,12 @@ authRoutes.get("/oidc/callback", async (c) => {
     return c.json({ error: "Token exchange failed", details: errorData }, 400);
   }
 
-  const tokens = await tokenResponse.json();
+  const tokens = await tokenResponse.json() as {
+    access_token: string;
+    id_token: string;
+    token_type: string;
+    expires_in: number;
+  };
 
   // Return tokens to client (in production, set secure cookies or return to frontend)
   return c.json({

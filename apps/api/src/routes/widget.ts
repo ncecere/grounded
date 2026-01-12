@@ -236,7 +236,7 @@ widgetRoutes.post(
       answerLength: ragResponse.answer?.length,
       answerPreview: ragResponse.answer?.slice(0, 100),
       citationsCount: ragResponse.citations?.length,
-      tokens: { prompt: ragResponse.promptTokens, completion: ragResponse.completionTokens }
+      tokens: { prompt: ragResponse.inputTokens, completion: ragResponse.outputTokens }
     });
 
     // Update conversation memory
@@ -261,8 +261,8 @@ widgetRoutes.post(
       channel: "widget",
       status: "ok",
       latencyMs,
-      promptTokens: ragResponse.promptTokens,
-      completionTokens: ragResponse.completionTokens,
+      promptTokens: ragResponse.inputTokens,
+      completionTokens: ragResponse.outputTokens,
       retrievedChunks: chunks.length,
       rerankerUsed: rerankerEnabled,
     });
@@ -407,7 +407,7 @@ widgetRoutes.post(
 
     return streamSSE(c, async (stream) => {
       let fullAnswer = "";
-      let finalResponse: { answer: string; citations: Citation[]; promptTokens: number; completionTokens: number } | null = null;
+      let finalResponse: { answer: string; citations: Citation[]; inputTokens: number; outputTokens: number } | null = null;
       let chunks: any[] = [];
 
       try {
@@ -509,8 +509,8 @@ widgetRoutes.post(
           channel: "widget",
           status: "ok",
           latencyMs,
-          promptTokens: finalResponse?.promptTokens || 0,
-          completionTokens: finalResponse?.completionTokens || 0,
+          promptTokens: finalResponse?.inputTokens || 0,
+          completionTokens: finalResponse?.outputTokens || 0,
           retrievedChunks: chunks.length,
           rerankerUsed: rerankerEnabled,
         });

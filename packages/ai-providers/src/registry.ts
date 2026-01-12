@@ -1,4 +1,4 @@
-import type { LanguageModelV1, EmbeddingModelV1 } from "@ai-sdk/provider";
+import type { LanguageModelV3, EmbeddingModelV3 } from "@ai-sdk/provider";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -33,7 +33,7 @@ export class AIProviderRegistryImpl implements AIProviderRegistry {
   private initialized: boolean = false;
   private readonly CACHE_TTL_MS = 60000; // 1 minute cache
 
-  async getLanguageModel(modelConfigId?: string): Promise<LanguageModelV1 | null> {
+  async getLanguageModel(modelConfigId?: string): Promise<LanguageModelV3 | null> {
     await this.ensureFresh();
 
     const configId = modelConfigId || this.defaultChatModelId;
@@ -58,7 +58,7 @@ export class AIProviderRegistryImpl implements AIProviderRegistry {
     return provider.languageModel(config.modelId);
   }
 
-  async getEmbeddingModel(modelConfigId?: string): Promise<EmbeddingModelV1<string> | null> {
+  async getEmbeddingModel(modelConfigId?: string): Promise<EmbeddingModelV3 | null> {
     await this.ensureFresh();
 
     const configId = modelConfigId || this.defaultEmbeddingModelId;

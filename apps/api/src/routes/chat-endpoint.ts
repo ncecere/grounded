@@ -596,7 +596,10 @@ chatEndpointRoutes.get("/:token", async (c) => {
           color: var(--muted-foreground);
         }
         .markdown-content table {
-          width: 100%;
+          display: block;
+          width: max-content;
+          max-width: 100%;
+          overflow-x: auto;
           border-collapse: collapse;
           margin: 0.75rem 0;
           font-size: 0.8125rem;
@@ -605,6 +608,7 @@ chatEndpointRoutes.get("/:token", async (c) => {
           border: 1px solid var(--border);
           padding: 0.5rem;
           text-align: left;
+          white-space: nowrap;
         }
         .markdown-content th {
           background: var(--muted);
@@ -1187,8 +1191,8 @@ chatEndpointRoutes.post(
       channel: "chat_endpoint",
       status: "ok",
       latencyMs,
-      promptTokens: ragResponse.promptTokens,
-      completionTokens: ragResponse.completionTokens,
+      promptTokens: ragResponse.inputTokens,
+      completionTokens: ragResponse.outputTokens,
       retrievedChunks: chunks.length,
       rerankerUsed: rerankerEnabled,
     });
@@ -1306,7 +1310,7 @@ chatEndpointRoutes.post(
 
     return streamSSE(c, async (stream) => {
       let fullAnswer = "";
-      let finalResponse: { answer: string; citations: Citation[]; promptTokens: number; completionTokens: number } | null = null;
+      let finalResponse: { answer: string; citations: Citation[]; inputTokens: number; outputTokens: number } | null = null;
       let chunks: any[] = [];
 
       try {
@@ -1408,8 +1412,8 @@ chatEndpointRoutes.post(
           channel: "chat_endpoint",
           status: "ok",
           latencyMs,
-          promptTokens: finalResponse?.promptTokens || 0,
-          completionTokens: finalResponse?.completionTokens || 0,
+          promptTokens: finalResponse?.inputTokens || 0,
+          completionTokens: finalResponse?.outputTokens || 0,
           retrievedChunks: chunks.length,
           rerankerUsed: rerankerEnabled,
         });

@@ -157,19 +157,32 @@ export const ButtonIcon = {
 } as const;
 export type ButtonIcon = (typeof ButtonIcon)[keyof typeof ButtonIcon];
 
+export const defaultWidgetTheme = {
+  primaryColor: "#0066cc",
+  backgroundColor: "#ffffff",
+  textColor: "#1a1a1a",
+  buttonPosition: "bottom-right" as const,
+  borderRadius: 12,
+  buttonStyle: "circle" as const,
+  buttonSize: "medium" as const,
+  buttonText: "Chat with us",
+  buttonIcon: "chat" as const,
+  buttonColor: "#2563eb",
+  customIconUrl: null as string | null,
+};
+
 export const widgetThemeSchema = z.object({
-  primaryColor: z.string().default("#0066cc"),
-  backgroundColor: z.string().default("#ffffff"),
-  textColor: z.string().default("#1a1a1a"),
-  buttonPosition: z.enum(["bottom-right", "bottom-left"]).default("bottom-right"),
-  borderRadius: z.number().default(12),
-  // Button customization options
-  buttonStyle: z.enum(["circle", "pill", "square"]).default("circle"),
-  buttonSize: z.enum(["small", "medium", "large"]).default("medium"),
-  buttonText: z.string().default("Chat with us"),
-  buttonIcon: z.enum(["chat", "help", "question", "message"]).default("chat"),
-  buttonColor: z.string().default("#2563eb"),
-  customIconUrl: z.string().url().nullable().default(null),
+  primaryColor: z.string().default(defaultWidgetTheme.primaryColor),
+  backgroundColor: z.string().default(defaultWidgetTheme.backgroundColor),
+  textColor: z.string().default(defaultWidgetTheme.textColor),
+  buttonPosition: z.enum(["bottom-right", "bottom-left"]).default(defaultWidgetTheme.buttonPosition),
+  borderRadius: z.number().default(defaultWidgetTheme.borderRadius),
+  buttonStyle: z.enum(["circle", "pill", "square"]).default(defaultWidgetTheme.buttonStyle),
+  buttonSize: z.enum(["small", "medium", "large"]).default(defaultWidgetTheme.buttonSize),
+  buttonText: z.string().default(defaultWidgetTheme.buttonText),
+  buttonIcon: z.enum(["chat", "help", "question", "message"]).default(defaultWidgetTheme.buttonIcon),
+  buttonColor: z.string().default(defaultWidgetTheme.buttonColor),
+  customIconUrl: z.string().url().nullable().default(defaultWidgetTheme.customIconUrl),
 });
 export type WidgetTheme = z.infer<typeof widgetThemeSchema>;
 
@@ -177,7 +190,7 @@ export const widgetConfigSchema = z.object({
   isPublic: z.boolean().default(true),
   allowedDomains: z.array(z.string()).default([]),
   oidcRequired: z.boolean().default(false),
-  theme: widgetThemeSchema.default({}),
+  theme: widgetThemeSchema.default(() => defaultWidgetTheme),
 });
 export type WidgetConfig = z.infer<typeof widgetConfigSchema>;
 

@@ -1,4 +1,4 @@
-import type { LanguageModelV1, EmbeddingModelV1 } from "@ai-sdk/provider";
+import type { LanguageModelV3, EmbeddingModelV3 } from "@ai-sdk/provider";
 
 export type ProviderType = "openai" | "anthropic" | "google" | "openai-compatible";
 export type ModelType = "chat" | "embedding";
@@ -36,14 +36,14 @@ export interface AIProviderRegistry {
    * If no ID provided, returns the default chat model.
    * Returns null if no model is configured.
    */
-  getLanguageModel(modelConfigId?: string): Promise<LanguageModelV1 | null>;
+  getLanguageModel(modelConfigId?: string): Promise<LanguageModelV3 | null>;
 
   /**
    * Get an embedding model by config ID.
    * If no ID provided, returns the default embedding model.
    * Returns null if no model is configured.
    */
-  getEmbeddingModel(modelConfigId?: string): Promise<EmbeddingModelV1<string> | null>;
+  getEmbeddingModel(modelConfigId?: string): Promise<EmbeddingModelV3 | null>;
 
   /**
    * Check if at least one chat model is available.
