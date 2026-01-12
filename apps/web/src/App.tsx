@@ -29,6 +29,7 @@ import { SharedKbDetail } from "./pages/SharedKbDetail";
 import AdminDashboard from "./pages/AdminDashboard";
 import { AdminAnalytics } from "./pages/AdminAnalytics";
 import { TenantSettings } from "./pages/TenantSettings";
+import { AdminTokens } from "./pages/AdminTokens";
 import { Login } from "./pages/Login";
 import { Building2, AlertTriangle } from "lucide-react";
 import { Button } from "./components/ui/button";
@@ -49,6 +50,7 @@ const pageNames: Record<Page, string> = {
   "shared-kb-detail": "Shared Knowledge Base",
   "admin-analytics": "Analytics",
   "tenant-settings": "Tenant Settings",
+  "admin-tokens": "API Tokens",
 };
 
 export default function App() {
@@ -174,6 +176,7 @@ export default function App() {
           }}
         />
       );
+      if (currentPage === "admin-tokens") return <AdminTokens />;
 
       return (
         <div className="flex items-center justify-center h-full">
@@ -282,6 +285,8 @@ export default function App() {
         return <AdminSettings />;
       case "tenant-settings":
         return <TenantSettings />;
+      case "admin-tokens":
+        return <AdminTokens />;
       default:
         return <KnowledgeBases onSelectKb={() => {}} />;
     }

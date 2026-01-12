@@ -1,7 +1,7 @@
 import { createMiddleware } from "hono/factory";
 import * as jose from "jose";
 import { db } from "@grounded/db";
-import { users, userIdentities, tenantMemberships, apiKeys, systemAdmins } from "@grounded/db/schema";
+import { users, userIdentities, tenantMemberships, apiKeys, systemAdmins, adminApiTokens } from "@grounded/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { getEnv, hashString } from "@grounded/shared";
 import { UnauthorizedError, ForbiddenError } from "./error-handler";
@@ -68,18 +68,23 @@ const LOCAL_JWT_AUDIENCE = "grounded-api";
 export const auth = () => {
   return createMiddleware(async (c, next) => {
     const authHeader = c.req.header("Authorization");
-    const apiKeyHeader = c.req.header("X-API-Key");
     const tenantIdHeader = c.req.header("X-Tenant-ID");
 
     let authContext: AuthContext;
 
-    if (apiKeyHeader) {
-      // API Key authentication
-      authContext = await authenticateApiKey(apiKeyHeader, tenantIdHeader);
-    } else if (authHeader?.startsWith("Bearer ")) {
-      // Bearer token authentication (try local JWT first, then OIDC)
+    if (authHeader?.startsWith("Bearer ")) {
       const token = authHeader.slice(7);
-      authContext = await authenticateBearerToken(token, tenantIdHeader);
+
+      if (token.startsWith("grounded_admin_")) {
+        // Admin API token authentication (system-level)
+        authContext = await authenticateAdminToken(token);
+      } else if (token.startsWith("grounded_")) {
+        // Tenant API key authentication (tenant-scoped)
+        authContext = await authenticateApiKey(token, tenantIdHeader);
+      } else {
+        // Bearer token authentication (try local JWT first, then OIDC)
+        authContext = await authenticateBearerToken(token, tenantIdHeader);
+      }
     } else {
       throw new UnauthorizedError("No authentication provided");
     }
@@ -430,4 +435,61 @@ async function checkSystemAdmin(userId: string): Promise<boolean> {
     where: eq(systemAdmins.userId, userId),
   });
   return !!admin;
+}
+
+async function authenticateAdminToken(token: string): Promise<AuthContext> {
+  const tokenHash = await hashString(token);
+
+  const adminToken = await db.query.adminApiTokens.findFirst({
+    where: and(
+      eq(adminApiTokens.tokenHash, tokenHash),
+      isNull(adminApiTokens.revokedAt)
+    ),
+  });
+
+  if (!adminToken) {
+    throw new UnauthorizedError("Invalid admin token");
+  }
+
+  if (adminToken.expiresAt && adminToken.expiresAt < new Date()) {
+    throw new UnauthorizedError("Admin token expired");
+  }
+
+  // Get the user who created this token
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, adminToken.createdBy),
+  });
+
+  if (!user) {
+    throw new UnauthorizedError("Admin token user not found");
+  }
+
+  if (user.disabledAt) {
+    throw new UnauthorizedError("Admin token user disabled");
+  }
+
+  // Verify the creator is still a system admin
+  const isStillAdmin = await checkSystemAdmin(adminToken.createdBy);
+  if (!isStillAdmin) {
+    throw new UnauthorizedError("Admin token creator is no longer a system admin");
+  }
+
+  // Update last used timestamp
+  await db
+    .update(adminApiTokens)
+    .set({ lastUsedAt: new Date() })
+    .where(eq(adminApiTokens.id, adminToken.id));
+
+  return {
+    user: {
+      id: user.id,
+      email: user.primaryEmail,
+      issuer: "admin_token",
+      subject: adminToken.id,
+    },
+    tenantId: null, // Admin tokens are not tenant-scoped
+    role: null,
+    isSystemAdmin: true,
+    apiKeyId: null,
+  };
 }

@@ -104,3 +104,24 @@ export const systemSettings = pgTable(
     index("system_settings_category_idx").on(table.category),
   ]
 );
+
+export const adminApiTokens = pgTable(
+  "admin_api_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    tokenPrefix: text("token_prefix").notNull(),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("admin_api_tokens_token_hash_idx").on(table.tokenHash),
+    index("admin_api_tokens_created_by_idx").on(table.createdBy),
+  ]
+);

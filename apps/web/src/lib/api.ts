@@ -203,6 +203,7 @@ export interface Agent {
       buttonIcon: "chat" | "help" | "question" | "message";
       buttonColor: string;
       customIconUrl: string | null;
+      customIconSize: number | null;
     };
     createdAt: string;
     updatedAt: string;
@@ -238,6 +239,7 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   citations?: Array<{
+    index: number;
     title: string;
     url: string;
     snippet: string;
@@ -469,6 +471,37 @@ export interface AdminAnalyticsTenants {
     withWarnings: number;
     flagCounts: Record<TenantHealthFlag, number>;
   };
+}
+
+// Admin API Tokens
+export interface AdminApiToken {
+  id: string;
+  name: string;
+  tokenPrefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  createdBy: string;
+}
+
+export interface AdminApiTokenWithSecret extends AdminApiToken {
+  token: string; // Only returned on creation
+}
+
+// Tenant API Keys
+export interface TenantApiKey {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  scopes: string[];
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  createdBy: string;
+}
+
+export interface TenantApiKeyWithSecret extends TenantApiKey {
+  apiKey: string; // Only returned on creation
 }
 
 export interface AdminAnalyticsTenantDetail {
@@ -774,6 +807,7 @@ export const api = {
         buttonIcon?: "chat" | "help" | "question" | "message";
         buttonColor?: string;
         customIconUrl?: string | null;
+        customIconSize?: number | null;
       };
     }
   ) => {
@@ -1249,4 +1283,26 @@ export const api = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
   },
+
+  // Admin API Tokens
+  listAdminTokens: () =>
+    request<{ tokens: AdminApiToken[] }>("/admin/tokens"),
+  createAdminToken: (data: { name: string; expiresAt?: string }) =>
+    request<AdminApiTokenWithSecret>("/admin/tokens", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  revokeAdminToken: (id: string) =>
+    request<{ message: string }>(`/admin/tokens/${id}`, { method: "DELETE" }),
+
+  // Tenant API Keys
+  listTenantApiKeys: (tenantId: string) =>
+    request<{ apiKeys: TenantApiKey[] }>(`/tenants/${tenantId}/api-keys`),
+  createTenantApiKey: (tenantId: string, data: { name: string; scopes?: string[]; expiresAt?: string }) =>
+    request<TenantApiKeyWithSecret>(`/tenants/${tenantId}/api-keys`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  revokeTenantApiKey: (tenantId: string, keyId: string) =>
+    request<{ message: string }>(`/tenants/${tenantId}/api-keys/${keyId}`, { method: "DELETE" }),
 };

@@ -8,6 +8,7 @@ import {
   Users,
   Share2,
   LayoutDashboard,
+  Key,
 } from "lucide-react"
 
 import { TenantSwitcher } from "@/components/tenant-switcher"
@@ -23,7 +24,7 @@ import {
 } from "@/components/ui/sidebar"
 import type { UserTenant } from "@/lib/api"
 
-export type Page = "kbs" | "agents" | "sources" | "chat" | "analytics" | "dashboard" | "settings" | "tenants" | "models" | "users" | "shared-kbs" | "shared-kb-sources" | "shared-kb-detail" | "admin-analytics" | "tenant-settings"
+export type Page = "kbs" | "agents" | "sources" | "chat" | "analytics" | "dashboard" | "settings" | "tenants" | "models" | "users" | "shared-kbs" | "shared-kb-sources" | "shared-kb-detail" | "admin-analytics" | "tenant-settings" | "admin-tokens"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   user: {
@@ -132,6 +133,12 @@ export function AppSidebar({
           id: "settings",
           icon: Settings,
           isActive: currentPage === "settings",
+        },
+        {
+          title: "API Tokens",
+          id: "admin-tokens",
+          icon: Key,
+          isActive: currentPage === "admin-tokens",
         },
       ]
     : []

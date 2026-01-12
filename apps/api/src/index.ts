@@ -24,6 +24,7 @@ import { adminUsersRoutes } from "./routes/admin/users";
 import { adminSharedKbsRoutes } from "./routes/admin/shared-kbs";
 import { adminDashboardRoutes } from "./routes/admin/dashboard";
 import { adminAnalyticsRoutes } from "./routes/admin/analytics";
+import { adminTokensRoutes } from "./routes/admin/tokens";
 import { runMigrations } from "./startup/run-migrations";
 import { seedSystemAdmin } from "./startup/seed-admin";
 
@@ -123,6 +124,7 @@ v1.route("/admin/models", adminModelsRoutes);
 v1.route("/admin/users", adminUsersRoutes);
 v1.route("/admin/shared-kbs", adminSharedKbsRoutes);
 v1.route("/admin/analytics", adminAnalyticsRoutes);
+v1.route("/admin/tokens", adminTokensRoutes);
 
 // Mount v1 routes
 app.route("/api/v1", v1);
