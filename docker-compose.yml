@@ -1,7 +1,7 @@
 services:
-  # PostgreSQL with pgvector
+  # PostgreSQL for application data
   postgres:
-    image: pgvector/pgvector:pg16
+    image: postgres:16-alpine
     container_name: kcb-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-kcb}
@@ -13,6 +13,26 @@ services:
       - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kcb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kcb-network
+
+  # PostgreSQL with pgvector for vector storage (separate cluster)
+  postgres-vector:
+    image: pgvector/pgvector:pg16
+    container_name: kcb-postgres-vector
+    environment:
+      POSTGRES_USER: ${VECTOR_DB_USER:-kcb_vectors}
+      POSTGRES_PASSWORD: ${VECTOR_DB_PASSWORD:-kcb_vectors_password}
+      POSTGRES_DB: ${VECTOR_DB_NAME:-vectors}
+    volumes:
+      - postgres_vector_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${VECTOR_DB_USER:-kcb_vectors} -d ${VECTOR_DB_NAME:-vectors}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -47,6 +67,9 @@ services:
       PORT: 3000
       DATABASE_URL: postgres://${POSTGRES_USER:-kcb}:${POSTGRES_PASSWORD:-kcb_password}@postgres:5432/${POSTGRES_DB:-kcb}
       REDIS_URL: redis://redis:6379
+      # Vector Database (dimensions are dynamic based on KB embedding model)
+      VECTOR_DB_TYPE: ${VECTOR_DB_TYPE:-pgvector}
+      VECTOR_DB_URL: postgres://${VECTOR_DB_USER:-kcb_vectors}:${VECTOR_DB_PASSWORD:-kcb_vectors_password}@postgres-vector:5432/${VECTOR_DB_NAME:-vectors}
       # OIDC Authentication (optional)
       OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
@@ -62,6 +85,8 @@ services:
       - "3001:3000"
     depends_on:
       postgres:
+        condition: service_healthy
+      postgres-vector:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -89,8 +114,13 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgres://${POSTGRES_USER:-kcb}:${POSTGRES_PASSWORD:-kcb_password}@postgres:5432/${POSTGRES_DB:-kcb}
       REDIS_URL: redis://redis:6379
+      # Vector Database (dimensions are dynamic based on KB embedding model)
+      VECTOR_DB_TYPE: ${VECTOR_DB_TYPE:-pgvector}
+      VECTOR_DB_URL: postgres://${VECTOR_DB_USER:-kcb_vectors}:${VECTOR_DB_PASSWORD:-kcb_vectors_password}@postgres-vector:5432/${VECTOR_DB_NAME:-vectors}
     depends_on:
       postgres:
+        condition: service_healthy
+      postgres-vector:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -154,6 +184,7 @@ services:
 
 volumes:
   postgres_data:
+  postgres_vector_data:
   redis_data:
 
 networks:

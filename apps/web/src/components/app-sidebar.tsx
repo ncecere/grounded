@@ -8,6 +8,8 @@ import {
   FolderOpen,
   Cpu,
   Users,
+  Share2,
+  LayoutDashboard,
 } from "lucide-react"
 
 import { TenantSwitcher } from "@/components/tenant-switcher"
@@ -23,7 +25,7 @@ import {
 } from "@/components/ui/sidebar"
 import type { UserTenant } from "@/lib/api"
 
-export type Page = "kbs" | "agents" | "sources" | "chat" | "analytics" | "settings" | "tenants" | "models" | "users"
+export type Page = "kbs" | "agents" | "sources" | "chat" | "analytics" | "dashboard" | "settings" | "tenants" | "models" | "users" | "shared-kbs" | "shared-kb-sources" | "shared-kb-detail" | "admin-analytics" | "tenant-settings"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   user: {
@@ -51,6 +53,9 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const hasTenant = tenants.length > 0 && currentTenant
 
+  // Check if user can manage tenant (owner or admin)
+  const canManageTenant = currentTenant?.role === "owner" || currentTenant?.role === "admin"
+
   // Main navigation items (require a tenant)
   const mainNavItems: NavItem[] = hasTenant
     ? [
@@ -72,12 +77,34 @@ export function AppSidebar({
           icon: BarChart3,
           isActive: currentPage === "analytics",
         },
+        ...(canManageTenant
+          ? [
+              {
+                title: "Settings",
+                id: "tenant-settings" as const,
+                icon: Settings,
+                isActive: currentPage === "tenant-settings",
+              },
+            ]
+          : []),
       ]
     : []
 
   // Admin navigation items
   const adminNavItems: NavItem[] = user.isSystemAdmin
     ? [
+        {
+          title: "Dashboard",
+          id: "dashboard",
+          icon: LayoutDashboard,
+          isActive: currentPage === "dashboard",
+        },
+        {
+          title: "Analytics",
+          id: "admin-analytics",
+          icon: BarChart3,
+          isActive: currentPage === "admin-analytics",
+        },
         {
           title: "Tenants",
           id: "tenants",
@@ -89,6 +116,12 @@ export function AppSidebar({
           id: "users",
           icon: Users,
           isActive: currentPage === "users",
+        },
+        {
+          title: "Shared KBs",
+          id: "shared-kbs",
+          icon: Share2,
+          isActive: currentPage === "shared-kbs",
         },
         {
           title: "AI Models",

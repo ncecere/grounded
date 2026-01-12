@@ -430,6 +430,8 @@ export const styles = `
     border-radius: var(--kcb-radius-md);
     font-size: 15px;
     line-height: 1.55;
+    overflow-x: auto;
+    max-width: 100%;
   }
 
   .kcb-message.user .kcb-message-bubble {
@@ -581,9 +583,12 @@ export const styles = `
   /* Tables */
   .kcb-message-bubble table {
     width: 100%;
+    max-width: 100%;
     border-collapse: collapse;
     margin: var(--kcb-space-sm) 0;
     font-size: 13px;
+    display: block;
+    overflow-x: auto;
   }
 
   .kcb-message-bubble th,
@@ -690,6 +695,14 @@ export const styles = `
 
   .kcb-source:hover {
     color: var(--kcb-accent);
+  }
+
+  .kcb-source-file {
+    cursor: default;
+  }
+
+  .kcb-source-file:hover {
+    color: var(--kcb-text-secondary);
   }
 
   .kcb-source svg {

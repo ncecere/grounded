@@ -6,6 +6,14 @@ import { systemSettings } from "@kcb/db/schema";
 import { eq } from "drizzle-orm";
 import { auth, requireSystemAdmin } from "../../middleware/auth";
 import { BadRequestError } from "../../middleware/error-handler";
+import { emailService } from "../../services/email";
+import {
+  runHealthCheck,
+  startHealthAlertScheduler,
+  stopHealthAlertScheduler,
+  isSchedulerRunning,
+  getLastCheckTime,
+} from "../../services/health-alerts";
 
 export const adminSettingsRoutes = new Hono();
 
@@ -16,7 +24,7 @@ adminSettingsRoutes.use("*", auth(), requireSystemAdmin());
 // Types and Metadata
 // ============================================================================
 
-type SettingCategory = "llm" | "embedding" | "auth" | "quotas" | "general";
+type SettingCategory = "auth" | "quotas" | "email" | "alerts" | "general";
 
 interface SettingMeta {
   category: SettingCategory;
@@ -26,64 +34,6 @@ interface SettingMeta {
 }
 
 const SETTINGS_METADATA: Record<string, SettingMeta> = {
-  // LLM Settings
-  "llm.api_url": {
-    category: "llm",
-    isSecret: false,
-    description: "LLM API endpoint URL",
-    defaultValue: "https://api.openai.com/v1",
-  },
-  "llm.api_key": {
-    category: "llm",
-    isSecret: true,
-    description: "LLM API key",
-    defaultValue: "",
-  },
-  "llm.model": {
-    category: "llm",
-    isSecret: false,
-    description: "Default LLM model",
-    defaultValue: "gpt-4o-mini",
-  },
-  "llm.max_tokens": {
-    category: "llm",
-    isSecret: false,
-    description: "Maximum response tokens",
-    defaultValue: 1024,
-  },
-  "llm.temperature": {
-    category: "llm",
-    isSecret: false,
-    description: "Generation temperature (0-2)",
-    defaultValue: 0.1,
-  },
-
-  // Embedding Settings
-  "embedding.api_url": {
-    category: "embedding",
-    isSecret: false,
-    description: "Embedding API endpoint URL",
-    defaultValue: "https://api.openai.com/v1",
-  },
-  "embedding.api_key": {
-    category: "embedding",
-    isSecret: true,
-    description: "Embedding API key",
-    defaultValue: "",
-  },
-  "embedding.model": {
-    category: "embedding",
-    isSecret: false,
-    description: "Embedding model",
-    defaultValue: "text-embedding-3-small",
-  },
-  "embedding.dimensions": {
-    category: "embedding",
-    isSecret: false,
-    description: "Vector dimensions",
-    defaultValue: 1536,
-  },
-
   // Auth Settings
   "auth.local_registration_enabled": {
     category: "auth",
@@ -146,6 +96,100 @@ const SETTINGS_METADATA: Record<string, SettingMeta> = {
     isSecret: false,
     description: "Default chat rate limit per minute",
     defaultValue: 60,
+  },
+
+  // Email/SMTP Settings
+  "email.smtp_enabled": {
+    category: "email",
+    isSecret: false,
+    description: "Enable SMTP email sending",
+    defaultValue: false,
+  },
+  "email.smtp_host": {
+    category: "email",
+    isSecret: false,
+    description: "SMTP server hostname",
+    defaultValue: "",
+  },
+  "email.smtp_port": {
+    category: "email",
+    isSecret: false,
+    description: "SMTP server port (usually 587 for TLS, 465 for SSL)",
+    defaultValue: 587,
+  },
+  "email.smtp_secure": {
+    category: "email",
+    isSecret: false,
+    description: "Use SSL/TLS (true for port 465, false for STARTTLS on 587)",
+    defaultValue: false,
+  },
+  "email.smtp_user": {
+    category: "email",
+    isSecret: false,
+    description: "SMTP authentication username",
+    defaultValue: "",
+  },
+  "email.smtp_password": {
+    category: "email",
+    isSecret: true,
+    description: "SMTP authentication password",
+    defaultValue: "",
+  },
+  "email.from_address": {
+    category: "email",
+    isSecret: false,
+    description: "Default sender email address",
+    defaultValue: "",
+  },
+  "email.from_name": {
+    category: "email",
+    isSecret: false,
+    description: "Default sender display name",
+    defaultValue: "KCB Platform",
+  },
+
+  // Alert Settings
+  "alerts.enabled": {
+    category: "alerts",
+    isSecret: false,
+    description: "Enable email alerts for system events",
+    defaultValue: false,
+  },
+  "alerts.recipient_emails": {
+    category: "alerts",
+    isSecret: false,
+    description: "Comma-separated list of email addresses to receive alerts",
+    defaultValue: "",
+  },
+  "alerts.check_interval_minutes": {
+    category: "alerts",
+    isSecret: false,
+    description: "How often to check for alert conditions (in minutes)",
+    defaultValue: 60,
+  },
+  "alerts.error_rate_threshold": {
+    category: "alerts",
+    isSecret: false,
+    description: "Error rate percentage threshold to trigger alert",
+    defaultValue: 10,
+  },
+  "alerts.quota_warning_threshold": {
+    category: "alerts",
+    isSecret: false,
+    description: "Quota usage percentage threshold for warnings",
+    defaultValue: 80,
+  },
+  "alerts.inactivity_days": {
+    category: "alerts",
+    isSecret: false,
+    description: "Days of inactivity before alerting (0 to disable)",
+    defaultValue: 7,
+  },
+  "alerts.include_healthy_summary": {
+    category: "alerts",
+    isSecret: false,
+    description: "Include summary even when all tenants are healthy",
+    defaultValue: false,
   },
 };
 
@@ -359,4 +403,107 @@ adminSettingsRoutes.get("/schema/all", async (c) => {
   }));
 
   return c.json({ schema });
+});
+
+// ============================================================================
+// Email Testing Endpoints
+// ============================================================================
+
+const testEmailSchema = z.object({
+  email: z.string().email(),
+});
+
+adminSettingsRoutes.post("/email/verify", async (c) => {
+  // Invalidate cache to ensure we use latest settings
+  emailService.invalidateCache();
+
+  const isConfigured = await emailService.isConfigured();
+  if (!isConfigured) {
+    return c.json({
+      success: false,
+      message: "SMTP is not configured. Please configure SMTP settings first.",
+    });
+  }
+
+  const result = await emailService.verifyConnection();
+  return c.json({
+    success: result.success,
+    message: result.success
+      ? "SMTP connection verified successfully"
+      : `SMTP connection failed: ${result.error}`,
+  });
+});
+
+adminSettingsRoutes.post(
+  "/email/test",
+  zValidator("json", testEmailSchema),
+  async (c) => {
+    const body = c.req.valid("json");
+
+    // Invalidate cache to ensure we use latest settings
+    emailService.invalidateCache();
+
+    const isConfigured = await emailService.isConfigured();
+    if (!isConfigured) {
+      return c.json({
+        success: false,
+        message: "SMTP is not configured. Please configure SMTP settings first.",
+      });
+    }
+
+    const result = await emailService.sendTestEmail(body.email);
+    return c.json({
+      success: result.success,
+      message: result.success
+        ? `Test email sent successfully to ${body.email}`
+        : `Failed to send test email: ${result.error}`,
+    });
+  }
+);
+
+adminSettingsRoutes.get("/email/status", async (c) => {
+  emailService.invalidateCache();
+  const isConfigured = await emailService.isConfigured();
+
+  return c.json({
+    configured: isConfigured,
+  });
+});
+
+// ============================================================================
+// Alert Endpoints
+// ============================================================================
+
+adminSettingsRoutes.get("/alerts/status", async (c) => {
+  const lastCheck = getLastCheckTime();
+
+  return c.json({
+    schedulerRunning: isSchedulerRunning(),
+    lastCheckTime: lastCheck?.toISOString() || null,
+  });
+});
+
+adminSettingsRoutes.post("/alerts/check", async (c) => {
+  const result = await runHealthCheck();
+  return c.json(result);
+});
+
+adminSettingsRoutes.post("/alerts/start", async (c) => {
+  await startHealthAlertScheduler();
+  return c.json({
+    success: true,
+    running: isSchedulerRunning(),
+    message: isSchedulerRunning()
+      ? "Alert scheduler started"
+      : "Alert scheduler could not start (check configuration)",
+  });
+});
+
+adminSettingsRoutes.post("/alerts/stop", async (c) => {
+  stopHealthAlertScheduler();
+  return c.json({
+    success: true,
+    running: false,
+    message: "Alert scheduler stopped",
+  });
 });

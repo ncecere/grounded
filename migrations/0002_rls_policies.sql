@@ -11,7 +11,7 @@ ALTER TABLE sources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE source_runs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE source_run_pages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kb_chunks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE embeddings ENABLE ROW LEVEL SECURITY;
+-- Note: embeddings table removed - vectors are now stored in separate postgres-vector database
 ALTER TABLE uploads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agent_kbs ENABLE ROW LEVEL SECURITY;
@@ -98,12 +98,7 @@ CREATE POLICY kb_chunks_isolation ON kb_chunks
     OR tenant_id = current_setting('app.tenant_id', true)::uuid
   );
 
-CREATE POLICY embeddings_isolation ON embeddings
-  FOR ALL
-  USING (
-    current_setting('app.is_system_admin', true) = 'true'
-    OR tenant_id = current_setting('app.tenant_id', true)::uuid
-  );
+-- Note: embeddings_isolation policy removed - vectors are now stored in separate postgres-vector database
 
 CREATE POLICY uploads_isolation ON uploads
   FOR ALL

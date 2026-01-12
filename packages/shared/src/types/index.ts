@@ -60,8 +60,15 @@ export const ChatChannel = {
   ADMIN_UI: "admin_ui",
   WIDGET: "widget",
   API: "api",
+  CHAT_ENDPOINT: "chat_endpoint",
 } as const;
 export type ChatChannel = (typeof ChatChannel)[keyof typeof ChatChannel];
+
+export const ChatEndpointType = {
+  API: "api",
+  HOSTED: "hosted",
+} as const;
+export type ChatEndpointType = (typeof ChatEndpointType)[keyof typeof ChatEndpointType];
 
 export const ChatStatus = {
   OK: "ok",
@@ -284,6 +291,18 @@ export interface ChatResponse {
   answer: string;
   citations: Citation[];
   conversationId: string;
+}
+
+export interface ChatEndpointToken {
+  id: string;
+  tenantId: string;
+  agentId: string;
+  token: string;
+  name: string | null;
+  endpointType: ChatEndpointType;
+  createdBy: string;
+  createdAt: Date;
+  revokedAt: Date | null;
 }
 
 // ============================================================================

@@ -6,11 +6,9 @@ ALTER TABLE knowledge_bases
   ADD COLUMN IF NOT EXISTS embedding_model_id UUID REFERENCES model_configurations(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS embedding_dimensions INTEGER NOT NULL DEFAULT 768;
 
--- Step 2: Add column to track embedding model to embeddings table for audit
-ALTER TABLE embeddings
-  ADD COLUMN IF NOT EXISTS model_id UUID REFERENCES model_configurations(id) ON DELETE SET NULL;
+-- Note: embeddings table model_id column removed - vectors are now stored in separate postgres-vector database
 
--- Step 3: Create index for efficient lookups
+-- Step 2: Create index for efficient lookups
 CREATE INDEX IF NOT EXISTS knowledge_bases_embedding_model_idx
   ON knowledge_bases (embedding_model_id);
 

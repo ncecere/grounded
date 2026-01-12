@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type SystemSetting } from "../lib/api";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { CheckCircle, XCircle, Mail, AlertTriangle, Play, Square, RefreshCw } from "lucide-react";
 
-type SettingsTab = "llm" | "embedding" | "auth" | "quotas";
+type SettingsTab = "auth" | "quotas" | "email" | "alerts";
 
 interface SettingInputProps {
   setting: SystemSetting;
@@ -107,7 +110,7 @@ function SettingsSection({
 }
 
 export function AdminSettings() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("llm");
+  const [activeTab, setActiveTab] = useState<SettingsTab>("auth");
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -129,16 +132,6 @@ export function AdminSettings() {
 
   const tabs: Array<{ id: SettingsTab; label: string; icon: string }> = [
     {
-      id: "llm",
-      label: "LLM",
-      icon: "M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z",
-    },
-    {
-      id: "embedding",
-      label: "Embedding",
-      icon: "M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4",
-    },
-    {
       id: "auth",
       label: "Authentication",
       icon: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z",
@@ -148,17 +141,19 @@ export function AdminSettings() {
       label: "Quotas",
       icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
     },
+    {
+      id: "email",
+      label: "Email (SMTP)",
+      icon: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+    },
+    {
+      id: "alerts",
+      label: "Alerts",
+      icon: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
+    },
   ];
 
   const tabDescriptions: Record<SettingsTab, { title: string; description: string }> = {
-    llm: {
-      title: "LLM Configuration",
-      description: "Configure the language model used for chat responses. Environment variables take precedence over these settings.",
-    },
-    embedding: {
-      title: "Embedding Configuration",
-      description: "Configure the embedding model used for semantic search. Environment variables take precedence over these settings.",
-    },
     auth: {
       title: "Authentication Settings",
       description: "Configure authentication providers and registration settings.",
@@ -166,6 +161,14 @@ export function AdminSettings() {
     quotas: {
       title: "Default Quotas",
       description: "Set default resource limits for new tenants. Existing tenants are not affected.",
+    },
+    email: {
+      title: "Email (SMTP) Settings",
+      description: "Configure SMTP server for sending emails. Required for alerts and notifications.",
+    },
+    alerts: {
+      title: "Alert Settings",
+      description: "Configure automated health monitoring alerts for tenants.",
     },
   };
 
@@ -230,19 +233,274 @@ export function AdminSettings() {
         isUpdating={updateMutation.isPending}
       />
 
-      {/* Info Box */}
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex">
-          <svg className="w-5 h-5 text-blue-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div>
-            <h3 className="text-sm font-medium text-blue-800">Environment Variable Priority</h3>
-            <p className="mt-1 text-sm text-blue-700">
-              Settings configured via environment variables (e.g., <code className="bg-blue-100 px-1 rounded">LLM_API_KEY</code>) will always take precedence over values stored in the database.
-              This allows production deployments to securely manage secrets without exposing them in the UI.
-            </p>
+      {/* Email Test Section - only shown on email tab */}
+      {activeTab === "email" && (
+        <EmailTestSection />
+      )}
+
+      {/* Alert Control Section - only shown on alerts tab */}
+      {activeTab === "alerts" && (
+        <>
+          <AlertControlSection />
+          <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex">
+              <AlertTriangle className="w-5 h-5 text-yellow-500 mr-3 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-medium text-yellow-800">Alert Requirements</h3>
+                <p className="mt-1 text-sm text-yellow-700">
+                  Email alerts require a configured SMTP server. Make sure to set up your
+                  SMTP settings in the <strong>Email (SMTP)</strong> tab before enabling alerts.
+                </p>
+              </div>
+            </div>
           </div>
+        </>
+      )}
+
+      {/* Info Box - only shown on auth tab */}
+      {activeTab === "auth" && (
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex">
+            <svg className="w-5 h-5 text-blue-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h3 className="text-sm font-medium text-blue-800">AI Models</h3>
+              <p className="mt-1 text-sm text-blue-700">
+                LLM and Embedding models are now configured in the <strong>AI Models</strong> section.
+                Configure providers and models there to enable chat and search functionality.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// Email Test Section
+// ============================================================================
+
+function EmailTestSection() {
+  const [testEmail, setTestEmail] = useState("");
+  const [verifyResult, setVerifyResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const verifyMutation = useMutation({
+    mutationFn: () => api.verifySmtp(),
+    onSuccess: (data) => setVerifyResult(data),
+    onError: (error) => setVerifyResult({ success: false, message: error.message }),
+  });
+
+  const testMutation = useMutation({
+    mutationFn: (email: string) => api.sendTestEmail(email),
+    onSuccess: (data) => setTestResult(data),
+    onError: (error) => setTestResult({ success: false, message: error.message }),
+  });
+
+  return (
+    <div className="mt-6 bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <h2 className="text-lg font-semibold text-gray-900">Test Email Configuration</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Verify your SMTP settings and send a test email.
+        </p>
+      </div>
+      <div className="p-6 space-y-6">
+        {/* Verify Connection */}
+        <div>
+          <h3 className="text-sm font-medium text-gray-900 mb-2">1. Verify SMTP Connection</h3>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => verifyMutation.mutate()}
+              disabled={verifyMutation.isPending}
+            >
+              {verifyMutation.isPending ? "Verifying..." : "Verify Connection"}
+            </Button>
+            {verifyResult && (
+              <div className={`flex items-center gap-2 text-sm ${verifyResult.success ? "text-green-600" : "text-red-600"}`}>
+                {verifyResult.success ? (
+                  <CheckCircle className="w-4 h-4" />
+                ) : (
+                  <XCircle className="w-4 h-4" />
+                )}
+                {verifyResult.message}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Send Test Email */}
+        <div>
+          <h3 className="text-sm font-medium text-gray-900 mb-2">2. Send Test Email</h3>
+          <div className="flex items-center gap-4">
+            <Input
+              type="email"
+              placeholder="Enter email address"
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              className="w-64"
+            />
+            <Button
+              onClick={() => testMutation.mutate(testEmail)}
+              disabled={testMutation.isPending || !testEmail}
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              {testMutation.isPending ? "Sending..." : "Send Test Email"}
+            </Button>
+          </div>
+          {testResult && (
+            <div className={`mt-2 flex items-center gap-2 text-sm ${testResult.success ? "text-green-600" : "text-red-600"}`}>
+              {testResult.success ? (
+                <CheckCircle className="w-4 h-4" />
+              ) : (
+                <XCircle className="w-4 h-4" />
+              )}
+              {testResult.message}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Alert Control Section
+// ============================================================================
+
+function AlertControlSection() {
+  const queryClient = useQueryClient();
+  const [checkResult, setCheckResult] = useState<{
+    checked: boolean;
+    tenantsWithIssues: number;
+    alertSent: boolean;
+    error?: string;
+  } | null>(null);
+
+  const { data: alertStatus, isLoading: statusLoading } = useQuery({
+    queryKey: ["alert-status"],
+    queryFn: () => api.getAlertStatus(),
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  const runCheckMutation = useMutation({
+    mutationFn: () => api.runHealthCheck(),
+    onSuccess: (data) => {
+      setCheckResult(data);
+      queryClient.invalidateQueries({ queryKey: ["alert-status"] });
+    },
+    onError: (error) => setCheckResult({
+      checked: false,
+      tenantsWithIssues: 0,
+      alertSent: false,
+      error: error.message,
+    }),
+  });
+
+  const startMutation = useMutation({
+    mutationFn: () => api.startAlertScheduler(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alert-status"] }),
+  });
+
+  const stopMutation = useMutation({
+    mutationFn: () => api.stopAlertScheduler(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alert-status"] }),
+  });
+
+  const isRunning = alertStatus?.schedulerRunning ?? false;
+
+  return (
+    <div className="mt-6 bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <h2 className="text-lg font-semibold text-gray-900">Alert Scheduler</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Control the automated health check scheduler and run manual checks.
+        </p>
+      </div>
+      <div className="p-6 space-y-6">
+        {/* Scheduler Status */}
+        <div>
+          <h3 className="text-sm font-medium text-gray-900 mb-2">Scheduler Status</h3>
+          <div className="flex items-center gap-4">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
+              isRunning
+                ? "bg-green-100 text-green-800"
+                : "bg-gray-100 text-gray-800"
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${isRunning ? "bg-green-500" : "bg-gray-400"}`} />
+              {statusLoading ? "Loading..." : isRunning ? "Running" : "Stopped"}
+            </div>
+            {alertStatus?.lastCheckTime && (
+              <span className="text-sm text-gray-500">
+                Last check: {new Date(alertStatus.lastCheckTime).toLocaleString()}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Scheduler Controls */}
+        <div>
+          <h3 className="text-sm font-medium text-gray-900 mb-2">Scheduler Controls</h3>
+          <div className="flex items-center gap-3">
+            {isRunning ? (
+              <Button
+                variant="outline"
+                onClick={() => stopMutation.mutate()}
+                disabled={stopMutation.isPending}
+              >
+                <Square className="w-4 h-4 mr-2" />
+                {stopMutation.isPending ? "Stopping..." : "Stop Scheduler"}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => startMutation.mutate()}
+                disabled={startMutation.isPending}
+              >
+                <Play className="w-4 h-4 mr-2" />
+                {startMutation.isPending ? "Starting..." : "Start Scheduler"}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Manual Check */}
+        <div>
+          <h3 className="text-sm font-medium text-gray-900 mb-2">Manual Health Check</h3>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => runCheckMutation.mutate()}
+              disabled={runCheckMutation.isPending}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${runCheckMutation.isPending ? "animate-spin" : ""}`} />
+              {runCheckMutation.isPending ? "Running..." : "Run Health Check Now"}
+            </Button>
+          </div>
+          {checkResult && (
+            <div className={`mt-3 p-3 rounded-lg ${
+              checkResult.error
+                ? "bg-red-50 text-red-700"
+                : checkResult.tenantsWithIssues > 0
+                ? "bg-yellow-50 text-yellow-700"
+                : "bg-green-50 text-green-700"
+            }`}>
+              {checkResult.error ? (
+                <p>Error: {checkResult.error}</p>
+              ) : checkResult.checked ? (
+                <p>
+                  Check complete. {checkResult.tenantsWithIssues === 0
+                    ? "All tenants are healthy."
+                    : `Found ${checkResult.tenantsWithIssues} tenant(s) with issues.`}
+                  {checkResult.alertSent && " Alert email sent."}
+                </p>
+              ) : (
+                <p>Check skipped (alerts disabled or not configured)</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

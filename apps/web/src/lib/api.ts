@@ -114,13 +114,28 @@ export interface TenantMember {
   createdAt: string;
 }
 
+export interface TenantAlertSettings {
+  tenantId: string;
+  enabled: boolean;
+  notifyOwners: boolean;
+  notifyAdmins: boolean;
+  additionalEmails: string | null;
+  errorRateThreshold: number | null;
+  quotaWarningThreshold: number | null;
+  inactivityDays: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
 export interface KnowledgeBase {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   name: string;
   description: string | null;
   sourceCount?: number;
   chunkCount?: number;
+  isShared?: boolean;
+  isGlobal?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -211,6 +226,14 @@ export interface LLMModel {
   isDefault: boolean;
 }
 
+export interface ChatEndpoint {
+  id: string;
+  name: string | null;
+  token: string;
+  endpointType: "api" | "hosted";
+  createdAt: string;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -297,6 +320,229 @@ export interface AdminUserDetail extends Omit<AdminUser, "tenantCount"> {
   }>;
 }
 
+export interface SharedKnowledgeBase {
+  id: string;
+  tenantId: string | null;
+  name: string;
+  description: string | null;
+  isGlobal: boolean;
+  publishedAt: string | null;
+  createdBy: string;
+  createdAt: string;
+  deletedAt: string | null;
+  sourceCount: number;
+  chunkCount: number;
+  shareCount: number;
+  isPublished: boolean;
+  creatorEmail: string | null;
+}
+
+export interface SharedKnowledgeBaseDetail extends SharedKnowledgeBase {
+  sharedWithTenants: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    sharedAt: string;
+  }>;
+}
+
+export interface AvailableTenant {
+  id: string;
+  name: string;
+  slug: string;
+  isShared: boolean;
+}
+
+// Admin Dashboard types
+export interface DashboardHealth {
+  database: {
+    ok: boolean;
+    latencyMs?: number;
+    message?: string;
+  };
+  vectorStore: {
+    ok: boolean;
+    configured: boolean;
+    type?: string;
+    vectorCount?: number;
+    latencyMs?: number;
+    message?: string;
+  };
+  aiProviders: {
+    ok: boolean;
+    hasChatModel: boolean;
+    hasEmbeddingModel: boolean;
+    message?: string;
+  };
+}
+
+export interface DashboardStats {
+  users: number;
+  tenants: number;
+  knowledgeBases: number;
+  sources: number;
+  chunks: number;
+  vectors: number;
+  agents: number;
+  chatEvents: {
+    last24h: number;
+    last7d: number;
+  };
+}
+
+// Admin Analytics Types
+export interface AdminAnalyticsOverview {
+  overview: {
+    totalQueries: number;
+    successfulQueries: number;
+    errorQueries: number;
+    rateLimitedQueries: number;
+    errorRate: number;
+    avgLatencyMs: number;
+    totalTokens: number;
+    promptTokens: number;
+    completionTokens: number;
+    activeTenants: number;
+    activeAgents: number;
+  };
+  queriesByDay: Array<{
+    date: string;
+    count: number;
+    errors: number;
+  }>;
+  queriesByChannel: Array<{
+    channel: string;
+    count: number;
+  }>;
+  topTenants: Array<{
+    tenantId: string;
+    tenantName: string;
+    queries: number;
+    errors: number;
+    errorRate: number;
+  }>;
+}
+
+export type TenantHealthFlag =
+  | "high_error_rate"
+  | "kb_quota_warning"
+  | "agent_quota_warning"
+  | "upload_quota_warning"
+  | "scrape_quota_warning"
+  | "high_rate_limiting"
+  | "low_activity";
+
+export interface TenantWithHealth {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+  members: number;
+  resources: {
+    kbs: number;
+    agents: number;
+    maxKbs: number;
+    maxAgents: number;
+  };
+  usage: {
+    totalQueries: number;
+    successfulQueries: number;
+    errorQueries: number;
+    rateLimitedQueries: number;
+    errorRate: number;
+    avgLatencyMs: number;
+    lastQueryAt: string | null;
+    uploadedDocs: number;
+    scrapedPages: number;
+    maxUploadedDocs: number;
+    maxScrapedPages: number;
+  };
+  flags: TenantHealthFlag[];
+  healthScore: number;
+}
+
+export interface AdminAnalyticsTenants {
+  tenants: TenantWithHealth[];
+  summary: {
+    total: number;
+    healthy: number;
+    withWarnings: number;
+    flagCounts: Record<TenantHealthFlag, number>;
+  };
+}
+
+export interface AdminAnalyticsTenantDetail {
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+    createdAt: string;
+  };
+  resources: {
+    members: number;
+    kbs: number;
+    agents: number;
+    sources: number;
+    chunks: number;
+  };
+  quotas: {
+    maxKbs: number;
+    maxAgents: number;
+    maxUploadedDocsPerMonth: number;
+    maxScrapedPagesPerMonth: number;
+    chatRateLimitPerMinute: number;
+  };
+  currentUsage: {
+    month: string;
+    uploadedDocs: number;
+    scrapedPages: number;
+    chatRequests: number;
+    promptTokens: number;
+    completionTokens: number;
+  };
+  stats: {
+    totalQueries: number;
+    successfulQueries: number;
+    errorQueries: number;
+    rateLimitedQueries: number;
+    errorRate: number;
+    avgLatencyMs: number;
+    p50LatencyMs: number;
+    p95LatencyMs: number;
+    p99LatencyMs: number;
+    totalTokens: number;
+    promptTokens: number;
+    completionTokens: number;
+  };
+  queriesByDay: Array<{
+    date: string;
+    count: number;
+    errors: number;
+    avgLatency: number;
+  }>;
+  queriesByChannel: Array<{
+    channel: string;
+    count: number;
+    errors: number;
+  }>;
+  byAgent: Array<{
+    agentId: string;
+    agentName: string;
+    queries: number;
+    errors: number;
+    errorRate: number;
+    avgLatency: number;
+  }>;
+  historicalUsage: Array<{
+    month: string;
+    uploadedDocs: number;
+    scrapedPages: number;
+    chatRequests: number;
+    promptTokens: number;
+    completionTokens: number;
+  }>;
+}
+
 export const api = {
   // Auth
   getMe: () => request<User>("/auth/me"),
@@ -326,7 +572,19 @@ export const api = {
 
   // Admin Tenant Management (System Admin only)
   listAllTenants: () => request<{ tenants: Tenant[] }>("/tenants"),
-  createTenant: (data: { name: string; slug: string; ownerEmail?: string }) =>
+  createTenant: (data: {
+    name: string;
+    slug: string;
+    ownerEmail?: string;
+    quotas?: {
+      maxKbs?: number;
+      maxAgents?: number;
+      maxUploadedDocsPerMonth?: number;
+      maxScrapedPagesPerMonth?: number;
+      maxCrawlConcurrency?: number;
+      chatRateLimitPerMinute?: number;
+    };
+  }) =>
     request<{ tenant: Tenant }>("/tenants", {
       method: "POST",
       body: JSON.stringify(data),
@@ -356,6 +614,16 @@ export const api = {
   removeTenantMember: (tenantId: string, userId: string) =>
     request<{ message: string }>(`/tenants/${tenantId}/members/${userId}`, {
       method: "DELETE",
+    }),
+  getTenantAlertSettings: (tenantId: string) =>
+    request<{ alertSettings: TenantAlertSettings }>(`/tenants/${tenantId}/alert-settings`),
+  updateTenantAlertSettings: (
+    tenantId: string,
+    data: Partial<Omit<TenantAlertSettings, "tenantId" | "createdAt" | "updatedAt">>
+  ) =>
+    request<{ alertSettings: TenantAlertSettings }>(`/tenants/${tenantId}/alert-settings`, {
+      method: "PUT",
+      body: JSON.stringify(data),
     }),
 
   // Knowledge Bases
@@ -534,6 +802,24 @@ export const api = {
     });
     return res.retrievalConfig;
   },
+
+  // Chat Endpoints
+  listChatEndpoints: async (agentId: string) => {
+    const res = await request<{ chatEndpoints: ChatEndpoint[] }>(`/agents/${agentId}/chat-endpoints`);
+    return res.chatEndpoints;
+  },
+  createChatEndpoint: async (
+    agentId: string,
+    data: { name?: string; endpointType: "api" | "hosted" }
+  ) => {
+    const res = await request<{ chatEndpoint: ChatEndpoint }>(`/agents/${agentId}/chat-endpoints`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return res.chatEndpoint;
+  },
+  deleteChatEndpoint: (agentId: string, endpointId: string) =>
+    request<{ message: string }>(`/agents/${agentId}/chat-endpoints/${endpointId}`, { method: "DELETE" }),
 
   // Chat
   chat: async (
@@ -801,4 +1087,159 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ newPassword }),
     }),
+
+  // Admin Shared Knowledge Bases
+  listSharedKbs: () =>
+    request<{ knowledgeBases: SharedKnowledgeBase[] }>("/admin/shared-kbs"),
+  getSharedKb: (id: string) =>
+    request<{ knowledgeBase: SharedKnowledgeBaseDetail }>(`/admin/shared-kbs/${id}`),
+  createSharedKb: (data: { name: string; description?: string; embeddingModelId?: string }) =>
+    request<{ knowledgeBase: SharedKnowledgeBase }>("/admin/shared-kbs", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateSharedKb: (id: string, data: { name?: string; description?: string }) =>
+    request<{ knowledgeBase: SharedKnowledgeBase }>(`/admin/shared-kbs/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteSharedKb: (id: string) =>
+    request<{ message: string }>(`/admin/shared-kbs/${id}`, { method: "DELETE" }),
+  publishSharedKb: (id: string) =>
+    request<{ knowledgeBase: SharedKnowledgeBase; message: string }>(`/admin/shared-kbs/${id}/publish`, {
+      method: "POST",
+    }),
+  unpublishSharedKb: (id: string) =>
+    request<{ knowledgeBase: SharedKnowledgeBase; message: string }>(`/admin/shared-kbs/${id}/unpublish`, {
+      method: "POST",
+    }),
+  shareKbWithTenant: (kbId: string, tenantId: string) =>
+    request<{ message: string; tenant: { id: string; name: string; slug: string } }>(`/admin/shared-kbs/${kbId}/shares`, {
+      method: "POST",
+      body: JSON.stringify({ tenantId }),
+    }),
+  unshareKbFromTenant: (kbId: string, tenantId: string) =>
+    request<{ message: string }>(`/admin/shared-kbs/${kbId}/shares/${tenantId}`, {
+      method: "DELETE",
+    }),
+  getAvailableTenants: (kbId: string) =>
+    request<{ tenants: AvailableTenant[] }>(`/admin/shared-kbs/${kbId}/available-tenants`),
+
+  // Admin Shared KB Sources
+  listSharedKbSources: async (kbId: string) => {
+    const res = await request<{ sources: Source[] }>(`/admin/shared-kbs/${kbId}/sources`);
+    return res.sources;
+  },
+  createSharedKbSource: async (
+    kbId: string,
+    data: { name: string; type: string; config: Record<string, unknown> }
+  ) => {
+    const res = await request<{ source: Source }>(`/admin/shared-kbs/${kbId}/sources`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return res.source;
+  },
+  updateSharedKbSource: async (
+    kbId: string,
+    sourceId: string,
+    data: { name?: string; config?: Record<string, unknown> }
+  ) => {
+    const res = await request<{ source: Source }>(`/admin/shared-kbs/${kbId}/sources/${sourceId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+    return res.source;
+  },
+  deleteSharedKbSource: (kbId: string, sourceId: string) =>
+    request<{ message: string }>(`/admin/shared-kbs/${kbId}/sources/${sourceId}`, { method: "DELETE" }),
+  triggerSharedKbSourceRun: async (kbId: string, sourceId: string, options?: { forceReindex?: boolean }) => {
+    const res = await request<{ run: SourceRun }>(`/admin/shared-kbs/${kbId}/sources/${sourceId}/runs`, {
+      method: "POST",
+      body: JSON.stringify({ forceReindex: options?.forceReindex ?? false }),
+    });
+    return res.run;
+  },
+  listSharedKbSourceRuns: async (kbId: string, sourceId: string) => {
+    const res = await request<{ runs: SourceRun[] }>(`/admin/shared-kbs/${kbId}/sources/${sourceId}/runs`);
+    return res.runs;
+  },
+  getSharedKbSourceStats: async (kbId: string, sourceId: string) => {
+    const res = await request<{ stats: { pageCount: number; chunkCount: number } }>(`/admin/shared-kbs/${kbId}/sources/${sourceId}/stats`);
+    return res.stats;
+  },
+
+  // Admin Dashboard
+  getDashboardHealth: () =>
+    request<DashboardHealth>("/admin/dashboard/health"),
+  getDashboardStats: () =>
+    request<DashboardStats>("/admin/dashboard/stats"),
+
+  // Email/SMTP Testing
+  verifySmtp: () =>
+    request<{ success: boolean; message: string }>("/admin/settings/email/verify", {
+      method: "POST",
+    }),
+  sendTestEmail: (email: string) =>
+    request<{ success: boolean; message: string }>("/admin/settings/email/test", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+  getEmailStatus: () =>
+    request<{ configured: boolean }>("/admin/settings/email/status"),
+
+  // Alert Scheduler
+  getAlertStatus: () =>
+    request<{ schedulerRunning: boolean; lastCheckTime: string | null }>("/admin/settings/alerts/status"),
+  runHealthCheck: () =>
+    request<{ checked: boolean; tenantsWithIssues: number; alertSent: boolean; error?: string }>("/admin/settings/alerts/check", {
+      method: "POST",
+    }),
+  startAlertScheduler: () =>
+    request<{ success: boolean; running: boolean; message: string }>("/admin/settings/alerts/start", {
+      method: "POST",
+    }),
+  stopAlertScheduler: () =>
+    request<{ success: boolean; running: boolean; message: string }>("/admin/settings/alerts/stop", {
+      method: "POST",
+    }),
+
+  // Admin Analytics
+  getAdminAnalyticsOverview: (params?: { startDate?: string; endDate?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.set("startDate", params.startDate);
+    if (params?.endDate) searchParams.set("endDate", params.endDate);
+    const query = searchParams.toString();
+    return request<AdminAnalyticsOverview>(`/admin/analytics/overview${query ? `?${query}` : ""}`);
+  },
+  getAdminAnalyticsTenants: (params?: { startDate?: string; endDate?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.set("startDate", params.startDate);
+    if (params?.endDate) searchParams.set("endDate", params.endDate);
+    const query = searchParams.toString();
+    return request<AdminAnalyticsTenants>(`/admin/analytics/tenants${query ? `?${query}` : ""}`);
+  },
+  getAdminAnalyticsTenantDetail: (tenantId: string, params?: { startDate?: string; endDate?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.set("startDate", params.startDate);
+    if (params?.endDate) searchParams.set("endDate", params.endDate);
+    const query = searchParams.toString();
+    return request<AdminAnalyticsTenantDetail>(`/admin/analytics/tenants/${tenantId}${query ? `?${query}` : ""}`);
+  },
+  exportAdminAnalyticsOverview: (params?: { startDate?: string; endDate?: string }) => {
+    const token = getToken();
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.set("startDate", params.startDate);
+    if (params?.endDate) searchParams.set("endDate", params.endDate);
+    const query = searchParams.toString();
+    return fetch(`${API_BASE}/admin/analytics/export/overview${query ? `?${query}` : ""}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  },
+  exportAdminAnalyticsTenants: () => {
+    const token = getToken();
+    return fetch(`${API_BASE}/admin/analytics/export/tenants`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  },
 };

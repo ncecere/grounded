@@ -100,6 +100,22 @@ export const tenantUsage = pgTable(
   ]
 );
 
+export const tenantAlertSettings = pgTable("tenant_alert_settings", {
+  tenantId: uuid("tenant_id")
+    .primaryKey()
+    .references(() => tenants.id, { onDelete: "cascade" }),
+  enabled: boolean("enabled").default(true).notNull(),
+  notifyOwners: boolean("notify_owners").default(true).notNull(),
+  notifyAdmins: boolean("notify_admins").default(false).notNull(),
+  additionalEmails: text("additional_emails"), // Comma-separated list
+  // Override thresholds (null = use system defaults)
+  errorRateThreshold: integer("error_rate_threshold"),
+  quotaWarningThreshold: integer("quota_warning_threshold"),
+  inactivityDays: integer("inactivity_days"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const deletionJobs = pgTable(
   "deletion_jobs",
   {

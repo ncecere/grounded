@@ -11,16 +11,7 @@ CREATE TRIGGER kb_chunks_tsv_update
   FOR EACH ROW
   EXECUTE FUNCTION kb_chunks_tsv_trigger();
 
--- HNSW index for vector similarity search (requires pgvector 0.5.0+)
--- Using cosine distance for OpenAI embeddings
-CREATE INDEX IF NOT EXISTS embeddings_vector_hnsw_idx
-  ON embeddings
-  USING hnsw (embedding vector_cosine_ops)
-  WITH (m = 16, ef_construction = 64);
-
--- Composite index for efficient retrieval queries
-CREATE INDEX IF NOT EXISTS embeddings_tenant_kb_vector_idx
-  ON embeddings (tenant_id, kb_id);
+-- Note: embeddings indexes removed - vectors are now stored in separate postgres-vector database
 
 -- Index for conversation memory lookups (if using Redis, this is optional)
 -- But useful for analytics queries

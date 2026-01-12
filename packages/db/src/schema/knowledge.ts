@@ -68,8 +68,7 @@ export const sources = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: uuid("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
+      .references(() => tenants.id, { onDelete: "cascade" }), // Nullable for global KBs
     kbId: uuid("kb_id")
       .notNull()
       .references(() => knowledgeBases.id, { onDelete: "cascade" }),
@@ -95,8 +94,7 @@ export const sourceRuns = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: uuid("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
+      .references(() => tenants.id, { onDelete: "cascade" }), // Nullable for global KBs
     sourceId: uuid("source_id")
       .notNull()
       .references(() => sources.id, { onDelete: "cascade" }),
@@ -129,8 +127,7 @@ export const sourceRunPages = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: uuid("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
+      .references(() => tenants.id, { onDelete: "cascade" }), // Nullable for global KBs
     sourceRunId: uuid("source_run_id")
       .notNull()
       .references(() => sourceRuns.id, { onDelete: "cascade" }),

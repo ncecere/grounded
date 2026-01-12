@@ -147,3 +147,30 @@ export const widgetTokens = pgTable(
     index("widget_tokens_agent_idx").on(table.agentId),
   ]
 );
+
+export const chatEndpointTokens = pgTable(
+  "chat_endpoint_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    token: text("token").notNull(),
+    name: text("name"),
+    // "api" for JSON API endpoint, "hosted" for hosted chat UI
+    endpointType: text("endpoint_type").$type<"api" | "hosted">().default("api").notNull(),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("chat_endpoint_tokens_token_unique").on(table.token),
+    index("chat_endpoint_tokens_tenant_idx").on(table.tenantId),
+    index("chat_endpoint_tokens_agent_idx").on(table.agentId),
+  ]
+);

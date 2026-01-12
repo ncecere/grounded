@@ -16,6 +16,7 @@
     "@kcb/llm": "workspace:*",
     "@kcb/queue": "workspace:*",
     "@kcb/shared": "workspace:*",
+    "@kcb/vector-store": "workspace:*",
     "drizzle-orm": "^0.38.3"
   },
   "devDependencies": {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type Agent } from "../lib/api";
+import { api, type Agent, type ChatEndpoint } from "../lib/api";
+import { Share2, Globe, Code, Trash2, Copy, ExternalLink } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -65,6 +66,8 @@ export function Agents({ onSelectAgent }: AgentsProps) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState<Agent | null>(null);
   const [showConfigModal, setShowConfigModal] = useState<Agent | null>(null);
+  const [showChatModal, setShowChatModal] = useState<Agent | null>(null);
+  const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
   const [newAgent, setNewAgent] = useState(defaultAgentForm);
   const [editAgent, setEditAgent] = useState(defaultAgentForm);
   const [retrievalConfig, setRetrievalConfig] = useState(defaultRetrievalConfig);
@@ -186,6 +189,43 @@ export function Agents({ onSelectAgent }: AgentsProps) {
       queryClient.invalidateQueries({ queryKey: ["widget-config", variables.id] });
     },
   });
+
+  // Chat Endpoints
+  const { data: chatEndpoints, isLoading: chatEndpointsLoading } = useQuery({
+    queryKey: ["chat-endpoints", showChatModal?.id],
+    queryFn: () => api.listChatEndpoints(showChatModal!.id),
+    enabled: !!showChatModal,
+  });
+
+  const createChatEndpointMutation = useMutation({
+    mutationFn: ({ agentId, data }: { agentId: string; data: { name?: string; endpointType: "api" | "hosted" } }) =>
+      api.createChatEndpoint(agentId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-endpoints", showChatModal?.id] });
+    },
+  });
+
+  const deleteChatEndpointMutation = useMutation({
+    mutationFn: ({ agentId, endpointId }: { agentId: string; endpointId: string }) =>
+      api.deleteChatEndpoint(agentId, endpointId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-endpoints", showChatModal?.id] });
+    },
+  });
+
+  const getEndpointUrl = (endpoint: ChatEndpoint) => {
+    const baseUrl = window.__KCB_CONFIG__?.API_URL || window.location.origin;
+    if (endpoint.endpointType === "hosted") {
+      return `${baseUrl}/chat/${endpoint.token}`;
+    }
+    return `${baseUrl}/api/v1/c/${endpoint.token}/chat`;
+  };
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedEndpoint(id);
+    setTimeout(() => setCopiedEndpoint(null), 2000);
+  };
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -345,11 +385,11 @@ export function Agents({ onSelectAgent }: AgentsProps) {
               </div>
               <div className="mt-4 flex items-center gap-2">
                 <button
-                  onClick={() => onSelectAgent(agent.id)}
+                  onClick={() => setShowChatModal(agent)}
                   disabled={agent.isEnabled === false}
                   className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Test Chat
+                  Chat
                 </button>
                 <button
                   onClick={() => setShowConfigModal(agent)}
@@ -457,7 +497,9 @@ export function Agents({ onSelectAgent }: AgentsProps) {
                         {knowledgeBases.map((kb) => (
                           <label
                             key={kb.id}
-                            className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                            className={`flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer ${
+                              kb.isShared ? "bg-purple-50/50" : ""
+                            }`}
                           >
                             <input
                               type="checkbox"
@@ -465,7 +507,15 @@ export function Agents({ onSelectAgent }: AgentsProps) {
                               onChange={() => toggleKb(kb.id)}
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
-                            <span className="text-sm text-gray-700">{kb.name}</span>
+                            <span className="text-sm text-gray-700 flex items-center gap-2">
+                              {kb.name}
+                              {kb.isShared && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded">
+                                  <Share2 className="w-3 h-3" />
+                                  Shared
+                                </span>
+                              )}
+                            </span>
                           </label>
                         ))}
                       </div>
@@ -906,7 +956,9 @@ export function Agents({ onSelectAgent }: AgentsProps) {
                         {knowledgeBases.map((kb) => (
                           <label
                             key={kb.id}
-                            className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                            className={`flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer ${
+                              kb.isShared ? "bg-purple-50/50" : ""
+                            }`}
                           >
                             <input
                               type="checkbox"
@@ -914,7 +966,15 @@ export function Agents({ onSelectAgent }: AgentsProps) {
                               onChange={() => toggleEditKb(kb.id)}
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
-                            <span className="text-sm text-gray-700">{kb.name}</span>
+                            <span className="text-sm text-gray-700 flex items-center gap-2">
+                              {kb.name}
+                              {kb.isShared && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded">
+                                  <Share2 className="w-3 h-3" />
+                                  Shared
+                                </span>
+                              )}
+                            </span>
                           </label>
                         ))}
                       </div>
@@ -1065,6 +1125,201 @@ export function Agents({ onSelectAgent }: AgentsProps) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Modal */}
+      {showChatModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Chat Configuration</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Test and create public chat endpoints for {showChatModal.name}
+                  </p>
+                </div>
+              </div>
+
+              {/* Test Chat Section */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900">Test Chat</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Open a test conversation with this agent</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowChatModal(null);
+                      onSelectAgent(showChatModal.id);
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Open Test Chat
+                  </button>
+                </div>
+              </div>
+
+              {/* Create Endpoint Buttons */}
+              <h3 className="text-sm font-medium text-gray-900 mb-3">Public Endpoints</h3>
+              <div className="flex gap-3 mb-4">
+                <button
+                  onClick={() => createChatEndpointMutation.mutate({
+                    agentId: showChatModal.id,
+                    data: { endpointType: "api", name: `API Endpoint ${(chatEndpoints?.length || 0) + 1}` }
+                  })}
+                  disabled={createChatEndpointMutation.isPending}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                >
+                  <Code className="w-5 h-5 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">Create API Endpoint</span>
+                </button>
+                <button
+                  onClick={() => createChatEndpointMutation.mutate({
+                    agentId: showChatModal.id,
+                    data: { endpointType: "hosted", name: `Chat Page ${(chatEndpoints?.length || 0) + 1}` }
+                  })}
+                  disabled={createChatEndpointMutation.isPending}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors"
+                >
+                  <Globe className="w-5 h-5 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">Create Hosted Chat Page</span>
+                </button>
+              </div>
+
+              {/* Endpoints List */}
+              {chatEndpointsLoading ? (
+                <div className="py-8 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+                  <p className="mt-2 text-sm text-gray-500">Loading endpoints...</p>
+                </div>
+              ) : chatEndpoints && chatEndpoints.length > 0 ? (
+                <div className="space-y-3">
+                  {chatEndpoints.map((endpoint) => (
+                    <div
+                      key={endpoint.id}
+                      className={`p-4 rounded-lg border ${
+                        endpoint.endpointType === "api"
+                          ? "border-blue-200 bg-blue-50"
+                          : "border-purple-200 bg-purple-50"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          {endpoint.endpointType === "api" ? (
+                            <Code className="w-5 h-5 text-blue-600" />
+                          ) : (
+                            <Globe className="w-5 h-5 text-purple-600" />
+                          )}
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {endpoint.name || (endpoint.endpointType === "api" ? "API Endpoint" : "Hosted Chat")}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {endpoint.endpointType === "api" ? "JSON API" : "Shareable Link"} · Created {new Date(endpoint.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (confirm("Are you sure you want to revoke this endpoint?")) {
+                              deleteChatEndpointMutation.mutate({
+                                agentId: showChatModal.id,
+                                endpointId: endpoint.id,
+                              });
+                            }
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="mt-3">
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 text-xs bg-white rounded px-2 py-1.5 border border-gray-200 truncate">
+                            {getEndpointUrl(endpoint)}
+                          </code>
+                          <button
+                            onClick={() => copyToClipboard(getEndpointUrl(endpoint), endpoint.id)}
+                            className="p-1.5 text-gray-500 hover:text-gray-700 transition-colors"
+                            title="Copy URL"
+                          >
+                            {copiedEndpoint === endpoint.id ? (
+                              <span className="text-green-600 text-xs font-medium">Copied!</span>
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </button>
+                          {endpoint.endpointType === "hosted" && (
+                            <a
+                              href={getEndpointUrl(endpoint)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 text-gray-500 hover:text-gray-700 transition-colors"
+                              title="Open in new tab"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      {endpoint.endpointType === "api" && (
+                        <div className="mt-3 text-xs text-gray-600">
+                          <p className="font-medium mb-1">Usage:</p>
+                          <pre className="bg-gray-900 text-gray-100 p-2 rounded overflow-x-auto">
+{`curl -X POST "${getEndpointUrl(endpoint)}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"message": "Hello"}'`}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center border-2 border-dashed border-gray-200 rounded-lg">
+                  <Code className="w-10 h-10 mx-auto text-gray-400" />
+                  <h3 className="mt-3 text-sm font-medium text-gray-900">No public endpoints yet</h3>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Create an API endpoint or hosted chat page to share with others.
+                  </p>
+                </div>
+              )}
+
+              {/* Info boxes */}
+              <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                  <div className="flex items-center gap-2 font-medium text-blue-700 mb-1">
+                    <Code className="w-4 h-4" />
+                    API Endpoint
+                  </div>
+                  <p className="text-blue-600">
+                    For programmatic access. Returns JSON responses.
+                  </p>
+                </div>
+                <div className="p-3 bg-purple-50 rounded-lg border border-purple-100">
+                  <div className="flex items-center gap-2 font-medium text-purple-700 mb-1">
+                    <Globe className="w-4 h-4" />
+                    Hosted Chat Page
+                  </div>
+                  <p className="text-purple-600">
+                    A shareable link to a full-page chat interface.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end">
+              <button
+                onClick={() => setShowChatModal(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

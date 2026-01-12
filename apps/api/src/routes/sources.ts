@@ -239,7 +239,7 @@ sourceRoutes.post(
   async (c) => {
     const sourceId = c.req.param("sourceId");
     const authContext = c.get("auth");
-    const body = c.req.valid("json") || {};
+    const body = c.req.valid("json") || { forceReindex: false };
     const forceReindex = body.forceReindex ?? false;
 
     const source = await db.query.sources.findFirst({

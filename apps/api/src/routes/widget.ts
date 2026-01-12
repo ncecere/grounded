@@ -10,13 +10,13 @@ import {
   agentWidgetConfigs,
   retrievalConfigs,
   kbChunks,
-  embeddings,
   chatEvents,
   tenantQuotas,
 } from "@kcb/db/schema";
-import { eq, and, isNull, sql } from "drizzle-orm";
+import { eq, and, isNull, inArray, sql } from "drizzle-orm";
 import { generateEmbedding } from "@kcb/embeddings";
 import { generateRAGResponse, generateRAGResponseStream, type ChunkContext } from "@kcb/llm";
+import { getVectorStore } from "@kcb/vector-store";
 import type { Citation } from "@kcb/shared";
 import { getConversation, addToConversation, checkRateLimit } from "@kcb/queue";
 import { generateId } from "@kcb/shared";
@@ -439,6 +439,10 @@ widgetRoutes.post(
       ? `${agent.systemPrompt}\n\nAgent Description: ${agent.description}`
       : agent.systemPrompt;
 
+    // Disable proxy buffering for smooth streaming
+    c.header("X-Accel-Buffering", "no");
+    c.header("Cache-Control", "no-cache");
+
     return streamSSE(c, async (stream) => {
       let fullAnswer = "";
       let finalResponse: { answer: string; citations: Citation[]; promptTokens: number; completionTokens: number } | null = null;
@@ -523,36 +527,50 @@ async function retrieveChunks(
   topK: number,
   rerankerEnabled: boolean
 ): Promise<any[]> {
+  // Get vector store
+  const vectorStore = getVectorStore();
+  if (!vectorStore) {
+    console.warn("[Widget] Vector store not configured, falling back to keyword search only");
+    return retrieveChunksKeywordOnly(tenantId, kbIds, query, topK);
+  }
+
   // Generate query embedding
   const queryEmbedding = await generateEmbedding(query);
 
-  // Format embedding as vector literal
-  const vectorLiteral = `[${queryEmbedding.embedding.join(",")}]`;
-  // Format kbIds as PostgreSQL array literal string
-  const kbIdsArrayLiteral = `{${kbIds.join(",")}}`;
+  // Vector similarity search using vector store
+  const vectorResults = await vectorStore.search(queryEmbedding.embedding, {
+    tenantId,
+    kbIds,
+    topK: candidateK,
+  });
 
-  // Vector similarity search
-  const vectorResults = await db.execute(sql`
-    SELECT
-      c.id,
-      c.content,
-      c.title,
-      c.normalized_url as "normalizedUrl",
-      c.heading,
-      c.section_path,
-      c.tags,
-      c.keywords,
-      1 - (e.embedding <=> ${vectorLiteral}::vector) as similarity
-    FROM embeddings e
-    JOIN kb_chunks c ON c.id = e.chunk_id
-    WHERE e.tenant_id = ${tenantId}
-      AND e.kb_id = ANY(${kbIdsArrayLiteral}::uuid[])
-      AND c.deleted_at IS NULL
-    ORDER BY e.embedding <=> ${vectorLiteral}::vector
-    LIMIT ${candidateK}
-  `);
+  // Get chunk IDs from vector results
+  const vectorChunkIds = vectorResults.map((r) => r.id);
+
+  // Fetch chunk details from app DB
+  let vectorChunks: Array<typeof kbChunks.$inferSelect> = [];
+  if (vectorChunkIds.length > 0) {
+    vectorChunks = await db.query.kbChunks.findMany({
+      where: and(
+        inArray(kbChunks.id, vectorChunkIds),
+        isNull(kbChunks.deletedAt)
+      ),
+    });
+  }
+
+  // Create a map of chunk details with vector scores
+  const chunkMap = new Map<string, any>();
+  for (const chunk of vectorChunks) {
+    const vectorResult = vectorResults.find((r) => r.id === chunk.id);
+    chunkMap.set(chunk.id, {
+      ...chunk,
+      vectorScore: vectorResult?.score || 0,
+      keywordScore: 0,
+    });
+  }
 
   // Full-text search
+  const kbIdsArrayLiteral = `{${kbIds.join(",")}}`;
   const keywordResults = await db.execute(sql`
     SELECT
       c.id,
@@ -573,19 +591,8 @@ async function retrieveChunks(
     LIMIT ${candidateK}
   `);
 
-  // Merge results - handle both array and { rows: [] } formats
-  const chunkMap = new Map<string, any>();
-  const vectorRows = Array.isArray(vectorResults) ? vectorResults : (vectorResults as any).rows || [];
+  // Merge keyword results
   const keywordRows = Array.isArray(keywordResults) ? keywordResults : (keywordResults as any).rows || [];
-
-  for (const row of vectorRows as any[]) {
-    chunkMap.set(row.id, {
-      ...row,
-      vectorScore: parseFloat(row.similarity) || 0,
-      keywordScore: 0,
-    });
-  }
-
   for (const row of keywordRows as any[]) {
     const existing = chunkMap.get(row.id);
     if (existing) {
@@ -608,6 +615,37 @@ async function retrieveChunks(
   }
 
   return chunks.slice(0, topK);
+}
+
+/**
+ * Fallback to keyword-only search when vector store is not available
+ */
+async function retrieveChunksKeywordOnly(
+  tenantId: string,
+  kbIds: string[],
+  query: string,
+  topK: number
+): Promise<any[]> {
+  const kbIdsArrayLiteral = `{${kbIds.join(",")}}`;
+
+  const keywordResults = await db.execute(sql`
+    SELECT
+      c.*,
+      ts_rank_cd(c.tsv, plainto_tsquery('english', ${query})) as rank
+    FROM kb_chunks c
+    WHERE c.tenant_id = ${tenantId}
+      AND c.kb_id = ANY(${kbIdsArrayLiteral}::uuid[])
+      AND c.deleted_at IS NULL
+      AND c.tsv @@ plainto_tsquery('english', ${query})
+    ORDER BY rank DESC
+    LIMIT ${topK}
+  `);
+
+  const rows = Array.isArray(keywordResults) ? keywordResults : (keywordResults as any).rows || [];
+  return rows.map((row: any) => ({
+    ...row,
+    score: parseFloat(row.rank) || 0,
+  }));
 }
 
 function heuristicRerank(chunks: any[], query: string): any[] {

@@ -1,8 +1,9 @@
 import { db } from "@kcb/db";
-import { kbChunks, embeddings, knowledgeBases } from "@kcb/db/schema";
+import { kbChunks, knowledgeBases } from "@kcb/db/schema";
 import { eq, inArray, isNull, and } from "drizzle-orm";
 import { generateEmbeddings } from "@kcb/embeddings";
 import { getAIRegistry } from "@kcb/ai-providers";
+import { getVectorStore } from "@kcb/vector-store";
 import type { EmbedChunksBatchJob } from "@kcb/shared";
 
 export class EmbeddingDimensionMismatchError extends Error {
@@ -76,22 +77,24 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
     }
   }
 
-  // Insert embeddings with model tracking
-  const embeddingValues = chunks.map((chunk, index) => ({
+  // Get the vector store
+  const vectorStore = getVectorStore();
+  if (!vectorStore) {
+    throw new Error("Vector store not configured. Set VECTOR_DB_URL or VECTOR_DB_HOST environment variables.");
+  }
+
+  // Build vector records for the vector store
+  // Note: We use chunk.id as the vector id so we can look up chunk details from app DB
+  const vectorRecords = chunks.map((chunk, index) => ({
+    id: chunk.id,
     tenantId,
     kbId,
-    chunkId: chunk.id,
+    sourceId: chunk.sourceId,
     embedding: embeddingResults[index].embedding,
-    modelId, // Track which model generated this embedding
   }));
 
-  // Delete existing embeddings for these chunks
-  await db
-    .delete(embeddings)
-    .where(inArray(embeddings.chunkId, chunkIds));
-
-  // Insert new embeddings
-  await db.insert(embeddings).values(embeddingValues);
+  // Upsert vectors to the vector store (handles delete + insert atomically)
+  await vectorStore.upsert(vectorRecords);
 
   console.log(`Embedded ${chunks.length} chunks (${expectedDimensions}D) for KB ${kbId}`);
 }

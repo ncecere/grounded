@@ -6,7 +6,6 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { db } from "@kcb/db";
 import { modelProviders, modelConfigurations } from "@kcb/db/schema";
 import { eq } from "drizzle-orm";
-import { getEnv } from "@kcb/shared";
 import type {
   ProviderConfig,
   ModelConfig,
@@ -34,48 +33,71 @@ export class AIProviderRegistryImpl implements AIProviderRegistry {
   private initialized: boolean = false;
   private readonly CACHE_TTL_MS = 60000; // 1 minute cache
 
-  async getLanguageModel(modelConfigId?: string): Promise<LanguageModelV1> {
+  async getLanguageModel(modelConfigId?: string): Promise<LanguageModelV1 | null> {
     await this.ensureFresh();
 
     const configId = modelConfigId || this.defaultChatModelId;
     if (!configId) {
-      throw new Error("No chat model configured. Please configure a default chat model in settings.");
+      console.warn("[AI Registry] No chat model configured. Please configure a default chat model in AI Models.");
+      return null;
     }
 
     const config = this.models.get(configId);
     if (!config || config.modelType !== "chat") {
-      throw new Error(`Chat model not found: ${configId}`);
+      console.warn(`[AI Registry] Chat model not found: ${configId}`);
+      return null;
     }
 
     const provider = this.providers.get(config.providerName);
     if (!provider) {
-      throw new Error(`Provider not found: ${config.providerName}`);
+      console.warn(`[AI Registry] Provider not found: ${config.providerName}`);
+      return null;
     }
 
     // Return the language model based on provider type
     return provider.languageModel(config.modelId);
   }
 
-  async getEmbeddingModel(modelConfigId?: string): Promise<EmbeddingModelV1<string>> {
+  async getEmbeddingModel(modelConfigId?: string): Promise<EmbeddingModelV1<string> | null> {
     await this.ensureFresh();
 
     const configId = modelConfigId || this.defaultEmbeddingModelId;
     if (!configId) {
-      throw new Error("No embedding model configured. Please configure a default embedding model in settings.");
+      console.warn("[AI Registry] No embedding model configured. Please configure a default embedding model in AI Models.");
+      return null;
     }
 
     const config = this.models.get(configId);
     if (!config || config.modelType !== "embedding") {
-      throw new Error(`Embedding model not found: ${configId}`);
+      console.warn(`[AI Registry] Embedding model not found: ${configId}`);
+      return null;
     }
 
     const provider = this.providers.get(config.providerName);
     if (!provider) {
-      throw new Error(`Provider not found: ${config.providerName}`);
+      console.warn(`[AI Registry] Provider not found: ${config.providerName}`);
+      return null;
     }
 
     // Return the embedding model based on provider type
     return provider.textEmbeddingModel(config.modelId);
+  }
+
+  /**
+   * Check if a chat model is available
+   */
+  async hasChatModel(): Promise<boolean> {
+    await this.ensureFresh();
+    return this.defaultChatModelId !== null || this.models.size > 0;
+  }
+
+  /**
+   * Check if an embedding model is available
+   */
+  async hasEmbeddingModel(): Promise<boolean> {
+    await this.ensureFresh();
+    const embeddingModels = Array.from(this.models.values()).filter(m => m.modelType === "embedding");
+    return embeddingModels.length > 0;
   }
 
   async listModels(type?: ModelType): Promise<ModelConfig[]> {
@@ -167,23 +189,19 @@ export class AIProviderRegistryImpl implements AIProviderRegistry {
         }
       }
 
-      // If no providers configured in DB, fallback to environment variables
-      if (this.providers.size === 0) {
-        this.initializeFromEnvVars();
-      }
-
       this.lastRefresh = Date.now();
       this.initialized = true;
 
-      console.log(
-        `[AI Registry] Loaded ${this.providers.size} providers, ${this.models.size} models`
-      );
+      if (this.providers.size === 0) {
+        console.warn("[AI Registry] No AI providers configured. Please configure providers in AI Models settings.");
+      } else {
+        console.log(
+          `[AI Registry] Loaded ${this.providers.size} providers, ${this.models.size} models`
+        );
+      }
     } catch (error) {
       console.error("[AI Registry] Failed to refresh config:", error);
-      // Try env var fallback on error
-      if (this.providers.size === 0) {
-        this.initializeFromEnvVars();
-      }
+      this.initialized = true; // Mark as initialized even on error to prevent retry loops
       throw error;
     }
   }
@@ -226,107 +244,6 @@ export class AIProviderRegistryImpl implements AIProviderRegistry {
       console.error(`[AI Registry] Failed to create provider ${config.name}:`, error);
       return null;
     }
-  }
-
-  private initializeFromEnvVars(): void {
-    console.log("[AI Registry] No database config found, falling back to environment variables");
-
-    // LLM configuration from env
-    const llmApiKey = getEnv("LLM_API_KEY", "");
-    const llmApiUrl = getEnv("LLM_API_URL", "https://api.openai.com/v1");
-    const llmModel = getEnv("LLM_MODEL", "gpt-4o-mini");
-
-    // Embedding configuration from env
-    const embeddingApiKey = getEnv("EMBEDDING_API_KEY", "");
-    const embeddingApiUrl = getEnv("EMBEDDING_API_URL", "https://api.openai.com/v1");
-    const embeddingModel = getEnv("EMBEDDING_MODEL", "text-embedding-3-small");
-    const embeddingDimensions = parseInt(getEnv("EMBEDDING_DIMENSIONS", "1536"));
-
-    if (llmApiKey) {
-      // Create OpenAI provider for LLM
-      const llmProviderConfig: ProviderConfig = {
-        id: "env-llm",
-        name: "openai-env",
-        displayName: "OpenAI (Environment)",
-        type: "openai",
-        baseUrl: llmApiUrl !== "https://api.openai.com/v1" ? llmApiUrl : null,
-        apiKey: llmApiKey,
-        isEnabled: true,
-      };
-
-      const provider = this.createProvider(llmProviderConfig);
-      if (provider) {
-        this.providers.set("openai-env", provider);
-        this.providerConfigs.set("openai-env", llmProviderConfig);
-
-        // Create chat model config
-        const chatConfig: ModelConfig = {
-          id: "env-chat",
-          providerId: "env-llm",
-          providerName: "openai-env",
-          providerType: "openai",
-          modelId: llmModel,
-          displayName: `${llmModel} (env)`,
-          modelType: "chat",
-          maxTokens: parseInt(getEnv("LLM_MAX_TOKENS", "1024")),
-          temperature: parseFloat(getEnv("LLM_TEMPERATURE", "0.1")),
-          supportsStreaming: true,
-          supportsTools: true,
-          dimensions: null,
-          isEnabled: true,
-          isDefault: true,
-        };
-
-        this.models.set("env-chat", chatConfig);
-        this.defaultChatModelId = "env-chat";
-      }
-    }
-
-    if (embeddingApiKey) {
-      // Check if we need a separate provider for embeddings
-      const sameProvider = llmApiKey === embeddingApiKey && llmApiUrl === embeddingApiUrl;
-
-      if (!sameProvider) {
-        const embeddingProviderConfig: ProviderConfig = {
-          id: "env-embedding",
-          name: "openai-env-embedding",
-          displayName: "OpenAI Embedding (Environment)",
-          type: "openai",
-          baseUrl: embeddingApiUrl !== "https://api.openai.com/v1" ? embeddingApiUrl : null,
-          apiKey: embeddingApiKey,
-          isEnabled: true,
-        };
-
-        const provider = this.createProvider(embeddingProviderConfig);
-        if (provider) {
-          this.providers.set("openai-env-embedding", provider);
-          this.providerConfigs.set("openai-env-embedding", embeddingProviderConfig);
-        }
-      }
-
-      // Create embedding model config
-      const embeddingConfig: ModelConfig = {
-        id: "env-embedding",
-        providerId: sameProvider ? "env-llm" : "env-embedding",
-        providerName: sameProvider ? "openai-env" : "openai-env-embedding",
-        providerType: "openai",
-        modelId: embeddingModel,
-        displayName: `${embeddingModel} (env)`,
-        modelType: "embedding",
-        maxTokens: null,
-        temperature: null,
-        supportsStreaming: false,
-        supportsTools: false,
-        dimensions: embeddingDimensions,
-        isEnabled: true,
-        isDefault: true,
-      };
-
-      this.models.set("env-embedding", embeddingConfig);
-      this.defaultEmbeddingModelId = "env-embedding";
-    }
-
-    this.initialized = true;
   }
 
   private async ensureFresh(): Promise<void> {

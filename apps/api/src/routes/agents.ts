@@ -8,6 +8,7 @@ import {
   agentWidgetConfigs,
   retrievalConfigs,
   widgetTokens,
+  chatEndpointTokens,
   knowledgeBases,
   tenantQuotas,
   modelConfigurations,
@@ -46,6 +47,7 @@ const updateAgentSchema = z.object({
   citationsEnabled: z.boolean().optional(),
   isEnabled: z.boolean().optional(),
   llmModelConfigId: z.string().uuid().nullable().optional(),
+  kbIds: z.array(z.string().uuid()).optional(),
 });
 
 const updateKbsSchema = z.object({
@@ -65,6 +67,11 @@ const updateWidgetConfigSchema = z.object({
   allowedDomains: z.array(z.string()).optional(),
   oidcRequired: z.boolean().optional(),
   theme: widgetThemeSchema.partial().optional(),
+});
+
+const createChatEndpointSchema = z.object({
+  name: z.string().max(100).optional(),
+  endpointType: z.enum(["api", "hosted"]).default("api"),
 });
 
 // ============================================================================
@@ -250,9 +257,12 @@ agentRoutes.patch(
     const authContext = c.get("auth");
     const body = c.req.valid("json");
 
+    // Extract kbIds from body - handle separately
+    const { kbIds, ...agentData } = body;
+
     const [agent] = await db
       .update(agents)
-      .set(body)
+      .set(agentData)
       .where(
         and(
           eq(agents.id, agentId),
@@ -264,6 +274,20 @@ agentRoutes.patch(
 
     if (!agent) {
       throw new NotFoundError("Agent");
+    }
+
+    // Update KBs if provided
+    if (kbIds !== undefined) {
+      // Soft delete existing attachments
+      await db
+        .update(agentKbs)
+        .set({ deletedAt: new Date() })
+        .where(and(eq(agentKbs.agentId, agentId), isNull(agentKbs.deletedAt)));
+
+      // Attach new KBs
+      if (kbIds.length > 0) {
+        await attachKbs(authContext.tenantId!, agentId, kbIds);
+      }
     }
 
     return c.json({ agent });
@@ -683,6 +707,128 @@ agentRoutes.delete(
     }
 
     return c.json({ message: "Token revoked" });
+  }
+);
+
+// ============================================================================
+// List Chat Endpoints
+// ============================================================================
+
+agentRoutes.get("/:agentId/chat-endpoints", auth(), requireTenant(), async (c) => {
+  const agentId = c.req.param("agentId");
+  const authContext = c.get("auth");
+
+  // Verify agent belongs to tenant
+  const agent = await db.query.agents.findFirst({
+    where: and(
+      eq(agents.id, agentId),
+      eq(agents.tenantId, authContext.tenantId!),
+      isNull(agents.deletedAt)
+    ),
+  });
+
+  if (!agent) {
+    throw new NotFoundError("Agent");
+  }
+
+  const endpoints = await db.query.chatEndpointTokens.findMany({
+    where: and(
+      eq(chatEndpointTokens.agentId, agentId),
+      isNull(chatEndpointTokens.revokedAt)
+    ),
+  });
+
+  return c.json({
+    chatEndpoints: endpoints.map((ep) => ({
+      id: ep.id,
+      name: ep.name,
+      token: ep.token,
+      endpointType: ep.endpointType,
+      createdAt: ep.createdAt,
+    })),
+  });
+});
+
+// ============================================================================
+// Create Chat Endpoint
+// ============================================================================
+
+agentRoutes.post(
+  "/:agentId/chat-endpoints",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  zValidator("json", createChatEndpointSchema),
+  async (c) => {
+    const agentId = c.req.param("agentId");
+    const authContext = c.get("auth");
+    const body = c.req.valid("json");
+
+    // Verify agent belongs to tenant
+    const agent = await db.query.agents.findFirst({
+      where: and(
+        eq(agents.id, agentId),
+        eq(agents.tenantId, authContext.tenantId!),
+        isNull(agents.deletedAt)
+      ),
+    });
+
+    if (!agent) {
+      throw new NotFoundError("Agent");
+    }
+
+    // Generate token with prefix based on type
+    const prefix = body.endpointType === "hosted" ? "ch_" : "ce_";
+    const token = `${prefix}${generateId().replace(/-/g, "")}`;
+
+    const [chatEndpoint] = await db
+      .insert(chatEndpointTokens)
+      .values({
+        tenantId: authContext.tenantId!,
+        agentId,
+        token,
+        name: body.name,
+        endpointType: body.endpointType,
+        createdBy: authContext.user.id,
+      })
+      .returning();
+
+    return c.json({ chatEndpoint }, 201);
+  }
+);
+
+// ============================================================================
+// Revoke Chat Endpoint
+// ============================================================================
+
+agentRoutes.delete(
+  "/:agentId/chat-endpoints/:endpointId",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  async (c) => {
+    const agentId = c.req.param("agentId");
+    const endpointId = c.req.param("endpointId");
+    const authContext = c.get("auth");
+
+    const [endpoint] = await db
+      .update(chatEndpointTokens)
+      .set({ revokedAt: new Date() })
+      .where(
+        and(
+          eq(chatEndpointTokens.id, endpointId),
+          eq(chatEndpointTokens.agentId, agentId),
+          eq(chatEndpointTokens.tenantId, authContext.tenantId!),
+          isNull(chatEndpointTokens.revokedAt)
+        )
+      )
+      .returning();
+
+    if (!endpoint) {
+      throw new NotFoundError("Chat endpoint");
+    }
+
+    return c.json({ message: "Chat endpoint revoked" });
   }
 );
 

@@ -34,14 +34,26 @@ export interface AIProviderRegistry {
   /**
    * Get a language model by config ID.
    * If no ID provided, returns the default chat model.
+   * Returns null if no model is configured.
    */
-  getLanguageModel(modelConfigId?: string): Promise<LanguageModelV1>;
+  getLanguageModel(modelConfigId?: string): Promise<LanguageModelV1 | null>;
 
   /**
    * Get an embedding model by config ID.
    * If no ID provided, returns the default embedding model.
+   * Returns null if no model is configured.
    */
-  getEmbeddingModel(modelConfigId?: string): Promise<EmbeddingModelV1<string>>;
+  getEmbeddingModel(modelConfigId?: string): Promise<EmbeddingModelV1<string> | null>;
+
+  /**
+   * Check if at least one chat model is available.
+   */
+  hasChatModel(): Promise<boolean>;
+
+  /**
+   * Check if at least one embedding model is available.
+   */
+  hasEmbeddingModel(): Promise<boolean>;
 
   /**
    * List all configured models, optionally filtered by type.

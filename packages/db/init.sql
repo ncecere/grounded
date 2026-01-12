@@ -1,6 +1,7 @@
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "vector";
+-- Note: vector extension is now on the separate postgres-vector database
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
 -- ============================================================================
 -- Tenant and User Tables
@@ -191,18 +192,7 @@ CREATE INDEX IF NOT EXISTS kb_chunks_source_run_idx ON kb_chunks (source_run_id)
 CREATE UNIQUE INDEX IF NOT EXISTS kb_chunks_unique ON kb_chunks (tenant_id, source_id, normalized_url, chunk_index, content_hash) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS kb_chunks_tsv_idx ON kb_chunks USING GIN (tsv);
 
-CREATE TABLE IF NOT EXISTS embeddings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  kb_id UUID NOT NULL REFERENCES knowledge_bases(id) ON DELETE CASCADE,
-  chunk_id UUID NOT NULL REFERENCES kb_chunks(id) ON DELETE CASCADE,
-  embedding vector(1536) NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS embeddings_tenant_kb_idx ON embeddings (tenant_id, kb_id);
-CREATE INDEX IF NOT EXISTS embeddings_chunk_idx ON embeddings (chunk_id);
-CREATE INDEX IF NOT EXISTS embeddings_hnsw_idx ON embeddings USING hnsw (embedding vector_cosine_ops);
+-- Note: embeddings table removed - vectors are now stored in the separate postgres-vector database
 
 CREATE TABLE IF NOT EXISTS uploads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

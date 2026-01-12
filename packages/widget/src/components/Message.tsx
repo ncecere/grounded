@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { marked } from 'marked';
 import type { ChatMessage } from '../types';
-import { ChevronDownIcon, BookIcon } from './Icons';
+import { ChevronDownIcon, BookIcon, FileIcon } from './Icons';
 
 // Configure marked for chat widget use
 marked.setOptions({
@@ -75,20 +75,34 @@ export function Message({ message }: MessageProps): JSX.Element {
           </button>
 
           <div className={`kcb-sources-list ${sourcesOpen ? 'open' : ''}`}>
-            {message.citations!.map((citation, i) => (
-              <a
-                key={i}
-                href={citation.url || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="kcb-source"
-              >
-                <BookIcon />
-                <span className="kcb-source-title">
-                  {citation.title || citation.url || `Source ${i + 1}`}
-                </span>
-              </a>
-            ))}
+            {message.citations!.map((citation, i) => {
+              const isUpload = citation.url?.startsWith('upload://');
+              const displayTitle = citation.title || (isUpload ? 'Uploaded Document' : citation.url) || `Source ${i + 1}`;
+
+              if (isUpload) {
+                // For uploaded files, show as non-clickable item
+                return (
+                  <div key={i} className="kcb-source kcb-source-file">
+                    <FileIcon />
+                    <span className="kcb-source-title">{displayTitle}</span>
+                  </div>
+                );
+              }
+
+              // For web sources, show as clickable link
+              return (
+                <a
+                  key={i}
+                  href={citation.url || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="kcb-source"
+                >
+                  <BookIcon />
+                  <span className="kcb-source-title">{displayTitle}</span>
+                </a>
+              );
+            })}
           </div>
         </div>
       )}

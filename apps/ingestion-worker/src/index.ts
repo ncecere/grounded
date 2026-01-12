@@ -1,5 +1,6 @@
 import { Worker, Job, connection, QUEUE_NAMES } from "@kcb/queue";
 import { getEnvNumber } from "@kcb/shared";
+import { initializeVectorStore, isVectorStoreConfigured } from "@kcb/vector-store";
 import { processSourceRunStart } from "./processors/source-run-start";
 import { processSourceDiscover } from "./processors/source-discover";
 import { processSourceFinalize } from "./processors/source-finalize";
@@ -12,6 +13,20 @@ const CONCURRENCY = getEnvNumber("WORKER_CONCURRENCY", 5);
 
 console.log("Starting Ingestion Worker...");
 console.log(`Concurrency: ${CONCURRENCY}`);
+
+// Initialize vector store on startup
+(async () => {
+  if (isVectorStoreConfigured()) {
+    try {
+      await initializeVectorStore();
+      console.log("[Worker] Vector store initialized successfully");
+    } catch (error) {
+      console.error("[Worker] Failed to initialize vector store:", error);
+    }
+  } else {
+    console.warn("[Worker] Vector store not configured. Set VECTOR_DB_URL or VECTOR_DB_HOST.");
+  }
+})();
 
 // ============================================================================
 // Source Run Worker

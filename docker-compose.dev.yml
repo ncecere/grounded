@@ -2,9 +2,9 @@
 # Application services run locally for hot reloading
 
 services:
-  # PostgreSQL with pgvector
+  # PostgreSQL for application data
   postgres:
-    image: pgvector/pgvector:pg16
+    image: postgres:16-alpine
     container_name: kcb-postgres-dev
     environment:
       POSTGRES_USER: kcb
@@ -16,6 +16,24 @@ services:
       - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U kcb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL with pgvector for vector storage (separate cluster)
+  postgres-vector:
+    image: pgvector/pgvector:pg16
+    container_name: kcb-postgres-vector-dev
+    environment:
+      POSTGRES_USER: kcb_vectors
+      POSTGRES_PASSWORD: kcb_vectors_dev_password
+      POSTGRES_DB: vectors
+    volumes:
+      - postgres_vector_data_dev:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kcb_vectors"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -37,4 +55,5 @@ services:
 
 volumes:
   postgres_data_dev:
+  postgres_vector_data_dev:
   redis_data_dev:

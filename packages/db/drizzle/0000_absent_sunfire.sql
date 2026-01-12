@@ -1,6 +1,6 @@
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "vector";
+-- Note: vector extension is now on the separate postgres-vector database
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 --> statement-breakpoint
 CREATE TABLE "system_admins" (
@@ -120,15 +120,7 @@ CREATE TABLE "tenant_kb_subscriptions" (
 	"deleted_at" timestamp with time zone
 );
 --> statement-breakpoint
-CREATE TABLE "embeddings" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"tenant_id" uuid NOT NULL,
-	"kb_id" uuid NOT NULL,
-	"chunk_id" uuid NOT NULL,
-	"embedding" vector(768) NOT NULL,
-	"model_id" uuid,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
+-- Note: embeddings table removed - vectors are now stored in the separate postgres-vector database
 --> statement-breakpoint
 CREATE TABLE "kb_chunks" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -352,9 +344,7 @@ ALTER TABLE "sources" ADD CONSTRAINT "sources_created_by_users_id_fk" FOREIGN KE
 ALTER TABLE "tenant_kb_subscriptions" ADD CONSTRAINT "tenant_kb_subscriptions_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tenant_kb_subscriptions" ADD CONSTRAINT "tenant_kb_subscriptions_kb_id_knowledge_bases_id_fk" FOREIGN KEY ("kb_id") REFERENCES "public"."knowledge_bases"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tenant_kb_subscriptions" ADD CONSTRAINT "tenant_kb_subscriptions_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "embeddings" ADD CONSTRAINT "embeddings_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "embeddings" ADD CONSTRAINT "embeddings_kb_id_knowledge_bases_id_fk" FOREIGN KEY ("kb_id") REFERENCES "public"."knowledge_bases"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "embeddings" ADD CONSTRAINT "embeddings_chunk_id_kb_chunks_id_fk" FOREIGN KEY ("chunk_id") REFERENCES "public"."kb_chunks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+-- Note: embeddings foreign keys removed - vectors are now stored in the separate postgres-vector database
 ALTER TABLE "kb_chunks" ADD CONSTRAINT "kb_chunks_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "kb_chunks" ADD CONSTRAINT "kb_chunks_kb_id_knowledge_bases_id_fk" FOREIGN KEY ("kb_id") REFERENCES "public"."knowledge_bases"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "kb_chunks" ADD CONSTRAINT "kb_chunks_source_id_sources_id_fk" FOREIGN KEY ("source_id") REFERENCES "public"."sources"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -406,8 +396,7 @@ CREATE INDEX "sources_kb_id_idx" ON "sources" USING btree ("kb_id");--> statemen
 CREATE INDEX "sources_created_at_idx" ON "sources" USING btree ("created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "tenant_kb_subscriptions_unique" ON "tenant_kb_subscriptions" USING btree ("tenant_id","kb_id") WHERE deleted_at IS NULL;--> statement-breakpoint
 CREATE INDEX "tenant_kb_subscriptions_kb_id_idx" ON "tenant_kb_subscriptions" USING btree ("kb_id");--> statement-breakpoint
-CREATE INDEX "embeddings_tenant_kb_idx" ON "embeddings" USING btree ("tenant_id","kb_id");--> statement-breakpoint
-CREATE INDEX "embeddings_chunk_idx" ON "embeddings" USING btree ("chunk_id");--> statement-breakpoint
+-- Note: embeddings indexes removed - vectors are now stored in the separate postgres-vector database
 CREATE INDEX "kb_chunks_tenant_kb_idx" ON "kb_chunks" USING btree ("tenant_id","kb_id");--> statement-breakpoint
 CREATE INDEX "kb_chunks_source_idx" ON "kb_chunks" USING btree ("source_id");--> statement-breakpoint
 CREATE INDEX "kb_chunks_source_run_idx" ON "kb_chunks" USING btree ("source_run_id");--> statement-breakpoint

@@ -23,6 +23,12 @@ import { AdminSettings } from "./pages/AdminSettings";
 import { AdminTenants } from "./pages/AdminTenants";
 import { AdminModels } from "./pages/AdminModels";
 import { AdminUsers } from "./pages/AdminUsers";
+import { AdminSharedKBs } from "./pages/AdminSharedKBs";
+import { AdminSharedKbSources } from "./pages/AdminSharedKbSources";
+import { SharedKbDetail } from "./pages/SharedKbDetail";
+import AdminDashboard from "./pages/AdminDashboard";
+import { AdminAnalytics } from "./pages/AdminAnalytics";
+import { TenantSettings } from "./pages/TenantSettings";
 import { Login } from "./pages/Login";
 import { Building2, AlertTriangle } from "lucide-react";
 import { Button } from "./components/ui/button";
@@ -33,16 +39,23 @@ const pageNames: Record<Page, string> = {
   sources: "Sources",
   chat: "Chat",
   analytics: "Analytics",
+  dashboard: "Dashboard",
   settings: "Settings",
   tenants: "Tenants",
   models: "AI Models",
   users: "Users",
+  "shared-kbs": "Shared Knowledge Bases",
+  "shared-kb-sources": "Shared KB Sources",
+  "shared-kb-detail": "Shared Knowledge Base",
+  "admin-analytics": "Analytics",
+  "tenant-settings": "Tenant Settings",
 };
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("kbs");
   const [selectedKbId, setSelectedKbId] = useState<string | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [selectedSharedKbId, setSelectedSharedKbId] = useState<string | null>(null);
   const [currentTenant, setCurrentTenant] = useState<UserTenant | null>(null);
   const queryClient = useQueryClient();
 
@@ -98,6 +111,7 @@ export default function App() {
     setCurrentPage(page);
     setSelectedKbId(null);
     setSelectedAgentId(null);
+    setSelectedSharedKbId(null);
   };
 
   // Loading states
@@ -137,10 +151,29 @@ export default function App() {
 
     // No tenant state for admin users - prompt to create
     if ((!tenantsData?.tenants || tenantsData.tenants.length === 0) && user.isSystemAdmin) {
+      if (currentPage === "dashboard") return <AdminDashboard onNavigate={setCurrentPage} />;
+      if (currentPage === "admin-analytics") return <AdminAnalytics />;
       if (currentPage === "tenants") return <AdminTenants />;
       if (currentPage === "users") return <AdminUsers />;
       if (currentPage === "settings") return <AdminSettings />;
       if (currentPage === "models") return <AdminModels />;
+      if (currentPage === "shared-kbs") return (
+        <AdminSharedKBs
+          onSelectKb={(id) => {
+            setSelectedSharedKbId(id);
+            setCurrentPage("shared-kb-sources");
+          }}
+        />
+      );
+      if (currentPage === "shared-kb-sources") return (
+        <AdminSharedKbSources
+          kbId={selectedSharedKbId!}
+          onBack={() => {
+            setSelectedSharedKbId(null);
+            setCurrentPage("shared-kbs");
+          }}
+        />
+      );
 
       return (
         <div className="flex items-center justify-center h-full">
@@ -165,15 +198,29 @@ export default function App() {
       case "kbs":
         return (
           <KnowledgeBases
-            onSelectKb={(id) => {
+            onSelectKb={(id, isShared) => {
               setSelectedKbId(id);
-              setCurrentPage("sources");
+              if (isShared) {
+                setCurrentPage("shared-kb-detail");
+              } else {
+                setCurrentPage("sources");
+              }
             }}
           />
         );
       case "sources":
         return (
           <Sources
+            kbId={selectedKbId!}
+            onBack={() => {
+              setSelectedKbId(null);
+              setCurrentPage("kbs");
+            }}
+          />
+        );
+      case "shared-kb-detail":
+        return (
+          <SharedKbDetail
             kbId={selectedKbId!}
             onBack={() => {
               setSelectedKbId(null);
@@ -202,14 +249,39 @@ export default function App() {
         );
       case "analytics":
         return <Analytics />;
+      case "dashboard":
+        return <AdminDashboard onNavigate={setCurrentPage} />;
       case "tenants":
         return <AdminTenants />;
       case "users":
         return <AdminUsers />;
+      case "shared-kbs":
+        return (
+          <AdminSharedKBs
+            onSelectKb={(id) => {
+              setSelectedSharedKbId(id);
+              setCurrentPage("shared-kb-sources");
+            }}
+          />
+        );
+      case "shared-kb-sources":
+        return (
+          <AdminSharedKbSources
+            kbId={selectedSharedKbId!}
+            onBack={() => {
+              setSelectedSharedKbId(null);
+              setCurrentPage("shared-kbs");
+            }}
+          />
+        );
       case "models":
         return <AdminModels />;
+      case "admin-analytics":
+        return <AdminAnalytics />;
       case "settings":
         return <AdminSettings />;
+      case "tenant-settings":
+        return <TenantSettings />;
       default:
         return <KnowledgeBases onSelectKb={() => {}} />;
     }

@@ -6,7 +6,6 @@ import {
   sourceRuns,
   sourceRunPages,
   kbChunks,
-  embeddings,
   agents,
   agentKbs,
   agentWidgetConfigs,
@@ -22,6 +21,7 @@ import {
   uploads,
 } from "@kcb/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
+import { getVectorStore } from "@kcb/vector-store";
 import type { HardDeleteObjectJob } from "@kcb/shared";
 
 export async function processHardDelete(data: HardDeleteObjectJob): Promise<void> {
@@ -129,7 +129,13 @@ async function deleteSource(tenantId: string, sourceId: string): Promise<void> {
 }
 
 async function deleteSourceData(sourceId: string): Promise<void> {
-  // Get all chunks for this source
+  // Delete vectors from vector store by source
+  const vectorStore = getVectorStore();
+  if (vectorStore) {
+    await vectorStore.deleteByMetadata({ sourceId });
+  }
+
+  // Get all chunks for this source (for cleanup)
   const sourceChunks = await db.query.kbChunks.findMany({
     where: eq(kbChunks.sourceId, sourceId),
   });
@@ -137,10 +143,7 @@ async function deleteSourceData(sourceId: string): Promise<void> {
   const chunkIds = sourceChunks.map((c) => c.id);
 
   if (chunkIds.length > 0) {
-    // Delete embeddings
-    await db.delete(embeddings).where(inArray(embeddings.chunkId, chunkIds));
-
-    // Delete chunks
+    // Delete chunks from app DB
     await db.delete(kbChunks).where(inArray(kbChunks.id, chunkIds));
   }
 
@@ -181,12 +184,18 @@ async function deleteAgent(tenantId: string, agentId: string): Promise<void> {
 }
 
 async function deleteTenant(tenantId: string): Promise<void> {
+  // Delete all vectors for this tenant in one operation
+  const vectorStore = getVectorStore();
+  if (vectorStore) {
+    await vectorStore.deleteByMetadata({ tenantId });
+  }
+
   // Get all KBs for this tenant
   const tenantKbs = await db.query.knowledgeBases.findMany({
     where: eq(knowledgeBases.tenantId, tenantId),
   });
 
-  // Delete each KB
+  // Delete each KB (vectors already deleted above, but this cleans up other data)
   for (const kb of tenantKbs) {
     await deleteKnowledgeBase(tenantId, kb.id);
   }

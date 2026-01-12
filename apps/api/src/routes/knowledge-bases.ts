@@ -46,10 +46,63 @@ kbRoutes.get("/", auth(), requireTenant(), async (c) => {
     ),
   });
 
-  // Get source and chunk counts for each KB
-  const kbIds = ownKbs.map((kb) => kb.id);
+  const ownKbIds = new Set(ownKbs.map((kb) => kb.id));
 
-  // Get source counts
+  // Get ALL published global KBs (visible to everyone)
+  const globalKbs = await db.query.knowledgeBases.findMany({
+    where: and(
+      eq(knowledgeBases.isGlobal, true),
+      sql`${knowledgeBases.publishedAt} IS NOT NULL`,
+      isNull(knowledgeBases.deletedAt)
+    ),
+  });
+
+  // Get KBs specifically shared with this tenant
+  const sharedSubscriptions = await db
+    .select({
+      kb: knowledgeBases,
+    })
+    .from(tenantKbSubscriptions)
+    .innerJoin(knowledgeBases, eq(knowledgeBases.id, tenantKbSubscriptions.kbId))
+    .where(
+      and(
+        eq(tenantKbSubscriptions.tenantId, authContext.tenantId!),
+        isNull(tenantKbSubscriptions.deletedAt),
+        isNull(knowledgeBases.deletedAt)
+      )
+    );
+
+  const sharedKbs = sharedSubscriptions.map((s) => s.kb);
+
+  // Combine all KBs, avoiding duplicates
+  const allKbIds = new Set<string>();
+  const allKbs: Array<typeof knowledgeBases.$inferSelect & { isShared: boolean }> = [];
+
+  // Add own KBs first (not shared)
+  for (const kb of ownKbs) {
+    allKbIds.add(kb.id);
+    allKbs.push({ ...kb, isShared: false });
+  }
+
+  // Add global KBs (shared, unless already owned)
+  for (const kb of globalKbs) {
+    if (!allKbIds.has(kb.id)) {
+      allKbIds.add(kb.id);
+      allKbs.push({ ...kb, isShared: true });
+    }
+  }
+
+  // Add specifically shared KBs (shared, unless already included)
+  for (const kb of sharedKbs) {
+    if (!allKbIds.has(kb.id)) {
+      allKbIds.add(kb.id);
+      allKbs.push({ ...kb, isShared: true });
+    }
+  }
+
+  // Get source and chunk counts for all KBs
+  const kbIds = Array.from(allKbIds);
+
   const sourceCounts = kbIds.length > 0 ? await db
     .select({
       kbId: sources.kbId,
@@ -62,7 +115,6 @@ kbRoutes.get("/", auth(), requireTenant(), async (c) => {
     ))
     .groupBy(sources.kbId) : [];
 
-  // Get chunk counts
   const chunkCounts = kbIds.length > 0 ? await db
     .select({
       kbId: kbChunks.kbId,
@@ -78,39 +130,12 @@ kbRoutes.get("/", auth(), requireTenant(), async (c) => {
   const sourceCountMap = new Map(sourceCounts.map((s) => [s.kbId, s.count]));
   const chunkCountMap = new Map(chunkCounts.map((c) => [c.kbId, c.count]));
 
-  // Get subscribed global KBs
-  const subscriptions = await db
-    .select({
-      kb: knowledgeBases,
-    })
-    .from(tenantKbSubscriptions)
-    .innerJoin(knowledgeBases, eq(knowledgeBases.id, tenantKbSubscriptions.kbId))
-    .where(
-      and(
-        eq(tenantKbSubscriptions.tenantId, authContext.tenantId!),
-        isNull(tenantKbSubscriptions.deletedAt),
-        eq(knowledgeBases.isGlobal, true),
-        sql`${knowledgeBases.publishedAt} IS NOT NULL`
-      )
-    );
-
-  const subscribedKbs = subscriptions.map((s) => ({
-    ...s.kb,
-    isSubscribed: true,
-    sourceCount: 0,
-    chunkCount: 0,
-  }));
-
   return c.json({
-    knowledgeBases: [
-      ...ownKbs.map((kb) => ({
-        ...kb,
-        isSubscribed: false,
-        sourceCount: sourceCountMap.get(kb.id) || 0,
-        chunkCount: chunkCountMap.get(kb.id) || 0,
-      })),
-      ...subscribedKbs,
-    ],
+    knowledgeBases: allKbs.map((kb) => ({
+      ...kb,
+      sourceCount: sourceCountMap.get(kb.id) || 0,
+      chunkCount: chunkCountMap.get(kb.id) || 0,
+    })),
   });
 });
 

@@ -141,6 +141,10 @@ export async function generateRAGResponse(
   const registry = getAIRegistry();
   const model = await registry.getLanguageModel(options.modelConfigId);
 
+  if (!model) {
+    throw new Error("No chat model configured. Please configure a chat model in AI Models.");
+  }
+
   const messages: CoreMessage[] = [
     {
       role: "system",
@@ -197,25 +201,10 @@ export async function generateRAGResponse(
  * Generate a streaming RAG response.
  * @param question - The user's question
  * @param chunks - Context chunks to use for answering
- * @param options - Optional configuration including systemPrompt, conversationHistory, modelConfigId, maxCitations
+ * @param optionsOrSystemPrompt - RAGOptions object (preferred) or systemPrompt string (deprecated)
+ * @param conversationHistory - Deprecated: use options.conversationHistory instead
+ * @param modelConfigId - Deprecated: use options.modelConfigId instead
  */
-export async function* generateRAGResponseStream(
-  question: string,
-  chunks: ChunkContext[],
-  options?: RAGOptions
-): AsyncGenerator<string, RAGResponse>;
-
-/**
- * @deprecated Use options object instead
- */
-export async function* generateRAGResponseStream(
-  question: string,
-  chunks: ChunkContext[],
-  systemPrompt?: string,
-  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>,
-  modelConfigId?: string
-): AsyncGenerator<string, RAGResponse>;
-
 export async function* generateRAGResponseStream(
   question: string,
   chunks: ChunkContext[],
@@ -237,6 +226,10 @@ export async function* generateRAGResponseStream(
 
   const registry = getAIRegistry();
   const model = await registry.getLanguageModel(options.modelConfigId);
+
+  if (!model) {
+    throw new Error("No chat model configured. Please configure a chat model in AI Models.");
+  }
 
   const messages: CoreMessage[] = [
     {
@@ -362,6 +355,10 @@ export async function generateEnrichment(
 ): Promise<EnrichmentResult> {
   const registry = getAIRegistry();
   const model = await registry.getLanguageModel(modelConfigId);
+
+  if (!model) {
+    throw new Error("No chat model configured. Please configure a chat model in AI Models.");
+  }
 
   const prompt = `Analyze the following document and extract:
 1. A brief summary (2-3 sentences)

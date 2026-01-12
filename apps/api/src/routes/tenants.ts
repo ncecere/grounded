@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { db } from "@kcb/db";
-import { tenants, tenantMemberships, users, tenantQuotas } from "@kcb/db/schema";
+import { tenants, tenantMemberships, users, tenantQuotas, tenantAlertSettings } from "@kcb/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { auth, requireRole, requireTenant, requireSystemAdmin } from "../middleware/auth";
 import { NotFoundError, BadRequestError, ConflictError } from "../middleware/error-handler";
@@ -13,10 +13,20 @@ export const tenantRoutes = new Hono();
 // Validation Schemas
 // ============================================================================
 
+const quotaOverridesSchema = z.object({
+  maxKbs: z.number().int().min(1).max(1000).optional(),
+  maxAgents: z.number().int().min(1).max(1000).optional(),
+  maxUploadedDocsPerMonth: z.number().int().min(1).max(100000).optional(),
+  maxScrapedPagesPerMonth: z.number().int().min(1).max(100000).optional(),
+  maxCrawlConcurrency: z.number().int().min(1).max(50).optional(),
+  chatRateLimitPerMinute: z.number().int().min(1).max(1000).optional(),
+});
+
 const createTenantSchema = z.object({
   name: z.string().min(1).max(100),
   slug: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/),
   ownerEmail: z.string().email().optional(), // If not provided, admin creating becomes owner
+  quotas: quotaOverridesSchema.optional(),
 });
 
 const updateTenantSchema = z.object({
@@ -30,6 +40,16 @@ const addMemberSchema = z.object({
 
 const updateMemberSchema = z.object({
   role: z.enum(["owner", "admin", "member", "viewer"]),
+});
+
+const updateAlertSettingsSchema = z.object({
+  enabled: z.boolean().optional(),
+  notifyOwners: z.boolean().optional(),
+  notifyAdmins: z.boolean().optional(),
+  additionalEmails: z.string().optional().nullable(),
+  errorRateThreshold: z.number().int().min(1).max(100).optional().nullable(),
+  quotaWarningThreshold: z.number().int().min(1).max(100).optional().nullable(),
+  inactivityDays: z.number().int().min(0).max(365).optional().nullable(),
 });
 
 // ============================================================================
@@ -119,9 +139,10 @@ tenantRoutes.post(
       role: "owner",
     });
 
-    // Create default quotas
+    // Create quotas (with optional overrides)
     await db.insert(tenantQuotas).values({
       tenantId: tenant.id,
+      ...(body.quotas || {}),
     });
 
     return c.json({ tenant }, 201);
@@ -376,5 +397,101 @@ tenantRoutes.delete(
       );
 
     return c.json({ message: "Member removed" });
+  }
+);
+
+// ============================================================================
+// Get Tenant Alert Settings
+// ============================================================================
+
+tenantRoutes.get(
+  "/:tenantId/alert-settings",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  async (c) => {
+    const tenantId = c.req.param("tenantId");
+
+    // Get existing settings or return defaults
+    const settings = await db.query.tenantAlertSettings.findFirst({
+      where: eq(tenantAlertSettings.tenantId, tenantId),
+    });
+
+    if (settings) {
+      return c.json({ alertSettings: settings });
+    }
+
+    // Return defaults if no settings exist
+    return c.json({
+      alertSettings: {
+        tenantId,
+        enabled: true,
+        notifyOwners: true,
+        notifyAdmins: false,
+        additionalEmails: null,
+        errorRateThreshold: null,
+        quotaWarningThreshold: null,
+        inactivityDays: null,
+        createdAt: null,
+        updatedAt: null,
+      },
+    });
+  }
+);
+
+// ============================================================================
+// Update Tenant Alert Settings
+// ============================================================================
+
+tenantRoutes.put(
+  "/:tenantId/alert-settings",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  zValidator("json", updateAlertSettingsSchema),
+  async (c) => {
+    const tenantId = c.req.param("tenantId");
+    const body = c.req.valid("json");
+
+    // Validate additionalEmails if provided
+    if (body.additionalEmails) {
+      const emails = body.additionalEmails.split(",").map((e) => e.trim());
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      for (const email of emails) {
+        if (!emailRegex.test(email)) {
+          throw new BadRequestError(`Invalid email address: ${email}`);
+        }
+      }
+    }
+
+    // Upsert the settings
+    const [settings] = await db
+      .insert(tenantAlertSettings)
+      .values({
+        tenantId,
+        enabled: body.enabled ?? true,
+        notifyOwners: body.notifyOwners ?? true,
+        notifyAdmins: body.notifyAdmins ?? false,
+        additionalEmails: body.additionalEmails ?? null,
+        errorRateThreshold: body.errorRateThreshold ?? null,
+        quotaWarningThreshold: body.quotaWarningThreshold ?? null,
+        inactivityDays: body.inactivityDays ?? null,
+      })
+      .onConflictDoUpdate({
+        target: tenantAlertSettings.tenantId,
+        set: {
+          enabled: body.enabled,
+          notifyOwners: body.notifyOwners,
+          notifyAdmins: body.notifyAdmins,
+          additionalEmails: body.additionalEmails,
+          errorRateThreshold: body.errorRateThreshold,
+          quotaWarningThreshold: body.quotaWarningThreshold,
+          inactivityDays: body.inactivityDays,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+
+    return c.json({ alertSettings: settings });
   }
 );

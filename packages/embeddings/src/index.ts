@@ -26,6 +26,7 @@ export interface EmbeddingResult {
  * Generate embedding for a single text.
  * @param text - Text to embed
  * @param modelConfigId - Optional specific model to use (defaults to configured default)
+ * @throws Error if no embedding model is configured
  */
 export async function generateEmbedding(
   text: string,
@@ -33,6 +34,10 @@ export async function generateEmbedding(
 ): Promise<EmbeddingResult> {
   const registry = getAIRegistry();
   const model = await registry.getEmbeddingModel(modelConfigId);
+
+  if (!model) {
+    throw new Error("No embedding model configured. Please configure an embedding model in AI Models.");
+  }
 
   const result = await retry(
     async () => {
@@ -57,6 +62,7 @@ export async function generateEmbedding(
  * Generate embeddings for multiple texts in batches.
  * @param texts - Array of texts to embed
  * @param modelConfigId - Optional specific model to use (defaults to configured default)
+ * @throws Error if no embedding model is configured
  */
 export async function generateEmbeddings(
   texts: string[],
@@ -64,6 +70,10 @@ export async function generateEmbeddings(
 ): Promise<EmbeddingResult[]> {
   const registry = getAIRegistry();
   const model = await registry.getEmbeddingModel(modelConfigId);
+
+  if (!model) {
+    throw new Error("No embedding model configured. Please configure an embedding model in AI Models.");
+  }
 
   const results: EmbeddingResult[] = [];
 

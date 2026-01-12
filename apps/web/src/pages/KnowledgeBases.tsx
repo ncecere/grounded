@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type KnowledgeBase } from "../lib/api";
+import { Share2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -10,7 +11,7 @@ import {
 } from "../components/ui/select";
 
 interface KnowledgeBasesProps {
-  onSelectKb: (id: string) => void;
+  onSelectKb: (id: string, isShared?: boolean) => void;
 }
 
 export function KnowledgeBases({ onSelectKb }: KnowledgeBasesProps) {
@@ -117,36 +118,55 @@ export function KnowledgeBases({ onSelectKb }: KnowledgeBasesProps) {
           {knowledgeBases?.map((kb) => (
             <div
               key={kb.id}
-              className="bg-white rounded-lg border border-gray-200 p-5 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer"
-              onClick={() => onSelectKb(kb.id)}
+              className={`bg-white rounded-lg border p-5 hover:shadow-sm transition-all cursor-pointer ${
+                kb.isShared
+                  ? "border-purple-200 hover:border-purple-300"
+                  : "border-gray-200 hover:border-blue-300"
+              }`}
+              onClick={() => onSelectKb(kb.id, kb.isShared)}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">{kb.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-gray-900">{kb.name}</h3>
+                    {kb.isShared && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">
+                        <Share2 className="w-3 h-3" />
+                        Shared
+                      </span>
+                    )}
+                  </div>
                   {kb.description && (
                     <p className="mt-1 text-sm text-gray-500 line-clamp-2">{kb.description}</p>
                   )}
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm("Are you sure you want to delete this knowledge base?")) {
-                      deleteMutation.mutate(kb.id);
-                    }
-                  }}
-                  className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                {!kb.isShared && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm("Are you sure you want to delete this knowledge base?")) {
+                        deleteMutation.mutate(kb.id);
+                      }
+                    }}
+                    className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
               </div>
               <div className="mt-4 flex items-center gap-4 text-sm text-gray-500">
                 <span>{kb.sourceCount ?? 0} sources</span>
                 <span>{kb.chunkCount ?? 0} chunks</span>
               </div>
-              <div className="mt-3 text-xs text-gray-400">
-                Created {new Date(kb.createdAt).toLocaleDateString()}
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-xs text-gray-400">
+                  Created {new Date(kb.createdAt).toLocaleDateString()}
+                </span>
+                {kb.isShared && (
+                  <span className="text-xs text-purple-500 italic">Read-only</span>
+                )}
               </div>
             </div>
           ))}

@@ -12,28 +12,6 @@ import { sql } from "drizzle-orm";
 import { tenants } from "./tenants";
 import { knowledgeBases, sources, sourceRuns } from "./knowledge";
 
-// Custom type for pgvector
-// Dimensions should match your embedding model:
-// - nomic-embed-text: 768
-// - text-embedding-3-small: 1536
-// - text-embedding-3-large: 3072
-const EMBEDDING_DIMENSIONS = 768;
-
-const vector = customType<{ data: number[]; driverData: string }>({
-  dataType() {
-    return `vector(${EMBEDDING_DIMENSIONS})`;
-  },
-  toDriver(value: number[]): string {
-    return `[${value.join(",")}]`;
-  },
-  fromDriver(value: string): number[] {
-    return value
-      .slice(1, -1)
-      .split(",")
-      .map((v) => parseFloat(v));
-  },
-});
-
 // Custom type for tsvector
 const tsvector = customType<{ data: string; driverData: string }>({
   dataType() {
@@ -46,8 +24,7 @@ export const kbChunks = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: uuid("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
+      .references(() => tenants.id, { onDelete: "cascade" }), // Nullable for global KBs
     kbId: uuid("kb_id")
       .notNull()
       .references(() => knowledgeBases.id, { onDelete: "cascade" }),
@@ -84,29 +61,8 @@ export const kbChunks = pgTable(
   ]
 );
 
-export const embeddings = pgTable(
-  "embeddings",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    tenantId: uuid("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
-    kbId: uuid("kb_id")
-      .notNull()
-      .references(() => knowledgeBases.id, { onDelete: "cascade" }),
-    chunkId: uuid("chunk_id")
-      .notNull()
-      .references(() => kbChunks.id, { onDelete: "cascade" }),
-    embedding: vector("embedding").notNull(),
-    modelId: uuid("model_id"), // Track which model generated this embedding
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (table) => [
-    index("embeddings_tenant_kb_idx").on(table.tenantId, table.kbId),
-    index("embeddings_chunk_idx").on(table.chunkId),
-    // HNSW index for vector similarity will be created in migration
-  ]
-);
+// NOTE: Embeddings/vectors are now stored in a separate vector database.
+// See @kcb/vector-store package for vector storage and retrieval.
 
 export const uploads = pgTable(
   "uploads",
