@@ -157,7 +157,7 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
             </div>
           ) : (
             <>
-              {messages.map((message) => (
+              {messages.filter(m => m.content || m.role === 'user').map((message) => (
                 <Message key={message.id} message={message} />
               ))}
               {(isLoading || chatStatus.status !== 'idle') && chatStatus.status !== 'streaming' && (

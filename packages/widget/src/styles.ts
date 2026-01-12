@@ -894,7 +894,7 @@ export const styles = `
   .grounded-status {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     padding: var(--grounded-space-md);
   }
 
