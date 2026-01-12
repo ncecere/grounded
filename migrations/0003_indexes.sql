@@ -5,7 +5,8 @@
 -- GIN index for full-text search on kb_chunks
 CREATE INDEX IF NOT EXISTS kb_chunks_tsv_gin_idx ON kb_chunks USING GIN(tsv);
 
--- Trigger to automatically update tsvector
+-- Trigger to automatically update tsvector (drop first if exists)
+DROP TRIGGER IF EXISTS kb_chunks_tsv_update ON kb_chunks;
 CREATE TRIGGER kb_chunks_tsv_update
   BEFORE INSERT OR UPDATE ON kb_chunks
   FOR EACH ROW
