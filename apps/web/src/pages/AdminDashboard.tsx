@@ -272,7 +272,7 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               onClick={() => onNavigate("models")}
-              className="block text-left bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all"
+              className="block text-left bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-xs transition-all"
             >
               <h3 className="font-medium text-gray-900">AI Models</h3>
               <p className="text-sm text-gray-500 mt-1">
@@ -281,7 +281,7 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
             </button>
             <button
               onClick={() => onNavigate("settings")}
-              className="block text-left bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all"
+              className="block text-left bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-xs transition-all"
             >
               <h3 className="font-medium text-gray-900">System Settings</h3>
               <p className="text-sm text-gray-500 mt-1">
@@ -290,7 +290,7 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
             </button>
             <button
               onClick={() => onNavigate("users")}
-              className="block text-left bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all"
+              className="block text-left bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-xs transition-all"
             >
               <h3 className="font-medium text-gray-900">User Management</h3>
               <p className="text-sm text-gray-500 mt-1">

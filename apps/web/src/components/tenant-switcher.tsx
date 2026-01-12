@@ -1,4 +1,3 @@
-import * as React from "react"
 import { ChevronsUpDown, Building2, Plus } from "lucide-react"
 
 import {
@@ -60,7 +59,7 @@ export function TenantSwitcher({
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
             align="start"
             side={isMobile ? "bottom" : "right"}
             sideOffset={4}
@@ -68,7 +67,7 @@ export function TenantSwitcher({
             <DropdownMenuLabel className="text-xs text-muted-foreground">
               Tenants
             </DropdownMenuLabel>
-            {tenants.map((tenant, index) => (
+            {tenants.map((tenant) => (
               <DropdownMenuItem
                 key={tenant.id}
                 onClick={() => onTenantChange(tenant)}

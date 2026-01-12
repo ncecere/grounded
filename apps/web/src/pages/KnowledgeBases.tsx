@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type KnowledgeBase } from "../lib/api";
+import { api } from "../lib/api";
 import { Share2 } from "lucide-react";
 import {
   Select,
@@ -118,7 +118,7 @@ export function KnowledgeBases({ onSelectKb }: KnowledgeBasesProps) {
           {knowledgeBases?.map((kb) => (
             <div
               key={kb.id}
-              className={`bg-white rounded-lg border p-5 hover:shadow-sm transition-all cursor-pointer ${
+              className={`bg-white rounded-lg border p-5 hover:shadow-xs transition-all cursor-pointer ${
                 kb.isShared
                   ? "border-purple-200 hover:border-purple-300"
                   : "border-gray-200 hover:border-blue-300"
@@ -175,7 +175,7 @@ export function KnowledgeBases({ onSelectKb }: KnowledgeBasesProps) {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <form onSubmit={handleCreate}>
               <div className="p-6">

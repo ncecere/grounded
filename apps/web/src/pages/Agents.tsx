@@ -337,7 +337,7 @@ export function Agents({ onSelectAgent }: AgentsProps) {
           {agents?.map((agent) => (
             <div
               key={agent.id}
-              className={`bg-white rounded-lg border p-5 hover:shadow-sm transition-all ${
+              className={`bg-white rounded-lg border p-5 hover:shadow-xs transition-all ${
                 agent.isEnabled !== false
                   ? "border-gray-200 hover:border-blue-300"
                   : "border-gray-200 opacity-60"
@@ -353,7 +353,7 @@ export function Agents({ onSelectAgent }: AgentsProps) {
                       <img
                         src={agent.logoUrl}
                         alt=""
-                        className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                        className="w-10 h-10 rounded-lg object-cover shrink-0"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = 'none';
                         }}
@@ -365,7 +365,7 @@ export function Agents({ onSelectAgent }: AgentsProps) {
                           {agent.name}
                         </h3>
                         {agent.isEnabled === false && (
-                          <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 rounded-full flex-shrink-0">
+                          <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 rounded-full shrink-0">
                             Disabled
                           </span>
                         )}
@@ -375,7 +375,7 @@ export function Agents({ onSelectAgent }: AgentsProps) {
                       )}
                     </div>
                   </div>
-                  <svg className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-gray-400 ml-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                 </div>
@@ -417,7 +417,7 @@ export function Agents({ onSelectAgent }: AgentsProps) {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleCreate}>
               <div className="p-6">
@@ -548,7 +548,7 @@ export function Agents({ onSelectAgent }: AgentsProps) {
 
       {/* Widget Config Modal */}
       {showConfigModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h2 className="text-lg font-semibold text-gray-900">Widget Configuration</h2>
@@ -864,7 +864,7 @@ export function Agents({ onSelectAgent }: AgentsProps) {
 
       {/* Edit Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleUpdate}>
               <div className="p-6">
@@ -1131,7 +1131,7 @@ export function Agents({ onSelectAgent }: AgentsProps) {
 
       {/* Chat Modal */}
       {showChatModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">

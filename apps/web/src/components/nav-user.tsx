@@ -1,5 +1,4 @@
 import {
-  BadgeCheck,
   ChevronsUpDown,
   LogOut,
   Settings,
@@ -60,7 +59,7 @@ export function NavUser({ user, onLogout, onSettings, onTenants }: NavUserProps)
             >
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarImage src={user.avatar} alt={user.email} />
-                <AvatarFallback className="rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-medium">
+                <AvatarFallback className="rounded-lg bg-linear-to-br from-blue-500 to-indigo-600 text-white text-xs font-medium">
                   {getInitials(user.email)}
                 </AvatarFallback>
               </Avatar>
@@ -74,7 +73,7 @@ export function NavUser({ user, onLogout, onSettings, onTenants }: NavUserProps)
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
             side={isMobile ? "bottom" : "right"}
             align="end"
             sideOffset={4}
@@ -83,7 +82,7 @@ export function NavUser({ user, onLogout, onSettings, onTenants }: NavUserProps)
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={user.avatar} alt={user.email} />
-                  <AvatarFallback className="rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-medium">
+                  <AvatarFallback className="rounded-lg bg-linear-to-br from-blue-500 to-indigo-600 text-white text-xs font-medium">
                     {getInitials(user.email)}
                   </AvatarFallback>
                 </Avatar>

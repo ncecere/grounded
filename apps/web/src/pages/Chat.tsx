@@ -71,7 +71,8 @@ function parseMarkdown(text: string, citations?: ChatMessage["citations"]): stri
   if (citations && citations.length > 0) {
     cleaned = cleaned.replace(/\[(\d+)\]/g, (match, num) => {
       const index = parseInt(num, 10);
-      const citation = citations.find(c => c.index === index);
+      // Citations are 1-indexed in the text, but 0-indexed in the array
+      const citation = citations[index - 1];
       if (citation) {
         const title = citation.title || citation.url || `Source ${index}`;
         const url = citation.url || '#';
@@ -353,7 +354,7 @@ export function Chat({ agentId, onBack }: ChatProps) {
   return (
     <div className="relative h-full w-full bg-background">
       {/* Fixed Header */}
-      <div className="absolute top-0 left-0 right-0 z-20 bg-background/95 backdrop-blur-sm border-b">
+      <div className="absolute top-0 left-0 right-0 z-20 bg-background/95 backdrop-blur-xs border-b">
         <div className="flex items-center gap-3 px-4 py-3">
           <Button
             variant="ghost"
@@ -466,7 +467,7 @@ export function Chat({ agentId, onBack }: ChatProps) {
                 onKeyDown={handleKeyDown}
                 placeholder={`Ask ${agent?.name || "the agent"} anything...`}
                 disabled={isLoading || isStreaming}
-                className="flex-1 resize-none bg-transparent border-0 outline-none text-sm min-h-[40px] max-h-[120px] py-2 px-2 placeholder:text-muted-foreground disabled:opacity-50"
+                className="flex-1 resize-none bg-transparent border-0 outline-hidden text-sm min-h-[40px] max-h-[120px] py-2 px-2 placeholder:text-muted-foreground disabled:opacity-50"
                 rows={1}
               />
               <Button

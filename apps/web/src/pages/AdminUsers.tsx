@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type AdminUser, type AdminUserDetail } from "../lib/api";
+import { api, type AdminUser } from "../lib/api";
 import { Shield, UserX, Trash2, Key, X } from "lucide-react";
 
 export function AdminUsers() {
@@ -241,7 +241,7 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Create New User</h2>
@@ -329,7 +329,7 @@ function UserDetailModal({ userId, onClose }: { userId: string; onClose: () => v
   });
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">User Details</h2>
@@ -442,7 +442,7 @@ function ResetPasswordModal({ user, onClose }: { user: AdminUser; onClose: () =>
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Reset Password</h2>

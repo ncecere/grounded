@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type Source, type SourceRun } from "../lib/api";
+import { api, type Source } from "../lib/api";
 import {
   Select,
   SelectContent,
@@ -323,12 +323,6 @@ export function Sources({ kbId, onBack }: SourcesProps) {
     }
   };
 
-  // Check if any run is in progress
-  const hasRunningRun = runs?.some(r => r.status === "pending" || r.status === "running");
-
-  // Get latest run for a source
-  const getLatestRun = () => runs?.[0] || null;
-
   if (isLoading) {
     return (
       <div className="p-6">
@@ -442,8 +436,8 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                     </div>
                     <p className="mt-1 text-sm text-gray-500">
                       Type: {source.type}
-                      {source.type === "web" && source.config.url && (
-                        <> | {source.config.url as string}</>
+                      {source.type === "web" && Boolean(source.config.url) && (
+                        <> | {String(source.config.url)}</>
                       )}
                     </p>
                     {/* Show page and chunk stats if this source is selected */}
@@ -586,7 +580,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <form onSubmit={handleCreate}>
               <div className="p-6">
@@ -690,7 +684,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                               >
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                   <svg
-                                    className="w-5 h-5 text-gray-400 flex-shrink-0"
+                                    className="w-5 h-5 text-gray-400 shrink-0"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -954,7 +948,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
 
       {/* Edit Modal */}
       {showEditModal && editSource && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <form onSubmit={handleEdit}>
               <div className="p-6">

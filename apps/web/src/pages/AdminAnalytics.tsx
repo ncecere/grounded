@@ -2,9 +2,6 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   api,
-  type AdminAnalyticsOverview,
-  type AdminAnalyticsTenants,
-  type AdminAnalyticsTenantDetail,
   type TenantHealthFlag,
 } from "../lib/api";
 import { Badge } from "../components/ui/badge";
@@ -17,26 +14,19 @@ import {
   CheckCircle,
   Building2,
   BarChart3,
-  TrendingUp,
-  TrendingDown,
   Clock,
   Zap,
   Database,
   Users,
   Bot,
   MessageSquare,
-  Activity,
   FileText,
   Globe,
 } from "lucide-react";
 
 type Tab = "overview" | "tenants";
 
-interface Props {
-  onNavigateToTenant?: (tenantId: string) => void;
-}
-
-export function AdminAnalytics({ onNavigateToTenant }: Props) {
+export function AdminAnalytics() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState({

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type SharedKnowledgeBase, type SharedKnowledgeBaseDetail, type AvailableTenant } from "../lib/api";
+import { api, type SharedKnowledgeBase } from "../lib/api";
 import { Globe, GlobeLock, Share2, Plus, Trash2, X, FileText, Database, Users, Eye, EyeOff } from "lucide-react";
 import {
   Select,
@@ -272,7 +272,7 @@ function CreateKbModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Create Global Knowledge Base</h2>
@@ -409,7 +409,7 @@ function KbDetailModal({ kbId, onClose }: { kbId: string; onClose: () => void })
   const kb = kbData?.knowledgeBase;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Manage Sharing</h2>

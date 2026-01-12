@@ -75,7 +75,7 @@ export const QueueItemContent = ({
 }: QueueItemContentProps) => (
   <span
     className={cn(
-      "line-clamp-1 grow break-words",
+      "line-clamp-1 grow wrap-break-word",
       completed
         ? "text-muted-foreground/50 line-through"
         : "text-muted-foreground",
@@ -266,7 +266,7 @@ export type QueueProps = ComponentProps<"div">;
 export const Queue = ({ className, ...props }: QueueProps) => (
   <div
     className={cn(
-      "flex flex-col gap-2 rounded-xl border border-border bg-background px-3 pt-2 pb-2 shadow-xs",
+      "flex flex-col gap-2 rounded-xl border border-border bg-background px-3 pt-2 pb-2 shadow-2xs",
       className
     )}
     {...props}

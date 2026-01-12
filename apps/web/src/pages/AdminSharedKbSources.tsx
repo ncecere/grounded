@@ -477,7 +477,7 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <form onSubmit={handleCreate}>
               <div className="p-6">
@@ -621,7 +621,7 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
 
       {/* Edit Modal */}
       {showEditModal && editSource && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <form onSubmit={handleEdit}>
               <div className="p-6">
