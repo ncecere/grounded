@@ -14,6 +14,7 @@ export interface WidgetTheme {
   buttonIcon?: ButtonIcon;
   buttonColor?: string;
   customIconUrl?: string | null;
+  customIconSize?: number; // Icon size in pixels (default based on button size)
 }
 
 export interface WidgetConfig {

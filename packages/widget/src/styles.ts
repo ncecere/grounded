@@ -146,23 +146,23 @@ export const styles = `
     white-space: nowrap;
   }
 
-  /* Custom icon image */
+  /* Custom icon image - uses CSS custom properties for size override */
   .grounded-launcher-custom-icon {
-    width: 24px;
-    height: 24px;
+    width: var(--custom-icon-size, 24px);
+    height: var(--custom-icon-size, 24px);
     object-fit: contain;
     flex-shrink: 0;
     transition: transform var(--grounded-duration-normal) var(--grounded-ease-out);
   }
 
   .grounded-launcher--small .grounded-launcher-custom-icon {
-    width: 20px;
-    height: 20px;
+    width: var(--custom-icon-size, 20px);
+    height: var(--custom-icon-size, 20px);
   }
 
   .grounded-launcher--large .grounded-launcher-custom-icon {
-    width: 28px;
-    height: 28px;
+    width: var(--custom-icon-size, 28px);
+    height: var(--custom-icon-size, 28px);
   }
 
   /* Button Style: Circle (default) */
@@ -937,30 +937,121 @@ export const styles = `
     50% { opacity: 0.5; }
   }
 
-  /* Inline Citations */
+  /* Inline Citations - Badge Trigger (ai-elements style) */
   .grounded-inline-citation {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    background: var(--grounded-accent-subtle);
-    color: var(--grounded-accent);
+    gap: 2px;
+    background: var(--grounded-bg-secondary);
+    color: var(--grounded-text-secondary);
     font-size: 11px;
-    font-weight: 600;
-    font-family: var(--grounded-font-mono);
-    padding: 1px 5px;
-    border-radius: 4px;
-    margin: 0 1px;
+    font-weight: 500;
+    font-family: var(--grounded-font-sans);
+    padding: 2px 8px;
+    border-radius: 9999px;
+    margin-left: 4px;
     text-decoration: none;
     cursor: pointer;
     transition: all var(--grounded-duration-fast);
-    vertical-align: super;
-    line-height: 1;
+    vertical-align: baseline;
+    line-height: 1.4;
+    white-space: nowrap;
+    border: 1px solid var(--grounded-border);
   }
 
   .grounded-inline-citation:hover {
-    background: var(--grounded-accent);
-    color: var(--grounded-text-inverse);
-    transform: scale(1.1);
+    background: var(--grounded-bg-tertiary);
+    color: var(--grounded-text-primary);
+  }
+
+  /* Citation HoverCard (ai-elements style) */
+  .grounded-citation-card {
+    position: absolute;
+    z-index: 100;
+    width: 320px;
+    background: var(--grounded-bg-elevated);
+    border: 1px solid var(--grounded-border);
+    border-radius: var(--grounded-radius-md);
+    box-shadow: var(--grounded-shadow-lg);
+    overflow: hidden;
+    animation: grounded-fade-in var(--grounded-duration-fast) ease-out;
+  }
+
+  /* Card Header - like carousel header */
+  .grounded-citation-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--grounded-bg-secondary);
+    padding: 8px 12px;
+    border-radius: var(--grounded-radius-md) var(--grounded-radius-md) 0 0;
+  }
+
+  .grounded-citation-card-hostname {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--grounded-text-tertiary);
+  }
+
+  /* Card Body - like InlineCitationSource */
+  .grounded-citation-card-body {
+    padding: 16px;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .grounded-citation-card-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--grounded-text-primary);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .grounded-citation-card-url {
+    font-size: 12px;
+    color: var(--grounded-text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    word-break: break-all;
+  }
+
+  .grounded-citation-card-snippet {
+    font-size: 13px;
+    color: var(--grounded-text-secondary);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .grounded-citation-card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--grounded-accent);
+    text-decoration: none;
+    transition: opacity var(--grounded-duration-fast);
+  }
+
+  .grounded-citation-card-link:hover {
+    opacity: 0.8;
+  }
+
+  .grounded-citation-card-link svg {
+    width: 12px;
+    height: 12px;
   }
 `;
 

@@ -100,11 +100,16 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
   const buttonIcon: ButtonIcon = config?.theme?.buttonIcon || 'chat';
   const buttonColor = config?.theme?.buttonColor || '#2563eb';
   const customIconUrl = config?.theme?.customIconUrl;
+  const customIconSize = config?.theme?.customIconSize;
 
   // Get the appropriate icon component or custom image
   const getButtonIcon = () => {
     if (customIconUrl) {
-      return <img src={customIconUrl} alt="" className="grounded-launcher-custom-icon" />;
+      // Use CSS custom property for size override, which works better with CSS specificity
+      const iconStyle = customIconSize
+        ? { '--custom-icon-size': `${customIconSize}px` } as JSX.CSSProperties
+        : undefined;
+      return <img src={customIconUrl} alt="" className="grounded-launcher-custom-icon" style={iconStyle} />;
     }
     switch (buttonIcon) {
       case 'help': return <HelpIcon />;

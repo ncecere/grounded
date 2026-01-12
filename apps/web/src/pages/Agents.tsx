@@ -45,6 +45,7 @@ const defaultButtonConfig = {
   buttonColor: "#2563eb",
   buttonPosition: "bottom-right" as "bottom-right" | "bottom-left",
   customIconUrl: "" as string,
+  customIconSize: null as number | null,
 };
 
 // Preset color options
@@ -177,12 +178,13 @@ export function Agents({ onSelectAgent }: AgentsProps) {
         buttonColor: theme?.buttonColor || "#2563eb",
         buttonPosition: theme?.buttonPosition || "bottom-right",
         customIconUrl: theme?.customIconUrl || "",
+        customIconSize: theme?.customIconSize || null,
       });
     }
   }, [widgetConfigData]);
 
   const updateWidgetConfigMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Omit<typeof buttonConfig, 'customIconUrl'> & { customIconUrl: string | null } }) =>
+    mutationFn: ({ id, data }: { id: string; data: Omit<typeof buttonConfig, 'customIconUrl' | 'customIconSize'> & { customIconUrl: string | null; customIconSize: number | null } }) =>
       api.updateWidgetConfig(id, { theme: data }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["agents"] });
@@ -663,6 +665,26 @@ export function Agents({ onSelectAgent }: AgentsProps) {
                   <p className="text-xs text-gray-500 mt-1">Paste a URL to your own icon image. Leave empty to use the selected icon above.</p>
                 </div>
 
+                {/* Custom Icon Size - only show when custom icon URL is set */}
+                {buttonConfig.customIconUrl && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Custom Icon Size (optional)</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={buttonConfig.customIconSize || ""}
+                        onChange={(e) => setButtonConfig({ ...buttonConfig, customIconSize: e.target.value ? parseInt(e.target.value) : null })}
+                        className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="24"
+                        min="12"
+                        max="64"
+                      />
+                      <span className="text-sm text-gray-500">px</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Leave empty to use default size based on button size (20-28px).</p>
+                  </div>
+                )}
+
                 {/* Color Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Button Color</label>
@@ -723,11 +745,10 @@ export function Agents({ onSelectAgent }: AgentsProps) {
                         <img
                           src={buttonConfig.customIconUrl}
                           alt=""
-                          className={`object-contain ${
-                            buttonConfig.buttonSize === "small" ? "w-5 h-5" : ""
-                          } ${buttonConfig.buttonSize === "medium" ? "w-6 h-6" : ""} ${
-                            buttonConfig.buttonSize === "large" ? "w-7 h-7" : ""
-                          }`}
+                          className="object-contain"
+                          style={buttonConfig.customIconSize ? { width: buttonConfig.customIconSize, height: buttonConfig.customIconSize } : undefined}
+                          width={buttonConfig.customIconSize || (buttonConfig.buttonSize === "small" ? 20 : buttonConfig.buttonSize === "large" ? 28 : 24)}
+                          height={buttonConfig.customIconSize || (buttonConfig.buttonSize === "small" ? 20 : buttonConfig.buttonSize === "large" ? 28 : 24)}
                         />
                       ) : (
                         <svg
@@ -761,6 +782,7 @@ export function Agents({ onSelectAgent }: AgentsProps) {
                       data: {
                         ...buttonConfig,
                         customIconUrl: buttonConfig.customIconUrl || null,
+                        customIconSize: buttonConfig.customIconSize || null,
                       },
                     });
                   }}
@@ -810,7 +832,18 @@ export function Agents({ onSelectAgent }: AgentsProps) {
             </div>
             <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-between">
               <button
-                onClick={() => {
+                onClick={async () => {
+                  // Save current config first so the test widget sees the latest changes
+                  if (showConfigModal) {
+                    await api.updateWidgetConfig(showConfigModal.id, {
+                      theme: {
+                        ...buttonConfig,
+                        customIconUrl: buttonConfig.customIconUrl || null,
+                        customIconSize: buttonConfig.customIconSize || null,
+                      },
+                    });
+                  }
+
                   const testHtml = `<!DOCTYPE html>
 <html>
 <head>

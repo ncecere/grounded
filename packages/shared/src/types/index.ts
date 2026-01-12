@@ -169,6 +169,7 @@ export const defaultWidgetTheme = {
   buttonIcon: "chat" as const,
   buttonColor: "#2563eb",
   customIconUrl: null as string | null,
+  customIconSize: null as number | null,
 };
 
 export const widgetThemeSchema = z.object({
@@ -183,6 +184,7 @@ export const widgetThemeSchema = z.object({
   buttonIcon: z.enum(["chat", "help", "question", "message"]).default(defaultWidgetTheme.buttonIcon),
   buttonColor: z.string().default(defaultWidgetTheme.buttonColor),
   customIconUrl: z.string().url().nullable().default(defaultWidgetTheme.customIconUrl),
+  customIconSize: z.number().min(12).max(64).nullable().default(defaultWidgetTheme.customIconSize),
 });
 export type WidgetTheme = z.infer<typeof widgetThemeSchema>;
 
