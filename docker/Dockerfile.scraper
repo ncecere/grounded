@@ -1,6 +1,9 @@
 FROM oven/bun:1
 WORKDIR /app
 
+ARG VERSION=dev
+ENV APP_VERSION=$VERSION
+
 # Install Playwright dependencies
 RUN apt-get update && apt-get install -y \
     libnss3 \

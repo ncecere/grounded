@@ -1,6 +1,9 @@
 FROM oven/bun:1
 WORKDIR /app
 
+ARG VERSION=dev
+ENV APP_VERSION=$VERSION
+
 # Copy everything at once for workspace resolution
 COPY package.json bun.lockb* ./
 COPY packages ./packages
