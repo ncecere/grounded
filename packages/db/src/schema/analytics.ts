@@ -21,7 +21,7 @@ export const chatEvents = pgTable(
       .notNull()
       .references(() => agents.id, { onDelete: "cascade" }),
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
-    channel: text("channel").notNull().$type<"admin_ui" | "widget" | "api">(),
+    channel: text("channel").notNull().$type<"admin_ui" | "widget" | "api" | "chat_endpoint">(),
     startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
     finishedAt: timestamp("finished_at", { withTimezone: true }),
     status: text("status").notNull().$type<"ok" | "error" | "rate_limited">(),

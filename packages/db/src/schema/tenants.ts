@@ -94,7 +94,7 @@ export const systemSettings = pgTable(
   {
     key: text("key").primaryKey(),
     value: text("value").notNull(),
-    category: text("category").notNull().$type<"llm" | "embedding" | "auth" | "quotas" | "general">(),
+    category: text("category").notNull().$type<"llm" | "embedding" | "auth" | "quotas" | "general" | "email" | "alerts">(),
     isSecret: boolean("is_secret").default(false).notNull(),
     description: text("description"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
