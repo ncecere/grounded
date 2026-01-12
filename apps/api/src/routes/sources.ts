@@ -5,7 +5,8 @@ import { db } from "@kcb/db";
 import { sources, sourceRuns, knowledgeBases, sourceRunPages, kbChunks } from "@kcb/db/schema";
 import { eq, and, isNull, desc, sql } from "drizzle-orm";
 import { sourceConfigSchema } from "@kcb/shared";
-import { addSourceRunStartJob } from "@kcb/queue";
+import { addSourceRunStartJob, redis } from "@kcb/queue";
+import { createCrawlState } from "@kcb/crawl-state";
 import { auth, requireRole, requireTenant } from "../middleware/auth";
 import { NotFoundError, ForbiddenError } from "../middleware/error-handler";
 
@@ -386,6 +387,58 @@ sourceRoutes.post(
     }
 
     return c.json({ run });
+  }
+);
+
+// ============================================================================
+// Get Source Run Progress (Real-time from Redis)
+// ============================================================================
+
+sourceRoutes.get(
+  "/runs/:runId/progress",
+  auth(),
+  requireTenant(),
+  async (c) => {
+    const runId = c.req.param("runId");
+    const authContext = c.get("auth");
+
+    const run = await db.query.sourceRuns.findFirst({
+      where: and(
+        eq(sourceRuns.id, runId),
+        eq(sourceRuns.tenantId, authContext.tenantId!)
+      ),
+    });
+
+    if (!run) {
+      throw new NotFoundError("Run");
+    }
+
+    // If run is finished, return stats from database
+    if (run.finishedAt || run.status !== "running") {
+      return c.json({
+        progress: {
+          queued: 0,
+          fetched: 0,
+          processed: run.stats?.pagesIndexed || 0,
+          failed: run.stats?.pagesFailed || 0,
+          total: run.stats?.pagesSeen || 0,
+          percentComplete: 100,
+          status: run.status,
+        },
+      });
+    }
+
+    // For running crawls, get real-time progress from Redis
+    const crawlState = createCrawlState(redis, runId);
+    const progress = await crawlState.getProgress();
+
+    return c.json({
+      progress: {
+        ...progress,
+        status: run.status,
+        inProgress: progress.queued + progress.fetched,
+      },
+    });
   }
 );
 

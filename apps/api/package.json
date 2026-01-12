@@ -12,6 +12,7 @@
   "dependencies": {
     "@hono/zod-validator": "^0.4.2",
     "@kcb/ai-providers": "workspace:*",
+    "@kcb/crawl-state": "workspace:*",
     "@kcb/db": "workspace:*",
     "@kcb/embeddings": "workspace:*",
     "@kcb/llm": "workspace:*",

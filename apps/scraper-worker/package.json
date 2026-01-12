@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@kcb/crawl-state": "workspace:*",
     "@kcb/db": "workspace:*",
     "@kcb/queue": "workspace:*",
     "@kcb/shared": "workspace:*",

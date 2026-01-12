@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@kcb/ai-providers": "workspace:*",
+    "@kcb/crawl-state": "workspace:*",
     "@kcb/db": "workspace:*",
     "@kcb/embeddings": "workspace:*",
     "@kcb/llm": "workspace:*",

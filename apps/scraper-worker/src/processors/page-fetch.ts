@@ -2,7 +2,7 @@ import type { Browser } from "playwright";
 import { db } from "@kcb/db";
 import { sourceRuns, sourceRunPages, sources, tenantUsage } from "@kcb/db/schema";
 import { eq, sql, and } from "drizzle-orm";
-import { addPageProcessJob, addSourceRunFinalizeJob } from "@kcb/queue";
+import { addPageProcessJob, redis } from "@kcb/queue";
 import {
   normalizeUrl,
   getEnv,
@@ -11,6 +11,7 @@ import {
   type PageFetchJob,
   FetchMode,
 } from "@kcb/shared";
+import { createCrawlState } from "@kcb/crawl-state";
 
 const FIRECRAWL_API_KEY = getEnv("FIRECRAWL_API_KEY", "");
 const FIRECRAWL_API_URL = getEnv("FIRECRAWL_API_URL", "https://api.firecrawl.dev");
@@ -21,7 +22,10 @@ export async function processPageFetch(
 ): Promise<void> {
   const { tenantId, runId, url, fetchMode, depth = 0 } = data;
 
-  console.log(`Fetching: ${url} (mode: ${fetchMode}, depth: ${depth})`);
+  console.log(`[PageFetch] Fetching: ${url} (mode: ${fetchMode}, depth: ${depth})`);
+
+  // Initialize CrawlState for this run
+  const crawlState = createCrawlState(redis, runId);
 
   // Get run and source
   const run = await db.query.sourceRuns.findFirst({
@@ -34,7 +38,7 @@ export async function processPageFetch(
 
   // Check if run was canceled
   if (run.status === "canceled") {
-    console.log(`Run ${runId} was canceled, skipping page fetch`);
+    console.log(`[PageFetch] Run ${runId} was canceled, skipping page fetch`);
     return;
   }
 
@@ -70,19 +74,22 @@ export async function processPageFetch(
 
         // Check if content looks like it needs JS rendering
         if (needsJsRendering(html)) {
-          console.log(`Page ${url} needs JS rendering, using Playwright`);
+          console.log(`[PageFetch] Page ${url} needs JS rendering, using Playwright`);
           const playwrightResult = await fetchWithPlaywright(url, browser);
           html = playwrightResult.html;
           title = playwrightResult.title;
         }
       } catch (error) {
         // Fall back to Playwright
-        console.log(`HTTP fetch failed for ${url}, trying Playwright:`, error);
+        console.log(`[PageFetch] HTTP fetch failed for ${url}, trying Playwright:`, error);
         const result = await fetchWithPlaywright(url, browser);
         html = result.html;
         title = result.title;
       }
     }
+
+    // Mark URL as fetched in Redis (atomic state transition)
+    await crawlState.markFetched(url);
 
     // Update usage
     const currentMonth = new Date().toISOString().slice(0, 7);
@@ -109,11 +116,15 @@ export async function processPageFetch(
       depth,
     });
 
-    console.log(`Page fetched successfully: ${url}`);
+    console.log(`[PageFetch] Page fetched successfully: ${url}`);
   } catch (error) {
-    console.error(`Error fetching ${url}:`, error);
+    console.error(`[PageFetch] Error fetching ${url}:`, error);
 
-    // Record failure
+    // Mark as failed in Redis
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    await crawlState.markFailed(url, errorMessage);
+
+    // Record failure in PostgreSQL for history
     await db.insert(sourceRunPages).values({
       tenantId,
       sourceRunId: runId,
@@ -121,11 +132,11 @@ export async function processPageFetch(
       normalizedUrl: normalizeUrl(url),
       title: null,
       status: "failed",
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: errorMessage,
     });
 
-    // Check if this was the last page
-    await checkAndFinalize(runId, tenantId);
+    // Check if crawl is complete
+    await checkAndFinalize(runId, tenantId, crawlState);
   }
 }
 
@@ -222,7 +233,7 @@ async function fetchWithFirecrawl(
     throw new Error(`Firecrawl error: ${error}`);
   }
 
-  const result = await response.json();
+  const result = await response.json() as { data?: { html?: string; metadata?: { title?: string } } };
 
   return {
     html: result.data?.html || "",
@@ -263,42 +274,23 @@ function needsJsRendering(html: string): boolean {
   return false;
 }
 
-async function checkAndFinalize(runId: string, tenantId: string): Promise<void> {
-  // Get the run to check how many pages were expected
-  const run = await db.query.sourceRuns.findFirst({
-    where: eq(sourceRuns.id, runId),
-  });
+async function checkAndFinalize(
+  runId: string,
+  tenantId: string,
+  crawlState: ReturnType<typeof createCrawlState>
+): Promise<void> {
+  // Use Redis-based completion check
+  const isComplete = await crawlState.isComplete();
 
-  if (!run) {
-    console.error(`Run ${runId} not found during finalization check`);
+  if (!isComplete) {
+    // Log progress
+    const progress = await crawlState.getProgress();
+    console.log(
+      `[PageFetch] Run ${runId} progress: ${progress.processed + progress.failed}/${progress.total} ` +
+      `(${progress.percentComplete}% complete, ${progress.queued} queued, ${progress.fetched} fetching)`
+    );
     return;
   }
 
-  // If already finished, skip
-  if (run.finishedAt || run.status !== "running") {
-    return;
-  }
-
-  const expectedPages = run.stats?.pagesSeen || 0;
-  if (expectedPages === 0) {
-    // No pages to process, finalize anyway
-    await addSourceRunFinalizeJob({ tenantId, runId });
-    return;
-  }
-
-  // Count how many pages have been processed (any terminal status)
-  const processedCount = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(sourceRunPages)
-    .where(eq(sourceRunPages.sourceRunId, runId));
-
-  const processedPages = Number(processedCount[0]?.count || 0);
-
-  console.log(`Run ${runId}: ${processedPages}/${expectedPages} pages processed (from page-fetch)`);
-
-  // If all pages are processed, queue the finalize job
-  if (processedPages >= expectedPages) {
-    console.log(`All pages processed for run ${runId}, queueing finalize job`);
-    await addSourceRunFinalizeJob({ tenantId, runId });
-  }
+  console.log(`[PageFetch] Crawl complete for run ${runId}, will be finalized by page-process`);
 }

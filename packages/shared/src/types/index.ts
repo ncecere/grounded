@@ -259,6 +259,7 @@ export interface SourceRunStats {
   pagesSeen: number;
   pagesIndexed: number;
   pagesFailed: number;
+  pagesSkipped?: number;
   tokensEstimated: number;
 }
 

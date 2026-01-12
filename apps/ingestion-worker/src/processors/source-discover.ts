@@ -1,13 +1,14 @@
 import { db } from "@kcb/db";
 import { sourceRuns, sources } from "@kcb/db/schema";
 import { eq } from "drizzle-orm";
-import { addPageFetchJob, addSourceRunFinalizeJob } from "@kcb/queue";
+import { addPageFetchJob, addSourceRunFinalizeJob, redis } from "@kcb/queue";
 import { normalizeUrl, type SourceDiscoverUrlsJob, FetchMode } from "@kcb/shared";
+import { createCrawlState } from "@kcb/crawl-state";
 
 export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promise<void> {
   const { tenantId, runId } = data;
 
-  console.log(`Discovering URLs for run ${runId}`);
+  console.log(`[SourceDiscover] Starting URL discovery for run ${runId}`);
 
   // Get run and source
   const run = await db.query.sourceRuns.findFirst({
@@ -25,6 +26,20 @@ export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promis
   if (!source) {
     throw new Error(`Source ${run.sourceId} not found`);
   }
+
+  // Initialize CrawlState for this run
+  // Default max URLs to 10000 for domain crawls
+  const crawlState = createCrawlState(redis, runId, {
+    maxUrls: 10000,
+  });
+
+  // Store metadata for later reference
+  await crawlState.setMetadata({
+    sourceId: source.id,
+    tenantId,
+    mode: source.config.mode,
+    startedAt: Date.now(),
+  });
 
   const config = source.config;
   const urls: string[] = [];
@@ -59,61 +74,69 @@ export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promis
       break;
   }
 
-  // Normalize and deduplicate URLs
-  const normalizedUrls = [...new Set(urls.map(normalizeUrl))];
-
   // Apply include/exclude patterns
-  const filteredUrls = normalizedUrls.filter((url) => {
-    const urlPath = new URL(url).pathname;
+  const filteredUrls = urls.filter((url) => {
+    try {
+      const urlPath = new URL(url).pathname;
 
-    // Check exclude patterns
-    if (config.excludePatterns?.length) {
-      for (const pattern of config.excludePatterns) {
-        if (matchPattern(urlPath, pattern)) {
-          return false;
+      // Check exclude patterns
+      if (config.excludePatterns?.length) {
+        for (const pattern of config.excludePatterns) {
+          if (matchPattern(urlPath, pattern)) {
+            return false;
+          }
         }
       }
-    }
 
-    // Check include patterns
-    if (config.includePatterns?.length) {
-      let matches = false;
-      for (const pattern of config.includePatterns) {
-        if (matchPattern(urlPath, pattern)) {
-          matches = true;
-          break;
+      // Check include patterns
+      if (config.includePatterns?.length) {
+        let matches = false;
+        for (const pattern of config.includePatterns) {
+          if (matchPattern(urlPath, pattern)) {
+            matches = true;
+            break;
+          }
         }
+        return matches;
       }
-      return matches;
-    }
 
-    return true;
+      return true;
+    } catch {
+      return false;
+    }
   });
 
-  console.log(`Discovered ${filteredUrls.length} URLs for run ${runId}`);
+  console.log(`[SourceDiscover] Found ${filteredUrls.length} initial URLs for run ${runId}`);
 
-  // Update stats
+  if (filteredUrls.length === 0) {
+    // No URLs to process, finalize immediately
+    console.log(`[SourceDiscover] No URLs to process, finalizing run ${runId}`);
+    await addSourceRunFinalizeJob({ tenantId, runId });
+    return;
+  }
+
+  // Queue URLs atomically using CrawlState
+  // This returns only the truly new URLs (prevents duplicates)
+  const newUrls = await crawlState.queueUrls(filteredUrls);
+
+  console.log(`[SourceDiscover] Queued ${newUrls.length} URLs in Redis for run ${runId}`);
+
+  // Update initial stats in PostgreSQL (for UI display)
   await db
     .update(sourceRuns)
     .set({
       stats: {
         ...run.stats,
-        pagesSeen: filteredUrls.length,
+        pagesSeen: newUrls.length,
       },
     })
     .where(eq(sourceRuns.id, runId));
 
-  if (filteredUrls.length === 0) {
-    // No URLs to process, finalize immediately
-    await addSourceRunFinalizeJob({ tenantId, runId });
-    return;
-  }
-
   // Determine fetch mode
   const fetchMode: FetchMode = config.firecrawlEnabled ? "firecrawl" : "auto";
 
-  // Queue page fetch jobs
-  for (const url of filteredUrls) {
+  // Queue page fetch jobs for new URLs
+  for (const url of newUrls) {
     await addPageFetchJob({
       tenantId,
       runId,
@@ -123,7 +146,7 @@ export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promis
     });
   }
 
-  console.log(`Queued ${filteredUrls.length} page fetch jobs for run ${runId}`);
+  console.log(`[SourceDiscover] Queued ${newUrls.length} page fetch jobs for run ${runId}`);
 }
 
 async function discoverFromSitemap(sitemapUrl: string): Promise<string[]> {

@@ -1,7 +1,7 @@
 import { db } from "@kcb/db";
 import { kbChunks, sourceRuns, sourceRunPages, sources } from "@kcb/db/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { addEmbedChunksBatchJob, addEnrichPageJob, addSourceRunFinalizeJob, addPageFetchJob } from "@kcb/queue";
+import { addEmbedChunksBatchJob, addEnrichPageJob, addSourceRunFinalizeJob, addPageFetchJob, redis } from "@kcb/queue";
 import {
   hashString,
   normalizeUrl,
@@ -11,11 +11,15 @@ import {
   type SourceConfig,
   type FetchMode,
 } from "@kcb/shared";
+import { createCrawlState } from "@kcb/crawl-state";
 
 export async function processPageProcess(data: PageProcessJob): Promise<void> {
   const { tenantId, runId, url, html, title, depth = 0 } = data;
 
-  console.log(`Processing page: ${url} (depth: ${depth})`);
+  console.log(`[PageProcess] Processing page: ${url} (depth: ${depth})`);
+
+  // Initialize CrawlState for this run
+  const crawlState = createCrawlState(redis, runId);
 
   // Get run and source
   const run = await db.query.sourceRuns.findFirst({
@@ -62,12 +66,15 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
           status: "skipped_unchanged",
         });
 
-        console.log(`Page unchanged, skipped: ${url}`);
-        await checkAndFinalize(runId);
+        // Mark as processed in Redis
+        await crawlState.markProcessed(url);
+
+        console.log(`[PageProcess] Page unchanged, skipped: ${url}`);
+        await checkAndFinalize(runId, tenantId, crawlState);
         return;
       }
     } else {
-      console.log(`Force reindex enabled, processing page regardless of content hash: ${url}`);
+      console.log(`[PageProcess] Force reindex enabled, processing page regardless of content hash: ${url}`);
     }
 
     // Delete old chunks for this URL
@@ -140,18 +147,25 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
       });
     }
 
-    console.log(`Page processed: ${url} (${chunks.length} chunks)`);
+    console.log(`[PageProcess] Page processed: ${url} (${chunks.length} chunks)`);
 
-    // For domain crawl mode, discover and queue new URLs
+    // For domain crawl mode, discover and queue new URLs atomically
     const config = source.config as SourceConfig;
     if (config.mode === "domain") {
-      await discoverAndQueueLinks(tenantId, runId, url, html, depth, config, source.id);
+      await discoverAndQueueLinks(tenantId, runId, url, html, depth, config, crawlState);
     }
 
+    // Mark as processed in Redis
+    await crawlState.markProcessed(url);
+
     // Check if all pages are done
-    await checkAndFinalize(runId);
+    await checkAndFinalize(runId, tenantId, crawlState);
   } catch (error) {
-    console.error(`Error processing page ${url}:`, error);
+    console.error(`[PageProcess] Error processing page ${url}:`, error);
+
+    // Mark as failed in Redis
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    await crawlState.markFailed(url, errorMessage);
 
     // Record page failure
     await db.insert(sourceRunPages).values({
@@ -161,10 +175,10 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
       normalizedUrl,
       title,
       status: "failed",
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: errorMessage,
     });
 
-    await checkAndFinalize(runId);
+    await checkAndFinalize(runId, tenantId, crawlState);
   }
 }
 
@@ -286,7 +300,8 @@ function chunkText(
 }
 
 /**
- * Extract links from HTML and queue new URLs for domain crawling
+ * Extract links from HTML and queue new URLs for domain crawling.
+ * Uses CrawlState for atomic URL deduplication - prevents race conditions.
  */
 async function discoverAndQueueLinks(
   tenantId: string,
@@ -295,13 +310,13 @@ async function discoverAndQueueLinks(
   html: string,
   currentDepth: number,
   config: SourceConfig,
-  sourceId: string
+  crawlState: ReturnType<typeof createCrawlState>
 ): Promise<void> {
   const maxDepth = config.depth || 3;
 
   // Check if we've reached max depth
   if (currentDepth >= maxDepth) {
-    console.log(`Max depth ${maxDepth} reached, not discovering more links from ${currentUrl}`);
+    console.log(`[PageProcess] Max depth ${maxDepth} reached, not discovering more links from ${currentUrl}`);
     return;
   }
 
@@ -360,47 +375,21 @@ async function discoverAndQueueLinks(
     }
   });
 
-  // Normalize and deduplicate
-  const normalizedLinks = [...new Set(filteredLinks.map(normalizeUrl))];
+  if (filteredLinks.length === 0) {
+    console.log(`[PageProcess] No valid links found on ${currentUrl}`);
+    return;
+  }
 
-  // Check which URLs have already been seen in this run
-  const existingPages = await db
-    .select({ normalizedUrl: sourceRunPages.normalizedUrl })
-    .from(sourceRunPages)
-    .where(eq(sourceRunPages.sourceRunId, runId));
-
-  const seenUrls = new Set(existingPages.map((p) => p.normalizedUrl));
-
-  // Filter to only new URLs
-  const newUrls = normalizedLinks.filter((url) => !seenUrls.has(url));
+  // Queue URLs atomically using CrawlState
+  // This is the KEY FIX: SADD is atomic, returns only truly new URLs
+  const newUrls = await crawlState.queueUrls(filteredLinks);
 
   if (newUrls.length === 0) {
-    console.log(`No new URLs to discover from ${currentUrl}`);
+    console.log(`[PageProcess] All ${filteredLinks.length} links from ${currentUrl} already seen`);
     return;
   }
 
-  console.log(`Discovered ${newUrls.length} new URLs from ${currentUrl} at depth ${currentDepth}`);
-
-  // Get run to update pagesSeen
-  const run = await db.query.sourceRuns.findFirst({
-    where: eq(sourceRuns.id, runId),
-  });
-
-  if (!run) {
-    return;
-  }
-
-  // Update pagesSeen count
-  const newPagesSeen = (run.stats?.pagesSeen || 0) + newUrls.length;
-  await db
-    .update(sourceRuns)
-    .set({
-      stats: {
-        ...run.stats,
-        pagesSeen: newPagesSeen,
-      },
-    })
-    .where(eq(sourceRuns.id, runId));
+  console.log(`[PageProcess] Discovered ${newUrls.length} new URLs from ${currentUrl} (depth ${currentDepth})`);
 
   // Determine fetch mode
   const fetchMode: FetchMode = config.firecrawlEnabled ? "firecrawl" : "auto";
@@ -416,7 +405,16 @@ async function discoverAndQueueLinks(
     });
   }
 
-  console.log(`Queued ${newUrls.length} new pages for crawling (depth: ${currentDepth + 1})`);
+  // Update PostgreSQL stats for UI display (non-critical, can be approximate)
+  const progress = await crawlState.getProgress();
+  await db
+    .update(sourceRuns)
+    .set({
+      stats: sql`jsonb_set(COALESCE(stats, '{}'), '{pagesSeen}', ${progress.total}::text::jsonb)`,
+    })
+    .where(eq(sourceRuns.id, runId));
+
+  console.log(`[PageProcess] Queued ${newUrls.length} new pages for crawling (depth: ${currentDepth + 1})`);
 }
 
 /**
@@ -470,14 +468,22 @@ function matchPattern(path: string, pattern: string): boolean {
   return regex.test(path);
 }
 
-async function checkAndFinalize(runId: string): Promise<void> {
-  // Get the run to check how many pages were expected
+/**
+ * Check if crawl is complete and trigger finalization.
+ * Uses Redis-based completion check which is accurate regardless of race conditions.
+ */
+async function checkAndFinalize(
+  runId: string,
+  tenantId: string,
+  crawlState: ReturnType<typeof createCrawlState>
+): Promise<void> {
+  // Get the run to check status
   const run = await db.query.sourceRuns.findFirst({
     where: eq(sourceRuns.id, runId),
   });
 
   if (!run) {
-    console.error(`Run ${runId} not found during finalization check`);
+    console.error(`[PageProcess] Run ${runId} not found during finalization check`);
     return;
   }
 
@@ -486,26 +492,21 @@ async function checkAndFinalize(runId: string): Promise<void> {
     return;
   }
 
-  const expectedPages = run.stats?.pagesSeen || 0;
-  if (expectedPages === 0) {
-    // No pages to process, shouldn't happen but finalize anyway
-    await addSourceRunFinalizeJob({ tenantId: run.tenantId!, runId });
+  // Use Redis-based completion check - this is accurate!
+  const isComplete = await crawlState.isComplete();
+
+  // Log progress
+  const progress = await crawlState.getProgress();
+  console.log(
+    `[PageProcess] Run ${runId} progress: ${progress.processed + progress.failed}/${progress.total} ` +
+    `(${progress.percentComplete}% complete, ${progress.queued} queued, ${progress.fetched} fetching)`
+  );
+
+  if (!isComplete) {
     return;
   }
 
-  // Count how many pages have been processed (any terminal status)
-  const processedCount = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(sourceRunPages)
-    .where(eq(sourceRunPages.sourceRunId, runId));
-
-  const processedPages = Number(processedCount[0]?.count || 0);
-
-  console.log(`Run ${runId}: ${processedPages}/${expectedPages} pages processed`);
-
-  // If all pages are processed, queue the finalize job
-  if (processedPages >= expectedPages) {
-    console.log(`All pages processed for run ${runId}, queueing finalize job`);
-    await addSourceRunFinalizeJob({ tenantId: run.tenantId!, runId });
-  }
+  // All URLs are in terminal state (processed or failed)
+  console.log(`[PageProcess] All pages complete for run ${runId}, queueing finalize job`);
+  await addSourceRunFinalizeJob({ tenantId, runId });
 }
