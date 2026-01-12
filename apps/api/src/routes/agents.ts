@@ -570,7 +570,10 @@ agentRoutes.put(
     if (body.allowedDomains) updateData.allowedDomains = body.allowedDomains;
     if (body.oidcRequired !== undefined) updateData.oidcRequired = body.oidcRequired;
     if (body.theme && existing) {
+      console.log("[Widget Config Update] Received theme:", JSON.stringify(body.theme));
+      console.log("[Widget Config Update] Existing theme:", JSON.stringify(existing.theme));
       updateData.theme = { ...existing.theme, ...body.theme };
+      console.log("[Widget Config Update] Merged theme:", JSON.stringify(updateData.theme));
     }
 
     const [config] = await db
