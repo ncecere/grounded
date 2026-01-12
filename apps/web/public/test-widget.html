@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KCB Widget Test</title>
+  <title>Grounded Widget Test</title>
   <style>
     * {
       margin: 0;
@@ -192,7 +192,7 @@
 
   <section class="hero">
     <h1>Widget Test Page</h1>
-    <p>This is a test page to preview the KCB chat widget. Enter your widget token in the control panel on the left to initialize the widget.</p>
+    <p>This is a test page to preview the Grounded chat widget. Enter your widget token in the control panel on the left to initialize the widget.</p>
     <a href="#" class="cta-button">Get Started</a>
   </section>
 
@@ -212,7 +212,7 @@
   </section>
 
   <footer class="footer">
-    <p>&copy; 2025 Acme Corp. This is a test page for the KCB widget.</p>
+    <p>&copy; 2025 Acme Corp. This is a test page for the Grounded widget.</p>
   </footer>
 
   <!-- Test Controls -->
@@ -228,8 +228,8 @@
   <!-- Widget Script -->
   <script>
     // Queue for widget commands before initialization
-    window.kcb = window.kcb || function() {
-      (window.kcb.q = window.kcb.q || []).push(arguments);
+    window.grounded = window.grounded || function() {
+      (window.grounded.q = window.grounded.q || []).push(arguments);
     };
   </script>
   <script src="/widget.js"></script>
@@ -243,16 +243,16 @@
       }
 
       // Initialize widget with the token
-      window.kcb('init', { token: token });
+      window.grounded('init', { token: token });
       console.log('[Test] Widget initialized with token:', token);
     }
 
     function openWidget() {
-      window.kcb('open');
+      window.grounded('open');
     }
 
     function closeWidget() {
-      window.kcb('close');
+      window.grounded('close');
     }
 
     // Check for token in URL params

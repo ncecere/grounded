@@ -214,7 +214,7 @@ export function Agents({ onSelectAgent }: AgentsProps) {
   });
 
   const getEndpointUrl = (endpoint: ChatEndpoint) => {
-    const baseUrl = window.__KCB_CONFIG__?.API_URL || window.location.origin;
+    const baseUrl = window.__GROUNDED_CONFIG__?.API_URL || window.location.origin;
     if (endpoint.endpointType === "hosted") {
       return `${baseUrl}/chat/${endpoint.token}`;
     }
@@ -777,19 +777,19 @@ export function Agents({ onSelectAgent }: AgentsProps) {
                 <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-xs overflow-x-auto">
 {`<script>
   (function(w,d,s,o,f,js,fjs){
-    w['KCBWidget']=o;w[o]=w[o]||function(){
+    w['GroundedWidget']=o;w[o]=w[o]||function(){
     (w[o].q=w[o].q||[]).push(arguments)};
     js=d.createElement(s);fjs=d.getElementsByTagName(s)[0];
     js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);
-  })(window,document,'script','kcb','/widget.js');
-  kcb('init', { token: '${widgetConfigData?.tokens?.[0]?.token || "loading..."}' });
+  })(window,document,'script','grounded','/widget.js');
+  grounded('init', { token: '${widgetConfigData?.tokens?.[0]?.token || "loading..."}' });
 </script>`}
                 </pre>
                 <div className="mt-3 flex gap-4 items-center">
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        `<script>\n  (function(w,d,s,o,f,js,fjs){\n    w['KCBWidget']=o;w[o]=w[o]||function(){\n    (w[o].q=w[o].q||[]).push(arguments)};\n    js=d.createElement(s);fjs=d.getElementsByTagName(s)[0];\n    js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);\n  })(window,document,'script','kcb','/widget.js');\n  kcb('init', { token: '${widgetConfigData?.tokens?.[0]?.token || ""}' });\n</script>`
+                        `<script>\n  (function(w,d,s,o,f,js,fjs){\n    w['GroundedWidget']=o;w[o]=w[o]||function(){\n    (w[o].q=w[o].q||[]).push(arguments)};\n    js=d.createElement(s);fjs=d.getElementsByTagName(s)[0];\n    js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);\n  })(window,document,'script','grounded','/widget.js');\n  grounded('init', { token: '${widgetConfigData?.tokens?.[0]?.token || ""}' });\n</script>`
                       );
                       setCopied(true);
                       setTimeout(() => setCopied(false), 2000);
@@ -834,12 +834,12 @@ export function Agents({ onSelectAgent }: AgentsProps) {
 
   <script>
     (function(w,d,s,o,f,js,fjs){
-      w['KCBWidget']=o;w[o]=w[o]||function(){
+      w['GroundedWidget']=o;w[o]=w[o]||function(){
       (w[o].q=w[o].q||[]).push(arguments)};
       js=d.createElement(s);fjs=d.getElementsByTagName(s)[0];
       js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);
-    })(window,document,'script','kcb','${window.location.origin}/widget.js');
-    kcb('init', { token: '${widgetConfigData?.tokens?.[0]?.token || ''}', apiBase: '${window.__KCB_CONFIG__?.API_URL || window.location.origin}' });
+    })(window,document,'script','grounded','${window.location.origin}/widget.js');
+    grounded('init', { token: '${widgetConfigData?.tokens?.[0]?.token || ''}', apiBase: '${window.__GROUNDED_CONFIG__?.API_URL || window.location.origin}' });
   </script>
 </body>
 </html>`;

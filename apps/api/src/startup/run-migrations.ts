@@ -1,5 +1,5 @@
-import { migrationClient } from "@kcb/db";
-import { getEnv } from "@kcb/shared";
+import { migrationClient } from "@grounded/db";
+import { getEnv } from "@grounded/shared";
 import { readdir } from "fs/promises";
 import { join } from "path";
 

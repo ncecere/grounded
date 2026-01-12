@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { streamSSE } from "hono/streaming";
-import { db } from "@kcb/db";
+import { db } from "@grounded/db";
 import {
   widgetTokens,
   agents,
@@ -12,14 +12,14 @@ import {
   kbChunks,
   chatEvents,
   tenantQuotas,
-} from "@kcb/db/schema";
+} from "@grounded/db/schema";
 import { eq, and, isNull, inArray, sql } from "drizzle-orm";
-import { generateEmbedding } from "@kcb/embeddings";
-import { generateRAGResponse, generateRAGResponseStream, type ChunkContext } from "@kcb/llm";
-import { getVectorStore } from "@kcb/vector-store";
-import type { Citation } from "@kcb/shared";
-import { getConversation, addToConversation, checkRateLimit } from "@kcb/queue";
-import { generateId } from "@kcb/shared";
+import { generateEmbedding } from "@grounded/embeddings";
+import { generateRAGResponse, generateRAGResponseStream, type ChunkContext } from "@grounded/llm";
+import { getVectorStore } from "@grounded/vector-store";
+import type { Citation } from "@grounded/shared";
+import { getConversation, addToConversation, checkRateLimit } from "@grounded/queue";
+import { generateId } from "@grounded/shared";
 import { NotFoundError, ForbiddenError, RateLimitError } from "../middleware/error-handler";
 
 export const widgetRoutes = new Hono();
@@ -396,44 +396,6 @@ widgetRoutes.post(
       });
     }
 
-    // Get conversation history
-    const history = await getConversation(
-      widgetToken.tenantId,
-      agent.id,
-      conversationId
-    );
-
-    // Retrieve relevant chunks
-    const chunks = await retrieveChunks(
-      widgetToken.tenantId,
-      kbIds,
-      body.message,
-      candidateK,
-      topK,
-      rerankerEnabled
-    );
-
-    // Build context for RAG
-    const chunkContexts: ChunkContext[] = chunks.map((chunk) => ({
-      id: chunk.id,
-      content: chunk.content,
-      title: chunk.title,
-      url: chunk.normalizedUrl,
-      heading: chunk.heading,
-    }));
-
-    const conversationHistory = history.map((turn) => ({
-      role: turn.role as "user" | "assistant",
-      content: turn.content,
-    }));
-
-    // Store user message first
-    await addToConversation(widgetToken.tenantId, agent.id, conversationId, {
-      role: "user",
-      content: body.message,
-      timestamp: Date.now(),
-    });
-
     // Build complete system prompt including description
     const fullSystemPrompt = agent.description
       ? `${agent.systemPrompt}\n\nAgent Description: ${agent.description}`
@@ -446,8 +408,68 @@ widgetRoutes.post(
     return streamSSE(c, async (stream) => {
       let fullAnswer = "";
       let finalResponse: { answer: string; citations: Citation[]; promptTokens: number; completionTokens: number } | null = null;
+      let chunks: any[] = [];
 
       try {
+        // Send status: searching
+        await stream.writeSSE({
+          data: JSON.stringify({
+            type: "status",
+            status: "searching",
+            message: "Searching knowledge base...",
+          }),
+        });
+
+        // Get conversation history
+        const history = await getConversation(
+          widgetToken.tenantId,
+          agent.id,
+          conversationId
+        );
+
+        // Retrieve relevant chunks
+        chunks = await retrieveChunks(
+          widgetToken.tenantId,
+          kbIds,
+          body.message,
+          candidateK,
+          topK,
+          rerankerEnabled
+        );
+
+        // Send status: generating with sources count
+        await stream.writeSSE({
+          data: JSON.stringify({
+            type: "status",
+            status: "generating",
+            message: chunks.length > 0
+              ? `Found ${chunks.length} relevant sources. Generating response...`
+              : "Generating response...",
+            sourcesCount: chunks.length,
+          }),
+        });
+
+        // Build context for RAG
+        const chunkContexts: ChunkContext[] = chunks.map((chunk) => ({
+          id: chunk.id,
+          content: chunk.content,
+          title: chunk.title,
+          url: chunk.normalizedUrl,
+          heading: chunk.heading,
+        }));
+
+        const conversationHistory = history.map((turn) => ({
+          role: turn.role as "user" | "assistant",
+          content: turn.content,
+        }));
+
+        // Store user message first
+        await addToConversation(widgetToken.tenantId, agent.id, conversationId, {
+          role: "user",
+          content: body.message,
+          timestamp: Date.now(),
+        });
+
         const generator = generateRAGResponseStream(
           body.message,
           chunkContexts,

@@ -1,6 +1,6 @@
 import { generateText, streamText, smoothStream, type CoreMessage } from "ai";
-import { getAIRegistry } from "@kcb/ai-providers";
-import { retry, type Citation } from "@kcb/shared";
+import { getAIRegistry } from "@grounded/ai-providers";
+import { retry, type Citation } from "@grounded/shared";
 
 // ============================================================================
 // Types
@@ -51,8 +51,16 @@ function buildRAGSystemPrompt(customPrompt?: string): string {
 
   const dateTimeContext = `Current date and time: ${dateStr}, ${timeStr}`;
 
+  const citationInstructions = `
+CITATION RULES:
+- When you use information from a source, add an inline citation using the source number in brackets, like [1], [2], [3]
+- Place citations at the end of the sentence or phrase that uses that source's information
+- You can cite multiple sources for the same information: [1][2]
+- Only cite sources that you actually use in your answer
+- If combining information from multiple sources, cite each one where relevant`;
+
   if (customPrompt) {
-    return `${customPrompt}\n\n${dateTimeContext}`;
+    return `${customPrompt}\n\n${citationInstructions}\n\n${dateTimeContext}`;
   }
 
   return `You are a helpful assistant that answers questions based ONLY on the provided context.
@@ -63,7 +71,7 @@ STRICT RULES:
 3. Be concise and direct in your answers
 4. Do not make up or infer information that is not explicitly in the context
 5. Do not use your general knowledge - only use the provided context
-6. Do NOT include inline citations, source references, or bracketed references in your response - sources are displayed separately
+${citationInstructions}
 
 Your response should be helpful, accurate, and well-structured.
 
@@ -72,17 +80,18 @@ ${dateTimeContext}`;
 
 function buildRAGUserPrompt(question: string, chunks: ChunkContext[]): string {
   const contextParts = chunks.map((chunk, i) => {
-    const header = chunk.title || chunk.heading || `Source ${i + 1}`;
-    const urlPart = chunk.url ? ` (${chunk.url})` : "";
-    return `[${header}${urlPart}]\n${chunk.content}`;
+    const sourceNum = i + 1;
+    const header = chunk.title || chunk.heading || "Untitled";
+    const urlPart = chunk.url ? `\nURL: ${chunk.url}` : "";
+    return `[Source ${sourceNum}] ${header}${urlPart}\n${chunk.content}`;
   });
 
-  return `CONTEXT:
+  return `CONTEXT (${chunks.length} sources):
 ${contextParts.join("\n\n---\n\n")}
 
 QUESTION: ${question}
 
-Please answer the question based only on the context provided above.`;
+Answer the question using the sources above. Remember to cite sources using [1], [2], etc.`;
 }
 
 // ============================================================================
@@ -283,53 +292,37 @@ export async function* generateRAGResponseStream(
 }
 
 /**
- * Extract citations from the response by matching with provided chunks.
- * @param answer - The generated answer text
- * @param chunks - Context chunks that were used
+ * Extract citations from the response by parsing inline [1], [2], etc. markers.
+ * @param answer - The generated answer text with inline citation markers
+ * @param chunks - Context chunks that were used (ordered by source number)
  * @param maxCitations - Maximum number of citations to return (default: 3)
  */
 function extractCitations(answer: string, chunks: ChunkContext[], maxCitations: number = 3): Citation[] {
   const citations: Citation[] = [];
-  const citedChunkIds = new Set<string>();
+  const citedIndices = new Set<number>();
 
-  // Find references to sources in the answer
-  for (const chunk of chunks) {
-    // Check if chunk content or title is referenced
-    const titleLower = chunk.title?.toLowerCase() || "";
-    const answerLower = answer.toLowerCase();
+  // Parse inline citation markers like [1], [2], [3]
+  const citationPattern = /\[(\d+)\]/g;
+  let match;
 
-    // Simple heuristic: if chunk title appears in answer, count as citation
-    if (titleLower && answerLower.includes(titleLower)) {
-      if (!citedChunkIds.has(chunk.id)) {
-        citedChunkIds.add(chunk.id);
-        citations.push({
-          title: chunk.title,
-          url: chunk.url,
-          snippet: chunk.content.slice(0, 200),
-          chunkId: chunk.id,
-        });
-      }
-    }
-
-    // Also check for URL references
-    if (chunk.url && answer.includes(chunk.url)) {
-      if (!citedChunkIds.has(chunk.id)) {
-        citedChunkIds.add(chunk.id);
-        citations.push({
-          title: chunk.title,
-          url: chunk.url,
-          snippet: chunk.content.slice(0, 200),
-          chunkId: chunk.id,
-        });
-      }
+  while ((match = citationPattern.exec(answer)) !== null) {
+    const index = parseInt(match[1], 10);
+    // Only add if it's a valid source index (1-based)
+    if (index >= 1 && index <= chunks.length) {
+      citedIndices.add(index);
     }
   }
 
-  // If no explicit citations found, include top chunks used in context
-  if (citations.length === 0 && chunks.length > 0) {
-    const topChunks = chunks.slice(0, maxCitations);
-    for (const chunk of topChunks) {
+  // Build citations array from the cited indices
+  const sortedIndices = Array.from(citedIndices).sort((a, b) => a - b);
+
+  for (const index of sortedIndices) {
+    if (citations.length >= maxCitations) break;
+
+    const chunk = chunks[index - 1]; // Convert 1-based to 0-based
+    if (chunk) {
       citations.push({
+        index,
         title: chunk.title,
         url: chunk.url,
         snippet: chunk.content.slice(0, 200),
@@ -338,8 +331,22 @@ function extractCitations(answer: string, chunks: ChunkContext[], maxCitations: 
     }
   }
 
-  // Limit to maxCitations even if explicit citations were found
-  return citations.slice(0, maxCitations);
+  // If no inline citations found, fall back to including top chunks
+  if (citations.length === 0 && chunks.length > 0) {
+    const topChunks = chunks.slice(0, maxCitations);
+    for (let i = 0; i < topChunks.length; i++) {
+      const chunk = topChunks[i];
+      citations.push({
+        index: i + 1,
+        title: chunk.title,
+        url: chunk.url,
+        snippet: chunk.content.slice(0, 200),
+        chunkId: chunk.id,
+      });
+    }
+  }
+
+  return citations;
 }
 
 /**

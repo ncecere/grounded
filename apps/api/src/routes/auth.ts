@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { db } from "@kcb/db";
-import { tenantMemberships, tenants, users, userCredentials } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { tenantMemberships, tenants, users, userCredentials } from "@grounded/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
-import { getEnv, hashPassword, verifyPassword, validatePassword, validateEmail } from "@kcb/shared";
+import { getEnv, hashPassword, verifyPassword, validatePassword, validateEmail } from "@grounded/shared";
 import * as jose from "jose";
 import { auth } from "../middleware/auth";
 import { BadRequestError, UnauthorizedError } from "../middleware/error-handler";
@@ -18,8 +18,8 @@ const secretString = getEnv("SESSION_SECRET", "dev-secret-change-in-production-m
 // Pad the secret to ensure it's at least 32 bytes
 const paddedSecret = secretString.padEnd(32, "0");
 const JWT_SECRET = new TextEncoder().encode(paddedSecret);
-const JWT_ISSUER = "kcb-local";
-const JWT_AUDIENCE = "kcb-api";
+const JWT_ISSUER = "grounded-local";
+const JWT_AUDIENCE = "grounded-api";
 const JWT_EXPIRES_IN = "7d";
 
 // ============================================================================

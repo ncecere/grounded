@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "@kcb/db";
-import { systemSettings } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { systemSettings } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
 import { auth, requireSystemAdmin } from "../../middleware/auth";
 import { BadRequestError } from "../../middleware/error-handler";
@@ -145,7 +145,7 @@ const SETTINGS_METADATA: Record<string, SettingMeta> = {
     category: "email",
     isSecret: false,
     description: "Default sender display name",
-    defaultValue: "KCB Platform",
+    defaultValue: "Grounded Platform",
   },
 
   // Alert Settings

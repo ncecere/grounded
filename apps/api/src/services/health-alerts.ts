@@ -1,4 +1,4 @@
-import { db } from "@kcb/db";
+import { db } from "@grounded/db";
 import {
   tenants,
   chatEvents,
@@ -9,7 +9,7 @@ import {
   tenantMemberships,
   tenantAlertSettings,
   users,
-} from "@kcb/db/schema";
+} from "@grounded/db/schema";
 import { sql, isNull, and, gte, eq, inArray } from "drizzle-orm";
 import { emailService, getAlertSettings } from "./email";
 

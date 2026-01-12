@@ -1,4 +1,4 @@
-import { getEnv } from "@kcb/shared";
+import { getEnv } from "@grounded/shared";
 import type { VectorStore, VectorStoreConfig, VectorStoreType } from "./types";
 import { PgVectorStore } from "./providers/pgvector";
 

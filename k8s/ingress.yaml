@@ -1,8 +1,8 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: kcb-ingress
-  namespace: kcb
+  name: grounded-ingress
+  namespace: grounded
   annotations:
     # Nginx ingress controller annotations
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
@@ -17,10 +17,10 @@ spec:
   # TLS (uncomment for production)
   # tls:
   #   - hosts:
-  #       - kcb.example.com
-  #     secretName: kcb-tls
+  #       - grounded.example.com
+  #     secretName: grounded-tls
   rules:
-    - host: kcb.example.com  # Change to your domain
+    - host: grounded.example.com  # Change to your domain
       http:
         paths:
           # API routes

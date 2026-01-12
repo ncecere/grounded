@@ -1,12 +1,12 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "@kcb/db";
-import { users, systemAdmins, tenantMemberships, tenants, userCredentials } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { users, systemAdmins, tenantMemberships, tenants, userCredentials } from "@grounded/db/schema";
 import { eq, isNull, sql, and } from "drizzle-orm";
 import { auth, requireSystemAdmin } from "../../middleware/auth";
 import { BadRequestError, NotFoundError } from "../../middleware/error-handler";
-import { hashPassword, validatePassword, validateEmail } from "@kcb/shared";
+import { hashPassword, validatePassword, validateEmail } from "@grounded/shared";
 
 export const adminUsersRoutes = new Hono();
 

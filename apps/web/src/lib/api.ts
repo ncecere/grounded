@@ -3,14 +3,14 @@
 // In local dev, set API_URL="http://localhost:3001"
 declare global {
   interface Window {
-    __KCB_CONFIG__?: { API_URL?: string };
+    __GROUNDED_CONFIG__?: { API_URL?: string };
   }
 }
-const API_BASE = (window.__KCB_CONFIG__?.API_URL || "") + "/api/v1";
+const API_BASE = (window.__GROUNDED_CONFIG__?.API_URL || "") + "/api/v1";
 
 // Token storage
-const TOKEN_KEY = "kcb_auth_token";
-const TENANT_KEY = "kcb_current_tenant";
+const TOKEN_KEY = "grounded_auth_token";
+const TENANT_KEY = "grounded_current_tenant";
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -840,7 +840,8 @@ export const api = {
     conversationId: string | undefined,
     onChunk: (text: string) => void,
     onDone: (data: { conversationId: string; citations: ChatMessage["citations"] }) => void,
-    onError: (error: string) => void
+    onError: (error: string) => void,
+    onStatus?: (status: { status: string; message?: string; sourcesCount?: number }) => void
   ): Promise<void> => {
     const token = getToken();
     const tenantId = getCurrentTenantId();
@@ -890,7 +891,13 @@ export const api = {
             if (data) {
               try {
                 const parsed = JSON.parse(data);
-                if (parsed.type === "text") {
+                if (parsed.type === "status" && onStatus) {
+                  onStatus({
+                    status: parsed.status,
+                    message: parsed.message,
+                    sourcesCount: parsed.sourcesCount,
+                  });
+                } else if (parsed.type === "text") {
                   onChunk(parsed.content);
                 } else if (parsed.type === "done") {
                   onDone({

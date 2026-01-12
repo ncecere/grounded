@@ -1,7 +1,7 @@
-import { db } from "@kcb/db";
-import { users, userCredentials, systemAdmins } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { users, userCredentials, systemAdmins } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
-import { hashPassword, getEnv, validateEmail, validatePassword } from "@kcb/shared";
+import { hashPassword, getEnv, validateEmail, validatePassword } from "@grounded/shared";
 
 export async function seedSystemAdmin(): Promise<void> {
   const adminEmail = getEnv("ADMIN_EMAIL", "");

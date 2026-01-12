@@ -1,9 +1,9 @@
 import { createMiddleware } from "hono/factory";
 import * as jose from "jose";
-import { db } from "@kcb/db";
-import { users, userIdentities, tenantMemberships, apiKeys, systemAdmins } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { users, userIdentities, tenantMemberships, apiKeys, systemAdmins } from "@grounded/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
-import { getEnv, hashString } from "@kcb/shared";
+import { getEnv, hashString } from "@grounded/shared";
 import { UnauthorizedError, ForbiddenError } from "./error-handler";
 
 // ============================================================================
@@ -58,8 +58,8 @@ async function getJWKS(): Promise<jose.JWTVerifyGetKey> {
 const secretString = getEnv("SESSION_SECRET", "dev-secret-change-in-production-must-be-32-chars-or-more");
 const paddedSecret = secretString.padEnd(32, "0");
 const LOCAL_JWT_SECRET = new TextEncoder().encode(paddedSecret);
-const LOCAL_JWT_ISSUER = "kcb-local";
-const LOCAL_JWT_AUDIENCE = "kcb-api";
+const LOCAL_JWT_ISSUER = "grounded-local";
+const LOCAL_JWT_AUDIENCE = "grounded-api";
 
 // ============================================================================
 // Auth Middleware

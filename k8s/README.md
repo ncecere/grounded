@@ -1,4 +1,4 @@
-# KCB Kubernetes Deployment
+# Grounded Kubernetes Deployment
 
 ## Prerequisites
 
@@ -16,16 +16,16 @@
 export REGISTRY=your-registry.com
 
 # Build images
-docker build -f Dockerfile.api -t $REGISTRY/kcb-api:latest .
-docker build -f Dockerfile.web --build-arg VITE_API_URL="" -t $REGISTRY/kcb-web:latest .
-docker build -f Dockerfile.ingestion -t $REGISTRY/kcb-ingestion-worker:latest .
-docker build -f Dockerfile.scraper -t $REGISTRY/kcb-scraper-worker:latest .
+docker build -f Dockerfile.api -t $REGISTRY/grounded-api:latest .
+docker build -f Dockerfile.web --build-arg VITE_API_URL="" -t $REGISTRY/grounded-web:latest .
+docker build -f Dockerfile.ingestion -t $REGISTRY/grounded-ingestion-worker:latest .
+docker build -f Dockerfile.scraper -t $REGISTRY/grounded-scraper-worker:latest .
 
 # Push to registry
-docker push $REGISTRY/kcb-api:latest
-docker push $REGISTRY/kcb-web:latest
-docker push $REGISTRY/kcb-ingestion-worker:latest
-docker push $REGISTRY/kcb-scraper-worker:latest
+docker push $REGISTRY/grounded-api:latest
+docker push $REGISTRY/grounded-web:latest
+docker push $REGISTRY/grounded-ingestion-worker:latest
+docker push $REGISTRY/grounded-scraper-worker:latest
 ```
 
 ### 2. Configure Secrets
@@ -48,7 +48,7 @@ openssl rand -base64 32
 ### 3. Configure Ingress
 
 Edit `ingress.yaml`:
-- Change `kcb.example.com` to your domain
+- Change `grounded.example.com` to your domain
 - Uncomment TLS section for HTTPS
 
 ### 4. Update Kustomization
@@ -79,38 +79,38 @@ kubectl apply -f k8s/ingress.yaml
 
 ```bash
 # Port-forward to postgres
-kubectl port-forward -n kcb svc/postgres 5432:5432 &
+kubectl port-forward -n grounded svc/postgres 5432:5432 &
 
 # Run init script
-psql -h localhost -U kcb -d kcb < packages/db/init.sql
+psql -h localhost -U grounded -d grounded < packages/db/init.sql
 
 # Restart API to run migrations
-kubectl rollout restart -n kcb deployment/api
+kubectl rollout restart -n grounded deployment/api
 ```
 
 ## Scaling
 
 ```bash
 # Scale API
-kubectl scale -n kcb deployment/api --replicas=4
+kubectl scale -n grounded deployment/api --replicas=4
 
 # Scale workers
-kubectl scale -n kcb deployment/ingestion-worker --replicas=4
-kubectl scale -n kcb deployment/scraper-worker --replicas=2
+kubectl scale -n grounded deployment/ingestion-worker --replicas=4
+kubectl scale -n grounded deployment/scraper-worker --replicas=2
 ```
 
 ## Monitoring
 
 ```bash
 # Check pod status
-kubectl get pods -n kcb
+kubectl get pods -n grounded
 
 # View logs
-kubectl logs -n kcb -l app=api -f
-kubectl logs -n kcb -l app=ingestion-worker -f
+kubectl logs -n grounded -l app=api -f
+kubectl logs -n grounded -l app=ingestion-worker -f
 
 # Describe resources
-kubectl describe -n kcb deployment/api
+kubectl describe -n grounded deployment/api
 ```
 
 ## Architecture

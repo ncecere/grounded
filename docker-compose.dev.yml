@@ -5,17 +5,17 @@ services:
   # PostgreSQL for application data
   postgres:
     image: postgres:16-alpine
-    container_name: kcb-postgres-dev
+    container_name: grounded-postgres-dev
     environment:
-      POSTGRES_USER: kcb
-      POSTGRES_PASSWORD: kcb_dev_password
-      POSTGRES_DB: kcb
+      POSTGRES_USER: grounded
+      POSTGRES_PASSWORD: grounded_dev_password
+      POSTGRES_DB: grounded
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kcb"]
+      test: ["CMD-SHELL", "pg_isready -U grounded"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,17 +23,17 @@ services:
   # PostgreSQL with pgvector for vector storage (separate cluster)
   postgres-vector:
     image: pgvector/pgvector:pg16
-    container_name: kcb-postgres-vector-dev
+    container_name: grounded-postgres-vector-dev
     environment:
-      POSTGRES_USER: kcb_vectors
-      POSTGRES_PASSWORD: kcb_vectors_dev_password
+      POSTGRES_USER: grounded_vectors
+      POSTGRES_PASSWORD: grounded_vectors_dev_password
       POSTGRES_DB: vectors
     volumes:
       - postgres_vector_data_dev:/var/lib/postgresql/data
     ports:
       - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kcb_vectors"]
+      test: ["CMD-SHELL", "pg_isready -U grounded_vectors"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,7 +41,7 @@ services:
   # Redis for queues and caching
   redis:
     image: redis:7-alpine
-    container_name: kcb-redis-dev
+    container_name: grounded-redis-dev
     command: redis-server --appendonly yes
     volumes:
       - redis_data_dev:/data

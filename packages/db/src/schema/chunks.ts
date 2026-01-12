@@ -62,7 +62,7 @@ export const kbChunks = pgTable(
 );
 
 // NOTE: Embeddings/vectors are now stored in a separate vector database.
-// See @kcb/vector-store package for vector storage and retrieval.
+// See @grounded/vector-store package for vector storage and retrieval.
 
 export const uploads = pgTable(
   "uploads",

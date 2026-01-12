@@ -260,7 +260,7 @@ export class CrawlState {
 Modify `apps/ingestion-worker/src/processors/source-discover.ts`:
 
 ```typescript
-import { CrawlState } from "@kcb/crawl-state";
+import { CrawlState } from "@grounded/crawl-state";
 
 export async function processSourceDiscover(job: Job<SourceDiscoverJob>) {
   const { runId, sourceId, tenantId } = job.data;
@@ -421,7 +421,7 @@ app.get("/runs/:runId/progress", async (c) => {
 
 ## Migration Path
 
-1. **Phase 1**: Add `@kcb/crawl-state` package (no breaking changes)
+1. **Phase 1**: Add `@grounded/crawl-state` package (no breaking changes)
 2. **Phase 2**: Update discovery to use Redis (backwards compatible)
 3. **Phase 3**: Update fetch to track state (backwards compatible)
 4. **Phase 4**: Update process with atomic discovery (fixes race condition)

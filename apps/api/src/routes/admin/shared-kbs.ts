@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "@kcb/db";
-import { knowledgeBases, tenantKbSubscriptions, tenants, sources, kbChunks, users, sourceRuns, sourceRunPages, modelConfigurations } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { knowledgeBases, tenantKbSubscriptions, tenants, sources, kbChunks, users, sourceRuns, sourceRunPages, modelConfigurations } from "@grounded/db/schema";
 import { eq, and, isNull, sql, inArray, desc } from "drizzle-orm";
-import { sourceConfigSchema } from "@kcb/shared";
-import { addSourceRunStartJob } from "@kcb/queue";
+import { sourceConfigSchema } from "@grounded/shared";
+import { addSourceRunStartJob } from "@grounded/queue";
 import { auth, requireSystemAdmin } from "../../middleware/auth";
 import { NotFoundError, BadRequestError } from "../../middleware/error-handler";
 

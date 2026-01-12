@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { marked } from "marked";
 import { api, type ChatMessage } from "../lib/api";
 import { Button } from "../components/ui/button";
-import { ArrowLeft, RotateCcw, MessageSquareText, Send } from "lucide-react";
+import { ArrowLeft, RotateCcw, MessageSquareText, Send, Search, Sparkles } from "lucide-react";
 
 // Configure marked for chat use (same as widget)
 marked.setOptions({
@@ -55,18 +55,35 @@ function CitationSources({ citations }: { citations: ChatMessage["citations"] })
   );
 }
 
-// Parse markdown and strip citation artifacts (same as widget)
-function parseMarkdown(text: string): string {
+// Parse markdown and convert inline citations to clickable badges
+function parseMarkdown(text: string, citations?: ChatMessage["citations"]): string {
   if (!text) return '';
 
   let cleaned = text;
 
-  // Strip various inline citation formats that LLMs might generate
+  // Strip old/unwanted citation formats
   cleaned = cleaned.replace(/【[^】]*】/g, '');
   cleaned = cleaned.replace(/Citation:\s*[^\n.]+[.\n]/gi, '');
   cleaned = cleaned.replace(/\[Source:[^\]]*\]/gi, '');
-  cleaned = cleaned.replace(/\[\d+\]/g, '');
   cleaned = cleaned.replace(/\(Source:[^)]*\)/gi, '');
+
+  // Convert inline citations [1], [2] to clickable badges
+  if (citations && citations.length > 0) {
+    cleaned = cleaned.replace(/\[(\d+)\]/g, (match, num) => {
+      const index = parseInt(num, 10);
+      const citation = citations.find(c => c.index === index);
+      if (citation) {
+        const title = citation.title || citation.url || `Source ${index}`;
+        const url = citation.url || '#';
+        const escapedTitle = title.replace(/"/g, '&quot;');
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-citation" title="${escapedTitle}">[${index}]</a>`;
+      }
+      return match;
+    });
+  } else {
+    // Strip citation markers if no citations data
+    cleaned = cleaned.replace(/\[\d+\]/g, '');
+  }
 
   // Use marked for full markdown parsing (supports tables, code blocks, etc.)
   const html = marked.parse(cleaned, { async: false }) as string;
@@ -75,11 +92,11 @@ function parseMarkdown(text: string): string {
 }
 
 // Markdown renderer using marked (same as widget)
-function MarkdownContent({ content }: { content: string }) {
+function MarkdownContent({ content, citations }: { content: string; citations?: ChatMessage["citations"] }) {
   return (
     <div
       className="markdown-content text-sm leading-relaxed"
-      dangerouslySetInnerHTML={{ __html: parseMarkdown(content) }}
+      dangerouslySetInnerHTML={{ __html: parseMarkdown(content, citations) }}
     />
   );
 }
@@ -109,7 +126,7 @@ function ChatMessageBubble({
           ) : (
             <>
               {message.content ? (
-                <MarkdownContent content={message.content} />
+                <MarkdownContent content={message.content} citations={message.citations} />
               ) : (
                 <span className="text-muted-foreground italic text-sm">Waiting for response...</span>
               )}
@@ -125,6 +142,12 @@ function ChatMessageBubble({
   );
 }
 
+interface ChatStatusState {
+  status: 'idle' | 'searching' | 'generating' | 'streaming';
+  message?: string;
+  sourcesCount?: number;
+}
+
 export function Chat({ agentId, onBack }: ChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -132,6 +155,7 @@ export function Chat({ agentId, onBack }: ChatProps) {
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [streamingContent, setStreamingContent] = useState("");
   const [inputValue, setInputValue] = useState("");
+  const [chatStatus, setChatStatus] = useState<ChatStatusState>({ status: 'idle' });
   const streamingContentRef = useRef("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -192,9 +216,8 @@ export function Chat({ agentId, onBack }: ChatProps) {
       streamingContentRef.current = "";
 
       try {
-        // Start streaming
-        setIsLoading(false);
-        setIsStreaming(true);
+        // Start with searching status
+        setChatStatus({ status: 'searching', message: 'Searching knowledge base...' });
 
         await api.chatStream(
           agentId,
@@ -202,6 +225,15 @@ export function Chat({ agentId, onBack }: ChatProps) {
           conversationId,
           // onChunk
           (text) => {
+            // Switch to streaming status on first chunk
+            setChatStatus((prev) => {
+              if (prev.status !== 'streaming') {
+                setIsLoading(false);
+                setIsStreaming(true);
+                return { status: 'streaming' };
+              }
+              return prev;
+            });
             streamingContentRef.current += text;
             setStreamingContent(streamingContentRef.current);
           },
@@ -225,6 +257,7 @@ export function Chat({ agentId, onBack }: ChatProps) {
             setIsStreaming(false);
             setStreamingContent("");
             streamingContentRef.current = "";
+            setChatStatus({ status: 'idle' });
             // Refocus input after response completes
             setTimeout(() => inputRef.current?.focus(), 50);
           },
@@ -242,7 +275,20 @@ export function Chat({ agentId, onBack }: ChatProps) {
             setIsStreaming(false);
             setStreamingContent("");
             streamingContentRef.current = "";
+            setChatStatus({ status: 'idle' });
             setTimeout(() => inputRef.current?.focus(), 50);
+          },
+          // onStatus
+          (status) => {
+            if (status.status === 'searching') {
+              setChatStatus({ status: 'searching', message: status.message || 'Searching knowledge base...' });
+            } else if (status.status === 'generating') {
+              setChatStatus({
+                status: 'generating',
+                message: status.message || 'Generating response...',
+                sourcesCount: status.sourcesCount
+              });
+            }
           }
         );
       } catch (error) {
@@ -256,6 +302,7 @@ export function Chat({ agentId, onBack }: ChatProps) {
         ]);
         setIsLoading(false);
         setIsStreaming(false);
+        setChatStatus({ status: 'idle' });
         streamingContentRef.current = "";
         setTimeout(() => inputRef.current?.focus(), 50);
       }
@@ -360,11 +407,25 @@ export function Chat({ agentId, onBack }: ChatProps) {
                   }
                 />
               ))}
-              {isLoading && (
+              {(isLoading || (chatStatus.status !== 'idle' && chatStatus.status !== 'streaming')) && (
                 <div className="flex justify-start">
                   <div className="bg-muted rounded-2xl px-4 py-2 flex items-center gap-2">
-                    <Loader size={16} />
-                    <span className="text-muted-foreground text-sm">Thinking...</span>
+                    {chatStatus.status === 'searching' ? (
+                      <>
+                        <Search className="w-4 h-4 text-muted-foreground animate-pulse" />
+                        <span className="text-muted-foreground text-sm">{chatStatus.message || 'Searching knowledge base...'}</span>
+                      </>
+                    ) : chatStatus.status === 'generating' ? (
+                      <>
+                        <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+                        <span className="text-muted-foreground text-sm">{chatStatus.message || 'Generating response...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Loader size={16} />
+                        <span className="text-muted-foreground text-sm">Thinking...</span>
+                      </>
+                    )}
                   </div>
                 </div>
               )}

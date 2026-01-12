@@ -3,8 +3,8 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { db } from "@kcb/db";
-import { modelProviders, modelConfigurations } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { modelProviders, modelConfigurations } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
 import type {
   ProviderConfig,

@@ -1,6 +1,6 @@
 import { embed, embedMany } from "ai";
-import { getAIRegistry } from "@kcb/ai-providers";
-import { getEnv, retry } from "@kcb/shared";
+import { getAIRegistry } from "@grounded/ai-providers";
+import { getEnv, retry } from "@grounded/shared";
 
 // ============================================================================
 // Configuration (for fallback/defaults)

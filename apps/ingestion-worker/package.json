@@ -1,5 +1,5 @@
 {
-  "name": "@kcb/ingestion-worker",
+  "name": "@grounded/ingestion-worker",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,14 +10,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@kcb/ai-providers": "workspace:*",
-    "@kcb/crawl-state": "workspace:*",
-    "@kcb/db": "workspace:*",
-    "@kcb/embeddings": "workspace:*",
-    "@kcb/llm": "workspace:*",
-    "@kcb/queue": "workspace:*",
-    "@kcb/shared": "workspace:*",
-    "@kcb/vector-store": "workspace:*",
+    "@grounded/ai-providers": "workspace:*",
+    "@grounded/crawl-state": "workspace:*",
+    "@grounded/db": "workspace:*",
+    "@grounded/embeddings": "workspace:*",
+    "@grounded/llm": "workspace:*",
+    "@grounded/queue": "workspace:*",
+    "@grounded/shared": "workspace:*",
+    "@grounded/vector-store": "workspace:*",
     "drizzle-orm": "^0.38.3"
   },
   "devDependencies": {

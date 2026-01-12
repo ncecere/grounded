@@ -11,7 +11,7 @@ COPY migrations ./migrations
 RUN bun install || true
 
 # Copy entrypoint script
-COPY docker-entrypoint-api.sh /docker-entrypoint-api.sh
+COPY docker/docker-entrypoint-api.sh /docker-entrypoint-api.sh
 RUN chmod +x /docker-entrypoint-api.sh
 
 ENV NODE_ENV=production

@@ -7,11 +7,19 @@ interface UseChatOptions {
 }
 
 interface SSEMessage {
-  type: 'text' | 'done' | 'error';
+  type: 'text' | 'done' | 'error' | 'status';
   content?: string;
   message?: string;
   conversationId?: string;
   citations?: Citation[];
+  status?: 'searching' | 'generating';
+  sourcesCount?: number;
+}
+
+export interface ChatStatus {
+  status: 'idle' | 'searching' | 'generating' | 'streaming';
+  message?: string;
+  sourcesCount?: number;
 }
 
 export function useChat({ token, apiBase }: UseChatOptions) {
@@ -19,9 +27,10 @@ export function useChat({ token, apiBase }: UseChatOptions) {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chatStatus, setChatStatus] = useState<ChatStatus>({ status: 'idle' });
   const conversationIdRef = useRef<string | null>(
     typeof sessionStorage !== 'undefined'
-      ? sessionStorage.getItem(`kcb_conv_${token}`)
+      ? sessionStorage.getItem(`grounded_conv_${token}`)
       : null
   );
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -44,6 +53,7 @@ export function useChat({ token, apiBase }: UseChatOptions) {
     setIsLoading(true);
     setIsStreaming(true);
     setError(null);
+    setChatStatus({ status: 'searching', message: 'Searching knowledge base...' });
 
     // Create abort controller for this request
     abortControllerRef.current = new AbortController();
@@ -99,7 +109,26 @@ export function useChat({ token, apiBase }: UseChatOptions) {
             try {
               const data: SSEMessage = JSON.parse(line.slice(6));
 
-              if (data.type === 'text' && data.content) {
+              if (data.type === 'status') {
+                // Update chat status
+                setChatStatus({
+                  status: data.status || 'searching',
+                  message: data.message,
+                  sourcesCount: data.sourcesCount,
+                });
+                // When generating starts, update the assistant message
+                if (data.status === 'generating') {
+                  setChatStatus({
+                    status: 'generating',
+                    message: data.message,
+                    sourcesCount: data.sourcesCount,
+                  });
+                }
+              } else if (data.type === 'text' && data.content) {
+                // First text chunk means we're now streaming
+                if (!fullContent) {
+                  setChatStatus({ status: 'streaming' });
+                }
                 fullContent += data.content;
                 // Update message with streamed content
                 setMessages(prev => prev.map(msg =>
@@ -112,18 +141,19 @@ export function useChat({ token, apiBase }: UseChatOptions) {
                 if (data.conversationId) {
                   conversationIdRef.current = data.conversationId;
                   try {
-                    sessionStorage.setItem(`kcb_conv_${token}`, data.conversationId);
+                    sessionStorage.setItem(`grounded_conv_${token}`, data.conversationId);
                   } catch {
                     // sessionStorage not available
                   }
                 }
                 citations = data.citations || [];
+                setChatStatus({ status: 'idle' });
               } else if (data.type === 'error') {
                 throw new Error(data.message || 'Stream error');
               }
             } catch (parseError) {
               // Skip invalid JSON lines
-              console.warn('[KCB Widget] Failed to parse SSE:', line);
+              console.warn('[Grounded Widget] Failed to parse SSE:', line);
             }
           }
         }
@@ -139,9 +169,11 @@ export function useChat({ token, apiBase }: UseChatOptions) {
     } catch (err) {
       if ((err as Error).name === 'AbortError') {
         // Request was aborted, don't show error
+        setChatStatus({ status: 'idle' });
         return;
       }
 
+      setChatStatus({ status: 'idle' });
       setError(err instanceof Error ? err.message : 'An error occurred');
 
       // Update or add error message
@@ -181,7 +213,7 @@ export function useChat({ token, apiBase }: UseChatOptions) {
     setMessages([]);
     conversationIdRef.current = null;
     try {
-      sessionStorage.removeItem(`kcb_conv_${token}`);
+      sessionStorage.removeItem(`grounded_conv_${token}`);
     } catch {
       // sessionStorage not available
     }
@@ -192,6 +224,7 @@ export function useChat({ token, apiBase }: UseChatOptions) {
     isLoading,
     isStreaming,
     error,
+    chatStatus,
     sendMessage,
     stopStreaming,
     clearMessages,

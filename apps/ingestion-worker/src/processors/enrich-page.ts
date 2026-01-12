@@ -1,8 +1,8 @@
-import { db } from "@kcb/db";
-import { kbChunks } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { kbChunks } from "@grounded/db/schema";
 import { eq, inArray, isNull, and } from "drizzle-orm";
-import { generateEnrichment } from "@kcb/llm";
-import type { EnrichPageJob } from "@kcb/shared";
+import { generateEnrichment } from "@grounded/llm";
+import type { EnrichPageJob } from "@grounded/shared";
 
 export async function processEnrichPage(data: EnrichPageJob): Promise<void> {
   const { tenantId, kbId, chunkIds } = data;

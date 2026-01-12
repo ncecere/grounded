@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "@kcb/db";
-import { uploads, sources, knowledgeBases, tenantQuotas, tenantUsage, sourceRuns } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { uploads, sources, knowledgeBases, tenantQuotas, tenantUsage, sourceRuns } from "@grounded/db/schema";
 import { eq, and, isNull, sql } from "drizzle-orm";
-import { addPageProcessJob } from "@kcb/queue";
-import { generateId } from "@kcb/shared";
+import { addPageProcessJob } from "@grounded/queue";
+import { generateId } from "@grounded/shared";
 import { auth, requireRole, requireTenant } from "../middleware/auth";
 import { NotFoundError, QuotaExceededError, BadRequestError } from "../middleware/error-handler";
 

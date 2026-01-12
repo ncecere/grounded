@@ -1,10 +1,10 @@
-import { db } from "@kcb/db";
-import { kbChunks, knowledgeBases } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { kbChunks, knowledgeBases } from "@grounded/db/schema";
 import { eq, inArray, isNull, and } from "drizzle-orm";
-import { generateEmbeddings } from "@kcb/embeddings";
-import { getAIRegistry } from "@kcb/ai-providers";
-import { getVectorStore } from "@kcb/vector-store";
-import type { EmbedChunksBatchJob } from "@kcb/shared";
+import { generateEmbeddings } from "@grounded/embeddings";
+import { getAIRegistry } from "@grounded/ai-providers";
+import { getVectorStore } from "@grounded/vector-store";
+import type { EmbedChunksBatchJob } from "@grounded/shared";
 
 export class EmbeddingDimensionMismatchError extends Error {
   constructor(expected: number, actual: number, kbId: string) {

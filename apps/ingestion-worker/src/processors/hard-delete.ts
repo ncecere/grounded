@@ -1,4 +1,4 @@
-import { db } from "@kcb/db";
+import { db } from "@grounded/db";
 import {
   tenants,
   knowledgeBases,
@@ -19,10 +19,10 @@ import {
   tenantUsage,
   tenantKbSubscriptions,
   uploads,
-} from "@kcb/db/schema";
+} from "@grounded/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { getVectorStore } from "@kcb/vector-store";
-import type { HardDeleteObjectJob } from "@kcb/shared";
+import { getVectorStore } from "@grounded/vector-store";
+import type { HardDeleteObjectJob } from "@grounded/shared";
 
 export async function processHardDelete(data: HardDeleteObjectJob): Promise<void> {
   const { tenantId, objectType, objectId } = data;

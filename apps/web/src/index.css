@@ -222,3 +222,30 @@ body {
   margin: 12px 0;
   color: #64748B;
 }
+
+/* Inline citation badges */
+.markdown-content .inline-citation {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  text-decoration: none;
+  vertical-align: super;
+  line-height: 1;
+  margin: 0 1px;
+  transition: all 0.15s ease;
+}
+
+.markdown-content .inline-citation:hover {
+  background: hsl(var(--primary) / 0.2);
+  transform: translateY(-1px);
+}
+
+.dark .markdown-content .inline-citation {
+  background: hsl(var(--primary) / 0.15);
+}

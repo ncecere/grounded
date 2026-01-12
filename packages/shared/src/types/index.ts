@@ -276,6 +276,7 @@ export interface Agent {
 }
 
 export interface Citation {
+  index: number; // The citation number (1, 2, 3, etc.) as used in the text
   title: string | null;
   url: string | null;
   snippet: string;

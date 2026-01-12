@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: kcb
+namespace: grounded
 
 resources:
   - namespace.yaml
@@ -17,15 +17,15 @@ resources:
 
 # Override images for your registry
 images:
-  - name: kcb-api
-    newName: your-registry.com/kcb-api
+  - name: grounded-api
+    newName: your-registry.com/grounded-api
     newTag: latest
-  - name: kcb-web
-    newName: your-registry.com/kcb-web
+  - name: grounded-web
+    newName: your-registry.com/grounded-web
     newTag: latest
-  - name: kcb-ingestion-worker
-    newName: your-registry.com/kcb-ingestion-worker
+  - name: grounded-ingestion-worker
+    newName: your-registry.com/grounded-ingestion-worker
     newTag: latest
-  - name: kcb-scraper-worker
-    newName: your-registry.com/kcb-scraper-worker
+  - name: grounded-scraper-worker
+    newName: your-registry.com/grounded-scraper-worker
     newTag: latest

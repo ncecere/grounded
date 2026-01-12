@@ -3,7 +3,7 @@ set -e
 
 # Generate runtime config from environment variables
 cat > /usr/share/nginx/html/config.js << EOF
-window.__KCB_CONFIG__ = {
+window.__GROUNDED_CONFIG__ = {
   API_URL: "${API_URL:-}"
 };
 EOF

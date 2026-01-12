@@ -1,7 +1,7 @@
-import { db } from "@kcb/db";
-import { kbChunks, sourceRuns, sourceRunPages, sources } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { kbChunks, sourceRuns, sourceRunPages, sources } from "@grounded/db/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { addEmbedChunksBatchJob, addEnrichPageJob, addSourceRunFinalizeJob, addPageFetchJob, redis } from "@kcb/queue";
+import { addEmbedChunksBatchJob, addEnrichPageJob, addSourceRunFinalizeJob, addPageFetchJob, redis } from "@grounded/queue";
 import {
   hashString,
   normalizeUrl,
@@ -10,8 +10,8 @@ import {
   type PageProcessJob,
   type SourceConfig,
   type FetchMode,
-} from "@kcb/shared";
-import { createCrawlState } from "@kcb/crawl-state";
+} from "@grounded/shared";
+import { createCrawlState } from "@grounded/crawl-state";
 
 export async function processPageProcess(data: PageProcessJob): Promise<void> {
   const { tenantId, runId, url, html, title, depth = 0 } = data;

@@ -1,5 +1,5 @@
 {
-  "name": "@kcb/scraper-worker",
+  "name": "@grounded/scraper-worker",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,10 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@kcb/crawl-state": "workspace:*",
-    "@kcb/db": "workspace:*",
-    "@kcb/queue": "workspace:*",
-    "@kcb/shared": "workspace:*",
+    "@grounded/crawl-state": "workspace:*",
+    "@grounded/db": "workspace:*",
+    "@grounded/queue": "workspace:*",
+    "@grounded/shared": "workspace:*",
     "drizzle-orm": "^0.38.3",
     "playwright": "^1.49.1"
   },

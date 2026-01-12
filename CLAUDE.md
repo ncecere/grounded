@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KCB is a multi-tenant SaaS platform combining knowledge ingestion (RAG), configurable AI agents, and an embeddable chat widget. It uses row-level security (RLS) on PostgreSQL for tenant isolation.
+Grounded is a multi-tenant SaaS platform combining knowledge ingestion (RAG), configurable AI agents, and an embeddable chat widget. It emphasizes strict RAG with no hallucinations. It uses row-level security (RLS) on PostgreSQL for tenant isolation.
 
 ## Commands
 
@@ -54,6 +54,9 @@ bun run docker:logs         # View logs
 - **packages/ai-providers** - Multi-provider AI SDK (OpenAI, Anthropic, Google)
 - **packages/vector-store** - pgvector storage client
 - **packages/widget** - Preact embeddable chat widget
+- **docker/** - Dockerfiles, entrypoints, and nginx config
+- **k8s/** - Kubernetes deployment manifests
+- **migrations/** - SQL migration files
 
 ### Key Patterns
 

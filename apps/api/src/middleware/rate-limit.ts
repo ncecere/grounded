@@ -1,5 +1,5 @@
 import { createMiddleware } from "hono/factory";
-import { checkRateLimit } from "@kcb/queue";
+import { checkRateLimit } from "@grounded/queue";
 import { RateLimitError } from "./error-handler";
 
 export const rateLimit = (options: {

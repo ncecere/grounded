@@ -13,7 +13,7 @@ import { sql } from "drizzle-orm";
 import { tenants, users } from "./tenants";
 import { knowledgeBases } from "./knowledge";
 import { modelConfigurations } from "./ai-models";
-import type { WidgetTheme } from "@kcb/shared";
+import type { WidgetTheme } from "@grounded/shared";
 
 export const agents = pgTable(
   "agents",

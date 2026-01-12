@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: web
-  namespace: kcb
+  namespace: grounded
 spec:
   type: ClusterIP
   ports:
@@ -15,7 +15,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: web
-  namespace: kcb
+  namespace: grounded
 spec:
   replicas: 2
   selector:
@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: web
-          image: kcb-web:latest
+          image: grounded-web:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 80

@@ -1,12 +1,12 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "@kcb/db";
-import { modelProviders, modelConfigurations, type ProviderType, type ModelType } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { modelProviders, modelConfigurations, type ProviderType, type ModelType } from "@grounded/db/schema";
 import { eq, and, ne } from "drizzle-orm";
 import { auth, requireSystemAdmin } from "../../middleware/auth";
 import { BadRequestError, NotFoundError } from "../../middleware/error-handler";
-import { getAIRegistry, resetAIRegistry } from "@kcb/ai-providers";
+import { getAIRegistry, resetAIRegistry } from "@grounded/ai-providers";
 
 export const adminModelsRoutes = new Hono();
 

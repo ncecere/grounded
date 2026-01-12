@@ -1,8 +1,8 @@
 import type { Browser } from "playwright";
-import { db } from "@kcb/db";
-import { sourceRuns, sourceRunPages, sources, tenantUsage } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { sourceRuns, sourceRunPages, sources, tenantUsage } from "@grounded/db/schema";
 import { eq, sql, and } from "drizzle-orm";
-import { addPageProcessJob, redis } from "@kcb/queue";
+import { addPageProcessJob, redis } from "@grounded/queue";
 import {
   normalizeUrl,
   getEnv,
@@ -10,8 +10,8 @@ import {
   MAX_PAGE_SIZE_BYTES,
   type PageFetchJob,
   FetchMode,
-} from "@kcb/shared";
-import { createCrawlState } from "@kcb/crawl-state";
+} from "@grounded/shared";
+import { createCrawlState } from "@grounded/crawl-state";
 
 const FIRECRAWL_API_KEY = getEnv("FIRECRAWL_API_KEY", "");
 const FIRECRAWL_API_URL = getEnv("FIRECRAWL_API_URL", "https://api.firecrawl.dev");
@@ -151,7 +151,7 @@ async function fetchWithHttp(
       signal: controller.signal,
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; KCB-Bot/1.0; +https://kcb.example.com/bot)",
+          "Mozilla/5.0 (compatible; Grounded-Bot/1.0; +https://grounded.example.com/bot)",
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
     });

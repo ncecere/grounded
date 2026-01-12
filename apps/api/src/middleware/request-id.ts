@@ -1,5 +1,5 @@
 import { createMiddleware } from "hono/factory";
-import { generateId } from "@kcb/shared";
+import { generateId } from "@grounded/shared";
 
 export const requestId = () => {
   return createMiddleware(async (c, next) => {

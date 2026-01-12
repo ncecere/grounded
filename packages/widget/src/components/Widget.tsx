@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { useChat } from '../hooks/useChat';
+import { useChat, type ChatStatus } from '../hooks/useChat';
 import { useConfig } from '../hooks/useConfig';
-import { Message, TypingIndicator } from './Message';
+import { Message, StatusIndicator } from './Message';
 import { ChatIcon, CloseIcon, SendIcon, SparklesIcon, ExpandIcon, ShrinkIcon, HelpIcon, QuestionIcon, MessageIcon } from './Icons';
 import type { WidgetOptions, ButtonIcon, ButtonStyle, ButtonSize } from '../types';
 
@@ -21,7 +21,7 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const { config, isLoading: configLoading } = useConfig({ token, apiBase });
-  const { messages, isLoading, sendMessage } = useChat({ token, apiBase });
+  const { messages, isLoading, chatStatus, sendMessage } = useChat({ token, apiBase });
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -104,7 +104,7 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
   // Get the appropriate icon component or custom image
   const getButtonIcon = () => {
     if (customIconUrl) {
-      return <img src={customIconUrl} alt="" className="kcb-launcher-custom-icon" />;
+      return <img src={customIconUrl} alt="" className="grounded-launcher-custom-icon" />;
     }
     switch (buttonIcon) {
       case 'help': return <HelpIcon />;
@@ -116,27 +116,27 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
   };
 
   return (
-    <div className={`kcb-container ${isLeft ? 'left' : ''}`}>
+    <div className={`grounded-container ${isLeft ? 'left' : ''}`}>
       {/* Chat Window */}
-      <div className={`kcb-window ${isOpen ? 'open' : ''} ${isExpanded ? 'expanded' : ''}`}>
+      <div className={`grounded-window ${isOpen ? 'open' : ''} ${isExpanded ? 'expanded' : ''}`}>
         {/* Header */}
-        <div className="kcb-header">
-          <div className="kcb-header-left">
+        <div className="grounded-header">
+          <div className="grounded-header-left">
             {logoUrl && (
-              <img src={logoUrl} alt="" className="kcb-header-logo" />
+              <img src={logoUrl} alt="" className="grounded-header-logo" />
             )}
-            <h2 className="kcb-header-title">{agentName}</h2>
+            <h2 className="grounded-header-title">{agentName}</h2>
           </div>
-          <div className="kcb-header-actions">
+          <div className="grounded-header-actions">
             <button
-              className="kcb-header-btn"
+              className="grounded-header-btn"
               onClick={() => setIsExpanded(!isExpanded)}
               aria-label={isExpanded ? 'Shrink chat' : 'Expand chat'}
             >
               {isExpanded ? <ShrinkIcon /> : <ExpandIcon />}
             </button>
             <button
-              className="kcb-header-btn"
+              className="grounded-header-btn"
               onClick={handleToggle}
               aria-label="Close chat"
             >
@@ -146,12 +146,12 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
         </div>
 
         {/* Messages */}
-        <div className="kcb-messages">
+        <div className="grounded-messages">
           {showEmptyState ? (
-            <div className="kcb-empty">
-              <SparklesIcon className="kcb-empty-icon" />
-              <h3 className="kcb-empty-title">{description}</h3>
-              <p className="kcb-empty-text">
+            <div className="grounded-empty">
+              <SparklesIcon className="grounded-empty-icon" />
+              <h3 className="grounded-empty-title">{description}</h3>
+              <p className="grounded-empty-text">
                 {welcomeMessage}
               </p>
             </div>
@@ -160,18 +160,20 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
               {messages.map((message) => (
                 <Message key={message.id} message={message} />
               ))}
-              {isLoading && <TypingIndicator />}
+              {(isLoading || chatStatus.status !== 'idle') && chatStatus.status !== 'streaming' && (
+                <StatusIndicator status={chatStatus} />
+              )}
             </>
           )}
           <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}
-        <div className="kcb-input-area">
-          <div className="kcb-input-container">
+        <div className="grounded-input-area">
+          <div className="grounded-input-container">
             <textarea
               ref={inputRef}
-              className="kcb-input"
+              className="grounded-input"
               placeholder="Type a message..."
               value={inputValue}
               onInput={handleInput}
@@ -180,7 +182,7 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
               disabled={isLoading}
             />
             <button
-              className="kcb-send"
+              className="grounded-send"
               onClick={handleSubmit}
               disabled={!inputValue.trim() || isLoading}
               aria-label="Send message"
@@ -191,14 +193,14 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
         </div>
 
         {/* Footer */}
-        <div className="kcb-footer">
-          Powered by <a href="https://kcb.ai" target="_blank" rel="noopener">KCB</a>
+        <div className="grounded-footer">
+          Powered by <a href="https://grounded.ai" target="_blank" rel="noopener">Grounded</a>
         </div>
       </div>
 
       {/* Launcher Button */}
       <button
-        className={`kcb-launcher kcb-launcher--${buttonStyle} kcb-launcher--${buttonSize} ${isOpen ? 'open' : ''}`}
+        className={`grounded-launcher grounded-launcher--${buttonStyle} grounded-launcher--${buttonSize} ${isOpen ? 'open' : ''}`}
         onClick={handleToggle}
         aria-label={isOpen ? 'Close chat' : 'Open chat'}
         style={{ backgroundColor: buttonColor }}
@@ -208,7 +210,7 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
         ) : (
           <>
             {getButtonIcon()}
-            {buttonStyle === 'pill' && <span className="kcb-launcher-text">{buttonText}</span>}
+            {buttonStyle === 'pill' && <span className="grounded-launcher-text">{buttonText}</span>}
           </>
         )}
       </button>

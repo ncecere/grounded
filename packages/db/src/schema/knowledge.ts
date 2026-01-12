@@ -12,7 +12,7 @@ import {
 import { sql } from "drizzle-orm";
 import { tenants, users } from "./tenants";
 import { modelConfigurations } from "./ai-models";
-import type { SourceConfig, SourceRunStats } from "@kcb/shared";
+import type { SourceConfig, SourceRunStats } from "@grounded/shared";
 
 export const knowledgeBases = pgTable(
   "knowledge_bases",

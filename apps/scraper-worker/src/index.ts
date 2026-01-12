@@ -1,5 +1,5 @@
-import { Worker, Job, connection, QUEUE_NAMES } from "@kcb/queue";
-import { getEnvNumber, getEnvBool } from "@kcb/shared";
+import { Worker, Job, connection, QUEUE_NAMES } from "@grounded/queue";
+import { getEnvNumber, getEnvBool } from "@grounded/shared";
 import { chromium, Browser } from "playwright";
 import { processPageFetch } from "./processors/page-fetch";
 

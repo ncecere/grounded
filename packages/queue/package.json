@@ -1,5 +1,5 @@
 {
-  "name": "@kcb/queue",
+  "name": "@grounded/queue",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@kcb/shared": "workspace:*",
+    "@grounded/shared": "workspace:*",
     "bullmq": "^5.30.1",
     "ioredis": "^5.4.2"
   },

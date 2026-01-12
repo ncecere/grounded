@@ -1,9 +1,9 @@
-import { db } from "@kcb/db";
-import { sourceRuns, sourceRunPages } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { sourceRuns, sourceRunPages } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
-import { redis } from "@kcb/queue";
-import type { SourceRunFinalizeJob } from "@kcb/shared";
-import { createCrawlState } from "@kcb/crawl-state";
+import { redis } from "@grounded/queue";
+import type { SourceRunFinalizeJob } from "@grounded/shared";
+import { createCrawlState } from "@grounded/crawl-state";
 
 export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise<void> {
   const { runId } = data;

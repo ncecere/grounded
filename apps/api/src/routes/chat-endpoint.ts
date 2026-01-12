@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { streamSSE } from "hono/streaming";
 import { html } from "hono/html";
-import { db } from "@kcb/db";
+import { db } from "@grounded/db";
 import {
   chatEndpointTokens,
   agents,
@@ -12,14 +12,14 @@ import {
   kbChunks,
   chatEvents,
   tenantQuotas,
-} from "@kcb/db/schema";
+} from "@grounded/db/schema";
 import { eq, and, isNull, inArray, sql } from "drizzle-orm";
-import { generateEmbedding } from "@kcb/embeddings";
-import { generateRAGResponse, generateRAGResponseStream, type ChunkContext } from "@kcb/llm";
-import { getVectorStore } from "@kcb/vector-store";
-import type { Citation } from "@kcb/shared";
-import { getConversation, addToConversation, checkRateLimit } from "@kcb/queue";
-import { generateId } from "@kcb/shared";
+import { generateEmbedding } from "@grounded/embeddings";
+import { generateRAGResponse, generateRAGResponseStream, type ChunkContext } from "@grounded/llm";
+import { getVectorStore } from "@grounded/vector-store";
+import type { Citation } from "@grounded/shared";
+import { getConversation, addToConversation, checkRateLimit } from "@grounded/queue";
+import { generateId } from "@grounded/shared";
 import { NotFoundError, RateLimitError } from "../middleware/error-handler";
 
 export const chatEndpointRoutes = new Hono();
@@ -526,6 +526,35 @@ chatEndpointRoutes.get("/:token", async (c) => {
           border-radius: 3px;
         }
 
+        /* Powered By Footer */
+        .powered-by {
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.375rem;
+          padding: 0.5rem;
+          font-size: 0.6875rem;
+          color: var(--muted-foreground);
+          border-top: 1px solid var(--border);
+          background: var(--background);
+        }
+        .powered-by a {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          color: var(--muted-foreground);
+          text-decoration: none;
+          transition: color 0.15s;
+        }
+        .powered-by a:hover {
+          color: var(--foreground);
+        }
+        .powered-by img {
+          width: 14px;
+          height: 14px;
+        }
+
         /* Markdown content styles */
         .markdown-content p {
           margin-bottom: 0.75rem;
@@ -601,6 +630,71 @@ chatEndpointRoutes.get("/:token", async (c) => {
         .markdown-content h1 { font-size: 1.25rem; }
         .markdown-content h2 { font-size: 1.125rem; }
         .markdown-content h3 { font-size: 1rem; }
+
+        /* Inline Citations */
+        .inline-citation {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(37, 99, 235, 0.1);
+          color: var(--primary);
+          font-size: 0.6875rem;
+          font-weight: 600;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          padding: 1px 5px;
+          border-radius: 4px;
+          margin: 0 1px;
+          text-decoration: none;
+          cursor: pointer;
+          transition: all 0.15s;
+          vertical-align: super;
+          line-height: 1;
+        }
+        .inline-citation:hover {
+          background: var(--primary);
+          color: var(--primary-foreground);
+          transform: scale(1.1);
+        }
+
+        /* Status Indicator */
+        .status-indicator {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.375rem 0.75rem;
+          background: rgba(37, 99, 235, 0.1);
+          color: var(--primary);
+          border-radius: 9999px;
+          font-size: 0.8125rem;
+          font-weight: 500;
+        }
+        .status-indicator svg {
+          width: 14px;
+          height: 14px;
+          animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        .status-dots {
+          display: flex;
+          gap: 3px;
+        }
+        .status-dot {
+          width: 4px;
+          height: 4px;
+          background: var(--primary);
+          border-radius: 50%;
+          animation: bounce 1.4s ease-in-out infinite;
+        }
+        .status-dot:nth-child(1) { animation-delay: 0s; }
+        .status-dot:nth-child(2) { animation-delay: 0.2s; }
+        .status-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+          0%, 60%, 100% { transform: translateY(0); }
+          30% { transform: translateY(-4px); }
+        }
       </style>
       <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     </head>
@@ -642,6 +736,17 @@ chatEndpointRoutes.get("/:token", async (c) => {
             </svg>
           </button>
         </div>
+      </div>
+
+      <div class="powered-by">
+        <span>Powered by</span>
+        <a href="https://github.com/grounded-ai" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+          </svg>
+          <strong>Grounded</strong>
+        </a>
       </div>
 
       <script>
@@ -690,15 +795,35 @@ chatEndpointRoutes.get("/:token", async (c) => {
           };
           marked.use({ renderer: renderer });
 
-          function parseMarkdown(text) {
+          var currentCitations = [];
+
+          function parseMarkdown(text, citations) {
             if (!text) return '';
             var cleaned = text;
-            // Strip various inline citation formats that LLMs might generate
+            // Strip old/unwanted citation formats
             cleaned = cleaned.replace(/【[^】]*】/g, '');
             cleaned = cleaned.replace(/Citation:\\s*[^\\n.]+[.\\n]/gi, '');
             cleaned = cleaned.replace(/\\[Source:[^\\]]*\\]/gi, '');
-            cleaned = cleaned.replace(/\\[\\d+\\]/g, '');
             cleaned = cleaned.replace(/\\(Source:[^)]*\\)/gi, '');
+
+            // Convert inline citations [1], [2] to clickable badges
+            if (citations && citations.length > 0) {
+              cleaned = cleaned.replace(/\\[(\\d+)\\]/g, function(match, num) {
+                var index = parseInt(num, 10);
+                var citation = citations.find(function(c) { return c.index === index; });
+                if (citation) {
+                  var title = citation.title || citation.url || 'Source ' + index;
+                  var url = citation.url || '#';
+                  var escapedTitle = escapeHtml(title);
+                  return '<a href="' + url + '" target="_blank" rel="noopener" class="inline-citation" title="' + escapedTitle + '">[' + index + ']</a>';
+                }
+                return match;
+              });
+            } else {
+              // Strip citation markers if no citations data
+              cleaned = cleaned.replace(/\\[\\d+\\]/g, '');
+            }
+
             return marked.parse(cleaned);
           }
 
@@ -749,17 +874,43 @@ chatEndpointRoutes.get("/:token", async (c) => {
             return div;
           }
 
-          function showLoader() {
+          function showLoader(statusText) {
+            statusText = statusText || 'Thinking...';
             if (welcomeEl) {
               welcomeEl.remove();
               welcomeEl = null;
             }
+            var existingLoader = document.getElementById('loader');
+            if (existingLoader) {
+              // Update existing loader text
+              var textEl = existingLoader.querySelector('.status-text');
+              if (textEl) textEl.textContent = statusText;
+              return;
+            }
             var div = document.createElement('div');
             div.className = 'message assistant';
             div.id = 'loader';
-            div.innerHTML = '<div class="message-bubble"><div class="loader"><div class="loader-spinner"></div><span>Thinking...</span></div></div>';
+            div.innerHTML = '<div class="message-bubble"><div class="status-indicator">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>' +
+              '<span class="status-text">' + escapeHtml(statusText) + '</span>' +
+              '<div class="status-dots"><div class="status-dot"></div><div class="status-dot"></div><div class="status-dot"></div></div>' +
+              '</div></div>';
             messagesInner.appendChild(div);
             scrollToBottom();
+          }
+
+          function updateLoaderStatus(statusText, iconType) {
+            var loader = document.getElementById('loader');
+            if (!loader) {
+              showLoader(statusText);
+              return;
+            }
+            var textEl = loader.querySelector('.status-text');
+            if (textEl) textEl.textContent = statusText;
+            var iconEl = loader.querySelector('svg');
+            if (iconEl && iconType === 'generating') {
+              iconEl.outerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>';
+            }
           }
 
           function hideLoader() {
@@ -777,7 +928,7 @@ chatEndpointRoutes.get("/:token", async (c) => {
             autoResize();
 
             addMessage('user', message);
-            showLoader();
+            showLoader('Searching knowledge base...');
 
             try {
               var requestBody = { message: message };
@@ -797,10 +948,9 @@ chatEndpointRoutes.get("/:token", async (c) => {
               var fullText = '';
               var finalCitations = [];
 
-              hideLoader();
-              var assistantDiv = addMessage('assistant', '');
-              var contentEl = assistantDiv.querySelector('.message-content');
-              var bubbleEl = assistantDiv.querySelector('.message-bubble');
+              var assistantDiv = null;
+              var contentEl = null;
+              var bubbleEl = null;
 
               while (true) {
                 var result = await reader.read();
@@ -815,23 +965,40 @@ chatEndpointRoutes.get("/:token", async (c) => {
                   if (line.indexOf('data: ') === 0) {
                     try {
                       var data = JSON.parse(line.slice(6));
-                      if (data.type === 'text') {
+                      if (data.type === 'status') {
+                        // Handle status events
+                        var statusMsg = data.message || (data.status === 'searching' ? 'Searching knowledge base...' : 'Generating response...');
+                        updateLoaderStatus(statusMsg, data.status);
+                      } else if (data.type === 'text') {
+                        // First text chunk - hide loader and show assistant message
+                        if (!fullText) {
+                          hideLoader();
+                          assistantDiv = addMessage('assistant', '');
+                          contentEl = assistantDiv.querySelector('.message-content');
+                          bubbleEl = assistantDiv.querySelector('.message-bubble');
+                        }
                         fullText += data.content;
-                        contentEl.innerHTML = parseMarkdown(fullText) + '<span class="streaming-cursor"></span>';
+                        contentEl.innerHTML = parseMarkdown(fullText, currentCitations) + '<span class="streaming-cursor"></span>';
                         scrollToBottom();
                       } else if (data.type === 'done') {
                         conversationId = data.conversationId;
                         finalCitations = data.citations || [];
+                        currentCitations = finalCitations;
                       }
                     } catch (e) {}
                   }
                 }
               }
 
-              // Remove streaming cursor and add final content
-              contentEl.innerHTML = parseMarkdown(fullText);
+              // Hide loader if still showing (edge case)
+              hideLoader();
 
-              if (finalCitations.length > 0) {
+              // Remove streaming cursor and add final content with citations
+              if (contentEl) {
+                contentEl.innerHTML = parseMarkdown(fullText, finalCitations);
+              }
+
+              if (finalCitations.length > 0 && bubbleEl) {
                 var citationId = 'citations-' + Date.now();
                 var citationsHtml = '<div class="citations">';
                 citationsHtml += '<button class="citations-trigger" onclick="document.getElementById(\\'' + citationId + '\\').classList.toggle(\\'open\\')">';
@@ -848,7 +1015,7 @@ chatEndpointRoutes.get("/:token", async (c) => {
                   }
                 }
                 citationsHtml += '</div></div>';
-                bubbleEl.innerHTML = '<div class="message-content markdown-content">' + parseMarkdown(fullText) + '</div>' + citationsHtml;
+                bubbleEl.innerHTML = '<div class="message-content markdown-content">' + parseMarkdown(fullText, finalCitations) + '</div>' + citationsHtml;
               }
 
             } catch (error) {
@@ -1128,44 +1295,6 @@ chatEndpointRoutes.post(
       });
     }
 
-    // Get conversation history
-    const history = await getConversation(
-      endpointToken.tenantId,
-      agent.id,
-      conversationId
-    );
-
-    // Retrieve relevant chunks
-    const chunks = await retrieveChunks(
-      endpointToken.tenantId,
-      kbIds,
-      body.message,
-      candidateK,
-      topK,
-      rerankerEnabled
-    );
-
-    // Build context for RAG
-    const chunkContexts: ChunkContext[] = chunks.map((chunk) => ({
-      id: chunk.id,
-      content: chunk.content,
-      title: chunk.title,
-      url: chunk.normalizedUrl,
-      heading: chunk.heading,
-    }));
-
-    const conversationHistory = history.map((turn) => ({
-      role: turn.role as "user" | "assistant",
-      content: turn.content,
-    }));
-
-    // Store user message first
-    await addToConversation(endpointToken.tenantId, agent.id, conversationId, {
-      role: "user",
-      content: body.message,
-      timestamp: Date.now(),
-    });
-
     // Build complete system prompt including description
     const fullSystemPrompt = agent.description
       ? `${agent.systemPrompt}\n\nAgent Description: ${agent.description}`
@@ -1178,8 +1307,68 @@ chatEndpointRoutes.post(
     return streamSSE(c, async (stream) => {
       let fullAnswer = "";
       let finalResponse: { answer: string; citations: Citation[]; promptTokens: number; completionTokens: number } | null = null;
+      let chunks: any[] = [];
 
       try {
+        // Send status: searching
+        await stream.writeSSE({
+          data: JSON.stringify({
+            type: "status",
+            status: "searching",
+            message: "Searching knowledge base...",
+          }),
+        });
+
+        // Get conversation history
+        const history = await getConversation(
+          endpointToken.tenantId,
+          agent.id,
+          conversationId
+        );
+
+        // Retrieve relevant chunks
+        chunks = await retrieveChunks(
+          endpointToken.tenantId,
+          kbIds,
+          body.message,
+          candidateK,
+          topK,
+          rerankerEnabled
+        );
+
+        // Send status: generating with sources count
+        await stream.writeSSE({
+          data: JSON.stringify({
+            type: "status",
+            status: "generating",
+            message: chunks.length > 0
+              ? `Found ${chunks.length} relevant sources. Generating response...`
+              : "Generating response...",
+            sourcesCount: chunks.length,
+          }),
+        });
+
+        // Build context for RAG
+        const chunkContexts: ChunkContext[] = chunks.map((chunk) => ({
+          id: chunk.id,
+          content: chunk.content,
+          title: chunk.title,
+          url: chunk.normalizedUrl,
+          heading: chunk.heading,
+        }));
+
+        const conversationHistory = history.map((turn) => ({
+          role: turn.role as "user" | "assistant",
+          content: turn.content,
+        }));
+
+        // Store user message first
+        await addToConversation(endpointToken.tenantId, agent.id, conversationId, {
+          role: "user",
+          content: body.message,
+          timestamp: Date.now(),
+        });
+
         const generator = generateRAGResponseStream(
           body.message,
           chunkContexts,

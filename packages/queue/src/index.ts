@@ -14,7 +14,7 @@ import {
   type EnrichPageJob,
   type SourceRunFinalizeJob,
   type HardDeleteObjectJob,
-} from "@kcb/shared";
+} from "@grounded/shared";
 
 // ============================================================================
 // Redis Connection
@@ -269,4 +269,4 @@ export { Worker, Job, QueueEvents };
 export type { ConnectionOptions };
 
 // Re-export constants from shared for convenience
-export { QUEUE_NAMES, JOB_RETRY_ATTEMPTS, JOB_RETRY_DELAY_MS, JOB_BACKOFF_TYPE } from "@kcb/shared";
+export { QUEUE_NAMES, JOB_RETRY_ATTEMPTS, JOB_RETRY_DELAY_MS, JOB_BACKOFF_TYPE } from "@grounded/shared";

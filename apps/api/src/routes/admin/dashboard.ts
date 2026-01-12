@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { db } from "@kcb/db";
+import { db } from "@grounded/db";
 import {
   users,
   tenants,
@@ -8,10 +8,10 @@ import {
   kbChunks,
   agents,
   chatEvents,
-} from "@kcb/db/schema";
+} from "@grounded/db/schema";
 import { sql, isNull, and, gte } from "drizzle-orm";
-import { getVectorStore, isVectorStoreConfigured } from "@kcb/vector-store";
-import { getAIRegistry } from "@kcb/ai-providers";
+import { getVectorStore, isVectorStoreConfigured } from "@grounded/vector-store";
+import { getAIRegistry } from "@grounded/ai-providers";
 import { auth, requireSystemAdmin } from "../../middleware/auth";
 
 export const adminDashboardRoutes = new Hono();

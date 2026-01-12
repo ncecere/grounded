@@ -1,5 +1,5 @@
 {
-  "name": "@kcb/ai-providers",
+  "name": "@grounded/ai-providers",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,8 +12,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@kcb/shared": "workspace:*",
-    "@kcb/db": "workspace:*",
+    "@grounded/shared": "workspace:*",
+    "@grounded/db": "workspace:*",
     "@ai-sdk/provider": "^1.0.0",
     "ai": "^4.0.0",
     "@ai-sdk/openai": "^1.0.0",

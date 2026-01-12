@@ -1,18 +1,18 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "@kcb/db";
+import { db } from "@grounded/db";
 import {
   knowledgeBases,
   tenantKbSubscriptions,
   tenantQuotas,
   sources,
   kbChunks,
-} from "@kcb/db/schema";
+} from "@grounded/db/schema";
 import { eq, and, isNull, sql, inArray } from "drizzle-orm";
 import { auth, requireRole, requireTenant, requireSystemAdmin } from "../middleware/auth";
 import { NotFoundError, QuotaExceededError, ForbiddenError } from "../middleware/error-handler";
-import { getAIRegistry } from "@kcb/ai-providers";
+import { getAIRegistry } from "@grounded/ai-providers";
 
 export const kbRoutes = new Hono();
 

@@ -3,8 +3,8 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
 import { prettyJSON } from "hono/pretty-json";
-import { getEnv, getEnvNumber } from "@kcb/shared";
-import { initializeVectorStore, isVectorStoreConfigured } from "@kcb/vector-store";
+import { getEnv, getEnvNumber } from "@grounded/shared";
+import { initializeVectorStore, isVectorStoreConfigured } from "@grounded/vector-store";
 
 import { authRoutes } from "./routes/auth";
 import { tenantRoutes } from "./routes/tenants";

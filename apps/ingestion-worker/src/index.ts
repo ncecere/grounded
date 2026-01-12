@@ -1,6 +1,6 @@
-import { Worker, Job, connection, QUEUE_NAMES } from "@kcb/queue";
-import { getEnvNumber } from "@kcb/shared";
-import { initializeVectorStore, isVectorStoreConfigured } from "@kcb/vector-store";
+import { Worker, Job, connection, QUEUE_NAMES } from "@grounded/queue";
+import { getEnvNumber } from "@grounded/shared";
+import { initializeVectorStore, isVectorStoreConfigured } from "@grounded/vector-store";
 import { processSourceRunStart } from "./processors/source-run-start";
 import { processSourceDiscover } from "./processors/source-discover";
 import { processSourceFinalize } from "./processors/source-finalize";

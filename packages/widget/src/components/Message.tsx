@@ -2,7 +2,8 @@ import { useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { marked } from 'marked';
 import type { ChatMessage } from '../types';
-import { ChevronDownIcon, BookIcon, FileIcon } from './Icons';
+import type { ChatStatus } from '../hooks/useChat';
+import { ChevronDownIcon, BookIcon, FileIcon, SearchIcon, SparklesIcon } from './Icons';
 
 // Configure marked for chat widget use
 marked.setOptions({
@@ -29,18 +30,37 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
-// Parse markdown and strip citation artifacts
-function parseMarkdown(text: string): string {
+// Parse markdown and convert inline citations to clickable badges
+function parseMarkdown(text: string, citations?: ChatMessage['citations']): string {
   if (!text) return '';
 
   let cleaned = text;
 
-  // Strip various inline citation formats that LLMs might generate
+  // Strip old/unwanted citation formats
   cleaned = cleaned.replace(/【[^】]*】/g, '');
   cleaned = cleaned.replace(/Citation:\s*[^\n.]+[.\n]/gi, '');
   cleaned = cleaned.replace(/\[Source:[^\]]*\]/gi, '');
-  cleaned = cleaned.replace(/\[\d+\]/g, '');
   cleaned = cleaned.replace(/\(Source:[^)]*\)/gi, '');
+
+  // Convert inline citations [1], [2] to clickable badges
+  // Only convert if we have citations data
+  if (citations && citations.length > 0) {
+    cleaned = cleaned.replace(/\[(\d+)\]/g, (match, num) => {
+      const index = parseInt(num, 10);
+      const citation = citations.find(c => c.index === index);
+      if (citation) {
+        const title = citation.title || citation.url || `Source ${index}`;
+        const url = citation.url || '#';
+        const escapedTitle = title.replace(/"/g, '&quot;');
+        const escapedSnippet = (citation.snippet || '').replace(/"/g, '&quot;').slice(0, 100);
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="grounded-inline-citation" data-citation-index="${index}" title="${escapedTitle}: ${escapedSnippet}...">[${index}]</a>`;
+      }
+      return match;
+    });
+  } else {
+    // Strip citation markers if no citations data (fallback)
+    cleaned = cleaned.replace(/\[\d+\]/g, '');
+  }
 
   // Use marked for full markdown parsing (supports tables, code blocks, etc.)
   const html = marked.parse(cleaned, { async: false }) as string;
@@ -54,19 +74,19 @@ export function Message({ message }: MessageProps): JSX.Element {
   const hasCitations = message.citations && message.citations.length > 0;
 
   return (
-    <div className={`kcb-message ${message.role}`}>
+    <div className={`grounded-message ${message.role}`}>
       <div
-        className="kcb-message-bubble"
+        className="grounded-message-bubble"
         dangerouslySetInnerHTML={{
-          __html: isUser ? escapeHtml(message.content) : parseMarkdown(message.content),
+          __html: isUser ? escapeHtml(message.content) : parseMarkdown(message.content, message.citations),
         }}
       />
-      {message.isStreaming && <span className="kcb-cursor" />}
+      {message.isStreaming && <span className="grounded-cursor" />}
 
       {!isUser && hasCitations && (
-        <div className="kcb-sources">
+        <div className="grounded-sources">
           <button
-            className={`kcb-sources-trigger ${sourcesOpen ? 'open' : ''}`}
+            className={`grounded-sources-trigger ${sourcesOpen ? 'open' : ''}`}
             onClick={() => setSourcesOpen(!sourcesOpen)}
           >
             <BookIcon />
@@ -74,7 +94,7 @@ export function Message({ message }: MessageProps): JSX.Element {
             <ChevronDownIcon />
           </button>
 
-          <div className={`kcb-sources-list ${sourcesOpen ? 'open' : ''}`}>
+          <div className={`grounded-sources-list ${sourcesOpen ? 'open' : ''}`}>
             {message.citations!.map((citation, i) => {
               const isUpload = citation.url?.startsWith('upload://');
               const displayTitle = citation.title || (isUpload ? 'Uploaded Document' : citation.url) || `Source ${i + 1}`;
@@ -82,9 +102,9 @@ export function Message({ message }: MessageProps): JSX.Element {
               if (isUpload) {
                 // For uploaded files, show as non-clickable item
                 return (
-                  <div key={i} className="kcb-source kcb-source-file">
+                  <div key={i} className="grounded-source grounded-source-file">
                     <FileIcon />
-                    <span className="kcb-source-title">{displayTitle}</span>
+                    <span className="grounded-source-title">{displayTitle}</span>
                   </div>
                 );
               }
@@ -96,10 +116,10 @@ export function Message({ message }: MessageProps): JSX.Element {
                   href={citation.url || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="kcb-source"
+                  className="grounded-source"
                 >
                   <BookIcon />
-                  <span className="kcb-source-title">{displayTitle}</span>
+                  <span className="grounded-source-title">{displayTitle}</span>
                 </a>
               );
             })}
@@ -110,12 +130,61 @@ export function Message({ message }: MessageProps): JSX.Element {
   );
 }
 
+interface StatusIndicatorProps {
+  status: ChatStatus;
+}
+
+export function StatusIndicator({ status }: StatusIndicatorProps): JSX.Element {
+  // Use server-provided message if available, otherwise build our own
+  const getMessage = () => {
+    if (status.message) {
+      return status.message;
+    }
+    switch (status.status) {
+      case 'searching':
+        return 'Searching knowledge base...';
+      case 'generating':
+        return status.sourcesCount
+          ? `Found ${status.sourcesCount} relevant sources. Generating...`
+          : 'Generating response...';
+      default:
+        return 'Thinking...';
+    }
+  };
+
+  const getIcon = () => {
+    switch (status.status) {
+      case 'searching':
+        return <SearchIcon className="grounded-status-icon" />;
+      case 'generating':
+        return <SparklesIcon className="grounded-status-icon" />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="grounded-status">
+      <div className="grounded-status-content">
+        {getIcon()}
+        <span className="grounded-status-text">{getMessage()}</span>
+        <div className="grounded-status-dots">
+          <div className="grounded-typing-dot" />
+          <div className="grounded-typing-dot" />
+          <div className="grounded-typing-dot" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Keep for backwards compatibility
 export function TypingIndicator(): JSX.Element {
   return (
-    <div className="kcb-typing">
-      <div className="kcb-typing-dot" />
-      <div className="kcb-typing-dot" />
-      <div className="kcb-typing-dot" />
+    <div className="grounded-typing">
+      <div className="grounded-typing-dot" />
+      <div className="grounded-typing-dot" />
+      <div className="grounded-typing-dot" />
     </div>
   );
 }

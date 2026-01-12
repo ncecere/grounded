@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
-import { db } from "@kcb/db";
-import { systemSettings } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { systemSettings } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
 
 // ============================================================================
@@ -69,7 +69,7 @@ class EmailService {
       user: settingsMap.get("email.smtp_user") ?? "",
       password: settingsMap.get("email.smtp_password") ?? "",
       fromAddress: settingsMap.get("email.from_address") ?? "",
-      fromName: settingsMap.get("email.from_name") ?? "KCB Platform",
+      fromName: settingsMap.get("email.from_name") ?? "Grounded Platform",
     };
     this.configLoadedAt = now;
 
@@ -150,11 +150,11 @@ class EmailService {
   async sendTestEmail(to: string): Promise<{ success: boolean; error?: string }> {
     return this.send({
       to,
-      subject: "KCB Platform - Test Email",
+      subject: "Grounded Platform - Test Email",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Email Configuration Test</h2>
-          <p>This is a test email from your KCB Platform installation.</p>
+          <p>This is a test email from your Grounded Platform installation.</p>
           <p>If you received this email, your SMTP configuration is working correctly.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
           <p style="color: #666; font-size: 12px;">
@@ -251,7 +251,7 @@ class EmailService {
 
         <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0 20px;">
         <p style="color: #9ca3af; font-size: 12px;">
-          This is an automated alert from your KCB Platform.<br>
+          This is an automated alert from your Grounded Platform.<br>
           Generated at: ${new Date().toISOString()}
         </p>
       </div>
@@ -260,8 +260,8 @@ class EmailService {
     return this.send({
       to: recipients,
       subject: hasIssues
-        ? `[KCB Alert] ${alerts.length} tenant(s) require attention`
-        : "[KCB] Tenant Health Report - All Systems Healthy",
+        ? `[Grounded Alert] ${alerts.length} tenant(s) require attention`
+        : "[Grounded] Tenant Health Report - All Systems Healthy",
       html,
     });
   }
@@ -369,7 +369,7 @@ class EmailService {
 
         <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0 20px;">
         <p style="color: #9ca3af; font-size: 12px;">
-          This is an automated alert from your KCB Platform.<br>
+          This is an automated alert from your Grounded Platform.<br>
           You're receiving this because you're an owner or admin of ${alert.tenantName}.<br>
           To manage alert preferences, visit your tenant settings.<br><br>
           Generated at: ${new Date().toISOString()}
@@ -379,7 +379,7 @@ class EmailService {
 
     return this.send({
       to: recipients,
-      subject: `[KCB Alert] ${alert.tenantName} - ${alert.flags.length} issue(s) detected`,
+      subject: `[Grounded Alert] ${alert.tenantName} - ${alert.flags.length} issue(s) detected`,
       html,
     });
   }

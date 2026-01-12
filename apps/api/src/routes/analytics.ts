@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { db } from "@kcb/db";
-import { chatEvents, agents, tenantUsage } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { chatEvents, agents, tenantUsage } from "@grounded/db/schema";
 import { eq, and, isNull, sql, gte, lte, desc } from "drizzle-orm";
 import { auth, requireTenant } from "../middleware/auth";
 import { NotFoundError } from "../middleware/error-handler";

@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "@kcb/db";
-import { tenants, tenantMemberships, users, tenantQuotas, tenantAlertSettings } from "@kcb/db/schema";
+import { db } from "@grounded/db";
+import { tenants, tenantMemberships, users, tenantQuotas, tenantAlertSettings } from "@grounded/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { auth, requireRole, requireTenant, requireSystemAdmin } from "../middleware/auth";
 import { NotFoundError, BadRequestError, ConflictError } from "../middleware/error-handler";

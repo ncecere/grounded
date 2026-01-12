@@ -1,9 +1,9 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
-import { getEnv } from "@kcb/shared";
+import { getEnv } from "@grounded/shared";
 
-const connectionString = getEnv("DATABASE_URL", "postgresql://localhost:5432/kcb");
+const connectionString = getEnv("DATABASE_URL", "postgresql://localhost:5432/grounded");
 
 // For queries
 const queryClient = postgres(connectionString);

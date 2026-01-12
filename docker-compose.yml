@@ -2,47 +2,47 @@ services:
   # PostgreSQL for application data
   postgres:
     image: postgres:16-alpine
-    container_name: kcb-postgres
+    container_name: grounded-postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-kcb}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kcb_password}
-      POSTGRES_DB: ${POSTGRES_DB:-kcb}
+      POSTGRES_USER: ${POSTGRES_USER:-grounded}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-grounded_password}
+      POSTGRES_DB: ${POSTGRES_DB:-grounded}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kcb}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-grounded}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - kcb-network
+      - grounded-network
 
   # PostgreSQL with pgvector for vector storage (separate cluster)
   postgres-vector:
     image: pgvector/pgvector:pg16
-    container_name: kcb-postgres-vector
+    container_name: grounded-postgres-vector
     environment:
-      POSTGRES_USER: ${VECTOR_DB_USER:-kcb_vectors}
-      POSTGRES_PASSWORD: ${VECTOR_DB_PASSWORD:-kcb_vectors_password}
+      POSTGRES_USER: ${VECTOR_DB_USER:-grounded_vectors}
+      POSTGRES_PASSWORD: ${VECTOR_DB_PASSWORD:-grounded_vectors_password}
       POSTGRES_DB: ${VECTOR_DB_NAME:-vectors}
     volumes:
       - postgres_vector_data:/var/lib/postgresql/data
     ports:
       - "5434:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${VECTOR_DB_USER:-kcb_vectors} -d ${VECTOR_DB_NAME:-vectors}"]
+      test: ["CMD-SHELL", "pg_isready -U ${VECTOR_DB_USER:-grounded_vectors} -d ${VECTOR_DB_NAME:-vectors}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - kcb-network
+      - grounded-network
 
   # Redis for queues and caching
   redis:
     image: redis:7-alpine
-    container_name: kcb-redis
+    container_name: grounded-redis
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -54,22 +54,22 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - kcb-network
+      - grounded-network
 
   # API service
   api:
     build:
       context: .
-      dockerfile: Dockerfile.api
-    container_name: kcb-api
+      dockerfile: docker/Dockerfile.api
+    container_name: grounded-api
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgres://${POSTGRES_USER:-kcb}:${POSTGRES_PASSWORD:-kcb_password}@postgres:5432/${POSTGRES_DB:-kcb}
+      DATABASE_URL: postgres://${POSTGRES_USER:-grounded}:${POSTGRES_PASSWORD:-grounded_password}@postgres:5432/${POSTGRES_DB:-grounded}
       REDIS_URL: redis://redis:6379
       # Vector Database (dimensions are dynamic based on KB embedding model)
       VECTOR_DB_TYPE: ${VECTOR_DB_TYPE:-pgvector}
-      VECTOR_DB_URL: postgres://${VECTOR_DB_USER:-kcb_vectors}:${VECTOR_DB_PASSWORD:-kcb_vectors_password}@postgres-vector:5432/${VECTOR_DB_NAME:-vectors}
+      VECTOR_DB_URL: postgres://${VECTOR_DB_USER:-grounded_vectors}:${VECTOR_DB_PASSWORD:-grounded_vectors_password}@postgres-vector:5432/${VECTOR_DB_NAME:-vectors}
       # OIDC Authentication (optional)
       OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
@@ -96,7 +96,7 @@ services:
       timeout: 10s
       retries: 3
     networks:
-      - kcb-network
+      - grounded-network
     deploy:
       replicas: 1
       resources:
@@ -108,15 +108,15 @@ services:
   ingestion-worker:
     build:
       context: .
-      dockerfile: Dockerfile.ingestion
-    container_name: kcb-ingestion
+      dockerfile: docker/Dockerfile.ingestion
+    container_name: grounded-ingestion
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://${POSTGRES_USER:-kcb}:${POSTGRES_PASSWORD:-kcb_password}@postgres:5432/${POSTGRES_DB:-kcb}
+      DATABASE_URL: postgres://${POSTGRES_USER:-grounded}:${POSTGRES_PASSWORD:-grounded_password}@postgres:5432/${POSTGRES_DB:-grounded}
       REDIS_URL: redis://redis:6379
       # Vector Database (dimensions are dynamic based on KB embedding model)
       VECTOR_DB_TYPE: ${VECTOR_DB_TYPE:-pgvector}
-      VECTOR_DB_URL: postgres://${VECTOR_DB_USER:-kcb_vectors}:${VECTOR_DB_PASSWORD:-kcb_vectors_password}@postgres-vector:5432/${VECTOR_DB_NAME:-vectors}
+      VECTOR_DB_URL: postgres://${VECTOR_DB_USER:-grounded_vectors}:${VECTOR_DB_PASSWORD:-grounded_vectors_password}@postgres-vector:5432/${VECTOR_DB_NAME:-vectors}
     depends_on:
       postgres:
         condition: service_healthy
@@ -125,7 +125,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - kcb-network
+      - grounded-network
     deploy:
       replicas: 1
       resources:
@@ -137,11 +137,11 @@ services:
   scraper-worker:
     build:
       context: .
-      dockerfile: Dockerfile.scraper
-    container_name: kcb-scraper
+      dockerfile: docker/Dockerfile.scraper
+    container_name: grounded-scraper
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://${POSTGRES_USER:-kcb}:${POSTGRES_PASSWORD:-kcb_password}@postgres:5432/${POSTGRES_DB:-kcb}
+      DATABASE_URL: postgres://${POSTGRES_USER:-grounded}:${POSTGRES_PASSWORD:-grounded_password}@postgres:5432/${POSTGRES_DB:-grounded}
       REDIS_URL: redis://redis:6379
       FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
     depends_on:
@@ -150,7 +150,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - kcb-network
+      - grounded-network
     deploy:
       replicas: 1
       resources:
@@ -162,8 +162,8 @@ services:
   web:
     build:
       context: .
-      dockerfile: Dockerfile.web
-    container_name: kcb-web
+      dockerfile: docker/Dockerfile.web
+    container_name: grounded-web
     environment:
       # Runtime config - injected at container startup
       # For local dev: point to API on separate port
@@ -174,7 +174,7 @@ services:
     depends_on:
       - api
     networks:
-      - kcb-network
+      - grounded-network
     deploy:
       replicas: 1
       resources:
@@ -188,5 +188,5 @@ volumes:
   redis_data:
 
 networks:
-  kcb-network:
+  grounded-network:
     driver: bridge

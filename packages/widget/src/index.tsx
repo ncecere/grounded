@@ -7,7 +7,7 @@ import type { WidgetOptions } from './types';
 // Widget Manager - Handles initialization and API
 // ============================================================================
 
-class KCBWidgetManager {
+class GroundedWidgetManager {
   private container: HTMLElement | null = null;
   private shadowRoot: ShadowRoot | null = null;
   private options: WidgetOptions | null = null;
@@ -21,7 +21,7 @@ class KCBWidgetManager {
   }
 
   private processQueue() {
-    const queue = (window as any).kcb?.q || [];
+    const queue = (window as any).grounded?.q || [];
     for (const args of queue) {
       this.handleCommand(args[0], args[1]);
     }
@@ -45,18 +45,18 @@ class KCBWidgetManager {
         this.destroy();
         break;
       default:
-        console.warn(`[KCB Widget] Unknown command: ${command}`);
+        console.warn(`[Grounded Widget] Unknown command: ${command}`);
     }
   }
 
   private init(options: WidgetOptions) {
     if (this.isInitialized) {
-      console.warn('[KCB Widget] Already initialized');
+      console.warn('[Grounded Widget] Already initialized');
       return;
     }
 
     if (!options?.token) {
-      console.error('[KCB Widget] Token is required');
+      console.error('[Grounded Widget] Token is required');
       return;
     }
 
@@ -67,7 +67,7 @@ class KCBWidgetManager {
 
     // Create container
     this.container = document.createElement('div');
-    this.container.id = 'kcb-widget-root';
+    this.container.id = 'grounded-widget-root';
     document.body.appendChild(this.container);
 
     // Create shadow DOM for style isolation
@@ -96,7 +96,7 @@ class KCBWidgetManager {
     );
 
     this.isInitialized = true;
-    console.log('[KCB Widget] Initialized');
+    console.log('[Grounded Widget] Initialized');
   }
 
   private detectApiBase(): string {
@@ -169,7 +169,7 @@ class KCBWidgetManager {
     this.options = null;
     this.isInitialized = false;
     this.openState = false;
-    console.log('[KCB Widget] Destroyed');
+    console.log('[Grounded Widget] Destroyed');
   }
 
   onOpenChange(callback: (open: boolean) => void) {
@@ -181,17 +181,17 @@ class KCBWidgetManager {
 // Global API
 // ============================================================================
 
-const manager = new KCBWidgetManager();
+const manager = new GroundedWidgetManager();
 
-// Create global kcb function
-function kcb(command: string, payload?: any) {
+// Create global grounded function
+function grounded(command: string, payload?: any) {
   manager.handleCommand(command, payload);
 }
 
 // Replace queue with actual function
-(window as any).kcb = kcb;
+(window as any).grounded = grounded;
 
 // Also expose manager for advanced usage
-(window as any).KCBWidget = manager;
+(window as any).GroundedWidget = manager;
 
-export { kcb, manager as KCBWidget };
+export { grounded, manager as GroundedWidget };
