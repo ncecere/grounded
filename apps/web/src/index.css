@@ -308,29 +308,33 @@
   color: #64748B;
 }
 
-/* Inline citation badges */
+/* Inline citation badges (ai-elements style) */
 .markdown-content .inline-citation {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  background: hsl(var(--primary) / 0.1);
-  color: hsl(var(--primary));
+  gap: 2px;
+  background: hsl(var(--secondary));
+  color: hsl(var(--muted-foreground));
   font-size: 11px;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: 4px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 9999px;
   text-decoration: none;
-  vertical-align: super;
-  line-height: 1;
-  margin: 0 1px;
+  vertical-align: baseline;
+  line-height: 1.4;
+  margin-left: 4px;
+  border: 1px solid hsl(var(--border));
+  cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .markdown-content .inline-citation:hover {
-  background: hsl(var(--primary) / 0.2);
-  transform: translateY(-1px);
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
 }
 
 .dark .markdown-content .inline-citation {
-  background: hsl(var(--primary) / 0.15);
+  background: hsl(var(--secondary));
+  border-color: hsl(var(--border));
 }

@@ -55,7 +55,7 @@ function CitationSources({ citations }: { citations: ChatMessage["citations"] })
   );
 }
 
-// Parse markdown and convert inline citations to clickable badges
+// Parse markdown and convert inline citations to hoverable badges
 function parseMarkdown(text: string, citations?: ChatMessage["citations"]): string {
   if (!text) return '';
 
@@ -67,17 +67,19 @@ function parseMarkdown(text: string, citations?: ChatMessage["citations"]): stri
   cleaned = cleaned.replace(/\[Source:[^\]]*\]/gi, '');
   cleaned = cleaned.replace(/\(Source:[^)]*\)/gi, '');
 
-  // Convert inline citations [1], [2] to clickable badges
+  // Convert inline citations [1], [2] to hoverable badges
   if (citations && citations.length > 0) {
     cleaned = cleaned.replace(/\[(\d+)\]/g, (match, num) => {
       const index = parseInt(num, 10);
-      // Citations are 1-indexed in the text, but 0-indexed in the array
-      const citation = citations[index - 1];
+      // Find citation by its index property, not array position
+      const citation = citations.find(c => c.index === index);
       if (citation) {
-        const title = citation.title || citation.url || `Source ${index}`;
-        const url = citation.url || '#';
-        const escapedTitle = title.replace(/"/g, '&quot;');
-        return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-citation" title="${escapedTitle}">[${index}]</a>`;
+        const title = (citation.title || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const url = (citation.url || '').replace(/"/g, '&quot;');
+        const snippet = (citation.snippet || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;').slice(0, 150);
+        const hostname = citation.url ? new URL(citation.url).hostname : '';
+
+        return `<span class="inline-citation" data-index="${index}" data-title="${title}" data-url="${url}" data-snippet="${snippet}" data-hostname="${hostname}">${hostname || 'source'}</span>`;
       }
       return match;
     });
@@ -92,13 +94,120 @@ function parseMarkdown(text: string, citations?: ChatMessage["citations"]): stri
   return html;
 }
 
-// Markdown renderer using marked (same as widget)
+// Citation tooltip state
+interface CitationTooltip {
+  index: number;
+  title: string;
+  url: string;
+  snippet: string;
+  hostname: string;
+  x: number;
+  y: number;
+}
+
+// Markdown renderer with citation hover cards
 function MarkdownContent({ content, citations }: { content: string; citations?: ChatMessage["citations"] }) {
+  const [tooltip, setTooltip] = useState<CitationTooltip | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleMouseEnter = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.classList.contains('inline-citation')) {
+        const rect = target.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        setTooltip({
+          index: parseInt(target.dataset.index || '0', 10),
+          title: target.dataset.title || '',
+          url: target.dataset.url || '',
+          snippet: target.dataset.snippet || '',
+          hostname: target.dataset.hostname || '',
+          x: rect.left - containerRect.left,
+          y: rect.bottom - containerRect.top + 4,
+        });
+      }
+    };
+
+    const handleMouseLeave = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.classList.contains('inline-citation')) {
+        setTooltip(null);
+      }
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.classList.contains('inline-citation') && target.dataset.url) {
+        window.open(target.dataset.url, '_blank', 'noopener,noreferrer');
+      }
+    };
+
+    container.addEventListener('mouseenter', handleMouseEnter, true);
+    container.addEventListener('mouseleave', handleMouseLeave, true);
+    container.addEventListener('click', handleClick, true);
+
+    return () => {
+      container.removeEventListener('mouseenter', handleMouseEnter, true);
+      container.removeEventListener('mouseleave', handleMouseLeave, true);
+      container.removeEventListener('click', handleClick, true);
+    };
+  }, []);
+
   return (
-    <div
-      className="markdown-content text-sm leading-relaxed"
-      dangerouslySetInnerHTML={{ __html: parseMarkdown(content, citations) }}
-    />
+    <div ref={containerRef} className="relative">
+      <div
+        className="markdown-content text-sm leading-relaxed"
+        dangerouslySetInnerHTML={{ __html: parseMarkdown(content, citations) }}
+      />
+      {/* Citation HoverCard (ai-elements style) */}
+      {tooltip && (
+        <div
+          className="absolute z-50 w-80 bg-popover border border-border rounded-lg shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 duration-100"
+          style={{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }}
+          onMouseEnter={() => {}}
+          onMouseLeave={() => setTooltip(null)}
+        >
+          {/* Header - like carousel header */}
+          <div className="flex items-center justify-between gap-2 bg-secondary px-3 py-2 rounded-t-lg">
+            <span className="text-xs text-muted-foreground">{tooltip.hostname}</span>
+          </div>
+          {/* Body - like InlineCitationSource */}
+          <div className="p-4 pl-5 space-y-1.5">
+            {tooltip.title && (
+              <h4 className="text-sm font-medium text-foreground leading-tight truncate">
+                {tooltip.title}
+              </h4>
+            )}
+            {tooltip.url && (
+              <p className="text-xs text-muted-foreground truncate break-all">
+                {tooltip.url}
+              </p>
+            )}
+            {tooltip.snippet && (
+              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+                {tooltip.snippet}
+              </p>
+            )}
+            {tooltip.url && (
+              <a
+                href={tooltip.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-primary hover:opacity-80 transition-opacity"
+              >
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                </svg>
+                Open source
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

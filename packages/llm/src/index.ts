@@ -313,12 +313,12 @@ function extractCitations(answer: string, chunks: ChunkContext[], maxCitations: 
     }
   }
 
-  // Build citations array from the cited indices
+  // Build citations array from ALL cited indices (don't limit here)
+  // The LLM may reference more sources than maxCitations in the text,
+  // and we need all of them for proper inline citation rendering
   const sortedIndices = Array.from(citedIndices).sort((a, b) => a - b);
 
   for (const index of sortedIndices) {
-    if (citations.length >= maxCitations) break;
-
     const chunk = chunks[index - 1]; // Convert 1-based to 0-based
     if (chunk) {
       citations.push({

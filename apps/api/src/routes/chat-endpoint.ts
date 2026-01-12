@@ -635,29 +635,114 @@ chatEndpointRoutes.get("/:token", async (c) => {
         .markdown-content h2 { font-size: 1.125rem; }
         .markdown-content h3 { font-size: 1rem; }
 
-        /* Inline Citations */
+        /* Inline Citations - Badge Trigger (ai-elements style) */
         .inline-citation {
           display: inline-flex;
           align-items: center;
-          justify-content: center;
-          background: rgba(37, 99, 235, 0.1);
-          color: var(--primary);
+          gap: 2px;
+          background: var(--muted);
+          color: var(--muted-foreground);
           font-size: 0.6875rem;
-          font-weight: 600;
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-          padding: 1px 5px;
-          border-radius: 4px;
-          margin: 0 1px;
+          font-weight: 500;
+          padding: 2px 8px;
+          border-radius: 9999px;
+          margin-left: 4px;
           text-decoration: none;
           cursor: pointer;
           transition: all 0.15s;
-          vertical-align: super;
-          line-height: 1;
+          vertical-align: baseline;
+          line-height: 1.4;
+          white-space: nowrap;
+          border: 1px solid var(--border);
         }
         .inline-citation:hover {
-          background: var(--primary);
-          color: var(--primary-foreground);
-          transform: scale(1.1);
+          background: var(--border);
+          color: var(--foreground);
+        }
+
+        /* Citation HoverCard (ai-elements style) */
+        .citation-card {
+          position: fixed;
+          z-index: 10000;
+          width: 320px;
+          background: var(--background);
+          border: 1px solid var(--border);
+          border-radius: 0.5rem;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          overflow: hidden;
+          pointer-events: auto;
+          animation: fadeIn 0.15s ease-out;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        /* Card Header - like carousel header */
+        .citation-card-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.5rem;
+          background: var(--muted);
+          padding: 0.5rem 0.75rem;
+          border-radius: 0.5rem 0.5rem 0 0;
+        }
+        .citation-card-hostname {
+          font-size: 0.6875rem;
+          font-weight: 500;
+          color: var(--muted-foreground);
+        }
+        /* Card Body - like InlineCitationSource */
+        .citation-card-body {
+          padding: 1rem;
+          padding-left: 1.25rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.375rem;
+        }
+        .citation-card-title {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: var(--foreground);
+          line-height: 1.4;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .citation-card-url {
+          font-size: 0.75rem;
+          color: var(--muted-foreground);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          word-break: break-all;
+        }
+        .citation-card-snippet {
+          font-size: 0.8125rem;
+          color: var(--muted-foreground);
+          line-height: 1.5;
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .citation-card-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.375rem;
+          margin-top: 0.5rem;
+          font-size: 0.75rem;
+          font-weight: 500;
+          color: var(--primary);
+          text-decoration: none;
+          transition: opacity 0.15s;
+        }
+        .citation-card-link:hover {
+          opacity: 0.8;
+        }
+        .citation-card-link svg {
+          width: 12px;
+          height: 12px;
         }
 
         /* Status Indicator */
@@ -800,6 +885,98 @@ chatEndpointRoutes.get("/:token", async (c) => {
           marked.use({ renderer: renderer });
 
           var currentCitations = [];
+          var citationCard = null;
+
+          // Create citation hover card element
+          function createCitationCard() {
+            if (citationCard) return;
+            citationCard = document.createElement('div');
+            citationCard.className = 'citation-card';
+            citationCard.style.display = 'none';
+            document.body.appendChild(citationCard);
+          }
+          createCitationCard();
+
+          function showCitationCard(el) {
+            var index = el.dataset.index;
+            var title = el.dataset.title || '';
+            var url = el.dataset.url || '';
+            var snippet = el.dataset.snippet || '';
+            var hostname = el.dataset.hostname || '';
+
+            // Build card HTML with header and body (ai-elements style)
+            var html = '<div class="citation-card-header"><span class="citation-card-hostname">' + escapeHtml(hostname) + '</span></div>';
+            html += '<div class="citation-card-body">';
+            if (title) {
+              html += '<div class="citation-card-title">' + escapeHtml(title) + '</div>';
+            }
+            if (url) {
+              html += '<div class="citation-card-url">' + escapeHtml(url) + '</div>';
+            }
+            if (snippet) {
+              html += '<div class="citation-card-snippet">' + escapeHtml(snippet) + '</div>';
+            }
+            if (url) {
+              html += '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" class="citation-card-link">';
+              html += '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
+              html += 'Open source</a>';
+            }
+            html += '</div>';
+
+            citationCard.innerHTML = html;
+
+            var rect = el.getBoundingClientRect();
+            citationCard.style.display = 'block';
+            citationCard.style.left = rect.left + 'px';
+            citationCard.style.top = (rect.bottom + 8) + 'px';
+
+            // Adjust if card goes off-screen
+            var cardRect = citationCard.getBoundingClientRect();
+            if (cardRect.right > window.innerWidth - 16) {
+              citationCard.style.left = (window.innerWidth - cardRect.width - 16) + 'px';
+            }
+            if (cardRect.bottom > window.innerHeight - 16) {
+              citationCard.style.top = (rect.top - cardRect.height - 8) + 'px';
+            }
+          }
+
+          function hideCitationCard() {
+            if (citationCard) {
+              citationCard.style.display = 'none';
+            }
+          }
+
+          // Event delegation for citation hover
+          document.addEventListener('mouseenter', function(e) {
+            if (e.target.classList && e.target.classList.contains('inline-citation')) {
+              showCitationCard(e.target);
+            }
+          }, true);
+
+          document.addEventListener('mouseleave', function(e) {
+            if (e.target.classList && e.target.classList.contains('inline-citation')) {
+              setTimeout(function() {
+                if (!citationCard.matches(':hover')) {
+                  hideCitationCard();
+                }
+              }, 100);
+            }
+          }, true);
+
+          // Hide card when mouse leaves it
+          if (citationCard) {
+            citationCard.addEventListener('mouseleave', hideCitationCard);
+          }
+
+          // Click to open URL
+          document.addEventListener('click', function(e) {
+            if (e.target.classList && e.target.classList.contains('inline-citation')) {
+              var url = e.target.dataset.url;
+              if (url) {
+                window.open(url, '_blank', 'noopener,noreferrer');
+              }
+            }
+          }, true);
 
           function parseMarkdown(text, citations) {
             if (!text) return '';
@@ -810,16 +987,20 @@ chatEndpointRoutes.get("/:token", async (c) => {
             cleaned = cleaned.replace(/\\[Source:[^\\]]*\\]/gi, '');
             cleaned = cleaned.replace(/\\(Source:[^)]*\\)/gi, '');
 
-            // Convert inline citations [1], [2] to clickable badges
+            // Convert inline citations [1], [2] to hoverable badges with data attributes
             if (citations && citations.length > 0) {
               cleaned = cleaned.replace(/\\[(\\d+)\\]/g, function(match, num) {
                 var index = parseInt(num, 10);
                 var citation = citations.find(function(c) { return c.index === index; });
                 if (citation) {
-                  var title = citation.title || citation.url || 'Source ' + index;
-                  var url = citation.url || '#';
-                  var escapedTitle = escapeHtml(title);
-                  return '<a href="' + url + '" target="_blank" rel="noopener" class="inline-citation" title="' + escapedTitle + '">[' + index + ']</a>';
+                  var title = (citation.title || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                  var url = (citation.url || '').replace(/"/g, '&quot;');
+                  var snippet = (citation.snippet || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;').slice(0, 150);
+                  var hostname = '';
+                  try {
+                    hostname = citation.url ? new URL(citation.url).hostname : '';
+                  } catch(e) {}
+                  return '<span class="inline-citation" data-index="' + index + '" data-title="' + title + '" data-url="' + url + '" data-snippet="' + snippet + '" data-hostname="' + hostname + '">' + (hostname || 'source') + '</span>';
                 }
                 return match;
               });
