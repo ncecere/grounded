@@ -2,7 +2,9 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { db } from "@grounded/db";
-import { tenants, tenantMemberships, users, tenantQuotas, tenantAlertSettings } from "@grounded/db/schema";
+import { tenants, tenantMemberships, users, tenantQuotas, tenantAlertSettings, apiKeys } from "@grounded/db/schema";
+import { hashString } from "@grounded/shared";
+import crypto from "crypto";
 import { eq, and, isNull } from "drizzle-orm";
 import { auth, requireRole, requireTenant, requireSystemAdmin } from "../middleware/auth";
 import { NotFoundError, BadRequestError, ConflictError } from "../middleware/error-handler";
@@ -493,5 +495,129 @@ tenantRoutes.put(
       .returning();
 
     return c.json({ alertSettings: settings });
+  }
+);
+
+// ============================================================================
+// Tenant API Keys
+// ============================================================================
+
+const API_KEY_PREFIX = "grounded_";
+
+function generateApiKey(): string {
+  const randomPart = crypto.randomBytes(24).toString("base64url");
+  return `${API_KEY_PREFIX}${randomPart}`;
+}
+
+const createApiKeySchema = z.object({
+  name: z.string().min(1).max(100),
+  scopes: z.array(z.enum(["chat", "read", "write"])).optional().default(["chat", "read"]),
+  expiresAt: z.string().datetime().optional(),
+});
+
+// List API Keys
+tenantRoutes.get(
+  "/:tenantId/api-keys",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  async (c) => {
+    const tenantId = c.req.param("tenantId");
+
+    const keys = await db.query.apiKeys.findMany({
+      where: and(
+        eq(apiKeys.tenantId, tenantId),
+        isNull(apiKeys.revokedAt)
+      ),
+      orderBy: (k, { desc }) => [desc(k.createdAt)],
+    });
+
+    return c.json({
+      apiKeys: keys.map((k) => ({
+        id: k.id,
+        name: k.name,
+        keyPrefix: k.keyPrefix,
+        scopes: k.scopes,
+        createdAt: k.createdAt,
+        lastUsedAt: k.lastUsedAt,
+        expiresAt: k.expiresAt,
+        createdBy: k.createdBy,
+      })),
+    });
+  }
+);
+
+// Create API Key
+tenantRoutes.post(
+  "/:tenantId/api-keys",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  zValidator("json", createApiKeySchema),
+  async (c) => {
+    const tenantId = c.req.param("tenantId");
+    const authContext = c.get("auth");
+    const body = c.req.valid("json");
+
+    // Generate the key
+    const rawKey = generateApiKey();
+    const keyHash = await hashString(rawKey);
+    const keyPrefix = rawKey.slice(0, API_KEY_PREFIX.length + 8); // Show prefix + first 8 chars
+
+    // Store the key
+    const [key] = await db
+      .insert(apiKeys)
+      .values({
+        tenantId,
+        name: body.name,
+        keyHash,
+        keyPrefix,
+        scopes: body.scopes,
+        createdBy: authContext.user.id,
+        expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
+      })
+      .returning();
+
+    // Return the raw key ONCE
+    return c.json({
+      id: key.id,
+      name: key.name,
+      apiKey: rawKey, // Only shown once
+      keyPrefix: key.keyPrefix,
+      scopes: key.scopes,
+      createdAt: key.createdAt,
+      expiresAt: key.expiresAt,
+    });
+  }
+);
+
+// Revoke API Key
+tenantRoutes.delete(
+  "/:tenantId/api-keys/:keyId",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  async (c) => {
+    const tenantId = c.req.param("tenantId");
+    const keyId = c.req.param("keyId");
+
+    const key = await db.query.apiKeys.findFirst({
+      where: and(
+        eq(apiKeys.id, keyId),
+        eq(apiKeys.tenantId, tenantId),
+        isNull(apiKeys.revokedAt)
+      ),
+    });
+
+    if (!key) {
+      throw new NotFoundError("API key");
+    }
+
+    await db
+      .update(apiKeys)
+      .set({ revokedAt: new Date() })
+      .where(eq(apiKeys.id, keyId));
+
+    return c.json({ message: "API key revoked" });
   }
 );

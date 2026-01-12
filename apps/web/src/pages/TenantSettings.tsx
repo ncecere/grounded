@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type TenantAlertSettings, getCurrentTenantId } from "../lib/api";
+import { api, type TenantAlertSettings, type TenantApiKey, type TenantApiKeyWithSecret, getCurrentTenantId } from "../lib/api";
+import { Key, Trash2, X, Copy, Check, Clock, AlertTriangle } from "lucide-react";
 
-type SettingsTab = "members" | "alerts";
+type SettingsTab = "members" | "alerts" | "api-keys";
 
 export function TenantSettings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("members");
@@ -49,10 +50,21 @@ export function TenantSettings() {
         >
           Alert Settings
         </button>
+        <button
+          onClick={() => setActiveTab("api-keys")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "api-keys"
+              ? "border-blue-500 text-blue-600"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          API Keys
+        </button>
       </div>
 
       {activeTab === "members" && <MembersTab tenantId={tenantId} />}
       {activeTab === "alerts" && <AlertSettingsTab tenantId={tenantId} />}
+      {activeTab === "api-keys" && <ApiKeysTab tenantId={tenantId} />}
     </div>
   );
 }
@@ -413,6 +425,453 @@ function AlertSettingsTab({ tenantId }: { tenantId: string }) {
           <p className="text-sm text-red-600">{updateMutation.error.message}</p>
         </div>
       )}
+    </div>
+  );
+}
+
+function ApiKeysTab({ tenantId }: { tenantId: string }) {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newKey, setNewKey] = useState<TenantApiKeyWithSecret | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["tenant-api-keys", tenantId],
+    queryFn: () => api.listTenantApiKeys(tenantId),
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: (keyId: string) => api.revokeTenantApiKey(tenantId, keyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant-api-keys", tenantId] });
+    },
+  });
+
+  const handleKeyCreated = (key: TenantApiKeyWithSecret) => {
+    setNewKey(key);
+    setIsCreateModalOpen(false);
+    queryClient.invalidateQueries({ queryKey: ["tenant-api-keys", tenantId] });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="animate-pulse space-y-4">
+        <div className="h-8 bg-gray-200 rounded w-48"></div>
+        <div className="h-64 bg-gray-200 rounded-lg"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">API Keys</h2>
+          <p className="text-sm text-gray-500">Manage API keys for programmatic access to this tenant.</p>
+        </div>
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Create API Key
+        </button>
+      </div>
+
+      {/* Info Box */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <Key className="w-5 h-5 text-blue-600 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-blue-900">Using API Keys</h3>
+            <p className="text-sm text-blue-700 mt-1">
+              API keys allow programmatic access to your tenant's resources. Use them with the Authorization header:
+            </p>
+            <code className="block mt-2 text-xs bg-blue-100 text-blue-800 p-2 rounded font-mono">
+              Authorization: Bearer grounded_...
+            </code>
+          </div>
+        </div>
+      </div>
+
+      {/* Keys Table */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Name
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Key Prefix
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Scopes
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Last Used
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Expires
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {data?.apiKeys.map((key) => (
+              <ApiKeyRow
+                key={key.id}
+                apiKey={key}
+                onRevoke={() => {
+                  if (confirm(`Revoke API key "${key.name}"? This cannot be undone.`)) {
+                    revokeMutation.mutate(key.id);
+                  }
+                }}
+              />
+            ))}
+            {(!data?.apiKeys || data.apiKeys.length === 0) && (
+              <tr>
+                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  No API keys found. Create one to get started.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Create Key Modal */}
+      {isCreateModalOpen && (
+        <CreateApiKeyModal
+          tenantId={tenantId}
+          onClose={() => setIsCreateModalOpen(false)}
+          onCreated={handleKeyCreated}
+        />
+      )}
+
+      {/* New Key Display Modal */}
+      {newKey && (
+        <NewApiKeyModal
+          apiKey={newKey}
+          onClose={() => setNewKey(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ApiKeyRow({ apiKey, onRevoke }: { apiKey: TenantApiKey; onRevoke: () => void }) {
+  const isExpired = apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date();
+
+  return (
+    <tr className="hover:bg-gray-50">
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="flex items-center gap-2">
+          <Key className="w-4 h-4 text-gray-400" />
+          <span className="text-sm font-medium text-gray-900">{apiKey.name}</span>
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <code className="text-xs font-mono bg-gray-100 text-gray-700 px-2 py-1 rounded">
+          {apiKey.keyPrefix}...
+        </code>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="flex gap-1">
+          {apiKey.scopes.map((scope) => (
+            <span key={scope} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+              {scope}
+            </span>
+          ))}
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+        {apiKey.lastUsedAt ? (
+          new Date(apiKey.lastUsedAt).toLocaleDateString()
+        ) : (
+          <span className="text-gray-400">Never</span>
+        )}
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        {apiKey.expiresAt ? (
+          <div className="flex items-center gap-1">
+            {isExpired ? (
+              <>
+                <AlertTriangle className="w-4 h-4 text-red-500" />
+                <span className="text-sm text-red-600">Expired</span>
+              </>
+            ) : (
+              <>
+                <Clock className="w-4 h-4 text-gray-400" />
+                <span className="text-sm text-gray-600">
+                  {new Date(apiKey.expiresAt).toLocaleDateString()}
+                </span>
+              </>
+            )}
+          </div>
+        ) : (
+          <span className="text-sm text-gray-400">Never</span>
+        )}
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-right">
+        <button
+          onClick={onRevoke}
+          className="text-red-600 hover:text-red-800 p-1"
+          title="Revoke key"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+function CreateApiKeyModal({
+  tenantId,
+  onClose,
+  onCreated,
+}: {
+  tenantId: string;
+  onClose: () => void;
+  onCreated: (key: TenantApiKeyWithSecret) => void;
+}) {
+  const [name, setName] = useState("");
+  const [scopes, setScopes] = useState<string[]>(["chat", "read"]);
+  const [hasExpiry, setHasExpiry] = useState(false);
+  const [expiresAt, setExpiresAt] = useState("");
+
+  const createMutation = useMutation({
+    mutationFn: (data: { name: string; scopes?: string[]; expiresAt?: string }) =>
+      api.createTenantApiKey(tenantId, data),
+    onSuccess: (data) => {
+      onCreated(data);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createMutation.mutate({
+      name,
+      scopes,
+      expiresAt: hasExpiry && expiresAt ? new Date(expiresAt).toISOString() : undefined,
+    });
+  };
+
+  const toggleScope = (scope: string) => {
+    if (scopes.includes(scope)) {
+      setScopes(scopes.filter((s) => s !== scope));
+    } else {
+      setScopes([...scopes, scope]);
+    }
+  };
+
+  // Default to 1 year from now for expiry input
+  const defaultExpiry = new Date();
+  defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 1);
+  const defaultExpiryStr = defaultExpiry.toISOString().split("T")[0];
+
+  return (
+    <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Create API Key</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Key Name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="e.g., Production API"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Scopes
+            </label>
+            <div className="flex gap-3">
+              {["chat", "read", "write"].map((scope) => (
+                <label key={scope} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={scopes.includes(scope)}
+                    onChange={() => toggleScope(scope)}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm text-gray-700 capitalize">{scope}</span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Chat allows chat API access. Read allows reading KBs and agents. Write allows modifications.
+            </p>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <input
+                type="checkbox"
+                id="hasExpiry"
+                checked={hasExpiry}
+                onChange={(e) => setHasExpiry(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <label htmlFor="hasExpiry" className="text-sm text-gray-700">
+                Set expiration date
+              </label>
+            </div>
+            {hasExpiry && (
+              <input
+                type="date"
+                value={expiresAt || defaultExpiryStr}
+                onChange={(e) => setExpiresAt(e.target.value)}
+                min={new Date().toISOString().split("T")[0]}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            )}
+          </div>
+
+          {createMutation.error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{createMutation.error.message}</p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createMutation.isPending || !name || scopes.length === 0}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {createMutation.isPending ? "Creating..." : "Create Key"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function NewApiKeyModal({
+  apiKey,
+  onClose,
+}: {
+  apiKey: TenantApiKeyWithSecret;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(apiKey.apiKey);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">API Key Created</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Warning */}
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-medium text-amber-900">Copy your API key now</h3>
+              <p className="text-sm text-amber-700 mt-1">
+                This is the only time you'll see this key. Store it securely - you won't be able to see it again.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Key Name
+            </label>
+            <p className="text-sm text-gray-900">{apiKey.name}</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              API Key
+            </label>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-sm font-mono bg-gray-100 text-gray-900 px-3 py-2 rounded-lg break-all">
+                {apiKey.apiKey}
+              </code>
+              <button
+                onClick={handleCopy}
+                className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Copy to clipboard"
+              >
+                {copied ? (
+                  <Check className="w-5 h-5 text-green-600" />
+                ) : (
+                  <Copy className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Scopes
+            </label>
+            <div className="flex gap-2">
+              {apiKey.scopes.map((scope) => (
+                <span key={scope} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  {scope}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {apiKey.expiresAt && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Expires
+              </label>
+              <p className="text-sm text-gray-600">
+                {new Date(apiKey.expiresAt).toLocaleDateString()}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end mt-6">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Done
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
