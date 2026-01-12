@@ -192,6 +192,32 @@ CREATE INDEX IF NOT EXISTS kb_chunks_source_run_idx ON kb_chunks (source_run_id)
 CREATE UNIQUE INDEX IF NOT EXISTS kb_chunks_unique ON kb_chunks (tenant_id, source_id, normalized_url, chunk_index, content_hash) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS kb_chunks_tsv_idx ON kb_chunks USING GIN (tsv);
 
+-- Function and trigger to auto-populate tsv for full-text search
+-- Weights: A = title/heading (highest), B = keywords/entities, C = content
+CREATE OR REPLACE FUNCTION kb_chunks_tsv_trigger() RETURNS trigger AS $$
+DECLARE
+  keywords_text TEXT;
+  entities_text TEXT;
+BEGIN
+  keywords_text := COALESCE(array_to_string(NEW.keywords, ' '), '');
+  entities_text := COALESCE(array_to_string(NEW.entities, ' '), '');
+  NEW.tsv :=
+    setweight(to_tsvector('english', COALESCE(NEW.title, '')), 'A') ||
+    setweight(to_tsvector('english', COALESCE(NEW.heading, '')), 'A') ||
+    setweight(to_tsvector('english', keywords_text), 'B') ||
+    setweight(to_tsvector('english', entities_text), 'B') ||
+    setweight(to_tsvector('english', COALESCE(NEW.content, '')), 'C');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS kb_chunks_tsv_update ON kb_chunks;
+CREATE TRIGGER kb_chunks_tsv_update
+  BEFORE INSERT OR UPDATE OF content, title, heading, keywords, entities
+  ON kb_chunks
+  FOR EACH ROW
+  EXECUTE FUNCTION kb_chunks_tsv_trigger();
+
 -- Note: embeddings table removed - vectors are now stored in the separate postgres-vector database
 
 CREATE TABLE IF NOT EXISTS uploads (
