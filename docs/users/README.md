@@ -25,7 +25,6 @@ Step-by-step guides for deploying Grounded in various environments.
 - **[Quick Start with Docker](./deployment/docker.md)** - Get running in minutes
 - **[Kubernetes Deployment](./deployment/kubernetes.md)** - Production-grade deployment
 - **[Configuration Reference](./deployment/configuration.md)** - All configuration options
-- **[SSL/TLS Setup](./deployment/ssl.md)** - Secure your deployment
 
 ### System Administration
 
@@ -35,9 +34,6 @@ Guides for system administrators managing the Grounded platform.
 - **[User Management](./administration/user-management.md)** - Managing users and access
 - **[Tenant Management](./administration/tenant-management.md)** - Multi-tenant configuration
 - **[AI Model Configuration](./administration/model-configuration.md)** - Setting up LLM providers
-- **[System Settings](./administration/system-settings.md)** - Global configuration
-- **[Shared Knowledge Bases](./administration/shared-knowledge-bases.md)** - Global KB management
-- **[Monitoring & Alerts](./administration/monitoring.md)** - Health checks and notifications
 
 ### Tenant User Guide
 
@@ -48,7 +44,6 @@ Documentation for tenant users (owners, admins, and members).
 - **[Data Sources](./tenant-guide/sources.md)** - Adding web and document sources
 - **[Agents](./tenant-guide/agents.md)** - Configuring chat agents
 - **[Team Management](./tenant-guide/team-management.md)** - Managing team members
-- **[Analytics](./tenant-guide/analytics.md)** - Understanding your usage
 
 ### Integration
 
@@ -57,7 +52,6 @@ Guides for integrating Grounded into your applications.
 - **[Chat Widget](./integration/widget.md)** - Embed chat on your website
 - **[REST API](./integration/api.md)** - Programmatic access
 - **[Hosted Chat Pages](./integration/hosted-chat.md)** - Standalone chat URLs
-- **[Webhooks](./integration/webhooks.md)** - Event notifications
 
 ## Quick Links
 

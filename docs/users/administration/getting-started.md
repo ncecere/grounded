@@ -213,7 +213,6 @@ After initial setup:
 1. **[Model Configuration](./model-configuration.md)** - Deep dive into AI model setup
 2. **[User Management](./user-management.md)** - Managing users and access
 3. **[Tenant Management](./tenant-management.md)** - Working with tenants
-4. **[System Settings](./system-settings.md)** - All configuration options
 
 ---
 

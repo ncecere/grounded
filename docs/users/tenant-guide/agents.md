@@ -221,9 +221,9 @@ See [Widget Integration](../integration/widget.md) for details.
 
 Integrate the agent via REST API.
 
-1. Go to **Agent** > **Tokens**
-2. Create an API token
-3. Use the endpoint in your application
+1. Click the **Chat** button on your agent
+2. Click **Create API Endpoint**
+3. Copy the endpoint URL for use in your application
 
 See [API Integration](../integration/api.md) for details.
 
@@ -231,8 +231,8 @@ See [API Integration](../integration/api.md) for details.
 
 Share a direct link to a hosted chat page.
 
-1. Go to **Agent** > **Tokens**
-2. Create a "Hosted" endpoint
+1. Click the **Chat** button on your agent
+2. Click **Create Hosted Chat**
 3. Share the generated URL
 
 See [Hosted Chat](../integration/hosted-chat.md) for details.

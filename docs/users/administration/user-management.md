@@ -259,25 +259,27 @@ If a user can't access their account:
 
 ## API Reference
 
+**Authentication:** All admin endpoints require a JWT from a logged-in system admin user. Use the same `Authorization: Bearer <token>` header you receive from the login endpoint.
+
 ### List Users
 
 ```bash
 GET /api/v1/admin/users
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 ```
 
 ### Get User
 
 ```bash
 GET /api/v1/admin/users/{userId}
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 ```
 
 ### Create User
 
 ```bash
 POST /api/v1/admin/users
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
 {
@@ -289,7 +291,7 @@ Content-Type: application/json
 
 ```bash
 PUT /api/v1/admin/users/{userId}
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
 {
@@ -302,7 +304,7 @@ Content-Type: application/json
 
 ```bash
 DELETE /api/v1/admin/users/{userId}
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 ```
 
 ---

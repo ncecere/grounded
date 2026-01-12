@@ -15,17 +15,14 @@ Hosted chat pages are:
 ### Generate the URL
 
 1. Go to **Agents** > Select your agent
-2. Click **Tokens** tab
-3. Click **Create Endpoint**
-4. Select **Hosted** as the type
-5. Optionally set an expiration date
-6. Click **Create**
-7. Copy the generated URL
+2. Click the **Chat** button (or Deploy icon)
+3. Click **Create Hosted Chat**
+4. Copy the generated URL
 
 ### URL Format
 
 ```
-https://your-grounded-instance.com/api/v1/c/{token}
+https://your-grounded-instance.com/chat/{token}
 ```
 
 The token is a unique identifier for this hosted page.
@@ -51,7 +48,7 @@ Generate a QR code for the URL:
 
 ```html
 <iframe
-  src="https://your-grounded-instance.com/api/v1/c/your-token"
+  src="https://your-grounded-instance.com/chat/your-token"
   width="100%"
   height="600"
   frameborder="0"
@@ -173,44 +170,45 @@ Test different configurations:
 2. Generate URLs for each
 3. Compare analytics
 
-## Managing Tokens
+## Managing Endpoints
 
-### Viewing Active Tokens
+### Viewing Active Endpoints
 
 1. Go to **Agents** > Select agent
-2. Click **Tokens** tab
-3. See all hosted endpoints
+2. Click the **Chat** button
+3. See all endpoints listed under "Public Endpoints"
 
-Each token shows:
+Each endpoint shows:
+- Name and type (API or Hosted)
 - Creation date
-- Expiration (if set)
-- Status
+- Endpoint URL
 
 ### Revoking Access
 
 To disable a hosted page:
 
-1. Find the token
-2. Click **Revoke**
-3. Confirm
+1. Go to the agent's Chat modal
+2. Find the endpoint in the list
+3. Click the **X** button to revoke
+4. Confirm
 
 The URL will immediately stop working.
 
-### Rotating Tokens
+### Rotating Endpoints
 
 For security, periodically rotate:
 
-1. Create new token
-2. Update shared links
-3. Revoke old token
+1. Create a new hosted chat endpoint
+2. Update shared links with the new URL
+3. Revoke the old endpoint
 
 ## Security Considerations
 
-### Token Security
+### Endpoint Security
 
-- Tokens grant public access
+- Endpoints grant public access
 - Anyone with the URL can chat
-- Don't share sensitive tokens publicly
+- Be careful sharing URLs that access sensitive knowledge bases
 
 ### Access Control
 
@@ -225,13 +223,6 @@ Hosted pages are rate-limited:
 - 60 requests per minute per token
 - Prevents abuse
 - Configurable by admin
-
-### Expiration
-
-Set expiration for temporary access:
-- Demo tokens
-- Time-limited trials
-- Promotional campaigns
 
 ## Analytics
 
@@ -259,7 +250,7 @@ Test on mobile devices before sharing widely.
 
 ```html
 <iframe
-  src="https://grounded.example.com/api/v1/c/token"
+  src="https://grounded.example.com/chat/your-token"
   style="width: 100%; height: 100vh; border: none;"
 ></iframe>
 ```
@@ -269,7 +260,7 @@ Test on mobile devices before sharing widely.
 ```javascript
 function openChat() {
   window.open(
-    'https://grounded.example.com/api/v1/c/token',
+    'https://grounded.example.com/chat/your-token',
     'chat',
     'width=400,height=600'
   );
@@ -282,7 +273,7 @@ function openChat() {
 <div id="chat-modal" class="modal">
   <div class="modal-content">
     <button onclick="closeModal()">Close</button>
-    <iframe src="https://grounded.example.com/api/v1/c/token"></iframe>
+    <iframe src="https://grounded.example.com/chat/your-token"></iframe>
   </div>
 </div>
 ```
@@ -291,9 +282,9 @@ function openChat() {
 
 ### "Chat Not Found" Error
 
-- Token may be revoked
-- Token may be expired
-- Check token status in admin
+- Endpoint may be revoked
+- URL may be incorrect
+- Check endpoint status in the Chat modal
 
 ### "Agent Not Found" Error
 
@@ -344,11 +335,13 @@ GET /api/v1/c/{token}/config
 
 ### Page Endpoint
 
+The hosted chat page is available at:
+
 ```bash
-GET /api/v1/c/{token}
+GET /chat/{token}
 ```
 
-Returns the full HTML page for the hosted chat.
+This is the user-friendly URL that redirects to the full chat page. You can also access it directly at `/api/v1/c/{token}`.
 
 ---
 

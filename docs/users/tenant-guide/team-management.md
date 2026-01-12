@@ -128,12 +128,12 @@ Similar to knowledge bases:
 2. Go to **Access** tab
 3. Configure who can view/edit
 
-### API Token Scope
+### Chat Endpoint Scope
 
-API tokens inherit creator's permissions:
-- Tokens created by Admins have admin access
-- Tokens created by Members have member access
-- Tokens created by Viewers have read-only access
+Chat endpoints are public and don't require authentication. However, they are tied to the agent that created them:
+- Endpoints can be created by users with edit access to the agent
+- Endpoints can be revoked by the creator or admins
+- Each endpoint is specific to one agent
 
 ## Activity Monitoring
 
@@ -227,7 +227,7 @@ Configure in **Settings** > **Authentication** > **Group Mapping**
 
 1. **Remove access immediately**: Don't delay
 2. **Transfer ownership**: Reassign owned resources
-3. **Revoke API tokens**: Created by the user
+3. **Revoke chat endpoints**: Created by the user
 4. **Document handover**: Note any knowledge transfer
 
 ## Troubleshooting
@@ -261,12 +261,12 @@ Configure in **Settings** > **Authentication** > **Group Mapping**
 **Causes:**
 - Insufficient role
 - Resource restricted
-- Token scope limited
+- Endpoint revoked
 
 **Solutions:**
 1. Request role upgrade
 2. Request resource access
-3. Create new token
+3. Create new endpoint
 
 ### "Cannot Remove User"
 

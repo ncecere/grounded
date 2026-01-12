@@ -10,25 +10,21 @@ The Grounded API provides:
 - Conversation management
 - Full citation support
 
-## Authentication
+## Creating an API Endpoint
 
-### API Tokens
+To use the REST API, create a Chat Endpoint for your agent:
 
-Create API tokens in the agent settings:
+1. Go to **Agents** > Select your agent
+2. Click the **Chat** button (or Deploy icon)
+3. Click **Create API Endpoint**
+4. Copy the generated endpoint URL
 
-1. Go to **Agents** > Select agent
-2. Click **Tokens** tab
-3. Click **Create API Token**
-4. Set expiration (optional)
-5. Copy the token
-
-### Using Tokens
-
-Include the token in requests:
-
-```bash
-Authorization: Bearer <your-api-token>
+The endpoint URL will look like:
 ```
+https://your-domain.com/api/v1/c/{token}/chat
+```
+
+The token is embedded in the URL - no Authorization header is needed for public chat endpoints.
 
 ## Endpoints
 

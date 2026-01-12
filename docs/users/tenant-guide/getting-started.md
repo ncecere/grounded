@@ -140,7 +140,8 @@ When you open an agent, you see:
 | **Knowledge Bases** | Attached KBs |
 | **Retrieval** | RAG settings |
 | **Widget** | Widget configuration |
-| **Tokens** | API/widget tokens |
+
+To create chat endpoints (API, widget, hosted), click the **Chat** button on the agent card.
 
 ### Analytics View
 

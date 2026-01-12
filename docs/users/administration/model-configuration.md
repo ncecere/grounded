@@ -87,7 +87,7 @@ For self-hosted or alternative providers that use OpenAI's API format.
 
 ## Adding a Provider
 
-**Navigate to:** Administration > AI Models
+**Navigate to:** Sidebar > **AI Models** (in the Admin section)
 
 ### Step 1: Add Provider
 
@@ -124,14 +124,16 @@ After adding a provider:
 ```
 Model ID: gpt-4o
 Display Name: GPT-4o (Latest)
-Capabilities: ☑ Chat ☐ Embeddings ☑ Tool Use
-Context Window: 128000
-Max Output Tokens: 4096
+Model Type: Chat (or Embedding)
+Max Tokens: 4096
 Temperature: 0.7
 Supports Streaming: ☑
-Is Default: ☑ (for chat)
+Supports Tools: ☑
+Is Default: ☑
 Is Enabled: ☑
 ```
+
+**Note:** Each model configuration is for ONE type (Chat or Embedding). If a provider model supports both, create two configurations.
 
 3. Click **Save**
 
@@ -146,30 +148,33 @@ Is Enabled: ☑
 | **Is Enabled** | Whether model is available for use |
 | **Is Default** | Use as default when not specified |
 
-### Capabilities
+### Model Type
 
-| Capability | Description |
-|------------|-------------|
-| **Chat** | Can generate conversational responses |
-| **Embeddings** | Can generate vector embeddings |
-| **Tool Use** | Supports function calling |
+| Type | Description |
+|------|-------------|
+| **Chat** | Generates conversational responses |
+| **Embedding** | Generates vector embeddings for search |
+
+**Note:** Each model configuration is for one type. Create separate configurations if needed.
 
 ### Performance Settings
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| **Context Window** | varies | Maximum input tokens |
-| **Max Output Tokens** | 4096 | Maximum response length |
-| **Temperature** | 0.7 | Response creativity (0-2) |
+| **Max Tokens** | 4096 | Maximum output tokens |
+| **Temperature** | 0.1 | Response creativity (0-2) |
 | **Supports Streaming** | true | Enable real-time streaming |
+| **Supports Tools** | false | Enable function calling (chat models) |
+| **Dimensions** | - | Vector dimensions (embedding models only) |
 
 ### Temperature Guide
 
 | Value | Use Case |
 |-------|----------|
 | 0.0 | Deterministic, factual responses |
+| 0.1 | Default - consistent, minimal variation (recommended for RAG) |
 | 0.3 | Mostly consistent, slight variation |
-| 0.7 | Balanced (recommended for RAG) |
+| 0.7 | Balanced creativity |
 | 1.0 | Creative, varied responses |
 | 1.5+ | Highly creative, experimental |
 
@@ -350,51 +355,75 @@ View token usage in Analytics:
 
 ## API Reference
 
+**Authentication:** All admin endpoints require a JWT from a logged-in system admin user. Use the same `Authorization: Bearer <token>` header you receive from the login endpoint.
+
 ### List Providers
 
 ```bash
 GET /api/v1/admin/models/providers
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 ```
 
 ### Add Provider
 
 ```bash
 POST /api/v1/admin/models/providers
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
 {
-  "type": "openai",
+  "name": "openai-prod",
   "displayName": "OpenAI Production",
+  "type": "openai",
   "apiKey": "sk-xxx",
-  "baseUrl": null
+  "baseUrl": null,
+  "isEnabled": true
 }
 ```
+
+**Note:** The `name` field must be lowercase alphanumeric with hyphens (e.g., `openai-prod`, `anthropic-main`).
 
 ### List Models
 
 ```bash
 GET /api/v1/admin/models/models
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 ```
 
 ### Add Model
 
 ```bash
 POST /api/v1/admin/models/models
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
 {
   "providerId": "provider-uuid",
   "modelId": "gpt-4o",
   "displayName": "GPT-4o",
-  "capabilities": ["chat", "tool_use"],
-  "contextWindow": 128000,
-  "maxOutputTokens": 4096,
+  "modelType": "chat",
+  "maxTokens": 4096,
   "temperature": 0.7,
   "supportsStreaming": true,
+  "supportsTools": true,
+  "isDefault": true,
+  "isEnabled": true
+}
+```
+
+For embedding models:
+
+```bash
+POST /api/v1/admin/models/models
+Authorization: Bearer <jwt-token>
+Content-Type: application/json
+
+{
+  "providerId": "provider-uuid",
+  "modelId": "text-embedding-3-small",
+  "displayName": "Embeddings (Small)",
+  "modelType": "embedding",
+  "dimensions": 1536,
   "isDefault": true,
   "isEnabled": true
 }
@@ -402,4 +431,4 @@ Content-Type: application/json
 
 ---
 
-Next: [System Settings](./system-settings.md)
+Next: [Tenant Management](./tenant-management.md)

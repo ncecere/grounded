@@ -65,7 +65,7 @@ If the owner email is new:
 
 ```bash
 POST /api/v1/tenants
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
 {
@@ -320,25 +320,27 @@ done
 
 ## API Reference
 
+**Authentication:** All admin endpoints require a JWT from a logged-in system admin user. Use the same `Authorization: Bearer <token>` header you receive from the login endpoint.
+
 ### List Tenants
 
 ```bash
 GET /api/v1/tenants
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 ```
 
 ### Get Tenant
 
 ```bash
 GET /api/v1/tenants/{tenantId}
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 ```
 
 ### Create Tenant
 
 ```bash
 POST /api/v1/tenants
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
 {
@@ -351,7 +353,7 @@ Content-Type: application/json
 
 ```bash
 PUT /api/v1/tenants/{tenantId}
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
 {
@@ -363,7 +365,7 @@ Content-Type: application/json
 
 ```bash
 PUT /api/v1/tenants/{tenantId}/quotas
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
 {
@@ -376,21 +378,21 @@ Content-Type: application/json
 
 ```bash
 DELETE /api/v1/tenants/{tenantId}
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 ```
 
 ### List Members
 
 ```bash
 GET /api/v1/tenants/{tenantId}/members
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 ```
 
 ### Add Member
 
 ```bash
 POST /api/v1/tenants/{tenantId}/members
-Authorization: Bearer <admin-token>
+Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
 {

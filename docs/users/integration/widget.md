@@ -17,9 +17,9 @@ The widget provides:
 ### 1. Get Widget Token
 
 1. Go to **Agents** > Select your agent
-2. Click **Widget** tab
-3. Click **Create Token**
-4. Copy the generated token
+2. Click the **Chat** button (or Deploy icon)
+3. Go to the **Widget** section
+4. Copy the embed code or token
 
 ### 2. Add to Website
 
