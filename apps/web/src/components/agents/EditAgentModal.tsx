@@ -77,6 +77,7 @@ export function EditAgentModal({
         topK: fetchedRetrievalConfig.topK || 8,
         maxCitations: fetchedRetrievalConfig.maxCitations || 3,
         rerankerEnabled: fetchedRetrievalConfig.rerankerEnabled ?? true,
+        similarityThreshold: fetchedRetrievalConfig.similarityThreshold ?? 0.5,
       });
     } else {
       setRetrievalConfig(defaultRetrievalConfig);
@@ -359,6 +360,32 @@ export function EditAgentModal({
                       <SelectItem value="10">10</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Similarity Threshold</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Minimum relevance score (0-1) for sources. Higher = stricter matching.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={retrievalConfig.similarityThreshold}
+                      onChange={(e) =>
+                        setRetrievalConfig({
+                          ...retrievalConfig,
+                          similarityThreshold: parseFloat(e.target.value),
+                        })
+                      }
+                      className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                    <span className="text-sm font-medium w-12 text-right">
+                      {retrievalConfig.similarityThreshold.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between py-2">

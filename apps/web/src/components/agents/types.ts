@@ -17,6 +17,7 @@ export interface RetrievalConfig {
   topK: number;
   maxCitations: number;
   rerankerEnabled: boolean;
+  similarityThreshold: number;
 }
 
 export interface ButtonConfig {
@@ -58,6 +59,7 @@ export const defaultRetrievalConfig: RetrievalConfig = {
   topK: 8,
   maxCitations: 3,
   rerankerEnabled: true,
+  similarityThreshold: 0.5,
 };
 
 export const defaultButtonConfig: ButtonConfig = {

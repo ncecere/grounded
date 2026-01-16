@@ -5,6 +5,7 @@ import {
   timestamp,
   boolean,
   integer,
+  real,
   jsonb,
   index,
   uniqueIndex,
@@ -118,6 +119,8 @@ export const retrievalConfigs = pgTable(
       .$type<"heuristic" | "cross_encoder">()
       .default("heuristic")
       .notNull(),
+    // Minimum cosine similarity score (0-1) for chunks to be included in context
+    similarityThreshold: real("similarity_threshold").default(0.5).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

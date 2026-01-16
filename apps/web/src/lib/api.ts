@@ -169,6 +169,8 @@ export interface SourceRun {
   startedAt: string | null;
   finishedAt: string | null;
   stats: SourceRunStats;
+  chunksToEmbed: number;
+  chunksEmbedded: number;
   error: string | null;
   createdAt: string;
 }
@@ -214,6 +216,7 @@ export interface Agent {
     maxCitations: number;
     rerankerEnabled: boolean;
     rerankerType: string;
+    similarityThreshold: number;
   };
   createdAt: string;
   updatedAt: string;
@@ -241,7 +244,7 @@ export interface ChatMessage {
   citations?: Array<{
     index: number;
     title: string;
-    url: string;
+    url?: string;
     snippet: string;
   }>;
 }
@@ -1025,6 +1028,7 @@ export const api = {
       candidateK?: number;
       maxCitations?: number;
       rerankerEnabled?: boolean;
+      similarityThreshold?: number;
     }
   ) => {
     const res = await request<{ retrievalConfig: Agent["retrievalConfig"] }>(`/agents/${agentId}/retrieval-config`, {
@@ -1139,6 +1143,85 @@ export const api = {
                   onError(parsed.message);
                 }
               } catch (e) {
+                // Ignore parse errors for incomplete chunks
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "Stream failed");
+    }
+  },
+
+  // Simple RAG Streaming Chat
+  simpleChatStream: async (
+    agentId: string,
+    message: string,
+    conversationId: string | undefined,
+    onChunk: (text: string) => void,
+    onSources: (sources: Array<{ id: string; title: string; url?: string; snippet: string; index: number }>) => void,
+    onDone: (conversationId: string) => void,
+    onError: (error: string) => void
+  ): Promise<void> => {
+    const token = getToken();
+    const tenantId = getCurrentTenantId();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    if (tenantId) {
+      headers["X-Tenant-ID"] = tenantId;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/chat/simple/${agentId}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ message, conversationId }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: "Request failed" }));
+        throw new Error(error.message || `HTTP ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data) {
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.type === "text") {
+                  onChunk(parsed.content);
+                } else if (parsed.type === "sources") {
+                  onSources(parsed.sources);
+                } else if (parsed.type === "done") {
+                  onDone(parsed.conversationId);
+                } else if (parsed.type === "error") {
+                  onError(parsed.message);
+                }
+              } catch {
                 // Ignore parse errors for incomplete chunks
               }
             }

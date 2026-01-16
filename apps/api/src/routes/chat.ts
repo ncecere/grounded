@@ -25,6 +25,7 @@ import { auth, requireTenant } from "../middleware/auth";
 import { rateLimit } from "../middleware/rate-limit";
 import { NotFoundError, ForbiddenError } from "../middleware/error-handler";
 import { AgenticChatService } from "../services/agentic-chat";
+import { SimpleRAGService } from "../services/simple-rag";
 
 export const chatRoutes = new Hono();
 
@@ -179,7 +180,39 @@ chatRoutes.post(
 );
 
 // ============================================================================
-// Streaming Chat Endpoint
+// Simple RAG Streaming Chat Endpoint
+// ============================================================================
+
+chatRoutes.post(
+  "/simple/:agentId",
+  auth(),
+  requireTenant(),
+  rateLimit({ keyPrefix: "chat", limit: 60, windowSeconds: 60 }),
+  zValidator("json", chatSchema),
+  async (c) => {
+    const authContext = c.get("auth");
+    const agentId = c.req.param("agentId");
+    const body = c.req.valid("json");
+
+    // Headers for SSE streaming
+    c.header("X-Accel-Buffering", "no");
+    c.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    c.header("Connection", "keep-alive");
+
+    return streamSSE(c, async (stream) => {
+      const service = new SimpleRAGService(authContext.tenantId!, agentId);
+
+      for await (const event of service.chat(body.message, body.conversationId)) {
+        await stream.writeSSE({
+          data: JSON.stringify(event),
+        });
+      }
+    });
+  }
+);
+
+// ============================================================================
+// Streaming Chat Endpoint (Legacy)
 // ============================================================================
 
 chatRoutes.post(
@@ -248,14 +281,41 @@ chatRoutes.post(
       ? `${agent.systemPrompt}\n\nAgent Description: ${agent.description}`
       : agent.systemPrompt;
 
-    // Disable proxy buffering for smooth streaming
+    // Headers for SSE streaming
     c.header("X-Accel-Buffering", "no");
-    c.header("Cache-Control", "no-cache");
+    c.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    c.header("Connection", "keep-alive");
 
     return streamSSE(c, async (stream) => {
       let fullAnswer = "";
       let finalResponse: { answer: string; citations: Citation[]; inputTokens: number; outputTokens: number } | null = null;
       let chunks: Array<typeof kbChunks.$inferSelect & { score: number }> = [];
+      let aborted = false;
+      let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
+      // Handle client disconnect
+      stream.onAbort(() => {
+        console.log("[Chat Stream] Client disconnected");
+        aborted = true;
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
+      });
+
+      // Heartbeat to keep connection alive
+      heartbeatInterval = setInterval(async () => {
+        if (!aborted) {
+          try {
+            await stream.writeSSE({ data: JSON.stringify({ type: "ping" }) });
+          } catch {
+            if (heartbeatInterval) {
+              clearInterval(heartbeatInterval);
+              heartbeatInterval = null;
+            }
+          }
+        }
+      }, 2000);
 
       try {
         // Send status: searching
@@ -379,6 +439,14 @@ chatRoutes.post(
             message: "An error occurred while generating the response.",
           }),
         });
+      } finally {
+        // Cleanup heartbeat
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
+        // Close the stream
+        await stream.close();
       }
     });
   }
@@ -659,6 +727,8 @@ async function retrieveChunks(
   topK: number,
   rerankerEnabled: boolean
 ): Promise<Array<typeof kbChunks.$inferSelect & { score: number }>> {
+  const startTime = Date.now();
+  
   // Get vector store
   const vectorStore = getVectorStore();
   if (!vectorStore) {
@@ -667,19 +737,49 @@ async function retrieveChunks(
   }
 
   // Generate query embedding
+  const embeddingStart = Date.now();
   const queryEmbedding = await generateEmbedding(query);
+  console.log(`[Chat Perf] Embedding generation: ${Date.now() - embeddingStart}ms`);
 
-  // Vector similarity search using vector store
-  const vectorResults = await vectorStore.search(queryEmbedding.embedding, {
-    tenantId,
-    kbIds,
-    topK: candidateK,
-  });
+  // Run vector search and keyword search in PARALLEL
+  const kbIdsArrayLiteral = `{${kbIds.join(",")}}`;
+  const parallelStart = Date.now();
+  
+  const [vectorResults, keywordResults] = await Promise.all([
+    // Vector similarity search
+    vectorStore.search(queryEmbedding.embedding, {
+      tenantId,
+      kbIds,
+      topK: candidateK,
+    }),
+    // Full-text keyword search
+    db.execute(sql`
+      SELECT
+        c.id,
+        c.content,
+        c.title,
+        c.normalized_url as "normalizedUrl",
+        c.heading,
+        c.section_path,
+        c.tags,
+        c.keywords,
+        ts_rank_cd(c.tsv, plainto_tsquery('english', ${query})) as rank
+      FROM kb_chunks c
+      WHERE (c.tenant_id = ${tenantId} OR c.tenant_id IS NULL)
+        AND c.kb_id = ANY(${kbIdsArrayLiteral}::uuid[])
+        AND c.deleted_at IS NULL
+        AND c.tsv @@ plainto_tsquery('english', ${query})
+      ORDER BY rank DESC
+      LIMIT ${candidateK}
+    `),
+  ]);
+  console.log(`[Chat Perf] Parallel search (vector + keyword): ${Date.now() - parallelStart}ms`);
 
   // Get chunk IDs from vector results
   const vectorChunkIds = vectorResults.map((r) => r.id);
 
   // Fetch chunk details from app DB
+  const chunkFetchStart = Date.now();
   let vectorChunks: Array<typeof kbChunks.$inferSelect> = [];
   if (vectorChunkIds.length > 0) {
     vectorChunks = await db.query.kbChunks.findMany({
@@ -689,6 +789,7 @@ async function retrieveChunks(
       ),
     });
   }
+  console.log(`[Chat Perf] Chunk details fetch: ${Date.now() - chunkFetchStart}ms`);
 
   // Create a map of chunk details with vector scores
   const chunkMap = new Map<string, any>();
@@ -700,30 +801,6 @@ async function retrieveChunks(
       keywordScore: 0,
     });
   }
-
-  // Full-text search
-  // Format kbIds as PostgreSQL array literal string
-  // Include both tenant-owned chunks AND global KB chunks (tenant_id IS NULL)
-  const kbIdsArrayLiteral = `{${kbIds.join(",")}}`;
-  const keywordResults = await db.execute(sql`
-    SELECT
-      c.id,
-      c.content,
-      c.title,
-      c.normalized_url as "normalizedUrl",
-      c.heading,
-      c.section_path,
-      c.tags,
-      c.keywords,
-      ts_rank_cd(c.tsv, plainto_tsquery('english', ${query})) as rank
-    FROM kb_chunks c
-    WHERE (c.tenant_id = ${tenantId} OR c.tenant_id IS NULL)
-      AND c.kb_id = ANY(${kbIdsArrayLiteral}::uuid[])
-      AND c.deleted_at IS NULL
-      AND c.tsv @@ plainto_tsquery('english', ${query})
-    ORDER BY rank DESC
-    LIMIT ${candidateK}
-  `);
 
   // Merge keyword results
   const keywordRows = Array.isArray(keywordResults) ? keywordResults : (keywordResults as any).rows || [];
@@ -749,6 +826,8 @@ async function retrieveChunks(
     // Sort by vector score only
     chunks.sort((a, b) => b.vectorScore - a.vectorScore);
   }
+
+  console.log(`[Chat Perf] Total retrieval: ${Date.now() - startTime}ms, found ${chunks.length} chunks`);
 
   // Take top K
   return chunks.slice(0, topK);

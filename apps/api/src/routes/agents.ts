@@ -61,6 +61,7 @@ const updateRetrievalConfigSchema = z.object({
   maxCitations: z.number().int().min(1).max(20).optional(),
   rerankerEnabled: z.boolean().optional(),
   rerankerType: z.enum(["heuristic", "cross_encoder"]).optional(),
+  similarityThreshold: z.number().min(0).max(1).optional(),
 });
 
 const updateWidgetConfigSchema = z.object({

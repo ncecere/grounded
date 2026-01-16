@@ -3,15 +3,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { marked } from "marked";
-import { api, type ChatMessage, type ChainOfThoughtStep } from "../lib/api";
+import { api, type ChatMessage } from "../lib/api";
 import { Button } from "../components/ui/button";
-import { ArrowLeft, RotateCcw, MessageSquareText, Send, Search, Sparkles, Brain } from "lucide-react";
-import type { AgenticStreamState } from "../components/ai-elements/agentic-chat-display";
+import { ArrowLeft, RotateCcw, MessageSquareText, Send } from "lucide-react";
 
-// Configure marked for chat use (same as widget)
+// Configure marked for chat use
 marked.setOptions({
-  breaks: true,  // Convert \n to <br>
-  gfm: true,     // GitHub Flavored Markdown
+  breaks: true,
+  gfm: true,
 });
 
 // Custom renderer to add target="_blank" to links
@@ -30,7 +29,6 @@ import {
 } from "../components/ai-elements/sources";
 import { Suggestions, Suggestion } from "../components/ai-elements/suggestion";
 import { Loader } from "../components/ai-elements/loader";
-import { AgenticChatDisplay } from "../components/ai-elements/agentic-chat-display";
 
 interface ChatProps {
   agentId: string;
@@ -73,7 +71,6 @@ function parseMarkdown(text: string, citations?: ChatMessage["citations"]): stri
   if (citations && citations.length > 0) {
     cleaned = cleaned.replace(/\[(\d+)\]/g, (match, num) => {
       const index = parseInt(num, 10);
-      // Find citation by its index property, not array position
       const citation = citations.find(c => c.index === index);
       if (citation) {
         const title = (citation.title || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -86,13 +83,10 @@ function parseMarkdown(text: string, citations?: ChatMessage["citations"]): stri
       return match;
     });
   } else {
-    // Strip citation markers if no citations data
     cleaned = cleaned.replace(/\[\d+\]/g, '');
   }
 
-  // Use marked for full markdown parsing (supports tables, code blocks, etc.)
   const html = marked.parse(cleaned, { async: false }) as string;
-
   return html;
 }
 
@@ -164,7 +158,6 @@ function MarkdownContent({ content, citations }: { content: string; citations?: 
         className="markdown-content text-sm leading-relaxed"
         dangerouslySetInnerHTML={{ __html: parseMarkdown(content, citations) }}
       />
-      {/* Citation HoverCard (ai-elements style) */}
       {tooltip && (
         <div
           className="absolute z-50 w-80 bg-popover border border-border rounded-lg shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 duration-100"
@@ -172,11 +165,9 @@ function MarkdownContent({ content, citations }: { content: string; citations?: 
           onMouseEnter={() => {}}
           onMouseLeave={() => setTooltip(null)}
         >
-          {/* Header - like carousel header */}
           <div className="flex items-center justify-between gap-2 bg-secondary px-3 py-2 rounded-t-lg">
             <span className="text-xs text-muted-foreground">{tooltip.hostname}</span>
           </div>
-          {/* Body - like InlineCitationSource */}
           <div className="p-4 pl-5 space-y-1.5">
             {tooltip.title && (
               <h4 className="text-sm font-medium text-foreground leading-tight truncate">
@@ -254,21 +245,6 @@ function ChatMessageBubble({
   );
 }
 
-interface ChatStatusState {
-  status: 'idle' | 'searching' | 'generating' | 'streaming' | 'thinking' | 'tool_call';
-  message?: string;
-  sourcesCount?: number;
-  toolName?: string;
-}
-
-// Initial agentic stream state
-const initialAgenticState: AgenticStreamState = {
-  status: "idle",
-  steps: [],
-  responseText: "",
-  isStreaming: false,
-};
-
 export function Chat({ agentId, onBack }: ChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -276,8 +252,7 @@ export function Chat({ agentId, onBack }: ChatProps) {
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [streamingContent, setStreamingContent] = useState("");
   const [inputValue, setInputValue] = useState("");
-  const [chatStatus, setChatStatus] = useState<ChatStatusState>({ status: 'idle' });
-  const [agenticState, setAgenticState] = useState<AgenticStreamState>(initialAgenticState);
+  const [pendingSources, setPendingSources] = useState<ChatMessage["citations"]>([]);
   const streamingContentRef = useRef("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -286,15 +261,6 @@ export function Chat({ agentId, onBack }: ChatProps) {
     queryKey: ["agent", agentId],
     queryFn: () => api.getAgent(agentId),
   });
-
-  // Query agent capabilities to check if agentic mode is enabled
-  const { data: capabilitiesData } = useQuery({
-    queryKey: ["agent-capabilities", agentId],
-    queryFn: () => api.getAgentCapabilities(agentId),
-  });
-
-  const isAgenticMode = capabilitiesData?.capabilities?.agenticModeEnabled ?? false;
-  const showChainOfThought = capabilitiesData?.capabilities?.showChainOfThought ?? false;
 
   // Set welcome message when agent loads
   useEffect(() => {
@@ -315,12 +281,10 @@ export function Chat({ agentId, onBack }: ChatProps) {
         const newMessages = [...prev];
         const lastMessage = newMessages[newMessages.length - 1];
 
-        // If last message is from user, add new assistant message
         if (lastMessage?.role === "user") {
           return [...prev, { role: "assistant", content: streamingContent }];
         }
 
-        // If last message is assistant and streaming, update it
         if (lastMessage?.role === "assistant") {
           newMessages[newMessages.length - 1] = {
             ...lastMessage,
@@ -345,203 +309,74 @@ export function Chat({ agentId, onBack }: ChatProps) {
       setIsLoading(true);
       setStreamingContent("");
       streamingContentRef.current = "";
-
-      // Reset agentic state for new message
-      setAgenticState({
-        status: "thinking",
-        statusMessage: "Analyzing your question...",
-        steps: [],
-        responseText: "",
-        isStreaming: true,
-      });
+      setPendingSources([]);
 
       try {
-        // Use agentic streaming when enabled, otherwise regular streaming
-        if (isAgenticMode) {
-          setChatStatus({ status: 'thinking', message: 'Analyzing your question...' });
+        await api.simpleChatStream(
+          agentId,
+          userMessage,
+          conversationId,
+          // onChunk
+          (text) => {
+            setIsLoading(false);
+            setIsStreaming(true);
+            streamingContentRef.current += text;
+            setStreamingContent(streamingContentRef.current);
+          },
+          // onSources
+          (sources) => {
+            // Convert sources to citations format
+            const citations: ChatMessage["citations"] = sources.map((s) => ({
+              index: s.index,
+              title: s.title,
+              url: s.url,
+              snippet: s.snippet,
+            }));
+            setPendingSources(citations);
+          },
+          // onDone
+          (newConversationId) => {
+            const finalContent = streamingContentRef.current;
 
-          await api.agenticChatStream(
-            agentId,
-            userMessage,
-            conversationId,
-            // onChunk
-            (text) => {
-              setChatStatus((prev) => {
-                if (prev.status !== 'streaming') {
-                  setIsLoading(false);
-                  setIsStreaming(true);
-                  return { status: 'streaming' };
-                }
-                return prev;
-              });
-              streamingContentRef.current += text;
-              setStreamingContent(streamingContentRef.current);
-              setAgenticState((prev) => ({
-                ...prev,
-                status: "generating",
-                responseText: streamingContentRef.current,
-              }));
-            },
-            // onDone
-            (data) => {
-              const finalContent = streamingContentRef.current;
-
-              setConversationId(data.conversationId);
-              setMessages((prev) => {
-                const newMessages = [...prev];
-                const lastIndex = newMessages.length - 1;
-                if (lastIndex >= 0 && newMessages[lastIndex].role === "assistant") {
-                  newMessages[lastIndex] = {
-                    ...newMessages[lastIndex],
-                    content: finalContent,
-                    citations: data.citations,
-                  };
-                }
-                return newMessages;
-              });
-              setIsStreaming(false);
-              setStreamingContent("");
-              streamingContentRef.current = "";
-              setChatStatus({ status: 'idle' });
-              setAgenticState((prev) => ({
-                ...prev,
-                status: "complete",
-                isStreaming: false,
-                steps: data.chainOfThought || prev.steps,
-              }));
-              setTimeout(() => inputRef.current?.focus(), 50);
-            },
-            // onError
-            (error) => {
-              console.error("Agentic stream error:", error);
-              setMessages((prev) => [
-                ...prev,
-                {
-                  role: "assistant",
-                  content: "I apologize, but I encountered an error processing your request. Please try again.",
-                },
-              ]);
-              setIsStreaming(false);
-              setStreamingContent("");
-              streamingContentRef.current = "";
-              setChatStatus({ status: 'idle' });
-              setAgenticState((prev) => ({
-                ...prev,
-                status: "error",
-                isStreaming: false,
-                error,
-              }));
-              setTimeout(() => inputRef.current?.focus(), 50);
-            },
-            // onStatus
-            (status) => {
-              const mappedStatus = status.status === 'searching' ? 'searching' 
-                : status.status === 'tool_call' ? 'tool_call'
-                : status.status === 'generating' ? 'generating'
-                : 'thinking';
-              
-              setChatStatus({
-                status: mappedStatus as ChatStatusState['status'],
-                message: status.message,
-                toolName: status.toolName,
-              });
-              
-              setAgenticState((prev) => ({
-                ...prev,
-                status: mappedStatus as AgenticStreamState['status'],
-                statusMessage: status.message,
-                currentToolName: status.toolName,
-              }));
-            },
-            // onChainOfThought
-            (step: ChainOfThoughtStep) => {
-              setAgenticState((prev) => ({
-                ...prev,
-                steps: [...prev.steps, step],
-                status: step.type === 'searching' ? 'searching'
-                  : step.type === 'tool_call' ? 'tool_call'
-                  : step.type === 'answering' ? 'generating'
-                  : 'thinking',
-                statusMessage: getStepMessage(step),
-                currentToolName: step.toolName,
-              }));
-            }
-          );
-        } else {
-          // Regular (non-agentic) streaming
-          setChatStatus({ status: 'searching', message: 'Searching knowledge base...' });
-
-          await api.chatStream(
-            agentId,
-            userMessage,
-            conversationId,
-            // onChunk
-            (text) => {
-              setChatStatus((prev) => {
-                if (prev.status !== 'streaming') {
-                  setIsLoading(false);
-                  setIsStreaming(true);
-                  return { status: 'streaming' };
-                }
-                return prev;
-              });
-              streamingContentRef.current += text;
-              setStreamingContent(streamingContentRef.current);
-            },
-            // onDone
-            (data) => {
-              const finalContent = streamingContentRef.current;
-
-              setConversationId(data.conversationId);
-              setMessages((prev) => {
-                const newMessages = [...prev];
-                const lastIndex = newMessages.length - 1;
-                if (lastIndex >= 0 && newMessages[lastIndex].role === "assistant") {
-                  newMessages[lastIndex] = {
-                    ...newMessages[lastIndex],
-                    content: finalContent,
-                    citations: data.citations,
-                  };
-                }
-                return newMessages;
-              });
-              setIsStreaming(false);
-              setStreamingContent("");
-              streamingContentRef.current = "";
-              setChatStatus({ status: 'idle' });
-              setTimeout(() => inputRef.current?.focus(), 50);
-            },
-            // onError
-            (error) => {
-              console.error("Stream error:", error);
-              setMessages((prev) => [
-                ...prev,
-                {
-                  role: "assistant",
-                  content: "I apologize, but I encountered an error processing your request. Please try again.",
-                },
-              ]);
-              setIsStreaming(false);
-              setStreamingContent("");
-              streamingContentRef.current = "";
-              setChatStatus({ status: 'idle' });
-              setTimeout(() => inputRef.current?.focus(), 50);
-            },
-            // onStatus
-            (status) => {
-              if (status.status === 'searching') {
-                setChatStatus({ status: 'searching', message: status.message || 'Searching knowledge base...' });
-              } else if (status.status === 'generating') {
-                setChatStatus({
-                  status: 'generating',
-                  message: status.message || 'Generating response...',
-                  sourcesCount: status.sourcesCount
-                });
+            setConversationId(newConversationId);
+            setMessages((prev) => {
+              const newMessages = [...prev];
+              const lastIndex = newMessages.length - 1;
+              if (lastIndex >= 0 && newMessages[lastIndex].role === "assistant") {
+                newMessages[lastIndex] = {
+                  ...newMessages[lastIndex],
+                  content: finalContent,
+                  citations: pendingSources,
+                };
               }
-            }
-          );
-        }
+              return newMessages;
+            });
+            setIsStreaming(false);
+            setStreamingContent("");
+            streamingContentRef.current = "";
+            setPendingSources([]);
+            setTimeout(() => inputRef.current?.focus(), 50);
+          },
+          // onError
+          (error) => {
+            console.error("Stream error:", error);
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                content: "I apologize, but I encountered an error processing your request. Please try again.",
+              },
+            ]);
+            setIsLoading(false);
+            setIsStreaming(false);
+            setStreamingContent("");
+            streamingContentRef.current = "";
+            setPendingSources([]);
+            setTimeout(() => inputRef.current?.focus(), 50);
+          }
+        );
       } catch (error) {
+        console.error("Chat error:", error);
         setMessages((prev) => [
           ...prev,
           {
@@ -551,38 +386,13 @@ export function Chat({ agentId, onBack }: ChatProps) {
         ]);
         setIsLoading(false);
         setIsStreaming(false);
-        setChatStatus({ status: 'idle' });
-        setAgenticState(initialAgenticState);
         streamingContentRef.current = "";
+        setPendingSources([]);
         setTimeout(() => inputRef.current?.focus(), 50);
       }
     },
-    [isLoading, isStreaming, agentId, conversationId, inputValue, isAgenticMode]
+    [isLoading, isStreaming, agentId, conversationId, inputValue, pendingSources]
   );
-
-  // Helper to get a human-readable message for a step
-  function getStepMessage(step: ChainOfThoughtStep): string {
-    switch (step.type) {
-      case "thinking":
-        return "Analyzing your question...";
-      case "searching":
-        return step.kbName
-          ? `Searching "${step.kbName}"...`
-          : "Searching knowledge base...";
-      case "tool_call":
-        return step.toolName
-          ? `Using ${step.toolName}...`
-          : "Executing tool...";
-      case "tool_result":
-        return step.toolName
-          ? `${step.toolName} completed`
-          : "Tool completed";
-      case "answering":
-        return "Generating response...";
-      default:
-        return step.content || "Processing...";
-    }
-  }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -601,8 +411,7 @@ export function Chat({ agentId, onBack }: ChatProps) {
     setStreamingContent("");
     streamingContentRef.current = "";
     setIsStreaming(false);
-    setAgenticState(initialAgenticState);
-    setChatStatus({ status: 'idle' });
+    setPendingSources([]);
   };
 
   const handleSuggestionClick = useCallback(
@@ -659,7 +468,7 @@ export function Chat({ agentId, onBack }: ChatProps) {
         </div>
       </div>
 
-      {/* Scrollable Messages Area - with padding for header and input */}
+      {/* Scrollable Messages Area */}
       <div className="absolute top-0 left-0 right-0 bottom-0 overflow-y-auto pt-[72px] pb-[140px]">
         <div className="max-w-3xl mx-auto px-4 py-4">
           {showEmptyState && !agent?.welcomeMessage ? (
@@ -672,90 +481,25 @@ export function Chat({ agentId, onBack }: ChatProps) {
             </div>
           ) : (
             <div className="space-y-4">
-              {(() => {
-                // Find the index of the last assistant message that follows a user message
-                // (not the welcome message which is the first assistant message with no user message before it)
-                let lastAssistantIndex = -1;
-                let hasUserMessage = false;
-                for (let i = 0; i < messages.length; i++) {
-                  if (messages[i].role === "user") {
-                    hasUserMessage = true;
-                  } else if (messages[i].role === "assistant" && hasUserMessage) {
-                    lastAssistantIndex = i;
-                  }
-                }
-                const hasAgenticSteps = isAgenticMode && showChainOfThought && agenticState.steps.length > 0;
-                
-                return messages.map((message, index) => {
-                  const isLastMessage = index === messages.length - 1;
-                  const isStreamingAssistant = isStreaming && isLastMessage && message.role === "assistant";
-                  
-                  // Show chain of thought ABOVE the last assistant message that follows a user message
-                  // Keep it visible after completion so user can see the reasoning
-                  const showChainOfThoughtHere = hasAgenticSteps && 
-                    index === lastAssistantIndex &&
-                    message.role === "assistant";
+              {messages.map((message, index) => {
+                const isLastMessage = index === messages.length - 1;
+                const isStreamingAssistant = isStreaming && isLastMessage && message.role === "assistant";
 
-                  return (
-                    <div key={index}>
-                      {/* Chain of thought appears ABOVE the assistant response */}
-                      {showChainOfThoughtHere && (
-                        <AgenticChatDisplay
-                          state={agenticState}
-                          showChainOfThought={showChainOfThought}
-                          className="mb-4"
-                        />
-                      )}
-                      <ChatMessageBubble
-                        message={message}
-                        isStreaming={isStreamingAssistant}
-                      />
-                    </div>
-                  );
-                });
-              })()}
-              {/* Show chain of thought when waiting for response (before assistant message exists) */}
-              {isAgenticMode && showChainOfThought && agenticState.steps.length > 0 && 
-               (isLoading || agenticState.isStreaming) && 
-               messages[messages.length - 1]?.role !== "assistant" && (
-                <AgenticChatDisplay
-                  state={agenticState}
-                  showChainOfThought={showChainOfThought}
-                  className="mb-2"
-                />
-              )}
+                return (
+                  <ChatMessageBubble
+                    key={index}
+                    message={message}
+                    isStreaming={isStreamingAssistant}
+                  />
+                );
+              })}
               
-              {/* Status indicator (for non-agentic mode or when chain of thought is hidden) */}
-              {(isLoading || (chatStatus.status !== 'idle' && chatStatus.status !== 'streaming')) && 
-               !(isAgenticMode && showChainOfThought && agenticState.steps.length > 0) && (
+              {/* Simple loading indicator */}
+              {isLoading && (
                 <div className="flex justify-start">
                   <div className="bg-muted rounded-2xl px-4 py-2 flex items-center gap-2">
-                    {chatStatus.status === 'searching' ? (
-                      <>
-                        <Search className="w-4 h-4 text-muted-foreground animate-pulse" />
-                        <span className="text-muted-foreground text-sm">{chatStatus.message || 'Searching knowledge base...'}</span>
-                      </>
-                    ) : chatStatus.status === 'thinking' ? (
-                      <>
-                        <Brain className="w-4 h-4 text-primary animate-pulse" />
-                        <span className="text-muted-foreground text-sm">{chatStatus.message || 'Thinking...'}</span>
-                      </>
-                    ) : chatStatus.status === 'tool_call' ? (
-                      <>
-                        <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
-                        <span className="text-muted-foreground text-sm">{chatStatus.message || `Using ${chatStatus.toolName || 'tool'}...`}</span>
-                      </>
-                    ) : chatStatus.status === 'generating' ? (
-                      <>
-                        <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-                        <span className="text-muted-foreground text-sm">{chatStatus.message || 'Generating response...'}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Loader size={16} />
-                        <span className="text-muted-foreground text-sm">Processing...</span>
-                      </>
-                    )}
+                    <Loader size={16} />
+                    <span className="text-muted-foreground text-sm">Thinking...</span>
                   </div>
                 </div>
               )}
