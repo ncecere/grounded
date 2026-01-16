@@ -70,30 +70,22 @@ interface AgenticStepsProps {
   steps: ChainOfThoughtStep[];
   status: ChatStatus;
   isStreaming: boolean;
+  isExpanded?: boolean;
+  onToggleExpanded?: () => void;
 }
 
-export function AgenticSteps({ steps, status, isStreaming }: AgenticStepsProps): JSX.Element | null {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const wasStreamingRef = useRef(false);
-
-  // Auto-collapse when streaming finishes
-  useEffect(() => {
-    if (wasStreamingRef.current && !isStreaming) {
-      // Streaming just finished, collapse after a brief delay
-      const timer = setTimeout(() => {
-        setIsExpanded(false);
-      }, 500);
-      return () => clearTimeout(timer);
+export function AgenticSteps({ steps, status, isStreaming, isExpanded: controlledExpanded, onToggleExpanded }: AgenticStepsProps): JSX.Element | null {
+  // Use controlled state if provided, otherwise use internal state
+  const [internalExpanded, setInternalExpanded] = useState(true);
+  const isExpanded = controlledExpanded !== undefined ? controlledExpanded : internalExpanded;
+  
+  const handleToggle = () => {
+    if (onToggleExpanded) {
+      onToggleExpanded();
+    } else {
+      setInternalExpanded(!internalExpanded);
     }
-    wasStreamingRef.current = isStreaming;
-  }, [isStreaming]);
-
-  // Expand when new streaming starts
-  useEffect(() => {
-    if (isStreaming && steps.length > 0) {
-      setIsExpanded(true);
-    }
-  }, [isStreaming, steps.length]);
+  };
 
   // Don't render if no steps and not actively processing
   if (steps.length === 0 && status.status === 'idle') {
@@ -170,7 +162,7 @@ export function AgenticSteps({ steps, status, isStreaming }: AgenticStepsProps):
     <div class="grounded-agentic-steps">
       <button 
         class="grounded-agentic-header"
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={handleToggle}
         type="button"
       >
         <span class="grounded-agentic-header-icon">

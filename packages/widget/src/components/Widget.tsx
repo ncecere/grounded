@@ -18,11 +18,12 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [isExpanded, setIsExpanded] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [isChainOfThoughtExpanded, setIsChainOfThoughtExpanded] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Only load config when widget is opened
-  const { config, isLoading: configLoading } = useConfig({ token, apiBase, enabled: isOpen });
+  // Always load config on mount (needed for button customization)
+  const { config, isLoading: configLoading } = useConfig({ token, apiBase });
   
   // Check if agentic mode is enabled from config
   const agenticMode = config?.agenticMode?.enabled ?? false;
@@ -69,6 +70,40 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
     }
     wasLoadingRef.current = isLoading;
   }, [isLoading, isOpen]);
+
+  // Track if agentic processing is active (tools/searching, not streaming text)
+  const isAgenticProcessing = isLoading || (chatStatus.status !== 'idle' && chatStatus.status !== 'streaming');
+  const wasAgenticProcessingRef = useRef(false);
+  const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-collapse chain of thought when agentic processing finishes
+  useEffect(() => {
+    // Clear any pending timer
+    if (collapseTimerRef.current) {
+      clearTimeout(collapseTimerRef.current);
+      collapseTimerRef.current = null;
+    }
+
+    const wasProcessing = wasAgenticProcessingRef.current;
+    wasAgenticProcessingRef.current = isAgenticProcessing;
+
+    if (wasProcessing && !isAgenticProcessing && chainOfThoughtSteps.length > 0) {
+      // Processing just finished, collapse after a delay
+      collapseTimerRef.current = setTimeout(() => {
+        setIsChainOfThoughtExpanded(false);
+        collapseTimerRef.current = null;
+      }, 800);
+    } else if (!wasProcessing && isAgenticProcessing) {
+      // Processing just started, expand
+      setIsChainOfThoughtExpanded(true);
+    }
+
+    return () => {
+      if (collapseTimerRef.current) {
+        clearTimeout(collapseTimerRef.current);
+      }
+    };
+  }, [isAgenticProcessing, chainOfThoughtSteps.length]);
 
   // Notify parent of open state changes
   useEffect(() => {
@@ -214,7 +249,9 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
                         <AgenticSteps 
                           steps={chainOfThoughtSteps} 
                           status={chatStatus} 
-                          isStreaming={isLoading || (chatStatus.status !== 'idle' && chatStatus.status !== 'streaming')}
+                          isStreaming={isAgenticProcessing}
+                          isExpanded={isChainOfThoughtExpanded}
+                          onToggleExpanded={() => setIsChainOfThoughtExpanded(!isChainOfThoughtExpanded)}
                         />
                       )}
                       <Message message={message} />
@@ -223,14 +260,16 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
                 });
               })()}
               
-              {/* Show chain of thought when waiting for response (before assistant message exists) */}
+              {/* Show chain of thought when waiting for response (before assistant message has content) */}
               {agenticMode && showChainOfThought && chainOfThoughtSteps.length > 0 && 
                (isLoading || chatStatus.status !== 'idle') && 
-               messages[messages.length - 1]?.role !== 'assistant' && (
+               (messages[messages.length - 1]?.role !== 'assistant' || !messages[messages.length - 1]?.content) && (
                 <AgenticSteps 
                   steps={chainOfThoughtSteps} 
                   status={chatStatus} 
                   isStreaming={true}
+                  isExpanded={isChainOfThoughtExpanded}
+                  onToggleExpanded={() => setIsChainOfThoughtExpanded(!isChainOfThoughtExpanded)}
                 />
               )}
               
