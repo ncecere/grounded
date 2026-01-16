@@ -6,7 +6,9 @@
   "main": "./dist/widget.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && cp dist/widget.js ../../apps/web/public/widget.js",
+    "build": "BUILD_TARGET=widget vite build && cp dist/widget.js ../../apps/web/public/widget.js && BUILD_TARGET=published-chat vite build && cp dist/published-chat.js ../../apps/web/public/published-chat.js",
+    "build:widget": "BUILD_TARGET=widget vite build",
+    "build:published-chat": "BUILD_TARGET=published-chat vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },

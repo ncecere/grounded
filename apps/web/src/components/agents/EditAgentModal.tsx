@@ -76,7 +76,6 @@ export function EditAgentModal({
         candidateK: fetchedRetrievalConfig.candidateK || 40,
         topK: fetchedRetrievalConfig.topK || 8,
         maxCitations: fetchedRetrievalConfig.maxCitations || 3,
-        rerankerEnabled: fetchedRetrievalConfig.rerankerEnabled ?? true,
         similarityThreshold: fetchedRetrievalConfig.similarityThreshold ?? 0.5,
       });
     } else {
@@ -386,21 +385,6 @@ export function EditAgentModal({
                       {retrievalConfig.similarityThreshold.toFixed(2)}
                     </span>
                   </div>
-                </div>
-
-                <div className="flex items-center justify-between py-2">
-                  <div>
-                    <span className="text-sm font-medium text-foreground">Smart Ranking</span>
-                    <p className="text-xs text-muted-foreground">
-                      Re-rank search results by relevance (recommended)
-                    </p>
-                  </div>
-                  <Switch
-                    checked={retrievalConfig.rerankerEnabled}
-                    onCheckedChange={(checked) =>
-                      setRetrievalConfig({ ...retrievalConfig, rerankerEnabled: checked })
-                    }
-                  />
                 </div>
               </CollapsibleContent>
             </div>

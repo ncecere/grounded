@@ -214,8 +214,6 @@ export interface Agent {
     topK: number;
     candidateK: number;
     maxCitations: number;
-    rerankerEnabled: boolean;
-    rerankerType: string;
     similarityThreshold: number;
   };
   createdAt: string;
@@ -654,19 +652,7 @@ export interface ToolDefinition {
   updatedAt: string;
 }
 
-export interface AgentCapabilities {
-  id: string;
-  agentId: string;
-  agenticModeEnabled: boolean;
-  multiKbRoutingEnabled: boolean;
-  toolCallingEnabled: boolean;
-  maxToolCallsPerTurn: number;
-  multiStepReasoningEnabled: boolean;
-  maxReasoningSteps: number;
-  showChainOfThought: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+
 
 export interface AgentTool {
   id: string;
@@ -692,17 +678,7 @@ export interface BuiltinToolInfo {
   requiresConfig?: boolean;
 }
 
-// Chain of Thought Types
-export interface ChainOfThoughtStep {
-  type: "thinking" | "searching" | "tool_call" | "tool_result" | "answering";
-  content: string;
-  toolName?: string;
-  toolArgs?: Record<string, unknown>;
-  toolResult?: unknown;
-  kbId?: string;
-  kbName?: string;
-  timestamp: number;
-}
+
 
 export interface AdminAnalyticsTenantDetail {
   tenant: {
@@ -1068,92 +1044,6 @@ export const api = {
     });
   },
 
-  // Streaming Chat
-  chatStream: async (
-    agentId: string,
-    message: string,
-    conversationId: string | undefined,
-    onChunk: (text: string) => void,
-    onDone: (data: { conversationId: string; citations: ChatMessage["citations"] }) => void,
-    onError: (error: string) => void,
-    onStatus?: (status: { status: string; message?: string; sourcesCount?: number }) => void
-  ): Promise<void> => {
-    const token = getToken();
-    const tenantId = getCurrentTenantId();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-    if (tenantId) {
-      headers["X-Tenant-ID"] = tenantId;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE}/chat/stream/${agentId}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ message, conversationId }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: "Request failed" }));
-        throw new Error(error.message || `HTTP ${response.status}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("No response body");
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data) {
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.type === "status" && onStatus) {
-                  onStatus({
-                    status: parsed.status,
-                    message: parsed.message,
-                    sourcesCount: parsed.sourcesCount,
-                  });
-                } else if (parsed.type === "text") {
-                  onChunk(parsed.content);
-                } else if (parsed.type === "done") {
-                  onDone({
-                    conversationId: parsed.conversationId,
-                    citations: parsed.citations,
-                  });
-                } else if (parsed.type === "error") {
-                  onError(parsed.message);
-                }
-              } catch (e) {
-                // Ignore parse errors for incomplete chunks
-              }
-            }
-          }
-        }
-      }
-    } catch (error) {
-      onError(error instanceof Error ? error.message : "Stream failed");
-    }
-  },
-
   // Simple RAG Streaming Chat
   simpleChatStream: async (
     agentId: string,
@@ -1162,7 +1052,8 @@ export const api = {
     onChunk: (text: string) => void,
     onSources: (sources: Array<{ id: string; title: string; url?: string; snippet: string; index: number }>) => void,
     onDone: (conversationId: string) => void,
-    onError: (error: string) => void
+    onError: (error: string) => void,
+    onStatus?: (status: { status: string; message: string; sourceCount?: number }) => void
   ): Promise<void> => {
     const token = getToken();
     const tenantId = getCurrentTenantId();
@@ -1212,108 +1103,18 @@ export const api = {
             if (data) {
               try {
                 const parsed = JSON.parse(data);
-                if (parsed.type === "text") {
+                if (parsed.type === "status" && onStatus) {
+                  onStatus({
+                    status: parsed.status,
+                    message: parsed.message,
+                    sourceCount: parsed.sourceCount,
+                  });
+                } else if (parsed.type === "text") {
                   onChunk(parsed.content);
                 } else if (parsed.type === "sources") {
                   onSources(parsed.sources);
                 } else if (parsed.type === "done") {
                   onDone(parsed.conversationId);
-                } else if (parsed.type === "error") {
-                  onError(parsed.message);
-                }
-              } catch {
-                // Ignore parse errors for incomplete chunks
-              }
-            }
-          }
-        }
-      }
-    } catch (error) {
-      onError(error instanceof Error ? error.message : "Stream failed");
-    }
-  },
-
-  // Agentic Streaming Chat (with tool calling and chain of thought)
-  agenticChatStream: async (
-    agentId: string,
-    message: string,
-    conversationId: string | undefined,
-    onChunk: (text: string) => void,
-    onDone: (data: { 
-      conversationId: string; 
-      citations: ChatMessage["citations"];
-      chainOfThought?: ChainOfThoughtStep[];
-      toolCallsCount?: number;
-    }) => void,
-    onError: (error: string) => void,
-    onStatus?: (status: { status: string; message?: string; toolName?: string }) => void,
-    onChainOfThought?: (step: ChainOfThoughtStep) => void
-  ): Promise<void> => {
-    const token = getToken();
-    const tenantId = getCurrentTenantId();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-    if (tenantId) {
-      headers["X-Tenant-ID"] = tenantId;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE}/chat/agentic/${agentId}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ message, conversationId }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: "Request failed" }));
-        throw new Error(error.message || `HTTP ${response.status}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("No response body");
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data) {
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.type === "status" && onStatus) {
-                  onStatus({
-                    status: parsed.status,
-                    message: parsed.message,
-                    toolName: parsed.toolName,
-                  });
-                } else if (parsed.type === "chain_of_thought" && onChainOfThought) {
-                  onChainOfThought(parsed.step);
-                } else if (parsed.type === "text") {
-                  onChunk(parsed.content);
-                } else if (parsed.type === "done") {
-                  onDone({
-                    conversationId: parsed.conversationId,
-                    citations: parsed.citations,
-                    chainOfThought: parsed.chainOfThought,
-                    toolCallsCount: parsed.toolCallsCount,
-                  });
                 } else if (parsed.type === "error") {
                   onError(parsed.message);
                 }
@@ -1752,23 +1553,6 @@ export const api = {
     request<{ message: string }>(`/tools/${id}`, { method: "DELETE" }),
   listBuiltinTools: () =>
     request<{ tools: BuiltinToolInfo[] }>("/tools/builtin"),
-
-  // Agent Capabilities
-  getAgentCapabilities: (agentId: string) =>
-    request<{ capabilities: AgentCapabilities }>(`/tools/agents/${agentId}/capabilities`),
-  updateAgentCapabilities: (agentId: string, data: {
-    agenticModeEnabled?: boolean;
-    multiKbRoutingEnabled?: boolean;
-    toolCallingEnabled?: boolean;
-    maxToolCallsPerTurn?: number;
-    multiStepReasoningEnabled?: boolean;
-    maxReasoningSteps?: number;
-    showChainOfThought?: boolean;
-  }) =>
-    request<{ capabilities: AgentCapabilities }>(`/tools/agents/${agentId}/capabilities`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    }),
 
   // Agent Tools
   listAgentTools: (agentId: string) =>

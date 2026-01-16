@@ -21,186 +21,78 @@ renderer.link = ({ href, title, text }) => {
 };
 marked.use({ renderer });
 
-import {
-  Sources,
-  SourcesTrigger,
-  SourcesContent,
-  Source,
-} from "../components/ai-elements/sources";
 import { Suggestions, Suggestion } from "../components/ai-elements/suggestion";
 import { Loader } from "../components/ai-elements/loader";
+import { BookOpen, ChevronDown, ExternalLink } from "lucide-react";
 
 interface ChatProps {
   agentId: string;
   onBack: () => void;
 }
 
-// Citation sources component
-function CitationSources({ citations }: { citations: ChatMessage["citations"] }) {
+// Simple sources component with local expand/collapse state
+function MessageSources({ citations }: { citations: ChatMessage["citations"] }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   if (!citations || citations.length === 0) return null;
 
   return (
-    <Sources>
-      <SourcesTrigger count={citations.length} />
-      <SourcesContent>
-        {citations.map((citation, i) => (
-          <Source
-            key={i}
-            href={citation.url || "#"}
-            title={citation.title || `Source ${i + 1}`}
-          />
-        ))}
-      </SourcesContent>
-    </Sources>
+    <div className="mt-3">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+      >
+        <BookOpen className="h-3.5 w-3.5" />
+        <span>Used {citations.length} sources</span>
+        <ChevronDown 
+          className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+        />
+      </button>
+      
+      {isExpanded && (
+        <div className="mt-2 space-y-1.5 pl-5">
+          {citations.map((citation, i) => (
+            <a
+              key={i}
+              href={citation.url || "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors group"
+            >
+              <ExternalLink className="h-3 w-3 opacity-50 group-hover:opacity-100" />
+              <span className="truncate">{citation.title || `Source ${i + 1}`}</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
-// Parse markdown and convert inline citations to hoverable badges
-function parseMarkdown(text: string, citations?: ChatMessage["citations"]): string {
+// Parse markdown and clean up any citation references from the text
+function parseMarkdown(text: string): string {
   if (!text) return '';
 
   let cleaned = text;
 
-  // Strip old/unwanted citation formats
+  // Strip citation formats that the LLM might add
   cleaned = cleaned.replace(/【[^】]*】/g, '');
   cleaned = cleaned.replace(/Citation:\s*[^\n.]+[.\n]/gi, '');
   cleaned = cleaned.replace(/\[Source:[^\]]*\]/gi, '');
   cleaned = cleaned.replace(/\(Source:[^)]*\)/gi, '');
-
-  // Convert inline citations [1], [2] to hoverable badges
-  if (citations && citations.length > 0) {
-    cleaned = cleaned.replace(/\[(\d+)\]/g, (match, num) => {
-      const index = parseInt(num, 10);
-      const citation = citations.find(c => c.index === index);
-      if (citation) {
-        const title = (citation.title || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-        const url = (citation.url || '').replace(/"/g, '&quot;');
-        const snippet = (citation.snippet || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;').slice(0, 150);
-        const hostname = citation.url ? new URL(citation.url).hostname : '';
-
-        return `<span class="inline-citation" data-index="${index}" data-title="${title}" data-url="${url}" data-snippet="${snippet}" data-hostname="${hostname}">${hostname || 'source'}</span>`;
-      }
-      return match;
-    });
-  } else {
-    cleaned = cleaned.replace(/\[\d+\]/g, '');
-  }
+  cleaned = cleaned.replace(/\[\d+\]/g, ''); // Remove [1], [2], etc.
 
   const html = marked.parse(cleaned, { async: false }) as string;
   return html;
 }
 
-// Citation tooltip state
-interface CitationTooltip {
-  index: number;
-  title: string;
-  url: string;
-  snippet: string;
-  hostname: string;
-  x: number;
-  y: number;
-}
-
-// Markdown renderer with citation hover cards
-function MarkdownContent({ content, citations }: { content: string; citations?: ChatMessage["citations"] }) {
-  const [tooltip, setTooltip] = useState<CitationTooltip | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handleMouseEnter = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.classList.contains('inline-citation')) {
-        const rect = target.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-        setTooltip({
-          index: parseInt(target.dataset.index || '0', 10),
-          title: target.dataset.title || '',
-          url: target.dataset.url || '',
-          snippet: target.dataset.snippet || '',
-          hostname: target.dataset.hostname || '',
-          x: rect.left - containerRect.left,
-          y: rect.bottom - containerRect.top + 4,
-        });
-      }
-    };
-
-    const handleMouseLeave = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.classList.contains('inline-citation')) {
-        setTooltip(null);
-      }
-    };
-
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.classList.contains('inline-citation') && target.dataset.url) {
-        window.open(target.dataset.url, '_blank', 'noopener,noreferrer');
-      }
-    };
-
-    container.addEventListener('mouseenter', handleMouseEnter, true);
-    container.addEventListener('mouseleave', handleMouseLeave, true);
-    container.addEventListener('click', handleClick, true);
-
-    return () => {
-      container.removeEventListener('mouseenter', handleMouseEnter, true);
-      container.removeEventListener('mouseleave', handleMouseLeave, true);
-      container.removeEventListener('click', handleClick, true);
-    };
-  }, []);
-
+// Simple markdown renderer
+function MarkdownContent({ content }: { content: string }) {
   return (
-    <div ref={containerRef} className="relative">
-      <div
-        className="markdown-content text-sm leading-relaxed"
-        dangerouslySetInnerHTML={{ __html: parseMarkdown(content, citations) }}
-      />
-      {tooltip && (
-        <div
-          className="absolute z-50 w-80 bg-popover border border-border rounded-lg shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 duration-100"
-          style={{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }}
-          onMouseEnter={() => {}}
-          onMouseLeave={() => setTooltip(null)}
-        >
-          <div className="flex items-center justify-between gap-2 bg-secondary px-3 py-2 rounded-t-lg">
-            <span className="text-xs text-muted-foreground">{tooltip.hostname}</span>
-          </div>
-          <div className="p-4 pl-5 space-y-1.5">
-            {tooltip.title && (
-              <h4 className="text-sm font-medium text-foreground leading-tight truncate">
-                {tooltip.title}
-              </h4>
-            )}
-            {tooltip.url && (
-              <p className="text-xs text-muted-foreground truncate break-all">
-                {tooltip.url}
-              </p>
-            )}
-            {tooltip.snippet && (
-              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
-                {tooltip.snippet}
-              </p>
-            )}
-            {tooltip.url && (
-              <a
-                href={tooltip.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-primary hover:opacity-80 transition-opacity"
-              >
-                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                </svg>
-                Open source
-              </a>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+    <div
+      className="markdown-content text-sm leading-relaxed"
+      dangerouslySetInnerHTML={{ __html: parseMarkdown(content) }}
+    />
   );
 }
 
@@ -229,7 +121,7 @@ function ChatMessageBubble({
           ) : (
             <>
               {message.content ? (
-                <MarkdownContent content={message.content} citations={message.citations} />
+                <MarkdownContent content={message.content} />
               ) : (
                 <span className="text-muted-foreground italic text-sm">Waiting for response...</span>
               )}
@@ -239,7 +131,7 @@ function ChatMessageBubble({
             </>
           )}
         </div>
-        {!isUser && !isStreaming && <CitationSources citations={message.citations} />}
+        {!isUser && !isStreaming && <MessageSources citations={message.citations} />}
       </div>
     </div>
   );
@@ -252,8 +144,9 @@ export function Chat({ agentId, onBack }: ChatProps) {
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [streamingContent, setStreamingContent] = useState("");
   const [inputValue, setInputValue] = useState("");
-  const [pendingSources, setPendingSources] = useState<ChatMessage["citations"]>([]);
+  const [statusMessage, setStatusMessage] = useState<string>("");
   const streamingContentRef = useRef("");
+  const pendingSourcesRef = useRef<ChatMessage["citations"]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -309,7 +202,8 @@ export function Chat({ agentId, onBack }: ChatProps) {
       setIsLoading(true);
       setStreamingContent("");
       streamingContentRef.current = "";
-      setPendingSources([]);
+      pendingSourcesRef.current = [];
+      setStatusMessage("Searching knowledge base...");
 
       try {
         await api.simpleChatStream(
@@ -325,18 +219,18 @@ export function Chat({ agentId, onBack }: ChatProps) {
           },
           // onSources
           (sources) => {
-            // Convert sources to citations format
             const citations: ChatMessage["citations"] = sources.map((s) => ({
               index: s.index,
               title: s.title,
               url: s.url,
               snippet: s.snippet,
             }));
-            setPendingSources(citations);
+            pendingSourcesRef.current = citations;
           },
           // onDone
           (newConversationId) => {
             const finalContent = streamingContentRef.current;
+            const citationsToSet = pendingSourcesRef.current ? [...pendingSourcesRef.current] : [];
 
             setConversationId(newConversationId);
             setMessages((prev) => {
@@ -346,7 +240,7 @@ export function Chat({ agentId, onBack }: ChatProps) {
                 newMessages[lastIndex] = {
                   ...newMessages[lastIndex],
                   content: finalContent,
-                  citations: pendingSources,
+                  citations: citationsToSet,
                 };
               }
               return newMessages;
@@ -354,7 +248,8 @@ export function Chat({ agentId, onBack }: ChatProps) {
             setIsStreaming(false);
             setStreamingContent("");
             streamingContentRef.current = "";
-            setPendingSources([]);
+            pendingSourcesRef.current = [];
+            setStatusMessage("");
             setTimeout(() => inputRef.current?.focus(), 50);
           },
           // onError
@@ -371,8 +266,13 @@ export function Chat({ agentId, onBack }: ChatProps) {
             setIsStreaming(false);
             setStreamingContent("");
             streamingContentRef.current = "";
-            setPendingSources([]);
+            pendingSourcesRef.current = [];
+            setStatusMessage("");
             setTimeout(() => inputRef.current?.focus(), 50);
+          },
+          // onStatus
+          (status) => {
+            setStatusMessage(status.message);
           }
         );
       } catch (error) {
@@ -387,11 +287,12 @@ export function Chat({ agentId, onBack }: ChatProps) {
         setIsLoading(false);
         setIsStreaming(false);
         streamingContentRef.current = "";
-        setPendingSources([]);
+        pendingSourcesRef.current = [];
+        setStatusMessage("");
         setTimeout(() => inputRef.current?.focus(), 50);
       }
     },
-    [isLoading, isStreaming, agentId, conversationId, inputValue, pendingSources]
+    [isLoading, isStreaming, agentId, conversationId, inputValue]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -411,7 +312,8 @@ export function Chat({ agentId, onBack }: ChatProps) {
     setStreamingContent("");
     streamingContentRef.current = "";
     setIsStreaming(false);
-    setPendingSources([]);
+    pendingSourcesRef.current = [];
+    setStatusMessage("");
   };
 
   const handleSuggestionClick = useCallback(
@@ -487,7 +389,7 @@ export function Chat({ agentId, onBack }: ChatProps) {
 
                 return (
                   <ChatMessageBubble
-                    key={index}
+                    key={`${index}-${message.citations?.length || 0}`}
                     message={message}
                     isStreaming={isStreamingAssistant}
                   />
@@ -499,7 +401,9 @@ export function Chat({ agentId, onBack }: ChatProps) {
                 <div className="flex justify-start">
                   <div className="bg-muted rounded-2xl px-4 py-2 flex items-center gap-2">
                     <Loader size={16} />
-                    <span className="text-muted-foreground text-sm">Thinking...</span>
+                    <span className="text-muted-foreground text-sm">
+                      {statusMessage || "Searching knowledge base..."}
+                    </span>
                   </div>
                 </div>
               )}

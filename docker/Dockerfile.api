@@ -13,6 +13,9 @@ COPY migrations ./migrations
 # Install dependencies after source is available
 RUN bun install || true
 
+# Build the widget package to generate published-chat.js for the hosted chat page
+RUN cd packages/widget && bun run build:widget && bun run build:published-chat
+
 # Copy entrypoint script
 COPY docker/docker-entrypoint-api.sh /docker-entrypoint-api.sh
 RUN chmod +x /docker-entrypoint-api.sh

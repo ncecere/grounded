@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { useChat, type ChatStatus } from '../hooks/useChat';
+import { useChat } from '../hooks/useChat';
 import { useConfig } from '../hooks/useConfig';
 import { Message, StatusIndicator } from './Message';
 import { ChatIcon, CloseIcon, SendIcon, SparklesIcon, ExpandIcon, ShrinkIcon, HelpIcon, QuestionIcon, MessageIcon } from './Icons';
-import { AgenticSteps, AgenticStatus } from './AgenticSteps';
 import type { WidgetOptions, ButtonIcon, ButtonStyle, ButtonSize } from '../types';
 
 interface WidgetProps {
@@ -18,33 +17,15 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [isExpanded, setIsExpanded] = useState(false);
   const [inputValue, setInputValue] = useState('');
-  const [isChainOfThoughtExpanded, setIsChainOfThoughtExpanded] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Always load config on mount (needed for button customization)
   const { config, isLoading: configLoading } = useConfig({ token, apiBase });
   
-  // Check if agentic mode is enabled from config
-  const agenticMode = config?.agenticMode?.enabled ?? false;
-  const showChainOfThought = config?.agenticMode?.showChainOfThought ?? false;
-  
-  // Debug: log config and agentic mode (only when open)
-  useEffect(() => {
-    if (isOpen && config) {
-      console.log('[Grounded Widget] Config loaded:', { 
-        agenticMode, 
-        showChainOfThought,
-        rawAgenticMode: config?.agenticMode 
-      });
-    }
-  }, [isOpen, config, agenticMode, showChainOfThought]);
-  
-  const { messages, isLoading, chatStatus, chainOfThoughtSteps, sendMessage } = useChat({ 
+  const { messages, isLoading, chatStatus, sendMessage } = useChat({ 
     token, 
     apiBase,
-    agenticMode,
-    showChainOfThought,
   });
 
   // Scroll to bottom when messages change
@@ -70,40 +51,6 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
     }
     wasLoadingRef.current = isLoading;
   }, [isLoading, isOpen]);
-
-  // Track if agentic processing is active (tools/searching, not streaming text)
-  const isAgenticProcessing = isLoading || (chatStatus.status !== 'idle' && chatStatus.status !== 'streaming');
-  const wasAgenticProcessingRef = useRef(false);
-  const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Auto-collapse chain of thought when agentic processing finishes
-  useEffect(() => {
-    // Clear any pending timer
-    if (collapseTimerRef.current) {
-      clearTimeout(collapseTimerRef.current);
-      collapseTimerRef.current = null;
-    }
-
-    const wasProcessing = wasAgenticProcessingRef.current;
-    wasAgenticProcessingRef.current = isAgenticProcessing;
-
-    if (wasProcessing && !isAgenticProcessing && chainOfThoughtSteps.length > 0) {
-      // Processing just finished, collapse after a delay
-      collapseTimerRef.current = setTimeout(() => {
-        setIsChainOfThoughtExpanded(false);
-        collapseTimerRef.current = null;
-      }, 800);
-    } else if (!wasProcessing && isAgenticProcessing) {
-      // Processing just started, expand
-      setIsChainOfThoughtExpanded(true);
-    }
-
-    return () => {
-      if (collapseTimerRef.current) {
-        clearTimeout(collapseTimerRef.current);
-      }
-    };
-  }, [isAgenticProcessing, chainOfThoughtSteps.length]);
 
   // Notify parent of open state changes
   useEffect(() => {
@@ -220,67 +167,13 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
             </div>
           ) : (
             <>
-              {(() => {
-                const filteredMessages = messages.filter(m => m.content || m.role === 'user');
-                const hasAgenticSteps = agenticMode && showChainOfThought && chainOfThoughtSteps.length > 0;
-                
-                // Find the last assistant message index that follows a user message
-                // (not the welcome message which has no user message before it)
-                let lastAssistantIndex = -1;
-                let hasUserMessage = false;
-                for (let i = 0; i < filteredMessages.length; i++) {
-                  if (filteredMessages[i].role === 'user') {
-                    hasUserMessage = true;
-                  } else if (filteredMessages[i].role === 'assistant' && hasUserMessage) {
-                    lastAssistantIndex = i;
-                  }
-                }
-                
-                return filteredMessages.map((message, index) => {
-                  // Show chain of thought ABOVE the last assistant message that follows a user message
-                  // Keep visible after completion so user can see the reasoning
-                  const showChainOfThoughtHere = hasAgenticSteps && 
-                    index === lastAssistantIndex && 
-                    message.role === 'assistant';
-                  
-                  return (
-                    <div key={message.id}>
-                      {showChainOfThoughtHere && (
-                        <AgenticSteps 
-                          steps={chainOfThoughtSteps} 
-                          status={chatStatus} 
-                          isStreaming={isAgenticProcessing}
-                          isExpanded={isChainOfThoughtExpanded}
-                          onToggleExpanded={() => setIsChainOfThoughtExpanded(!isChainOfThoughtExpanded)}
-                        />
-                      )}
-                      <Message message={message} />
-                    </div>
-                  );
-                });
-              })()}
+              {messages.filter(m => m.content || m.role === 'user').map((message) => (
+                <Message key={message.id} message={message} />
+              ))}
               
-              {/* Show chain of thought when waiting for response (before assistant message has content) */}
-              {agenticMode && showChainOfThought && chainOfThoughtSteps.length > 0 && 
-               (isLoading || chatStatus.status !== 'idle') && 
-               (messages[messages.length - 1]?.role !== 'assistant' || !messages[messages.length - 1]?.content) && (
-                <AgenticSteps 
-                  steps={chainOfThoughtSteps} 
-                  status={chatStatus} 
-                  isStreaming={true}
-                  isExpanded={isChainOfThoughtExpanded}
-                  onToggleExpanded={() => setIsChainOfThoughtExpanded(!isChainOfThoughtExpanded)}
-                />
-              )}
-              
-              {/* Show compact status indicator when chain of thought is not shown */}
-              {(isLoading || chatStatus.status !== 'idle') && chatStatus.status !== 'streaming' && 
-               !(agenticMode && showChainOfThought && chainOfThoughtSteps.length > 0) && (
-                agenticMode ? (
-                  <AgenticStatus status={chatStatus} />
-                ) : (
-                  <StatusIndicator status={chatStatus} />
-                )
+              {/* Show status indicator when loading/searching */}
+              {(isLoading || chatStatus.status !== 'idle') && chatStatus.status !== 'streaming' && (
+                <StatusIndicator status={chatStatus} />
               )}
             </>
           )}

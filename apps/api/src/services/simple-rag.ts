@@ -46,12 +46,15 @@ interface RetrievedChunk {
 interface AgentConfig {
   systemPrompt: string;
   modelConfigId: string | null;
-  topK: number;
+  candidateK: number;      // How many chunks to retrieve from vector search
+  topK: number;            // How many chunks to include in LLM prompt
+  maxCitations: number;    // How many sources to show in UI
   similarityThreshold: number;
   kbIds: string[];
 }
 
 export type StreamEvent =
+  | { type: "status"; status: string; message: string; sourceCount?: number }
   | { type: "text"; content: string }
   | { type: "sources"; sources: Source[] }
   | { type: "done"; conversationId: string }
@@ -107,6 +110,16 @@ export class SimpleRAGService {
       const chunks = await this.searchKnowledge(message);
       retrievedChunksCount = chunks.length;
 
+      // 5b. Emit status with source count
+      yield {
+        type: "status",
+        status: "generating",
+        message: chunks.length > 0
+          ? `Found ${chunks.length} sources. Generating response...`
+          : "No relevant sources found. Generating response...",
+        sourceCount: chunks.length,
+      };
+
       // 6. Build system prompt with context
       const systemPrompt = this.buildSystemPrompt(chunks);
 
@@ -159,14 +172,17 @@ export class SimpleRAGService {
         status: "ok",
       });
 
-      // 13. Build and yield sources
-      const sources: Source[] = chunks.map((chunk, i) => ({
+      // 13. Build and yield sources (limited by maxCitations for UI display)
+      const allSources: Source[] = chunks.map((chunk, i) => ({
         id: chunk.id,
         title: chunk.title || "Untitled",
         url: chunk.url,
         snippet: chunk.content.slice(0, 200),
         index: i + 1,
       }));
+      
+      // Only show maxCitations in the UI
+      const sources = allSources.slice(0, this.config!.maxCitations);
 
       yield { type: "sources", sources };
       yield { type: "done", conversationId: convId };
@@ -224,7 +240,9 @@ export class SimpleRAGService {
     this.config = {
       systemPrompt: agent.systemPrompt,
       modelConfigId: agent.llmModelConfigId,
-      topK: retrievalConfig?.topK || 5,
+      candidateK: retrievalConfig?.candidateK || 40,
+      topK: retrievalConfig?.topK || 8,
+      maxCitations: retrievalConfig?.maxCitations || 3,
       similarityThreshold: retrievalConfig?.similarityThreshold || 0.5,
       kbIds: attachedKbs.map((kb) => kb.kbId),
     };
@@ -248,10 +266,11 @@ export class SimpleRAGService {
       return [];
     }
 
+    // 1. Search with candidateK to get a broader pool
     const searchResults = await vectorStore.search(embedding, {
       tenantId: this.tenantId,
       kbIds: this.config.kbIds,
-      topK: this.config.topK,
+      topK: this.config.candidateK,
       minScore: this.config.similarityThreshold,
     });
 
@@ -259,8 +278,11 @@ export class SimpleRAGService {
       return [];
     }
 
+    // 2. Take only topK results for LLM context
+    const topResults = searchResults.slice(0, this.config.topK);
+
     // Get chunk details from database
-    const chunkIds = searchResults.map((r) => r.id);
+    const chunkIds = topResults.map((r) => r.id);
     const chunks = await db.query.kbChunks.findMany({
       where: and(
         inArray(kbChunks.id, chunkIds),
@@ -273,7 +295,7 @@ export class SimpleRAGService {
 
     // Combine search results with chunk data, maintaining score order
     const retrieved: RetrievedChunk[] = [];
-    for (const result of searchResults) {
+    for (const result of topResults) {
       const chunk = chunkMap.get(result.id);
       if (chunk) {
         retrieved.push({

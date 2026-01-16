@@ -17,11 +17,6 @@ export interface WidgetTheme {
   customIconSize?: number; // Icon size in pixels (default based on button size)
 }
 
-export interface AgenticModeConfig {
-  enabled: boolean;
-  showChainOfThought: boolean;
-}
-
 export interface WidgetConfig {
   agentName: string;
   description?: string;
@@ -29,19 +24,6 @@ export interface WidgetConfig {
   logoUrl?: string | null;
   theme?: WidgetTheme;
   isPublic: boolean;
-  agenticMode?: AgenticModeConfig;
-}
-
-// Chain of thought types
-export interface ChainOfThoughtStep {
-  type: 'thinking' | 'searching' | 'tool_call' | 'tool_result' | 'answering';
-  content: string;
-  toolName?: string;
-  toolArgs?: Record<string, unknown>;
-  toolResult?: unknown;
-  kbId?: string;
-  kbName?: string;
-  timestamp: number;
 }
 
 export interface Citation {
@@ -59,7 +41,6 @@ export interface ChatMessage {
   citations?: Citation[];
   timestamp: number;
   isStreaming?: boolean;
-  chainOfThought?: ChainOfThoughtStep[];
 }
 
 export interface WidgetState {

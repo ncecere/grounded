@@ -16,7 +16,6 @@ export interface RetrievalConfig {
   candidateK: number;
   topK: number;
   maxCitations: number;
-  rerankerEnabled: boolean;
   similarityThreshold: number;
 }
 
@@ -58,7 +57,6 @@ export const defaultRetrievalConfig: RetrievalConfig = {
   candidateK: 40,
   topK: 8,
   maxCitations: 3,
-  rerankerEnabled: true,
   similarityThreshold: 0.5,
 };
 

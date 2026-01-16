@@ -2,13 +2,31 @@ import { defineConfig } from 'vite';
 import preact from '@preact/preset-vite';
 import { resolve } from 'path';
 
+// Get build target from env or default to 'widget'
+const buildTarget = process.env.BUILD_TARGET || 'widget';
+
+const configs = {
+  widget: {
+    entry: resolve(__dirname, 'src/index.tsx'),
+    name: 'GroundedWidget',
+    fileName: () => 'widget.js',
+  },
+  'published-chat': {
+    entry: resolve(__dirname, 'src/published-chat.tsx'),
+    name: 'GroundedChat',
+    fileName: () => 'published-chat.js',
+  },
+};
+
+const config = configs[buildTarget as keyof typeof configs] || configs.widget;
+
 export default defineConfig({
   plugins: [preact()],
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.tsx'),
-      name: 'GroundedWidget',
-      fileName: () => 'widget.js',
+      entry: config.entry,
+      name: config.name,
+      fileName: config.fileName,
       formats: ['iife'],
     },
     rollupOptions: {
