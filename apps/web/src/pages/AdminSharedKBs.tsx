@@ -1,7 +1,18 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type SharedKnowledgeBase } from "../lib/api";
-import { Globe, GlobeLock, Share2, Plus, Trash2, X, FileText, Database, Users, Eye, EyeOff } from "lucide-react";
+import {
+  Globe,
+  GlobeLock,
+  Share2,
+  Plus,
+  Trash2,
+  FileText,
+  Database,
+  Users,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -9,6 +20,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
+import { InfoBox } from "@/components/ui/info-box";
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface AdminSharedKBsProps {
   onSelectKb?: (id: string) => void;
@@ -17,6 +53,7 @@ interface AdminSharedKBsProps {
 export function AdminSharedKBs({ onSelectKb }: AdminSharedKBsProps) {
   const [selectedKb, setSelectedKb] = useState<SharedKnowledgeBase | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [kbToDelete, setKbToDelete] = useState<SharedKnowledgeBase | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -28,6 +65,7 @@ export function AdminSharedKBs({ onSelectKb }: AdminSharedKBsProps) {
     mutationFn: api.deleteSharedKb,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-shared-kbs"] });
+      setKbToDelete(null);
     },
   });
 
@@ -48,197 +86,213 @@ export function AdminSharedKBs({ onSelectKb }: AdminSharedKBsProps) {
   if (isLoading) {
     return (
       <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-48"></div>
-          <div className="h-64 bg-gray-200 rounded-lg"></div>
-        </div>
+        <LoadingSkeleton variant="page" />
       </div>
     );
   }
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Shared Knowledge Bases</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Create and manage global knowledge bases that can be shared with all tenants or specific tenants.
-          </p>
-        </div>
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Create Global KB
-        </button>
-      </div>
+      <PageHeader
+        title="Shared Knowledge Bases"
+        description="Create and manage global knowledge bases that can be shared with all tenants or specific tenants."
+        actions={
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Global KB
+          </Button>
+        }
+      />
 
       {/* Info Box */}
-      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h3 className="text-sm font-medium text-blue-900 mb-1">How Sharing Works</h3>
-        <p className="text-sm text-blue-700">
-          <strong>Published</strong> knowledge bases are visible to <strong>all tenants</strong> automatically.
-          You can also share unpublished KBs with <strong>specific tenants</strong> for selective access.
-          Shared KBs are read-only for tenants - they can use them in their agents but cannot modify them.
-        </p>
-      </div>
+      <InfoBox title="How Sharing Works" className="mb-6">
+        <strong>Published</strong> knowledge bases are visible to <strong>all tenants</strong> automatically.
+        You can also share unpublished KBs with <strong>specific tenants</strong> for selective access.
+        Shared KBs are read-only for tenants - they can use them in their agents but cannot modify them.
+      </InfoBox>
 
       {/* Knowledge Bases Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Content
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Shared With
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Created
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {data?.knowledgeBases.map((kb) => (
-              <tr key={kb.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">
-                  <button
-                    onClick={() => onSelectKb?.(kb.id)}
-                    className="text-left group"
-                  >
-                    <div className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
-                      {kb.name}
-                    </div>
-                    {kb.description && (
-                      <div className="text-xs text-gray-500 truncate max-w-xs">{kb.description}</div>
-                    )}
-                  </button>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {kb.isPublished ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded">
-                      <Globe className="w-3 h-3" />
-                      Published (All Tenants)
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded">
-                      <GlobeLock className="w-3 h-3" />
-                      Unpublished
-                    </span>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-3 text-sm text-gray-500">
-                    <span className="inline-flex items-center gap-1" title="Sources">
-                      <FileText className="w-4 h-4" />
-                      {kb.sourceCount}
-                    </span>
-                    <span className="inline-flex items-center gap-1" title="Chunks">
-                      <Database className="w-4 h-4" />
-                      {kb.chunkCount}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {kb.isPublished ? (
-                    <span className="text-sm text-green-600">All tenants</span>
-                  ) : kb.shareCount > 0 ? (
-                    <span className="inline-flex items-center gap-1 text-sm text-blue-600">
-                      <Users className="w-4 h-4" />
-                      {kb.shareCount} tenant{kb.shareCount !== 1 ? "s" : ""}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-gray-400">No one</span>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <div>{new Date(kb.createdAt).toLocaleDateString()}</div>
-                  {kb.creatorEmail && (
-                    <div className="text-xs text-gray-400">{kb.creatorEmail}</div>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                  <div className="flex items-center justify-end gap-2">
+      {(!data?.knowledgeBases || data.knowledgeBases.length === 0) ? (
+        <EmptyState
+          icon={Database}
+          title="No shared knowledge bases yet"
+          description="Create a global knowledge base to share with tenants."
+          action={{
+            label: "Create Global KB",
+            onClick: () => setIsCreateModalOpen(true),
+          }}
+        />
+      ) : (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead>Name</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Content</TableHead>
+                <TableHead>Shared With</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.knowledgeBases.map((kb) => (
+                <TableRow key={kb.id}>
+                  <TableCell>
                     <button
-                      onClick={() => setSelectedKb(kb)}
-                      className="text-blue-600 hover:text-blue-800"
-                      title="Manage sharing"
+                      onClick={() => onSelectKb?.(kb.id)}
+                      className="text-left group"
                     >
-                      <Share2 className="w-4 h-4" />
+                      <div className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                        {kb.name}
+                      </div>
+                      {kb.description && (
+                        <div className="text-xs text-muted-foreground truncate max-w-xs">{kb.description}</div>
+                      )}
                     </button>
+                  </TableCell>
+                  <TableCell>
                     {kb.isPublished ? (
-                      <button
-                        onClick={() => unpublishMutation.mutate(kb.id)}
-                        className="text-orange-600 hover:text-orange-800"
-                        title="Unpublish"
-                        disabled={unpublishMutation.isPending}
-                      >
-                        <EyeOff className="w-4 h-4" />
-                      </button>
+                      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-success/15 text-success rounded">
+                        <Globe className="w-3 h-3" />
+                        Published
+                      </span>
                     ) : (
-                      <button
-                        onClick={() => publishMutation.mutate(kb.id)}
-                        className="text-green-600 hover:text-green-800"
-                        title="Publish to all tenants"
-                        disabled={publishMutation.isPending}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
+                      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-muted text-muted-foreground rounded">
+                        <GlobeLock className="w-3 h-3" />
+                        Unpublished
+                      </span>
                     )}
-                    <button
-                      onClick={() => {
-                        if (confirm(`Delete "${kb.name}"? This cannot be undone.`)) {
-                          deleteMutation.mutate(kb.id);
-                        }
-                      }}
-                      className="text-red-600 hover:text-red-800"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {(!data?.knowledgeBases || data.knowledgeBases.length === 0) && (
-              <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                  No shared knowledge bases yet. Create one to get started.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <span className="inline-flex items-center gap-1" title="Sources">
+                        <FileText className="w-4 h-4" />
+                        {kb.sourceCount}
+                      </span>
+                      <span className="inline-flex items-center gap-1" title="Chunks">
+                        <Database className="w-4 h-4" />
+                        {kb.chunkCount}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {kb.isPublished ? (
+                      <span className="text-sm text-success">All tenants</span>
+                    ) : kb.shareCount > 0 ? (
+                      <span className="inline-flex items-center gap-1 text-sm text-primary">
+                        <Users className="w-4 h-4" />
+                        {kb.shareCount} tenant{kb.shareCount !== 1 ? "s" : ""}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground/60">No one</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm text-muted-foreground">
+                      {new Date(kb.createdAt).toLocaleDateString()}
+                    </div>
+                    {kb.creatorEmail && (
+                      <div className="text-xs text-muted-foreground/60">{kb.creatorEmail}</div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setSelectedKb(kb)}
+                        title="Manage sharing"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </Button>
+                      {kb.isPublished ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-warning"
+                          onClick={() => unpublishMutation.mutate(kb.id)}
+                          title="Unpublish"
+                          disabled={unpublishMutation.isPending}
+                        >
+                          <EyeOff className="w-4 h-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-success"
+                          onClick={() => publishMutation.mutate(kb.id)}
+                          title="Publish to all tenants"
+                          disabled={publishMutation.isPending}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => setKbToDelete(kb)}
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       {/* Create Modal */}
-      {isCreateModalOpen && (
-        <CreateKbModal onClose={() => setIsCreateModalOpen(false)} />
-      )}
+      <CreateKbModal
+        open={isCreateModalOpen}
+        onOpenChange={setIsCreateModalOpen}
+      />
 
       {/* Detail/Sharing Modal */}
       {selectedKb && (
         <KbDetailModal
           kbId={selectedKb.id}
-          onClose={() => setSelectedKb(null)}
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setSelectedKb(null);
+          }}
         />
       )}
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!kbToDelete}
+        onOpenChange={(open) => {
+          if (!open) setKbToDelete(null);
+        }}
+        title="Delete Knowledge Base"
+        description={`Are you sure you want to delete "${kbToDelete?.name}"? This will remove all sources and content. This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => {
+          if (kbToDelete) {
+            deleteMutation.mutate(kbToDelete.id);
+          }
+        }}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }
 
-function CreateKbModal({ onClose }: { onClose: () => void }) {
+function CreateKbModal({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedEmbeddingModelId, setSelectedEmbeddingModelId] = useState("");
@@ -251,6 +305,7 @@ function CreateKbModal({ onClose }: { onClose: () => void }) {
       const res = await api.listModels({ type: "embedding" });
       return res.models;
     },
+    enabled: open,
   });
   const embeddingModels = modelsData || [];
 
@@ -258,7 +313,10 @@ function CreateKbModal({ onClose }: { onClose: () => void }) {
     mutationFn: api.createSharedKb,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-shared-kbs"] });
-      onClose();
+      onOpenChange(false);
+      setName("");
+      setDescription("");
+      setSelectedEmbeddingModelId("");
     },
   });
 
@@ -272,50 +330,39 @@ function CreateKbModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Create Global Knowledge Base</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create Global Knowledge Base</DialogTitle>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Name
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label>Name</Label>
+            <Input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
               placeholder="e.g., Company Policies"
               required
               maxLength={100}
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description (optional)
-            </label>
-            <textarea
+          <div className="space-y-2">
+            <Label>Description (optional)</Label>
+            <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
               placeholder="What is this knowledge base about?"
               rows={3}
               maxLength={500}
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Embedding Model
-            </label>
-            <p className="text-xs text-gray-500 mb-2">
+          <div className="space-y-2">
+            <Label>Embedding Model</Label>
+            <p className="text-xs text-muted-foreground">
               Select which embedding model to use for this knowledge base
             </p>
             <Select
@@ -339,52 +386,53 @@ function CreateKbModal({ onClose }: { onClose: () => void }) {
             </Select>
           </div>
 
-          <p className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
+          <p className="text-xs text-muted-foreground bg-muted p-3 rounded-lg">
             After creating, you can add sources and content. The KB will not be visible to any
             tenants until you publish it or share it with specific tenants.
           </p>
 
           {createMutation.error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">{createMutation.error.message}</p>
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <p className="text-sm text-destructive">{createMutation.error.message}</p>
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={createMutation.isPending || !name}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
+            </Button>
+            <Button type="submit" disabled={createMutation.isPending || !name}>
               {createMutation.isPending ? "Creating..." : "Create KB"}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
-function KbDetailModal({ kbId, onClose }: { kbId: string; onClose: () => void }) {
+function KbDetailModal({
+  kbId,
+  open,
+  onOpenChange,
+}: {
+  kbId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const [showTenantSelect, setShowTenantSelect] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: kbData, isLoading } = useQuery({
     queryKey: ["admin-shared-kb", kbId],
     queryFn: () => api.getSharedKb(kbId),
+    enabled: open,
   });
 
   const { data: tenantsData } = useQuery({
     queryKey: ["admin-shared-kb-tenants", kbId],
     queryFn: () => api.getAvailableTenants(kbId),
-    enabled: showTenantSelect,
+    enabled: open && showTenantSelect,
   });
 
   const shareMutation = useMutation({
@@ -409,39 +457,36 @@ function KbDetailModal({ kbId, onClose }: { kbId: string; onClose: () => void })
   const kb = kbData?.knowledgeBase;
 
   return (
-    <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Manage Sharing</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Manage Sharing</DialogTitle>
+        </DialogHeader>
 
         {isLoading ? (
-          <div className="animate-pulse space-y-3">
-            <div className="h-5 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-5 bg-gray-200 rounded w-1/2"></div>
+          <div className="space-y-3">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-5 w-1/2" />
           </div>
         ) : kb ? (
           <div className="space-y-4">
             {/* KB Info */}
             <div>
-              <h3 className="text-sm font-medium text-gray-900">{kb.name}</h3>
+              <h3 className="text-sm font-medium text-foreground">{kb.name}</h3>
               {kb.description && (
-                <p className="text-sm text-gray-500 mt-1">{kb.description}</p>
+                <p className="text-sm text-muted-foreground mt-1">{kb.description}</p>
               )}
             </div>
 
             {/* Status */}
-            <div className="p-3 bg-gray-50 rounded-lg">
+            <div className="p-3 bg-muted rounded-lg">
               {kb.isPublished ? (
-                <div className="flex items-center gap-2 text-green-700">
+                <div className="flex items-center gap-2 text-success">
                   <Globe className="w-4 h-4" />
                   <span className="text-sm font-medium">Published - visible to all tenants</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <GlobeLock className="w-4 h-4" />
                   <span className="text-sm font-medium">Unpublished - only shared tenants can access</span>
                 </div>
@@ -449,7 +494,7 @@ function KbDetailModal({ kbId, onClose }: { kbId: string; onClose: () => void })
             </div>
 
             {/* Stats */}
-            <div className="flex gap-4 text-sm text-gray-600">
+            <div className="flex gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <FileText className="w-4 h-4" />
                 {kb.sourceCount} source{kb.sourceCount !== 1 ? "s" : ""}
@@ -463,32 +508,32 @@ function KbDetailModal({ kbId, onClose }: { kbId: string; onClose: () => void })
             {/* Shared With Section */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-gray-500 uppercase">
+                <Label className="text-xs uppercase text-muted-foreground">
                   Specifically Shared With
-                </label>
+                </Label>
                 {!kb.isPublished && (
-                  <button
+                  <Button
+                    variant="link"
+                    size="sm"
                     onClick={() => setShowTenantSelect(!showTenantSelect)}
-                    className="text-xs text-blue-600 hover:text-blue-800"
+                    className="h-auto p-0"
                   >
                     {showTenantSelect ? "Cancel" : "+ Add Tenant"}
-                  </button>
+                  </Button>
                 )}
               </div>
 
               {kb.isPublished && (
-                <p className="text-sm text-gray-500 italic">
+                <p className="text-sm text-muted-foreground italic">
                   This KB is published and visible to all tenants. Unpublish to manage specific sharing.
                 </p>
               )}
 
               {!kb.isPublished && showTenantSelect && (
-                <div className="mb-3 p-3 bg-blue-50 rounded-lg">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select tenant to share with:
-                  </label>
+                <div className="mb-3 p-3 bg-primary/5 border border-primary/10 rounded-lg">
+                  <Label className="text-sm mb-2 block">Select tenant to share with:</Label>
                   <select
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
                     onChange={(e) => {
                       if (e.target.value) {
                         shareMutation.mutate(e.target.value);
@@ -507,7 +552,7 @@ function KbDetailModal({ kbId, onClose }: { kbId: string; onClose: () => void })
                       ))}
                   </select>
                   {shareMutation.error && (
-                    <p className="text-xs text-red-600 mt-1">{shareMutation.error.message}</p>
+                    <p className="text-xs text-destructive mt-1">{shareMutation.error.message}</p>
                   )}
                 </div>
               )}
@@ -517,42 +562,41 @@ function KbDetailModal({ kbId, onClose }: { kbId: string; onClose: () => void })
                   {kb.sharedWithTenants.map((tenant) => (
                     <div
                       key={tenant.id}
-                      className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                      className="flex items-center justify-between p-2 bg-muted rounded"
                     >
                       <div>
-                        <span className="text-sm font-medium text-gray-900">{tenant.name}</span>
-                        <span className="text-xs text-gray-500 ml-2">({tenant.slug})</span>
+                        <span className="text-sm font-medium text-foreground">{tenant.name}</span>
+                        <span className="text-xs text-muted-foreground ml-2">({tenant.slug})</span>
                       </div>
-                      <button
+                      <Button
+                        variant="link"
+                        size="sm"
                         onClick={() => unshareMutation.mutate(tenant.id)}
-                        className="text-red-600 hover:text-red-800 text-xs"
+                        className="text-destructive h-auto p-0"
                         disabled={unshareMutation.isPending}
                       >
                         Remove
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
               ) : !kb.isPublished ? (
-                <p className="text-sm text-gray-400 italic">
+                <p className="text-sm text-muted-foreground/60 italic">
                   Not shared with any specific tenants yet.
                 </p>
               ) : null}
             </div>
           </div>
         ) : (
-          <p className="text-gray-500">Knowledge base not found</p>
+          <p className="text-muted-foreground">Knowledge base not found</p>
         )}
 
-        <div className="flex justify-end mt-6">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

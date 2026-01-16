@@ -7,13 +7,13 @@ function StatusBadge({ ok, label }: { ok: boolean; label?: string }) {
     <span
       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
         ok
-          ? "bg-green-100 text-green-800"
-          : "bg-red-100 text-red-800"
+          ? "bg-primary/10 text-primary"
+          : "bg-destructive/10 text-destructive"
       }`}
     >
       <span
         className={`w-2 h-2 rounded-full ${
-          ok ? "bg-green-500" : "bg-red-500"
+          ok ? "bg-primary" : "bg-destructive"
         }`}
       />
       {label || (ok ? "Healthy" : "Unhealthy")}
@@ -36,18 +36,18 @@ function HealthCard({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
+    <div className="bg-card rounded-lg border border-border p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        <h3 className="text-lg font-semibold text-card-foreground">{title}</h3>
         <StatusBadge ok={ok} />
       </div>
       {latencyMs !== undefined && (
-        <p className="text-sm text-gray-500 mb-2">
-          Latency: <span className="font-medium">{latencyMs}ms</span>
+        <p className="text-sm text-muted-foreground mb-2">
+          Latency: <span className="font-medium font-mono">{latencyMs}ms</span>
         </p>
       )}
       {message && (
-        <p className={`text-sm ${ok ? "text-gray-500" : "text-red-600"}`}>
+        <p className={`text-sm ${ok ? "text-muted-foreground" : "text-destructive"}`}>
           {message}
         </p>
       )}
@@ -69,12 +69,14 @@ function StatCard({
   subvalue?: number | string;
 }) {
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-5">
-      <p className="text-sm font-medium text-gray-500 mb-1">{label}</p>
-      <p className="text-2xl font-bold text-gray-900">{value.toLocaleString()}</p>
+    <div className="bg-card rounded-lg border border-border p-5">
+      <p className="text-sm font-medium text-muted-foreground mb-1">{label}</p>
+      <p className="text-2xl font-bold text-card-foreground font-mono tabular-nums">
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </p>
       {sublabel && (
-        <p className="text-xs text-gray-400 mt-1">
-          {sublabel}: {typeof subvalue === "number" ? subvalue.toLocaleString() : subvalue}
+        <p className="text-xs text-muted-foreground/70 mt-1">
+          {sublabel}: <span className="font-mono">{typeof subvalue === "number" ? subvalue.toLocaleString() : subvalue}</span>
         </p>
       )}
     </div>
@@ -111,8 +113,8 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">System Dashboard</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-foreground">System Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
             Monitor system health and usage statistics
           </p>
         </div>
@@ -122,19 +124,19 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
           <div
             className={`mb-8 p-4 rounded-lg border ${
               overallHealthy
-                ? "bg-green-50 border-green-200"
-                : "bg-red-50 border-red-200"
+                ? "bg-primary/5 border-primary/20"
+                : "bg-destructive/5 border-destructive/20"
             }`}
           >
             <div className="flex items-center gap-3">
               <div
                 className={`w-3 h-3 rounded-full ${
-                  overallHealthy ? "bg-green-500" : "bg-red-500"
+                  overallHealthy ? "bg-primary" : "bg-destructive"
                 }`}
               />
               <span
                 className={`font-medium ${
-                  overallHealthy ? "text-green-800" : "text-red-800"
+                  overallHealthy ? "text-primary" : "text-destructive"
                 }`}
               >
                 {overallHealthy
@@ -147,7 +149,7 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
 
         {/* Health Status Section */}
         <section className="mb-10">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <h2 className="text-lg font-semibold text-foreground mb-4">
             System Health
           </h2>
           {healthLoading ? (
@@ -155,15 +157,15 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-lg border border-gray-200 p-6 animate-pulse"
+                  className="bg-card rounded-lg border border-border p-6 animate-pulse"
                 >
-                  <div className="h-6 bg-gray-200 rounded w-1/2 mb-4" />
-                  <div className="h-4 bg-gray-200 rounded w-3/4" />
+                  <div className="h-6 bg-muted rounded w-1/2 mb-4" />
+                  <div className="h-4 bg-muted rounded w-3/4" />
                 </div>
               ))}
             </div>
           ) : healthError ? (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-destructive">
               Failed to load health status
             </div>
           ) : health ? (
@@ -184,13 +186,13 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
                 message={health.vectorStore.message}
               >
                 {health.vectorStore.configured && health.vectorStore.type && (
-                  <p className="text-sm text-gray-500 mt-2">
+                  <p className="text-sm text-muted-foreground mt-2">
                     Type: <span className="font-medium">{health.vectorStore.type}</span>
                   </p>
                 )}
                 {health.vectorStore.vectorCount !== undefined && (
-                  <p className="text-sm text-gray-500">
-                    Vectors: <span className="font-medium">{health.vectorStore.vectorCount.toLocaleString()}</span>
+                  <p className="text-sm text-muted-foreground">
+                    Vectors: <span className="font-medium font-mono">{health.vectorStore.vectorCount.toLocaleString()}</span>
                   </p>
                 )}
               </HealthCard>
@@ -205,20 +207,20 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
                   <div className="flex items-center gap-2">
                     <span
                       className={`w-2 h-2 rounded-full ${
-                        health.aiProviders.hasChatModel ? "bg-green-500" : "bg-red-500"
+                        health.aiProviders.hasChatModel ? "bg-primary" : "bg-destructive"
                       }`}
                     />
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-muted-foreground">
                       Chat Model: {health.aiProviders.hasChatModel ? "Configured" : "Not configured"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span
                       className={`w-2 h-2 rounded-full ${
-                        health.aiProviders.hasEmbeddingModel ? "bg-green-500" : "bg-red-500"
+                        health.aiProviders.hasEmbeddingModel ? "bg-primary" : "bg-destructive"
                       }`}
                     />
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-muted-foreground">
                       Embedding Model: {health.aiProviders.hasEmbeddingModel ? "Configured" : "Not configured"}
                     </span>
                   </div>
@@ -230,7 +232,7 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
 
         {/* Usage Stats Section */}
         <section>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <h2 className="text-lg font-semibold text-foreground mb-4">
             Usage Statistics
           </h2>
           {statsLoading ? (
@@ -238,10 +240,10 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
               {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-lg border border-gray-200 p-5 animate-pulse"
+                  className="bg-card rounded-lg border border-border p-5 animate-pulse"
                 >
-                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-2" />
-                  <div className="h-8 bg-gray-200 rounded w-3/4" />
+                  <div className="h-4 bg-muted rounded w-1/2 mb-2" />
+                  <div className="h-8 bg-muted rounded w-3/4" />
                 </div>
               ))}
             </div>
@@ -266,34 +268,34 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
 
         {/* Quick Links */}
         <section className="mt-10">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <h2 className="text-lg font-semibold text-foreground mb-4">
             Quick Links
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               onClick={() => onNavigate("models")}
-              className="block text-left bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-xs transition-all"
+              className="block text-left bg-card rounded-lg border border-border p-4 hover:border-primary/50 hover:shadow-sm transition-all"
             >
-              <h3 className="font-medium text-gray-900">AI Models</h3>
-              <p className="text-sm text-gray-500 mt-1">
+              <h3 className="font-medium text-card-foreground">AI Models</h3>
+              <p className="text-sm text-muted-foreground mt-1">
                 Configure LLM and embedding providers
               </p>
             </button>
             <button
               onClick={() => onNavigate("settings")}
-              className="block text-left bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-xs transition-all"
+              className="block text-left bg-card rounded-lg border border-border p-4 hover:border-primary/50 hover:shadow-sm transition-all"
             >
-              <h3 className="font-medium text-gray-900">System Settings</h3>
-              <p className="text-sm text-gray-500 mt-1">
+              <h3 className="font-medium text-card-foreground">System Settings</h3>
+              <p className="text-sm text-muted-foreground mt-1">
                 Manage authentication and quotas
               </p>
             </button>
             <button
               onClick={() => onNavigate("users")}
-              className="block text-left bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-xs transition-all"
+              className="block text-left bg-card rounded-lg border border-border p-4 hover:border-primary/50 hover:shadow-sm transition-all"
             >
-              <h3 className="font-medium text-gray-900">User Management</h3>
-              <p className="text-sm text-gray-500 mt-1">
+              <h3 className="font-medium text-card-foreground">User Management</h3>
+              <p className="text-sm text-muted-foreground mt-1">
                 Manage users and system admins
               </p>
             </button>

@@ -8,7 +8,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
-import { ArrowLeft, Plus, Play, RefreshCw, Pencil, Trash2, X, Globe, GlobeLock } from "lucide-react";
+import { Plus, Play, RefreshCw, Pencil, Trash2, X, Globe, GlobeLock, Database } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 
 interface AdminSharedKbSourcesProps {
   kbId: string;
@@ -206,33 +210,26 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
     switch (status) {
       case "active":
       case "succeeded":
-        return "bg-green-100 text-green-700";
+        return "bg-green-500/15 text-green-700 dark:text-green-400";
       case "paused":
       case "pending":
-        return "bg-yellow-100 text-yellow-700";
+        return "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400";
       case "error":
       case "failed":
       case "canceled":
-        return "bg-red-100 text-red-700";
+        return "bg-red-500/15 text-red-700 dark:text-red-400";
       case "running":
       case "partial":
-        return "bg-blue-100 text-blue-700";
+        return "bg-blue-500/15 text-blue-700 dark:text-blue-400";
       default:
-        return "bg-gray-100 text-gray-700";
+        return "bg-muted text-muted-foreground";
     }
   };
 
   if (isLoading) {
     return (
       <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-48"></div>
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 bg-gray-200 rounded-lg"></div>
-            ))}
-          </div>
-        </div>
+        <LoadingSkeleton variant="table" count={3} />
       </div>
     );
   }
@@ -246,24 +243,24 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
         <div
           className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 transition-all ${
             notification.type === "success"
-              ? "bg-green-50 text-green-800 border border-green-200"
+              ? "bg-green-500/15 text-green-800 dark:text-green-300 border border-green-500/30"
               : notification.type === "error"
-              ? "bg-red-50 text-red-800 border border-red-200"
-              : "bg-blue-50 text-blue-800 border border-blue-200"
+              ? "bg-red-500/15 text-red-800 dark:text-red-300 border border-red-500/30"
+              : "bg-blue-500/15 text-blue-800 dark:text-blue-300 border border-blue-500/30"
           }`}
         >
           {notification.type === "success" && (
-            <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           )}
           {notification.type === "error" && (
-            <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           )}
           {notification.type === "info" && (
-            <svg className="w-5 h-5 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -271,7 +268,7 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
           <span className="text-sm font-medium">{notification.message}</span>
           <button
             onClick={() => setNotification(null)}
-            className="ml-2 text-gray-400 hover:text-gray-600"
+            className="ml-2 text-muted-foreground hover:text-foreground"
           >
             <X className="w-4 h-4" />
           </button>
@@ -279,77 +276,69 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
       )}
 
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <button
-          onClick={onBack}
-          className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div className="flex-1">
+      <PageHeader
+        title={
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-gray-900">{kbData?.name}</h1>
+            <span>{kbData?.name}</span>
             {kbData?.isPublished ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-green-500/15 text-green-700 dark:text-green-400 rounded">
                 <Globe className="w-3 h-3" />
                 Published
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground rounded">
                 <GlobeLock className="w-3 h-3" />
                 Unpublished
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-500">Manage sources for this shared knowledge base</p>
-        </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Add Source
-        </button>
-      </div>
+        }
+        description="Manage sources for this shared knowledge base"
+        backButton={{ onClick: onBack }}
+        actions={
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Plus className="w-5 h-5 mr-2" />
+            Add Source
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Sources List */}
         <div className="lg:col-span-2 space-y-3">
           {sources && sources.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-              <svg className="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-              </svg>
-              <h3 className="mt-4 text-lg font-medium text-gray-900">No sources yet</h3>
-              <p className="mt-2 text-sm text-gray-500">Add a web source to start indexing content</p>
-            </div>
+            <EmptyState
+              icon={Database}
+              title="No sources yet"
+              description="Add a web source to start indexing content"
+            />
           ) : (
             sources?.map((source) => (
               <div
                 key={source.id}
                 onClick={() => setSelectedSource(source)}
-                className={`bg-white rounded-lg border p-4 cursor-pointer transition-all ${
+                className={`bg-card rounded-lg border p-4 cursor-pointer transition-all ${
                   selectedSource?.id === source.id
-                    ? "border-blue-500 ring-2 ring-blue-100"
-                    : "border-gray-200 hover:border-gray-300"
+                    ? "border-primary ring-2 ring-primary/20"
+                    : "border-border hover:border-muted-foreground/30"
                 }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-gray-900">{source.name}</h3>
+                      <h3 className="font-medium text-foreground">{source.name}</h3>
                       <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(source.status)}`}>
                         {source.status}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       Type: {source.type}
                       {source.type === "web" && typeof source.config.url === "string" && (
                         <> | {source.config.url}</>
                       )}
                     </p>
                     {selectedSource?.id === source.id && sourceStats && (
-                      <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+                      <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -372,7 +361,7 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
                         triggerRunMutation.mutate({ sourceId: source.id });
                       }}
                       disabled={triggerRunMutation.isPending}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
                       title="Run Now"
                     >
                       <Play className="w-5 h-5" />
@@ -383,7 +372,7 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
                         triggerRunMutation.mutate({ sourceId: source.id, forceReindex: true });
                       }}
                       disabled={triggerRunMutation.isPending}
-                      className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                      className="p-2 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 rounded-lg transition-colors"
                       title="Force Re-index (ignore cache)"
                     >
                       <RefreshCw className="w-5 h-5" />
@@ -393,7 +382,7 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
                         e.stopPropagation();
                         openEditModal(source);
                       }}
-                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                      className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                       title="Edit Source"
                     >
                       <Pencil className="w-5 h-5" />
@@ -405,7 +394,7 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
                           deleteMutation.mutate(source.id);
                         }
                       }}
-                      className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                      className="p-2 text-muted-foreground hover:text-destructive transition-colors"
                       title="Delete Source"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -413,7 +402,7 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
                   </div>
                 </div>
                 {selectedSource?.id === source.id && runs && runs[0]?.status === "running" ? (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-blue-600">
+                  <div className="mt-2 flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -421,14 +410,14 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
                     <span>Scraping in progress...</span>
                   </div>
                 ) : selectedSource?.id === source.id && runs && runs[0]?.status === "pending" ? (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-yellow-600">
+                  <div className="mt-2 flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span>Queued, starting soon...</span>
                   </div>
                 ) : source.lastRunAt ? (
-                  <p className="mt-2 text-xs text-gray-400">
+                  <p className="mt-2 text-xs text-muted-foreground">
                     Last scraped: {new Date(source.lastRunAt).toLocaleString()}
                   </p>
                 ) : null}
@@ -438,65 +427,65 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
         </div>
 
         {/* Run History Panel */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h3 className="font-medium text-gray-900 mb-4">Run History</h3>
+        <div className="bg-card rounded-lg border border-border p-4">
+          <h3 className="font-medium text-foreground mb-4">Run History</h3>
           {selectedSource ? (
             runs && runs.length > 0 ? (
               <div className="space-y-3">
                 {runs.map((run) => (
-                  <div key={run.id} className="p-3 bg-gray-50 rounded-lg">
+                  <div key={run.id} className="p-3 bg-muted rounded-lg">
                     <div className="flex items-center justify-between">
                       <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(run.status)}`}>
                         {run.status}
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-muted-foreground">
                         {run.startedAt ? new Date(run.startedAt).toLocaleString() : "Pending"}
                       </span>
                     </div>
-                    <div className="mt-2 text-sm text-gray-600">
+                    <div className="mt-2 text-sm text-muted-foreground">
                       <p>Pages seen: {run.stats?.pagesSeen ?? 0}</p>
                       <p>Pages indexed: {run.stats?.pagesIndexed ?? 0}</p>
                       {(run.stats?.pagesFailed ?? 0) > 0 && (
-                        <p className="text-red-600">Failed: {run.stats.pagesFailed}</p>
+                        <p className="text-red-600 dark:text-red-400">Failed: {run.stats.pagesFailed}</p>
                       )}
                     </div>
                     {run.error && (
-                      <p className="mt-2 text-xs text-red-500">{run.error}</p>
+                      <p className="mt-2 text-xs text-red-600 dark:text-red-400">{run.error}</p>
                     )}
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">No runs yet</p>
+              <p className="text-sm text-muted-foreground">No runs yet</p>
             )
           ) : (
-            <p className="text-sm text-gray-500">Select a source to view run history</p>
+            <p className="text-sm text-muted-foreground">Select a source to view run history</p>
           )}
         </div>
       </div>
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-card rounded-lg shadow-xl w-full max-w-md mx-4 border border-border">
             <form onSubmit={handleCreate}>
               <div className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900">Add Source</h2>
+                <h2 className="text-lg font-semibold text-foreground">Add Source</h2>
                 <div className="mt-4 space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Name</label>
+                    <label className="block text-sm font-medium text-foreground">Name</label>
                     <input
                       type="text"
                       value={newSource.name}
                       onChange={(e) => setNewSource({ ...newSource, name: e.target.value })}
-                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
                       placeholder="Documentation Site"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Crawl Mode</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Crawl Mode</label>
                     <Select
                       value={newSource.mode}
                       onValueChange={(value) => setNewSource({ ...newSource, mode: value as "single" | "list" | "sitemap" | "domain" })}
@@ -511,7 +500,7 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
                         <SelectItem value="domain">Crawl Domain</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {newSource.mode === "single" && "Scrape a single page only"}
                       {newSource.mode === "list" && "Scrape a specific list of URLs"}
                       {newSource.mode === "sitemap" && "Discover pages from a sitemap.xml"}
@@ -521,11 +510,11 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
 
                   {newSource.mode === "list" ? (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">URLs (one per line)</label>
+                      <label className="block text-sm font-medium text-foreground">URLs (one per line)</label>
                       <textarea
                         value={newSource.urls}
                         onChange={(e) => setNewSource({ ...newSource, urls: e.target.value })}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
                         placeholder={"https://docs.example.com/page1\nhttps://docs.example.com/page2\nhttps://docs.example.com/page3"}
                         rows={5}
                         required
@@ -533,7 +522,7 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
                     </div>
                   ) : (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">
+                      <label className="block text-sm font-medium text-foreground">
                         {newSource.mode === "single" && "URL"}
                         {newSource.mode === "sitemap" && "Sitemap URL"}
                         {newSource.mode === "domain" && "Starting URL"}
@@ -542,7 +531,7 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
                         type="url"
                         value={newSource.url}
                         onChange={(e) => setNewSource({ ...newSource, url: e.target.value })}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
                         placeholder={
                           newSource.mode === "sitemap"
                             ? "https://docs.example.com/sitemap.xml"
@@ -555,7 +544,7 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
 
                   {newSource.mode === "domain" && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Max Depth</label>
+                      <label className="block text-sm font-medium text-foreground mb-1">Max Depth</label>
                       <Select
                         value={String(newSource.depth)}
                         onValueChange={(value) => setNewSource({ ...newSource, depth: parseInt(value) })}
@@ -571,14 +560,14 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
                           <SelectItem value="10">10 levels</SelectItem>
                         </SelectContent>
                       </Select>
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         How many links deep to follow from the starting URL
                       </p>
                     </div>
                   )}
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Auto-Refresh Schedule</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Auto-Refresh Schedule</label>
                     <Select
                       value={newSource.schedule || "none"}
                       onValueChange={(value) => setNewSource({ ...newSource, schedule: value === "none" ? null : value as "daily" | "weekly" })}
@@ -592,27 +581,26 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
                         <SelectItem value="weekly">Weekly</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       Automatically re-scrape this source on a schedule
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
-                <button
+              <div className="px-6 py-4 bg-muted/50 rounded-b-lg flex justify-end gap-3 border-t border-border">
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                 >
                   {createMutation.isPending ? "Creating..." : "Create"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -621,24 +609,24 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
 
       {/* Edit Modal */}
       {showEditModal && editSource && (
-        <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-card rounded-lg shadow-xl w-full max-w-md mx-4 border border-border">
             <form onSubmit={handleEdit}>
               <div className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900">Edit Source</h2>
+                <h2 className="text-lg font-semibold text-foreground">Edit Source</h2>
                 <div className="mt-4 space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Name</label>
+                    <label className="block text-sm font-medium text-foreground">Name</label>
                     <input
                       type="text"
                       value={editSource.name}
                       onChange={(e) => setEditSource({ ...editSource, name: e.target.value })}
-                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Max Depth</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Max Depth</label>
                     <Select
                       value={String(editSource.depth)}
                       onValueChange={(value) => setEditSource({ ...editSource, depth: parseInt(value) })}
@@ -656,7 +644,7 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
                     </Select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Auto-Refresh Schedule</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Auto-Refresh Schedule</label>
                     <Select
                       value={editSource.schedule || "none"}
                       onValueChange={(value) => setEditSource({ ...editSource, schedule: value === "none" ? null : value as "daily" | "weekly" })}
@@ -670,30 +658,29 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
                         <SelectItem value="weekly">Weekly</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       Automatically re-scrape this source on a schedule
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
-                <button
+              <div className="px-6 py-4 bg-muted/50 rounded-b-lg flex justify-end gap-3 border-t border-border">
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={() => {
                     setShowEditModal(false);
                     setEditSource(null);
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                 >
                   {updateMutation.isPending ? "Saving..." : "Save Changes"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

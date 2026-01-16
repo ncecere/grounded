@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* Google Fonts - DM Sans (display) and IBM Plex Mono (code) */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
 @plugin 'tailwindcss-animate';
 @plugin '@tailwindcss/typography';
 
@@ -56,6 +59,11 @@
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
 }
 
 /*
@@ -77,10 +85,6 @@
 }
 
 @layer utilities {
-  body {
-    @apply bg-gray-50 text-gray-900 antialiased;
-  }
-
   /* Modal/dialog overlay with semi-transparent background */
   .overlay-dim {
     background-color: rgba(0, 0, 0, 0.5);
@@ -91,139 +95,117 @@
 
 @layer base {
   :root {
+    /* Typography */
+    --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SF Mono', Monaco, monospace;
 
-    --background: 0 0% 100%;
-
-    --foreground: 0 0% 3.9%;
+    /* Light Theme - Professional with Teal Accent */
+    --background: 210 20% 98%;
+    --foreground: 215 25% 12%;
 
     --card: 0 0% 100%;
-
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 215 25% 12%;
 
     --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 12%;
 
-    --popover-foreground: 0 0% 3.9%;
+    --primary: 175 70% 38%;
+    --primary-foreground: 0 0% 100%;
 
-    --primary: 0 0% 9%;
+    --secondary: 215 20% 96%;
+    --secondary-foreground: 215 25% 12%;
 
-    --primary-foreground: 0 0% 98%;
+    --muted: 215 20% 96%;
+    --muted-foreground: 215 15% 45%;
 
-    --secondary: 0 0% 96.1%;
+    --accent: 175 60% 95%;
+    --accent-foreground: 175 70% 25%;
 
-    --secondary-foreground: 0 0% 9%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --muted: 0 0% 96.1%;
+    --border: 215 20% 91%;
+    --input: 215 20% 91%;
+    --ring: 175 70% 38%;
 
-    --muted-foreground: 0 0% 45.1%;
+    /* Chart colors - Teal-focused palette */
+    --chart-1: 175 70% 38%;
+    --chart-2: 199 89% 48%;
+    --chart-3: 215 25% 27%;
+    --chart-4: 43 96% 56%;
+    --chart-5: 0 72% 51%;
 
-    --accent: 0 0% 96.1%;
+    --radius: 0.5rem;
 
-    --accent-foreground: 0 0% 9%;
+    /* Status colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 10%;
 
-    --destructive: 0 84.2% 60.2%;
-
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 0 0% 89.8%;
-
-    --input: 0 0% 89.8%;
-
-    --ring: 0 0% 3.9%;
-
-    --chart-1: 12 76% 61%;
-
-    --chart-2: 173 58% 39%;
-
-    --chart-3: 197 37% 24%;
-
-    --chart-4: 43 74% 66%;
-
-    --chart-5: 27 87% 67%;
-
-    --radius: 0.5rem
-  ;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%}
-  .dark {
-
-    --background: 0 0% 3.9%;
-
-    --foreground: 0 0% 98%;
-
-    --card: 0 0% 3.9%;
-
-    --card-foreground: 0 0% 98%;
-
-    --popover: 0 0% 3.9%;
-
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 0 0% 98%;
-
-    --primary-foreground: 0 0% 9%;
-
-    --secondary: 0 0% 14.9%;
-
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 0 0% 14.9%;
-
-    --muted-foreground: 0 0% 63.9%;
-
-    --accent: 0 0% 14.9%;
-
-    --accent-foreground: 0 0% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 0 0% 14.9%;
-
-    --input: 0 0% 14.9%;
-
-    --ring: 0 0% 83.1%;
-
-    --chart-1: 220 70% 50%;
-
-    --chart-2: 160 60% 45%;
-
-    --chart-3: 30 80% 55%;
-
-    --chart-4: 280 65% 60%;
-
-    --chart-5: 340 75% 55%
-  ;
-
-    --sidebar-background: 240 5.9% 10%;
-
-    --sidebar-foreground: 240 4.8% 95.9%;
-
-    --sidebar-primary: 224.3 76.3% 48%;
-
+    /* Sidebar - Subtle teal tint */
+    --sidebar-background: 175 15% 98%;
+    --sidebar-foreground: 215 25% 25%;
+    --sidebar-primary: 175 70% 38%;
     --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 175 30% 95%;
+    --sidebar-accent-foreground: 215 25% 12%;
+    --sidebar-border: 215 20% 91%;
+    --sidebar-ring: 175 70% 38%;
+  }
+  .dark {
+    /* Dark Theme - True dark with Teal Accent */
+    --background: 215 25% 7%;
+    --foreground: 210 20% 95%;
 
-    --sidebar-accent: 240 3.7% 15.9%;
+    --card: 215 25% 10%;
+    --card-foreground: 210 20% 95%;
 
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --popover: 215 25% 10%;
+    --popover-foreground: 210 20% 95%;
 
-    --sidebar-border: 240 3.7% 15.9%;
+    --primary: 175 70% 50%;
+    --primary-foreground: 215 25% 7%;
 
-    --sidebar-ring: 217.2 91.2% 59.8%}
+    --secondary: 215 20% 15%;
+    --secondary-foreground: 210 20% 95%;
+
+    --muted: 215 20% 15%;
+    --muted-foreground: 215 15% 60%;
+
+    --accent: 175 50% 15%;
+    --accent-foreground: 175 70% 70%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 20% 18%;
+    --input: 215 20% 18%;
+    --ring: 175 70% 50%;
+
+    /* Chart colors - Brighter for dark mode */
+    --chart-1: 175 70% 50%;
+    --chart-2: 199 89% 55%;
+    --chart-3: 215 40% 60%;
+    --chart-4: 43 96% 65%;
+    --chart-5: 0 72% 60%;
+
+    /* Status colors - Dark mode */
+    --success: 142 76% 45%;
+    --success-foreground: 142 76% 10%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 38 92% 10%;
+
+    /* Sidebar - Dark with teal accents */
+    --sidebar-background: 215 25% 8%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 175 70% 50%;
+    --sidebar-primary-foreground: 215 25% 7%;
+    --sidebar-accent: 175 30% 15%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 215 20% 15%;
+    --sidebar-ring: 175 70% 50%;
+  }
 }
 
 
@@ -232,22 +214,59 @@
   * {
     @apply border-border;
   }
+
+  html {
+    font-family: var(--font-sans);
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Smooth theme transitions */
+  *,
+  *::before,
+  *::after {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+  }
+
+  /* Disable transitions on page load to prevent FOUC */
+  html.no-transitions *,
+  html.no-transitions *::before,
+  html.no-transitions *::after {
+    transition: none !important;
+  }
+
+  /* Monospace font for code elements */
+  code, kbd, pre, samp {
+    font-family: var(--font-mono);
   }
 }
 
 /* Markdown code block styling for Chat */
 .markdown-content pre {
-  background: #1E293B;
-  color: #E2E8F0;
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
   padding: 12px 16px;
   border-radius: 8px;
   overflow-x: auto;
   margin: 8px 0;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.5;
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .markdown-content pre {
+  background: hsl(215 25% 12%);
+  border-color: hsl(215 20% 20%);
+  color: hsl(210 20% 90%);
 }
 
 .markdown-content pre code {
@@ -260,10 +279,10 @@
 }
 
 .markdown-content code {
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
-  background: #E2E8F0;
-  color: #1E293B;
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -280,14 +299,14 @@
 
 .markdown-content th,
 .markdown-content td {
-  border: 1px solid #E2E8F0;
+  border: 1px solid hsl(var(--border));
   padding: 8px 12px;
   text-align: left;
   white-space: nowrap;
 }
 
 .markdown-content th {
-  background: #F1F5F9;
+  background: hsl(var(--muted));
   font-weight: 600;
 }
 
@@ -302,10 +321,10 @@
 }
 
 .markdown-content blockquote {
-  border-left: 3px solid #3B82F6;
+  border-left: 3px solid hsl(var(--primary));
   padding-left: 16px;
   margin: 12px 0;
-  color: #64748B;
+  color: hsl(var(--muted-foreground));
 }
 
 /* Inline citation badges (ai-elements style) */

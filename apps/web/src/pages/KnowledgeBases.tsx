@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { Share2 } from "lucide-react";
+import { Share2, Trash2, Plus, BookOpen, FileText, Database } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -9,6 +9,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface KnowledgeBasesProps {
   onSelectKb: (id: string, isShared?: boolean) => void;
@@ -17,155 +32,109 @@ interface KnowledgeBasesProps {
 export function KnowledgeBases({ onSelectKb }: KnowledgeBasesProps) {
   const queryClient = useQueryClient();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newKbName, setNewKbName] = useState("");
-  const [newKbDescription, setNewKbDescription] = useState("");
-  const [selectedEmbeddingModelId, setSelectedEmbeddingModelId] = useState<string>("");
+  const [kbToDelete, setKbToDelete] = useState<{ id: string; name: string } | null>(null);
 
   const { data: knowledgeBases, isLoading } = useQuery({
     queryKey: ["knowledge-bases"],
     queryFn: api.listKnowledgeBases,
   });
 
-  // Fetch embedding models for the selector
-  const { data: modelsData } = useQuery({
-    queryKey: ["models", "embedding"],
-    queryFn: async () => {
-      const res = await api.listModels({ type: "embedding" });
-      return res.models;
-    },
-  });
-  const embeddingModels = modelsData || [];
-
-  const createMutation = useMutation({
-    mutationFn: api.createKnowledgeBase,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] });
-      setShowCreateModal(false);
-      setNewKbName("");
-      setNewKbDescription("");
-      setSelectedEmbeddingModelId("");
-    },
-  });
-
   const deleteMutation = useMutation({
     mutationFn: api.deleteKnowledgeBase,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] });
+      setKbToDelete(null);
     },
   });
-
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newKbName.trim()) return;
-    createMutation.mutate({
-      name: newKbName.trim(),
-      description: newKbDescription.trim() || undefined,
-      embeddingModelId: selectedEmbeddingModelId || undefined,
-    });
-  };
 
   if (isLoading) {
     return (
       <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-48"></div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-40 bg-gray-200 rounded-lg"></div>
-            ))}
-          </div>
-        </div>
+        <LoadingSkeleton variant="card" count={6} />
       </div>
     );
   }
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Knowledge Bases</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage your knowledge bases and their sources
-          </p>
-        </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Create Knowledge Base
-        </button>
-      </div>
+      <PageHeader
+        title="Knowledge Bases"
+        description="Manage your knowledge bases and their sources"
+        actions={
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Knowledge Base
+          </Button>
+        }
+      />
 
       {knowledgeBases && knowledgeBases.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <svg className="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-          </svg>
-          <h3 className="mt-4 text-lg font-medium text-gray-900">No knowledge bases yet</h3>
-          <p className="mt-2 text-sm text-gray-500">Get started by creating your first knowledge base</p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
-          >
-            Create Knowledge Base
-          </button>
-        </div>
+        <EmptyState
+          icon={BookOpen}
+          title="No knowledge bases yet"
+          description="Get started by creating your first knowledge base"
+          action={{
+            label: "Create Knowledge Base",
+            onClick: () => setShowCreateModal(true),
+          }}
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {knowledgeBases?.map((kb) => (
             <div
               key={kb.id}
-              className={`bg-white rounded-lg border p-5 hover:shadow-xs transition-all cursor-pointer ${
+              className={`bg-card rounded-lg border p-5 hover:shadow-sm transition-all cursor-pointer ${
                 kb.isShared
-                  ? "border-purple-200 hover:border-purple-300"
-                  : "border-gray-200 hover:border-blue-300"
+                  ? "border-purple-500/30 hover:border-purple-500/50"
+                  : "border-border hover:border-primary/50"
               }`}
               onClick={() => onSelectKb(kb.id, kb.isShared)}
             >
               <div className="flex items-start justify-between">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{kb.name}</h3>
+                    <h3 className="text-lg font-semibold text-foreground truncate">{kb.name}</h3>
                     {kb.isShared && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-purple-500/15 text-purple-600 dark:text-purple-400 rounded-full shrink-0">
                         <Share2 className="w-3 h-3" />
                         Shared
                       </span>
                     )}
                   </div>
                   {kb.description && (
-                    <p className="mt-1 text-sm text-gray-500 line-clamp-2">{kb.description}</p>
+                    <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{kb.description}</p>
                   )}
                 </div>
                 {!kb.isShared && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (confirm("Are you sure you want to delete this knowledge base?")) {
-                        deleteMutation.mutate(kb.id);
-                      }
+                      setKbToDelete({ id: kb.id, name: kb.name });
                     }}
-                    className="p-1 text-gray-400 hover:text-red-500 transition-colors"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 )}
               </div>
-              <div className="mt-4 flex items-center gap-4 text-sm text-gray-500">
-                <span>{kb.sourceCount ?? 0} sources</span>
-                <span>{kb.chunkCount ?? 0} chunks</span>
+              <div className="mt-4 flex items-center gap-4 text-sm text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <FileText className="w-4 h-4" />
+                  {kb.sourceCount ?? 0} sources
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Database className="w-4 h-4" />
+                  {kb.chunkCount ?? 0} chunks
+                </span>
               </div>
               <div className="mt-3 flex items-center justify-between">
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-muted-foreground/60">
                   Created {new Date(kb.createdAt).toLocaleDateString()}
                 </span>
                 {kb.isShared && (
-                  <span className="text-xs text-purple-500 italic">Read-only</span>
+                  <span className="text-xs text-purple-500 dark:text-purple-400 italic">Read-only</span>
                 )}
               </div>
             </div>
@@ -174,81 +143,147 @@ export function KnowledgeBases({ onSelectKb }: KnowledgeBasesProps) {
       )}
 
       {/* Create Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <form onSubmit={handleCreate}>
-              <div className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900">Create Knowledge Base</h2>
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Name</label>
-                    <input
-                      type="text"
-                      value={newKbName}
-                      onChange={(e) => setNewKbName(e.target.value)}
-                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
-                      placeholder="My Knowledge Base"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Description</label>
-                    <textarea
-                      value={newKbDescription}
-                      onChange={(e) => setNewKbDescription(e.target.value)}
-                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
-                      placeholder="Optional description..."
-                      rows={3}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Embedding Model</label>
-                    <p className="text-xs text-gray-500 mt-0.5 mb-1">
-                      Select which embedding model to use for this knowledge base
-                    </p>
-                    <Select
-                      value={selectedEmbeddingModelId || "default"}
-                      onValueChange={(value) => setSelectedEmbeddingModelId(value === "default" ? "" : value)}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Use default embedding model" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="default">
-                          Use default model
-                        </SelectItem>
-                        {embeddingModels.map((model) => (
-                          <SelectItem key={model.id} value={model.id}>
-                            {model.displayName} ({model.dimensions}D)
-                            {model.isDefault && " - Default"}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-              <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  {createMutation.isPending ? "Creating..." : "Create"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <CreateKbModal
+        open={showCreateModal}
+        onOpenChange={setShowCreateModal}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!kbToDelete}
+        onOpenChange={(open) => {
+          if (!open) setKbToDelete(null);
+        }}
+        title="Delete Knowledge Base"
+        description={`Are you sure you want to delete "${kbToDelete?.name}"? This will remove all sources and content. This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => {
+          if (kbToDelete) {
+            deleteMutation.mutate(kbToDelete.id);
+          }
+        }}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
+  );
+}
+
+function CreateKbModal({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [selectedEmbeddingModelId, setSelectedEmbeddingModelId] = useState<string>("");
+
+  // Fetch embedding models for the selector
+  const { data: modelsData } = useQuery({
+    queryKey: ["models", "embedding"],
+    queryFn: async () => {
+      const res = await api.listModels({ type: "embedding" });
+      return res.models;
+    },
+    enabled: open,
+  });
+  const embeddingModels = modelsData || [];
+
+  const createMutation = useMutation({
+    mutationFn: api.createKnowledgeBase,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] });
+      onOpenChange(false);
+      setName("");
+      setDescription("");
+      setSelectedEmbeddingModelId("");
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    createMutation.mutate({
+      name: name.trim(),
+      description: description.trim() || undefined,
+      embeddingModelId: selectedEmbeddingModelId || undefined,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create Knowledge Base</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Name</Label>
+            <Input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="My Knowledge Base"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Description</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional description..."
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Embedding Model</Label>
+            <p className="text-xs text-muted-foreground">
+              Select which embedding model to use for this knowledge base
+            </p>
+            <Select
+              value={selectedEmbeddingModelId || "default"}
+              onValueChange={(value) => setSelectedEmbeddingModelId(value === "default" ? "" : value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Use default embedding model" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">
+                  Use default model
+                </SelectItem>
+                {embeddingModels.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.displayName} ({model.dimensions}D)
+                    {model.isDefault && " - Default"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {createMutation.error && (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <p className="text-sm text-destructive">{createMutation.error.message}</p>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createMutation.isPending || !name.trim()}>
+              {createMutation.isPending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

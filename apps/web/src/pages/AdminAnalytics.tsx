@@ -7,6 +7,19 @@ import {
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { PageHeader } from "../components/ui/page-header";
+import { StatCard } from "../components/ui/stat-card";
+import { LoadingSkeleton } from "../components/ui/loading-skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
 import {
   ArrowLeft,
   Download,
@@ -24,10 +37,8 @@ import {
   Globe,
 } from "lucide-react";
 
-type Tab = "overview" | "tenants";
-
 export function AdminAnalytics() {
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [activeTab, setActiveTab] = useState<string>("overview");
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState({
     startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
@@ -70,75 +81,55 @@ export function AdminAnalytics() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            System-wide usage metrics and tenant health monitoring
-          </p>
-        </div>
+        <PageHeader
+          title="Analytics"
+          description="System-wide usage metrics and tenant health monitoring"
+          className="mb-0"
+        />
         <div className="flex items-center gap-3">
           <input
             type="date"
             value={dateRange.startDate}
             onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+            className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:ring-primary"
           />
-          <span className="text-gray-500">to</span>
+          <span className="text-muted-foreground">to</span>
           <input
             type="date"
             value={dateRange.endDate}
             onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+            className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:ring-primary"
           />
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === "overview"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Overview
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab("tenants")}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === "tenants"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              Tenants
-            </div>
-          </button>
-        </nav>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="overview" className="gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="tenants" className="gap-2">
+            <Building2 className="w-4 h-4" />
+            Tenants
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Tab Content */}
-      {activeTab === "overview" && (
-        <OverviewTab
-          dateRange={dateRange}
-          onExport={handleExportOverview}
-        />
-      )}
-      {activeTab === "tenants" && (
-        <TenantsTab
-          dateRange={dateRange}
-          onSelectTenant={(id) => setSelectedTenantId(id)}
-          onExport={handleExportTenants}
-        />
-      )}
+        <TabsContent value="overview" className="mt-6">
+          <OverviewTab
+            dateRange={dateRange}
+            onExport={handleExportOverview}
+          />
+        </TabsContent>
+        <TabsContent value="tenants" className="mt-6">
+          <TenantsTab
+            dateRange={dateRange}
+            onSelectTenant={(id) => setSelectedTenantId(id)}
+            onExport={handleExportTenants}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -160,13 +151,13 @@ function OverviewTab({
   });
 
   if (isLoading) {
-    return <LoadingSkeleton />;
+    return <LoadingSkeleton variant="stats" count={4} />;
   }
 
   if (error || !data) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">Failed to load analytics data</p>
+        <p className="text-destructive">Failed to load analytics data</p>
       </div>
     );
   }
@@ -186,44 +177,43 @@ function OverviewTab({
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          icon={<MessageSquare className="w-6 h-6 text-blue-600" />}
-          iconBg="bg-blue-100"
+          icon={MessageSquare}
+          iconColor="primary"
           label="Total Queries"
           value={overview.totalQueries.toLocaleString()}
         />
         <StatCard
-          icon={<CheckCircle className="w-6 h-6 text-green-600" />}
-          iconBg="bg-green-100"
+          icon={CheckCircle}
+          iconColor="success"
           label="Successful"
           value={overview.successfulQueries.toLocaleString()}
-          sublabel={`${overview.errorRate.toFixed(1)}% error rate`}
-          sublabelColor={overview.errorRate > 5 ? "text-red-500" : "text-gray-500"}
+          subtext={`${overview.errorRate.toFixed(1)}% error rate`}
         />
         <StatCard
-          icon={<Clock className="w-6 h-6 text-purple-600" />}
-          iconBg="bg-purple-100"
+          icon={Clock}
+          iconColor="muted"
           label="Avg Latency"
           value={`${(overview.avgLatencyMs / 1000).toFixed(2)}s`}
         />
         <StatCard
-          icon={<Zap className="w-6 h-6 text-orange-600" />}
-          iconBg="bg-orange-100"
+          icon={Zap}
+          iconColor="warning"
           label="Total Tokens"
           value={formatNumber(overview.totalTokens)}
-          sublabel={`${formatNumber(overview.promptTokens)} / ${formatNumber(overview.completionTokens)}`}
+          subtext={`${formatNumber(overview.promptTokens)} / ${formatNumber(overview.completionTokens)}`}
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <StatCard
-          icon={<Building2 className="w-6 h-6 text-indigo-600" />}
-          iconBg="bg-indigo-100"
+          icon={Building2}
+          iconColor="primary"
           label="Active Tenants"
           value={overview.activeTenants.toString()}
         />
         <StatCard
-          icon={<Bot className="w-6 h-6 text-teal-600" />}
-          iconBg="bg-teal-100"
+          icon={Bot}
+          iconColor="success"
           label="Active Agents"
           value={overview.activeAgents.toString()}
         />
@@ -232,80 +222,90 @@ function OverviewTab({
       {/* Charts Row */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Queries Over Time */}
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Queries Over Time</h3>
-          {queriesByDay && queriesByDay.length > 0 ? (
-            <QueryChart data={queriesByDay} />
-          ) : (
-            <div className="h-48 flex items-center justify-center text-gray-500">
-              No data available for this period
-            </div>
-          )}
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Queries Over Time</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {queriesByDay && queriesByDay.length > 0 ? (
+              <QueryChart data={queriesByDay} />
+            ) : (
+              <div className="h-48 flex items-center justify-center text-muted-foreground">
+                No data available for this period
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Queries by Channel */}
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Queries by Channel</h3>
-          {queriesByChannel && queriesByChannel.length > 0 ? (
-            <div className="space-y-4">
-              {queriesByChannel.map((channel) => {
-                const total = queriesByChannel.reduce((sum, c) => sum + c.count, 0);
-                const percent = total > 0 ? (channel.count / total) * 100 : 0;
-                return (
-                  <div key={channel.channel} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium capitalize">{channel.channel.replace("_", " ")}</span>
-                      <span className="text-gray-500">{channel.count.toLocaleString()} ({percent.toFixed(1)}%)</span>
+        <Card>
+          <CardHeader>
+            <CardTitle>Queries by Channel</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {queriesByChannel && queriesByChannel.length > 0 ? (
+              <div className="space-y-4">
+                {queriesByChannel.map((channel) => {
+                  const total = queriesByChannel.reduce((sum, c) => sum + c.count, 0);
+                  const percent = total > 0 ? (channel.count / total) * 100 : 0;
+                  return (
+                    <div key={channel.channel} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium capitalize">{channel.channel.replace("_", " ")}</span>
+                        <span className="text-muted-foreground">{channel.count.toLocaleString()} ({percent.toFixed(1)}%)</span>
+                      </div>
+                      <Progress value={percent} className="h-2" />
                     </div>
-                    <Progress value={percent} className="h-2" />
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="h-48 flex items-center justify-center text-gray-500">
-              No data available
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="h-48 flex items-center justify-center text-muted-foreground">
+                No data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Top Tenants */}
-      <div className="bg-white rounded-lg border border-gray-200 p-5">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Tenants by Queries</h3>
-        {topTenants && topTenants.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-sm text-gray-500 border-b">
-                  <th className="pb-3 font-medium">Tenant</th>
-                  <th className="pb-3 font-medium text-right">Queries</th>
-                  <th className="pb-3 font-medium text-right">Errors</th>
-                  <th className="pb-3 font-medium text-right">Error Rate</th>
-                </tr>
-              </thead>
-              <tbody>
+      <Card>
+        <CardHeader>
+          <CardTitle>Top Tenants by Queries</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {topTenants && topTenants.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tenant</TableHead>
+                  <TableHead className="text-right">Queries</TableHead>
+                  <TableHead className="text-right">Errors</TableHead>
+                  <TableHead className="text-right">Error Rate</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {topTenants.map((tenant) => (
-                  <tr key={tenant.tenantId} className="border-b last:border-0">
-                    <td className="py-3 font-medium">{tenant.tenantName}</td>
-                    <td className="py-3 text-right">{tenant.queries.toLocaleString()}</td>
-                    <td className="py-3 text-right">{tenant.errors.toLocaleString()}</td>
-                    <td className="py-3 text-right">
-                      <span className={tenant.errorRate > 10 ? "text-red-600 font-medium" : ""}>
+                  <TableRow key={tenant.tenantId}>
+                    <TableCell className="font-medium">{tenant.tenantName}</TableCell>
+                    <TableCell className="text-right">{tenant.queries.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{tenant.errors.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">
+                      <span className={tenant.errorRate > 10 ? "text-destructive font-medium" : ""}>
                         {tenant.errorRate.toFixed(1)}%
                       </span>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            No tenant data available
-          </div>
-        )}
-      </div>
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No tenant data available
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -329,13 +329,13 @@ function TenantsTab({
   });
 
   if (isLoading) {
-    return <LoadingSkeleton />;
+    return <LoadingSkeleton variant="stats" count={4} />;
   }
 
   if (error || !data) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">Failed to load tenant data</p>
+        <p className="text-destructive">Failed to load tenant data</p>
       </div>
     );
   }
@@ -346,50 +346,58 @@ function TenantsTab({
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Tenants</p>
-              <p className="text-2xl font-bold text-gray-900">{summary.total}</p>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Tenants</p>
+                <p className="text-2xl font-bold text-foreground">{summary.total}</p>
+              </div>
+              <Building2 className="w-8 h-8 text-muted-foreground" />
             </div>
-            <Building2 className="w-8 h-8 text-gray-400" />
-          </div>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Healthy</p>
-              <p className="text-2xl font-bold text-green-600">{summary.healthy}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Healthy</p>
+                <p className="text-2xl font-bold text-success">{summary.healthy}</p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-success" />
             </div>
-            <CheckCircle className="w-8 h-8 text-green-500" />
-          </div>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">With Warnings</p>
-              <p className="text-2xl font-bold text-yellow-600">{summary.withWarnings}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">With Warnings</p>
+                <p className="text-2xl font-bold text-warning">{summary.withWarnings}</p>
+              </div>
+              <AlertTriangle className="w-8 h-8 text-warning" />
             </div>
-            <AlertTriangle className="w-8 h-8 text-yellow-500" />
-          </div>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-5 flex items-center justify-center">
-          <Button variant="outline" size="sm" onClick={onExport}>
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
+          </CardContent>
+        </Card>
+        <Card className="flex items-center justify-center">
+          <CardContent className="pt-6">
+            <Button variant="outline" size="sm" onClick={onExport}>
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Flag Summary */}
       {summary.withWarnings > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h4 className="font-medium text-yellow-800 mb-2">Warning Flags Summary</h4>
+        <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
+          <h4 className="font-medium text-foreground mb-2">Warning Flags Summary</h4>
           <div className="flex flex-wrap gap-2">
             {Object.entries(summary.flagCounts).map(([flag, count]) => {
               if (count === 0) return null;
               return (
-                <Badge key={flag} variant="outline" className="bg-yellow-100 border-yellow-300">
+                <Badge key={flag} variant="outline" className="bg-warning/20 border-warning/30">
                   {getFlagLabel(flag as TenantHealthFlag)}: {count}
                 </Badge>
               );
@@ -399,76 +407,74 @@ function TenantsTab({
       )}
 
       {/* Tenants Table */}
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="text-left text-sm text-gray-500 border-b bg-gray-50">
-                <th className="px-4 py-3 font-medium">Tenant</th>
-                <th className="px-4 py-3 font-medium text-center">Health</th>
-                <th className="px-4 py-3 font-medium text-right">Queries</th>
-                <th className="px-4 py-3 font-medium text-right">Error Rate</th>
-                <th className="px-4 py-3 font-medium text-right">KBs</th>
-                <th className="px-4 py-3 font-medium text-right">Agents</th>
-                <th className="px-4 py-3 font-medium">Flags</th>
-                <th className="px-4 py-3 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {tenants.map((tenant) => (
-                <tr
-                  key={tenant.id}
-                  className="border-b last:border-0 hover:bg-gray-50 cursor-pointer"
-                  onClick={() => onSelectTenant(tenant.id)}
-                >
-                  <td className="px-4 py-3">
-                    <div>
-                      <p className="font-medium">{tenant.name}</p>
-                      <p className="text-sm text-gray-500">{tenant.slug}</p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <HealthScoreBadge score={tenant.healthScore} />
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {tenant.usage.totalQueries.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={tenant.usage.errorRate > 10 ? "text-red-600 font-medium" : ""}>
-                      {tenant.usage.errorRate.toFixed(1)}%
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={tenant.resources.kbs >= tenant.resources.maxKbs * 0.8 ? "text-yellow-600" : ""}>
-                      {tenant.resources.kbs}/{tenant.resources.maxKbs}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={tenant.resources.agents >= tenant.resources.maxAgents * 0.8 ? "text-yellow-600" : ""}>
-                      {tenant.resources.agents}/{tenant.resources.maxAgents}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {tenant.flags.map((flag) => (
-                        <FlagBadge key={flag} flag={flag} />
-                      ))}
-                      {tenant.flags.length === 0 && (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Button variant="ghost" size="sm">
-                      View
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Tenant</TableHead>
+              <TableHead className="text-center">Health</TableHead>
+              <TableHead className="text-right">Queries</TableHead>
+              <TableHead className="text-right">Error Rate</TableHead>
+              <TableHead className="text-right">KBs</TableHead>
+              <TableHead className="text-right">Agents</TableHead>
+              <TableHead>Flags</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tenants.map((tenant) => (
+              <TableRow
+                key={tenant.id}
+                className="cursor-pointer"
+                onClick={() => onSelectTenant(tenant.id)}
+              >
+                <TableCell>
+                  <div>
+                    <p className="font-medium">{tenant.name}</p>
+                    <p className="text-sm text-muted-foreground">{tenant.slug}</p>
+                  </div>
+                </TableCell>
+                <TableCell className="text-center">
+                  <HealthScoreBadge score={tenant.healthScore} />
+                </TableCell>
+                <TableCell className="text-right">
+                  {tenant.usage.totalQueries.toLocaleString()}
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className={tenant.usage.errorRate > 10 ? "text-destructive font-medium" : ""}>
+                    {tenant.usage.errorRate.toFixed(1)}%
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className={tenant.resources.kbs >= tenant.resources.maxKbs * 0.8 ? "text-warning" : ""}>
+                    {tenant.resources.kbs}/{tenant.resources.maxKbs}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className={tenant.resources.agents >= tenant.resources.maxAgents * 0.8 ? "text-warning" : ""}>
+                    {tenant.resources.agents}/{tenant.resources.maxAgents}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {tenant.flags.map((flag) => (
+                      <FlagBadge key={flag} flag={flag} />
+                    ))}
+                    {tenant.flags.length === 0 && (
+                      <span className="text-sm text-muted-foreground">-</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="sm">
+                    View
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 }
@@ -494,7 +500,7 @@ function TenantDetailView({
   if (isLoading) {
     return (
       <div className="p-6">
-        <LoadingSkeleton />
+        <LoadingSkeleton variant="page" />
       </div>
     );
   }
@@ -502,14 +508,15 @@ function TenantDetailView({
   if (error || !data) {
     return (
       <div className="p-6">
-        <button
+        <Button
+          variant="ghost"
           onClick={onBack}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
+          className="mb-6"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Tenants
-        </button>
-        <p className="text-red-600">Failed to load tenant data</p>
+        </Button>
+        <p className="text-destructive">Failed to load tenant data</p>
       </div>
     );
   }
@@ -521,236 +528,212 @@ function TenantDetailView({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <button
+          <Button
+            variant="ghost"
             onClick={onBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-2"
+            className="mb-2 -ml-2"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Tenants
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">{tenant.name}</h1>
-          <p className="text-sm text-gray-500">{tenant.slug}</p>
+          </Button>
+          <h1 className="text-2xl font-bold text-foreground">{tenant.name}</h1>
+          <p className="text-sm text-muted-foreground">{tenant.slug}</p>
         </div>
-        <div className="text-right text-sm text-gray-500">
+        <div className="text-right text-sm text-muted-foreground">
           Created: {new Date(tenant.createdAt).toLocaleDateString()}
         </div>
       </div>
 
       {/* Resource Stats */}
       <div className="grid gap-4 md:grid-cols-5">
-        <StatCard
-          icon={<Users className="w-5 h-5 text-blue-600" />}
-          iconBg="bg-blue-100"
-          label="Members"
-          value={resources.members.toString()}
-          small
-        />
-        <StatCard
-          icon={<Database className="w-5 h-5 text-purple-600" />}
-          iconBg="bg-purple-100"
-          label="Knowledge Bases"
-          value={`${resources.kbs}/${quotas.maxKbs}`}
-          small
-        />
-        <StatCard
-          icon={<Bot className="w-5 h-5 text-green-600" />}
-          iconBg="bg-green-100"
-          label="Agents"
-          value={`${resources.agents}/${quotas.maxAgents}`}
-          small
-        />
-        <StatCard
-          icon={<Globe className="w-5 h-5 text-teal-600" />}
-          iconBg="bg-teal-100"
-          label="Sources"
-          value={resources.sources.toString()}
-          small
-        />
-        <StatCard
-          icon={<FileText className="w-5 h-5 text-orange-600" />}
-          iconBg="bg-orange-100"
-          label="Chunks"
-          value={formatNumber(resources.chunks)}
-          small
-        />
+        <StatCard icon={Users} iconColor="primary" label="Members" value={resources.members.toString()} />
+        <StatCard icon={Database} iconColor="muted" label="Knowledge Bases" value={`${resources.kbs}/${quotas.maxKbs}`} />
+        <StatCard icon={Bot} iconColor="success" label="Agents" value={`${resources.agents}/${quotas.maxAgents}`} />
+        <StatCard icon={Globe} iconColor="primary" label="Sources" value={resources.sources.toString()} />
+        <StatCard icon={FileText} iconColor="warning" label="Chunks" value={formatNumber(resources.chunks)} />
       </div>
 
       {/* Query Stats */}
       <div className="grid gap-4 md:grid-cols-4">
+        <StatCard icon={MessageSquare} iconColor="primary" label="Total Queries" value={stats.totalQueries.toLocaleString()} />
         <StatCard
-          icon={<MessageSquare className="w-6 h-6 text-blue-600" />}
-          iconBg="bg-blue-100"
-          label="Total Queries"
-          value={stats.totalQueries.toLocaleString()}
-        />
-        <StatCard
-          icon={<CheckCircle className="w-6 h-6 text-green-600" />}
-          iconBg="bg-green-100"
+          icon={CheckCircle}
+          iconColor="success"
           label="Success Rate"
           value={`${(100 - stats.errorRate).toFixed(1)}%`}
-          sublabel={`${stats.errorQueries} errors`}
-          sublabelColor={stats.errorRate > 5 ? "text-red-500" : "text-gray-500"}
+          subtext={`${stats.errorQueries} errors`}
         />
         <StatCard
-          icon={<Clock className="w-6 h-6 text-purple-600" />}
-          iconBg="bg-purple-100"
+          icon={Clock}
+          iconColor="muted"
           label="Latency (p50/p95)"
           value={`${(stats.p50LatencyMs / 1000).toFixed(2)}s`}
-          sublabel={`p95: ${(stats.p95LatencyMs / 1000).toFixed(2)}s`}
+          subtext={`p95: ${(stats.p95LatencyMs / 1000).toFixed(2)}s`}
         />
-        <StatCard
-          icon={<Zap className="w-6 h-6 text-orange-600" />}
-          iconBg="bg-orange-100"
-          label="Tokens Used"
-          value={formatNumber(stats.totalTokens)}
-        />
+        <StatCard icon={Zap} iconColor="warning" label="Tokens Used" value={formatNumber(stats.totalTokens)} />
       </div>
 
       {/* Usage Quotas */}
-      <div className="bg-white rounded-lg border border-gray-200 p-5">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Quota Usage ({currentUsage.month})</h3>
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Uploaded Documents</span>
-              <span>{currentUsage.uploadedDocs} / {quotas.maxUploadedDocsPerMonth}</span>
+      <Card>
+        <CardHeader>
+          <CardTitle>Monthly Quota Usage ({currentUsage.month})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Uploaded Documents</span>
+                <span>{currentUsage.uploadedDocs} / {quotas.maxUploadedDocsPerMonth}</span>
+              </div>
+              <Progress
+                value={(currentUsage.uploadedDocs / quotas.maxUploadedDocsPerMonth) * 100}
+                className="h-2"
+              />
             </div>
-            <Progress
-              value={(currentUsage.uploadedDocs / quotas.maxUploadedDocsPerMonth) * 100}
-              className="h-2"
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Scraped Pages</span>
-              <span>{currentUsage.scrapedPages} / {quotas.maxScrapedPagesPerMonth}</span>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Scraped Pages</span>
+                <span>{currentUsage.scrapedPages} / {quotas.maxScrapedPagesPerMonth}</span>
+              </div>
+              <Progress
+                value={(currentUsage.scrapedPages / quotas.maxScrapedPagesPerMonth) * 100}
+                className="h-2"
+              />
             </div>
-            <Progress
-              value={(currentUsage.scrapedPages / quotas.maxScrapedPagesPerMonth) * 100}
-              className="h-2"
-            />
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Charts Row */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Queries Over Time */}
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Queries Over Time</h3>
-          {queriesByDay && queriesByDay.length > 0 ? (
-            <QueryChart data={queriesByDay} />
-          ) : (
-            <div className="h-48 flex items-center justify-center text-gray-500">
-              No data available
-            </div>
-          )}
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Queries Over Time</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {queriesByDay && queriesByDay.length > 0 ? (
+              <QueryChart data={queriesByDay} />
+            ) : (
+              <div className="h-48 flex items-center justify-center text-muted-foreground">
+                No data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Channel Breakdown */}
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Queries by Channel</h3>
-          {queriesByChannel && queriesByChannel.length > 0 ? (
-            <div className="space-y-4">
-              {queriesByChannel.map((channel) => {
-                const total = queriesByChannel.reduce((sum, c) => sum + c.count, 0);
-                const percent = total > 0 ? (channel.count / total) * 100 : 0;
-                return (
-                  <div key={channel.channel} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium capitalize">{channel.channel.replace("_", " ")}</span>
-                      <span className="text-gray-500">
-                        {channel.count.toLocaleString()} ({percent.toFixed(1)}%)
-                        {channel.errors > 0 && (
-                          <span className="text-red-500 ml-2">
-                            {channel.errors} errors
-                          </span>
-                        )}
-                      </span>
+        <Card>
+          <CardHeader>
+            <CardTitle>Queries by Channel</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {queriesByChannel && queriesByChannel.length > 0 ? (
+              <div className="space-y-4">
+                {queriesByChannel.map((channel) => {
+                  const total = queriesByChannel.reduce((sum, c) => sum + c.count, 0);
+                  const percent = total > 0 ? (channel.count / total) * 100 : 0;
+                  return (
+                    <div key={channel.channel} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium capitalize">{channel.channel.replace("_", " ")}</span>
+                        <span className="text-muted-foreground">
+                          {channel.count.toLocaleString()} ({percent.toFixed(1)}%)
+                          {channel.errors > 0 && (
+                            <span className="text-destructive ml-2">
+                              {channel.errors} errors
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <Progress value={percent} className="h-2" />
                     </div>
-                    <Progress value={percent} className="h-2" />
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="h-48 flex items-center justify-center text-gray-500">
-              No data available
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="h-48 flex items-center justify-center text-muted-foreground">
+                No data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Agents Table */}
-      <div className="bg-white rounded-lg border border-gray-200 p-5">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Agent Performance</h3>
-        {byAgent && byAgent.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-sm text-gray-500 border-b">
-                  <th className="pb-3 font-medium">Agent</th>
-                  <th className="pb-3 font-medium text-right">Queries</th>
-                  <th className="pb-3 font-medium text-right">Errors</th>
-                  <th className="pb-3 font-medium text-right">Error Rate</th>
-                  <th className="pb-3 font-medium text-right">Avg Latency</th>
-                </tr>
-              </thead>
-              <tbody>
+      <Card>
+        <CardHeader>
+          <CardTitle>Agent Performance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {byAgent && byAgent.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Agent</TableHead>
+                  <TableHead className="text-right">Queries</TableHead>
+                  <TableHead className="text-right">Errors</TableHead>
+                  <TableHead className="text-right">Error Rate</TableHead>
+                  <TableHead className="text-right">Avg Latency</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {byAgent.map((agent) => (
-                  <tr key={agent.agentId} className="border-b last:border-0">
-                    <td className="py-3 font-medium">{agent.agentName}</td>
-                    <td className="py-3 text-right">{agent.queries.toLocaleString()}</td>
-                    <td className="py-3 text-right">{agent.errors}</td>
-                    <td className="py-3 text-right">
-                      <span className={agent.errorRate > 10 ? "text-red-600 font-medium" : ""}>
+                  <TableRow key={agent.agentId}>
+                    <TableCell className="font-medium">{agent.agentName}</TableCell>
+                    <TableCell className="text-right">{agent.queries.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{agent.errors}</TableCell>
+                    <TableCell className="text-right">
+                      <span className={agent.errorRate > 10 ? "text-destructive font-medium" : ""}>
                         {agent.errorRate.toFixed(1)}%
                       </span>
-                    </td>
-                    <td className="py-3 text-right">{(agent.avgLatency / 1000).toFixed(2)}s</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="text-right">{(agent.avgLatency / 1000).toFixed(2)}s</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            No agent data available
-          </div>
-        )}
-      </div>
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No agent data available
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Historical Usage */}
       {historicalUsage && historicalUsage.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Historical Usage</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-sm text-gray-500 border-b">
-                  <th className="pb-3 font-medium">Month</th>
-                  <th className="pb-3 font-medium text-right">Uploads</th>
-                  <th className="pb-3 font-medium text-right">Scraped</th>
-                  <th className="pb-3 font-medium text-right">Chat Requests</th>
-                  <th className="pb-3 font-medium text-right">Tokens</th>
-                </tr>
-              </thead>
-              <tbody>
+        <Card>
+          <CardHeader>
+            <CardTitle>Historical Usage</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Month</TableHead>
+                  <TableHead className="text-right">Uploads</TableHead>
+                  <TableHead className="text-right">Scraped</TableHead>
+                  <TableHead className="text-right">Chat Requests</TableHead>
+                  <TableHead className="text-right">Tokens</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {historicalUsage.map((usage) => (
-                  <tr key={usage.month} className="border-b last:border-0">
-                    <td className="py-3 font-medium">{usage.month}</td>
-                    <td className="py-3 text-right">{usage.uploadedDocs.toLocaleString()}</td>
-                    <td className="py-3 text-right">{usage.scrapedPages.toLocaleString()}</td>
-                    <td className="py-3 text-right">{usage.chatRequests.toLocaleString()}</td>
-                    <td className="py-3 text-right">
+                  <TableRow key={usage.month}>
+                    <TableCell className="font-medium">{usage.month}</TableCell>
+                    <TableCell className="text-right">{usage.uploadedDocs.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{usage.scrapedPages.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{usage.chatRequests.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">
                       {formatNumber(usage.promptTokens + usage.completionTokens)}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
@@ -760,41 +743,6 @@ function TenantDetailView({
 // Shared Components
 // ============================================================================
 
-function StatCard({
-  icon,
-  iconBg,
-  label,
-  value,
-  sublabel,
-  sublabelColor = "text-gray-500",
-  small = false,
-}: {
-  icon: React.ReactNode;
-  iconBg: string;
-  label: string;
-  value: string;
-  sublabel?: string;
-  sublabelColor?: string;
-  small?: boolean;
-}) {
-  return (
-    <div className="bg-white rounded-lg border border-gray-200 p-5">
-      <div className="flex items-center gap-3">
-        <div className={`p-2 ${iconBg} rounded-lg`}>
-          {icon}
-        </div>
-        <div>
-          <p className="text-sm text-gray-500">{label}</p>
-          <p className={`${small ? "text-xl" : "text-2xl"} font-bold text-gray-900`}>{value}</p>
-          {sublabel && (
-            <p className={`text-xs ${sublabelColor}`}>{sublabel}</p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function QueryChart({ data }: { data: Array<{ date: string; count: number; errors?: number }> }) {
   const maxCount = Math.max(...data.map((d) => d.count));
   const yMax = Math.max(maxCount, 1);
@@ -803,15 +751,15 @@ function QueryChart({ data }: { data: Array<{ date: string; count: number; error
   return (
     <div className="h-48">
       <div className="flex h-40">
-        <div className="flex flex-col justify-between text-xs text-gray-500 pr-2 py-1 w-10">
+        <div className="flex flex-col justify-between text-xs text-muted-foreground pr-2 py-1 w-10">
           {yLabels.map((val, i) => (
             <span key={i} className="text-right">{formatNumber(val)}</span>
           ))}
         </div>
-        <div className="flex-1 border-l border-b border-gray-200 relative">
+        <div className="flex-1 border-l border-b border-border relative">
           <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
             {yLabels.map((_, i) => (
-              <div key={i} className="border-t border-gray-100 w-full" />
+              <div key={i} className="border-t border-border/50 w-full" />
             ))}
           </div>
           <div className="absolute inset-0 flex items-end justify-around px-1 pb-1">
@@ -823,10 +771,10 @@ function QueryChart({ data }: { data: Array<{ date: string; count: number; error
                   className="flex-1 flex justify-center max-w-[40px] h-full items-end"
                 >
                   <div
-                    className="w-4 bg-blue-500 rounded-t hover:bg-blue-600 transition-colors relative group cursor-pointer"
+                    className="w-4 bg-primary rounded-t hover:bg-primary/80 transition-colors relative group cursor-pointer"
                     style={{ height: `${Math.max(heightPercent, 2)}%` }}
                   >
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border border-border shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
                       {day.count} queries
                       {day.errors !== undefined && day.errors > 0 && `, ${day.errors} errors`}
                     </div>
@@ -840,7 +788,7 @@ function QueryChart({ data }: { data: Array<{ date: string; count: number; error
       <div className="flex ml-10 mt-1 justify-around px-1 overflow-hidden">
         {data.slice(-14).map((day, i) => (
           <div key={i} className="flex-1 max-w-[40px] text-center">
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-muted-foreground">
               {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </span>
           </div>
@@ -851,12 +799,12 @@ function QueryChart({ data }: { data: Array<{ date: string; count: number; error
 }
 
 function HealthScoreBadge({ score }: { score: number }) {
-  let color = "bg-green-100 text-green-800";
-  if (score < 70) color = "bg-yellow-100 text-yellow-800";
-  if (score < 50) color = "bg-red-100 text-red-800";
+  let className = "bg-success/15 text-success";
+  if (score < 70) className = "bg-warning/15 text-warning";
+  if (score < 50) className = "bg-destructive/15 text-destructive";
 
   return (
-    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${color}`}>
+    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${className}`}>
       {score}
     </span>
   );
@@ -864,13 +812,13 @@ function HealthScoreBadge({ score }: { score: number }) {
 
 function FlagBadge({ flag }: { flag: TenantHealthFlag }) {
   const config: Record<TenantHealthFlag, { color: string; label: string }> = {
-    high_error_rate: { color: "bg-red-100 text-red-800 border-red-200", label: "High Errors" },
-    kb_quota_warning: { color: "bg-yellow-100 text-yellow-800 border-yellow-200", label: "KB Quota" },
-    agent_quota_warning: { color: "bg-yellow-100 text-yellow-800 border-yellow-200", label: "Agent Quota" },
-    upload_quota_warning: { color: "bg-orange-100 text-orange-800 border-orange-200", label: "Upload Quota" },
-    scrape_quota_warning: { color: "bg-orange-100 text-orange-800 border-orange-200", label: "Scrape Quota" },
-    high_rate_limiting: { color: "bg-red-100 text-red-800 border-red-200", label: "Rate Limiting" },
-    low_activity: { color: "bg-gray-100 text-gray-800 border-gray-200", label: "Low Activity" },
+    high_error_rate: { color: "bg-destructive/15 text-destructive border-destructive/20", label: "High Errors" },
+    kb_quota_warning: { color: "bg-warning/15 text-warning border-warning/20", label: "KB Quota" },
+    agent_quota_warning: { color: "bg-warning/15 text-warning border-warning/20", label: "Agent Quota" },
+    upload_quota_warning: { color: "bg-warning/15 text-warning border-warning/20", label: "Upload Quota" },
+    scrape_quota_warning: { color: "bg-warning/15 text-warning border-warning/20", label: "Scrape Quota" },
+    high_rate_limiting: { color: "bg-destructive/15 text-destructive border-destructive/20", label: "Rate Limiting" },
+    low_activity: { color: "bg-muted text-muted-foreground border-border", label: "Low Activity" },
   };
 
   const { color, label } = config[flag];
@@ -903,24 +851,4 @@ function formatNumber(num: number): string {
     return `${(num / 1000).toFixed(1)}K`;
   }
   return num.toString();
-}
-
-function LoadingSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="bg-white rounded-lg border border-gray-200 p-5">
-            <div className="animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-              <div className="h-8 bg-gray-200 rounded w-3/4"></div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="bg-white rounded-lg border border-gray-200 p-5">
-        <div className="animate-pulse h-48 bg-gray-200 rounded"></div>
-      </div>
-    </div>
-  );
 }

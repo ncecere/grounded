@@ -25,6 +25,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { ThemeSwitcher } from "@/components/ui/theme-switcher"
 
 interface NavUserProps {
   user: {
@@ -114,6 +115,10 @@ export function NavUser({ user, onLogout, onSettings, onTenants }: NavUserProps)
                 <DropdownMenuSeparator />
               </>
             )}
+            <DropdownMenuGroup>
+              <ThemeSwitcher />
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               Log out

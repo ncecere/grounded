@@ -307,19 +307,19 @@ export function Sources({ kbId, onBack }: SourcesProps) {
     switch (status) {
       case "active":
       case "succeeded":
-        return "bg-green-100 text-green-700";
+        return "bg-green-500/15 text-green-700 dark:text-green-400";
       case "paused":
       case "pending":
-        return "bg-yellow-100 text-yellow-700";
+        return "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400";
       case "error":
       case "failed":
       case "canceled":
-        return "bg-red-100 text-red-700";
+        return "bg-red-500/15 text-red-700 dark:text-red-400";
       case "running":
       case "partial":
-        return "bg-blue-100 text-blue-700";
+        return "bg-blue-500/15 text-blue-700 dark:text-blue-400";
       default:
-        return "bg-gray-100 text-gray-700";
+        return "bg-muted text-muted-foreground";
     }
   };
 
@@ -327,10 +327,10 @@ export function Sources({ kbId, onBack }: SourcesProps) {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-48"></div>
+          <div className="h-8 bg-muted rounded w-48"></div>
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 bg-gray-200 rounded-lg"></div>
+              <div key={i} className="h-20 bg-muted rounded-lg"></div>
             ))}
           </div>
         </div>
@@ -345,24 +345,24 @@ export function Sources({ kbId, onBack }: SourcesProps) {
         <div
           className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 transition-all ${
             notification.type === "success"
-              ? "bg-green-50 text-green-800 border border-green-200"
+              ? "bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30"
               : notification.type === "error"
-              ? "bg-red-50 text-red-800 border border-red-200"
-              : "bg-blue-50 text-blue-800 border border-blue-200"
+              ? "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30"
+              : "bg-primary/15 text-primary border border-primary/30"
           }`}
         >
           {notification.type === "success" && (
-            <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           )}
           {notification.type === "error" && (
-            <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           )}
           {notification.type === "info" && (
-            <svg className="w-5 h-5 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-primary animate-spin" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -370,7 +370,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
           <span className="text-sm font-medium">{notification.message}</span>
           <button
             onClick={() => setNotification(null)}
-            className="ml-2 text-gray-400 hover:text-gray-600"
+            className="ml-2 text-muted-foreground hover:text-foreground"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -383,19 +383,19 @@ export function Sources({ kbId, onBack }: SourcesProps) {
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={onBack}
-          className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">{kb?.name}</h1>
-          <p className="text-sm text-gray-500">Manage sources for this knowledge base</p>
+          <h1 className="text-2xl font-bold text-foreground">{kb?.name}</h1>
+          <p className="text-sm text-muted-foreground">Manage sources for this knowledge base</p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -408,33 +408,33 @@ export function Sources({ kbId, onBack }: SourcesProps) {
         {/* Sources List */}
         <div className="lg:col-span-2 space-y-3">
           {sources && sources.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-              <svg className="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="text-center py-12 bg-card rounded-lg border border-border">
+              <svg className="w-12 h-12 mx-auto text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
               </svg>
-              <h3 className="mt-4 text-lg font-medium text-gray-900">No sources yet</h3>
-              <p className="mt-2 text-sm text-gray-500">Add a web source or upload documents</p>
+              <h3 className="mt-4 text-lg font-medium text-foreground">No sources yet</h3>
+              <p className="mt-2 text-sm text-muted-foreground">Add a web source or upload documents</p>
             </div>
           ) : (
             sources?.map((source) => (
               <div
                 key={source.id}
                 onClick={() => setSelectedSource(source)}
-                className={`bg-white rounded-lg border p-4 cursor-pointer transition-all ${
+                className={`bg-card rounded-lg border p-4 cursor-pointer transition-all ${
                   selectedSource?.id === source.id
-                    ? "border-blue-500 ring-2 ring-blue-100"
-                    : "border-gray-200 hover:border-gray-300"
+                    ? "border-primary ring-2 ring-primary/20"
+                    : "border-border hover:border-primary/50"
                 }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-gray-900">{source.name}</h3>
+                      <h3 className="font-medium text-foreground">{source.name}</h3>
                       <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(source.status)}`}>
                         {source.status}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       Type: {source.type}
                       {source.type === "web" && Boolean(source.config.url) && (
                         <> | {String(source.config.url)}</>
@@ -442,7 +442,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                     </p>
                     {/* Show page and chunk stats if this source is selected */}
                     {selectedSource?.id === source.id && sourceStats && (
-                      <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+                      <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -465,7 +465,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                         triggerRunMutation.mutate({ id: source.id });
                       }}
                       disabled={triggerRunMutation.isPending}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
                       title="Run Now"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -479,7 +479,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                         triggerRunMutation.mutate({ id: source.id, forceReindex: true });
                       }}
                       disabled={triggerRunMutation.isPending}
-                      className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                      className="p-2 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 rounded-lg transition-colors"
                       title="Force Re-index (ignore cache)"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -491,7 +491,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                         e.stopPropagation();
                         openEditModal(source);
                       }}
-                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                      className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                       title="Edit Source"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -505,7 +505,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                           deleteMutation.mutate(source.id);
                         }
                       }}
-                      className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                      className="p-2 text-muted-foreground hover:text-destructive transition-colors"
                       title="Delete Source"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -516,7 +516,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                 </div>
                 {/* Show running indicator or last run date */}
                 {selectedSource?.id === source.id && runs && runs[0]?.status === "running" ? (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-blue-600">
+                  <div className="mt-2 flex items-center gap-2 text-xs text-primary">
                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -524,14 +524,14 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                     <span>Scraping in progress...</span>
                   </div>
                 ) : selectedSource?.id === source.id && runs && runs[0]?.status === "pending" ? (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-yellow-600">
+                  <div className="mt-2 flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span>Queued, starting soon...</span>
                   </div>
                 ) : source.lastRunAt ? (
-                  <p className="mt-2 text-xs text-gray-400">
+                  <p className="mt-2 text-xs text-muted-foreground">
                     Last scraped: {new Date(source.lastRunAt).toLocaleString()}
                   </p>
                 ) : null}
@@ -541,39 +541,39 @@ export function Sources({ kbId, onBack }: SourcesProps) {
         </div>
 
         {/* Run History Panel */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h3 className="font-medium text-gray-900 mb-4">Run History</h3>
+        <div className="bg-card rounded-lg border border-border p-4">
+          <h3 className="font-medium text-foreground mb-4">Run History</h3>
           {selectedSource ? (
             runs && runs.length > 0 ? (
               <div className="space-y-3">
                 {runs.map((run) => (
-                  <div key={run.id} className="p-3 bg-gray-50 rounded-lg">
+                  <div key={run.id} className="p-3 bg-muted rounded-lg">
                     <div className="flex items-center justify-between">
                       <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(run.status)}`}>
                         {run.status}
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-muted-foreground">
                         {run.startedAt ? new Date(run.startedAt).toLocaleString() : "Pending"}
                       </span>
                     </div>
-                    <div className="mt-2 text-sm text-gray-600">
+                    <div className="mt-2 text-sm text-muted-foreground">
                       <p>Pages seen: {run.stats?.pagesSeen ?? 0}</p>
                       <p>Pages indexed: {run.stats?.pagesIndexed ?? 0}</p>
                       {(run.stats?.pagesFailed ?? 0) > 0 && (
-                        <p className="text-red-600">Failed: {run.stats.pagesFailed}</p>
+                        <p className="text-destructive">Failed: {run.stats.pagesFailed}</p>
                       )}
                     </div>
                     {run.error && (
-                      <p className="mt-2 text-xs text-red-500">{run.error}</p>
+                      <p className="mt-2 text-xs text-destructive">{run.error}</p>
                     )}
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">No runs yet</p>
+              <p className="text-sm text-muted-foreground">No runs yet</p>
             )
           ) : (
-            <p className="text-sm text-gray-500">Select a source to view run history</p>
+            <p className="text-sm text-muted-foreground">Select a source to view run history</p>
           )}
         </div>
       </div>
@@ -581,24 +581,24 @@ export function Sources({ kbId, onBack }: SourcesProps) {
       {/* Create Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+          <div className="bg-background rounded-lg shadow-xl w-full max-w-md mx-4 border border-border">
             <form onSubmit={handleCreate}>
               <div className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900">Add Source</h2>
+                <h2 className="text-lg font-semibold text-foreground">Add Source</h2>
                 <div className="mt-4 space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Name</label>
+                    <label className="block text-sm font-medium text-foreground">Name</label>
                     <input
                       type="text"
                       value={newSource.name}
                       onChange={(e) => setNewSource({ ...newSource, name: e.target.value })}
-                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:ring-primary"
                       placeholder="Documentation Site"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Type</label>
                     <Select
                       value={newSource.type}
                       onValueChange={(value) => {
@@ -627,8 +627,8 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                       <div
                         className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
                           isDragging
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-300 hover:border-gray-400"
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
                         }`}
                         onDragOver={(e) => {
                           e.preventDefault();
@@ -647,7 +647,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                           onChange={(e) => handleFileSelect(e.target.files)}
                         />
                         <svg
-                          className="mx-auto h-12 w-12 text-gray-400"
+                          className="mx-auto h-12 w-12 text-muted-foreground"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -659,13 +659,13 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                             d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                           />
                         </svg>
-                        <p className="mt-2 text-sm text-gray-600">
-                          <span className="font-medium text-blue-600 hover:text-blue-500 cursor-pointer">
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          <span className="font-medium text-primary hover:text-primary/80 cursor-pointer">
                             Click to upload
                           </span>{" "}
                           or drag and drop
                         </p>
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           PDF, Word, Excel, PowerPoint, CSV, TXT, Markdown, HTML, JSON, XML
                         </p>
                       </div>
@@ -673,18 +673,18 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                       {/* Selected Files List */}
                       {selectedFiles.length > 0 && (
                         <div className="space-y-2">
-                          <p className="text-sm font-medium text-gray-700">
+                          <p className="text-sm font-medium text-foreground">
                             Selected Files ({selectedFiles.length})
                           </p>
                           <div className="max-h-40 overflow-y-auto space-y-2">
                             {selectedFiles.map((file) => (
                               <div
                                 key={file.name}
-                                className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                                className="flex items-center justify-between p-2 bg-muted rounded-lg"
                               >
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                   <svg
-                                    className="w-5 h-5 text-gray-400 shrink-0"
+                                    className="w-5 h-5 text-muted-foreground shrink-0"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -696,17 +696,17 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                                       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                                     />
                                   </svg>
-                                  <span className="text-sm text-gray-700 truncate">
+                                  <span className="text-sm text-foreground truncate">
                                     {file.name}
                                   </span>
-                                  <span className="text-xs text-gray-500">
+                                  <span className="text-xs text-muted-foreground">
                                     ({(file.size / 1024).toFixed(1)} KB)
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   {uploadProgress[file.name] === "uploading" && (
                                     <svg
-                                      className="w-4 h-4 text-blue-500 animate-spin"
+                                      className="w-4 h-4 text-primary animate-spin"
                                       fill="none"
                                       viewBox="0 0 24 24"
                                     >
@@ -727,7 +727,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                                   )}
                                   {uploadProgress[file.name] === "success" && (
                                     <svg
-                                      className="w-4 h-4 text-green-500"
+                                      className="w-4 h-4 text-success"
                                       fill="none"
                                       stroke="currentColor"
                                       viewBox="0 0 24 24"
@@ -742,7 +742,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                                   )}
                                   {uploadProgress[file.name] === "error" && (
                                     <svg
-                                      className="w-4 h-4 text-red-500"
+                                      className="w-4 h-4 text-destructive"
                                       fill="none"
                                       stroke="currentColor"
                                       viewBox="0 0 24 24"
@@ -759,7 +759,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                                     <button
                                       type="button"
                                       onClick={() => handleRemoveFile(file.name)}
-                                      className="p-1 text-gray-400 hover:text-red-500"
+                                      className="p-1 text-muted-foreground hover:text-destructive"
                                     >
                                       <svg
                                         className="w-4 h-4"
@@ -784,13 +784,13 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                       )}
 
                       {/* Supported Formats Info */}
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-xs font-medium text-gray-700 mb-2">Supported Formats:</p>
+                      <div className="bg-muted rounded-lg p-3">
+                        <p className="text-xs font-medium text-foreground mb-2">Supported Formats:</p>
                         <div className="flex flex-wrap gap-1">
                           {SUPPORTED_FORMATS.map((format) => (
                             <span
                               key={format.ext}
-                              className="px-2 py-0.5 bg-white border border-gray-200 rounded text-xs text-gray-600"
+                              className="px-2 py-0.5 bg-card border border-border rounded text-xs text-muted-foreground"
                               title={format.desc}
                             >
                               {format.ext}
@@ -804,7 +804,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                   {newSource.type === "web" && (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Crawl Mode</label>
+                        <label className="block text-sm font-medium text-foreground mb-1">Crawl Mode</label>
                         <Select
                           value={newSource.mode}
                           onValueChange={(value) => setNewSource({ ...newSource, mode: value as "single" | "list" | "sitemap" | "domain" })}
@@ -819,7 +819,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                             <SelectItem value="domain">Crawl Domain</SelectItem>
                           </SelectContent>
                         </Select>
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {newSource.mode === "single" && "Scrape a single page only"}
                           {newSource.mode === "list" && "Scrape a specific list of URLs"}
                           {newSource.mode === "sitemap" && "Discover pages from a sitemap.xml"}
@@ -829,11 +829,11 @@ export function Sources({ kbId, onBack }: SourcesProps) {
 
                       {newSource.mode === "list" ? (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">URLs (one per line)</label>
+                          <label className="block text-sm font-medium text-foreground">URLs (one per line)</label>
                           <textarea
                             value={newSource.urls}
                             onChange={(e) => setNewSource({ ...newSource, urls: e.target.value })}
-                            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                            className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:ring-primary"
                             placeholder={"https://docs.example.com/page1\nhttps://docs.example.com/page2\nhttps://docs.example.com/page3"}
                             rows={5}
                             required
@@ -841,7 +841,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                         </div>
                       ) : (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">
+                          <label className="block text-sm font-medium text-foreground">
                             {newSource.mode === "single" && "URL"}
                             {newSource.mode === "sitemap" && "Sitemap URL"}
                             {newSource.mode === "domain" && "Starting URL"}
@@ -850,7 +850,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                             type="url"
                             value={newSource.url}
                             onChange={(e) => setNewSource({ ...newSource, url: e.target.value })}
-                            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                            className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:ring-primary"
                             placeholder={
                               newSource.mode === "sitemap"
                                 ? "https://docs.example.com/sitemap.xml"
@@ -863,7 +863,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
 
                       {newSource.mode === "domain" && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Max Depth</label>
+                          <label className="block text-sm font-medium text-foreground mb-1">Max Depth</label>
                           <Select
                             value={String(newSource.depth)}
                             onValueChange={(value) => setNewSource({ ...newSource, depth: parseInt(value) })}
@@ -879,14 +879,14 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                               <SelectItem value="10">10 levels</SelectItem>
                             </SelectContent>
                           </Select>
-                          <p className="mt-1 text-xs text-gray-500">
+                          <p className="mt-1 text-xs text-muted-foreground">
                             How many links deep to follow from the starting URL
                           </p>
                         </div>
                       )}
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Auto-Refresh Schedule</label>
+                        <label className="block text-sm font-medium text-foreground mb-1">Auto-Refresh Schedule</label>
                         <Select
                           value={newSource.schedule || "none"}
                           onValueChange={(value) => setNewSource({ ...newSource, schedule: value === "none" ? null : value as "daily" | "weekly" })}
@@ -900,7 +900,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                             <SelectItem value="weekly">Weekly</SelectItem>
                           </SelectContent>
                         </Select>
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           Automatically re-scrape this source on a schedule
                         </p>
                       </div>
@@ -908,7 +908,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                   )}
                 </div>
               </div>
-              <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
+              <div className="px-6 py-4 bg-muted rounded-b-lg flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -916,7 +916,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                     setSelectedFiles([]);
                     setUploadProgress({});
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-foreground hover:bg-background rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
@@ -925,7 +925,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                     type="button"
                     onClick={handleUploadFiles}
                     disabled={selectedFiles.length === 0 || Object.values(uploadProgress).some(s => s === "uploading")}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
                   >
                     {Object.values(uploadProgress).some(s => s === "uploading")
                       ? "Uploading..."
@@ -935,7 +935,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                   <button
                     type="submit"
                     disabled={createMutation.isPending}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
                   >
                     {createMutation.isPending ? "Creating..." : "Create"}
                   </button>
@@ -949,25 +949,25 @@ export function Sources({ kbId, onBack }: SourcesProps) {
       {/* Edit Modal */}
       {showEditModal && editSource && (
         <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+          <div className="bg-background rounded-lg shadow-xl w-full max-w-md mx-4 border border-border">
             <form onSubmit={handleEdit}>
               <div className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900">Edit Source</h2>
+                <h2 className="text-lg font-semibold text-foreground">Edit Source</h2>
                 <div className="mt-4 space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Name</label>
+                    <label className="block text-sm font-medium text-foreground">Name</label>
                     <input
                       type="text"
                       value={editSource.name}
                       onChange={(e) => setEditSource({ ...editSource, name: e.target.value })}
-                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:ring-primary"
                       required
                     />
                   </div>
                   {editSource.type === "web" && (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Max Depth</label>
+                        <label className="block text-sm font-medium text-foreground mb-1">Max Depth</label>
                         <Select
                           value={String(editSource.depth)}
                           onValueChange={(value) => setEditSource({ ...editSource, depth: parseInt(value) })}
@@ -985,7 +985,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                         </Select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Auto-Refresh Schedule</label>
+                        <label className="block text-sm font-medium text-foreground mb-1">Auto-Refresh Schedule</label>
                         <Select
                           value={editSource.schedule || "none"}
                           onValueChange={(value) => setEditSource({ ...editSource, schedule: value === "none" ? null : value as "daily" | "weekly" })}
@@ -999,34 +999,34 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                             <SelectItem value="weekly">Weekly</SelectItem>
                           </SelectContent>
                         </Select>
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           Automatically re-scrape this source on a schedule
                         </p>
                       </div>
                     </>
                   )}
                   {editSource.type === "upload" && (
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       File upload sources can only have their name edited. To add more files, create a new upload source.
                     </p>
                   )}
                 </div>
               </div>
-              <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
+              <div className="px-6 py-4 bg-muted rounded-b-lg flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => {
                     setShowEditModal(false);
                     setEditSource(null);
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-foreground hover:bg-background rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
                 >
                   {updateMutation.isPending ? "Saving..." : "Save Changes"}
                 </button>
