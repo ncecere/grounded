@@ -4,15 +4,22 @@ import type { WidgetConfig } from '../types';
 interface UseConfigOptions {
   token: string;
   apiBase: string;
+  enabled?: boolean; // Only load config when enabled (e.g., when widget is open)
 }
 
-export function useConfig({ token, apiBase }: UseConfigOptions) {
+export function useConfig({ token, apiBase, enabled = true }: UseConfigOptions) {
   const [config, setConfig] = useState<WidgetConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Don't load config until enabled
+    if (!enabled) {
+      return;
+    }
+
     async function loadConfig() {
+      setIsLoading(true);
       try {
         const response = await fetch(`${apiBase}/api/v1/widget/${token}/config`);
 
@@ -38,7 +45,7 @@ export function useConfig({ token, apiBase }: UseConfigOptions) {
     }
 
     loadConfig();
-  }, [token, apiBase]);
+  }, [token, apiBase, enabled]);
 
   return { config, isLoading, error };
 }

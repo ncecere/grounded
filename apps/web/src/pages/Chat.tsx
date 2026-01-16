@@ -685,16 +685,14 @@ export function Chat({ agentId, onBack }: ChatProps) {
                   }
                 }
                 const hasAgenticSteps = isAgenticMode && showChainOfThought && agenticState.steps.length > 0;
-                // Only show chain of thought while streaming, not after completion
-                const isAgenticActive = agenticState.isStreaming || isStreaming || isLoading;
                 
                 return messages.map((message, index) => {
                   const isLastMessage = index === messages.length - 1;
                   const isStreamingAssistant = isStreaming && isLastMessage && message.role === "assistant";
                   
-                  // Show chain of thought ABOVE the last assistant message that follows a user message (only during streaming)
+                  // Show chain of thought ABOVE the last assistant message that follows a user message
+                  // Keep it visible after completion so user can see the reasoning
                   const showChainOfThoughtHere = hasAgenticSteps && 
-                    isAgenticActive &&
                     index === lastAssistantIndex &&
                     message.role === "assistant";
 

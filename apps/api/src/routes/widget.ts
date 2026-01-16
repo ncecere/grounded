@@ -413,14 +413,41 @@ widgetRoutes.post(
       ? `${agent.systemPrompt}\n\nAgent Description: ${agent.description}`
       : agent.systemPrompt;
 
-    // Disable proxy buffering for smooth streaming
+    // Headers for SSE streaming
     c.header("X-Accel-Buffering", "no");
-    c.header("Cache-Control", "no-cache");
+    c.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    c.header("Connection", "keep-alive");
 
     return streamSSE(c, async (stream) => {
       let fullAnswer = "";
       let finalResponse: { answer: string; citations: Citation[]; inputTokens: number; outputTokens: number } | null = null;
       let chunks: any[] = [];
+      let aborted = false;
+      let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
+      // Handle client disconnect
+      stream.onAbort(() => {
+        console.log("[Widget Stream] Client disconnected");
+        aborted = true;
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
+      });
+
+      // Heartbeat to keep connection alive
+      heartbeatInterval = setInterval(async () => {
+        if (!aborted) {
+          try {
+            await stream.writeSSE({ data: JSON.stringify({ type: "ping" }) });
+          } catch {
+            if (heartbeatInterval) {
+              clearInterval(heartbeatInterval);
+              heartbeatInterval = null;
+            }
+          }
+        }
+      }, 2000);
 
       try {
         // Send status: searching
@@ -536,14 +563,26 @@ widgetRoutes.post(
             citations,
           }),
         });
+
+        // Clear heartbeat and close stream
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
+        await stream.close();
       } catch (error) {
         console.error("[Widget Stream] Error:", error);
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
         await stream.writeSSE({
           data: JSON.stringify({
             type: "error",
             message: "An error occurred while generating the response.",
           }),
         });
+        await stream.close();
       }
     });
   }
@@ -666,11 +705,39 @@ widgetRoutes.post(
       });
     }
 
-    // Disable proxy buffering for smooth streaming
+    // Headers for SSE streaming
     c.header("X-Accel-Buffering", "no");
-    c.header("Cache-Control", "no-cache");
+    c.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    c.header("Connection", "keep-alive");
 
     return streamSSE(c, async (stream) => {
+      let aborted = false;
+      let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
+      // Handle client disconnect
+      stream.onAbort(() => {
+        console.log("[Widget Agentic Stream] Client disconnected");
+        aborted = true;
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
+      });
+
+      // Heartbeat to keep connection alive
+      heartbeatInterval = setInterval(async () => {
+        if (!aborted) {
+          try {
+            await stream.writeSSE({ data: JSON.stringify({ type: "ping" }) });
+          } catch {
+            if (heartbeatInterval) {
+              clearInterval(heartbeatInterval);
+              heartbeatInterval = null;
+            }
+          }
+        }
+      }, 2000);
+
       try {
         // Get conversation history
         const history = await getConversation(
@@ -800,14 +867,26 @@ widgetRoutes.post(
             toolCallsCount: result?.toolCallsCount || 0,
           }),
         });
+
+        // Clear heartbeat and close stream
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
+        await stream.close();
       } catch (error) {
         console.error("[Widget Agentic Stream] Error:", error);
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
         await stream.writeSSE({
           data: JSON.stringify({
             type: "error",
             message: "An error occurred while generating the response.",
           }),
         });
+        await stream.close();
       }
     });
   }

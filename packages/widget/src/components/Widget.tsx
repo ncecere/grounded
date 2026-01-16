@@ -21,11 +21,23 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const { config, isLoading: configLoading } = useConfig({ token, apiBase });
+  // Only load config when widget is opened
+  const { config, isLoading: configLoading } = useConfig({ token, apiBase, enabled: isOpen });
   
   // Check if agentic mode is enabled from config
   const agenticMode = config?.agenticMode?.enabled ?? false;
   const showChainOfThought = config?.agenticMode?.showChainOfThought ?? false;
+  
+  // Debug: log config and agentic mode (only when open)
+  useEffect(() => {
+    if (isOpen && config) {
+      console.log('[Grounded Widget] Config loaded:', { 
+        agenticMode, 
+        showChainOfThought,
+        rawAgenticMode: config?.agenticMode 
+      });
+    }
+  }, [isOpen, config, agenticMode, showChainOfThought]);
   
   const { messages, isLoading, chatStatus, chainOfThoughtSteps, sendMessage } = useChat({ 
     token, 
@@ -176,8 +188,6 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
               {(() => {
                 const filteredMessages = messages.filter(m => m.content || m.role === 'user');
                 const hasAgenticSteps = agenticMode && showChainOfThought && chainOfThoughtSteps.length > 0;
-                // Only show chain of thought while streaming/loading, not after completion
-                const isAgenticActive = isLoading || chatStatus.status !== 'idle';
                 
                 // Find the last assistant message index that follows a user message
                 // (not the welcome message which has no user message before it)
@@ -192,9 +202,9 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
                 }
                 
                 return filteredMessages.map((message, index) => {
-                  // Show chain of thought ABOVE the last assistant message that follows a user message (only while active)
+                  // Show chain of thought ABOVE the last assistant message that follows a user message
+                  // Keep visible after completion so user can see the reasoning
                   const showChainOfThoughtHere = hasAgenticSteps && 
-                    isAgenticActive &&
                     index === lastAssistantIndex && 
                     message.role === 'assistant';
                   
@@ -244,17 +254,17 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
             <textarea
               ref={inputRef}
               className="grounded-input"
-              placeholder="Type a message..."
+              placeholder={configLoading ? "Loading..." : "Type a message..."}
               value={inputValue}
               onInput={handleInput}
               onKeyDown={handleKeyDown}
               rows={1}
-              disabled={isLoading}
+              disabled={isLoading || configLoading}
             />
             <button
               className="grounded-send"
               onClick={handleSubmit}
-              disabled={!inputValue.trim() || isLoading}
+              disabled={!inputValue.trim() || isLoading || configLoading}
               aria-label="Send message"
             >
               <SendIcon />
