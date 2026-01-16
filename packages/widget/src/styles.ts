@@ -313,7 +313,7 @@ export const styles = `
     bottom: 0;
     right: 0;
     width: 400px;
-    height: min(600px, calc(100vh - 48px));
+    height: min(700px, calc(100vh - 48px));
     background: var(--grounded-bg-primary);
     border-radius: var(--grounded-radius-lg);
     box-shadow: var(--grounded-shadow-xl);
@@ -343,7 +343,7 @@ export const styles = `
 
   .grounded-window.expanded {
     width: 650px;
-    height: min(900px, calc(100vh - 60px));
+    height: calc(100vh - 48px);
   }
 
   /* Header */
@@ -824,7 +824,7 @@ export const styles = `
 
   /* Input Area */
   .grounded-input-area {
-    padding: var(--grounded-space-md) var(--grounded-space-lg);
+    padding: var(--grounded-space-sm) var(--grounded-space-md);
     background: var(--grounded-bg-elevated);
     border-top: 1px solid var(--grounded-border-subtle);
     position: relative;
@@ -852,14 +852,14 @@ export const styles = `
     border: none;
     background: transparent;
     font-family: var(--grounded-font-sans);
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.4;
     color: var(--grounded-text-primary);
     resize: none;
     outline: none;
-    min-height: 36px;
-    max-height: 120px;
-    padding: 8px 4px;
+    min-height: 32px;
+    max-height: 100px;
+    padding: 6px 4px;
     display: flex;
     align-items: center;
   }
@@ -905,12 +905,11 @@ export const styles = `
 
   /* Footer */
   .grounded-footer {
-    padding: var(--grounded-space-sm) var(--grounded-space-lg);
+    padding: var(--grounded-space-xs) var(--grounded-space-md);
     text-align: center;
-    font-size: 11px;
+    font-size: 10px;
     color: var(--grounded-text-tertiary);
     background: var(--grounded-bg-elevated);
-    border-top: 1px solid var(--grounded-border-subtle);
   }
 
   .grounded-footer a {
