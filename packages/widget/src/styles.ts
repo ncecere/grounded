@@ -836,13 +836,15 @@ export const styles = `
     align-items: center;
     gap: var(--grounded-space-sm);
     background: var(--grounded-bg-secondary);
+    border: 1px solid var(--grounded-border);
     border-radius: var(--grounded-radius-md);
     padding: var(--grounded-space-sm);
-    transition: box-shadow var(--grounded-duration-fast);
+    transition: box-shadow var(--grounded-duration-fast), border-color var(--grounded-duration-fast);
   }
 
   .grounded-input-container:focus-within {
-    box-shadow: 0 0 0 2px var(--grounded-accent);
+    border-color: var(--grounded-accent);
+    box-shadow: 0 0 0 2px var(--grounded-accent-subtle);
   }
 
   .grounded-input {

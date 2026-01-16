@@ -1,5 +1,5 @@
 import type { JSX } from 'preact';
-import { useState } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import type { ChainOfThoughtStep } from '../types';
 import type { ChatStatus } from '../hooks/useChat';
 
@@ -74,6 +74,26 @@ interface AgenticStepsProps {
 
 export function AgenticSteps({ steps, status, isStreaming }: AgenticStepsProps): JSX.Element | null {
   const [isExpanded, setIsExpanded] = useState(true);
+  const wasStreamingRef = useRef(false);
+
+  // Auto-collapse when streaming finishes
+  useEffect(() => {
+    if (wasStreamingRef.current && !isStreaming) {
+      // Streaming just finished, collapse after a brief delay
+      const timer = setTimeout(() => {
+        setIsExpanded(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    wasStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+
+  // Expand when new streaming starts
+  useEffect(() => {
+    if (isStreaming && steps.length > 0) {
+      setIsExpanded(true);
+    }
+  }, [isStreaming, steps.length]);
 
   // Don't render if no steps and not actively processing
   if (steps.length === 0 && status.status === 'idle') {

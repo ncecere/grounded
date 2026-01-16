@@ -6,7 +6,7 @@
   "main": "./dist/widget.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && cp dist/widget.js ../../apps/web/public/widget.js",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
