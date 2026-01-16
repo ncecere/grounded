@@ -9,6 +9,7 @@ import {
   retrievalConfigs,
   kbChunks,
   chatEvents,
+  agentCapabilities,
 } from "@grounded/db/schema";
 import { eq, and, isNull, inArray, sql } from "drizzle-orm";
 import { generateEmbedding } from "@grounded/embeddings";
@@ -23,6 +24,7 @@ import { generateId, type Citation } from "@grounded/shared";
 import { auth, requireTenant } from "../middleware/auth";
 import { rateLimit } from "../middleware/rate-limit";
 import { NotFoundError, ForbiddenError } from "../middleware/error-handler";
+import { AgenticChatService } from "../services/agentic-chat";
 
 export const chatRoutes = new Hono();
 
@@ -377,6 +379,269 @@ chatRoutes.post(
             message: "An error occurred while generating the response.",
           }),
         });
+      }
+    });
+  }
+);
+
+// ============================================================================
+// Agentic Streaming Chat Endpoint
+// ============================================================================
+
+chatRoutes.post(
+  "/agentic/:agentId",
+  auth(),
+  requireTenant(),
+  rateLimit({ keyPrefix: "chat", limit: 60, windowSeconds: 60 }),
+  zValidator("json", chatSchema),
+  async (c) => {
+    const authContext = c.get("auth");
+    const agentId = c.req.param("agentId");
+    const body = c.req.valid("json");
+    const startTime = Date.now();
+
+    // Verify agent access
+    const agent = await db.query.agents.findFirst({
+      where: and(
+        eq(agents.id, agentId),
+        eq(agents.tenantId, authContext.tenantId!),
+        isNull(agents.deletedAt)
+      ),
+    });
+
+    if (!agent) {
+      throw new NotFoundError("Agent");
+    }
+
+    const conversationId = body.conversationId || generateId();
+
+    // Get capabilities to check if agent has agentic mode enabled
+    const capabilities = await db.query.agentCapabilities.findFirst({
+      where: eq(agentCapabilities.agentId, agentId),
+    });
+
+    // Headers for SSE streaming - disable all buffering
+    c.header("X-Accel-Buffering", "no");
+    c.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    c.header("Connection", "keep-alive");
+    c.header("Content-Type", "text/event-stream");
+
+    console.log("[Agentic Chat] Starting stream for agent:", agentId);
+    
+    return streamSSE(c, async (stream) => {
+      let fullAnswer = "";
+      let inputTokens = 0;
+      let outputTokens = 0;
+      let toolCallsCount = 0;
+      let aborted = false;
+      let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
+      console.log("[Agentic Chat] Inside streamSSE callback");
+
+      // Handle client disconnect
+      stream.onAbort(() => {
+        console.log("[Agentic Chat] Client disconnected, aborting stream");
+        aborted = true;
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
+      });
+
+      // Start heartbeat to keep connection alive during long AI operations
+      // Send a ping every 2 seconds to prevent browser timeout
+      heartbeatInterval = setInterval(async () => {
+        if (!aborted) {
+          try {
+            await stream.writeSSE({ 
+              data: JSON.stringify({ type: "ping", timestamp: Date.now() }),
+            });
+          } catch {
+            // Stream may have closed
+            if (heartbeatInterval) {
+              clearInterval(heartbeatInterval);
+              heartbeatInterval = null;
+            }
+          }
+        }
+      }, 2000);
+
+      try {
+        // Get conversation history
+        const history = await getConversation(
+          authContext.tenantId!,
+          agent.id,
+          conversationId
+        );
+
+        // Store user message first
+        await addToConversation(authContext.tenantId!, agent.id, conversationId, {
+          role: "user",
+          content: body.message,
+          timestamp: Date.now(),
+        });
+
+        // Create agentic chat service
+        console.log("[Agentic Chat] Creating AgenticChatService");
+        const agenticService = new AgenticChatService(
+          authContext.tenantId!,
+          agentId
+        );
+
+        // Send initial status immediately to establish the stream
+        await stream.writeSSE({
+          data: JSON.stringify({
+            type: "status",
+            status: "thinking",
+            message: "Analyzing your question...",
+          }),
+        });
+
+        // Generate streaming response
+        console.log("[Agentic Chat] Calling generateResponseStream");
+        const generator = agenticService.generateResponseStream(
+          {
+            tenantId: authContext.tenantId!,
+            agentId,
+            message: body.message,
+            conversationHistory: history.map((turn) => ({
+              role: turn.role as "user" | "assistant",
+              content: turn.content,
+            })),
+          },
+          {
+            onChainOfThought: async (step) => {
+              // Stream chain of thought if enabled
+              if (capabilities?.showChainOfThought ?? true) {
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: "chain_of_thought",
+                    step,
+                  }),
+                });
+              }
+
+              // Also send status updates for key steps
+              if (step.type === "searching") {
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: "status",
+                    status: "searching",
+                    message: step.content,
+                  }),
+                });
+              } else if (step.type === "tool_call") {
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: "status",
+                    status: "tool_call",
+                    message: step.content,
+                    toolName: step.toolName,
+                  }),
+                });
+              } else if (step.type === "answering") {
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: "status",
+                    status: "generating",
+                    message: step.content,
+                  }),
+                });
+              }
+            },
+          }
+        );
+
+        // Stream text chunks
+        console.log("[Agentic Chat] Starting to consume generator");
+        while (true) {
+          if (aborted) {
+            console.log("[Agentic Chat] Aborted, breaking loop");
+            break;
+          }
+          const { value, done } = await generator.next();
+          console.log("[Agentic Chat] Generator yielded:", { done, valueType: typeof value, valueLength: typeof value === 'string' ? value.length : 'N/A' });
+          if (done) {
+            // Final result
+            console.log("[Agentic Chat] Generator completed with result");
+            const result = value;
+            fullAnswer = result.answer;
+            inputTokens = result.inputTokens;
+            outputTokens = result.outputTokens;
+            toolCallsCount = result.toolCallsCount;
+
+            // Store assistant message
+            console.log("[Agentic Chat] Storing conversation message");
+            await addToConversation(authContext.tenantId!, agent.id, conversationId, {
+              role: "assistant",
+              content: fullAnswer,
+              timestamp: Date.now(),
+            });
+
+            // Log chat event
+            console.log("[Agentic Chat] Logging chat event");
+            const latencyMs = Date.now() - startTime;
+            await db.insert(chatEvents).values({
+              tenantId: authContext.tenantId!,
+              agentId: agent.id,
+              userId: authContext.user.id,
+              channel: authContext.apiKeyId ? "api" : "admin_ui",
+              status: "ok",
+              latencyMs,
+              promptTokens: inputTokens,
+              completionTokens: outputTokens,
+              retrievedChunks: 0, // Not tracked in agentic mode
+              rerankerUsed: false,
+            });
+
+            // Send final message with citations
+            console.log("[Agentic Chat] Sending done message");
+            const citations = agent.citationsEnabled ? result.citations : [];
+            await stream.writeSSE({
+              data: JSON.stringify({
+                type: "done",
+                conversationId,
+                citations,
+                chainOfThought: capabilities?.showChainOfThought ? result.chainOfThought : undefined,
+                toolCallsCount,
+              }),
+            });
+            console.log("[Agentic Chat] Done message sent, breaking loop");
+            break;
+          }
+
+          // Stream text chunk
+          fullAnswer += value;
+          await stream.writeSSE({
+            data: JSON.stringify({ type: "text", content: value }),
+          });
+        }
+        
+        // Clear heartbeat interval
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
+        
+        // Explicitly close the stream to signal end of response
+        console.log("[Agentic Chat] Closing stream");
+        await stream.close();
+      } catch (error) {
+        console.error("[Agentic Chat Stream] Error:", error);
+        
+        // Clear heartbeat interval
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
+        
+        await stream.writeSSE({
+          data: JSON.stringify({
+            type: "error",
+            message: error instanceof Error ? error.message : "An error occurred while generating the response.",
+          }),
+        });
+        await stream.close();
       }
     });
   }

@@ -1,33 +1,41 @@
 import { useState, useCallback, useRef } from 'preact/hooks';
-import type { ChatMessage, Citation } from '../types';
+import type { ChatMessage, Citation, ChainOfThoughtStep } from '../types';
 
 interface UseChatOptions {
   token: string;
   apiBase: string;
+  agenticMode?: boolean;
+  showChainOfThought?: boolean;
 }
 
 interface SSEMessage {
-  type: 'text' | 'done' | 'error' | 'status';
+  type: 'text' | 'done' | 'error' | 'status' | 'chain_of_thought';
   content?: string;
   message?: string;
   conversationId?: string;
   citations?: Citation[];
-  status?: 'searching' | 'generating';
+  status?: 'searching' | 'generating' | 'tool_call' | 'thinking';
   sourcesCount?: number;
+  toolName?: string;
+  step?: ChainOfThoughtStep;
+  chainOfThought?: ChainOfThoughtStep[];
+  toolCallsCount?: number;
 }
 
 export interface ChatStatus {
-  status: 'idle' | 'searching' | 'generating' | 'streaming';
+  status: 'idle' | 'searching' | 'generating' | 'streaming' | 'thinking' | 'tool_call';
   message?: string;
   sourcesCount?: number;
+  toolName?: string;
 }
 
-export function useChat({ token, apiBase }: UseChatOptions) {
+export function useChat({ token, apiBase, agenticMode = false, showChainOfThought = false }: UseChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatStatus, setChatStatus] = useState<ChatStatus>({ status: 'idle' });
+  const [chainOfThoughtSteps, setChainOfThoughtSteps] = useState<ChainOfThoughtStep[]>([]);
   const conversationIdRef = useRef<string | null>(
     typeof sessionStorage !== 'undefined'
       ? sessionStorage.getItem(`grounded_conv_${token}`)
@@ -38,6 +46,8 @@ export function useChat({ token, apiBase }: UseChatOptions) {
   const generateId = () => Math.random().toString(36).slice(2, 11);
 
   const sendMessage = useCallback(async (content: string) => {
+    console.log('[Grounded Widget] sendMessage called with agenticMode:', agenticMode, 'showChainOfThought:', showChainOfThought);
+    
     if (!content.trim() || isLoading || isStreaming) return;
 
     const userMessage: ChatMessage = {
@@ -53,7 +63,16 @@ export function useChat({ token, apiBase }: UseChatOptions) {
     setIsLoading(true);
     setIsStreaming(true);
     setError(null);
-    setChatStatus({ status: 'searching', message: 'Searching knowledge base...' });
+    setChainOfThoughtSteps([]);
+    
+    // Set initial status based on mode
+    if (agenticMode) {
+      console.log('[Grounded Widget] Using AGENTIC mode');
+      setChatStatus({ status: 'thinking', message: 'Analyzing your question...' });
+    } else {
+      console.log('[Grounded Widget] Using REGULAR streaming mode');
+      setChatStatus({ status: 'searching', message: 'Searching knowledge base...' });
+    }
 
     // Create abort controller for this request
     abortControllerRef.current = new AbortController();
@@ -64,7 +83,14 @@ export function useChat({ token, apiBase }: UseChatOptions) {
         body.conversationId = conversationIdRef.current;
       }
 
-      const response = await fetch(`${apiBase}/api/v1/widget/${token}/chat/stream`, {
+      // Use agentic endpoint if enabled
+      const endpoint = agenticMode 
+        ? `${apiBase}/api/v1/widget/${token}/chat/agentic`
+        : `${apiBase}/api/v1/widget/${token}/chat/stream`;
+      
+      console.log('[Grounded Widget] Calling endpoint:', endpoint);
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -95,6 +121,7 @@ export function useChat({ token, apiBase }: UseChatOptions) {
       let buffer = '';
       let fullContent = '';
       let citations: Citation[] = [];
+      let steps: ChainOfThoughtStep[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -111,19 +138,22 @@ export function useChat({ token, apiBase }: UseChatOptions) {
 
               if (data.type === 'status') {
                 // Update chat status
+                const mappedStatus = data.status === 'tool_call' ? 'tool_call'
+                  : data.status === 'thinking' ? 'thinking'
+                  : data.status === 'searching' ? 'searching'
+                  : data.status === 'generating' ? 'generating'
+                  : 'searching';
+                  
                 setChatStatus({
-                  status: data.status || 'searching',
+                  status: mappedStatus,
                   message: data.message,
                   sourcesCount: data.sourcesCount,
+                  toolName: data.toolName,
                 });
-                // When generating starts, update the assistant message
-                if (data.status === 'generating') {
-                  setChatStatus({
-                    status: 'generating',
-                    message: data.message,
-                    sourcesCount: data.sourcesCount,
-                  });
-                }
+              } else if (data.type === 'chain_of_thought' && data.step) {
+                // Add chain of thought step
+                steps.push(data.step);
+                setChainOfThoughtSteps([...steps]);
               } else if (data.type === 'text' && data.content) {
                 // First text chunk means we're now streaming
                 if (!fullContent) {
@@ -147,6 +177,11 @@ export function useChat({ token, apiBase }: UseChatOptions) {
                   }
                 }
                 citations = data.citations || [];
+                // Final chain of thought from done message
+                if (data.chainOfThought) {
+                  steps = data.chainOfThought;
+                  setChainOfThoughtSteps(steps);
+                }
                 setChatStatus({ status: 'idle' });
               } else if (data.type === 'error') {
                 throw new Error(data.message || 'Stream error');
@@ -159,10 +194,16 @@ export function useChat({ token, apiBase }: UseChatOptions) {
         }
       }
 
-      // Finalize the message
+      // Finalize the message with chain of thought if enabled
       setMessages(prev => prev.map(msg =>
         msg.id === assistantMessageId
-          ? { ...msg, content: fullContent, isStreaming: false, citations }
+          ? { 
+              ...msg, 
+              content: fullContent, 
+              isStreaming: false, 
+              citations,
+              chainOfThought: showChainOfThought ? steps : undefined,
+            }
           : msg
       ));
 
@@ -198,7 +239,7 @@ export function useChat({ token, apiBase }: UseChatOptions) {
       setIsStreaming(false);
       abortControllerRef.current = null;
     }
-  }, [token, apiBase, isLoading, isStreaming]);
+  }, [token, apiBase, isLoading, isStreaming, agenticMode, showChainOfThought]);
 
   const stopStreaming = useCallback(() => {
     if (abortControllerRef.current) {
@@ -225,6 +266,7 @@ export function useChat({ token, apiBase }: UseChatOptions) {
     isStreaming,
     error,
     chatStatus,
+    chainOfThoughtSteps,
     sendMessage,
     stopStreaming,
     clearMessages,

@@ -4,6 +4,7 @@ import { useChat, type ChatStatus } from '../hooks/useChat';
 import { useConfig } from '../hooks/useConfig';
 import { Message, StatusIndicator } from './Message';
 import { ChatIcon, CloseIcon, SendIcon, SparklesIcon, ExpandIcon, ShrinkIcon, HelpIcon, QuestionIcon, MessageIcon } from './Icons';
+import { AgenticSteps, AgenticStatus } from './AgenticSteps';
 import type { WidgetOptions, ButtonIcon, ButtonStyle, ButtonSize } from '../types';
 
 interface WidgetProps {
@@ -21,7 +22,17 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const { config, isLoading: configLoading } = useConfig({ token, apiBase });
-  const { messages, isLoading, chatStatus, sendMessage } = useChat({ token, apiBase });
+  
+  // Check if agentic mode is enabled from config
+  const agenticMode = config?.agenticMode?.enabled ?? false;
+  const showChainOfThought = config?.agenticMode?.showChainOfThought ?? false;
+  
+  const { messages, isLoading, chatStatus, chainOfThoughtSteps, sendMessage } = useChat({ 
+    token, 
+    apiBase,
+    agenticMode,
+    showChainOfThought,
+  });
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -162,11 +173,65 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
             </div>
           ) : (
             <>
-              {messages.filter(m => m.content || m.role === 'user').map((message) => (
-                <Message key={message.id} message={message} />
-              ))}
-              {(isLoading || chatStatus.status !== 'idle') && chatStatus.status !== 'streaming' && (
-                <StatusIndicator status={chatStatus} />
+              {(() => {
+                const filteredMessages = messages.filter(m => m.content || m.role === 'user');
+                const hasAgenticSteps = agenticMode && showChainOfThought && chainOfThoughtSteps.length > 0;
+                // Only show chain of thought while streaming/loading, not after completion
+                const isAgenticActive = isLoading || chatStatus.status !== 'idle';
+                
+                // Find the last assistant message index that follows a user message
+                // (not the welcome message which has no user message before it)
+                let lastAssistantIndex = -1;
+                let hasUserMessage = false;
+                for (let i = 0; i < filteredMessages.length; i++) {
+                  if (filteredMessages[i].role === 'user') {
+                    hasUserMessage = true;
+                  } else if (filteredMessages[i].role === 'assistant' && hasUserMessage) {
+                    lastAssistantIndex = i;
+                  }
+                }
+                
+                return filteredMessages.map((message, index) => {
+                  // Show chain of thought ABOVE the last assistant message that follows a user message (only while active)
+                  const showChainOfThoughtHere = hasAgenticSteps && 
+                    isAgenticActive &&
+                    index === lastAssistantIndex && 
+                    message.role === 'assistant';
+                  
+                  return (
+                    <div key={message.id}>
+                      {showChainOfThoughtHere && (
+                        <AgenticSteps 
+                          steps={chainOfThoughtSteps} 
+                          status={chatStatus} 
+                          isStreaming={isLoading || (chatStatus.status !== 'idle' && chatStatus.status !== 'streaming')}
+                        />
+                      )}
+                      <Message message={message} />
+                    </div>
+                  );
+                });
+              })()}
+              
+              {/* Show chain of thought when waiting for response (before assistant message exists) */}
+              {agenticMode && showChainOfThought && chainOfThoughtSteps.length > 0 && 
+               (isLoading || chatStatus.status !== 'idle') && 
+               messages[messages.length - 1]?.role !== 'assistant' && (
+                <AgenticSteps 
+                  steps={chainOfThoughtSteps} 
+                  status={chatStatus} 
+                  isStreaming={true}
+                />
+              )}
+              
+              {/* Show compact status indicator when chain of thought is not shown */}
+              {(isLoading || chatStatus.status !== 'idle') && chatStatus.status !== 'streaming' && 
+               !(agenticMode && showChainOfThought && chainOfThoughtSteps.length > 0) && (
+                agenticMode ? (
+                  <AgenticStatus status={chatStatus} />
+                ) : (
+                  <StatusIndicator status={chatStatus} />
+                )
               )}
             </>
           )}

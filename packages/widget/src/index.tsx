@@ -1,7 +1,7 @@
 import { render } from 'preact';
 import { Widget } from './components/Widget';
 import styles from './styles';
-import type { WidgetOptions } from './types';
+import type { WidgetOptions, WidgetColorScheme } from './types';
 
 // ============================================================================
 // Widget Manager - Handles initialization and API
@@ -14,6 +14,8 @@ class GroundedWidgetManager {
   private isInitialized = false;
   private openState = false;
   private openCallback: ((open: boolean) => void) | null = null;
+  private mediaQueryListener: ((e: MediaQueryListEvent) => void) | null = null;
+  private mediaQuery: MediaQueryList | null = null;
 
   constructor() {
     // Process any queued commands
@@ -63,6 +65,7 @@ class GroundedWidgetManager {
     this.options = {
       ...options,
       apiBase: options.apiBase || this.detectApiBase(),
+      colorScheme: options.colorScheme || 'auto',
     };
 
     // Create container
@@ -77,6 +80,14 @@ class GroundedWidgetManager {
     const styleSheet = document.createElement('style');
     styleSheet.textContent = styles;
     this.shadowRoot.appendChild(styleSheet);
+
+    // Apply theme class to shadow host
+    this.applyTheme(this.options.colorScheme!);
+
+    // Set up system preference listener for 'auto' mode
+    if (this.options.colorScheme === 'auto') {
+      this.setupMediaQueryListener();
+    }
 
     // Create mount point
     const mountPoint = document.createElement('div');
@@ -96,7 +107,36 @@ class GroundedWidgetManager {
     );
 
     this.isInitialized = true;
-    console.log('[Grounded Widget] Initialized');
+    console.log('[Grounded Widget] Initialized with colorScheme:', this.options.colorScheme);
+  }
+
+  private applyTheme(colorScheme: WidgetColorScheme) {
+    if (!this.shadowRoot) return;
+
+    const host = this.shadowRoot.host as HTMLElement;
+
+    // Remove existing theme classes
+    host.classList.remove('light', 'dark');
+
+    if (colorScheme === 'light') {
+      host.classList.add('light');
+    } else if (colorScheme === 'dark') {
+      host.classList.add('dark');
+    }
+    // For 'auto', we don't add a class - CSS media query handles it
+  }
+
+  private setupMediaQueryListener() {
+    this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    this.mediaQueryListener = () => {
+      // For auto mode, we don't need to do anything special
+      // The CSS media query handles the color changes
+      // But we can log the change for debugging
+      console.log('[Grounded Widget] System theme changed');
+    };
+
+    this.mediaQuery.addEventListener('change', this.mediaQueryListener);
   }
 
   private detectApiBase(): string {
@@ -161,6 +201,13 @@ class GroundedWidgetManager {
   }
 
   private destroy() {
+    // Clean up media query listener
+    if (this.mediaQuery && this.mediaQueryListener) {
+      this.mediaQuery.removeEventListener('change', this.mediaQueryListener);
+    }
+    this.mediaQuery = null;
+    this.mediaQueryListener = null;
+
     if (this.container) {
       this.container.remove();
     }

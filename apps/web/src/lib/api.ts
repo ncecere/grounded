@@ -593,6 +593,114 @@ export interface AuditSummary {
   failureCount: number;
 }
 
+// Tool Types
+export type ToolType = "api" | "mcp" | "builtin";
+
+export interface ToolParameter {
+  name: string;
+  type: "string" | "number" | "boolean" | "array" | "object";
+  description: string;
+  required?: boolean;
+  enum?: string[];
+  default?: unknown;
+}
+
+export interface ApiToolConfig {
+  baseUrl: string;
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  path: string;
+  auth: {
+    type: "none" | "api_key" | "bearer" | "basic" | "custom_header";
+    headerName?: string;
+    secret?: string;
+    username?: string;
+  };
+  headers?: Record<string, string>;
+  bodyTemplate?: string;
+  responseFormat?: "json" | "text";
+  timeoutMs?: number;
+}
+
+export interface McpToolConfig {
+  transport: "stdio" | "sse" | "websocket";
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string;
+  connectionOptions?: Record<string, unknown>;
+}
+
+export interface BuiltinToolConfig {
+  toolType: "multi_kb_router" | "calculator" | "date_time" | "web_search";
+  options?: Record<string, unknown>;
+}
+
+export type ToolConfig = ApiToolConfig | McpToolConfig | BuiltinToolConfig;
+
+export interface ToolDefinition {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string;
+  type: ToolType;
+  config: ToolConfig;
+  parameters: ToolParameter[];
+  isEnabled: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentCapabilities {
+  id: string;
+  agentId: string;
+  agenticModeEnabled: boolean;
+  multiKbRoutingEnabled: boolean;
+  toolCallingEnabled: boolean;
+  maxToolCallsPerTurn: number;
+  multiStepReasoningEnabled: boolean;
+  maxReasoningSteps: number;
+  showChainOfThought: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentTool {
+  id: string;
+  toolId: string;
+  isEnabled: boolean;
+  priority: number;
+  createdAt: string;
+  tool: {
+    id: string;
+    name: string;
+    description: string;
+    type: ToolType;
+    isEnabled: boolean;
+  };
+}
+
+export interface BuiltinToolInfo {
+  id: string;
+  name: string;
+  description: string;
+  type: "builtin";
+  configSchema: BuiltinToolConfig;
+  requiresConfig?: boolean;
+}
+
+// Chain of Thought Types
+export interface ChainOfThoughtStep {
+  type: "thinking" | "searching" | "tool_call" | "tool_result" | "answering";
+  content: string;
+  toolName?: string;
+  toolArgs?: Record<string, unknown>;
+  toolResult?: unknown;
+  kbId?: string;
+  kbName?: string;
+  timestamp: number;
+}
+
 export interface AdminAnalyticsTenantDetail {
   tenant: {
     id: string;
@@ -1042,6 +1150,102 @@ export const api = {
     }
   },
 
+  // Agentic Streaming Chat (with tool calling and chain of thought)
+  agenticChatStream: async (
+    agentId: string,
+    message: string,
+    conversationId: string | undefined,
+    onChunk: (text: string) => void,
+    onDone: (data: { 
+      conversationId: string; 
+      citations: ChatMessage["citations"];
+      chainOfThought?: ChainOfThoughtStep[];
+      toolCallsCount?: number;
+    }) => void,
+    onError: (error: string) => void,
+    onStatus?: (status: { status: string; message?: string; toolName?: string }) => void,
+    onChainOfThought?: (step: ChainOfThoughtStep) => void
+  ): Promise<void> => {
+    const token = getToken();
+    const tenantId = getCurrentTenantId();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    if (tenantId) {
+      headers["X-Tenant-ID"] = tenantId;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/chat/agentic/${agentId}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ message, conversationId }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: "Request failed" }));
+        throw new Error(error.message || `HTTP ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data) {
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.type === "status" && onStatus) {
+                  onStatus({
+                    status: parsed.status,
+                    message: parsed.message,
+                    toolName: parsed.toolName,
+                  });
+                } else if (parsed.type === "chain_of_thought" && onChainOfThought) {
+                  onChainOfThought(parsed.step);
+                } else if (parsed.type === "text") {
+                  onChunk(parsed.content);
+                } else if (parsed.type === "done") {
+                  onDone({
+                    conversationId: parsed.conversationId,
+                    citations: parsed.citations,
+                    chainOfThought: parsed.chainOfThought,
+                    toolCallsCount: parsed.toolCallsCount,
+                  });
+                } else if (parsed.type === "error") {
+                  onError(parsed.message);
+                }
+              } catch {
+                // Ignore parse errors for incomplete chunks
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "Stream failed");
+    }
+  },
+
   // Analytics
   getAnalytics: (params?: { startDate?: string; endDate?: string }) => {
     const searchParams = new URLSearchParams();
@@ -1432,4 +1636,69 @@ export const api = {
     const params = days ? `?days=${days}` : "";
     return request<{ summary: AuditSummary }>(`/admin/audit/summary/${tenantId}${params}`);
   },
+
+  // Tools
+  listTools: () =>
+    request<{ tools: ToolDefinition[] }>("/tools"),
+  getTool: (id: string) =>
+    request<{ tool: ToolDefinition }>(`/tools/${id}`),
+  createTool: (data: {
+    name: string;
+    description: string;
+    type: ToolType;
+    config: ToolConfig;
+    parameters?: ToolParameter[];
+    isEnabled?: boolean;
+  }) =>
+    request<{ tool: ToolDefinition }>("/tools", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateTool: (id: string, data: {
+    name?: string;
+    description?: string;
+    config?: ToolConfig;
+    parameters?: ToolParameter[];
+    isEnabled?: boolean;
+  }) =>
+    request<{ tool: ToolDefinition }>(`/tools/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteTool: (id: string) =>
+    request<{ message: string }>(`/tools/${id}`, { method: "DELETE" }),
+  listBuiltinTools: () =>
+    request<{ tools: BuiltinToolInfo[] }>("/tools/builtin"),
+
+  // Agent Capabilities
+  getAgentCapabilities: (agentId: string) =>
+    request<{ capabilities: AgentCapabilities }>(`/tools/agents/${agentId}/capabilities`),
+  updateAgentCapabilities: (agentId: string, data: {
+    agenticModeEnabled?: boolean;
+    multiKbRoutingEnabled?: boolean;
+    toolCallingEnabled?: boolean;
+    maxToolCallsPerTurn?: number;
+    multiStepReasoningEnabled?: boolean;
+    maxReasoningSteps?: number;
+    showChainOfThought?: boolean;
+  }) =>
+    request<{ capabilities: AgentCapabilities }>(`/tools/agents/${agentId}/capabilities`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  // Agent Tools
+  listAgentTools: (agentId: string) =>
+    request<{ tools: AgentTool[] }>(`/tools/agents/${agentId}/tools`),
+  attachToolToAgent: (agentId: string, data: {
+    toolId: string;
+    isEnabled?: boolean;
+    priority?: number;
+  }) =>
+    request<{ agentTool: AgentTool }>(`/tools/agents/${agentId}/tools`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  detachToolFromAgent: (agentId: string, toolId: string) =>
+    request<{ message: string }>(`/tools/agents/${agentId}/tools/${toolId}`, { method: "DELETE" }),
 };

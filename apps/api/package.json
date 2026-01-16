@@ -10,7 +10,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hono/zod-validator": "^0.7.6",
     "@grounded/ai-providers": "workspace:*",
     "@grounded/crawl-state": "workspace:*",
     "@grounded/db": "workspace:*",
@@ -19,6 +18,8 @@
     "@grounded/queue": "workspace:*",
     "@grounded/shared": "workspace:*",
     "@grounded/vector-store": "workspace:*",
+    "@hono/zod-validator": "^0.7.6",
+    "ai": "6.0.37",
     "csv-parse": "^6.1.0",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.11.3",

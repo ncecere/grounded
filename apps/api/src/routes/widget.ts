@@ -8,6 +8,7 @@ import {
   agents,
   agentKbs,
   agentWidgetConfigs,
+  agentCapabilities,
   retrievalConfigs,
   kbChunks,
   chatEvents,
@@ -21,6 +22,7 @@ import type { Citation } from "@grounded/shared";
 import { getConversation, addToConversation, checkRateLimit } from "@grounded/queue";
 import { generateId } from "@grounded/shared";
 import { NotFoundError, ForbiddenError, RateLimitError } from "../middleware/error-handler";
+import { AgenticChatService, type ChainOfThoughtStep } from "../services/agentic-chat";
 
 export const widgetRoutes = new Hono();
 
@@ -66,6 +68,11 @@ widgetRoutes.get("/:token/config", async (c) => {
     where: eq(agentWidgetConfigs.agentId, agent.id),
   });
 
+  // Get agent capabilities for agentic mode
+  const capabilities = await db.query.agentCapabilities.findFirst({
+    where: eq(agentCapabilities.agentId, agent.id),
+  });
+
   return c.json({
     agentName: agent.name,
     description: agent.description || "Ask me anything. I'm here to assist you.",
@@ -73,6 +80,11 @@ widgetRoutes.get("/:token/config", async (c) => {
     logoUrl: agent.logoUrl || null,
     theme: widgetConfig?.theme || {},
     isPublic: widgetConfig?.isPublic ?? true,
+    // Agentic capabilities
+    agenticMode: {
+      enabled: capabilities?.agenticModeEnabled ?? false,
+      showChainOfThought: capabilities?.showChainOfThought ?? false,
+    },
   });
 });
 
@@ -526,6 +538,270 @@ widgetRoutes.post(
         });
       } catch (error) {
         console.error("[Widget Stream] Error:", error);
+        await stream.writeSSE({
+          data: JSON.stringify({
+            type: "error",
+            message: "An error occurred while generating the response.",
+          }),
+        });
+      }
+    });
+  }
+);
+
+// ============================================================================
+// Widget Agentic Streaming Chat (Public)
+// ============================================================================
+
+widgetRoutes.post(
+  "/:token/chat/agentic",
+  zValidator("json", widgetChatSchema),
+  async (c) => {
+    const token = c.req.param("token");
+    const body = c.req.valid("json");
+    const startTime = Date.now();
+
+    // Validate token
+    const widgetToken = await db.query.widgetTokens.findFirst({
+      where: and(
+        eq(widgetTokens.token, token),
+        isNull(widgetTokens.revokedAt)
+      ),
+    });
+
+    if (!widgetToken) {
+      throw new NotFoundError("Widget");
+    }
+
+    // Get agent
+    const agent = await db.query.agents.findFirst({
+      where: and(
+        eq(agents.id, widgetToken.agentId),
+        isNull(agents.deletedAt)
+      ),
+    });
+
+    if (!agent) {
+      throw new NotFoundError("Agent");
+    }
+
+    // Get agent capabilities
+    const capabilities = await db.query.agentCapabilities.findFirst({
+      where: eq(agentCapabilities.agentId, agent.id),
+    });
+
+    // Get widget config
+    const widgetConfig = await db.query.agentWidgetConfigs.findFirst({
+      where: eq(agentWidgetConfigs.agentId, agent.id),
+    });
+
+    // Validate domain allowlist
+    const origin = c.req.header("Origin");
+    const referer = c.req.header("Referer");
+    const requestDomain = origin || (referer ? new URL(referer).origin : null);
+
+    if (widgetConfig && widgetConfig.allowedDomains.length > 0 && requestDomain) {
+      const domainAllowed = widgetConfig.allowedDomains.some((allowed) => {
+        if (allowed.startsWith("*.")) {
+          const baseDomain = allowed.slice(2);
+          return (
+            requestDomain.endsWith(baseDomain) ||
+            requestDomain.endsWith(`.${baseDomain}`)
+          );
+        }
+        return requestDomain.includes(allowed);
+      });
+
+      if (!domainAllowed) {
+        throw new ForbiddenError("Domain not allowed");
+      }
+    }
+
+    // Check rate limit
+    const quotas = await db.query.tenantQuotas.findFirst({
+      where: eq(tenantQuotas.tenantId, widgetToken.tenantId),
+    });
+
+    const rateLimit = quotas?.chatRateLimitPerMinute || 60;
+    const rateLimitResult = await checkRateLimit(
+      `widget:${widgetToken.tenantId}`,
+      rateLimit,
+      60
+    );
+
+    if (!rateLimitResult.allowed) {
+      c.header("X-RateLimit-Limit", rateLimit.toString());
+      c.header("X-RateLimit-Remaining", "0");
+      c.header("Retry-After", "60");
+      throw new RateLimitError(60);
+    }
+
+    // Get attached KB IDs
+    const attachedKbs = await db.query.agentKbs.findMany({
+      where: and(eq(agentKbs.agentId, agent.id), isNull(agentKbs.deletedAt)),
+    });
+
+    const kbIds = attachedKbs.map((ak) => ak.kbId);
+    const conversationId = body.conversationId || generateId();
+
+    // Check if agentic mode is enabled
+    const isAgenticMode = capabilities?.agenticModeEnabled ?? false;
+    const showChainOfThought = capabilities?.showChainOfThought ?? false;
+
+    if (kbIds.length === 0) {
+      return streamSSE(c, async (stream) => {
+        await stream.writeSSE({
+          data: JSON.stringify({
+            type: "text",
+            content: "I'm not configured with any knowledge sources yet.",
+          }),
+        });
+        await stream.writeSSE({
+          data: JSON.stringify({
+            type: "done",
+            conversationId,
+            citations: [],
+          }),
+        });
+      });
+    }
+
+    // Disable proxy buffering for smooth streaming
+    c.header("X-Accel-Buffering", "no");
+    c.header("Cache-Control", "no-cache");
+
+    return streamSSE(c, async (stream) => {
+      try {
+        // Get conversation history
+        const history = await getConversation(
+          widgetToken.tenantId,
+          agent.id,
+          conversationId
+        );
+
+        const conversationHistory = history.map((turn) => ({
+          role: turn.role as "user" | "assistant",
+          content: turn.content,
+        }));
+
+        // Store user message first
+        await addToConversation(widgetToken.tenantId, agent.id, conversationId, {
+          role: "user",
+          content: body.message,
+          timestamp: Date.now(),
+        });
+
+        // Use AgenticChatService for streaming
+        const agenticService = new AgenticChatService(widgetToken.tenantId, agent.id);
+
+        let fullAnswer = "";
+        const chainOfThought: ChainOfThoughtStep[] = [];
+
+        const generator = agenticService.generateResponseStream(
+          {
+            tenantId: widgetToken.tenantId,
+            agentId: agent.id,
+            message: body.message,
+            conversationHistory,
+            modelConfigId: agent.llmModelConfigId || undefined,
+          },
+          {
+            onChainOfThought: async (step) => {
+              chainOfThought.push(step);
+              
+              // Send status update based on step type
+              if (step.type === "searching") {
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: "status",
+                    status: "searching",
+                    message: step.kbName ? `Searching "${step.kbName}"...` : "Searching knowledge base...",
+                  }),
+                });
+              } else if (step.type === "tool_call") {
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: "status",
+                    status: "tool_call",
+                    message: step.toolName ? `Using ${step.toolName}...` : "Executing tool...",
+                    toolName: step.toolName,
+                  }),
+                });
+              } else if (step.type === "answering") {
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: "status",
+                    status: "generating",
+                    message: "Generating response...",
+                  }),
+                });
+              }
+
+              // Send chain of thought step if enabled
+              if (showChainOfThought) {
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: "chain_of_thought",
+                    step,
+                  }),
+                });
+              }
+            },
+            onText: async (text) => {
+              fullAnswer += text;
+              await stream.writeSSE({
+                data: JSON.stringify({ type: "text", content: text }),
+              });
+            },
+          }
+        );
+
+        // Consume the generator
+        let result;
+        while (true) {
+          const { value, done } = await generator.next();
+          if (done) {
+            result = value;
+            break;
+          }
+          // Text chunks are handled by onText callback
+        }
+
+        // Store assistant message
+        await addToConversation(widgetToken.tenantId, agent.id, conversationId, {
+          role: "assistant",
+          content: fullAnswer,
+          timestamp: Date.now(),
+        });
+
+        // Log chat event
+        const latencyMs = Date.now() - startTime;
+        await db.insert(chatEvents).values({
+          tenantId: widgetToken.tenantId,
+          agentId: agent.id,
+          userId: null,
+          channel: "widget",
+          status: "ok",
+          latencyMs,
+          promptTokens: result?.inputTokens || 0,
+          completionTokens: result?.outputTokens || 0,
+          retrievedChunks: chainOfThought.filter(s => s.type === "searching").length,
+          rerankerUsed: true,
+        });
+
+        // Send final message with citations
+        const citations = agent.citationsEnabled ? (result?.citations || []) : [];
+        await stream.writeSSE({
+          data: JSON.stringify({
+            type: "done",
+            conversationId,
+            citations,
+            chainOfThought: showChainOfThought ? chainOfThought : undefined,
+            toolCallsCount: result?.toolCallsCount || 0,
+          }),
+        });
+      } catch (error) {
+        console.error("[Widget Agentic Stream] Error:", error);
         await stream.writeSSE({
           data: JSON.stringify({
             type: "error",

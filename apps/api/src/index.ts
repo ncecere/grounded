@@ -26,6 +26,7 @@ import { adminDashboardRoutes } from "./routes/admin/dashboard";
 import { adminAnalyticsRoutes } from "./routes/admin/analytics";
 import { adminTokensRoutes } from "./routes/admin/tokens";
 import { adminAuditRoutes } from "./routes/admin/audit";
+import { toolRoutes } from "./routes/tools";
 import { runMigrations } from "./startup/run-migrations";
 import { seedSystemAdmin } from "./startup/seed-admin";
 
@@ -102,6 +103,9 @@ v1.route("/sources", sourceRoutes);
 
 // Agent management
 v1.route("/agents", agentRoutes);
+
+// Tools management
+v1.route("/tools", toolRoutes);
 
 // Chat
 v1.route("/chat", chatRoutes);

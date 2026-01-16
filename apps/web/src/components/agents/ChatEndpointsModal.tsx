@@ -66,7 +66,7 @@ export function ChatEndpointsModal({
 
   return (
     <Dialog open={!!agent} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Chat Configuration</DialogTitle>
           <p className="text-sm text-muted-foreground">

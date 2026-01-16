@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Agent } from "../lib/api";
-import { Plus, MessageSquare, Settings, Trash2, Pencil } from "lucide-react";
+import { Plus, MessageSquare, Settings, Trash2, Pencil, Brain } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -12,6 +12,7 @@ import {
   EditAgentModal,
   WidgetConfigModal,
   ChatEndpointsModal,
+  AgentCapabilitiesModal,
 } from "@/components/agents";
 
 interface AgentsProps {
@@ -24,6 +25,7 @@ export function Agents({ onSelectAgent }: AgentsProps) {
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [configAgent, setConfigAgent] = useState<Agent | null>(null);
   const [chatAgent, setChatAgent] = useState<Agent | null>(null);
+  const [capabilitiesAgent, setCapabilitiesAgent] = useState<Agent | null>(null);
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
 
   const { data: agents, isLoading } = useQuery({
@@ -142,6 +144,14 @@ export function Agents({ onSelectAgent }: AgentsProps) {
                 <Button
                   variant="secondary"
                   size="sm"
+                  onClick={() => setCapabilitiesAgent(agent)}
+                  title="Configure agentic capabilities"
+                >
+                  <Brain className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setConfigAgent(agent)}
                 >
                   <Settings className="w-4 h-4 mr-1" />
@@ -179,6 +189,9 @@ export function Agents({ onSelectAgent }: AgentsProps) {
 
       {/* Widget Config Modal */}
       <WidgetConfigModal agent={configAgent} onClose={() => setConfigAgent(null)} />
+
+      {/* Agent Capabilities Modal */}
+      <AgentCapabilitiesModal agent={capabilitiesAgent} onClose={() => setCapabilitiesAgent(null)} />
 
       {/* Chat Endpoints Modal */}
       <ChatEndpointsModal

@@ -1,11 +1,12 @@
 // Clean Modern Design System
 // Blue palette with Noto Sans + IBM Plex Mono
+// Supports light/dark mode via :host(.dark) or prefers-color-scheme
 
 export const styles = `
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans:wght@400;500;600&display=swap');
 
   :host {
-    /* Color System - Cool Blue Palette */
+    /* Color System - Light Theme (default) */
     --grounded-bg-primary: #F8FAFC;
     --grounded-bg-secondary: #F1F5F9;
     --grounded-bg-tertiary: #E2E8F0;
@@ -28,6 +29,10 @@ export const styles = `
     --grounded-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
     --grounded-shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.12);
     --grounded-shadow-xl: 0 20px 60px rgba(15, 23, 42, 0.16);
+
+    /* Code block colors */
+    --grounded-code-bg: #1E293B;
+    --grounded-code-text: #E2E8F0;
 
     /* Typography */
     --grounded-font-sans: 'Noto Sans', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -58,8 +63,72 @@ export const styles = `
     font-size: 15px;
     line-height: 1.5;
     color: var(--grounded-text-primary);
+    color-scheme: light;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Dark Theme - Applied via :host(.dark) class */
+  :host(.dark) {
+    --grounded-bg-primary: #0F172A;
+    --grounded-bg-secondary: #1E293B;
+    --grounded-bg-tertiary: #334155;
+    --grounded-bg-elevated: #1E293B;
+
+    --grounded-text-primary: #F1F5F9;
+    --grounded-text-secondary: #94A3B8;
+    --grounded-text-tertiary: #64748B;
+    --grounded-text-inverse: #0F172A;
+
+    /* Blue Accent - brighter for dark */
+    --grounded-accent: #60A5FA;
+    --grounded-accent-hover: #3B82F6;
+    --grounded-accent-subtle: rgba(96, 165, 250, 0.15);
+
+    /* Borders & Shadows */
+    --grounded-border: #334155;
+    --grounded-border-subtle: #1E293B;
+    --grounded-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --grounded-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+    --grounded-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4);
+    --grounded-shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.5);
+
+    /* Code block colors - slightly lighter in dark mode for contrast */
+    --grounded-code-bg: #0F172A;
+    --grounded-code-text: #E2E8F0;
+
+    color-scheme: dark;
+  }
+
+  /* Auto dark mode via system preference */
+  @media (prefers-color-scheme: dark) {
+    :host(:not(.light)) {
+      --grounded-bg-primary: #0F172A;
+      --grounded-bg-secondary: #1E293B;
+      --grounded-bg-tertiary: #334155;
+      --grounded-bg-elevated: #1E293B;
+
+      --grounded-text-primary: #F1F5F9;
+      --grounded-text-secondary: #94A3B8;
+      --grounded-text-tertiary: #64748B;
+      --grounded-text-inverse: #0F172A;
+
+      --grounded-accent: #60A5FA;
+      --grounded-accent-hover: #3B82F6;
+      --grounded-accent-subtle: rgba(96, 165, 250, 0.15);
+
+      --grounded-border: #334155;
+      --grounded-border-subtle: #1E293B;
+      --grounded-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+      --grounded-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+      --grounded-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4);
+      --grounded-shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.5);
+
+      --grounded-code-bg: #0F172A;
+      --grounded-code-text: #E2E8F0;
+
+      color-scheme: dark;
+    }
   }
 
   *, *::before, *::after {
@@ -477,8 +546,8 @@ export const styles = `
   }
 
   .grounded-message-bubble pre {
-    background: #1E293B;
-    color: #E2E8F0;
+    background: var(--grounded-code-bg);
+    color: var(--grounded-code-text);
     padding: var(--grounded-space-sm) var(--grounded-space-md);
     border-radius: var(--grounded-radius-sm);
     overflow-x: auto;
@@ -1052,6 +1121,144 @@ export const styles = `
   .grounded-citation-card-link svg {
     width: 12px;
     height: 12px;
+  }
+
+  /* ============================================
+     Agentic Chain of Thought Styles
+     ============================================ */
+  
+  .grounded-agentic-steps {
+    margin-bottom: var(--grounded-space-md);
+    animation: grounded-fade-in var(--grounded-duration-normal) var(--grounded-ease-out);
+  }
+
+  .grounded-agentic-header {
+    display: flex;
+    align-items: center;
+    gap: var(--grounded-space-sm);
+    width: 100%;
+    padding: var(--grounded-space-sm) var(--grounded-space-md);
+    background: var(--grounded-bg-secondary);
+    border: none;
+    border-radius: var(--grounded-radius-sm);
+    font-family: var(--grounded-font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--grounded-text-secondary);
+    cursor: pointer;
+    transition: all var(--grounded-duration-fast);
+  }
+
+  .grounded-agentic-header:hover {
+    background: var(--grounded-bg-tertiary);
+    color: var(--grounded-text-primary);
+  }
+
+  .grounded-agentic-header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--grounded-accent);
+  }
+
+  .grounded-agentic-header-text {
+    flex: 1;
+    text-align: left;
+  }
+
+  .grounded-agentic-header-chevron {
+    display: flex;
+    align-items: center;
+    color: var(--grounded-text-tertiary);
+  }
+
+  .grounded-agentic-content {
+    margin-top: var(--grounded-space-sm);
+    padding: var(--grounded-space-sm) var(--grounded-space-md);
+    background: var(--grounded-bg-elevated);
+    border: 1px solid var(--grounded-border);
+    border-radius: var(--grounded-radius-sm);
+    animation: grounded-fade-in var(--grounded-duration-fast) var(--grounded-ease-out);
+  }
+
+  .grounded-agentic-step {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--grounded-space-sm);
+    padding: var(--grounded-space-xs) 0;
+    position: relative;
+  }
+
+  .grounded-agentic-step-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--grounded-radius-full);
+    background: var(--grounded-bg-secondary);
+    color: var(--grounded-text-tertiary);
+    flex-shrink: 0;
+  }
+
+  .grounded-agentic-step-content {
+    flex: 1;
+    min-width: 0;
+    padding-top: 3px;
+  }
+
+  .grounded-agentic-step-label {
+    font-size: 13px;
+    color: var(--grounded-text-secondary);
+  }
+
+  .grounded-agentic-step-label.active {
+    color: var(--grounded-text-primary);
+    font-weight: 500;
+  }
+
+  .grounded-agentic-step-line {
+    position: absolute;
+    left: 11px;
+    top: 28px;
+    width: 2px;
+    height: calc(100% - 4px);
+    background: var(--grounded-border);
+  }
+
+  /* Agentic Status Indicator (compact inline) */
+  .grounded-agentic-status {
+    display: flex;
+    align-items: center;
+    gap: var(--grounded-space-sm);
+    padding: var(--grounded-space-sm) var(--grounded-space-md);
+    background: var(--grounded-accent-subtle);
+    border-radius: var(--grounded-radius-full);
+    color: var(--grounded-accent);
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: var(--grounded-space-sm);
+    animation: grounded-fade-in var(--grounded-duration-fast) var(--grounded-ease-out);
+  }
+
+  .grounded-agentic-status-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .grounded-agentic-status-text {
+    white-space: nowrap;
+  }
+
+  /* Spinner animation */
+  .grounded-agentic-spinner {
+    animation: grounded-spin 1s linear infinite;
+  }
+
+  @keyframes grounded-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 `;
 
