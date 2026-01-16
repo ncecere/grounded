@@ -1,4 +1,4 @@
-import { generateText, streamText, smoothStream, tool, stepCountIs } from "ai";
+import { generateText, streamText, tool, stepCountIs } from "ai";
 import { z } from "zod";
 import { db } from "@grounded/db";
 import {
@@ -64,6 +64,92 @@ export interface StreamCallbacks {
 export class AgenticChatService {
   private tenantId: string;
   private agentId: string;
+
+  // Output rules to prevent LLMs from exposing internal reasoning (always appended to system prompts)
+  private static readonly OUTPUT_RULES = `
+
+OUTPUT RULES (CRITICAL - ALWAYS FOLLOW):
+- Start your response directly with the answer content
+- NEVER expose internal reasoning, planning, or thought process
+- NEVER include meta-commentary like "We need to answer...", "I should...", "Let me think..."
+- NEVER include XML-like tags such as <thinking>, <system-reminder>, <plan>, etc.
+- Be conversational and helpful, not robotic`;
+
+  /**
+   * Filter out any leaked thinking/reasoning text from LLM output
+   */
+  private static filterThinkingText(text: string): string {
+    let filtered = text;
+    
+    // Step 1: Remove ALL XML-like tags (including incomplete ones at end of stream)
+    // Use greedy matching to catch everything between tags
+    filtered = filtered
+      .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+      .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gi, '')
+      .replace(/<plan>[\s\S]*?<\/plan>/gi, '')
+      .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+      .replace(/<internal>[\s\S]*?<\/internal>/gi, '')
+      // Also remove incomplete tags at the end (streaming)
+      .replace(/<system-reminder>[^<]*$/gi, '')
+      .replace(/<thinking>[^<]*$/gi, '')
+      .replace(/<plan>[^<]*$/gi, '')
+      // Remove any standalone opening tags that might appear
+      .replace(/<system-reminder>/gi, '')
+      .replace(/<\/system-reminder>/gi, '');
+    
+    // Step 2: Remove "We need to answer:" planning blocks at the START
+    // Find where the actual answer begins (usually marked by ### or **)
+    if (filtered.match(/^We need to answer:/i)) {
+      // Look for markdown heading which typically starts the real answer
+      const headingMatch = filtered.match(/\n?(#{1,3}\s+[A-Z])/);
+      if (headingMatch && headingMatch.index !== undefined) {
+        filtered = filtered.slice(headingMatch.index).trim();
+      } else {
+        // Look for bold text which often marks the start of the real answer
+        const boldMatch = filtered.match(/\*\*[A-Z][^*]+\*\*/);
+        if (boldMatch && boldMatch.index !== undefined) {
+          filtered = filtered.slice(boldMatch.index);
+        }
+      }
+    }
+    
+    // Step 3: Remove other thinking prefixes that might appear at the start
+    const thinkingPrefixes = [
+      /^I need to [^.]*\.\s*/i,
+      /^Let me think[^.]*\.\s*/i,
+      /^I should [^.]*\.\s*/i,
+      /^The question[^.]*\.\s*/i,
+      /^The context[^.]*\.\s*/i,
+      /^Likely referring to[^.]*\.\s*/i,
+      /^Provide explanation:[^.]*\.\s*/i,
+    ];
+    
+    for (const pattern of thinkingPrefixes) {
+      filtered = filtered.replace(pattern, '');
+    }
+    
+    // Step 4: Detect repetitive loops (model bug) and truncate
+    const repetitiveMatch = filtered.match(/(Provide [^.]{10,50}\.)\s*\1/i);
+    if (repetitiveMatch && repetitiveMatch.index !== undefined) {
+      filtered = filtered.slice(0, repetitiveMatch.index).trim();
+    }
+    
+    // Step 5: If STILL starts with thinking-like text, be more aggressive
+    if (filtered.match(/^(We need to|I need to|Let me|I should|The question|The context|Likely|Provide explanation)/i)) {
+      // Find the first heading (###) or bold (**) which marks real content
+      const contentMarkers = [
+        filtered.search(/#{1,3}\s+[A-Z]/),
+        filtered.search(/\*\*[A-Z]/),
+      ].filter(i => i > 0);
+      
+      if (contentMarkers.length > 0) {
+        const firstContent = Math.min(...contentMarkers);
+        filtered = filtered.slice(firstContent);
+      }
+    }
+    
+    return filtered.trim();
+  }
 
   constructor(tenantId: string, agentId: string) {
     this.tenantId = tenantId;
@@ -385,14 +471,14 @@ export class AgenticChatService {
         stopWhen: stepCountIs(maxToolCalls),
         maxOutputTokens: 2048,
         temperature: 0.1,
-        experimental_transform: smoothStream({
-          delayInMs: 15,
-          chunking: "word",
-        }),
+        // Removed smoothStream to eliminate artificial delays
+        // Text will stream as fast as the model produces it
       });
 
       let fullText = "";
       let hasStartedGenerating = false;
+      let yieldedLength = 0;
+      let hasStartedYielding = false;
 
       // Process the stream in real-time
       for await (const part of result.fullStream) {
@@ -461,10 +547,51 @@ export class AgenticChatService {
           // Use 'text' property (AI SDK 6+)
           const textChunk = (part as unknown as { text?: string }).text || "";
           fullText += textChunk;
-          yield textChunk;
-          if (callbacks?.onText) {
-            await callbacks.onText(textChunk);
+          
+          // Apply filter to accumulated text
+          const filteredText = AgenticChatService.filterThinkingText(fullText);
+          
+          // Only start yielding once we have meaningful content
+          // Must NOT start with thinking patterns AND must look like real content
+          if (!hasStartedYielding) {
+            const startsWithThinking = filteredText.match(/^(We need to|I need to|Let me|I should|The question|The context|Likely|Provide explanation)/i);
+            const matchesAnswerPattern = filteredText.match(/^(#{1,3}\s|###|\*\*[A-Z]|To |You can |Here|The |Install|First|1\.|-)/);
+            const looksLikeAnswer = filteredText.length > 0 && !startsWithThinking && (
+              matchesAnswerPattern ||
+              filteredText.length >= 300
+            );
+            
+            // Debug logging
+            if (fullText.length > 100 && fullText.length % 200 < 50) {
+              console.log('[Filter Debug] fullText len:', fullText.length, 'filteredText len:', filteredText.length);
+              console.log('[Filter Debug] filteredText start:', filteredText.substring(0, 80));
+              console.log('[Filter Debug] startsWithThinking:', !!startsWithThinking, 'matchesPattern:', !!matchesAnswerPattern, 'looksLikeAnswer:', looksLikeAnswer);
+            }
+            if (!looksLikeAnswer) {
+              continue;
+            }
+            hasStartedYielding = true;
           }
+          
+          // Yield only the new portion since last yield
+          const newContent = filteredText.slice(yieldedLength);
+          if (newContent) {
+            yield newContent;
+            if (callbacks?.onText) {
+              await callbacks.onText(newContent);
+            }
+            yieldedLength = filteredText.length;
+          }
+        }
+      }
+      
+      // Yield any remaining content after stream ends
+      const finalFilteredText = AgenticChatService.filterThinkingText(fullText);
+      const remainingText = finalFilteredText.slice(yieldedLength);
+      if (remainingText) {
+        yield remainingText;
+        if (callbacks?.onText) {
+          await callbacks.onText(remainingText);
         }
       }
 
@@ -484,7 +611,7 @@ export class AgenticChatService {
         const uniqueCitations = this.deduplicateCitations(citations, config.retrievalConfig.maxCitations);
 
         return {
-          answer: fullText,
+          answer: AgenticChatService.filterThinkingText(fullText),
           citations: uniqueCitations,
           chainOfThought,
           inputTokens: totalInputTokens,
@@ -550,18 +677,50 @@ export class AgenticChatService {
       messages: ragMessages,
       maxOutputTokens: 2048,
       temperature: 0.1,
-      experimental_transform: smoothStream({
-        delayInMs: 15,
-        chunking: "word",
-      }),
+      // Removed smoothStream to eliminate artificial delays
     });
 
     let fullAnswer = "";
+    let yieldedLength = 0;
+    let hasStartedYielding = false;
+    
     for await (const chunk of textStream) {
       fullAnswer += chunk;
-      yield chunk;
+      
+      // Apply filter to accumulated text
+      const filteredAnswer = AgenticChatService.filterThinkingText(fullAnswer);
+      
+      // Only start yielding once we have meaningful content (not thinking text)
+      if (!hasStartedYielding) {
+        const startsWithThinking = filteredAnswer.match(/^(We need to|I need to|Let me|I should|The question|The context|Likely|Provide explanation)/i);
+        const looksLikeAnswer = filteredAnswer.length > 0 && !startsWithThinking && (
+          filteredAnswer.match(/^(#{1,3}\s|###|\*\*[A-Z]|To |You can |Here|The |Install|First|1\.|-)/) ||
+          filteredAnswer.length >= 300
+        );
+        if (!looksLikeAnswer) {
+          continue;
+        }
+        hasStartedYielding = true;
+      }
+      
+      // Yield only the new portion since last yield
+      const newContent = filteredAnswer.slice(yieldedLength);
+      if (newContent) {
+        yield newContent;
+        if (callbacks?.onText) {
+          await callbacks.onText(newContent);
+        }
+        yieldedLength = filteredAnswer.length;
+      }
+    }
+    
+    // Yield any remaining content after stream ends
+    const finalFiltered = AgenticChatService.filterThinkingText(fullAnswer);
+    const remaining = finalFiltered.slice(yieldedLength);
+    if (remaining) {
+      yield remaining;
       if (callbacks?.onText) {
-        await callbacks.onText(chunk);
+        await callbacks.onText(remaining);
       }
     }
 
@@ -570,7 +729,7 @@ export class AgenticChatService {
     totalOutputTokens += finalUsage?.outputTokens || 0;
 
     return {
-      answer: fullAnswer,
+      answer: AgenticChatService.filterThinkingText(fullAnswer),
       citations: chunkCitations,
       chainOfThought,
       inputTokens: totalInputTokens,
@@ -644,7 +803,7 @@ export class AgenticChatService {
     }));
 
     return {
-      answer: result.text,
+      answer: AgenticChatService.filterThinkingText(result.text),
       citations,
       chainOfThought,
       inputTokens: result.usage?.inputTokens || 0,
@@ -715,16 +874,45 @@ export class AgenticChatService {
       messages,
       maxOutputTokens: 2048,
       temperature: 0.1,
-      experimental_transform: smoothStream({
-        delayInMs: 15,
-        chunking: "word",
-      }),
+      // Removed smoothStream to eliminate artificial delays
     });
 
     let fullAnswer = "";
+    let yieldedLength = 0;
+    let hasStartedYielding = false;
+    
     for await (const chunk of textStream) {
       fullAnswer += chunk;
-      yield chunk;
+      
+      // Apply filter to accumulated text
+      const filteredAnswer = AgenticChatService.filterThinkingText(fullAnswer);
+      
+      // Only start yielding once we have meaningful content (not thinking text)
+      if (!hasStartedYielding) {
+        const startsWithThinking = filteredAnswer.match(/^(We need to|I need to|Let me|I should|The question|The context|Likely|Provide explanation)/i);
+        const looksLikeAnswer = filteredAnswer.length > 0 && !startsWithThinking && (
+          filteredAnswer.match(/^(#{1,3}\s|###|\*\*[A-Z]|To |You can |Here|The |Install|First|1\.|-)/) ||
+          filteredAnswer.length >= 300
+        );
+        if (!looksLikeAnswer) {
+          continue;
+        }
+        hasStartedYielding = true;
+      }
+      
+      // Yield only the new portion since last yield
+      const newContent = filteredAnswer.slice(yieldedLength);
+      if (newContent) {
+        yield newContent;
+        yieldedLength = filteredAnswer.length;
+      }
+    }
+    
+    // Yield any remaining content after stream ends
+    const finalFiltered = AgenticChatService.filterThinkingText(fullAnswer);
+    const remaining = finalFiltered.slice(yieldedLength);
+    if (remaining) {
+      yield remaining;
     }
 
     const finalUsage = await usage;
@@ -739,7 +927,7 @@ export class AgenticChatService {
     }));
 
     return {
-      answer: fullAnswer,
+      answer: AgenticChatService.filterThinkingText(fullAnswer),
       citations,
       chainOfThought,
       inputTokens: finalUsage?.inputTokens || 0,
@@ -791,7 +979,7 @@ export class AgenticChatService {
 - Place citations at the end of the sentence or phrase that uses that source's information
 - Only cite sources that you actually use in your answer`;
 
-    return `${basePrompt}${description}\n\nCurrent date and time: ${dateStr}, ${timeStr}${capabilitiesPrompt}${citationInstructions}`;
+    return `${basePrompt}${description}\n\nCurrent date and time: ${dateStr}, ${timeStr}${capabilitiesPrompt}${citationInstructions}${AgenticChatService.OUTPUT_RULES}`;
   }
 
   /**
@@ -818,7 +1006,7 @@ CITATION RULES:
 - Only cite sources that you actually use in your answer`;
 
     if (customPrompt) {
-      return `${customPrompt}\n\n${citationInstructions}\n\nCurrent date and time: ${dateStr}, ${timeStr}`;
+      return `${customPrompt}\n\n${citationInstructions}${AgenticChatService.OUTPUT_RULES}\n\nCurrent date and time: ${dateStr}, ${timeStr}`;
     }
 
     return `You are a helpful assistant that answers questions based ONLY on the provided context.
@@ -828,7 +1016,7 @@ STRICT RULES:
 2. If the context does not contain enough information to answer the question, respond with: "I don't know based on the provided sources."
 3. Be concise and direct in your answers
 4. Do not make up or infer information that is not explicitly in the context
-${citationInstructions}
+${citationInstructions}${AgenticChatService.OUTPUT_RULES}
 
 Current date and time: ${dateStr}, ${timeStr}`;
   }

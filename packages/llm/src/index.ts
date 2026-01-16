@@ -1,4 +1,4 @@
-import { generateText, streamText, smoothStream, type ModelMessage } from "ai";
+import { generateText, streamText, type ModelMessage } from "ai";
 import { getAIRegistry } from "@grounded/ai-providers";
 import { retry, type Citation } from "@grounded/shared";
 
@@ -266,10 +266,8 @@ export async function* generateRAGResponseStream(
     messages,
     maxOutputTokens: 1024,
     temperature: 0.1,
-    experimental_transform: smoothStream({
-      delayInMs: 15,
-      chunking: 'word',
-    }),
+    // Removed smoothStream to eliminate artificial delays
+    // Text will stream as fast as the model produces it
   });
 
   let fullAnswer = "";

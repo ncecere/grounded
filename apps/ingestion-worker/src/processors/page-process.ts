@@ -131,12 +131,23 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
       status: "succeeded",
     });
 
-    // Queue embedding job
-    await addEmbedChunksBatchJob({
-      tenantId,
-      kbId: source.kbId,
-      chunkIds,
-    });
+    // Queue embedding job and track chunks to embed
+    if (chunkIds.length > 0) {
+      await addEmbedChunksBatchJob({
+        tenantId,
+        kbId: source.kbId,
+        chunkIds,
+        runId,
+      });
+
+      // Increment chunks_to_embed counter atomically
+      await db
+        .update(sourceRuns)
+        .set({
+          chunksToEmbed: sql`${sourceRuns.chunksToEmbed} + ${chunkIds.length}`,
+        })
+        .where(eq(sourceRuns.id, runId));
+    }
 
     // Queue enrichment if enabled
     if (source.enrichmentEnabled) {

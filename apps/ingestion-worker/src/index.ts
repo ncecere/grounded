@@ -10,9 +10,10 @@ import { processEnrichPage } from "./processors/enrich-page";
 import { processHardDelete } from "./processors/hard-delete";
 
 const CONCURRENCY = getEnvNumber("WORKER_CONCURRENCY", 5);
+const EMBED_CONCURRENCY = getEnvNumber("EMBED_WORKER_CONCURRENCY", 4);
 
 console.log("Starting Ingestion Worker...");
-console.log(`Concurrency: ${CONCURRENCY}`);
+console.log(`Concurrency: ${CONCURRENCY}, Embed Concurrency: ${EMBED_CONCURRENCY}`);
 
 // Initialize vector store on startup
 (async () => {
@@ -98,7 +99,7 @@ const embedChunksWorker = new Worker(
   },
   {
     connection,
-    concurrency: Math.max(1, Math.floor(CONCURRENCY / 2)), // Lower concurrency for embedding calls
+    concurrency: EMBED_CONCURRENCY,
   }
 );
 

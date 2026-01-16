@@ -112,6 +112,9 @@ export const sourceRuns = pgTable(
       pagesFailed: 0,
       tokensEstimated: 0,
     }).notNull(),
+    // Embedding progress tracking
+    chunksToEmbed: integer("chunks_to_embed").default(0).notNull(),
+    chunksEmbedded: integer("chunks_embedded").default(0).notNull(),
     error: text("error"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },

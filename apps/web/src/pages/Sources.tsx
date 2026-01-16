@@ -80,9 +80,14 @@ export function Sources({ kbId, onBack }: SourcesProps) {
     queryFn: () => api.listSourceRuns(kbId, selectedSource!.id),
     enabled: !!selectedSource,
     refetchInterval: (query) => {
-      // Auto-refresh every 3 seconds if there's a pending or running run
+      // Auto-refresh every 3 seconds if there's a pending, running, or embedding run
       const data = query.state.data;
-      if (data?.some(r => r.status === "pending" || r.status === "running")) {
+      if (data?.some(r => 
+        r.status === "pending" || 
+        r.status === "running" ||
+        // Also refresh while embeddings are still processing
+        (r.status === "succeeded" && r.chunksToEmbed > 0 && r.chunksEmbedded < r.chunksToEmbed)
+      )) {
         return 3000;
       }
       return false;
@@ -303,6 +308,14 @@ export function Sources({ kbId, onBack }: SourcesProps) {
     setShowEditModal(true);
   };
 
+  // Helper to determine display status (including embedding state)
+  const getDisplayStatus = (run: { status: string; chunksToEmbed: number; chunksEmbedded: number }) => {
+    if (run.status === "succeeded" && run.chunksToEmbed > 0 && run.chunksEmbedded < run.chunksToEmbed) {
+      return "embedding";
+    }
+    return run.status;
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
@@ -318,6 +331,8 @@ export function Sources({ kbId, onBack }: SourcesProps) {
       case "running":
       case "partial":
         return "bg-blue-500/15 text-blue-700 dark:text-blue-400";
+      case "embedding":
+        return "bg-purple-500/15 text-purple-700 dark:text-purple-400";
       default:
         return "bg-muted text-muted-foreground";
     }
@@ -514,27 +529,59 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                     </button>
                   </div>
                 </div>
-                {/* Show running indicator or last run date */}
-                {selectedSource?.id === source.id && runs && runs[0]?.status === "running" ? (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-primary">
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Scraping in progress...</span>
-                  </div>
-                ) : selectedSource?.id === source.id && runs && runs[0]?.status === "pending" ? (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Queued, starting soon...</span>
-                  </div>
-                ) : source.lastRunAt ? (
+                {/* Show running/embedding indicator or last run date */}
+                {selectedSource?.id === source.id && runs && runs[0] && (() => {
+                  const latestRun = runs[0];
+                  const latestDisplayStatus = getDisplayStatus(latestRun);
+                  
+                  if (latestDisplayStatus === "running") {
+                    return (
+                      <div className="mt-2 flex items-center gap-2 text-xs text-primary">
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Scraping in progress...</span>
+                      </div>
+                    );
+                  }
+                  
+                  if (latestDisplayStatus === "embedding") {
+                    const percent = latestRun.chunksToEmbed > 0 
+                      ? Math.round((latestRun.chunksEmbedded / latestRun.chunksToEmbed) * 100) 
+                      : 0;
+                    return (
+                      <div className="mt-2 flex items-center gap-2 text-xs text-purple-600 dark:text-purple-400">
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        <span>Embedding chunks... {percent}%</span>
+                      </div>
+                    );
+                  }
+                  
+                  if (latestDisplayStatus === "pending") {
+                    return (
+                      <div className="mt-2 flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Queued, starting soon...</span>
+                      </div>
+                    );
+                  }
+                  
+                  return null;
+                })()} 
+                {/* Show last run date if no active status */}
+                {!(selectedSource?.id === source.id && runs && runs[0] && 
+                   ["running", "embedding", "pending"].includes(getDisplayStatus(runs[0]))) && 
+                  source.lastRunAt && (
                   <p className="mt-2 text-xs text-muted-foreground">
                     Last scraped: {new Date(source.lastRunAt).toLocaleString()}
                   </p>
-                ) : null}
+                )}
               </div>
             ))
           )}
@@ -546,28 +593,59 @@ export function Sources({ kbId, onBack }: SourcesProps) {
           {selectedSource ? (
             runs && runs.length > 0 ? (
               <div className="space-y-3">
-                {runs.map((run) => (
-                  <div key={run.id} className="p-3 bg-muted rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(run.status)}`}>
-                        {run.status}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {run.startedAt ? new Date(run.startedAt).toLocaleString() : "Pending"}
-                      </span>
-                    </div>
-                    <div className="mt-2 text-sm text-muted-foreground">
-                      <p>Pages seen: {run.stats?.pagesSeen ?? 0}</p>
-                      <p>Pages indexed: {run.stats?.pagesIndexed ?? 0}</p>
-                      {(run.stats?.pagesFailed ?? 0) > 0 && (
-                        <p className="text-destructive">Failed: {run.stats.pagesFailed}</p>
+                {runs.map((run) => {
+                  const displayStatus = getDisplayStatus(run);
+                  const isEmbedding = displayStatus === "embedding";
+                  const embeddingPercent = run.chunksToEmbed > 0 
+                    ? Math.round((run.chunksEmbedded / run.chunksToEmbed) * 100) 
+                    : 0;
+                  
+                  return (
+                    <div key={run.id} className="p-3 bg-muted rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(displayStatus)}`}>
+                          {displayStatus}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {run.startedAt ? new Date(run.startedAt).toLocaleString() : "Pending"}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        <p>Pages seen: {run.stats?.pagesSeen ?? 0}</p>
+                        <p>Pages indexed: {run.stats?.pagesIndexed ?? 0}</p>
+                        {(run.stats?.pagesFailed ?? 0) > 0 && (
+                          <p className="text-destructive">Failed: {run.stats.pagesFailed}</p>
+                        )}
+                      </div>
+                      {/* Embedding progress */}
+                      {(isEmbedding || (run.chunksToEmbed > 0 && run.chunksEmbedded > 0)) && (
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                            <span className="flex items-center gap-1">
+                              {isEmbedding && (
+                                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                              )}
+                              Embeddings
+                            </span>
+                            <span>{run.chunksEmbedded} / {run.chunksToEmbed} chunks ({embeddingPercent}%)</span>
+                          </div>
+                          <div className="w-full bg-muted-foreground/20 rounded-full h-1.5">
+                            <div 
+                              className={`h-1.5 rounded-full transition-all duration-300 ${isEmbedding ? 'bg-purple-500' : 'bg-green-500'}`}
+                              style={{ width: `${embeddingPercent}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      )}
+                      {run.error && (
+                        <p className="mt-2 text-xs text-destructive">{run.error}</p>
                       )}
                     </div>
-                    {run.error && (
-                      <p className="mt-2 text-xs text-destructive">{run.error}</p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">No runs yet</p>

@@ -1,6 +1,6 @@
 import { db } from "@grounded/db";
-import { kbChunks, knowledgeBases } from "@grounded/db/schema";
-import { eq, inArray, isNull, and } from "drizzle-orm";
+import { kbChunks, knowledgeBases, sourceRuns } from "@grounded/db/schema";
+import { eq, inArray, isNull, and, sql } from "drizzle-orm";
 import { generateEmbeddings } from "@grounded/embeddings";
 import { getAIRegistry } from "@grounded/ai-providers";
 import { getVectorStore } from "@grounded/vector-store";
@@ -19,7 +19,7 @@ export class EmbeddingDimensionMismatchError extends Error {
 }
 
 export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<void> {
-  const { tenantId, kbId, chunkIds } = data;
+  const { tenantId, kbId, chunkIds, runId } = data;
 
   console.log(`Embedding ${chunkIds.length} chunks for KB ${kbId}`);
 
@@ -95,6 +95,16 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
 
   // Upsert vectors to the vector store (handles delete + insert atomically)
   await vectorStore.upsert(vectorRecords);
+
+  // Update chunks_embedded counter if runId is provided
+  if (runId) {
+    await db
+      .update(sourceRuns)
+      .set({
+        chunksEmbedded: sql`${sourceRuns.chunksEmbedded} + ${chunks.length}`,
+      })
+      .where(eq(sourceRuns.id, runId));
+  }
 
   console.log(`Embedded ${chunks.length} chunks (${expectedDimensions}D) for KB ${kbId}`);
 }

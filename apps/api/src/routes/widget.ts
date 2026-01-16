@@ -904,6 +904,8 @@ async function retrieveChunks(
   topK: number,
   rerankerEnabled: boolean
 ): Promise<any[]> {
+  const startTime = Date.now();
+  
   // Get vector store
   const vectorStore = getVectorStore();
   if (!vectorStore) {
@@ -912,19 +914,49 @@ async function retrieveChunks(
   }
 
   // Generate query embedding
+  const embeddingStart = Date.now();
   const queryEmbedding = await generateEmbedding(query);
+  console.log(`[Widget Perf] Embedding generation: ${Date.now() - embeddingStart}ms`);
 
-  // Vector similarity search using vector store
-  const vectorResults = await vectorStore.search(queryEmbedding.embedding, {
-    tenantId,
-    kbIds,
-    topK: candidateK,
-  });
+  // Run vector search and keyword search in PARALLEL
+  const kbIdsArrayLiteral = `{${kbIds.join(",")}}`;
+  const parallelStart = Date.now();
+  
+  const [vectorResults, keywordResults] = await Promise.all([
+    // Vector similarity search
+    vectorStore.search(queryEmbedding.embedding, {
+      tenantId,
+      kbIds,
+      topK: candidateK,
+    }),
+    // Full-text keyword search
+    db.execute(sql`
+      SELECT
+        c.id,
+        c.content,
+        c.title,
+        c.normalized_url as "normalizedUrl",
+        c.heading,
+        c.section_path,
+        c.tags,
+        c.keywords,
+        ts_rank_cd(c.tsv, plainto_tsquery('english', ${query})) as rank
+      FROM kb_chunks c
+      WHERE c.tenant_id = ${tenantId}
+        AND c.kb_id = ANY(${kbIdsArrayLiteral}::uuid[])
+        AND c.deleted_at IS NULL
+        AND c.tsv @@ plainto_tsquery('english', ${query})
+      ORDER BY rank DESC
+      LIMIT ${candidateK}
+    `),
+  ]);
+  console.log(`[Widget Perf] Parallel search (vector + keyword): ${Date.now() - parallelStart}ms`);
 
   // Get chunk IDs from vector results
   const vectorChunkIds = vectorResults.map((r) => r.id);
 
   // Fetch chunk details from app DB
+  const chunkFetchStart = Date.now();
   let vectorChunks: Array<typeof kbChunks.$inferSelect> = [];
   if (vectorChunkIds.length > 0) {
     vectorChunks = await db.query.kbChunks.findMany({
@@ -934,6 +966,7 @@ async function retrieveChunks(
       ),
     });
   }
+  console.log(`[Widget Perf] Chunk details fetch: ${Date.now() - chunkFetchStart}ms`);
 
   // Create a map of chunk details with vector scores
   const chunkMap = new Map<string, any>();
@@ -945,28 +978,6 @@ async function retrieveChunks(
       keywordScore: 0,
     });
   }
-
-  // Full-text search
-  const kbIdsArrayLiteral = `{${kbIds.join(",")}}`;
-  const keywordResults = await db.execute(sql`
-    SELECT
-      c.id,
-      c.content,
-      c.title,
-      c.normalized_url as "normalizedUrl",
-      c.heading,
-      c.section_path,
-      c.tags,
-      c.keywords,
-      ts_rank_cd(c.tsv, plainto_tsquery('english', ${query})) as rank
-    FROM kb_chunks c
-    WHERE c.tenant_id = ${tenantId}
-      AND c.kb_id = ANY(${kbIdsArrayLiteral}::uuid[])
-      AND c.deleted_at IS NULL
-      AND c.tsv @@ plainto_tsquery('english', ${query})
-    ORDER BY rank DESC
-    LIMIT ${candidateK}
-  `);
 
   // Merge keyword results
   const keywordRows = Array.isArray(keywordResults) ? keywordResults : (keywordResults as any).rows || [];
@@ -990,6 +1001,8 @@ async function retrieveChunks(
   } else {
     chunks.sort((a, b) => b.vectorScore - a.vectorScore);
   }
+
+  console.log(`[Widget Perf] Total retrieval: ${Date.now() - startTime}ms, found ${chunks.length} chunks`);
 
   return chunks.slice(0, topK);
 }

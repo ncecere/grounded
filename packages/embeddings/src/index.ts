@@ -7,6 +7,7 @@ import { getEnv, retry } from "@grounded/shared";
 // ============================================================================
 
 const EMBEDDING_BATCH_SIZE = parseInt(getEnv("EMBEDDING_BATCH_SIZE", "100"));
+const EMBEDDING_PARALLEL_BATCHES = parseInt(getEnv("EMBEDDING_PARALLEL_BATCHES", "3"));
 
 // ============================================================================
 // Types
@@ -59,7 +60,7 @@ export async function generateEmbedding(
 }
 
 /**
- * Generate embeddings for multiple texts in batches.
+ * Generate embeddings for multiple texts in batches with parallel processing.
  * @param texts - Array of texts to embed
  * @param modelConfigId - Optional specific model to use (defaults to configured default)
  * @throws Error if no embedding model is configured
@@ -75,13 +76,15 @@ export async function generateEmbeddings(
     throw new Error("No embedding model configured. Please configure an embedding model in AI Models.");
   }
 
-  const results: EmbeddingResult[] = [];
-
-  // Process in batches
+  // Split texts into batches
+  const batches: string[][] = [];
   for (let i = 0; i < texts.length; i += EMBEDDING_BATCH_SIZE) {
-    const batch = texts.slice(i, i + EMBEDDING_BATCH_SIZE);
+    batches.push(texts.slice(i, i + EMBEDDING_BATCH_SIZE));
+  }
 
-    const batchResult = await retry(
+  // Process a single batch with retry logic
+  const processBatch = async (batch: string[]): Promise<EmbeddingResult[]> => {
+    return retry(
       async () => {
         const response = await embedMany({
           model,
@@ -96,8 +99,15 @@ export async function generateEmbeddings(
       },
       { maxAttempts: 3, initialDelayMs: 1000 }
     );
+  };
 
-    results.push(...batchResult);
+  // Process batches with limited concurrency for better performance
+  const results: EmbeddingResult[] = [];
+  
+  for (let i = 0; i < batches.length; i += EMBEDDING_PARALLEL_BATCHES) {
+    const parallelBatches = batches.slice(i, i + EMBEDDING_PARALLEL_BATCHES);
+    const batchResults = await Promise.all(parallelBatches.map(processBatch));
+    results.push(...batchResults.flat());
   }
 
   return results;

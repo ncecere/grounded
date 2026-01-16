@@ -358,6 +358,7 @@ export interface EmbedChunksBatchJob {
   tenantId: string;
   kbId: string;
   chunkIds: string[];
+  runId?: string; // Source run ID for tracking embedding progress
 }
 
 export interface EnrichPageJob {
