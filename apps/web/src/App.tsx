@@ -30,6 +30,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import { AdminAnalytics } from "./pages/AdminAnalytics";
 import { TenantSettings } from "./pages/TenantSettings";
 import { AdminTokens } from "./pages/AdminTokens";
+import { AdminAuditLogs } from "./pages/AdminAuditLogs";
 import { Login } from "./pages/Login";
 import { Building2, AlertTriangle } from "lucide-react";
 import { Button } from "./components/ui/button";
@@ -51,6 +52,7 @@ const pageNames: Record<Page, string> = {
   "admin-analytics": "Analytics",
   "tenant-settings": "Tenant Settings",
   "admin-tokens": "API Tokens",
+  "admin-audit-logs": "Audit Logs",
 };
 
 export default function App() {
@@ -177,6 +179,7 @@ export default function App() {
         />
       );
       if (currentPage === "admin-tokens") return <AdminTokens />;
+      if (currentPage === "admin-audit-logs") return <AdminAuditLogs />;
 
       return (
         <div className="flex items-center justify-center h-full">
@@ -287,6 +290,8 @@ export default function App() {
         return <TenantSettings />;
       case "admin-tokens":
         return <AdminTokens />;
+      case "admin-audit-logs":
+        return <AdminAuditLogs />;
       default:
         return <KnowledgeBases onSelectKb={() => {}} />;
     }

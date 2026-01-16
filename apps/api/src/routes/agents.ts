@@ -18,6 +18,7 @@ import { eq, and, isNull, sql, inArray } from "drizzle-orm";
 import { widgetThemeSchema, generateId } from "@grounded/shared";
 import { auth, requireRole, requireTenant } from "../middleware/auth";
 import { NotFoundError, QuotaExceededError, ForbiddenError } from "../middleware/error-handler";
+import { auditService, extractIpAddress } from "../services/audit";
 
 export const agentRoutes = new Hono();
 
@@ -205,6 +206,17 @@ agentRoutes.post(
       await attachKbs(authContext.tenantId!, agent.id, body.kbIds);
     }
 
+    // Audit log - agent created
+    await auditService.logSuccess("agent.created", "agent", {
+      actorId: authContext.user.id,
+      tenantId: authContext.tenantId!,
+      ipAddress: extractIpAddress(c.req.raw.headers),
+    }, {
+      resourceId: agent.id,
+      resourceName: agent.name,
+      metadata: { kbIds: body.kbIds || [] },
+    });
+
     return c.json({ agent: { ...agent, kbIds: body.kbIds || [] } }, 201);
   }
 );
@@ -290,6 +302,17 @@ agentRoutes.patch(
       }
     }
 
+    // Audit log - agent updated
+    await auditService.logSuccess("agent.updated", "agent", {
+      actorId: authContext.user.id,
+      tenantId: authContext.tenantId!,
+      ipAddress: extractIpAddress(c.req.raw.headers),
+    }, {
+      resourceId: agent.id,
+      resourceName: agent.name,
+      metadata: { updatedFields: Object.keys(body) },
+    });
+
     return c.json({ agent });
   }
 );
@@ -322,6 +345,16 @@ agentRoutes.delete(
     if (!agent) {
       throw new NotFoundError("Agent");
     }
+
+    // Audit log - agent deleted
+    await auditService.logSuccess("agent.deleted", "agent", {
+      actorId: authContext.user.id,
+      tenantId: authContext.tenantId!,
+      ipAddress: extractIpAddress(c.req.raw.headers),
+    }, {
+      resourceId: agent.id,
+      resourceName: agent.name,
+    });
 
     return c.json({ message: "Agent scheduled for deletion" });
   }

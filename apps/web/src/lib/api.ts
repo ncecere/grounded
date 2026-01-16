@@ -504,6 +504,95 @@ export interface TenantApiKeyWithSecret extends TenantApiKey {
   apiKey: string; // Only returned on creation
 }
 
+// Audit Log Types
+export type AuditAction =
+  | "auth.login"
+  | "auth.logout"
+  | "auth.login_failed"
+  | "auth.password_changed"
+  | "tenant.created"
+  | "tenant.updated"
+  | "tenant.deleted"
+  | "user.created"
+  | "user.updated"
+  | "user.disabled"
+  | "user.enabled"
+  | "user.role_changed"
+  | "agent.created"
+  | "agent.updated"
+  | "agent.deleted"
+  | "agent.enabled"
+  | "agent.disabled"
+  | "kb.created"
+  | "kb.updated"
+  | "kb.deleted"
+  | "kb.published"
+  | "kb.unpublished"
+  | "source.created"
+  | "source.updated"
+  | "source.deleted"
+  | "source.run_triggered"
+  | "api_key.created"
+  | "api_key.revoked"
+  | "widget_token.created"
+  | "widget_token.revoked"
+  | "chat_endpoint.created"
+  | "chat_endpoint.revoked"
+  | "settings.updated"
+  | "model.created"
+  | "model.updated"
+  | "model.deleted"
+  | "provider.created"
+  | "provider.updated"
+  | "provider.deleted";
+
+export type AuditResourceType =
+  | "user"
+  | "tenant"
+  | "agent"
+  | "knowledge_base"
+  | "source"
+  | "api_key"
+  | "widget_token"
+  | "chat_endpoint"
+  | "settings"
+  | "model"
+  | "provider"
+  | "membership";
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  actorId: string | null;
+  tenantId: string | null;
+  action: AuditAction;
+  resourceType: AuditResourceType;
+  resourceId: string | null;
+  metadata: Record<string, unknown>;
+  ipAddress: string | null;
+  success: boolean;
+  errorMessage: string | null;
+}
+
+export interface AuditLogResponse {
+  logs: Array<AuditLogEntry & { actorEmail: string | null; tenantName: string | null }>;
+  total: number;
+  hasMore: boolean;
+}
+
+export interface AuditLogFilters {
+  actions: string[];
+  resourceTypes: string[];
+  tenants: Array<{ id: string; name: string }>;
+}
+
+export interface AuditSummary {
+  totalEvents: number;
+  byAction: Record<string, number>;
+  byResourceType: Record<string, number>;
+  failureCount: number;
+}
+
 export interface AdminAnalyticsTenantDetail {
   tenant: {
     id: string;
@@ -1305,4 +1394,42 @@ export const api = {
     }),
   revokeTenantApiKey: (tenantId: string, keyId: string) =>
     request<{ message: string }>(`/tenants/${tenantId}/api-keys/${keyId}`, { method: "DELETE" }),
+
+  // Admin Audit Logs
+  listAuditLogs: (params?: {
+    tenantId?: string;
+    actorId?: string;
+    action?: string;
+    resourceType?: string;
+    resourceId?: string;
+    startDate?: string;
+    endDate?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.tenantId) searchParams.set("tenantId", params.tenantId);
+    if (params?.actorId) searchParams.set("actorId", params.actorId);
+    if (params?.action) searchParams.set("action", params.action);
+    if (params?.resourceType) searchParams.set("resourceType", params.resourceType);
+    if (params?.resourceId) searchParams.set("resourceId", params.resourceId);
+    if (params?.startDate) searchParams.set("startDate", params.startDate);
+    if (params?.endDate) searchParams.set("endDate", params.endDate);
+    if (params?.search) searchParams.set("search", params.search);
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+    if (params?.offset) searchParams.set("offset", String(params.offset));
+    const query = searchParams.toString();
+    return request<AuditLogResponse>(`/admin/audit${query ? `?${query}` : ""}`);
+  },
+  getAuditLog: (id: string) =>
+    request<{ log: AuditLogEntry & { actorEmail: string | null; tenantName: string | null } }>(`/admin/audit/${id}`),
+  getAuditLogFilters: () =>
+    request<AuditLogFilters>("/admin/audit/filters/options"),
+  getResourceAuditHistory: (resourceType: string, resourceId: string) =>
+    request<{ logs: Array<AuditLogEntry & { actorEmail: string | null }> }>(`/admin/audit/resource/${resourceType}/${resourceId}`),
+  getAuditSummary: (tenantId: string, days?: number) => {
+    const params = days ? `?days=${days}` : "";
+    return request<{ summary: AuditSummary }>(`/admin/audit/summary/${tenantId}${params}`);
+  },
 };
