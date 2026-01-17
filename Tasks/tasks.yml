@@ -1,70 +1,270 @@
 project: grounded
 version: "1.0"
+feature: advanced-rag
 
 tasks:
   # ===========================================================================
-  # PARALLEL GROUP 1: Shared source logic
-  # These tasks can run concurrently
+  # PARALLEL GROUP 1: Schema & Types
+  # Foundation - must complete first
   # ===========================================================================
-  - title: Extract shared source CRUD + run helpers for sources and shared-kbs routes
+  - title: Add ragType column to agents table
     completed: true
     parallel_group: 1
-    tags: [refactor, api, sources]
-    notes: Consolidate validation, update merging, stats queries, and run creation into shared helpers.
+    tags: [schema, database, agents]
+    file: phase-1-schema-types.md
+    notes: Add rag_type with values simple|advanced, default simple
+
+  - title: Add historyTurns and advancedMaxSubqueries to retrieval_configs
+    completed: true
+    parallel_group: 1
+    tags: [schema, database, retrieval]
+    file: phase-1-schema-types.md
+    notes: historyTurns default 5, advancedMaxSubqueries default 3
+
+  - title: Generate and apply database migration
+    completed: true
+    parallel_group: 1
+    tags: [schema, database, migration]
+    file: phase-1-schema-types.md
+
+  - title: Update shared types in packages/shared
+    completed: true
+    parallel_group: 1
+    tags: [types, shared]
+    file: phase-1-schema-types.md
+    notes: Add RagType enum, update Agent and RetrievalConfig interfaces
+
+  - title: Update web API types
+    completed: true
+    parallel_group: 1
+    tags: [types, web]
+    file: phase-1-schema-types.md
+
+  - title: Update web component types and defaults
+    completed: true
+    parallel_group: 1
+    tags: [types, web, components]
+    file: phase-1-schema-types.md
+
+  - title: Update API zod schemas for agents
+    completed: true
+    parallel_group: 1
+    tags: [api, validation, agents]
+    file: phase-1-schema-types.md
 
   # ===========================================================================
-  # PARALLEL GROUP 2: Widget chat consolidation
+  # PARALLEL GROUP 2: Advanced RAG Service
+  # Core implementation - depends on Group 1
   # ===========================================================================
-  - title: Unify widget /chat and /chat/stream handlers into a shared streaming function
-    completed: true
+  - title: Create AdvancedRAGService file structure
+    completed: false
     parallel_group: 2
-    tags: [refactor, api, widget]
+    tags: [api, service, rag]
+    file: phase-2-advanced-rag-service.md
+
+  - title: Implement query rewriting with conversation history
+    completed: false
+    parallel_group: 2
+    tags: [api, service, rag, llm]
+    file: phase-2-advanced-rag-service.md
+
+  - title: Implement multi-step plan generation
+    completed: false
+    parallel_group: 2
+    tags: [api, service, rag, llm]
+    file: phase-2-advanced-rag-service.md
+
+  - title: Implement sub-query retrieval and merging
+    completed: false
+    parallel_group: 2
+    tags: [api, service, rag, vector]
+    file: phase-2-advanced-rag-service.md
+
+  - title: Implement reasoning event emission
+    completed: false
+    parallel_group: 2
+    tags: [api, service, rag, sse]
+    file: phase-2-advanced-rag-service.md
+
+  - title: Implement final answer generation with citations
+    completed: false
+    parallel_group: 2
+    tags: [api, service, rag, llm]
+    file: phase-2-advanced-rag-service.md
 
   # ===========================================================================
-  # PARALLEL GROUP 3: Agent access helpers
+  # PARALLEL GROUP 3: API Routing & Integration
+  # Wire up services - depends on Group 2
   # ===========================================================================
-  - title: Create reusable agent ownership loader for agents and tools routes
-    completed: true
+  - title: Update admin chat route for RAG type routing
+    completed: false
     parallel_group: 3
-    tags: [refactor, api, agents]
-    notes: Standardize tenant ownership checks and error handling.
+    tags: [api, routes, chat]
+    file: phase-3-api-routing.md
+
+  - title: Update widget chat helper for RAG type routing
+    completed: false
+    parallel_group: 3
+    tags: [api, widget, chat]
+    file: phase-3-api-routing.md
+
+  - title: Update chat endpoint route for RAG type routing
+    completed: false
+    parallel_group: 3
+    tags: [api, routes, chat-endpoint]
+    file: phase-3-api-routing.md
+
+  - title: Update agent CRUD routes for ragType field
+    completed: false
+    parallel_group: 3
+    tags: [api, routes, agents]
+    file: phase-3-api-routing.md
+
+  - title: Update retrieval config routes for new fields
+    completed: false
+    parallel_group: 3
+    tags: [api, routes, retrieval]
+    file: phase-3-api-routing.md
 
   # ===========================================================================
-  # PARALLEL GROUP 4: Knowledge base aggregation
+  # PARALLEL GROUP 4: Frontend - Agent Form & Chat UI & Widget
+  # These can all run in parallel - depend on Group 3
   # ===========================================================================
-  - title: Extract shared knowledge base aggregation utilities (counts, summaries)
-    completed: true
+  - title: Update agent API client for ragType
+    completed: false
     parallel_group: 4
-    tags: [refactor, api, knowledge-bases]
+    tags: [web, api-client, agents]
+    file: phase-4-frontend-agent-form.md
+
+  - title: Add RAG Type selector to agent form
+    completed: false
+    parallel_group: 4
+    tags: [web, ui, agents, form]
+    file: phase-4-frontend-agent-form.md
+
+  - title: Add advanced mode settings to agent form
+    completed: false
+    parallel_group: 4
+    tags: [web, ui, agents, form]
+    file: phase-4-frontend-agent-form.md
+    notes: historyTurns and advancedMaxSubqueries, shown only for advanced mode
+
+  - title: Update form defaults and validation
+    completed: false
+    parallel_group: 4
+    tags: [web, ui, agents, form]
+    file: phase-4-frontend-agent-form.md
+
+  - title: Update chat API client for reasoning events
+    completed: false
+    parallel_group: 4
+    tags: [web, api-client, chat]
+    file: phase-5-frontend-chat-ui.md
+
+  - title: Create ReasoningSteps component
+    completed: false
+    parallel_group: 4
+    tags: [web, ui, chat, components]
+    file: phase-5-frontend-chat-ui.md
+
+  - title: Integrate reasoning steps into Chat page
+    completed: false
+    parallel_group: 4
+    tags: [web, ui, chat]
+    file: phase-5-frontend-chat-ui.md
+    notes: Collapsible panel, collapsed by default
+
+  - title: Add styling for reasoning panel
+    completed: false
+    parallel_group: 4
+    tags: [web, ui, chat, styling]
+    file: phase-5-frontend-chat-ui.md
+
+  - title: Update widget types for reasoning events
+    completed: false
+    parallel_group: 4
+    tags: [widget, types]
+    file: phase-6-widget-updates.md
+
+  - title: Update widget chat service for reasoning
+    completed: false
+    parallel_group: 4
+    tags: [widget, service]
+    file: phase-6-widget-updates.md
+
+  - title: Create widget reasoning panel component
+    completed: false
+    parallel_group: 4
+    tags: [widget, ui, components]
+    file: phase-6-widget-updates.md
+
+  - title: Add widget config for reasoning visibility
+    completed: false
+    parallel_group: 4
+    tags: [widget, config]
+    file: phase-6-widget-updates.md
+    notes: Optional showReasoning config
 
   # ===========================================================================
-  # PARALLEL GROUP 5: Auth middleware split
+  # PARALLEL GROUP 5: Testing & Documentation
+  # Quality assurance - depends on Group 4
   # ===========================================================================
-  - title: Split auth middleware into focused modules and re-export a unified middleware
-    completed: true
+  - title: Add unit tests for AdvancedRAGService
+    completed: false
     parallel_group: 5
-    tags: [refactor, api, auth]
-    notes: Separate bearer/JWT, API key, admin token, and OIDC handlers.
+    tags: [testing, unit, api]
+    file: phase-7-testing-docs.md
 
-  # ===========================================================================
-  # PARALLEL GROUP 6: Web API client modularization
-  # ===========================================================================
-  - title: Break up web API client into client/types/domain modules
-    completed: true
-    parallel_group: 6
-    tags: [refactor, web, api-client]
-    notes: Split request helpers, shared types, and domain endpoints into separate files.
+  - title: Add integration tests for chat endpoints
+    completed: false
+    parallel_group: 5
+    tags: [testing, integration, api]
+    file: phase-7-testing-docs.md
 
-  # ===========================================================================
-  # PARALLEL GROUP 7: Tenant alert helpers
-  # ===========================================================================
-  - title: Move tenant alert validation/defaulting into a helper module
-    completed: true
-    parallel_group: 7
-    tags: [refactor, api, tenants]
+  - title: Update CLAUDE.md documentation
+    completed: false
+    parallel_group: 5
+    tags: [docs]
+    file: phase-7-testing-docs.md
+
+  - title: Manual testing checklist execution
+    completed: false
+    parallel_group: 5
+    tags: [testing, manual]
+    file: phase-7-testing-docs.md
+
+parallel_groups:
+  1:
+    name: Schema & Types
+    description: Database schema changes and type definitions
+    status: completed
+  2:
+    name: Advanced RAG Service
+    description: Core AdvancedRAGService implementation
+    status: pending
+    depends_on: [1]
+  3:
+    name: API Routing
+    description: Wire up services to all chat endpoints
+    status: pending
+    depends_on: [2]
+  4:
+    name: Frontend & Widget
+    description: Agent form, chat UI reasoning display, and widget updates
+    status: pending
+    depends_on: [3]
+  5:
+    name: Testing & Docs
+    description: Tests and documentation updates
+    status: pending
+    depends_on: [4]
 
 metadata:
   created_at: "2026-01-17"
   updated_at: "2026-01-17"
   owner: "unassigned"
-  last_completed: "Move tenant alert validation/defaulting into a helper module"
+  feature_description: |
+    Add Advanced RAG mode to agents with multi-turn query rewriting,
+    sub-query planning, and reasoning step display. Agents can be
+    configured as "simple" (current behavior) or "advanced" (new
+    multi-step pipeline with visible reasoning).

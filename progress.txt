@@ -331,3 +331,65 @@
 - `apps/api/src/routes/tenants.ts` (MODIFIED)
 - `apps/api/src/services/health-alerts.ts` (MODIFIED)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 1 - Schema & Types for Advanced RAG
+
+### Completed Tasks
+**Phase:** Phase 1 - Schema & Types
+**Status:** COMPLETED (All 7 tasks in parallel group 1)
+
+### Changes Made
+
+1. **Database Schema Changes:**
+   - Added `rag_type` column to `agents` table (text, default "simple", values: simple|advanced)
+   - Added `history_turns` column to `retrieval_configs` table (integer, default 5, range 1-20)
+   - Added `advanced_max_subqueries` column to `retrieval_configs` table (integer, default 3, range 1-5)
+   - Created migration file: `migrations/0020_advanced_rag_schema.sql`
+
+2. **Shared Types (packages/shared):**
+   - Added `RagType` enum with values `SIMPLE` and `ADVANCED`
+   - Updated `Agent` interface to include `ragType: RagType`
+   - Updated `retrievalConfigSchema` to include `historyTurns` and `advancedMaxSubqueries`
+
+3. **Web API Types (apps/web/src/lib/api/types.ts):**
+   - Added `RagType` type alias
+   - Updated `Agent` interface to include `ragType`
+   - Updated `retrievalConfig` type to include `historyTurns` and `advancedMaxSubqueries`
+
+4. **Web Component Types (apps/web/src/components/agents/types.ts):**
+   - Updated `AgentFormData` to include `ragType`
+   - Updated `RetrievalConfig` to include `historyTurns` and `advancedMaxSubqueries`
+   - Updated `defaultAgentForm` with `ragType: "simple"`
+   - Updated `defaultRetrievalConfig` with `historyTurns: 5` and `advancedMaxSubqueries: 3`
+
+5. **API Zod Schemas (apps/api/src/routes/agents.ts):**
+   - Updated `createAgentSchema` with `ragType` field (enum, default "simple")
+   - Updated `updateAgentSchema` with optional `ragType` field
+   - Updated `updateRetrievalConfigSchema` with `historyTurns` and `advancedMaxSubqueries`
+   - Updated agent creation to include `ragType` in insert values
+
+6. **AgentFormModal Component:**
+   - Updated form data population to include `ragType`
+   - Updated retrieval config fetching to include `historyTurns` and `advancedMaxSubqueries`
+
+7. **Tests:**
+   - Created `apps/api/src/routes/agents.test.ts` with 39 tests covering:
+     - `createAgentSchema` ragType defaults and validation
+     - `updateAgentSchema` ragType optional updates
+     - `updateRetrievalConfigSchema` historyTurns and advancedMaxSubqueries validation
+     - Combined field validation
+
+### Test Results
+- All 185 tests pass across 8 test files
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `packages/db/src/schema/agents.ts` (MODIFIED - added ragType, historyTurns, advancedMaxSubqueries)
+- `migrations/0020_advanced_rag_schema.sql` (NEW)
+- `packages/shared/src/types/index.ts` (MODIFIED - added RagType, updated schemas)
+- `apps/web/src/lib/api/types.ts` (MODIFIED - added RagType, updated Agent/retrievalConfig)
+- `apps/web/src/components/agents/types.ts` (MODIFIED - updated form and config types)
+- `apps/api/src/routes/agents.ts` (MODIFIED - updated schemas and creation)
+- `apps/web/src/components/agents/AgentFormModal.tsx` (MODIFIED - include new fields)
+- `apps/api/src/routes/agents.test.ts` (NEW - 39 tests)
+- `Tasks/tasks.yml` (MODIFIED - marked Phase 1 tasks complete)

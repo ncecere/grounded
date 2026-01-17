@@ -123,6 +123,8 @@ export interface SourceRun {
 // Agent & Chat Types
 // =============================================================================
 
+export type RagType = "simple" | "advanced";
+
 export interface Agent {
   id: string;
   tenantId: string;
@@ -132,6 +134,7 @@ export interface Agent {
   welcomeMessage: string | null;
   logoUrl: string | null;
   isEnabled: boolean;
+  ragType: RagType;
   suggestedQuestions: string[];
   kbIds: string[];
   llmModelConfigId: string | null;
@@ -163,6 +166,8 @@ export interface Agent {
     candidateK: number;
     maxCitations: number;
     similarityThreshold: number;
+    historyTurns: number;
+    advancedMaxSubqueries: number;
   };
   createdAt: string;
   updatedAt: string;

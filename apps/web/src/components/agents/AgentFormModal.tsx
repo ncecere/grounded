@@ -74,6 +74,7 @@ export function AgentFormModal({
           logoUrl: agent.logoUrl || "",
           kbIds: agent.kbIds,
           llmModelConfigId: agent.llmModelConfigId || "",
+          ragType: agent.ragType || "simple",
         });
       } else {
         // Create mode - use defaults
@@ -92,6 +93,8 @@ export function AgentFormModal({
         topK: fetchedRetrievalConfig.topK || 8,
         maxCitations: fetchedRetrievalConfig.maxCitations || 3,
         similarityThreshold: fetchedRetrievalConfig.similarityThreshold ?? 0.5,
+        historyTurns: fetchedRetrievalConfig.historyTurns ?? 5,
+        advancedMaxSubqueries: fetchedRetrievalConfig.advancedMaxSubqueries ?? 3,
       });
     }
   }, [fetchedRetrievalConfig]);
