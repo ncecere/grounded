@@ -1,79 +1,15 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
-import { streamSSE } from "hono/streaming";
-import { withRLSContext, type Database } from "@grounded/db";
+import { withRLSContext } from "@grounded/db";
+import { agentWidgetConfigs } from "@grounded/db/schema";
+import { eq } from "drizzle-orm";
 import {
-  widgetTokens,
-  agents,
-  agentWidgetConfigs,
-  tenantQuotas,
-} from "@grounded/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
-import { checkRateLimit } from "@grounded/queue";
-import { NotFoundError, RateLimitError } from "../middleware/error-handler";
-import { SimpleRAGService } from "../services/simple-rag";
+  widgetChatSchema,
+  validateWidgetToken,
+  handleWidgetChatStream,
+} from "../services/widget-chat-helpers";
 
 export const widgetRoutes = new Hono();
-
-// ============================================================================
-// Validation Schemas
-// ============================================================================
-
-const widgetChatSchema = z.object({
-  message: z.string().min(1).max(4000),
-  conversationId: z.string().optional(),
-});
-
-// ============================================================================
-// Helper: Validate Widget Token
-// ============================================================================
-
-async function validateWidgetToken(tx: Database, token: string) {
-  const widgetToken = await tx.query.widgetTokens.findFirst({
-    where: and(
-      eq(widgetTokens.token, token),
-      isNull(widgetTokens.revokedAt)
-    ),
-  });
-
-  if (!widgetToken) {
-    throw new NotFoundError("Widget");
-  }
-
-  const agent = await tx.query.agents.findFirst({
-    where: and(
-      eq(agents.id, widgetToken.agentId),
-      isNull(agents.deletedAt)
-    ),
-  });
-
-  if (!agent) {
-    throw new NotFoundError("Agent");
-  }
-
-  return { widgetToken, agent };
-}
-
-// ============================================================================
-// Helper: Check Rate Limit
-// ============================================================================
-
-async function checkWidgetRateLimit(tx: Database, tenantId: string) {
-  // Get tenant quota
-  const quota = await tx.query.tenantQuotas.findFirst({
-    where: eq(tenantQuotas.tenantId, tenantId),
-  });
-
-  const limit = quota?.chatRateLimitPerMinute || 60;
-  const key = `widget:chat:${tenantId}`;
-  
-  const result = await checkRateLimit(key, limit, 60);
-  if (!result.allowed) {
-    const retryAfter = Math.ceil((result.resetAt - Date.now()) / 1000);
-    throw new RateLimitError(retryAfter > 0 ? retryAfter : 60);
-  }
-}
 
 // ============================================================================
 // Get Widget Config (Public)
@@ -110,28 +46,7 @@ widgetRoutes.post(
   async (c) => {
     const token = c.req.param("token");
     const body = c.req.valid("json");
-
-    // Validate token and check rate limit within RLS context
-    const { widgetToken, agent } = await withRLSContext({ isSystemAdmin: true }, async (tx) => {
-      const result = await validateWidgetToken(tx, token);
-      await checkWidgetRateLimit(tx, result.widgetToken.tenantId);
-      return result;
-    });
-
-    // Headers for SSE streaming
-    c.header("X-Accel-Buffering", "no");
-    c.header("Cache-Control", "no-cache, no-store, must-revalidate");
-    c.header("Connection", "keep-alive");
-
-    return streamSSE(c, async (stream) => {
-      const service = new SimpleRAGService(widgetToken.tenantId, agent.id);
-
-      for await (const event of service.chat(body.message, body.conversationId)) {
-        await stream.writeSSE({
-          data: JSON.stringify(event),
-        });
-      }
-    });
+    return handleWidgetChatStream(c, token, body);
   }
 );
 
@@ -145,27 +60,6 @@ widgetRoutes.post(
   async (c) => {
     const token = c.req.param("token");
     const body = c.req.valid("json");
-
-    // Validate token and check rate limit within RLS context
-    const { widgetToken, agent } = await withRLSContext({ isSystemAdmin: true }, async (tx) => {
-      const result = await validateWidgetToken(tx, token);
-      await checkWidgetRateLimit(tx, result.widgetToken.tenantId);
-      return result;
-    });
-
-    // Headers for SSE streaming
-    c.header("X-Accel-Buffering", "no");
-    c.header("Cache-Control", "no-cache, no-store, must-revalidate");
-    c.header("Connection", "keep-alive");
-
-    return streamSSE(c, async (stream) => {
-      const service = new SimpleRAGService(widgetToken.tenantId, agent.id);
-
-      for await (const event of service.chat(body.message, body.conversationId)) {
-        await stream.writeSSE({
-          data: JSON.stringify(event),
-        });
-      }
-    });
+    return handleWidgetChatStream(c, token, body);
   }
 );

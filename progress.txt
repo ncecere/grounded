@@ -44,3 +44,41 @@
 - `apps/api/src/routes/admin/shared-kbs.ts` (MODIFIED)
 - `apps/api/package.json` (MODIFIED - added test script)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Unify widget /chat and /chat/stream handlers
+
+### Completed Task
+**Task:** Unify widget /chat and /chat/stream handlers into a shared streaming function
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Created new shared helper module:**
+   - `apps/api/src/services/widget-chat-helpers.ts`
+
+2. **Extracted shared validation schema:**
+   - `widgetChatSchema` - Schema for widget chat input (message + optional conversationId)
+
+3. **Extracted shared helper functions:**
+   - `validateWidgetToken()` - Validates widget token and returns associated agent
+   - `checkWidgetRateLimit()` - Checks tenant rate limit for chat requests
+   - `setSSEHeaders()` - Sets required headers for SSE streaming
+   - `handleWidgetChatStream()` - Unified streaming handler for widget chat
+
+4. **Updated routes to use shared handler:**
+   - `apps/api/src/routes/widget.ts` - Both `/chat` and `/chat/stream` now use `handleWidgetChatStream()`
+
+5. **Added tests:**
+   - `apps/api/src/services/widget-chat-helpers.test.ts` - 11 tests covering validation schema
+
+### Code Reduction
+- Eliminated ~50 lines of duplicate code between /chat and /chat/stream handlers
+- Centralized SSE header configuration
+- Token validation and rate limiting now use single implementations
+- Routes reduced from 172 lines to 66 lines
+
+### Files Changed
+- `apps/api/src/services/widget-chat-helpers.ts` (NEW)
+- `apps/api/src/services/widget-chat-helpers.test.ts` (NEW)
+- `apps/api/src/routes/widget.ts` (MODIFIED)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)
