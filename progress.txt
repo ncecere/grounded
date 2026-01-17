@@ -121,3 +121,51 @@
 - `apps/api/src/routes/agents.ts` (MODIFIED)
 - `apps/api/src/routes/tools.ts` (MODIFIED)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Extract shared knowledge base aggregation utilities
+
+### Completed Task
+**Task:** Extract shared knowledge base aggregation utilities (counts, summaries)
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Created new shared helper module:**
+   - `apps/api/src/services/kb-aggregation-helpers.ts`
+
+2. **Extracted shared types:**
+   - `KbCountResult` - Type for KB ID to count mapping
+   - `KbAggregatedCounts` - Type for source and chunk counts
+   - `KbAggregatedCountsWithShares` - Type including share counts for admin views
+
+3. **Extracted grouped count functions (for KB lists):**
+   - `getSourceCountsByKb()` - Get source counts grouped by KB ID
+   - `getChunkCountsByKb()` - Get chunk counts grouped by KB ID
+   - `getShareCountsByKb()` - Get subscription/share counts grouped by KB ID
+   - `getKbCountMaps()` - Convenience function returning both source and chunk count maps
+   - `getKbCountMapsWithShares()` - Returns source, chunk, and share count maps for admin views
+
+4. **Extracted single KB count functions:**
+   - `getKbSourceCount()` - Get source count for a single KB
+   - `getKbChunkCount()` - Get chunk count for a single KB
+   - `getKbAggregatedCounts()` - Get both source and chunk counts for a single KB
+
+5. **Updated routes to use shared helpers:**
+   - `apps/api/src/routes/knowledge-bases.ts` - Tenant KB list route
+   - `apps/api/src/routes/admin/shared-kbs.ts` - Admin global KB list and details routes
+
+6. **Added tests:**
+   - `apps/api/src/services/kb-aggregation-helpers.test.ts` - 16 tests covering module exports and type definitions
+
+### Code Reduction
+- Eliminated ~60 lines of duplicate aggregation code between knowledge-bases.ts and shared-kbs.ts
+- Centralized source, chunk, and share count queries prevent drift between routes
+- All aggregation queries now use efficient parallel execution via Promise.all
+- Empty kbIds array is handled efficiently (returns empty Map without DB query)
+
+### Files Changed
+- `apps/api/src/services/kb-aggregation-helpers.ts` (NEW)
+- `apps/api/src/services/kb-aggregation-helpers.test.ts` (NEW)
+- `apps/api/src/routes/knowledge-bases.ts` (MODIFIED)
+- `apps/api/src/routes/admin/shared-kbs.ts` (MODIFIED)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)

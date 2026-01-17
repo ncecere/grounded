@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { knowledgeBases, tenantKbSubscriptions, tenants, sources, kbChunks, users, sourceRuns, modelConfigurations } from "@grounded/db/schema";
-import { eq, and, isNull, sql, inArray, desc } from "drizzle-orm";
+import { knowledgeBases, tenantKbSubscriptions, tenants, sources, users, sourceRuns, modelConfigurations } from "@grounded/db/schema";
+import { eq, and, isNull, inArray, desc } from "drizzle-orm";
 import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { NotFoundError, BadRequestError } from "../../middleware/error-handler";
 import {
@@ -16,6 +16,10 @@ import {
   createSourceRun,
   queueSourceRunJob,
 } from "../../services/source-helpers";
+import {
+  getKbCountMapsWithShares,
+  getKbAggregatedCounts,
+} from "../../services/kb-aggregation-helpers";
 
 export const adminSharedKbsRoutes = new Hono();
 
@@ -46,7 +50,7 @@ const shareWithTenantSchema = z.object({
 // ============================================================================
 
 adminSharedKbsRoutes.get("/", async (c) => {
-  const { globalKbs, sourceCounts, chunkCounts, shareCounts, creators } = await withRequestRLS(c, async (tx) => {
+  const { globalKbs, sourceCountMap, chunkCountMap, shareCountMap, creatorMap } = await withRequestRLS(c, async (tx) => {
     // Get ALL global KBs (both published and unpublished)
     const globalKbs = await tx.query.knowledgeBases.findMany({
       where: and(
@@ -57,44 +61,9 @@ adminSharedKbsRoutes.get("/", async (c) => {
 
     const kbIds = globalKbs.map((kb) => kb.id);
 
-    // Get source counts
-    const sourceCounts = kbIds.length > 0 ? await tx
-      .select({
-        kbId: sources.kbId,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(sources)
-      .where(and(
-        inArray(sources.kbId, kbIds),
-        isNull(sources.deletedAt)
-      ))
-      .groupBy(sources.kbId) : [];
-
-    // Get chunk counts
-    const chunkCounts = kbIds.length > 0 ? await tx
-      .select({
-        kbId: kbChunks.kbId,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(kbChunks)
-      .where(and(
-        inArray(kbChunks.kbId, kbIds),
-        isNull(kbChunks.deletedAt)
-      ))
-      .groupBy(kbChunks.kbId) : [];
-
-    // Get subscription counts (how many tenants each KB is shared with)
-    const shareCounts = kbIds.length > 0 ? await tx
-      .select({
-        kbId: tenantKbSubscriptions.kbId,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(tenantKbSubscriptions)
-      .where(and(
-        inArray(tenantKbSubscriptions.kbId, kbIds),
-        isNull(tenantKbSubscriptions.deletedAt)
-      ))
-      .groupBy(tenantKbSubscriptions.kbId) : [];
+    // Get aggregated counts using shared helpers
+    const { sourceCountMap, chunkCountMap, shareCountMap } =
+      await getKbCountMapsWithShares(tx, kbIds);
 
     // Get creator info
     const creatorIds = [...new Set(globalKbs.map((kb) => kb.createdBy))];
@@ -103,13 +72,10 @@ adminSharedKbsRoutes.get("/", async (c) => {
       .from(users)
       .where(inArray(users.id, creatorIds)) : [];
 
-    return { globalKbs, sourceCounts, chunkCounts, shareCounts, creators };
-  });
+    const creatorMap = new Map(creators.map((u) => [u.id, u.email]));
 
-  const sourceCountMap = new Map(sourceCounts.map((s) => [s.kbId, s.count]));
-  const chunkCountMap = new Map(chunkCounts.map((c) => [c.kbId, c.count]));
-  const shareCountMap = new Map(shareCounts.map((s) => [s.kbId, s.count]));
-  const creatorMap = new Map(creators.map((u) => [u.id, u.email]));
+    return { globalKbs, sourceCountMap, chunkCountMap, shareCountMap, creatorMap };
+  });
 
   return c.json({
     knowledgeBases: globalKbs.map((kb) => ({
@@ -197,7 +163,7 @@ adminSharedKbsRoutes.post(
 adminSharedKbsRoutes.get("/:kbId", async (c) => {
   const kbId = c.req.param("kbId");
 
-  const { kb, sourceCount, chunkCount, subscriptions, creator } = await withRequestRLS(c, async (tx) => {
+  const { kb, counts, subscriptions, creator } = await withRequestRLS(c, async (tx) => {
     const kb = await tx.query.knowledgeBases.findFirst({
       where: and(
         eq(knowledgeBases.id, kbId),
@@ -207,26 +173,11 @@ adminSharedKbsRoutes.get("/:kbId", async (c) => {
     });
 
     if (!kb) {
-      return { kb: null, sourceCount: null, chunkCount: null, subscriptions: [], creator: null };
+      return { kb: null, counts: null, subscriptions: [], creator: null };
     }
 
-    // Get source count
-    const [sourceCount] = await tx
-      .select({ count: sql<number>`count(*)::int` })
-      .from(sources)
-      .where(and(
-        eq(sources.kbId, kbId),
-        isNull(sources.deletedAt)
-      ));
-
-    // Get chunk count
-    const [chunkCount] = await tx
-      .select({ count: sql<number>`count(*)::int` })
-      .from(kbChunks)
-      .where(and(
-        eq(kbChunks.kbId, kbId),
-        isNull(kbChunks.deletedAt)
-      ));
+    // Get aggregated counts using shared helper
+    const counts = await getKbAggregatedCounts(tx, kbId);
 
     // Get subscriptions (tenants this KB is shared with)
     const subscriptions = await tx
@@ -249,7 +200,7 @@ adminSharedKbsRoutes.get("/:kbId", async (c) => {
       where: eq(users.id, kb.createdBy),
     });
 
-    return { kb, sourceCount, chunkCount, subscriptions, creator };
+    return { kb, counts, subscriptions, creator };
   });
 
   if (!kb) {
@@ -259,8 +210,8 @@ adminSharedKbsRoutes.get("/:kbId", async (c) => {
   return c.json({
     knowledgeBase: {
       ...kb,
-      sourceCount: sourceCount?.count || 0,
-      chunkCount: chunkCount?.count || 0,
+      sourceCount: counts?.sourceCount || 0,
+      chunkCount: counts?.chunkCount || 0,
       isPublished: !!kb.publishedAt,
       creatorEmail: creator?.primaryEmail,
       sharedWithTenants: subscriptions.map((s) => ({

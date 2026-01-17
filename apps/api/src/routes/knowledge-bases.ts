@@ -6,14 +6,13 @@ import {
   knowledgeBases,
   tenantKbSubscriptions,
   tenantQuotas,
-  sources,
-  kbChunks,
 } from "@grounded/db/schema";
-import { eq, and, isNull, sql, inArray } from "drizzle-orm";
+import { eq, and, isNull, sql } from "drizzle-orm";
 import { auth, requireRole, requireTenant, requireSystemAdmin, withRequestRLS } from "../middleware/auth";
 import { NotFoundError, QuotaExceededError, ForbiddenError, ConflictError } from "../middleware/error-handler";
 import { getAIRegistry } from "@grounded/ai-providers";
 import { addKbReindexJob } from "@grounded/queue";
+import { getKbCountMaps } from "../services/kb-aggregation-helpers";
 
 export const kbRoutes = new Hono();
 
@@ -108,33 +107,7 @@ kbRoutes.get("/", auth(), requireTenant(), async (c) => {
 
     // Get source and chunk counts for all KBs
     const kbIds = Array.from(allKbIds);
-
-    const sourceCounts = kbIds.length > 0 ? await tx
-      .select({
-        kbId: sources.kbId,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(sources)
-      .where(and(
-        inArray(sources.kbId, kbIds),
-        isNull(sources.deletedAt)
-      ))
-      .groupBy(sources.kbId) : [];
-
-    const chunkCounts = kbIds.length > 0 ? await tx
-      .select({
-        kbId: kbChunks.kbId,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(kbChunks)
-      .where(and(
-        inArray(kbChunks.kbId, kbIds),
-        isNull(kbChunks.deletedAt)
-      ))
-      .groupBy(kbChunks.kbId) : [];
-
-    const sourceCountMap = new Map(sourceCounts.map((s) => [s.kbId, s.count]));
-    const chunkCountMap = new Map(chunkCounts.map((c) => [c.kbId, c.count]));
+    const { sourceCountMap, chunkCountMap } = await getKbCountMaps(tx, kbIds);
 
     return allKbs.map((kb) => ({
       ...kb,
