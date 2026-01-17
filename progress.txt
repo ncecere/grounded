@@ -169,3 +169,51 @@
 - `apps/api/src/routes/knowledge-bases.ts` (MODIFIED)
 - `apps/api/src/routes/admin/shared-kbs.ts` (MODIFIED)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Split auth middleware into focused modules
+
+### Completed Task
+**Task:** Split auth middleware into focused modules and re-export a unified middleware
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Created new auth middleware module directory:**
+   - `apps/api/src/middleware/auth/`
+
+2. **Extracted focused modules:**
+   - `types.ts` - Type definitions (AuthUser, AuthContext, RLSContext)
+   - `helpers.ts` - Shared utilities (withRequestRLS, checkSystemAdmin, findOrCreateUser, resolveTenantContext)
+   - `bearer.ts` - Local JWT bearer token authentication
+   - `oidc.ts` - OIDC/external provider authentication
+   - `api-key.ts` - Tenant-scoped API key authentication
+   - `admin-token.ts` - System-level admin token authentication
+   - `middleware.ts` - Main auth middleware and RBAC middleware (requireRole, requireSystemAdmin, requireTenant)
+   - `index.ts` - Unified re-exports
+
+3. **Updated auth.ts to re-export from modular structure:**
+   - Original `apps/api/src/middleware/auth.ts` now re-exports all from `./auth/index`
+   - Full backward compatibility maintained - no changes needed in route files
+
+4. **Added tests:**
+   - `apps/api/src/middleware/auth/auth.test.ts` - 36 tests covering all module exports and behavior
+
+### Code Organization
+- Split 522-line monolithic auth.ts into 8 focused modules
+- Each authentication method is now in its own file for easier maintenance
+- Shared helper functions extracted to reduce code duplication
+- Types centralized in dedicated types.ts file
+- Clear separation of concerns between authentication methods
+
+### Files Changed
+- `apps/api/src/middleware/auth/types.ts` (NEW)
+- `apps/api/src/middleware/auth/helpers.ts` (NEW)
+- `apps/api/src/middleware/auth/bearer.ts` (NEW)
+- `apps/api/src/middleware/auth/oidc.ts` (NEW)
+- `apps/api/src/middleware/auth/api-key.ts` (NEW)
+- `apps/api/src/middleware/auth/admin-token.ts` (NEW)
+- `apps/api/src/middleware/auth/middleware.ts` (NEW)
+- `apps/api/src/middleware/auth/index.ts` (NEW)
+- `apps/api/src/middleware/auth/auth.test.ts` (NEW)
+- `apps/api/src/middleware/auth.ts` (MODIFIED - now re-exports from auth/)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)
