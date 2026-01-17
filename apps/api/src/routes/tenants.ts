@@ -8,6 +8,13 @@ import crypto from "crypto";
 import { eq, and, isNull } from "drizzle-orm";
 import { auth, requireRole, requireTenant, requireSystemAdmin, withRequestRLS } from "../middleware/auth";
 import { NotFoundError, BadRequestError, ConflictError } from "../middleware/error-handler";
+import {
+  updateAlertSettingsSchema,
+  validateAdditionalEmails,
+  getDefaultAlertSettings,
+  buildAlertSettingsInsertValues,
+  buildAlertSettingsUpdateValues,
+} from "../services/tenant-alert-helpers";
 
 export const tenantRoutes = new Hono();
 
@@ -42,16 +49,6 @@ const addMemberSchema = z.object({
 
 const updateMemberSchema = z.object({
   role: z.enum(["owner", "admin", "member", "viewer"]),
-});
-
-const updateAlertSettingsSchema = z.object({
-  enabled: z.boolean().optional(),
-  notifyOwners: z.boolean().optional(),
-  notifyAdmins: z.boolean().optional(),
-  additionalEmails: z.string().optional().nullable(),
-  errorRateThreshold: z.number().int().min(1).max(100).optional().nullable(),
-  quotaWarningThreshold: z.number().int().min(1).max(100).optional().nullable(),
-  inactivityDays: z.number().int().min(0).max(365).optional().nullable(),
 });
 
 // ============================================================================
@@ -446,24 +443,8 @@ tenantRoutes.get(
       });
     });
 
-    if (settings) {
-      return c.json({ alertSettings: settings });
-    }
-
-    // Return defaults if no settings exist
     return c.json({
-      alertSettings: {
-        tenantId,
-        enabled: true,
-        notifyOwners: true,
-        notifyAdmins: false,
-        additionalEmails: null,
-        errorRateThreshold: null,
-        quotaWarningThreshold: null,
-        inactivityDays: null,
-        createdAt: null,
-        updatedAt: null,
-      },
+      alertSettings: settings ?? getDefaultAlertSettings(tenantId),
     });
   }
 );
@@ -484,12 +465,9 @@ tenantRoutes.put(
 
     // Validate additionalEmails if provided
     if (body.additionalEmails) {
-      const emails = body.additionalEmails.split(",").map((e) => e.trim());
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      for (const email of emails) {
-        if (!emailRegex.test(email)) {
-          throw new BadRequestError(`Invalid email address: ${email}`);
-        }
+      const errors = validateAdditionalEmails(body.additionalEmails);
+      if (errors.length > 0) {
+        throw new BadRequestError(errors[0]);
       }
     }
 
@@ -497,28 +475,10 @@ tenantRoutes.put(
     const settings = await withRequestRLS(c, async (tx) => {
       const [upserted] = await tx
         .insert(tenantAlertSettings)
-        .values({
-          tenantId,
-          enabled: body.enabled ?? true,
-          notifyOwners: body.notifyOwners ?? true,
-          notifyAdmins: body.notifyAdmins ?? false,
-          additionalEmails: body.additionalEmails ?? null,
-          errorRateThreshold: body.errorRateThreshold ?? null,
-          quotaWarningThreshold: body.quotaWarningThreshold ?? null,
-          inactivityDays: body.inactivityDays ?? null,
-        })
+        .values(buildAlertSettingsInsertValues(tenantId, body))
         .onConflictDoUpdate({
           target: tenantAlertSettings.tenantId,
-          set: {
-            enabled: body.enabled,
-            notifyOwners: body.notifyOwners,
-            notifyAdmins: body.notifyAdmins,
-            additionalEmails: body.additionalEmails,
-            errorRateThreshold: body.errorRateThreshold,
-            quotaWarningThreshold: body.quotaWarningThreshold,
-            inactivityDays: body.inactivityDays,
-            updatedAt: new Date(),
-          },
+          set: buildAlertSettingsUpdateValues(body),
         })
         .returning();
       return upserted;

@@ -59,7 +59,7 @@ tasks:
   # PARALLEL GROUP 7: Tenant alert helpers
   # ===========================================================================
   - title: Move tenant alert validation/defaulting into a helper module
-    completed: false
+    completed: true
     parallel_group: 7
     tags: [refactor, api, tenants]
 
@@ -67,4 +67,4 @@ metadata:
   created_at: "2026-01-17"
   updated_at: "2026-01-17"
   owner: "unassigned"
-  last_completed: "Break up web API client into client/types/domain modules"
+  last_completed: "Move tenant alert validation/defaulting into a helper module"

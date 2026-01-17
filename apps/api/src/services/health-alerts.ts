@@ -13,6 +13,7 @@ import {
 import { sql, isNull, and, gte, eq, inArray } from "drizzle-orm";
 import { log } from "@grounded/logger";
 import { emailService, getAlertSettings } from "./email";
+import { resolveAlertSettings, parseAdditionalEmails } from "./tenant-alert-helpers";
 
 // ============================================================================
 // Types
@@ -355,15 +356,12 @@ async function sendPerTenantAlerts(
 
   // Send alerts for each tenant
   for (const tenant of tenantsWithIssues) {
-    const settings = alertSettingsMap.get(tenant.tenantId);
+    const rawSettings = alertSettingsMap.get(tenant.tenantId) ?? null;
 
-    // Default to enabled with notifyOwners=true if no settings exist
-    const enabled = settings?.enabled ?? true;
-    const notifyOwners = settings?.notifyOwners ?? true;
-    const notifyAdmins = settings?.notifyAdmins ?? false;
-    const additionalEmails = settings?.additionalEmails;
+    // Resolve settings with defaults and system thresholds
+    const resolved = resolveAlertSettings(rawSettings, systemSettings);
 
-    if (!enabled) {
+    if (!resolved.enabled) {
       log.debug("api", "HealthAlerts: Alerts disabled for tenant, skipping", { tenantSlug: tenant.tenantSlug });
       continue;
     }
@@ -373,24 +371,22 @@ async function sendPerTenantAlerts(
 
     const tenantMembers = membershipsByTenant.get(tenant.tenantId) || [];
 
-    if (notifyOwners) {
+    if (resolved.notifyOwners) {
       const ownerEmails = tenantMembers
         .filter((m) => m.role === "owner" && m.email)
         .map((m) => m.email as string);
       recipients.push(...ownerEmails);
     }
 
-    if (notifyAdmins) {
+    if (resolved.notifyAdmins) {
       const adminEmails = tenantMembers
         .filter((m) => m.role === "admin" && m.email)
         .map((m) => m.email as string);
       recipients.push(...adminEmails);
     }
 
-    if (additionalEmails) {
-      const extras = additionalEmails.split(",").map((e) => e.trim()).filter(Boolean);
-      recipients.push(...extras);
-    }
+    // Add any additional emails
+    recipients.push(...parseAdditionalEmails(resolved.additionalEmails));
 
     // Deduplicate
     const uniqueRecipients = [...new Set(recipients)];
@@ -400,11 +396,11 @@ async function sendPerTenantAlerts(
       continue;
     }
 
-    // Use tenant-specific thresholds if set, otherwise system defaults
+    // Use resolved thresholds (tenant-specific or system defaults)
     const thresholds = {
-      errorRateThreshold: settings?.errorRateThreshold ?? systemSettings.errorRateThreshold,
-      quotaWarningThreshold: settings?.quotaWarningThreshold ?? systemSettings.quotaWarningThreshold,
-      inactivityDays: settings?.inactivityDays ?? systemSettings.inactivityDays,
+      errorRateThreshold: resolved.errorRateThreshold,
+      quotaWarningThreshold: resolved.quotaWarningThreshold,
+      inactivityDays: resolved.inactivityDays,
     };
 
     const result = await emailService.sendTenantHealthAlert(uniqueRecipients, tenant, thresholds);

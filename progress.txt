@@ -279,3 +279,55 @@
 - `apps/web/src/lib/api.ts` (MODIFIED - now re-exports from api/)
 - `apps/web/package.json` (MODIFIED - added test script)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Move tenant alert validation/defaulting into a helper module
+
+### Completed Task
+**Task:** Move tenant alert validation/defaulting into a helper module
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Created new shared helper module:**
+   - `apps/api/src/services/tenant-alert-helpers.ts`
+
+2. **Extracted validation schema:**
+   - `updateAlertSettingsSchema` - Zod schema for updating alert settings
+
+3. **Extracted default constants:**
+   - `DEFAULT_ALERT_SETTINGS` - Default values for alert settings (enabled, notifyOwners, etc.)
+
+4. **Extracted types:**
+   - `TenantAlertSettings` - Type for alert settings from database or defaults
+   - `ResolvedAlertSettings` - Type with system defaults applied to null thresholds
+   - `UpdateAlertSettingsInput` - Zod-inferred input type
+
+5. **Extracted helper functions:**
+   - `validateAdditionalEmails()` - Validates comma-separated email list
+   - `parseAdditionalEmails()` - Parses email list into array
+   - `getDefaultAlertSettings()` - Returns default settings for a tenant
+   - `resolveAlertSettings()` - Merges tenant settings with system defaults
+   - `buildAlertSettingsInsertValues()` - Builds insert data for upsert
+   - `buildAlertSettingsUpdateValues()` - Builds update data for upsert
+
+6. **Updated routes to use shared helpers:**
+   - `apps/api/src/routes/tenants.ts` - Alert settings routes
+
+7. **Updated services to use shared helpers:**
+   - `apps/api/src/services/health-alerts.ts` - Per-tenant alert processing
+
+8. **Added tests:**
+   - `apps/api/src/services/tenant-alert-helpers.test.ts` - 34 tests covering all schemas and helpers
+
+### Code Reduction
+- Eliminated ~40 lines of duplicate default value logic between tenants.ts and health-alerts.ts
+- Centralized validation schema prevents drift between routes
+- Alert settings resolution now uses a single implementation
+- Email parsing and validation logic consolidated into reusable functions
+
+### Files Changed
+- `apps/api/src/services/tenant-alert-helpers.ts` (NEW)
+- `apps/api/src/services/tenant-alert-helpers.test.ts` (NEW)
+- `apps/api/src/routes/tenants.ts` (MODIFIED)
+- `apps/api/src/services/health-alerts.ts` (MODIFIED)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)
