@@ -393,3 +393,71 @@
 - `apps/web/src/components/agents/AgentFormModal.tsx` (MODIFIED - include new fields)
 - `apps/api/src/routes/agents.test.ts` (NEW - 39 tests)
 - `Tasks/tasks.yml` (MODIFIED - marked Phase 1 tasks complete)
+
+## 2026-01-17: Phase 2 - Create AdvancedRAGService file structure
+
+### Completed Task
+**Task:** Create AdvancedRAGService file structure
+**Phase:** Phase 2 - Advanced RAG Service
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Created AdvancedRAGService module:**
+   - `apps/api/src/services/advanced-rag.ts`
+
+2. **Implemented types and interfaces:**
+   - `ReasoningStep` - Represents a single step in the reasoning process (rewrite, plan, search, merge, generate)
+   - `SubQuery` - A sub-query generated from the multi-step plan
+   - `AdvancedStreamEvent` - Extended stream events including reasoning step events
+   - `AdvancedAgentConfig` - Configuration including historyTurns and advancedMaxSubqueries
+
+3. **Implemented AdvancedRAGService class:**
+   - Constructor with tenantId, agentId, and optional channel parameter
+   - `chat()` async generator method for streaming responses with reasoning steps
+   - `loadConfig()` - Load agent and retrieval config including advanced RAG settings
+   - `rewriteQuery()` - Rewrite user query using conversation history context
+   - `generateSubQueries()` - Generate focused sub-queries for comprehensive search
+   - `executeSubQueries()` - Execute all sub-queries in parallel
+   - `mergeAndDeduplicateChunks()` - Merge and deduplicate chunks by ID, keeping highest scores
+   - `searchKnowledge()` - Search knowledge bases (reused pattern from SimpleRAGService)
+   - `buildSystemPrompt()` - Build system prompt with retrieved context
+   - `buildMessages()` - Build messages array from conversation history
+   - `logUsage()` - Log usage to chat_events for analytics
+
+4. **Reasoning step types implemented:**
+   - `rewrite` - Query rewriting with conversation context
+   - `plan` - Multi-step plan generation (sub-queries)
+   - `search` - Knowledge base search
+   - `merge` - Result merging and deduplication
+   - `generate` - Final answer generation
+
+5. **Stream event types:**
+   - `status` - Status updates with optional source count
+   - `reasoning` - Reasoning step progress (NEW for advanced mode)
+   - `text` - Streamed response text
+   - `sources` - Retrieved sources
+   - `done` - Completion with conversation ID
+   - `error` - Error message
+
+6. **Added tests:**
+   - `apps/api/src/services/advanced-rag.test.ts` - 24 tests covering:
+     - Module exports (AdvancedRAGService class and types)
+     - Constructor behavior (tenantId, agentId, channel parameters)
+     - Chat method contract (AsyncGenerator, parameters)
+     - ReasoningStep interface (type, status, optional details)
+     - SubQuery interface (id, query, purpose)
+     - AdvancedStreamEvent types (all 6 event types)
+     - Service behavior contracts (step sequence, status transitions, channels)
+     - Configuration defaults (historyTurns, advancedMaxSubqueries, etc.)
+     - Event type discrimination
+     - Comparison with SimpleRAGService
+
+### Test Results
+- All 225 tests pass (209 in api, 16 in web)
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `apps/api/src/services/advanced-rag.ts` (NEW - 460 lines)
+- `apps/api/src/services/advanced-rag.test.ts` (NEW - 24 tests)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)
