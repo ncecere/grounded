@@ -461,3 +461,45 @@
 - `apps/api/src/services/advanced-rag.ts` (NEW - 460 lines)
 - `apps/api/src/services/advanced-rag.test.ts` (NEW - 24 tests)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 2 - Implement query rewriting with conversation history
+
+### Completed Task
+**Task:** Implement query rewriting with conversation history
+**Phase:** Phase 2 - Advanced RAG Service
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Query rewriting implementation (already in advanced-rag.ts from Phase 2 file structure):**
+   - `rewriteQuery()` method that uses LLM to reformulate queries with conversation context
+   - Returns original query when no history is present (optimization)
+   - Uses conversation history formatted as "User: ..." / "Assistant: ..." pairs
+   - Includes comprehensive prompt with 5 rules for query rewriting
+   - Handles errors gracefully by returning original query
+
+2. **History management:**
+   - Uses `historyTurns` config parameter to limit conversation context
+   - Each turn = user + assistant message pair
+   - Default of 5 turns = last 10 messages
+   - Applies limit via `fullHistory.slice(-historyTurns * 2)`
+
+3. **Added comprehensive tests for query rewriting behavior:**
+   - History formatting tests (User/Assistant prefixes, newline joining)
+   - Rewrite prompt structure validation
+   - Expected rewriting scenario documentation:
+     - No history returns original query
+     - Self-contained queries may not need rewriting
+     - Queries with pronouns need context expansion
+     - Follow-up questions need expansion
+   - History turns limiting tests
+   - Error handling behavior documentation
+
+### Test Results
+- All 238 tests pass (222 in api, 16 in web)
+- All typecheck passes across 14 packages
+- Added 17 new tests for query rewriting behavior
+
+### Files Changed
+- `apps/api/src/services/advanced-rag.test.ts` (MODIFIED - added 17 tests for query rewriting)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)

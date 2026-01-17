@@ -63,7 +63,7 @@ tasks:
     file: phase-2-advanced-rag-service.md
 
   - title: Implement query rewriting with conversation history
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, service, rag, llm]
     file: phase-2-advanced-rag-service.md

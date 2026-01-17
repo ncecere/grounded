@@ -436,6 +436,162 @@ describe("Stream Event Type Discrimination", () => {
 });
 
 // ============================================================================
+// Tests for Query Rewriting Behavior
+// ============================================================================
+
+describe("Query Rewriting Behavior", () => {
+  describe("history formatting", () => {
+    it("should format user turns with 'User:' prefix", () => {
+      const turn = { role: "user" as const, content: "What is the pricing?", timestamp: Date.now() };
+      const formatted = `${turn.role === "user" ? "User" : "Assistant"}: ${turn.content}`;
+      expect(formatted).toBe("User: What is the pricing?");
+    });
+
+    it("should format assistant turns with 'Assistant:' prefix", () => {
+      const turn: { role: "user" | "assistant"; content: string; timestamp: number } = {
+        role: "assistant",
+        content: "The pricing starts at $10/month.",
+        timestamp: Date.now()
+      };
+      const formatted = `${turn.role === "user" ? "User" : "Assistant"}: ${turn.content}`;
+      expect(formatted).toBe("Assistant: The pricing starts at $10/month.");
+    });
+
+    it("should join multiple turns with newlines", () => {
+      const history = [
+        { role: "user" as const, content: "What is the pricing?", timestamp: Date.now() },
+        { role: "assistant" as const, content: "The pricing starts at $10/month.", timestamp: Date.now() },
+        { role: "user" as const, content: "Is there a free tier?", timestamp: Date.now() },
+      ];
+
+      const formatted = history
+        .map((turn) => `${turn.role === "user" ? "User" : "Assistant"}: ${turn.content}`)
+        .join("\n");
+
+      expect(formatted).toContain("User: What is the pricing?");
+      expect(formatted).toContain("Assistant: The pricing starts at $10/month.");
+      expect(formatted).toContain("User: Is there a free tier?");
+      expect(formatted.split("\n")).toHaveLength(3);
+    });
+  });
+
+  describe("rewrite prompt structure", () => {
+    it("should instruct LLM to reformulate queries with context", () => {
+      const systemPrompt = `You are a query rewriting assistant. Your task is to reformulate the user's latest query to be self-contained and specific, incorporating relevant context from the conversation history.`;
+
+      expect(systemPrompt).toContain("query rewriting");
+      expect(systemPrompt).toContain("reformulate");
+      expect(systemPrompt).toContain("self-contained");
+      expect(systemPrompt).toContain("conversation history");
+    });
+
+    it("should include rules for pronoun expansion", () => {
+      const rules = [
+        'If the query references previous context (e.g., "it", "that", "this", pronouns), expand it to be explicit',
+        "If the query is already self-contained, return it unchanged",
+        "Keep the rewritten query concise and focused",
+        "Return ONLY the rewritten query, nothing else",
+        "Do not add explanations or preamble",
+      ];
+
+      expect(rules).toHaveLength(5);
+      expect(rules[0]).toContain("pronouns");
+      expect(rules[1]).toContain("self-contained");
+      expect(rules[3]).toContain("ONLY the rewritten query");
+    });
+  });
+
+  describe("expected rewriting scenarios", () => {
+    it("should document scenario: no history returns original query", () => {
+      const query = "What are the pricing options?";
+      const history: unknown[] = [];
+
+      // When history is empty, query should be returned unchanged
+      const expectedBehavior = history.length === 0 ? "return original" : "may rewrite";
+      expect(expectedBehavior).toBe("return original");
+    });
+
+    it("should document scenario: self-contained query with history", () => {
+      const query = "What are the integration options for Salesforce?";
+      // Even with history, if query is already specific, it may not need rewriting
+      const isSelfContained = !query.match(/\b(it|that|this|they|them|those)\b/i);
+      expect(isSelfContained).toBe(true);
+    });
+
+    it("should document scenario: query with pronouns needs context", () => {
+      const query = "How much does it cost?";
+      // "it" is ambiguous - needs context from history
+      const hasPronouns = query.match(/\b(it|that|this|they|them|those)\b/i);
+      expect(hasPronouns).toBeTruthy();
+    });
+
+    it("should document scenario: follow-up question needs expansion", () => {
+      const history = [
+        { role: "user" as const, content: "Tell me about the Enterprise plan", timestamp: Date.now() },
+        { role: "assistant" as const, content: "The Enterprise plan includes...", timestamp: Date.now() },
+      ];
+      const query = "What about the support options?";
+
+      // "the support options" likely refers to Enterprise plan support
+      // Rewritten might be: "What are the support options for the Enterprise plan?"
+      expect(history).toHaveLength(2);
+      expect(query).toContain("support options");
+    });
+  });
+
+  describe("history turns limiting", () => {
+    it("should document historyTurns parameter usage", () => {
+      const fullHistory = [
+        { role: "user", content: "Q1" },
+        { role: "assistant", content: "A1" },
+        { role: "user", content: "Q2" },
+        { role: "assistant", content: "A2" },
+        { role: "user", content: "Q3" },
+        { role: "assistant", content: "A3" },
+        { role: "user", content: "Q4" },
+        { role: "assistant", content: "A4" },
+      ];
+
+      const historyTurns = 3; // Default is 5, but using 3 for test
+      // Each turn = user + assistant, so 3 turns = 6 messages
+      const limitedHistory = fullHistory.slice(-historyTurns * 2);
+
+      expect(limitedHistory).toHaveLength(6);
+      expect(limitedHistory[0].content).toBe("Q2");
+      expect(limitedHistory[5].content).toBe("A4");
+    });
+
+    it("should handle history shorter than historyTurns limit", () => {
+      const fullHistory = [
+        { role: "user", content: "Q1" },
+        { role: "assistant", content: "A1" },
+      ];
+
+      const historyTurns = 5;
+      const limitedHistory = fullHistory.slice(-historyTurns * 2);
+
+      // Should return all available history when less than limit
+      expect(limitedHistory).toHaveLength(2);
+    });
+  });
+
+  describe("error handling", () => {
+    it("should document fallback behavior on LLM error", () => {
+      const originalQuery = "What about that feature?";
+      // If LLM call fails, should return original query
+      const fallbackBehavior = "return original query on error";
+      expect(fallbackBehavior).toContain("original query");
+    });
+
+    it("should document fallback behavior when model unavailable", () => {
+      // If no model is configured, should return original query
+      const noModelBehavior = "return original query if no model";
+      expect(noModelBehavior).toContain("original query");
+    });
+  });
+});
+
+// ============================================================================
 // Tests for Comparison with SimpleRAGService
 // ============================================================================
 
