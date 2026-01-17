@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@grounded/db";
 import { users, tenants } from "@grounded/db/schema";
 import { eq, inArray } from "drizzle-orm";
-import { auth, requireSystemAdmin } from "../../middleware/auth";
+import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { auditService, type AuditQueryOptions } from "../../services/audit";
 
 export const adminAuditRoutes = new Hono();
@@ -55,20 +55,22 @@ adminAuditRoutes.get("/", zValidator("query", querySchema), async (c) => {
   const actorIds = [...new Set(result.logs.map((l) => l.actorId).filter(Boolean))] as string[];
   const tenantIds = [...new Set(result.logs.map((l) => l.tenantId).filter(Boolean))] as string[];
 
-  const [actorsList, tenantsList] = await Promise.all([
-    actorIds.length > 0
-      ? db
-          .select({ id: users.id, email: users.primaryEmail })
-          .from(users)
-          .where(inArray(users.id, actorIds))
-      : [],
-    tenantIds.length > 0
-      ? db
-          .select({ id: tenants.id, name: tenants.name })
-          .from(tenants)
-          .where(inArray(tenants.id, tenantIds))
-      : [],
-  ]);
+  const [actorsList, tenantsList] = await withRequestRLS(c, async (tx) => {
+    return Promise.all([
+      actorIds.length > 0
+        ? tx
+            .select({ id: users.id, email: users.primaryEmail })
+            .from(users)
+            .where(inArray(users.id, actorIds))
+        : [],
+      tenantIds.length > 0
+        ? tx
+            .select({ id: tenants.id, name: tenants.name })
+            .from(tenants)
+            .where(inArray(tenants.id, tenantIds))
+        : [],
+    ]);
+  });
 
   const actorMap = new Map(actorsList.map((a) => [a.id, a.email]));
   const tenantMap = new Map(tenantsList.map((t) => [t.id, t.name]));
@@ -100,26 +102,30 @@ adminAuditRoutes.get("/:id", async (c) => {
   }
 
   // Enrich with actor and tenant names
-  let actorEmail: string | null = null;
-  let tenantName: string | null = null;
+  const { actorEmail, tenantName } = await withRequestRLS(c, async (tx) => {
+    let actorEmail: string | null = null;
+    let tenantName: string | null = null;
 
-  if (log.actorId) {
-    const [actor] = await db
-      .select({ email: users.primaryEmail })
-      .from(users)
-      .where(eq(users.id, log.actorId))
-      .limit(1);
-    actorEmail = actor?.email || null;
-  }
+    if (log.actorId) {
+      const [actor] = await tx
+        .select({ email: users.primaryEmail })
+        .from(users)
+        .where(eq(users.id, log.actorId))
+        .limit(1);
+      actorEmail = actor?.email || null;
+    }
 
-  if (log.tenantId) {
-    const [tenant] = await db
-      .select({ name: tenants.name })
-      .from(tenants)
-      .where(eq(tenants.id, log.tenantId))
-      .limit(1);
-    tenantName = tenant?.name || null;
-  }
+    if (log.tenantId) {
+      const [tenant] = await tx
+        .select({ name: tenants.name })
+        .from(tenants)
+        .where(eq(tenants.id, log.tenantId))
+        .limit(1);
+      tenantName = tenant?.name || null;
+    }
+
+    return { actorEmail, tenantName };
+  });
 
   return c.json({
     log: {
@@ -149,12 +155,14 @@ adminAuditRoutes.get(
     // Enrich with actor names
     const actorIds = [...new Set(logs.map((l) => l.actorId).filter(Boolean))] as string[];
 
-    const actorsList = actorIds.length > 0
-      ? await db
-          .select({ id: users.id, email: users.primaryEmail })
-          .from(users)
-          .where(inArray(users.id, actorIds))
-      : [];
+    const actorsList = await withRequestRLS(c, async (tx) => {
+      return actorIds.length > 0
+        ? tx
+            .select({ id: users.id, email: users.primaryEmail })
+            .from(users)
+            .where(inArray(users.id, actorIds))
+        : [];
+    });
 
     const actorMap = new Map(actorsList.map((a) => [a.id, a.email]));
 
@@ -253,10 +261,12 @@ adminAuditRoutes.get("/filters/options", async (c) => {
   ];
 
   // Get list of tenants for filter dropdown
-  const tenantsList = await db
-    .select({ id: tenants.id, name: tenants.name })
-    .from(tenants)
-    .orderBy(tenants.name);
+  const tenantsList = await withRequestRLS(c, async (tx) => {
+    return tx
+      .select({ id: tenants.id, name: tenants.name })
+      .from(tenants)
+      .orderBy(tenants.name);
+  });
 
   return c.json({
     actions,

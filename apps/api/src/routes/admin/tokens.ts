@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@grounded/db";
 import { adminApiTokens } from "@grounded/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
-import { auth, requireSystemAdmin } from "../../middleware/auth";
+import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { NotFoundError } from "../../middleware/error-handler";
 import { hashString } from "@grounded/shared";
 import crypto from "crypto";
@@ -39,9 +39,11 @@ const createTokenSchema = z.object({
 // ============================================================================
 
 adminTokensRoutes.get("/", async (c) => {
-  const tokens = await db.query.adminApiTokens.findMany({
-    where: isNull(adminApiTokens.revokedAt),
-    orderBy: (t, { desc }) => [desc(t.createdAt)],
+  const tokens = await withRequestRLS(c, async (tx) => {
+    return tx.query.adminApiTokens.findMany({
+      where: isNull(adminApiTokens.revokedAt),
+      orderBy: (t, { desc }) => [desc(t.createdAt)],
+    });
   });
 
   return c.json({
@@ -74,16 +76,18 @@ adminTokensRoutes.post(
     const tokenPrefix = rawToken.slice(0, TOKEN_PREFIX.length + 8); // Show prefix + first 8 chars of random part
 
     // Store the token
-    const [token] = await db
-      .insert(adminApiTokens)
-      .values({
-        name: body.name,
-        tokenHash,
-        tokenPrefix,
-        createdBy: authContext.user.id,
-        expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
-      })
-      .returning();
+    const [token] = await withRequestRLS(c, async (tx) => {
+      return tx
+        .insert(adminApiTokens)
+        .values({
+          name: body.name,
+          tokenHash,
+          tokenPrefix,
+          createdBy: authContext.user.id,
+          expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
+        })
+        .returning();
+    });
 
     // Return the raw token ONCE
     return c.json({
@@ -104,21 +108,25 @@ adminTokensRoutes.post(
 adminTokensRoutes.delete("/:id", async (c) => {
   const id = c.req.param("id");
 
-  const token = await db.query.adminApiTokens.findFirst({
-    where: and(
-      eq(adminApiTokens.id, id),
-      isNull(adminApiTokens.revokedAt)
-    ),
+  const token = await withRequestRLS(c, async (tx) => {
+    return tx.query.adminApiTokens.findFirst({
+      where: and(
+        eq(adminApiTokens.id, id),
+        isNull(adminApiTokens.revokedAt)
+      ),
+    });
   });
 
   if (!token) {
     throw new NotFoundError("Token not found");
   }
 
-  await db
-    .update(adminApiTokens)
-    .set({ revokedAt: new Date() })
-    .where(eq(adminApiTokens.id, id));
+  await withRequestRLS(c, async (tx) => {
+    return tx
+      .update(adminApiTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(adminApiTokens.id, id));
+  });
 
   return c.json({ message: "Token revoked" });
 });

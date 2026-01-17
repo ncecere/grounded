@@ -136,6 +136,16 @@ export interface KnowledgeBase {
   chunkCount?: number;
   isShared?: boolean;
   isGlobal?: boolean;
+  // Embedding model info
+  embeddingModelId?: string | null;
+  embeddingDimensions?: number;
+  // Reindex tracking
+  reindexStatus?: "pending" | "in_progress" | "failed" | null;
+  reindexProgress?: number | null;
+  reindexError?: string | null;
+  pendingEmbeddingModelId?: string | null;
+  pendingEmbeddingDimensions?: number | null;
+  reindexStartedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -860,6 +870,23 @@ export const api = {
   },
   deleteKnowledgeBase: (id: string) =>
     request<void>(`/knowledge-bases/${id}`, { method: "DELETE" }),
+  reindexKnowledgeBase: async (id: string, embeddingModelId: string) => {
+    const res = await request<{ message: string; knowledgeBase: KnowledgeBase }>(
+      `/knowledge-bases/${id}/reindex`,
+      {
+        method: "POST",
+        body: JSON.stringify({ embeddingModelId }),
+      }
+    );
+    return res;
+  },
+  cancelKbReindex: async (id: string) => {
+    const res = await request<{ message: string; knowledgeBase: KnowledgeBase }>(
+      `/knowledge-bases/${id}/reindex/cancel`,
+      { method: "POST" }
+    );
+    return res;
+  },
 
   // Sources
   listSources: async (kbId: string) => {

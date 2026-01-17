@@ -12,7 +12,7 @@ import {
 import { sql, isNull, and, gte } from "drizzle-orm";
 import { getVectorStore, isVectorStoreConfigured } from "@grounded/vector-store";
 import { getAIRegistry } from "@grounded/ai-providers";
-import { auth, requireSystemAdmin } from "../../middleware/auth";
+import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 
 export const adminDashboardRoutes = new Hono();
 
@@ -37,7 +37,9 @@ adminDashboardRoutes.get("/health", async (c) => {
   // Check database connection
   try {
     const start = Date.now();
-    await db.execute(sql`SELECT 1`);
+    await withRequestRLS(c, async (tx) => {
+      return tx.execute(sql`SELECT 1`);
+    });
     health.database = {
       ok: true,
       latencyMs: Date.now() - start,
@@ -106,35 +108,63 @@ adminDashboardRoutes.get("/health", async (c) => {
 // ============================================================================
 
 adminDashboardRoutes.get("/stats", async (c) => {
-  // Get counts
-  const [userCount] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(users);
+  const stats = await withRequestRLS(c, async (tx) => {
+    // Get counts
+    const [userCount] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(users);
 
-  const [tenantCount] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(tenants)
-    .where(isNull(tenants.deletedAt));
+    const [tenantCount] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(tenants)
+      .where(isNull(tenants.deletedAt));
 
-  const [kbCount] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(knowledgeBases)
-    .where(isNull(knowledgeBases.deletedAt));
+    const [kbCount] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(knowledgeBases)
+      .where(isNull(knowledgeBases.deletedAt));
 
-  const [sourceCount] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(sources)
-    .where(isNull(sources.deletedAt));
+    const [sourceCount] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(sources)
+      .where(isNull(sources.deletedAt));
 
-  const [chunkCount] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(kbChunks)
-    .where(isNull(kbChunks.deletedAt));
+    const [chunkCount] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(kbChunks)
+      .where(isNull(kbChunks.deletedAt));
 
-  const [agentCount] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(agents)
-    .where(isNull(agents.deletedAt));
+    const [agentCount] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(agents)
+      .where(isNull(agents.deletedAt));
+
+    // Get chat events stats for the last 24 hours and 7 days
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [chatEvents24h] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(chatEvents)
+      .where(gte(chatEvents.startedAt, oneDayAgo));
+
+    const [chatEvents7d] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(chatEvents)
+      .where(gte(chatEvents.startedAt, sevenDaysAgo));
+
+    return {
+      userCount,
+      tenantCount,
+      kbCount,
+      sourceCount,
+      chunkCount,
+      agentCount,
+      chatEvents24h,
+      chatEvents7d,
+    };
+  });
 
   // Get vector count from vector store if available
   let vectorCount = 0;
@@ -145,32 +175,17 @@ adminDashboardRoutes.get("/stats", async (c) => {
     }
   }
 
-  // Get chat events stats for the last 24 hours and 7 days
-  const now = new Date();
-  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-  const [chatEvents24h] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(chatEvents)
-    .where(gte(chatEvents.startedAt, oneDayAgo));
-
-  const [chatEvents7d] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(chatEvents)
-    .where(gte(chatEvents.startedAt, sevenDaysAgo));
-
   return c.json({
-    users: userCount.count,
-    tenants: tenantCount.count,
-    knowledgeBases: kbCount.count,
-    sources: sourceCount.count,
-    chunks: chunkCount.count,
+    users: stats.userCount.count,
+    tenants: stats.tenantCount.count,
+    knowledgeBases: stats.kbCount.count,
+    sources: stats.sourceCount.count,
+    chunks: stats.chunkCount.count,
     vectors: vectorCount,
-    agents: agentCount.count,
+    agents: stats.agentCount.count,
     chatEvents: {
-      last24h: chatEvents24h.count,
-      last7d: chatEvents7d.count,
+      last24h: stats.chatEvents24h.count,
+      last7d: stats.chatEvents7d.count,
     },
   });
 });

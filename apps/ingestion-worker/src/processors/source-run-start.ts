@@ -2,12 +2,13 @@ import { db } from "@grounded/db";
 import { sourceRuns, sources } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
 import { addSourceDiscoverUrlsJob } from "@grounded/queue";
+import { log } from "@grounded/logger";
 import type { SourceRunStartJob } from "@grounded/shared";
 
 export async function processSourceRunStart(data: SourceRunStartJob): Promise<void> {
-  const { tenantId, sourceId, runId } = data;
+  const { tenantId, sourceId, runId, requestId, traceId } = data;
 
-  console.log(`Starting source run ${runId} for source ${sourceId}`);
+  log.info("ingestion-worker", "Starting source run", { runId, sourceId, requestId, traceId });
 
   // Update run status to running
   await db
@@ -31,7 +32,9 @@ export async function processSourceRunStart(data: SourceRunStartJob): Promise<vo
   await addSourceDiscoverUrlsJob({
     tenantId,
     runId,
+    requestId,
+    traceId,
   });
 
-  console.log(`Source run ${runId} started, discovery queued`);
+  log.info("ingestion-worker", "Source run started, discovery queued", { runId });
 }

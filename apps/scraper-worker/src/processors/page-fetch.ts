@@ -3,6 +3,7 @@ import { db } from "@grounded/db";
 import { sourceRuns, sourceRunPages, sources, tenantUsage } from "@grounded/db/schema";
 import { eq, sql, and } from "drizzle-orm";
 import { addPageProcessJob, redis } from "@grounded/queue";
+import { log } from "@grounded/logger";
 import {
   normalizeUrl,
   getEnv,
@@ -20,9 +21,9 @@ export async function processPageFetch(
   data: PageFetchJob,
   browser: Browser
 ): Promise<void> {
-  const { tenantId, runId, url, fetchMode, depth = 0 } = data;
+  const { tenantId, runId, url, fetchMode, depth = 0, requestId, traceId } = data;
 
-  console.log(`[PageFetch] Fetching: ${url} (mode: ${fetchMode}, depth: ${depth})`);
+  log.info("scraper-worker", "Fetching page", { url, fetchMode, depth, requestId, traceId });
 
   // Initialize CrawlState for this run
   const crawlState = createCrawlState(redis, runId);
@@ -38,7 +39,7 @@ export async function processPageFetch(
 
   // Check if run was canceled
   if (run.status === "canceled") {
-    console.log(`[PageFetch] Run ${runId} was canceled, skipping page fetch`);
+    log.info("scraper-worker", "Run was canceled, skipping page fetch", { runId });
     return;
   }
 
@@ -74,14 +75,14 @@ export async function processPageFetch(
 
         // Check if content looks like it needs JS rendering
         if (needsJsRendering(html)) {
-          console.log(`[PageFetch] Page ${url} needs JS rendering, using Playwright`);
+          log.debug("scraper-worker", "Page needs JS rendering, using Playwright", { url });
           const playwrightResult = await fetchWithPlaywright(url, browser);
           html = playwrightResult.html;
           title = playwrightResult.title;
         }
       } catch (error) {
         // Fall back to Playwright
-        console.log(`[PageFetch] HTTP fetch failed for ${url}, trying Playwright:`, error);
+        log.debug("scraper-worker", "HTTP fetch failed, trying Playwright", { url, error: error instanceof Error ? error.message : String(error) });
         const result = await fetchWithPlaywright(url, browser);
         html = result.html;
         title = result.title;
@@ -114,11 +115,13 @@ export async function processPageFetch(
       html,
       title,
       depth,
+      requestId,
+      traceId,
     });
 
-    console.log(`[PageFetch] Page fetched successfully: ${url}`);
+    log.info("scraper-worker", "Page fetched successfully", { url });
   } catch (error) {
-    console.error(`[PageFetch] Error fetching ${url}:`, error);
+    log.error("scraper-worker", "Error fetching page", { url, error: error instanceof Error ? error.message : String(error) });
 
     // Mark as failed in Redis
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -285,12 +288,16 @@ async function checkAndFinalize(
   if (!isComplete) {
     // Log progress
     const progress = await crawlState.getProgress();
-    console.log(
-      `[PageFetch] Run ${runId} progress: ${progress.processed + progress.failed}/${progress.total} ` +
-      `(${progress.percentComplete}% complete, ${progress.queued} queued, ${progress.fetched} fetching)`
-    );
+    log.debug("scraper-worker", "Run progress", {
+      runId,
+      completed: progress.processed + progress.failed,
+      total: progress.total,
+      percentComplete: progress.percentComplete,
+      queued: progress.queued,
+      fetching: progress.fetched,
+    });
     return;
   }
 
-  console.log(`[PageFetch] Crawl complete for run ${runId}, will be finalized by page-process`);
+  log.info("scraper-worker", "Crawl complete for run, will be finalized by page-process", { runId });
 }

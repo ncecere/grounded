@@ -4,6 +4,7 @@ import { eq, inArray, isNull, and, sql } from "drizzle-orm";
 import { generateEmbeddings } from "@grounded/embeddings";
 import { getAIRegistry } from "@grounded/ai-providers";
 import { getVectorStore } from "@grounded/vector-store";
+import { log } from "@grounded/logger";
 import type { EmbedChunksBatchJob } from "@grounded/shared";
 
 export class EmbeddingDimensionMismatchError extends Error {
@@ -19,9 +20,9 @@ export class EmbeddingDimensionMismatchError extends Error {
 }
 
 export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<void> {
-  const { tenantId, kbId, chunkIds, runId } = data;
+  const { tenantId, kbId, chunkIds, runId, requestId, traceId } = data;
 
-  console.log(`Embedding ${chunkIds.length} chunks for KB ${kbId}`);
+  log.info("ingestion-worker", "Embedding chunks for KB", { chunkCount: chunkIds.length, kbId, requestId, traceId });
 
   // Get the KB to check its embedding dimensions
   const kb = await db.query.knowledgeBases.findFirst({
@@ -33,7 +34,7 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
   }
 
   const expectedDimensions = kb.embeddingDimensions;
-  console.log(`KB ${kbId} expects ${expectedDimensions}-dimensional embeddings`);
+  log.debug("ingestion-worker", "KB expects dimensional embeddings", { kbId, expectedDimensions });
 
   // Get chunks
   const chunks = await db.query.kbChunks.findMany({
@@ -44,7 +45,7 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
   });
 
   if (chunks.length === 0) {
-    console.log("No chunks found to embed");
+    log.debug("ingestion-worker", "No chunks found to embed");
     return;
   }
 
@@ -55,11 +56,12 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
 
   // Warn if the current model dimensions don't match KB dimensions
   if (defaultModel && defaultModel.dimensions !== expectedDimensions) {
-    console.warn(
-      `Warning: Current embedding model (${defaultModel.modelId}) has ${defaultModel.dimensions} dimensions, ` +
-      `but KB ${kbId} was created with ${expectedDimensions} dimensions. ` +
-      `Using KB's configured model if available.`
-    );
+    log.warn("ingestion-worker", "Embedding model dimension mismatch", {
+      currentModelId: defaultModel.modelId,
+      currentDimensions: defaultModel.dimensions,
+      kbId,
+      expectedDimensions,
+    });
   }
 
   // Generate embeddings using the KB's configured model if available
@@ -106,5 +108,5 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
       .where(eq(sourceRuns.id, runId));
   }
 
-  console.log(`Embedded ${chunks.length} chunks (${expectedDimensions}D) for KB ${kbId}`);
+  log.info("ingestion-worker", "Embedded chunks for KB", { chunkCount: chunks.length, dimensions: expectedDimensions, kbId });
 }

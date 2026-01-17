@@ -67,6 +67,7 @@ export const QUEUE_NAMES = {
   EMBED_CHUNKS: "embed-chunks",
   ENRICH_PAGE: "enrich-page",
   DELETION: "deletion",
+  KB_REINDEX: "kb-reindex",
 } as const;
 
 export const JOB_RETRY_ATTEMPTS = 3;

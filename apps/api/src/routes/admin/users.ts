@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@grounded/db";
 import { users, systemAdmins, tenantMemberships, tenants, userCredentials } from "@grounded/db/schema";
 import { eq, isNull, sql, and } from "drizzle-orm";
-import { auth, requireSystemAdmin } from "../../middleware/auth";
+import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { BadRequestError, NotFoundError } from "../../middleware/error-handler";
 import { hashPassword, validatePassword, validateEmail } from "@grounded/shared";
 
@@ -33,30 +33,34 @@ const updateUserSchema = z.object({
 // ============================================================================
 
 adminUsersRoutes.get("/", async (c) => {
-  // Get all users with their system admin status and tenant count
-  const allUsers = await db
-    .select({
-      id: users.id,
-      email: users.primaryEmail,
-      createdAt: users.createdAt,
-      disabledAt: users.disabledAt,
-    })
-    .from(users);
+  const { allUsers, admins, tenantCounts } = await withRequestRLS(c, async (tx) => {
+    // Get all users with their system admin status and tenant count
+    const allUsers = await tx
+      .select({
+        id: users.id,
+        email: users.primaryEmail,
+        createdAt: users.createdAt,
+        disabledAt: users.disabledAt,
+      })
+      .from(users);
 
-  // Get system admins
-  const admins = await db.select({ userId: systemAdmins.userId }).from(systemAdmins);
+    // Get system admins
+    const admins = await tx.select({ userId: systemAdmins.userId }).from(systemAdmins);
+
+    // Get tenant counts for each user
+    const tenantCounts = await tx
+      .select({
+        userId: tenantMemberships.userId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(tenantMemberships)
+      .where(isNull(tenantMemberships.deletedAt))
+      .groupBy(tenantMemberships.userId);
+
+    return { allUsers, admins, tenantCounts };
+  });
+
   const adminSet = new Set(admins.map((a) => a.userId));
-
-  // Get tenant counts for each user
-  const tenantCounts = await db
-    .select({
-      userId: tenantMemberships.userId,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(tenantMemberships)
-    .where(isNull(tenantMemberships.deletedAt))
-    .groupBy(tenantMemberships.userId);
-
   const tenantCountMap = new Map(tenantCounts.map((tc) => [tc.userId, tc.count]));
 
   const usersWithDetails = allUsers.map((user) => ({
@@ -78,36 +82,44 @@ adminUsersRoutes.get("/", async (c) => {
 adminUsersRoutes.get("/:id", async (c) => {
   const id = c.req.param("id");
 
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, id),
+  const { user, isAdmin, userTenants } = await withRequestRLS(c, async (tx) => {
+    const user = await tx.query.users.findFirst({
+      where: eq(users.id, id),
+    });
+
+    if (!user) {
+      return { user: null, isAdmin: null, userTenants: [] };
+    }
+
+    // Check if system admin
+    const isAdmin = await tx.query.systemAdmins.findFirst({
+      where: eq(systemAdmins.userId, id),
+    });
+
+    // Get user's tenants
+    const userTenants = await tx
+      .select({
+        tenantId: tenantMemberships.tenantId,
+        role: tenantMemberships.role,
+        tenantName: tenants.name,
+        tenantSlug: tenants.slug,
+      })
+      .from(tenantMemberships)
+      .innerJoin(tenants, eq(tenants.id, tenantMemberships.tenantId))
+      .where(
+        and(
+          eq(tenantMemberships.userId, id),
+          isNull(tenantMemberships.deletedAt),
+          isNull(tenants.deletedAt)
+        )
+      );
+
+    return { user, isAdmin, userTenants };
   });
 
   if (!user) {
     throw new NotFoundError("User not found");
   }
-
-  // Check if system admin
-  const isAdmin = await db.query.systemAdmins.findFirst({
-    where: eq(systemAdmins.userId, id),
-  });
-
-  // Get user's tenants
-  const userTenants = await db
-    .select({
-      tenantId: tenantMemberships.tenantId,
-      role: tenantMemberships.role,
-      tenantName: tenants.name,
-      tenantSlug: tenants.slug,
-    })
-    .from(tenantMemberships)
-    .innerJoin(tenants, eq(tenants.id, tenantMemberships.tenantId))
-    .where(
-      and(
-        eq(tenantMemberships.userId, id),
-        isNull(tenantMemberships.deletedAt),
-        isNull(tenants.deletedAt)
-      )
-    );
 
   return c.json({
     id: user.id,
@@ -137,8 +149,10 @@ adminUsersRoutes.post("/", zValidator("json", createUserSchema), async (c) => {
   }
 
   // Check if email already exists
-  const existingUser = await db.query.users.findFirst({
-    where: eq(users.primaryEmail, body.email.toLowerCase()),
+  const existingUser = await withRequestRLS(c, async (tx) => {
+    return tx.query.users.findFirst({
+      where: eq(users.primaryEmail, body.email.toLowerCase()),
+    });
   });
 
   if (existingUser) {
@@ -153,29 +167,33 @@ adminUsersRoutes.post("/", zValidator("json", createUserSchema), async (c) => {
     }
   }
 
-  // Create user
-  const [newUser] = await db
-    .insert(users)
-    .values({
-      primaryEmail: body.email.toLowerCase(),
-    })
-    .returning();
+  const newUser = await withRequestRLS(c, async (tx) => {
+    // Create user
+    const [newUser] = await tx
+      .insert(users)
+      .values({
+        primaryEmail: body.email.toLowerCase(),
+      })
+      .returning();
 
-  // If password provided, create credentials
-  if (body.password) {
-    const passwordHash = await hashPassword(body.password);
-    await db.insert(userCredentials).values({
-      userId: newUser.id,
-      passwordHash,
-    });
-  }
+    // If password provided, create credentials
+    if (body.password) {
+      const passwordHash = await hashPassword(body.password);
+      await tx.insert(userCredentials).values({
+        userId: newUser.id,
+        passwordHash,
+      });
+    }
 
-  // If system admin, add to system_admins
-  if (body.isSystemAdmin) {
-    await db.insert(systemAdmins).values({
-      userId: newUser.id,
-    });
-  }
+    // If system admin, add to system_admins
+    if (body.isSystemAdmin) {
+      await tx.insert(systemAdmins).values({
+        userId: newUser.id,
+      });
+    }
+
+    return newUser;
+  });
 
   return c.json({
     id: newUser.id,
@@ -192,36 +210,40 @@ adminUsersRoutes.patch("/:id", zValidator("json", updateUserSchema), async (c) =
   const id = c.req.param("id");
   const body = c.req.valid("json");
 
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, id),
+  const user = await withRequestRLS(c, async (tx) => {
+    return tx.query.users.findFirst({
+      where: eq(users.id, id),
+    });
   });
 
   if (!user) {
     throw new NotFoundError("User not found");
   }
 
-  // Handle system admin status
-  if (body.isSystemAdmin !== undefined) {
-    const isCurrentlyAdmin = await db.query.systemAdmins.findFirst({
-      where: eq(systemAdmins.userId, id),
-    });
+  await withRequestRLS(c, async (tx) => {
+    // Handle system admin status
+    if (body.isSystemAdmin !== undefined) {
+      const isCurrentlyAdmin = await tx.query.systemAdmins.findFirst({
+        where: eq(systemAdmins.userId, id),
+      });
 
-    if (body.isSystemAdmin && !isCurrentlyAdmin) {
-      await db.insert(systemAdmins).values({ userId: id });
-    } else if (!body.isSystemAdmin && isCurrentlyAdmin) {
-      await db.delete(systemAdmins).where(eq(systemAdmins.userId, id));
+      if (body.isSystemAdmin && !isCurrentlyAdmin) {
+        await tx.insert(systemAdmins).values({ userId: id });
+      } else if (!body.isSystemAdmin && isCurrentlyAdmin) {
+        await tx.delete(systemAdmins).where(eq(systemAdmins.userId, id));
+      }
     }
-  }
 
-  // Handle disabled status
-  if (body.disabled !== undefined) {
-    await db
-      .update(users)
-      .set({
-        disabledAt: body.disabled ? new Date() : null,
-      })
-      .where(eq(users.id, id));
-  }
+    // Handle disabled status
+    if (body.disabled !== undefined) {
+      await tx
+        .update(users)
+        .set({
+          disabledAt: body.disabled ? new Date() : null,
+        })
+        .where(eq(users.id, id));
+    }
+  });
 
   return c.json({ message: "User updated" });
 });
@@ -239,8 +261,10 @@ adminUsersRoutes.delete("/:id", async (c) => {
     throw new BadRequestError("Cannot delete your own account");
   }
 
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, id),
+  const user = await withRequestRLS(c, async (tx) => {
+    return tx.query.users.findFirst({
+      where: eq(users.id, id),
+    });
   });
 
   if (!user) {
@@ -248,7 +272,9 @@ adminUsersRoutes.delete("/:id", async (c) => {
   }
 
   // Delete user (cascades to credentials, memberships, etc.)
-  await db.delete(users).where(eq(users.id, id));
+  await withRequestRLS(c, async (tx) => {
+    return tx.delete(users).where(eq(users.id, id));
+  });
 
   return c.json({ message: "User deleted" });
 });
@@ -262,8 +288,10 @@ adminUsersRoutes.post("/:id/reset-password", async (c) => {
   const body = await c.req.json();
   const { newPassword } = body;
 
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, id),
+  const user = await withRequestRLS(c, async (tx) => {
+    return tx.query.users.findFirst({
+      where: eq(users.id, id),
+    });
   });
 
   if (!user) {
@@ -279,19 +307,21 @@ adminUsersRoutes.post("/:id/reset-password", async (c) => {
   const passwordHash = await hashPassword(newPassword);
 
   // Upsert credentials
-  await db
-    .insert(userCredentials)
-    .values({
-      userId: id,
-      passwordHash,
-    })
-    .onConflictDoUpdate({
-      target: userCredentials.userId,
-      set: {
+  await withRequestRLS(c, async (tx) => {
+    return tx
+      .insert(userCredentials)
+      .values({
+        userId: id,
         passwordHash,
-        updatedAt: new Date(),
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: userCredentials.userId,
+        set: {
+          passwordHash,
+          updatedAt: new Date(),
+        },
+      });
+  });
 
   return c.json({ message: "Password reset successfully" });
 });

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@grounded/db";
 import { systemSettings } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
-import { auth, requireSystemAdmin } from "../../middleware/auth";
+import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { BadRequestError } from "../../middleware/error-handler";
 import { emailService } from "../../services/email";
 import {
@@ -226,7 +226,9 @@ adminSettingsRoutes.get("/", async (c) => {
   const category = c.req.query("category") as SettingCategory | undefined;
 
   // Get all settings from database
-  const dbSettings = await db.query.systemSettings.findMany();
+  const dbSettings = await withRequestRLS(c, async (tx) => {
+    return tx.query.systemSettings.findMany();
+  });
   const dbSettingsMap = new Map(dbSettings.map((s) => [s.key, s]));
 
   // Build response with all known settings (from metadata)
@@ -268,8 +270,10 @@ adminSettingsRoutes.get("/:key", async (c) => {
     return c.json({ key, value: null, exists: false });
   }
 
-  const setting = await db.query.systemSettings.findFirst({
-    where: eq(systemSettings.key, key),
+  const setting = await withRequestRLS(c, async (tx) => {
+    return tx.query.systemSettings.findFirst({
+      where: eq(systemSettings.key, key),
+    });
   });
 
   return c.json({
@@ -313,24 +317,26 @@ adminSettingsRoutes.put(
       }
     }
 
-    await db
-      .insert(systemSettings)
-      .values({
-        key,
-        value: JSON.stringify(body.value),
-        category: meta.category,
-        isSecret: meta.isSecret,
-        description: meta.description,
-        updatedBy: authContext.user.id,
-      })
-      .onConflictDoUpdate({
-        target: systemSettings.key,
-        set: {
+    await withRequestRLS(c, async (tx) => {
+      return tx
+        .insert(systemSettings)
+        .values({
+          key,
           value: JSON.stringify(body.value),
-          updatedAt: new Date(),
+          category: meta.category,
+          isSecret: meta.isSecret,
+          description: meta.description,
           updatedBy: authContext.user.id,
-        },
-      });
+        })
+        .onConflictDoUpdate({
+          target: systemSettings.key,
+          set: {
+            value: JSON.stringify(body.value),
+            updatedAt: new Date(),
+            updatedBy: authContext.user.id,
+          },
+        });
+    });
 
     return c.json({ message: "Setting updated", key });
   }
@@ -348,41 +354,43 @@ adminSettingsRoutes.put(
     const body = c.req.valid("json");
     let updatedCount = 0;
 
-    for (const setting of body.settings) {
-      const meta = getSettingMetadata(setting.key);
-      if (!meta) {
-        continue; // Skip unknown keys
-      }
-
-      // Skip empty secret values
-      if (meta.isSecret) {
-        const valueStr = String(setting.value);
-        if (!valueStr || valueStr === "***REDACTED***") {
-          continue;
+    await withRequestRLS(c, async (tx) => {
+      for (const setting of body.settings) {
+        const meta = getSettingMetadata(setting.key);
+        if (!meta) {
+          continue; // Skip unknown keys
         }
-      }
 
-      await db
-        .insert(systemSettings)
-        .values({
-          key: setting.key,
-          value: JSON.stringify(setting.value),
-          category: meta.category,
-          isSecret: meta.isSecret,
-          description: meta.description,
-          updatedBy: authContext.user.id,
-        })
-        .onConflictDoUpdate({
-          target: systemSettings.key,
-          set: {
+        // Skip empty secret values
+        if (meta.isSecret) {
+          const valueStr = String(setting.value);
+          if (!valueStr || valueStr === "***REDACTED***") {
+            continue;
+          }
+        }
+
+        await tx
+          .insert(systemSettings)
+          .values({
+            key: setting.key,
             value: JSON.stringify(setting.value),
-            updatedAt: new Date(),
+            category: meta.category,
+            isSecret: meta.isSecret,
+            description: meta.description,
             updatedBy: authContext.user.id,
-          },
-        });
+          })
+          .onConflictDoUpdate({
+            target: systemSettings.key,
+            set: {
+              value: JSON.stringify(setting.value),
+              updatedAt: new Date(),
+              updatedBy: authContext.user.id,
+            },
+          });
 
-      updatedCount++;
-    }
+        updatedCount++;
+      }
+    });
 
     return c.json({ message: "Settings updated", count: updatedCount });
   }

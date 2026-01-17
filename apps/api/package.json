@@ -15,6 +15,7 @@
     "@grounded/db": "workspace:*",
     "@grounded/embeddings": "workspace:*",
     "@grounded/llm": "workspace:*",
+    "@grounded/logger": "workspace:*",
     "@grounded/queue": "workspace:*",
     "@grounded/shared": "workspace:*",
     "@grounded/vector-store": "workspace:*",

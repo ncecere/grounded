@@ -8,8 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import {
-  CreateAgentModal,
-  EditAgentModal,
+  AgentFormModal,
   WidgetConfigModal,
   ChatEndpointsModal,
 } from "@/components/agents";
@@ -163,7 +162,8 @@ export function Agents({ onSelectAgent }: AgentsProps) {
       )}
 
       {/* Create Agent Modal */}
-      <CreateAgentModal
+      <AgentFormModal
+        agent={null}
         open={showCreateModal}
         onOpenChange={setShowCreateModal}
         knowledgeBases={knowledgeBases || []}
@@ -171,9 +171,12 @@ export function Agents({ onSelectAgent }: AgentsProps) {
       />
 
       {/* Edit Agent Modal */}
-      <EditAgentModal
+      <AgentFormModal
         agent={editingAgent}
-        onClose={() => setEditingAgent(null)}
+        open={!!editingAgent}
+        onOpenChange={(open) => {
+          if (!open) setEditingAgent(null);
+        }}
         knowledgeBases={knowledgeBases || []}
         llmModels={llmModels || []}
       />

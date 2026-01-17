@@ -14,6 +14,7 @@ import {
   type EnrichPageJob,
   type SourceRunFinalizeJob,
   type HardDeleteObjectJob,
+  type KbReindexJob,
 } from "@grounded/shared";
 
 // ============================================================================
@@ -115,6 +116,15 @@ export const deletionQueue = new Queue<HardDeleteObjectJob>(QUEUE_NAMES.DELETION
   },
 });
 
+export const kbReindexQueue = new Queue<KbReindexJob>(QUEUE_NAMES.KB_REINDEX, {
+  connection,
+  defaultJobOptions: {
+    attempts: 1, // Don't retry reindex jobs - they can be restarted manually
+    removeOnComplete: 100,
+    removeOnFail: 100,
+  },
+});
+
 // ============================================================================
 // Queue Events
 // ============================================================================
@@ -177,6 +187,12 @@ export async function addSourceRunFinalizeJob(data: SourceRunFinalizeJob): Promi
 export async function addHardDeleteJob(data: HardDeleteObjectJob): Promise<Job> {
   return deletionQueue.add("delete", data, {
     jobId: `delete-${data.objectType}-${data.objectId}`,
+  });
+}
+
+export async function addKbReindexJob(data: KbReindexJob): Promise<Job> {
+  return kbReindexQueue.add("reindex", data, {
+    jobId: `kb-reindex-${data.kbId}`,
   });
 }
 

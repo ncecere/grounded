@@ -11,6 +11,7 @@ import {
   users,
 } from "@grounded/db/schema";
 import { sql, isNull, and, gte, eq, inArray } from "drizzle-orm";
+import { log } from "@grounded/logger";
 import { emailService, getAlertSettings } from "./email";
 
 // ============================================================================
@@ -44,30 +45,30 @@ export async function startHealthAlertScheduler(): Promise<void> {
   const settings = await getAlertSettings();
 
   if (!settings.enabled) {
-    console.log("[HealthAlerts] Alerts disabled, not starting scheduler");
+    log.info("api", "HealthAlerts: Alerts disabled, not starting scheduler");
     return;
   }
 
   if (settings.recipientEmails.length === 0) {
-    console.log("[HealthAlerts] No recipient emails configured, not starting scheduler");
+    log.info("api", "HealthAlerts: No recipient emails configured, not starting scheduler");
     return;
   }
 
   const isEmailConfigured = await emailService.isConfigured();
   if (!isEmailConfigured) {
-    console.log("[HealthAlerts] Email not configured, not starting scheduler");
+    log.info("api", "HealthAlerts: Email not configured, not starting scheduler");
     return;
   }
 
   const intervalMs = settings.checkIntervalMinutes * 60 * 1000;
-  console.log(`[HealthAlerts] Starting scheduler with ${settings.checkIntervalMinutes} minute interval`);
+  log.info("api", "HealthAlerts: Starting scheduler", { intervalMinutes: settings.checkIntervalMinutes });
 
   // Run immediately on start
-  runHealthCheck().catch((err) => console.error("[HealthAlerts] Check failed:", err));
+    runHealthCheck().catch((err) => log.error("api", "HealthAlerts: Check failed", { error: err instanceof Error ? err.message : String(err) }));
 
   // Then run on interval
   checkInterval = setInterval(() => {
-    runHealthCheck().catch((err) => console.error("[HealthAlerts] Check failed:", err));
+  runHealthCheck().catch((err) => log.error("api", "HealthAlerts: Check failed", { error: err instanceof Error ? err.message : String(err) }));
   }, intervalMs);
 }
 
@@ -78,7 +79,7 @@ export function stopHealthAlertScheduler(): void {
   if (checkInterval) {
     clearInterval(checkInterval);
     checkInterval = null;
-    console.log("[HealthAlerts] Scheduler stopped");
+    log.info("api", "HealthAlerts: Scheduler stopped");
   }
 }
 
@@ -91,7 +92,7 @@ export async function runHealthCheck(): Promise<{
   alertSent: boolean;
   error?: string;
 }> {
-  console.log("[HealthAlerts] Running health check...");
+  log.info("api", "HealthAlerts: Running health check");
   lastCheckTime = new Date();
 
   try {
@@ -117,7 +118,7 @@ export async function runHealthCheck(): Promise<{
       withWarnings: tenantsWithIssues.length,
     };
 
-    console.log(`[HealthAlerts] Found ${tenantsWithIssues.length} tenants with issues out of ${tenantsWithHealth.length}`);
+    log.info("api", "HealthAlerts: Health check results", { tenantsWithIssues: tenantsWithIssues.length, totalTenants: tenantsWithHealth.length });
 
     let systemAlertSent = false;
     let tenantAlertsSent = 0;
@@ -131,10 +132,10 @@ export async function runHealthCheck(): Promise<{
       );
 
       if (result.success) {
-        console.log("[HealthAlerts] System alert email sent successfully");
+        log.info("api", "HealthAlerts: System alert email sent successfully");
         systemAlertSent = true;
       } else {
-        console.error("[HealthAlerts] Failed to send system alert:", result.error);
+        log.error("api", "HealthAlerts: Failed to send system alert", { error: result.error });
       }
     }
 
@@ -143,7 +144,7 @@ export async function runHealthCheck(): Promise<{
       tenantAlertsSent = await sendPerTenantAlerts(tenantsWithIssues, settings);
     }
 
-    console.log(`[HealthAlerts] Complete. System alert: ${systemAlertSent}, Tenant alerts: ${tenantAlertsSent}`);
+    log.info("api", "HealthAlerts: Complete", { systemAlertSent, tenantAlertsSent });
 
     return {
       checked: true,
@@ -151,7 +152,7 @@ export async function runHealthCheck(): Promise<{
       alertSent: systemAlertSent || tenantAlertsSent > 0,
     };
   } catch (error) {
-    console.error("[HealthAlerts] Error during health check:", error);
+    log.error("api", "HealthAlerts: Error during health check", { error: error instanceof Error ? error.message : String(error) });
     return {
       checked: false,
       tenantsWithIssues: 0,
@@ -363,7 +364,7 @@ async function sendPerTenantAlerts(
     const additionalEmails = settings?.additionalEmails;
 
     if (!enabled) {
-      console.log(`[HealthAlerts] Alerts disabled for tenant ${tenant.tenantSlug}, skipping`);
+      log.debug("api", "HealthAlerts: Alerts disabled for tenant, skipping", { tenantSlug: tenant.tenantSlug });
       continue;
     }
 
@@ -395,7 +396,7 @@ async function sendPerTenantAlerts(
     const uniqueRecipients = [...new Set(recipients)];
 
     if (uniqueRecipients.length === 0) {
-      console.log(`[HealthAlerts] No recipients for tenant ${tenant.tenantSlug}, skipping`);
+      log.debug("api", "HealthAlerts: No recipients for tenant, skipping", { tenantSlug: tenant.tenantSlug });
       continue;
     }
 
@@ -410,9 +411,9 @@ async function sendPerTenantAlerts(
 
     if (result.success) {
       alertsSent++;
-      console.log(`[HealthAlerts] Sent alert for tenant ${tenant.tenantSlug} to ${uniqueRecipients.length} recipients`);
+      log.info("api", "HealthAlerts: Sent alert for tenant", { tenantSlug: tenant.tenantSlug, recipientCount: uniqueRecipients.length });
     } else {
-      console.error(`[HealthAlerts] Failed to send alert for tenant ${tenant.tenantSlug}:`, result.error);
+      log.error("api", "HealthAlerts: Failed to send alert for tenant", { tenantSlug: tenant.tenantSlug, error: result.error });
     }
   }
 

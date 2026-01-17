@@ -2,12 +2,11 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { streamSSE } from "hono/streaming";
-import { db } from "@grounded/db";
+import { withRLSContext, type Database } from "@grounded/db";
 import {
   widgetTokens,
   agents,
   agentWidgetConfigs,
-  chatEvents,
   tenantQuotas,
 } from "@grounded/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
@@ -30,8 +29,8 @@ const widgetChatSchema = z.object({
 // Helper: Validate Widget Token
 // ============================================================================
 
-async function validateWidgetToken(token: string) {
-  const widgetToken = await db.query.widgetTokens.findFirst({
+async function validateWidgetToken(tx: Database, token: string) {
+  const widgetToken = await tx.query.widgetTokens.findFirst({
     where: and(
       eq(widgetTokens.token, token),
       isNull(widgetTokens.revokedAt)
@@ -42,7 +41,7 @@ async function validateWidgetToken(token: string) {
     throw new NotFoundError("Widget");
   }
 
-  const agent = await db.query.agents.findFirst({
+  const agent = await tx.query.agents.findFirst({
     where: and(
       eq(agents.id, widgetToken.agentId),
       isNull(agents.deletedAt)
@@ -60,9 +59,9 @@ async function validateWidgetToken(token: string) {
 // Helper: Check Rate Limit
 // ============================================================================
 
-async function checkWidgetRateLimit(tenantId: string) {
+async function checkWidgetRateLimit(tx: Database, tenantId: string) {
   // Get tenant quota
-  const quota = await db.query.tenantQuotas.findFirst({
+  const quota = await tx.query.tenantQuotas.findFirst({
     where: eq(tenantQuotas.tenantId, tenantId),
   });
 
@@ -82,19 +81,22 @@ async function checkWidgetRateLimit(tenantId: string) {
 
 widgetRoutes.get("/:token/config", async (c) => {
   const token = c.req.param("token");
-  const { agent } = await validateWidgetToken(token);
 
-  const widgetConfig = await db.query.agentWidgetConfigs.findFirst({
-    where: eq(agentWidgetConfigs.agentId, agent.id),
-  });
+  return withRLSContext({ isSystemAdmin: true }, async (tx) => {
+    const { agent } = await validateWidgetToken(tx, token);
 
-  return c.json({
-    agentName: agent.name,
-    description: agent.description || "Ask me anything. I'm here to assist you.",
-    welcomeMessage: agent.welcomeMessage || "How can I help?",
-    logoUrl: agent.logoUrl || null,
-    theme: widgetConfig?.theme || {},
-    isPublic: widgetConfig?.isPublic ?? true,
+    const widgetConfig = await tx.query.agentWidgetConfigs.findFirst({
+      where: eq(agentWidgetConfigs.agentId, agent.id),
+    });
+
+    return c.json({
+      agentName: agent.name,
+      description: agent.description || "Ask me anything. I'm here to assist you.",
+      welcomeMessage: agent.welcomeMessage || "How can I help?",
+      logoUrl: agent.logoUrl || null,
+      theme: widgetConfig?.theme || {},
+      isPublic: widgetConfig?.isPublic ?? true,
+    });
   });
 });
 
@@ -109,8 +111,12 @@ widgetRoutes.post(
     const token = c.req.param("token");
     const body = c.req.valid("json");
 
-    const { widgetToken, agent } = await validateWidgetToken(token);
-    await checkWidgetRateLimit(widgetToken.tenantId);
+    // Validate token and check rate limit within RLS context
+    const { widgetToken, agent } = await withRLSContext({ isSystemAdmin: true }, async (tx) => {
+      const result = await validateWidgetToken(tx, token);
+      await checkWidgetRateLimit(tx, result.widgetToken.tenantId);
+      return result;
+    });
 
     // Headers for SSE streaming
     c.header("X-Accel-Buffering", "no");
@@ -140,8 +146,12 @@ widgetRoutes.post(
     const token = c.req.param("token");
     const body = c.req.valid("json");
 
-    const { widgetToken, agent } = await validateWidgetToken(token);
-    await checkWidgetRateLimit(widgetToken.tenantId);
+    // Validate token and check rate limit within RLS context
+    const { widgetToken, agent } = await withRLSContext({ isSystemAdmin: true }, async (tx) => {
+      const result = await validateWidgetToken(tx, token);
+      await checkWidgetRateLimit(tx, result.widgetToken.tenantId);
+      return result;
+    });
 
     // Headers for SSE streaming
     c.header("X-Accel-Buffering", "no");

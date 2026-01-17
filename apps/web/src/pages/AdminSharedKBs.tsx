@@ -12,6 +12,7 @@ import {
   Users,
   Eye,
   EyeOff,
+  Pencil,
 } from "lucide-react";
 import {
   Select,
@@ -53,6 +54,7 @@ interface AdminSharedKBsProps {
 export function AdminSharedKBs({ onSelectKb }: AdminSharedKBsProps) {
   const [selectedKb, setSelectedKb] = useState<SharedKnowledgeBase | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [kbToEdit, setKbToEdit] = useState<SharedKnowledgeBase | null>(null);
   const [kbToDelete, setKbToDelete] = useState<SharedKnowledgeBase | null>(null);
   const queryClient = useQueryClient();
 
@@ -202,6 +204,15 @@ export function AdminSharedKBs({ onSelectKb }: AdminSharedKBsProps) {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
+                        onClick={() => setKbToEdit(kb)}
+                        title="Edit"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
                         onClick={() => setSelectedKb(kb)}
                         title="Manage sharing"
                       >
@@ -253,6 +264,17 @@ export function AdminSharedKBs({ onSelectKb }: AdminSharedKBsProps) {
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
       />
+
+      {/* Edit Modal */}
+      {kbToEdit && (
+        <EditKbModal
+          kb={kbToEdit}
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setKbToEdit(null);
+          }}
+        />
+      )}
 
       {/* Detail/Sharing Modal */}
       {selectedKb && (
@@ -403,6 +425,109 @@ function CreateKbModal({
             </Button>
             <Button type="submit" disabled={createMutation.isPending || !name}>
               {createMutation.isPending ? "Creating..." : "Create KB"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditKbModal({
+  kb,
+  open,
+  onOpenChange,
+}: {
+  kb: SharedKnowledgeBase;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [name, setName] = useState(kb.name);
+  const [description, setDescription] = useState(kb.description || "");
+  const queryClient = useQueryClient();
+
+  // Reset form when kb changes
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      setName(kb.name);
+      setDescription(kb.description || "");
+    }
+    onOpenChange(isOpen);
+  };
+
+  const updateMutation = useMutation({
+    mutationFn: (data: { name?: string; description?: string }) =>
+      api.updateSharedKb(kb.id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-shared-kbs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-shared-kb", kb.id] });
+      onOpenChange(false);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const updates: { name?: string; description?: string } = {};
+    if (name !== kb.name) updates.name = name;
+    if (description !== (kb.description || "")) updates.description = description || undefined;
+    
+    if (Object.keys(updates).length > 0) {
+      updateMutation.mutate(updates);
+    } else {
+      onOpenChange(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Knowledge Base</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Name</Label>
+            <Input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Company Policies"
+              required
+              maxLength={100}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Description (optional)</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What is this knowledge base about?"
+              rows={3}
+              maxLength={500}
+            />
+          </div>
+
+          <div className="p-3 bg-muted rounded-lg text-xs text-muted-foreground">
+            <p>
+              <strong>Note:</strong> The embedding model cannot be changed after creation. 
+              If you need a different embedding model, create a new knowledge base.
+            </p>
+          </div>
+
+          {updateMutation.error && (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <p className="text-sm text-destructive">{updateMutation.error.message}</p>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={updateMutation.isPending || !name}>
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </form>

@@ -1,5 +1,6 @@
 import { migrationClient } from "@grounded/db";
 import { getEnv } from "@grounded/shared";
+import { log } from "@grounded/logger";
 import { readdir } from "fs/promises";
 import { join } from "path";
 
@@ -40,11 +41,11 @@ export async function runMigrations(): Promise<void> {
   // Check if migrations should be skipped
   const skipMigrations = getEnv("SKIP_MIGRATIONS", "false").toLowerCase() === "true";
   if (skipMigrations) {
-    console.log("[Migrations] Skipping migrations (SKIP_MIGRATIONS=true)");
+    log.info("api", "Skipping migrations (SKIP_MIGRATIONS=true)");
     return;
   }
 
-  console.log("[Migrations] Checking for pending migrations...");
+  log.info("api", "Checking for pending migrations...");
 
   try {
     // Create migrations tracking table if it doesn't exist
@@ -65,11 +66,11 @@ export async function runMigrations(): Promise<void> {
     // Find migrations directory
     const migrationsDir = await findMigrationsDir();
     if (!migrationsDir) {
-      console.log("[Migrations] No migrations directory found, skipping");
+      log.info("api", "No migrations directory found, skipping");
       return;
     }
 
-    console.log(`[Migrations] Using migrations directory: ${migrationsDir}`);
+    log.debug("api", "Using migrations directory", { migrationsDir });
 
     const files = await readdir(migrationsDir);
 
@@ -82,15 +83,15 @@ export async function runMigrations(): Promise<void> {
     const pending = sqlFiles.filter((f) => !appliedSet.has(f));
 
     if (pending.length === 0) {
-      console.log("[Migrations] Database is up to date");
+      log.info("api", "Database is up to date");
       return;
     }
 
-    console.log(`[Migrations] Found ${pending.length} pending migration(s): ${pending.join(", ")}`);
+    log.info("api", `Found ${pending.length} pending migration(s)`, { pending });
 
     // Apply each pending migration
     for (const filename of pending) {
-      console.log(`[Migrations] Applying: ${filename}`);
+      log.info("api", `Applying migration: ${filename}`);
 
       const filepath = join(migrationsDir, filename);
 
@@ -103,16 +104,16 @@ export async function runMigrations(): Promise<void> {
           INSERT INTO schema_migrations (name) VALUES (${filename})
         `;
 
-        console.log(`[Migrations] Applied: ${filename}`);
+        log.info("api", `Applied migration: ${filename}`);
       } catch (error) {
-        console.error(`[Migrations] Failed to apply ${filename}:`, error);
+        log.error("api", `Failed to apply migration: ${filename}`, { error: error instanceof Error ? error.message : String(error) });
         throw error;
       }
     }
 
-    console.log(`[Migrations] Successfully applied ${pending.length} migration(s)`);
+    log.info("api", `Successfully applied ${pending.length} migration(s)`);
   } catch (error) {
-    console.error("[Migrations] Migration failed:", error);
+    log.error("api", "Migration failed", { error: error instanceof Error ? error.message : String(error) });
     throw error;
   }
 }

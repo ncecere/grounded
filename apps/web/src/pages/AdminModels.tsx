@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   api,
@@ -77,6 +77,20 @@ function ProviderFormDialog({
     apiKey: "",
     isEnabled: provider?.isEnabled ?? true,
   });
+
+  // Reset form data when dialog opens or provider changes
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        name: provider?.name || "",
+        displayName: provider?.displayName || "",
+        type: provider?.type || ("openai" as ProviderType),
+        baseUrl: provider?.baseUrl || "",
+        apiKey: "", // Always empty for security
+        isEnabled: provider?.isEnabled ?? true,
+      });
+    }
+  }, [open, provider]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -226,6 +240,25 @@ function ModelFormDialog({
     isEnabled: model?.isEnabled ?? true,
     isDefault: model?.isDefault ?? false,
   });
+
+  // Reset form data when dialog opens or model changes
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        providerId: model?.providerId || providers[0]?.id || "",
+        modelId: model?.modelId || "",
+        displayName: model?.displayName || "",
+        modelType: model?.modelType || ("chat" as ModelType),
+        maxTokens: model?.maxTokens || 4096,
+        temperature: model?.temperature ? parseFloat(model.temperature) : 0.1,
+        supportsStreaming: model?.supportsStreaming ?? true,
+        supportsTools: model?.supportsTools ?? false,
+        dimensions: model?.dimensions || 1536,
+        isEnabled: model?.isEnabled ?? true,
+        isDefault: model?.isDefault ?? false,
+      });
+    }
+  }, [open, model, providers]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -409,6 +442,7 @@ function ProvidersTab() {
   const [showForm, setShowForm] = useState(false);
   const [editingProvider, setEditingProvider] = useState<ModelProvider | undefined>();
   const [providerToDelete, setProviderToDelete] = useState<ModelProvider | null>(null);
+  const [testResult, setTestResult] = useState<{ providerId: string; success: boolean; message: string } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-providers"],
@@ -442,6 +476,26 @@ function ProvidersTab() {
 
   const testMutation = useMutation({
     mutationFn: api.testProvider,
+    onSuccess: (data, providerId) => {
+      setTestResult({
+        providerId,
+        success: data.success,
+        message: data.success 
+          ? `Test successful! Found ${data.modelsFound || 0} model(s) configured.`
+          : data.message || "Test failed",
+      });
+      // Clear the result after 5 seconds
+      setTimeout(() => setTestResult(null), 5000);
+    },
+    onError: (error: Error, providerId) => {
+      setTestResult({
+        providerId,
+        success: false,
+        message: error.message || "Test failed",
+      });
+      // Clear the result after 5 seconds
+      setTimeout(() => setTestResult(null), 5000);
+    },
   });
 
   if (isLoading) {
@@ -476,46 +530,60 @@ function ProvidersTab() {
           {providers.map((provider) => (
             <div
               key={provider.id}
-              className="bg-card border border-border rounded-lg p-4 flex items-center justify-between"
+              className="bg-card border border-border rounded-lg p-4"
             >
-              <div className="flex items-center gap-4">
-                <div
-                  className={`w-3 h-3 rounded-full ${
-                    provider.isEnabled ? "bg-success" : "bg-muted-foreground"
-                  }`}
-                />
-                <div>
-                  <h3 className="font-medium text-foreground">{provider.displayName}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {PROVIDER_TYPES.find((t) => t.value === provider.type)?.label} • {provider.name}
-                  </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`w-3 h-3 rounded-full ${
+                      provider.isEnabled ? "bg-success" : "bg-muted-foreground"
+                    }`}
+                  />
+                  <div>
+                    <h3 className="font-medium text-foreground">{provider.displayName}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {PROVIDER_TYPES.find((t) => t.value === provider.type)?.label} • {provider.name}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => testMutation.mutate(provider.id)}
+                    disabled={testMutation.isPending && testMutation.variables === provider.id}
+                  >
+                    {testMutation.isPending && testMutation.variables === provider.id ? "Testing..." : "Test"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingProvider(provider)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setProviderToDelete(provider)}
+                  >
+                    Delete
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => testMutation.mutate(provider.id)}
-                  disabled={testMutation.isPending}
+              {/* Test result display */}
+              {testResult && testResult.providerId === provider.id && (
+                <div
+                  className={`mt-3 p-2 rounded text-sm ${
+                    testResult.success
+                      ? "bg-success/10 text-success border border-success/20"
+                      : "bg-destructive/10 text-destructive border border-destructive/20"
+                  }`}
                 >
-                  {testMutation.isPending ? "Testing..." : "Test"}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditingProvider(provider)}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => setProviderToDelete(provider)}
-                >
-                  Delete
-                </Button>
-              </div>
+                  {testResult.message}
+                </div>
+              )}
             </div>
           ))}
         </div>

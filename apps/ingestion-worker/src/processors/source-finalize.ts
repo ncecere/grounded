@@ -2,13 +2,14 @@ import { db } from "@grounded/db";
 import { sourceRuns, sourceRunPages } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
 import { redis } from "@grounded/queue";
+import { log } from "@grounded/logger";
 import type { SourceRunFinalizeJob } from "@grounded/shared";
 import { createCrawlState } from "@grounded/crawl-state";
 
 export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise<void> {
-  const { runId } = data;
+  const { runId, requestId, traceId } = data;
 
-  console.log(`[SourceFinalize] Finalizing source run ${runId}`);
+  log.info("ingestion-worker", "Finalizing source run", { runId, requestId, traceId });
 
   // Initialize CrawlState to get accurate Redis stats
   const crawlState = createCrawlState(redis, runId);
@@ -24,7 +25,7 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
 
   // Get progress from Redis (accurate)
   const redisProgress = await crawlState.getProgress();
-  console.log(`[SourceFinalize] Redis progress for run ${runId}:`, redisProgress);
+  log.debug("ingestion-worker", "Redis progress for run", { runId, redisProgress });
 
   // Also get PostgreSQL stats for comparison/backup
   const allPages = await db
@@ -39,7 +40,7 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
     skipped: allPages.filter(p => p.status === 'skipped_unchanged').length,
   };
 
-  console.log(`[SourceFinalize] PostgreSQL stats for run ${runId}:`, pgStats);
+  log.debug("ingestion-worker", "PostgreSQL stats for run", { runId, pgStats });
 
   // Use Redis stats as primary (they're accurate)
   // Fall back to PostgreSQL if Redis data is missing
@@ -65,7 +66,7 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
 
   const finishedAt = new Date();
 
-  console.log(`[SourceFinalize] Updating run ${runId} with status ${finalStatus}`);
+  log.debug("ingestion-worker", "Updating run with status", { runId, finalStatus });
 
   try {
     // Update run
@@ -83,31 +84,33 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
         },
       })
       .where(eq(sourceRuns.id, runId));
-    console.log(`[SourceFinalize] Run ${runId} updated successfully`);
+    log.debug("ingestion-worker", "Run updated successfully", { runId });
   } catch (e) {
-    console.error(`[SourceFinalize] Error updating run ${runId}:`, e);
+    log.error("ingestion-worker", "Error updating run", { runId, error: e instanceof Error ? e.message : String(e) });
     throw e;
   }
 
   // Get failed URLs for logging
   const failedUrls = await crawlState.getFailedUrls();
   if (failedUrls.length > 0) {
-    console.log(`[SourceFinalize] Failed URLs for run ${runId}:`);
-    for (const { url, error } of failedUrls.slice(0, 10)) {
-      console.log(`  - ${url}: ${error}`);
-    }
-    if (failedUrls.length > 10) {
-      console.log(`  ... and ${failedUrls.length - 10} more`);
-    }
+    log.warn("ingestion-worker", "Failed URLs for run", {
+      runId,
+      failedCount: failedUrls.length,
+      sampleFailedUrls: failedUrls.slice(0, 10),
+    });
   }
 
   // Cleanup Redis crawl state data
   // This is important to prevent Redis memory growth
-  console.log(`[SourceFinalize] Cleaning up Redis crawl state for run ${runId}`);
+  log.debug("ingestion-worker", "Cleaning up Redis crawl state for run", { runId });
   await crawlState.cleanup();
 
-  console.log(
-    `[SourceFinalize] Source run ${runId} finalized: ${finalStatus} ` +
-    `(${stats.succeeded}/${stats.total} indexed, ${stats.failed} failed, ${stats.skipped} skipped)`
-  );
+  log.info("ingestion-worker", "Source run finalized", {
+    runId,
+    finalStatus,
+    succeeded: stats.succeeded,
+    total: stats.total,
+    failed: stats.failed,
+    skipped: stats.skipped,
+  });
 }

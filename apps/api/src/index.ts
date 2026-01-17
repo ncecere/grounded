@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
 import { prettyJSON } from "hono/pretty-json";
 import { getEnv, getEnvNumber } from "@grounded/shared";
 import { initializeVectorStore, isVectorStoreConfigured } from "@grounded/vector-store";
+import { log } from "@grounded/logger";
+import { wideEventMiddleware } from "@grounded/logger/middleware";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 
@@ -44,12 +45,12 @@ const app = new Hono();
     // Initialize vector store (optional - may not be configured)
     if (isVectorStoreConfigured()) {
       await initializeVectorStore();
-      console.log("[Startup] Vector store initialized successfully");
+      log.info("api", "Vector store initialized successfully");
     } else {
-      console.warn("[Startup] Vector store not configured. Set VECTOR_DB_URL or VECTOR_DB_HOST.");
+      log.warn("api", "Vector store not configured. Set VECTOR_DB_URL or VECTOR_DB_HOST.");
     }
   } catch (error) {
-    console.error("[Startup] Startup tasks failed:", error);
+    log.error("api", "Startup tasks failed", { error: error instanceof Error ? error.message : String(error) });
   }
 })();
 
@@ -58,7 +59,6 @@ const app = new Hono();
 // ============================================================================
 
 app.use("*", requestId());
-app.use("*", logger());
 app.use("*", secureHeaders());
 app.use("*", prettyJSON());
 app.use(
@@ -69,6 +69,39 @@ app.use(
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Tenant-ID"],
     exposeHeaders: ["X-Request-ID", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
+  })
+);
+
+// Wide event logging middleware - logs comprehensive request info
+app.use(
+  "*",
+  wideEventMiddleware({
+    service: "api",
+    skipPaths: ["/health"], // Skip health checks
+    sampling: {
+      baseSampleRate: 1.0, // Log 100% for now, can reduce later
+      alwaysLogErrors: true,
+      slowRequestThresholdMs: 2000,
+    },
+    // Extract tenant/user from auth context if available
+    getTenant: (c) => {
+      const auth = c.get("auth");
+      if (auth?.tenantId) {
+        return { id: auth.tenantId };
+      }
+      return undefined;
+    },
+    getUser: (c) => {
+      const auth = c.get("auth");
+      if (auth?.user) {
+        return {
+          id: auth.user.id,
+          email: auth.user.email || undefined,
+          role: auth.role || undefined,
+        };
+      }
+      return undefined;
+    },
   })
 );
 
@@ -206,7 +239,7 @@ app.notFound((c) => {
 
 const port = getEnvNumber("PORT", 3000);
 
-console.log(`Starting API server on port ${port}...`);
+log.info("api", `Starting API server on port ${port}...`);
 
 export default {
   port,

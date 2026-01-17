@@ -12,6 +12,7 @@
   "dependencies": {
     "@grounded/crawl-state": "workspace:*",
     "@grounded/db": "workspace:*",
+    "@grounded/logger": "workspace:*",
     "@grounded/queue": "workspace:*",
     "@grounded/shared": "workspace:*",
     "drizzle-orm": "^0.45.1",

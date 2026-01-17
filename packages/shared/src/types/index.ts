@@ -326,18 +326,30 @@ export interface ChatEndpointToken {
 // Job Types
 // ============================================================================
 
-export interface SourceRunStartJob {
+/**
+ * Base interface for all job types.
+ * requestId allows correlating worker logs with the originating API request.
+ * traceId enables distributed tracing across API and worker services.
+ */
+export interface BaseJob {
+  /** Request ID from the originating API request (for log correlation) */
+  requestId?: string;
+  /** Trace ID for distributed tracing across services */
+  traceId?: string;
+}
+
+export interface SourceRunStartJob extends BaseJob {
   tenantId: string;
   sourceId: string;
   runId: string;
 }
 
-export interface SourceDiscoverUrlsJob {
+export interface SourceDiscoverUrlsJob extends BaseJob {
   tenantId: string;
   runId: string;
 }
 
-export interface PageFetchJob {
+export interface PageFetchJob extends BaseJob {
   tenantId: string;
   runId: string;
   url: string;
@@ -345,7 +357,7 @@ export interface PageFetchJob {
   depth?: number; // Current depth in the crawl (0 = starting page)
 }
 
-export interface PageProcessJob {
+export interface PageProcessJob extends BaseJob {
   tenantId: string;
   runId: string;
   url: string;
@@ -354,28 +366,35 @@ export interface PageProcessJob {
   depth?: number; // Current depth in the crawl (0 = starting page)
 }
 
-export interface EmbedChunksBatchJob {
+export interface EmbedChunksBatchJob extends BaseJob {
   tenantId: string;
   kbId: string;
   chunkIds: string[];
   runId?: string; // Source run ID for tracking embedding progress
 }
 
-export interface EnrichPageJob {
+export interface EnrichPageJob extends BaseJob {
   tenantId: string;
   kbId: string;
   chunkIds: string[];
 }
 
-export interface SourceRunFinalizeJob {
+export interface SourceRunFinalizeJob extends BaseJob {
   tenantId: string;
   runId: string;
 }
 
-export interface HardDeleteObjectJob {
+export interface HardDeleteObjectJob extends BaseJob {
   tenantId: string;
   objectType: DeletionObjectType;
   objectId: string;
+}
+
+export interface KbReindexJob extends BaseJob {
+  tenantId: string | null; // null for global KBs
+  kbId: string;
+  newEmbeddingModelId: string;
+  newEmbeddingDimensions: number;
 }
 
 // ============================================================================

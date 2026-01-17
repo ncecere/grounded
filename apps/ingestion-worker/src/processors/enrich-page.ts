@@ -2,12 +2,13 @@ import { db } from "@grounded/db";
 import { kbChunks } from "@grounded/db/schema";
 import { eq, inArray, isNull, and } from "drizzle-orm";
 import { generateEnrichment } from "@grounded/llm";
+import { log } from "@grounded/logger";
 import type { EnrichPageJob } from "@grounded/shared";
 
 export async function processEnrichPage(data: EnrichPageJob): Promise<void> {
-  const { tenantId, kbId, chunkIds } = data;
+  const { tenantId, kbId, chunkIds, requestId, traceId } = data;
 
-  console.log(`Enriching ${chunkIds.length} chunks for KB ${kbId}`);
+  log.info("ingestion-worker", "Enriching chunks for KB", { chunkCount: chunkIds.length, kbId, requestId, traceId });
 
   // Get chunks
   const chunks = await db.query.kbChunks.findMany({
@@ -18,7 +19,7 @@ export async function processEnrichPage(data: EnrichPageJob): Promise<void> {
   });
 
   if (chunks.length === 0) {
-    console.log("No chunks found to enrich");
+    log.debug("ingestion-worker", "No chunks found to enrich");
     return;
   }
 
@@ -58,9 +59,9 @@ export async function processEnrichPage(data: EnrichPageJob): Promise<void> {
           .where(eq(kbChunks.id, chunk.id));
       }
 
-      console.log(`Enriched page ${url} (${pageChunks.length} chunks)`);
+      log.info("ingestion-worker", "Enriched page", { url, chunkCount: pageChunks.length });
     } catch (error) {
-      console.error(`Error enriching page ${url}:`, error);
+      log.error("ingestion-worker", "Error enriching page", { url, error: error instanceof Error ? error.message : String(error) });
       // Continue with other pages
     }
   }

@@ -11,12 +11,13 @@ import {
   type SourceConfig,
   type FetchMode,
 } from "@grounded/shared";
+import { log } from "@grounded/logger";
 import { createCrawlState } from "@grounded/crawl-state";
 
 export async function processPageProcess(data: PageProcessJob): Promise<void> {
-  const { tenantId, runId, url, html, title, depth = 0 } = data;
+  const { tenantId, runId, url, html, title, depth = 0, requestId, traceId } = data;
 
-  console.log(`[PageProcess] Processing page: ${url} (depth: ${depth})`);
+  log.info("ingestion-worker", "Processing page", { url, depth, requestId, traceId });
 
   // Initialize CrawlState for this run
   const crawlState = createCrawlState(redis, runId);
@@ -69,12 +70,12 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
         // Mark as processed in Redis
         await crawlState.markProcessed(url);
 
-        console.log(`[PageProcess] Page unchanged, skipped: ${url}`);
+        log.debug("ingestion-worker", "Page unchanged, skipped", { url });
         await checkAndFinalize(runId, tenantId, crawlState);
         return;
       }
     } else {
-      console.log(`[PageProcess] Force reindex enabled, processing page regardless of content hash: ${url}`);
+      log.debug("ingestion-worker", "Force reindex enabled, processing page regardless of content hash", { url });
     }
 
     // Delete old chunks for this URL
@@ -138,6 +139,8 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
         kbId: source.kbId,
         chunkIds,
         runId,
+        requestId,
+        traceId,
       });
 
       // Increment chunks_to_embed counter atomically
@@ -155,24 +158,26 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
         tenantId,
         kbId: source.kbId,
         chunkIds,
+        requestId,
+        traceId,
       });
     }
 
-    console.log(`[PageProcess] Page processed: ${url} (${chunks.length} chunks)`);
+    log.info("ingestion-worker", "Page processed", { url, chunkCount: chunks.length });
 
     // For domain crawl mode, discover and queue new URLs atomically
     const config = source.config as SourceConfig;
     if (config.mode === "domain") {
-      await discoverAndQueueLinks(tenantId, runId, url, html, depth, config, crawlState);
+      await discoverAndQueueLinks(tenantId, runId, url, html, depth, config, crawlState, requestId, traceId);
     }
 
     // Mark as processed in Redis
     await crawlState.markProcessed(url);
 
     // Check if all pages are done
-    await checkAndFinalize(runId, tenantId, crawlState);
+    await checkAndFinalize(runId, tenantId, crawlState, requestId, traceId);
   } catch (error) {
-    console.error(`[PageProcess] Error processing page ${url}:`, error);
+    log.error("ingestion-worker", "Error processing page", { url, error: error instanceof Error ? error.message : String(error) });
 
     // Mark as failed in Redis
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -189,7 +194,7 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
       error: errorMessage,
     });
 
-    await checkAndFinalize(runId, tenantId, crawlState);
+    await checkAndFinalize(runId, tenantId, crawlState, requestId, traceId);
   }
 }
 
@@ -321,13 +326,15 @@ async function discoverAndQueueLinks(
   html: string,
   currentDepth: number,
   config: SourceConfig,
-  crawlState: ReturnType<typeof createCrawlState>
+  crawlState: ReturnType<typeof createCrawlState>,
+  requestId?: string,
+  traceId?: string
 ): Promise<void> {
   const maxDepth = config.depth || 3;
 
   // Check if we've reached max depth
   if (currentDepth >= maxDepth) {
-    console.log(`[PageProcess] Max depth ${maxDepth} reached, not discovering more links from ${currentUrl}`);
+    log.debug("ingestion-worker", "Max depth reached, not discovering more links", { maxDepth, currentUrl });
     return;
   }
 
@@ -387,7 +394,7 @@ async function discoverAndQueueLinks(
   });
 
   if (filteredLinks.length === 0) {
-    console.log(`[PageProcess] No valid links found on ${currentUrl}`);
+    log.debug("ingestion-worker", "No valid links found on page", { currentUrl });
     return;
   }
 
@@ -396,11 +403,11 @@ async function discoverAndQueueLinks(
   const newUrls = await crawlState.queueUrls(filteredLinks);
 
   if (newUrls.length === 0) {
-    console.log(`[PageProcess] All ${filteredLinks.length} links from ${currentUrl} already seen`);
+    log.debug("ingestion-worker", "All links from page already seen", { linkCount: filteredLinks.length, currentUrl });
     return;
   }
 
-  console.log(`[PageProcess] Discovered ${newUrls.length} new URLs from ${currentUrl} (depth ${currentDepth})`);
+  log.info("ingestion-worker", "Discovered new URLs", { newUrlCount: newUrls.length, currentUrl, currentDepth });
 
   // Determine fetch mode
   const fetchMode: FetchMode = config.firecrawlEnabled ? "firecrawl" : "auto";
@@ -413,6 +420,8 @@ async function discoverAndQueueLinks(
       url,
       fetchMode,
       depth: currentDepth + 1,
+      requestId,
+      traceId,
     });
   }
 
@@ -425,7 +434,7 @@ async function discoverAndQueueLinks(
     })
     .where(eq(sourceRuns.id, runId));
 
-  console.log(`[PageProcess] Queued ${newUrls.length} new pages for crawling (depth: ${currentDepth + 1})`);
+  log.info("ingestion-worker", "Queued new pages for crawling", { queuedCount: newUrls.length, depth: currentDepth + 1 });
 }
 
 /**
@@ -486,7 +495,9 @@ function matchPattern(path: string, pattern: string): boolean {
 async function checkAndFinalize(
   runId: string,
   tenantId: string,
-  crawlState: ReturnType<typeof createCrawlState>
+  crawlState: ReturnType<typeof createCrawlState>,
+  requestId?: string,
+  traceId?: string
 ): Promise<void> {
   // Get the run to check status
   const run = await db.query.sourceRuns.findFirst({
@@ -494,7 +505,7 @@ async function checkAndFinalize(
   });
 
   if (!run) {
-    console.error(`[PageProcess] Run ${runId} not found during finalization check`);
+    log.error("ingestion-worker", "Run not found during finalization check", { runId });
     return;
   }
 
@@ -508,16 +519,20 @@ async function checkAndFinalize(
 
   // Log progress
   const progress = await crawlState.getProgress();
-  console.log(
-    `[PageProcess] Run ${runId} progress: ${progress.processed + progress.failed}/${progress.total} ` +
-    `(${progress.percentComplete}% complete, ${progress.queued} queued, ${progress.fetched} fetching)`
-  );
+  log.debug("ingestion-worker", "Run progress", {
+    runId,
+    completed: progress.processed + progress.failed,
+    total: progress.total,
+    percentComplete: progress.percentComplete,
+    queued: progress.queued,
+    fetching: progress.fetched,
+  });
 
   if (!isComplete) {
     return;
   }
 
   // All URLs are in terminal state (processed or failed)
-  console.log(`[PageProcess] All pages complete for run ${runId}, queueing finalize job`);
-  await addSourceRunFinalizeJob({ tenantId, runId });
+  log.info("ingestion-worker", "All pages complete for run, queueing finalize job", { runId });
+  await addSourceRunFinalizeJob({ tenantId, runId, requestId, traceId });
 }

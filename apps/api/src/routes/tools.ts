@@ -15,7 +15,7 @@ import {
   type ToolParameter,
 } from "@grounded/db/schema";
 import { eq, and, isNull, inArray } from "drizzle-orm";
-import { auth, requireRole, requireTenant } from "../middleware/auth";
+import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
 import { NotFoundError } from "../middleware/error-handler";
 import { auditService, extractIpAddress } from "../services/audit";
 
@@ -161,12 +161,14 @@ toolRoutes.get("/builtin", auth(), async (c) => {
 toolRoutes.get("/", auth(), requireTenant(), async (c) => {
   const authContext = c.get("auth");
 
-  const tools = await db.query.toolDefinitions.findMany({
-    where: and(
-      eq(toolDefinitions.tenantId, authContext.tenantId!),
-      isNull(toolDefinitions.deletedAt)
-    ),
-    orderBy: (tools, { asc }) => [asc(tools.name)],
+  const tools = await withRequestRLS(c, async (tx) => {
+    return tx.query.toolDefinitions.findMany({
+      where: and(
+        eq(toolDefinitions.tenantId, authContext.tenantId!),
+        isNull(toolDefinitions.deletedAt)
+      ),
+      orderBy: (tools, { asc }) => [asc(tools.name)],
+    });
   });
 
   return c.json({ tools });
@@ -177,12 +179,14 @@ toolRoutes.get("/:toolId", auth(), requireTenant(), async (c) => {
   const toolId = c.req.param("toolId");
   const authContext = c.get("auth");
 
-  const tool = await db.query.toolDefinitions.findFirst({
-    where: and(
-      eq(toolDefinitions.id, toolId),
-      eq(toolDefinitions.tenantId, authContext.tenantId!),
-      isNull(toolDefinitions.deletedAt)
-    ),
+  const tool = await withRequestRLS(c, async (tx) => {
+    return tx.query.toolDefinitions.findFirst({
+      where: and(
+        eq(toolDefinitions.id, toolId),
+        eq(toolDefinitions.tenantId, authContext.tenantId!),
+        isNull(toolDefinitions.deletedAt)
+      ),
+    });
   });
 
   if (!tool) {
@@ -203,19 +207,21 @@ toolRoutes.post(
     const authContext = c.get("auth");
     const body = c.req.valid("json");
 
-    const [tool] = await db
-      .insert(toolDefinitions)
-      .values({
-        tenantId: authContext.tenantId!,
-        name: body.name,
-        description: body.description,
-        type: body.type as ToolType,
-        config: body.config as ApiToolConfig | McpToolConfig | BuiltinToolConfig,
-        parameters: (body.parameters || []) as ToolParameter[],
-        isEnabled: body.isEnabled ?? true,
-        createdBy: authContext.user.id,
-      })
-      .returning();
+    const [tool] = await withRequestRLS(c, async (tx) => {
+      return tx
+        .insert(toolDefinitions)
+        .values({
+          tenantId: authContext.tenantId!,
+          name: body.name,
+          description: body.description,
+          type: body.type as ToolType,
+          config: body.config as ApiToolConfig | McpToolConfig | BuiltinToolConfig,
+          parameters: (body.parameters || []) as ToolParameter[],
+          isEnabled: body.isEnabled ?? true,
+          createdBy: authContext.user.id,
+        })
+        .returning();
+    });
 
     await auditService.logSuccess("api_key.created", "api_key", {
       actorId: authContext.user.id,
@@ -243,22 +249,24 @@ toolRoutes.patch(
     const authContext = c.get("auth");
     const body = c.req.valid("json");
 
-    const [tool] = await db
-      .update(toolDefinitions)
-      .set({
-        ...body,
-        config: body.config as ApiToolConfig | McpToolConfig | BuiltinToolConfig | undefined,
-        parameters: body.parameters as ToolParameter[] | undefined,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(toolDefinitions.id, toolId),
-          eq(toolDefinitions.tenantId, authContext.tenantId!),
-          isNull(toolDefinitions.deletedAt)
+    const [tool] = await withRequestRLS(c, async (tx) => {
+      return tx
+        .update(toolDefinitions)
+        .set({
+          ...body,
+          config: body.config as ApiToolConfig | McpToolConfig | BuiltinToolConfig | undefined,
+          parameters: body.parameters as ToolParameter[] | undefined,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(toolDefinitions.id, toolId),
+            eq(toolDefinitions.tenantId, authContext.tenantId!),
+            isNull(toolDefinitions.deletedAt)
+          )
         )
-      )
-      .returning();
+        .returning();
+    });
 
     if (!tool) {
       throw new NotFoundError("Tool");
@@ -278,17 +286,19 @@ toolRoutes.delete(
     const toolId = c.req.param("toolId");
     const authContext = c.get("auth");
 
-    const [tool] = await db
-      .update(toolDefinitions)
-      .set({ deletedAt: new Date() })
-      .where(
-        and(
-          eq(toolDefinitions.id, toolId),
-          eq(toolDefinitions.tenantId, authContext.tenantId!),
-          isNull(toolDefinitions.deletedAt)
+    const [tool] = await withRequestRLS(c, async (tx) => {
+      return tx
+        .update(toolDefinitions)
+        .set({ deletedAt: new Date() })
+        .where(
+          and(
+            eq(toolDefinitions.id, toolId),
+            eq(toolDefinitions.tenantId, authContext.tenantId!),
+            isNull(toolDefinitions.deletedAt)
+          )
         )
-      )
-      .returning();
+        .returning();
+    });
 
     if (!tool) {
       throw new NotFoundError("Tool");
@@ -307,30 +317,38 @@ toolRoutes.get("/agents/:agentId/capabilities", auth(), requireTenant(), async (
   const agentId = c.req.param("agentId");
   const authContext = c.get("auth");
 
-  // Verify agent belongs to tenant
-  const agent = await db.query.agents.findFirst({
-    where: and(
-      eq(agents.id, agentId),
-      eq(agents.tenantId, authContext.tenantId!),
-      isNull(agents.deletedAt)
-    ),
+  const { agent, capabilities } = await withRequestRLS(c, async (tx) => {
+    // Verify agent belongs to tenant
+    const agent = await tx.query.agents.findFirst({
+      where: and(
+        eq(agents.id, agentId),
+        eq(agents.tenantId, authContext.tenantId!),
+        isNull(agents.deletedAt)
+      ),
+    });
+
+    if (!agent) {
+      return { agent: null, capabilities: null };
+    }
+
+    // Get or create capabilities
+    let capabilities = await tx.query.agentCapabilities.findFirst({
+      where: eq(agentCapabilities.agentId, agentId),
+    });
+
+    if (!capabilities) {
+      // Create default capabilities
+      [capabilities] = await tx
+        .insert(agentCapabilities)
+        .values({ agentId })
+        .returning();
+    }
+
+    return { agent, capabilities };
   });
 
   if (!agent) {
     throw new NotFoundError("Agent");
-  }
-
-  // Get or create capabilities
-  let capabilities = await db.query.agentCapabilities.findFirst({
-    where: eq(agentCapabilities.agentId, agentId),
-  });
-
-  if (!capabilities) {
-    // Create default capabilities
-    [capabilities] = await db
-      .insert(agentCapabilities)
-      .values({ agentId })
-      .returning();
   }
 
   return c.json({ capabilities });
@@ -348,36 +366,44 @@ toolRoutes.put(
     const authContext = c.get("auth");
     const body = c.req.valid("json");
 
-    // Verify agent belongs to tenant
-    const agent = await db.query.agents.findFirst({
-      where: and(
-        eq(agents.id, agentId),
-        eq(agents.tenantId, authContext.tenantId!),
-        isNull(agents.deletedAt)
-      ),
+    const { agent, capabilities } = await withRequestRLS(c, async (tx) => {
+      // Verify agent belongs to tenant
+      const agent = await tx.query.agents.findFirst({
+        where: and(
+          eq(agents.id, agentId),
+          eq(agents.tenantId, authContext.tenantId!),
+          isNull(agents.deletedAt)
+        ),
+      });
+
+      if (!agent) {
+        return { agent: null, capabilities: null };
+      }
+
+      // Upsert capabilities
+      const existing = await tx.query.agentCapabilities.findFirst({
+        where: eq(agentCapabilities.agentId, agentId),
+      });
+
+      let capabilities;
+      if (existing) {
+        [capabilities] = await tx
+          .update(agentCapabilities)
+          .set({ ...body, updatedAt: new Date() })
+          .where(eq(agentCapabilities.agentId, agentId))
+          .returning();
+      } else {
+        [capabilities] = await tx
+          .insert(agentCapabilities)
+          .values({ agentId, ...body })
+          .returning();
+      }
+
+      return { agent, capabilities };
     });
 
     if (!agent) {
       throw new NotFoundError("Agent");
-    }
-
-    // Upsert capabilities
-    const existing = await db.query.agentCapabilities.findFirst({
-      where: eq(agentCapabilities.agentId, agentId),
-    });
-
-    let capabilities;
-    if (existing) {
-      [capabilities] = await db
-        .update(agentCapabilities)
-        .set({ ...body, updatedAt: new Date() })
-        .where(eq(agentCapabilities.agentId, agentId))
-        .returning();
-    } else {
-      [capabilities] = await db
-        .insert(agentCapabilities)
-        .values({ agentId, ...body })
-        .returning();
     }
 
     await auditService.logSuccess("agent.updated", "agent", {
@@ -403,44 +429,52 @@ toolRoutes.get("/agents/:agentId/tools", auth(), requireTenant(), async (c) => {
   const agentId = c.req.param("agentId");
   const authContext = c.get("auth");
 
-  // Verify agent belongs to tenant
-  const agent = await db.query.agents.findFirst({
-    where: and(
-      eq(agents.id, agentId),
-      eq(agents.tenantId, authContext.tenantId!),
-      isNull(agents.deletedAt)
-    ),
+  const { agent, attachedTools } = await withRequestRLS(c, async (tx) => {
+    // Verify agent belongs to tenant
+    const agent = await tx.query.agents.findFirst({
+      where: and(
+        eq(agents.id, agentId),
+        eq(agents.tenantId, authContext.tenantId!),
+        isNull(agents.deletedAt)
+      ),
+    });
+
+    if (!agent) {
+      return { agent: null, attachedTools: [] };
+    }
+
+    // Get attached tools with tool details
+    const attachedTools = await tx
+      .select({
+        id: agentTools.id,
+        toolId: agentTools.toolId,
+        isEnabled: agentTools.isEnabled,
+        priority: agentTools.priority,
+        createdAt: agentTools.createdAt,
+        tool: {
+          id: toolDefinitions.id,
+          name: toolDefinitions.name,
+          description: toolDefinitions.description,
+          type: toolDefinitions.type,
+          isEnabled: toolDefinitions.isEnabled,
+        },
+      })
+      .from(agentTools)
+      .innerJoin(toolDefinitions, eq(toolDefinitions.id, agentTools.toolId))
+      .where(
+        and(
+          eq(agentTools.agentId, agentId),
+          isNull(agentTools.deletedAt),
+          isNull(toolDefinitions.deletedAt)
+        )
+      );
+
+    return { agent, attachedTools };
   });
 
   if (!agent) {
     throw new NotFoundError("Agent");
   }
-
-  // Get attached tools with tool details
-  const attachedTools = await db
-    .select({
-      id: agentTools.id,
-      toolId: agentTools.toolId,
-      isEnabled: agentTools.isEnabled,
-      priority: agentTools.priority,
-      createdAt: agentTools.createdAt,
-      tool: {
-        id: toolDefinitions.id,
-        name: toolDefinitions.name,
-        description: toolDefinitions.description,
-        type: toolDefinitions.type,
-        isEnabled: toolDefinitions.isEnabled,
-      },
-    })
-    .from(agentTools)
-    .innerJoin(toolDefinitions, eq(toolDefinitions.id, agentTools.toolId))
-    .where(
-      and(
-        eq(agentTools.agentId, agentId),
-        isNull(agentTools.deletedAt),
-        isNull(toolDefinitions.deletedAt)
-      )
-    );
 
   return c.json({ tools: attachedTools });
 });
@@ -457,67 +491,79 @@ toolRoutes.post(
     const authContext = c.get("auth");
     const body = c.req.valid("json");
 
-    // Verify agent belongs to tenant
-    const agent = await db.query.agents.findFirst({
-      where: and(
-        eq(agents.id, agentId),
-        eq(agents.tenantId, authContext.tenantId!),
-        isNull(agents.deletedAt)
-      ),
+    const { agent, tool, agentTool, isNew } = await withRequestRLS(c, async (tx) => {
+      // Verify agent belongs to tenant
+      const agent = await tx.query.agents.findFirst({
+        where: and(
+          eq(agents.id, agentId),
+          eq(agents.tenantId, authContext.tenantId!),
+          isNull(agents.deletedAt)
+        ),
+      });
+
+      if (!agent) {
+        return { agent: null, tool: null, agentTool: null, isNew: false };
+      }
+
+      // Verify tool belongs to tenant
+      const tool = await tx.query.toolDefinitions.findFirst({
+        where: and(
+          eq(toolDefinitions.id, body.toolId),
+          eq(toolDefinitions.tenantId, authContext.tenantId!),
+          isNull(toolDefinitions.deletedAt)
+        ),
+      });
+
+      if (!tool) {
+        return { agent, tool: null, agentTool: null, isNew: false };
+      }
+
+      // Check if already attached
+      const existing = await tx.query.agentTools.findFirst({
+        where: and(
+          eq(agentTools.agentId, agentId),
+          eq(agentTools.toolId, body.toolId),
+          isNull(agentTools.deletedAt)
+        ),
+      });
+
+      if (existing) {
+        // Update existing
+        const [updated] = await tx
+          .update(agentTools)
+          .set({
+            isEnabled: body.isEnabled ?? existing.isEnabled,
+            priority: body.priority ?? existing.priority,
+          })
+          .where(eq(agentTools.id, existing.id))
+          .returning();
+
+        return { agent, tool, agentTool: updated, isNew: false };
+      }
+
+      // Create new attachment
+      const [newAgentTool] = await tx
+        .insert(agentTools)
+        .values({
+          agentId,
+          toolId: body.toolId,
+          isEnabled: body.isEnabled ?? true,
+          priority: body.priority ?? 100,
+        })
+        .returning();
+
+      return { agent, tool, agentTool: newAgentTool, isNew: true };
     });
 
     if (!agent) {
       throw new NotFoundError("Agent");
     }
 
-    // Verify tool belongs to tenant
-    const tool = await db.query.toolDefinitions.findFirst({
-      where: and(
-        eq(toolDefinitions.id, body.toolId),
-        eq(toolDefinitions.tenantId, authContext.tenantId!),
-        isNull(toolDefinitions.deletedAt)
-      ),
-    });
-
     if (!tool) {
       throw new NotFoundError("Tool");
     }
 
-    // Check if already attached
-    const existing = await db.query.agentTools.findFirst({
-      where: and(
-        eq(agentTools.agentId, agentId),
-        eq(agentTools.toolId, body.toolId),
-        isNull(agentTools.deletedAt)
-      ),
-    });
-
-    if (existing) {
-      // Update existing
-      const [updated] = await db
-        .update(agentTools)
-        .set({
-          isEnabled: body.isEnabled ?? existing.isEnabled,
-          priority: body.priority ?? existing.priority,
-        })
-        .where(eq(agentTools.id, existing.id))
-        .returning();
-
-      return c.json({ agentTool: updated });
-    }
-
-    // Create new attachment
-    const [agentTool] = await db
-      .insert(agentTools)
-      .values({
-        agentId,
-        toolId: body.toolId,
-        isEnabled: body.isEnabled ?? true,
-        priority: body.priority ?? 100,
-      })
-      .returning();
-
-    return c.json({ agentTool }, 201);
+    return c.json({ agentTool }, isNew ? 201 : 200);
   }
 );
 
@@ -532,30 +578,38 @@ toolRoutes.delete(
     const toolId = c.req.param("toolId");
     const authContext = c.get("auth");
 
-    // Verify agent belongs to tenant
-    const agent = await db.query.agents.findFirst({
-      where: and(
-        eq(agents.id, agentId),
-        eq(agents.tenantId, authContext.tenantId!),
-        isNull(agents.deletedAt)
-      ),
+    const { agent, deleted } = await withRequestRLS(c, async (tx) => {
+      // Verify agent belongs to tenant
+      const agent = await tx.query.agents.findFirst({
+        where: and(
+          eq(agents.id, agentId),
+          eq(agents.tenantId, authContext.tenantId!),
+          isNull(agents.deletedAt)
+        ),
+      });
+
+      if (!agent) {
+        return { agent: null, deleted: null };
+      }
+
+      const [deleted] = await tx
+        .update(agentTools)
+        .set({ deletedAt: new Date() })
+        .where(
+          and(
+            eq(agentTools.agentId, agentId),
+            eq(agentTools.toolId, toolId),
+            isNull(agentTools.deletedAt)
+          )
+        )
+        .returning();
+
+      return { agent, deleted };
     });
 
     if (!agent) {
       throw new NotFoundError("Agent");
     }
-
-    const [deleted] = await db
-      .update(agentTools)
-      .set({ deletedAt: new Date() })
-      .where(
-        and(
-          eq(agentTools.agentId, agentId),
-          eq(agentTools.toolId, toolId),
-          isNull(agentTools.deletedAt)
-        )
-      )
-      .returning();
 
     if (!deleted) {
       throw new NotFoundError("Agent tool attachment");
@@ -564,5 +618,3 @@ toolRoutes.delete(
     return c.json({ message: "Tool detached from agent" });
   }
 );
-
-

@@ -2,6 +2,7 @@ import { db } from "@grounded/db";
 import { users, userCredentials, systemAdmins } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
 import { hashPassword, getEnv, validateEmail, validatePassword } from "@grounded/shared";
+import { log } from "@grounded/logger";
 
 export async function seedSystemAdmin(): Promise<void> {
   const adminEmail = getEnv("ADMIN_EMAIL", "");
@@ -9,20 +10,20 @@ export async function seedSystemAdmin(): Promise<void> {
 
   // Skip if not configured
   if (!adminEmail || !adminPassword) {
-    console.log("[Startup] ADMIN_EMAIL/ADMIN_PASSWORD not set, skipping admin seed");
+    log.info("api", "ADMIN_EMAIL/ADMIN_PASSWORD not set, skipping admin seed");
     return;
   }
 
   // Validate email
   if (!validateEmail(adminEmail)) {
-    console.error("[Startup] Invalid ADMIN_EMAIL format");
+    log.error("api", "Invalid ADMIN_EMAIL format");
     return;
   }
 
   // Validate password
   const passwordValidation = validatePassword(adminPassword);
   if (!passwordValidation.valid) {
-    console.error("[Startup] ADMIN_PASSWORD does not meet requirements:", passwordValidation.errors.join(", "));
+    log.error("api", "ADMIN_PASSWORD does not meet requirements", { errors: passwordValidation.errors });
     return;
   }
 
@@ -38,13 +39,13 @@ export async function seedSystemAdmin(): Promise<void> {
     });
 
     if (existingAdmin) {
-      console.log("[Startup] System admin already exists:", adminEmail);
+      log.info("api", "System admin already exists", { email: adminEmail });
       return;
     }
 
     // Promote existing user to system admin
     await db.insert(systemAdmins).values({ userId: existingUser.id });
-    console.log("[Startup] Existing user promoted to system admin:", adminEmail);
+    log.info("api", "Existing user promoted to system admin", { email: adminEmail });
     return;
   }
 
@@ -64,5 +65,5 @@ export async function seedSystemAdmin(): Promise<void> {
   // Create system admin entry
   await db.insert(systemAdmins).values({ userId: newUser.id });
 
-  console.log("[Startup] System admin created:", adminEmail);
+  log.info("api", "System admin created", { email: adminEmail });
 }

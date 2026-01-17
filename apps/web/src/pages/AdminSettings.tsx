@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type SystemSetting } from "../lib/api";
+import { api, type SystemSetting, type AdminApiToken, type AdminApiTokenWithSecret } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -10,6 +10,7 @@ import { FormSection } from "@/components/ui/form-section";
 import { InfoBox } from "@/components/ui/info-box";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ApiKeyManager } from "@/components/api-key-manager";
 import {
   CheckCircle,
   XCircle,
@@ -22,9 +23,10 @@ import {
   BarChart3,
   Bell,
   Info,
+  KeyRound,
 } from "lucide-react";
 
-type SettingsTab = "auth" | "quotas" | "email" | "alerts";
+type SettingsTab = "auth" | "quotas" | "email" | "alerts" | "tokens";
 
 interface SettingInputProps {
   setting: SystemSetting;
@@ -160,6 +162,10 @@ export function AdminSettings() {
       title: "Alert Settings",
       description: "Configure automated health monitoring alerts for tenants.",
     },
+    tokens: {
+      title: "API Tokens",
+      description: "Create and manage API tokens for system administration automation.",
+    },
   };
 
   const filteredSettings = data?.settings.filter((s) => s.category === activeTab) || [];
@@ -196,6 +202,10 @@ export function AdminSettings() {
           <TabsTrigger value="alerts" className="gap-2">
             <Bell className="w-4 h-4" />
             Alerts
+          </TabsTrigger>
+          <TabsTrigger value="tokens" className="gap-2">
+            <KeyRound className="w-4 h-4" />
+            API Tokens
           </TabsTrigger>
         </TabsList>
 
@@ -253,6 +263,10 @@ export function AdminSettings() {
               SMTP settings in the <strong>Email (SMTP)</strong> tab before enabling alerts.
             </p>
           </InfoBox>
+        </TabsContent>
+
+        <TabsContent value="tokens">
+          <AdminTokensSection />
         </TabsContent>
       </Tabs>
     </div>
@@ -341,6 +355,62 @@ function EmailTestSection() {
         )}
       </div>
     </FormSection>
+  );
+}
+
+// ============================================================================
+// Alert Control Section
+// ============================================================================
+
+// ============================================================================
+// Admin Tokens Section
+// ============================================================================
+
+function AdminTokensSection() {
+  const [newToken, setNewToken] = useState<AdminApiTokenWithSecret | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-tokens"],
+    queryFn: api.listAdminTokens,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: api.createAdminToken,
+    onSuccess: (data) => {
+      setNewToken(data);
+      queryClient.invalidateQueries({ queryKey: ["admin-tokens"] });
+    },
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: api.revokeAdminToken,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-tokens"] });
+    },
+  });
+
+  return (
+    <ApiKeyManager<AdminApiToken, AdminApiTokenWithSecret>
+      keys={data?.tokens || []}
+      isLoading={isLoading}
+      onRevoke={(id) => revokeMutation.mutate(id)}
+      isRevoking={revokeMutation.isPending}
+      onCreate={(data) => createMutation.mutate({
+        name: data.name,
+        expiresAt: data.expiresAt,
+      })}
+      isCreating={createMutation.isPending}
+      createError={createMutation.error}
+      newKey={newToken}
+      onNewKeyDismiss={() => setNewToken(null)}
+      title="Admin Tokens"
+      description="Manage admin tokens for system automation and CI/CD pipelines."
+      infoTitle="Using Admin Tokens"
+      infoDescription="Admin tokens allow you to authenticate API requests for automation and CI/CD pipelines. Use them with the Authorization header:"
+      authHeaderExample="Authorization: Bearer grounded_admin_..."
+      showScopes={false}
+    />
   );
 }
 

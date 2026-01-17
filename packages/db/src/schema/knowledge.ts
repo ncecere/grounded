@@ -26,6 +26,13 @@ export const knowledgeBases = pgTable(
     // Embedding model tracking - set when KB is created
     embeddingModelId: uuid("embedding_model_id").references(() => modelConfigurations.id, { onDelete: "set null" }),
     embeddingDimensions: integer("embedding_dimensions").notNull().default(768),
+    // Reindex tracking - for changing embedding models
+    reindexStatus: text("reindex_status").$type<"pending" | "in_progress" | "failed">(),
+    reindexProgress: integer("reindex_progress"),
+    reindexError: text("reindex_error"),
+    pendingEmbeddingModelId: uuid("pending_embedding_model_id").references(() => modelConfigurations.id, { onDelete: "set null" }),
+    pendingEmbeddingDimensions: integer("pending_embedding_dimensions"),
+    reindexStartedAt: timestamp("reindex_started_at", { withTimezone: true }),
     createdBy: uuid("created_by")
       .notNull()
       .references(() => users.id),
@@ -37,6 +44,7 @@ export const knowledgeBases = pgTable(
     index("knowledge_bases_is_global_published_idx").on(table.isGlobal, table.publishedAt),
     index("knowledge_bases_created_at_idx").on(table.createdAt),
     index("knowledge_bases_embedding_model_idx").on(table.embeddingModelId),
+    index("knowledge_bases_reindex_status_idx").on(table.reindexStatus),
   ]
 );
 

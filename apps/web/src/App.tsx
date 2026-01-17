@@ -29,7 +29,7 @@ import { SharedKbDetail } from "./pages/SharedKbDetail";
 import AdminDashboard from "./pages/AdminDashboard";
 import { AdminAnalytics } from "./pages/AdminAnalytics";
 import { TenantSettings } from "./pages/TenantSettings";
-import { AdminTokens } from "./pages/AdminTokens";
+
 import { AdminAuditLogs } from "./pages/AdminAuditLogs";
 import { Login } from "./pages/Login";
 import { Building2, AlertTriangle } from "lucide-react";
@@ -51,7 +51,6 @@ const pageNames: Record<Page, string> = {
   "shared-kb-detail": "Shared Knowledge Base",
   "admin-analytics": "Analytics",
   "tenant-settings": "Tenant Settings",
-  "admin-tokens": "API Tokens",
   "admin-audit-logs": "Audit Logs",
 };
 
@@ -178,7 +177,6 @@ export default function App() {
           }}
         />
       );
-      if (currentPage === "admin-tokens") return <AdminTokens />;
       if (currentPage === "admin-audit-logs") return <AdminAuditLogs />;
 
       return (
@@ -288,8 +286,6 @@ export default function App() {
         return <AdminSettings />;
       case "tenant-settings":
         return <TenantSettings />;
-      case "admin-tokens":
-        return <AdminTokens />;
       case "admin-audit-logs":
         return <AdminAuditLogs />;
       default:

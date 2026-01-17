@@ -3,6 +3,7 @@ import type { Transporter } from "nodemailer";
 import { db } from "@grounded/db";
 import { systemSettings } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
+import { log } from "@grounded/logger";
 
 // ============================================================================
 // Types
@@ -136,7 +137,7 @@ class EmailService {
 
       return { success: true };
     } catch (error) {
-      console.error("[EmailService] Send error:", error);
+      log.error("api", "EmailService send error", { error: error instanceof Error ? error.message : String(error) });
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",

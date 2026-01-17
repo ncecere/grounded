@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { streamSSE } from "hono/streaming";
 import { html } from "hono/html";
-import { db } from "@grounded/db";
+import { withRLSContext, type Database } from "@grounded/db";
 import {
   chatEndpointTokens,
   agents,
@@ -12,6 +12,7 @@ import {
 import { eq, and, isNull } from "drizzle-orm";
 import { checkRateLimit } from "@grounded/queue";
 import { generateId } from "@grounded/shared";
+import { log } from "@grounded/logger";
 import { NotFoundError, RateLimitError } from "../middleware/error-handler";
 import { SimpleRAGService, type StreamEvent } from "../services/simple-rag";
 
@@ -33,34 +34,38 @@ const chatRequestSchema = z.object({
 chatEndpointRoutes.get("/:token/config", async (c) => {
   const token = c.req.param("token");
 
-  const endpointToken = await db.query.chatEndpointTokens.findFirst({
-    where: and(
-      eq(chatEndpointTokens.token, token),
-      isNull(chatEndpointTokens.revokedAt)
-    ),
+  const result = await withRLSContext({ isSystemAdmin: true }, async (tx) => {
+    const endpointToken = await tx.query.chatEndpointTokens.findFirst({
+      where: and(
+        eq(chatEndpointTokens.token, token),
+        isNull(chatEndpointTokens.revokedAt)
+      ),
+    });
+
+    if (!endpointToken) {
+      throw new NotFoundError("Chat endpoint");
+    }
+
+    const agent = await tx.query.agents.findFirst({
+      where: and(
+        eq(agents.id, endpointToken.agentId),
+        isNull(agents.deletedAt)
+      ),
+    });
+
+    if (!agent) {
+      throw new NotFoundError("Agent");
+    }
+
+    return { endpointToken, agent };
   });
-
-  if (!endpointToken) {
-    throw new NotFoundError("Chat endpoint");
-  }
-
-  const agent = await db.query.agents.findFirst({
-    where: and(
-      eq(agents.id, endpointToken.agentId),
-      isNull(agents.deletedAt)
-    ),
-  });
-
-  if (!agent) {
-    throw new NotFoundError("Agent");
-  }
 
   return c.json({
-    agentName: agent.name,
-    description: agent.description || "Ask me anything. I'm here to assist you.",
-    welcomeMessage: agent.welcomeMessage || "How can I help?",
-    logoUrl: agent.logoUrl || null,
-    endpointType: endpointToken.endpointType,
+    agentName: result.agent.name,
+    description: result.agent.description || "Ask me anything. I'm here to assist you.",
+    welcomeMessage: result.agent.welcomeMessage || "How can I help?",
+    logoUrl: result.agent.logoUrl || null,
+    endpointType: result.endpointToken.endpointType,
   });
 });
 
@@ -71,11 +76,13 @@ chatEndpointRoutes.get("/:token/config", async (c) => {
 chatEndpointRoutes.get("/:token", async (c) => {
   const token = c.req.param("token");
 
-  const endpointToken = await db.query.chatEndpointTokens.findFirst({
-    where: and(
-      eq(chatEndpointTokens.token, token),
-      isNull(chatEndpointTokens.revokedAt)
-    ),
+  const endpointToken = await withRLSContext({ isSystemAdmin: true }, async (tx) => {
+    return tx.query.chatEndpointTokens.findFirst({
+      where: and(
+        eq(chatEndpointTokens.token, token),
+        isNull(chatEndpointTokens.revokedAt)
+      ),
+    });
   });
 
   if (!endpointToken) {
@@ -131,11 +138,13 @@ chatEndpointRoutes.get("/:token", async (c) => {
     `, 400);
   }
 
-  const agent = await db.query.agents.findFirst({
-    where: and(
-      eq(agents.id, endpointToken.agentId),
-      isNull(agents.deletedAt)
-    ),
+  const agent = await withRLSContext({ isSystemAdmin: true }, async (tx) => {
+    return tx.query.agents.findFirst({
+      where: and(
+        eq(agents.id, endpointToken.agentId),
+        isNull(agents.deletedAt)
+      ),
+    });
   });
 
   if (!agent) {
@@ -214,33 +223,37 @@ chatEndpointRoutes.post(
     const token = c.req.param("token");
     const body = c.req.valid("json");
 
-    // Validate token
-    const endpointToken = await db.query.chatEndpointTokens.findFirst({
-      where: and(
-        eq(chatEndpointTokens.token, token),
-        isNull(chatEndpointTokens.revokedAt)
-      ),
-    });
+    // Validate token and get context
+    const { endpointToken, agent, quotas } = await withRLSContext({ isSystemAdmin: true }, async (tx) => {
+      const endpointToken = await tx.query.chatEndpointTokens.findFirst({
+        where: and(
+          eq(chatEndpointTokens.token, token),
+          isNull(chatEndpointTokens.revokedAt)
+        ),
+      });
 
-    if (!endpointToken) {
-      throw new NotFoundError("Chat endpoint");
-    }
+      if (!endpointToken) {
+        throw new NotFoundError("Chat endpoint");
+      }
 
-    // Get agent (just to verify it exists)
-    const agent = await db.query.agents.findFirst({
-      where: and(
-        eq(agents.id, endpointToken.agentId),
-        isNull(agents.deletedAt)
-      ),
-    });
+      // Get agent (just to verify it exists)
+      const agent = await tx.query.agents.findFirst({
+        where: and(
+          eq(agents.id, endpointToken.agentId),
+          isNull(agents.deletedAt)
+        ),
+      });
 
-    if (!agent) {
-      throw new NotFoundError("Agent");
-    }
+      if (!agent) {
+        throw new NotFoundError("Agent");
+      }
 
-    // Check rate limit
-    const quotas = await db.query.tenantQuotas.findFirst({
-      where: eq(tenantQuotas.tenantId, endpointToken.tenantId),
+      // Check rate limit
+      const quotas = await tx.query.tenantQuotas.findFirst({
+        where: eq(tenantQuotas.tenantId, endpointToken.tenantId),
+      });
+
+      return { endpointToken, agent, quotas };
     });
 
     const rateLimit = quotas?.chatRateLimitPerMinute || 60;
@@ -307,33 +320,37 @@ chatEndpointRoutes.post(
     const token = c.req.param("token");
     const body = c.req.valid("json");
 
-    // Validate token
-    const endpointToken = await db.query.chatEndpointTokens.findFirst({
-      where: and(
-        eq(chatEndpointTokens.token, token),
-        isNull(chatEndpointTokens.revokedAt)
-      ),
-    });
+    // Validate token and get context
+    const { endpointToken, agent, quotas } = await withRLSContext({ isSystemAdmin: true }, async (tx) => {
+      const endpointToken = await tx.query.chatEndpointTokens.findFirst({
+        where: and(
+          eq(chatEndpointTokens.token, token),
+          isNull(chatEndpointTokens.revokedAt)
+        ),
+      });
 
-    if (!endpointToken) {
-      throw new NotFoundError("Chat endpoint");
-    }
+      if (!endpointToken) {
+        throw new NotFoundError("Chat endpoint");
+      }
 
-    // Get agent
-    const agent = await db.query.agents.findFirst({
-      where: and(
-        eq(agents.id, endpointToken.agentId),
-        isNull(agents.deletedAt)
-      ),
-    });
+      // Get agent
+      const agent = await tx.query.agents.findFirst({
+        where: and(
+          eq(agents.id, endpointToken.agentId),
+          isNull(agents.deletedAt)
+        ),
+      });
 
-    if (!agent) {
-      throw new NotFoundError("Agent");
-    }
+      if (!agent) {
+        throw new NotFoundError("Agent");
+      }
 
-    // Check rate limit
-    const quotas = await db.query.tenantQuotas.findFirst({
-      where: eq(tenantQuotas.tenantId, endpointToken.tenantId),
+      // Check rate limit
+      const quotas = await tx.query.tenantQuotas.findFirst({
+        where: eq(tenantQuotas.tenantId, endpointToken.tenantId),
+      });
+
+      return { endpointToken, agent, quotas };
     });
 
     const rateLimit = quotas?.chatRateLimitPerMinute || 60;
@@ -361,7 +378,7 @@ chatEndpointRoutes.post(
 
       // Handle client disconnect
       stream.onAbort(() => {
-        console.log("[Chat Endpoint Stream] Client disconnected");
+        log.debug("api", "Chat endpoint stream client disconnected");
         aborted = true;
         if (heartbeatInterval) {
           clearInterval(heartbeatInterval);
@@ -449,7 +466,7 @@ chatEndpointRoutes.post(
           }
         }
       } catch (error) {
-        console.error("[Chat Endpoint Stream] Error:", error);
+        log.error("api", "Chat endpoint stream error", { error: error instanceof Error ? error.message : String(error) });
         await stream.writeSSE({
           data: JSON.stringify({
             type: "error",

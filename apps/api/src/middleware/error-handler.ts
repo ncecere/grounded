@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import type { HTTPException } from "hono/http-exception";
+import { getWideEvent } from "@grounded/logger/middleware";
 
 export class AppError extends Error {
   constructor(
@@ -55,7 +56,14 @@ export class QuotaExceededError extends AppError {
 }
 
 export function errorHandler(err: Error | HTTPException, c: Context) {
-  console.error(`[${c.get("requestId")}] Error:`, err);
+  // The wide event middleware will log the error with full context
+  // Here we just enrich the event with additional error details
+  try {
+    const event = getWideEvent(c);
+    event.setError(err);
+  } catch {
+    // Wide event middleware may not be installed for some routes
+  }
 
   if (err instanceof AppError) {
     return c.json(

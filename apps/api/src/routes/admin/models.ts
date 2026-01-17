@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@grounded/db";
 import { modelProviders, modelConfigurations, type ProviderType, type ModelType } from "@grounded/db/schema";
 import { eq, and, ne } from "drizzle-orm";
-import { auth, requireSystemAdmin } from "../../middleware/auth";
+import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { BadRequestError, NotFoundError } from "../../middleware/error-handler";
 import { getAIRegistry, resetAIRegistry } from "@grounded/ai-providers";
 
@@ -68,8 +68,10 @@ const updateModelSchema = z.object({
 
 // List all providers
 adminModelsRoutes.get("/providers", async (c) => {
-  const providers = await db.query.modelProviders.findMany({
-    orderBy: (providers, { asc }) => [asc(providers.displayName)],
+  const providers = await withRequestRLS(c, async (tx) => {
+    return tx.query.modelProviders.findMany({
+      orderBy: (providers, { asc }) => [asc(providers.displayName)],
+    });
   });
 
   // Mask API keys
@@ -85,9 +87,11 @@ adminModelsRoutes.get("/providers", async (c) => {
 adminModelsRoutes.get("/providers/:id", async (c) => {
   const id = c.req.param("id");
 
-  const provider = await db.query.modelProviders.findFirst({
-    where: eq(modelProviders.id, id),
-    with: { models: true },
+  const provider = await withRequestRLS(c, async (tx) => {
+    return tx.query.modelProviders.findFirst({
+      where: eq(modelProviders.id, id),
+      with: { models: true },
+    });
   });
 
   if (!provider) {
@@ -111,8 +115,10 @@ adminModelsRoutes.post(
     const body = c.req.valid("json");
 
     // Check for duplicate name
-    const existing = await db.query.modelProviders.findFirst({
-      where: eq(modelProviders.name, body.name),
+    const existing = await withRequestRLS(c, async (tx) => {
+      return tx.query.modelProviders.findFirst({
+        where: eq(modelProviders.name, body.name),
+      });
     });
 
     if (existing) {
@@ -124,18 +130,20 @@ adminModelsRoutes.post(
       throw new BadRequestError("Base URL is required for OpenAI-compatible providers");
     }
 
-    const [provider] = await db
-      .insert(modelProviders)
-      .values({
-        name: body.name,
-        displayName: body.displayName,
-        type: body.type as ProviderType,
-        baseUrl: body.baseUrl || null,
-        apiKey: body.apiKey,
-        isEnabled: body.isEnabled,
-        createdBy: authContext.user.id,
-      })
-      .returning();
+    const [provider] = await withRequestRLS(c, async (tx) => {
+      return tx
+        .insert(modelProviders)
+        .values({
+          name: body.name,
+          displayName: body.displayName,
+          type: body.type as ProviderType,
+          baseUrl: body.baseUrl || null,
+          apiKey: body.apiKey,
+          isEnabled: body.isEnabled,
+          createdBy: authContext.user.id,
+        })
+        .returning();
+    });
 
     // Reset registry to pick up new provider
     resetAIRegistry();
@@ -155,8 +163,10 @@ adminModelsRoutes.patch(
     const id = c.req.param("id");
     const body = c.req.valid("json");
 
-    const existing = await db.query.modelProviders.findFirst({
-      where: eq(modelProviders.id, id),
+    const existing = await withRequestRLS(c, async (tx) => {
+      return tx.query.modelProviders.findFirst({
+        where: eq(modelProviders.id, id),
+      });
     });
 
     if (!existing) {
@@ -176,11 +186,13 @@ adminModelsRoutes.patch(
     if (body.apiKey !== undefined) updates.apiKey = body.apiKey;
     if (body.isEnabled !== undefined) updates.isEnabled = body.isEnabled;
 
-    const [provider] = await db
-      .update(modelProviders)
-      .set(updates)
-      .where(eq(modelProviders.id, id))
-      .returning();
+    const [provider] = await withRequestRLS(c, async (tx) => {
+      return tx
+        .update(modelProviders)
+        .set(updates)
+        .where(eq(modelProviders.id, id))
+        .returning();
+    });
 
     // Reset registry to pick up changes
     resetAIRegistry();
@@ -196,9 +208,11 @@ adminModelsRoutes.patch(
 adminModelsRoutes.delete("/providers/:id", async (c) => {
   const id = c.req.param("id");
 
-  const existing = await db.query.modelProviders.findFirst({
-    where: eq(modelProviders.id, id),
-    with: { models: true },
+  const existing = await withRequestRLS(c, async (tx) => {
+    return tx.query.modelProviders.findFirst({
+      where: eq(modelProviders.id, id),
+      with: { models: true },
+    });
   });
 
   if (!existing) {
@@ -211,7 +225,9 @@ adminModelsRoutes.delete("/providers/:id", async (c) => {
     throw new BadRequestError("Cannot delete provider with default models. Remove defaults first.");
   }
 
-  await db.delete(modelProviders).where(eq(modelProviders.id, id));
+  await withRequestRLS(c, async (tx) => {
+    return tx.delete(modelProviders).where(eq(modelProviders.id, id));
+  });
 
   // Reset registry
   resetAIRegistry();
@@ -223,8 +239,10 @@ adminModelsRoutes.delete("/providers/:id", async (c) => {
 adminModelsRoutes.post("/providers/:id/test", async (c) => {
   const id = c.req.param("id");
 
-  const provider = await db.query.modelProviders.findFirst({
-    where: eq(modelProviders.id, id),
+  const provider = await withRequestRLS(c, async (tx) => {
+    return tx.query.modelProviders.findFirst({
+      where: eq(modelProviders.id, id),
+    });
   });
 
   if (!provider) {
@@ -276,10 +294,12 @@ adminModelsRoutes.get("/models", async (c) => {
     whereClause = eq(modelConfigurations.providerId, providerId);
   }
 
-  const models = await db.query.modelConfigurations.findMany({
-    where: whereClause,
-    with: { provider: true },
-    orderBy: (models, { asc, desc }) => [desc(models.isDefault), asc(models.displayName)],
+  const models = await withRequestRLS(c, async (tx) => {
+    return tx.query.modelConfigurations.findMany({
+      where: whereClause,
+      with: { provider: true },
+      orderBy: (models, { asc, desc }) => [desc(models.isDefault), asc(models.displayName)],
+    });
   });
 
   return c.json({ models });
@@ -289,9 +309,11 @@ adminModelsRoutes.get("/models", async (c) => {
 adminModelsRoutes.get("/models/:id", async (c) => {
   const id = c.req.param("id");
 
-  const model = await db.query.modelConfigurations.findFirst({
-    where: eq(modelConfigurations.id, id),
-    with: { provider: true },
+  const model = await withRequestRLS(c, async (tx) => {
+    return tx.query.modelConfigurations.findFirst({
+      where: eq(modelConfigurations.id, id),
+      with: { provider: true },
+    });
   });
 
   if (!model) {
@@ -310,8 +332,10 @@ adminModelsRoutes.post(
     const body = c.req.valid("json");
 
     // Verify provider exists
-    const provider = await db.query.modelProviders.findFirst({
-      where: eq(modelProviders.id, body.providerId),
+    const provider = await withRequestRLS(c, async (tx) => {
+      return tx.query.modelProviders.findFirst({
+        where: eq(modelProviders.id, body.providerId),
+      });
     });
 
     if (!provider) {
@@ -319,24 +343,18 @@ adminModelsRoutes.post(
     }
 
     // Check for duplicate
-    const existing = await db.query.modelConfigurations.findFirst({
-      where: and(
-        eq(modelConfigurations.providerId, body.providerId),
-        eq(modelConfigurations.modelId, body.modelId),
-        eq(modelConfigurations.modelType, body.modelType)
-      ),
+    const existing = await withRequestRLS(c, async (tx) => {
+      return tx.query.modelConfigurations.findFirst({
+        where: and(
+          eq(modelConfigurations.providerId, body.providerId),
+          eq(modelConfigurations.modelId, body.modelId),
+          eq(modelConfigurations.modelType, body.modelType)
+        ),
+      });
     });
 
     if (existing) {
       throw new BadRequestError("Model configuration already exists for this provider and type");
-    }
-
-    // If setting as default, unset other defaults of same type
-    if (body.isDefault) {
-      await db
-        .update(modelConfigurations)
-        .set({ isDefault: false, updatedAt: new Date() })
-        .where(eq(modelConfigurations.modelType, body.modelType));
     }
 
     // Validate dimensions for embedding models
@@ -344,23 +362,33 @@ adminModelsRoutes.post(
       throw new BadRequestError("Dimensions are required for embedding models");
     }
 
-    const [model] = await db
-      .insert(modelConfigurations)
-      .values({
-        providerId: body.providerId,
-        modelId: body.modelId,
-        displayName: body.displayName,
-        modelType: body.modelType as ModelType,
-        maxTokens: body.maxTokens || 4096,
-        temperature: body.temperature?.toString() || "0.1",
-        supportsStreaming: body.supportsStreaming,
-        supportsTools: body.supportsTools,
-        dimensions: body.dimensions || null,
-        isEnabled: body.isEnabled,
-        isDefault: body.isDefault,
-        createdBy: authContext.user.id,
-      })
-      .returning();
+    const [model] = await withRequestRLS(c, async (tx) => {
+      // If setting as default, unset other defaults of same type
+      if (body.isDefault) {
+        await tx
+          .update(modelConfigurations)
+          .set({ isDefault: false, updatedAt: new Date() })
+          .where(eq(modelConfigurations.modelType, body.modelType));
+      }
+
+      return tx
+        .insert(modelConfigurations)
+        .values({
+          providerId: body.providerId,
+          modelId: body.modelId,
+          displayName: body.displayName,
+          modelType: body.modelType as ModelType,
+          maxTokens: body.maxTokens || 4096,
+          temperature: body.temperature?.toString() || "0.1",
+          supportsStreaming: body.supportsStreaming,
+          supportsTools: body.supportsTools,
+          dimensions: body.dimensions || null,
+          isEnabled: body.isEnabled,
+          isDefault: body.isDefault,
+          createdBy: authContext.user.id,
+        })
+        .returning();
+    });
 
     // Reset registry
     resetAIRegistry();
@@ -380,23 +408,14 @@ adminModelsRoutes.patch(
     const id = c.req.param("id");
     const body = c.req.valid("json");
 
-    const existing = await db.query.modelConfigurations.findFirst({
-      where: eq(modelConfigurations.id, id),
+    const existing = await withRequestRLS(c, async (tx) => {
+      return tx.query.modelConfigurations.findFirst({
+        where: eq(modelConfigurations.id, id),
+      });
     });
 
     if (!existing) {
       throw new NotFoundError("Model configuration not found");
-    }
-
-    // If setting as default, unset other defaults of same type
-    if (body.isDefault && !existing.isDefault) {
-      await db
-        .update(modelConfigurations)
-        .set({ isDefault: false, updatedAt: new Date() })
-        .where(and(
-          eq(modelConfigurations.modelType, existing.modelType),
-          ne(modelConfigurations.id, id)
-        ));
     }
 
     // Build update object
@@ -410,11 +429,24 @@ adminModelsRoutes.patch(
     if (body.isEnabled !== undefined) updates.isEnabled = body.isEnabled;
     if (body.isDefault !== undefined) updates.isDefault = body.isDefault;
 
-    const [model] = await db
-      .update(modelConfigurations)
-      .set(updates)
-      .where(eq(modelConfigurations.id, id))
-      .returning();
+    const [model] = await withRequestRLS(c, async (tx) => {
+      // If setting as default, unset other defaults of same type
+      if (body.isDefault && !existing.isDefault) {
+        await tx
+          .update(modelConfigurations)
+          .set({ isDefault: false, updatedAt: new Date() })
+          .where(and(
+            eq(modelConfigurations.modelType, existing.modelType),
+            ne(modelConfigurations.id, id)
+          ));
+      }
+
+      return tx
+        .update(modelConfigurations)
+        .set(updates)
+        .where(eq(modelConfigurations.id, id))
+        .returning();
+    });
 
     // Reset registry
     resetAIRegistry();
@@ -427,8 +459,10 @@ adminModelsRoutes.patch(
 adminModelsRoutes.delete("/models/:id", async (c) => {
   const id = c.req.param("id");
 
-  const existing = await db.query.modelConfigurations.findFirst({
-    where: eq(modelConfigurations.id, id),
+  const existing = await withRequestRLS(c, async (tx) => {
+    return tx.query.modelConfigurations.findFirst({
+      where: eq(modelConfigurations.id, id),
+    });
   });
 
   if (!existing) {
@@ -439,7 +473,9 @@ adminModelsRoutes.delete("/models/:id", async (c) => {
     throw new BadRequestError("Cannot delete a default model. Set another model as default first.");
   }
 
-  await db.delete(modelConfigurations).where(eq(modelConfigurations.id, id));
+  await withRequestRLS(c, async (tx) => {
+    return tx.delete(modelConfigurations).where(eq(modelConfigurations.id, id));
+  });
 
   // Reset registry
   resetAIRegistry();
@@ -451,8 +487,10 @@ adminModelsRoutes.delete("/models/:id", async (c) => {
 adminModelsRoutes.post("/models/:id/set-default", async (c) => {
   const id = c.req.param("id");
 
-  const model = await db.query.modelConfigurations.findFirst({
-    where: eq(modelConfigurations.id, id),
+  const model = await withRequestRLS(c, async (tx) => {
+    return tx.query.modelConfigurations.findFirst({
+      where: eq(modelConfigurations.id, id),
+    });
   });
 
   if (!model) {
@@ -463,17 +501,19 @@ adminModelsRoutes.post("/models/:id/set-default", async (c) => {
     throw new BadRequestError("Cannot set a disabled model as default");
   }
 
-  // Unset other defaults of same type
-  await db
-    .update(modelConfigurations)
-    .set({ isDefault: false, updatedAt: new Date() })
-    .where(eq(modelConfigurations.modelType, model.modelType));
+  await withRequestRLS(c, async (tx) => {
+    // Unset other defaults of same type
+    await tx
+      .update(modelConfigurations)
+      .set({ isDefault: false, updatedAt: new Date() })
+      .where(eq(modelConfigurations.modelType, model.modelType));
 
-  // Set this one as default
-  await db
-    .update(modelConfigurations)
-    .set({ isDefault: true, updatedAt: new Date() })
-    .where(eq(modelConfigurations.id, id));
+    // Set this one as default
+    await tx
+      .update(modelConfigurations)
+      .set({ isDefault: true, updatedAt: new Date() })
+      .where(eq(modelConfigurations.id, id));
+  });
 
   // Reset registry
   resetAIRegistry();

@@ -6,7 +6,7 @@ import { uploads, sources, knowledgeBases, tenantQuotas, tenantUsage, sourceRuns
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { addPageProcessJob } from "@grounded/queue";
 import { generateId } from "@grounded/shared";
-import { auth, requireRole, requireTenant } from "../middleware/auth";
+import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
 import { NotFoundError, QuotaExceededError, BadRequestError } from "../middleware/error-handler";
 
 // Document parsing libraries
@@ -72,24 +72,28 @@ uploadRoutes.get("/kb/:kbId", auth(), requireTenant(), async (c) => {
   const kbId = c.req.param("kbId");
   const authContext = c.get("auth");
 
-  // Verify KB access
-  const kb = await db.query.knowledgeBases.findFirst({
-    where: and(
-      eq(knowledgeBases.id, kbId),
-      eq(knowledgeBases.tenantId, authContext.tenantId!),
-      isNull(knowledgeBases.deletedAt)
-    ),
+  const result = await withRequestRLS(c, async (tx) => {
+    // Verify KB access
+    const kb = await tx.query.knowledgeBases.findFirst({
+      where: and(
+        eq(knowledgeBases.id, kbId),
+        eq(knowledgeBases.tenantId, authContext.tenantId!),
+        isNull(knowledgeBases.deletedAt)
+      ),
+    });
+
+    if (!kb) {
+      throw new NotFoundError("Knowledge base");
+    }
+
+    const uploadsList = await tx.query.uploads.findMany({
+      where: and(eq(uploads.kbId, kbId), isNull(uploads.deletedAt)),
+    });
+
+    return uploadsList;
   });
 
-  if (!kb) {
-    throw new NotFoundError("Knowledge base");
-  }
-
-  const uploadsList = await db.query.uploads.findMany({
-    where: and(eq(uploads.kbId, kbId), isNull(uploads.deletedAt)),
-  });
-
-  return c.json({ uploads: uploadsList });
+  return c.json({ uploads: result });
 });
 
 // ============================================================================
@@ -100,47 +104,7 @@ uploadRoutes.post("/kb/:kbId", auth(), requireTenant(), requireRole("owner", "ad
   const kbId = c.req.param("kbId");
   const authContext = c.get("auth");
 
-  // Verify KB belongs to tenant
-  const kb = await db.query.knowledgeBases.findFirst({
-    where: and(
-      eq(knowledgeBases.id, kbId),
-      eq(knowledgeBases.tenantId, authContext.tenantId!),
-      isNull(knowledgeBases.deletedAt)
-    ),
-  });
-
-  if (!kb) {
-    throw new NotFoundError("Knowledge base");
-  }
-
-  // Check quota
-  const quotas = await db.query.tenantQuotas.findFirst({
-    where: eq(tenantQuotas.tenantId, authContext.tenantId!),
-  });
-
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  let usage = await db.query.tenantUsage.findFirst({
-    where: and(
-      eq(tenantUsage.tenantId, authContext.tenantId!),
-      eq(tenantUsage.month, currentMonth)
-    ),
-  });
-
-  if (!usage) {
-    [usage] = await db
-      .insert(tenantUsage)
-      .values({
-        tenantId: authContext.tenantId!,
-        month: currentMonth,
-      })
-      .returning();
-  }
-
-  if (quotas && usage.uploadedDocs >= quotas.maxUploadedDocsPerMonth) {
-    throw new QuotaExceededError("monthly document uploads");
-  }
-
-  // Parse multipart form
+  // Parse multipart form OUTSIDE the transaction
   const formData = await c.req.parseBody();
   const file = formData["file"];
 
@@ -173,127 +137,179 @@ uploadRoutes.post("/kb/:kbId", auth(), requireTenant(), requireRole("owner", "ad
 
   // Check if sourceId was provided (to add to existing source)
   const existingSourceId = formData["sourceId"];
-  let uploadSource;
 
-  if (typeof existingSourceId === "string" && existingSourceId.trim()) {
-    // Use existing source
-    uploadSource = await db.query.sources.findFirst({
-      where: and(
-        eq(sources.id, existingSourceId),
-        eq(sources.kbId, kbId),
-        eq(sources.type, "upload"),
-        isNull(sources.deletedAt)
-      ),
-    });
-
-    if (!uploadSource) {
-      throw new BadRequestError("Source not found");
-    }
-  } else {
-    // Create a new source for this upload
-    [uploadSource] = await db
-      .insert(sources)
-      .values({
-        tenantId: authContext.tenantId!,
-        kbId,
-        type: "upload",
-        name: sourceNameStr,
-        config: {
-          mode: "single",
-          depth: 1,
-          includePatterns: [],
-          excludePatterns: [],
-          includeSubdomains: false,
-          schedule: null,
-          firecrawlEnabled: false,
-          respectRobotsTxt: true,
-        },
-        enrichmentEnabled: false,
-        createdBy: authContext.user.id,
-      })
-      .returning();
-  }
-
-  // Read file content
+  // Read file content OUTSIDE the transaction
   const arrayBuffer = await file.arrayBuffer();
   const content = new Uint8Array(arrayBuffer);
   const sizeBytes = content.length;
 
-  // Create upload record
-  const [upload] = await db
-    .insert(uploads)
-    .values({
-      tenantId: authContext.tenantId!,
-      kbId,
-      sourceId: uploadSource.id,
-      filename: file.name,
-      mimeType,
-      sizeBytes,
-      status: "pending",
-      createdBy: authContext.user.id,
-    })
-    .returning();
+  // First transaction: verify KB, check quota, create/get source, create upload
+  const { upload, uploadSource, usage } = await withRequestRLS(c, async (tx) => {
+    // Verify KB belongs to tenant
+    const kb = await tx.query.knowledgeBases.findFirst({
+      where: and(
+        eq(knowledgeBases.id, kbId),
+        eq(knowledgeBases.tenantId, authContext.tenantId!),
+        isNull(knowledgeBases.deletedAt)
+      ),
+    });
 
-  // Update usage
-  await db
-    .update(tenantUsage)
-    .set({
-      uploadedDocs: sql`${tenantUsage.uploadedDocs} + 1`,
-      updatedAt: new Date(),
-    })
-    .where(eq(tenantUsage.id, usage.id));
+    if (!kb) {
+      throw new NotFoundError("Knowledge base");
+    }
 
-  // Extract text based on file type
+    // Check quota
+    const quotas = await tx.query.tenantQuotas.findFirst({
+      where: eq(tenantQuotas.tenantId, authContext.tenantId!),
+    });
+
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    let usageRecord = await tx.query.tenantUsage.findFirst({
+      where: and(
+        eq(tenantUsage.tenantId, authContext.tenantId!),
+        eq(tenantUsage.month, currentMonth)
+      ),
+    });
+
+    if (!usageRecord) {
+      [usageRecord] = await tx
+        .insert(tenantUsage)
+        .values({
+          tenantId: authContext.tenantId!,
+          month: currentMonth,
+        })
+        .returning();
+    }
+
+    if (quotas && usageRecord.uploadedDocs >= quotas.maxUploadedDocsPerMonth) {
+      throw new QuotaExceededError("monthly document uploads");
+    }
+
+    let source;
+    if (typeof existingSourceId === "string" && existingSourceId.trim()) {
+      // Use existing source
+      source = await tx.query.sources.findFirst({
+        where: and(
+          eq(sources.id, existingSourceId),
+          eq(sources.kbId, kbId),
+          eq(sources.type, "upload"),
+          isNull(sources.deletedAt)
+        ),
+      });
+
+      if (!source) {
+        throw new BadRequestError("Source not found");
+      }
+    } else {
+      // Create a new source for this upload
+      [source] = await tx
+        .insert(sources)
+        .values({
+          tenantId: authContext.tenantId!,
+          kbId,
+          type: "upload",
+          name: sourceNameStr,
+          config: {
+            mode: "single",
+            depth: 1,
+            includePatterns: [],
+            excludePatterns: [],
+            includeSubdomains: false,
+            schedule: null,
+            firecrawlEnabled: false,
+            respectRobotsTxt: true,
+          },
+          enrichmentEnabled: false,
+          createdBy: authContext.user.id,
+        })
+        .returning();
+    }
+
+    // Create upload record
+    const [uploadRecord] = await tx
+      .insert(uploads)
+      .values({
+        tenantId: authContext.tenantId!,
+        kbId,
+        sourceId: source.id,
+        filename: file.name,
+        mimeType,
+        sizeBytes,
+        status: "pending",
+        createdBy: authContext.user.id,
+      })
+      .returning();
+
+    // Update usage
+    await tx
+      .update(tenantUsage)
+      .set({
+        uploadedDocs: sql`${tenantUsage.uploadedDocs} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(tenantUsage.id, usageRecord.id));
+
+    return { upload: uploadRecord, uploadSource: source, usage: usageRecord };
+  });
+
+  // Extract text OUTSIDE the transaction (CPU-intensive)
   let extractedText: string;
   try {
     extractedText = await extractText(content, mimeType, file.name);
   } catch (err) {
-    await db
-      .update(uploads)
-      .set({
-        status: "failed",
-        error: err instanceof Error ? err.message : "Text extraction failed",
-      })
-      .where(eq(uploads.id, upload.id));
+    await withRequestRLS(c, async (tx) => {
+      await tx
+        .update(uploads)
+        .set({
+          status: "failed",
+          error: err instanceof Error ? err.message : "Text extraction failed",
+        })
+        .where(eq(uploads.id, upload.id));
+    });
 
     throw new BadRequestError("Failed to extract text from document");
   }
 
-  // Update upload with extracted text
-  await db
-    .update(uploads)
-    .set({
-      extractedText,
-      status: "processing",
-    })
-    .where(eq(uploads.id, upload.id));
+  // Second transaction: update upload with extracted text and create source run
+  const sourceRun = await withRequestRLS(c, async (tx) => {
+    // Update upload with extracted text
+    await tx
+      .update(uploads)
+      .set({
+        extractedText,
+        status: "processing",
+      })
+      .where(eq(uploads.id, upload.id));
 
-  // Create a source run for this upload
-  const [sourceRun] = await db
-    .insert(sourceRuns)
-    .values({
-      tenantId: authContext.tenantId!,
-      sourceId: uploadSource.id,
-      status: "running",
-      trigger: "manual",
-      forceReindex: false,
-      startedAt: new Date(),
-      stats: {
-        pagesSeen: 1,
-        pagesIndexed: 0,
-        pagesFailed: 0,
-        tokensEstimated: 0,
-      },
-    })
-    .returning();
+    // Create a source run for this upload
+    const [run] = await tx
+      .insert(sourceRuns)
+      .values({
+        tenantId: authContext.tenantId!,
+        sourceId: uploadSource.id,
+        status: "running",
+        trigger: "manual",
+        forceReindex: false,
+        startedAt: new Date(),
+        stats: {
+          pagesSeen: 1,
+          pagesIndexed: 0,
+          pagesFailed: 0,
+          tokensEstimated: 0,
+        },
+      })
+      .returning();
 
-  // Update upload with source run reference
-  await db
-    .update(uploads)
-    .set({ sourceRunId: sourceRun.id })
-    .where(eq(uploads.id, upload.id));
+    // Update upload with source run reference
+    await tx
+      .update(uploads)
+      .set({ sourceRunId: run.id })
+      .where(eq(uploads.id, upload.id));
 
-  // Queue for chunking and embedding
+    return run;
+  });
+
+  // Queue for chunking and embedding (outside transaction)
   await addPageProcessJob({
     tenantId: authContext.tenantId!,
     runId: sourceRun.id,
@@ -325,12 +341,14 @@ uploadRoutes.get("/:uploadId", auth(), requireTenant(), async (c) => {
   const uploadId = c.req.param("uploadId");
   const authContext = c.get("auth");
 
-  const upload = await db.query.uploads.findFirst({
-    where: and(
-      eq(uploads.id, uploadId),
-      eq(uploads.tenantId, authContext.tenantId!),
-      isNull(uploads.deletedAt)
-    ),
+  const upload = await withRequestRLS(c, async (tx) => {
+    return tx.query.uploads.findFirst({
+      where: and(
+        eq(uploads.id, uploadId),
+        eq(uploads.tenantId, authContext.tenantId!),
+        isNull(uploads.deletedAt)
+      ),
+    });
   });
 
   if (!upload) {
@@ -353,17 +371,20 @@ uploadRoutes.delete(
     const uploadId = c.req.param("uploadId");
     const authContext = c.get("auth");
 
-    const [upload] = await db
-      .update(uploads)
-      .set({ deletedAt: new Date() })
-      .where(
-        and(
-          eq(uploads.id, uploadId),
-          eq(uploads.tenantId, authContext.tenantId!),
-          isNull(uploads.deletedAt)
+    const upload = await withRequestRLS(c, async (tx) => {
+      const [result] = await tx
+        .update(uploads)
+        .set({ deletedAt: new Date() })
+        .where(
+          and(
+            eq(uploads.id, uploadId),
+            eq(uploads.tenantId, authContext.tenantId!),
+            isNull(uploads.deletedAt)
+          )
         )
-      )
-      .returning();
+        .returning();
+      return result;
+    });
 
     if (!upload) {
       throw new NotFoundError("Upload");

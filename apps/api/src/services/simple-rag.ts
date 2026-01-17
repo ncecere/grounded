@@ -12,6 +12,7 @@ import {
 import { generateEmbedding } from "@grounded/embeddings";
 import { getVectorStore } from "@grounded/vector-store";
 import { getAIRegistry } from "@grounded/ai-providers";
+import { log } from "@grounded/logger";
 import {
   getConversation,
   addToConversation,
@@ -187,7 +188,7 @@ export class SimpleRAGService {
       yield { type: "sources", sources };
       yield { type: "done", conversationId: convId };
     } catch (error) {
-      console.error("[SimpleRAG] Error:", error);
+      log.error("api", "SimpleRAG error", { error: error instanceof Error ? error.message : String(error) });
 
       // Log error for analytics
       await this.logUsage({
@@ -262,7 +263,7 @@ export class SimpleRAGService {
     // Search vector store
     const vectorStore = await getVectorStore();
     if (!vectorStore) {
-      console.warn("[SimpleRAG] Vector store not configured");
+      log.warn("api", "SimpleRAG: Vector store not configured");
       return [];
     }
 
@@ -400,7 +401,7 @@ If the context doesn't contain enough information to fully answer the question, 
       });
     } catch (error) {
       // Don't fail the chat if logging fails
-      console.error("[SimpleRAG] Failed to log usage:", error);
+      log.error("api", "SimpleRAG: Failed to log usage", { error: error instanceof Error ? error.message : String(error) });
     }
   }
 }

@@ -1,14 +1,23 @@
 import { Worker, Job, connection, QUEUE_NAMES } from "@grounded/queue";
 import { getEnvNumber, getEnvBool } from "@grounded/shared";
+import { createWorkerLogger, createJobLogger } from "@grounded/logger/worker";
+import { shouldSample, createSamplingConfig } from "@grounded/logger";
 import { chromium, Browser } from "playwright";
 import { processPageFetch } from "./processors/page-fetch";
+
+const logger = createWorkerLogger("scraper-worker");
 
 const CONCURRENCY = getEnvNumber("WORKER_CONCURRENCY", 5);
 const HEADLESS = getEnvBool("PLAYWRIGHT_HEADLESS", true);
 
-console.log("Starting Scraper Worker...");
-console.log(`Concurrency: ${CONCURRENCY}`);
-console.log(`Headless: ${HEADLESS}`);
+// Sampling config from environment variables with worker-specific defaults
+// Workers log 100% by default (can reduce with LOG_SAMPLE_RATE env var)
+const samplingConfig = createSamplingConfig({
+  baseSampleRate: 1.0,  // Log all jobs by default
+  slowRequestThresholdMs: 30000, // 30s is slow for a job
+});
+
+logger.info({ concurrency: CONCURRENCY, headless: HEADLESS }, "Starting Scraper Worker...");
 
 // ============================================================================
 // Browser Pool
@@ -18,7 +27,7 @@ let browser: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
   if (!browser || !browser.isConnected()) {
-    console.log("Launching browser...");
+    logger.info("Launching browser...");
     browser = await chromium.launch({
       headless: HEADLESS,
       args: [
@@ -27,7 +36,7 @@ async function getBrowser(): Promise<Browser> {
         "--no-sandbox",
       ],
     });
-    console.log("Browser launched");
+    logger.info("Browser launched");
   }
   return browser;
 }
@@ -39,9 +48,29 @@ async function getBrowser(): Promise<Browser> {
 const pageFetchWorker = new Worker(
   QUEUE_NAMES.PAGE_FETCH,
   async (job: Job) => {
-    console.log(`Fetching page ${job.id}: ${job.data.url}`);
-    const browser = await getBrowser();
-    return processPageFetch(job.data, browser);
+    const event = createJobLogger(
+      { service: "scraper-worker", queue: QUEUE_NAMES.PAGE_FETCH },
+      job
+    );
+    event.setOperation("page_fetch");
+    event.addFields({ url: job.data.url, fetchMode: job.data.fetchMode, depth: job.data.depth });
+
+    try {
+      const browser = await getBrowser();
+      await processPageFetch(job.data, browser);
+      event.success();
+    } catch (error) {
+      if (error instanceof Error) {
+        event.setError(error);
+      } else {
+        event.setError({ type: "UnknownError", message: String(error) });
+      }
+      throw error;
+    } finally {
+      if (shouldSample(event.getEvent(), samplingConfig)) {
+        event.emit();
+      }
+    }
   },
   {
     connection,
@@ -49,20 +78,12 @@ const pageFetchWorker = new Worker(
   }
 );
 
-pageFetchWorker.on("completed", (job) => {
-  console.log(`Page fetch ${job.id} completed`);
-});
-
-pageFetchWorker.on("failed", (job, err) => {
-  console.error(`Page fetch ${job?.id} failed:`, err);
-});
-
 // ============================================================================
 // Graceful Shutdown
 // ============================================================================
 
 async function shutdown(): Promise<void> {
-  console.log("Shutting down...");
+  logger.info("Shutting down...");
 
   await pageFetchWorker.close();
 
@@ -77,4 +98,4 @@ async function shutdown(): Promise<void> {
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 
-console.log("Scraper Worker started successfully");
+logger.info("Scraper Worker started successfully");

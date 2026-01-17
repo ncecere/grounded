@@ -7,6 +7,7 @@ import {
   type NewAuditLog,
 } from "@grounded/db/schema";
 import { desc, eq, and, gte, lte, or, ilike, sql } from "drizzle-orm";
+import { log } from "@grounded/logger";
 
 // ============================================================================
 // Types
@@ -82,8 +83,8 @@ class AuditService {
 
       await db.insert(auditLogs).values(logEntry);
     } catch (error) {
-      // Log to console but don't throw - audit logging should never break the app
-      console.error("[AuditService] Failed to write audit log:", error);
+      // Log but don't throw - audit logging should never break the app
+      log.error("api", "AuditService failed to write audit log", { error: error instanceof Error ? error.message : String(error) });
     }
   }
 

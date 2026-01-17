@@ -2,13 +2,14 @@ import { db } from "@grounded/db";
 import { sourceRuns, sources } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
 import { addPageFetchJob, addSourceRunFinalizeJob, redis } from "@grounded/queue";
+import { log } from "@grounded/logger";
 import { normalizeUrl, type SourceDiscoverUrlsJob, FetchMode } from "@grounded/shared";
 import { createCrawlState } from "@grounded/crawl-state";
 
 export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promise<void> {
-  const { tenantId, runId } = data;
+  const { tenantId, runId, requestId, traceId } = data;
 
-  console.log(`[SourceDiscover] Starting URL discovery for run ${runId}`);
+  log.info("ingestion-worker", "Starting URL discovery for run", { runId, requestId, traceId });
 
   // Get run and source
   const run = await db.query.sourceRuns.findFirst({
@@ -106,12 +107,12 @@ export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promis
     }
   });
 
-  console.log(`[SourceDiscover] Found ${filteredUrls.length} initial URLs for run ${runId}`);
+  log.info("ingestion-worker", "Found initial URLs for run", { urlCount: filteredUrls.length, runId });
 
   if (filteredUrls.length === 0) {
     // No URLs to process, finalize immediately
-    console.log(`[SourceDiscover] No URLs to process, finalizing run ${runId}`);
-    await addSourceRunFinalizeJob({ tenantId, runId });
+    log.info("ingestion-worker", "No URLs to process, finalizing run", { runId });
+    await addSourceRunFinalizeJob({ tenantId, runId, requestId, traceId });
     return;
   }
 
@@ -119,7 +120,7 @@ export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promis
   // This returns only the truly new URLs (prevents duplicates)
   const newUrls = await crawlState.queueUrls(filteredUrls);
 
-  console.log(`[SourceDiscover] Queued ${newUrls.length} URLs in Redis for run ${runId}`);
+  log.debug("ingestion-worker", "Queued URLs in Redis for run", { urlCount: newUrls.length, runId });
 
   // Update initial stats in PostgreSQL (for UI display)
   await db
@@ -143,10 +144,12 @@ export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promis
       url,
       fetchMode,
       depth: 0, // Starting depth
+      requestId,
+      traceId,
     });
   }
 
-  console.log(`[SourceDiscover] Queued ${newUrls.length} page fetch jobs for run ${runId}`);
+  log.info("ingestion-worker", "Queued page fetch jobs for run", { jobCount: newUrls.length, runId });
 }
 
 async function discoverFromSitemap(sitemapUrl: string): Promise<string[]> {
@@ -173,7 +176,7 @@ async function discoverFromSitemap(sitemapUrl: string): Promise<string[]> {
       }
     }
   } catch (error) {
-    console.error(`Error fetching sitemap ${sitemapUrl}:`, error);
+    log.error("ingestion-worker", "Error fetching sitemap", { sitemapUrl, error: error instanceof Error ? error.message : String(error) });
   }
 
   return urls;

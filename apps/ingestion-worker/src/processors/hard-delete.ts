@@ -22,12 +22,13 @@ import {
 } from "@grounded/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { getVectorStore } from "@grounded/vector-store";
+import { log } from "@grounded/logger";
 import type { HardDeleteObjectJob } from "@grounded/shared";
 
 export async function processHardDelete(data: HardDeleteObjectJob): Promise<void> {
-  const { tenantId, objectType, objectId } = data;
+  const { tenantId, objectType, objectId, requestId, traceId } = data;
 
-  console.log(`Hard deleting ${objectType} ${objectId}`);
+  log.info("ingestion-worker", "Hard deleting object", { objectType, objectId, requestId, traceId });
 
   // Update deletion job status
   await db
@@ -75,9 +76,9 @@ export async function processHardDelete(data: HardDeleteObjectJob): Promise<void
         )
       );
 
-    console.log(`Successfully deleted ${objectType} ${objectId}`);
+    log.info("ingestion-worker", "Successfully deleted object", { objectType, objectId });
   } catch (error) {
-    console.error(`Error deleting ${objectType} ${objectId}:`, error);
+    log.error("ingestion-worker", "Error deleting object", { objectType, objectId, error: error instanceof Error ? error.message : String(error) });
 
     await db
       .update(deletionJobs)

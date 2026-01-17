@@ -1,6 +1,6 @@
 import { createMiddleware } from "hono/factory";
 import * as jose from "jose";
-import { db } from "@grounded/db";
+import { db, withRLSContext, type Database, type RLSContext } from "@grounded/db";
 import { users, userIdentities, tenantMemberships, apiKeys, systemAdmins, adminApiTokens } from "@grounded/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { getEnv, hashString } from "@grounded/shared";
@@ -29,7 +29,34 @@ declare module "hono" {
   interface ContextVariableMap {
     auth: AuthContext;
     requestId: string;
+    rlsContext: RLSContext;
   }
+}
+
+/**
+ * Execute a database operation with the RLS context from the current request.
+ * This wraps the operation in a transaction with SET LOCAL for proper RLS enforcement.
+ * 
+ * @example
+ * ```ts
+ * app.get("/items", auth(), async (c) => {
+ *   const items = await withRequestRLS(c, async (tx) => {
+ *     return tx.query.items.findMany();
+ *   });
+ *   return c.json({ items });
+ * });
+ * ```
+ */
+export async function withRequestRLS<T>(
+  c: { get: (key: "rlsContext") => RLSContext | undefined },
+  fn: (tx: Database) => Promise<T>
+): Promise<T> {
+  const rlsContext = c.get("rlsContext");
+  if (!rlsContext) {
+    // No RLS context set - run without RLS (for unauthenticated routes)
+    return fn(db as Database);
+  }
+  return withRLSContext(rlsContext, fn);
 }
 
 // ============================================================================
@@ -91,16 +118,15 @@ export const auth = () => {
 
     c.set("auth", authContext);
 
-    // Set tenant context for RLS if applicable
-    if (authContext.tenantId) {
-      await db.execute(`SET LOCAL app.tenant_id = '${authContext.tenantId}'`);
-    }
-    if (authContext.user.id) {
-      await db.execute(`SET LOCAL app.user_id = '${authContext.user.id}'`);
-    }
-    if (authContext.isSystemAdmin) {
-      await db.execute(`SET LOCAL app.is_system_admin = 'true'`);
-    }
+    // Store RLS context for use with withRequestRLS()
+    // Note: SET LOCAL only works within transactions, so we store the context
+    // and route handlers use withRequestRLS() to execute queries with proper RLS
+    const rlsContext: RLSContext = {
+      tenantId: authContext.tenantId,
+      userId: authContext.user.id,
+      isSystemAdmin: authContext.isSystemAdmin,
+    };
+    c.set("rlsContext", rlsContext);
 
     await next();
   });

@@ -1,10 +1,10 @@
 import { Hono } from "hono";
-import { db } from "@grounded/db";
+import { db, withRLSContext } from "@grounded/db";
 import { tenantMemberships, tenants, users, userCredentials } from "@grounded/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { getEnv, hashPassword, verifyPassword, validatePassword, validateEmail } from "@grounded/shared";
 import * as jose from "jose";
-import { auth } from "../middleware/auth";
+import { auth, withRequestRLS } from "../middleware/auth";
 import { BadRequestError, UnauthorizedError } from "../middleware/error-handler";
 import { auditService, extractIpAddress } from "../services/audit";
 
@@ -59,28 +59,33 @@ authRoutes.post("/register", async (c) => {
     throw new BadRequestError(passwordValidation.errors.join(". "));
   }
 
-  // Check if email already exists
-  const existingUser = await db.query.users.findFirst({
-    where: eq(users.primaryEmail, email.toLowerCase()),
-  });
+  // Use system admin context for registration (public endpoint)
+  const newUser = await withRLSContext({ isSystemAdmin: true }, async (tx) => {
+    // Check if email already exists
+    const existingUser = await tx.query.users.findFirst({
+      where: eq(users.primaryEmail, email.toLowerCase()),
+    });
 
-  if (existingUser) {
-    throw new BadRequestError("An account with this email already exists");
-  }
+    if (existingUser) {
+      throw new BadRequestError("An account with this email already exists");
+    }
 
-  // Create user
-  const [newUser] = await db
-    .insert(users)
-    .values({
-      primaryEmail: email.toLowerCase(),
-    })
-    .returning();
+    // Create user
+    const [user] = await tx
+      .insert(users)
+      .values({
+        primaryEmail: email.toLowerCase(),
+      })
+      .returning();
 
-  // Hash and store password
-  const passwordHash = await hashPassword(password);
-  await db.insert(userCredentials).values({
-    userId: newUser.id,
-    passwordHash,
+    // Hash and store password
+    const passwordHash = await hashPassword(password);
+    await tx.insert(userCredentials).values({
+      userId: user.id,
+      passwordHash,
+    });
+
+    return user;
   });
 
   // Generate JWT
@@ -118,12 +123,26 @@ authRoutes.post("/login", async (c) => {
     throw new BadRequestError("Email and password are required");
   }
 
-  // Find user by email
-  const user = await db.query.users.findFirst({
-    where: eq(users.primaryEmail, email.toLowerCase()),
+  // Use system admin context for login (public endpoint)
+  const result = await withRLSContext({ isSystemAdmin: true }, async (tx) => {
+    // Find user by email
+    const user = await tx.query.users.findFirst({
+      where: eq(users.primaryEmail, email.toLowerCase()),
+    });
+
+    if (!user) {
+      return { error: "user_not_found" as const };
+    }
+
+    // Check if user has local credentials
+    const credentials = await tx.query.userCredentials.findFirst({
+      where: eq(userCredentials.userId, user.id),
+    });
+
+    return { user, credentials };
   });
 
-  if (!user) {
+  if (result.error === "user_not_found") {
     // Audit log - failed login (user not found)
     await auditService.logFailure("auth.login_failed", "user", {
       ipAddress,
@@ -133,18 +152,15 @@ authRoutes.post("/login", async (c) => {
     throw new UnauthorizedError("Invalid email or password");
   }
 
-  // Check if user has local credentials
-  const credentials = await db.query.userCredentials.findFirst({
-    where: eq(userCredentials.userId, user.id),
-  });
+  const { user, credentials } = result;
 
   if (!credentials) {
     // Audit log - failed login (OIDC user)
     await auditService.logFailure("auth.login_failed", "user", {
-      actorId: user.id,
+      actorId: user!.id,
       ipAddress,
     }, "OIDC account attempted local login", {
-      resourceId: user.id,
+      resourceId: user!.id,
     });
     throw new UnauthorizedError("This account uses external login (OIDC). Please use the external login option.");
   }
@@ -154,42 +170,42 @@ authRoutes.post("/login", async (c) => {
   if (!isValid) {
     // Audit log - failed login (wrong password)
     await auditService.logFailure("auth.login_failed", "user", {
-      actorId: user.id,
+      actorId: user!.id,
       ipAddress,
     }, "Invalid password", {
-      resourceId: user.id,
+      resourceId: user!.id,
     });
     throw new UnauthorizedError("Invalid email or password");
   }
 
   // Check if user is disabled
-  if (user.disabledAt) {
+  if (user!.disabledAt) {
     // Audit log - failed login (disabled)
     await auditService.logFailure("auth.login_failed", "user", {
-      actorId: user.id,
+      actorId: user!.id,
       ipAddress,
     }, "Account disabled", {
-      resourceId: user.id,
+      resourceId: user!.id,
     });
     throw new UnauthorizedError("This account has been disabled");
   }
 
   // Generate JWT
-  const token = await generateLocalJWT(user.id, user.primaryEmail!);
+  const token = await generateLocalJWT(user!.id, user!.primaryEmail!);
 
   // Audit log - successful login
   await auditService.logSuccess("auth.login", "user", {
-    actorId: user.id,
+    actorId: user!.id,
     ipAddress,
   }, {
-    resourceId: user.id,
-    resourceName: user.primaryEmail!,
+    resourceId: user!.id,
+    resourceName: user!.primaryEmail!,
   });
 
   return c.json({
     user: {
-      id: user.id,
-      email: user.primaryEmail,
+      id: user!.id,
+      email: user!.primaryEmail,
     },
     token,
     token_type: "Bearer",
@@ -206,8 +222,10 @@ authRoutes.post("/change-password", auth(), async (c) => {
   const { currentPassword, newPassword } = body;
 
   // Get user's credentials
-  const credentials = await db.query.userCredentials.findFirst({
-    where: eq(userCredentials.userId, authContext.user.id),
+  const credentials = await withRequestRLS(c, async (tx) => {
+    return tx.query.userCredentials.findFirst({
+      where: eq(userCredentials.userId, authContext.user.id),
+    });
   });
 
   if (!credentials) {
@@ -228,13 +246,15 @@ authRoutes.post("/change-password", auth(), async (c) => {
 
   // Update password
   const newHash = await hashPassword(newPassword);
-  await db
-    .update(userCredentials)
-    .set({
-      passwordHash: newHash,
-      updatedAt: new Date(),
-    })
-    .where(eq(userCredentials.userId, authContext.user.id));
+  await withRequestRLS(c, async (tx) => {
+    await tx
+      .update(userCredentials)
+      .set({
+        passwordHash: newHash,
+        updatedAt: new Date(),
+      })
+      .where(eq(userCredentials.userId, authContext.user.id));
+  });
 
   // Audit log - password changed
   await auditService.logSuccess("auth.password_changed", "user", {
@@ -346,22 +366,24 @@ authRoutes.get("/me", auth(), async (c) => {
 authRoutes.get("/tenants", auth(), async (c) => {
   const authContext = c.get("auth");
 
-  const memberships = await db
-    .select({
-      tenantId: tenantMemberships.tenantId,
-      role: tenantMemberships.role,
-      tenantName: tenants.name,
-      tenantSlug: tenants.slug,
-    })
-    .from(tenantMemberships)
-    .innerJoin(tenants, eq(tenants.id, tenantMemberships.tenantId))
-    .where(
-      and(
-        eq(tenantMemberships.userId, authContext.user.id),
-        isNull(tenantMemberships.deletedAt),
-        isNull(tenants.deletedAt)
-      )
-    );
+  const memberships = await withRequestRLS(c, async (tx) => {
+    return tx
+      .select({
+        tenantId: tenantMemberships.tenantId,
+        role: tenantMemberships.role,
+        tenantName: tenants.name,
+        tenantSlug: tenants.slug,
+      })
+      .from(tenantMemberships)
+      .innerJoin(tenants, eq(tenants.id, tenantMemberships.tenantId))
+      .where(
+        and(
+          eq(tenantMemberships.userId, authContext.user.id),
+          isNull(tenantMemberships.deletedAt),
+          isNull(tenants.deletedAt)
+        )
+      );
+  });
 
   return c.json({
     tenants: memberships.map((m) => ({
