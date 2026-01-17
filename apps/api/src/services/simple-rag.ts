@@ -143,6 +143,11 @@ export class SimpleRAGService {
         model,
         system: systemPrompt,
         messages,
+        providerOptions: {
+          openai: {
+            reasoningEffort: "low",
+          },
+        },
       });
 
       let fullResponse = "";
@@ -319,10 +324,7 @@ export class SimpleRAGService {
     const basePrompt = this.config?.systemPrompt || "You are a helpful assistant.";
 
     if (chunks.length === 0) {
-      return `${basePrompt}
-
-The user is asking a question, but no relevant information was found in the knowledge base. 
-Please let them know you don't have information about their question based on the available sources.`;
+      return basePrompt;
     }
 
     // Build context section
@@ -333,16 +335,8 @@ Please let them know you don't have information about their question based on th
 
     return `${basePrompt}
 
----
-
-Answer the user's question using the context below. Cite sources using [1], [2], etc. when you use information from them.
-
 CONTEXT:
-${contextParts.join("\n\n")}
-
----
-
-If the context doesn't contain enough information to fully answer the question, say so honestly.`;
+${contextParts.join("\n\n")}`;
   }
 
   /**
