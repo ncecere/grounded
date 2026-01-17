@@ -82,3 +82,42 @@
 - `apps/api/src/services/widget-chat-helpers.test.ts` (NEW)
 - `apps/api/src/routes/widget.ts` (MODIFIED)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Create reusable agent ownership loader
+
+### Completed Task
+**Task:** Create reusable agent ownership loader for agents and tools routes
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Created new shared helper module:**
+   - `apps/api/src/services/agent-helpers.ts`
+
+2. **Extracted shared helper functions:**
+   - `loadAgentForTenant()` - Load an agent and verify it belongs to the specified tenant; throws NotFoundError if not found
+   - `tryLoadAgentForTenant()` - Same as above but returns null instead of throwing
+
+3. **Exported types:**
+   - `Agent` - Type alias for agent table row
+   - `AgentOwnershipResult` - Return type for loadAgentForTenant
+
+4. **Updated routes to use shared helpers:**
+   - `apps/api/src/routes/agents.ts` - Refactored 11 route handlers to use `loadAgentForTenant()`
+   - `apps/api/src/routes/tools.ts` - Refactored 5 route handlers to use `loadAgentForTenant()`
+
+5. **Added tests:**
+   - `apps/api/src/services/agent-helpers.test.ts` - 10 tests covering module exports and function contracts
+
+### Code Reduction
+- Eliminated ~120 lines of duplicate agent ownership verification code
+- Standardized error handling for agent not found scenarios
+- Centralized the ownership check pattern into a single, well-documented function
+- Routes now use a single function call instead of repeating the same 10-line pattern
+
+### Files Changed
+- `apps/api/src/services/agent-helpers.ts` (NEW)
+- `apps/api/src/services/agent-helpers.test.ts` (NEW)
+- `apps/api/src/routes/agents.ts` (MODIFIED)
+- `apps/api/src/routes/tools.ts` (MODIFIED)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)

@@ -20,6 +20,7 @@ import { log } from "@grounded/logger";
 import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
 import { NotFoundError, QuotaExceededError, ForbiddenError } from "../middleware/error-handler";
 import { auditService, extractIpAddress } from "../services/audit";
+import { loadAgentForTenant } from "../services/agent-helpers";
 
 export const agentRoutes = new Hono();
 
@@ -240,17 +241,7 @@ agentRoutes.get("/:agentId", auth(), requireTenant(), async (c) => {
   const authContext = c.get("auth");
 
   const result = await withRequestRLS(c, async (tx) => {
-    const agent = await tx.query.agents.findFirst({
-      where: and(
-        eq(agents.id, agentId),
-        eq(agents.tenantId, authContext.tenantId!),
-        isNull(agents.deletedAt)
-      ),
-    });
-
-    if (!agent) {
-      throw new NotFoundError("Agent");
-    }
+    const { agent } = await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
     // Get attached KBs
     const attachedKbs = await tx
@@ -391,18 +382,7 @@ agentRoutes.get("/:agentId/kbs", auth(), requireTenant(), async (c) => {
   const authContext = c.get("auth");
 
   const kbs = await withRequestRLS(c, async (tx) => {
-    // Verify agent belongs to tenant
-    const agent = await tx.query.agents.findFirst({
-      where: and(
-        eq(agents.id, agentId),
-        eq(agents.tenantId, authContext.tenantId!),
-        isNull(agents.deletedAt)
-      ),
-    });
-
-    if (!agent) {
-      throw new NotFoundError("Agent");
-    }
+    await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
     return tx
       .select({
@@ -435,18 +415,7 @@ agentRoutes.put(
     const body = c.req.valid("json");
 
     await withRequestRLS(c, async (tx) => {
-      // Verify agent belongs to tenant
-      const agent = await tx.query.agents.findFirst({
-        where: and(
-          eq(agents.id, agentId),
-          eq(agents.tenantId, authContext.tenantId!),
-          isNull(agents.deletedAt)
-        ),
-      });
-
-      if (!agent) {
-        throw new NotFoundError("Agent");
-      }
+      await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
       // Soft delete existing attachments
       await tx
@@ -477,18 +446,7 @@ agentRoutes.get(
     const authContext = c.get("auth");
 
     const config = await withRequestRLS(c, async (tx) => {
-      // Verify agent belongs to tenant
-      const agent = await tx.query.agents.findFirst({
-        where: and(
-          eq(agents.id, agentId),
-          eq(agents.tenantId, authContext.tenantId!),
-          isNull(agents.deletedAt)
-        ),
-      });
-
-      if (!agent) {
-        throw new NotFoundError("Agent");
-      }
+      await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
       return tx.query.retrievalConfigs.findFirst({
         where: eq(retrievalConfigs.agentId, agentId),
@@ -515,18 +473,7 @@ agentRoutes.put(
     const body = c.req.valid("json");
 
     const config = await withRequestRLS(c, async (tx) => {
-      // Verify agent belongs to tenant
-      const agent = await tx.query.agents.findFirst({
-        where: and(
-          eq(agents.id, agentId),
-          eq(agents.tenantId, authContext.tenantId!),
-          isNull(agents.deletedAt)
-        ),
-      });
-
-      if (!agent) {
-        throw new NotFoundError("Agent");
-      }
+      await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
       const [updatedConfig] = await tx
         .update(retrievalConfigs)
@@ -550,18 +497,7 @@ agentRoutes.get("/:agentId/widget", auth(), requireTenant(), async (c) => {
   const authContext = c.get("auth");
 
   const result = await withRequestRLS(c, async (tx) => {
-    // Verify agent belongs to tenant
-    const agent = await tx.query.agents.findFirst({
-      where: and(
-        eq(agents.id, agentId),
-        eq(agents.tenantId, authContext.tenantId!),
-        isNull(agents.deletedAt)
-      ),
-    });
-
-    if (!agent) {
-      throw new NotFoundError("Agent");
-    }
+    await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
     const config = await tx.query.agentWidgetConfigs.findFirst({
       where: eq(agentWidgetConfigs.agentId, agentId),
@@ -618,18 +554,7 @@ agentRoutes.put(
     const body = c.req.valid("json");
 
     const config = await withRequestRLS(c, async (tx) => {
-      // Verify agent belongs to tenant
-      const agent = await tx.query.agents.findFirst({
-        where: and(
-          eq(agents.id, agentId),
-          eq(agents.tenantId, authContext.tenantId!),
-          isNull(agents.deletedAt)
-        ),
-      });
-
-      if (!agent) {
-        throw new NotFoundError("Agent");
-      }
+      await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
       const existing = await tx.query.agentWidgetConfigs.findFirst({
         where: eq(agentWidgetConfigs.agentId, agentId),
@@ -670,18 +595,7 @@ agentRoutes.get("/:agentId/widget-token", auth(), requireTenant(), async (c) => 
   const authContext = c.get("auth");
 
   const token = await withRequestRLS(c, async (tx) => {
-    // Verify agent belongs to tenant
-    const agent = await tx.query.agents.findFirst({
-      where: and(
-        eq(agents.id, agentId),
-        eq(agents.tenantId, authContext.tenantId!),
-        isNull(agents.deletedAt)
-      ),
-    });
-
-    if (!agent) {
-      throw new NotFoundError("Agent");
-    }
+    await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
     // Check for existing token
     const existingToken = await tx.query.widgetTokens.findFirst({
@@ -728,18 +642,7 @@ agentRoutes.post(
     const body = c.req.valid("json");
 
     const widgetToken = await withRequestRLS(c, async (tx) => {
-      // Verify agent belongs to tenant
-      const agent = await tx.query.agents.findFirst({
-        where: and(
-          eq(agents.id, agentId),
-          eq(agents.tenantId, authContext.tenantId!),
-          isNull(agents.deletedAt)
-        ),
-      });
-
-      if (!agent) {
-        throw new NotFoundError("Agent");
-      }
+      await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
       const token = `wt_${generateId().replace(/-/g, "")}`;
 
@@ -809,18 +712,7 @@ agentRoutes.get("/:agentId/chat-endpoints", auth(), requireTenant(), async (c) =
   const authContext = c.get("auth");
 
   const endpoints = await withRequestRLS(c, async (tx) => {
-    // Verify agent belongs to tenant
-    const agent = await tx.query.agents.findFirst({
-      where: and(
-        eq(agents.id, agentId),
-        eq(agents.tenantId, authContext.tenantId!),
-        isNull(agents.deletedAt)
-      ),
-    });
-
-    if (!agent) {
-      throw new NotFoundError("Agent");
-    }
+    await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
     return tx.query.chatEndpointTokens.findMany({
       where: and(
@@ -857,18 +749,7 @@ agentRoutes.post(
     const body = c.req.valid("json");
 
     const chatEndpoint = await withRequestRLS(c, async (tx) => {
-      // Verify agent belongs to tenant
-      const agent = await tx.query.agents.findFirst({
-        where: and(
-          eq(agents.id, agentId),
-          eq(agents.tenantId, authContext.tenantId!),
-          isNull(agents.deletedAt)
-        ),
-      });
-
-      if (!agent) {
-        throw new NotFoundError("Agent");
-      }
+      await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
       // Generate token with prefix based on type
       const prefix = body.endpointType === "hosted" ? "ch_" : "ce_";

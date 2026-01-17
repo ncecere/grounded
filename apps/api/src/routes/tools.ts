@@ -18,6 +18,7 @@ import { eq, and, isNull, inArray } from "drizzle-orm";
 import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
 import { NotFoundError } from "../middleware/error-handler";
 import { auditService, extractIpAddress } from "../services/audit";
+import { loadAgentForTenant, tryLoadAgentForTenant } from "../services/agent-helpers";
 
 export const toolRoutes = new Hono();
 
@@ -317,19 +318,8 @@ toolRoutes.get("/agents/:agentId/capabilities", auth(), requireTenant(), async (
   const agentId = c.req.param("agentId");
   const authContext = c.get("auth");
 
-  const { agent, capabilities } = await withRequestRLS(c, async (tx) => {
-    // Verify agent belongs to tenant
-    const agent = await tx.query.agents.findFirst({
-      where: and(
-        eq(agents.id, agentId),
-        eq(agents.tenantId, authContext.tenantId!),
-        isNull(agents.deletedAt)
-      ),
-    });
-
-    if (!agent) {
-      return { agent: null, capabilities: null };
-    }
+  const capabilities = await withRequestRLS(c, async (tx) => {
+    await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
     // Get or create capabilities
     let capabilities = await tx.query.agentCapabilities.findFirst({
@@ -344,12 +334,8 @@ toolRoutes.get("/agents/:agentId/capabilities", auth(), requireTenant(), async (
         .returning();
     }
 
-    return { agent, capabilities };
+    return capabilities;
   });
-
-  if (!agent) {
-    throw new NotFoundError("Agent");
-  }
 
   return c.json({ capabilities });
 });
@@ -367,18 +353,7 @@ toolRoutes.put(
     const body = c.req.valid("json");
 
     const { agent, capabilities } = await withRequestRLS(c, async (tx) => {
-      // Verify agent belongs to tenant
-      const agent = await tx.query.agents.findFirst({
-        where: and(
-          eq(agents.id, agentId),
-          eq(agents.tenantId, authContext.tenantId!),
-          isNull(agents.deletedAt)
-        ),
-      });
-
-      if (!agent) {
-        return { agent: null, capabilities: null };
-      }
+      const { agent } = await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
       // Upsert capabilities
       const existing = await tx.query.agentCapabilities.findFirst({
@@ -401,10 +376,6 @@ toolRoutes.put(
 
       return { agent, capabilities };
     });
-
-    if (!agent) {
-      throw new NotFoundError("Agent");
-    }
 
     await auditService.logSuccess("agent.updated", "agent", {
       actorId: authContext.user.id,
@@ -429,22 +400,11 @@ toolRoutes.get("/agents/:agentId/tools", auth(), requireTenant(), async (c) => {
   const agentId = c.req.param("agentId");
   const authContext = c.get("auth");
 
-  const { agent, attachedTools } = await withRequestRLS(c, async (tx) => {
-    // Verify agent belongs to tenant
-    const agent = await tx.query.agents.findFirst({
-      where: and(
-        eq(agents.id, agentId),
-        eq(agents.tenantId, authContext.tenantId!),
-        isNull(agents.deletedAt)
-      ),
-    });
-
-    if (!agent) {
-      return { agent: null, attachedTools: [] };
-    }
+  const attachedTools = await withRequestRLS(c, async (tx) => {
+    await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
     // Get attached tools with tool details
-    const attachedTools = await tx
+    return tx
       .select({
         id: agentTools.id,
         toolId: agentTools.toolId,
@@ -468,13 +428,7 @@ toolRoutes.get("/agents/:agentId/tools", auth(), requireTenant(), async (c) => {
           isNull(toolDefinitions.deletedAt)
         )
       );
-
-    return { agent, attachedTools };
   });
-
-  if (!agent) {
-    throw new NotFoundError("Agent");
-  }
 
   return c.json({ tools: attachedTools });
 });
@@ -491,19 +445,8 @@ toolRoutes.post(
     const authContext = c.get("auth");
     const body = c.req.valid("json");
 
-    const { agent, tool, agentTool, isNew } = await withRequestRLS(c, async (tx) => {
-      // Verify agent belongs to tenant
-      const agent = await tx.query.agents.findFirst({
-        where: and(
-          eq(agents.id, agentId),
-          eq(agents.tenantId, authContext.tenantId!),
-          isNull(agents.deletedAt)
-        ),
-      });
-
-      if (!agent) {
-        return { agent: null, tool: null, agentTool: null, isNew: false };
-      }
+    const { agentTool, isNew } = await withRequestRLS(c, async (tx) => {
+      await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
       // Verify tool belongs to tenant
       const tool = await tx.query.toolDefinitions.findFirst({
@@ -515,7 +458,7 @@ toolRoutes.post(
       });
 
       if (!tool) {
-        return { agent, tool: null, agentTool: null, isNew: false };
+        throw new NotFoundError("Tool");
       }
 
       // Check if already attached
@@ -538,7 +481,7 @@ toolRoutes.post(
           .where(eq(agentTools.id, existing.id))
           .returning();
 
-        return { agent, tool, agentTool: updated, isNew: false };
+        return { agentTool: updated, isNew: false };
       }
 
       // Create new attachment
@@ -552,16 +495,8 @@ toolRoutes.post(
         })
         .returning();
 
-      return { agent, tool, agentTool: newAgentTool, isNew: true };
+      return { agentTool: newAgentTool, isNew: true };
     });
-
-    if (!agent) {
-      throw new NotFoundError("Agent");
-    }
-
-    if (!tool) {
-      throw new NotFoundError("Tool");
-    }
 
     return c.json({ agentTool }, isNew ? 201 : 200);
   }
@@ -578,19 +513,8 @@ toolRoutes.delete(
     const toolId = c.req.param("toolId");
     const authContext = c.get("auth");
 
-    const { agent, deleted } = await withRequestRLS(c, async (tx) => {
-      // Verify agent belongs to tenant
-      const agent = await tx.query.agents.findFirst({
-        where: and(
-          eq(agents.id, agentId),
-          eq(agents.tenantId, authContext.tenantId!),
-          isNull(agents.deletedAt)
-        ),
-      });
-
-      if (!agent) {
-        return { agent: null, deleted: null };
-      }
+    await withRequestRLS(c, async (tx) => {
+      await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
       const [deleted] = await tx
         .update(agentTools)
@@ -604,16 +528,10 @@ toolRoutes.delete(
         )
         .returning();
 
-      return { agent, deleted };
+      if (!deleted) {
+        throw new NotFoundError("Agent tool attachment");
+      }
     });
-
-    if (!agent) {
-      throw new NotFoundError("Agent");
-    }
-
-    if (!deleted) {
-      throw new NotFoundError("Agent tool attachment");
-    }
 
     return c.json({ message: "Tool detached from agent" });
   }
