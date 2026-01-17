@@ -1,13 +1,21 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { db } from "@grounded/db";
-import { knowledgeBases, tenantKbSubscriptions, tenants, sources, kbChunks, users, sourceRuns, sourceRunPages, modelConfigurations } from "@grounded/db/schema";
+import { knowledgeBases, tenantKbSubscriptions, tenants, sources, kbChunks, users, sourceRuns, modelConfigurations } from "@grounded/db/schema";
 import { eq, and, isNull, sql, inArray, desc } from "drizzle-orm";
-import { sourceConfigSchema } from "@grounded/shared";
-import { addSourceRunStartJob } from "@grounded/queue";
 import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { NotFoundError, BadRequestError } from "../../middleware/error-handler";
+import {
+  createSourceBaseSchema,
+  updateSourceSchema,
+  triggerRunSchema,
+  buildSourceUpdateData,
+  calculateSourceStats,
+  cascadeSoftDeleteSourceChunks,
+  findRunningRun,
+  createSourceRun,
+  queueSourceRunJob,
+} from "../../services/source-helpers";
 
 export const adminSharedKbsRoutes = new Hono();
 
@@ -31,23 +39,6 @@ const updateGlobalKbSchema = z.object({
 
 const shareWithTenantSchema = z.object({
   tenantId: z.string().uuid(),
-});
-
-const createSourceSchema = z.object({
-  name: z.string().min(1).max(100),
-  type: z.enum(["web"]),
-  config: sourceConfigSchema,
-  enrichmentEnabled: z.boolean().default(false),
-});
-
-const updateSourceSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  config: sourceConfigSchema.partial().optional(),
-  enrichmentEnabled: z.boolean().optional(),
-});
-
-const triggerRunSchema = z.object({
-  forceReindex: z.boolean().optional().default(false),
 });
 
 // ============================================================================
@@ -644,7 +635,7 @@ adminSharedKbsRoutes.get("/:kbId/sources", async (c) => {
 
 adminSharedKbsRoutes.post(
   "/:kbId/sources",
-  zValidator("json", createSourceSchema),
+  zValidator("json", createSourceBaseSchema),
   async (c) => {
     const kbId = c.req.param("kbId");
     const authContext = c.get("auth");
@@ -726,13 +717,7 @@ adminSharedKbsRoutes.patch(
       throw new NotFoundError("Source");
     }
 
-    const updateData: Record<string, unknown> = {};
-    if (body.name) updateData.name = body.name;
-    if (body.enrichmentEnabled !== undefined)
-      updateData.enrichmentEnabled = body.enrichmentEnabled;
-    if (body.config) {
-      updateData.config = { ...existingSource.config, ...body.config };
-    }
+    const updateData = buildSourceUpdateData(existingSource.config, body);
 
     const [source] = await withRequestRLS(c, async (tx) => {
       return tx
@@ -771,15 +756,7 @@ adminSharedKbsRoutes.delete("/:kbId/sources/:sourceId", async (c) => {
 
     if (source) {
       // Also soft-delete all chunks from this source
-      await tx
-        .update(kbChunks)
-        .set({ deletedAt: new Date() })
-        .where(
-          and(
-            eq(kbChunks.sourceId, sourceId),
-            isNull(kbChunks.deletedAt)
-          )
-        );
+      await cascadeSoftDeleteSourceChunks(tx, sourceId);
     }
 
     return source;
@@ -807,7 +784,7 @@ adminSharedKbsRoutes.post(
 
     await verifyGlobalKb(c, kbId);
 
-    const { source, runningRun } = await withRequestRLS(c, async (tx) => {
+    const result = await withRequestRLS(c, async (tx) => {
       const source = await tx.query.sources.findFirst({
         where: and(
           eq(sources.id, sourceId),
@@ -816,49 +793,45 @@ adminSharedKbsRoutes.post(
         ),
       });
 
-      // Check for running runs
-      const runningRun = source ? await tx.query.sourceRuns.findFirst({
-        where: and(
-          eq(sourceRuns.sourceId, sourceId),
-          eq(sourceRuns.status, "running")
-        ),
-      }) : null;
+      if (!source) {
+        return { source: null as null };
+      }
 
-      return { source, runningRun };
+      // Check for running runs
+      const runningRun = await findRunningRun(tx, sourceId);
+
+      if (runningRun) {
+        return { source, error: "A run is already in progress" as const };
+      }
+
+      // Create new run (tenantId null for global KB)
+      const run = await createSourceRun(tx, {
+        tenantId: null,
+        sourceId,
+        forceReindex,
+      });
+
+      return { source, run };
     });
 
-    if (!source) {
+    if (!result.source) {
       throw new NotFoundError("Source");
     }
 
-    if (runningRun) {
-      return c.json({ error: "A run is already in progress" }, 409);
+    if ("error" in result) {
+      return c.json({ error: result.error }, 409);
     }
 
-    // Create new run (tenantId null for global KB)
-    const [run] = await withRequestRLS(c, async (tx) => {
-      return tx
-        .insert(sourceRuns)
-        .values({
-          tenantId: null,
-          sourceId,
-          trigger: "manual",
-          status: "pending",
-          forceReindex,
-        })
-        .returning();
-    });
-
     // Queue the run (pass null for tenantId)
-    await addSourceRunStartJob({
-      tenantId: null as any, // Global KB run
+    await queueSourceRunJob({
+      tenantId: null,
       sourceId,
-      runId: run.id,
+      runId: result.run!.id,
       requestId: c.get("requestId"),
       traceId: c.get("traceId"),
     });
 
-    return c.json({ run }, 201);
+    return c.json({ run: result.run }, 201);
   }
 );
 
@@ -910,7 +883,7 @@ adminSharedKbsRoutes.get("/:kbId/sources/:sourceId/stats", async (c) => {
 
   await verifyGlobalKb(c, kbId);
 
-  const { source, pageCount, chunkCount } = await withRequestRLS(c, async (tx) => {
+  const result = await withRequestRLS(c, async (tx) => {
     const source = await tx.query.sources.findFirst({
       where: and(
         eq(sources.id, sourceId),
@@ -920,41 +893,16 @@ adminSharedKbsRoutes.get("/:kbId/sources/:sourceId/stats", async (c) => {
     });
 
     if (!source) {
-      return { source: null, pageCount: 0, chunkCount: 0 };
+      return { source: null as null };
     }
 
-    // Get total unique page count across all runs for this source
-    const pageResult = await tx.execute(sql`
-      SELECT COUNT(DISTINCT srp.normalized_url)::int as count
-      FROM source_run_pages srp
-      JOIN source_runs sr ON sr.id = srp.source_run_id
-      WHERE sr.source_id = ${sourceId}
-        AND srp.status = 'succeeded'
-    `);
-    const pageRows = Array.isArray(pageResult) ? pageResult : (pageResult as any).rows || [];
-    const pageCount = (pageRows[0] as any)?.count || 0;
-
-    // Get chunk count for this source
-    const chunkResult = await tx
-      .select({ count: sql<number>`count(*)::int` })
-      .from(kbChunks)
-      .where(and(
-        eq(kbChunks.sourceId, sourceId),
-        isNull(kbChunks.deletedAt)
-      ));
-    const chunkCount = chunkResult[0]?.count || 0;
-
-    return { source, pageCount, chunkCount };
+    const stats = await calculateSourceStats(tx, sourceId);
+    return { source, stats };
   });
 
-  if (!source) {
+  if (!result.source) {
     throw new NotFoundError("Source");
   }
 
-  return c.json({
-    stats: {
-      pageCount,
-      chunkCount,
-    }
-  });
+  return c.json({ stats: result.stats });
 });

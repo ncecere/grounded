@@ -1,0 +1,46 @@
+# Grounded Refactoring Progress
+
+## 2026-01-17: Extract shared source CRUD + run helpers
+
+### Completed Task
+**Task:** Extract shared source CRUD + run helpers for sources and shared-kbs routes
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Created new shared helper module:**
+   - `apps/api/src/services/source-helpers.ts`
+
+2. **Extracted shared validation schemas:**
+   - `createSourceBaseSchema` - Base schema for source creation
+   - `createSourceWithKbIdSchema` - Schema with kbId for tenant sources
+   - `updateSourceSchema` - Schema for partial source updates
+   - `triggerRunSchema` - Schema for run trigger options
+
+3. **Extracted shared helper functions:**
+   - `buildSourceUpdateData()` - Merges partial config updates with existing config
+   - `calculateSourceStats()` - Computes page count and chunk count for a source
+   - `cascadeSoftDeleteSourceChunks()` - Soft-deletes all chunks for a source
+   - `findRunningRun()` - Checks if a source has an active run
+   - `createSourceRun()` - Creates a new source run record
+   - `queueSourceRunJob()` - Queues a source run job for processing
+
+4. **Updated routes to use shared helpers:**
+   - `apps/api/src/routes/sources.ts` - Tenant source routes
+   - `apps/api/src/routes/admin/shared-kbs.ts` - Global KB source routes
+
+5. **Added tests:**
+   - `apps/api/src/services/source-helpers.test.ts` - 23 tests covering all schemas and helpers
+
+### Code Reduction
+- Eliminated ~100 lines of duplicate code between sources.ts and shared-kbs.ts
+- Centralized validation schemas prevent drift between routes
+- Stats calculation, cascade delete, and run management now use single implementations
+
+### Files Changed
+- `apps/api/src/services/source-helpers.ts` (NEW)
+- `apps/api/src/services/source-helpers.test.ts` (NEW)
+- `apps/api/src/routes/sources.ts` (MODIFIED)
+- `apps/api/src/routes/admin/shared-kbs.ts` (MODIFIED)
+- `apps/api/package.json` (MODIFIED - added test script)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)

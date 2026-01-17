@@ -1,34 +1,24 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
-import { db } from "@grounded/db";
-import { sources, sourceRuns, knowledgeBases, sourceRunPages, kbChunks } from "@grounded/db/schema";
-import { eq, and, isNull, desc, sql } from "drizzle-orm";
-import { sourceConfigSchema } from "@grounded/shared";
-import { addSourceRunStartJob, redis } from "@grounded/queue";
+import { sources, sourceRuns, knowledgeBases } from "@grounded/db/schema";
+import { eq, and, isNull, desc } from "drizzle-orm";
+import { redis } from "@grounded/queue";
 import { createCrawlState } from "@grounded/crawl-state";
 import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
 import { NotFoundError, ForbiddenError } from "../middleware/error-handler";
+import {
+  createSourceWithKbIdSchema,
+  updateSourceSchema,
+  triggerRunSchema,
+  buildSourceUpdateData,
+  calculateSourceStats,
+  cascadeSoftDeleteSourceChunks,
+  findRunningRun,
+  createSourceRun,
+  queueSourceRunJob,
+} from "../services/source-helpers";
 
 export const sourceRoutes = new Hono();
-
-// ============================================================================
-// Validation Schemas
-// ============================================================================
-
-const createSourceSchema = z.object({
-  kbId: z.string().uuid(),
-  name: z.string().min(1).max(100),
-  type: z.enum(["web"]),
-  config: sourceConfigSchema,
-  enrichmentEnabled: z.boolean().default(false),
-});
-
-const updateSourceSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  config: sourceConfigSchema.partial().optional(),
-  enrichmentEnabled: z.boolean().optional(),
-});
 
 // ============================================================================
 // List Sources for KB
@@ -80,7 +70,7 @@ sourceRoutes.post(
   auth(),
   requireTenant(),
   requireRole("owner", "admin"),
-  zValidator("json", createSourceSchema),
+  zValidator("json", createSourceWithKbIdSchema),
   async (c) => {
     const authContext = c.get("auth");
     const body = c.req.valid("json");
@@ -172,13 +162,7 @@ sourceRoutes.patch(
         throw new NotFoundError("Source");
       }
 
-      const updateData: any = {};
-      if (body.name) updateData.name = body.name;
-      if (body.enrichmentEnabled !== undefined)
-        updateData.enrichmentEnabled = body.enrichmentEnabled;
-      if (body.config) {
-        updateData.config = { ...existingSource.config, ...body.config };
-      }
+      const updateData = buildSourceUpdateData(existingSource.config, body);
 
       const [source] = await tx
         .update(sources)
@@ -224,15 +208,7 @@ sourceRoutes.delete(
       }
 
       // Also soft-delete all chunks from this source
-      await tx
-        .update(kbChunks)
-        .set({ deletedAt: new Date() })
-        .where(
-          and(
-            eq(kbChunks.sourceId, sourceId),
-            isNull(kbChunks.deletedAt)
-          )
-        );
+      await cascadeSoftDeleteSourceChunks(tx, sourceId);
 
       return source;
     });
@@ -244,10 +220,6 @@ sourceRoutes.delete(
 // ============================================================================
 // Trigger Source Run
 // ============================================================================
-
-const triggerRunSchema = z.object({
-  forceReindex: z.boolean().optional().default(false),
-});
 
 sourceRoutes.post(
   "/:sourceId/runs",
@@ -261,7 +233,7 @@ sourceRoutes.post(
     const body = c.req.valid("json") || { forceReindex: false };
     const forceReindex = body.forceReindex ?? false;
 
-    const run = await withRequestRLS(c, async (tx) => {
+    const result = await withRequestRLS(c, async (tx) => {
       const source = await tx.query.sources.findFirst({
         where: and(
           eq(sources.id, sourceId),
@@ -275,46 +247,36 @@ sourceRoutes.post(
       }
 
       // Check for running runs
-      const runningRun = await tx.query.sourceRuns.findFirst({
-        where: and(
-          eq(sourceRuns.sourceId, sourceId),
-          eq(sourceRuns.status, "running")
-        ),
-      });
+      const runningRun = await findRunningRun(tx, sourceId);
 
       if (runningRun) {
-        return { error: "A run is already in progress" };
+        return { error: "A run is already in progress" as const };
       }
 
       // Create new run
-      const [run] = await tx
-        .insert(sourceRuns)
-        .values({
-          tenantId: authContext.tenantId!,
-          sourceId,
-          trigger: "manual",
-          status: "pending",
-          forceReindex,
-        })
-        .returning();
+      const run = await createSourceRun(tx, {
+        tenantId: authContext.tenantId!,
+        sourceId,
+        forceReindex,
+      });
 
       return { run };
     });
 
-    if ("error" in run) {
-      return c.json({ error: run.error }, 409);
+    if ("error" in result) {
+      return c.json({ error: result.error }, 409);
     }
 
     // Queue the run (outside transaction since it's Redis)
-    await addSourceRunStartJob({
+    await queueSourceRunJob({
       tenantId: authContext.tenantId!,
       sourceId,
-      runId: run.run.id,
+      runId: result.run.id,
       requestId: c.get("requestId"),
       traceId: c.get("traceId"),
     });
 
-    return c.json({ run: run.run }, 201);
+    return c.json({ run: result.run }, 201);
   }
 );
 
@@ -505,37 +467,9 @@ sourceRoutes.get(
         throw new NotFoundError("Source");
       }
 
-      // Get total unique page count across all runs for this source
-      // Count distinct normalized URLs that succeeded
-      const pageResult = await tx.execute(sql`
-        SELECT COUNT(DISTINCT srp.normalized_url)::int as count
-        FROM source_run_pages srp
-        JOIN source_runs sr ON sr.id = srp.source_run_id
-        WHERE sr.source_id = ${sourceId}
-          AND srp.status = 'succeeded'
-      `);
-      // db.execute returns array directly or { rows: [...] } depending on driver
-      const pageRows = Array.isArray(pageResult) ? pageResult : (pageResult as any).rows || [];
-      const pageCount = (pageRows[0] as any)?.count || 0;
-
-      // Get chunk count for this source
-      const chunkResult = await tx
-        .select({ count: sql<number>`count(*)::int` })
-        .from(kbChunks)
-        .where(and(
-          eq(kbChunks.sourceId, sourceId),
-          isNull(kbChunks.deletedAt)
-        ));
-      const chunkCount = chunkResult[0]?.count || 0;
-
-      return { pageCount, chunkCount };
+      return calculateSourceStats(tx, sourceId);
     });
 
-    return c.json({
-      stats: {
-        pageCount: stats.pageCount,
-        chunkCount: stats.chunkCount,
-      }
-    });
+    return c.json({ stats });
   }
 );
