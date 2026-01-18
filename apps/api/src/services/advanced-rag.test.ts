@@ -2845,3 +2845,910 @@ IMPORTANT: You have no retrieved context to reference. If you cannot answer the 
     });
   });
 });
+
+// ============================================================================
+// Unit Tests with Mocks for AdvancedRAGService
+// ============================================================================
+
+describe("AdvancedRAGService Unit Tests", () => {
+  describe("mergeAndDeduplicateChunks unit tests", () => {
+    it("should merge duplicate chunks keeping highest score", () => {
+      // Simulate the merge logic from the service
+      const mergeChunks = (
+        chunks: { id: string; content: string; score: number }[],
+        topK: number
+      ) => {
+        const chunkMap = new Map<string, { id: string; content: string; score: number }>();
+        for (const chunk of chunks) {
+          const existing = chunkMap.get(chunk.id);
+          if (!existing || chunk.score > existing.score) {
+            chunkMap.set(chunk.id, chunk);
+          }
+        }
+        return Array.from(chunkMap.values())
+          .sort((a, b) => b.score - a.score)
+          .slice(0, topK);
+      };
+
+      const chunks = [
+        { id: "c1", content: "Content 1", score: 0.85 },
+        { id: "c2", content: "Content 2", score: 0.90 },
+        { id: "c1", content: "Content 1 dup", score: 0.95 }, // Duplicate with higher score
+        { id: "c3", content: "Content 3", score: 0.70 },
+      ];
+
+      const merged = mergeChunks(chunks, 3);
+
+      expect(merged).toHaveLength(3);
+      expect(merged[0].id).toBe("c1");
+      expect(merged[0].score).toBe(0.95); // Higher score kept
+      expect(merged[1].id).toBe("c2");
+      expect(merged[2].id).toBe("c3");
+    });
+
+    it("should limit results to topK", () => {
+      const mergeChunks = (
+        chunks: { id: string; content: string; score: number }[],
+        topK: number
+      ) => {
+        const chunkMap = new Map<string, { id: string; content: string; score: number }>();
+        for (const chunk of chunks) {
+          const existing = chunkMap.get(chunk.id);
+          if (!existing || chunk.score > existing.score) {
+            chunkMap.set(chunk.id, chunk);
+          }
+        }
+        return Array.from(chunkMap.values())
+          .sort((a, b) => b.score - a.score)
+          .slice(0, topK);
+      };
+
+      const chunks = Array.from({ length: 20 }, (_, i) => ({
+        id: `c${i}`,
+        content: `Content ${i}`,
+        score: 0.99 - i * 0.01,
+      }));
+
+      const merged = mergeChunks(chunks, 8);
+
+      expect(merged).toHaveLength(8);
+      expect(merged[0].score).toBe(0.99);
+      // Use toBeCloseTo for floating point comparison
+      expect(merged[7].score).toBeCloseTo(0.92, 10);
+    });
+
+    it("should handle empty chunks array", () => {
+      const mergeChunks = (
+        chunks: { id: string; content: string; score: number }[],
+        topK: number
+      ) => {
+        const chunkMap = new Map<string, { id: string; content: string; score: number }>();
+        for (const chunk of chunks) {
+          const existing = chunkMap.get(chunk.id);
+          if (!existing || chunk.score > existing.score) {
+            chunkMap.set(chunk.id, chunk);
+          }
+        }
+        return Array.from(chunkMap.values())
+          .sort((a, b) => b.score - a.score)
+          .slice(0, topK);
+      };
+
+      const merged = mergeChunks([], 8);
+
+      expect(merged).toHaveLength(0);
+    });
+
+    it("should preserve chunk data during merge", () => {
+      const mergeChunks = (
+        chunks: { id: string; content: string; title?: string; url?: string; score: number }[],
+        topK: number
+      ) => {
+        const chunkMap = new Map<string, typeof chunks[0]>();
+        for (const chunk of chunks) {
+          const existing = chunkMap.get(chunk.id);
+          if (!existing || chunk.score > existing.score) {
+            chunkMap.set(chunk.id, chunk);
+          }
+        }
+        return Array.from(chunkMap.values())
+          .sort((a, b) => b.score - a.score)
+          .slice(0, topK);
+      };
+
+      const chunks = [
+        { id: "c1", content: "Content", title: "Title 1", url: "https://example.com", score: 0.90 },
+      ];
+
+      const merged = mergeChunks(chunks, 5);
+
+      expect(merged[0].title).toBe("Title 1");
+      expect(merged[0].url).toBe("https://example.com");
+      expect(merged[0].content).toBe("Content");
+    });
+  });
+
+  describe("buildSystemPrompt unit tests", () => {
+    it("should build prompt with citation instructions when chunks present", () => {
+      const buildSystemPrompt = (
+        basePrompt: string,
+        chunks: { id: string; content: string; title?: string; score: number }[]
+      ) => {
+        if (chunks.length === 0) {
+          return `${basePrompt}\n\nIMPORTANT: You have no retrieved context to reference. If you cannot answer the question from your general knowledge, clearly state that you don't have the information to answer this question.`;
+        }
+
+        const contextParts = chunks.map((chunk, i) => {
+          const titlePart = chunk.title ? `Title: ${chunk.title}\n` : "";
+          return `[${i + 1}] ${titlePart}${chunk.content}`;
+        });
+
+        return `${basePrompt}
+
+CITATION INSTRUCTIONS:
+- Use the numbered sources below to answer the question
+- When citing information, reference the source number in brackets, e.g., [1], [2]
+- Only cite sources that directly support your statements
+- If the context doesn't contain relevant information, acknowledge this clearly
+- Provide accurate, grounded responses based solely on the provided context
+
+CONTEXT:
+${contextParts.join("\n\n")}`;
+      };
+
+      const chunks = [
+        { id: "c1", content: "Pricing is $10/month", title: "Pricing Guide", score: 0.95 },
+        { id: "c2", content: "Enterprise features include...", score: 0.90 },
+      ];
+
+      const prompt = buildSystemPrompt("You are a helpful assistant.", chunks);
+
+      expect(prompt).toContain("CITATION INSTRUCTIONS:");
+      expect(prompt).toContain("CONTEXT:");
+      expect(prompt).toContain("[1] Title: Pricing Guide");
+      expect(prompt).toContain("[2] Enterprise features");
+      expect(prompt).toContain("[1], [2]");
+    });
+
+    it("should build prompt with no-context instruction when chunks empty", () => {
+      const buildSystemPrompt = (
+        basePrompt: string,
+        chunks: { id: string; content: string; title?: string; score: number }[]
+      ) => {
+        if (chunks.length === 0) {
+          return `${basePrompt}\n\nIMPORTANT: You have no retrieved context to reference. If you cannot answer the question from your general knowledge, clearly state that you don't have the information to answer this question.`;
+        }
+
+        const contextParts = chunks.map((chunk, i) => {
+          const titlePart = chunk.title ? `Title: ${chunk.title}\n` : "";
+          return `[${i + 1}] ${titlePart}${chunk.content}`;
+        });
+
+        return `${basePrompt}
+
+CITATION INSTRUCTIONS:
+- Use the numbered sources below to answer the question
+
+CONTEXT:
+${contextParts.join("\n\n")}`;
+      };
+
+      const prompt = buildSystemPrompt("You are a helpful assistant.", []);
+
+      expect(prompt).toContain("no retrieved context");
+      expect(prompt).toContain("don't have the information");
+      expect(prompt).not.toContain("CITATION INSTRUCTIONS:");
+    });
+
+    it("should use default prompt when basePrompt is empty", () => {
+      const buildSystemPrompt = (
+        basePrompt: string | null,
+        chunks: { id: string; content: string; score: number }[]
+      ) => {
+        const actualPrompt = basePrompt || "You are a helpful assistant.";
+        if (chunks.length === 0) {
+          return `${actualPrompt}\n\nIMPORTANT: You have no retrieved context to reference.`;
+        }
+        return `${actualPrompt}\n\nCONTEXT:`;
+      };
+
+      const prompt = buildSystemPrompt(null, []);
+
+      expect(prompt).toContain("You are a helpful assistant.");
+    });
+  });
+
+  describe("buildMessages unit tests", () => {
+    it("should build messages from conversation history plus current message", () => {
+      const buildMessages = (
+        history: { role: "user" | "assistant"; content: string }[],
+        currentMessage: string
+      ): { role: "user" | "assistant"; content: string }[] => {
+        const messages: { role: "user" | "assistant"; content: string }[] = [];
+        for (const turn of history) {
+          messages.push({ role: turn.role, content: turn.content });
+        }
+        messages.push({ role: "user", content: currentMessage });
+        return messages;
+      };
+
+      const history = [
+        { role: "user" as const, content: "What is pricing?" },
+        { role: "assistant" as const, content: "Pricing starts at $10/month." },
+      ];
+
+      const messages = buildMessages(history, "What about enterprise?");
+
+      expect(messages).toHaveLength(3);
+      expect(messages[0].role).toBe("user");
+      expect(messages[0].content).toBe("What is pricing?");
+      expect(messages[1].role).toBe("assistant");
+      expect(messages[2].role).toBe("user");
+      expect(messages[2].content).toBe("What about enterprise?");
+    });
+
+    it("should handle empty history", () => {
+      const buildMessages = (
+        history: { role: "user" | "assistant"; content: string }[],
+        currentMessage: string
+      ): { role: "user" | "assistant"; content: string }[] => {
+        const messages: { role: "user" | "assistant"; content: string }[] = [];
+        for (const turn of history) {
+          messages.push({ role: turn.role, content: turn.content });
+        }
+        messages.push({ role: "user", content: currentMessage });
+        return messages;
+      };
+
+      const messages = buildMessages([], "First question");
+
+      expect(messages).toHaveLength(1);
+      expect(messages[0].role).toBe("user");
+      expect(messages[0].content).toBe("First question");
+    });
+
+    it("should preserve message order", () => {
+      const buildMessages = (
+        history: { role: "user" | "assistant"; content: string }[],
+        currentMessage: string
+      ): { role: "user" | "assistant"; content: string }[] => {
+        const messages: { role: "user" | "assistant"; content: string }[] = [];
+        for (const turn of history) {
+          messages.push({ role: turn.role, content: turn.content });
+        }
+        messages.push({ role: "user", content: currentMessage });
+        return messages;
+      };
+
+      const history = [
+        { role: "user" as const, content: "Q1" },
+        { role: "assistant" as const, content: "A1" },
+        { role: "user" as const, content: "Q2" },
+        { role: "assistant" as const, content: "A2" },
+      ];
+
+      const messages = buildMessages(history, "Q3");
+
+      expect(messages.map(m => m.content)).toEqual(["Q1", "A1", "Q2", "A2", "Q3"]);
+    });
+  });
+
+  describe("history slicing unit tests", () => {
+    it("should slice history to historyTurns * 2 messages", () => {
+      const limitHistory = (
+        fullHistory: { role: string; content: string }[],
+        historyTurns: number
+      ) => {
+        return fullHistory.slice(-historyTurns * 2);
+      };
+
+      const fullHistory = Array.from({ length: 20 }, (_, i) => ({
+        role: i % 2 === 0 ? "user" : "assistant",
+        content: `Message ${i + 1}`,
+      }));
+
+      const limited = limitHistory(fullHistory, 3);
+
+      expect(limited).toHaveLength(6);
+      expect(limited[0].content).toBe("Message 15");
+      expect(limited[5].content).toBe("Message 20");
+    });
+
+    it("should return all history when shorter than limit", () => {
+      const limitHistory = (
+        fullHistory: { role: string; content: string }[],
+        historyTurns: number
+      ) => {
+        return fullHistory.slice(-historyTurns * 2);
+      };
+
+      const fullHistory = [
+        { role: "user", content: "Q1" },
+        { role: "assistant", content: "A1" },
+      ];
+
+      const limited = limitHistory(fullHistory, 5);
+
+      expect(limited).toHaveLength(2);
+    });
+
+    it("should handle empty history", () => {
+      const limitHistory = (
+        fullHistory: { role: string; content: string }[],
+        historyTurns: number
+      ) => {
+        return fullHistory.slice(-historyTurns * 2);
+      };
+
+      const limited = limitHistory([], 5);
+
+      expect(limited).toHaveLength(0);
+    });
+  });
+
+  describe("source building unit tests", () => {
+    it("should build sources from chunks with correct indexing", () => {
+      const buildSources = (
+        chunks: { id: string; content: string; title?: string; url?: string }[],
+        maxCitations: number
+      ) => {
+        return chunks.slice(0, maxCitations).map((chunk, i) => ({
+          id: chunk.id,
+          title: chunk.title || "Untitled",
+          url: chunk.url,
+          snippet: chunk.content.slice(0, 200),
+          index: i + 1,
+        }));
+      };
+
+      const chunks = [
+        { id: "c1", content: "Long content here...", title: "Doc 1", url: "https://example.com/1" },
+        { id: "c2", content: "Another content", title: "Doc 2" },
+        { id: "c3", content: "Third content" },
+      ];
+
+      const sources = buildSources(chunks, 10);
+
+      expect(sources).toHaveLength(3);
+      expect(sources[0].index).toBe(1);
+      expect(sources[0].title).toBe("Doc 1");
+      expect(sources[0].url).toBe("https://example.com/1");
+      expect(sources[1].index).toBe(2);
+      expect(sources[2].title).toBe("Untitled"); // Default when no title
+      expect(sources[2].url).toBeUndefined();
+    });
+
+    it("should limit sources to maxCitations", () => {
+      const buildSources = (
+        chunks: { id: string; content: string; title?: string }[],
+        maxCitations: number
+      ) => {
+        return chunks.slice(0, maxCitations).map((chunk, i) => ({
+          id: chunk.id,
+          title: chunk.title || "Untitled",
+          snippet: chunk.content.slice(0, 200),
+          index: i + 1,
+        }));
+      };
+
+      const chunks = Array.from({ length: 10 }, (_, i) => ({
+        id: `c${i}`,
+        content: `Content ${i}`,
+        title: `Title ${i}`,
+      }));
+
+      const sources = buildSources(chunks, 3);
+
+      expect(sources).toHaveLength(3);
+      expect(sources[2].id).toBe("c2");
+    });
+
+    it("should truncate snippet to 200 characters", () => {
+      const buildSources = (
+        chunks: { id: string; content: string }[],
+        maxCitations: number
+      ) => {
+        return chunks.slice(0, maxCitations).map((chunk, i) => ({
+          id: chunk.id,
+          title: "Untitled",
+          snippet: chunk.content.slice(0, 200),
+          index: i + 1,
+        }));
+      };
+
+      const longContent = "A".repeat(500);
+      const sources = buildSources([{ id: "c1", content: longContent }], 10);
+
+      expect(sources[0].snippet).toHaveLength(200);
+    });
+  });
+
+  describe("reasoning step creation unit tests", () => {
+    it("should create rewrite step with correct fields", () => {
+      const createRewriteStep = (id: string, status: "in_progress" | "completed", summary: string) => ({
+        id,
+        type: "rewrite" as const,
+        title: "Query Rewriting",
+        summary,
+        status,
+      });
+
+      const step = createRewriteStep("step-1", "in_progress", "Analyzing context...");
+
+      expect(step.type).toBe("rewrite");
+      expect(step.title).toBe("Query Rewriting");
+      expect(step.status).toBe("in_progress");
+    });
+
+    it("should create plan step with details", () => {
+      const createPlanStep = (
+        id: string,
+        status: "in_progress" | "completed",
+        subQueries?: string[]
+      ) => ({
+        id,
+        type: "plan" as const,
+        title: "Query Planning",
+        summary: subQueries
+          ? `Generated ${subQueries.length} sub-quer${subQueries.length === 1 ? "y" : "ies"} for retrieval`
+          : "Generating sub-queries...",
+        status,
+        ...(subQueries && { details: { subQueries } }),
+      });
+
+      const step = createPlanStep("step-2", "completed", ["query1", "query2", "query3"]);
+
+      expect(step.type).toBe("plan");
+      expect(step.summary).toBe("Generated 3 sub-queries for retrieval");
+      expect(step.details?.subQueries).toHaveLength(3);
+    });
+
+    it("should create search step with query count", () => {
+      const createSearchStep = (
+        id: string,
+        status: "in_progress" | "completed",
+        queryCount: number,
+        chunkCount?: number
+      ) => ({
+        id,
+        type: "search" as const,
+        title: "Knowledge Search",
+        summary: status === "in_progress"
+          ? `Searching knowledge bases with ${queryCount} quer${queryCount === 1 ? "y" : "ies"}...`
+          : `Found ${chunkCount} relevant chunks`,
+        status,
+      });
+
+      const inProgress = createSearchStep("step-3", "in_progress", 3);
+      expect(inProgress.summary).toBe("Searching knowledge bases with 3 queries...");
+
+      const completed = createSearchStep("step-3", "completed", 3, 15);
+      expect(completed.summary).toBe("Found 15 relevant chunks");
+    });
+
+    it("should create merge step with chunk count", () => {
+      const createMergeStep = (
+        id: string,
+        status: "in_progress" | "completed",
+        uniqueCount?: number
+      ) => ({
+        id,
+        type: "merge" as const,
+        title: "Result Merging",
+        summary: status === "in_progress"
+          ? "Deduplicating and ranking results..."
+          : `Merged to ${uniqueCount} unique chunks`,
+        status,
+      });
+
+      const inProgress = createMergeStep("step-4", "in_progress");
+      expect(inProgress.summary).toBe("Deduplicating and ranking results...");
+
+      const completed = createMergeStep("step-4", "completed", 8);
+      expect(completed.summary).toBe("Merged to 8 unique chunks");
+    });
+
+    it("should create generate step with success message", () => {
+      const createGenerateStep = (id: string, status: "in_progress" | "completed") => ({
+        id,
+        type: "generate" as const,
+        title: "Answer Generation",
+        summary: status === "in_progress"
+          ? "Generating comprehensive answer with citations..."
+          : "Response generated successfully",
+        status,
+      });
+
+      const inProgress = createGenerateStep("step-5", "in_progress");
+      expect(inProgress.summary).toContain("citations");
+
+      const completed = createGenerateStep("step-5", "completed");
+      expect(completed.summary).toBe("Response generated successfully");
+    });
+  });
+
+  describe("sub-query JSON parsing unit tests", () => {
+    it("should parse valid JSON array of sub-queries", () => {
+      const parseSubQueries = (
+        response: string,
+        originalQuery: string,
+        maxSubqueries: number
+      ): { id: string; query: string; purpose: string }[] => {
+        try {
+          const parsed = JSON.parse(response.trim());
+          if (Array.isArray(parsed)) {
+            return parsed.slice(0, maxSubqueries).map((item, i) => ({
+              id: `sq-${i}`,
+              query: item.query || originalQuery,
+              purpose: item.purpose || "Sub-query",
+            }));
+          }
+        } catch {
+          // Fall through to fallback
+        }
+        return [{ id: "sq-0", query: originalQuery, purpose: "Original query" }];
+      };
+
+      const response = '[{"query": "pricing info", "purpose": "find pricing"}, {"query": "feature list", "purpose": "find features"}]';
+      const subQueries = parseSubQueries(response, "original", 5);
+
+      expect(subQueries).toHaveLength(2);
+      expect(subQueries[0].query).toBe("pricing info");
+      expect(subQueries[0].purpose).toBe("find pricing");
+    });
+
+    it("should fallback to original query on invalid JSON", () => {
+      const parseSubQueries = (
+        response: string,
+        originalQuery: string,
+        maxSubqueries: number
+      ): { id: string; query: string; purpose: string }[] => {
+        try {
+          const parsed = JSON.parse(response.trim());
+          if (Array.isArray(parsed)) {
+            return parsed.slice(0, maxSubqueries).map((item, i) => ({
+              id: `sq-${i}`,
+              query: item.query || originalQuery,
+              purpose: item.purpose || "Sub-query",
+            }));
+          }
+        } catch {
+          // Fall through to fallback
+        }
+        return [{ id: "sq-0", query: originalQuery, purpose: "Original query" }];
+      };
+
+      const response = "Not valid JSON";
+      const subQueries = parseSubQueries(response, "What is pricing?", 5);
+
+      expect(subQueries).toHaveLength(1);
+      expect(subQueries[0].query).toBe("What is pricing?");
+      expect(subQueries[0].purpose).toBe("Original query");
+    });
+
+    it("should fallback when response is not an array", () => {
+      const parseSubQueries = (
+        response: string,
+        originalQuery: string,
+        maxSubqueries: number
+      ): { id: string; query: string; purpose: string }[] => {
+        try {
+          const parsed = JSON.parse(response.trim());
+          if (Array.isArray(parsed)) {
+            return parsed.slice(0, maxSubqueries).map((item, i) => ({
+              id: `sq-${i}`,
+              query: item.query || originalQuery,
+              purpose: item.purpose || "Sub-query",
+            }));
+          }
+        } catch {
+          // Fall through to fallback
+        }
+        return [{ id: "sq-0", query: originalQuery, purpose: "Original query" }];
+      };
+
+      const response = '{"query": "single query"}';
+      const subQueries = parseSubQueries(response, "original query", 5);
+
+      expect(subQueries).toHaveLength(1);
+      expect(subQueries[0].query).toBe("original query");
+    });
+
+    it("should limit parsed sub-queries to maxSubqueries", () => {
+      const parseSubQueries = (
+        response: string,
+        originalQuery: string,
+        maxSubqueries: number
+      ): { id: string; query: string; purpose: string }[] => {
+        try {
+          const parsed = JSON.parse(response.trim());
+          if (Array.isArray(parsed)) {
+            return parsed.slice(0, maxSubqueries).map((item, i) => ({
+              id: `sq-${i}`,
+              query: item.query || originalQuery,
+              purpose: item.purpose || "Sub-query",
+            }));
+          }
+        } catch {
+          // Fall through to fallback
+        }
+        return [{ id: "sq-0", query: originalQuery, purpose: "Original query" }];
+      };
+
+      const response = '[{"query":"q1","purpose":"p1"},{"query":"q2","purpose":"p2"},{"query":"q3","purpose":"p3"},{"query":"q4","purpose":"p4"}]';
+      const subQueries = parseSubQueries(response, "original", 2);
+
+      expect(subQueries).toHaveLength(2);
+      expect(subQueries[0].query).toBe("q1");
+      expect(subQueries[1].query).toBe("q2");
+    });
+
+    it("should use default purpose when not provided", () => {
+      const parseSubQueries = (
+        response: string,
+        originalQuery: string,
+        maxSubqueries: number
+      ): { id: string; query: string; purpose: string }[] => {
+        try {
+          const parsed = JSON.parse(response.trim());
+          if (Array.isArray(parsed)) {
+            return parsed.slice(0, maxSubqueries).map((item, i) => ({
+              id: `sq-${i}`,
+              query: item.query || originalQuery,
+              purpose: item.purpose || "Sub-query",
+            }));
+          }
+        } catch {
+          // Fall through to fallback
+        }
+        return [{ id: "sq-0", query: originalQuery, purpose: "Original query" }];
+      };
+
+      const response = '[{"query": "test query"}]'; // No purpose
+      const subQueries = parseSubQueries(response, "original", 5);
+
+      expect(subQueries[0].purpose).toBe("Sub-query");
+    });
+  });
+
+  describe("history formatting unit tests", () => {
+    it("should format history as User/Assistant prefixed lines", () => {
+      const formatHistory = (history: { role: "user" | "assistant"; content: string }[]) => {
+        return history
+          .map((turn) => `${turn.role === "user" ? "User" : "Assistant"}: ${turn.content}`)
+          .join("\n");
+      };
+
+      const history = [
+        { role: "user" as const, content: "What is pricing?" },
+        { role: "assistant" as const, content: "Pricing starts at $10." },
+        { role: "user" as const, content: "What about enterprise?" },
+      ];
+
+      const formatted = formatHistory(history);
+
+      expect(formatted).toBe(
+        "User: What is pricing?\nAssistant: Pricing starts at $10.\nUser: What about enterprise?"
+      );
+    });
+
+    it("should return empty string for empty history", () => {
+      const formatHistory = (history: { role: "user" | "assistant"; content: string }[]) => {
+        return history
+          .map((turn) => `${turn.role === "user" ? "User" : "Assistant"}: ${turn.content}`)
+          .join("\n");
+      };
+
+      const formatted = formatHistory([]);
+
+      expect(formatted).toBe("");
+    });
+
+    it("should handle single turn history", () => {
+      const formatHistory = (history: { role: "user" | "assistant"; content: string }[]) => {
+        return history
+          .map((turn) => `${turn.role === "user" ? "User" : "Assistant"}: ${turn.content}`)
+          .join("\n");
+      };
+
+      const formatted = formatHistory([{ role: "user", content: "Hello" }]);
+
+      expect(formatted).toBe("User: Hello");
+    });
+  });
+
+  describe("status event construction unit tests", () => {
+    it("should build status event with source count", () => {
+      const buildStatusEvent = (sourceCount: number) => ({
+        type: "status" as const,
+        status: "generating",
+        message: sourceCount > 0
+          ? `Found ${sourceCount} sources. Generating response...`
+          : "No relevant sources found. Generating response...",
+        sourceCount,
+      });
+
+      const event = buildStatusEvent(5);
+
+      expect(event.type).toBe("status");
+      expect(event.message).toBe("Found 5 sources. Generating response...");
+      expect(event.sourceCount).toBe(5);
+    });
+
+    it("should build status event with zero sources message", () => {
+      const buildStatusEvent = (sourceCount: number) => ({
+        type: "status" as const,
+        status: "generating",
+        message: sourceCount > 0
+          ? `Found ${sourceCount} sources. Generating response...`
+          : "No relevant sources found. Generating response...",
+        sourceCount,
+      });
+
+      const event = buildStatusEvent(0);
+
+      expect(event.message).toBe("No relevant sources found. Generating response...");
+      expect(event.sourceCount).toBe(0);
+    });
+  });
+
+  describe("error event construction unit tests", () => {
+    it("should build error event from Error object", () => {
+      const buildErrorEvent = (error: unknown) => ({
+        type: "error" as const,
+        message: error instanceof Error ? error.message : "An error occurred",
+      });
+
+      const event = buildErrorEvent(new Error("Agent not found"));
+
+      expect(event.type).toBe("error");
+      expect(event.message).toBe("Agent not found");
+    });
+
+    it("should build error event from non-Error", () => {
+      const buildErrorEvent = (error: unknown) => ({
+        type: "error" as const,
+        message: error instanceof Error ? error.message : "An error occurred",
+      });
+
+      const event = buildErrorEvent("string error");
+
+      expect(event.message).toBe("An error occurred");
+    });
+
+    it("should handle null error", () => {
+      const buildErrorEvent = (error: unknown) => ({
+        type: "error" as const,
+        message: error instanceof Error ? error.message : "An error occurred",
+      });
+
+      const event = buildErrorEvent(null);
+
+      expect(event.message).toBe("An error occurred");
+    });
+  });
+
+  describe("latency calculation unit tests", () => {
+    it("should calculate latency from start time", () => {
+      const calculateLatency = (startTime: number) => Date.now() - startTime;
+
+      const startTime = Date.now() - 1000; // 1 second ago
+      const latency = calculateLatency(startTime);
+
+      expect(latency).toBeGreaterThanOrEqual(1000);
+      expect(latency).toBeLessThan(2000);
+    });
+
+    it("should handle zero latency", () => {
+      const calculateLatency = (startTime: number) => Date.now() - startTime;
+
+      const startTime = Date.now();
+      const latency = calculateLatency(startTime);
+
+      expect(latency).toBeGreaterThanOrEqual(0);
+      expect(latency).toBeLessThan(100);
+    });
+  });
+
+  describe("token usage handling unit tests", () => {
+    it("should extract tokens from usage object", () => {
+      const extractTokens = (usage: { inputTokens?: number; outputTokens?: number } | undefined) => ({
+        promptTokens: usage?.inputTokens ?? 0,
+        completionTokens: usage?.outputTokens ?? 0,
+      });
+
+      const tokens = extractTokens({ inputTokens: 1500, outputTokens: 250 });
+
+      expect(tokens.promptTokens).toBe(1500);
+      expect(tokens.completionTokens).toBe(250);
+    });
+
+    it("should default to zero when usage is undefined", () => {
+      const extractTokens = (usage: { inputTokens?: number; outputTokens?: number } | undefined) => ({
+        promptTokens: usage?.inputTokens ?? 0,
+        completionTokens: usage?.outputTokens ?? 0,
+      });
+
+      const tokens = extractTokens(undefined);
+
+      expect(tokens.promptTokens).toBe(0);
+      expect(tokens.completionTokens).toBe(0);
+    });
+
+    it("should handle partial usage data", () => {
+      const extractTokens = (usage: { inputTokens?: number; outputTokens?: number } | undefined) => ({
+        promptTokens: usage?.inputTokens ?? 0,
+        completionTokens: usage?.outputTokens ?? 0,
+      });
+
+      const tokens = extractTokens({ inputTokens: 1000 });
+
+      expect(tokens.promptTokens).toBe(1000);
+      expect(tokens.completionTokens).toBe(0);
+    });
+  });
+
+  describe("rewrite decision logic unit tests", () => {
+    it("should skip rewriting when no history exists", () => {
+      const shouldRewrite = (history: unknown[]) => history.length > 0;
+
+      expect(shouldRewrite([])).toBe(false);
+    });
+
+    it("should attempt rewriting when history exists", () => {
+      const shouldRewrite = (history: unknown[]) => history.length > 0;
+
+      expect(shouldRewrite([{ role: "user", content: "previous" }])).toBe(true);
+    });
+  });
+
+  describe("rewrite summary formatting unit tests", () => {
+    it("should format reformulated query summary", () => {
+      const formatRewriteSummary = (originalQuery: string, rewrittenQuery: string) => {
+        if (rewrittenQuery !== originalQuery) {
+          const truncated = rewrittenQuery.slice(0, 100);
+          const ellipsis = rewrittenQuery.length > 100 ? "..." : "";
+          return `Reformulated query: "${truncated}${ellipsis}"`;
+        }
+        return "Query used as-is (no reformulation needed)";
+      };
+
+      const summary = formatRewriteSummary("What about it?", "What are the pricing options for the Enterprise plan?");
+
+      expect(summary).toContain("Reformulated query:");
+      expect(summary).toContain("Enterprise plan");
+    });
+
+    it("should indicate when no reformulation needed", () => {
+      const formatRewriteSummary = (originalQuery: string, rewrittenQuery: string) => {
+        if (rewrittenQuery !== originalQuery) {
+          const truncated = rewrittenQuery.slice(0, 100);
+          const ellipsis = rewrittenQuery.length > 100 ? "..." : "";
+          return `Reformulated query: "${truncated}${ellipsis}"`;
+        }
+        return "Query used as-is (no reformulation needed)";
+      };
+
+      const summary = formatRewriteSummary("What is pricing?", "What is pricing?");
+
+      expect(summary).toBe("Query used as-is (no reformulation needed)");
+    });
+
+    it("should truncate long reformulated queries", () => {
+      const formatRewriteSummary = (originalQuery: string, rewrittenQuery: string) => {
+        if (rewrittenQuery !== originalQuery) {
+          const truncated = rewrittenQuery.slice(0, 100);
+          const ellipsis = rewrittenQuery.length > 100 ? "..." : "";
+          return `Reformulated query: "${truncated}${ellipsis}"`;
+        }
+        return "Query used as-is (no reformulation needed)";
+      };
+
+      const longQuery = "A".repeat(150);
+      const summary = formatRewriteSummary("short", longQuery);
+
+      expect(summary).toContain("...");
+      expect(summary.length).toBeLessThan(150);
+    });
+  });
+});

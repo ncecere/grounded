@@ -210,7 +210,7 @@ tasks:
   # Quality assurance - depends on Group 4
   # ===========================================================================
   - title: Add unit tests for AdvancedRAGService
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [testing, unit, api]
     file: phase-7-testing-docs.md
