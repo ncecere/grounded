@@ -285,4 +285,29 @@ export { Worker, Job, QueueEvents };
 export type { ConnectionOptions };
 
 // Re-export constants from shared for convenience
-export { QUEUE_NAMES, JOB_RETRY_ATTEMPTS, JOB_RETRY_DELAY_MS, JOB_BACKOFF_TYPE } from "@grounded/shared";
+export {
+  QUEUE_NAMES,
+  JOB_RETRY_ATTEMPTS,
+  JOB_RETRY_DELAY_MS,
+  JOB_BACKOFF_TYPE,
+  STAGE_QUEUE_MAPPING,
+  STAGE_DEFAULT_CONCURRENCY,
+  STAGE_CONCURRENCY_ENV_VARS,
+  QUEUE_DEFAULT_CONCURRENCY,
+  QUEUE_CONCURRENCY_ENV_VARS,
+} from "@grounded/shared";
+
+// Re-export queue configuration helpers from shared
+export {
+  getQueueForStage,
+  getStageConcurrency,
+  getStageConcurrencyEnvVar,
+  getQueueConcurrency,
+  getQueueConcurrencyEnvVar,
+  getStagesForQueue,
+  buildQueueConfigMap,
+  resolveQueueConcurrency,
+  resolveStageConcurrency,
+} from "@grounded/shared";
+
+export type { QueueName, QueueConfig } from "@grounded/shared";

@@ -28,7 +28,7 @@ tasks:
   # PARALLEL GROUP 2: High-volume queueing & backpressure
   # ===========================================================================
   - title: Split queues by stage and define concurrency defaults
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [queue, scaling]
     depends_on: ["Define staged ingestion contract and per-stage status model"]

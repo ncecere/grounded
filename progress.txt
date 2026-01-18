@@ -139,3 +139,77 @@ Implemented a comprehensive error classification system with retryable vs perman
 - All 89 new tests pass
 - All existing tests pass (208 tests in shared package)
 - TypeScript typechecking passes
+
+## 2026-01-18: Split queues by stage and define concurrency defaults
+
+### Summary
+Implemented a mapping between ingestion stages and queues with configurable concurrency defaults. This enables fine-grained control over parallelism at both the stage and queue level, with environment variable overrides for deployment flexibility.
+
+### Changes Made
+1. **packages/shared/src/constants/index.ts**
+   - Added `STAGE_QUEUE_MAPPING` - Maps each of the 6 ingestion stages to their primary queue
+   - Added `STAGE_DEFAULT_CONCURRENCY` - Default concurrency limits per stage with documented rationale
+   - Added `STAGE_CONCURRENCY_ENV_VARS` - Environment variable names for per-stage concurrency overrides
+   - Added `QUEUE_DEFAULT_CONCURRENCY` - Default concurrency for all 7 queues
+   - Added `QUEUE_CONCURRENCY_ENV_VARS` - Environment variable names for per-queue concurrency overrides
+
+2. **packages/shared/src/types/index.ts**
+   - Added `QueueName` type for queue name type safety
+   - Added `QueueConfig` interface with name, defaultConcurrency, concurrencyEnvVar, and stages fields
+   - Added helper functions:
+     - `getQueueForStage()` - Get queue name for a given stage
+     - `getStageConcurrency()` - Get default concurrency for a stage
+     - `getStageConcurrencyEnvVar()` - Get env var name for stage concurrency override
+     - `getQueueConcurrency()` - Get default concurrency for a queue
+     - `getQueueConcurrencyEnvVar()` - Get env var name for queue concurrency override
+     - `getStagesForQueue()` - Get all stages that use a given queue
+     - `buildQueueConfigMap()` - Build complete queue configuration map
+     - `resolveQueueConcurrency()` - Resolve effective queue concurrency with env var support
+     - `resolveStageConcurrency()` - Resolve effective stage concurrency with env var support
+
+3. **packages/queue/src/index.ts**
+   - Re-exported all new constants and helper functions for consumer convenience
+
+4. **packages/shared/src/types/queue-config.test.ts** (new file)
+   - Added 63 tests covering:
+     - Stage-to-queue mapping validation
+     - Concurrency defaults for all stages and queues
+     - Environment variable naming conventions
+     - Helper function behavior
+     - Concurrency resolution with env var overrides
+     - Cross-validation ensuring all stages and queues are covered
+
+### Stage-to-Queue Mapping
+| Stage | Queue | Rationale |
+|-------|-------|-----------|
+| discover | source-run | Orchestration stage |
+| fetch | page-fetch | Network-bound, separate worker |
+| extract | page-process | CPU-bound extraction |
+| chunk | page-process | CPU-bound, shares with extract |
+| embed | embed-chunks | API-bound embeddings |
+| index | embed-chunks | Follows embedding, shares queue |
+
+### Default Concurrency Settings
+| Stage | Default | Rationale |
+|-------|---------|-----------|
+| discover | 2 | Low to avoid overwhelming source servers |
+| fetch | 5 | Moderate for network-bound, polite to targets |
+| extract | 10 | CPU-bound, parallelizable |
+| chunk | 10 | Lightweight CPU-bound |
+| embed | 4 | API rate limited by external providers |
+| index | 8 | Database-bound, limited for connection pool |
+
+### Environment Variables
+Per-stage: `DISCOVER_CONCURRENCY`, `FETCH_CONCURRENCY`, `EXTRACT_CONCURRENCY`, `CHUNK_CONCURRENCY`, `EMBED_CONCURRENCY`, `INDEX_CONCURRENCY`
+
+Per-queue: `SOURCE_RUN_CONCURRENCY`, `PAGE_FETCH_CONCURRENCY`, `PAGE_PROCESS_CONCURRENCY`, `EMBED_CHUNKS_CONCURRENCY`, `ENRICH_PAGE_CONCURRENCY`, `DELETION_CONCURRENCY`, `KB_REINDEX_CONCURRENCY`
+
+### Acceptance Criteria Met
+- ✅ Split queues by stage with clear mapping between stages and queues
+- ✅ Define concurrency defaults with documented rationale for each stage
+- ✅ Environment variable support for deployment-time overrides
+
+### Tests
+- All 63 new tests pass
+- All existing tests pass (271 tests in shared package, 1306 total)
+- TypeScript typechecking passes

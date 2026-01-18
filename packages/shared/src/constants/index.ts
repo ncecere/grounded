@@ -116,6 +116,79 @@ export const STAGE_RETRY_DELAY_MS = {
   index: 5000,
 } as const;
 
+/**
+ * Maps each ingestion stage to its primary queue.
+ * Some stages may share queues or use specialized queues.
+ */
+export const STAGE_QUEUE_MAPPING = {
+  discover: QUEUE_NAMES.SOURCE_RUN,
+  fetch: QUEUE_NAMES.PAGE_FETCH,
+  extract: QUEUE_NAMES.PAGE_PROCESS,
+  chunk: QUEUE_NAMES.PAGE_PROCESS,
+  embed: QUEUE_NAMES.EMBED_CHUNKS,
+  index: QUEUE_NAMES.EMBED_CHUNKS, // Index happens as part of embed completion
+} as const;
+
+/**
+ * Default concurrency limits per stage.
+ * These can be overridden via environment variables.
+ *
+ * Rationale:
+ * - discover: Low concurrency to avoid overwhelming source servers during sitemap/domain discovery
+ * - fetch: Higher concurrency for network-bound operations, but limited to be polite to target servers
+ * - extract: CPU-bound, can parallelize well on multi-core systems
+ * - chunk: CPU-bound, lightweight operation
+ * - embed: API-bound, limited by external provider rate limits
+ * - index: Database-bound, limited to avoid connection pool exhaustion
+ */
+export const STAGE_DEFAULT_CONCURRENCY = {
+  discover: 2,
+  fetch: 5,
+  extract: 10,
+  chunk: 10,
+  embed: 4,
+  index: 8,
+} as const;
+
+/**
+ * Environment variable names for per-stage concurrency overrides.
+ */
+export const STAGE_CONCURRENCY_ENV_VARS = {
+  discover: "DISCOVER_CONCURRENCY",
+  fetch: "FETCH_CONCURRENCY",
+  extract: "EXTRACT_CONCURRENCY",
+  chunk: "CHUNK_CONCURRENCY",
+  embed: "EMBED_CONCURRENCY",
+  index: "INDEX_CONCURRENCY",
+} as const;
+
+/**
+ * Queue-level default concurrency settings.
+ * Used when stages share a queue.
+ */
+export const QUEUE_DEFAULT_CONCURRENCY = {
+  [QUEUE_NAMES.SOURCE_RUN]: 5,
+  [QUEUE_NAMES.PAGE_FETCH]: 5,
+  [QUEUE_NAMES.PAGE_PROCESS]: 5,
+  [QUEUE_NAMES.EMBED_CHUNKS]: 4,
+  [QUEUE_NAMES.ENRICH_PAGE]: 2,
+  [QUEUE_NAMES.DELETION]: 2,
+  [QUEUE_NAMES.KB_REINDEX]: 1,
+} as const;
+
+/**
+ * Environment variable names for per-queue concurrency overrides.
+ */
+export const QUEUE_CONCURRENCY_ENV_VARS = {
+  [QUEUE_NAMES.SOURCE_RUN]: "SOURCE_RUN_CONCURRENCY",
+  [QUEUE_NAMES.PAGE_FETCH]: "PAGE_FETCH_CONCURRENCY",
+  [QUEUE_NAMES.PAGE_PROCESS]: "PAGE_PROCESS_CONCURRENCY",
+  [QUEUE_NAMES.EMBED_CHUNKS]: "EMBED_CHUNKS_CONCURRENCY",
+  [QUEUE_NAMES.ENRICH_PAGE]: "ENRICH_PAGE_CONCURRENCY",
+  [QUEUE_NAMES.DELETION]: "DELETION_CONCURRENCY",
+  [QUEUE_NAMES.KB_REINDEX]: "KB_REINDEX_CONCURRENCY",
+} as const;
+
 // ============================================================================
 // API Versions
 // ============================================================================

@@ -1001,3 +1001,144 @@ export const DEFAULT_QUOTAS: TenantQuotas = {
   maxScrapedPagesPerMonth: 1000,
   maxCrawlConcurrency: 5,
 };
+
+// ============================================================================
+// Queue Configuration Types
+// ============================================================================
+
+import {
+  QUEUE_NAMES,
+  INGESTION_STAGES,
+  STAGE_QUEUE_MAPPING,
+  STAGE_DEFAULT_CONCURRENCY,
+  STAGE_CONCURRENCY_ENV_VARS,
+  QUEUE_DEFAULT_CONCURRENCY,
+  QUEUE_CONCURRENCY_ENV_VARS,
+} from "../constants";
+
+/**
+ * Type for queue names.
+ */
+export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
+
+/**
+ * Configuration for a single queue including concurrency settings.
+ */
+export interface QueueConfig {
+  /** Queue name */
+  name: QueueName;
+  /** Default concurrency for this queue */
+  defaultConcurrency: number;
+  /** Environment variable to override concurrency */
+  concurrencyEnvVar: string;
+  /** Stages that use this queue */
+  stages: IngestionStage[];
+}
+
+/**
+ * Gets the queue name for a given ingestion stage.
+ */
+export function getQueueForStage(stage: IngestionStage): QueueName {
+  return STAGE_QUEUE_MAPPING[stage];
+}
+
+/**
+ * Gets the default concurrency for a given stage.
+ */
+export function getStageConcurrency(stage: IngestionStage): number {
+  return STAGE_DEFAULT_CONCURRENCY[stage];
+}
+
+/**
+ * Gets the environment variable name for stage concurrency override.
+ */
+export function getStageConcurrencyEnvVar(stage: IngestionStage): string {
+  return STAGE_CONCURRENCY_ENV_VARS[stage];
+}
+
+/**
+ * Gets the default concurrency for a given queue.
+ */
+export function getQueueConcurrency(queueName: QueueName): number {
+  return QUEUE_DEFAULT_CONCURRENCY[queueName];
+}
+
+/**
+ * Gets the environment variable name for queue concurrency override.
+ */
+export function getQueueConcurrencyEnvVar(queueName: QueueName): string {
+  return QUEUE_CONCURRENCY_ENV_VARS[queueName];
+}
+
+/**
+ * Gets all stages that use a given queue.
+ */
+export function getStagesForQueue(queueName: QueueName): IngestionStage[] {
+  return INGESTION_STAGES.filter(
+    (stage) => STAGE_QUEUE_MAPPING[stage] === queueName
+  );
+}
+
+/**
+ * Builds a complete queue configuration map.
+ */
+export function buildQueueConfigMap(): Map<QueueName, QueueConfig> {
+  const configMap = new Map<QueueName, QueueConfig>();
+
+  for (const queueName of Object.values(QUEUE_NAMES)) {
+    configMap.set(queueName, {
+      name: queueName,
+      defaultConcurrency: QUEUE_DEFAULT_CONCURRENCY[queueName],
+      concurrencyEnvVar: QUEUE_CONCURRENCY_ENV_VARS[queueName],
+      stages: getStagesForQueue(queueName),
+    });
+  }
+
+  return configMap;
+}
+
+/**
+ * Resolves the effective concurrency for a queue, checking environment variable first.
+ * @param queueName - The queue name
+ * @param getEnv - Function to get environment variables (to support different environments)
+ * @returns The resolved concurrency value
+ */
+export function resolveQueueConcurrency(
+  queueName: QueueName,
+  getEnv: (key: string) => string | undefined
+): number {
+  const envVar = QUEUE_CONCURRENCY_ENV_VARS[queueName];
+  const envValue = getEnv(envVar);
+
+  if (envValue !== undefined) {
+    const parsed = parseInt(envValue, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return QUEUE_DEFAULT_CONCURRENCY[queueName];
+}
+
+/**
+ * Resolves the effective concurrency for a stage, checking environment variable first.
+ * @param stage - The ingestion stage
+ * @param getEnv - Function to get environment variables
+ * @returns The resolved concurrency value
+ */
+export function resolveStageConcurrency(
+  stage: IngestionStage,
+  getEnv: (key: string) => string | undefined
+): number {
+  const envVar = STAGE_CONCURRENCY_ENV_VARS[stage];
+  const envValue = getEnv(envVar);
+
+  if (envValue !== undefined) {
+    const parsed = parseInt(envValue, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return STAGE_DEFAULT_CONCURRENCY[stage];
+}
