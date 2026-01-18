@@ -8,7 +8,13 @@ import {
   resolveEmbedCompletionGatingConfig,
 } from "@grounded/queue";
 import { log } from "@grounded/logger";
-import type { SourceRunFinalizeJob } from "@grounded/shared";
+import type { SourceRunFinalizeJob, PageSkipDetails } from "@grounded/shared";
+import {
+  createRunSummaryLog,
+  createCompactRunSummary,
+  getRunSummaryLogLevel,
+  type RunSummaryInput,
+} from "@grounded/shared";
 import { createCrawlState } from "@grounded/crawl-state";
 
 export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise<void> {
@@ -145,13 +151,83 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
     throw e;
   }
 
-  // Get failed URLs for logging
+  // Get failed URLs for logging and summary
   const failedUrls = await crawlState.getFailedUrls();
   if (failedUrls.length > 0) {
     log.warn("ingestion-worker", "Failed URLs for run", {
       runId,
       failedCount: failedUrls.length,
       sampleFailedUrls: failedUrls.slice(0, 10),
+    });
+  }
+
+  // Build skipped pages list from PostgreSQL data
+  const skippedPages = allPages
+    .filter(p => p.status === 'skipped_unchanged' || p.status === 'skipped_non_html')
+    .map(p => ({
+      url: p.url,
+      skipDetails: p.status === 'skipped_non_html'
+        ? { reason: 'non_html_content_type' as const, description: 'Non-HTML content type', stage: 'fetch' as const, skippedAt: new Date().toISOString() } as PageSkipDetails
+        : { reason: 'content_unchanged' as const, description: 'Content unchanged since last crawl', stage: 'fetch' as const, skippedAt: new Date().toISOString() } as PageSkipDetails,
+    }));
+
+  // Create run summary input
+  const summaryInput: RunSummaryInput = {
+    runId,
+    sourceId: run.sourceId || "unknown",
+    tenantId: run.tenantId || "unknown",
+    finalStatus,
+    runStartedAt: run.startedAt || new Date(),
+    runFinishedAt: finishedAt,
+    pages: {
+      total: stats.total,
+      succeeded: stats.succeeded,
+      failed: stats.failed,
+      skipped: stats.skipped + allPages.filter(p => p.status === 'skipped_non_html').length,
+    },
+    embeddings: chunksToEmbed > 0 ? {
+      chunksToEmbed,
+      chunksEmbedded: run.chunksEmbedded || 0,
+      chunksFailed: chunksToEmbed - (run.chunksEmbedded || 0),
+    } : undefined,
+    failedPages: failedUrls,
+    skippedPages,
+  };
+
+  // Generate and log run summary
+  const runSummary = createRunSummaryLog(summaryInput);
+  const logLevel = getRunSummaryLogLevel(runSummary);
+  const compactSummary = createCompactRunSummary(runSummary);
+
+  // Log compact summary at appropriate level
+  const summaryLogContext = runSummary as unknown as Record<string, unknown>;
+  if (logLevel === "error") {
+    log.error("ingestion-worker", `Run summary: ${compactSummary}`, summaryLogContext);
+  } else if (logLevel === "warn") {
+    log.warn("ingestion-worker", `Run summary: ${compactSummary}`, summaryLogContext);
+  } else {
+    log.info("ingestion-worker", `Run summary: ${compactSummary}`, summaryLogContext);
+  }
+
+  // Log detailed error breakdown if there are failures
+  if (runSummary.errorBreakdown.length > 0) {
+    log.info("ingestion-worker", "Error breakdown for run", {
+      runId,
+      event: "error_breakdown",
+      uniqueErrorCodes: runSummary.summary.uniqueErrorCodes,
+      hasRetryableErrors: runSummary.summary.hasRetryableErrors,
+      hasPermanentErrors: runSummary.summary.hasPermanentErrors,
+      breakdown: runSummary.errorBreakdown,
+    });
+  }
+
+  // Log detailed skip breakdown if there are skips
+  if (runSummary.skipBreakdown.length > 0) {
+    log.info("ingestion-worker", "Skip breakdown for run", {
+      runId,
+      event: "skip_breakdown",
+      uniqueSkipReasons: runSummary.summary.uniqueSkipReasons,
+      breakdown: runSummary.skipBreakdown,
     });
   }
 

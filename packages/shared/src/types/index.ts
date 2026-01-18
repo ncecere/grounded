@@ -3124,7 +3124,7 @@ export async function executeWithRetryLogging<T>(
  * @param code - Error code string
  * @returns Error category string
  */
-function getErrorCategoryFromCode(code: string): string {
+export function getErrorCategoryFromCode(code: string): string {
   if (code.startsWith("NETWORK_")) return "network";
   if (code.startsWith("SERVICE_")) return "service";
   if (code.startsWith("CONTENT_")) return "content";
@@ -5796,4 +5796,722 @@ export function deserializeStageMetricsData(json: string): StageMetricsData | un
   } catch {
     return undefined;
   }
+}
+
+// ============================================================================
+// Run Summary Logging
+// ============================================================================
+
+/**
+ * Error breakdown entry for run summary.
+ * Tracks count and sample URLs for each error code.
+ */
+export interface ErrorBreakdownEntry {
+  /** The error code */
+  code: string;
+  /** The error category */
+  category: string;
+  /** Whether the error is retryable */
+  retryable: boolean;
+  /** Count of occurrences */
+  count: number;
+  /** Sample of URLs that failed with this error (limited for log size) */
+  sampleUrls: string[];
+}
+
+/**
+ * Skip reason breakdown entry for run summary.
+ * Tracks count and sample URLs for each skip reason.
+ */
+export interface SkipBreakdownEntry {
+  /** The skip reason */
+  reason: SkipReason;
+  /** Human-readable description of the skip reason */
+  description: string;
+  /** The stage where skips occurred */
+  stage: IngestionStage;
+  /** Count of pages skipped for this reason */
+  count: number;
+  /** Sample of URLs skipped for this reason (limited for log size) */
+  sampleUrls: string[];
+}
+
+/**
+ * Per-stage summary for run completion.
+ */
+export interface StageSummary {
+  /** Stage name */
+  stage: IngestionStage;
+  /** Items that completed successfully */
+  completed: number;
+  /** Items that failed */
+  failed: number;
+  /** Items that were skipped */
+  skipped: number;
+  /** Total items processed by this stage */
+  total: number;
+  /** Success rate as percentage (0-100) */
+  successRate: number;
+}
+
+/**
+ * Complete run summary with error breakdown and skip counts.
+ */
+export interface RunSummaryLog {
+  /** Event type for structured logging */
+  event: "run_summary";
+  /** Unique run identifier */
+  runId: string;
+  /** Source identifier */
+  sourceId: string;
+  /** Tenant identifier */
+  tenantId: string;
+  /** Timestamp when summary was generated */
+  timestamp: string;
+  /** Final run status */
+  finalStatus: "succeeded" | "partial" | "failed" | "embedding_incomplete";
+  /** Run duration in milliseconds */
+  runDurationMs: number;
+  /** When the run started */
+  runStartedAt: string;
+  /** When the run finished */
+  runFinishedAt: string;
+
+  /** Overall page counts */
+  pages: {
+    /** Total pages discovered */
+    total: number;
+    /** Pages successfully processed */
+    succeeded: number;
+    /** Pages that failed processing */
+    failed: number;
+    /** Pages that were skipped (all reasons) */
+    skipped: number;
+    /** Success rate as percentage (0-100) */
+    successRate: number;
+  };
+
+  /** Embedding summary (if applicable) */
+  embeddings?: {
+    /** Total chunks to embed */
+    chunksToEmbed: number;
+    /** Chunks successfully embedded */
+    chunksEmbedded: number;
+    /** Chunks that failed embedding */
+    chunksFailed: number;
+    /** Embedding completion rate as percentage (0-100) */
+    completionRate: number;
+  };
+
+  /** Error breakdown by error code */
+  errorBreakdown: ErrorBreakdownEntry[];
+
+  /** Skip breakdown by reason */
+  skipBreakdown: SkipBreakdownEntry[];
+
+  /** Per-stage summary (optional, for detailed logging) */
+  stageSummaries?: StageSummary[];
+
+  /** Summary statistics */
+  summary: {
+    /** Total unique error codes encountered */
+    uniqueErrorCodes: number;
+    /** Total unique skip reasons encountered */
+    uniqueSkipReasons: number;
+    /** Most common error code (if any) */
+    mostCommonError?: { code: string; count: number };
+    /** Most common skip reason (if any) */
+    mostCommonSkip?: { reason: SkipReason; count: number };
+    /** Whether any retryable errors occurred */
+    hasRetryableErrors: boolean;
+    /** Whether any permanent errors occurred */
+    hasPermanentErrors: boolean;
+  };
+}
+
+/**
+ * Configuration for run summary logging.
+ */
+export interface RunSummaryLoggingConfig {
+  /** Whether to include per-stage summaries */
+  includeStageBreakdown: boolean;
+  /** Maximum sample URLs per error/skip entry */
+  maxSampleUrls: number;
+  /** Whether to log summary on successful runs */
+  logSuccessfulRuns: boolean;
+  /** Minimum pages to warrant logging (skip logging for very small runs) */
+  minPagesForLogging: number;
+  /** Whether to include error breakdown */
+  includeErrorBreakdown: boolean;
+  /** Whether to include skip breakdown */
+  includeSkipBreakdown: boolean;
+}
+
+/**
+ * Input data for creating a run summary.
+ */
+export interface RunSummaryInput {
+  runId: string;
+  sourceId: string;
+  tenantId: string;
+  finalStatus: "succeeded" | "partial" | "failed" | "embedding_incomplete";
+  runStartedAt: Date;
+  runFinishedAt: Date;
+  pages: {
+    total: number;
+    succeeded: number;
+    failed: number;
+    skipped: number;
+  };
+  embeddings?: {
+    chunksToEmbed: number;
+    chunksEmbedded: number;
+    chunksFailed?: number;
+  };
+  /** Failed pages with their URLs and error messages */
+  failedPages: Array<{ url: string; error: string }>;
+  /** Skipped pages with their URLs and skip details */
+  skippedPages: Array<{ url: string; skipDetails?: PageSkipDetails }>;
+  /** Optional per-stage metrics */
+  stageMetrics?: Partial<Record<IngestionStage, StageMetricsData>>;
+}
+
+/**
+ * Structured run summary log for JSON logging.
+ */
+export interface StructuredRunSummaryLog extends RunSummaryLog {
+  /** Log level */
+  level: "info" | "warn" | "error";
+  /** Service name for log filtering */
+  service: string;
+}
+
+/**
+ * Returns the default run summary logging configuration.
+ *
+ * @returns Default RunSummaryLoggingConfig
+ */
+export function getDefaultRunSummaryLoggingConfig(): RunSummaryLoggingConfig {
+  return {
+    includeStageBreakdown: true,
+    maxSampleUrls: 5,
+    logSuccessfulRuns: true,
+    minPagesForLogging: 0,
+    includeErrorBreakdown: true,
+    includeSkipBreakdown: true,
+  };
+}
+
+/**
+ * Maps a skip reason to a human-readable description.
+ *
+ * @param reason - The skip reason
+ * @returns Human-readable description
+ */
+export function getSkipReasonDescription(reason: SkipReason): string {
+  const descriptions: Record<SkipReason, string> = {
+    [SkipReason.NON_HTML_CONTENT_TYPE]: "Non-HTML content type",
+    [SkipReason.CONTENT_UNCHANGED]: "Content unchanged since last crawl",
+    [SkipReason.ROBOTS_BLOCKED]: "Blocked by robots.txt",
+    [SkipReason.DEPTH_EXCEEDED]: "URL depth exceeded limit",
+    [SkipReason.PATTERN_EXCLUDED]: "URL excluded by pattern filter",
+    [SkipReason.ALREADY_CRAWLED]: "URL already crawled in this run",
+  };
+  return descriptions[reason] || reason;
+}
+
+/**
+ * Maps a skip reason to the stage where it typically occurs.
+ *
+ * @param reason - The skip reason
+ * @returns The ingestion stage
+ */
+export function getSkipReasonStage(reason: SkipReason): IngestionStage {
+  const stageMap: Record<SkipReason, IngestionStage> = {
+    [SkipReason.NON_HTML_CONTENT_TYPE]: IngestionStage.FETCH,
+    [SkipReason.CONTENT_UNCHANGED]: IngestionStage.FETCH,
+    [SkipReason.ROBOTS_BLOCKED]: IngestionStage.DISCOVER,
+    [SkipReason.DEPTH_EXCEEDED]: IngestionStage.DISCOVER,
+    [SkipReason.PATTERN_EXCLUDED]: IngestionStage.DISCOVER,
+    [SkipReason.ALREADY_CRAWLED]: IngestionStage.DISCOVER,
+  };
+  return stageMap[reason] || IngestionStage.DISCOVER;
+}
+
+/**
+ * Parses an error message to extract an error code.
+ * Attempts to match known error patterns.
+ *
+ * @param errorMessage - The error message to parse
+ * @returns The extracted error code or UNKNOWN_ERROR
+ */
+export function parseErrorCodeFromMessage(errorMessage: string): string {
+  if (!errorMessage) return "UNKNOWN_ERROR";
+
+  const msg = errorMessage.toUpperCase();
+
+  // Check for explicit error codes in the message
+  const errorCodes = [
+    "NETWORK_TIMEOUT", "NETWORK_CONNECTION_REFUSED", "NETWORK_DNS_FAILURE",
+    "NETWORK_RESET", "NETWORK_SSL_ERROR",
+    "SERVICE_UNAVAILABLE", "SERVICE_RATE_LIMITED", "SERVICE_TIMEOUT",
+    "SERVICE_BAD_GATEWAY", "SERVICE_GATEWAY_TIMEOUT", "SERVICE_OVERLOADED", "SERVICE_API_ERROR",
+    "CONTENT_TOO_LARGE", "CONTENT_INVALID_FORMAT", "CONTENT_EMPTY",
+    "CONTENT_UNSUPPORTED_TYPE", "CONTENT_PARSE_FAILED", "CONTENT_ENCODING_ERROR",
+    "CONFIG_MISSING", "CONFIG_INVALID", "CONFIG_API_KEY_MISSING",
+    "CONFIG_MODEL_MISMATCH", "CONFIG_DIMENSION_MISMATCH",
+    "NOT_FOUND_RESOURCE", "NOT_FOUND_URL", "NOT_FOUND_KB",
+    "NOT_FOUND_SOURCE", "NOT_FOUND_RUN", "NOT_FOUND_CHUNK",
+    "VALIDATION_SCHEMA", "VALIDATION_URL_INVALID", "VALIDATION_CONSTRAINT", "VALIDATION_PAYLOAD",
+    "AUTH_FORBIDDEN", "AUTH_UNAUTHORIZED", "AUTH_BLOCKED",
+    "SYSTEM_OUT_OF_MEMORY", "SYSTEM_DISK_FULL", "SYSTEM_INTERNAL", "SYSTEM_DATABASE_ERROR",
+  ];
+
+  for (const code of errorCodes) {
+    if (msg.includes(code)) return code;
+  }
+
+  // Pattern matching for common error types
+  // Note: More specific patterns (like "GATEWAY TIMEOUT") must be checked before generic ones (like "TIMEOUT")
+  if (msg.includes("504") || msg.includes("GATEWAY TIMEOUT")) {
+    return "SERVICE_GATEWAY_TIMEOUT";
+  }
+  if (msg.includes("TIMEOUT") || msg.includes("TIMED OUT") || msg.includes("ETIMEDOUT")) {
+    return "NETWORK_TIMEOUT";
+  }
+  if (msg.includes("CONNECTION REFUSED") || msg.includes("ECONNREFUSED")) {
+    return "NETWORK_CONNECTION_REFUSED";
+  }
+  if (msg.includes("DNS") || msg.includes("ENOTFOUND") || msg.includes("GETADDRINFO")) {
+    return "NETWORK_DNS_FAILURE";
+  }
+  if (msg.includes("ECONNRESET") || msg.includes("CONNECTION RESET")) {
+    return "NETWORK_RESET";
+  }
+  if (msg.includes("SSL") || msg.includes("CERTIFICATE") || msg.includes("TLS")) {
+    return "NETWORK_SSL_ERROR";
+  }
+  if (msg.includes("429") || msg.includes("RATE LIMIT") || msg.includes("TOO MANY REQUESTS")) {
+    return "SERVICE_RATE_LIMITED";
+  }
+  if (msg.includes("503") || msg.includes("SERVICE UNAVAILABLE")) {
+    return "SERVICE_UNAVAILABLE";
+  }
+  if (msg.includes("502") || msg.includes("BAD GATEWAY")) {
+    return "SERVICE_BAD_GATEWAY";
+  }
+  if (msg.includes("404") || msg.includes("NOT FOUND")) {
+    return "NOT_FOUND_URL";
+  }
+  if (msg.includes("401") || msg.includes("UNAUTHORIZED")) {
+    return "AUTH_UNAUTHORIZED";
+  }
+  if (msg.includes("403") || msg.includes("FORBIDDEN")) {
+    return "AUTH_FORBIDDEN";
+  }
+  if (msg.includes("CONTENT TOO LARGE") || msg.includes("PAYLOAD TOO LARGE") || msg.includes("413")) {
+    return "CONTENT_TOO_LARGE";
+  }
+  if (msg.includes("PARSE") || msg.includes("PARSING")) {
+    return "CONTENT_PARSE_FAILED";
+  }
+  if (msg.includes("ENCODING") || msg.includes("DECODE")) {
+    return "CONTENT_ENCODING_ERROR";
+  }
+
+  return "UNKNOWN_ERROR";
+}
+
+/**
+ * Determines if an error code represents a retryable error.
+ *
+ * @param errorCode - The error code
+ * @returns true if retryable, false if permanent
+ */
+export function isErrorCodeRetryable(errorCode: string): boolean {
+  // Network errors - typically retryable
+  if (errorCode === "NETWORK_TIMEOUT") return true;
+  if (errorCode === "NETWORK_CONNECTION_REFUSED") return true;
+  if (errorCode === "NETWORK_DNS_FAILURE") return true;
+  if (errorCode === "NETWORK_RESET") return true;
+  if (errorCode === "NETWORK_SSL_ERROR") return false;
+
+  // Service errors - mostly retryable
+  if (errorCode === "SERVICE_UNAVAILABLE") return true;
+  if (errorCode === "SERVICE_RATE_LIMITED") return true;
+  if (errorCode === "SERVICE_TIMEOUT") return true;
+  if (errorCode === "SERVICE_BAD_GATEWAY") return true;
+  if (errorCode === "SERVICE_GATEWAY_TIMEOUT") return true;
+  if (errorCode === "SERVICE_OVERLOADED") return true;
+  if (errorCode === "SERVICE_API_ERROR") return false;
+
+  // Content errors - permanent
+  if (errorCode.startsWith("CONTENT_")) return false;
+
+  // Configuration errors - permanent
+  if (errorCode.startsWith("CONFIG_")) return false;
+
+  // Not found errors - permanent
+  if (errorCode.startsWith("NOT_FOUND_")) return false;
+
+  // Validation errors - permanent
+  if (errorCode.startsWith("VALIDATION_")) return false;
+
+  // Auth errors - permanent
+  if (errorCode.startsWith("AUTH_")) return false;
+
+  // System errors - some retryable
+  if (errorCode === "SYSTEM_OUT_OF_MEMORY") return true;
+  if (errorCode === "SYSTEM_DISK_FULL") return false;
+  if (errorCode === "SYSTEM_INTERNAL") return true;
+  if (errorCode === "SYSTEM_DATABASE_ERROR") return true;
+
+  // Unknown - default to retryable
+  return true;
+}
+
+/**
+ * Builds error breakdown from failed pages.
+ *
+ * @param failedPages - Array of failed pages with URLs and error messages
+ * @param maxSampleUrls - Maximum sample URLs per error entry
+ * @returns Array of ErrorBreakdownEntry sorted by count descending
+ */
+export function buildErrorBreakdown(
+  failedPages: Array<{ url: string; error: string }>,
+  maxSampleUrls: number = 5
+): ErrorBreakdownEntry[] {
+  const breakdown = new Map<string, ErrorBreakdownEntry>();
+
+  for (const page of failedPages) {
+    const code = parseErrorCodeFromMessage(page.error);
+    const existing = breakdown.get(code);
+
+    if (existing) {
+      existing.count++;
+      if (existing.sampleUrls.length < maxSampleUrls) {
+        existing.sampleUrls.push(page.url);
+      }
+    } else {
+      breakdown.set(code, {
+        code,
+        category: getErrorCategoryFromCode(code),
+        retryable: isErrorCodeRetryable(code),
+        count: 1,
+        sampleUrls: [page.url],
+      });
+    }
+  }
+
+  // Sort by count descending
+  return Array.from(breakdown.values()).sort((a, b) => b.count - a.count);
+}
+
+/**
+ * Builds skip breakdown from skipped pages.
+ *
+ * @param skippedPages - Array of skipped pages with URLs and skip details
+ * @param maxSampleUrls - Maximum sample URLs per skip entry
+ * @returns Array of SkipBreakdownEntry sorted by count descending
+ */
+export function buildSkipBreakdown(
+  skippedPages: Array<{ url: string; skipDetails?: PageSkipDetails }>,
+  maxSampleUrls: number = 5
+): SkipBreakdownEntry[] {
+  const breakdown = new Map<SkipReason, SkipBreakdownEntry>();
+
+  for (const page of skippedPages) {
+    // Determine skip reason from details or default
+    const reason = page.skipDetails?.reason || SkipReason.CONTENT_UNCHANGED;
+    const existing = breakdown.get(reason);
+
+    if (existing) {
+      existing.count++;
+      if (existing.sampleUrls.length < maxSampleUrls) {
+        existing.sampleUrls.push(page.url);
+      }
+    } else {
+      breakdown.set(reason, {
+        reason,
+        description: getSkipReasonDescription(reason),
+        stage: page.skipDetails?.stage || getSkipReasonStage(reason),
+        count: 1,
+        sampleUrls: [page.url],
+      });
+    }
+  }
+
+  // Sort by count descending
+  return Array.from(breakdown.values()).sort((a, b) => b.count - a.count);
+}
+
+/**
+ * Builds per-stage summaries from stage metrics data.
+ *
+ * @param stageMetrics - Map of stage to metrics data
+ * @returns Array of StageSummary for each stage with data
+ */
+export function buildStageSummaries(
+  stageMetrics: Partial<Record<IngestionStage, StageMetricsData>>
+): StageSummary[] {
+  const summaries: StageSummary[] = [];
+
+  for (const stage of Object.values(IngestionStage)) {
+    const data = stageMetrics[stage];
+    if (data) {
+      const total = data.completed + data.failed + data.skipped;
+      summaries.push({
+        stage,
+        completed: data.completed,
+        failed: data.failed,
+        skipped: data.skipped,
+        total,
+        successRate: total > 0 ? Math.round((data.completed / total) * 10000) / 100 : 0,
+      });
+    }
+  }
+
+  return summaries;
+}
+
+/**
+ * Creates a run summary log from input data.
+ *
+ * @param input - Run summary input data
+ * @param config - Logging configuration
+ * @returns RunSummaryLog
+ */
+export function createRunSummaryLog(
+  input: RunSummaryInput,
+  config: RunSummaryLoggingConfig = getDefaultRunSummaryLoggingConfig()
+): RunSummaryLog {
+  const runDurationMs = input.runFinishedAt.getTime() - input.runStartedAt.getTime();
+  const totalPages = input.pages.total;
+  const successRate = totalPages > 0
+    ? Math.round((input.pages.succeeded / totalPages) * 10000) / 100
+    : 0;
+
+  // Build error breakdown
+  const errorBreakdown = config.includeErrorBreakdown
+    ? buildErrorBreakdown(input.failedPages, config.maxSampleUrls)
+    : [];
+
+  // Build skip breakdown
+  const skipBreakdown = config.includeSkipBreakdown
+    ? buildSkipBreakdown(input.skippedPages, config.maxSampleUrls)
+    : [];
+
+  // Build stage summaries if requested and data available
+  const stageSummaries = config.includeStageBreakdown && input.stageMetrics
+    ? buildStageSummaries(input.stageMetrics)
+    : undefined;
+
+  // Calculate embedding stats
+  let embeddings: RunSummaryLog["embeddings"];
+  if (input.embeddings && input.embeddings.chunksToEmbed > 0) {
+    const chunksFailed = input.embeddings.chunksFailed || 0;
+    const completionRate = Math.round(
+      (input.embeddings.chunksEmbedded / input.embeddings.chunksToEmbed) * 10000
+    ) / 100;
+    embeddings = {
+      chunksToEmbed: input.embeddings.chunksToEmbed,
+      chunksEmbedded: input.embeddings.chunksEmbedded,
+      chunksFailed,
+      completionRate,
+    };
+  }
+
+  // Calculate summary statistics
+  const hasRetryableErrors = errorBreakdown.some(e => e.retryable);
+  const hasPermanentErrors = errorBreakdown.some(e => !e.retryable);
+  const mostCommonError = errorBreakdown.length > 0
+    ? { code: errorBreakdown[0].code, count: errorBreakdown[0].count }
+    : undefined;
+  const mostCommonSkip = skipBreakdown.length > 0
+    ? { reason: skipBreakdown[0].reason, count: skipBreakdown[0].count }
+    : undefined;
+
+  return {
+    event: "run_summary",
+    runId: input.runId,
+    sourceId: input.sourceId,
+    tenantId: input.tenantId,
+    timestamp: new Date().toISOString(),
+    finalStatus: input.finalStatus,
+    runDurationMs,
+    runStartedAt: input.runStartedAt.toISOString(),
+    runFinishedAt: input.runFinishedAt.toISOString(),
+    pages: {
+      total: input.pages.total,
+      succeeded: input.pages.succeeded,
+      failed: input.pages.failed,
+      skipped: input.pages.skipped,
+      successRate,
+    },
+    embeddings,
+    errorBreakdown,
+    skipBreakdown,
+    stageSummaries,
+    summary: {
+      uniqueErrorCodes: errorBreakdown.length,
+      uniqueSkipReasons: skipBreakdown.length,
+      mostCommonError,
+      mostCommonSkip,
+      hasRetryableErrors,
+      hasPermanentErrors,
+    },
+  };
+}
+
+/**
+ * Determines the appropriate log level for a run summary.
+ *
+ * @param summary - The run summary log
+ * @returns Log level
+ */
+export function getRunSummaryLogLevel(summary: RunSummaryLog): "info" | "warn" | "error" {
+  if (summary.finalStatus === "failed") return "error";
+  if (summary.finalStatus === "partial" || summary.finalStatus === "embedding_incomplete") return "warn";
+  if (summary.pages.failed > 0 || summary.summary.hasRetryableErrors) return "warn";
+  return "info";
+}
+
+/**
+ * Creates a structured run summary log for JSON logging.
+ *
+ * @param summary - The run summary log
+ * @param service - Service name for log filtering
+ * @returns StructuredRunSummaryLog
+ */
+export function createStructuredRunSummaryLog(
+  summary: RunSummaryLog,
+  service: string = "ingestion-worker"
+): StructuredRunSummaryLog {
+  return {
+    ...summary,
+    level: getRunSummaryLogLevel(summary),
+    service,
+  };
+}
+
+/**
+ * Formats a run summary log for human-readable output.
+ *
+ * @param summary - The run summary log
+ * @returns Human-readable formatted string
+ */
+export function formatRunSummaryLog(summary: RunSummaryLog): string {
+  const lines: string[] = [];
+
+  // Header
+  lines.push(`=== Run Summary: ${summary.runId} ===`);
+  lines.push(`Status: ${summary.finalStatus.toUpperCase()}`);
+  lines.push(`Duration: ${(summary.runDurationMs / 1000).toFixed(2)}s`);
+  lines.push("");
+
+  // Page counts
+  lines.push("Pages:");
+  lines.push(`  Total: ${summary.pages.total}`);
+  lines.push(`  Succeeded: ${summary.pages.succeeded}`);
+  lines.push(`  Failed: ${summary.pages.failed}`);
+  lines.push(`  Skipped: ${summary.pages.skipped}`);
+  lines.push(`  Success Rate: ${summary.pages.successRate}%`);
+
+  // Embeddings
+  if (summary.embeddings) {
+    lines.push("");
+    lines.push("Embeddings:");
+    lines.push(`  Chunks to Embed: ${summary.embeddings.chunksToEmbed}`);
+    lines.push(`  Chunks Embedded: ${summary.embeddings.chunksEmbedded}`);
+    lines.push(`  Chunks Failed: ${summary.embeddings.chunksFailed}`);
+    lines.push(`  Completion Rate: ${summary.embeddings.completionRate}%`);
+  }
+
+  // Error breakdown
+  if (summary.errorBreakdown.length > 0) {
+    lines.push("");
+    lines.push("Error Breakdown:");
+    for (const entry of summary.errorBreakdown) {
+      const retryableStr = entry.retryable ? "[retryable]" : "[permanent]";
+      lines.push(`  ${entry.code} (${entry.category}) ${retryableStr}: ${entry.count}`);
+      if (entry.sampleUrls.length > 0) {
+        lines.push(`    Sample: ${entry.sampleUrls[0]}`);
+      }
+    }
+  }
+
+  // Skip breakdown
+  if (summary.skipBreakdown.length > 0) {
+    lines.push("");
+    lines.push("Skip Breakdown:");
+    for (const entry of summary.skipBreakdown) {
+      lines.push(`  ${entry.reason} (${entry.stage}): ${entry.count}`);
+      lines.push(`    ${entry.description}`);
+    }
+  }
+
+  // Stage summaries
+  if (summary.stageSummaries && summary.stageSummaries.length > 0) {
+    lines.push("");
+    lines.push("Stage Summaries:");
+    for (const stage of summary.stageSummaries) {
+      lines.push(`  ${stage.stage}: ${stage.completed}/${stage.total} (${stage.successRate}%)`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Determines if a run summary should be logged based on configuration.
+ *
+ * @param summary - The run summary
+ * @param config - Logging configuration
+ * @returns true if the summary should be logged
+ */
+export function shouldLogRunSummary(
+  summary: RunSummaryLog,
+  config: RunSummaryLoggingConfig = getDefaultRunSummaryLoggingConfig()
+): boolean {
+  // Check minimum pages threshold
+  if (summary.pages.total < config.minPagesForLogging) {
+    return false;
+  }
+
+  // Check if we should log successful runs
+  if (summary.finalStatus === "succeeded" && !config.logSuccessfulRuns) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Creates a compact summary string for quick logging.
+ *
+ * @param summary - The run summary
+ * @returns Compact summary string
+ */
+export function createCompactRunSummary(summary: RunSummaryLog): string {
+  const parts: string[] = [
+    `status=${summary.finalStatus}`,
+    `pages=${summary.pages.succeeded}/${summary.pages.total}`,
+    `failed=${summary.pages.failed}`,
+    `skipped=${summary.pages.skipped}`,
+    `duration=${(summary.runDurationMs / 1000).toFixed(1)}s`,
+  ];
+
+  if (summary.embeddings) {
+    parts.push(`embedded=${summary.embeddings.chunksEmbedded}/${summary.embeddings.chunksToEmbed}`);
+  }
+
+  if (summary.summary.mostCommonError) {
+    parts.push(`top_error=${summary.summary.mostCommonError.code}(${summary.summary.mostCommonError.count})`);
+  }
+
+  if (summary.summary.mostCommonSkip) {
+    parts.push(`top_skip=${summary.summary.mostCommonSkip.reason}(${summary.summary.mostCommonSkip.count})`);
+  }
+
+  return parts.join(" | ");
 }

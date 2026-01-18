@@ -114,7 +114,7 @@ tasks:
     tags: [observability, metrics]
 
   - title: Add run summary logs with error breakdown and skip counts
-    completed: false
+    completed: true
     parallel_group: 7
     tags: [observability, logs]
 
