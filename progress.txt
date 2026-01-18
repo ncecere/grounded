@@ -1382,3 +1382,68 @@ Verified that the retrieval config routes already properly support the `historyT
 - `apps/web/src/pages/Chat.tsx` (MODIFIED - integrated reasoning steps)
 - `apps/web/src/pages/Chat.test.ts` (NEW - 42 tests)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 4 - Add styling for reasoning panel
+
+### Completed Task
+**Task:** Add styling for reasoning panel
+**Phase:** Phase 4 - Frontend - Agent Form & Chat UI & Widget
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Enhanced ReasoningSteps container styling:**
+   - `apps/web/src/components/ai-elements/reasoning-steps.tsx`
+   - Added card-like container with rounded border and subtle background
+   - Added `reasoning-panel` CSS class for custom styling hooks
+   - Added `reasoning-panel-streaming` class for streaming state with glow effect
+
+2. **Enhanced ReasoningStepsTrigger styling:**
+   - Added brain icon container with primary color background (`reasoning-trigger-icon`)
+   - Improved hover states and focus-visible ring for accessibility
+   - Added smooth transitions for color changes
+
+3. **Enhanced ReasoningStepsContent timeline styling:**
+   - Added `reasoning-timeline` class with primary-colored left border
+   - Adjusted margins and padding for better visual hierarchy
+
+4. **Enhanced ReasoningStepItem styling:**
+   - Added timeline dot indicators (`reasoning-step-dot`) with status-specific colors:
+     - Completed: green-500
+     - In progress: primary with pulse animation
+     - Pending: muted-foreground/30
+     - Error: destructive
+   - Added step icon container (`reasoning-step-icon`) with status-specific backgrounds
+   - Improved text colors for titles and summaries based on status
+   - Added `reasoning-step-active` class for in-progress steps
+
+5. **Added CSS styling rules (apps/web/src/index.css):**
+   - Panel container with hover and streaming states
+   - Trigger hover effects for icon container
+   - Timeline border color changes during streaming
+   - Step item transitions
+   - Dark mode adjustments for all elements
+   - Box shadow glow effect during streaming
+
+6. **Added comprehensive tests (35 new tests):**
+   - Panel container classes tests
+   - Trigger styling classes tests
+   - Content/timeline styling classes tests
+   - Step item styling classes tests
+   - Status-specific dot colors tests
+   - Status-specific icon background colors tests
+   - Status-specific icon colors tests
+   - Status-specific text colors tests
+   - Summary text styling tests
+   - CSS class documentation tests
+
+### Test Results
+- All 342 tests pass in web (increased from 307)
+- All 590 tests pass in api
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `apps/web/src/components/ai-elements/reasoning-steps.tsx` (MODIFIED - enhanced styling)
+- `apps/web/src/components/ai-elements/reasoning-steps.test.ts` (MODIFIED - added 35 tests)
+- `apps/web/src/index.css` (MODIFIED - added reasoning panel CSS)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)

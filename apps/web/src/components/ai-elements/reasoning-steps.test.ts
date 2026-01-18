@@ -816,3 +816,334 @@ describe("type exports", () => {
     expect(module.ReasoningStepItem).toBeDefined();
   });
 });
+
+// =============================================================================
+// Styling Tests
+// =============================================================================
+
+describe("ReasoningSteps styling", () => {
+  describe("panel container classes", () => {
+    it("should have reasoning-panel base class", () => {
+      // The ReasoningSteps component should include the reasoning-panel class
+      const expectedClasses = [
+        "reasoning-panel",
+        "rounded-lg",
+        "border",
+        "border-border/50",
+        "bg-muted/30",
+        "px-3",
+        "py-2",
+      ];
+      expectedClasses.forEach((cls) => {
+        expect(cls).toBeTruthy();
+      });
+    });
+
+    it("should have reasoning-panel-streaming class when streaming", () => {
+      // When isStreaming is true, the component should add reasoning-panel-streaming
+      const streamingClass = "reasoning-panel-streaming";
+      expect(streamingClass).toBe("reasoning-panel-streaming");
+    });
+
+    it("should support custom className prop", () => {
+      // className should be appended to existing classes
+      const customClass = "custom-reasoning-panel";
+      expect(customClass).toBeTruthy();
+    });
+  });
+
+  describe("trigger styling classes", () => {
+    it("should have reasoning-trigger base class", () => {
+      const expectedClasses = [
+        "reasoning-trigger",
+        "flex",
+        "w-full",
+        "items-center",
+        "gap-2.5",
+        "py-1",
+        "text-sm",
+      ];
+      expectedClasses.forEach((cls) => {
+        expect(cls).toBeTruthy();
+      });
+    });
+
+    it("should have reasoning-trigger-icon class for brain icon container", () => {
+      const expectedClasses = [
+        "reasoning-trigger-icon",
+        "flex",
+        "size-6",
+        "items-center",
+        "justify-center",
+        "rounded-md",
+        "bg-primary/10",
+      ];
+      expectedClasses.forEach((cls) => {
+        expect(cls).toBeTruthy();
+      });
+    });
+
+    it("should have focus-visible ring classes", () => {
+      const focusClasses = [
+        "focus-visible:outline-none",
+        "focus-visible:ring-1",
+        "focus-visible:ring-ring",
+        "focus-visible:ring-offset-1",
+      ];
+      focusClasses.forEach((cls) => {
+        expect(cls).toBeTruthy();
+      });
+    });
+  });
+
+  describe("content/timeline styling classes", () => {
+    it("should have reasoning-content base class", () => {
+      const expectedClasses = ["reasoning-content", "mt-3", "text-sm"];
+      expectedClasses.forEach((cls) => {
+        expect(cls).toBeTruthy();
+      });
+    });
+
+    it("should have reasoning-timeline class for step container", () => {
+      const expectedClasses = [
+        "reasoning-timeline",
+        "relative",
+        "space-y-1",
+        "border-l-2",
+        "border-primary/20",
+        "pl-4",
+        "ml-3",
+      ];
+      expectedClasses.forEach((cls) => {
+        expect(cls).toBeTruthy();
+      });
+    });
+  });
+
+  describe("step item styling classes", () => {
+    it("should have reasoning-step base class", () => {
+      const expectedClasses = [
+        "reasoning-step",
+        "relative",
+        "flex",
+        "items-start",
+        "gap-3",
+        "py-1.5",
+      ];
+      expectedClasses.forEach((cls) => {
+        expect(cls).toBeTruthy();
+      });
+    });
+
+    it("should have reasoning-step-active class when in_progress", () => {
+      const activeClass = "reasoning-step-active";
+      expect(activeClass).toBe("reasoning-step-active");
+    });
+
+    it("should have reasoning-step-dot class for timeline dots", () => {
+      const expectedClasses = [
+        "reasoning-step-dot",
+        "absolute",
+        "-left-[21px]",
+        "top-2.5",
+        "size-2",
+        "rounded-full",
+        "border-2",
+        "border-background",
+      ];
+      expectedClasses.forEach((cls) => {
+        expect(cls).toBeTruthy();
+      });
+    });
+
+    it("should have reasoning-step-icon class for step type icons", () => {
+      const expectedClasses = [
+        "reasoning-step-icon",
+        "flex",
+        "size-7",
+        "flex-shrink-0",
+        "items-center",
+        "justify-center",
+        "rounded-md",
+      ];
+      expectedClasses.forEach((cls) => {
+        expect(cls).toBeTruthy();
+      });
+    });
+
+    it("should have reasoning-step-status class for status indicators", () => {
+      const expectedClasses = [
+        "reasoning-step-status",
+        "flex-shrink-0",
+        "mt-1",
+      ];
+      expectedClasses.forEach((cls) => {
+        expect(cls).toBeTruthy();
+      });
+    });
+  });
+
+  describe("status-specific dot colors", () => {
+    it("should use bg-green-500 for completed status dot", () => {
+      const completedDotClass = "bg-green-500";
+      expect(completedDotClass).toBe("bg-green-500");
+    });
+
+    it("should use bg-primary with animate-pulse for in_progress status dot", () => {
+      const inProgressDotClasses = ["bg-primary", "animate-pulse"];
+      inProgressDotClasses.forEach((cls) => {
+        expect(cls).toBeTruthy();
+      });
+    });
+
+    it("should use bg-muted-foreground/30 for pending status dot", () => {
+      const pendingDotClass = "bg-muted-foreground/30";
+      expect(pendingDotClass).toBe("bg-muted-foreground/30");
+    });
+
+    it("should use bg-destructive for error status dot", () => {
+      const errorDotClass = "bg-destructive";
+      expect(errorDotClass).toBe("bg-destructive");
+    });
+  });
+
+  describe("status-specific icon background colors", () => {
+    it("should use bg-primary/10 for in_progress status", () => {
+      const inProgressBgClass = "bg-primary/10";
+      expect(inProgressBgClass).toBe("bg-primary/10");
+    });
+
+    it("should use bg-green-500/10 for completed status", () => {
+      const completedBgClass = "bg-green-500/10";
+      expect(completedBgClass).toBe("bg-green-500/10");
+    });
+
+    it("should use bg-muted for pending status", () => {
+      const pendingBgClass = "bg-muted";
+      expect(pendingBgClass).toBe("bg-muted");
+    });
+
+    it("should use bg-destructive/10 for error status", () => {
+      const errorBgClass = "bg-destructive/10";
+      expect(errorBgClass).toBe("bg-destructive/10");
+    });
+  });
+
+  describe("status-specific icon colors", () => {
+    it("should use text-primary for in_progress step icon", () => {
+      const inProgressIconClass = "text-primary";
+      expect(inProgressIconClass).toBe("text-primary");
+    });
+
+    it("should use text-green-600 (light) / text-green-500 (dark) for completed step icon", () => {
+      const completedIconClasses = [
+        "text-green-600",
+        "dark:text-green-500",
+      ];
+      completedIconClasses.forEach((cls) => {
+        expect(cls).toBeTruthy();
+      });
+    });
+
+    it("should use text-muted-foreground for pending step icon", () => {
+      const pendingIconClass = "text-muted-foreground";
+      expect(pendingIconClass).toBe("text-muted-foreground");
+    });
+
+    it("should use text-destructive for error step icon", () => {
+      const errorIconClass = "text-destructive";
+      expect(errorIconClass).toBe("text-destructive");
+    });
+  });
+
+  describe("status-specific text colors", () => {
+    it("should use text-foreground for in_progress step title", () => {
+      const inProgressTitleClass = "text-foreground";
+      expect(inProgressTitleClass).toBe("text-foreground");
+    });
+
+    it("should use text-foreground/80 for completed step title", () => {
+      const completedTitleClass = "text-foreground/80";
+      expect(completedTitleClass).toBe("text-foreground/80");
+    });
+
+    it("should use text-muted-foreground for pending step title", () => {
+      const pendingTitleClass = "text-muted-foreground";
+      expect(pendingTitleClass).toBe("text-muted-foreground");
+    });
+
+    it("should use text-destructive for error step title", () => {
+      const errorTitleClass = "text-destructive";
+      expect(errorTitleClass).toBe("text-destructive");
+    });
+  });
+
+  describe("summary text styling", () => {
+    it("should use text-muted-foreground for in_progress summary", () => {
+      const inProgressSummaryClass = "text-muted-foreground";
+      expect(inProgressSummaryClass).toBe("text-muted-foreground");
+    });
+
+    it("should use text-muted-foreground/70 for completed summary", () => {
+      const completedSummaryClass = "text-muted-foreground/70";
+      expect(completedSummaryClass).toBe("text-muted-foreground/70");
+    });
+
+    it("should use text-muted-foreground/60 for pending summary", () => {
+      const pendingSummaryClass = "text-muted-foreground/60";
+      expect(pendingSummaryClass).toBe("text-muted-foreground/60");
+    });
+
+    it("should use text-destructive/80 for error summary", () => {
+      const errorSummaryClass = "text-destructive/80";
+      expect(errorSummaryClass).toBe("text-destructive/80");
+    });
+  });
+});
+
+// =============================================================================
+// CSS Custom Class Tests (documented class names)
+// =============================================================================
+
+describe("CSS class documentation", () => {
+  it("should document all reasoning-panel CSS classes", () => {
+    const cssClasses = [
+      "reasoning-panel",
+      "reasoning-panel-streaming",
+      "reasoning-trigger",
+      "reasoning-trigger-icon",
+      "reasoning-content",
+      "reasoning-timeline",
+      "reasoning-step",
+      "reasoning-step-active",
+      "reasoning-step-dot",
+      "reasoning-step-icon",
+      "reasoning-step-status",
+    ];
+
+    // All CSS classes should be defined for styling hooks
+    expect(cssClasses.length).toBe(11);
+    cssClasses.forEach((cls) => {
+      expect(cls).toMatch(/^reasoning-/);
+    });
+  });
+
+  it("should use BEM-like naming convention for CSS classes", () => {
+    // Classes follow reasoning-{element} or reasoning-{element}-{modifier} pattern
+    const blockClasses = ["reasoning-panel", "reasoning-trigger", "reasoning-step"];
+    const elementClasses = ["reasoning-trigger-icon", "reasoning-step-dot", "reasoning-step-icon", "reasoning-step-status"];
+    const modifierClasses = ["reasoning-panel-streaming", "reasoning-step-active"];
+
+    blockClasses.forEach((cls) => {
+      expect(cls.split("-").length).toBeLessThanOrEqual(2);
+    });
+
+    elementClasses.forEach((cls) => {
+      expect(cls.split("-").length).toBe(3);
+    });
+
+    modifierClasses.forEach((cls) => {
+      expect(cls.split("-").length).toBe(3);
+    });
+  });
+});

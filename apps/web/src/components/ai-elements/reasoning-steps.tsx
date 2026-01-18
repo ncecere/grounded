@@ -174,7 +174,11 @@ export const ReasoningSteps = memo(
         value={{ isOpen, setIsOpen, isStreaming }}
       >
         <Collapsible
-          className={cn("not-prose mb-4", className)}
+          className={cn(
+            "not-prose reasoning-panel rounded-lg border border-border/50 bg-muted/30 px-3 py-2",
+            isStreaming && "reasoning-panel-streaming",
+            className
+          )}
           onOpenChange={handleOpenChange}
           open={isOpen}
           {...props}
@@ -225,16 +229,20 @@ export const ReasoningStepsTrigger = memo(
     return (
       <CollapsibleTrigger
         className={cn(
-          "flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground",
+          "reasoning-trigger flex w-full items-center gap-2.5 py-1 text-sm transition-colors",
+          "text-muted-foreground hover:text-foreground",
+          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 rounded",
           className
         )}
         {...props}
       >
-        <BrainIcon className="size-4" />
-        <span className="flex-1 text-left">{getMessage()}</span>
+        <div className="reasoning-trigger-icon flex size-6 items-center justify-center rounded-md bg-primary/10">
+          <BrainIcon className="size-3.5 text-primary" />
+        </div>
+        <span className="flex-1 text-left font-medium">{getMessage()}</span>
         <ChevronDownIcon
           className={cn(
-            "size-4 transition-transform",
+            "size-4 transition-transform duration-200",
             isOpen ? "rotate-180" : "rotate-0"
           )}
         />
@@ -257,15 +265,19 @@ export const ReasoningStepsContent = memo(
   ({ className, steps, ...props }: ReasoningStepsContentProps) => (
     <CollapsibleContent
       className={cn(
-        "mt-3 text-sm",
+        "reasoning-content mt-3 text-sm",
         "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 outline-hidden data-[state=closed]:animate-out data-[state=open]:animate-in",
         className
       )}
       {...props}
     >
-      <div className="space-y-2 border-l-2 border-muted pl-4">
-        {steps.map((step) => (
-          <ReasoningStepItem key={step.id} step={step} />
+      <div className="reasoning-timeline relative space-y-1 border-l-2 border-primary/20 pl-4 ml-3">
+        {steps.map((step, index) => (
+          <ReasoningStepItem
+            key={step.id}
+            step={step}
+            className={index === steps.length - 1 ? "pb-0" : ""}
+          />
         ))}
       </div>
     </CollapsibleContent>
@@ -287,21 +299,58 @@ export const ReasoningStepItem = memo(
     const StatusIcon = getStatusIcon(step.status);
     const statusClasses = getStatusClasses(step.status);
     const isInProgress = step.status === "in_progress";
+    const isCompleted = step.status === "completed";
 
     return (
-      <div className={cn("flex items-start gap-3 py-1", className)}>
+      <div
+        className={cn(
+          "reasoning-step relative flex items-start gap-3 py-1.5",
+          isInProgress && "reasoning-step-active",
+          className
+        )}
+      >
+        {/* Timeline dot indicator */}
+        <div
+          className={cn(
+            "reasoning-step-dot absolute -left-[21px] top-2.5 size-2 rounded-full border-2 border-background",
+            isCompleted && "bg-green-500",
+            isInProgress && "bg-primary animate-pulse",
+            step.status === "pending" && "bg-muted-foreground/30",
+            step.status === "error" && "bg-destructive"
+          )}
+        />
+
         {/* Step type icon */}
-        <div className="flex-shrink-0 mt-0.5">
-          <StepIcon className="size-4 text-muted-foreground" />
+        <div
+          className={cn(
+            "reasoning-step-icon flex size-7 flex-shrink-0 items-center justify-center rounded-md transition-colors",
+            isInProgress && "bg-primary/10",
+            isCompleted && "bg-green-500/10",
+            step.status === "pending" && "bg-muted",
+            step.status === "error" && "bg-destructive/10"
+          )}
+        >
+          <StepIcon
+            className={cn(
+              "size-3.5",
+              isInProgress && "text-primary",
+              isCompleted && "text-green-600 dark:text-green-500",
+              step.status === "pending" && "text-muted-foreground",
+              step.status === "error" && "text-destructive"
+            )}
+          />
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 py-0.5">
           <div className="flex items-center gap-2">
             <span
               className={cn(
-                "font-medium text-sm",
-                isInProgress ? "text-foreground" : "text-muted-foreground"
+                "font-medium text-sm leading-tight",
+                isInProgress && "text-foreground",
+                isCompleted && "text-foreground/80",
+                step.status === "pending" && "text-muted-foreground",
+                step.status === "error" && "text-destructive"
               )}
             >
               {isInProgress ? (
@@ -314,10 +363,11 @@ export const ReasoningStepItem = memo(
           {step.summary && (
             <p
               className={cn(
-                "text-xs mt-0.5",
-                isInProgress
-                  ? "text-muted-foreground"
-                  : "text-muted-foreground/80"
+                "text-xs mt-0.5 leading-relaxed",
+                isInProgress && "text-muted-foreground",
+                isCompleted && "text-muted-foreground/70",
+                step.status === "pending" && "text-muted-foreground/60",
+                step.status === "error" && "text-destructive/80"
               )}
             >
               {step.summary}
@@ -326,7 +376,12 @@ export const ReasoningStepItem = memo(
         </div>
 
         {/* Status icon */}
-        <div className={cn("flex-shrink-0 mt-0.5", statusClasses)}>
+        <div
+          className={cn(
+            "reasoning-step-status flex-shrink-0 mt-1",
+            statusClasses
+          )}
+        >
           {step.status === "in_progress" ? (
             <Loader size={14} />
           ) : (

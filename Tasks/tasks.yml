@@ -175,7 +175,7 @@ tasks:
     notes: Collapsible panel, collapsed by default
 
   - title: Add styling for reasoning panel
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [web, ui, chat, styling]
     file: phase-5-frontend-chat-ui.md
