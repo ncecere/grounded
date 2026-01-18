@@ -75,6 +75,48 @@ export const JOB_RETRY_DELAY_MS = 5000;
 export const JOB_BACKOFF_TYPE = "exponential" as const;
 
 // ============================================================================
+// Ingestion Stage Constants
+// ============================================================================
+
+/**
+ * Ordered list of ingestion pipeline stages.
+ * Pages flow through these stages sequentially.
+ */
+export const INGESTION_STAGES = [
+  "discover",
+  "fetch",
+  "extract",
+  "chunk",
+  "embed",
+  "index",
+] as const;
+
+/**
+ * Maximum retry attempts per stage.
+ * After exhausting retries, stage is marked as failed_permanent.
+ */
+export const STAGE_MAX_RETRIES = {
+  discover: 2,
+  fetch: 3,
+  extract: 2,
+  chunk: 1,
+  embed: 3,
+  index: 3,
+} as const;
+
+/**
+ * Base delay (ms) for exponential backoff per stage.
+ */
+export const STAGE_RETRY_DELAY_MS = {
+  discover: 5000,
+  fetch: 10000,
+  extract: 2000,
+  chunk: 1000,
+  embed: 5000,
+  index: 5000,
+} as const;
+
+// ============================================================================
 // API Versions
 // ============================================================================
 

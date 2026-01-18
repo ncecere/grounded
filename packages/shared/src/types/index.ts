@@ -56,6 +56,49 @@ export const PageStatus = {
 } as const;
 export type PageStatus = (typeof PageStatus)[keyof typeof PageStatus];
 
+// ============================================================================
+// Ingestion Stage Pipeline
+// ============================================================================
+
+/**
+ * Defines the six stages in the ingestion pipeline.
+ * Each URL/document flows through these stages sequentially.
+ */
+export const IngestionStage = {
+  /** URL discovery from source config (sitemap, list, domain crawl) */
+  DISCOVER: "discover",
+  /** Fetch raw HTML/content from URL */
+  FETCH: "fetch",
+  /** Extract main content, headings, and metadata from raw HTML */
+  EXTRACT: "extract",
+  /** Split content into chunks with overlap */
+  CHUNK: "chunk",
+  /** Generate vector embeddings for chunks */
+  EMBED: "embed",
+  /** Store vectors in vector database for retrieval */
+  INDEX: "index",
+} as const;
+export type IngestionStage = (typeof IngestionStage)[keyof typeof IngestionStage];
+
+/**
+ * Status of a single stage in the pipeline.
+ */
+export const StageStatus = {
+  /** Stage not yet started */
+  PENDING: "pending",
+  /** Stage currently processing */
+  IN_PROGRESS: "in_progress",
+  /** Stage completed successfully */
+  COMPLETED: "completed",
+  /** Stage failed with retryable error */
+  FAILED_RETRYABLE: "failed_retryable",
+  /** Stage failed with permanent error */
+  FAILED_PERMANENT: "failed_permanent",
+  /** Stage skipped (e.g., unchanged content) */
+  SKIPPED: "skipped",
+} as const;
+export type StageStatus = (typeof StageStatus)[keyof typeof StageStatus];
+
 export const ChatChannel = {
   ADMIN_UI: "admin_ui",
   WIDGET: "widget",
@@ -284,6 +327,210 @@ export interface SourceRunStats {
   pagesFailed: number;
   pagesSkipped?: number;
   tokensEstimated: number;
+}
+
+// ============================================================================
+// Ingestion Stage Contract Types
+// ============================================================================
+
+/**
+ * Per-stage timestamps for tracking pipeline progress.
+ * Stored in SourceRunStats for overall run timing.
+ */
+export interface StageTimestamps {
+  /** When the stage started processing */
+  startedAt?: string;
+  /** When the stage completed (success or failure) */
+  finishedAt?: string;
+}
+
+/**
+ * Extended stats for source runs with per-stage tracking.
+ * This extends SourceRunStats to maintain backwards compatibility.
+ */
+export interface SourceRunStatsV2 extends SourceRunStats {
+  /** Per-stage aggregate counts */
+  stages?: {
+    discover?: {
+      urlsFound: number;
+      startedAt?: string;
+      finishedAt?: string;
+    };
+    fetch?: {
+      succeeded: number;
+      failed: number;
+      skipped: number;
+      startedAt?: string;
+      finishedAt?: string;
+    };
+    extract?: {
+      succeeded: number;
+      failed: number;
+      startedAt?: string;
+      finishedAt?: string;
+    };
+    chunk?: {
+      chunksCreated: number;
+      startedAt?: string;
+      finishedAt?: string;
+    };
+    embed?: {
+      succeeded: number;
+      failed: number;
+      startedAt?: string;
+      finishedAt?: string;
+    };
+    index?: {
+      vectorsStored: number;
+      startedAt?: string;
+      finishedAt?: string;
+    };
+  };
+}
+
+/**
+ * Stage input/output contract definitions.
+ * Documents the data flowing between each pipeline stage.
+ */
+export interface StageContracts {
+  /**
+   * DISCOVER stage
+   * Input: Source configuration (URLs, sitemap URL, domain settings)
+   * Output: List of URLs to process
+   */
+  discover: {
+    input: {
+      sourceId: string;
+      config: {
+        mode: "single" | "list" | "sitemap" | "domain";
+        urls?: string[];
+        url?: string;
+        depth?: number;
+        includePatterns?: string[];
+        excludePatterns?: string[];
+      };
+    };
+    output: {
+      urls: string[];
+      urlCount: number;
+    };
+  };
+
+  /**
+   * FETCH stage
+   * Input: URL to fetch
+   * Output: Raw HTML content and metadata
+   */
+  fetch: {
+    input: {
+      url: string;
+      fetchMode: "auto" | "html" | "headless" | "firecrawl";
+    };
+    output: {
+      html: string;
+      title: string | null;
+      httpStatus: number;
+      contentType: string;
+    };
+  };
+
+  /**
+   * EXTRACT stage
+   * Input: Raw HTML content
+   * Output: Cleaned main content with structure
+   */
+  extract: {
+    input: {
+      html: string;
+      url: string;
+    };
+    output: {
+      content: string;
+      title: string;
+      headings: { level: number; text: string }[];
+      contentHash: string;
+    };
+  };
+
+  /**
+   * CHUNK stage
+   * Input: Extracted content
+   * Output: Array of overlapping chunks
+   */
+  chunk: {
+    input: {
+      content: string;
+      title: string;
+      headings: { level: number; text: string }[];
+      url: string;
+    };
+    output: {
+      chunks: {
+        content: string;
+        chunkIndex: number;
+        heading: string | null;
+        sectionPath: string[];
+        tokenCount: number;
+      }[];
+    };
+  };
+
+  /**
+   * EMBED stage
+   * Input: Chunk content
+   * Output: Vector embedding
+   */
+  embed: {
+    input: {
+      chunkIds: string[];
+      embeddingModelId: string;
+    };
+    output: {
+      embeddings: {
+        chunkId: string;
+        vector: number[];
+        dimensions: number;
+      }[];
+    };
+  };
+
+  /**
+   * INDEX stage
+   * Input: Chunk ID and embedding vector
+   * Output: Confirmation of vector storage
+   */
+  index: {
+    input: {
+      chunkId: string;
+      vector: number[];
+      kbId: string;
+    };
+    output: {
+      stored: boolean;
+      vectorId: string;
+    };
+  };
+}
+
+/**
+ * Per-page stage status tracking.
+ * Records the status and timing of each stage for a specific page/URL.
+ */
+export interface PageStageStatus {
+  /** The ingestion stage */
+  stage: IngestionStage;
+  /** Current status of this stage */
+  status: StageStatus;
+  /** When this stage started */
+  startedAt?: string;
+  /** When this stage finished */
+  finishedAt?: string;
+  /** Error message if failed */
+  error?: string;
+  /** Number of retry attempts */
+  retryCount?: number;
+  /** Output metadata (stage-specific) */
+  metadata?: Record<string, unknown>;
 }
 
 export interface Agent {

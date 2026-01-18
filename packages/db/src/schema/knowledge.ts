@@ -12,7 +12,12 @@ import {
 import { sql } from "drizzle-orm";
 import { tenants, users } from "./tenants";
 import { modelConfigurations } from "./ai-models";
-import type { SourceConfig, SourceRunStats } from "@grounded/shared";
+import type {
+  SourceConfig,
+  SourceRunStats,
+  IngestionStage,
+  StageStatus,
+} from "@grounded/shared";
 
 export const knowledgeBases = pgTable(
   "knowledge_bases",
@@ -151,10 +156,57 @@ export const sourceRunPages = pgTable(
       .notNull()
       .$type<"succeeded" | "failed" | "skipped_unchanged">(),
     error: text("error"),
+    // Per-stage tracking for V2 ingestion contract
+    currentStage: text("current_stage").$type<IngestionStage>(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("source_run_pages_run_id_idx").on(table.sourceRunId),
     index("source_run_pages_tenant_url_idx").on(table.tenantId, table.normalizedUrl),
+    index("source_run_pages_current_stage_idx").on(table.currentStage),
+  ]
+);
+
+/**
+ * Tracks the status of each ingestion stage for a page.
+ * Provides detailed audit trail and timing for pipeline debugging.
+ * One row per page per stage (up to 6 rows per page).
+ */
+export const sourceRunPageStages = pgTable(
+  "source_run_page_stages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    sourceRunPageId: uuid("source_run_page_id")
+      .notNull()
+      .references(() => sourceRunPages.id, { onDelete: "cascade" }),
+    /** The pipeline stage (discover, fetch, extract, chunk, embed, index) */
+    stage: text("stage").notNull().$type<IngestionStage>(),
+    /** Status of this stage */
+    status: text("status")
+      .notNull()
+      .$type<StageStatus>()
+      .default("pending"),
+    /** When stage processing started */
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    /** When stage processing finished */
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    /** Error message if failed */
+    error: text("error"),
+    /** Number of retry attempts made */
+    retryCount: integer("retry_count").default(0).notNull(),
+    /** Stage-specific metadata (e.g., chunk count, embedding dimensions) */
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("source_run_page_stages_page_id_idx").on(table.sourceRunPageId),
+    uniqueIndex("source_run_page_stages_page_stage_unique").on(
+      table.sourceRunPageId,
+      table.stage
+    ),
+    index("source_run_page_stages_status_idx").on(table.status),
+    index("source_run_page_stages_stage_status_idx").on(table.stage, table.status),
   ]
 );

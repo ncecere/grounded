@@ -1,0 +1,36 @@
+## 2026-01-18: Define staged ingestion contract and per-stage status model
+
+### Summary
+Implemented the staged ingestion contract with per-stage status tracking for the ingestion pipeline.
+
+### Changes Made
+1. **packages/shared/src/types/index.ts**
+   - Added `IngestionStage` enum defining 6 pipeline stages: discover, fetch, extract, chunk, embed, index
+   - Added `StageStatus` enum with 6 statuses: pending, in_progress, completed, failed_retryable, failed_permanent, skipped
+   - Added `StageTimestamps` interface for per-stage timing
+   - Added `SourceRunStatsV2` interface extending `SourceRunStats` with optional per-stage aggregate stats
+   - Added `StageContracts` interface documenting inputs/outputs for each stage
+   - Added `PageStageStatus` interface for tracking per-page stage status
+
+2. **packages/shared/src/constants/index.ts**
+   - Added `INGESTION_STAGES` array with ordered stages
+   - Added `STAGE_MAX_RETRIES` with per-stage retry limits
+   - Added `STAGE_RETRY_DELAY_MS` with per-stage retry delays
+
+3. **packages/db/src/schema/knowledge.ts**
+   - Added `currentStage` field to `sourceRunPages` table for tracking current pipeline stage
+   - Added `sourceRunPageStages` table for detailed per-page stage tracking with status, timestamps, error, retryCount, and metadata
+
+4. **packages/shared/src/types/ingestion-stages.test.ts** (new file)
+   - Added 60 tests covering all new types, enums, and constants
+   - Tests validate type correctness, backwards compatibility, and pipeline documentation
+
+### Acceptance Criteria Met
+- ✅ Document inputs/outputs for discover, fetch, extract, chunk, embed, index (via StageContracts interface)
+- ✅ Define per-stage status fields and timestamps (via IngestionStage, StageStatus, PageStageStatus, sourceRunPageStages table)
+- ✅ Preserve compatibility with existing runs (SourceRunStatsV2 extends SourceRunStats, new fields are optional)
+
+### Tests
+- All 60 new tests pass
+- All existing tests pass (1306 tests across all packages)
+- TypeScript typechecking passes

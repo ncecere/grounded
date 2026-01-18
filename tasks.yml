@@ -6,7 +6,7 @@ tasks:
   # PARALLEL GROUP 1: Architecture & contracts
   # ===========================================================================
   - title: Define staged ingestion contract and per-stage status model
-    completed: false
+    completed: true
     parallel_group: 1
     tags: [architecture, ingestion]
     acceptance_criteria:
