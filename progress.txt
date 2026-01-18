@@ -907,3 +907,72 @@ Enhanced the AdvancedRAGService's `buildSystemPrompt` method to include explicit
 - `apps/api/src/routes/chat-endpoint.ts` (MODIFIED - added RAG type routing)
 - `apps/api/src/routes/chat-endpoint.test.ts` (NEW - 84 tests)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 3 - Update agent CRUD routes for ragType field
+
+### Completed Task
+**Task:** Update agent CRUD routes for ragType field
+**Phase:** Phase 3 - API Routing & Integration
+**Status:** COMPLETED
+
+### Implementation Summary
+Verified that the agent CRUD routes already properly support the ragType field. The routes were already implemented with ragType support in Phase 1 (schema & types). This task confirms the implementation and adds comprehensive tests documenting the route behavior contracts.
+
+### Existing Implementation (verified):
+1. **Create Agent (POST /agents):**
+   - `createAgentSchema` includes `ragType: z.enum(["simple", "advanced"]).default("simple")`
+   - Agent insert values include `ragType: body.ragType`
+   - Response includes the full agent object with ragType
+
+2. **Update Agent (PATCH /agents/:agentId):**
+   - `updateAgentSchema` includes `ragType: z.enum(["simple", "advanced"]).optional()`
+   - Agent update includes ragType when provided in the request body
+   - Response includes the updated agent with ragType
+
+3. **Get Agent (GET /agents/:agentId):**
+   - Uses `loadAgentForTenant()` which returns full agent including ragType
+   - Response includes agent with ragType field
+
+4. **List Agents (GET /agents):**
+   - Uses `tx.query.agents.findMany()` which returns all columns including ragType
+   - Response includes agents array with ragType for each agent
+
+5. **Retrieval Config Routes:**
+   - `updateRetrievalConfigSchema` includes `historyTurns` and `advancedMaxSubqueries`
+   - GET returns all config fields including advanced RAG fields
+   - PUT allows updating advanced RAG fields
+
+### Tests Added (33 new tests):
+1. **Agent CRUD Route Behavior:**
+   - Create agent request body ragType handling
+   - Response structure verification
+   - Get agent response includes ragType
+   - List agents returns ragType for each agent
+   - Update agent ragType modification
+   - Delete agent works for both ragType values
+
+2. **Retrieval Config Route Behavior:**
+   - GET returns historyTurns and advancedMaxSubqueries
+   - PUT accepts advanced RAG field updates
+
+3. **Agent Creation with Default Retrieval Config:**
+   - Default historyTurns value (5)
+   - Default advancedMaxSubqueries value (3)
+   - Resources created alongside agent
+
+4. **Advanced RAG Mode Configuration:**
+   - ragType and retrieval config relationship documentation
+   - Valid configuration combinations
+
+5. **API Response Type Contracts:**
+   - Agent type includes ragType field
+   - RetrievalConfig type includes advanced fields
+
+### Test Results
+- All 590 tests pass (590 in api)
+- All typecheck passes across 14 packages
+- Added 33 new tests for agent CRUD route ragType handling
+
+### Files Changed
+- `apps/api/src/routes/agents.test.ts` (MODIFIED - added 33 tests for route behavior)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)
