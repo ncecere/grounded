@@ -654,6 +654,335 @@ export interface KbReindexJob extends BaseJob {
 }
 
 // ============================================================================
+// Standardized Job Payload Schemas
+// ============================================================================
+
+/**
+ * Zod schema for base job fields.
+ * All job payloads should extend this schema.
+ */
+export const baseJobSchema = z.object({
+  /** Request ID from the originating API request (for log correlation) */
+  requestId: z.string().uuid().optional(),
+  /** Trace ID for distributed tracing across services */
+  traceId: z.string().optional(),
+});
+
+/**
+ * Web source configuration for job payloads.
+ * Contains web-specific crawl settings.
+ */
+export const webSourceJobConfigSchema = z.object({
+  /** Source type discriminator */
+  sourceType: z.literal("web"),
+  /** Crawl mode */
+  mode: z.enum(["single", "list", "sitemap", "domain"]),
+  /** Fetch mode for page retrieval */
+  fetchMode: z.enum(["auto", "html", "headless", "firecrawl"]),
+  /** Maximum crawl depth (1-10) */
+  depth: z.number().int().min(1).max(10).default(3),
+  /** URL patterns to include */
+  includePatterns: z.array(z.string()).default([]),
+  /** URL patterns to exclude */
+  excludePatterns: z.array(z.string()).default([]),
+  /** Whether to include subdomains in domain mode */
+  includeSubdomains: z.boolean().default(false),
+  /** Whether to respect robots.txt */
+  respectRobotsTxt: z.boolean().default(true),
+});
+export type WebSourceJobConfig = z.infer<typeof webSourceJobConfigSchema>;
+
+/**
+ * Upload source configuration for job payloads.
+ * Contains upload-specific file metadata.
+ */
+export const uploadSourceJobConfigSchema = z.object({
+  /** Source type discriminator */
+  sourceType: z.literal("upload"),
+  /** Upload record ID */
+  uploadId: z.string().uuid(),
+  /** Original filename */
+  filename: z.string(),
+  /** MIME type of the uploaded file */
+  mimeType: z.string(),
+  /** File size in bytes */
+  sizeBytes: z.number().int().min(0),
+});
+export type UploadSourceJobConfig = z.infer<typeof uploadSourceJobConfigSchema>;
+
+/**
+ * Discriminated union of source configurations.
+ * Used to distinguish between web and upload sources in job payloads.
+ */
+export const sourceJobConfigSchema = z.discriminatedUnion("sourceType", [
+  webSourceJobConfigSchema,
+  uploadSourceJobConfigSchema,
+]);
+export type SourceJobConfig = z.infer<typeof sourceJobConfigSchema>;
+
+// ----------------------------------------------------------------------------
+// Web Source Job Payload Schemas
+// ----------------------------------------------------------------------------
+
+/**
+ * Schema for starting a web source run.
+ * Initiates the crawl/scrape pipeline for a web source.
+ */
+export const webSourceRunStartJobSchema = baseJobSchema.extend({
+  tenantId: z.string().uuid(),
+  sourceId: z.string().uuid(),
+  runId: z.string().uuid(),
+  /** Source configuration for the run */
+  sourceConfig: webSourceJobConfigSchema.optional(),
+});
+export type WebSourceRunStartJobPayload = z.infer<typeof webSourceRunStartJobSchema>;
+
+/**
+ * Schema for URL discovery job.
+ * Discovers URLs from sitemap, domain crawl, or explicit list.
+ */
+export const webSourceDiscoverJobSchema = baseJobSchema.extend({
+  tenantId: z.string().uuid(),
+  runId: z.string().uuid(),
+  /** Crawl configuration for filtering discovered URLs */
+  crawlConfig: z
+    .object({
+      mode: z.enum(["single", "list", "sitemap", "domain"]),
+      urls: z.array(z.string().url()).optional(),
+      url: z.string().url().optional(),
+      depth: z.number().int().min(1).max(10).default(3),
+      includePatterns: z.array(z.string()).default([]),
+      excludePatterns: z.array(z.string()).default([]),
+      includeSubdomains: z.boolean().default(false),
+    })
+    .optional(),
+});
+export type WebSourceDiscoverJobPayload = z.infer<typeof webSourceDiscoverJobSchema>;
+
+/**
+ * Schema for page fetch job.
+ * Fetches raw HTML content from a URL.
+ */
+export const pageFetchJobSchema = baseJobSchema.extend({
+  tenantId: z.string().uuid(),
+  runId: z.string().uuid(),
+  /** URL to fetch */
+  url: z.string().url(),
+  /** Fetch mode (auto, html, headless, firecrawl) */
+  fetchMode: z.enum(["auto", "html", "headless", "firecrawl"]),
+  /** Current depth in the crawl (0 = starting page) */
+  depth: z.number().int().min(0).optional(),
+  /** Parent URL that linked to this page (for crawl graphs) */
+  parentUrl: z.string().url().optional(),
+});
+export type PageFetchJobPayload = z.infer<typeof pageFetchJobSchema>;
+
+// ----------------------------------------------------------------------------
+// Upload Source Job Payload Schemas
+// ----------------------------------------------------------------------------
+
+/**
+ * Schema for starting an upload source run.
+ * Processes an uploaded document through extraction and chunking.
+ */
+export const uploadSourceRunStartJobSchema = baseJobSchema.extend({
+  tenantId: z.string().uuid(),
+  sourceId: z.string().uuid(),
+  runId: z.string().uuid(),
+  /** Upload-specific configuration */
+  uploadConfig: uploadSourceJobConfigSchema,
+});
+export type UploadSourceRunStartJobPayload = z.infer<typeof uploadSourceRunStartJobSchema>;
+
+// ----------------------------------------------------------------------------
+// Shared Job Payload Schemas (used by both web and upload)
+// ----------------------------------------------------------------------------
+
+/**
+ * Schema for page/document process job.
+ * Processes content into chunks for embedding.
+ * Used by both web sources (HTML) and upload sources (extracted text).
+ */
+export const pageProcessJobSchema = baseJobSchema.extend({
+  tenantId: z.string().uuid(),
+  runId: z.string().uuid(),
+  /** URL or upload:// URI identifying the content */
+  url: z.string(),
+  /** Raw content (HTML for web, extracted text for uploads) */
+  content: z.string(),
+  /** Document title (page title for web, filename for uploads) */
+  title: z.string().nullable(),
+  /** Current depth in crawl (web only, 0 = starting page) */
+  depth: z.number().int().min(0).optional(),
+  /** Source type for processing behavior hints */
+  sourceType: z.enum(["web", "upload"]).optional(),
+  /** Upload metadata (for upload sources only) */
+  uploadMetadata: z
+    .object({
+      uploadId: z.string().uuid(),
+      filename: z.string(),
+      mimeType: z.string(),
+      sizeBytes: z.number().int().min(0),
+    })
+    .optional(),
+});
+export type PageProcessJobPayload = z.infer<typeof pageProcessJobSchema>;
+
+/**
+ * Schema for batch embedding job.
+ * Generates vector embeddings for a batch of chunks.
+ */
+export const embedChunksBatchJobSchema = baseJobSchema.extend({
+  tenantId: z.string().uuid(),
+  kbId: z.string().uuid(),
+  /** Chunk IDs to embed */
+  chunkIds: z.array(z.string().uuid()).min(1),
+  /** Source run ID for tracking embedding progress */
+  runId: z.string().uuid().optional(),
+  /** Embedding model configuration */
+  embeddingConfig: z
+    .object({
+      modelId: z.string(),
+      dimensions: z.number().int().positive(),
+    })
+    .optional(),
+});
+export type EmbedChunksBatchJobPayload = z.infer<typeof embedChunksBatchJobSchema>;
+
+/**
+ * Schema for page enrichment job.
+ * Enriches chunks with metadata (tags, entities, keywords).
+ */
+export const enrichPageJobSchema = baseJobSchema.extend({
+  tenantId: z.string().uuid(),
+  kbId: z.string().uuid(),
+  /** Chunk IDs to enrich */
+  chunkIds: z.array(z.string().uuid()).min(1),
+  /** Source type hint for enrichment processing */
+  sourceType: z.enum(["web", "upload"]).optional(),
+});
+export type EnrichPageJobPayload = z.infer<typeof enrichPageJobSchema>;
+
+/**
+ * Schema for source run finalization job.
+ * Finalizes the run and updates completion stats.
+ */
+export const sourceRunFinalizeJobSchema = baseJobSchema.extend({
+  tenantId: z.string().uuid(),
+  runId: z.string().uuid(),
+  /** Source type for finalization behavior */
+  sourceType: z.enum(["web", "upload"]).optional(),
+});
+export type SourceRunFinalizeJobPayload = z.infer<typeof sourceRunFinalizeJobSchema>;
+
+/**
+ * Schema for hard delete job.
+ * Permanently deletes objects and associated data.
+ */
+export const hardDeleteObjectJobSchema = baseJobSchema.extend({
+  tenantId: z.string().uuid(),
+  objectType: z.enum(["kb", "source", "agent", "tenant"]),
+  objectId: z.string().uuid(),
+  /** Whether to cascade delete related objects */
+  cascade: z.boolean().default(true),
+});
+export type HardDeleteObjectJobPayload = z.infer<typeof hardDeleteObjectJobSchema>;
+
+/**
+ * Schema for KB reindex job.
+ * Re-embeds all chunks when changing embedding models.
+ */
+export const kbReindexJobSchema = baseJobSchema.extend({
+  tenantId: z.string().uuid().nullable(),
+  kbId: z.string().uuid(),
+  newEmbeddingModelId: z.string(),
+  newEmbeddingDimensions: z.number().int().positive(),
+  /** Whether to delete old embeddings before reindexing */
+  deleteOldEmbeddings: z.boolean().default(true),
+});
+export type KbReindexJobPayload = z.infer<typeof kbReindexJobSchema>;
+
+// ----------------------------------------------------------------------------
+// Job Payload Union Types
+// ----------------------------------------------------------------------------
+
+/**
+ * Union of all source run job types.
+ * Used for routing jobs to appropriate processors.
+ */
+export type SourceRunJobPayload =
+  | WebSourceRunStartJobPayload
+  | UploadSourceRunStartJobPayload
+  | WebSourceDiscoverJobPayload
+  | SourceRunFinalizeJobPayload;
+
+/**
+ * Union of all ingestion pipeline job types.
+ * Covers the full pipeline from fetch to embed.
+ */
+export type IngestionJobPayload =
+  | PageFetchJobPayload
+  | PageProcessJobPayload
+  | EmbedChunksBatchJobPayload
+  | EnrichPageJobPayload;
+
+/**
+ * Union of all job types.
+ */
+export type AnyJobPayload =
+  | SourceRunJobPayload
+  | IngestionJobPayload
+  | HardDeleteObjectJobPayload
+  | KbReindexJobPayload;
+
+// ----------------------------------------------------------------------------
+// Job Payload Validation Helpers
+// ----------------------------------------------------------------------------
+
+/**
+ * Validates a job payload against its schema.
+ * Throws ZodError if validation fails.
+ */
+export function validateJobPayload<T>(
+  schema: z.ZodType<T>,
+  payload: unknown
+): T {
+  return schema.parse(payload);
+}
+
+/**
+ * Safely validates a job payload, returning a result object.
+ */
+export function safeValidateJobPayload<T>(
+  schema: z.ZodType<T>,
+  payload: unknown
+): { success: true; data: T } | { success: false; error: z.ZodError } {
+  const result = schema.safeParse(payload);
+  if (result.success) {
+    return { success: true, data: result.data };
+  }
+  return { success: false, error: result.error };
+}
+
+/**
+ * Type guard to check if a payload is for a web source.
+ */
+export function isWebSourcePayload(
+  payload: SourceJobConfig
+): payload is WebSourceJobConfig {
+  return payload.sourceType === "web";
+}
+
+/**
+ * Type guard to check if a payload is for an upload source.
+ */
+export function isUploadSourcePayload(
+  payload: SourceJobConfig
+): payload is UploadSourceJobConfig {
+  return payload.sourceType === "upload";
+}
+
+// ============================================================================
 // Quota Types
 // ============================================================================
 

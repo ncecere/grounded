@@ -15,7 +15,7 @@ tasks:
       - Preserve compatibility with existing runs
 
   - title: Standardize job payload schemas for web and upload sources
-    completed: false
+    completed: true
     parallel_group: 1
     tags: [architecture, jobs]
 

@@ -34,3 +34,50 @@ Implemented the staged ingestion contract with per-stage status tracking for the
 - All 60 new tests pass
 - All existing tests pass (1306 tests across all packages)
 - TypeScript typechecking passes
+
+## 2026-01-18: Standardize job payload schemas for web and upload sources
+
+### Summary
+Implemented standardized Zod schemas for all job payloads with clear distinction between web and upload sources, validation helpers, and type guards.
+
+### Changes Made
+1. **packages/shared/src/types/index.ts**
+   - Added `baseJobSchema` - Zod schema for common job fields (requestId, traceId)
+   - Added `webSourceJobConfigSchema` - Web source configuration (mode, fetchMode, depth, patterns, etc.)
+   - Added `uploadSourceJobConfigSchema` - Upload source configuration (uploadId, filename, mimeType, sizeBytes)
+   - Added `sourceJobConfigSchema` - Discriminated union of web/upload configs
+   - Added `webSourceRunStartJobSchema` - Schema for starting web source runs
+   - Added `webSourceDiscoverJobSchema` - Schema for URL discovery jobs
+   - Added `pageFetchJobSchema` - Schema for page fetch jobs with optional parentUrl
+   - Added `uploadSourceRunStartJobSchema` - Schema for starting upload source runs
+   - Added `pageProcessJobSchema` - Unified schema for both web/upload with sourceType and uploadMetadata fields
+   - Added `embedChunksBatchJobSchema` - Schema with optional embeddingConfig
+   - Added `enrichPageJobSchema` - Schema with optional sourceType hint
+   - Added `sourceRunFinalizeJobSchema` - Schema with optional sourceType
+   - Added `hardDeleteObjectJobSchema` - Schema with cascade option
+   - Added `kbReindexJobSchema` - Schema with deleteOldEmbeddings option
+   - Added union types: `SourceRunJobPayload`, `IngestionJobPayload`, `AnyJobPayload`
+   - Added `validateJobPayload()` - Throws on validation failure
+   - Added `safeValidateJobPayload()` - Returns success/error result
+   - Added `isWebSourcePayload()` and `isUploadSourcePayload()` type guards
+
+2. **packages/shared/src/types/job-payloads.test.ts** (new file)
+   - Added 59 tests covering all new schemas
+   - Tests validate schema parsing, default values, constraints, and type compatibility
+   - Tests backwards compatibility with existing payload patterns
+
+### Key Design Decisions
+- **Discriminated Union**: Used `sourceType` as discriminator to distinguish web vs upload payloads
+- **Optional Extensions**: New fields (sourceConfig, uploadMetadata, embeddingConfig) are optional to maintain backwards compatibility
+- **Zod Validation**: All schemas use Zod for runtime validation with TypeScript type inference
+- **URL Flexibility**: `pageProcessJobSchema` accepts both HTTP URLs and `upload://` URIs
+
+### Acceptance Criteria
+- ✅ Standardized schemas for web and upload sources with clear type distinctions
+- ✅ Validation schemas (Zod) for all job payloads
+- ✅ Backwards compatible with existing job structures
+
+### Tests
+- All 59 new tests pass
+- All existing tests pass (1306 tests across all packages)
+- TypeScript typechecking passes
