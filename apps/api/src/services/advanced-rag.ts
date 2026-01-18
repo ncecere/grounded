@@ -1,4 +1,5 @@
-import { streamText } from "ai";
+import { streamText, generateObject } from "ai";
+import { z } from "zod";
 import { eq, and, isNull, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { db } from "@grounded/db";
@@ -76,6 +77,18 @@ export interface SubQuery {
   query: string;
   purpose: string;
 }
+
+/**
+ * Zod schema for structured sub-query generation
+ */
+const SubQueryResponseSchema = z.object({
+  subQueries: z.array(
+    z.object({
+      query: z.string().describe("A focused search query targeting a specific aspect"),
+      purpose: z.string().describe("Brief explanation of what this query targets"),
+    })
+  ).min(1).max(5).describe("Array of sub-queries for comprehensive retrieval"),
+});
 
 /**
  * Stream events for AdvancedRAGService
@@ -442,25 +455,57 @@ Rewritten query:`,
   }
 
   /**
-   * Generate sub-queries for multi-step retrieval
+   * Generate sub-queries for multi-step retrieval.
+   * Tries structured output first, falls back to text parsing for models that don't support it.
    */
   private async generateSubQueries(query: string): Promise<SubQuery[]> {
     if (!this.config) {
       return [{ id: randomUUID(), query, purpose: "Original query" }];
     }
 
+    const registry = getAIRegistry();
+    const model = await registry.getLanguageModel(
+      this.config.modelConfigId || undefined
+    );
+
+    if (!model) {
+      return [{ id: randomUUID(), query, purpose: "Original query" }];
+    }
+
+    const maxSubqueries = this.config.advancedMaxSubqueries;
+
+    // Try structured output first (works with OpenAI, Anthropic, Google, etc.)
     try {
-      const registry = getAIRegistry();
-      const model = await registry.getLanguageModel(
-        this.config.modelConfigId || undefined
-      );
+      const { object } = await generateObject({
+        model,
+        schema: SubQueryResponseSchema,
+        system: `You are a search query planner. Given a user query, generate up to ${maxSubqueries} focused sub-queries that together will retrieve comprehensive information to answer the original query.
 
-      if (!model) {
-        return [{ id: randomUUID(), query, purpose: "Original query" }];
-      }
+Rules:
+1. Each sub-query should target a specific aspect of the original query
+2. Sub-queries should be complementary, not redundant
+3. If the original query is simple and focused, return just 1 sub-query (the original or a slightly refined version)
+4. Keep queries concise and search-optimized`,
+        prompt: `Original query: "${query}"
 
-      const maxSubqueries = this.config.advancedMaxSubqueries;
+Generate up to ${maxSubqueries} sub-queries for comprehensive retrieval.`,
+      });
 
+      // Map the structured response to SubQuery objects with IDs
+      return object.subQueries.slice(0, maxSubqueries).map((item) => ({
+        id: randomUUID(),
+        query: item.query || query,
+        purpose: item.purpose || "Sub-query",
+      }));
+    } catch (structuredError) {
+      // Structured output not supported, fall back to text-based generation
+      log.debug("api", "AdvancedRAG: Structured output not supported, using text fallback", {
+        error: structuredError instanceof Error ? structuredError.message : String(structuredError),
+      });
+    }
+
+    // Fallback: Use streamText and extract JSON from response
+    try {
       const result = await streamText({
         model,
         system: `You are a search query planner. Given a user query, generate up to ${maxSubqueries} focused sub-queries that together will retrieve comprehensive information to answer the original query.
@@ -469,15 +514,15 @@ Rules:
 1. Each sub-query should target a specific aspect of the original query
 2. Sub-queries should be complementary, not redundant
 3. If the original query is simple and focused, return just 1 sub-query (the original)
-4. Return queries in JSON format: [{"query": "...", "purpose": "..."}]
+4. Return ONLY a JSON array with objects containing "query" and "purpose" fields
 5. Keep queries concise and search-optimized
-6. Return ONLY the JSON array, no other text`,
+6. No markdown, no code fences, no explanation - ONLY the JSON array`,
         messages: [
           {
             role: "user",
             content: `Original query: "${query}"
 
-Generate sub-queries (max ${maxSubqueries}):`,
+Respond with ONLY a JSON array like: [{"query": "...", "purpose": "..."}]`,
           },
         ],
       });
@@ -487,9 +532,9 @@ Generate sub-queries (max ${maxSubqueries}):`,
         response += chunk;
       }
 
-      // Parse the JSON response
-      const parsed = JSON.parse(response.trim());
-      if (Array.isArray(parsed)) {
+      // Extract JSON array from response (handles markdown code blocks, extra text, etc.)
+      const parsed = this.extractJsonArray(response);
+      if (parsed && parsed.length > 0) {
         return parsed.slice(0, maxSubqueries).map((item) => ({
           id: randomUUID(),
           query: item.query || query,
@@ -502,8 +547,45 @@ Generate sub-queries (max ${maxSubqueries}):`,
       });
     }
 
-    // Fallback to original query
+    // Final fallback to original query
     return [{ id: randomUUID(), query, purpose: "Original query" }];
+  }
+
+  /**
+   * Extract a JSON array from a response that may contain markdown or extra text
+   */
+  private extractJsonArray(response: string): Array<{ query: string; purpose: string }> | null {
+    // Try direct parse first
+    try {
+      const direct = JSON.parse(response.trim());
+      if (Array.isArray(direct)) return direct;
+    } catch {
+      // Continue to extraction methods
+    }
+
+    // Try to extract from markdown code block
+    const codeBlockMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlockMatch) {
+      try {
+        const parsed = JSON.parse(codeBlockMatch[1].trim());
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        // Continue to next method
+      }
+    }
+
+    // Try to find JSON array anywhere in the response
+    const arrayMatch = response.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      try {
+        const parsed = JSON.parse(arrayMatch[0]);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        // Failed to parse
+      }
+    }
+
+    return null;
   }
 
   /**
