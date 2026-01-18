@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'preact/hooks';
-import type { ChatMessage, Citation } from '../types';
+import type { ChatMessage, Citation, ReasoningStep } from '../types';
 
 interface UseChatOptions {
   token: string;
@@ -7,8 +7,12 @@ interface UseChatOptions {
   endpointType?: 'widget' | 'chat-endpoint';
 }
 
+/**
+ * SSE message types received from the chat stream.
+ * Advanced RAG mode adds 'reasoning' events for step-by-step visibility.
+ */
 interface SSEMessage {
-  type: 'text' | 'done' | 'error' | 'status' | 'sources';
+  type: 'text' | 'done' | 'error' | 'status' | 'sources' | 'reasoning';
   content?: string;
   message?: string;
   conversationId?: string;
@@ -16,6 +20,8 @@ interface SSEMessage {
   sources?: Array<{ id: string; title: string; url: string; snippet: string; index: number }>;
   status?: 'searching' | 'generating';
   sourcesCount?: number;
+  /** Reasoning step data (only present when type is 'reasoning') */
+  step?: ReasoningStep;
 }
 
 export interface ChatStatus {
@@ -30,6 +36,7 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatStatus, setChatStatus] = useState<ChatStatus>({ status: 'idle' });
+  const [currentReasoningSteps, setCurrentReasoningSteps] = useState<ReasoningStep[]>([]);
   const conversationIdRef = useRef<string | null>(
     typeof sessionStorage !== 'undefined'
       ? sessionStorage.getItem(`grounded_conv_${token}`)
@@ -37,6 +44,7 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
   );
   const abortControllerRef = useRef<AbortController | null>(null);
   const pendingSourcesRef = useRef<Citation[] | null>(null);
+  const pendingReasoningStepsRef = useRef<Map<string, ReasoningStep>>(new Map());
 
   const generateId = () => Math.random().toString(36).slice(2, 11);
 
@@ -57,7 +65,9 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
     setIsStreaming(true);
     setError(null);
     setChatStatus({ status: 'searching', message: 'Searching knowledge base...' });
+    setCurrentReasoningSteps([]);
     pendingSourcesRef.current = null;
+    pendingReasoningStepsRef.current.clear();
 
     // Create abort controller for this request
     abortControllerRef.current = new AbortController();
@@ -136,6 +146,11 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
                   url: s.url,
                   snippet: s.snippet,
                 }));
+              } else if (data.type === 'reasoning' && data.step) {
+                // Collect reasoning steps (deduplicate by ID, keeping latest status)
+                pendingReasoningStepsRef.current.set(data.step.id, data.step);
+                // Update current reasoning steps state for live display
+                setCurrentReasoningSteps(Array.from(pendingReasoningStepsRef.current.values()));
               } else if (data.type === 'text' && data.content) {
                 // First text chunk means we're now streaming
                 if (!fullContent) {
@@ -161,14 +176,21 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
                 // Copy citations before clearing ref
                 const citationsToSet = pendingSourcesRef.current ? [...pendingSourcesRef.current] : [];
                 pendingSourcesRef.current = null;
-                
+
+                // Clear the pending ref (we keep currentReasoningSteps state for display)
+                pendingReasoningStepsRef.current.clear();
+
+                // NOTE: We do NOT clear currentReasoningSteps state here!
+                // They persist until a new message is started (matching test chat behavior)
+                // This allows the reasoning panel to stay visible after response completes
+
                 // Finalize message with citations
                 setMessages(prev => prev.map(msg =>
                   msg.id === assistantMessageId
-                    ? { 
-                        ...msg, 
-                        content: fullContent, 
-                        isStreaming: false, 
+                    ? {
+                        ...msg,
+                        content: fullContent,
+                        isStreaming: false,
                         citations: citationsToSet,
                       }
                     : msg
@@ -186,6 +208,10 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
       }
 
     } catch (err) {
+      // Clear pending refs on error
+      pendingReasoningStepsRef.current.clear();
+      setCurrentReasoningSteps([]);
+
       if ((err as Error).name === 'AbortError') {
         // Request was aborted, don't show error
         setChatStatus({ status: 'idle' });
@@ -231,6 +257,8 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
   const clearMessages = useCallback(() => {
     setMessages([]);
     conversationIdRef.current = null;
+    pendingReasoningStepsRef.current.clear();
+    setCurrentReasoningSteps([]);
     try {
       sessionStorage.removeItem(`grounded_conv_${token}`);
     } catch {
@@ -244,6 +272,7 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
     isStreaming,
     error,
     chatStatus,
+    currentReasoningSteps,
     sendMessage,
     stopStreaming,
     clearMessages,

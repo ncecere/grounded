@@ -32,6 +32,8 @@ widgetRoutes.get("/:token/config", async (c) => {
       logoUrl: agent.logoUrl || null,
       theme: widgetConfig?.theme || {},
       isPublic: widgetConfig?.isPublic ?? true,
+      ragType: agent.ragType,
+      showReasoningSteps: agent.showReasoningSteps,
     });
   });
 });

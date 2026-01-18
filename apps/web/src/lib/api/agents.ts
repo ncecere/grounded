@@ -1,5 +1,5 @@
 import { request } from "./client";
-import type { Agent, LLMModel, ChatEndpoint } from "./types";
+import type { Agent, LLMModel, ChatEndpoint, RagType } from "./types";
 
 export const agentsApi = {
   listAgents: async () => {
@@ -25,6 +25,8 @@ export const agentsApi = {
     suggestedQuestions?: string[];
     kbIds: string[];
     llmModelConfigId?: string;
+    ragType?: RagType;
+    showReasoningSteps?: boolean;
   }) => {
     const res = await request<{ agent: Agent }>("/agents", {
       method: "POST",
@@ -42,6 +44,8 @@ export const agentsApi = {
       welcomeMessage?: string;
       logoUrl?: string | null;
       isEnabled?: boolean;
+      ragType?: RagType;
+      showReasoningSteps?: boolean;
       suggestedQuestions?: string[];
       kbIds?: string[];
       llmModelConfigId?: string | null;
@@ -107,6 +111,8 @@ export const agentsApi = {
       maxCitations?: number;
       rerankerEnabled?: boolean;
       similarityThreshold?: number;
+      historyTurns?: number;
+      advancedMaxSubqueries?: number;
     }
   ) => {
     const res = await request<{ retrievalConfig: Agent["retrievalConfig"] }>(`/agents/${agentId}/retrieval-config`, {

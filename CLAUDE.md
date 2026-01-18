@@ -66,7 +66,9 @@ bun run docker:logs         # View logs
 
 **Job Processing**: Workers pull jobs from BullMQ queues. Job types: `source.discover`, `source.fetch`, `chunk.create`, `embed.generate`.
 
-**RAG Pipeline**: Hybrid retrieval (vector + keyword), heuristic reranking, citations with source attribution.
+**RAG Pipeline**: Hybrid retrieval (vector + keyword), heuristic reranking, citations with source attribution. Supports two modes:
+- **Simple RAG** (default): Single-pass retrieval with direct response generation
+- **Advanced RAG**: Multi-step pipeline with query rewriting, sub-query planning, and visible reasoning steps
 
 **AI Models**: Configured via Admin UI (not env vars). Supports multiple providers per tenant.
 
@@ -97,3 +99,39 @@ Copy `.env.example` to `.env`. Key variables:
 - `REDIS_URL` - Redis connection
 - `SESSION_SECRET` - JWT signing (32+ chars)
 - `ADMIN_EMAIL/ADMIN_PASSWORD` - Initial admin user
+
+## Agent Configuration
+
+### RAG Types
+Agents support two RAG modes configured via the `ragType` field:
+
+**Simple RAG** (`ragType: "simple"`)
+- Default mode for new agents
+- Single-pass retrieval from knowledge bases
+- Direct response generation with citations
+- Fastest response time
+
+**Advanced RAG** (`ragType: "advanced"`)
+- Multi-step reasoning pipeline with visible progress
+- Query rewriting using conversation history context
+- Sub-query planning for comprehensive search
+- Parallel retrieval and result merging
+- Streams reasoning steps to UI (5 steps: rewrite, plan, search, merge, generate)
+
+### Advanced RAG Settings
+When using Advanced RAG mode, additional retrieval config fields control behavior:
+- `historyTurns` (1-20, default 5): Number of conversation turns used for query rewriting
+- `advancedMaxSubqueries` (1-5, default 3): Maximum sub-queries generated for retrieval
+
+### SSE Stream Events
+Chat endpoints stream events via Server-Sent Events:
+
+**Simple RAG events:**
+- `status` - Progress updates
+- `text` - Streamed response chunks
+- `sources` - Retrieved sources with citations
+- `done` - Completion with conversation ID
+- `error` - Error messages
+
+**Advanced RAG events** (additional):
+- `reasoning` - Reasoning step progress (includes step type, title, summary, status)

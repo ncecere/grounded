@@ -1,6 +1,6 @@
-import type { Agent, ChatEndpoint } from "../../lib/api";
+import type { Agent, ChatEndpoint, RagType } from "../../lib/api";
 
-export type { Agent, ChatEndpoint };
+export type { Agent, ChatEndpoint, RagType };
 
 export interface AgentFormData {
   name: string;
@@ -10,6 +10,8 @@ export interface AgentFormData {
   logoUrl: string;
   kbIds: string[];
   llmModelConfigId: string;
+  ragType: RagType;
+  showReasoningSteps: boolean;
 }
 
 export interface RetrievalConfig {
@@ -17,6 +19,8 @@ export interface RetrievalConfig {
   topK: number;
   maxCitations: number;
   similarityThreshold: number;
+  historyTurns: number;
+  advancedMaxSubqueries: number;
 }
 
 export interface ButtonConfig {
@@ -51,6 +55,8 @@ export const defaultAgentForm: AgentFormData = {
   logoUrl: "",
   kbIds: [],
   llmModelConfigId: "",
+  ragType: "simple",
+  showReasoningSteps: true,
 };
 
 export const defaultRetrievalConfig: RetrievalConfig = {
@@ -58,6 +64,8 @@ export const defaultRetrievalConfig: RetrievalConfig = {
   topK: 8,
   maxCitations: 3,
   similarityThreshold: 0.5,
+  historyTurns: 5,
+  advancedMaxSubqueries: 3,
 };
 
 export const defaultButtonConfig: ButtonConfig = {

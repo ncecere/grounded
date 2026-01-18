@@ -101,6 +101,12 @@ export const RerankerType = {
 } as const;
 export type RerankerType = (typeof RerankerType)[keyof typeof RerankerType];
 
+export const RagType = {
+  SIMPLE: "simple",
+  ADVANCED: "advanced",
+} as const;
+export type RagType = (typeof RagType)[keyof typeof RagType];
+
 export const FetchMode = {
   AUTO: "auto",
   HTML: "html",
@@ -132,6 +138,8 @@ export const retrievalConfigSchema = z.object({
   candidateK: z.number().int().min(1).max(200).default(40),
   rerankerEnabled: z.boolean().default(true),
   rerankerType: z.enum(["heuristic", "cross_encoder"]).default("heuristic"),
+  historyTurns: z.number().int().min(1).max(20).default(5),
+  advancedMaxSubqueries: z.number().int().min(1).max(5).default(3),
 });
 export type RetrievalConfig = z.infer<typeof retrievalConfigSchema>;
 
@@ -285,6 +293,7 @@ export interface Agent {
   systemPrompt: string;
   rerankerEnabled: boolean;
   citationsEnabled: boolean;
+  ragType: RagType;
   createdBy: string;
   createdAt: Date;
   deletedAt: Date | null;

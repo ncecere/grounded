@@ -36,6 +36,8 @@ const createAgentSchema = z.object({
   systemPrompt: z.string().max(4000).optional(),
   rerankerEnabled: z.boolean().default(true),
   citationsEnabled: z.boolean().default(true),
+  ragType: z.enum(["simple", "advanced"]).default("simple"),
+  showReasoningSteps: z.boolean().default(true),
   kbIds: z.array(z.string().uuid()).optional(),
   llmModelConfigId: z.string().uuid().optional(),
 });
@@ -48,6 +50,8 @@ const updateAgentSchema = z.object({
   systemPrompt: z.string().max(4000).optional(),
   rerankerEnabled: z.boolean().optional(),
   citationsEnabled: z.boolean().optional(),
+  ragType: z.enum(["simple", "advanced"]).optional(),
+  showReasoningSteps: z.boolean().optional(),
   isEnabled: z.boolean().optional(),
   llmModelConfigId: z.string().uuid().nullable().optional(),
   kbIds: z.array(z.string().uuid()).optional(),
@@ -64,6 +68,8 @@ const updateRetrievalConfigSchema = z.object({
   rerankerEnabled: z.boolean().optional(),
   rerankerType: z.enum(["heuristic", "cross_encoder"]).optional(),
   similarityThreshold: z.number().min(0).max(1).optional(),
+  historyTurns: z.number().int().min(1).max(20).optional(),
+  advancedMaxSubqueries: z.number().int().min(1).max(5).optional(),
 });
 
 const updateWidgetConfigSchema = z.object({
@@ -184,6 +190,7 @@ agentRoutes.post(
           systemPrompt: body.systemPrompt,
           rerankerEnabled: body.rerankerEnabled,
           citationsEnabled: body.citationsEnabled,
+          ragType: body.ragType,
           llmModelConfigId: body.llmModelConfigId,
           createdBy: authContext.user.id,
         })

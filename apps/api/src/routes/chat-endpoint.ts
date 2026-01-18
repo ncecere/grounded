@@ -15,6 +15,7 @@ import { generateId } from "@grounded/shared";
 import { log } from "@grounded/logger";
 import { NotFoundError, RateLimitError } from "../middleware/error-handler";
 import { SimpleRAGService, type StreamEvent } from "../services/simple-rag";
+import { AdvancedRAGService, type ReasoningStep } from "../services/advanced-rag";
 
 export const chatEndpointRoutes = new Hono();
 
@@ -66,6 +67,8 @@ chatEndpointRoutes.get("/:token/config", async (c) => {
     welcomeMessage: result.agent.welcomeMessage || "How can I help?",
     logoUrl: result.agent.logoUrl || null,
     endpointType: result.endpointToken.endpointType,
+    ragType: result.agent.ragType,
+    showReasoningSteps: result.agent.showReasoningSteps,
   });
 });
 
@@ -175,6 +178,8 @@ chatEndpointRoutes.get("/:token", async (c) => {
   const agentName = agent.name;
   const welcomeMessage = agent.welcomeMessage || "How can I help you today?";
   const logoUrl = agent.logoUrl || null;
+  const ragType = agent.ragType;
+  const showReasoningSteps = agent.showReasoningSteps ?? true;
 
   // Get the base URL for loading static assets
   const baseUrl = new URL(c.req.url).origin;
@@ -204,7 +209,9 @@ chatEndpointRoutes.get("/:token", async (c) => {
           apiBase: '',
           agentName: '${agentName}',
           welcomeMessage: '${welcomeMessage}',
-          logoUrl: ${logoUrl ? `'${logoUrl}'` : 'null'}
+          logoUrl: ${logoUrl ? `'${logoUrl}'` : 'null'},
+          ragType: '${ragType}',
+          showReasoningSteps: ${showReasoningSteps ? 'true' : 'false'}
         });
       </script>
     </body>
@@ -270,42 +277,87 @@ chatEndpointRoutes.post(
       throw new RateLimitError(60);
     }
 
-    // Use SimpleRAGService - collect all events into a single response
-    const ragService = new SimpleRAGService(endpointToken.tenantId, endpointToken.agentId);
-    
+    // Collect all events into a single response
     let answer = "";
     let conversationId = body.conversationId || generateId();
     let citations: Array<{ title: string; url?: string; snippet: string; index: number }> = [];
+    let reasoningSteps: ReasoningStep[] = [];
 
-    for await (const event of ragService.chat(body.message, body.conversationId)) {
-      switch (event.type) {
-        case "text":
-          answer += event.content;
-          break;
-        case "sources":
-          citations = event.sources.map((s) => ({
-            title: s.title,
-            url: s.url,
-            snippet: s.snippet,
-            index: s.index,
-          }));
-          break;
-        case "done":
-          conversationId = event.conversationId;
-          break;
-        case "error":
-          return c.json({ error: event.message }, 500);
+    // Route to the appropriate RAG service based on agent configuration
+    if (agent.ragType === "advanced") {
+      const ragService = new AdvancedRAGService(endpointToken.tenantId, endpointToken.agentId, "chat_endpoint");
+
+      for await (const event of ragService.chat(body.message, body.conversationId)) {
+        switch (event.type) {
+          case "text":
+            answer += event.content;
+            break;
+          case "sources":
+            citations = event.sources.map((s) => ({
+              title: s.title,
+              url: s.url,
+              snippet: s.snippet,
+              index: s.index,
+            }));
+            break;
+          case "reasoning":
+            // Collect completed reasoning steps
+            if (event.step.status === "completed") {
+              reasoningSteps.push(event.step);
+            }
+            break;
+          case "done":
+            conversationId = event.conversationId;
+            break;
+          case "error":
+            return c.json({ error: event.message }, 500);
+        }
+      }
+    } else {
+      const ragService = new SimpleRAGService(endpointToken.tenantId, endpointToken.agentId);
+
+      for await (const event of ragService.chat(body.message, body.conversationId)) {
+        switch (event.type) {
+          case "text":
+            answer += event.content;
+            break;
+          case "sources":
+            citations = event.sources.map((s) => ({
+              title: s.title,
+              url: s.url,
+              snippet: s.snippet,
+              index: s.index,
+            }));
+            break;
+          case "done":
+            conversationId = event.conversationId;
+            break;
+          case "error":
+            return c.json({ error: event.message }, 500);
+        }
       }
     }
 
     // Filter citations if disabled on agent
     const finalCitations = agent.citationsEnabled ? citations : [];
 
-    return c.json({
+    // Build response - include reasoning steps only for advanced mode
+    const response: {
+      answer: string;
+      citations: typeof finalCitations;
+      conversationId: string;
+      reasoningSteps?: ReasoningStep[];
+    } = {
       answer,
       citations: finalCitations,
       conversationId,
-    });
+    };
+
+    if (agent.ragType === "advanced" && reasoningSteps.length > 0) {
+      response.reasoningSteps = reasoningSteps;
+    }
+
+    return c.json(response);
   }
 );
 
@@ -401,68 +453,138 @@ chatEndpointRoutes.post(
       }, 2000);
 
       try {
-        // Send initial status
-        await stream.writeSSE({
-          data: JSON.stringify({
-            type: "status",
-            status: "searching",
-            message: "Searching knowledge base...",
-          }),
-        });
+        // Route to the appropriate RAG service based on agent configuration
+        if (agent.ragType === "advanced") {
+          // Advanced RAG mode - emits reasoning events
+          const ragService = new AdvancedRAGService(endpointToken.tenantId, endpointToken.agentId, "chat_endpoint");
 
-        const ragService = new SimpleRAGService(endpointToken.tenantId, endpointToken.agentId);
-        let statusSent = false;
+          for await (const event of ragService.chat(body.message, body.conversationId)) {
+            if (aborted) break;
 
-        for await (const event of ragService.chat(body.message, body.conversationId)) {
-          if (aborted) break;
-
-          switch (event.type) {
-            case "text":
-              // Send generating status once before first text
-              if (!statusSent) {
+            switch (event.type) {
+              case "status":
                 await stream.writeSSE({
                   data: JSON.stringify({
                     type: "status",
-                    status: "generating",
-                    message: "Generating response...",
+                    status: event.status,
+                    message: event.message,
+                    sourceCount: event.sourceCount,
                   }),
                 });
-                statusSent = true;
-              }
-              await stream.writeSSE({
-                data: JSON.stringify({ type: "text", content: event.content }),
-              });
-              break;
+                break;
 
-            case "sources":
-              // Send sources event if citations are enabled
-              if (agent.citationsEnabled) {
+              case "reasoning":
+                // Pass through reasoning events for advanced mode
                 await stream.writeSSE({
                   data: JSON.stringify({
-                    type: "sources",
-                    sources: event.sources,
+                    type: "reasoning",
+                    step: event.step,
                   }),
                 });
-              }
-              break;
+                break;
 
-            case "done":
-              await stream.writeSSE({
-                data: JSON.stringify({
-                  type: "done",
-                  conversationId: event.conversationId,
-                }),
-              });
-              break;
+              case "text":
+                await stream.writeSSE({
+                  data: JSON.stringify({ type: "text", content: event.content }),
+                });
+                break;
 
-            case "error":
-              await stream.writeSSE({
-                data: JSON.stringify({
-                  type: "error",
-                  message: event.message,
-                }),
-              });
-              break;
+              case "sources":
+                // Send sources event if citations are enabled
+                if (agent.citationsEnabled) {
+                  await stream.writeSSE({
+                    data: JSON.stringify({
+                      type: "sources",
+                      sources: event.sources,
+                    }),
+                  });
+                }
+                break;
+
+              case "done":
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: "done",
+                    conversationId: event.conversationId,
+                  }),
+                });
+                break;
+
+              case "error":
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: "error",
+                    message: event.message,
+                  }),
+                });
+                break;
+            }
+          }
+        } else {
+          // Simple RAG mode
+          // Send initial status
+          await stream.writeSSE({
+            data: JSON.stringify({
+              type: "status",
+              status: "searching",
+              message: "Searching knowledge base...",
+            }),
+          });
+
+          const ragService = new SimpleRAGService(endpointToken.tenantId, endpointToken.agentId);
+          let statusSent = false;
+
+          for await (const event of ragService.chat(body.message, body.conversationId)) {
+            if (aborted) break;
+
+            switch (event.type) {
+              case "text":
+                // Send generating status once before first text
+                if (!statusSent) {
+                  await stream.writeSSE({
+                    data: JSON.stringify({
+                      type: "status",
+                      status: "generating",
+                      message: "Generating response...",
+                    }),
+                  });
+                  statusSent = true;
+                }
+                await stream.writeSSE({
+                  data: JSON.stringify({ type: "text", content: event.content }),
+                });
+                break;
+
+              case "sources":
+                // Send sources event if citations are enabled
+                if (agent.citationsEnabled) {
+                  await stream.writeSSE({
+                    data: JSON.stringify({
+                      type: "sources",
+                      sources: event.sources,
+                    }),
+                  });
+                }
+                break;
+
+              case "done":
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: "done",
+                    conversationId: event.conversationId,
+                  }),
+                });
+                break;
+
+              case "error":
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: "error",
+                    message: event.message,
+                  }),
+                });
+                break;
+            }
           }
         }
       } catch (error) {

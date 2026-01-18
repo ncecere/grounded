@@ -123,6 +123,8 @@ export interface SourceRun {
 // Agent & Chat Types
 // =============================================================================
 
+export type RagType = "simple" | "advanced";
+
 export interface Agent {
   id: string;
   tenantId: string;
@@ -132,6 +134,8 @@ export interface Agent {
   welcomeMessage: string | null;
   logoUrl: string | null;
   isEnabled: boolean;
+  ragType: RagType;
+  showReasoningSteps: boolean;
   suggestedQuestions: string[];
   kbIds: string[];
   llmModelConfigId: string | null;
@@ -163,6 +167,8 @@ export interface Agent {
     candidateK: number;
     maxCitations: number;
     similarityThreshold: number;
+    historyTurns: number;
+    advancedMaxSubqueries: number;
   };
   createdAt: string;
   updatedAt: string;
@@ -193,6 +199,25 @@ export interface ChatMessage {
     url?: string;
     snippet: string;
   }>;
+}
+
+// =============================================================================
+// Reasoning Types (for Advanced RAG)
+// =============================================================================
+
+export type ReasoningStepType = "rewrite" | "plan" | "search" | "merge" | "generate";
+export type ReasoningStepStatus = "pending" | "in_progress" | "completed" | "error";
+
+/**
+ * Represents a single step in the advanced RAG reasoning process
+ */
+export interface ReasoningStep {
+  id: string;
+  type: ReasoningStepType;
+  title: string;
+  summary: string;
+  status: ReasoningStepStatus;
+  details?: Record<string, unknown>;
 }
 
 // =============================================================================

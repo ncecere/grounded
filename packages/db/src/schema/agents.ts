@@ -38,6 +38,10 @@ IMPORTANT RULES:
     rerankerEnabled: boolean("reranker_enabled").default(true).notNull(),
     citationsEnabled: boolean("citations_enabled").default(true).notNull(),
     isEnabled: boolean("is_enabled").default(true).notNull(),
+    // RAG mode: simple (standard retrieval) or advanced (multi-step reasoning with sub-queries)
+    ragType: text("rag_type").$type<"simple" | "advanced">().default("simple").notNull(),
+    // Whether to show reasoning steps in widget/published chat (only applies when ragType is 'advanced')
+    showReasoningSteps: boolean("show_reasoning_steps").default(true).notNull(),
     llmModelConfigId: uuid("llm_model_config_id").references(() => modelConfigurations.id, {
       onDelete: "set null",
     }),
@@ -121,6 +125,10 @@ export const retrievalConfigs = pgTable(
       .notNull(),
     // Minimum cosine similarity score (0-1) for chunks to be included in context
     similarityThreshold: real("similarity_threshold").default(0.5).notNull(),
+    // Number of conversation history turns to include for query rewriting (advanced RAG)
+    historyTurns: integer("history_turns").default(5).notNull(),
+    // Maximum number of sub-queries to generate in advanced RAG mode
+    advancedMaxSubqueries: integer("advanced_max_subqueries").default(3).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

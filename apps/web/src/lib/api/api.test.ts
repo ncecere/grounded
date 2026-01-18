@@ -94,6 +94,7 @@ describe("api module structure", () => {
       expect(chatApi).toBeDefined();
       expect(typeof chatApi.chat).toBe("function");
       expect(typeof chatApi.simpleChatStream).toBe("function");
+      expect(typeof chatApi.advancedChatStream).toBe("function");
     });
 
     it("should export toolsApi", async () => {
@@ -157,6 +158,7 @@ describe("api module structure", () => {
       // Chat methods
       expect(typeof api.chat).toBe("function");
       expect(typeof api.simpleChatStream).toBe("function");
+      expect(typeof api.advancedChatStream).toBe("function");
 
       // Tool methods
       expect(typeof api.listTools).toBe("function");

@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
+import { Fragment } from 'preact';
 import type { JSX } from 'preact';
 import { useChat } from '../hooks/useChat';
 import { useConfig } from '../hooks/useConfig';
 import { Message, StatusIndicator } from './Message';
+import { ReasoningPanel } from './ReasoningPanel';
 import { ChatIcon, CloseIcon, SendIcon, SparklesIcon, ExpandIcon, ShrinkIcon, HelpIcon, QuestionIcon, MessageIcon } from './Icons';
 import type { WidgetOptions, ButtonIcon, ButtonStyle, ButtonSize } from '../types';
 
@@ -13,7 +15,7 @@ interface WidgetProps {
 }
 
 export function Widget({ options, initialOpen = false, onOpenChange }: WidgetProps): JSX.Element {
-  const { token, apiBase = '', position = 'bottom-right' } = options;
+  const { token, apiBase = '', position = 'bottom-right', showReasoning: showReasoningOption } = options;
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [isExpanded, setIsExpanded] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -22,18 +24,23 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
 
   // Always load config on mount (needed for button customization)
   const { config, isLoading: configLoading } = useConfig({ token, apiBase });
-  
-  const { messages, isLoading, chatStatus, sendMessage } = useChat({ 
-    token, 
+
+  // Auto-detect reasoning display from config:
+  // - If showReasoningOption is explicitly set, use it
+  // - Otherwise, show reasoning only if ragType is 'advanced' AND showReasoningSteps is true (or not set)
+  const showReasoning = showReasoningOption ?? (config?.ragType === 'advanced' && config?.showReasoningSteps !== false);
+
+  const { messages, isLoading, isStreaming, chatStatus, currentReasoningSteps, sendMessage } = useChat({
+    token,
     apiBase,
   });
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages or reasoning steps change
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isLoading]);
+  }, [messages, isLoading, currentReasoningSteps]);
 
   // Focus input when opening
   useEffect(() => {
@@ -157,27 +164,66 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
 
         {/* Messages */}
         <div className="grounded-messages">
-          {showEmptyState ? (
-            <div className="grounded-empty">
-              <SparklesIcon className="grounded-empty-icon" />
-              <h3 className="grounded-empty-title">{description}</h3>
-              <p className="grounded-empty-text">
-                {welcomeMessage}
-              </p>
-            </div>
-          ) : (
-            <>
-              {messages.filter(m => m.content || m.role === 'user').map((message) => (
-                <Message key={message.id} message={message} />
-              ))}
-              
-              {/* Show status indicator when loading/searching */}
-              {(isLoading || chatStatus.status !== 'idle') && chatStatus.status !== 'streaming' && (
-                <StatusIndicator status={chatStatus} />
-              )}
-            </>
-          )}
-          <div ref={messagesEndRef} />
+          <div className="grounded-messages-inner">
+            {showEmptyState ? (
+              <div className="grounded-empty">
+                <SparklesIcon className="grounded-empty-icon" />
+                <h3 className="grounded-empty-title">{description}</h3>
+                <p className="grounded-empty-text">
+                  {welcomeMessage}
+                </p>
+              </div>
+            ) : (
+              <>
+                {messages.map((message, index) => {
+                  const isLastMessage = index === messages.length - 1;
+                  const isLastAssistant = isLastMessage && message.role === 'assistant';
+                  
+                  // Show reasoning panel ONLY for the last assistant message when steps exist
+                  // (matches Test Chat behavior - no filter, render all messages)
+                  const showReasoningBeforeThis = isLastAssistant && 
+                    showReasoning && 
+                    currentReasoningSteps.length > 0;
+
+                  // Only render message bubble if it has content (or is user message)
+                  // This prevents empty assistant message bubbles during reasoning phase
+                  const showMessageBubble = message.role === 'user' || message.content;
+
+                  return (
+                    <Fragment key={message.id}>
+                      {/* Reasoning steps panel ABOVE the last assistant message */}
+                      {showReasoningBeforeThis && (
+                        <ReasoningPanel
+                          steps={currentReasoningSteps}
+                          isStreaming={isLoading || isStreaming}
+                          defaultOpen={false}
+                        />
+                      )}
+                      {showMessageBubble && <Message message={message} />}
+                    </Fragment>
+                  );
+                })}
+
+                {/* Reasoning steps when loading but no assistant message exists yet */}
+                {showReasoning && 
+                  currentReasoningSteps.length > 0 && 
+                  messages.length > 0 && 
+                  messages[messages.length - 1].role !== 'assistant' && (
+                  <ReasoningPanel
+                    steps={currentReasoningSteps}
+                    isStreaming={isLoading || isStreaming}
+                    defaultOpen={false}
+                  />
+                )}
+
+                {/* Show status indicator when loading/searching (hide when reasoning panel is shown) */}
+                {(isLoading || chatStatus.status !== 'idle') && chatStatus.status !== 'streaming' && (!showReasoning || currentReasoningSteps.length === 0) && (
+                  <StatusIndicator status={chatStatus} />
+                )}
+              </>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
         {/* Input */}

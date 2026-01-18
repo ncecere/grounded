@@ -357,3 +357,80 @@
   background: hsl(var(--secondary));
   border-color: hsl(var(--border));
 }
+
+/* =============================================================================
+ * Reasoning Panel Styling (Advanced RAG mode)
+ * ============================================================================= */
+
+.reasoning-panel {
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reasoning-panel:hover {
+  border-color: hsl(var(--border));
+}
+
+/* Subtle glow effect when streaming */
+.reasoning-panel-streaming {
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.1), 0 2px 8px -2px hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.3);
+}
+
+/* Trigger styling */
+.reasoning-trigger {
+  transition: color 0.15s ease;
+}
+
+.reasoning-trigger-icon {
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.reasoning-trigger:hover .reasoning-trigger-icon {
+  background-color: hsl(var(--primary) / 0.15);
+}
+
+/* Timeline styling */
+.reasoning-timeline {
+  position: relative;
+}
+
+/* Animated timeline border for streaming state */
+.reasoning-panel-streaming .reasoning-timeline {
+  border-color: hsl(var(--primary) / 0.4);
+}
+
+/* Step item styling */
+.reasoning-step {
+  transition: opacity 0.15s ease;
+}
+
+.reasoning-step-active {
+  opacity: 1;
+}
+
+/* Step icon container */
+.reasoning-step-icon {
+  transition: background-color 0.15s ease;
+}
+
+/* Timeline dot animation */
+.reasoning-step-dot {
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+/* Dark mode adjustments */
+.dark .reasoning-panel {
+  background-color: hsl(var(--muted) / 0.3);
+}
+
+.dark .reasoning-panel-streaming {
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.15), 0 2px 12px -2px hsl(var(--primary) / 0.15);
+}
+
+.dark .reasoning-trigger-icon {
+  background-color: hsl(var(--primary) / 0.15);
+}
+
+.dark .reasoning-step-icon {
+  background-color: hsl(var(--muted) / 0.5);
+}

@@ -38,6 +38,8 @@ export function useConfig({ token, apiBase, enabled = true }: UseConfigOptions) 
           welcomeMessage: 'How can I help?',
           logoUrl: null,
           isPublic: true,
+          ragType: 'simple',
+          showReasoningSteps: true,
         });
       } finally {
         setIsLoading(false);
