@@ -11,6 +11,10 @@ import {
   MAX_PAGE_SIZE_BYTES,
   type PageFetchJob,
   FetchMode,
+  validateHtmlContentType,
+  isContentTypeEnforcementEnabled,
+  ContentError,
+  ErrorCode,
 } from "@grounded/shared";
 import { createCrawlState } from "@grounded/crawl-state";
 
@@ -161,6 +165,35 @@ async function fetchWithHttp(
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
+    }
+
+    // Validate content type (HTML allowlist enforcement)
+    if (isContentTypeEnforcementEnabled()) {
+      const contentType = response.headers.get("content-type");
+      const validation = validateHtmlContentType(contentType);
+
+      if (!validation.isValid) {
+        log.info("scraper-worker", "Skipping non-HTML content", {
+          url,
+          contentType: validation.rawContentType,
+          mimeType: validation.mimeType,
+          category: validation.category,
+          reason: validation.rejectionReason,
+        });
+        throw new ContentError(
+          ErrorCode.CONTENT_UNSUPPORTED_TYPE,
+          validation.rejectionReason || `Non-HTML content type: ${validation.mimeType}`,
+          { metadata: { url, contentType: validation.rawContentType, mimeType: validation.mimeType } }
+        );
+      }
+
+      // Log a warning for unknown/empty content types that we're allowing through
+      if (validation.category === "unknown") {
+        log.warn("scraper-worker", "Processing page with unknown content type", {
+          url,
+          contentType: validation.rawContentType,
+        });
+      }
     }
 
     const contentLength = response.headers.get("content-length");

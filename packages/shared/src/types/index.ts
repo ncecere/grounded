@@ -1606,3 +1606,198 @@ export {
   EMBED_BACKPRESSURE_KEY,
   EMBED_BACKPRESSURE_KEY_TTL_SECONDS,
 };
+
+// ============================================================================
+// HTML Content-Type Validation
+// ============================================================================
+
+import {
+  HTML_CONTENT_TYPES,
+  NON_HTML_CONTENT_TYPES,
+  HTML_CONTENT_TYPE_ENFORCEMENT_DISABLED_ENV_VAR,
+} from "../constants/index.js";
+
+/**
+ * Result of content-type validation.
+ */
+export interface ContentTypeValidationResult {
+  /** Whether the content type is valid HTML */
+  isValid: boolean;
+  /** The raw content-type header value */
+  rawContentType: string;
+  /** The parsed MIME type (without charset or parameters) */
+  mimeType: string;
+  /** Charset if present in the content-type header */
+  charset?: string;
+  /** Reason for rejection (if isValid is false) */
+  rejectionReason?: string;
+  /** Category of the content type (html, non_html, unknown) */
+  category: "html" | "non_html" | "unknown";
+}
+
+/**
+ * Configuration for content-type validation.
+ */
+export interface ContentTypeValidationConfig {
+  /** Whether HTML content-type enforcement is enabled */
+  enabled: boolean;
+  /** Allowed MIME types for HTML content */
+  allowedTypes: readonly string[];
+  /** Explicitly blocked MIME types */
+  blockedTypes: readonly string[];
+}
+
+/**
+ * Parses a content-type header into its components.
+ *
+ * @param contentType - The raw Content-Type header value
+ * @returns Parsed components (mimeType and charset)
+ *
+ * @example
+ * parseContentType("text/html; charset=utf-8")
+ * // Returns: { mimeType: "text/html", charset: "utf-8" }
+ */
+export function parseContentType(contentType: string): {
+  mimeType: string;
+  charset?: string;
+} {
+  if (!contentType) {
+    return { mimeType: "" };
+  }
+
+  // Normalize and split on semicolon
+  const normalized = contentType.toLowerCase().trim();
+  const parts = normalized.split(";").map((p) => p.trim());
+
+  const mimeType = parts[0] || "";
+  let charset: string | undefined;
+
+  // Look for charset parameter
+  for (const part of parts.slice(1)) {
+    if (part.startsWith("charset=")) {
+      charset = part.substring(8).replace(/["']/g, "");
+      break;
+    }
+  }
+
+  return { mimeType, charset };
+}
+
+/**
+ * Checks if a MIME type is a valid HTML type.
+ *
+ * @param mimeType - The MIME type to check (lowercase, without parameters)
+ * @returns true if the MIME type is in the HTML allowlist
+ */
+export function isHtmlMimeType(mimeType: string): boolean {
+  const normalized = mimeType.toLowerCase().trim();
+  return (HTML_CONTENT_TYPES as readonly string[]).includes(normalized);
+}
+
+/**
+ * Checks if a MIME type is explicitly blocked (non-HTML).
+ *
+ * @param mimeType - The MIME type to check
+ * @returns true if the MIME type is in the blocked list
+ */
+export function isBlockedMimeType(mimeType: string): boolean {
+  const normalized = mimeType.toLowerCase().trim();
+  return (NON_HTML_CONTENT_TYPES as readonly string[]).includes(normalized);
+}
+
+/**
+ * Validates a content-type header for HTML content.
+ *
+ * @param contentType - The raw Content-Type header value (may be null/undefined)
+ * @returns Validation result with details
+ *
+ * @example
+ * validateHtmlContentType("text/html; charset=utf-8")
+ * // Returns: { isValid: true, rawContentType: "text/html; charset=utf-8", mimeType: "text/html", charset: "utf-8", category: "html" }
+ *
+ * validateHtmlContentType("application/pdf")
+ * // Returns: { isValid: false, rawContentType: "application/pdf", mimeType: "application/pdf", category: "non_html", rejectionReason: "..." }
+ */
+export function validateHtmlContentType(
+  contentType: string | null | undefined
+): ContentTypeValidationResult {
+  const raw = contentType || "";
+  const { mimeType, charset } = parseContentType(raw);
+
+  // Empty content type - treat as unknown, allow through with warning
+  if (!mimeType) {
+    return {
+      isValid: true, // Allow through, as some servers don't send content-type
+      rawContentType: raw,
+      mimeType: "",
+      charset,
+      category: "unknown",
+    };
+  }
+
+  // Check if it's an allowed HTML type
+  if (isHtmlMimeType(mimeType)) {
+    return {
+      isValid: true,
+      rawContentType: raw,
+      mimeType,
+      charset,
+      category: "html",
+    };
+  }
+
+  // Check if it's an explicitly blocked type
+  if (isBlockedMimeType(mimeType)) {
+    return {
+      isValid: false,
+      rawContentType: raw,
+      mimeType,
+      charset,
+      category: "non_html",
+      rejectionReason: `Content type "${mimeType}" is not HTML (blocked type)`,
+    };
+  }
+
+  // Unknown type - reject to be safe
+  return {
+    isValid: false,
+    rawContentType: raw,
+    mimeType,
+    charset,
+    category: "unknown",
+    rejectionReason: `Content type "${mimeType}" is not in the HTML allowlist`,
+  };
+}
+
+/**
+ * Gets the default content-type validation configuration.
+ *
+ * @returns Default configuration based on environment variables
+ */
+export function getContentTypeValidationConfig(): ContentTypeValidationConfig {
+  const disabledEnv = process.env[HTML_CONTENT_TYPE_ENFORCEMENT_DISABLED_ENV_VAR];
+  const isDisabled = disabledEnv === "true" || disabledEnv === "1";
+
+  return {
+    enabled: !isDisabled,
+    allowedTypes: HTML_CONTENT_TYPES,
+    blockedTypes: NON_HTML_CONTENT_TYPES,
+  };
+}
+
+/**
+ * Checks if HTML content-type enforcement is enabled.
+ *
+ * @returns true if enforcement is enabled, false if disabled via env var
+ */
+export function isContentTypeEnforcementEnabled(): boolean {
+  const disabledEnv = process.env[HTML_CONTENT_TYPE_ENFORCEMENT_DISABLED_ENV_VAR];
+  return !(disabledEnv === "true" || disabledEnv === "1");
+}
+
+// Re-export content-type constants for convenience
+export {
+  HTML_CONTENT_TYPES,
+  NON_HTML_CONTENT_TYPES,
+  HTML_CONTENT_TYPE_ENFORCEMENT_DISABLED_ENV_VAR,
+};

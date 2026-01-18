@@ -42,6 +42,78 @@ export const DEFAULT_CRAWL_DEPTH = 3;
 export const SCRAPE_TIMEOUT_MS = 30000;
 export const MAX_PAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
+// ============================================================================
+// HTML Content-Type Allowlist
+// ============================================================================
+
+/**
+ * Allowed MIME types for HTML content during fetch.
+ * Only pages with these content types will be processed.
+ * Non-HTML content (PDFs, images, binaries) will be skipped.
+ *
+ * Note: Content-type values may include charset suffix (e.g., "text/html; charset=utf-8")
+ * so validation should check if the content type starts with one of these values.
+ */
+export const HTML_CONTENT_TYPES = [
+  "text/html",
+  "application/xhtml+xml",
+  "application/xml", // Some servers return XML for HTML pages
+  "text/xml", // Alternative XML content type
+] as const;
+
+/**
+ * MIME types that are explicitly non-HTML and should be skipped.
+ * These are common binary/document types that may be linked from web pages.
+ */
+export const NON_HTML_CONTENT_TYPES = [
+  // Documents
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  // Images
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/svg+xml",
+  "image/bmp",
+  "image/tiff",
+  // Audio/Video
+  "audio/mpeg",
+  "audio/wav",
+  "audio/ogg",
+  "video/mp4",
+  "video/webm",
+  "video/ogg",
+  // Archives
+  "application/zip",
+  "application/x-rar-compressed",
+  "application/x-7z-compressed",
+  "application/gzip",
+  "application/x-tar",
+  // Binaries
+  "application/octet-stream",
+  "application/x-executable",
+  // Data formats (not HTML)
+  "application/json",
+  "text/plain",
+  "text/css",
+  "text/javascript",
+  "application/javascript",
+  "text/csv",
+] as const;
+
+/**
+ * Environment variable to override HTML content-type enforcement.
+ * Set to "true" or "1" to disable content-type validation (not recommended).
+ */
+export const HTML_CONTENT_TYPE_ENFORCEMENT_DISABLED_ENV_VAR =
+  "HTML_CONTENT_TYPE_ENFORCEMENT_DISABLED";
+
 // Tracking params to strip from URLs
 export const TRACKING_PARAMS = [
   "utm_source",

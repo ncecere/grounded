@@ -378,3 +378,65 @@ Implemented embed lag backpressure for the page-process queue to prevent unbound
 - All 54 new tests pass
 - All existing tests pass (395 tests in shared package)
 - TypeScript typechecking passes across all packages
+
+## 2026-01-18: Enforce HTML content-type allowlist in fetch
+
+### Summary
+Implemented HTML content-type validation in the fetch stage of the ingestion pipeline. Non-HTML content (PDFs, images, binaries, JSON, etc.) is now rejected during HTTP fetch, preventing unnecessary processing of non-HTML resources.
+
+### Changes Made
+1. **packages/shared/src/constants/index.ts**
+   - Added `HTML_CONTENT_TYPES` array with allowed MIME types: text/html, application/xhtml+xml, application/xml, text/xml
+   - Added `NON_HTML_CONTENT_TYPES` array with 35+ blocked MIME types including documents, images, audio/video, archives, binaries, and data formats
+   - Added `HTML_CONTENT_TYPE_ENFORCEMENT_DISABLED_ENV_VAR` for optional enforcement bypass
+
+2. **packages/shared/src/types/index.ts**
+   - Added `ContentTypeValidationResult` interface for validation results with isValid, mimeType, charset, category, and rejectionReason
+   - Added `ContentTypeValidationConfig` interface for configuration
+   - Added `parseContentType()` - Parses content-type header into mimeType and charset components
+   - Added `isHtmlMimeType()` - Checks if a MIME type is in the HTML allowlist
+   - Added `isBlockedMimeType()` - Checks if a MIME type is explicitly blocked
+   - Added `validateHtmlContentType()` - Full validation returning detailed result
+   - Added `getContentTypeValidationConfig()` - Get config from environment
+   - Added `isContentTypeEnforcementEnabled()` - Check if enforcement is enabled
+
+3. **apps/scraper-worker/src/processors/page-fetch.ts**
+   - Added content-type validation in `fetchWithHttp()` function
+   - Validates content-type header immediately after HTTP status check
+   - Throws `ContentError` with `CONTENT_UNSUPPORTED_TYPE` code for non-HTML content
+   - Logs skipped pages with content type details for debugging
+   - Logs warning for pages with unknown/empty content types (allowed through)
+
+4. **packages/shared/src/types/content-type-allowlist.test.ts** (new file)
+   - Added 78 tests covering all constants, parsing, validation, and configuration functions
+   - Tests cover HTML types, blocked types, unknown types, edge cases, and integration scenarios
+
+### Key Design Decisions
+- **Allowlist approach**: Only explicitly listed HTML types are allowed (text/html, xhtml, xml)
+- **Empty content-type**: Allowed through with warning (some servers don't send it)
+- **Unknown types**: Rejected to be safe (not in allowlist = not allowed)
+- **XML types included**: Allowed because some servers serve HTML as XML
+- **Environment override**: Can be disabled via `HTML_CONTENT_TYPE_ENFORCEMENT_DISABLED=true` if needed
+- **Uses existing error taxonomy**: Throws `ContentError` with `CONTENT_UNSUPPORTED_TYPE` (permanent, non-retryable)
+
+### Content-Type Categories
+| Category | Behavior | Examples |
+|----------|----------|----------|
+| html | Allowed | text/html, application/xhtml+xml |
+| non_html | Blocked | application/pdf, image/*, application/json |
+| unknown | Blocked | Custom/unrecognized types |
+| empty | Allowed (with warning) | Missing Content-Type header |
+
+### Environment Variables
+- `HTML_CONTENT_TYPE_ENFORCEMENT_DISABLED` - Set to "true" or "1" to bypass validation
+
+### Acceptance Criteria Met
+- ✅ Enforce HTML content-type allowlist in fetch stage
+- ✅ Block common non-HTML types (PDFs, images, binaries, JSON, etc.)
+- ✅ Integration with error taxonomy (ContentError, non-retryable)
+- ✅ Logging of skipped pages for debugging and reporting
+
+### Tests
+- All 78 new tests pass
+- All existing tests pass (473 tests in shared package)
+- TypeScript typechecking passes across all packages

@@ -47,7 +47,7 @@ tasks:
   # PARALLEL GROUP 3: HTML-only crawling
   # ===========================================================================
   - title: Enforce HTML content-type allowlist in fetch
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [crawl, policy]
 
