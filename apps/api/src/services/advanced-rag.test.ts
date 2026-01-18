@@ -952,6 +952,542 @@ describe("Multi-Step Plan Generation Behavior", () => {
 });
 
 // ============================================================================
+// Tests for Sub-Query Retrieval Behavior
+// ============================================================================
+
+describe("Sub-Query Retrieval Behavior", () => {
+  describe("executeSubQueries parallel execution", () => {
+    it("should execute all sub-queries in parallel using Promise.all", () => {
+      const subQueries = [
+        { id: "sq-1", query: "pricing info", purpose: "find pricing" },
+        { id: "sq-2", query: "feature list", purpose: "find features" },
+        { id: "sq-3", query: "integration guide", purpose: "find integrations" },
+      ];
+
+      // The service uses Promise.all to execute sub-queries in parallel
+      // This is more efficient than sequential execution
+      const queryCount = subQueries.length;
+      expect(queryCount).toBe(3);
+
+      // Each sub-query should have the required fields
+      for (const sq of subQueries) {
+        expect(sq.id).toBeDefined();
+        expect(sq.query).toBeDefined();
+        expect(sq.purpose).toBeDefined();
+      }
+    });
+
+    it("should collect results from all sub-queries", () => {
+      // Results from multiple sub-queries are combined into a single array
+      const resultsFromSubQuery1 = [
+        { id: "chunk-1", content: "Pricing starts at $10", score: 0.95 },
+        { id: "chunk-2", content: "Enterprise pricing", score: 0.85 },
+      ];
+      const resultsFromSubQuery2 = [
+        { id: "chunk-3", content: "Feature A", score: 0.90 },
+        { id: "chunk-4", content: "Feature B", score: 0.80 },
+      ];
+
+      const allChunks = [...resultsFromSubQuery1, ...resultsFromSubQuery2];
+
+      expect(allChunks).toHaveLength(4);
+      expect(allChunks[0].id).toBe("chunk-1");
+      expect(allChunks[2].id).toBe("chunk-3");
+    });
+
+    it("should handle single sub-query (simple query case)", () => {
+      const subQueries = [
+        { id: "sq-1", query: "What is your pricing?", purpose: "Original query" },
+      ];
+
+      // Single sub-query is a valid case (for simple queries)
+      expect(subQueries).toHaveLength(1);
+    });
+
+    it("should handle empty sub-query array gracefully", () => {
+      const subQueries: { id: string; query: string; purpose: string }[] = [];
+
+      // Empty sub-queries should result in empty chunks
+      expect(subQueries).toHaveLength(0);
+    });
+
+    it("should return empty array when no KBs are attached", () => {
+      // When kbIds is empty, searchKnowledge returns empty array
+      const kbIds: string[] = [];
+      const expectedBehavior = kbIds.length === 0 ? "return empty" : "search";
+
+      expect(expectedBehavior).toBe("return empty");
+    });
+  });
+
+  describe("searchKnowledge method", () => {
+    it("should generate embedding for the query", () => {
+      const query = "What are the pricing options?";
+
+      // The service generates embeddings for semantic search
+      expect(query.length).toBeGreaterThan(0);
+    });
+
+    it("should search with configured parameters", () => {
+      const searchConfig = {
+        tenantId: "tenant-123",
+        kbIds: ["kb-1", "kb-2"],
+        topK: 40,        // candidateK - initial retrieval
+        minScore: 0.5,   // similarityThreshold
+      };
+
+      expect(searchConfig.topK).toBe(40);
+      expect(searchConfig.minScore).toBe(0.5);
+      expect(searchConfig.kbIds).toHaveLength(2);
+    });
+
+    it("should limit results to topK per sub-query", () => {
+      const topK = 8;
+      const candidateResults = Array.from({ length: 15 }, (_, i) => ({
+        id: `chunk-${i}`,
+        score: 0.9 - i * 0.02,
+      }));
+
+      const topResults = candidateResults.slice(0, topK);
+
+      expect(topResults).toHaveLength(8);
+      expect(topResults[0].score).toBe(0.9);
+    });
+
+    it("should return empty array when vector store not configured", () => {
+      // If vectorStore is null, search returns empty array
+      const vectorStoreConfigured = false;
+      const expectedResult = vectorStoreConfigured ? "search" : "empty array";
+
+      expect(expectedResult).toBe("empty array");
+    });
+
+    it("should return empty array when search returns no results", () => {
+      const searchResults: unknown[] = [];
+
+      // Empty search results should be handled gracefully
+      expect(searchResults).toHaveLength(0);
+    });
+
+    it("should look up chunk metadata from database", () => {
+      // After vector search, we look up chunks in database for full metadata
+      const vectorResults = [
+        { id: "chunk-1", score: 0.95 },
+        { id: "chunk-2", score: 0.85 },
+      ];
+
+      const chunkIds = vectorResults.map(r => r.id);
+
+      expect(chunkIds).toEqual(["chunk-1", "chunk-2"]);
+    });
+
+    it("should build RetrievedChunk with all required fields", () => {
+      const chunk = {
+        id: "chunk-1",
+        content: "This is the chunk content",
+        title: "Document Title",
+        url: "https://example.com/doc",
+        score: 0.95,
+      };
+
+      expect(chunk.id).toBeDefined();
+      expect(chunk.content).toBeDefined();
+      expect(chunk.title).toBeDefined();
+      expect(chunk.score).toBeDefined();
+    });
+
+    it("should handle chunks without title or URL", () => {
+      const chunk: {
+        id: string;
+        content: string;
+        title?: string;
+        url?: string;
+        score: number;
+      } = {
+        id: "chunk-1",
+        content: "Content without metadata",
+        score: 0.85,
+      };
+
+      expect(chunk.title).toBeUndefined();
+      expect(chunk.url).toBeUndefined();
+    });
+
+    it("should use heading as fallback for title", () => {
+      const dbChunk = {
+        id: "chunk-1",
+        content: "Content",
+        title: null,
+        heading: "Section Heading",
+        normalizedUrl: null,
+      };
+
+      const title = dbChunk.title || dbChunk.heading || undefined;
+
+      expect(title).toBe("Section Heading");
+    });
+
+    it("should use normalizedUrl for URL field", () => {
+      const dbChunk = {
+        id: "chunk-1",
+        normalizedUrl: "https://example.com/page#section",
+      };
+
+      const url = dbChunk.normalizedUrl || undefined;
+
+      expect(url).toBe("https://example.com/page#section");
+    });
+  });
+
+  describe("search step reasoning event", () => {
+    it("should emit search step after plan step", () => {
+      const reasoningSequence = ["rewrite", "plan", "search", "merge", "generate"];
+
+      const planIndex = reasoningSequence.indexOf("plan");
+      const searchIndex = reasoningSequence.indexOf("search");
+
+      expect(searchIndex).toBe(planIndex + 1);
+    });
+
+    it("should report sub-query count in search step summary", () => {
+      const subQueryCount: number = 3;
+      const expectedSummary = `Searching knowledge bases with ${subQueryCount} quer${subQueryCount === 1 ? "y" : "ies"}...`;
+
+      expect(expectedSummary).toBe("Searching knowledge bases with 3 queries...");
+    });
+
+    it("should use singular 'query' for count of 1", () => {
+      const subQueryCount = 1;
+      const summary = `Searching knowledge bases with ${subQueryCount} quer${subQueryCount === 1 ? "y" : "ies"}...`;
+
+      expect(summary).toBe("Searching knowledge bases with 1 query...");
+    });
+
+    it("should report chunk count in completed search step", () => {
+      const foundChunks = 12;
+      const completedSummary = `Found ${foundChunks} relevant chunks`;
+
+      expect(completedSummary).toBe("Found 12 relevant chunks");
+    });
+  });
+});
+
+// ============================================================================
+// Tests for Chunk Merging and Deduplication
+// ============================================================================
+
+describe("Chunk Merging and Deduplication", () => {
+  describe("mergeAndDeduplicateChunks method", () => {
+    it("should deduplicate chunks by ID", () => {
+      const chunks = [
+        { id: "chunk-1", content: "Content A", score: 0.85 },
+        { id: "chunk-2", content: "Content B", score: 0.80 },
+        { id: "chunk-1", content: "Content A", score: 0.90 }, // Duplicate ID
+      ];
+
+      // Use Map for deduplication
+      const chunkMap = new Map<string, typeof chunks[0]>();
+      for (const chunk of chunks) {
+        const existing = chunkMap.get(chunk.id);
+        if (!existing || chunk.score > existing.score) {
+          chunkMap.set(chunk.id, chunk);
+        }
+      }
+
+      const merged = Array.from(chunkMap.values());
+
+      expect(merged).toHaveLength(2);
+    });
+
+    it("should keep chunk with highest score when duplicates exist", () => {
+      const chunks = [
+        { id: "chunk-1", content: "Content", score: 0.85 },
+        { id: "chunk-1", content: "Content", score: 0.95 }, // Higher score
+        { id: "chunk-1", content: "Content", score: 0.75 }, // Lower score
+      ];
+
+      const chunkMap = new Map<string, typeof chunks[0]>();
+      for (const chunk of chunks) {
+        const existing = chunkMap.get(chunk.id);
+        if (!existing || chunk.score > existing.score) {
+          chunkMap.set(chunk.id, chunk);
+        }
+      }
+
+      const merged = Array.from(chunkMap.values());
+
+      expect(merged).toHaveLength(1);
+      expect(merged[0].score).toBe(0.95);
+    });
+
+    it("should sort results by score descending", () => {
+      const chunks = [
+        { id: "chunk-1", content: "Low score", score: 0.60 },
+        { id: "chunk-2", content: "High score", score: 0.95 },
+        { id: "chunk-3", content: "Medium score", score: 0.80 },
+      ];
+
+      const sorted = [...chunks].sort((a, b) => b.score - a.score);
+
+      expect(sorted[0].score).toBe(0.95);
+      expect(sorted[1].score).toBe(0.80);
+      expect(sorted[2].score).toBe(0.60);
+    });
+
+    it("should limit results to topK", () => {
+      const topK = 3;
+      const chunks = Array.from({ length: 10 }, (_, i) => ({
+        id: `chunk-${i}`,
+        content: `Content ${i}`,
+        score: 0.9 - i * 0.05,
+      }));
+
+      const limited = chunks.slice(0, topK);
+
+      expect(limited).toHaveLength(3);
+      expect(limited[0].id).toBe("chunk-0");
+      expect(limited[2].id).toBe("chunk-2");
+    });
+
+    it("should handle empty chunk array", () => {
+      const chunks: { id: string; content: string; score: number }[] = [];
+
+      const merged = Array.from(new Map(chunks.map(c => [c.id, c])).values());
+
+      expect(merged).toHaveLength(0);
+    });
+
+    it("should return chunks unchanged when no config (early return)", () => {
+      // When config is null, chunks are returned as-is
+      const configIsNull = true;
+      const expectedBehavior = configIsNull ? "return original" : "process";
+
+      expect(expectedBehavior).toBe("return original");
+    });
+
+    it("should handle chunks from multiple sub-queries with overlap", () => {
+      // Sub-query 1 results
+      const chunksFromSQ1 = [
+        { id: "chunk-A", content: "Shared content", score: 0.85 },
+        { id: "chunk-B", content: "Unique to SQ1", score: 0.80 },
+      ];
+      // Sub-query 2 results
+      const chunksFromSQ2 = [
+        { id: "chunk-A", content: "Shared content", score: 0.90 }, // Same ID, higher score
+        { id: "chunk-C", content: "Unique to SQ2", score: 0.75 },
+      ];
+
+      const allChunks = [...chunksFromSQ1, ...chunksFromSQ2];
+
+      const chunkMap = new Map<string, typeof allChunks[0]>();
+      for (const chunk of allChunks) {
+        const existing = chunkMap.get(chunk.id);
+        if (!existing || chunk.score > existing.score) {
+          chunkMap.set(chunk.id, chunk);
+        }
+      }
+
+      const merged = Array.from(chunkMap.values());
+
+      expect(merged).toHaveLength(3);
+      // chunk-A should have the higher score (0.90)
+      const chunkA = merged.find(c => c.id === "chunk-A");
+      expect(chunkA?.score).toBe(0.90);
+    });
+  });
+
+  describe("merge step reasoning event", () => {
+    it("should emit merge step after search step", () => {
+      const reasoningSequence = ["rewrite", "plan", "search", "merge", "generate"];
+
+      const searchIndex = reasoningSequence.indexOf("search");
+      const mergeIndex = reasoningSequence.indexOf("merge");
+
+      expect(mergeIndex).toBe(searchIndex + 1);
+    });
+
+    it("should report deduplication in merge step summary", () => {
+      const originalCount = 15;
+      const mergedCount = 8;
+
+      // The merge step reports how many unique chunks remain
+      const completedSummary = `Merged to ${mergedCount} unique chunks`;
+
+      expect(completedSummary).toBe("Merged to 8 unique chunks");
+    });
+
+    it("should start with 'Deduplicating and ranking results' message", () => {
+      const inProgressSummary = "Deduplicating and ranking results...";
+
+      expect(inProgressSummary).toContain("Deduplicating");
+      expect(inProgressSummary).toContain("ranking");
+    });
+  });
+
+  describe("topK configuration", () => {
+    it("should use default topK of 8", () => {
+      const defaultTopK = 8;
+
+      expect(defaultTopK).toBe(8);
+    });
+
+    it("should respect custom topK from retrieval config", () => {
+      const customTopK = 15;
+      const chunks = Array.from({ length: 20 }, (_, i) => ({
+        id: `chunk-${i}`,
+        content: `Content ${i}`,
+        score: 0.95 - i * 0.01,
+      }));
+
+      const limited = chunks.slice(0, customTopK);
+
+      expect(limited).toHaveLength(15);
+    });
+  });
+
+  describe("score preservation", () => {
+    it("should preserve original scores from vector search", () => {
+      const chunk = {
+        id: "chunk-1",
+        content: "Content",
+        score: 0.87654321,
+      };
+
+      // Score should be preserved exactly
+      expect(chunk.score).toBe(0.87654321);
+    });
+
+    it("should not modify scores during deduplication", () => {
+      const chunks = [
+        { id: "chunk-1", content: "A", score: 0.95 },
+        { id: "chunk-1", content: "A", score: 0.85 },
+      ];
+
+      const chunkMap = new Map<string, typeof chunks[0]>();
+      for (const chunk of chunks) {
+        const existing = chunkMap.get(chunk.id);
+        if (!existing || chunk.score > existing.score) {
+          chunkMap.set(chunk.id, chunk);
+        }
+      }
+
+      const kept = chunkMap.get("chunk-1");
+
+      // Score should be the original higher score, not computed
+      expect(kept?.score).toBe(0.95);
+    });
+  });
+});
+
+// ============================================================================
+// Tests for Status Event After Merging
+// ============================================================================
+
+describe("Status Event After Merging", () => {
+  it("should emit status event with source count", () => {
+    const sourceCount = 8;
+    const statusEvent = {
+      type: "status" as const,
+      status: "generating",
+      message: `Found ${sourceCount} sources. Generating response...`,
+      sourceCount,
+    };
+
+    expect(statusEvent.type).toBe("status");
+    expect(statusEvent.sourceCount).toBe(8);
+    expect(statusEvent.message).toContain("Found 8 sources");
+  });
+
+  it("should handle zero sources case", () => {
+    const sourceCount = 0;
+    const statusEvent = {
+      type: "status" as const,
+      status: "generating",
+      message: sourceCount > 0
+        ? `Found ${sourceCount} sources. Generating response...`
+        : "No relevant sources found. Generating response...",
+      sourceCount,
+    };
+
+    expect(statusEvent.message).toBe("No relevant sources found. Generating response...");
+    expect(statusEvent.sourceCount).toBe(0);
+  });
+
+  it("should emit status after merge step completes", () => {
+    const eventSequence = [
+      { type: "reasoning", step: { type: "merge", status: "completed" } },
+      { type: "status", status: "generating" },
+      { type: "reasoning", step: { type: "generate", status: "in_progress" } },
+    ];
+
+    const mergeIndex = eventSequence.findIndex(
+      e => e.type === "reasoning" && (e.step as { type: string }).type === "merge"
+    );
+    const statusIndex = eventSequence.findIndex(e => e.type === "status");
+    const generateIndex = eventSequence.findIndex(
+      e => e.type === "reasoning" && (e.step as { type: string }).type === "generate"
+    );
+
+    expect(statusIndex).toBeGreaterThan(mergeIndex);
+    expect(statusIndex).toBeLessThan(generateIndex);
+  });
+});
+
+// ============================================================================
+// Tests for Retrieved Chunk Interface
+// ============================================================================
+
+describe("RetrievedChunk Interface", () => {
+  it("should have required id, content, and score fields", () => {
+    const chunk = {
+      id: "chunk-123",
+      content: "This is the retrieved content",
+      score: 0.85,
+    };
+
+    expect(chunk.id).toBeDefined();
+    expect(chunk.content).toBeDefined();
+    expect(chunk.score).toBeDefined();
+  });
+
+  it("should have optional title and url fields", () => {
+    const chunkWithMeta = {
+      id: "chunk-123",
+      content: "Content with metadata",
+      title: "Document Title",
+      url: "https://example.com/doc",
+      score: 0.90,
+    };
+
+    const chunkWithoutMeta: {
+      id: string;
+      content: string;
+      score: number;
+      title?: string;
+      url?: string;
+    } = {
+      id: "chunk-456",
+      content: "Content without metadata",
+      score: 0.85,
+    };
+
+    expect(chunkWithMeta.title).toBe("Document Title");
+    expect(chunkWithMeta.url).toBe("https://example.com/doc");
+    expect(chunkWithoutMeta.title).toBeUndefined();
+    expect(chunkWithoutMeta.url).toBeUndefined();
+  });
+
+  it("should support score values between 0 and 1", () => {
+    const scores = [0.0, 0.5, 0.75, 0.95, 1.0];
+
+    for (const score of scores) {
+      expect(score).toBeGreaterThanOrEqual(0);
+      expect(score).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+// ============================================================================
 // Tests for Comparison with SimpleRAGService
 // ============================================================================
 

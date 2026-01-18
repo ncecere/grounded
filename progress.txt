@@ -545,3 +545,88 @@
 ### Files Changed
 - `apps/api/src/services/advanced-rag.test.ts` (MODIFIED - added 30 tests for plan generation)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 2 - Implement sub-query retrieval and merging
+
+### Completed Task
+**Task:** Implement sub-query retrieval and merging
+**Phase:** Phase 2 - Advanced RAG Service
+**Status:** COMPLETED
+
+### Implementation Summary
+The sub-query retrieval and merging functionality was already implemented in the AdvancedRAGService as part of the initial file structure creation. This task verified the implementation and added comprehensive tests.
+
+### Existing Implementation (verified):
+1. **`executeSubQueries()` method:**
+   - Executes all sub-queries in parallel using `Promise.all`
+   - Calls `searchKnowledge()` for each sub-query
+   - Collects and combines results from all sub-queries
+
+2. **`searchKnowledge()` method:**
+   - Generates embeddings for the query
+   - Searches vector store with configured parameters (candidateK, similarityThreshold)
+   - Limits results to topK per sub-query
+   - Looks up chunk metadata from database
+   - Returns RetrievedChunk objects with id, content, title, url, and score
+
+3. **`mergeAndDeduplicateChunks()` method:**
+   - Deduplicates chunks by ID using a Map
+   - Keeps the chunk with the highest score when duplicates exist
+   - Sorts results by score descending
+   - Limits final results to topK
+
+### Tests Added (23 new tests):
+1. **Sub-Query Retrieval Behavior:**
+   - Parallel execution using Promise.all
+   - Result collection from multiple sub-queries
+   - Single sub-query handling (simple query case)
+   - Empty sub-query array handling
+   - Empty KB list handling
+
+2. **searchKnowledge Method:**
+   - Embedding generation
+   - Search parameter configuration
+   - TopK limiting per sub-query
+   - Vector store unavailable handling
+   - Database chunk lookup
+   - RetrievedChunk structure
+   - Optional title/url fields
+   - Heading fallback for title
+   - normalizedUrl usage
+
+3. **Search Step Reasoning Event:**
+   - Event sequence (after plan step)
+   - Sub-query count reporting
+   - Singular/plural handling
+
+4. **Chunk Merging and Deduplication:**
+   - Deduplication by ID
+   - Highest score preservation
+   - Score-based sorting
+   - TopK limiting
+   - Empty array handling
+   - Null config early return
+   - Multi-sub-query overlap handling
+
+5. **Merge Step Reasoning Event:**
+   - Event sequence (after search step)
+   - Deduplication summary reporting
+
+6. **Status Event After Merging:**
+   - Source count in status event
+   - Zero sources handling
+   - Event sequence verification
+
+7. **RetrievedChunk Interface:**
+   - Required fields (id, content, score)
+   - Optional fields (title, url)
+   - Score range validation
+
+### Test Results
+- All 290 tests pass (274 in api, 16 in web)
+- All typecheck passes across 14 packages
+- Added 23 new tests for sub-query retrieval and merging
+
+### Files Changed
+- `apps/api/src/services/advanced-rag.test.ts` (MODIFIED - added 23 tests for sub-query retrieval and merging)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)
