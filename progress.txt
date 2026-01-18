@@ -670,3 +670,104 @@ Implemented exponential backoff with jitter for retry operations in the ingestio
 - All 64 new tests pass
 - All existing tests pass (632 tests in shared package)
 - TypeScript typechecking passes across all packages
+
+## 2026-01-18: Limit retry attempts per stage and log outcomes
+
+### Summary
+Implemented comprehensive retry outcome tracking and logging for the ingestion pipeline. The implementation includes outcome classification (success/failure types), structured logging, outcome statistics, and enhanced retry execution with automatic logging support.
+
+### Changes Made
+1. **packages/shared/src/types/index.ts**
+   - Added `RetryOutcome` enum with 5 outcome types:
+     - `SUCCESS_NO_RETRY` - Succeeded on first attempt
+     - `SUCCESS_AFTER_RETRY` - Succeeded after one or more retries
+     - `FAILURE_NON_RETRYABLE` - Failed with non-retryable error
+     - `FAILURE_MAX_RETRIES_EXHAUSTED` - Failed after exhausting all retry attempts
+     - `SKIPPED` - Operation was skipped
+   - Added `RetryOutcomeLog` interface for structured logging with timestamp, stage, outcome, attempts, timing, context (resourceId, tenantId, runId), error info, and attempt summaries
+   - Added `RetryOutcomeLogConfig` interface for logging configuration (includeAttemptDetails, logSuccesses, minAttemptsToLogSuccess)
+   - Added `RetryOutcomeStats` interface for aggregated metrics
+   - Added helper functions:
+     - `getDefaultRetryOutcomeLogConfig()` - Returns default log configuration
+     - `classifyRetryOutcome()` - Classifies retry result into outcome type
+     - `createRetryOutcomeLog()` - Creates structured log entry from retry result
+     - `shouldLogRetryOutcome()` - Determines if log should be written based on config
+     - `formatRetryOutcomeLog()` - Formats log for human-readable output
+     - `createStructuredRetryLog()` - Creates JSON-compatible log object
+     - `isMaxRetriesReached()` - Checks if stage retry limit reached
+     - `getRemainingRetries()` - Gets remaining retry attempts for stage
+     - `executeWithRetryLogging()` - Enhanced retry execution with automatic logging
+     - `summarizeRetryOutcomes()` - Aggregates outcome logs into statistics
+   - Re-exported `STAGE_MAX_RETRIES` for convenience
+
+2. **packages/shared/src/types/retry-outcome-logging.test.ts** (new file)
+   - Added 77 tests covering:
+     - RetryOutcome enum validation
+     - Default log configuration
+     - Outcome classification for all scenarios
+     - Log creation with all fields
+     - Log filtering based on config
+     - Human-readable and structured log formatting
+     - isMaxRetriesReached for all stages
+     - getRemainingRetries calculations
+     - executeWithRetryLogging integration
+     - Outcome summarization statistics
+     - Integration tests for complete workflows
+
+### Key Design Decisions
+- **Outcome Classification**: Clear distinction between non-retryable failures (permanent errors) and max retries exhausted (transient errors that persisted)
+- **Structured Logging**: All logs include stage, timestamp, and context for easy filtering and aggregation
+- **Configurable Verbosity**: Can suppress success logs or set minimum attempt threshold to reduce noise
+- **Per-attempt Details**: Optional detailed tracking of each attempt for debugging
+- **Statistic Aggregation**: Built-in support for summarizing outcomes across batches
+
+### Retry Limits by Stage
+| Stage | Max Retries | Rationale |
+|-------|-------------|-----------|
+| discover | 2 | URL discovery, network errors |
+| fetch | 3 | HTTP fetching, rate limiting |
+| extract | 2 | Content parsing, transient issues |
+| chunk | 1 | Memory-bound, rarely needs retry |
+| embed | 3 | API rate limits common |
+| index | 3 | Database contention possible |
+
+### Outcome Log Structure
+```typescript
+{
+  timestamp: string;
+  stage: IngestionStage;
+  outcome: RetryOutcome;
+  totalAttempts: number;
+  maxAttempts: number;
+  totalWaitTimeMs: number;
+  totalExecutionTimeMs: number;
+  resourceId?: string;
+  tenantId?: string;
+  runId?: string;
+  error?: {
+    code: string;
+    category: string;
+    message: string;
+    retryable: boolean;
+  };
+  attemptSummary?: {
+    attempt: number;
+    succeeded: boolean;
+    delayBeforeMs: number;
+    durationMs?: number;
+    errorCode?: string;
+  }[];
+}
+```
+
+### Acceptance Criteria Met
+- ✅ Limit retry attempts per stage (using STAGE_MAX_RETRIES)
+- ✅ Log outcomes for all retry operations (via RetryOutcomeLog)
+- ✅ Classify outcomes (success, failure types)
+- ✅ Support structured and human-readable logging
+- ✅ Provide statistics aggregation for monitoring
+
+### Tests
+- All 77 new tests pass
+- All existing tests pass (677 tests in shared package)
+- TypeScript typechecking passes across all packages

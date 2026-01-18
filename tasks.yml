@@ -70,7 +70,7 @@ tasks:
     tags: [reliability, retry]
 
   - title: Limit retry attempts per stage and log outcomes
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [reliability, logging]
 

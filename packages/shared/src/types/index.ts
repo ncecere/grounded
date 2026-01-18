@@ -2684,3 +2684,527 @@ export {
   BACKOFF_ENV_VARS,
   STAGE_BACKOFF_CONFIG,
 };
+
+// ============================================================================
+// Stage Retry Limiting and Outcome Logging
+// ============================================================================
+
+/**
+ * Outcome types for retry operations.
+ * Used for structured logging and metrics.
+ */
+export const RetryOutcome = {
+  /** Operation succeeded on first attempt without any retries */
+  SUCCESS_NO_RETRY: "success_no_retry",
+  /** Operation succeeded after one or more retries */
+  SUCCESS_AFTER_RETRY: "success_after_retry",
+  /** Operation failed but max retries not exhausted (non-retryable error) */
+  FAILURE_NON_RETRYABLE: "failure_non_retryable",
+  /** Operation failed after exhausting all retry attempts */
+  FAILURE_MAX_RETRIES_EXHAUSTED: "failure_max_retries_exhausted",
+  /** Operation was skipped (e.g., already processed) */
+  SKIPPED: "skipped",
+} as const;
+export type RetryOutcome = (typeof RetryOutcome)[keyof typeof RetryOutcome];
+
+/**
+ * Detailed log entry for a retry outcome.
+ * Designed for structured logging and observability.
+ */
+export interface RetryOutcomeLog {
+  /** Timestamp when the outcome was recorded */
+  timestamp: string;
+  /** The ingestion stage where the retry occurred */
+  stage: IngestionStage;
+  /** The final outcome of the retry operation */
+  outcome: RetryOutcome;
+  /** Total number of attempts made (including first attempt) */
+  totalAttempts: number;
+  /** Maximum attempts allowed for this stage */
+  maxAttempts: number;
+  /** Total time spent waiting between retries (ms) */
+  totalWaitTimeMs: number;
+  /** Total execution time including all attempts (ms) */
+  totalExecutionTimeMs: number;
+  /** Resource identifier (URL, chunk ID, etc.) */
+  resourceId?: string;
+  /** Tenant ID for multi-tenant tracking */
+  tenantId?: string;
+  /** Run ID for source run tracking */
+  runId?: string;
+  /** Error information if the operation failed */
+  error?: {
+    /** Error code from the error taxonomy */
+    code: string;
+    /** Error category */
+    category: string;
+    /** Error message */
+    message: string;
+    /** Whether the error was retryable */
+    retryable: boolean;
+  };
+  /** Per-attempt summary for debugging */
+  attemptSummary?: {
+    /** Attempt number (1-indexed) */
+    attempt: number;
+    /** Whether this attempt succeeded */
+    succeeded: boolean;
+    /** Delay before this attempt (ms) */
+    delayBeforeMs: number;
+    /** Duration of the attempt (ms) */
+    durationMs?: number;
+    /** Error code if failed */
+    errorCode?: string;
+  }[];
+}
+
+/**
+ * Configuration for retry outcome logging.
+ */
+export interface RetryOutcomeLogConfig {
+  /** Whether to include detailed attempt summaries in logs */
+  includeAttemptDetails: boolean;
+  /** Whether to log successful operations (can be noisy) */
+  logSuccesses: boolean;
+  /** Minimum attempts before logging a success (to reduce noise) */
+  minAttemptsToLogSuccess: number;
+}
+
+/**
+ * Statistics for retry outcomes, useful for metrics and monitoring.
+ */
+export interface RetryOutcomeStats {
+  /** Stage these stats are for */
+  stage: IngestionStage;
+  /** Time period start */
+  periodStart: string;
+  /** Time period end */
+  periodEnd: string;
+  /** Total operations processed */
+  totalOperations: number;
+  /** Count by outcome type */
+  outcomes: Record<RetryOutcome, number>;
+  /** Average attempts for successful operations */
+  avgAttemptsOnSuccess: number;
+  /** Average wait time for successful operations (ms) */
+  avgWaitTimeOnSuccessMs: number;
+  /** Total retries performed */
+  totalRetries: number;
+  /** Success rate (0-1) */
+  successRate: number;
+}
+
+/**
+ * Gets the default retry outcome log configuration.
+ *
+ * @returns Default RetryOutcomeLogConfig
+ */
+export function getDefaultRetryOutcomeLogConfig(): RetryOutcomeLogConfig {
+  return {
+    includeAttemptDetails: true,
+    logSuccesses: true,
+    minAttemptsToLogSuccess: 1, // Log all successes by default
+  };
+}
+
+/**
+ * Determines the retry outcome based on retry result.
+ *
+ * @param result - The retry result from executeWithBackoff
+ * @param isRetryable - Function to check if the error was retryable
+ * @returns The classified retry outcome
+ */
+export function classifyRetryOutcome<T>(
+  result: RetryResult<T>,
+  isRetryable?: (error: unknown) => boolean
+): RetryOutcome {
+  if (result.success) {
+    return result.attempts === 1
+      ? RetryOutcome.SUCCESS_NO_RETRY
+      : RetryOutcome.SUCCESS_AFTER_RETRY;
+  }
+
+  // Failed - determine if it was due to max retries or non-retryable error
+  if (result.error !== undefined) {
+    // Check if the final error was retryable
+    const wasRetryable = isRetryable ? isRetryable(result.error) : true;
+
+    if (!wasRetryable) {
+      return RetryOutcome.FAILURE_NON_RETRYABLE;
+    }
+  }
+
+  // If we made all attempts and still failed, max retries were exhausted
+  return RetryOutcome.FAILURE_MAX_RETRIES_EXHAUSTED;
+}
+
+/**
+ * Creates a structured retry outcome log entry.
+ *
+ * @param stage - The ingestion stage
+ * @param result - The retry result
+ * @param maxAttempts - Maximum attempts allowed
+ * @param context - Additional context (resourceId, tenantId, runId)
+ * @param errorInfo - Optional error information for failed operations
+ * @param config - Optional log configuration
+ * @returns Structured log entry
+ */
+export function createRetryOutcomeLog<T>(
+  stage: IngestionStage,
+  result: RetryResult<T>,
+  maxAttempts: number,
+  context?: {
+    resourceId?: string;
+    tenantId?: string;
+    runId?: string;
+    executionStartTime?: number;
+  },
+  errorInfo?: {
+    code: string;
+    category: string;
+    message: string;
+    retryable: boolean;
+  },
+  config?: Partial<RetryOutcomeLogConfig>
+): RetryOutcomeLog {
+  const fullConfig = { ...getDefaultRetryOutcomeLogConfig(), ...config };
+  const isRetryable = errorInfo ? () => errorInfo.retryable : undefined;
+  const outcome = classifyRetryOutcome(result, isRetryable);
+
+  const log: RetryOutcomeLog = {
+    timestamp: new Date().toISOString(),
+    stage,
+    outcome,
+    totalAttempts: result.attempts,
+    maxAttempts,
+    totalWaitTimeMs: result.totalWaitTimeMs,
+    totalExecutionTimeMs: context?.executionStartTime
+      ? Date.now() - context.executionStartTime
+      : result.attemptDetails.reduce((sum, d) => sum + (d.durationMs || 0), 0) +
+        result.totalWaitTimeMs,
+    resourceId: context?.resourceId,
+    tenantId: context?.tenantId,
+    runId: context?.runId,
+  };
+
+  // Add error info for failures
+  if (!result.success && errorInfo) {
+    log.error = errorInfo;
+  }
+
+  // Add attempt details if configured
+  if (fullConfig.includeAttemptDetails && result.attemptDetails.length > 0) {
+    log.attemptSummary = result.attemptDetails.map((detail) => ({
+      attempt: detail.attempt,
+      succeeded: detail.succeeded,
+      delayBeforeMs: detail.delayBeforeMs,
+      durationMs: detail.durationMs,
+      errorCode: detail.error
+        ? getErrorCodeFromError(detail.error)
+        : undefined,
+    }));
+  }
+
+  return log;
+}
+
+/**
+ * Extracts an error code from an error object.
+ * Helper for creating retry outcome logs.
+ *
+ * @param error - The error to extract code from
+ * @returns Error code string or "UNKNOWN_ERROR"
+ */
+function getErrorCodeFromError(error: unknown): string {
+  if (error && typeof error === "object" && "code" in error) {
+    return String((error as { code: unknown }).code);
+  }
+  if (error instanceof Error) {
+    // Try to extract code from message patterns
+    const message = error.message;
+    if (message.includes("timeout")) return "NETWORK_TIMEOUT";
+    if (message.includes("rate limit")) return "SERVICE_RATE_LIMITED";
+    if (message.includes("not found")) return "NOT_FOUND_RESOURCE";
+  }
+  return "UNKNOWN_ERROR";
+}
+
+/**
+ * Determines if a retry outcome log should be written based on configuration.
+ *
+ * @param log - The retry outcome log
+ * @param config - Log configuration
+ * @returns true if the log should be written
+ */
+export function shouldLogRetryOutcome(
+  log: RetryOutcomeLog,
+  config?: Partial<RetryOutcomeLogConfig>
+): boolean {
+  const fullConfig = { ...getDefaultRetryOutcomeLogConfig(), ...config };
+
+  // Always log failures
+  if (
+    log.outcome === RetryOutcome.FAILURE_NON_RETRYABLE ||
+    log.outcome === RetryOutcome.FAILURE_MAX_RETRIES_EXHAUSTED
+  ) {
+    return true;
+  }
+
+  // Check if we should log successes
+  if (!fullConfig.logSuccesses) {
+    return false;
+  }
+
+  // Check minimum attempts threshold for success logging
+  return log.totalAttempts >= fullConfig.minAttemptsToLogSuccess;
+}
+
+/**
+ * Formats a retry outcome log for human-readable output.
+ * Useful for console logging during development.
+ *
+ * @param log - The retry outcome log
+ * @returns Formatted string
+ */
+export function formatRetryOutcomeLog(log: RetryOutcomeLog): string {
+  const parts: string[] = [
+    `[${log.stage.toUpperCase()}]`,
+    log.outcome,
+    `attempts=${log.totalAttempts}/${log.maxAttempts}`,
+    `waitTime=${log.totalWaitTimeMs}ms`,
+    `totalTime=${log.totalExecutionTimeMs}ms`,
+  ];
+
+  if (log.resourceId) {
+    parts.push(`resource=${log.resourceId}`);
+  }
+
+  if (log.error) {
+    parts.push(`error=${log.error.code}`);
+    parts.push(`message="${log.error.message}"`);
+  }
+
+  return parts.join(" ");
+}
+
+/**
+ * Creates a structured log message for JSON logging.
+ * Returns an object suitable for structured logging systems.
+ *
+ * @param log - The retry outcome log
+ * @returns Object for JSON logging
+ */
+export function createStructuredRetryLog(
+  log: RetryOutcomeLog
+): Record<string, unknown> {
+  return {
+    event: "retry_outcome",
+    ...log,
+    // Flatten error for easier querying
+    errorCode: log.error?.code,
+    errorCategory: log.error?.category,
+    errorMessage: log.error?.message,
+    errorRetryable: log.error?.retryable,
+  };
+}
+
+/**
+ * Checks if a stage has reached its maximum retry limit.
+ *
+ * @param stage - The ingestion stage
+ * @param currentAttempt - Current attempt number (1-indexed)
+ * @returns true if max retries have been reached
+ */
+export function isMaxRetriesReached(
+  stage: IngestionStage,
+  currentAttempt: number
+): boolean {
+  const maxRetries = STAGE_MAX_RETRIES[stage];
+  return currentAttempt >= maxRetries;
+}
+
+/**
+ * Gets remaining retry attempts for a stage.
+ *
+ * @param stage - The ingestion stage
+ * @param currentAttempt - Current attempt number (1-indexed)
+ * @returns Number of remaining retry attempts (0 or positive)
+ */
+export function getRemainingRetries(
+  stage: IngestionStage,
+  currentAttempt: number
+): number {
+  const maxRetries = STAGE_MAX_RETRIES[stage];
+  return Math.max(0, maxRetries - currentAttempt);
+}
+
+/**
+ * Enhanced retry execution with outcome logging.
+ * Wraps executeWithBackoff with automatic outcome tracking and logging.
+ *
+ * @param fn - The async function to execute
+ * @param stage - The ingestion stage
+ * @param context - Context for logging (resourceId, tenantId, runId)
+ * @param options - Optional overrides for retry options
+ * @param logConfig - Optional configuration for outcome logging
+ * @param logger - Optional logger function for outcome logs
+ * @returns RetryResult with the outcome
+ */
+export async function executeWithRetryLogging<T>(
+  fn: () => Promise<T>,
+  stage: IngestionStage,
+  context?: {
+    resourceId?: string;
+    tenantId?: string;
+    runId?: string;
+  },
+  options?: Partial<RetryOptions>,
+  logConfig?: Partial<RetryOutcomeLogConfig>,
+  logger?: (log: RetryOutcomeLog) => void
+): Promise<RetryResult<T>> {
+  const executionStartTime = Date.now();
+  const retryOptions = getRetryOptionsForStage(stage, options);
+
+  // Execute with backoff
+  const result = await executeWithBackoff(fn, retryOptions);
+
+  // Build error info if failed
+  let errorInfo:
+    | { code: string; category: string; message: string; retryable: boolean }
+    | undefined;
+  if (!result.success && result.error) {
+    const errCode = getErrorCodeFromError(result.error);
+    const errMessage =
+      result.error instanceof Error
+        ? result.error.message
+        : String(result.error);
+    const errRetryable = retryOptions.isRetryable
+      ? retryOptions.isRetryable(result.error)
+      : true;
+
+    errorInfo = {
+      code: errCode,
+      category: getErrorCategoryFromCode(errCode),
+      message: errMessage,
+      retryable: errRetryable,
+    };
+  }
+
+  // Create outcome log
+  const outcomeLog = createRetryOutcomeLog(
+    stage,
+    result,
+    retryOptions.maxAttempts,
+    { ...context, executionStartTime },
+    errorInfo,
+    logConfig
+  );
+
+  // Log if configured to do so
+  if (logger && shouldLogRetryOutcome(outcomeLog, logConfig)) {
+    logger(outcomeLog);
+  }
+
+  return result;
+}
+
+/**
+ * Gets the error category from an error code string.
+ * Helper for creating structured error info.
+ *
+ * @param code - Error code string
+ * @returns Error category string
+ */
+function getErrorCategoryFromCode(code: string): string {
+  if (code.startsWith("NETWORK_")) return "network";
+  if (code.startsWith("SERVICE_")) return "service";
+  if (code.startsWith("CONTENT_")) return "content";
+  if (code.startsWith("CONFIG_")) return "configuration";
+  if (code.startsWith("NOT_FOUND_")) return "not_found";
+  if (code.startsWith("VALIDATION_")) return "validation";
+  if (code.startsWith("AUTH_")) return "auth";
+  if (code.startsWith("SYSTEM_")) return "system";
+  return "unknown";
+}
+
+/**
+ * Creates an outcome summary for a batch of retry outcomes.
+ * Useful for aggregating stats at the end of a run.
+ *
+ * @param logs - Array of retry outcome logs
+ * @returns Summary statistics
+ */
+export function summarizeRetryOutcomes(logs: RetryOutcomeLog[]): {
+  total: number;
+  byOutcome: Record<RetryOutcome, number>;
+  byStage: Record<string, { total: number; succeeded: number; failed: number }>;
+  avgAttempts: number;
+  avgWaitTimeMs: number;
+  successRate: number;
+  totalRetries: number;
+} {
+  const summary = {
+    total: logs.length,
+    byOutcome: {
+      [RetryOutcome.SUCCESS_NO_RETRY]: 0,
+      [RetryOutcome.SUCCESS_AFTER_RETRY]: 0,
+      [RetryOutcome.FAILURE_NON_RETRYABLE]: 0,
+      [RetryOutcome.FAILURE_MAX_RETRIES_EXHAUSTED]: 0,
+      [RetryOutcome.SKIPPED]: 0,
+    } as Record<RetryOutcome, number>,
+    byStage: {} as Record<
+      string,
+      { total: number; succeeded: number; failed: number }
+    >,
+    avgAttempts: 0,
+    avgWaitTimeMs: 0,
+    successRate: 0,
+    totalRetries: 0,
+  };
+
+  if (logs.length === 0) {
+    return summary;
+  }
+
+  let totalAttempts = 0;
+  let totalWaitTime = 0;
+  let successCount = 0;
+
+  for (const log of logs) {
+    // Count by outcome
+    summary.byOutcome[log.outcome]++;
+
+    // Count by stage
+    if (!summary.byStage[log.stage]) {
+      summary.byStage[log.stage] = { total: 0, succeeded: 0, failed: 0 };
+    }
+    summary.byStage[log.stage].total++;
+
+    // Track success/failure
+    if (
+      log.outcome === RetryOutcome.SUCCESS_NO_RETRY ||
+      log.outcome === RetryOutcome.SUCCESS_AFTER_RETRY
+    ) {
+      summary.byStage[log.stage].succeeded++;
+      successCount++;
+    } else if (
+      log.outcome === RetryOutcome.FAILURE_NON_RETRYABLE ||
+      log.outcome === RetryOutcome.FAILURE_MAX_RETRIES_EXHAUSTED
+    ) {
+      summary.byStage[log.stage].failed++;
+    }
+
+    totalAttempts += log.totalAttempts;
+    totalWaitTime += log.totalWaitTimeMs;
+    summary.totalRetries += Math.max(0, log.totalAttempts - 1);
+  }
+
+  summary.avgAttempts = totalAttempts / logs.length;
+  summary.avgWaitTimeMs = totalWaitTime / logs.length;
+  summary.successRate = successCount / logs.length;
+
+  return summary;
+}
+
+// Re-export STAGE_MAX_RETRIES for convenience
+export { STAGE_MAX_RETRIES };
