@@ -608,6 +608,193 @@ export function createConcurrencyOptionsFromQuotas(
 }
 
 // ============================================================================
+// Embed Backpressure
+// ============================================================================
+
+import {
+  type EmbedBackpressureCheckResult,
+  type EmbedBackpressureConfig,
+  type EmbedBackpressureWaitResult,
+  type EmbedBackpressureMetrics,
+  resolveEmbedBackpressureConfig,
+  getDefaultEmbedBackpressureConfig,
+  checkEmbedBackpressure,
+  calculateEmbedBackpressureMetrics,
+  getEmbedBackpressureKey,
+  getEmbedBackpressureKeyTtl,
+} from "@grounded/shared";
+
+// Cache for backpressure config (resolved once at startup)
+let cachedBackpressureConfig: EmbedBackpressureConfig | null = null;
+
+/**
+ * Gets the embed backpressure configuration.
+ * Resolves from environment variables on first call and caches the result.
+ *
+ * @returns Backpressure configuration
+ */
+export function getEmbedBackpressureConfig(): EmbedBackpressureConfig {
+  if (!cachedBackpressureConfig) {
+    cachedBackpressureConfig = resolveEmbedBackpressureConfig((key) => process.env[key]);
+  }
+  return cachedBackpressureConfig;
+}
+
+/**
+ * Resets the cached backpressure configuration.
+ * Useful for testing or when environment changes.
+ */
+export function resetEmbedBackpressureConfigCache(): void {
+  cachedBackpressureConfig = null;
+}
+
+/**
+ * Gets the current embed queue depth (pending + waiting jobs).
+ * Uses BullMQ queue counts for accurate real-time measurement.
+ *
+ * @returns Current queue depth
+ */
+export async function getEmbedQueueDepth(): Promise<number> {
+  const counts = await embedChunksQueue.getJobCounts("waiting", "active", "delayed");
+  return counts.waiting + counts.active + counts.delayed;
+}
+
+/**
+ * Gets the embed queue depth from Redis counter.
+ * This is a fallback when queue metrics are unavailable.
+ *
+ * @returns Current queue depth from Redis counter
+ */
+export async function getEmbedQueueDepthFromRedis(): Promise<number> {
+  const key = getEmbedBackpressureKey();
+  const value = await redis.get(key);
+  return value ? Math.max(0, parseInt(value, 10)) : 0;
+}
+
+/**
+ * Increments the Redis-based embed queue depth counter.
+ * Called when adding embed jobs.
+ *
+ * @param count - Number of jobs being added (default 1)
+ * @returns New counter value
+ */
+export async function incrementEmbedQueueDepth(count: number = 1): Promise<number> {
+  const key = getEmbedBackpressureKey();
+  const ttl = getEmbedBackpressureKeyTtl();
+  const newValue = await redis.incrby(key, count);
+  await redis.expire(key, ttl);
+  return newValue;
+}
+
+/**
+ * Decrements the Redis-based embed queue depth counter.
+ * Called when embed jobs complete.
+ *
+ * @param count - Number of jobs completed (default 1)
+ * @returns New counter value
+ */
+export async function decrementEmbedQueueDepth(count: number = 1): Promise<number> {
+  const key = getEmbedBackpressureKey();
+  const newValue = await redis.decrby(key, count);
+  // Ensure counter doesn't go negative
+  if (newValue < 0) {
+    await redis.set(key, "0");
+    return 0;
+  }
+  return newValue;
+}
+
+/**
+ * Resets the Redis-based embed queue depth counter.
+ * Use with caution - typically only for testing or emergency cleanup.
+ */
+export async function resetEmbedQueueDepth(): Promise<void> {
+  const key = getEmbedBackpressureKey();
+  await redis.del(key);
+}
+
+/**
+ * Checks current embed backpressure status.
+ * Uses BullMQ queue metrics for accuracy.
+ *
+ * @param embedLag - Optional embed lag value (if already known from DB)
+ * @returns Backpressure check result
+ */
+export async function checkCurrentEmbedBackpressure(
+  embedLag: number = 0
+): Promise<EmbedBackpressureCheckResult> {
+  const config = getEmbedBackpressureConfig();
+
+  // Get queue depth from BullMQ
+  const queueDepth = await getEmbedQueueDepth();
+
+  return checkEmbedBackpressure(queueDepth, embedLag, config);
+}
+
+/**
+ * Waits for embed backpressure to clear.
+ * Polls at configured intervals until backpressure clears or max wait is reached.
+ *
+ * @param getEmbedLag - Function to get current embed lag (called on each check)
+ * @returns Wait result with statistics
+ */
+export async function waitForEmbedBackpressure(
+  getEmbedLag: () => Promise<number>
+): Promise<EmbedBackpressureWaitResult> {
+  const config = getEmbedBackpressureConfig();
+  const startTime = Date.now();
+  let waitCycles = 0;
+  let lastCheck: EmbedBackpressureCheckResult;
+
+  // Initial check
+  const embedLag = await getEmbedLag();
+  lastCheck = await checkCurrentEmbedBackpressure(embedLag);
+
+  if (!lastCheck.shouldWait) {
+    return {
+      waited: false,
+      waitCycles: 0,
+      waitTimeMs: 0,
+      timedOut: false,
+      finalCheck: lastCheck,
+    };
+  }
+
+  // Wait loop
+  while (lastCheck.shouldWait && waitCycles < config.maxWaitCycles) {
+    await new Promise((resolve) => setTimeout(resolve, config.delayMs));
+    waitCycles++;
+
+    const currentLag = await getEmbedLag();
+    lastCheck = await checkCurrentEmbedBackpressure(currentLag);
+  }
+
+  const waitTimeMs = Date.now() - startTime;
+
+  return {
+    waited: true,
+    waitCycles,
+    waitTimeMs,
+    timedOut: waitCycles >= config.maxWaitCycles && lastCheck.shouldWait,
+    finalCheck: lastCheck,
+  };
+}
+
+/**
+ * Gets current embed backpressure metrics for monitoring.
+ *
+ * @param embedLag - Current embed lag value
+ * @returns Metrics snapshot
+ */
+export async function getEmbedBackpressureMetrics(
+  embedLag: number = 0
+): Promise<EmbedBackpressureMetrics> {
+  const config = getEmbedBackpressureConfig();
+  const queueDepth = await getEmbedQueueDepth();
+  return calculateEmbedBackpressureMetrics(queueDepth, embedLag, config);
+}
+
+// ============================================================================
 // Worker Creation Helpers
 // ============================================================================
 
@@ -631,6 +818,14 @@ export {
   CONCURRENCY_KEY_PREFIXES,
   CONCURRENCY_KEY_TTL_SECONDS,
   CONCURRENCY_RETRY_DELAY_MS,
+  // Embed backpressure constants
+  DEFAULT_EMBED_QUEUE_THRESHOLD,
+  DEFAULT_EMBED_LAG_THRESHOLD,
+  EMBED_BACKPRESSURE_DELAY_MS,
+  EMBED_BACKPRESSURE_MAX_WAIT_CYCLES,
+  EMBED_BACKPRESSURE_ENV_VARS,
+  EMBED_BACKPRESSURE_KEY,
+  EMBED_BACKPRESSURE_KEY_TTL_SECONDS,
 } from "@grounded/shared";
 
 // Re-export queue configuration helpers from shared
@@ -654,6 +849,13 @@ export {
   createConcurrencyLimitOptions,
   getConcurrencyKeyTtl,
   getConcurrencyRetryDelay,
+  // Embed backpressure helpers
+  resolveEmbedBackpressureConfig,
+  getDefaultEmbedBackpressureConfig,
+  checkEmbedBackpressure,
+  calculateEmbedBackpressureMetrics,
+  getEmbedBackpressureKey,
+  getEmbedBackpressureKeyTtl,
 } from "@grounded/shared";
 
 export type {
@@ -664,4 +866,9 @@ export type {
   ActiveJobTracker,
   ConcurrencyLimitOptions,
   ConcurrencyMetrics,
+  // Embed backpressure types
+  EmbedBackpressureCheckResult,
+  EmbedBackpressureConfig,
+  EmbedBackpressureWaitResult,
+  EmbedBackpressureMetrics,
 } from "@grounded/shared";

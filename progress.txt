@@ -296,3 +296,85 @@ Implemented per-tenant and per-domain concurrency limits for the fetch/crawl pip
 - All 70 new tests pass
 - All existing tests pass (341 tests in shared package)
 - TypeScript typechecking passes
+
+## 2026-01-18: Implement embed lag backpressure for process queue
+
+### Summary
+Implemented embed lag backpressure for the page-process queue to prevent unbounded embed queue growth. When the embed queue depth or embed lag exceeds configurable thresholds, page-process jobs will pause before queuing more embed jobs, allowing the embed workers to catch up.
+
+### Changes Made
+1. **packages/shared/src/constants/index.ts**
+   - Added `DEFAULT_EMBED_QUEUE_THRESHOLD` (100) - Queue depth threshold before backpressure
+   - Added `DEFAULT_EMBED_LAG_THRESHOLD` (500) - Chunks awaiting embedding threshold
+   - Added `EMBED_BACKPRESSURE_DELAY_MS` (2000) - Delay between backpressure checks
+   - Added `EMBED_BACKPRESSURE_MAX_WAIT_CYCLES` (10) - Maximum wait iterations
+   - Added `EMBED_BACKPRESSURE_ENV_VARS` - Environment variable names for all settings
+   - Added `EMBED_BACKPRESSURE_KEY` - Redis key for tracking
+   - Added `EMBED_BACKPRESSURE_KEY_TTL_SECONDS` (600) - TTL for tracking key
+
+2. **packages/shared/src/types/index.ts**
+   - Added `EmbedBackpressureCheckResult` interface - Result of backpressure check
+   - Added `EmbedBackpressureConfig` interface - Configuration options
+   - Added `EmbedBackpressureWaitResult` interface - Status of wait operation
+   - Added `EmbedBackpressureMetrics` interface - Metrics for monitoring
+   - Added `resolveEmbedBackpressureConfig()` - Resolve config from env vars
+   - Added `getDefaultEmbedBackpressureConfig()` - Get default config
+   - Added `checkEmbedBackpressure()` - Check if backpressure should apply
+   - Added `calculateEmbedBackpressureMetrics()` - Calculate metrics for monitoring
+   - Added `getEmbedBackpressureKey()` / `getEmbedBackpressureKeyTtl()` - Helper getters
+
+3. **packages/queue/src/index.ts**
+   - Added `getEmbedBackpressureConfig()` - Get cached config
+   - Added `resetEmbedBackpressureConfigCache()` - Reset config cache for testing
+   - Added `getEmbedQueueDepth()` - Get current embed queue depth from BullMQ
+   - Added `getEmbedQueueDepthFromRedis()` - Fallback Redis-based counter
+   - Added `incrementEmbedQueueDepth()` / `decrementEmbedQueueDepth()` - Counter operations
+   - Added `resetEmbedQueueDepth()` - Reset counter (for testing/emergency)
+   - Added `checkCurrentEmbedBackpressure()` - Check backpressure with live metrics
+   - Added `waitForEmbedBackpressure()` - Wait loop for backpressure to clear
+   - Added `getEmbedBackpressureMetrics()` - Get metrics for monitoring
+   - Re-exported all new types and constants from @grounded/shared
+
+4. **apps/ingestion-worker/src/processors/page-process.ts**
+   - Added import for backpressure functions
+   - Added backpressure check before queuing embed jobs
+   - Logs backpressure wait events with timing details
+
+5. **packages/shared/src/types/embed-backpressure.test.ts** (new file)
+   - Added 54 tests covering all new types, constants, and functions
+   - Tests validate configuration resolution, backpressure checks, metrics calculation
+   - Tests cover edge cases and integration scenarios
+
+### Key Design Decisions
+- **Dual threshold system**: Both queue depth (pending jobs) and embed lag (chunks awaiting embedding) are checked
+- **Queue depth takes priority**: If queue is full, don't add more regardless of lag
+- **Configurable via env vars**: All thresholds and delays can be tuned without code changes
+- **Disable option**: Can be fully disabled via `EMBED_BACKPRESSURE_DISABLED=true`
+- **Max wait to avoid stalls**: Jobs won't wait forever (default 20s max)
+- **Non-blocking for normal ops**: Only activates when thresholds are exceeded
+
+### Backpressure Thresholds
+| Metric | Default | Env Var | Rationale |
+|--------|---------|---------|-----------|
+| Queue Depth | 100 | EMBED_QUEUE_THRESHOLD | Prevents unbounded queue growth |
+| Embed Lag | 500 | EMBED_LAG_THRESHOLD | Tracks chunks awaiting embedding |
+| Wait Delay | 2000ms | EMBED_BACKPRESSURE_DELAY_MS | Time between recheck attempts |
+| Max Cycles | 10 | EMBED_BACKPRESSURE_MAX_WAIT_CYCLES | Max wait = 20 seconds |
+
+### Environment Variables
+- `EMBED_QUEUE_THRESHOLD` - Override queue depth threshold
+- `EMBED_LAG_THRESHOLD` - Override lag threshold
+- `EMBED_BACKPRESSURE_DELAY_MS` - Override delay between checks
+- `EMBED_BACKPRESSURE_MAX_WAIT_CYCLES` - Override max wait iterations
+- `EMBED_BACKPRESSURE_DISABLED` - Set to "true" or "1" to disable
+
+### Acceptance Criteria Met
+- ✅ Implement embed lag backpressure for process queue
+- ✅ Configurable thresholds via environment variables
+- ✅ Logging of backpressure events for observability
+- ✅ Non-blocking timeout to prevent job stalls
+
+### Tests
+- All 54 new tests pass
+- All existing tests pass (395 tests in shared package)
+- TypeScript typechecking passes across all packages

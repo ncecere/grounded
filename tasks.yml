@@ -39,7 +39,7 @@ tasks:
     tags: [queue, scaling]
 
   - title: Implement embed lag backpressure for process queue
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [queue, backpressure]
 

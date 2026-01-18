@@ -1,7 +1,15 @@
 import { db } from "@grounded/db";
 import { kbChunks, sourceRuns, sourceRunPages, sources } from "@grounded/db/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { addEmbedChunksBatchJob, addEnrichPageJob, addSourceRunFinalizeJob, addPageFetchJob, redis } from "@grounded/queue";
+import {
+  addEmbedChunksBatchJob,
+  addEnrichPageJob,
+  addSourceRunFinalizeJob,
+  addPageFetchJob,
+  redis,
+  waitForEmbedBackpressure,
+  getEmbedBackpressureConfig,
+} from "@grounded/queue";
 import {
   hashString,
   normalizeUrl,
@@ -134,6 +142,34 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
 
     // Queue embedding job and track chunks to embed
     if (chunkIds.length > 0) {
+      // Check for embed backpressure before queuing
+      const backpressureConfig = getEmbedBackpressureConfig();
+      if (!backpressureConfig.disabled) {
+        const waitResult = await waitForEmbedBackpressure(async () => {
+          // Get current embed lag from database (chunksToEmbed - chunksEmbedded)
+          const currentRun = await db.query.sourceRuns.findFirst({
+            where: eq(sourceRuns.id, runId),
+            columns: { chunksToEmbed: true, chunksEmbedded: true },
+          });
+          const toEmbed = currentRun?.chunksToEmbed ?? 0;
+          const embedded = currentRun?.chunksEmbedded ?? 0;
+          return Math.max(0, toEmbed - embedded);
+        });
+
+        if (waitResult.waited) {
+          log.info("ingestion-worker", "Embed backpressure wait completed", {
+            url,
+            waitCycles: waitResult.waitCycles,
+            waitTimeMs: waitResult.waitTimeMs,
+            timedOut: waitResult.timedOut,
+            finalQueueDepth: waitResult.finalCheck.queueDepth,
+            finalEmbedLag: waitResult.finalCheck.embedLag,
+            requestId,
+            traceId,
+          });
+        }
+      }
+
       await addEmbedChunksBatchJob({
         tenantId,
         kbId: source.kbId,

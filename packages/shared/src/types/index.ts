@@ -1362,3 +1362,247 @@ export {
   CONCURRENCY_KEY_TTL_SECONDS,
   CONCURRENCY_RETRY_DELAY_MS,
 };
+
+// ============================================================================
+// Embed Backpressure Types and Helpers
+// ============================================================================
+
+import {
+  DEFAULT_EMBED_QUEUE_THRESHOLD,
+  DEFAULT_EMBED_LAG_THRESHOLD,
+  EMBED_BACKPRESSURE_DELAY_MS,
+  EMBED_BACKPRESSURE_MAX_WAIT_CYCLES,
+  EMBED_BACKPRESSURE_ENV_VARS,
+  EMBED_BACKPRESSURE_KEY,
+  EMBED_BACKPRESSURE_KEY_TTL_SECONDS,
+} from "../constants";
+
+/**
+ * Result of an embed backpressure check.
+ */
+export interface EmbedBackpressureCheckResult {
+  /** Whether backpressure is detected and the caller should wait */
+  shouldWait: boolean;
+  /** Current embed queue depth (pending jobs) */
+  queueDepth: number;
+  /** Current embed lag (chunks awaiting embedding) */
+  embedLag: number;
+  /** The threshold that was exceeded, if any */
+  exceededThreshold?: "queue" | "lag";
+  /** Reason for the backpressure decision */
+  reason?: string;
+}
+
+/**
+ * Configuration options for embed backpressure.
+ */
+export interface EmbedBackpressureConfig {
+  /** Threshold for embed queue depth before applying backpressure */
+  queueThreshold: number;
+  /** Threshold for embed lag before applying backpressure */
+  lagThreshold: number;
+  /** Delay in ms to wait when backpressure is detected */
+  delayMs: number;
+  /** Maximum wait cycles before proceeding anyway */
+  maxWaitCycles: number;
+  /** Whether backpressure is disabled */
+  disabled: boolean;
+}
+
+/**
+ * Status of a backpressure wait operation.
+ */
+export interface EmbedBackpressureWaitResult {
+  /** Whether the caller waited for backpressure to clear */
+  waited: boolean;
+  /** Number of wait cycles performed */
+  waitCycles: number;
+  /** Total time spent waiting in ms */
+  waitTimeMs: number;
+  /** Whether max wait cycles was reached */
+  timedOut: boolean;
+  /** Final backpressure check result */
+  finalCheck: EmbedBackpressureCheckResult;
+}
+
+/**
+ * Metrics for monitoring embed backpressure.
+ */
+export interface EmbedBackpressureMetrics {
+  /** Current embed queue depth */
+  queueDepth: number;
+  /** Current embed lag */
+  embedLag: number;
+  /** Whether backpressure is currently active */
+  isActive: boolean;
+  /** Queue depth threshold */
+  queueThreshold: number;
+  /** Lag threshold */
+  lagThreshold: number;
+  /** Percentage of queue threshold used */
+  queueUtilization: number;
+  /** Percentage of lag threshold used */
+  lagUtilization: number;
+}
+
+/**
+ * Resolves embed backpressure configuration from environment variables.
+ * Falls back to defaults if env vars are not set or invalid.
+ *
+ * @param getEnv - Function to get environment variables
+ * @returns Resolved backpressure configuration
+ */
+export function resolveEmbedBackpressureConfig(
+  getEnv: (key: string) => string | undefined = () => undefined
+): EmbedBackpressureConfig {
+  const parseIntOrDefault = (value: string | undefined, defaultValue: number): number => {
+    if (value === undefined) return defaultValue;
+    const parsed = parseInt(value, 10);
+    return isNaN(parsed) || parsed <= 0 ? defaultValue : parsed;
+  };
+
+  const isDisabled = (): boolean => {
+    const value = getEnv(EMBED_BACKPRESSURE_ENV_VARS.DISABLED);
+    return value === "true" || value === "1";
+  };
+
+  return {
+    queueThreshold: parseIntOrDefault(
+      getEnv(EMBED_BACKPRESSURE_ENV_VARS.QUEUE_THRESHOLD),
+      DEFAULT_EMBED_QUEUE_THRESHOLD
+    ),
+    lagThreshold: parseIntOrDefault(
+      getEnv(EMBED_BACKPRESSURE_ENV_VARS.LAG_THRESHOLD),
+      DEFAULT_EMBED_LAG_THRESHOLD
+    ),
+    delayMs: parseIntOrDefault(
+      getEnv(EMBED_BACKPRESSURE_ENV_VARS.DELAY_MS),
+      EMBED_BACKPRESSURE_DELAY_MS
+    ),
+    maxWaitCycles: parseIntOrDefault(
+      getEnv(EMBED_BACKPRESSURE_ENV_VARS.MAX_WAIT_CYCLES),
+      EMBED_BACKPRESSURE_MAX_WAIT_CYCLES
+    ),
+    disabled: isDisabled(),
+  };
+}
+
+/**
+ * Gets the default embed backpressure configuration.
+ *
+ * @returns Default backpressure configuration
+ */
+export function getDefaultEmbedBackpressureConfig(): EmbedBackpressureConfig {
+  return {
+    queueThreshold: DEFAULT_EMBED_QUEUE_THRESHOLD,
+    lagThreshold: DEFAULT_EMBED_LAG_THRESHOLD,
+    delayMs: EMBED_BACKPRESSURE_DELAY_MS,
+    maxWaitCycles: EMBED_BACKPRESSURE_MAX_WAIT_CYCLES,
+    disabled: false,
+  };
+}
+
+/**
+ * Checks if backpressure should be applied based on current metrics.
+ *
+ * @param queueDepth - Current embed queue depth
+ * @param embedLag - Current embed lag (chunks awaiting embedding)
+ * @param config - Backpressure configuration
+ * @returns Check result indicating whether to wait
+ */
+export function checkEmbedBackpressure(
+  queueDepth: number,
+  embedLag: number,
+  config: EmbedBackpressureConfig
+): EmbedBackpressureCheckResult {
+  // If backpressure is disabled, never wait
+  if (config.disabled) {
+    return {
+      shouldWait: false,
+      queueDepth,
+      embedLag,
+      reason: "backpressure_disabled",
+    };
+  }
+
+  // Check queue depth threshold
+  if (queueDepth >= config.queueThreshold) {
+    return {
+      shouldWait: true,
+      queueDepth,
+      embedLag,
+      exceededThreshold: "queue",
+      reason: `queue_depth_${queueDepth}_exceeds_threshold_${config.queueThreshold}`,
+    };
+  }
+
+  // Check lag threshold
+  if (embedLag >= config.lagThreshold) {
+    return {
+      shouldWait: true,
+      queueDepth,
+      embedLag,
+      exceededThreshold: "lag",
+      reason: `embed_lag_${embedLag}_exceeds_threshold_${config.lagThreshold}`,
+    };
+  }
+
+  // No backpressure needed
+  return {
+    shouldWait: false,
+    queueDepth,
+    embedLag,
+    reason: "within_thresholds",
+  };
+}
+
+/**
+ * Calculates embed backpressure metrics for monitoring.
+ *
+ * @param queueDepth - Current embed queue depth
+ * @param embedLag - Current embed lag
+ * @param config - Backpressure configuration
+ * @returns Metrics snapshot
+ */
+export function calculateEmbedBackpressureMetrics(
+  queueDepth: number,
+  embedLag: number,
+  config: EmbedBackpressureConfig
+): EmbedBackpressureMetrics {
+  const isActive = queueDepth >= config.queueThreshold || embedLag >= config.lagThreshold;
+
+  return {
+    queueDepth,
+    embedLag,
+    isActive,
+    queueThreshold: config.queueThreshold,
+    lagThreshold: config.lagThreshold,
+    queueUtilization: config.queueThreshold > 0 ? (queueDepth / config.queueThreshold) * 100 : 0,
+    lagUtilization: config.lagThreshold > 0 ? (embedLag / config.lagThreshold) * 100 : 0,
+  };
+}
+
+/**
+ * Gets the embed backpressure Redis key.
+ */
+export function getEmbedBackpressureKey(): string {
+  return EMBED_BACKPRESSURE_KEY;
+}
+
+/**
+ * Gets the TTL for embed backpressure tracking key.
+ */
+export function getEmbedBackpressureKeyTtl(): number {
+  return EMBED_BACKPRESSURE_KEY_TTL_SECONDS;
+}
+
+// Re-export embed backpressure constants for convenience
+export {
+  DEFAULT_EMBED_QUEUE_THRESHOLD,
+  DEFAULT_EMBED_LAG_THRESHOLD,
+  EMBED_BACKPRESSURE_DELAY_MS,
+  EMBED_BACKPRESSURE_MAX_WAIT_CYCLES,
+  EMBED_BACKPRESSURE_ENV_VARS,
+  EMBED_BACKPRESSURE_KEY,
+  EMBED_BACKPRESSURE_KEY_TTL_SECONDS,
+};

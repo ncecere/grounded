@@ -246,6 +246,82 @@ export const CONCURRENCY_KEY_TTL_SECONDS = 300; // 5 minutes
 export const CONCURRENCY_RETRY_DELAY_MS = 5000;
 
 // ============================================================================
+// Embed Backpressure Constants
+// ============================================================================
+
+/**
+ * Default threshold for embed queue depth before applying backpressure.
+ * When the embed queue has more than this many pending jobs, the process
+ * queue will delay adding more embed jobs to prevent unbounded queue growth.
+ *
+ * Rationale:
+ * - Embedding is typically the slowest stage (API-bound)
+ * - Unbounded queuing can cause memory issues and long processing times
+ * - This threshold allows some buffering while preventing runaway growth
+ */
+export const DEFAULT_EMBED_QUEUE_THRESHOLD = 100;
+
+/**
+ * Default threshold for embed lag (chunks awaiting embedding) before applying backpressure.
+ * This uses the database counter (chunksToEmbed - chunksEmbedded) rather than queue depth.
+ *
+ * Rationale:
+ * - Provides a more accurate measure of actual embedding backlog
+ * - Works even if queue metrics are temporarily unavailable
+ * - Accounts for chunks in-flight (queued but not yet started)
+ */
+export const DEFAULT_EMBED_LAG_THRESHOLD = 500;
+
+/**
+ * Delay in milliseconds to wait when embed backpressure is detected.
+ * The page-process job will pause for this duration before rechecking.
+ *
+ * Rationale:
+ * - Gives the embed workers time to catch up
+ * - Short enough to not significantly slow down normal processing
+ * - Long enough to be meaningful (embed job takes ~1-5s typically)
+ */
+export const EMBED_BACKPRESSURE_DELAY_MS = 2000;
+
+/**
+ * Maximum number of backpressure wait cycles before proceeding anyway.
+ * Prevents jobs from being delayed indefinitely during temporary issues.
+ *
+ * Rationale:
+ * - Total max wait = EMBED_BACKPRESSURE_DELAY_MS * EMBED_BACKPRESSURE_MAX_WAIT_CYCLES
+ * - With defaults: 2000ms * 10 = 20 seconds max wait
+ * - Balances backpressure effectiveness with job completion time
+ */
+export const EMBED_BACKPRESSURE_MAX_WAIT_CYCLES = 10;
+
+/**
+ * Environment variable names for embed backpressure configuration.
+ */
+export const EMBED_BACKPRESSURE_ENV_VARS = {
+  /** Override the queue depth threshold */
+  QUEUE_THRESHOLD: "EMBED_QUEUE_THRESHOLD",
+  /** Override the lag threshold */
+  LAG_THRESHOLD: "EMBED_LAG_THRESHOLD",
+  /** Override the delay between checks */
+  DELAY_MS: "EMBED_BACKPRESSURE_DELAY_MS",
+  /** Override the max wait cycles */
+  MAX_WAIT_CYCLES: "EMBED_BACKPRESSURE_MAX_WAIT_CYCLES",
+  /** Disable backpressure entirely (set to "true" or "1") */
+  DISABLED: "EMBED_BACKPRESSURE_DISABLED",
+} as const;
+
+/**
+ * Redis key for tracking global embed queue depth.
+ * Used for backpressure calculations when BullMQ queue metrics are unavailable.
+ */
+export const EMBED_BACKPRESSURE_KEY = "backpressure:embed:pending";
+
+/**
+ * TTL for the embed backpressure tracking key in seconds.
+ */
+export const EMBED_BACKPRESSURE_KEY_TTL_SECONDS = 600; // 10 minutes
+
+// ============================================================================
 // API Versions
 // ============================================================================
 
