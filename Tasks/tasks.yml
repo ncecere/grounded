@@ -103,7 +103,7 @@ tasks:
     file: phase-3-api-routing.md
 
   - title: Update widget chat helper for RAG type routing
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [api, widget, chat]
     file: phase-3-api-routing.md

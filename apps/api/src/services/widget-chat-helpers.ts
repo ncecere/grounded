@@ -10,6 +10,7 @@ import { eq, and, isNull } from "drizzle-orm";
 import { checkRateLimit } from "@grounded/queue";
 import { NotFoundError, RateLimitError } from "../middleware/error-handler";
 import { SimpleRAGService } from "./simple-rag";
+import { AdvancedRAGService } from "./advanced-rag";
 import { z } from "zod";
 import type { InferSelectModel } from "drizzle-orm";
 
@@ -124,12 +125,21 @@ export async function handleWidgetChatStream(
   setSSEHeaders(c);
 
   return streamSSE(c, async (stream) => {
-    const service = new SimpleRAGService(widgetToken.tenantId, agent.id);
-
-    for await (const event of service.chat(body.message, body.conversationId)) {
-      await stream.writeSSE({
-        data: JSON.stringify(event),
-      });
+    // Route to the appropriate RAG service based on agent configuration
+    if (agent.ragType === "advanced") {
+      const service = new AdvancedRAGService(widgetToken.tenantId, agent.id, "widget");
+      for await (const event of service.chat(body.message, body.conversationId)) {
+        await stream.writeSSE({
+          data: JSON.stringify(event),
+        });
+      }
+    } else {
+      const service = new SimpleRAGService(widgetToken.tenantId, agent.id);
+      for await (const event of service.chat(body.message, body.conversationId)) {
+        await stream.writeSSE({
+          data: JSON.stringify(event),
+        });
+      }
     }
   });
 }

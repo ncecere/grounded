@@ -814,3 +814,43 @@ Enhanced the AdvancedRAGService's `buildSystemPrompt` method to include explicit
 - `apps/api/src/routes/chat.ts` (MODIFIED - added RAG type routing)
 - `apps/api/src/routes/chat.test.ts` (NEW - 58 tests)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 3 - Update widget chat helper for RAG type routing
+
+### Completed Task
+**Task:** Update widget chat helper for RAG type routing
+**Phase:** Phase 3 - API Routing & Integration
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Updated widget chat helper to support RAG type routing:**
+   - `apps/api/src/services/widget-chat-helpers.ts`
+   - Added import for AdvancedRAGService
+   - Updated `handleWidgetChatStream()` to route based on agent's ragType
+   - Routes to AdvancedRAGService when ragType is "advanced" (uses "widget" channel)
+   - Routes to SimpleRAGService when ragType is "simple" (default)
+
+2. **Routing logic:**
+   - Agent is already fetched via `validateWidgetToken()` which returns full agent object
+   - Checks `agent.ragType` to determine service
+   - AdvancedRAGService instantiated with "widget" channel (distinct from "admin_ui" used in admin chat)
+   - SimpleRAGService used for simple mode (existing behavior)
+
+3. **Added comprehensive tests (31 new tests):**
+   - RAG type routing logic tests (ragType handling, routing decision, service parameters)
+   - WidgetTokenValidation type tests (widgetToken property, agent with ragType)
+   - Stream event type tests (Simple and Advanced, including reasoning events)
+   - Widget SSE headers tests
+   - Widget rate limiting tests (key prefix, tenant-specific keys, default/custom limits)
+   - Module exports tests
+
+### Test Results
+- All 489 tests pass (473 in api, 16 in web)
+- All typecheck passes across 14 packages
+- Added 31 new tests for widget chat RAG type routing
+
+### Files Changed
+- `apps/api/src/services/widget-chat-helpers.ts` (MODIFIED - added RAG type routing)
+- `apps/api/src/services/widget-chat-helpers.test.ts` (MODIFIED - added 31 tests)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)
