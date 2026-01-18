@@ -154,6 +154,7 @@ export function AgentFormModal({
           logoUrl: formData.logoUrl.trim() || null,
           kbIds: formData.kbIds,
           llmModelConfigId: formData.llmModelConfigId || null,
+          ragType: formData.ragType,
         },
       });
 
@@ -171,6 +172,7 @@ export function AgentFormModal({
         welcomeMessage: formData.welcomeMessage || undefined,
         kbIds: formData.kbIds,
         llmModelConfigId: formData.llmModelConfigId || undefined,
+        ragType: formData.ragType,
       });
     }
   };
@@ -277,6 +279,38 @@ export function AgentFormModal({
 
               {/* Model & Knowledge Tab */}
               <TabsContent value="knowledge" className="space-y-4 mt-0">
+                <div className="space-y-2">
+                  <Label>RAG Mode</Label>
+                  <p className="text-xs text-muted-foreground">
+                    How the agent retrieves and processes knowledge
+                  </p>
+                  <Select
+                    value={formData.ragType}
+                    onValueChange={(value: "simple" | "advanced") =>
+                      setFormData({ ...formData, ragType: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select RAG mode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="simple">
+                        Simple - Fast, single-pass retrieval
+                      </SelectItem>
+                      <SelectItem value="advanced">
+                        Advanced - Multi-step with reasoning
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {formData.ragType === "advanced" && (
+                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg mt-2">
+                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                        Advanced mode rewrites queries with conversation context, generates sub-queries for comprehensive search, and shows reasoning steps during response generation.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label>LLM Model</Label>
                   {llmModels.length > 0 ? (

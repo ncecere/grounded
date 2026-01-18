@@ -137,7 +137,7 @@ tasks:
     file: phase-4-frontend-agent-form.md
 
   - title: Add RAG Type selector to agent form
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [web, ui, agents, form]
     file: phase-4-frontend-agent-form.md

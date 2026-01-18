@@ -1062,3 +1062,47 @@ Verified that the retrieval config routes already properly support the `historyT
 - `apps/web/src/lib/api/agents.ts` (MODIFIED - added ragType and advanced RAG fields)
 - `apps/web/src/lib/api/agents.test.ts` (NEW - 35 tests)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 4 - Add RAG Type selector to agent form
+
+### Completed Task
+**Task:** Add RAG Type selector to agent form
+**Phase:** Phase 4 - Frontend - Agent Form & Chat UI & Widget
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Added RAG Type selector to AgentFormModal:**
+   - `apps/web/src/components/agents/AgentFormModal.tsx`
+   - Added RAG Mode selector in the "Model & KB" tab
+   - Select component with two options: "Simple - Fast, single-pass retrieval" and "Advanced - Multi-step with reasoning"
+   - Shows explanatory info panel when Advanced mode is selected
+   - Info describes: query rewriting, sub-query generation, and reasoning steps
+
+2. **Updated form submission to include ragType:**
+   - Create agent now sends `ragType` field from form data
+   - Update agent now sends `ragType` field from form data
+   - Works with both "simple" and "advanced" modes
+
+3. **Form data population:**
+   - Edit mode populates ragType from existing agent (falls back to "simple" if not set)
+   - Create mode uses defaultAgentForm which defaults to "simple"
+
+4. **Added comprehensive tests:**
+   - `apps/web/src/components/agents/AgentFormModal.test.ts` (NEW - 28 tests)
+   - Tests for defaultAgentForm ragType field and defaults
+   - Tests for RAG Type selector values
+   - Tests for form data preparation for API (create and update)
+   - Tests for agent population from existing agent
+   - Tests for retrieval config defaults for advanced mode
+   - Tests for RAG Mode UI behavior contracts
+   - Tests for types module exports
+
+### Test Results
+- All 669 tests pass (590 in api, 79 in web)
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `apps/web/src/components/agents/AgentFormModal.tsx` (MODIFIED - added RAG Type selector)
+- `apps/web/src/components/agents/AgentFormModal.test.ts` (NEW - 28 tests)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)
