@@ -121,7 +121,7 @@ tasks:
     file: phase-3-api-routing.md
 
   - title: Update retrieval config routes for new fields
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [api, routes, retrieval]
     file: phase-3-api-routing.md
@@ -246,7 +246,7 @@ parallel_groups:
   3:
     name: API Routing
     description: Wire up services to all chat endpoints
-    status: pending
+    status: completed
     depends_on: [2]
   4:
     name: Frontend & Widget

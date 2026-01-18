@@ -976,3 +976,42 @@ Verified that the agent CRUD routes already properly support the ragType field. 
 ### Files Changed
 - `apps/api/src/routes/agents.test.ts` (MODIFIED - added 33 tests for route behavior)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 3 - Update retrieval config routes for new fields
+
+### Completed Task
+**Task:** Update retrieval config routes for new fields
+**Phase:** Phase 3 - API Routing & Integration
+**Status:** COMPLETED
+
+### Implementation Summary
+Verified that the retrieval config routes already properly support the `historyTurns` and `advancedMaxSubqueries` fields. The implementation was completed in Phase 1 (schema & types) and comprehensive tests were added in a previous Phase 3 task.
+
+### Existing Implementation (verified):
+1. **GET /agents/:agentId/retrieval-config:**
+   - Uses `tx.query.retrievalConfigs.findFirst()` which returns all columns
+   - Response includes `historyTurns` and `advancedMaxSubqueries` fields
+
+2. **PUT /agents/:agentId/retrieval-config:**
+   - `updateRetrievalConfigSchema` includes validation for:
+     - `historyTurns: z.number().int().min(1).max(20).optional()`
+     - `advancedMaxSubqueries: z.number().int().min(1).max(5).optional()`
+   - Updates all provided fields using `set({ ...body, updatedAt: new Date() })`
+   - Response includes updated config with all fields
+
+3. **Database Schema:**
+   - `historyTurns` column with default 5, range 1-20
+   - `advancedMaxSubqueries` column with default 3, range 1-5
+
+### Tests Already Existing (in agents.test.ts):
+- Validation tests for `historyTurns` (min, max, non-integer rejection)
+- Validation tests for `advancedMaxSubqueries` (min, max, non-integer rejection)
+- Combined field validation tests
+- Route behavior documentation tests
+
+### Test Results
+- All 606 tests pass (590 in api, 16 in web)
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `Tasks/tasks.yml` (MODIFIED - marked task complete, marked Phase 3 as completed)
