@@ -6,6 +6,7 @@ import {
   JOB_RETRY_DELAY_MS,
   JOB_BACKOFF_TYPE,
   getEnv,
+  generateDeterministicEmbedJobId,
   type SourceRunStartJob,
   type SourceDiscoverUrlsJob,
   type PageFetchJob,
@@ -167,8 +168,15 @@ export async function addPageProcessJob(data: PageProcessJob): Promise<Job> {
 }
 
 export async function addEmbedChunksBatchJob(data: EmbedChunksBatchJob): Promise<Job> {
+  // Generate deterministic job ID based on chunk IDs
+  // This ensures:
+  // 1. Same chunks always produce the same job ID (idempotent re-queuing)
+  // 2. BullMQ will deduplicate jobs with the same ID
+  // 3. Better tracking and debugging with predictable IDs
+  const { jobId } = generateDeterministicEmbedJobId(data.kbId, data.chunkIds);
+
   return embedChunksQueue.add("embed", data, {
-    jobId: `embed-${data.kbId}-${Date.now()}`,
+    jobId,
   });
 }
 
@@ -856,6 +864,13 @@ export {
   calculateEmbedBackpressureMetrics,
   getEmbedBackpressureKey,
   getEmbedBackpressureKeyTtl,
+  // Deterministic embed job ID helpers
+  generateDeterministicEmbedJobId,
+  hashChunkIds,
+  isValidDeterministicEmbedJobId,
+  parseDeterministicEmbedJobId,
+  wouldProduceSameEmbedJobId,
+  DEFAULT_EMBED_JOB_ID_CONFIG,
 } from "@grounded/shared";
 
 export type {
@@ -871,4 +886,7 @@ export type {
   EmbedBackpressureConfig,
   EmbedBackpressureWaitResult,
   EmbedBackpressureMetrics,
+  // Deterministic embed job ID types
+  DeterministicEmbedJobIdConfig,
+  DeterministicEmbedJobIdResult,
 } from "@grounded/shared";

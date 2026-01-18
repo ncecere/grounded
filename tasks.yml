@@ -78,7 +78,7 @@ tasks:
   # PARALLEL GROUP 5: Embedding integrity
   # ===========================================================================
   - title: Use deterministic embed job IDs based on chunk IDs
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [embedding, integrity]
 

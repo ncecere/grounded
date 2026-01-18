@@ -3208,3 +3208,223 @@ export function summarizeRetryOutcomes(logs: RetryOutcomeLog[]): {
 
 // Re-export STAGE_MAX_RETRIES for convenience
 export { STAGE_MAX_RETRIES };
+
+// ============================================================================
+// Deterministic Embed Job IDs
+// ============================================================================
+
+/**
+ * Configuration for deterministic embed job ID generation.
+ */
+export interface DeterministicEmbedJobIdConfig {
+  /** Prefix for the job ID (default: "embed") */
+  prefix?: string;
+  /** Maximum length of the hash portion (default: 16, max: 64) */
+  hashLength?: number;
+  /** Whether to include KB ID in the job ID (default: true) */
+  includeKbId?: boolean;
+}
+
+/**
+ * Result of generating a deterministic embed job ID.
+ */
+export interface DeterministicEmbedJobIdResult {
+  /** The generated job ID */
+  jobId: string;
+  /** The chunk IDs used to generate the ID (sorted) */
+  sortedChunkIds: string[];
+  /** The hash portion of the job ID */
+  hash: string;
+  /** Number of chunks included in the batch */
+  chunkCount: number;
+}
+
+/**
+ * Default configuration for deterministic embed job IDs.
+ */
+export const DEFAULT_EMBED_JOB_ID_CONFIG: Required<DeterministicEmbedJobIdConfig> = {
+  prefix: "embed",
+  hashLength: 16,
+  includeKbId: true,
+};
+
+/**
+ * Generates a deterministic hash from sorted chunk IDs.
+ * Uses a simple but fast synchronous hashing algorithm (djb2 variant).
+ *
+ * The hash is deterministic: the same set of chunk IDs will always produce
+ * the same hash, regardless of the order they're provided.
+ *
+ * @param chunkIds - Array of chunk UUIDs
+ * @returns Hexadecimal hash string
+ */
+export function hashChunkIds(chunkIds: string[]): string {
+  // Sort chunk IDs to ensure deterministic ordering
+  const sorted = [...chunkIds].sort();
+
+  // Concatenate sorted IDs into a single string
+  const input = sorted.join("|");
+
+  // djb2 hash variant - fast and deterministic
+  // Using BigInt to avoid JavaScript number overflow issues
+  let hash = BigInt(5381);
+
+  for (let i = 0; i < input.length; i++) {
+    const char = BigInt(input.charCodeAt(i));
+    // hash * 33 + char (using bitshift for *33: hash << 5 + hash = hash * 32 + hash = hash * 33)
+    hash = ((hash << BigInt(5)) + hash) ^ char;
+  }
+
+  // Convert to hex string (positive value only)
+  // Use the lower 64 bits for a consistent length
+  const hashValue = hash & BigInt("0xFFFFFFFFFFFFFFFF");
+  return hashValue.toString(16).padStart(16, "0");
+}
+
+/**
+ * Generates a deterministic embed job ID based on chunk IDs.
+ *
+ * The job ID is constructed as: {prefix}-{kbId}-{hash}
+ * Where hash is derived from the sorted chunk IDs.
+ *
+ * This ensures:
+ * - Same chunk IDs always produce the same job ID (idempotent)
+ * - Different chunk sets produce different job IDs (collision-resistant)
+ * - Job IDs are URL-safe and BullMQ-compatible
+ *
+ * @param kbId - Knowledge base ID
+ * @param chunkIds - Array of chunk UUIDs to embed
+ * @param config - Optional configuration
+ * @returns DeterministicEmbedJobIdResult with the job ID and metadata
+ * @throws Error if chunkIds is empty
+ */
+export function generateDeterministicEmbedJobId(
+  kbId: string,
+  chunkIds: string[],
+  config?: DeterministicEmbedJobIdConfig
+): DeterministicEmbedJobIdResult {
+  if (!chunkIds || chunkIds.length === 0) {
+    throw new Error("Cannot generate embed job ID: chunkIds array is empty");
+  }
+
+  const fullConfig = { ...DEFAULT_EMBED_JOB_ID_CONFIG, ...config };
+
+  // Sort chunk IDs for deterministic ordering
+  const sortedChunkIds = [...chunkIds].sort();
+
+  // Generate hash from sorted chunk IDs
+  const fullHash = hashChunkIds(sortedChunkIds);
+
+  // Truncate hash to configured length
+  const hash = fullHash.slice(0, Math.min(fullConfig.hashLength, 64));
+
+  // Build job ID
+  let jobId: string;
+  if (fullConfig.includeKbId) {
+    jobId = `${fullConfig.prefix}-${kbId}-${hash}`;
+  } else {
+    jobId = `${fullConfig.prefix}-${hash}`;
+  }
+
+  return {
+    jobId,
+    sortedChunkIds,
+    hash,
+    chunkCount: sortedChunkIds.length,
+  };
+}
+
+/**
+ * Validates that a job ID matches the expected format for deterministic embed jobs.
+ *
+ * @param jobId - The job ID to validate
+ * @param config - Optional configuration for validation
+ * @returns true if the job ID matches the expected format
+ */
+export function isValidDeterministicEmbedJobId(
+  jobId: string,
+  config?: DeterministicEmbedJobIdConfig
+): boolean {
+  const fullConfig = { ...DEFAULT_EMBED_JOB_ID_CONFIG, ...config };
+
+  // Pattern: prefix-kbId(uuid)-hash or prefix-hash
+  if (fullConfig.includeKbId) {
+    // Match: embed-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx-[hex]
+    const pattern = new RegExp(
+      `^${fullConfig.prefix}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-[0-9a-f]+$`,
+      "i"
+    );
+    return pattern.test(jobId);
+  } else {
+    // Match: embed-[hex]
+    const pattern = new RegExp(`^${fullConfig.prefix}-[0-9a-f]+$`, "i");
+    return pattern.test(jobId);
+  }
+}
+
+/**
+ * Extracts the KB ID and hash from a deterministic embed job ID.
+ *
+ * @param jobId - The job ID to parse
+ * @param config - Optional configuration
+ * @returns Object with kbId and hash, or null if parsing fails
+ */
+export function parseDeterministicEmbedJobId(
+  jobId: string,
+  config?: DeterministicEmbedJobIdConfig
+): { kbId: string | null; hash: string } | null {
+  const fullConfig = { ...DEFAULT_EMBED_JOB_ID_CONFIG, ...config };
+
+  if (!jobId.startsWith(`${fullConfig.prefix}-`)) {
+    return null;
+  }
+
+  const remainder = jobId.slice(fullConfig.prefix.length + 1);
+
+  if (fullConfig.includeKbId) {
+    // Extract UUID (36 chars) followed by dash and hash
+    // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (36 chars)
+    const uuidPattern = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-([0-9a-f]+)$/i;
+    const match = remainder.match(uuidPattern);
+
+    if (!match) {
+      return null;
+    }
+
+    return {
+      kbId: match[1],
+      hash: match[2],
+    };
+  } else {
+    // Just the hash
+    if (!/^[0-9a-f]+$/i.test(remainder)) {
+      return null;
+    }
+    return {
+      kbId: null,
+      hash: remainder,
+    };
+  }
+}
+
+/**
+ * Checks if two sets of chunk IDs would produce the same job ID.
+ * Useful for detecting duplicate job submissions.
+ *
+ * @param chunkIds1 - First set of chunk IDs
+ * @param chunkIds2 - Second set of chunk IDs
+ * @returns true if both sets would produce the same job ID
+ */
+export function wouldProduceSameEmbedJobId(
+  chunkIds1: string[],
+  chunkIds2: string[]
+): boolean {
+  if (chunkIds1.length !== chunkIds2.length) {
+    return false;
+  }
+
+  const sorted1 = [...chunkIds1].sort();
+  const sorted2 = [...chunkIds2].sort();
+
+  return sorted1.every((id, index) => id === sorted2[index]);
+}

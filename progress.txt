@@ -771,3 +771,74 @@ Implemented comprehensive retry outcome tracking and logging for the ingestion p
 - All 77 new tests pass
 - All existing tests pass (677 tests in shared package)
 - TypeScript typechecking passes across all packages
+
+## 2026-01-18: Use deterministic embed job IDs based on chunk IDs
+
+### Summary
+Implemented deterministic embed job ID generation based on chunk IDs. This replaces the previous timestamp-based job IDs (`embed-{kbId}-{Date.now()}`) with deterministic hash-based IDs (`embed-{kbId}-{hash}`). The hash is derived from sorted chunk IDs, ensuring that:
+1. Same chunks always produce the same job ID (idempotent re-queuing)
+2. BullMQ will deduplicate jobs with the same ID automatically
+3. Job IDs are predictable for better tracking and debugging
+
+### Changes Made
+1. **packages/shared/src/types/index.ts**
+   - Added `DeterministicEmbedJobIdConfig` interface - Configuration for job ID generation (prefix, hashLength, includeKbId)
+   - Added `DeterministicEmbedJobIdResult` interface - Result type with jobId, sortedChunkIds, hash, chunkCount
+   - Added `DEFAULT_EMBED_JOB_ID_CONFIG` constant - Default configuration values
+   - Added `hashChunkIds()` - Generates deterministic hash from sorted chunk IDs using djb2 algorithm with BigInt
+   - Added `generateDeterministicEmbedJobId()` - Main function to generate job IDs from KB ID and chunk IDs
+   - Added `isValidDeterministicEmbedJobId()` - Validates job ID format
+   - Added `parseDeterministicEmbedJobId()` - Extracts KB ID and hash from job ID
+   - Added `wouldProduceSameEmbedJobId()` - Checks if two chunk sets would produce same job ID
+
+2. **packages/queue/src/index.ts**
+   - Updated `addEmbedChunksBatchJob()` to use `generateDeterministicEmbedJobId()` instead of timestamp-based ID
+   - Added re-exports of all new types and helper functions
+
+3. **packages/shared/src/types/deterministic-embed-job-id.test.ts** (new file)
+   - Added 55 tests covering all new functionality:
+     - Default config validation
+     - Hash determinism and ordering independence
+     - Job ID generation with various configurations
+     - Validation and parsing functions
+     - Edge cases (empty arrays, large batches, custom configs)
+     - Integration tests for round-trip operations
+
+### Key Design Decisions
+- **djb2 hash algorithm**: Uses a fast, synchronous hash algorithm (djb2 variant) with BigInt to avoid JavaScript number overflow. The algorithm produces consistent 16-character hex strings.
+- **Sorted chunk IDs**: Chunk IDs are sorted before hashing to ensure order-independent determinism.
+- **Configurable options**: Supports custom prefix, hash length, and optional KB ID inclusion for flexibility.
+- **BullMQ compatibility**: Job IDs contain only alphanumeric characters and dashes, safe for Redis keys.
+
+### Job ID Format
+| Component | Example | Description |
+|-----------|---------|-------------|
+| Old format | `embed-{kbId}-1705596000000` | Timestamp-based, non-deterministic |
+| New format | `embed-{kbId}-abc123def456` | Hash-based, deterministic |
+
+### Hash Algorithm
+```
+Input: [chunk3, chunk1, chunk2]
+Step 1: Sort -> [chunk1, chunk2, chunk3]
+Step 2: Join with delimiter -> "chunk1|chunk2|chunk3"
+Step 3: Apply djb2 hash with BigInt
+Step 4: Convert to 16-char hex string
+Output: "abc123def4567890"
+```
+
+### Benefits
+- **Idempotency**: Re-processing the same chunks won't create duplicate jobs
+- **Deduplication**: BullMQ automatically prevents duplicate job IDs
+- **Debuggability**: Same chunks always produce same job ID for easier tracking
+- **Collision resistance**: 64-bit hash space with 16-char hex representation
+
+### Acceptance Criteria Met
+- ✅ Use deterministic embed job IDs based on chunk IDs
+- ✅ Same chunks always produce same job ID
+- ✅ Different chunks produce different job IDs
+- ✅ Job IDs are BullMQ-compatible
+
+### Tests
+- All 55 new tests pass
+- All existing tests pass (732 tests in shared package)
+- TypeScript typechecking passes across all packages
