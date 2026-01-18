@@ -1077,3 +1077,91 @@ Implemented robots.txt enforcement for the URL discovery stage of the ingestion 
 - All 79 new tests pass
 - All existing tests pass (879 tests in shared package)
 - TypeScript typechecking passes across all packages
+
+## 2026-01-18: Log robots override usage and blocked URLs
+
+### Summary
+Implemented structured logging for robots.txt override usage and blocked URLs. The system now logs detailed information when robots.txt enforcement is bypassed (either globally or per-source) and provides comprehensive summary logs for blocked URLs during URL discovery.
+
+### Changes Made
+1. **packages/shared/src/types/index.ts**
+   - Added `RobotsOverrideType` enum with two values: `SOURCE_OVERRIDE` and `GLOBAL_DISABLED`
+   - Added `RobotsOverrideLog` interface for tracking override events with type, timestamp, IDs, URL/domain counts, and reason
+   - Added `RobotsBlockedUrlLog` interface for individual blocked URL logs with URL, domain, rule, and user agent
+   - Added `RobotsBlockedSummaryLog` interface for aggregated summary logs with domain breakdown and sample URLs
+   - Added `RobotsLoggingConfig` interface for configurable logging behavior
+   - Added helper functions:
+     - `getDefaultRobotsLoggingConfig()` - Returns default logging configuration
+     - `createRobotsOverrideLog()` - Creates structured override log entry
+     - `createRobotsBlockedUrlLog()` - Creates individual blocked URL log entry
+     - `createRobotsBlockedSummaryLog()` - Creates summary log with domain breakdown
+     - `formatRobotsOverrideLog()` - Human-readable override log format
+     - `formatRobotsBlockedUrlLog()` - Human-readable blocked URL format
+     - `formatRobotsBlockedSummaryLog()` - Human-readable summary format
+     - `createStructuredRobotsOverrideLog()` - JSON-compatible override log object
+     - `createStructuredRobotsBlockedSummaryLog()` - JSON-compatible summary with block rate
+     - `shouldLogRobotsOverride()` - Config-based override logging decision
+     - `shouldLogIndividualBlocks()` - Config-based individual block logging decision
+
+2. **apps/ingestion-worker/src/processors/source-discover.ts**
+   - Added `RobotsFilterResult` interface to track override usage
+   - Updated `filterUrlsByRobotsRules()` to return override information (type and whether used)
+   - Added override logging when robots.txt enforcement is bypassed
+   - Added summary logging for all robots.txt filtering operations
+   - Logs include structured JSON data for observability tools
+
+3. **packages/shared/src/types/robots-override-logging.test.ts** (new file)
+   - Added 57 tests covering:
+     - RobotsOverrideType enum validation
+     - Default logging configuration
+     - Override log creation (global and per-source)
+     - Blocked URL log creation
+     - Summary log creation with domain breakdown
+     - Human-readable formatting for all log types
+     - Structured JSON log creation
+     - Config-based logging decisions
+     - Integration tests for complete workflows
+     - Type compliance tests
+
+### Key Design Decisions
+- **Structured logging**: All logs include structured data for easy parsing by observability tools
+- **Summary over individual**: Default configuration logs summaries rather than individual URLs to reduce noise
+- **Domain breakdown**: Summary logs include blocked count per domain for debugging
+- **Sample URLs**: Summary includes configurable sample of blocked URLs for debugging
+- **Block rate calculation**: Structured summary includes percentage of URLs blocked
+- **Configurable verbosity**: Logging behavior can be customized via RobotsLoggingConfig
+
+### Log Types
+| Log Type | Purpose | Default Enabled |
+|----------|---------|-----------------|
+| Override | When robots.txt is bypassed | Yes |
+| Summary | Aggregated blocking stats | Yes |
+| Individual | Per-URL blocking details | No (too noisy) |
+
+### Structured Log Fields
+**Override Log:**
+- `event: "robots_override"`
+- `overrideType`: "source_override" or "global_disabled"
+- `runId`, `sourceId`, `tenantId`
+- `urlCount`, `domainCount`, `domains`
+- `reason`: Human-readable explanation
+
+**Summary Log:**
+- `event: "robots_blocked_summary"`
+- `totalUrlsChecked`, `totalUrlsBlocked`
+- `domainsWithBlocks`, `blockedByDomain`
+- `sampleBlockedUrls`: First N blocked URLs
+- `robotsTxtRespected`: Whether enforcement was active
+- `blockRate`: Percentage of URLs blocked
+
+### Acceptance Criteria Met
+- ✅ Log robots override usage (global and per-source)
+- ✅ Log blocked URLs with domain breakdown
+- ✅ Structured logging for observability tools
+- ✅ Human-readable formatting available
+- ✅ Configurable logging verbosity
+
+### Tests
+- All 57 new tests pass
+- All existing tests pass (936 tests in shared package)
+- TypeScript typechecking passes across all packages

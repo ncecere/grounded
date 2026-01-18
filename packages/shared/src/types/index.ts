@@ -4484,3 +4484,414 @@ export {
   ROBOTS_TXT_DISABLED_ENV_VAR,
   ROBOTS_TXT_DEBUG_ENV_VAR,
 };
+
+// ============================================================================
+// Robots.txt Override and Blocked URL Logging
+// ============================================================================
+
+/**
+ * Types of robots.txt override events.
+ */
+export enum RobotsOverrideType {
+  /** Per-source override: respectRobotsTxt is set to false */
+  SOURCE_OVERRIDE = "source_override",
+  /** Global override: ROBOTS_TXT_DISABLED env var is set */
+  GLOBAL_DISABLED = "global_disabled",
+}
+
+/**
+ * Log entry for robots.txt override usage.
+ * Tracks when and why robots.txt enforcement was bypassed.
+ */
+export interface RobotsOverrideLog {
+  /** Type of override */
+  overrideType: RobotsOverrideType;
+  /** ISO timestamp when override was logged */
+  timestamp: string;
+  /** Source run ID */
+  runId: string;
+  /** Source ID */
+  sourceId: string;
+  /** Tenant ID */
+  tenantId: string;
+  /** Number of URLs that would have been checked */
+  urlCount: number;
+  /** Number of unique domains in the URL list */
+  domainCount: number;
+  /** List of unique domains (for debugging) */
+  domains?: string[];
+  /** Human-readable reason for the override */
+  reason: string;
+}
+
+/**
+ * Log entry for a URL blocked by robots.txt.
+ */
+export interface RobotsBlockedUrlLog {
+  /** ISO timestamp when URL was blocked */
+  timestamp: string;
+  /** The blocked URL */
+  url: string;
+  /** Domain of the blocked URL */
+  domain: string;
+  /** Source run ID */
+  runId: string;
+  /** Tenant ID */
+  tenantId: string;
+  /** The robots.txt rule that blocked the URL */
+  matchedRule?: string;
+  /** User agent used for matching */
+  userAgent: string;
+  /** Human-readable reason for blocking */
+  reason: string;
+}
+
+/**
+ * Summary log entry for URLs blocked by robots.txt in a run.
+ * Used for aggregated logging instead of per-URL logs.
+ */
+export interface RobotsBlockedSummaryLog {
+  /** ISO timestamp */
+  timestamp: string;
+  /** Source run ID */
+  runId: string;
+  /** Source ID */
+  sourceId: string;
+  /** Tenant ID */
+  tenantId: string;
+  /** Total URLs checked against robots.txt */
+  totalUrlsChecked: number;
+  /** Total URLs blocked by robots.txt */
+  totalUrlsBlocked: number;
+  /** Number of unique domains that had blocked URLs */
+  domainsWithBlocks: number;
+  /** Blocked URL count per domain */
+  blockedByDomain: Record<string, number>;
+  /** Sample of blocked URLs (first N) for debugging */
+  sampleBlockedUrls?: Array<{
+    url: string;
+    rule?: string;
+    reason: string;
+  }>;
+  /** Whether robots.txt was respected (false means override was used) */
+  robotsTxtRespected: boolean;
+}
+
+/**
+ * Configuration for robots.txt logging behavior.
+ */
+export interface RobotsLoggingConfig {
+  /** Whether to log individual blocked URLs (can be noisy) */
+  logIndividualBlocks: boolean;
+  /** Maximum sample size for blocked URLs in summary log */
+  maxSampleSize: number;
+  /** Whether to log override events */
+  logOverrides: boolean;
+  /** Whether to include domain list in override logs */
+  includeDomainList: boolean;
+  /** Maximum domains to include in domain list */
+  maxDomainListSize: number;
+}
+
+/**
+ * Gets the default robots.txt logging configuration.
+ *
+ * @returns RobotsLoggingConfig with default values
+ */
+export function getDefaultRobotsLoggingConfig(): RobotsLoggingConfig {
+  return {
+    logIndividualBlocks: false, // Too noisy by default
+    maxSampleSize: 10,
+    logOverrides: true,
+    includeDomainList: true,
+    maxDomainListSize: 20,
+  };
+}
+
+/**
+ * Creates a robots.txt override log entry.
+ *
+ * @param params - Parameters for the log entry
+ * @returns RobotsOverrideLog entry
+ */
+export function createRobotsOverrideLog(params: {
+  overrideType: RobotsOverrideType;
+  runId: string;
+  sourceId: string;
+  tenantId: string;
+  urls: string[];
+  config?: RobotsLoggingConfig;
+}): RobotsOverrideLog {
+  const config = params.config ?? getDefaultRobotsLoggingConfig();
+
+  // Extract unique domains from URLs
+  const domains = new Set<string>();
+  for (const url of params.urls) {
+    try {
+      const domain = extractDomainForRobots(url);
+      domains.add(domain);
+    } catch {
+      // Invalid URL, skip
+    }
+  }
+
+  const domainList = Array.from(domains);
+  const reason =
+    params.overrideType === RobotsOverrideType.GLOBAL_DISABLED
+      ? "Robots.txt enforcement globally disabled via ROBOTS_TXT_DISABLED environment variable"
+      : "Robots.txt enforcement disabled for this source via respectRobotsTxt: false";
+
+  return {
+    overrideType: params.overrideType,
+    timestamp: new Date().toISOString(),
+    runId: params.runId,
+    sourceId: params.sourceId,
+    tenantId: params.tenantId,
+    urlCount: params.urls.length,
+    domainCount: domains.size,
+    domains: config.includeDomainList
+      ? domainList.slice(0, config.maxDomainListSize)
+      : undefined,
+    reason,
+  };
+}
+
+/**
+ * Creates a log entry for a single blocked URL.
+ *
+ * @param params - Parameters for the log entry
+ * @returns RobotsBlockedUrlLog entry
+ */
+export function createRobotsBlockedUrlLog(params: {
+  url: string;
+  runId: string;
+  tenantId: string;
+  matchedRule?: string;
+  userAgent?: string;
+  reason?: string;
+}): RobotsBlockedUrlLog {
+  let domain: string;
+  try {
+    domain = extractDomainForRobots(params.url);
+  } catch {
+    domain = "unknown";
+  }
+
+  return {
+    timestamp: new Date().toISOString(),
+    url: params.url,
+    domain,
+    runId: params.runId,
+    tenantId: params.tenantId,
+    matchedRule: params.matchedRule,
+    userAgent: params.userAgent ?? ROBOTS_USER_AGENT,
+    reason: params.reason ?? "URL blocked by robots.txt",
+  };
+}
+
+/**
+ * Creates a summary log entry for all URLs blocked by robots.txt in a run.
+ *
+ * @param params - Parameters for the summary log
+ * @returns RobotsBlockedSummaryLog entry
+ */
+export function createRobotsBlockedSummaryLog(params: {
+  runId: string;
+  sourceId: string;
+  tenantId: string;
+  totalUrlsChecked: number;
+  blockedUrls: Array<{ url: string; reason: string; rule?: string }>;
+  robotsTxtRespected: boolean;
+  config?: RobotsLoggingConfig;
+}): RobotsBlockedSummaryLog {
+  const config = params.config ?? getDefaultRobotsLoggingConfig();
+
+  // Calculate blocked by domain
+  const blockedByDomain: Record<string, number> = {};
+  for (const blocked of params.blockedUrls) {
+    try {
+      const domain = extractDomainForRobots(blocked.url);
+      blockedByDomain[domain] = (blockedByDomain[domain] || 0) + 1;
+    } catch {
+      blockedByDomain["unknown"] = (blockedByDomain["unknown"] || 0) + 1;
+    }
+  }
+
+  // Create sample of blocked URLs
+  const sampleBlockedUrls = params.blockedUrls
+    .slice(0, config.maxSampleSize)
+    .map((b) => ({
+      url: b.url,
+      rule: b.rule,
+      reason: b.reason,
+    }));
+
+  return {
+    timestamp: new Date().toISOString(),
+    runId: params.runId,
+    sourceId: params.sourceId,
+    tenantId: params.tenantId,
+    totalUrlsChecked: params.totalUrlsChecked,
+    totalUrlsBlocked: params.blockedUrls.length,
+    domainsWithBlocks: Object.keys(blockedByDomain).length,
+    blockedByDomain,
+    sampleBlockedUrls:
+      sampleBlockedUrls.length > 0 ? sampleBlockedUrls : undefined,
+    robotsTxtRespected: params.robotsTxtRespected,
+  };
+}
+
+/**
+ * Formats a robots.txt override log for human-readable output.
+ *
+ * @param log - The override log entry
+ * @returns Formatted string for logging
+ */
+export function formatRobotsOverrideLog(log: RobotsOverrideLog): string {
+  const parts = [
+    `[Robots Override] ${log.overrideType}`,
+    `Run: ${log.runId}`,
+    `URLs: ${log.urlCount}`,
+    `Domains: ${log.domainCount}`,
+  ];
+
+  if (log.domains && log.domains.length > 0) {
+    parts.push(`Domain list: ${log.domains.join(", ")}`);
+  }
+
+  parts.push(`Reason: ${log.reason}`);
+
+  return parts.join(" | ");
+}
+
+/**
+ * Formats a robots blocked URL log for human-readable output.
+ *
+ * @param log - The blocked URL log entry
+ * @returns Formatted string for logging
+ */
+export function formatRobotsBlockedUrlLog(log: RobotsBlockedUrlLog): string {
+  const parts = [
+    `[Robots Blocked] ${log.url}`,
+    `Domain: ${log.domain}`,
+    `Run: ${log.runId}`,
+  ];
+
+  if (log.matchedRule) {
+    parts.push(`Rule: ${log.matchedRule}`);
+  }
+
+  parts.push(`Reason: ${log.reason}`);
+
+  return parts.join(" | ");
+}
+
+/**
+ * Formats a robots blocked summary log for human-readable output.
+ *
+ * @param log - The summary log entry
+ * @returns Formatted string for logging
+ */
+export function formatRobotsBlockedSummaryLog(
+  log: RobotsBlockedSummaryLog
+): string {
+  const parts = [
+    `[Robots Summary]`,
+    `Run: ${log.runId}`,
+    `Checked: ${log.totalUrlsChecked}`,
+    `Blocked: ${log.totalUrlsBlocked}`,
+    `Domains with blocks: ${log.domainsWithBlocks}`,
+  ];
+
+  if (!log.robotsTxtRespected) {
+    parts.push(`(Override active - no URLs actually blocked)`);
+  }
+
+  // Add domain breakdown if there are blocks
+  if (
+    log.totalUrlsBlocked > 0 &&
+    Object.keys(log.blockedByDomain).length > 0
+  ) {
+    const domainBreakdown = Object.entries(log.blockedByDomain)
+      .map(([domain, count]) => `${domain}: ${count}`)
+      .join(", ");
+    parts.push(`By domain: ${domainBreakdown}`);
+  }
+
+  return parts.join(" | ");
+}
+
+/**
+ * Creates a structured log object for JSON logging of override events.
+ *
+ * @param log - The override log entry
+ * @returns Object suitable for JSON logging
+ */
+export function createStructuredRobotsOverrideLog(
+  log: RobotsOverrideLog
+): Record<string, unknown> {
+  return {
+    event: "robots_override",
+    overrideType: log.overrideType,
+    timestamp: log.timestamp,
+    runId: log.runId,
+    sourceId: log.sourceId,
+    tenantId: log.tenantId,
+    urlCount: log.urlCount,
+    domainCount: log.domainCount,
+    domains: log.domains,
+    reason: log.reason,
+  };
+}
+
+/**
+ * Creates a structured log object for JSON logging of blocked URL summaries.
+ *
+ * @param log - The summary log entry
+ * @returns Object suitable for JSON logging
+ */
+export function createStructuredRobotsBlockedSummaryLog(
+  log: RobotsBlockedSummaryLog
+): Record<string, unknown> {
+  return {
+    event: "robots_blocked_summary",
+    timestamp: log.timestamp,
+    runId: log.runId,
+    sourceId: log.sourceId,
+    tenantId: log.tenantId,
+    totalUrlsChecked: log.totalUrlsChecked,
+    totalUrlsBlocked: log.totalUrlsBlocked,
+    domainsWithBlocks: log.domainsWithBlocks,
+    blockedByDomain: log.blockedByDomain,
+    sampleBlockedUrls: log.sampleBlockedUrls,
+    robotsTxtRespected: log.robotsTxtRespected,
+    blockRate:
+      log.totalUrlsChecked > 0
+        ? (log.totalUrlsBlocked / log.totalUrlsChecked) * 100
+        : 0,
+  };
+}
+
+/**
+ * Determines if an override log should be written based on configuration.
+ *
+ * @param config - Logging configuration
+ * @returns true if override logs should be written
+ */
+export function shouldLogRobotsOverride(
+  config: RobotsLoggingConfig = getDefaultRobotsLoggingConfig()
+): boolean {
+  return config.logOverrides;
+}
+
+/**
+ * Determines if individual blocked URL logs should be written.
+ *
+ * @param config - Logging configuration
+ * @returns true if individual blocked URL logs should be written
+ */
+export function shouldLogIndividualBlocks(
+  config: RobotsLoggingConfig = getDefaultRobotsLoggingConfig()
+): boolean {
+  return config.logIndividualBlocks;
+}

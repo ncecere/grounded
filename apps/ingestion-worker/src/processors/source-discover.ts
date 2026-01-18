@@ -20,6 +20,12 @@ import {
   isRobotsTxtGloballyDisabled,
   type ParsedRobotsTxt,
   type RobotsTxtEnforcementConfig,
+  // Robots override logging
+  RobotsOverrideType,
+  createRobotsOverrideLog,
+  createRobotsBlockedSummaryLog,
+  createStructuredRobotsOverrideLog,
+  createStructuredRobotsBlockedSummaryLog,
 } from "@grounded/shared";
 import { createCrawlState } from "@grounded/crawl-state";
 
@@ -129,22 +135,46 @@ async function cacheRobotsTxt(domain: string, parsed: ParsedRobotsTxt): Promise<
 }
 
 /**
+ * Result of filtering URLs by robots.txt rules.
+ */
+interface RobotsFilterResult {
+  allowed: string[];
+  blocked: Array<{ url: string; reason: string; rule?: string }>;
+  /** Whether an override was used (global or per-source) */
+  overrideUsed: boolean;
+  /** Type of override if used */
+  overrideType?: RobotsOverrideType;
+}
+
+/**
  * Filters URLs by robots.txt rules, grouping by domain.
  *
  * @param urls - URLs to filter
  * @param respectRobotsTxt - Whether to respect robots.txt (from source config)
- * @returns Object with allowed URLs and blocked URLs with reasons
+ * @returns Object with allowed URLs, blocked URLs, and override info
  */
 async function filterUrlsByRobotsRules(
   urls: string[],
   respectRobotsTxt: boolean
-): Promise<{
-  allowed: string[];
-  blocked: Array<{ url: string; reason: string; rule?: string }>;
-}> {
-  // If robots.txt is globally disabled or source doesn't respect it, allow all
-  if (isRobotsTxtGloballyDisabled() || !respectRobotsTxt) {
-    return { allowed: urls, blocked: [] };
+): Promise<RobotsFilterResult> {
+  // Check for global override first
+  if (isRobotsTxtGloballyDisabled()) {
+    return {
+      allowed: urls,
+      blocked: [],
+      overrideUsed: true,
+      overrideType: RobotsOverrideType.GLOBAL_DISABLED,
+    };
+  }
+
+  // Check for per-source override
+  if (!respectRobotsTxt) {
+    return {
+      allowed: urls,
+      blocked: [],
+      overrideUsed: true,
+      overrideType: RobotsOverrideType.SOURCE_OVERRIDE,
+    };
   }
 
   // Group URLs by domain
@@ -172,7 +202,7 @@ async function filterUrlsByRobotsRules(
     blocked.push(...result.blocked);
   }
 
-  return { allowed, blocked };
+  return { allowed, blocked, overrideUsed: false };
 }
 
 export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promise<void> {
@@ -289,16 +319,36 @@ export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promis
   const respectRobotsTxt = config.respectRobotsTxt !== false; // Default to true
   const robotsResult = await filterUrlsByRobotsRules(filteredUrls, respectRobotsTxt);
 
-  // Log robots.txt blocked URLs
-  if (robotsResult.blocked.length > 0) {
-    log.info("ingestion-worker", "URLs blocked by robots.txt", {
+  // Log robots.txt override usage if an override was used
+  if (robotsResult.overrideUsed && robotsResult.overrideType) {
+    const overrideLog = createRobotsOverrideLog({
+      overrideType: robotsResult.overrideType,
       runId,
-      blockedCount: robotsResult.blocked.length,
-      totalCount: filteredUrls.length,
-      respectRobotsTxt,
+      sourceId: source.id,
+      tenantId,
+      urls: filteredUrls,
     });
 
-    // Log individual blocked URLs at debug level
+    log.info("ingestion-worker", "Robots.txt override active", createStructuredRobotsOverrideLog(overrideLog));
+  }
+
+  // Create and log robots.txt blocked summary
+  const summaryLog = createRobotsBlockedSummaryLog({
+    runId,
+    sourceId: source.id,
+    tenantId,
+    totalUrlsChecked: filteredUrls.length,
+    blockedUrls: robotsResult.blocked,
+    robotsTxtRespected: !robotsResult.overrideUsed,
+  });
+
+  // Log summary if there were any URLs to check
+  if (filteredUrls.length > 0) {
+    log.info("ingestion-worker", "Robots.txt filtering complete", createStructuredRobotsBlockedSummaryLog(summaryLog));
+  }
+
+  // Log individual blocked URLs at debug level
+  if (robotsResult.blocked.length > 0) {
     for (const blocked of robotsResult.blocked) {
       log.debug("ingestion-worker", "URL blocked by robots.txt", {
         runId,
@@ -316,6 +366,7 @@ export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promis
     log.info("ingestion-worker", "All URLs blocked by robots.txt, finalizing run", {
       runId,
       blockedCount: robotsResult.blocked.length,
+      overrideUsed: robotsResult.overrideUsed,
     });
     await addSourceRunFinalizeJob({ tenantId, runId, requestId, traceId });
     return;
@@ -324,6 +375,7 @@ export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promis
   log.info("ingestion-worker", "Found initial URLs for run after robots.txt filtering", {
     urlCount: robotsFilteredUrls.length,
     robotsBlocked: robotsResult.blocked.length,
+    overrideUsed: robotsResult.overrideUsed,
     runId,
   });
 

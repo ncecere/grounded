@@ -101,7 +101,7 @@ tasks:
     tags: [crawl, policy]
 
   - title: Log robots override usage and blocked URLs
-    completed: false
+    completed: true
     parallel_group: 6
     tags: [crawl, logging]
 
