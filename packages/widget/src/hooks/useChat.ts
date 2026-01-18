@@ -43,6 +43,7 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
   );
   const abortControllerRef = useRef<AbortController | null>(null);
   const pendingSourcesRef = useRef<Citation[] | null>(null);
+  const pendingReasoningStepsRef = useRef<Map<string, ReasoningStep>>(new Map());
 
   const generateId = () => Math.random().toString(36).slice(2, 11);
 
@@ -64,6 +65,7 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
     setError(null);
     setChatStatus({ status: 'searching', message: 'Searching knowledge base...' });
     pendingSourcesRef.current = null;
+    pendingReasoningStepsRef.current.clear();
 
     // Create abort controller for this request
     abortControllerRef.current = new AbortController();
@@ -142,6 +144,9 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
                   url: s.url,
                   snippet: s.snippet,
                 }));
+              } else if (data.type === 'reasoning' && data.step) {
+                // Collect reasoning steps (deduplicate by ID, keeping latest status)
+                pendingReasoningStepsRef.current.set(data.step.id, data.step);
               } else if (data.type === 'text' && data.content) {
                 // First text chunk means we're now streaming
                 if (!fullContent) {
@@ -164,18 +169,23 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
                     // sessionStorage not available
                   }
                 }
-                // Copy citations before clearing ref
+                // Copy citations and reasoning steps before clearing refs
                 const citationsToSet = pendingSourcesRef.current ? [...pendingSourcesRef.current] : [];
                 pendingSourcesRef.current = null;
-                
-                // Finalize message with citations
+
+                // Convert reasoning steps Map to array, preserving order
+                const reasoningStepsToSet = Array.from(pendingReasoningStepsRef.current.values());
+                pendingReasoningStepsRef.current.clear();
+
+                // Finalize message with citations and reasoning steps
                 setMessages(prev => prev.map(msg =>
                   msg.id === assistantMessageId
-                    ? { 
-                        ...msg, 
-                        content: fullContent, 
-                        isStreaming: false, 
+                    ? {
+                        ...msg,
+                        content: fullContent,
+                        isStreaming: false,
                         citations: citationsToSet,
+                        ...(reasoningStepsToSet.length > 0 && { reasoningSteps: reasoningStepsToSet }),
                       }
                     : msg
                 ));
@@ -192,6 +202,9 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
       }
 
     } catch (err) {
+      // Clear pending refs on error
+      pendingReasoningStepsRef.current.clear();
+
       if ((err as Error).name === 'AbortError') {
         // Request was aborted, don't show error
         setChatStatus({ status: 'idle' });
@@ -237,6 +250,7 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
   const clearMessages = useCallback(() => {
     setMessages([]);
     conversationIdRef.current = null;
+    pendingReasoningStepsRef.current.clear();
     try {
       sessionStorage.removeItem(`grounded_conv_${token}`);
     } catch {

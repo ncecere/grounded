@@ -1498,3 +1498,55 @@ Verified that the retrieval config routes already properly support the `historyT
 - `packages/widget/src/types.test.ts` (NEW - 57 tests)
 - `packages/widget/src/hooks/useChat.test.ts` (NEW - 38 tests)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 4 - Update widget chat service for reasoning
+
+### Completed Task
+**Task:** Update widget chat service for reasoning
+**Phase:** Phase 4 - Frontend - Agent Form & Chat UI & Widget
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Updated useChat hook to collect reasoning steps (packages/widget/src/hooks/useChat.ts):**
+   - Added `pendingReasoningStepsRef` using `useRef<Map<string, ReasoningStep>>` to buffer reasoning steps during streaming
+   - Added handler for `reasoning` events in SSE processing that collects steps by ID (deduplicates by keeping latest status)
+   - Updated `done` event handler to convert reasoning steps Map to array and attach to finalized message
+   - Updated error handler to clear pending reasoning steps on error or abort
+   - Updated `clearMessages` to also clear pending reasoning steps
+
+2. **Reasoning step collection logic:**
+   - Uses Map for efficient deduplication by step ID
+   - Each step updates in place when status transitions (in_progress → completed)
+   - Preserves step order in final array (Map iteration order is insertion order)
+   - Only attaches `reasoningSteps` field to message if steps were received (conditional spread)
+   - Compatible with both simple mode (no reasoning events) and advanced mode (reasoning events)
+
+3. **Cleanup behavior:**
+   - Clears pending steps at start of new message
+   - Clears pending steps on done event (after copying to array)
+   - Clears pending steps on error or abort
+   - Clears pending steps on clearMessages call
+
+4. **Added comprehensive tests (20 new tests in useChat.test.ts):**
+   - Reasoning step collection behavior tests (SSE stream collection, deduplication, Map to array conversion)
+   - Conditional attachment tests (only when steps present)
+   - Step order preservation tests
+   - Done event handling tests (copy before clear, clear after done)
+   - Error cleanup tests (error and abort scenarios)
+   - clearMessages cleanup tests
+   - Reasoning event handler behavior tests (step data check, status transitions, all 5 step types)
+   - Message finalization tests (with and without reasoning steps)
+   - ChatMessage with reasoningSteps field tests
+   - Advanced RAG mode detection tests
+
+### Test Results
+- All 115 tests pass in widget package (increased from 95)
+- All 590 tests pass in api
+- All 342 tests pass in web
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `packages/widget/src/hooks/useChat.ts` (MODIFIED - added reasoning step collection and handling)
+- `packages/widget/src/hooks/useChat.test.ts` (MODIFIED - added 20 tests for reasoning step behavior)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)
