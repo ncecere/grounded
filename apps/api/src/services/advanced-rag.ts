@@ -608,13 +608,15 @@ Generate sub-queries (max ${maxSubqueries}):`,
   }
 
   /**
-   * Build system prompt with retrieved context
+   * Build system prompt with retrieved context and citation instructions
    */
   private buildSystemPrompt(chunks: RetrievedChunk[]): string {
     const basePrompt = this.config?.systemPrompt || "You are a helpful assistant.";
 
     if (chunks.length === 0) {
-      return basePrompt;
+      return `${basePrompt}
+
+IMPORTANT: You have no retrieved context to reference. If you cannot answer the question from your general knowledge, clearly state that you don't have the information to answer this question.`;
     }
 
     const contextParts = chunks.map((chunk, i) => {
@@ -623,6 +625,13 @@ Generate sub-queries (max ${maxSubqueries}):`,
     });
 
     return `${basePrompt}
+
+CITATION INSTRUCTIONS:
+- Use the numbered sources below to answer the question
+- When citing information, reference the source number in brackets, e.g., [1], [2]
+- Only cite sources that directly support your statements
+- If the context doesn't contain relevant information, acknowledge this clearly
+- Provide accurate, grounded responses based solely on the provided context
 
 CONTEXT:
 ${contextParts.join("\n\n")}`;

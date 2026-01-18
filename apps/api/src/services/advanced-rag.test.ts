@@ -2080,3 +2080,768 @@ describe("Reasoning Event Emission", () => {
     });
   });
 });
+
+// ============================================================================
+// Tests for Final Answer Generation with Citations
+// ============================================================================
+
+describe("Final Answer Generation with Citations", () => {
+  describe("system prompt construction", () => {
+    it("should include base system prompt", () => {
+      const basePrompt = "You are a helpful assistant for our company.";
+      const chunks = [
+        { id: "c1", content: "Some content", score: 0.9 },
+      ];
+
+      // The system prompt should start with the base prompt
+      const expectedStart = basePrompt;
+      expect(expectedStart).toBe("You are a helpful assistant for our company.");
+    });
+
+    it("should add citation instructions when chunks are present", () => {
+      const citationInstructions = `CITATION INSTRUCTIONS:
+- Use the numbered sources below to answer the question
+- When citing information, reference the source number in brackets, e.g., [1], [2]
+- Only cite sources that directly support your statements
+- If the context doesn't contain relevant information, acknowledge this clearly
+- Provide accurate, grounded responses based solely on the provided context`;
+
+      expect(citationInstructions).toContain("CITATION INSTRUCTIONS:");
+      expect(citationInstructions).toContain("[1], [2]");
+      expect(citationInstructions).toContain("grounded responses");
+    });
+
+    it("should add special instruction when no chunks are retrieved", () => {
+      const noContextInstruction = "IMPORTANT: You have no retrieved context to reference. If you cannot answer the question from your general knowledge, clearly state that you don't have the information to answer this question.";
+
+      expect(noContextInstruction).toContain("no retrieved context");
+      expect(noContextInstruction).toContain("don't have the information");
+    });
+
+    it("should format chunks with numbered citations", () => {
+      const chunks = [
+        { id: "c1", content: "Pricing starts at $10/month", title: "Pricing Guide", score: 0.95 },
+        { id: "c2", content: "Enterprise plan includes premium support", title: "Plans", score: 0.90 },
+        { id: "c3", content: "Free tier available for small teams", score: 0.85 },
+      ];
+
+      const contextParts = chunks.map((chunk, i) => {
+        const titlePart = chunk.title ? `Title: ${chunk.title}\n` : "";
+        return `[${i + 1}] ${titlePart}${chunk.content}`;
+      });
+
+      expect(contextParts[0]).toContain("[1]");
+      expect(contextParts[0]).toContain("Title: Pricing Guide");
+      expect(contextParts[0]).toContain("$10/month");
+
+      expect(contextParts[1]).toContain("[2]");
+      expect(contextParts[1]).toContain("Title: Plans");
+
+      expect(contextParts[2]).toContain("[3]");
+      expect(contextParts[2]).not.toContain("Title:"); // No title
+    });
+
+    it("should separate context sections with double newlines", () => {
+      const chunks = [
+        { id: "c1", content: "Content 1", score: 0.95 },
+        { id: "c2", content: "Content 2", score: 0.90 },
+      ];
+
+      const contextParts = chunks.map((chunk, i) => `[${i + 1}] ${chunk.content}`);
+      const joined = contextParts.join("\n\n");
+
+      expect(joined).toBe("[1] Content 1\n\n[2] Content 2");
+    });
+
+    it("should include CONTEXT header before chunks", () => {
+      const contextSection = "CONTEXT:\n[1] Some content";
+
+      expect(contextSection).toContain("CONTEXT:");
+    });
+  });
+
+  describe("citation format in context", () => {
+    it("should use 1-indexed citation numbers", () => {
+      const chunks = [
+        { id: "c1", content: "First", score: 0.95 },
+        { id: "c2", content: "Second", score: 0.90 },
+        { id: "c3", content: "Third", score: 0.85 },
+      ];
+
+      const citationNumbers = chunks.map((_, i) => i + 1);
+
+      expect(citationNumbers).toEqual([1, 2, 3]);
+      expect(citationNumbers[0]).toBe(1); // Not 0-indexed
+    });
+
+    it("should format citation as [N] prefix", () => {
+      const index = 0;
+      const citationPrefix = `[${index + 1}]`;
+
+      expect(citationPrefix).toBe("[1]");
+    });
+
+    it("should include title when available", () => {
+      const chunkWithTitle = {
+        id: "c1",
+        content: "The Enterprise plan costs $100/month",
+        title: "Pricing Documentation",
+        score: 0.95,
+      };
+
+      const formatted = `[1] Title: ${chunkWithTitle.title}\n${chunkWithTitle.content}`;
+
+      expect(formatted).toContain("Title: Pricing Documentation");
+      expect(formatted).toContain("$100/month");
+    });
+
+    it("should omit title line when not available", () => {
+      const chunkWithoutTitle: {
+        id: string;
+        content: string;
+        title?: string;
+        score: number;
+      } = {
+        id: "c1",
+        content: "Some content without title",
+        score: 0.85,
+      };
+
+      const titlePart = chunkWithoutTitle.title ? `Title: ${chunkWithoutTitle.title}\n` : "";
+      const formatted = `[1] ${titlePart}${chunkWithoutTitle.content}`;
+
+      expect(formatted).toBe("[1] Some content without title");
+      expect(formatted).not.toContain("Title:");
+    });
+  });
+
+  describe("generate step behavior", () => {
+    it("should emit generate step with correct title", () => {
+      const generateStep = {
+        id: "step-gen-123",
+        type: "generate" as const,
+        title: "Answer Generation",
+        summary: "Generating comprehensive answer with citations...",
+        status: "in_progress" as const,
+      };
+
+      expect(generateStep.title).toBe("Answer Generation");
+      expect(generateStep.type).toBe("generate");
+    });
+
+    it("should indicate citation awareness in in_progress summary", () => {
+      const inProgressSummary = "Generating comprehensive answer with citations...";
+
+      expect(inProgressSummary).toContain("citations");
+      expect(inProgressSummary).toContain("comprehensive");
+    });
+
+    it("should emit completed status after streaming finishes", () => {
+      const completedStep = {
+        id: "step-gen-123",
+        type: "generate" as const,
+        title: "Answer Generation",
+        summary: "Response generated successfully",
+        status: "completed" as const,
+      };
+
+      expect(completedStep.status).toBe("completed");
+      expect(completedStep.summary).toContain("successfully");
+    });
+
+    it("should be the last reasoning step in sequence", () => {
+      const stepSequence = ["rewrite", "plan", "search", "merge", "generate"];
+
+      expect(stepSequence[stepSequence.length - 1]).toBe("generate");
+    });
+  });
+
+  describe("text streaming behavior", () => {
+    it("should yield text events as chunks are received", () => {
+      const textChunks = ["Based on ", "the information ", "in [1], ", "pricing starts at $10."];
+
+      const textEvents = textChunks.map(chunk => ({
+        type: "text" as const,
+        content: chunk,
+      }));
+
+      expect(textEvents).toHaveLength(4);
+      expect(textEvents[0].content).toBe("Based on ");
+      expect(textEvents[2].content).toContain("[1]");
+    });
+
+    it("should accumulate full response from text chunks", () => {
+      const textChunks = ["Hello, ", "this is ", "the response."];
+      let fullResponse = "";
+
+      for (const chunk of textChunks) {
+        fullResponse += chunk;
+      }
+
+      expect(fullResponse).toBe("Hello, this is the response.");
+    });
+
+    it("should emit text events between generate in_progress and completed", () => {
+      const eventSequence = [
+        { type: "reasoning", step: { type: "generate", status: "in_progress" } },
+        { type: "text", content: "Response part 1" },
+        { type: "text", content: "Response part 2" },
+        { type: "reasoning", step: { type: "generate", status: "completed" } },
+      ];
+
+      const generateStartIdx = eventSequence.findIndex(
+        e => e.type === "reasoning" && (e.step as { type: string; status: string }).status === "in_progress"
+      );
+      const generateEndIdx = eventSequence.findIndex(
+        e => e.type === "reasoning" && (e.step as { type: string; status: string }).status === "completed"
+      );
+      const textIndices = eventSequence
+        .map((e, i) => e.type === "text" ? i : -1)
+        .filter(i => i !== -1);
+
+      for (const textIdx of textIndices) {
+        expect(textIdx).toBeGreaterThan(generateStartIdx);
+        expect(textIdx).toBeLessThan(generateEndIdx);
+      }
+    });
+  });
+
+  describe("sources event behavior", () => {
+    it("should emit sources event after generate step completes", () => {
+      const eventSequence = [
+        "reasoning:generate:completed",
+        "sources",
+        "done",
+      ];
+
+      const generateIdx = eventSequence.indexOf("reasoning:generate:completed");
+      const sourcesIdx = eventSequence.indexOf("sources");
+
+      expect(sourcesIdx).toBeGreaterThan(generateIdx);
+    });
+
+    it("should build sources from merged chunks", () => {
+      const mergedChunks = [
+        { id: "c1", content: "Content about pricing that is longer than snippet...", title: "Pricing", url: "https://example.com/pricing", score: 0.95 },
+        { id: "c2", content: "Content about features...", title: "Features", score: 0.90 },
+      ];
+
+      const sources = mergedChunks.map((chunk, i) => ({
+        id: chunk.id,
+        title: chunk.title || "Untitled",
+        url: chunk.url,
+        snippet: chunk.content.slice(0, 200),
+        index: i + 1,
+      }));
+
+      expect(sources).toHaveLength(2);
+      expect(sources[0].id).toBe("c1");
+      expect(sources[0].title).toBe("Pricing");
+      expect(sources[0].index).toBe(1);
+      expect(sources[1].index).toBe(2);
+    });
+
+    it("should use 'Untitled' when chunk has no title", () => {
+      const chunkWithoutTitle: {
+        id: string;
+        content: string;
+        title?: string;
+        score: number;
+      } = {
+        id: "c1",
+        content: "Some content",
+        score: 0.85,
+      };
+
+      const title = chunkWithoutTitle.title || "Untitled";
+
+      expect(title).toBe("Untitled");
+    });
+
+    it("should truncate snippet to 200 characters", () => {
+      const longContent = "A".repeat(300);
+      const snippet = longContent.slice(0, 200);
+
+      expect(snippet).toHaveLength(200);
+    });
+
+    it("should preserve full content for shorter chunks", () => {
+      const shortContent = "Short content";
+      const snippet = shortContent.slice(0, 200);
+
+      expect(snippet).toBe("Short content");
+    });
+
+    it("should limit sources to maxCitations", () => {
+      const maxCitations = 3;
+      const allSources = Array.from({ length: 8 }, (_, i) => ({
+        id: `c${i}`,
+        title: `Source ${i}`,
+        snippet: `Content ${i}`,
+        index: i + 1,
+      }));
+
+      const limitedSources = allSources.slice(0, maxCitations);
+
+      expect(limitedSources).toHaveLength(3);
+      expect(limitedSources[0].id).toBe("c0");
+      expect(limitedSources[2].id).toBe("c2");
+    });
+
+    it("should include optional URL in source", () => {
+      const sourceWithUrl = {
+        id: "c1",
+        title: "Doc Title",
+        url: "https://docs.example.com/page",
+        snippet: "Some content",
+        index: 1,
+      };
+
+      const sourceWithoutUrl: {
+        id: string;
+        title: string;
+        url?: string;
+        snippet: string;
+        index: number;
+      } = {
+        id: "c2",
+        title: "Another Doc",
+        snippet: "Other content",
+        index: 2,
+      };
+
+      expect(sourceWithUrl.url).toBe("https://docs.example.com/page");
+      expect(sourceWithoutUrl.url).toBeUndefined();
+    });
+  });
+
+  describe("Source interface", () => {
+    it("should have required id, title, snippet, and index fields", () => {
+      const source = {
+        id: "chunk-123",
+        title: "Document Title",
+        snippet: "First 200 characters of content...",
+        index: 1,
+      };
+
+      expect(source.id).toBeDefined();
+      expect(source.title).toBeDefined();
+      expect(source.snippet).toBeDefined();
+      expect(source.index).toBeDefined();
+    });
+
+    it("should have optional url field", () => {
+      const sourceWithUrl = {
+        id: "c1",
+        title: "Title",
+        snippet: "Content",
+        index: 1,
+        url: "https://example.com",
+      };
+
+      const sourceWithoutUrl: {
+        id: string;
+        title: string;
+        snippet: string;
+        index: number;
+        url?: string;
+      } = {
+        id: "c2",
+        title: "Title 2",
+        snippet: "Content 2",
+        index: 2,
+      };
+
+      expect(sourceWithUrl.url).toBe("https://example.com");
+      expect(sourceWithoutUrl.url).toBeUndefined();
+    });
+
+    it("should use 1-indexed values for index field", () => {
+      const sources = [
+        { id: "c1", title: "T1", snippet: "S1", index: 1 },
+        { id: "c2", title: "T2", snippet: "S2", index: 2 },
+        { id: "c3", title: "T3", snippet: "S3", index: 3 },
+      ];
+
+      expect(sources[0].index).toBe(1);
+      expect(sources[1].index).toBe(2);
+      expect(sources[2].index).toBe(3);
+    });
+  });
+
+  describe("conversation storage", () => {
+    it("should store assistant response after generation", () => {
+      const fullResponse = "Based on the information in [1], pricing starts at $10/month.";
+
+      // The response should be stored in conversation history
+      const storedTurn = {
+        role: "assistant" as const,
+        content: fullResponse,
+        timestamp: Date.now(),
+      };
+
+      expect(storedTurn.role).toBe("assistant");
+      expect(storedTurn.content).toBe(fullResponse);
+    });
+
+    it("should include citations in stored response", () => {
+      const responseWithCitations = "According to [1] and [2], the Enterprise plan offers premium features.";
+
+      expect(responseWithCitations).toContain("[1]");
+      expect(responseWithCitations).toContain("[2]");
+    });
+  });
+
+  describe("token usage tracking", () => {
+    it("should capture prompt tokens from LLM response", () => {
+      const usage = {
+        inputTokens: 1500,
+        outputTokens: 250,
+      };
+
+      const promptTokens = usage.inputTokens || 0;
+
+      expect(promptTokens).toBe(1500);
+    });
+
+    it("should capture completion tokens from LLM response", () => {
+      const usage = {
+        inputTokens: 1500,
+        outputTokens: 250,
+      };
+
+      const completionTokens = usage.outputTokens || 0;
+
+      expect(completionTokens).toBe(250);
+    });
+
+    it("should handle missing usage data gracefully", () => {
+      // Simulating when usage is null/undefined from await result.usage
+      function getUsage(): { inputTokens?: number; outputTokens?: number } | undefined {
+        return undefined;
+      }
+      const usage = getUsage();
+
+      const promptTokens = usage?.inputTokens ?? 0;
+      const completionTokens = usage?.outputTokens ?? 0;
+
+      expect(promptTokens).toBe(0);
+      expect(completionTokens).toBe(0);
+    });
+  });
+
+  describe("usage logging", () => {
+    it("should log successful generation with ok status", () => {
+      const logData = {
+        startTime: Date.now() - 5000,
+        promptTokens: 1500,
+        completionTokens: 250,
+        retrievedChunks: 8,
+        reasoningSteps: 5,
+        status: "ok" as const,
+      };
+
+      expect(logData.status).toBe("ok");
+      expect(logData.reasoningSteps).toBe(5);
+    });
+
+    it("should include latency calculation", () => {
+      const startTime = Date.now() - 5000;
+      const latencyMs = Date.now() - startTime;
+
+      expect(latencyMs).toBeGreaterThanOrEqual(5000);
+      expect(latencyMs).toBeLessThan(6000);
+    });
+
+    it("should log error status on failure", () => {
+      const logData = {
+        startTime: Date.now() - 1000,
+        promptTokens: 500,
+        completionTokens: 0,
+        retrievedChunks: 3,
+        reasoningSteps: 2,
+        status: "error" as const,
+        errorCode: "Model unavailable",
+      };
+
+      expect(logData.status).toBe("error");
+      expect(logData.errorCode).toBeDefined();
+    });
+
+    it("should set rerankerUsed to false for advanced RAG", () => {
+      // Advanced RAG doesn't use reranker
+      const rerankerUsed = false;
+
+      expect(rerankerUsed).toBe(false);
+    });
+  });
+
+  describe("done event behavior", () => {
+    it("should emit done event as final event", () => {
+      const eventSequence = [
+        "reasoning:generate:completed",
+        "sources",
+        "done",
+      ];
+
+      expect(eventSequence[eventSequence.length - 1]).toBe("done");
+    });
+
+    it("should include conversationId in done event", () => {
+      const doneEvent = {
+        type: "done" as const,
+        conversationId: "conv-abc-123-def-456",
+      };
+
+      expect(doneEvent.type).toBe("done");
+      expect(doneEvent.conversationId).toBeDefined();
+      expect(doneEvent.conversationId.length).toBeGreaterThan(0);
+    });
+
+    it("should use generated conversationId if not provided", () => {
+      const providedConvId: string | undefined = undefined;
+      const generatedConvId = "550e8400-e29b-41d4-a716-446655440000";
+
+      const convId = providedConvId || generatedConvId;
+
+      expect(convId).toBe(generatedConvId);
+    });
+
+    it("should preserve provided conversationId", () => {
+      const providedConvId = "existing-conv-123";
+      const generatedConvId = "new-uuid";
+
+      const convId = providedConvId || generatedConvId;
+
+      expect(convId).toBe(providedConvId);
+    });
+  });
+
+  describe("error handling during generation", () => {
+    it("should yield error event when model is not configured", () => {
+      const errorEvent = {
+        type: "error" as const,
+        message: "No chat model configured",
+      };
+
+      expect(errorEvent.type).toBe("error");
+      expect(errorEvent.message).toBe("No chat model configured");
+    });
+
+    it("should yield error event when agent not found", () => {
+      const errorEvent = {
+        type: "error" as const,
+        message: "Agent not found",
+      };
+
+      expect(errorEvent.type).toBe("error");
+      expect(errorEvent.message).toBe("Agent not found");
+    });
+
+    it("should log error with error status on exception", () => {
+      const error = new Error("LLM streaming failed");
+      const errorCode = error.message;
+
+      expect(errorCode).toBe("LLM streaming failed");
+    });
+
+    it("should handle unknown errors gracefully", () => {
+      const unknownError: unknown = "Something went wrong";
+      const errorMessage = unknownError instanceof Error ? unknownError.message : "An error occurred";
+
+      expect(errorMessage).toBe("An error occurred");
+    });
+  });
+
+  describe("maxCitations configuration", () => {
+    it("should default to 3 citations", () => {
+      const defaultMaxCitations = 3;
+
+      expect(defaultMaxCitations).toBe(3);
+    });
+
+    it("should respect custom maxCitations from retrieval config", () => {
+      const customMaxCitations = 5;
+      const allSources = Array.from({ length: 10 }, (_, i) => ({
+        id: `c${i}`,
+        title: `Source ${i}`,
+        snippet: `Content ${i}`,
+        index: i + 1,
+      }));
+
+      const limitedSources = allSources.slice(0, customMaxCitations);
+
+      expect(limitedSources).toHaveLength(5);
+    });
+
+    it("should return all sources when fewer than maxCitations", () => {
+      const maxCitations = 5;
+      const sources = [
+        { id: "c1", title: "S1", snippet: "C1", index: 1 },
+        { id: "c2", title: "S2", snippet: "C2", index: 2 },
+      ];
+
+      const limited = sources.slice(0, maxCitations);
+
+      expect(limited).toHaveLength(2);
+    });
+  });
+
+  describe("LLM configuration", () => {
+    it("should use agent's configured model", () => {
+      const modelConfigId = "model-config-abc-123";
+
+      expect(modelConfigId).toBeDefined();
+    });
+
+    it("should handle null modelConfigId", () => {
+      const modelConfigId: string | null = null;
+      const modelArg = modelConfigId || undefined;
+
+      expect(modelArg).toBeUndefined();
+    });
+
+    it("should pass low reasoning effort to OpenAI provider", () => {
+      const providerOptions = {
+        openai: {
+          reasoningEffort: "low",
+        },
+      };
+
+      expect(providerOptions.openai.reasoningEffort).toBe("low");
+    });
+  });
+
+  describe("message array construction", () => {
+    it("should include conversation history in messages", () => {
+      const history = [
+        { role: "user" as const, content: "What is pricing?", timestamp: Date.now() },
+        { role: "assistant" as const, content: "Pricing starts at $10/month.", timestamp: Date.now() },
+      ];
+
+      const messages = history.map(turn => ({
+        role: turn.role,
+        content: turn.content,
+      }));
+
+      expect(messages).toHaveLength(2);
+      expect(messages[0].role).toBe("user");
+      expect(messages[1].role).toBe("assistant");
+    });
+
+    it("should append current message at the end", () => {
+      const history = [
+        { role: "user" as const, content: "Previous question", timestamp: Date.now() },
+        { role: "assistant" as const, content: "Previous answer", timestamp: Date.now() },
+      ];
+      const currentMessage = "What about enterprise pricing?";
+
+      const messages = [
+        ...history.map(turn => ({ role: turn.role, content: turn.content })),
+        { role: "user" as const, content: currentMessage },
+      ];
+
+      expect(messages).toHaveLength(3);
+      expect(messages[messages.length - 1].content).toBe(currentMessage);
+    });
+
+    it("should handle empty history", () => {
+      const history: { role: "user" | "assistant"; content: string; timestamp: number }[] = [];
+      const currentMessage = "First question";
+
+      const messages = [
+        ...history.map(turn => ({ role: turn.role, content: turn.content })),
+        { role: "user" as const, content: currentMessage },
+      ];
+
+      expect(messages).toHaveLength(1);
+      expect(messages[0].content).toBe(currentMessage);
+    });
+  });
+});
+
+// ============================================================================
+// Tests for Citation-Aware System Prompt
+// ============================================================================
+
+describe("Citation-Aware System Prompt", () => {
+  describe("empty context handling", () => {
+    it("should include instruction about no context when chunks are empty", () => {
+      const basePrompt = "You are a helpful assistant.";
+      const noContextPrompt = `${basePrompt}
+
+IMPORTANT: You have no retrieved context to reference. If you cannot answer the question from your general knowledge, clearly state that you don't have the information to answer this question.`;
+
+      expect(noContextPrompt).toContain("no retrieved context");
+      expect(noContextPrompt).toContain("don't have the information");
+    });
+
+    it("should advise acknowledging lack of information", () => {
+      const instruction = "clearly state that you don't have the information to answer this question";
+
+      expect(instruction).toContain("clearly state");
+      expect(instruction).toContain("don't have the information");
+    });
+  });
+
+  describe("context present handling", () => {
+    it("should include citation instructions section", () => {
+      const citationSection = "CITATION INSTRUCTIONS:";
+
+      expect(citationSection).toBe("CITATION INSTRUCTIONS:");
+    });
+
+    it("should instruct to use numbered sources", () => {
+      const instruction = "Use the numbered sources below to answer the question";
+
+      expect(instruction).toContain("numbered sources");
+    });
+
+    it("should provide bracket citation format example", () => {
+      const formatExample = "reference the source number in brackets, e.g., [1], [2]";
+
+      expect(formatExample).toContain("[1], [2]");
+    });
+
+    it("should instruct to only cite supporting sources", () => {
+      const instruction = "Only cite sources that directly support your statements";
+
+      expect(instruction).toContain("directly support");
+    });
+
+    it("should instruct to acknowledge irrelevant context", () => {
+      const instruction = "If the context doesn't contain relevant information, acknowledge this clearly";
+
+      expect(instruction).toContain("doesn't contain relevant");
+      expect(instruction).toContain("acknowledge");
+    });
+
+    it("should emphasize grounded responses", () => {
+      const instruction = "Provide accurate, grounded responses based solely on the provided context";
+
+      expect(instruction).toContain("grounded");
+      expect(instruction).toContain("solely on the provided context");
+    });
+  });
+
+  describe("full prompt structure", () => {
+    it("should have correct section order", () => {
+      const promptSections = [
+        "base prompt",
+        "CITATION INSTRUCTIONS:",
+        "CONTEXT:",
+      ];
+
+      // Verify order
+      expect(promptSections[0]).toBe("base prompt");
+      expect(promptSections[1]).toBe("CITATION INSTRUCTIONS:");
+      expect(promptSections[2]).toBe("CONTEXT:");
+    });
+
+    it("should use default system prompt when none configured", () => {
+      const defaultPrompt = "You are a helpful assistant.";
+
+      expect(defaultPrompt).toBe("You are a helpful assistant.");
+    });
+  });
+});

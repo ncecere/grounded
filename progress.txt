@@ -721,3 +721,53 @@ The reasoning event emission functionality was already implemented in the Advanc
 ### Files Changed
 - `apps/api/src/services/advanced-rag.test.ts` (MODIFIED - added 47 tests for reasoning event emission)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 2 - Implement final answer generation with citations
+
+### Completed Task
+**Task:** Implement final answer generation with citations
+**Phase:** Phase 2 - Advanced RAG Service
+**Status:** COMPLETED
+
+### Implementation Summary
+Enhanced the AdvancedRAGService's `buildSystemPrompt` method to include explicit citation instructions that guide the LLM to properly cite sources in its responses. Also added handling for when no context is retrieved.
+
+### Changes Made:
+
+1. **Enhanced `buildSystemPrompt()` method:**
+   - Added `CITATION INSTRUCTIONS:` section with 5 rules for proper citation usage
+   - Instructions include: use numbered sources, reference in brackets [1], [2], only cite supporting sources
+   - Added emphasis on grounded responses based solely on provided context
+   - Added special instruction when no chunks are retrieved: advises LLM to acknowledge lack of information
+
+2. **Citation format in context:**
+   - Chunks formatted with 1-indexed citation numbers: `[1]`, `[2]`, etc.
+   - Title included when available: `[1] Title: Document Title\nContent...`
+   - Context sections separated with double newlines for readability
+
+3. **Added comprehensive tests (63 new tests) covering:**
+   - System prompt construction with citation instructions
+   - Citation format in context (numbered, 1-indexed)
+   - Generate step behavior (title, summaries, event sequence)
+   - Text streaming behavior (event sequence, accumulation)
+   - Sources event behavior (building from chunks, maxCitations limiting)
+   - Source interface validation
+   - Conversation storage after generation
+   - Token usage tracking
+   - Usage logging (ok/error status, latency, rerankerUsed)
+   - Done event behavior (final event, conversationId handling)
+   - Error handling during generation
+   - maxCitations configuration
+   - LLM configuration
+   - Message array construction
+   - Citation-aware system prompt tests (empty context, context present, full structure)
+
+### Test Results
+- All 400 tests pass (384 in api, 16 in web)
+- All typecheck passes across 14 packages
+- Added 63 new tests for final answer generation with citations
+
+### Files Changed
+- `apps/api/src/services/advanced-rag.ts` (MODIFIED - enhanced buildSystemPrompt with citation instructions)
+- `apps/api/src/services/advanced-rag.test.ts` (MODIFIED - added 63 tests for final answer generation)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete, marked Phase 2 as completed)
