@@ -1719,3 +1719,48 @@ Verified that the retrieval config routes already properly support the `historyT
 ### Files Changed
 - `apps/api/src/services/advanced-rag.test.ts` (MODIFIED - added ~65 unit tests)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 5 - Add integration tests for chat endpoints
+
+### Completed Task
+**Task:** Add integration tests for chat endpoints
+**Phase:** Phase 5 - Testing & Docs
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Created comprehensive integration test file:**
+   - `apps/api/src/routes/chat-integration.test.ts` (NEW - 115 tests)
+
+2. **Test coverage includes:**
+   - Admin Chat Endpoint Integration (Simple and Advanced RAG modes)
+   - Widget Chat Endpoint Integration (Simple and Advanced RAG modes)
+   - Public Chat Endpoint Integration (Non-streaming and Streaming responses)
+   - Cross-Endpoint Integration (Consistent behavior verification)
+   - Error Handling Integration (NotFoundError, RateLimitError, Service errors)
+   - ReasoningStep Structure Integration (Step types, statuses, structure)
+   - Citation Handling Integration (Structure, filtering, stream events)
+   - Conversation Context Integration (ConversationId handling, multi-turn)
+   - Service Configuration Integration (AdvancedRAGService and SimpleRAGService configs)
+   - Module Export Integration (Route and service exports)
+
+3. **Integration test areas:**
+   - RAG type routing integration (simple vs advanced)
+   - Agent lookup integration (ownership, soft-delete filtering)
+   - Token validation integration (widget tokens, endpoint tokens)
+   - Rate limiting integration (admin, widget, public API)
+   - SSE headers integration (consistent across all streaming endpoints)
+   - Channel differentiation (admin_ui, widget, chat_endpoint)
+   - Stream event types (SimpleRAGService vs AdvancedRAGService events)
+   - Non-streaming response structure (with/without reasoningSteps)
+   - Streaming response behavior (heartbeat, client disconnect)
+   - Citation filtering (based on agent settings)
+
+### Test Results
+- All 749 tests pass in api package (increased from 634)
+- All 115 new integration tests pass
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `apps/api/src/routes/chat-integration.test.ts` (NEW - 115 tests)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)

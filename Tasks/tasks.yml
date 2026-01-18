@@ -216,7 +216,7 @@ tasks:
     file: phase-7-testing-docs.md
 
   - title: Add integration tests for chat endpoints
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [testing, integration, api]
     file: phase-7-testing-docs.md
