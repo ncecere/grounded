@@ -83,12 +83,12 @@ tasks:
     tags: [embedding, integrity]
 
   - title: Track per-chunk embed status and gate run completion
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [embedding, integrity]
 
   - title: Add embedding_incomplete run status
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [embedding, reporting]
 

@@ -9,6 +9,7 @@ import {
   redis,
   waitForEmbedBackpressure,
   getEmbedBackpressureConfig,
+  initializeChunkEmbedStatuses,
 } from "@grounded/queue";
 import {
   hashString,
@@ -169,6 +170,9 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
           });
         }
       }
+
+      // Initialize per-chunk embed status tracking BEFORE queuing the job
+      await initializeChunkEmbedStatuses(runId, source.kbId, chunkIds);
 
       await addEmbedChunksBatchJob({
         tenantId,

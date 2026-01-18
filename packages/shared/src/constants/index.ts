@@ -528,6 +528,57 @@ export const STAGE_BACKOFF_CONFIG = {
 } as const;
 
 // ============================================================================
+// Chunk Embed Status Tracking
+// ============================================================================
+
+/**
+ * Redis key prefix for tracking per-chunk embed status.
+ * Key pattern: chunk_embed_status:{runId}:{chunkId}
+ */
+export const CHUNK_EMBED_STATUS_KEY_PREFIX = "chunk_embed_status:";
+
+/**
+ * TTL for chunk embed status keys in seconds.
+ * Should be long enough to survive run completion and debugging.
+ */
+export const CHUNK_EMBED_STATUS_KEY_TTL_SECONDS = 86400; // 24 hours
+
+/**
+ * Redis key for tracking the set of failed chunk IDs for a run.
+ * Key pattern: chunk_embed_failed:{runId}
+ */
+export const CHUNK_EMBED_FAILED_SET_KEY_PREFIX = "chunk_embed_failed:";
+
+/**
+ * Environment variable to disable embedding completion gating.
+ * Set to "true" or "1" to finalize runs without waiting for embeddings.
+ */
+export const EMBED_COMPLETION_GATING_DISABLED_ENV_VAR = "EMBED_COMPLETION_GATING_DISABLED";
+
+/**
+ * Maximum wait time (ms) for embeddings to complete during run finalization.
+ * After this timeout, the run proceeds with embedding_incomplete status if applicable.
+ */
+export const DEFAULT_EMBED_COMPLETION_WAIT_MS = 30000; // 30 seconds
+
+/**
+ * Interval (ms) between checks for embedding completion during finalization.
+ */
+export const EMBED_COMPLETION_CHECK_INTERVAL_MS = 2000; // 2 seconds
+
+/**
+ * Environment variable names for embedding completion configuration.
+ */
+export const EMBED_COMPLETION_ENV_VARS = {
+  /** Override max wait time */
+  WAIT_MS: "EMBED_COMPLETION_WAIT_MS",
+  /** Override check interval */
+  CHECK_INTERVAL_MS: "EMBED_COMPLETION_CHECK_INTERVAL_MS",
+  /** Disable gating entirely */
+  DISABLED: "EMBED_COMPLETION_GATING_DISABLED",
+} as const;
+
+// ============================================================================
 // API Versions
 // ============================================================================
 

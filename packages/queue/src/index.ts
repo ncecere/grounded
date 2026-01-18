@@ -803,6 +803,376 @@ export async function getEmbedBackpressureMetrics(
 }
 
 // ============================================================================
+// Chunk Embed Status Tracking
+// ============================================================================
+
+import {
+  type ChunkEmbedStatusRecord,
+  type ChunkEmbedStatusSummary,
+  type EmbedCompletionGatingConfig,
+  type EmbedCompletionCheckResult,
+  ChunkEmbedStatus,
+  buildChunkEmbedStatusKey,
+  buildChunkEmbedFailedSetKey,
+  createPendingChunkEmbedStatus,
+  createInProgressChunkEmbedStatus,
+  createSucceededChunkEmbedStatus,
+  createFailedChunkEmbedStatus,
+  calculateChunkEmbedStatusSummary,
+  getChunkEmbedStatusKeyTtl,
+  resolveEmbedCompletionGatingConfig,
+  determineRunStatusFromEmbedding,
+} from "@grounded/shared";
+
+/**
+ * Initializes chunk embed status records for a batch of chunks.
+ * Call this when queuing embed jobs to mark chunks as pending.
+ *
+ * @param runId - Source run ID
+ * @param kbId - Knowledge base ID
+ * @param chunkIds - Array of chunk IDs to track
+ */
+export async function initializeChunkEmbedStatuses(
+  runId: string,
+  kbId: string,
+  chunkIds: string[]
+): Promise<void> {
+  if (chunkIds.length === 0) return;
+
+  const ttl = getChunkEmbedStatusKeyTtl();
+  const pipeline = redis.pipeline();
+
+  for (const chunkId of chunkIds) {
+    const key = buildChunkEmbedStatusKey(runId, chunkId);
+    const record = createPendingChunkEmbedStatus(chunkId, runId, kbId);
+    pipeline.setex(key, ttl, JSON.stringify(record));
+  }
+
+  await pipeline.exec();
+}
+
+/**
+ * Gets the embed status for a single chunk.
+ *
+ * @param runId - Source run ID
+ * @param chunkId - Chunk ID
+ * @returns Status record or null if not found
+ */
+export async function getChunkEmbedStatus(
+  runId: string,
+  chunkId: string
+): Promise<ChunkEmbedStatusRecord | null> {
+  const key = buildChunkEmbedStatusKey(runId, chunkId);
+  const data = await redis.get(key);
+  if (!data) return null;
+  return JSON.parse(data);
+}
+
+/**
+ * Gets the embed statuses for multiple chunks.
+ *
+ * @param runId - Source run ID
+ * @param chunkIds - Array of chunk IDs
+ * @returns Array of status records (in same order as input)
+ */
+export async function getChunkEmbedStatuses(
+  runId: string,
+  chunkIds: string[]
+): Promise<(ChunkEmbedStatusRecord | null)[]> {
+  if (chunkIds.length === 0) return [];
+
+  const keys = chunkIds.map((id) => buildChunkEmbedStatusKey(runId, id));
+  const data = await redis.mget(...keys);
+
+  return data.map((d) => (d ? JSON.parse(d) : null));
+}
+
+/**
+ * Marks chunks as in-progress (being embedded).
+ *
+ * @param runId - Source run ID
+ * @param chunkIds - Array of chunk IDs to mark
+ */
+export async function markChunksEmbedInProgress(
+  runId: string,
+  chunkIds: string[]
+): Promise<void> {
+  if (chunkIds.length === 0) return;
+
+  const ttl = getChunkEmbedStatusKeyTtl();
+  const currentRecords = await getChunkEmbedStatuses(runId, chunkIds);
+  const pipeline = redis.pipeline();
+
+  for (let i = 0; i < chunkIds.length; i++) {
+    const chunkId = chunkIds[i];
+    const current = currentRecords[i];
+    if (!current) continue;
+
+    const key = buildChunkEmbedStatusKey(runId, chunkId);
+    const updated = createInProgressChunkEmbedStatus(current);
+    pipeline.setex(key, ttl, JSON.stringify(updated));
+  }
+
+  await pipeline.exec();
+}
+
+/**
+ * Marks chunks as successfully embedded.
+ *
+ * @param runId - Source run ID
+ * @param chunkIds - Array of chunk IDs that succeeded
+ * @param dimensions - Embedding dimensions used
+ */
+export async function markChunksEmbedSucceeded(
+  runId: string,
+  chunkIds: string[],
+  dimensions: number
+): Promise<void> {
+  if (chunkIds.length === 0) return;
+
+  const ttl = getChunkEmbedStatusKeyTtl();
+  const currentRecords = await getChunkEmbedStatuses(runId, chunkIds);
+  const pipeline = redis.pipeline();
+
+  for (let i = 0; i < chunkIds.length; i++) {
+    const chunkId = chunkIds[i];
+    const current = currentRecords[i];
+    if (!current) continue;
+
+    const key = buildChunkEmbedStatusKey(runId, chunkId);
+    const updated = createSucceededChunkEmbedStatus(current, dimensions);
+    pipeline.setex(key, ttl, JSON.stringify(updated));
+  }
+
+  await pipeline.exec();
+}
+
+/**
+ * Marks chunks as failed.
+ *
+ * @param runId - Source run ID
+ * @param chunkIds - Array of chunk IDs that failed
+ * @param error - Error message
+ * @param errorCode - Error code
+ * @param retryable - Whether the error is retryable
+ */
+export async function markChunksEmbedFailed(
+  runId: string,
+  chunkIds: string[],
+  error: string,
+  errorCode?: string,
+  retryable?: boolean
+): Promise<void> {
+  if (chunkIds.length === 0) return;
+
+  const ttl = getChunkEmbedStatusKeyTtl();
+  const currentRecords = await getChunkEmbedStatuses(runId, chunkIds);
+  const pipeline = redis.pipeline();
+
+  // Track failed chunks in a set for easier lookup
+  const failedSetKey = buildChunkEmbedFailedSetKey(runId);
+
+  for (let i = 0; i < chunkIds.length; i++) {
+    const chunkId = chunkIds[i];
+    const current = currentRecords[i];
+    if (!current) continue;
+
+    const key = buildChunkEmbedStatusKey(runId, chunkId);
+    const updated = createFailedChunkEmbedStatus(current, error, errorCode, retryable);
+    pipeline.setex(key, ttl, JSON.stringify(updated));
+
+    // Add to failed set for permanent failures
+    if (!retryable) {
+      pipeline.sadd(failedSetKey, chunkId);
+    }
+  }
+
+  // Set TTL on the failed set
+  pipeline.expire(failedSetKey, ttl);
+
+  await pipeline.exec();
+}
+
+/**
+ * Gets the list of failed chunk IDs for a run.
+ *
+ * @param runId - Source run ID
+ * @returns Array of failed chunk IDs
+ */
+export async function getFailedChunkIds(runId: string): Promise<string[]> {
+  const key = buildChunkEmbedFailedSetKey(runId);
+  return await redis.smembers(key);
+}
+
+/**
+ * Gets the count of pending/in-progress chunks for a run.
+ * Uses SCAN to find all chunk status keys for the run.
+ *
+ * @param runId - Source run ID
+ * @returns Count of chunks still being processed
+ */
+export async function getRunPendingEmbedCount(runId: string): Promise<number> {
+  const pattern = `${buildChunkEmbedStatusKey(runId, "")}*`;
+  let cursor = "0";
+  let pendingCount = 0;
+
+  do {
+    const [nextCursor, keys] = await redis.scan(cursor, "MATCH", pattern, "COUNT", 100);
+    cursor = nextCursor;
+
+    if (keys.length > 0) {
+      const data = await redis.mget(...keys);
+      for (const d of data) {
+        if (d) {
+          const record: ChunkEmbedStatusRecord = JSON.parse(d);
+          if (
+            record.status === ChunkEmbedStatus.PENDING ||
+            record.status === ChunkEmbedStatus.IN_PROGRESS
+          ) {
+            pendingCount++;
+          }
+        }
+      }
+    }
+  } while (cursor !== "0");
+
+  return pendingCount;
+}
+
+/**
+ * Gets a summary of all chunk embed statuses for a run.
+ * Scans all chunk status keys to build a complete summary.
+ *
+ * @param runId - Source run ID
+ * @returns Summary of chunk embed statuses
+ */
+export async function getRunChunkEmbedSummary(
+  runId: string
+): Promise<ChunkEmbedStatusSummary> {
+  const pattern = `${buildChunkEmbedStatusKey(runId, "")}*`;
+  let cursor = "0";
+  const records: ChunkEmbedStatusRecord[] = [];
+
+  do {
+    const [nextCursor, keys] = await redis.scan(cursor, "MATCH", pattern, "COUNT", 100);
+    cursor = nextCursor;
+
+    if (keys.length > 0) {
+      const data = await redis.mget(...keys);
+      for (const d of data) {
+        if (d) {
+          records.push(JSON.parse(d));
+        }
+      }
+    }
+  } while (cursor !== "0");
+
+  return calculateChunkEmbedStatusSummary(records);
+}
+
+/**
+ * Checks embedding completion status for a run.
+ * Returns information needed to gate run finalization.
+ *
+ * @param runId - Source run ID
+ * @param totalExpected - Expected total chunks from sourceRun.chunksToEmbed
+ * @param hasPageFailures - Whether there were page-level failures
+ * @returns Completion check result
+ */
+export async function checkRunEmbeddingCompletion(
+  runId: string,
+  totalExpected: number,
+  hasPageFailures: boolean
+): Promise<EmbedCompletionCheckResult> {
+  // If no chunks expected, consider complete
+  if (totalExpected === 0) {
+    return {
+      isComplete: true,
+      allSucceeded: !hasPageFailures,
+      pendingCount: 0,
+      failedCount: 0,
+      succeededCount: 0,
+      totalCount: 0,
+      suggestedStatus: hasPageFailures ? "partial" : "succeeded",
+    };
+  }
+
+  const summary = await getRunChunkEmbedSummary(runId);
+
+  return {
+    isComplete: summary.isComplete,
+    allSucceeded: summary.allSucceeded,
+    pendingCount: summary.pending + summary.inProgress,
+    failedCount: summary.failedRetryable + summary.failedPermanent,
+    succeededCount: summary.succeeded,
+    totalCount: summary.total,
+    suggestedStatus: determineRunStatusFromEmbedding(summary, hasPageFailures),
+  };
+}
+
+/**
+ * Waits for run embedding to complete (or timeout).
+ *
+ * @param runId - Source run ID
+ * @param totalExpected - Expected total chunks
+ * @param hasPageFailures - Whether there were page-level failures
+ * @param config - Optional gating configuration
+ * @returns Final completion check result
+ */
+export async function waitForRunEmbeddingCompletion(
+  runId: string,
+  totalExpected: number,
+  hasPageFailures: boolean,
+  config?: EmbedCompletionGatingConfig
+): Promise<EmbedCompletionCheckResult> {
+  const gatingConfig = config ?? resolveEmbedCompletionGatingConfig();
+
+  // If gating is disabled, return immediate status
+  if (!gatingConfig.enabled) {
+    return await checkRunEmbeddingCompletion(runId, totalExpected, hasPageFailures);
+  }
+
+  const startTime = Date.now();
+  let lastResult = await checkRunEmbeddingCompletion(runId, totalExpected, hasPageFailures);
+
+  while (!lastResult.isComplete && Date.now() - startTime < gatingConfig.maxWaitMs) {
+    await new Promise((resolve) => setTimeout(resolve, gatingConfig.checkIntervalMs));
+    lastResult = await checkRunEmbeddingCompletion(runId, totalExpected, hasPageFailures);
+  }
+
+  return lastResult;
+}
+
+/**
+ * Cleans up chunk embed status keys for a run.
+ * Call this during source run cleanup.
+ *
+ * @param runId - Source run ID
+ * @returns Number of keys deleted
+ */
+export async function cleanupChunkEmbedStatuses(runId: string): Promise<number> {
+  const pattern = `${buildChunkEmbedStatusKey(runId, "")}*`;
+  let cursor = "0";
+  let deletedCount = 0;
+
+  do {
+    const [nextCursor, keys] = await redis.scan(cursor, "MATCH", pattern, "COUNT", 100);
+    cursor = nextCursor;
+
+    if (keys.length > 0) {
+      await redis.del(...keys);
+      deletedCount += keys.length;
+    }
+  } while (cursor !== "0");
+
+  // Also clean up the failed set
+  const failedSetKey = buildChunkEmbedFailedSetKey(runId);
+  await redis.del(failedSetKey);
+
+  return deletedCount;
+}
+
+// ============================================================================
 // Worker Creation Helpers
 // ============================================================================
 
@@ -834,6 +1204,14 @@ export {
   EMBED_BACKPRESSURE_ENV_VARS,
   EMBED_BACKPRESSURE_KEY,
   EMBED_BACKPRESSURE_KEY_TTL_SECONDS,
+  // Chunk embed status constants
+  CHUNK_EMBED_STATUS_KEY_PREFIX,
+  CHUNK_EMBED_STATUS_KEY_TTL_SECONDS,
+  CHUNK_EMBED_FAILED_SET_KEY_PREFIX,
+  EMBED_COMPLETION_GATING_DISABLED_ENV_VAR,
+  DEFAULT_EMBED_COMPLETION_WAIT_MS,
+  EMBED_COMPLETION_CHECK_INTERVAL_MS,
+  EMBED_COMPLETION_ENV_VARS,
 } from "@grounded/shared";
 
 // Re-export queue configuration helpers from shared
@@ -871,6 +1249,22 @@ export {
   parseDeterministicEmbedJobId,
   wouldProduceSameEmbedJobId,
   DEFAULT_EMBED_JOB_ID_CONFIG,
+  // Chunk embed status helpers
+  ChunkEmbedStatus,
+  buildChunkEmbedStatusKey,
+  buildChunkEmbedFailedSetKey,
+  createPendingChunkEmbedStatus,
+  createInProgressChunkEmbedStatus,
+  createSucceededChunkEmbedStatus,
+  createFailedChunkEmbedStatus,
+  calculateChunkEmbedStatusSummary,
+  getChunkEmbedStatusKeyTtl,
+  isChunkEmbedInProgress,
+  isChunkEmbedTerminal,
+  isChunkEmbedFailed,
+  determineRunStatusFromEmbedding,
+  resolveEmbedCompletionGatingConfig,
+  getDefaultEmbedCompletionGatingConfig,
 } from "@grounded/shared";
 
 export type {
@@ -889,4 +1283,9 @@ export type {
   // Deterministic embed job ID types
   DeterministicEmbedJobIdConfig,
   DeterministicEmbedJobIdResult,
+  // Chunk embed status types
+  ChunkEmbedStatusRecord,
+  ChunkEmbedStatusSummary,
+  EmbedCompletionGatingConfig,
+  EmbedCompletionCheckResult,
 } from "@grounded/shared";

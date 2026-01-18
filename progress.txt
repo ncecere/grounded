@@ -842,3 +842,123 @@ Output: "abc123def4567890"
 - All 55 new tests pass
 - All existing tests pass (732 tests in shared package)
 - TypeScript typechecking passes across all packages
+
+## 2026-01-18: Track per-chunk embed status and gate run completion
+
+### Summary
+Implemented per-chunk embedding status tracking using Redis and added embedding completion gating to the source run finalization process. This enables accurate tracking of which chunks have been embedded, which failed, and whether all embeddings completed before marking a run as finished.
+
+### Changes Made
+1. **packages/shared/src/constants/index.ts**
+   - Added `CHUNK_EMBED_STATUS_KEY_PREFIX` ("chunk_embed_status:") - Redis key prefix for status tracking
+   - Added `CHUNK_EMBED_STATUS_KEY_TTL_SECONDS` (86400) - 24-hour TTL for status keys
+   - Added `CHUNK_EMBED_FAILED_SET_KEY_PREFIX` ("chunk_embed_failed:") - Redis set prefix for failed chunk tracking
+   - Added `EMBED_COMPLETION_GATING_DISABLED_ENV_VAR` - Environment variable to disable gating
+   - Added `DEFAULT_EMBED_COMPLETION_WAIT_MS` (30000) - Default wait time for embedding completion
+   - Added `EMBED_COMPLETION_CHECK_INTERVAL_MS` (2000) - Interval between completion checks
+   - Added `EMBED_COMPLETION_ENV_VARS` - Object with all related env var names
+
+2. **packages/shared/src/types/index.ts**
+   - Added `ChunkEmbedStatus` enum with 5 states: PENDING, IN_PROGRESS, SUCCEEDED, FAILED_RETRYABLE, FAILED_PERMANENT
+   - Added `ChunkEmbedStatusRecord` interface - Full status record with chunkId, status, runId, kbId, timestamps, error info, and dimensions
+   - Added `ChunkEmbedStatusSummary` interface - Aggregated counts for monitoring
+   - Added `EmbedCompletionGatingConfig` interface - Configuration for gating behavior
+   - Added `EmbedCompletionCheckResult` interface - Result of completion check with counts and suggested status
+   - Added helper functions:
+     - `buildChunkEmbedStatusKey()` - Builds Redis key for chunk status
+     - `buildChunkEmbedFailedSetKey()` - Builds Redis key for failed chunk set
+     - `createPendingChunkEmbedStatus()` - Creates initial pending status record
+     - `createInProgressChunkEmbedStatus()` - Creates in-progress status record
+     - `createSucceededChunkEmbedStatus()` - Creates succeeded status record
+     - `createFailedChunkEmbedStatus()` - Creates failed status record with error details
+     - `calculateChunkEmbedStatusSummary()` - Calculates summary from status records
+     - `isChunkEmbedInProgress()` - Checks if chunk is still being processed
+     - `isChunkEmbedTerminal()` - Checks if chunk reached terminal state
+     - `isChunkEmbedFailed()` - Checks if chunk failed (retryable or permanent)
+     - `determineRunStatusFromEmbedding()` - Determines suggested run status based on embedding results
+     - `resolveEmbedCompletionGatingConfig()` - Resolves gating config from environment
+
+3. **packages/queue/src/index.ts**
+   - Added `initializeChunkEmbedStatuses()` - Initializes pending status for all chunks before embedding
+   - Added `getChunkEmbedStatus()` - Gets status for a single chunk
+   - Added `getChunkEmbedStatuses()` - Gets status for multiple chunks
+   - Added `markChunksEmbedInProgress()` - Marks chunks as in-progress
+   - Added `markChunksEmbedSucceeded()` - Marks chunks as successfully embedded
+   - Added `markChunksEmbedFailed()` - Marks chunks as failed with error details
+   - Added `getFailedChunkIds()` - Gets list of failed chunk IDs from Redis set
+   - Added `getRunPendingEmbedCount()` - Counts chunks still pending embedding
+   - Added `getRunChunkEmbedSummary()` - Gets full summary of chunk statuses
+   - Added `checkRunEmbeddingCompletion()` - Single check of embedding completion
+   - Added `waitForRunEmbeddingCompletion()` - Polling wait for embedding completion
+   - Added `cleanupChunkEmbedStatuses()` - Cleans up Redis keys after run completion
+   - Re-exported all new types and constants
+
+4. **apps/ingestion-worker/src/processors/embed-chunks.ts**
+   - Added import for status tracking functions
+   - Added `markChunksEmbedInProgress()` at job start to track embedding lifecycle
+   - Added `markChunksEmbedSucceeded()` on successful embedding
+   - Added `markChunksEmbedFailed()` for various error scenarios:
+     - KB not found (non-retryable)
+     - Chunks not found (non-retryable)
+     - Embedding dimension mismatch (non-retryable)
+     - Vector store not configured (non-retryable)
+     - Generic errors (retryable)
+
+5. **apps/ingestion-worker/src/processors/page-process.ts**
+   - Added import for `initializeChunkEmbedStatuses`
+   - Added call to initialize chunk status before queuing embed job
+
+6. **apps/ingestion-worker/src/processors/source-finalize.ts**
+   - Added imports for embedding completion functions
+   - Added embedding completion gating logic:
+     - Checks if gating is enabled and chunks need embedding
+     - Waits for embedding completion with configurable timeout
+     - Determines final run status based on embedding results
+   - Added cleanup of chunk embed status Redis keys after finalization
+   - Logs incomplete embeddings as warnings
+
+7. **packages/shared/src/types/chunk-embed-status.test.ts** (new file)
+   - Added 59 tests covering all new functionality:
+     - ChunkEmbedStatus enum validation
+     - Key building functions
+     - Status record creation functions
+     - Summary calculation
+     - Status checking functions (isInProgress, isTerminal, isFailed)
+     - Run status determination from embedding results
+     - Gating configuration resolution
+
+### Key Design Decisions
+- **Redis-based tracking**: Uses Redis for per-chunk status to avoid database overhead and enable fast lookups
+- **TTL-based cleanup**: Status keys have 24-hour TTL as backup, explicit cleanup on run completion
+- **Failed chunk set**: Separate Redis set tracks failed chunk IDs for efficient lookup
+- **Gating configurable**: Embedding completion gating can be disabled via environment variable
+- **Suggested status**: Completion check returns suggested run status (succeeded, partial, failed, embedding_incomplete)
+- **Error categorization**: Failed statuses include error code and retryable flag for debugging
+
+### Status Lifecycle
+```
+PENDING -> IN_PROGRESS -> SUCCEEDED
+                      -> FAILED_RETRYABLE
+                      -> FAILED_PERMANENT
+```
+
+### Redis Key Patterns
+- Status: `chunk_embed_status:{runId}:{chunkId}`
+- Failed set: `chunk_embed_failed:{runId}`
+
+### Environment Variables
+- `EMBED_COMPLETION_GATING_DISABLED` - Set to "true" or "1" to disable gating
+- `EMBED_COMPLETION_WAIT_MS` - Override max wait time (default 30000ms)
+- `EMBED_COMPLETION_CHECK_INTERVAL_MS` - Override check interval (default 2000ms)
+
+### Acceptance Criteria Met
+- ✅ Track per-chunk embed status with Redis-based storage
+- ✅ Gate run completion on embedding completion
+- ✅ Add embedding_incomplete run status handling
+- ✅ Cleanup tracking data after run finalization
+- ✅ Configurable gating behavior via environment variables
+
+### Tests
+- All 59 new tests pass
+- All existing tests pass (791 tests in shared package)
+- TypeScript typechecking passes across all packages

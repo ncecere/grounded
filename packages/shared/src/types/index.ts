@@ -3428,3 +3428,413 @@ export function wouldProduceSameEmbedJobId(
 
   return sorted1.every((id, index) => id === sorted2[index]);
 }
+
+// ============================================================================
+// Chunk Embed Status Tracking
+// ============================================================================
+
+import {
+  CHUNK_EMBED_STATUS_KEY_PREFIX,
+  CHUNK_EMBED_STATUS_KEY_TTL_SECONDS,
+  CHUNK_EMBED_FAILED_SET_KEY_PREFIX,
+  EMBED_COMPLETION_GATING_DISABLED_ENV_VAR,
+  DEFAULT_EMBED_COMPLETION_WAIT_MS,
+  EMBED_COMPLETION_CHECK_INTERVAL_MS,
+  EMBED_COMPLETION_ENV_VARS,
+} from "../constants";
+
+/**
+ * Status of embedding for a single chunk.
+ */
+export const ChunkEmbedStatus = {
+  /** Chunk is queued for embedding */
+  PENDING: "pending",
+  /** Chunk is currently being embedded */
+  IN_PROGRESS: "in_progress",
+  /** Chunk was successfully embedded and indexed */
+  SUCCEEDED: "succeeded",
+  /** Chunk embedding failed with a retryable error */
+  FAILED_RETRYABLE: "failed_retryable",
+  /** Chunk embedding failed with a permanent error */
+  FAILED_PERMANENT: "failed_permanent",
+} as const;
+export type ChunkEmbedStatus =
+  (typeof ChunkEmbedStatus)[keyof typeof ChunkEmbedStatus];
+
+/**
+ * Per-chunk embed status record stored in Redis.
+ */
+export interface ChunkEmbedStatusRecord {
+  /** Unique chunk ID */
+  chunkId: string;
+  /** Current embed status */
+  status: ChunkEmbedStatus;
+  /** Source run ID this chunk belongs to */
+  runId: string;
+  /** Knowledge base ID */
+  kbId: string;
+  /** When this status was last updated */
+  updatedAt: string;
+  /** Error message if status is failed */
+  error?: string;
+  /** Error code if available */
+  errorCode?: string;
+  /** Whether the error is retryable */
+  errorRetryable?: boolean;
+  /** Number of embedding attempts made */
+  attemptCount?: number;
+  /** Embedding dimensions if succeeded */
+  dimensions?: number;
+}
+
+/**
+ * Summary of chunk embed statuses for a run.
+ */
+export interface ChunkEmbedStatusSummary {
+  /** Total chunks that need embedding for this run */
+  total: number;
+  /** Chunks pending embedding */
+  pending: number;
+  /** Chunks currently being embedded */
+  inProgress: number;
+  /** Chunks successfully embedded */
+  succeeded: number;
+  /** Chunks that failed with retryable errors */
+  failedRetryable: number;
+  /** Chunks that failed with permanent errors */
+  failedPermanent: number;
+  /** Whether all chunks have been processed (succeeded or failed permanently) */
+  isComplete: boolean;
+  /** Whether all chunks succeeded */
+  allSucceeded: boolean;
+  /** Whether there are any failures */
+  hasFailures: boolean;
+  /** List of failed chunk IDs (for debugging) */
+  failedChunkIds?: string[];
+}
+
+/**
+ * Configuration for embedding completion gating.
+ */
+export interface EmbedCompletionGatingConfig {
+  /** Whether to gate run completion on embedding completion */
+  enabled: boolean;
+  /** Maximum time to wait for embeddings (ms) */
+  maxWaitMs: number;
+  /** Interval between completion checks (ms) */
+  checkIntervalMs: number;
+}
+
+/**
+ * Result of checking embedding completion for a run.
+ */
+export interface EmbedCompletionCheckResult {
+  /** Whether all embeddings are complete (succeeded or permanently failed) */
+  isComplete: boolean;
+  /** Whether all embeddings succeeded */
+  allSucceeded: boolean;
+  /** Number of chunks pending or in progress */
+  pendingCount: number;
+  /** Number of chunks that failed */
+  failedCount: number;
+  /** Number of chunks that succeeded */
+  succeededCount: number;
+  /** Total chunks for this run */
+  totalCount: number;
+  /** Suggested run status based on embedding completion */
+  suggestedStatus: "succeeded" | "partial" | "embedding_incomplete";
+}
+
+/**
+ * Gets the default embedding completion gating configuration.
+ *
+ * @returns Default EmbedCompletionGatingConfig
+ */
+export function getDefaultEmbedCompletionGatingConfig(): EmbedCompletionGatingConfig {
+  return {
+    enabled: true,
+    maxWaitMs: DEFAULT_EMBED_COMPLETION_WAIT_MS,
+    checkIntervalMs: EMBED_COMPLETION_CHECK_INTERVAL_MS,
+  };
+}
+
+/**
+ * Resolves embedding completion gating configuration from environment.
+ *
+ * @returns Resolved EmbedCompletionGatingConfig
+ */
+export function resolveEmbedCompletionGatingConfig(): EmbedCompletionGatingConfig {
+  const disabledEnv = process.env[EMBED_COMPLETION_GATING_DISABLED_ENV_VAR];
+  const isDisabled = disabledEnv === "true" || disabledEnv === "1";
+
+  const waitMsEnv = process.env[EMBED_COMPLETION_ENV_VARS.WAIT_MS];
+  const maxWaitMs = waitMsEnv
+    ? parseInt(waitMsEnv, 10) || DEFAULT_EMBED_COMPLETION_WAIT_MS
+    : DEFAULT_EMBED_COMPLETION_WAIT_MS;
+
+  const checkIntervalEnv = process.env[EMBED_COMPLETION_ENV_VARS.CHECK_INTERVAL_MS];
+  const checkIntervalMs = checkIntervalEnv
+    ? parseInt(checkIntervalEnv, 10) || EMBED_COMPLETION_CHECK_INTERVAL_MS
+    : EMBED_COMPLETION_CHECK_INTERVAL_MS;
+
+  return {
+    enabled: !isDisabled,
+    maxWaitMs,
+    checkIntervalMs,
+  };
+}
+
+/**
+ * Builds a Redis key for a chunk's embed status.
+ *
+ * @param runId - Source run ID
+ * @param chunkId - Chunk ID
+ * @returns Redis key string
+ */
+export function buildChunkEmbedStatusKey(runId: string, chunkId: string): string {
+  return `${CHUNK_EMBED_STATUS_KEY_PREFIX}${runId}:${chunkId}`;
+}
+
+/**
+ * Builds a Redis key for the set of failed chunk IDs for a run.
+ *
+ * @param runId - Source run ID
+ * @returns Redis key string
+ */
+export function buildChunkEmbedFailedSetKey(runId: string): string {
+  return `${CHUNK_EMBED_FAILED_SET_KEY_PREFIX}${runId}`;
+}
+
+/**
+ * Creates a pending chunk embed status record.
+ *
+ * @param chunkId - Chunk ID
+ * @param runId - Source run ID
+ * @param kbId - Knowledge base ID
+ * @returns ChunkEmbedStatusRecord
+ */
+export function createPendingChunkEmbedStatus(
+  chunkId: string,
+  runId: string,
+  kbId: string
+): ChunkEmbedStatusRecord {
+  return {
+    chunkId,
+    status: ChunkEmbedStatus.PENDING,
+    runId,
+    kbId,
+    updatedAt: new Date().toISOString(),
+    attemptCount: 0,
+  };
+}
+
+/**
+ * Creates an in-progress chunk embed status record.
+ *
+ * @param previous - Previous status record
+ * @returns Updated ChunkEmbedStatusRecord
+ */
+export function createInProgressChunkEmbedStatus(
+  previous: ChunkEmbedStatusRecord
+): ChunkEmbedStatusRecord {
+  return {
+    ...previous,
+    status: ChunkEmbedStatus.IN_PROGRESS,
+    updatedAt: new Date().toISOString(),
+    attemptCount: (previous.attemptCount || 0) + 1,
+  };
+}
+
+/**
+ * Creates a succeeded chunk embed status record.
+ *
+ * @param previous - Previous status record
+ * @param dimensions - Embedding dimensions
+ * @returns Updated ChunkEmbedStatusRecord
+ */
+export function createSucceededChunkEmbedStatus(
+  previous: ChunkEmbedStatusRecord,
+  dimensions: number
+): ChunkEmbedStatusRecord {
+  return {
+    ...previous,
+    status: ChunkEmbedStatus.SUCCEEDED,
+    updatedAt: new Date().toISOString(),
+    dimensions,
+    error: undefined,
+    errorCode: undefined,
+    errorRetryable: undefined,
+  };
+}
+
+/**
+ * Creates a failed chunk embed status record.
+ *
+ * @param previous - Previous status record
+ * @param error - Error message
+ * @param errorCode - Error code
+ * @param retryable - Whether the error is retryable
+ * @returns Updated ChunkEmbedStatusRecord
+ */
+export function createFailedChunkEmbedStatus(
+  previous: ChunkEmbedStatusRecord,
+  error: string,
+  errorCode?: string,
+  retryable?: boolean
+): ChunkEmbedStatusRecord {
+  return {
+    ...previous,
+    status: retryable
+      ? ChunkEmbedStatus.FAILED_RETRYABLE
+      : ChunkEmbedStatus.FAILED_PERMANENT,
+    updatedAt: new Date().toISOString(),
+    error,
+    errorCode,
+    errorRetryable: retryable,
+  };
+}
+
+/**
+ * Calculates a summary of chunk embed statuses.
+ *
+ * @param records - Array of chunk embed status records
+ * @returns ChunkEmbedStatusSummary
+ */
+export function calculateChunkEmbedStatusSummary(
+  records: ChunkEmbedStatusRecord[]
+): ChunkEmbedStatusSummary {
+  const summary: ChunkEmbedStatusSummary = {
+    total: records.length,
+    pending: 0,
+    inProgress: 0,
+    succeeded: 0,
+    failedRetryable: 0,
+    failedPermanent: 0,
+    isComplete: false,
+    allSucceeded: false,
+    hasFailures: false,
+    failedChunkIds: [],
+  };
+
+  for (const record of records) {
+    switch (record.status) {
+      case ChunkEmbedStatus.PENDING:
+        summary.pending++;
+        break;
+      case ChunkEmbedStatus.IN_PROGRESS:
+        summary.inProgress++;
+        break;
+      case ChunkEmbedStatus.SUCCEEDED:
+        summary.succeeded++;
+        break;
+      case ChunkEmbedStatus.FAILED_RETRYABLE:
+        summary.failedRetryable++;
+        summary.failedChunkIds!.push(record.chunkId);
+        break;
+      case ChunkEmbedStatus.FAILED_PERMANENT:
+        summary.failedPermanent++;
+        summary.failedChunkIds!.push(record.chunkId);
+        break;
+    }
+  }
+
+  // Processing is complete when no chunks are pending or in progress
+  summary.isComplete =
+    summary.pending === 0 && summary.inProgress === 0 && summary.total > 0;
+
+  // All succeeded when complete and no failures
+  summary.allSucceeded =
+    summary.isComplete &&
+    summary.failedRetryable === 0 &&
+    summary.failedPermanent === 0;
+
+  // Has failures if any failed (retryable or permanent)
+  summary.hasFailures =
+    summary.failedRetryable > 0 || summary.failedPermanent > 0;
+
+  return summary;
+}
+
+/**
+ * Checks if a chunk embed status indicates processing is still in progress.
+ *
+ * @param status - Chunk embed status
+ * @returns true if the chunk is still being processed
+ */
+export function isChunkEmbedInProgress(status: ChunkEmbedStatus): boolean {
+  return (
+    status === ChunkEmbedStatus.PENDING ||
+    status === ChunkEmbedStatus.IN_PROGRESS
+  );
+}
+
+/**
+ * Checks if a chunk embed status indicates a terminal state (completed or permanently failed).
+ *
+ * @param status - Chunk embed status
+ * @returns true if the chunk is in a terminal state
+ */
+export function isChunkEmbedTerminal(status: ChunkEmbedStatus): boolean {
+  return (
+    status === ChunkEmbedStatus.SUCCEEDED ||
+    status === ChunkEmbedStatus.FAILED_PERMANENT
+  );
+}
+
+/**
+ * Checks if a chunk embed status indicates failure.
+ *
+ * @param status - Chunk embed status
+ * @returns true if the chunk failed
+ */
+export function isChunkEmbedFailed(status: ChunkEmbedStatus): boolean {
+  return (
+    status === ChunkEmbedStatus.FAILED_RETRYABLE ||
+    status === ChunkEmbedStatus.FAILED_PERMANENT
+  );
+}
+
+/**
+ * Determines the suggested run status based on embedding completion.
+ *
+ * @param summary - Chunk embed status summary
+ * @param hasPageFailures - Whether there were page-level failures
+ * @returns Suggested run status
+ */
+export function determineRunStatusFromEmbedding(
+  summary: ChunkEmbedStatusSummary,
+  hasPageFailures: boolean
+): "succeeded" | "partial" | "embedding_incomplete" {
+  // If embedding is not complete, return embedding_incomplete
+  if (!summary.isComplete) {
+    return "embedding_incomplete";
+  }
+
+  // If there are embedding failures or page failures, return partial
+  if (summary.hasFailures || hasPageFailures) {
+    return "partial";
+  }
+
+  // All embeddings succeeded and no page failures
+  return "succeeded";
+}
+
+/**
+ * Gets the TTL for chunk embed status keys.
+ *
+ * @returns TTL in seconds
+ */
+export function getChunkEmbedStatusKeyTtl(): number {
+  return CHUNK_EMBED_STATUS_KEY_TTL_SECONDS;
+}
+
+// Re-export chunk embed status constants for convenience
+export {
+  CHUNK_EMBED_STATUS_KEY_PREFIX,
+  CHUNK_EMBED_STATUS_KEY_TTL_SECONDS,
+  CHUNK_EMBED_FAILED_SET_KEY_PREFIX,
+  EMBED_COMPLETION_GATING_DISABLED_ENV_VAR,
+  DEFAULT_EMBED_COMPLETION_WAIT_MS,
+  EMBED_COMPLETION_CHECK_INTERVAL_MS,
+  EMBED_COMPLETION_ENV_VARS,
+};
