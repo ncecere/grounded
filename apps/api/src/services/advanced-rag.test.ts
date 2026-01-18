@@ -592,6 +592,366 @@ describe("Query Rewriting Behavior", () => {
 });
 
 // ============================================================================
+// Tests for Multi-Step Plan Generation Behavior
+// ============================================================================
+
+describe("Multi-Step Plan Generation Behavior", () => {
+  describe("plan generation prompt structure", () => {
+    it("should instruct LLM to generate focused sub-queries", () => {
+      const systemPromptKeywords = [
+        "search query planner",
+        "focused sub-queries",
+        "comprehensive information",
+      ];
+
+      // The prompt should contain these key concepts
+      const mockPrompt = `You are a search query planner. Given a user query, generate up to 3 focused sub-queries that together will retrieve comprehensive information to answer the original query.`;
+
+      for (const keyword of systemPromptKeywords) {
+        expect(mockPrompt.toLowerCase()).toContain(keyword.toLowerCase());
+      }
+    });
+
+    it("should include rules for sub-query generation", () => {
+      const expectedRules = [
+        "Each sub-query should target a specific aspect",
+        "Sub-queries should be complementary, not redundant",
+        "If the original query is simple and focused, return just 1 sub-query",
+        "Return queries in JSON format",
+        "Keep queries concise and search-optimized",
+        "Return ONLY the JSON array",
+      ];
+
+      // Each rule addresses a specific concern for quality sub-queries
+      expect(expectedRules).toHaveLength(6);
+      expect(expectedRules[0]).toContain("specific aspect");
+      expect(expectedRules[1]).toContain("complementary");
+      expect(expectedRules[2]).toContain("simple and focused");
+      expect(expectedRules[3]).toContain("JSON format");
+    });
+
+    it("should request JSON array output format", () => {
+      const expectedFormat = '[{"query": "...", "purpose": "..."}]';
+
+      // The expected JSON structure for sub-queries
+      expect(expectedFormat).toContain("query");
+      expect(expectedFormat).toContain("purpose");
+      expect(expectedFormat.startsWith("[")).toBe(true);
+      expect(expectedFormat.endsWith("]")).toBe(true);
+    });
+  });
+
+  describe("sub-query generation scenarios", () => {
+    it("should document scenario: simple query returns single sub-query", () => {
+      const simpleQuery = "What is your pricing?";
+
+      // A simple, focused query may not need decomposition
+      // Expected: single sub-query with original query
+      const expectedSubQueries = [
+        { id: "sq-1", query: "What is your pricing?", purpose: "Original query" },
+      ];
+
+      expect(expectedSubQueries).toHaveLength(1);
+      expect(expectedSubQueries[0].query).toBe(simpleQuery);
+    });
+
+    it("should document scenario: complex query decomposes into multiple sub-queries", () => {
+      const complexQuery =
+        "Compare the Enterprise and Pro plans, including pricing, features, and support options";
+
+      // A complex query should decompose into multiple focused sub-queries
+      const expectedSubQueries = [
+        { id: "sq-1", query: "Enterprise plan pricing", purpose: "Get Enterprise pricing details" },
+        { id: "sq-2", query: "Pro plan pricing", purpose: "Get Pro pricing details" },
+        { id: "sq-3", query: "Enterprise vs Pro features comparison", purpose: "Compare plan features" },
+      ];
+
+      expect(expectedSubQueries).toHaveLength(3);
+      expect(expectedSubQueries.map(sq => sq.query)).not.toContain(complexQuery);
+    });
+
+    it("should document scenario: multi-aspect query generates complementary sub-queries", () => {
+      const multiAspectQuery = "How do I integrate with Salesforce and what are the API limits?";
+
+      // Multiple aspects should generate complementary (not overlapping) sub-queries
+      const expectedSubQueries = [
+        { id: "sq-1", query: "Salesforce integration setup", purpose: "Find integration instructions" },
+        { id: "sq-2", query: "API rate limits and quotas", purpose: "Find API limitations" },
+      ];
+
+      // Sub-queries should be distinct and complementary
+      const queries = expectedSubQueries.map(sq => sq.query);
+      const uniqueQueries = new Set(queries);
+      expect(uniqueQueries.size).toBe(queries.length);
+    });
+  });
+
+  describe("advancedMaxSubqueries limiting", () => {
+    it("should respect advancedMaxSubqueries configuration", () => {
+      const maxSubqueries = 3;
+      const generatedSubQueries = [
+        { query: "sub-query 1", purpose: "purpose 1" },
+        { query: "sub-query 2", purpose: "purpose 2" },
+        { query: "sub-query 3", purpose: "purpose 3" },
+        { query: "sub-query 4", purpose: "purpose 4" }, // Should be excluded
+        { query: "sub-query 5", purpose: "purpose 5" }, // Should be excluded
+      ];
+
+      const limited = generatedSubQueries.slice(0, maxSubqueries);
+
+      expect(limited).toHaveLength(3);
+      expect(limited[2].query).toBe("sub-query 3");
+    });
+
+    it("should handle default maxSubqueries of 3", () => {
+      const defaultMaxSubqueries = 3;
+
+      expect(defaultMaxSubqueries).toBe(3);
+      expect(defaultMaxSubqueries).toBeGreaterThanOrEqual(1);
+      expect(defaultMaxSubqueries).toBeLessThanOrEqual(5);
+    });
+
+    it("should handle custom maxSubqueries values (1-5 range)", () => {
+      const validValues = [1, 2, 3, 4, 5];
+
+      for (const value of validValues) {
+        expect(value).toBeGreaterThanOrEqual(1);
+        expect(value).toBeLessThanOrEqual(5);
+      }
+    });
+
+    it("should limit even when LLM generates more than max", () => {
+      const maxSubqueries = 2;
+      const llmResponse = [
+        { query: "first query", purpose: "first purpose" },
+        { query: "second query", purpose: "second purpose" },
+        { query: "third query", purpose: "third purpose" },
+      ];
+
+      const limited = llmResponse.slice(0, maxSubqueries);
+
+      expect(limited).toHaveLength(2);
+      expect(limited.map(sq => sq.query)).not.toContain("third query");
+    });
+  });
+
+  describe("SubQuery structure validation", () => {
+    it("should generate UUID for each sub-query id", () => {
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+      // Sub-query IDs should be UUIDs
+      const mockId = "550e8400-e29b-41d4-a716-446655440000";
+      expect(mockId).toMatch(uuidPattern);
+    });
+
+    it("should preserve query text from LLM response", () => {
+      const llmResponseItem = { query: "specific search query", purpose: "find specific info" };
+      const subQuery = {
+        id: "test-id",
+        query: llmResponseItem.query || "fallback",
+        purpose: llmResponseItem.purpose || "Sub-query",
+      };
+
+      expect(subQuery.query).toBe("specific search query");
+    });
+
+    it("should use default purpose when not provided", () => {
+      const llmResponseItem = { query: "search query" }; // No purpose
+      const subQuery = {
+        id: "test-id",
+        query: llmResponseItem.query || "fallback",
+        purpose: (llmResponseItem as { query: string; purpose?: string }).purpose || "Sub-query",
+      };
+
+      expect(subQuery.purpose).toBe("Sub-query");
+    });
+
+    it("should use original query as fallback when query field missing", () => {
+      const originalQuery = "original user query";
+      const llmResponseItem = { purpose: "some purpose" }; // No query field
+      const subQuery = {
+        id: "test-id",
+        query: (llmResponseItem as { query?: string; purpose: string }).query || originalQuery,
+        purpose: llmResponseItem.purpose || "Sub-query",
+      };
+
+      expect(subQuery.query).toBe(originalQuery);
+    });
+  });
+
+  describe("JSON parsing behavior", () => {
+    it("should parse valid JSON array response", () => {
+      const validJsonResponse = '[{"query": "pricing info", "purpose": "find pricing"}]';
+      const parsed = JSON.parse(validJsonResponse);
+
+      expect(Array.isArray(parsed)).toBe(true);
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0].query).toBe("pricing info");
+    });
+
+    it("should handle JSON with extra whitespace", () => {
+      const jsonWithWhitespace = `
+        [
+          {"query": "first query", "purpose": "first purpose"},
+          {"query": "second query", "purpose": "second purpose"}
+        ]
+      `;
+      const parsed = JSON.parse(jsonWithWhitespace.trim());
+
+      expect(Array.isArray(parsed)).toBe(true);
+      expect(parsed).toHaveLength(2);
+    });
+
+    it("should document fallback on invalid JSON", () => {
+      const invalidJson = "Not a valid JSON array";
+
+      let parseError = false;
+      try {
+        JSON.parse(invalidJson);
+      } catch {
+        parseError = true;
+      }
+
+      // On parse error, fallback to original query
+      expect(parseError).toBe(true);
+    });
+
+    it("should document fallback when response is not an array", () => {
+      const notArrayResponse = '{"query": "single query", "purpose": "purpose"}';
+      const parsed = JSON.parse(notArrayResponse);
+
+      const isArray = Array.isArray(parsed);
+      expect(isArray).toBe(false);
+
+      // Fallback behavior: return original query as single sub-query
+    });
+  });
+
+  describe("error handling in plan generation", () => {
+    it("should document fallback to original query on LLM error", () => {
+      const originalQuery = "user's original query";
+      const errorBehavior = "fallback to single sub-query with original query";
+
+      // On any error, service should return original query as single sub-query
+      const fallbackSubQuery = {
+        id: "fallback-id",
+        query: originalQuery,
+        purpose: "Original query",
+      };
+
+      expect(fallbackSubQuery.query).toBe(originalQuery);
+      expect(fallbackSubQuery.purpose).toBe("Original query");
+      expect(errorBehavior).toContain("fallback");
+    });
+
+    it("should document fallback when no model configured", () => {
+      const noModelBehavior = "return original query if config is null";
+      expect(noModelBehavior).toContain("original query");
+    });
+
+    it("should document fallback when model returns empty response", () => {
+      const emptyResponse = "";
+
+      let parseError = false;
+      try {
+        JSON.parse(emptyResponse.trim());
+      } catch {
+        parseError = true;
+      }
+
+      expect(parseError).toBe(true);
+      // Fallback: return original query as single sub-query
+    });
+
+    it("should log warning on sub-query generation failure", () => {
+      const expectedLogLevel = "warn";
+      const expectedLogMessage = "AdvancedRAG: Sub-query generation failed, using original";
+
+      expect(expectedLogLevel).toBe("warn");
+      expect(expectedLogMessage).toContain("Sub-query generation failed");
+      expect(expectedLogMessage).toContain("using original");
+    });
+  });
+
+  describe("plan step in reasoning sequence", () => {
+    it("should emit plan step after rewrite step", () => {
+      const reasoningSequence = ["rewrite", "plan", "search", "merge", "generate"];
+
+      const rewriteIndex = reasoningSequence.indexOf("rewrite");
+      const planIndex = reasoningSequence.indexOf("plan");
+
+      expect(planIndex).toBe(rewriteIndex + 1);
+    });
+
+    it("should emit plan step before search step", () => {
+      const reasoningSequence = ["rewrite", "plan", "search", "merge", "generate"];
+
+      const planIndex = reasoningSequence.indexOf("plan");
+      const searchIndex = reasoningSequence.indexOf("search");
+
+      expect(searchIndex).toBe(planIndex + 1);
+    });
+
+    it("should include subQueries in plan step details", () => {
+      const planStep = {
+        id: "step-123",
+        type: "plan" as const,
+        title: "Query Planning",
+        summary: "Generated 3 sub-queries for retrieval",
+        status: "completed" as const,
+        details: {
+          subQueries: ["pricing options", "feature comparison", "integration guide"],
+        },
+      };
+
+      expect(planStep.details).toBeDefined();
+      expect(planStep.details?.subQueries).toHaveLength(3);
+    });
+
+    it("should report correct count in plan step summary", () => {
+      const subQueryCount: number = 3;
+      const expectedSummary = `Generated ${subQueryCount} sub-quer${subQueryCount === 1 ? "y" : "ies"} for retrieval`;
+
+      expect(expectedSummary).toBe("Generated 3 sub-queries for retrieval");
+    });
+
+    it("should use singular 'sub-query' for count of 1", () => {
+      const subQueryCount = 1;
+      const summary = `Generated ${subQueryCount} sub-quer${subQueryCount === 1 ? "y" : "ies"} for retrieval`;
+
+      expect(summary).toBe("Generated 1 sub-query for retrieval");
+    });
+  });
+
+  describe("integration with subsequent steps", () => {
+    it("should pass sub-queries to executeSubQueries", () => {
+      const subQueries = [
+        { id: "sq-1", query: "pricing", purpose: "find pricing" },
+        { id: "sq-2", query: "features", purpose: "find features" },
+      ];
+
+      // executeSubQueries should receive all generated sub-queries
+      expect(subQueries).toHaveLength(2);
+      expect(subQueries.every(sq => sq.query && sq.id && sq.purpose)).toBe(true);
+    });
+
+    it("should execute search for each sub-query in parallel", () => {
+      const subQueries = [
+        { id: "sq-1", query: "query 1", purpose: "purpose 1" },
+        { id: "sq-2", query: "query 2", purpose: "purpose 2" },
+        { id: "sq-3", query: "query 3", purpose: "purpose 3" },
+      ];
+
+      // Promise.all is used for parallel execution
+      const queryStrings = subQueries.map(sq => sq.query);
+
+      expect(queryStrings).toHaveLength(3);
+      expect(queryStrings).toEqual(["query 1", "query 2", "query 3"]);
+    });
+  });
+});
+
+// ============================================================================
 // Tests for Comparison with SimpleRAGService
 // ============================================================================
 

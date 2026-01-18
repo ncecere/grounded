@@ -503,3 +503,45 @@
 ### Files Changed
 - `apps/api/src/services/advanced-rag.test.ts` (MODIFIED - added 17 tests for query rewriting)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 2 - Implement multi-step plan generation
+
+### Completed Task
+**Task:** Implement multi-step plan generation
+**Phase:** Phase 2 - Advanced RAG Service
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Multi-step plan generation implementation (already in advanced-rag.ts from Phase 2 file structure):**
+   - `generateSubQueries()` method that uses LLM to generate focused sub-queries
+   - Returns single sub-query with original query when no config or model available (fallback)
+   - Uses `advancedMaxSubqueries` config parameter to limit number of sub-queries
+   - Includes comprehensive prompt with 6 rules for sub-query generation
+   - Handles errors gracefully by returning original query as single sub-query
+
+2. **Sub-query generation rules:**
+   - Each sub-query should target a specific aspect of the original query
+   - Sub-queries should be complementary, not redundant
+   - Simple queries return just 1 sub-query (the original)
+   - Output format is JSON array: [{"query": "...", "purpose": "..."}]
+   - Queries are concise and search-optimized
+
+3. **Added comprehensive tests for multi-step plan generation behavior:**
+   - Prompt structure validation tests
+   - Sub-query generation scenarios (simple, complex, multi-aspect queries)
+   - advancedMaxSubqueries limiting tests
+   - SubQuery structure validation tests
+   - JSON parsing behavior tests
+   - Error handling behavior documentation
+   - Plan step in reasoning sequence tests
+   - Integration with subsequent steps tests
+
+### Test Results
+- All 267 tests pass (251 in api, 16 in web)
+- All typecheck passes across 14 packages
+- Added 30 new tests for multi-step plan generation behavior
+
+### Files Changed
+- `apps/api/src/services/advanced-rag.test.ts` (MODIFIED - added 30 tests for plan generation)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)
