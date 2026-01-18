@@ -222,7 +222,7 @@ tasks:
     file: phase-7-testing-docs.md
 
   - title: Update CLAUDE.md documentation
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [docs]
     file: phase-7-testing-docs.md

@@ -1764,3 +1764,38 @@ Verified that the retrieval config routes already properly support the `historyT
 ### Files Changed
 - `apps/api/src/routes/chat-integration.test.ts` (NEW - 115 tests)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 5 - Update CLAUDE.md documentation
+
+### Completed Task
+**Task:** Update CLAUDE.md documentation
+**Phase:** Phase 5 - Testing & Docs
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Updated RAG Pipeline documentation:**
+   - Added distinction between Simple RAG and Advanced RAG modes
+   - Simple RAG: Single-pass retrieval with direct response generation
+   - Advanced RAG: Multi-step pipeline with query rewriting, sub-query planning, and visible reasoning
+
+2. **Added new "Agent Configuration" section:**
+   - Documented `ragType` field with "simple" and "advanced" options
+   - Explained Simple RAG behavior (default mode, fastest response)
+   - Explained Advanced RAG behavior (multi-step reasoning, 5 visible steps)
+
+3. **Documented Advanced RAG Settings:**
+   - `historyTurns` (1-20, default 5): Controls conversation context for query rewriting
+   - `advancedMaxSubqueries` (1-5, default 3): Controls sub-query generation for retrieval
+
+4. **Documented SSE Stream Events:**
+   - Listed Simple RAG events: status, text, sources, done, error
+   - Listed additional Advanced RAG event: reasoning (step type, title, summary, status)
+
+### Test Results
+- All 1,306 tests pass (749 in api, 342 in web, 215 in widget)
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `CLAUDE.md` (MODIFIED - added Advanced RAG documentation)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)
