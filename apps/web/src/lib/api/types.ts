@@ -201,6 +201,25 @@ export interface ChatMessage {
 }
 
 // =============================================================================
+// Reasoning Types (for Advanced RAG)
+// =============================================================================
+
+export type ReasoningStepType = "rewrite" | "plan" | "search" | "merge" | "generate";
+export type ReasoningStepStatus = "pending" | "in_progress" | "completed" | "error";
+
+/**
+ * Represents a single step in the advanced RAG reasoning process
+ */
+export interface ReasoningStep {
+  id: string;
+  type: ReasoningStepType;
+  title: string;
+  summary: string;
+  status: ReasoningStepStatus;
+  details?: Record<string, unknown>;
+}
+
+// =============================================================================
 // AI Provider & Model Types
 // =============================================================================
 

@@ -1210,3 +1210,54 @@ Verified that the retrieval config routes already properly support the `historyT
 - `apps/web/src/components/agents/AgentFormModal.tsx` (MODIFIED - added validation logic and UI)
 - `apps/web/src/components/agents/AgentFormModal.test.ts` (MODIFIED - added 55 tests for validation)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 5 - Update chat API client for reasoning events
+
+### Completed Task
+**Task:** Update chat API client for reasoning events
+**Phase:** Phase 5 - Frontend Chat UI
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Added ReasoningStep types to web types (apps/web/src/lib/api/types.ts):**
+   - Added `ReasoningStepType` type: `"rewrite" | "plan" | "search" | "merge" | "generate"`
+   - Added `ReasoningStepStatus` type: `"pending" | "in_progress" | "completed" | "error"`
+   - Added `ReasoningStep` interface with fields: id, type, title, summary, status, optional details
+
+2. **Added advancedChatStream method (apps/web/src/lib/api/chat.ts):**
+   - New async streaming method that handles reasoning events from AdvancedRAGService
+   - Parameters: agentId, message, conversationId, onChunk, onSources, onDone, onError, onReasoning, onStatus
+   - Handles all event types: status, reasoning, text, sources, done, error
+   - Uses same SSE parsing pattern as simpleChatStream
+   - Calls onReasoning callback when reasoning events are received
+
+3. **Updated unified API object (apps/web/src/lib/api/index.ts):**
+   - Added `advancedChatStream: chatApi.advancedChatStream` to unified api object
+
+4. **Added comprehensive tests (apps/web/src/lib/api/chat.test.ts):**
+   - 41 tests covering:
+     - Module exports (chatApi object, all methods)
+     - Method signatures and parameter counts
+     - ReasoningStep type and interface contracts
+     - Event type handling (status, reasoning, text, sources, done, error)
+     - Reasoning step sequence documentation
+     - Step-specific details for each step type
+     - Unified api object integration
+     - Callback signature differences between simple and advanced
+
+5. **Updated existing api.test.ts:**
+   - Added advancedChatStream to chatApi export test
+   - Added advancedChatStream to unified api object test
+
+### Test Results
+- All 200 tests pass in web (increased from 159)
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `apps/web/src/lib/api/types.ts` (MODIFIED - added ReasoningStep types)
+- `apps/web/src/lib/api/chat.ts` (MODIFIED - added advancedChatStream method)
+- `apps/web/src/lib/api/index.ts` (MODIFIED - added advancedChatStream to unified api)
+- `apps/web/src/lib/api/chat.test.ts` (NEW - 41 tests)
+- `apps/web/src/lib/api/api.test.ts` (MODIFIED - added advancedChatStream tests)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)

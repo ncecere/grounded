@@ -156,7 +156,7 @@ tasks:
     file: phase-4-frontend-agent-form.md
 
   - title: Update chat API client for reasoning events
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [web, api-client, chat]
     file: phase-5-frontend-chat-ui.md

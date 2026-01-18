@@ -88,6 +88,7 @@ export const api = {
   // Chat
   chat: chatApi.chat,
   simpleChatStream: chatApi.simpleChatStream,
+  advancedChatStream: chatApi.advancedChatStream,
 
   // Tools
   listTools: toolsApi.listTools,
