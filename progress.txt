@@ -854,3 +854,56 @@ Enhanced the AdvancedRAGService's `buildSystemPrompt` method to include explicit
 - `apps/api/src/services/widget-chat-helpers.ts` (MODIFIED - added RAG type routing)
 - `apps/api/src/services/widget-chat-helpers.test.ts` (MODIFIED - added 31 tests)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 3 - Update chat endpoint route for RAG type routing
+
+### Completed Task
+**Task:** Update chat endpoint route for RAG type routing
+**Phase:** Phase 3 - API Routing & Integration
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Updated chat endpoint route to support RAG type routing:**
+   - `apps/api/src/routes/chat-endpoint.ts`
+   - Added import for AdvancedRAGService and ReasoningStep type
+   - Updated non-streaming handler (`/:token/chat`) to route based on agent's ragType
+   - Updated streaming handler (`/:token/chat/stream`) to route based on agent's ragType
+   - Routes to AdvancedRAGService when ragType is "advanced" (uses "chat_endpoint" channel)
+   - Routes to SimpleRAGService when ragType is "simple" (default)
+
+2. **Non-streaming response changes for Advanced mode:**
+   - Collects completed reasoning steps during execution
+   - Includes `reasoningSteps` array in JSON response for advanced agents
+   - Response structure: `{ answer, citations, conversationId, reasoningSteps? }`
+
+3. **Streaming response changes for Advanced mode:**
+   - Passes through `reasoning` events from AdvancedRAGService
+   - Passes through `status` events from service (with sourceCount)
+   - All other event types (text, sources, done, error) work the same as simple mode
+
+4. **Added comprehensive tests:**
+   - `apps/api/src/routes/chat-endpoint.test.ts` (NEW - 84 tests)
+   - chatRequestSchema validation tests
+   - RAG type routing logic tests
+   - Non-streaming response structure tests (simple vs advanced)
+   - ReasoningStep interface tests
+   - Stream event type tests (Simple and Advanced)
+   - SSE headers tests
+   - Rate limiting configuration tests
+   - Token validation tests
+   - Agent lookup tests
+   - Streaming response behavior tests
+   - Citation handling tests
+   - Error handling tests
+   - Channel configuration tests
+
+### Test Results
+- All 573 tests pass (557 in api, 16 in web)
+- All typecheck passes across 14 packages
+- Added 84 new tests for chat endpoint RAG type routing
+
+### Files Changed
+- `apps/api/src/routes/chat-endpoint.ts` (MODIFIED - added RAG type routing)
+- `apps/api/src/routes/chat-endpoint.test.ts` (NEW - 84 tests)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)
