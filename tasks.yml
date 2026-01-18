@@ -20,7 +20,7 @@ tasks:
     tags: [architecture, jobs]
 
   - title: Define error taxonomy with retryable vs permanent categories
-    completed: false
+    completed: true
     parallel_group: 1
     tags: [reliability, errors]
 

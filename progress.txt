@@ -81,3 +81,61 @@ Implemented standardized Zod schemas for all job payloads with clear distinction
 - All 59 new tests pass
 - All existing tests pass (1306 tests across all packages)
 - TypeScript typechecking passes
+
+## 2026-01-18: Define error taxonomy with retryable vs permanent categories
+
+### Summary
+Implemented a comprehensive error classification system with retryable vs permanent error categories for the ingestion pipeline. The taxonomy enables intelligent retry decisions, proper stage status tracking, and structured error logging.
+
+### Changes Made
+1. **packages/shared/src/errors/index.ts** (new file)
+   - Added `ErrorCategory` enum with 9 categories: network, service, content, configuration, not_found, validation, auth, system, unknown
+   - Added `ErrorCode` enum with 35 specific error codes across all categories
+   - Added `ERROR_RETRYABILITY` map classifying each error code as retryable or permanent
+   - Added `ERROR_CATEGORIES` map linking error codes to their categories
+   - Added `IngestionError` base class extending Error with code, category, retryable, cause, metadata, and httpStatus properties
+   - Added specialized error classes: `NetworkError`, `ServiceError`, `ContentError`, `ConfigurationError`, `NotFoundError`, `ValidationError`, `AuthError`, `SystemError`
+   - Added type aliases for error codes: `ServiceErrorCode`, `ContentErrorCode`, `ConfigurationErrorCode`, `NotFoundErrorCode`, `ValidationErrorCode`, `AuthErrorCode`
+   - Added utility functions:
+     - `isRetryableError()` - Determines if an error is retryable
+     - `classifyHttpStatus()` - Maps HTTP status codes to error codes
+     - `classifyError()` - Classifies generic errors into structured IngestionErrors
+     - `getErrorInfo()` - Extracts error information for logging
+     - `createHttpError()` - Creates appropriate error type from HTTP status
+
+2. **packages/shared/src/index.ts**
+   - Added export for the new errors module
+
+3. **packages/shared/src/errors/errors.test.ts** (new file)
+   - Added 89 tests covering all error categories, codes, and utilities
+   - Tests validate retryability classification, error creation, and utility functions
+   - Tests cover edge cases and error classification patterns
+
+### Key Design Decisions
+- **Retryable by default**: Network timeouts, connection errors, 5xx HTTP errors, and database errors are retryable
+- **Permanent errors**: Content errors (too large, invalid format), configuration errors, validation errors, and auth errors are permanent
+- **Conservative approach**: Unknown errors default to retryable to avoid dropping recoverable failures
+- **Structured logging**: All errors serialize to JSON with code, category, message, retryable status, and cause
+
+### Error Categories
+| Category | Retryable | Examples |
+|----------|-----------|----------|
+| network | mostly yes | timeout, connection refused, DNS failure |
+| service | mostly yes | rate limited, 503, 502, gateway timeout |
+| content | no | too large, invalid format, empty content |
+| configuration | no | missing API key, dimension mismatch |
+| not_found | no | resource not found, KB not found |
+| validation | no | invalid URL, schema violation |
+| auth | no | unauthorized, forbidden |
+| system | varies | database error (yes), disk full (no) |
+| unknown | yes | unclassified errors |
+
+### Acceptance Criteria Met
+- ✅ Define error taxonomy with retryable vs permanent categories
+- ✅ Comprehensive error codes for all ingestion scenarios
+- ✅ Utility functions for error classification and logging
+
+### Tests
+- All 89 new tests pass
+- All existing tests pass (208 tests in shared package)
+- TypeScript typechecking passes
