@@ -626,6 +626,51 @@ export const ROBOTS_TXT_DISABLED_ENV_VAR = "ROBOTS_TXT_DISABLED";
 export const ROBOTS_TXT_DEBUG_ENV_VAR = "ROBOTS_TXT_DEBUG";
 
 // ============================================================================
+// Stage Metrics Configuration
+// ============================================================================
+
+/**
+ * Default interval (ms) for emitting stage metrics during long-running operations.
+ * Metrics are also emitted at stage completion.
+ */
+export const DEFAULT_METRICS_EMIT_INTERVAL_MS = 30000; // 30 seconds
+
+/**
+ * Environment variable to override the metrics emit interval.
+ */
+export const METRICS_EMIT_INTERVAL_ENV_VAR = "METRICS_EMIT_INTERVAL_MS";
+
+/**
+ * Environment variable to disable metrics emission entirely.
+ * Set to "true" or "1" to disable.
+ */
+export const METRICS_DISABLED_ENV_VAR = "STAGE_METRICS_DISABLED";
+
+/**
+ * Redis key prefix for storing aggregated stage metrics per run.
+ * Key pattern: stage_metrics:{runId}:{stage}
+ */
+export const STAGE_METRICS_KEY_PREFIX = "stage_metrics:";
+
+/**
+ * TTL for stage metrics keys in seconds.
+ * Should survive run completion for debugging and analytics.
+ */
+export const STAGE_METRICS_KEY_TTL_SECONDS = 86400; // 24 hours
+
+/**
+ * Environment variable names for stage metrics configuration.
+ */
+export const STAGE_METRICS_ENV_VARS = {
+  /** Override metrics emit interval */
+  EMIT_INTERVAL_MS: "METRICS_EMIT_INTERVAL_MS",
+  /** Disable metrics entirely */
+  DISABLED: "STAGE_METRICS_DISABLED",
+  /** Enable debug logging for metrics */
+  DEBUG: "STAGE_METRICS_DEBUG",
+} as const;
+
+// ============================================================================
 // API Versions
 // ============================================================================
 

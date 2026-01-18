@@ -1165,3 +1165,131 @@ Implemented structured logging for robots.txt override usage and blocked URLs. T
 - All 57 new tests pass
 - All existing tests pass (936 tests in shared package)
 - TypeScript typechecking passes across all packages
+
+## 2026-01-18: Emit per-stage throughput and latency metrics
+
+### Summary
+Implemented comprehensive per-stage throughput and latency metrics for the ingestion pipeline. The system enables collecting, aggregating, and emitting metrics for each pipeline stage (discover, fetch, extract, chunk, embed, index), with support for real-time accumulation, worker merging, and structured logging.
+
+### Changes Made
+1. **packages/shared/src/constants/index.ts**
+   - Added `DEFAULT_METRICS_EMIT_INTERVAL_MS` (30000) - Default interval for emitting periodic metrics
+   - Added `METRICS_EMIT_INTERVAL_ENV_VAR` - Environment variable to override emit interval
+   - Added `METRICS_DISABLED_ENV_VAR` - Environment variable to disable metrics entirely
+   - Added `STAGE_METRICS_KEY_PREFIX` ("stage_metrics:") - Redis key prefix for storing metrics
+   - Added `STAGE_METRICS_KEY_TTL_SECONDS` (86400) - 24-hour TTL for metrics keys
+   - Added `STAGE_METRICS_ENV_VARS` - Object with all metrics-related env var names
+
+2. **packages/shared/src/types/index.ts**
+   - Added `StageLatencyStats` interface - Tracks min/max/sum/count/average latency
+   - Added `StageThroughputMetrics` interface - Items completed/failed/skipped, success rate, throughput/s
+   - Added `StageLatencyMetrics` interface - Min/max/average latency, total duration, sample count
+   - Added `StageMetrics` interface - Combined throughput and latency with wall clock timing
+   - Added `StageItemTiming` interface - Per-item timing record with outcome and error tracking
+   - Added `RunStageMetricsAccumulator` interface - In-memory accumulator for a run
+   - Added `StageMetricsData` interface - Internal data structure for per-stage accumulation
+   - Added `StageMetricsSnapshot` interface - Point-in-time metrics snapshot for logging
+   - Added `RunMetricsSummary` interface - Complete run summary with critical path and bottleneck detection
+   - Added `StageMetricsConfig` interface - Configuration with enabled/interval/debug settings
+   - Added `StageMetricsLog` interface - Structured log entry for stage metrics
+   - Added helper functions:
+     - `isStageMetricsDisabled()` - Checks if metrics are disabled via env var
+     - `isStageMetricsDebugEnabled()` - Checks if debug logging is enabled
+     - `getStageMetricsEmitInterval()` - Gets emit interval from env or default
+     - `getStageMetricsConfig()` - Gets full config from environment
+     - `buildStageMetricsKey()` - Builds Redis key for stage metrics
+     - `getStageMetricsKeyTtl()` - Gets TTL for metrics keys
+     - `createEmptyLatencyStats()` - Creates empty latency stats object
+     - `createEmptyStageMetricsData()` - Creates empty stage data object
+     - `createRunStageMetricsAccumulator()` - Creates accumulator for a run
+     - `updateLatencyStats()` - Updates latency stats with new sample
+     - `recordItemTiming()` - Records item timing into accumulator
+     - `createStageItemTiming()` - Creates timing record with duration calculation
+     - `calculateThroughputMetrics()` - Calculates throughput from stage data
+     - `calculateLatencyMetrics()` - Calculates latency from stage data
+     - `calculateStageMetrics()` - Calculates combined metrics
+     - `createStageMetricsSnapshot()` - Creates snapshot from accumulator
+     - `createRunMetricsSummary()` - Creates complete run summary
+     - `createStageMetricsLog()` - Creates structured log entry
+     - `formatStageMetricsLog()` - Formats log for human readability
+     - `createStructuredRunMetricsLog()` - Creates JSON-compatible summary log
+     - `mergeStageMetricsData()` - Merges metrics from multiple workers
+     - `serializeStageMetricsData()` - Serializes for Redis storage
+     - `deserializeStageMetricsData()` - Deserializes from Redis storage
+
+3. **packages/shared/src/types/stage-metrics.test.ts** (new file)
+   - Added 67 tests covering all new types, constants, and functions
+   - Tests validate configuration resolution from environment
+   - Tests cover latency stats accumulation and aggregation
+   - Tests cover throughput and success rate calculations
+   - Tests cover snapshot and summary creation
+   - Tests cover structured logging and human-readable formatting
+   - Tests cover metrics merging for distributed workers
+   - Tests cover serialization/deserialization round-trips
+   - Tests include integration scenarios for complete pipeline processing
+
+### Key Design Decisions
+- **In-memory accumulation**: Metrics are accumulated in-memory per-run for performance
+- **Wall clock vs processing time**: Tracks both individual item durations and overall wall clock time
+- **Critical path detection**: Summary identifies stages sorted by latency (slowest first)
+- **Bottleneck detection**: Summary identifies stage with lowest throughput
+- **Worker merging**: Support for merging metrics from distributed workers
+- **Redis persistence**: Stage metrics can be stored in Redis for cross-process aggregation
+- **Configurable**: Metrics can be disabled, emit interval can be customized via env vars
+
+### Metrics Collected
+| Metric | Description |
+|--------|-------------|
+| itemsCompleted | Successfully processed items |
+| itemsFailed | Failed items |
+| itemsSkipped | Skipped items |
+| successRate | Percentage of successful items (0-100) |
+| throughputPerSecond | Items completed per second |
+| minLatencyMs | Minimum processing time |
+| maxLatencyMs | Maximum processing time |
+| averageLatencyMs | Average processing time |
+| totalDurationMs | Sum of all processing times |
+| wallClockDurationMs | Time from first item start to last item complete |
+
+### Environment Variables
+- `STAGE_METRICS_DISABLED` - Set to "true" or "1" to disable metrics
+- `METRICS_EMIT_INTERVAL_MS` - Override periodic emit interval (default 30000ms)
+- `STAGE_METRICS_DEBUG` - Set to "true" or "1" to enable debug logging
+
+### Structured Log Format
+```typescript
+{
+  event: "stage_metrics",
+  stage: "fetch",
+  runId: "run-123",
+  sourceId: "src-456",
+  tenantId: "tenant-789",
+  timestamp: "2024-01-01T10:00:00.000Z",
+  isFinal: true,
+  itemsCompleted: 100,
+  itemsFailed: 5,
+  itemsSkipped: 2,
+  totalItems: 107,
+  successRate: 93.46,
+  throughputPerSecond: 8.5,
+  minLatencyMs: 50,
+  maxLatencyMs: 5000,
+  averageLatencyMs: 850,
+  totalDurationMs: 91000,
+  wallClockDurationMs: 12500
+}
+```
+
+### Acceptance Criteria Met
+- ✅ Emit per-stage throughput and latency metrics
+- ✅ Track items completed, failed, and skipped per stage
+- ✅ Calculate success rate and throughput
+- ✅ Track min/max/average latency per stage
+- ✅ Support merging metrics from multiple workers
+- ✅ Provide structured logging for observability
+- ✅ Configurable via environment variables
+
+### Tests
+- All 67 new tests pass
+- All existing tests pass (1003 tests in shared package)
+- TypeScript typechecking passes across all packages

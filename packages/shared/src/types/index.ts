@@ -4895,3 +4895,905 @@ export function shouldLogIndividualBlocks(
 ): boolean {
   return config.logIndividualBlocks;
 }
+
+// ============================================================================
+// Stage Metrics Types
+// ============================================================================
+
+import {
+  DEFAULT_METRICS_EMIT_INTERVAL_MS,
+  METRICS_EMIT_INTERVAL_ENV_VAR,
+  METRICS_DISABLED_ENV_VAR,
+  STAGE_METRICS_KEY_PREFIX,
+  STAGE_METRICS_KEY_TTL_SECONDS,
+  STAGE_METRICS_ENV_VARS,
+} from "../constants";
+
+// Re-export constants for convenience
+export {
+  DEFAULT_METRICS_EMIT_INTERVAL_MS,
+  METRICS_EMIT_INTERVAL_ENV_VAR,
+  METRICS_DISABLED_ENV_VAR,
+  STAGE_METRICS_KEY_PREFIX,
+  STAGE_METRICS_KEY_TTL_SECONDS,
+  STAGE_METRICS_ENV_VARS,
+};
+
+/**
+ * Latency statistics for a stage.
+ */
+export interface StageLatencyStats {
+  /** Minimum latency in milliseconds */
+  minMs: number;
+  /** Maximum latency in milliseconds */
+  maxMs: number;
+  /** Sum of all latencies (for calculating average) */
+  sumMs: number;
+  /** Number of samples */
+  count: number;
+  /** Computed average latency (sumMs / count) */
+  averageMs: number;
+}
+
+/**
+ * Throughput metrics for a single stage.
+ */
+export interface StageThroughputMetrics {
+  /** The ingestion stage */
+  stage: IngestionStage;
+  /** Number of items that completed this stage successfully */
+  itemsCompleted: number;
+  /** Number of items that failed at this stage */
+  itemsFailed: number;
+  /** Number of items that were skipped at this stage */
+  itemsSkipped: number;
+  /** Total items processed (completed + failed + skipped) */
+  totalItems: number;
+  /** Success rate as a percentage (0-100) */
+  successRate: number;
+  /** Items processed per second (throughput) */
+  throughputPerSecond: number;
+}
+
+/**
+ * Latency metrics for a single stage.
+ */
+export interface StageLatencyMetrics {
+  /** The ingestion stage */
+  stage: IngestionStage;
+  /** Minimum latency in milliseconds */
+  minLatencyMs: number;
+  /** Maximum latency in milliseconds */
+  maxLatencyMs: number;
+  /** Average latency in milliseconds */
+  averageLatencyMs: number;
+  /** Total duration spent in this stage across all items */
+  totalDurationMs: number;
+  /** Number of latency samples */
+  sampleCount: number;
+}
+
+/**
+ * Combined throughput and latency metrics for a stage.
+ */
+export interface StageMetrics {
+  /** The ingestion stage */
+  stage: IngestionStage;
+  /** Throughput metrics */
+  throughput: StageThroughputMetrics;
+  /** Latency metrics */
+  latency: StageLatencyMetrics;
+  /** When the first item started processing */
+  firstItemStartedAt?: string;
+  /** When the last item completed processing */
+  lastItemCompletedAt?: string;
+  /** Total elapsed time from first to last item */
+  wallClockDurationMs?: number;
+}
+
+/**
+ * Per-item stage timing record.
+ * Used to collect timing data before aggregation.
+ */
+export interface StageItemTiming {
+  /** Unique identifier for the item (page ID, chunk ID, etc.) */
+  itemId: string;
+  /** The ingestion stage */
+  stage: IngestionStage;
+  /** When the item started processing in this stage (ISO timestamp) */
+  startedAt: string;
+  /** When the item finished processing (ISO timestamp) */
+  finishedAt?: string;
+  /** Duration in milliseconds (computed from startedAt and finishedAt) */
+  durationMs?: number;
+  /** Whether the item succeeded, failed, or was skipped */
+  outcome: "completed" | "failed" | "skipped";
+  /** Optional error code if failed */
+  errorCode?: string;
+}
+
+/**
+ * Accumulated metrics for a run.
+ * Used for in-memory aggregation during processing.
+ */
+export interface RunStageMetricsAccumulator {
+  /** Run ID */
+  runId: string;
+  /** Source ID */
+  sourceId: string;
+  /** Tenant ID */
+  tenantId: string;
+  /** When accumulator was created */
+  createdAt: string;
+  /** Last updated timestamp */
+  updatedAt: string;
+  /** Per-stage accumulators */
+  stages: Record<IngestionStage, StageMetricsData>;
+}
+
+/**
+ * Internal data structure for accumulating metrics per stage.
+ */
+export interface StageMetricsData {
+  /** Counts */
+  completed: number;
+  failed: number;
+  skipped: number;
+  /** Latency tracking */
+  latencyStats: StageLatencyStats;
+  /** First and last item timestamps */
+  firstItemStartedAt?: string;
+  lastItemCompletedAt?: string;
+}
+
+/**
+ * Stage metrics snapshot for logging/export.
+ */
+export interface StageMetricsSnapshot {
+  /** Run ID */
+  runId: string;
+  /** Source ID */
+  sourceId: string;
+  /** Tenant ID */
+  tenantId: string;
+  /** When the snapshot was taken */
+  timestamp: string;
+  /** The stage this snapshot is for */
+  stage: IngestionStage;
+  /** Combined metrics */
+  metrics: StageMetrics;
+  /** Is this a final snapshot (stage completed) */
+  isFinal: boolean;
+}
+
+/**
+ * Complete run metrics summary across all stages.
+ */
+export interface RunMetricsSummary {
+  /** Run ID */
+  runId: string;
+  /** Source ID */
+  sourceId: string;
+  /** Tenant ID */
+  tenantId: string;
+  /** When the summary was generated */
+  timestamp: string;
+  /** Run start time */
+  runStartedAt?: string;
+  /** Run end time */
+  runFinishedAt?: string;
+  /** Total run duration in milliseconds */
+  runDurationMs?: number;
+  /** Metrics for each stage */
+  stages: Partial<Record<IngestionStage, StageMetrics>>;
+  /** Overall summary */
+  overall: {
+    /** Total items that entered the pipeline */
+    totalItemsProcessed: number;
+    /** Total items that completed all stages */
+    totalItemsCompleted: number;
+    /** Total items that failed at any stage */
+    totalItemsFailed: number;
+    /** Total items that were skipped */
+    totalItemsSkipped: number;
+    /** Overall success rate */
+    overallSuccessRate: number;
+    /** Critical path (stages with highest latency) */
+    criticalPath: IngestionStage[];
+    /** Bottleneck stage (lowest throughput) */
+    bottleneckStage?: IngestionStage;
+  };
+}
+
+/**
+ * Configuration for stage metrics collection and emission.
+ */
+export interface StageMetricsConfig {
+  /** Whether metrics collection is enabled */
+  enabled: boolean;
+  /** Interval in ms for emitting periodic metrics (0 to disable periodic emission) */
+  emitIntervalMs: number;
+  /** Whether to emit debug logs */
+  debug: boolean;
+}
+
+/**
+ * Stage metrics log entry for structured logging.
+ */
+export interface StageMetricsLog {
+  /** Event type */
+  event: "stage_metrics";
+  /** The stage */
+  stage: IngestionStage;
+  /** Run context */
+  runId: string;
+  sourceId: string;
+  tenantId: string;
+  /** Timestamp */
+  timestamp: string;
+  /** Whether this is a final emission */
+  isFinal: boolean;
+  /** Throughput metrics */
+  itemsCompleted: number;
+  itemsFailed: number;
+  itemsSkipped: number;
+  totalItems: number;
+  successRate: number;
+  throughputPerSecond: number;
+  /** Latency metrics */
+  minLatencyMs: number;
+  maxLatencyMs: number;
+  averageLatencyMs: number;
+  totalDurationMs: number;
+  /** Timing */
+  wallClockDurationMs?: number;
+}
+
+// ============================================================================
+// Stage Metrics Helper Functions
+// ============================================================================
+
+/**
+ * Checks if stage metrics are disabled via environment variable.
+ *
+ * @returns true if metrics are disabled
+ */
+export function isStageMetricsDisabled(): boolean {
+  const disabled = process.env[METRICS_DISABLED_ENV_VAR];
+  return disabled === "true" || disabled === "1";
+}
+
+/**
+ * Checks if stage metrics debug logging is enabled.
+ *
+ * @returns true if debug logging is enabled
+ */
+export function isStageMetricsDebugEnabled(): boolean {
+  const debug = process.env[STAGE_METRICS_ENV_VARS.DEBUG];
+  return debug === "true" || debug === "1";
+}
+
+/**
+ * Gets the stage metrics emit interval from environment or default.
+ *
+ * @returns Emit interval in milliseconds
+ */
+export function getStageMetricsEmitInterval(): number {
+  const envValue = process.env[METRICS_EMIT_INTERVAL_ENV_VAR];
+  if (envValue) {
+    const parsed = parseInt(envValue, 10);
+    if (!isNaN(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+  return DEFAULT_METRICS_EMIT_INTERVAL_MS;
+}
+
+/**
+ * Gets the default stage metrics configuration from environment.
+ *
+ * @returns StageMetricsConfig with resolved values
+ */
+export function getStageMetricsConfig(): StageMetricsConfig {
+  return {
+    enabled: !isStageMetricsDisabled(),
+    emitIntervalMs: getStageMetricsEmitInterval(),
+    debug: isStageMetricsDebugEnabled(),
+  };
+}
+
+/**
+ * Builds a Redis key for storing stage metrics.
+ *
+ * @param runId - The run ID
+ * @param stage - The ingestion stage
+ * @returns Redis key string
+ */
+export function buildStageMetricsKey(runId: string, stage: IngestionStage): string {
+  return `${STAGE_METRICS_KEY_PREFIX}${runId}:${stage}`;
+}
+
+/**
+ * Gets the TTL for stage metrics keys.
+ *
+ * @returns TTL in seconds
+ */
+export function getStageMetricsKeyTtl(): number {
+  return STAGE_METRICS_KEY_TTL_SECONDS;
+}
+
+/**
+ * Creates an empty latency stats object.
+ *
+ * @returns Empty StageLatencyStats
+ */
+export function createEmptyLatencyStats(): StageLatencyStats {
+  return {
+    minMs: Infinity,
+    maxMs: 0,
+    sumMs: 0,
+    count: 0,
+    averageMs: 0,
+  };
+}
+
+/**
+ * Creates an empty stage metrics data object.
+ *
+ * @returns Empty StageMetricsData
+ */
+export function createEmptyStageMetricsData(): StageMetricsData {
+  return {
+    completed: 0,
+    failed: 0,
+    skipped: 0,
+    latencyStats: createEmptyLatencyStats(),
+    firstItemStartedAt: undefined,
+    lastItemCompletedAt: undefined,
+  };
+}
+
+/**
+ * Creates an empty run stage metrics accumulator.
+ *
+ * @param runId - The run ID
+ * @param sourceId - The source ID
+ * @param tenantId - The tenant ID
+ * @returns Empty RunStageMetricsAccumulator
+ */
+export function createRunStageMetricsAccumulator(
+  runId: string,
+  sourceId: string,
+  tenantId: string
+): RunStageMetricsAccumulator {
+  const now = new Date().toISOString();
+  return {
+    runId,
+    sourceId,
+    tenantId,
+    createdAt: now,
+    updatedAt: now,
+    stages: {
+      [IngestionStage.DISCOVER]: createEmptyStageMetricsData(),
+      [IngestionStage.FETCH]: createEmptyStageMetricsData(),
+      [IngestionStage.EXTRACT]: createEmptyStageMetricsData(),
+      [IngestionStage.CHUNK]: createEmptyStageMetricsData(),
+      [IngestionStage.EMBED]: createEmptyStageMetricsData(),
+      [IngestionStage.INDEX]: createEmptyStageMetricsData(),
+    } as Record<IngestionStage, StageMetricsData>,
+  };
+}
+
+/**
+ * Updates latency stats with a new sample.
+ *
+ * @param stats - Current latency stats
+ * @param durationMs - New duration sample
+ * @returns Updated StageLatencyStats
+ */
+export function updateLatencyStats(
+  stats: StageLatencyStats,
+  durationMs: number
+): StageLatencyStats {
+  const newCount = stats.count + 1;
+  const newSum = stats.sumMs + durationMs;
+  return {
+    minMs: Math.min(stats.minMs, durationMs),
+    maxMs: Math.max(stats.maxMs, durationMs),
+    sumMs: newSum,
+    count: newCount,
+    averageMs: newSum / newCount,
+  };
+}
+
+/**
+ * Records an item timing into the accumulator.
+ *
+ * @param accumulator - The run metrics accumulator
+ * @param timing - The item timing to record
+ * @returns Updated accumulator
+ */
+export function recordItemTiming(
+  accumulator: RunStageMetricsAccumulator,
+  timing: StageItemTiming
+): RunStageMetricsAccumulator {
+  const stageData = accumulator.stages[timing.stage];
+
+  // Update outcome counts
+  if (timing.outcome === "completed") {
+    stageData.completed++;
+  } else if (timing.outcome === "failed") {
+    stageData.failed++;
+  } else if (timing.outcome === "skipped") {
+    stageData.skipped++;
+  }
+
+  // Update latency stats if we have duration
+  if (timing.durationMs !== undefined && timing.durationMs >= 0) {
+    stageData.latencyStats = updateLatencyStats(stageData.latencyStats, timing.durationMs);
+  }
+
+  // Track first/last timestamps
+  if (!stageData.firstItemStartedAt || timing.startedAt < stageData.firstItemStartedAt) {
+    stageData.firstItemStartedAt = timing.startedAt;
+  }
+  if (timing.finishedAt) {
+    if (!stageData.lastItemCompletedAt || timing.finishedAt > stageData.lastItemCompletedAt) {
+      stageData.lastItemCompletedAt = timing.finishedAt;
+    }
+  }
+
+  accumulator.updatedAt = new Date().toISOString();
+
+  return accumulator;
+}
+
+/**
+ * Creates a stage item timing record.
+ *
+ * @param itemId - Item identifier
+ * @param stage - Ingestion stage
+ * @param startedAt - Start timestamp (ISO string)
+ * @param finishedAt - Finish timestamp (ISO string, optional)
+ * @param outcome - Processing outcome
+ * @param errorCode - Error code if failed (optional)
+ * @returns StageItemTiming record
+ */
+export function createStageItemTiming(
+  itemId: string,
+  stage: IngestionStage,
+  startedAt: string,
+  finishedAt: string | undefined,
+  outcome: "completed" | "failed" | "skipped",
+  errorCode?: string
+): StageItemTiming {
+  let durationMs: number | undefined;
+
+  if (finishedAt && startedAt) {
+    const start = new Date(startedAt).getTime();
+    const end = new Date(finishedAt).getTime();
+    if (!isNaN(start) && !isNaN(end) && end >= start) {
+      durationMs = end - start;
+    }
+  }
+
+  return {
+    itemId,
+    stage,
+    startedAt,
+    finishedAt,
+    durationMs,
+    outcome,
+    errorCode,
+  };
+}
+
+/**
+ * Calculates throughput metrics from stage data.
+ *
+ * @param stage - The ingestion stage
+ * @param data - Stage metrics data
+ * @param wallClockDurationMs - Wall clock time for throughput calculation
+ * @returns StageThroughputMetrics
+ */
+export function calculateThroughputMetrics(
+  stage: IngestionStage,
+  data: StageMetricsData,
+  wallClockDurationMs?: number
+): StageThroughputMetrics {
+  const totalItems = data.completed + data.failed + data.skipped;
+  const successRate = totalItems > 0 ? (data.completed / totalItems) * 100 : 0;
+
+  // Calculate throughput (items per second)
+  let throughputPerSecond = 0;
+  if (wallClockDurationMs && wallClockDurationMs > 0) {
+    throughputPerSecond = (data.completed / wallClockDurationMs) * 1000;
+  }
+
+  return {
+    stage,
+    itemsCompleted: data.completed,
+    itemsFailed: data.failed,
+    itemsSkipped: data.skipped,
+    totalItems,
+    successRate,
+    throughputPerSecond,
+  };
+}
+
+/**
+ * Calculates latency metrics from stage data.
+ *
+ * @param stage - The ingestion stage
+ * @param data - Stage metrics data
+ * @returns StageLatencyMetrics
+ */
+export function calculateLatencyMetrics(
+  stage: IngestionStage,
+  data: StageMetricsData
+): StageLatencyMetrics {
+  const { latencyStats } = data;
+
+  return {
+    stage,
+    minLatencyMs: latencyStats.count > 0 ? latencyStats.minMs : 0,
+    maxLatencyMs: latencyStats.maxMs,
+    averageLatencyMs: latencyStats.averageMs,
+    totalDurationMs: latencyStats.sumMs,
+    sampleCount: latencyStats.count,
+  };
+}
+
+/**
+ * Calculates combined stage metrics.
+ *
+ * @param stage - The ingestion stage
+ * @param data - Stage metrics data
+ * @returns StageMetrics
+ */
+export function calculateStageMetrics(
+  stage: IngestionStage,
+  data: StageMetricsData
+): StageMetrics {
+  // Calculate wall clock duration
+  let wallClockDurationMs: number | undefined;
+  if (data.firstItemStartedAt && data.lastItemCompletedAt) {
+    const start = new Date(data.firstItemStartedAt).getTime();
+    const end = new Date(data.lastItemCompletedAt).getTime();
+    if (!isNaN(start) && !isNaN(end) && end >= start) {
+      wallClockDurationMs = end - start;
+    }
+  }
+
+  return {
+    stage,
+    throughput: calculateThroughputMetrics(stage, data, wallClockDurationMs),
+    latency: calculateLatencyMetrics(stage, data),
+    firstItemStartedAt: data.firstItemStartedAt,
+    lastItemCompletedAt: data.lastItemCompletedAt,
+    wallClockDurationMs,
+  };
+}
+
+/**
+ * Creates a stage metrics snapshot from accumulator.
+ *
+ * @param accumulator - The run metrics accumulator
+ * @param stage - The stage to snapshot
+ * @param isFinal - Whether this is a final snapshot
+ * @returns StageMetricsSnapshot
+ */
+export function createStageMetricsSnapshot(
+  accumulator: RunStageMetricsAccumulator,
+  stage: IngestionStage,
+  isFinal: boolean
+): StageMetricsSnapshot {
+  const data = accumulator.stages[stage];
+
+  return {
+    runId: accumulator.runId,
+    sourceId: accumulator.sourceId,
+    tenantId: accumulator.tenantId,
+    timestamp: new Date().toISOString(),
+    stage,
+    metrics: calculateStageMetrics(stage, data),
+    isFinal,
+  };
+}
+
+/**
+ * Creates a complete run metrics summary from accumulator.
+ *
+ * @param accumulator - The run metrics accumulator
+ * @param runStartedAt - When the run started (ISO timestamp)
+ * @param runFinishedAt - When the run finished (ISO timestamp, optional)
+ * @returns RunMetricsSummary
+ */
+export function createRunMetricsSummary(
+  accumulator: RunStageMetricsAccumulator,
+  runStartedAt?: string,
+  runFinishedAt?: string
+): RunMetricsSummary {
+  // Calculate metrics for each stage
+  const stageMetrics: Partial<Record<IngestionStage, StageMetrics>> = {};
+  let totalCompleted = 0;
+  let totalFailed = 0;
+  let totalSkipped = 0;
+  let maxLatencyStage: IngestionStage | undefined;
+  let maxLatency = 0;
+  let minThroughputStage: IngestionStage | undefined;
+  let minThroughput = Infinity;
+
+  for (const stage of Object.values(IngestionStage)) {
+    const data = accumulator.stages[stage];
+    if (data.completed > 0 || data.failed > 0 || data.skipped > 0) {
+      const metrics = calculateStageMetrics(stage, data);
+      stageMetrics[stage] = metrics;
+
+      // Track totals from first stage (discover)
+      if (stage === IngestionStage.DISCOVER) {
+        totalCompleted = data.completed;
+        totalFailed = data.failed;
+        totalSkipped = data.skipped;
+      }
+
+      // Track stage with highest average latency
+      if (metrics.latency.averageLatencyMs > maxLatency) {
+        maxLatency = metrics.latency.averageLatencyMs;
+        maxLatencyStage = stage;
+      }
+
+      // Track stage with lowest throughput (excluding zero)
+      if (metrics.throughput.throughputPerSecond > 0 &&
+          metrics.throughput.throughputPerSecond < minThroughput) {
+        minThroughput = metrics.throughput.throughputPerSecond;
+        minThroughputStage = stage;
+      }
+    }
+  }
+
+  // Build critical path (stages sorted by average latency, descending)
+  const criticalPath = Object.entries(stageMetrics)
+    .filter(([, m]) => m.latency.averageLatencyMs > 0)
+    .sort(([, a], [, b]) => b.latency.averageLatencyMs - a.latency.averageLatencyMs)
+    .map(([s]) => s as IngestionStage);
+
+  // Calculate run duration
+  let runDurationMs: number | undefined;
+  if (runStartedAt && runFinishedAt) {
+    const start = new Date(runStartedAt).getTime();
+    const end = new Date(runFinishedAt).getTime();
+    if (!isNaN(start) && !isNaN(end) && end >= start) {
+      runDurationMs = end - start;
+    }
+  }
+
+  const totalItems = totalCompleted + totalFailed + totalSkipped;
+
+  return {
+    runId: accumulator.runId,
+    sourceId: accumulator.sourceId,
+    tenantId: accumulator.tenantId,
+    timestamp: new Date().toISOString(),
+    runStartedAt,
+    runFinishedAt,
+    runDurationMs,
+    stages: stageMetrics,
+    overall: {
+      totalItemsProcessed: totalItems,
+      totalItemsCompleted: totalCompleted,
+      totalItemsFailed: totalFailed,
+      totalItemsSkipped: totalSkipped,
+      overallSuccessRate: totalItems > 0 ? (totalCompleted / totalItems) * 100 : 0,
+      criticalPath,
+      bottleneckStage: minThroughputStage,
+    },
+  };
+}
+
+/**
+ * Creates a stage metrics log entry for structured logging.
+ *
+ * @param snapshot - The stage metrics snapshot
+ * @returns StageMetricsLog for structured logging
+ */
+export function createStageMetricsLog(snapshot: StageMetricsSnapshot): StageMetricsLog {
+  const { metrics, throughput, latency } = {
+    metrics: snapshot.metrics,
+    throughput: snapshot.metrics.throughput,
+    latency: snapshot.metrics.latency,
+  };
+
+  return {
+    event: "stage_metrics",
+    stage: snapshot.stage,
+    runId: snapshot.runId,
+    sourceId: snapshot.sourceId,
+    tenantId: snapshot.tenantId,
+    timestamp: snapshot.timestamp,
+    isFinal: snapshot.isFinal,
+    itemsCompleted: throughput.itemsCompleted,
+    itemsFailed: throughput.itemsFailed,
+    itemsSkipped: throughput.itemsSkipped,
+    totalItems: throughput.totalItems,
+    successRate: throughput.successRate,
+    throughputPerSecond: throughput.throughputPerSecond,
+    minLatencyMs: latency.minLatencyMs,
+    maxLatencyMs: latency.maxLatencyMs,
+    averageLatencyMs: latency.averageLatencyMs,
+    totalDurationMs: latency.totalDurationMs,
+    wallClockDurationMs: metrics.wallClockDurationMs,
+  };
+}
+
+/**
+ * Formats a stage metrics log for human-readable output.
+ *
+ * @param log - The stage metrics log
+ * @returns Human-readable string
+ */
+export function formatStageMetricsLog(log: StageMetricsLog): string {
+  const parts = [
+    `[${log.stage.toUpperCase()}]`,
+    log.isFinal ? "(final)" : "(interim)",
+    `items=${log.totalItems}`,
+    `completed=${log.itemsCompleted}`,
+    `failed=${log.itemsFailed}`,
+    `skipped=${log.itemsSkipped}`,
+    `success=${log.successRate.toFixed(1)}%`,
+    `throughput=${log.throughputPerSecond.toFixed(2)}/s`,
+    `latency_avg=${log.averageLatencyMs.toFixed(0)}ms`,
+    `latency_min=${log.minLatencyMs.toFixed(0)}ms`,
+    `latency_max=${log.maxLatencyMs.toFixed(0)}ms`,
+  ];
+
+  if (log.wallClockDurationMs !== undefined) {
+    parts.push(`wall_clock=${log.wallClockDurationMs}ms`);
+  }
+
+  return parts.join(" ");
+}
+
+/**
+ * Creates a structured JSON log object for a run metrics summary.
+ *
+ * @param summary - The run metrics summary
+ * @returns Object suitable for JSON logging
+ */
+export function createStructuredRunMetricsLog(
+  summary: RunMetricsSummary
+): Record<string, unknown> {
+  return {
+    event: "run_metrics_summary",
+    runId: summary.runId,
+    sourceId: summary.sourceId,
+    tenantId: summary.tenantId,
+    timestamp: summary.timestamp,
+    runStartedAt: summary.runStartedAt,
+    runFinishedAt: summary.runFinishedAt,
+    runDurationMs: summary.runDurationMs,
+    totalItemsProcessed: summary.overall.totalItemsProcessed,
+    totalItemsCompleted: summary.overall.totalItemsCompleted,
+    totalItemsFailed: summary.overall.totalItemsFailed,
+    totalItemsSkipped: summary.overall.totalItemsSkipped,
+    overallSuccessRate: summary.overall.overallSuccessRate,
+    criticalPath: summary.overall.criticalPath,
+    bottleneckStage: summary.overall.bottleneckStage,
+    stages: Object.fromEntries(
+      Object.entries(summary.stages).map(([stage, metrics]) => [
+        stage,
+        {
+          itemsCompleted: metrics.throughput.itemsCompleted,
+          itemsFailed: metrics.throughput.itemsFailed,
+          itemsSkipped: metrics.throughput.itemsSkipped,
+          successRate: metrics.throughput.successRate,
+          throughputPerSecond: metrics.throughput.throughputPerSecond,
+          averageLatencyMs: metrics.latency.averageLatencyMs,
+          minLatencyMs: metrics.latency.minLatencyMs,
+          maxLatencyMs: metrics.latency.maxLatencyMs,
+          totalDurationMs: metrics.latency.totalDurationMs,
+          wallClockDurationMs: metrics.wallClockDurationMs,
+        },
+      ])
+    ),
+  };
+}
+
+/**
+ * Merges two stage metrics data objects.
+ * Useful for combining metrics from multiple workers.
+ *
+ * @param a - First metrics data
+ * @param b - Second metrics data
+ * @returns Merged StageMetricsData
+ */
+export function mergeStageMetricsData(
+  a: StageMetricsData,
+  b: StageMetricsData
+): StageMetricsData {
+  // Merge counts
+  const completed = a.completed + b.completed;
+  const failed = a.failed + b.failed;
+  const skipped = a.skipped + b.skipped;
+
+  // Merge latency stats
+  const latencyStats: StageLatencyStats = {
+    minMs: Math.min(
+      a.latencyStats.count > 0 ? a.latencyStats.minMs : Infinity,
+      b.latencyStats.count > 0 ? b.latencyStats.minMs : Infinity
+    ),
+    maxMs: Math.max(a.latencyStats.maxMs, b.latencyStats.maxMs),
+    sumMs: a.latencyStats.sumMs + b.latencyStats.sumMs,
+    count: a.latencyStats.count + b.latencyStats.count,
+    averageMs: 0,
+  };
+  if (latencyStats.count > 0) {
+    latencyStats.averageMs = latencyStats.sumMs / latencyStats.count;
+  }
+  if (latencyStats.minMs === Infinity) {
+    latencyStats.minMs = 0;
+  }
+
+  // Merge timestamps (earliest first, latest last)
+  let firstItemStartedAt: string | undefined;
+  if (a.firstItemStartedAt && b.firstItemStartedAt) {
+    firstItemStartedAt = a.firstItemStartedAt < b.firstItemStartedAt
+      ? a.firstItemStartedAt
+      : b.firstItemStartedAt;
+  } else {
+    firstItemStartedAt = a.firstItemStartedAt || b.firstItemStartedAt;
+  }
+
+  let lastItemCompletedAt: string | undefined;
+  if (a.lastItemCompletedAt && b.lastItemCompletedAt) {
+    lastItemCompletedAt = a.lastItemCompletedAt > b.lastItemCompletedAt
+      ? a.lastItemCompletedAt
+      : b.lastItemCompletedAt;
+  } else {
+    lastItemCompletedAt = a.lastItemCompletedAt || b.lastItemCompletedAt;
+  }
+
+  return {
+    completed,
+    failed,
+    skipped,
+    latencyStats,
+    firstItemStartedAt,
+    lastItemCompletedAt,
+  };
+}
+
+/**
+ * Serializes stage metrics data for Redis storage.
+ *
+ * @param data - Stage metrics data
+ * @returns JSON string
+ */
+export function serializeStageMetricsData(data: StageMetricsData): string {
+  return JSON.stringify(data);
+}
+
+/**
+ * Deserializes stage metrics data from Redis storage.
+ *
+ * @param json - JSON string
+ * @returns StageMetricsData or undefined if invalid
+ */
+export function deserializeStageMetricsData(json: string): StageMetricsData | undefined {
+  try {
+    const parsed = JSON.parse(json);
+    // Basic validation
+    if (
+      typeof parsed === "object" &&
+      typeof parsed.completed === "number" &&
+      typeof parsed.failed === "number" &&
+      typeof parsed.skipped === "number" &&
+      typeof parsed.latencyStats === "object"
+    ) {
+      return parsed as StageMetricsData;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}

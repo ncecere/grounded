@@ -109,7 +109,7 @@ tasks:
   # PARALLEL GROUP 7: Observability
   # ===========================================================================
   - title: Emit per-stage throughput and latency metrics
-    completed: false
+    completed: true
     parallel_group: 7
     tags: [observability, metrics]
 
