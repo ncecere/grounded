@@ -2036,3 +2036,124 @@ export {
   NON_HTML_CONTENT_TYPES,
   HTML_CONTENT_TYPE_ENFORCEMENT_DISABLED_ENV_VAR,
 };
+
+// ============================================================================
+// Playwright Download Configuration
+// ============================================================================
+
+import {
+  PLAYWRIGHT_DOWNLOADS_DISABLED_ENV_VAR,
+  PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS_ENV_VAR,
+  PLAYWRIGHT_DOWNLOADS_DISABLED_DEFAULT,
+  PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS_DEFAULT,
+} from "../constants";
+
+/**
+ * Configuration options for Playwright download handling during crawls.
+ */
+export interface PlaywrightDownloadConfig {
+  /**
+   * When true, downloads are blocked by setting acceptDownloads: false on the browser context.
+   * Default: true (downloads are disabled by default)
+   */
+  downloadsDisabled: boolean;
+
+  /**
+   * When true, log events when downloads are blocked.
+   * Default: true
+   */
+  logBlockedDownloads: boolean;
+}
+
+/**
+ * Information about a blocked download event.
+ * Used for logging and monitoring purposes.
+ */
+export interface BlockedDownloadInfo {
+  /** URL of the page that triggered the download */
+  pageUrl: string;
+  /** URL of the download resource (if available) */
+  downloadUrl?: string;
+  /** Suggested filename for the download (if available) */
+  suggestedFilename?: string;
+  /** Timestamp when the download was blocked */
+  blockedAt: string;
+}
+
+/**
+ * Checks if Playwright downloads should be disabled during crawl.
+ *
+ * Downloads are disabled by default to prevent:
+ * - Disk space consumption from unexpected file downloads
+ * - Slow page loading due to download triggers
+ * - Security risks from downloading untrusted files
+ *
+ * Can be enabled via PLAYWRIGHT_DOWNLOADS_DISABLED=false env var (not recommended).
+ *
+ * @returns true if downloads should be disabled, false if allowed
+ */
+export function isPlaywrightDownloadsDisabled(): boolean {
+  const envValue = process.env[PLAYWRIGHT_DOWNLOADS_DISABLED_ENV_VAR];
+  // If env var is explicitly set to "false" or "0", allow downloads
+  if (envValue === "false" || envValue === "0") {
+    return false;
+  }
+  // Otherwise, use the default (disabled)
+  return PLAYWRIGHT_DOWNLOADS_DISABLED_DEFAULT;
+}
+
+/**
+ * Checks if blocked download events should be logged.
+ *
+ * @returns true if blocked downloads should be logged
+ */
+export function shouldLogBlockedDownloads(): boolean {
+  const envValue = process.env[PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS_ENV_VAR];
+  // If env var is explicitly set to "false" or "0", don't log
+  if (envValue === "false" || envValue === "0") {
+    return false;
+  }
+  // Otherwise, use the default (log blocked downloads)
+  return PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS_DEFAULT;
+}
+
+/**
+ * Gets the full Playwright download configuration from environment.
+ *
+ * @returns PlaywrightDownloadConfig with resolved values
+ */
+export function getPlaywrightDownloadConfig(): PlaywrightDownloadConfig {
+  return {
+    downloadsDisabled: isPlaywrightDownloadsDisabled(),
+    logBlockedDownloads: shouldLogBlockedDownloads(),
+  };
+}
+
+/**
+ * Creates blocked download info for logging.
+ *
+ * @param pageUrl - URL of the page that triggered the download
+ * @param downloadUrl - URL of the download resource (optional)
+ * @param suggestedFilename - Suggested filename (optional)
+ * @returns BlockedDownloadInfo object
+ */
+export function createBlockedDownloadInfo(
+  pageUrl: string,
+  downloadUrl?: string,
+  suggestedFilename?: string
+): BlockedDownloadInfo {
+  return {
+    pageUrl,
+    downloadUrl,
+    suggestedFilename,
+    blockedAt: new Date().toISOString(),
+  };
+}
+
+// Re-export Playwright download constants for convenience
+export {
+  PLAYWRIGHT_DOWNLOADS_DISABLED_ENV_VAR,
+  PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS_ENV_VAR,
+  PLAYWRIGHT_DOWNLOADS_DISABLED_DEFAULT,
+  PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS_DEFAULT,
+};

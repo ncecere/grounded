@@ -531,3 +531,59 @@ Implemented a comprehensive skip reason tracking system for the ingestion pipeli
 - All 55 new tests pass
 - All existing tests pass (528 tests in shared package)
 - TypeScript typechecking passes across all packages
+
+## 2026-01-18: Disable Playwright downloads during crawl
+
+### Summary
+Implemented Playwright download prevention during web crawling to protect against disk space consumption, slow page loading, and security risks from downloading untrusted files. Downloads are disabled by default using Playwright's `acceptDownloads: false` context option, with optional logging of blocked download events.
+
+### Changes Made
+1. **packages/shared/src/constants/index.ts**
+   - Added `PLAYWRIGHT_DOWNLOADS_DISABLED_ENV_VAR` - Environment variable to override download prevention
+   - Added `PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS_ENV_VAR` - Environment variable to control download event logging
+   - Added `PLAYWRIGHT_DOWNLOADS_DISABLED_DEFAULT` (true) - Downloads disabled by default
+   - Added `PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS_DEFAULT` (true) - Logging enabled by default
+
+2. **packages/shared/src/types/index.ts**
+   - Added `PlaywrightDownloadConfig` interface with `downloadsDisabled` and `logBlockedDownloads` fields
+   - Added `BlockedDownloadInfo` interface for structured logging of blocked downloads (pageUrl, downloadUrl, suggestedFilename, blockedAt)
+   - Added `isPlaywrightDownloadsDisabled()` - Checks if downloads should be disabled (defaults to true)
+   - Added `shouldLogBlockedDownloads()` - Checks if blocked downloads should be logged
+   - Added `getPlaywrightDownloadConfig()` - Gets full download configuration from environment
+   - Added `createBlockedDownloadInfo()` - Creates structured info for logging blocked downloads
+   - Re-exported all new constants for convenience
+
+3. **apps/scraper-worker/src/processors/page-fetch.ts**
+   - Updated `fetchWithPlaywright()` to use `acceptDownloads: false` in browser context when downloads disabled
+   - Added download event handler to log blocked downloads with structured info
+   - Downloads are canceled immediately when intercepted
+
+4. **packages/shared/src/types/playwright-downloads.test.ts** (new file)
+   - Added 40 tests covering all new types, constants, and functions
+   - Tests validate configuration resolution, download info creation, interface compliance
+   - Tests cover edge cases (empty URLs, long URLs, unicode filenames, special characters)
+   - Tests cover integration scenarios for different crawl configurations
+
+### Key Design Decisions
+- **Disabled by default**: Downloads are disabled by default for safety during crawling
+- **Environment variable override**: Can be enabled via `PLAYWRIGHT_DOWNLOADS_DISABLED=false` if needed (not recommended)
+- **Structured logging**: Blocked downloads are logged with pageUrl, downloadUrl, suggestedFilename, and timestamp
+- **Opt-out logging**: Download event logging can be disabled via `PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS=false`
+- **Context-level blocking**: Uses Playwright's `acceptDownloads: false` for reliable blocking at context level
+
+### Configuration Options
+| Setting | Default | Env Var | Description |
+|---------|---------|---------|-------------|
+| Downloads disabled | true | PLAYWRIGHT_DOWNLOADS_DISABLED | Set to "false" or "0" to allow downloads |
+| Log blocked downloads | true | PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS | Set to "false" or "0" to disable logging |
+
+### Acceptance Criteria Met
+- ✅ Disable Playwright downloads during crawl (via acceptDownloads: false)
+- ✅ Configurable via environment variable for edge cases
+- ✅ Logging of blocked download events for debugging and monitoring
+- ✅ Safe defaults (downloads disabled, logging enabled)
+
+### Tests
+- All 40 new tests pass
+- All existing tests pass (568 tests in shared package)
+- TypeScript typechecking passes across all packages

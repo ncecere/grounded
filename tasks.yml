@@ -57,7 +57,7 @@ tasks:
     tags: [crawl, reporting]
 
   - title: Disable Playwright downloads during crawl
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [crawl, policy]
 

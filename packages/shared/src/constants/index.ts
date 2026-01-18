@@ -394,6 +394,41 @@ export const EMBED_BACKPRESSURE_KEY = "backpressure:embed:pending";
 export const EMBED_BACKPRESSURE_KEY_TTL_SECONDS = 600; // 10 minutes
 
 // ============================================================================
+// Playwright Configuration Constants
+// ============================================================================
+
+/**
+ * Environment variable to disable Playwright download prevention.
+ * Set to "true" or "1" to allow downloads during crawl (not recommended).
+ *
+ * By default, downloads are disabled during crawling to:
+ * - Prevent disk space consumption from unexpected file downloads
+ * - Avoid slow page loading due to download triggers
+ * - Reduce security risks from downloading untrusted files
+ */
+export const PLAYWRIGHT_DOWNLOADS_DISABLED_ENV_VAR = "PLAYWRIGHT_DOWNLOADS_DISABLED";
+
+/**
+ * Environment variable to enable download event logging during crawl.
+ * Set to "true" or "1" to log when downloads are blocked.
+ *
+ * This is useful for debugging and monitoring which pages attempt downloads.
+ */
+export const PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS_ENV_VAR = "PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS";
+
+/**
+ * Default setting for download prevention: true (downloads disabled by default).
+ * This is the safest default for web crawling operations.
+ */
+export const PLAYWRIGHT_DOWNLOADS_DISABLED_DEFAULT = true;
+
+/**
+ * Default setting for logging blocked downloads: true.
+ * Logs are useful for debugging and understanding crawl behavior.
+ */
+export const PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS_DEFAULT = true;
+
+// ============================================================================
 // API Versions
 // ============================================================================
 
