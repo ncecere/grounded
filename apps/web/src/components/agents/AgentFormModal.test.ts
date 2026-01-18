@@ -1,5 +1,11 @@
 import { describe, it, expect } from "bun:test";
 import { defaultAgentForm, defaultRetrievalConfig } from "./types";
+import {
+  VALIDATION_LIMITS,
+  validateAgentForm,
+  isFormValid,
+  type FormValidationErrors,
+} from "./AgentFormModal";
 
 // Test AgentFormModal types and defaults related to RAG Type selector
 describe("AgentFormModal RAG Type selector", () => {
@@ -573,5 +579,382 @@ describe("Advanced Mode Settings UI", () => {
       const shouldShowInSearchTab = formData.ragType === "advanced";
       expect(shouldShowInSearchTab).toBe(false);
     });
+  });
+});
+
+// ============================================================================
+// Form Validation Tests
+// ============================================================================
+
+describe("Form Validation Constants (VALIDATION_LIMITS)", () => {
+  describe("name limits", () => {
+    it("should have min of 1", () => {
+      expect(VALIDATION_LIMITS.name.min).toBe(1);
+    });
+
+    it("should have max of 100", () => {
+      expect(VALIDATION_LIMITS.name.max).toBe(100);
+    });
+  });
+
+  describe("description limits", () => {
+    it("should have max of 500", () => {
+      expect(VALIDATION_LIMITS.description.max).toBe(500);
+    });
+  });
+
+  describe("welcomeMessage limits", () => {
+    it("should have max of 200", () => {
+      expect(VALIDATION_LIMITS.welcomeMessage.max).toBe(200);
+    });
+  });
+
+  describe("systemPrompt limits", () => {
+    it("should have max of 4000", () => {
+      expect(VALIDATION_LIMITS.systemPrompt.max).toBe(4000);
+    });
+  });
+
+  describe("logoUrl limits", () => {
+    it("should have max of 500", () => {
+      expect(VALIDATION_LIMITS.logoUrl.max).toBe(500);
+    });
+  });
+
+  describe("alignment with API zod schemas", () => {
+    it("name.max should match API createAgentSchema (100)", () => {
+      // API: z.string().min(1).max(100)
+      expect(VALIDATION_LIMITS.name.max).toBe(100);
+    });
+
+    it("description.max should match API createAgentSchema (500)", () => {
+      // API: z.string().max(500).optional()
+      expect(VALIDATION_LIMITS.description.max).toBe(500);
+    });
+
+    it("welcomeMessage.max should match API createAgentSchema (200)", () => {
+      // API: z.string().max(200).optional()
+      expect(VALIDATION_LIMITS.welcomeMessage.max).toBe(200);
+    });
+
+    it("systemPrompt.max should match API createAgentSchema (4000)", () => {
+      // API: z.string().max(4000).optional()
+      expect(VALIDATION_LIMITS.systemPrompt.max).toBe(4000);
+    });
+
+    it("logoUrl.max should match API createAgentSchema (500)", () => {
+      // API: z.string().url().max(500).nullable().optional()
+      expect(VALIDATION_LIMITS.logoUrl.max).toBe(500);
+    });
+  });
+});
+
+describe("validateAgentForm function", () => {
+  describe("name validation", () => {
+    it("should return error when name is empty", () => {
+      const formData = { ...defaultAgentForm, name: "", kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.name).toBe("Name is required");
+    });
+
+    it("should return error when name is only whitespace", () => {
+      const formData = { ...defaultAgentForm, name: "   ", kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.name).toBe("Name is required");
+    });
+
+    it("should return error when name exceeds 100 characters", () => {
+      const longName = "a".repeat(101);
+      const formData = { ...defaultAgentForm, name: longName, kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.name).toBe("Name must be 100 characters or less");
+    });
+
+    it("should not return error for valid name", () => {
+      const formData = { ...defaultAgentForm, name: "Test Agent", kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.name).toBeUndefined();
+    });
+
+    it("should not return error for name at max length (100 characters)", () => {
+      const maxName = "a".repeat(100);
+      const formData = { ...defaultAgentForm, name: maxName, kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.name).toBeUndefined();
+    });
+  });
+
+  describe("description validation", () => {
+    it("should not return error when description is empty", () => {
+      const formData = { ...defaultAgentForm, name: "Test", description: "", kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.description).toBeUndefined();
+    });
+
+    it("should return error when description exceeds 500 characters", () => {
+      const longDesc = "a".repeat(501);
+      const formData = { ...defaultAgentForm, name: "Test", description: longDesc, kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.description).toBe("Description must be 500 characters or less");
+    });
+
+    it("should not return error for description at max length (500 characters)", () => {
+      const maxDesc = "a".repeat(500);
+      const formData = { ...defaultAgentForm, name: "Test", description: maxDesc, kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.description).toBeUndefined();
+    });
+  });
+
+  describe("welcomeMessage validation", () => {
+    it("should not return error when welcomeMessage is empty", () => {
+      const formData = { ...defaultAgentForm, name: "Test", welcomeMessage: "", kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.welcomeMessage).toBeUndefined();
+    });
+
+    it("should return error when welcomeMessage exceeds 200 characters", () => {
+      const longMsg = "a".repeat(201);
+      const formData = { ...defaultAgentForm, name: "Test", welcomeMessage: longMsg, kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.welcomeMessage).toBe("Welcome message must be 200 characters or less");
+    });
+
+    it("should not return error for welcomeMessage at max length (200 characters)", () => {
+      const maxMsg = "a".repeat(200);
+      const formData = { ...defaultAgentForm, name: "Test", welcomeMessage: maxMsg, kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.welcomeMessage).toBeUndefined();
+    });
+  });
+
+  describe("systemPrompt validation", () => {
+    it("should not return error when systemPrompt is empty", () => {
+      const formData = { ...defaultAgentForm, name: "Test", systemPrompt: "", kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.systemPrompt).toBeUndefined();
+    });
+
+    it("should return error when systemPrompt exceeds 4000 characters", () => {
+      const longPrompt = "a".repeat(4001);
+      const formData = { ...defaultAgentForm, name: "Test", systemPrompt: longPrompt, kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.systemPrompt).toBe("System prompt must be 4000 characters or less");
+    });
+
+    it("should not return error for systemPrompt at max length (4000 characters)", () => {
+      const maxPrompt = "a".repeat(4000);
+      const formData = { ...defaultAgentForm, name: "Test", systemPrompt: maxPrompt, kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.systemPrompt).toBeUndefined();
+    });
+  });
+
+  describe("logoUrl validation", () => {
+    it("should not return error when logoUrl is empty", () => {
+      const formData = { ...defaultAgentForm, name: "Test", logoUrl: "", kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.logoUrl).toBeUndefined();
+    });
+
+    it("should return error when logoUrl is not a valid URL", () => {
+      const formData = { ...defaultAgentForm, name: "Test", logoUrl: "not-a-url", kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.logoUrl).toBe("Please enter a valid URL");
+    });
+
+    it("should return error when logoUrl exceeds 500 characters", () => {
+      const longUrl = "https://example.com/" + "a".repeat(481); // 500+ chars total
+      const formData = { ...defaultAgentForm, name: "Test", logoUrl: longUrl, kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.logoUrl).toBe("Logo URL must be 500 characters or less");
+    });
+
+    it("should not return error for valid URL", () => {
+      const formData = { ...defaultAgentForm, name: "Test", logoUrl: "https://example.com/logo.png", kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.logoUrl).toBeUndefined();
+    });
+
+    it("should accept https URLs", () => {
+      const formData = { ...defaultAgentForm, name: "Test", logoUrl: "https://cdn.example.com/images/logo.png", kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.logoUrl).toBeUndefined();
+    });
+
+    it("should accept http URLs", () => {
+      const formData = { ...defaultAgentForm, name: "Test", logoUrl: "http://localhost:3000/logo.png", kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.logoUrl).toBeUndefined();
+    });
+  });
+
+  describe("kbIds validation", () => {
+    it("should return error when kbIds is empty", () => {
+      const formData = { ...defaultAgentForm, name: "Test", kbIds: [] };
+      const errors = validateAgentForm(formData);
+      expect(errors.kbIds).toBe("At least one knowledge base is required");
+    });
+
+    it("should not return error when kbIds has one item", () => {
+      const formData = { ...defaultAgentForm, name: "Test", kbIds: ["kb-1"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.kbIds).toBeUndefined();
+    });
+
+    it("should not return error when kbIds has multiple items", () => {
+      const formData = { ...defaultAgentForm, name: "Test", kbIds: ["kb-1", "kb-2", "kb-3"] };
+      const errors = validateAgentForm(formData);
+      expect(errors.kbIds).toBeUndefined();
+    });
+  });
+
+  describe("multiple validation errors", () => {
+    it("should return multiple errors when multiple fields are invalid", () => {
+      const formData = {
+        ...defaultAgentForm,
+        name: "",
+        description: "a".repeat(501),
+        kbIds: [],
+      };
+      const errors = validateAgentForm(formData);
+      expect(errors.name).toBe("Name is required");
+      expect(errors.description).toBe("Description must be 500 characters or less");
+      expect(errors.kbIds).toBe("At least one knowledge base is required");
+    });
+  });
+});
+
+describe("isFormValid function", () => {
+  it("should return true when no errors", () => {
+    const errors: FormValidationErrors = {};
+    expect(isFormValid(errors)).toBe(true);
+  });
+
+  it("should return false when there are errors", () => {
+    const errors: FormValidationErrors = { name: "Name is required" };
+    expect(isFormValid(errors)).toBe(false);
+  });
+
+  it("should return false when there are multiple errors", () => {
+    const errors: FormValidationErrors = {
+      name: "Name is required",
+      kbIds: "At least one knowledge base is required",
+    };
+    expect(isFormValid(errors)).toBe(false);
+  });
+});
+
+describe("Form validation with defaultAgentForm", () => {
+  it("defaultAgentForm should fail validation (empty name and kbIds)", () => {
+    const errors = validateAgentForm(defaultAgentForm);
+    expect(errors.name).toBe("Name is required");
+    expect(errors.kbIds).toBe("At least one knowledge base is required");
+  });
+
+  it("defaultAgentForm with valid name and kbIds should pass validation", () => {
+    const formData = { ...defaultAgentForm, name: "My Agent", kbIds: ["kb-1"] };
+    const errors = validateAgentForm(formData);
+    expect(isFormValid(errors)).toBe(true);
+  });
+
+  it("defaultAgentForm systemPrompt should be within limits", () => {
+    expect(defaultAgentForm.systemPrompt.length).toBeLessThanOrEqual(VALIDATION_LIMITS.systemPrompt.max);
+  });
+
+  it("defaultAgentForm welcomeMessage should be within limits", () => {
+    expect(defaultAgentForm.welcomeMessage.length).toBeLessThanOrEqual(VALIDATION_LIMITS.welcomeMessage.max);
+  });
+});
+
+describe("FormValidationErrors type", () => {
+  it("should have optional name field", () => {
+    const errors: FormValidationErrors = {};
+    expect(errors.name).toBeUndefined();
+  });
+
+  it("should have optional description field", () => {
+    const errors: FormValidationErrors = {};
+    expect(errors.description).toBeUndefined();
+  });
+
+  it("should have optional welcomeMessage field", () => {
+    const errors: FormValidationErrors = {};
+    expect(errors.welcomeMessage).toBeUndefined();
+  });
+
+  it("should have optional systemPrompt field", () => {
+    const errors: FormValidationErrors = {};
+    expect(errors.systemPrompt).toBeUndefined();
+  });
+
+  it("should have optional logoUrl field", () => {
+    const errors: FormValidationErrors = {};
+    expect(errors.logoUrl).toBeUndefined();
+  });
+
+  it("should have optional kbIds field", () => {
+    const errors: FormValidationErrors = {};
+    expect(errors.kbIds).toBeUndefined();
+  });
+
+  it("should allow setting all error fields", () => {
+    const errors: FormValidationErrors = {
+      name: "Name error",
+      description: "Description error",
+      welcomeMessage: "Welcome message error",
+      systemPrompt: "System prompt error",
+      logoUrl: "Logo URL error",
+      kbIds: "Knowledge base error",
+    };
+    expect(errors.name).toBe("Name error");
+    expect(errors.description).toBe("Description error");
+    expect(errors.welcomeMessage).toBe("Welcome message error");
+    expect(errors.systemPrompt).toBe("System prompt error");
+    expect(errors.logoUrl).toBe("Logo URL error");
+    expect(errors.kbIds).toBe("Knowledge base error");
+  });
+});
+
+describe("Character counter display values", () => {
+  it("should correctly show character count for name field", () => {
+    const formData = { ...defaultAgentForm, name: "Test Agent" };
+    const expected = `${formData.name.length}/${VALIDATION_LIMITS.name.max}`;
+    expect(expected).toBe("10/100");
+  });
+
+  it("should correctly show character count for empty name", () => {
+    const formData = { ...defaultAgentForm, name: "" };
+    const expected = `${formData.name.length}/${VALIDATION_LIMITS.name.max}`;
+    expect(expected).toBe("0/100");
+  });
+
+  it("should correctly show character count for description", () => {
+    const formData = { ...defaultAgentForm, description: "A short description" };
+    const expected = `${formData.description.length}/${VALIDATION_LIMITS.description.max}`;
+    expect(expected).toBe("19/500");
+  });
+
+  it("should correctly show character count for systemPrompt", () => {
+    const expected = `${defaultAgentForm.systemPrompt.length}/${VALIDATION_LIMITS.systemPrompt.max}`;
+    expect(expected).toContain("/4000");
+  });
+});
+
+describe("Form submit button disabled state", () => {
+  it("should be disabled when form is invalid", () => {
+    const formData = { ...defaultAgentForm }; // Empty name and kbIds
+    const errors = validateAgentForm(formData);
+    const formIsValid = isFormValid(errors);
+    expect(formIsValid).toBe(false);
+    // Button would be disabled when !formIsValid
+  });
+
+  it("should be enabled when form is valid", () => {
+    const formData = { ...defaultAgentForm, name: "Test Agent", kbIds: ["kb-1"] };
+    const errors = validateAgentForm(formData);
+    const formIsValid = isFormValid(errors);
+    expect(formIsValid).toBe(true);
+    // Button would be enabled when formIsValid
   });
 });

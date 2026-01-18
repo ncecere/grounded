@@ -1149,3 +1149,64 @@ Verified that the retrieval config routes already properly support the `historyT
 - `apps/web/src/components/agents/AgentFormModal.tsx` (MODIFIED - added advanced mode settings controls)
 - `apps/web/src/components/agents/AgentFormModal.test.ts` (MODIFIED - added 25 tests for advanced settings)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 4 - Update form defaults and validation
+
+### Completed Task
+**Task:** Update form defaults and validation
+**Phase:** Phase 4 - Frontend - Agent Form & Chat UI & Widget
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Added form validation constants aligned with API schemas:**
+   - `apps/web/src/components/agents/AgentFormModal.tsx`
+   - Added `VALIDATION_LIMITS` constant with character limits matching API zod schemas:
+     - `name`: min 1, max 100 characters
+     - `description`: max 500 characters
+     - `welcomeMessage`: max 200 characters
+     - `systemPrompt`: max 4000 characters
+     - `logoUrl`: max 500 characters
+
+2. **Implemented client-side validation:**
+   - Created `validateAgentForm()` function that validates all form fields
+   - Created `isFormValid()` helper to check if form has any errors
+   - Created `FormValidationErrors` interface for type-safe error handling
+   - Validation includes:
+     - Name: required, length check
+     - Description: length check (optional field)
+     - Welcome message: length check (optional field)
+     - System prompt: length check (optional field)
+     - Logo URL: valid URL format and length check (optional field)
+     - Knowledge bases: at least one required
+
+3. **Added validation UI features:**
+   - Character counters for all text fields (e.g., "0/100")
+   - Field-level error messages shown after field is touched
+   - Red border styling for invalid fields using `border-destructive` class
+   - `maxLength` attribute on inputs to prevent over-typing
+   - Submit button disabled when form is invalid
+
+4. **Improved form UX:**
+   - Errors only shown after field is blurred (touched state tracking)
+   - All fields marked as touched on submit to show all errors
+   - Touched state resets when modal opens
+   - Form validation runs on every formData change via useMemo
+
+5. **Added comprehensive tests (55 new tests):**
+   - VALIDATION_LIMITS constant tests (all field limits)
+   - API alignment verification tests
+   - validateAgentForm function tests (all field validations)
+   - isFormValid function tests
+   - FormValidationErrors type tests
+   - Character counter display tests
+   - Submit button disabled state tests
+
+### Test Results
+- All 749 tests pass (590 in api, 159 in web)
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `apps/web/src/components/agents/AgentFormModal.tsx` (MODIFIED - added validation logic and UI)
+- `apps/web/src/components/agents/AgentFormModal.test.ts` (MODIFIED - added 55 tests for validation)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)

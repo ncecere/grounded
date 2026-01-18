@@ -150,7 +150,7 @@ tasks:
     notes: historyTurns and advancedMaxSubqueries, shown only for advanced mode
 
   - title: Update form defaults and validation
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [web, ui, agents, form]
     file: phase-4-frontend-agent-form.md

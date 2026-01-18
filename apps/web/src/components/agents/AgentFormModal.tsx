@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Share2, Bot, Brain, Search, Settings2 } from "lucide-react";
 import { api } from "../../lib/api";
@@ -25,6 +25,82 @@ import { Textarea } from "../ui/textarea";
 import type { Agent, AgentFormData, RetrievalConfig, KnowledgeBase, LLMModel } from "./types";
 import { defaultAgentForm, defaultRetrievalConfig } from "./types";
 
+// ============================================================================
+// Form Validation Constants (aligned with API zod schemas)
+// ============================================================================
+
+export const VALIDATION_LIMITS = {
+  name: { min: 1, max: 100 },
+  description: { max: 500 },
+  welcomeMessage: { max: 200 },
+  systemPrompt: { max: 4000 },
+  logoUrl: { max: 500 },
+} as const;
+
+// ============================================================================
+// Form Validation Types and Functions
+// ============================================================================
+
+export interface FormValidationErrors {
+  name?: string;
+  description?: string;
+  welcomeMessage?: string;
+  systemPrompt?: string;
+  logoUrl?: string;
+  kbIds?: string;
+}
+
+export function validateAgentForm(formData: AgentFormData): FormValidationErrors {
+  const errors: FormValidationErrors = {};
+
+  // Name validation
+  const trimmedName = formData.name.trim();
+  if (trimmedName.length === 0) {
+    errors.name = "Name is required";
+  } else if (trimmedName.length > VALIDATION_LIMITS.name.max) {
+    errors.name = `Name must be ${VALIDATION_LIMITS.name.max} characters or less`;
+  }
+
+  // Description validation
+  if (formData.description && formData.description.length > VALIDATION_LIMITS.description.max) {
+    errors.description = `Description must be ${VALIDATION_LIMITS.description.max} characters or less`;
+  }
+
+  // Welcome message validation
+  if (formData.welcomeMessage && formData.welcomeMessage.length > VALIDATION_LIMITS.welcomeMessage.max) {
+    errors.welcomeMessage = `Welcome message must be ${VALIDATION_LIMITS.welcomeMessage.max} characters or less`;
+  }
+
+  // System prompt validation
+  if (formData.systemPrompt && formData.systemPrompt.length > VALIDATION_LIMITS.systemPrompt.max) {
+    errors.systemPrompt = `System prompt must be ${VALIDATION_LIMITS.systemPrompt.max} characters or less`;
+  }
+
+  // Logo URL validation
+  if (formData.logoUrl) {
+    if (formData.logoUrl.length > VALIDATION_LIMITS.logoUrl.max) {
+      errors.logoUrl = `Logo URL must be ${VALIDATION_LIMITS.logoUrl.max} characters or less`;
+    } else {
+      try {
+        new URL(formData.logoUrl);
+      } catch {
+        errors.logoUrl = "Please enter a valid URL";
+      }
+    }
+  }
+
+  // Knowledge base validation
+  if (formData.kbIds.length === 0) {
+    errors.kbIds = "At least one knowledge base is required";
+  }
+
+  return errors;
+}
+
+export function isFormValid(errors: FormValidationErrors): boolean {
+  return Object.keys(errors).length === 0;
+}
+
 type FormTab = "general" | "knowledge" | "search" | "status";
 
 interface AgentFormModalProps {
@@ -49,10 +125,25 @@ export function AgentFormModal({
 }: AgentFormModalProps) {
   const queryClient = useQueryClient();
   const isEditMode = !!agent;
-  
+
   const [activeTab, setActiveTab] = useState<FormTab>("general");
   const [formData, setFormData] = useState<AgentFormData>(defaultAgentForm);
   const [retrievalConfig, setRetrievalConfig] = useState<RetrievalConfig>(defaultRetrievalConfig);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // Compute validation errors based on current form data
+  const validationErrors = useMemo(() => validateAgentForm(formData), [formData]);
+  const formIsValid = useMemo(() => isFormValid(validationErrors), [validationErrors]);
+
+  // Helper to mark a field as touched (for showing errors after blur)
+  const markTouched = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  // Helper to get error message (only if field has been touched or form submitted)
+  const getFieldError = (field: keyof FormValidationErrors) => {
+    return touched[field] ? validationErrors[field] : undefined;
+  };
 
   // Fetch retrieval config when editing
   const { data: fetchedRetrievalConfig } = useQuery({
@@ -64,6 +155,9 @@ export function AgentFormModal({
   // Reset form when modal opens/closes or agent changes
   useEffect(() => {
     if (open) {
+      // Reset touched state when modal opens
+      setTouched({});
+
       if (agent) {
         // Edit mode - populate from agent
         setFormData({
@@ -140,7 +234,19 @@ export function AgentFormModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || formData.kbIds.length === 0) return;
+
+    // Mark all fields as touched to show all validation errors
+    setTouched({
+      name: true,
+      description: true,
+      welcomeMessage: true,
+      systemPrompt: true,
+      logoUrl: true,
+      kbIds: true,
+    });
+
+    // Check validation before submitting
+    if (!formIsValid) return;
 
     if (isEditMode && agent) {
       // Update existing agent
@@ -218,61 +324,114 @@ export function AgentFormModal({
               {/* General Tab */}
               <TabsContent value="general" className="space-y-4 mt-0">
                 <div className="space-y-2">
-                  <Label>Name *</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Name *</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {formData.name.length}/{VALIDATION_LIMITS.name.max}
+                    </span>
+                  </div>
                   <Input
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onBlur={() => markTouched("name")}
                     placeholder="Support Agent"
-                    required
+                    maxLength={VALIDATION_LIMITS.name.max}
+                    className={getFieldError("name") ? "border-destructive" : ""}
                   />
+                  {getFieldError("name") && (
+                    <p className="text-xs text-destructive">{getFieldError("name")}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Description</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Description</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {formData.description.length}/{VALIDATION_LIMITS.description.max}
+                    </span>
+                  </div>
                   <Input
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onBlur={() => markTouched("description")}
                     placeholder="Helps users with product questions"
+                    maxLength={VALIDATION_LIMITS.description.max}
+                    className={getFieldError("description") ? "border-destructive" : ""}
                   />
+                  {getFieldError("description") && (
+                    <p className="text-xs text-destructive">{getFieldError("description")}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>System Prompt *</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>System Prompt *</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {formData.systemPrompt.length}/{VALIDATION_LIMITS.systemPrompt.max}
+                    </span>
+                  </div>
                   <Textarea
                     value={formData.systemPrompt}
                     onChange={(e) => setFormData({ ...formData, systemPrompt: e.target.value })}
+                    onBlur={() => markTouched("systemPrompt")}
                     rows={5}
-                    required
+                    maxLength={VALIDATION_LIMITS.systemPrompt.max}
+                    className={getFieldError("systemPrompt") ? "border-destructive" : ""}
                   />
                   <p className="text-xs text-muted-foreground">
                     Instructions that define how the agent behaves
                   </p>
+                  {getFieldError("systemPrompt") && (
+                    <p className="text-xs text-destructive">{getFieldError("systemPrompt")}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Welcome Message</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Welcome Message</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {formData.welcomeMessage.length}/{VALIDATION_LIMITS.welcomeMessage.max}
+                    </span>
+                  </div>
                   <Input
                     value={formData.welcomeMessage}
                     onChange={(e) => setFormData({ ...formData, welcomeMessage: e.target.value })}
+                    onBlur={() => markTouched("welcomeMessage")}
                     placeholder="How can I help?"
+                    maxLength={VALIDATION_LIMITS.welcomeMessage.max}
+                    className={getFieldError("welcomeMessage") ? "border-destructive" : ""}
                   />
                   <p className="text-xs text-muted-foreground">
                     Shown in the widget empty state
                   </p>
+                  {getFieldError("welcomeMessage") && (
+                    <p className="text-xs text-destructive">{getFieldError("welcomeMessage")}</p>
+                  )}
                 </div>
 
                 {isEditMode && (
                   <div className="space-y-2">
-                    <Label>Logo URL</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>Logo URL</Label>
+                      <span className="text-xs text-muted-foreground">
+                        {formData.logoUrl.length}/{VALIDATION_LIMITS.logoUrl.max}
+                      </span>
+                    </div>
                     <Input
                       type="url"
                       value={formData.logoUrl}
                       onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                      onBlur={() => markTouched("logoUrl")}
                       placeholder="https://example.com/logo.png"
+                      maxLength={VALIDATION_LIMITS.logoUrl.max}
+                      className={getFieldError("logoUrl") ? "border-destructive" : ""}
                     />
                     <p className="text-xs text-muted-foreground">
                       Displayed in widget header (32x32px recommended)
                     </p>
+                    {getFieldError("logoUrl") && (
+                      <p className="text-xs text-destructive">{getFieldError("logoUrl")}</p>
+                    )}
                   </div>
                 )}
               </TabsContent>
@@ -377,9 +536,9 @@ export function AgentFormModal({
                       No knowledge bases available. Create one first.
                     </p>
                   )}
-                  {formData.kbIds.length === 0 && (
+                  {getFieldError("kbIds") && (
                     <p className="text-xs text-destructive">
-                      At least one knowledge base is required
+                      {getFieldError("kbIds")}
                     </p>
                   )}
                 </div>
@@ -610,7 +769,7 @@ export function AgentFormModal({
             </Button>
             <Button
               type="submit"
-              disabled={isPending || formData.kbIds.length === 0 || !formData.name.trim()}
+              disabled={isPending || !formIsValid}
             >
               {isPending ? "Saving..." : isEditMode ? "Save Changes" : "Create Agent"}
             </Button>
