@@ -1550,3 +1550,80 @@ Verified that the retrieval config routes already properly support the `historyT
 - `packages/widget/src/hooks/useChat.ts` (MODIFIED - added reasoning step collection and handling)
 - `packages/widget/src/hooks/useChat.test.ts` (MODIFIED - added 20 tests for reasoning step behavior)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 4 - Create widget reasoning panel component
+
+### Completed Task
+**Task:** Create widget reasoning panel component
+**Phase:** Phase 4 - Frontend - Agent Form & Chat UI & Widget
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Created ReasoningPanel component (packages/widget/src/components/ReasoningPanel.tsx):**
+   - Preact component for displaying reasoning steps in the widget
+   - Collapsible panel with trigger showing step progress
+   - Timeline-style display of individual steps
+   - Support for all 5 step types: rewrite, plan, search, merge, generate
+   - Support for all 4 status states: pending, in_progress, completed, error
+   - Shimmer animation effect for in-progress steps
+   - Spinner animation for status icons
+
+2. **Exported helper functions:**
+   - `getStepIcon()` - Returns appropriate icon component for step type
+   - `getStatusIcon()` - Returns appropriate icon component for step status
+   - `getStepTypeLabel()` - Returns human-readable label for step type
+
+3. **Added reasoning icons to Icons.tsx (packages/widget/src/components/Icons.tsx):**
+   - `BrainIcon` - Main reasoning panel icon
+   - `PencilIcon` - For rewrite steps
+   - `ListTreeIcon` - For plan steps
+   - `GitMergeIcon` - For merge steps
+   - `CheckCircleIcon` - For completed status
+   - `CircleIcon` - For pending status
+   - `AlertCircleIcon` - For error status
+   - `LoaderIcon` - For in_progress status (with spinner animation)
+
+4. **Added CSS styles to styles.ts (packages/widget/src/styles.ts):**
+   - `.grounded-reasoning-panel` - Main panel container
+   - `.grounded-reasoning-trigger` - Collapsible trigger button
+   - `.grounded-reasoning-content` - Expanded content area
+   - `.grounded-reasoning-timeline` - Timeline border styling
+   - `.grounded-reasoning-step` - Individual step container
+   - `.grounded-reasoning-step-dot` - Timeline dot indicators
+   - `.grounded-reasoning-step-icon` - Step type icon styling
+   - `.grounded-reasoning-step-content` - Step title/summary
+   - `.grounded-reasoning-step-status` - Status icon styling
+   - `.grounded-reasoning-shimmer` - Text shimmer animation
+   - `.grounded-reasoning-spinner` - Loader rotation animation
+   - Status-specific classes for completed, in_progress, pending, error
+
+5. **Added comprehensive tests (76 new tests):**
+   - `packages/widget/src/components/ReasoningPanel.test.ts`
+   - Module export tests
+   - getStepIcon function tests (all 5 types + fallback)
+   - getStatusIcon function tests (all 4 statuses + fallback)
+   - getStepTypeLabel function tests (all 5 types + fallback)
+   - ReasoningPanelProps interface tests
+   - Component behavior contract tests
+   - Step counting tests
+   - CSS class tests
+   - ReasoningStep interface tests
+   - Step type documentation tests
+   - Step sequence tests
+   - Status transition tests
+   - Icons module integration tests
+   - Shimmer effect tests
+   - Spinner animation tests
+   - Trigger message tests
+
+### Test Results
+- All 191 tests pass in widget package (increased from 115)
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `packages/widget/src/components/ReasoningPanel.tsx` (NEW - ReasoningPanel component)
+- `packages/widget/src/components/ReasoningPanel.test.ts` (NEW - 76 tests)
+- `packages/widget/src/components/Icons.tsx` (MODIFIED - added reasoning icons)
+- `packages/widget/src/styles.ts` (MODIFIED - added reasoning panel styles)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)

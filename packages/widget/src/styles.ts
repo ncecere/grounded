@@ -1467,6 +1467,280 @@ export const styles = `
       padding: var(--grounded-space-sm) var(--grounded-space-md);
     }
   }
+
+  /* ============================================
+     Reasoning Panel Styles (Advanced RAG)
+     ============================================ */
+
+  .grounded-reasoning-panel {
+    margin-bottom: var(--grounded-space-md);
+    background: var(--grounded-bg-secondary);
+    border: 1px solid var(--grounded-border);
+    border-radius: var(--grounded-radius-md);
+    overflow: hidden;
+    animation: grounded-fade-in var(--grounded-duration-normal) var(--grounded-ease-out);
+  }
+
+  .grounded-reasoning-panel.streaming {
+    border-color: var(--grounded-accent);
+    box-shadow: 0 0 0 1px var(--grounded-accent-subtle);
+  }
+
+  /* Reasoning Panel Trigger/Header */
+  .grounded-reasoning-trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--grounded-space-sm);
+    width: 100%;
+    padding: var(--grounded-space-sm) var(--grounded-space-md);
+    background: transparent;
+    border: none;
+    font-family: var(--grounded-font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--grounded-text-secondary);
+    cursor: pointer;
+    transition: all var(--grounded-duration-fast);
+    text-align: left;
+  }
+
+  .grounded-reasoning-trigger:hover {
+    background: var(--grounded-bg-tertiary);
+    color: var(--grounded-text-primary);
+  }
+
+  .grounded-reasoning-trigger-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--grounded-radius-sm);
+    background: var(--grounded-accent-subtle);
+    color: var(--grounded-accent);
+    flex-shrink: 0;
+  }
+
+  .grounded-reasoning-trigger-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .grounded-reasoning-trigger-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .grounded-reasoning-chevron {
+    width: 16px;
+    height: 16px;
+    color: var(--grounded-text-tertiary);
+    transition: transform var(--grounded-duration-fast);
+    flex-shrink: 0;
+  }
+
+  .grounded-reasoning-trigger.open .grounded-reasoning-chevron {
+    transform: rotate(180deg);
+  }
+
+  /* Reasoning Panel Content */
+  .grounded-reasoning-content {
+    padding: var(--grounded-space-sm) var(--grounded-space-md) var(--grounded-space-md);
+    border-top: 1px solid var(--grounded-border-subtle);
+    animation: grounded-fade-in var(--grounded-duration-fast) var(--grounded-ease-out);
+  }
+
+  /* Reasoning Timeline */
+  .grounded-reasoning-timeline {
+    position: relative;
+    padding-left: var(--grounded-space-md);
+    margin-left: 3px;
+    border-left: 2px solid var(--grounded-border);
+  }
+
+  .grounded-reasoning-panel.streaming .grounded-reasoning-timeline {
+    border-left-color: var(--grounded-accent);
+  }
+
+  /* Reasoning Step Item */
+  .grounded-reasoning-step {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--grounded-space-sm);
+    padding: var(--grounded-space-xs) 0;
+  }
+
+  .grounded-reasoning-step.last {
+    padding-bottom: 0;
+  }
+
+  /* Timeline Dot */
+  .grounded-reasoning-step-dot {
+    position: absolute;
+    left: calc(-1 * var(--grounded-space-md) - 5px);
+    top: 10px;
+    width: 8px;
+    height: 8px;
+    border-radius: var(--grounded-radius-full);
+    border: 2px solid var(--grounded-bg-secondary);
+    background: var(--grounded-text-tertiary);
+  }
+
+  .grounded-reasoning-step-dot.completed {
+    background: #22c55e;
+  }
+
+  .grounded-reasoning-step-dot.in_progress {
+    background: var(--grounded-accent);
+    animation: grounded-pulse 2s ease-in-out infinite;
+  }
+
+  .grounded-reasoning-step-dot.pending {
+    background: var(--grounded-border);
+  }
+
+  .grounded-reasoning-step-dot.error {
+    background: #ef4444;
+  }
+
+  /* Step Icon */
+  .grounded-reasoning-step-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--grounded-radius-sm);
+    background: var(--grounded-bg-tertiary);
+    color: var(--grounded-text-tertiary);
+    flex-shrink: 0;
+    transition: all var(--grounded-duration-fast);
+  }
+
+  .grounded-reasoning-step-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .grounded-reasoning-step-icon.completed {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+  }
+
+  .grounded-reasoning-step-icon.in_progress {
+    background: var(--grounded-accent-subtle);
+    color: var(--grounded-accent);
+  }
+
+  .grounded-reasoning-step-icon.pending {
+    background: var(--grounded-bg-tertiary);
+    color: var(--grounded-text-tertiary);
+  }
+
+  .grounded-reasoning-step-icon.error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  /* Step Content */
+  .grounded-reasoning-step-content {
+    flex: 1;
+    min-width: 0;
+    padding-top: 4px;
+  }
+
+  .grounded-reasoning-step-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--grounded-text-primary);
+    line-height: 1.3;
+  }
+
+  .grounded-reasoning-step.pending .grounded-reasoning-step-title {
+    color: var(--grounded-text-tertiary);
+  }
+
+  .grounded-reasoning-step.completed .grounded-reasoning-step-title {
+    color: var(--grounded-text-secondary);
+  }
+
+  .grounded-reasoning-step.error .grounded-reasoning-step-title {
+    color: #ef4444;
+  }
+
+  .grounded-reasoning-step-summary {
+    font-size: 12px;
+    color: var(--grounded-text-tertiary);
+    line-height: 1.4;
+    margin-top: 2px;
+  }
+
+  .grounded-reasoning-step-summary.completed {
+    color: var(--grounded-text-tertiary);
+  }
+
+  .grounded-reasoning-step-summary.error {
+    color: rgba(239, 68, 68, 0.8);
+  }
+
+  /* Step Status Icon */
+  .grounded-reasoning-step-status {
+    flex-shrink: 0;
+    margin-top: 6px;
+  }
+
+  .grounded-reasoning-step-status svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .grounded-reasoning-step-status.completed {
+    color: #22c55e;
+  }
+
+  .grounded-reasoning-step-status.in_progress {
+    color: var(--grounded-accent);
+  }
+
+  .grounded-reasoning-step-status.pending {
+    color: var(--grounded-text-tertiary);
+  }
+
+  .grounded-reasoning-step-status.error {
+    color: #ef4444;
+  }
+
+  /* Shimmer Animation for In-Progress Text */
+  .grounded-reasoning-shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--grounded-text-primary) 0%,
+      var(--grounded-text-tertiary) 50%,
+      var(--grounded-text-primary) 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: grounded-shimmer 1.5s ease-in-out infinite;
+  }
+
+  @keyframes grounded-shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  /* Spinner Animation for Loader Icon */
+  .grounded-reasoning-spinner {
+    animation: grounded-spin 1s linear infinite;
+  }
 `;
 
 export default styles;

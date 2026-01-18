@@ -193,7 +193,7 @@ tasks:
     file: phase-6-widget-updates.md
 
   - title: Create widget reasoning panel component
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [widget, ui, components]
     file: phase-6-widget-updates.md
