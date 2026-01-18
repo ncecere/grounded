@@ -416,12 +416,17 @@ export const styles = `
     flex: 1;
     overflow-y: auto;
     padding: var(--grounded-space-lg);
-    display: flex;
-    flex-direction: column;
-    gap: var(--grounded-space-md);
     position: relative;
     z-index: 1;
     scroll-behavior: smooth;
+  }
+
+  /* Inner wrapper for messages - separates scroll container from flex layout */
+  .grounded-messages-inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--grounded-space-md);
+    min-height: 100%;
   }
 
   .grounded-messages::-webkit-scrollbar {
@@ -1562,6 +1567,13 @@ export const styles = `
 
   .grounded-reasoning-panel.streaming .grounded-reasoning-timeline {
     border-left-color: var(--grounded-accent);
+  }
+
+  /* Constrain reasoning panel width to match assistant messages */
+  .grounded-messages-inner .grounded-reasoning-panel,
+  .grounded-fullpage-messages-inner .grounded-reasoning-panel {
+    max-width: 85%;
+    align-self: flex-start;
   }
 
   /* Reasoning Step Item */
