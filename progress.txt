@@ -587,3 +587,86 @@ Implemented Playwright download prevention during web crawling to protect agains
 - All 40 new tests pass
 - All existing tests pass (568 tests in shared package)
 - TypeScript typechecking passes across all packages
+
+## 2026-01-18: Implement exponential backoff with jitter for retryable errors
+
+### Summary
+Implemented exponential backoff with jitter for retry operations in the ingestion pipeline. The implementation provides configurable backoff delays with randomized jitter to prevent thundering herd problems, stage-specific retry configurations, and integration with the existing error taxonomy.
+
+### Changes Made
+1. **packages/shared/src/constants/index.ts**
+   - Added `DEFAULT_BACKOFF_BASE_DELAY_MS` (1000ms) - Base delay for first retry
+   - Added `DEFAULT_BACKOFF_MAX_DELAY_MS` (60000ms) - Maximum delay cap
+   - Added `DEFAULT_BACKOFF_MULTIPLIER` (2) - Exponential growth factor
+   - Added `DEFAULT_BACKOFF_JITTER_RATIO` (0.3) - 30% max random jitter
+   - Added `DEFAULT_MAX_RETRY_ATTEMPTS` (3) - Default retry limit
+   - Added `BACKOFF_ENV_VARS` - Environment variable names for overrides
+   - Added `STAGE_BACKOFF_CONFIG` - Per-stage backoff configurations with tuned values for each stage's characteristics
+
+2. **packages/shared/src/types/index.ts**
+   - Added `BackoffConfig` interface - Configuration for exponential backoff (baseDelayMs, maxDelayMs, multiplier, jitterRatio)
+   - Added `RetryOptions` interface - Complete retry options including maxAttempts, backoff config, isRetryable function, onRetry callback, and retryAfterSeconds
+   - Added `RetryResult<T>` interface - Detailed result with success status, value, error, attempts, totalWaitTimeMs, and attemptDetails
+   - Added `RetryAttemptDetail` interface - Per-attempt tracking (attempt number, succeeded, error, delay, startedAt, durationMs)
+   - Added `BackoffDelayInfo` interface - Calculated delay details (baseDelayMs, jitterMs, totalDelayMs, attempt, wasCapped, usedRetryAfter)
+   - Added helper functions:
+     - `getDefaultBackoffConfig()` - Returns default backoff configuration
+     - `getDefaultRetryOptions()` - Returns default retry options
+     - `resolveBackoffConfig()` - Resolves config from environment variables
+     - `getBackoffConfigForStage()` - Gets stage-specific backoff config
+     - `getMaxRetriesForStage()` - Gets max retries for a stage
+     - `getRetryOptionsForStage()` - Gets complete retry options for a stage
+     - `calculateJitter()` - Generates random jitter value
+     - `calculateBackoffDelay()` - Calculates delay for a specific attempt
+     - `generateBackoffSchedule()` - Generates preview of all retry delays
+     - `calculateMaxTotalWaitTime()` - Calculates worst-case total wait time
+     - `sleepMs()` - Promise-based sleep utility
+     - `executeWithBackoff()` - Main retry executor with full backoff logic
+     - `createRetryFunction()` - Creates bound retry function with preset options
+     - `createStageRetryFunction()` - Creates stage-specific retry function
+
+3. **packages/shared/src/types/exponential-backoff.test.ts** (new file)
+   - Added 64 tests covering all new types, constants, and functions
+   - Tests validate exponential growth, jitter bounds, max delay capping
+   - Tests cover Retry-After header support, non-retryable error handling
+   - Tests validate onRetry callbacks and attempt detail tracking
+   - Tests cover integration with existing error taxonomy (isRetryableError)
+
+### Key Design Decisions
+- **Full jitter strategy**: Jitter is added as `random(0, baseDelay * jitterRatio)` to prevent thundering herd
+- **Exponential formula**: `min(maxDelay, baseDelay * multiplier^(attempt-1)) + jitter`
+- **Retry-After support**: HTTP Retry-After headers override calculated backoff (still adds small jitter)
+- **Stage-specific tuning**: Each ingestion stage has optimized backoff settings:
+  - discover: 2s base, 30s max, 0.25 jitter (network errors)
+  - fetch: 5s base, 60s max, 0.3 jitter (rate limiting, polite crawling)
+  - extract: 1s base, 15s max, 0.2 jitter (CPU-bound)
+  - chunk: 0.5s base, 5s max, 0.1 jitter (lightweight)
+  - embed: 3s base, 60s max, 0.35 jitter (API rate limits)
+  - index: 2s base, 30s max, 0.25 jitter (database contention)
+- **Detailed tracking**: Each attempt records timing, errors, and delays for observability
+
+### Backoff Schedule Example (default config)
+| Attempt | Base Delay | Max Jitter | Total Range |
+|---------|------------|------------|-------------|
+| 1 | 1000ms | 300ms | 1000-1300ms |
+| 2 | 2000ms | 600ms | 2000-2600ms |
+| 3 | 4000ms | 1200ms | 4000-5200ms |
+
+### Environment Variables
+- `BACKOFF_BASE_DELAY_MS` - Override base delay
+- `BACKOFF_MAX_DELAY_MS` - Override max delay
+- `BACKOFF_MULTIPLIER` - Override multiplier (1-10)
+- `BACKOFF_JITTER_RATIO` - Override jitter ratio (0-1)
+- `BACKOFF_MAX_ATTEMPTS` - Override max attempts
+
+### Acceptance Criteria Met
+- ✅ Implement exponential backoff with jitter for retryable errors
+- ✅ Stage-specific backoff configurations for optimal retry behavior
+- ✅ Integration with error taxonomy (isRetryable function support)
+- ✅ Retry-After header support for HTTP 429 responses
+- ✅ Detailed attempt tracking for observability
+
+### Tests
+- All 64 new tests pass
+- All existing tests pass (632 tests in shared package)
+- TypeScript typechecking passes across all packages

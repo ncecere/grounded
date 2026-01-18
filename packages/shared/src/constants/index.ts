@@ -429,6 +429,105 @@ export const PLAYWRIGHT_DOWNLOADS_DISABLED_DEFAULT = true;
 export const PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS_DEFAULT = true;
 
 // ============================================================================
+// Exponential Backoff Configuration
+// ============================================================================
+
+/**
+ * Default base delay for exponential backoff in milliseconds.
+ * The actual delay for attempt N is: baseDelayMs * (multiplier ^ (N-1)) + jitter
+ */
+export const DEFAULT_BACKOFF_BASE_DELAY_MS = 1000;
+
+/**
+ * Default maximum delay cap in milliseconds.
+ * Prevents delays from growing unbounded.
+ */
+export const DEFAULT_BACKOFF_MAX_DELAY_MS = 60000; // 1 minute
+
+/**
+ * Default multiplier for exponential backoff.
+ * Each retry multiplies the delay by this factor.
+ */
+export const DEFAULT_BACKOFF_MULTIPLIER = 2;
+
+/**
+ * Default maximum jitter ratio (0-1).
+ * Jitter is added as: delay * random(0, jitterRatio)
+ * 0.3 means up to 30% additional random delay.
+ */
+export const DEFAULT_BACKOFF_JITTER_RATIO = 0.3;
+
+/**
+ * Default maximum retry attempts for operations.
+ */
+export const DEFAULT_MAX_RETRY_ATTEMPTS = 3;
+
+/**
+ * Environment variable names for backoff configuration overrides.
+ */
+export const BACKOFF_ENV_VARS = {
+  /** Override base delay in ms */
+  BASE_DELAY_MS: "BACKOFF_BASE_DELAY_MS",
+  /** Override max delay in ms */
+  MAX_DELAY_MS: "BACKOFF_MAX_DELAY_MS",
+  /** Override multiplier */
+  MULTIPLIER: "BACKOFF_MULTIPLIER",
+  /** Override jitter ratio (0-1) */
+  JITTER_RATIO: "BACKOFF_JITTER_RATIO",
+  /** Override max retry attempts */
+  MAX_ATTEMPTS: "BACKOFF_MAX_ATTEMPTS",
+} as const;
+
+/**
+ * Stage-specific backoff configurations.
+ * Different stages may need different retry behavior based on their characteristics:
+ * - discover: Lower delays, failures often due to network issues
+ * - fetch: Higher delays for rate limiting, respect Retry-After headers
+ * - extract: Lower delays, CPU-bound operations
+ * - chunk: Minimal delays, usually memory-related
+ * - embed: Higher delays for API rate limits
+ * - index: Moderate delays for database contention
+ */
+export const STAGE_BACKOFF_CONFIG = {
+  discover: {
+    baseDelayMs: 2000,
+    maxDelayMs: 30000,
+    multiplier: 2,
+    jitterRatio: 0.25,
+  },
+  fetch: {
+    baseDelayMs: 5000,
+    maxDelayMs: 60000,
+    multiplier: 2,
+    jitterRatio: 0.3,
+  },
+  extract: {
+    baseDelayMs: 1000,
+    maxDelayMs: 15000,
+    multiplier: 2,
+    jitterRatio: 0.2,
+  },
+  chunk: {
+    baseDelayMs: 500,
+    maxDelayMs: 5000,
+    multiplier: 2,
+    jitterRatio: 0.1,
+  },
+  embed: {
+    baseDelayMs: 3000,
+    maxDelayMs: 60000,
+    multiplier: 2,
+    jitterRatio: 0.35,
+  },
+  index: {
+    baseDelayMs: 2000,
+    maxDelayMs: 30000,
+    multiplier: 2,
+    jitterRatio: 0.25,
+  },
+} as const;
+
+// ============================================================================
 // API Versions
 // ============================================================================
 

@@ -2157,3 +2157,530 @@ export {
   PLAYWRIGHT_DOWNLOADS_DISABLED_DEFAULT,
   PLAYWRIGHT_LOG_BLOCKED_DOWNLOADS_DEFAULT,
 };
+
+// ============================================================================
+// Exponential Backoff with Jitter
+// ============================================================================
+
+import {
+  DEFAULT_BACKOFF_BASE_DELAY_MS,
+  DEFAULT_BACKOFF_MAX_DELAY_MS,
+  DEFAULT_BACKOFF_MULTIPLIER,
+  DEFAULT_BACKOFF_JITTER_RATIO,
+  DEFAULT_MAX_RETRY_ATTEMPTS,
+  BACKOFF_ENV_VARS,
+  STAGE_BACKOFF_CONFIG,
+  STAGE_MAX_RETRIES,
+} from "../constants";
+
+/**
+ * Configuration options for exponential backoff with jitter.
+ */
+export interface BackoffConfig {
+  /**
+   * Base delay in milliseconds for the first retry.
+   * Default: 1000ms
+   */
+  baseDelayMs: number;
+
+  /**
+   * Maximum delay cap in milliseconds.
+   * Default: 60000ms (1 minute)
+   */
+  maxDelayMs: number;
+
+  /**
+   * Multiplier for exponential growth.
+   * Each retry multiplies the delay by this factor.
+   * Default: 2
+   */
+  multiplier: number;
+
+  /**
+   * Jitter ratio (0-1) for random delay variation.
+   * The actual jitter added is: baseDelay * random(0, jitterRatio)
+   * Default: 0.3 (30% max jitter)
+   */
+  jitterRatio: number;
+}
+
+/**
+ * Options for retry operations with backoff.
+ */
+export interface RetryOptions {
+  /**
+   * Maximum number of retry attempts.
+   * Default: 3
+   */
+  maxAttempts: number;
+
+  /**
+   * Backoff configuration.
+   */
+  backoff: BackoffConfig;
+
+  /**
+   * Optional function to determine if an error is retryable.
+   * If not provided, all errors are considered retryable.
+   */
+  isRetryable?: (error: unknown) => boolean;
+
+  /**
+   * Optional callback called before each retry attempt.
+   * Useful for logging or tracking.
+   */
+  onRetry?: (attempt: number, error: unknown, delayMs: number) => void;
+
+  /**
+   * Optional Retry-After value in seconds (from HTTP headers).
+   * If provided, this overrides the calculated backoff delay.
+   */
+  retryAfterSeconds?: number;
+}
+
+/**
+ * Result of a retry operation.
+ */
+export interface RetryResult<T> {
+  /** Whether the operation eventually succeeded */
+  success: boolean;
+  /** The result value if successful */
+  value?: T;
+  /** The final error if all attempts failed */
+  error?: unknown;
+  /** Total number of attempts made */
+  attempts: number;
+  /** Total time spent waiting between retries (ms) */
+  totalWaitTimeMs: number;
+  /** Details of each attempt */
+  attemptDetails: RetryAttemptDetail[];
+}
+
+/**
+ * Details of a single retry attempt.
+ */
+export interface RetryAttemptDetail {
+  /** Attempt number (1-indexed) */
+  attempt: number;
+  /** Whether this attempt succeeded */
+  succeeded: boolean;
+  /** Error if the attempt failed */
+  error?: unknown;
+  /** Delay before this attempt (0 for first attempt) */
+  delayBeforeMs: number;
+  /** Timestamp when the attempt started */
+  startedAt: string;
+  /** Duration of the attempt in ms (if tracked) */
+  durationMs?: number;
+}
+
+/**
+ * Information about a calculated backoff delay.
+ */
+export interface BackoffDelayInfo {
+  /** The base exponential delay before jitter */
+  baseDelayMs: number;
+  /** The jitter amount added */
+  jitterMs: number;
+  /** The final delay after jitter and cap */
+  totalDelayMs: number;
+  /** The attempt number this delay is for */
+  attempt: number;
+  /** Whether the delay was capped at maxDelayMs */
+  wasCapped: boolean;
+  /** Whether Retry-After header was used */
+  usedRetryAfter: boolean;
+}
+
+/**
+ * Gets the default backoff configuration.
+ *
+ * @returns Default BackoffConfig
+ */
+export function getDefaultBackoffConfig(): BackoffConfig {
+  return {
+    baseDelayMs: DEFAULT_BACKOFF_BASE_DELAY_MS,
+    maxDelayMs: DEFAULT_BACKOFF_MAX_DELAY_MS,
+    multiplier: DEFAULT_BACKOFF_MULTIPLIER,
+    jitterRatio: DEFAULT_BACKOFF_JITTER_RATIO,
+  };
+}
+
+/**
+ * Gets the default retry options.
+ *
+ * @returns Default RetryOptions
+ */
+export function getDefaultRetryOptions(): RetryOptions {
+  return {
+    maxAttempts: DEFAULT_MAX_RETRY_ATTEMPTS,
+    backoff: getDefaultBackoffConfig(),
+  };
+}
+
+/**
+ * Resolves backoff configuration from environment variables.
+ * Falls back to defaults if env vars are not set or invalid.
+ *
+ * @param getEnv - Function to get environment variables
+ * @returns Resolved BackoffConfig
+ */
+export function resolveBackoffConfig(
+  getEnv: (key: string) => string | undefined = () => undefined
+): BackoffConfig {
+  const parseIntOrDefault = (
+    value: string | undefined,
+    defaultValue: number
+  ): number => {
+    if (value === undefined) return defaultValue;
+    const parsed = parseInt(value, 10);
+    return isNaN(parsed) || parsed <= 0 ? defaultValue : parsed;
+  };
+
+  const parseFloatOrDefault = (
+    value: string | undefined,
+    defaultValue: number,
+    min = 0,
+    max = 1
+  ): number => {
+    if (value === undefined) return defaultValue;
+    const parsed = parseFloat(value);
+    if (isNaN(parsed) || parsed < min || parsed > max) return defaultValue;
+    return parsed;
+  };
+
+  return {
+    baseDelayMs: parseIntOrDefault(
+      getEnv(BACKOFF_ENV_VARS.BASE_DELAY_MS),
+      DEFAULT_BACKOFF_BASE_DELAY_MS
+    ),
+    maxDelayMs: parseIntOrDefault(
+      getEnv(BACKOFF_ENV_VARS.MAX_DELAY_MS),
+      DEFAULT_BACKOFF_MAX_DELAY_MS
+    ),
+    multiplier: parseFloatOrDefault(
+      getEnv(BACKOFF_ENV_VARS.MULTIPLIER),
+      DEFAULT_BACKOFF_MULTIPLIER,
+      1,
+      10
+    ),
+    jitterRatio: parseFloatOrDefault(
+      getEnv(BACKOFF_ENV_VARS.JITTER_RATIO),
+      DEFAULT_BACKOFF_JITTER_RATIO,
+      0,
+      1
+    ),
+  };
+}
+
+/**
+ * Gets backoff configuration for a specific ingestion stage.
+ * Stages have different characteristics that warrant different retry behavior.
+ *
+ * @param stage - The ingestion stage
+ * @returns Stage-specific BackoffConfig
+ */
+export function getBackoffConfigForStage(stage: IngestionStage): BackoffConfig {
+  const stageConfig = STAGE_BACKOFF_CONFIG[stage];
+  return {
+    baseDelayMs: stageConfig.baseDelayMs,
+    maxDelayMs: stageConfig.maxDelayMs,
+    multiplier: stageConfig.multiplier,
+    jitterRatio: stageConfig.jitterRatio,
+  };
+}
+
+/**
+ * Gets the maximum retry attempts for a specific ingestion stage.
+ *
+ * @param stage - The ingestion stage
+ * @returns Maximum retry attempts for the stage
+ */
+export function getMaxRetriesForStage(stage: IngestionStage): number {
+  return STAGE_MAX_RETRIES[stage];
+}
+
+/**
+ * Gets complete retry options for a specific ingestion stage.
+ *
+ * @param stage - The ingestion stage
+ * @param overrides - Optional overrides for specific options
+ * @returns RetryOptions configured for the stage
+ */
+export function getRetryOptionsForStage(
+  stage: IngestionStage,
+  overrides?: Partial<RetryOptions>
+): RetryOptions {
+  return {
+    maxAttempts: overrides?.maxAttempts ?? getMaxRetriesForStage(stage),
+    backoff: overrides?.backoff ?? getBackoffConfigForStage(stage),
+    isRetryable: overrides?.isRetryable,
+    onRetry: overrides?.onRetry,
+    retryAfterSeconds: overrides?.retryAfterSeconds,
+  };
+}
+
+/**
+ * Generates a random jitter value based on the jitter ratio.
+ * Uses full jitter strategy: jitter = random(0, baseDelay * jitterRatio)
+ *
+ * @param baseDelayMs - The base delay before jitter
+ * @param jitterRatio - The jitter ratio (0-1)
+ * @returns Random jitter in milliseconds
+ */
+export function calculateJitter(
+  baseDelayMs: number,
+  jitterRatio: number
+): number {
+  // Full jitter: random value from 0 to baseDelay * jitterRatio
+  return Math.floor(Math.random() * baseDelayMs * jitterRatio);
+}
+
+/**
+ * Calculates the backoff delay for a specific retry attempt.
+ * Uses exponential backoff with full jitter.
+ *
+ * Formula: min(maxDelay, baseDelay * multiplier^(attempt-1)) + jitter
+ *
+ * @param attempt - The current attempt number (1-indexed)
+ * @param config - Backoff configuration
+ * @param retryAfterSeconds - Optional Retry-After value from HTTP header
+ * @returns BackoffDelayInfo with delay details
+ */
+export function calculateBackoffDelay(
+  attempt: number,
+  config: BackoffConfig,
+  retryAfterSeconds?: number
+): BackoffDelayInfo {
+  // If Retry-After is provided, use it (converted to ms)
+  if (retryAfterSeconds !== undefined && retryAfterSeconds > 0) {
+    const retryAfterMs = retryAfterSeconds * 1000;
+    // Add small jitter even to Retry-After to prevent thundering herd
+    const jitter = calculateJitter(retryAfterMs, config.jitterRatio * 0.5);
+    const totalDelay = Math.min(retryAfterMs + jitter, config.maxDelayMs);
+    return {
+      baseDelayMs: retryAfterMs,
+      jitterMs: jitter,
+      totalDelayMs: totalDelay,
+      attempt,
+      wasCapped: totalDelay < retryAfterMs + jitter,
+      usedRetryAfter: true,
+    };
+  }
+
+  // Calculate exponential base delay: baseDelay * multiplier^(attempt-1)
+  // For attempt 1: baseDelay * 2^0 = baseDelay
+  // For attempt 2: baseDelay * 2^1 = baseDelay * 2
+  // For attempt 3: baseDelay * 2^2 = baseDelay * 4
+  const exponentialDelay =
+    config.baseDelayMs * Math.pow(config.multiplier, attempt - 1);
+
+  // Cap at maxDelayMs before adding jitter
+  const cappedDelay = Math.min(exponentialDelay, config.maxDelayMs);
+  const wasCapped = exponentialDelay > config.maxDelayMs;
+
+  // Add jitter
+  const jitter = calculateJitter(cappedDelay, config.jitterRatio);
+
+  // Final delay (jitter doesn't exceed the cap, it's additive for better distribution)
+  const totalDelay = Math.min(cappedDelay + jitter, config.maxDelayMs);
+
+  return {
+    baseDelayMs: cappedDelay,
+    jitterMs: jitter,
+    totalDelayMs: totalDelay,
+    attempt,
+    wasCapped,
+    usedRetryAfter: false,
+  };
+}
+
+/**
+ * Creates a sequence of backoff delays for a given number of attempts.
+ * Useful for previewing the delay schedule.
+ *
+ * @param maxAttempts - Number of retry attempts to generate delays for
+ * @param config - Backoff configuration
+ * @returns Array of BackoffDelayInfo for each attempt
+ */
+export function generateBackoffSchedule(
+  maxAttempts: number,
+  config: BackoffConfig
+): BackoffDelayInfo[] {
+  const schedule: BackoffDelayInfo[] = [];
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    schedule.push(calculateBackoffDelay(attempt, config));
+  }
+  return schedule;
+}
+
+/**
+ * Calculates the total maximum wait time for all retries.
+ * Useful for timeout planning.
+ *
+ * @param maxAttempts - Maximum number of retry attempts
+ * @param config - Backoff configuration
+ * @returns Total maximum wait time in milliseconds
+ */
+export function calculateMaxTotalWaitTime(
+  maxAttempts: number,
+  config: BackoffConfig
+): number {
+  let total = 0;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // Use max possible delay (no jitter randomness) for worst-case calculation
+    const exponentialDelay =
+      config.baseDelayMs * Math.pow(config.multiplier, attempt - 1);
+    const cappedDelay = Math.min(exponentialDelay, config.maxDelayMs);
+    // Include max possible jitter
+    const maxJitter = cappedDelay * config.jitterRatio;
+    total += Math.min(cappedDelay + maxJitter, config.maxDelayMs);
+  }
+  return total;
+}
+
+/**
+ * Sleep function that returns a promise resolving after the specified delay.
+ *
+ * @param ms - Delay in milliseconds
+ * @returns Promise that resolves after the delay
+ */
+export function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Executes a function with exponential backoff retry logic.
+ * Only retries on retryable errors (uses isRetryable function if provided).
+ *
+ * @param fn - The async function to execute
+ * @param options - Retry options
+ * @returns RetryResult with success/failure details
+ */
+export async function executeWithBackoff<T>(
+  fn: () => Promise<T>,
+  options: RetryOptions
+): Promise<RetryResult<T>> {
+  const attemptDetails: RetryAttemptDetail[] = [];
+  let totalWaitTimeMs = 0;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
+    const startedAt = new Date().toISOString();
+    const startTime = Date.now();
+
+    // Calculate delay for this attempt (0 for first attempt)
+    const delayInfo =
+      attempt === 1
+        ? { totalDelayMs: 0, baseDelayMs: 0, jitterMs: 0, attempt: 1, wasCapped: false, usedRetryAfter: false }
+        : calculateBackoffDelay(attempt, options.backoff, options.retryAfterSeconds);
+
+    // Wait before this attempt (except for first attempt)
+    if (attempt > 1 && delayInfo.totalDelayMs > 0) {
+      await sleepMs(delayInfo.totalDelayMs);
+      totalWaitTimeMs += delayInfo.totalDelayMs;
+    }
+
+    try {
+      const value = await fn();
+      const durationMs = Date.now() - startTime;
+
+      attemptDetails.push({
+        attempt,
+        succeeded: true,
+        delayBeforeMs: delayInfo.totalDelayMs,
+        startedAt,
+        durationMs,
+      });
+
+      return {
+        success: true,
+        value,
+        attempts: attempt,
+        totalWaitTimeMs,
+        attemptDetails,
+      };
+    } catch (error) {
+      const durationMs = Date.now() - startTime;
+      lastError = error;
+
+      attemptDetails.push({
+        attempt,
+        succeeded: false,
+        error,
+        delayBeforeMs: delayInfo.totalDelayMs,
+        startedAt,
+        durationMs,
+      });
+
+      // Check if error is retryable
+      const isRetryable = options.isRetryable
+        ? options.isRetryable(error)
+        : true;
+
+      // If not retryable or this was the last attempt, stop retrying
+      if (!isRetryable || attempt >= options.maxAttempts) {
+        break;
+      }
+
+      // Calculate delay for next attempt (for onRetry callback)
+      const nextDelayInfo = calculateBackoffDelay(
+        attempt + 1,
+        options.backoff,
+        options.retryAfterSeconds
+      );
+
+      // Call onRetry callback if provided
+      if (options.onRetry) {
+        options.onRetry(attempt, error, nextDelayInfo.totalDelayMs);
+      }
+    }
+  }
+
+  return {
+    success: false,
+    error: lastError,
+    attempts: attemptDetails.length,
+    totalWaitTimeMs,
+    attemptDetails,
+  };
+}
+
+/**
+ * Creates a retry function bound to specific options.
+ * Useful for creating reusable retry wrappers.
+ *
+ * @param options - Default retry options
+ * @returns Bound retry function
+ */
+export function createRetryFunction(
+  options: RetryOptions
+): <T>(fn: () => Promise<T>) => Promise<RetryResult<T>> {
+  return <T>(fn: () => Promise<T>) => executeWithBackoff(fn, options);
+}
+
+/**
+ * Creates a stage-specific retry function.
+ *
+ * @param stage - The ingestion stage
+ * @param overrides - Optional overrides for retry options
+ * @returns Bound retry function for the stage
+ */
+export function createStageRetryFunction(
+  stage: IngestionStage,
+  overrides?: Partial<RetryOptions>
+): <T>(fn: () => Promise<T>) => Promise<RetryResult<T>> {
+  const options = getRetryOptionsForStage(stage, overrides);
+  return createRetryFunction(options);
+}
+
+// Re-export backoff constants for convenience
+export {
+  DEFAULT_BACKOFF_BASE_DELAY_MS,
+  DEFAULT_BACKOFF_MAX_DELAY_MS,
+  DEFAULT_BACKOFF_MULTIPLIER,
+  DEFAULT_BACKOFF_JITTER_RATIO,
+  DEFAULT_MAX_RETRY_ATTEMPTS,
+  BACKOFF_ENV_VARS,
+  STAGE_BACKOFF_CONFIG,
+};
