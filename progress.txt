@@ -1447,3 +1447,54 @@ Verified that the retrieval config routes already properly support the `historyT
 - `apps/web/src/components/ai-elements/reasoning-steps.test.ts` (MODIFIED - added 35 tests)
 - `apps/web/src/index.css` (MODIFIED - added reasoning panel CSS)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 4 - Update widget types for reasoning events
+
+### Completed Task
+**Task:** Update widget types for reasoning events
+**Phase:** Phase 4 - Frontend - Agent Form & Chat UI & Widget
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Added ReasoningStep types to widget types (packages/widget/src/types.ts):**
+   - Added `ReasoningStepType` type: `"rewrite" | "plan" | "search" | "merge" | "generate"`
+   - Added `ReasoningStepStatus` type: `"pending" | "in_progress" | "completed" | "error"`
+   - Added `ReasoningStep` interface with fields: id, type, title, summary, status, optional details
+   - Updated `ChatMessage` interface to include optional `reasoningSteps` field
+
+2. **Updated SSEMessage interface (packages/widget/src/hooks/useChat.ts):**
+   - Added `"reasoning"` to SSEMessage type union
+   - Added `step?: ReasoningStep` field for reasoning events
+   - Added JSDoc comment explaining the SSE message types
+
+3. **Added test infrastructure for widget package:**
+   - Added `"test": "bun test"` script to package.json
+   - Created `packages/widget/src/types.test.ts` (57 tests)
+   - Created `packages/widget/src/hooks/useChat.test.ts` (38 tests)
+
+4. **Test coverage includes:**
+   - ReasoningStepType value validation (5 types)
+   - ReasoningStepStatus value validation (4 statuses)
+   - ReasoningStep interface contract tests
+   - Step type documentation tests (rewrite, plan, search, merge, generate)
+   - Status transition tests
+   - ChatMessage with reasoningSteps tests
+   - SSEMessage type documentation tests
+   - ChatStatus interface tests
+   - UseChatOptions interface tests
+   - Endpoint routing documentation tests
+   - SSE stream processing documentation tests
+   - Backwards compatibility tests for existing types
+
+### Test Results
+- All 95 tests pass in widget package (new test infrastructure)
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `packages/widget/src/types.ts` (MODIFIED - added ReasoningStep types, updated ChatMessage)
+- `packages/widget/src/hooks/useChat.ts` (MODIFIED - added reasoning to SSEMessage)
+- `packages/widget/package.json` (MODIFIED - added test script)
+- `packages/widget/src/types.test.ts` (NEW - 57 tests)
+- `packages/widget/src/hooks/useChat.test.ts` (NEW - 38 tests)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)

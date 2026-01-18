@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'preact/hooks';
-import type { ChatMessage, Citation } from '../types';
+import type { ChatMessage, Citation, ReasoningStep } from '../types';
 
 interface UseChatOptions {
   token: string;
@@ -7,8 +7,12 @@ interface UseChatOptions {
   endpointType?: 'widget' | 'chat-endpoint';
 }
 
+/**
+ * SSE message types received from the chat stream.
+ * Advanced RAG mode adds 'reasoning' events for step-by-step visibility.
+ */
 interface SSEMessage {
-  type: 'text' | 'done' | 'error' | 'status' | 'sources';
+  type: 'text' | 'done' | 'error' | 'status' | 'sources' | 'reasoning';
   content?: string;
   message?: string;
   conversationId?: string;
@@ -16,6 +20,8 @@ interface SSEMessage {
   sources?: Array<{ id: string; title: string; url: string; snippet: string; index: number }>;
   status?: 'searching' | 'generating';
   sourcesCount?: number;
+  /** Reasoning step data (only present when type is 'reasoning') */
+  step?: ReasoningStep;
 }
 
 export interface ChatStatus {

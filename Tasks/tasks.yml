@@ -181,7 +181,7 @@ tasks:
     file: phase-5-frontend-chat-ui.md
 
   - title: Update widget types for reasoning events
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [widget, types]
     file: phase-6-widget-updates.md

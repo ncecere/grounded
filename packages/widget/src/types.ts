@@ -41,6 +41,40 @@ export interface ChatMessage {
   citations?: Citation[];
   timestamp: number;
   isStreaming?: boolean;
+  reasoningSteps?: ReasoningStep[];
+}
+
+// =============================================================================
+// Reasoning Types (for Advanced RAG)
+// =============================================================================
+
+/**
+ * Types of reasoning steps in the advanced RAG pipeline
+ */
+export type ReasoningStepType = 'rewrite' | 'plan' | 'search' | 'merge' | 'generate';
+
+/**
+ * Status of a reasoning step
+ */
+export type ReasoningStepStatus = 'pending' | 'in_progress' | 'completed' | 'error';
+
+/**
+ * Represents a single step in the advanced RAG reasoning process.
+ * Each step provides visibility into what the AI is doing to answer the query.
+ */
+export interface ReasoningStep {
+  /** Unique identifier for the step */
+  id: string;
+  /** Type of reasoning step */
+  type: ReasoningStepType;
+  /** Human-readable title for the step */
+  title: string;
+  /** Summary of what the step is doing or has done */
+  summary: string;
+  /** Current status of the step */
+  status: ReasoningStepStatus;
+  /** Optional additional details about the step (e.g., sub-queries generated) */
+  details?: Record<string, unknown>;
 }
 
 export interface WidgetState {

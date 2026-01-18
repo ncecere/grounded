@@ -10,6 +10,7 @@
     "build:widget": "BUILD_TARGET=widget vite build",
     "build:published-chat": "BUILD_TARGET=published-chat vite build",
     "preview": "vite preview",
+    "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
