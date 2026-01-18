@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
+import { Fragment } from 'preact';
 import type { JSX } from 'preact';
 import { useChat } from '../hooks/useChat';
 import { Message, StatusIndicator } from './Message';
+import { ReasoningPanel } from './ReasoningPanel';
 import { SendIcon, SparklesIcon } from './Icons';
 
 export interface FullPageChatConfig {
@@ -10,6 +12,10 @@ export interface FullPageChatConfig {
   agentName: string;
   welcomeMessage: string;
   logoUrl?: string | null;
+  /** RAG mode: 'simple' or 'advanced' - determines whether to show reasoning steps */
+  ragType?: 'simple' | 'advanced';
+  /** Whether to show reasoning steps (only applies when ragType is 'advanced') */
+  showReasoningSteps?: boolean;
 }
 
 interface FullPageChatProps {
@@ -17,23 +23,26 @@ interface FullPageChatProps {
 }
 
 export function FullPageChat({ config }: FullPageChatProps): JSX.Element {
-  const { token, apiBase, agentName, welcomeMessage, logoUrl } = config;
+  const { token, apiBase, agentName, welcomeMessage, logoUrl, ragType, showReasoningSteps } = config;
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const { messages, isLoading, chatStatus, sendMessage } = useChat({
+  // Show reasoning panel when agent is in advanced RAG mode AND showReasoningSteps is enabled
+  const showReasoning = ragType === 'advanced' && showReasoningSteps !== false;
+
+  const { messages, isLoading, isStreaming, chatStatus, currentReasoningSteps, sendMessage } = useChat({
     token,
     apiBase,
     endpointType: 'chat-endpoint',
   });
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages or reasoning steps change
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isLoading]);
+  }, [messages, isLoading, currentReasoningSteps]);
 
   // Focus input on mount
   useEffect(() => {
@@ -102,11 +111,49 @@ export function FullPageChat({ config }: FullPageChatProps): JSX.Element {
             </div>
           ) : (
             <>
-              {messages.filter(m => m.content || m.role === 'user').map((message) => (
-                <Message key={message.id} message={message} />
-              ))}
+              {messages.map((message, index) => {
+                const isLastMessage = index === messages.length - 1;
+                const isLastAssistant = isLastMessage && message.role === 'assistant';
+                
+                // Show reasoning panel ONLY for the last assistant message when steps exist
+                // (matches Test Chat behavior - no filter, render all messages)
+                const showReasoningBeforeThis = isLastAssistant && 
+                  showReasoning && 
+                  currentReasoningSteps.length > 0;
+
+                // Only render message bubble if it has content (or is user message)
+                // This prevents empty assistant message bubbles during reasoning phase
+                const showMessageBubble = message.role === 'user' || message.content;
+
+                return (
+                  <Fragment key={message.id}>
+                    {/* Reasoning steps panel ABOVE the last assistant message */}
+                    {showReasoningBeforeThis && (
+                      <ReasoningPanel
+                        steps={currentReasoningSteps}
+                        isStreaming={isLoading || isStreaming}
+                        defaultOpen={false}
+                      />
+                    )}
+                    {showMessageBubble && <Message message={message} />}
+                  </Fragment>
+                );
+              })}
+
+              {/* Reasoning steps when loading but no assistant message exists yet */}
+              {showReasoning && 
+                currentReasoningSteps.length > 0 && 
+                messages.length > 0 && 
+                messages[messages.length - 1].role !== 'assistant' && (
+                <ReasoningPanel
+                  steps={currentReasoningSteps}
+                  isStreaming={isLoading || isStreaming}
+                  defaultOpen={false}
+                />
+              )}
               
-              {(isLoading || chatStatus.status !== 'idle') && chatStatus.status !== 'streaming' && (
+              {/* Show status indicator when loading/searching (hide when reasoning panel is shown) */}
+              {(isLoading || chatStatus.status !== 'idle') && chatStatus.status !== 'streaming' && (!showReasoning || currentReasoningSteps.length === 0) && (
                 <StatusIndicator status={chatStatus} />
               )}
             </>

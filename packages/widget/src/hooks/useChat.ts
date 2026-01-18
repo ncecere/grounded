@@ -173,17 +173,18 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
                     // sessionStorage not available
                   }
                 }
-                // Copy citations and reasoning steps before clearing refs
+                // Copy citations before clearing ref
                 const citationsToSet = pendingSourcesRef.current ? [...pendingSourcesRef.current] : [];
                 pendingSourcesRef.current = null;
 
-                // Convert reasoning steps Map to array, preserving order
-                const reasoningStepsToSet = Array.from(pendingReasoningStepsRef.current.values());
+                // Clear the pending ref (we keep currentReasoningSteps state for display)
                 pendingReasoningStepsRef.current.clear();
-                // Clear current reasoning steps now that they're attached to the message
-                setCurrentReasoningSteps([]);
 
-                // Finalize message with citations and reasoning steps
+                // NOTE: We do NOT clear currentReasoningSteps state here!
+                // They persist until a new message is started (matching test chat behavior)
+                // This allows the reasoning panel to stay visible after response completes
+
+                // Finalize message with citations
                 setMessages(prev => prev.map(msg =>
                   msg.id === assistantMessageId
                     ? {
@@ -191,7 +192,6 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
                         content: fullContent,
                         isStreaming: false,
                         citations: citationsToSet,
-                        ...(reasoningStepsToSet.length > 0 && { reasoningSteps: reasoningStepsToSet }),
                       }
                     : msg
                 ));
