@@ -167,15 +167,24 @@ export function createContentUnchangedSkipDetails(
  * Creates skip details for a robots.txt blocked skip.
  *
  * @param url - The blocked URL
+ * @param matchedRule - Optional: the rule that blocked the URL
+ * @param userAgent - Optional: the user agent used for matching
  * @returns PageSkipDetails for the robots blocked skip
  */
-export function createRobotsBlockedSkipDetails(url: string): PageSkipDetails {
+export function createRobotsBlockedSkipDetails(
+  url: string,
+  matchedRule?: string,
+  userAgent?: string
+): PageSkipDetails {
   return {
     reason: SkipReason.ROBOTS_BLOCKED,
-    description: `URL blocked by robots.txt`,
+    description: `URL blocked by robots.txt${matchedRule ? `: ${matchedRule}` : ""}`,
     stage: IngestionStage.DISCOVER,
     skippedAt: new Date().toISOString(),
-    details: {},
+    details: matchedRule || userAgent ? {
+      pattern: matchedRule,
+      // Store user agent in pattern field for consistency with existing schema
+    } : undefined,
   };
 }
 
@@ -3837,4 +3846,641 @@ export {
   DEFAULT_EMBED_COMPLETION_WAIT_MS,
   EMBED_COMPLETION_CHECK_INTERVAL_MS,
   EMBED_COMPLETION_ENV_VARS,
+};
+
+// ============================================================================
+// Robots.txt Enforcement
+// ============================================================================
+
+import {
+  ROBOTS_USER_AGENT,
+  ROBOTS_WILDCARD_USER_AGENT,
+  ROBOTS_TXT_CACHE_TTL_SECONDS,
+  ROBOTS_TXT_CACHE_KEY_PREFIX,
+  ROBOTS_TXT_FETCH_TIMEOUT_MS,
+  ROBOTS_TXT_DISABLED_ENV_VAR,
+  ROBOTS_TXT_DEBUG_ENV_VAR,
+} from "../constants/index.js";
+
+/**
+ * Represents a single rule in a robots.txt file.
+ */
+export interface RobotsTxtRule {
+  /** The rule type: allow or disallow */
+  type: "allow" | "disallow";
+  /** The path pattern from the rule */
+  pattern: string;
+  /** The original line from the robots.txt file */
+  originalLine: string;
+}
+
+/**
+ * Represents a user-agent section in robots.txt.
+ */
+export interface RobotsTxtUserAgentGroup {
+  /** User agent(s) this group applies to */
+  userAgents: string[];
+  /** Rules in this group, in order of appearance */
+  rules: RobotsTxtRule[];
+  /** Crawl-delay if specified (in seconds) */
+  crawlDelay?: number;
+}
+
+/**
+ * Parsed robots.txt structure.
+ */
+export interface ParsedRobotsTxt {
+  /** All user-agent groups in the file */
+  groups: RobotsTxtUserAgentGroup[];
+  /** Sitemap URLs if specified */
+  sitemaps: string[];
+  /** Whether the file was successfully fetched and parsed */
+  isValid: boolean;
+  /** Error message if parsing failed */
+  error?: string;
+  /** HTTP status code from fetching robots.txt */
+  httpStatus?: number;
+  /** Timestamp when the robots.txt was fetched */
+  fetchedAt: string;
+  /** The raw content of the robots.txt file */
+  rawContent?: string;
+}
+
+/**
+ * Result of checking a URL against robots.txt.
+ */
+export interface RobotsTxtCheckResult {
+  /** Whether the URL is allowed */
+  isAllowed: boolean;
+  /** Whether robots.txt enforcement was applied */
+  wasEnforced: boolean;
+  /** The matching rule if blocked */
+  matchedRule?: string;
+  /** The user agent used for matching */
+  userAgent: string;
+  /** Reason for the result */
+  reason: string;
+}
+
+/**
+ * Configuration for robots.txt enforcement.
+ */
+export interface RobotsTxtEnforcementConfig {
+  /** Whether to enforce robots.txt (can be overridden per-source) */
+  enabled: boolean;
+  /** User agent to use for matching rules */
+  userAgent: string;
+  /** Fallback user agent if primary not found */
+  fallbackUserAgent: string;
+  /** Whether to enable debug logging */
+  debugEnabled: boolean;
+}
+
+/**
+ * Statistics for robots.txt processing in a run.
+ */
+export interface RobotsTxtStats {
+  /** Number of URLs checked */
+  urlsChecked: number;
+  /** Number of URLs blocked by robots.txt */
+  urlsBlocked: number;
+  /** Number of unique domains checked */
+  domainsChecked: number;
+  /** Domains that blocked URLs */
+  blockedByDomain: Record<string, number>;
+}
+
+/**
+ * Checks if robots.txt enforcement is globally disabled via environment variable.
+ *
+ * @returns true if robots.txt enforcement is globally disabled
+ */
+export function isRobotsTxtGloballyDisabled(): boolean {
+  const disabled = process.env[ROBOTS_TXT_DISABLED_ENV_VAR];
+  return disabled === "true" || disabled === "1";
+}
+
+/**
+ * Checks if robots.txt debug logging is enabled.
+ *
+ * @returns true if debug logging is enabled
+ */
+export function isRobotsTxtDebugEnabled(): boolean {
+  const debug = process.env[ROBOTS_TXT_DEBUG_ENV_VAR];
+  return debug === "true" || debug === "1";
+}
+
+/**
+ * Gets the default robots.txt enforcement configuration.
+ *
+ * @returns RobotsTxtEnforcementConfig with default values
+ */
+export function getDefaultRobotsTxtConfig(): RobotsTxtEnforcementConfig {
+  return {
+    enabled: !isRobotsTxtGloballyDisabled(),
+    userAgent: ROBOTS_USER_AGENT,
+    fallbackUserAgent: ROBOTS_WILDCARD_USER_AGENT,
+    debugEnabled: isRobotsTxtDebugEnabled(),
+  };
+}
+
+/**
+ * Builds a Redis cache key for robots.txt content.
+ *
+ * @param domain - The domain (hostname) for the robots.txt
+ * @returns The Redis cache key
+ */
+export function buildRobotsTxtCacheKey(domain: string): string {
+  return `${ROBOTS_TXT_CACHE_KEY_PREFIX}${domain.toLowerCase()}`;
+}
+
+/**
+ * Gets the robots.txt cache TTL.
+ *
+ * @returns TTL in seconds
+ */
+export function getRobotsTxtCacheTtl(): number {
+  return ROBOTS_TXT_CACHE_TTL_SECONDS;
+}
+
+/**
+ * Gets the robots.txt fetch timeout.
+ *
+ * @returns Timeout in milliseconds
+ */
+export function getRobotsTxtFetchTimeout(): number {
+  return ROBOTS_TXT_FETCH_TIMEOUT_MS;
+}
+
+/**
+ * Builds the robots.txt URL for a given URL.
+ *
+ * @param url - Any URL from the target site
+ * @returns The robots.txt URL for that site
+ */
+export function buildRobotsTxtUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}/robots.txt`;
+  } catch {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+}
+
+/**
+ * Extracts the domain (hostname) from a URL.
+ *
+ * @param url - The URL to extract domain from
+ * @returns The domain (hostname)
+ */
+export function extractDomainForRobots(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname.toLowerCase();
+  } catch {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+}
+
+/**
+ * Parses robots.txt content into a structured format.
+ *
+ * @param content - The raw robots.txt content
+ * @param httpStatus - Optional HTTP status code from fetching
+ * @returns Parsed robots.txt structure
+ */
+export function parseRobotsTxt(
+  content: string,
+  httpStatus?: number
+): ParsedRobotsTxt {
+  const result: ParsedRobotsTxt = {
+    groups: [],
+    sitemaps: [],
+    isValid: true,
+    httpStatus,
+    fetchedAt: new Date().toISOString(),
+    rawContent: content,
+  };
+
+  // Handle empty content
+  if (!content || content.trim() === "") {
+    result.isValid = true; // Empty robots.txt means everything is allowed
+    return result;
+  }
+
+  const lines = content.split(/\r?\n/);
+  let currentGroup: RobotsTxtUserAgentGroup | null = null;
+
+  for (const line of lines) {
+    // Remove comments and trim whitespace
+    const commentIndex = line.indexOf("#");
+    const cleanLine =
+      commentIndex >= 0 ? line.substring(0, commentIndex).trim() : line.trim();
+
+    if (!cleanLine) continue;
+
+    // Parse directive
+    const colonIndex = cleanLine.indexOf(":");
+    if (colonIndex === -1) continue;
+
+    const directive = cleanLine.substring(0, colonIndex).trim().toLowerCase();
+    const value = cleanLine.substring(colonIndex + 1).trim();
+
+    switch (directive) {
+      case "user-agent":
+        // Start a new group or add to current group
+        if (currentGroup && currentGroup.rules.length === 0) {
+          // No rules yet, add to existing group
+          currentGroup.userAgents.push(value);
+        } else {
+          // Start a new group
+          currentGroup = {
+            userAgents: [value],
+            rules: [],
+          };
+          result.groups.push(currentGroup);
+        }
+        break;
+
+      case "disallow":
+        if (currentGroup) {
+          currentGroup.rules.push({
+            type: "disallow",
+            pattern: value,
+            originalLine: cleanLine,
+          });
+        }
+        break;
+
+      case "allow":
+        if (currentGroup) {
+          currentGroup.rules.push({
+            type: "allow",
+            pattern: value,
+            originalLine: cleanLine,
+          });
+        }
+        break;
+
+      case "crawl-delay":
+        if (currentGroup) {
+          const delay = parseFloat(value);
+          if (!isNaN(delay) && delay >= 0) {
+            currentGroup.crawlDelay = delay;
+          }
+        }
+        break;
+
+      case "sitemap":
+        if (value && (value.startsWith("http://") || value.startsWith("https://"))) {
+          result.sitemaps.push(value);
+        }
+        break;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Creates a ParsedRobotsTxt for a fetch error.
+ *
+ * @param error - The error message
+ * @param httpStatus - Optional HTTP status code
+ * @returns ParsedRobotsTxt indicating an error
+ */
+export function createRobotsTxtError(
+  error: string,
+  httpStatus?: number
+): ParsedRobotsTxt {
+  return {
+    groups: [],
+    sitemaps: [],
+    isValid: false,
+    error,
+    httpStatus,
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Creates a ParsedRobotsTxt for when robots.txt doesn't exist (404).
+ * A missing robots.txt means everything is allowed.
+ *
+ * @returns ParsedRobotsTxt allowing all URLs
+ */
+export function createRobotsTxtNotFound(): ParsedRobotsTxt {
+  return {
+    groups: [],
+    sitemaps: [],
+    isValid: true,
+    httpStatus: 404,
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Matches a URL path against a robots.txt pattern.
+ *
+ * Robots.txt patterns support:
+ * - Exact prefix matching
+ * - * matches any sequence of characters
+ * - $ matches end of URL
+ *
+ * Note: An empty pattern in robots.txt has special meaning:
+ * - "Disallow:" (empty) means allow all URLs
+ * - So an empty pattern should NOT match anything, effectively making the rule a no-op
+ *
+ * @param path - The URL path to check
+ * @param pattern - The robots.txt pattern
+ * @returns true if the path matches the pattern
+ */
+export function matchRobotsTxtPattern(path: string, pattern: string): boolean {
+  // Empty pattern does NOT match anything (per robots.txt spec)
+  // An empty Disallow means "allow all", so we should not match
+  if (!pattern || pattern === "") return false;
+
+  // Empty path should be treated as "/"
+  const normalizedPath = path || "/";
+
+  // Build regex from pattern
+  let regexPattern = "";
+  for (let i = 0; i < pattern.length; i++) {
+    const char = pattern[i];
+    if (char === "*") {
+      regexPattern += ".*";
+    } else if (char === "$" && i === pattern.length - 1) {
+      regexPattern += "$";
+    } else {
+      // Escape special regex characters
+      regexPattern += char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+  }
+
+  // If pattern doesn't end with $, it's a prefix match
+  if (!pattern.endsWith("$")) {
+    regexPattern = "^" + regexPattern;
+  } else {
+    regexPattern = "^" + regexPattern;
+  }
+
+  try {
+    const regex = new RegExp(regexPattern);
+    return regex.test(normalizedPath);
+  } catch {
+    // Invalid regex, fall back to prefix match
+    return normalizedPath.startsWith(pattern.replace(/\*|\$/g, ""));
+  }
+}
+
+/**
+ * Finds the applicable rule group for a user agent.
+ *
+ * @param robotsTxt - Parsed robots.txt
+ * @param userAgent - The user agent to match
+ * @param fallbackUserAgent - Fallback user agent (usually "*")
+ * @returns The matching group or undefined
+ */
+export function findRobotsTxtGroup(
+  robotsTxt: ParsedRobotsTxt,
+  userAgent: string,
+  fallbackUserAgent: string = ROBOTS_WILDCARD_USER_AGENT
+): RobotsTxtUserAgentGroup | undefined {
+  const userAgentLower = userAgent.toLowerCase();
+  const fallbackLower = fallbackUserAgent.toLowerCase();
+
+  // First, try to find a specific match for the user agent
+  for (const group of robotsTxt.groups) {
+    for (const ua of group.userAgents) {
+      if (ua.toLowerCase() === userAgentLower) {
+        return group;
+      }
+    }
+  }
+
+  // Then, try to find a group that matches via substring
+  for (const group of robotsTxt.groups) {
+    for (const ua of group.userAgents) {
+      const uaLower = ua.toLowerCase();
+      if (
+        userAgentLower.includes(uaLower) ||
+        uaLower.includes(userAgentLower)
+      ) {
+        return group;
+      }
+    }
+  }
+
+  // Fall back to wildcard user agent
+  for (const group of robotsTxt.groups) {
+    for (const ua of group.userAgents) {
+      if (ua === fallbackLower || ua === "*") {
+        return group;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Checks if a URL is allowed by robots.txt.
+ *
+ * @param robotsTxt - Parsed robots.txt
+ * @param url - The URL to check
+ * @param config - Enforcement configuration
+ * @returns Check result with allowed status and details
+ */
+export function checkUrlAgainstRobotsTxt(
+  robotsTxt: ParsedRobotsTxt,
+  url: string,
+  config: RobotsTxtEnforcementConfig = getDefaultRobotsTxtConfig()
+): RobotsTxtCheckResult {
+  // If enforcement is disabled, allow everything
+  if (!config.enabled) {
+    return {
+      isAllowed: true,
+      wasEnforced: false,
+      userAgent: config.userAgent,
+      reason: "Robots.txt enforcement disabled",
+    };
+  }
+
+  // If robots.txt is invalid or errored, allow by default
+  if (!robotsTxt.isValid) {
+    return {
+      isAllowed: true,
+      wasEnforced: false,
+      userAgent: config.userAgent,
+      reason: `Robots.txt invalid: ${robotsTxt.error || "unknown error"}`,
+    };
+  }
+
+  // If no groups, everything is allowed
+  if (robotsTxt.groups.length === 0) {
+    return {
+      isAllowed: true,
+      wasEnforced: true,
+      userAgent: config.userAgent,
+      reason: "No rules in robots.txt",
+    };
+  }
+
+  // Find the applicable group
+  const group = findRobotsTxtGroup(
+    robotsTxt,
+    config.userAgent,
+    config.fallbackUserAgent
+  );
+
+  if (!group) {
+    return {
+      isAllowed: true,
+      wasEnforced: true,
+      userAgent: config.userAgent,
+      reason: "No matching user-agent group",
+    };
+  }
+
+  // Extract path from URL
+  let path: string;
+  try {
+    const parsed = new URL(url);
+    path = parsed.pathname + parsed.search;
+  } catch {
+    return {
+      isAllowed: false,
+      wasEnforced: true,
+      userAgent: config.userAgent,
+      reason: "Invalid URL",
+    };
+  }
+
+  // Find the most specific matching rule
+  // Rules are evaluated in order, with more specific patterns taking precedence
+  let matchedRule: RobotsTxtRule | undefined;
+  let longestMatchLength = -1;
+
+  for (const rule of group.rules) {
+    if (matchRobotsTxtPattern(path, rule.pattern)) {
+      // Use the rule with the longest matching pattern
+      const patternLength = rule.pattern.replace(/\*/g, "").length;
+      if (patternLength > longestMatchLength) {
+        longestMatchLength = patternLength;
+        matchedRule = rule;
+      }
+    }
+  }
+
+  if (!matchedRule) {
+    return {
+      isAllowed: true,
+      wasEnforced: true,
+      userAgent: config.userAgent,
+      reason: "No matching rule",
+    };
+  }
+
+  const isAllowed = matchedRule.type === "allow";
+  return {
+    isAllowed,
+    wasEnforced: true,
+    matchedRule: matchedRule.pattern,
+    userAgent: config.userAgent,
+    reason: isAllowed
+      ? `Allowed by rule: ${matchedRule.originalLine}`
+      : `Blocked by rule: ${matchedRule.originalLine}`,
+  };
+}
+
+/**
+ * Filters URLs based on robots.txt rules.
+ *
+ * @param robotsTxt - Parsed robots.txt
+ * @param urls - URLs to filter
+ * @param config - Enforcement configuration
+ * @returns Object with allowed and blocked URLs with reasons
+ */
+export function filterUrlsByRobotsTxt(
+  robotsTxt: ParsedRobotsTxt,
+  urls: string[],
+  config: RobotsTxtEnforcementConfig = getDefaultRobotsTxtConfig()
+): {
+  allowed: string[];
+  blocked: Array<{ url: string; reason: string; rule?: string }>;
+} {
+  const allowed: string[] = [];
+  const blocked: Array<{ url: string; reason: string; rule?: string }> = [];
+
+  for (const url of urls) {
+    const result = checkUrlAgainstRobotsTxt(robotsTxt, url, config);
+    if (result.isAllowed) {
+      allowed.push(url);
+    } else {
+      blocked.push({
+        url,
+        reason: result.reason,
+        rule: result.matchedRule,
+      });
+    }
+  }
+
+  return { allowed, blocked };
+}
+
+/**
+ * Creates an empty RobotsTxtStats object.
+ *
+ * @returns Empty stats object
+ */
+export function createEmptyRobotsTxtStats(): RobotsTxtStats {
+  return {
+    urlsChecked: 0,
+    urlsBlocked: 0,
+    domainsChecked: 0,
+    blockedByDomain: {},
+  };
+}
+
+/**
+ * Updates RobotsTxtStats with check results.
+ *
+ * @param stats - Current stats
+ * @param domain - Domain that was checked
+ * @param urlsChecked - Number of URLs checked
+ * @param urlsBlocked - Number of URLs blocked
+ * @returns Updated stats
+ */
+export function updateRobotsTxtStats(
+  stats: RobotsTxtStats,
+  domain: string,
+  urlsChecked: number,
+  urlsBlocked: number
+): RobotsTxtStats {
+  const newStats = { ...stats };
+  newStats.urlsChecked += urlsChecked;
+  newStats.urlsBlocked += urlsBlocked;
+
+  if (urlsBlocked > 0) {
+    newStats.blockedByDomain[domain] =
+      (newStats.blockedByDomain[domain] || 0) + urlsBlocked;
+  }
+
+  // Count unique domains
+  const domains = new Set<string>(Object.keys(newStats.blockedByDomain));
+  domains.add(domain);
+  newStats.domainsChecked = domains.size;
+
+  return newStats;
+}
+
+// Re-export robots.txt constants for convenience
+export {
+  ROBOTS_USER_AGENT,
+  ROBOTS_WILDCARD_USER_AGENT,
+  ROBOTS_TXT_CACHE_TTL_SECONDS,
+  ROBOTS_TXT_CACHE_KEY_PREFIX,
+  ROBOTS_TXT_FETCH_TIMEOUT_MS,
+  ROBOTS_TXT_DISABLED_ENV_VAR,
+  ROBOTS_TXT_DEBUG_ENV_VAR,
 };

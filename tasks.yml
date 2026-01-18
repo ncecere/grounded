@@ -96,7 +96,7 @@ tasks:
   # PARALLEL GROUP 6: Robots policy overrides
   # ===========================================================================
   - title: Implement robots.txt enforcement with override flag
-    completed: false
+    completed: true
     parallel_group: 6
     tags: [crawl, policy]
 

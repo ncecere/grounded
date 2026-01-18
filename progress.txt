@@ -962,3 +962,118 @@ PENDING -> IN_PROGRESS -> SUCCEEDED
 - All 59 new tests pass
 - All existing tests pass (791 tests in shared package)
 - TypeScript typechecking passes across all packages
+
+## 2026-01-18: Implement robots.txt enforcement with override flag
+
+### Summary
+Implemented robots.txt enforcement for the URL discovery stage of the ingestion pipeline. The system fetches and parses robots.txt files, caches them in Redis, and filters URLs based on Disallow/Allow rules. The feature respects the per-source `respectRobotsTxt` configuration flag (default: true) and can be globally disabled via environment variable.
+
+### Changes Made
+1. **packages/shared/src/constants/index.ts**
+   - Added `ROBOTS_USER_AGENT` ("Grounded-Bot") - User agent for matching rules
+   - Added `ROBOTS_WILDCARD_USER_AGENT` ("*") - Fallback user agent
+   - Added `ROBOTS_TXT_CACHE_TTL_SECONDS` (3600) - 1 hour cache TTL
+   - Added `ROBOTS_TXT_CACHE_KEY_PREFIX` ("robots_txt_cache:") - Redis key prefix
+   - Added `ROBOTS_TXT_FETCH_TIMEOUT_MS` (5000) - 5 second fetch timeout
+   - Added `ROBOTS_TXT_DISABLED_ENV_VAR` - Global disable flag
+   - Added `ROBOTS_TXT_DEBUG_ENV_VAR` - Debug logging flag
+
+2. **packages/shared/src/types/index.ts**
+   - Added `RobotsTxtRule` interface - Single Allow/Disallow rule
+   - Added `RobotsTxtUserAgentGroup` interface - User-agent section with rules
+   - Added `ParsedRobotsTxt` interface - Full parsed robots.txt structure
+   - Added `RobotsTxtCheckResult` interface - URL check result
+   - Added `RobotsTxtEnforcementConfig` interface - Configuration options
+   - Added `RobotsTxtStats` interface - Statistics for monitoring
+   - Added helper functions:
+     - `isRobotsTxtGloballyDisabled()` - Checks global disable env var
+     - `isRobotsTxtDebugEnabled()` - Checks debug logging env var
+     - `getDefaultRobotsTxtConfig()` - Returns default configuration
+     - `buildRobotsTxtCacheKey()` - Builds Redis cache key
+     - `getRobotsTxtCacheTtl()` / `getRobotsTxtFetchTimeout()` - Config getters
+     - `buildRobotsTxtUrl()` - Builds robots.txt URL from any page URL
+     - `extractDomainForRobots()` - Extracts domain from URL
+     - `parseRobotsTxt()` - Parses robots.txt content into structured format
+     - `createRobotsTxtError()` - Creates error result for fetch failures
+     - `createRobotsTxtNotFound()` - Creates result for 404 (allows all)
+     - `matchRobotsTxtPattern()` - Matches URL against robots.txt pattern
+     - `findRobotsTxtGroup()` - Finds applicable user-agent group
+     - `checkUrlAgainstRobotsTxt()` - Checks if URL is allowed
+     - `filterUrlsByRobotsTxt()` - Filters URL list by robots.txt
+     - `createEmptyRobotsTxtStats()` / `updateRobotsTxtStats()` - Stats helpers
+   - Updated `createRobotsBlockedSkipDetails()` to include matched rule and user agent
+
+3. **apps/ingestion-worker/src/processors/source-discover.ts**
+   - Added in-memory robots.txt cache for current process
+   - Added `fetchRobotsTxt()` - Fetches and caches robots.txt from Redis/network
+   - Added `cacheRobotsTxt()` - Caches parsed robots.txt in memory and Redis
+   - Added `filterUrlsByRobotsRules()` - Filters URLs by robots.txt, grouping by domain
+   - Updated `processSourceDiscover()` to:
+     - Check `config.respectRobotsTxt` flag (defaults to true)
+     - Filter URLs through robots.txt rules after pattern filtering
+     - Log blocked URLs at info level with counts
+     - Log individual blocked URLs at debug level with reasons
+
+4. **packages/shared/src/types/robots-txt-enforcement.test.ts** (new file)
+   - Added 79 tests covering:
+     - All constants validation
+     - Environment variable handling
+     - Configuration functions
+     - Cache key building
+     - URL building and domain extraction
+     - robots.txt parsing (basic, complex, wildcards, comments)
+     - Pattern matching (prefix, wildcards, end-of-URL $)
+     - User-agent group finding (exact, substring, wildcard fallback)
+     - URL checking (allow/disallow, specificity, enforcement)
+     - URL filtering
+     - Statistics tracking
+     - Skip details creation
+     - Real-world robots.txt examples (Google-style, bot-specific rules)
+     - Interface compliance tests
+
+### Key Design Decisions
+- **Respect by default**: `respectRobotsTxt: true` in SourceConfig schema
+- **Global override**: Can be disabled via `ROBOTS_TXT_DISABLED=true` env var
+- **Per-source override**: Each source can set `respectRobotsTxt: false` to ignore robots.txt
+- **Fail-open**: If robots.txt fetch fails or is invalid, allow all URLs (safe default)
+- **Caching**: 1-hour TTL in both in-memory and Redis caches
+- **Specificity**: More specific patterns (longer) take precedence over general ones
+- **Empty Disallow**: Empty `Disallow:` pattern means "allow all" per robots.txt spec
+
+### Robots.txt Features Supported
+| Feature | Support |
+|---------|---------|
+| User-agent matching | ✅ Exact, substring, wildcard (*) |
+| Disallow rules | ✅ Path prefix matching |
+| Allow rules | ✅ Path prefix matching |
+| Wildcards (*) | ✅ In patterns |
+| End-of-URL ($) | ✅ Exact path matching |
+| Crawl-delay | ✅ Parsed (not enforced) |
+| Sitemap | ✅ Parsed and stored |
+| Multiple groups | ✅ User-agent specific rules |
+| Comments (#) | ✅ Inline and full-line |
+
+### Configuration Options
+| Setting | Default | Override |
+|---------|---------|----------|
+| Enforcement enabled | true | `ROBOTS_TXT_DISABLED=true` |
+| Per-source enabled | true | `source.config.respectRobotsTxt = false` |
+| User agent | "Grounded-Bot" | - |
+| Cache TTL | 3600s (1 hour) | - |
+| Fetch timeout | 5000ms (5 seconds) | - |
+| Debug logging | false | `ROBOTS_TXT_DEBUG=true` |
+
+### Acceptance Criteria Met
+- ✅ Implement robots.txt enforcement with override flag
+- ✅ Fetch and parse robots.txt files
+- ✅ Cache robots.txt in Redis with TTL
+- ✅ Filter URLs based on Disallow/Allow rules
+- ✅ Support per-source `respectRobotsTxt` configuration
+- ✅ Support global disable via environment variable
+- ✅ Handle wildcards and end-of-URL patterns
+- ✅ Fail-open on fetch errors (allow all URLs)
+
+### Tests
+- All 79 new tests pass
+- All existing tests pass (879 tests in shared package)
+- TypeScript typechecking passes across all packages

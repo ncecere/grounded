@@ -579,6 +579,53 @@ export const EMBED_COMPLETION_ENV_VARS = {
 } as const;
 
 // ============================================================================
+// Robots.txt Configuration
+// ============================================================================
+
+/**
+ * User agent string to use when checking robots.txt rules.
+ * This is the bot identifier that robots.txt Disallow rules will be matched against.
+ */
+export const ROBOTS_USER_AGENT = "Grounded-Bot";
+
+/**
+ * Fallback user agent for matching robots.txt rules.
+ * If no specific rules are found for ROBOTS_USER_AGENT, we check rules for "*".
+ */
+export const ROBOTS_WILDCARD_USER_AGENT = "*";
+
+/**
+ * Cache TTL for robots.txt content in seconds.
+ * robots.txt should be cached to avoid excessive requests during crawls.
+ */
+export const ROBOTS_TXT_CACHE_TTL_SECONDS = 3600; // 1 hour
+
+/**
+ * Redis key prefix for caching robots.txt content.
+ * Key pattern: robots_txt_cache:{domain}
+ */
+export const ROBOTS_TXT_CACHE_KEY_PREFIX = "robots_txt_cache:";
+
+/**
+ * Timeout for fetching robots.txt in milliseconds.
+ * Short timeout to avoid blocking discovery on slow/unresponsive servers.
+ */
+export const ROBOTS_TXT_FETCH_TIMEOUT_MS = 5000; // 5 seconds
+
+/**
+ * Environment variable to globally disable robots.txt enforcement.
+ * Set to "true" or "1" to disable robots.txt checks for all sources.
+ * Note: Per-source override is available via SourceConfig.respectRobotsTxt.
+ */
+export const ROBOTS_TXT_DISABLED_ENV_VAR = "ROBOTS_TXT_DISABLED";
+
+/**
+ * Environment variable to enable debug logging for robots.txt checks.
+ * Set to "true" or "1" to log detailed robots.txt parsing and matching.
+ */
+export const ROBOTS_TXT_DEBUG_ENV_VAR = "ROBOTS_TXT_DEBUG";
+
+// ============================================================================
 // API Versions
 // ============================================================================
 
