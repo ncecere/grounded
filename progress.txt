@@ -1261,3 +1261,63 @@ Verified that the retrieval config routes already properly support the `historyT
 - `apps/web/src/lib/api/chat.test.ts` (NEW - 41 tests)
 - `apps/web/src/lib/api/api.test.ts` (MODIFIED - added advancedChatStream tests)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 4 - Create ReasoningSteps component
+
+### Completed Task
+**Task:** Create ReasoningSteps component
+**Phase:** Phase 4 - Frontend - Agent Form & Chat UI & Widget
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Created ReasoningSteps component module:**
+   - `apps/web/src/components/ai-elements/reasoning-steps.tsx`
+
+2. **Implemented components:**
+   - `ReasoningSteps` - Main collapsible container for reasoning steps
+   - `ReasoningStepsTrigger` - Clickable header showing step progress/status
+   - `ReasoningStepsContent` - Collapsible content showing step list with timeline
+   - `ReasoningStepItem` - Individual step display with icon, title, summary, and status
+
+3. **Implemented helper functions:**
+   - `getStepIcon()` - Returns appropriate Lucide icon for step type (PencilIcon, ListTreeIcon, SearchIcon, GitMergeIcon, SparklesIcon)
+   - `getStatusIcon()` - Returns status indicator icon (CheckCircle2, Loader, AlertCircle, Circle)
+   - `getStatusClasses()` - Returns Tailwind classes for status styling (green/primary/destructive/muted)
+   - `getStepTypeLabel()` - Returns human-readable labels for step types
+
+4. **Context and hooks:**
+   - `ReasoningStepsContext` - Context for sharing isOpen and isStreaming state
+   - `useReasoningSteps()` - Hook to access context within child components
+
+5. **Features:**
+   - Collapsible panel (collapsed by default as per task requirement)
+   - Shows step count and completion status in trigger
+   - Shimmer animation effect during streaming/in_progress steps
+   - Timeline-style visual with left border connecting steps
+   - Status indicators for each step (pending, in_progress, completed, error)
+   - Step-specific icons for visual identification
+
+6. **Added comprehensive tests:**
+   - `apps/web/src/components/ai-elements/reasoning-steps.test.ts` (65 tests)
+   - Tests for module exports
+   - Tests for getStepIcon (all 5 step types + fallback)
+   - Tests for getStatusIcon (all 4 statuses + fallback)
+   - Tests for getStatusClasses (styling verification)
+   - Tests for getStepTypeLabel (human-readable labels)
+   - Tests for ReasoningStep interface
+   - Tests for behavior contracts (defaultOpen, empty steps, step counting)
+   - Tests for reasoning step sequence documentation
+   - Tests for step message display logic
+   - Tests for props interfaces
+   - Tests for component composition patterns
+
+### Test Results
+- All 265 tests pass in web
+- All 590 tests pass in api
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `apps/web/src/components/ai-elements/reasoning-steps.tsx` (NEW - ReasoningSteps component)
+- `apps/web/src/components/ai-elements/reasoning-steps.test.ts` (NEW - 65 tests)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)

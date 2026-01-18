@@ -162,7 +162,7 @@ tasks:
     file: phase-5-frontend-chat-ui.md
 
   - title: Create ReasoningSteps component
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [web, ui, chat, components]
     file: phase-5-frontend-chat-ui.md
