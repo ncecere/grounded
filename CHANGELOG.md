@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Source run stop control for pending, running, or embedding runs.
+- New `embedding_incomplete` run status to reflect delayed embeddings.
+
+### Changed
+
+- Run finalization now waits longer for embeddings before marking incomplete.
+- Embedding completion re-validates runs after the embed backlog clears.
+
 ## [0.2.0] - 2026-01-18
 
 ### Added

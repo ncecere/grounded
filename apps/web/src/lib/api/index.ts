@@ -65,6 +65,7 @@ export const api = {
   updateSource: sourcesApi.updateSource,
   deleteSource: sourcesApi.deleteSource,
   triggerSourceRun: sourcesApi.triggerSourceRun,
+  cancelSourceRun: sourcesApi.cancelSourceRun,
   listSourceRuns: sourcesApi.listSourceRuns,
   getSourceStats: sourcesApi.getSourceStats,
   uploadFile: sourcesApi.uploadFile,

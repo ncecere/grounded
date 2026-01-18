@@ -10,6 +10,7 @@ import {
   markChunksEmbedInProgress,
   markChunksEmbedSucceeded,
   markChunksEmbedFailed,
+  checkRunEmbeddingCompletion,
 } from "@grounded/queue";
 
 export class EmbeddingDimensionMismatchError extends Error {
@@ -22,6 +23,49 @@ export class EmbeddingDimensionMismatchError extends Error {
     );
     this.name = "EmbeddingDimensionMismatchError";
   }
+}
+
+async function maybeFinalizeEmbeddingCompletion(runId: string): Promise<void> {
+  const run = await db.query.sourceRuns.findFirst({
+    where: eq(sourceRuns.id, runId),
+  });
+
+  if (!run || run.finishedAt) {
+    return;
+  }
+
+  if (run.status !== "embedding_incomplete") {
+    return;
+  }
+
+  const chunksToEmbed = run.chunksToEmbed || 0;
+  if (chunksToEmbed === 0) {
+    return;
+  }
+
+  const hasPageFailures = (run.stats?.pagesFailed ?? 0) > 0;
+  const embedResult = await checkRunEmbeddingCompletion(runId, chunksToEmbed, hasPageFailures);
+
+  if (!embedResult.isComplete) {
+    return;
+  }
+
+  const finalStatus = embedResult.suggestedStatus === "embedding_incomplete"
+    ? "embedding_incomplete"
+    : embedResult.suggestedStatus;
+
+  const updatePayload: { status: typeof finalStatus; finishedAt?: Date } = {
+    status: finalStatus,
+  };
+
+  if (finalStatus !== "embedding_incomplete") {
+    updatePayload.finishedAt = new Date();
+  }
+
+  await db
+    .update(sourceRuns)
+    .set(updatePayload)
+    .where(eq(sourceRuns.id, runId));
 }
 
 export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<void> {
@@ -163,6 +207,9 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
           chunksEmbedded: sql`${sourceRuns.chunksEmbedded} + ${chunks.length}`,
         })
         .where(eq(sourceRuns.id, runId));
+
+      // If embeddings are fully complete, re-validate run status
+      await maybeFinalizeEmbeddingCompletion(runId);
     }
 
     log.info("ingestion-worker", "Embedded chunks for KB", { chunkCount: chunks.length, dimensions: expectedDimensions, kbId });

@@ -100,8 +100,7 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
 
     // Use the suggested status from embedding completion check
     if (embedResult.suggestedStatus === "embedding_incomplete") {
-      // Embedding not complete after waiting - this is a special status
-      finalStatus = "partial"; // Use partial since embedding_incomplete isn't in DB enum yet
+      finalStatus = "embedding_incomplete";
       log.warn("ingestion-worker", "Run finalized with incomplete embeddings", {
         runId,
         pendingCount: embedResult.pendingCount,
@@ -126,6 +125,7 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
   }
 
   const finishedAt = new Date();
+  const storedFinishedAt = finalStatus === "embedding_incomplete" ? null : finishedAt;
 
   log.debug("ingestion-worker", "Updating run with status", { runId, finalStatus });
 
@@ -135,7 +135,7 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
       .update(sourceRuns)
       .set({
         status: finalStatus,
-        finishedAt,
+        finishedAt: storedFinishedAt,
         stats: {
           pagesSeen: stats.total,
           pagesIndexed: stats.succeeded,
@@ -237,12 +237,16 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
   await crawlState.cleanup();
 
   // Cleanup chunk embed status tracking data
-  const cleanedUpStatuses = await cleanupChunkEmbedStatuses(runId);
-  if (cleanedUpStatuses > 0) {
-    log.debug("ingestion-worker", "Cleaned up chunk embed status keys", {
-      runId,
-      keysDeleted: cleanedUpStatuses,
-    });
+  if (finalStatus !== "embedding_incomplete") {
+    const cleanedUpStatuses = await cleanupChunkEmbedStatuses(runId);
+    if (cleanedUpStatuses > 0) {
+      log.debug("ingestion-worker", "Cleaned up chunk embed status keys", {
+        runId,
+        keysDeleted: cleanedUpStatuses,
+      });
+    }
+  } else {
+    log.debug("ingestion-worker", "Skipping embed status cleanup for embedding_incomplete run", { runId });
   }
 
   log.info("ingestion-worker", "Source run finalized", {

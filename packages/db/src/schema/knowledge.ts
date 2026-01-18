@@ -113,7 +113,7 @@ export const sourceRuns = pgTable(
       .references(() => sources.id, { onDelete: "cascade" }),
     status: text("status")
       .notNull()
-      .$type<"pending" | "running" | "partial" | "succeeded" | "failed" | "canceled">()
+      .$type<"pending" | "running" | "partial" | "succeeded" | "failed" | "canceled" | "embedding_incomplete">()
       .default("pending"),
     trigger: text("trigger").notNull().$type<"manual" | "scheduled">(),
     forceReindex: boolean("force_reindex").default(false).notNull(),

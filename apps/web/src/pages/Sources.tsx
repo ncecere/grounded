@@ -79,19 +79,20 @@ export function Sources({ kbId, onBack }: SourcesProps) {
     queryKey: ["source-runs", kbId, selectedSource?.id],
     queryFn: () => api.listSourceRuns(kbId, selectedSource!.id),
     enabled: !!selectedSource,
-    refetchInterval: (query) => {
-      // Auto-refresh every 3 seconds if there's a pending, running, or embedding run
-      const data = query.state.data;
-      if (data?.some(r => 
-        r.status === "pending" || 
-        r.status === "running" ||
-        // Also refresh while embeddings are still processing
-        (r.status === "succeeded" && r.chunksToEmbed > 0 && r.chunksEmbedded < r.chunksToEmbed)
-      )) {
-        return 3000;
-      }
-      return false;
-    },
+      refetchInterval: (query) => {
+        // Auto-refresh every 3 seconds if there's a pending, running, or embedding run
+        const data = query.state.data;
+        if (data?.some(r => 
+          r.status === "pending" || 
+          r.status === "running" ||
+          r.status === "embedding_incomplete" ||
+          // Also refresh while embeddings are still processing
+          (r.status === "succeeded" && r.chunksToEmbed > 0 && r.chunksEmbedded < r.chunksToEmbed)
+        )) {
+          return 3000;
+        }
+        return false;
+      },
   });
 
   const { data: sourceStats } = useQuery({
@@ -145,6 +146,19 @@ export function Sources({ kbId, onBack }: SourcesProps) {
     },
     onError: (error: Error) => {
       showNotification("error", error.message || "Failed to start scraping");
+    },
+  });
+
+  const cancelRunMutation = useMutation({
+    mutationFn: (runId: string) => api.cancelSourceRun(kbId, runId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sources", kbId] });
+      queryClient.invalidateQueries({ queryKey: ["source-runs", kbId] });
+      queryClient.invalidateQueries({ queryKey: ["source-stats", kbId] });
+      showNotification("info", "Run cancelled.");
+    },
+    onError: (error: Error) => {
+      showNotification("error", error.message || "Failed to cancel run");
     },
   });
 
@@ -333,6 +347,8 @@ export function Sources({ kbId, onBack }: SourcesProps) {
         return "bg-blue-500/15 text-blue-700 dark:text-blue-400";
       case "embedding":
         return "bg-purple-500/15 text-purple-700 dark:text-purple-400";
+      case "embedding_incomplete":
+        return "bg-amber-500/15 text-amber-700 dark:text-amber-400";
       default:
         return "bg-muted text-muted-foreground";
     }
@@ -445,9 +461,18 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium text-foreground">{source.name}</h3>
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(source.status)}`}>
-                        {source.status}
-                      </span>
+                      {(() => {
+                        const latestRun = selectedSource?.id === source.id ? runs?.[0] : undefined;
+                        const latestDisplayStatus = latestRun ? getDisplayStatus(latestRun) : undefined;
+                        const badgeStatus = latestDisplayStatus === "embedding_incomplete"
+                          ? "embedding_incomplete"
+                          : source.status;
+                        return (
+                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(badgeStatus)}`}>
+                            {badgeStatus === "embedding_incomplete" ? "embedding incomplete" : badgeStatus}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       Type: {source.type}
@@ -485,6 +510,33 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const latestRun = runs?.find((run) => run.sourceId === source.id);
+                        if (!latestRun) return;
+                        if (confirm("Stop the current run? This will cancel scraping and embedding progress.")) {
+                          cancelRunMutation.mutate(latestRun.id);
+                        }
+                      }}
+                      disabled={
+                        cancelRunMutation.isPending ||
+                        !runs?.some(
+                          (run) =>
+                            run.sourceId === source.id &&
+                            ["pending", "running", "embedding", "embedding_incomplete"].includes(
+                              getDisplayStatus(run)
+                            )
+                        )
+                      }
+                      className="p-2 text-red-600 dark:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
+                      title="Stop Run"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9h6v6H9z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </button>
@@ -604,7 +656,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
                     <div key={run.id} className="p-3 bg-muted rounded-lg">
                       <div className="flex items-center justify-between">
                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(displayStatus)}`}>
-                          {displayStatus}
+                          {displayStatus === "embedding_incomplete" ? "embedding incomplete" : displayStatus}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {run.startedAt ? new Date(run.startedAt).toLocaleString() : "Pending"}

@@ -38,6 +38,7 @@ export const SourceRunStatus = {
   SUCCEEDED: "succeeded",
   FAILED: "failed",
   CANCELED: "canceled",
+  EMBEDDING_INCOMPLETE: "embedding_incomplete",
 } as const;
 export type SourceRunStatus =
   (typeof SourceRunStatus)[keyof typeof SourceRunStatus];

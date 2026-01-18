@@ -80,7 +80,7 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
         await crawlState.markProcessed(url);
 
         log.debug("ingestion-worker", "Page unchanged, skipped", { url });
-        await checkAndFinalize(runId, tenantId, crawlState);
+        await checkAndFinalize(runId, tenantId, crawlState, requestId, traceId);
         return;
       }
     } else {

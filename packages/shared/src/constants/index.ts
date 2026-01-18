@@ -559,7 +559,7 @@ export const EMBED_COMPLETION_GATING_DISABLED_ENV_VAR = "EMBED_COMPLETION_GATING
  * Maximum wait time (ms) for embeddings to complete during run finalization.
  * After this timeout, the run proceeds with embedding_incomplete status if applicable.
  */
-export const DEFAULT_EMBED_COMPLETION_WAIT_MS = 30000; // 30 seconds
+export const DEFAULT_EMBED_COMPLETION_WAIT_MS = 120000; // 2 minutes
 
 /**
  * Interval (ms) between checks for embedding completion during finalization.

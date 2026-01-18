@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { sources, sourceRuns, knowledgeBases } from "@grounded/db/schema";
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, and, isNull, desc, inArray, or, lt } from "drizzle-orm";
 import { redis } from "@grounded/queue";
 import { createCrawlState } from "@grounded/crawl-state";
 import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
@@ -362,26 +362,29 @@ sourceRoutes.post(
     const authContext = c.get("auth");
 
     const run = await withRequestRLS(c, async (tx) => {
-      const [run] = await tx
-        .update(sourceRuns)
-        .set({
-          status: "canceled",
-          finishedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(sourceRuns.id, runId),
-            eq(sourceRuns.tenantId, authContext.tenantId!),
-            eq(sourceRuns.status, "running")
+        const [run] = await tx
+          .update(sourceRuns)
+          .set({
+            status: "canceled",
+            finishedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(sourceRuns.id, runId),
+              eq(sourceRuns.tenantId, authContext.tenantId!),
+              or(
+                inArray(sourceRuns.status, ["running", "pending", "embedding_incomplete"]),
+                and(eq(sourceRuns.status, "succeeded"), lt(sourceRuns.chunksEmbedded, sourceRuns.chunksToEmbed))
+              )
+            )
           )
-        )
-        .returning();
+          .returning();
 
       return run;
     });
 
     if (!run) {
-      throw new NotFoundError("Running source run");
+      throw new NotFoundError("Cancelable source run");
     }
 
     return c.json({ run });

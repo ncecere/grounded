@@ -90,7 +90,7 @@ export interface Source {
   name: string;
   type: "web" | "upload" | "api";
   config: Record<string, unknown>;
-  status: "active" | "paused" | "error";
+  status: "active" | "paused" | "error" | "embedding_incomplete";
   lastRunAt: string | null;
   nextRunAt: string | null;
   createdAt: string;
@@ -108,7 +108,7 @@ export interface SourceRun {
   id: string;
   sourceId: string;
   tenantId: string;
-  status: "pending" | "running" | "partial" | "succeeded" | "failed" | "canceled";
+  status: "pending" | "running" | "partial" | "succeeded" | "failed" | "canceled" | "embedding_incomplete";
   trigger: "manual" | "scheduled";
   startedAt: string | null;
   finishedAt: string | null;
