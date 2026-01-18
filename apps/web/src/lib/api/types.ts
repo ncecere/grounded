@@ -135,6 +135,7 @@ export interface Agent {
   logoUrl: string | null;
   isEnabled: boolean;
   ragType: RagType;
+  showReasoningSteps: boolean;
   suggestedQuestions: string[];
   kbIds: string[];
   llmModelConfigId: string | null;

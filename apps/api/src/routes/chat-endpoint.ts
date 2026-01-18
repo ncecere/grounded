@@ -67,6 +67,8 @@ chatEndpointRoutes.get("/:token/config", async (c) => {
     welcomeMessage: result.agent.welcomeMessage || "How can I help?",
     logoUrl: result.agent.logoUrl || null,
     endpointType: result.endpointToken.endpointType,
+    ragType: result.agent.ragType,
+    showReasoningSteps: result.agent.showReasoningSteps,
   });
 });
 
@@ -176,6 +178,8 @@ chatEndpointRoutes.get("/:token", async (c) => {
   const agentName = agent.name;
   const welcomeMessage = agent.welcomeMessage || "How can I help you today?";
   const logoUrl = agent.logoUrl || null;
+  const ragType = agent.ragType;
+  const showReasoningSteps = agent.showReasoningSteps ?? true;
 
   // Get the base URL for loading static assets
   const baseUrl = new URL(c.req.url).origin;
@@ -205,7 +209,9 @@ chatEndpointRoutes.get("/:token", async (c) => {
           apiBase: '',
           agentName: '${agentName}',
           welcomeMessage: '${welcomeMessage}',
-          logoUrl: ${logoUrl ? `'${logoUrl}'` : 'null'}
+          logoUrl: ${logoUrl ? `'${logoUrl}'` : 'null'},
+          ragType: '${ragType}',
+          showReasoningSteps: ${showReasoningSteps ? 'true' : 'false'}
         });
       </script>
     </body>

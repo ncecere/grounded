@@ -26,6 +26,7 @@ export const agentsApi = {
     kbIds: string[];
     llmModelConfigId?: string;
     ragType?: RagType;
+    showReasoningSteps?: boolean;
   }) => {
     const res = await request<{ agent: Agent }>("/agents", {
       method: "POST",
@@ -44,6 +45,7 @@ export const agentsApi = {
       logoUrl?: string | null;
       isEnabled?: boolean;
       ragType?: RagType;
+      showReasoningSteps?: boolean;
       suggestedQuestions?: string[];
       kbIds?: string[];
       llmModelConfigId?: string | null;

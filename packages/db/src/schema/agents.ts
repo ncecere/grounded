@@ -40,6 +40,8 @@ IMPORTANT RULES:
     isEnabled: boolean("is_enabled").default(true).notNull(),
     // RAG mode: simple (standard retrieval) or advanced (multi-step reasoning with sub-queries)
     ragType: text("rag_type").$type<"simple" | "advanced">().default("simple").notNull(),
+    // Whether to show reasoning steps in widget/published chat (only applies when ragType is 'advanced')
+    showReasoningSteps: boolean("show_reasoning_steps").default(true).notNull(),
     llmModelConfigId: uuid("llm_model_config_id").references(() => modelConfigurations.id, {
       onDelete: "set null",
     }),

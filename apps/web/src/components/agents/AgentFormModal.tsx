@@ -169,6 +169,7 @@ export function AgentFormModal({
           kbIds: agent.kbIds,
           llmModelConfigId: agent.llmModelConfigId || "",
           ragType: agent.ragType || "simple",
+          showReasoningSteps: agent.showReasoningSteps ?? true,
         });
       } else {
         // Create mode - use defaults
@@ -261,6 +262,7 @@ export function AgentFormModal({
           kbIds: formData.kbIds,
           llmModelConfigId: formData.llmModelConfigId || null,
           ragType: formData.ragType,
+          showReasoningSteps: formData.showReasoningSteps,
         },
       });
 
@@ -279,6 +281,7 @@ export function AgentFormModal({
         kbIds: formData.kbIds,
         llmModelConfigId: formData.llmModelConfigId || undefined,
         ragType: formData.ragType,
+        showReasoningSteps: formData.showReasoningSteps,
       });
     }
   };
@@ -288,7 +291,7 @@ export function AgentFormModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-2xl h-[90vh] max-h-[850px] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>{isEditMode ? "Edit Agent" : "Create Agent"}</DialogTitle>
         </DialogHeader>
@@ -462,11 +465,27 @@ export function AgentFormModal({
                     </SelectContent>
                   </Select>
                   {formData.ragType === "advanced" && (
-                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg mt-2">
-                      <p className="text-xs text-blue-700 dark:text-blue-300">
-                        Advanced mode rewrites queries with conversation context, generates sub-queries for comprehensive search, and shows reasoning steps during response generation.
-                      </p>
-                    </div>
+                    <>
+                      <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg mt-2">
+                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                          Advanced mode rewrites queries with conversation context, generates sub-queries for comprehensive search, and shows reasoning steps during response generation.
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between p-3 border border-border rounded-lg mt-2">
+                        <div>
+                          <Label className="text-sm">Show Reasoning Steps</Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Display the reasoning process in widget and published chat
+                          </p>
+                        </div>
+                        <Switch
+                          checked={formData.showReasoningSteps}
+                          onCheckedChange={(checked) =>
+                            setFormData({ ...formData, showReasoningSteps: checked })
+                          }
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
 

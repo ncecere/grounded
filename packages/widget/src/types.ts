@@ -24,6 +24,10 @@ export interface WidgetConfig {
   logoUrl?: string | null;
   theme?: WidgetTheme;
   isPublic: boolean;
+  /** RAG mode: 'simple' or 'advanced' - determines whether to show reasoning steps */
+  ragType?: 'simple' | 'advanced';
+  /** Whether to show reasoning steps in widget (only applies when ragType is 'advanced') */
+  showReasoningSteps?: boolean;
 }
 
 export interface Citation {

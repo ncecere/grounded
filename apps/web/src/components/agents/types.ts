@@ -11,6 +11,7 @@ export interface AgentFormData {
   kbIds: string[];
   llmModelConfigId: string;
   ragType: RagType;
+  showReasoningSteps: boolean;
 }
 
 export interface RetrievalConfig {
@@ -55,6 +56,7 @@ export const defaultAgentForm: AgentFormData = {
   kbIds: [],
   llmModelConfigId: "",
   ragType: "simple",
+  showReasoningSteps: true,
 };
 
 export const defaultRetrievalConfig: RetrievalConfig = {

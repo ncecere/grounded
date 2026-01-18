@@ -37,6 +37,7 @@ const createAgentSchema = z.object({
   rerankerEnabled: z.boolean().default(true),
   citationsEnabled: z.boolean().default(true),
   ragType: z.enum(["simple", "advanced"]).default("simple"),
+  showReasoningSteps: z.boolean().default(true),
   kbIds: z.array(z.string().uuid()).optional(),
   llmModelConfigId: z.string().uuid().optional(),
 });
@@ -50,6 +51,7 @@ const updateAgentSchema = z.object({
   rerankerEnabled: z.boolean().optional(),
   citationsEnabled: z.boolean().optional(),
   ragType: z.enum(["simple", "advanced"]).optional(),
+  showReasoningSteps: z.boolean().optional(),
   isEnabled: z.boolean().optional(),
   llmModelConfigId: z.string().uuid().nullable().optional(),
   kbIds: z.array(z.string().uuid()).optional(),
