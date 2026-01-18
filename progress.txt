@@ -1015,3 +1015,50 @@ Verified that the retrieval config routes already properly support the `historyT
 
 ### Files Changed
 - `Tasks/tasks.yml` (MODIFIED - marked task complete, marked Phase 3 as completed)
+
+## 2026-01-17: Phase 4 - Update agent API client for ragType
+
+### Completed Task
+**Task:** Update agent API client for ragType
+**Phase:** Phase 4 - Frontend - Agent Form & Chat UI & Widget
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Updated agent API client for ragType support:**
+   - `apps/web/src/lib/api/agents.ts`
+   - Added `RagType` import from types module
+   - Updated `createAgent` method signature to accept optional `ragType` parameter
+   - Updated `updateAgent` method signature to accept optional `ragType` parameter
+   - Updated `updateRetrievalConfig` method to accept `historyTurns` and `advancedMaxSubqueries` parameters
+
+2. **createAgent method changes:**
+   - New optional parameter: `ragType?: RagType` (values: "simple" | "advanced")
+   - Default behavior preserved (server defaults to "simple" if not provided)
+
+3. **updateAgent method changes:**
+   - New optional parameter: `ragType?: RagType`
+   - Allows switching agents between simple and advanced RAG modes
+
+4. **updateRetrievalConfig method changes:**
+   - New optional parameter: `historyTurns?: number` (range 1-20)
+   - New optional parameter: `advancedMaxSubqueries?: number` (range 1-5)
+   - These control advanced RAG behavior when agent is in advanced mode
+
+5. **Added comprehensive tests:**
+   - `apps/web/src/lib/api/agents.test.ts` (NEW - 35 tests)
+   - Module export tests
+   - createAgent ragType parameter tests
+   - updateAgent ragType parameter tests
+   - updateRetrievalConfig advanced RAG field tests
+   - Agent and RagType type contract tests
+   - API method parameter count verification tests
+
+### Test Results
+- All 641 tests pass (590 in api, 51 in web)
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `apps/web/src/lib/api/agents.ts` (MODIFIED - added ragType and advanced RAG fields)
+- `apps/web/src/lib/api/agents.test.ts` (NEW - 35 tests)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)

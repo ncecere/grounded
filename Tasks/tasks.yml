@@ -131,7 +131,7 @@ tasks:
   # These can all run in parallel - depend on Group 3
   # ===========================================================================
   - title: Update agent API client for ragType
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [web, api-client, agents]
     file: phase-4-frontend-agent-form.md
