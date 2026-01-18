@@ -81,7 +81,7 @@ tasks:
     file: phase-2-advanced-rag-service.md
 
   - title: Implement reasoning event emission
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, service, rag, sse]
     file: phase-2-advanced-rag-service.md

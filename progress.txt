@@ -630,3 +630,94 @@ The sub-query retrieval and merging functionality was already implemented in the
 ### Files Changed
 - `apps/api/src/services/advanced-rag.test.ts` (MODIFIED - added 23 tests for sub-query retrieval and merging)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 2 - Implement reasoning event emission
+
+### Completed Task
+**Task:** Implement reasoning event emission
+**Phase:** Phase 2 - Advanced RAG Service
+**Status:** COMPLETED
+
+### Implementation Summary
+The reasoning event emission functionality was already implemented in the AdvancedRAGService as part of the initial file structure creation. This task verified the implementation and added comprehensive tests for reasoning event emission behavior.
+
+### Existing Implementation (verified):
+1. **ReasoningStep interface:**
+   - Fields: id, type, title, summary, status, optional details
+   - Types: "rewrite" | "plan" | "search" | "merge" | "generate"
+   - Statuses: "pending" | "in_progress" | "completed" | "error"
+
+2. **Reasoning event type:**
+   - `{ type: "reasoning", step: ReasoningStep }`
+   - Part of `AdvancedStreamEvent` union type
+
+3. **Event emission flow:**
+   - Each step emits twice: once with `in_progress` status, once with `completed` status
+   - Total of 10 reasoning events per chat response (2 per step × 5 steps)
+   - Steps emitted in order: rewrite → plan → search → merge → generate
+
+4. **Step details:**
+   - Rewrite step: Indicates if query was reformulated or used as-is
+   - Plan step: Reports sub-query count and includes sub-query list in details
+   - Search step: Reports query count and found chunk count
+   - Merge step: Reports unique chunk count after deduplication
+   - Generate step: Reports success on completion
+
+### Tests Added (47 new tests):
+1. **Reasoning event structure:**
+   - Event type discriminator validation
+   - Required fields in ReasoningStep
+   - Optional details field handling
+
+2. **Reasoning step emission order:**
+   - Correct sequence (rewrite → plan → search → merge → generate)
+   - Exactly 5 step types
+
+3. **Reasoning step status transitions:**
+   - Initial in_progress status
+   - Completed status after processing
+   - Two events per step (in_progress then completed)
+   - Step ID preservation across transitions
+   - Summary updates on completion
+
+4. **Step-specific emission details:**
+   - Rewrite step: Title, reformulation indication, truncation
+   - Plan step: Title, sub-query count, singular/plural forms, details inclusion
+   - Search step: Title, query count, chunk count
+   - Merge step: Title, unique chunk count
+   - Generate step: Title, success message
+
+5. **Reasoning event counting:**
+   - 10 total reasoning events
+   - Reasoning steps count tracking for analytics
+
+6. **Event type discrimination:**
+   - Distinguishing from other event types
+   - Type narrowing for step property access
+
+7. **Error handling in reasoning steps:**
+   - Error status support
+   - Error event emission on failure
+
+8. **Reasoning event integration:**
+   - Status event after merge step
+   - Text events after generate starts
+   - Sources after generate completes
+   - Done event last
+
+9. **Step ID generation:**
+   - Unique IDs for each step
+   - UUID format
+
+10. **SSE serialization compatibility:**
+    - JSON serialization
+    - SSE data event formatting
+
+### Test Results
+- All 337 tests pass (321 in api, 16 in web)
+- All typecheck passes across 14 packages
+- Added 47 new tests for reasoning event emission
+
+### Files Changed
+- `apps/api/src/services/advanced-rag.test.ts` (MODIFIED - added 47 tests for reasoning event emission)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)

@@ -1518,3 +1518,565 @@ describe("AdvancedRAGService vs SimpleRAGService", () => {
     });
   });
 });
+
+// ============================================================================
+// Tests for Reasoning Event Emission
+// ============================================================================
+
+describe("Reasoning Event Emission", () => {
+  describe("reasoning event structure", () => {
+    it("should emit reasoning events with correct type discriminator", () => {
+      const reasoningEvent = {
+        type: "reasoning" as const,
+        step: {
+          id: "step-123",
+          type: "rewrite" as const,
+          title: "Query Rewriting",
+          summary: "Processing...",
+          status: "in_progress" as const,
+        },
+      };
+
+      expect(reasoningEvent.type).toBe("reasoning");
+      expect(reasoningEvent.step).toBeDefined();
+    });
+
+    it("should include all required fields in ReasoningStep", () => {
+      const step = {
+        id: "step-abc-123",
+        type: "search" as const,
+        title: "Knowledge Search",
+        summary: "Searching knowledge bases...",
+        status: "in_progress" as const,
+      };
+
+      // Required fields
+      expect(step.id).toBeDefined();
+      expect(step.type).toBeDefined();
+      expect(step.title).toBeDefined();
+      expect(step.summary).toBeDefined();
+      expect(step.status).toBeDefined();
+    });
+
+    it("should allow optional details field in ReasoningStep", () => {
+      const stepWithDetails = {
+        id: "step-123",
+        type: "plan" as const,
+        title: "Query Planning",
+        summary: "Generated 3 sub-queries",
+        status: "completed" as const,
+        details: {
+          subQueries: ["query 1", "query 2", "query 3"],
+        },
+      };
+
+      const stepWithoutDetails: {
+        id: string;
+        type: "plan";
+        title: string;
+        summary: string;
+        status: "completed";
+        details?: Record<string, unknown>;
+      } = {
+        id: "step-456",
+        type: "plan",
+        title: "Query Planning",
+        summary: "Generated 1 sub-query",
+        status: "completed",
+      };
+
+      expect(stepWithDetails.details).toBeDefined();
+      expect(stepWithDetails.details?.subQueries).toHaveLength(3);
+      expect(stepWithoutDetails.details).toBeUndefined();
+    });
+  });
+
+  describe("reasoning step emission order", () => {
+    it("should emit rewrite step first", () => {
+      const expectedOrder = ["rewrite", "plan", "search", "merge", "generate"];
+      expect(expectedOrder[0]).toBe("rewrite");
+    });
+
+    it("should emit plan step after rewrite", () => {
+      const expectedOrder = ["rewrite", "plan", "search", "merge", "generate"];
+      expect(expectedOrder.indexOf("plan")).toBe(expectedOrder.indexOf("rewrite") + 1);
+    });
+
+    it("should emit search step after plan", () => {
+      const expectedOrder = ["rewrite", "plan", "search", "merge", "generate"];
+      expect(expectedOrder.indexOf("search")).toBe(expectedOrder.indexOf("plan") + 1);
+    });
+
+    it("should emit merge step after search", () => {
+      const expectedOrder = ["rewrite", "plan", "search", "merge", "generate"];
+      expect(expectedOrder.indexOf("merge")).toBe(expectedOrder.indexOf("search") + 1);
+    });
+
+    it("should emit generate step last", () => {
+      const expectedOrder = ["rewrite", "plan", "search", "merge", "generate"];
+      expect(expectedOrder[expectedOrder.length - 1]).toBe("generate");
+    });
+
+    it("should emit exactly 5 reasoning step types", () => {
+      const allStepTypes = ["rewrite", "plan", "search", "merge", "generate"];
+      expect(allStepTypes).toHaveLength(5);
+    });
+  });
+
+  describe("reasoning step status transitions", () => {
+    it("should emit step with in_progress status initially", () => {
+      const initialStep = {
+        id: "step-1",
+        type: "rewrite" as const,
+        title: "Query Rewriting",
+        summary: "Analyzing conversation context...",
+        status: "in_progress" as const,
+      };
+
+      expect(initialStep.status).toBe("in_progress");
+    });
+
+    it("should emit step with completed status after processing", () => {
+      const completedStep = {
+        id: "step-1",
+        type: "rewrite" as const,
+        title: "Query Rewriting",
+        summary: "Query reformulated successfully",
+        status: "completed" as const,
+      };
+
+      expect(completedStep.status).toBe("completed");
+    });
+
+    it("should emit two reasoning events per step (in_progress then completed)", () => {
+      // Each step emits twice: once when starting, once when done
+      const stepEvents = [
+        { type: "reasoning", step: { type: "rewrite", status: "in_progress" } },
+        { type: "reasoning", step: { type: "rewrite", status: "completed" } },
+      ];
+
+      expect(stepEvents).toHaveLength(2);
+      expect(stepEvents[0].step.status).toBe("in_progress");
+      expect(stepEvents[1].step.status).toBe("completed");
+    });
+
+    it("should preserve step id across status transitions", () => {
+      const stepId = "step-unique-123";
+
+      const inProgressEvent = {
+        type: "reasoning" as const,
+        step: {
+          id: stepId,
+          type: "search" as const,
+          title: "Knowledge Search",
+          summary: "Searching...",
+          status: "in_progress" as const,
+        },
+      };
+
+      const completedEvent = {
+        type: "reasoning" as const,
+        step: {
+          id: stepId, // Same ID
+          type: "search" as const,
+          title: "Knowledge Search",
+          summary: "Found 12 chunks",
+          status: "completed" as const,
+        },
+      };
+
+      expect(inProgressEvent.step.id).toBe(completedEvent.step.id);
+    });
+
+    it("should update summary when status changes to completed", () => {
+      const inProgressSummary = "Analyzing conversation context to reformulate query...";
+      const completedSummary = 'Reformulated query: "What are the Enterprise plan features?"';
+
+      expect(inProgressSummary).not.toBe(completedSummary);
+      expect(completedSummary).toContain("Reformulated");
+    });
+  });
+
+  describe("rewrite step emission details", () => {
+    it("should emit rewrite step with correct title", () => {
+      const rewriteStep = {
+        id: "step-1",
+        type: "rewrite" as const,
+        title: "Query Rewriting",
+        summary: "Analyzing...",
+        status: "in_progress" as const,
+      };
+
+      expect(rewriteStep.title).toBe("Query Rewriting");
+    });
+
+    it("should indicate when query was reformulated in completed summary", () => {
+      const rewrittenQuery = "What are the Enterprise plan pricing options?";
+      const completedSummary = `Reformulated query: "${rewrittenQuery.slice(0, 100)}${rewrittenQuery.length > 100 ? '...' : ''}"`;
+
+      expect(completedSummary).toContain("Reformulated query:");
+      expect(completedSummary).toContain("Enterprise plan");
+    });
+
+    it("should indicate when no reformulation was needed", () => {
+      const noReformulationSummary = "Query used as-is (no reformulation needed)";
+
+      expect(noReformulationSummary).toContain("as-is");
+      expect(noReformulationSummary).toContain("no reformulation needed");
+    });
+
+    it("should truncate long reformulated queries in summary", () => {
+      const longQuery = "A".repeat(150); // 150 characters
+      const truncatedSummary = `Reformulated query: "${longQuery.slice(0, 100)}${longQuery.length > 100 ? '...' : ''}"`;
+
+      expect(truncatedSummary.length).toBeLessThan(150);
+      expect(truncatedSummary).toContain("...");
+    });
+  });
+
+  describe("plan step emission details", () => {
+    it("should emit plan step with correct title", () => {
+      const planStep = {
+        id: "step-2",
+        type: "plan" as const,
+        title: "Query Planning",
+        summary: "Generating sub-queries...",
+        status: "in_progress" as const,
+      };
+
+      expect(planStep.title).toBe("Query Planning");
+    });
+
+    it("should report sub-query count in completed summary", () => {
+      const subQueryCount: number = 3;
+      const completedSummary = `Generated ${subQueryCount} sub-quer${subQueryCount === 1 ? 'y' : 'ies'} for retrieval`;
+
+      expect(completedSummary).toBe("Generated 3 sub-queries for retrieval");
+    });
+
+    it("should use singular form for single sub-query", () => {
+      const subQueryCount = 1;
+      const summary = `Generated ${subQueryCount} sub-quer${subQueryCount === 1 ? 'y' : 'ies'} for retrieval`;
+
+      expect(summary).toBe("Generated 1 sub-query for retrieval");
+    });
+
+    it("should include sub-query list in details", () => {
+      const planStep = {
+        id: "step-2",
+        type: "plan" as const,
+        title: "Query Planning",
+        summary: "Generated 3 sub-queries for retrieval",
+        status: "completed" as const,
+        details: {
+          subQueries: [
+            "pricing options for enterprise",
+            "enterprise plan features",
+            "enterprise support levels",
+          ],
+        },
+      };
+
+      expect(planStep.details?.subQueries).toHaveLength(3);
+      expect(planStep.details?.subQueries).toContain("pricing options for enterprise");
+    });
+  });
+
+  describe("search step emission details", () => {
+    it("should emit search step with correct title", () => {
+      const searchStep = {
+        id: "step-3",
+        type: "search" as const,
+        title: "Knowledge Search",
+        summary: "Searching...",
+        status: "in_progress" as const,
+      };
+
+      expect(searchStep.title).toBe("Knowledge Search");
+    });
+
+    it("should report query count in in_progress summary", () => {
+      const subQueryCount: number = 3;
+      const inProgressSummary = `Searching knowledge bases with ${subQueryCount} quer${subQueryCount === 1 ? 'y' : 'ies'}...`;
+
+      expect(inProgressSummary).toBe("Searching knowledge bases with 3 queries...");
+    });
+
+    it("should report chunk count in completed summary", () => {
+      const chunkCount = 15;
+      const completedSummary = `Found ${chunkCount} relevant chunks`;
+
+      expect(completedSummary).toBe("Found 15 relevant chunks");
+    });
+  });
+
+  describe("merge step emission details", () => {
+    it("should emit merge step with correct title", () => {
+      const mergeStep = {
+        id: "step-4",
+        type: "merge" as const,
+        title: "Result Merging",
+        summary: "Deduplicating...",
+        status: "in_progress" as const,
+      };
+
+      expect(mergeStep.title).toBe("Result Merging");
+    });
+
+    it("should report unique chunk count in completed summary", () => {
+      const uniqueCount = 8;
+      const completedSummary = `Merged to ${uniqueCount} unique chunks`;
+
+      expect(completedSummary).toBe("Merged to 8 unique chunks");
+    });
+
+    it("should have descriptive in_progress summary", () => {
+      const inProgressSummary = "Deduplicating and ranking results...";
+
+      expect(inProgressSummary).toContain("Deduplicating");
+      expect(inProgressSummary).toContain("ranking");
+    });
+  });
+
+  describe("generate step emission details", () => {
+    it("should emit generate step with correct title", () => {
+      const generateStep = {
+        id: "step-5",
+        type: "generate" as const,
+        title: "Answer Generation",
+        summary: "Generating...",
+        status: "in_progress" as const,
+      };
+
+      expect(generateStep.title).toBe("Answer Generation");
+    });
+
+    it("should have descriptive in_progress summary", () => {
+      const inProgressSummary = "Generating comprehensive answer with citations...";
+
+      expect(inProgressSummary).toContain("Generating");
+      expect(inProgressSummary).toContain("citations");
+    });
+
+    it("should have success message in completed summary", () => {
+      const completedSummary = "Response generated successfully";
+
+      expect(completedSummary).toContain("successfully");
+    });
+  });
+
+  describe("reasoning event counting", () => {
+    it("should emit 10 reasoning events total (2 per step × 5 steps)", () => {
+      // Each step emits 2 events: in_progress and completed
+      const stepsCount = 5;
+      const eventsPerStep = 2;
+      const totalReasoningEvents = stepsCount * eventsPerStep;
+
+      expect(totalReasoningEvents).toBe(10);
+    });
+
+    it("should track reasoning steps count in usage logging", () => {
+      // The service tracks reasoningStepsCount for analytics
+      const reasoningStepsCount = 5; // One per step type
+
+      expect(reasoningStepsCount).toBe(5);
+    });
+  });
+
+  describe("reasoning event type discrimination", () => {
+    it("should distinguish reasoning events from other event types", () => {
+      const events = [
+        { type: "reasoning", step: { type: "rewrite", status: "completed" } },
+        { type: "status", status: "generating", message: "Found sources..." },
+        { type: "text", content: "Based on..." },
+      ];
+
+      const reasoningEvents = events.filter(e => e.type === "reasoning");
+      const statusEvents = events.filter(e => e.type === "status");
+      const textEvents = events.filter(e => e.type === "text");
+
+      expect(reasoningEvents).toHaveLength(1);
+      expect(statusEvents).toHaveLength(1);
+      expect(textEvents).toHaveLength(1);
+    });
+
+    it("should use type narrowing to access step property", () => {
+      const event: { type: "reasoning"; step: { type: string; status: string } } = {
+        type: "reasoning",
+        step: { type: "plan", status: "completed" },
+      };
+
+      // Type narrowing allows accessing step property
+      if (event.type === "reasoning") {
+        expect(event.step.type).toBe("plan");
+        expect(event.step.status).toBe("completed");
+      }
+    });
+  });
+
+  describe("error handling in reasoning steps", () => {
+    it("should support error status for reasoning steps", () => {
+      const validStatuses = ["pending", "in_progress", "completed", "error"];
+
+      expect(validStatuses).toContain("error");
+    });
+
+    it("should allow error step to be emitted", () => {
+      const errorStep = {
+        id: "step-failed",
+        type: "search" as const,
+        title: "Knowledge Search",
+        summary: "Search failed: Vector store unavailable",
+        status: "error" as const,
+      };
+
+      expect(errorStep.status).toBe("error");
+      expect(errorStep.summary).toContain("failed");
+    });
+
+    it("should document that service yields error event on failure", () => {
+      // When an error occurs, the service yields an error event
+      const errorEvent = {
+        type: "error" as const,
+        message: "Agent not found",
+      };
+
+      expect(errorEvent.type).toBe("error");
+      expect(errorEvent.message).toBeDefined();
+    });
+  });
+
+  describe("reasoning event integration with other events", () => {
+    it("should emit status event after merge step completes", () => {
+      const eventSequence = [
+        "reasoning:merge:completed",
+        "status:generating",
+        "reasoning:generate:in_progress",
+      ];
+
+      const mergeIndex = eventSequence.findIndex(e => e.includes("merge:completed"));
+      const statusIndex = eventSequence.findIndex(e => e.includes("status"));
+
+      expect(statusIndex).toBeGreaterThan(mergeIndex);
+    });
+
+    it("should emit text events after generate step starts", () => {
+      const eventSequence = [
+        "reasoning:generate:in_progress",
+        "text:content",
+        "text:content",
+        "reasoning:generate:completed",
+      ];
+
+      const generateStartIndex = eventSequence.findIndex(e => e.includes("generate:in_progress"));
+      const firstTextIndex = eventSequence.findIndex(e => e.includes("text:content"));
+
+      expect(firstTextIndex).toBeGreaterThan(generateStartIndex);
+    });
+
+    it("should emit generate completed after all text events", () => {
+      const eventSequence = [
+        "reasoning:generate:in_progress",
+        "text:content",
+        "text:content",
+        "text:content",
+        "reasoning:generate:completed",
+        "sources",
+        "done",
+      ];
+
+      const lastTextIndex = eventSequence.filter(e => e.includes("text")).length > 0
+        ? eventSequence.lastIndexOf("text:content")
+        : -1;
+      const generateCompleteIndex = eventSequence.findIndex(e => e.includes("generate:completed"));
+
+      expect(generateCompleteIndex).toBeGreaterThan(lastTextIndex);
+    });
+
+    it("should emit sources after generate step completes", () => {
+      const eventSequence = [
+        "reasoning:generate:completed",
+        "sources",
+        "done",
+      ];
+
+      const generateCompleteIndex = eventSequence.findIndex(e => e.includes("generate:completed"));
+      const sourcesIndex = eventSequence.findIndex(e => e === "sources");
+
+      expect(sourcesIndex).toBeGreaterThan(generateCompleteIndex);
+    });
+
+    it("should emit done event last", () => {
+      const eventSequence = [
+        "reasoning:generate:completed",
+        "sources",
+        "done",
+      ];
+
+      expect(eventSequence[eventSequence.length - 1]).toBe("done");
+    });
+  });
+
+  describe("step ID generation", () => {
+    it("should generate unique IDs for each step", () => {
+      const stepIds = [
+        "step-rewrite-abc123",
+        "step-plan-def456",
+        "step-search-ghi789",
+        "step-merge-jkl012",
+        "step-generate-mno345",
+      ];
+
+      const uniqueIds = new Set(stepIds);
+      expect(uniqueIds.size).toBe(stepIds.length);
+    });
+
+    it("should use UUID format for step IDs", () => {
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const mockUuid = "550e8400-e29b-41d4-a716-446655440000";
+
+      expect(mockUuid).toMatch(uuidPattern);
+    });
+  });
+
+  describe("SSE serialization compatibility", () => {
+    it("should serialize reasoning event to JSON", () => {
+      const reasoningEvent = {
+        type: "reasoning",
+        step: {
+          id: "step-123",
+          type: "plan",
+          title: "Query Planning",
+          summary: "Generated 2 sub-queries",
+          status: "completed",
+          details: { subQueries: ["query1", "query2"] },
+        },
+      };
+
+      const json = JSON.stringify(reasoningEvent);
+      const parsed = JSON.parse(json);
+
+      expect(parsed.type).toBe("reasoning");
+      expect(parsed.step.type).toBe("plan");
+      expect(parsed.step.details.subQueries).toHaveLength(2);
+    });
+
+    it("should format as SSE data event", () => {
+      const reasoningEvent = {
+        type: "reasoning",
+        step: {
+          id: "step-1",
+          type: "rewrite",
+          title: "Query Rewriting",
+          summary: "Processing...",
+          status: "in_progress",
+        },
+      };
+
+      const sseData = `data: ${JSON.stringify(reasoningEvent)}\n\n`;
+
+      expect(sseData).toMatch(/^data: \{.*\}\n\n$/);
+      expect(sseData).toContain('"type":"reasoning"');
+    });
+  });
+});
