@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { marked } from "marked";
 import { api, type ChatMessage, type ReasoningStep } from "../lib/api";
@@ -430,20 +430,43 @@ export function Chat({ agentId, onBack }: ChatProps) {
               {messages.map((message, index) => {
                 const isLastMessage = index === messages.length - 1;
                 const isStreamingAssistant = isStreaming && isLastMessage && message.role === "assistant";
+                const isLastAssistant = isLastMessage && message.role === "assistant";
+                const showReasoningBeforeThis = isLastAssistant && 
+                  agent?.ragType === "advanced" && 
+                  reasoningSteps.length > 0;
 
                 return (
-                  <ChatMessageBubble
-                    key={`${index}-${message.citations?.length || 0}`}
-                    message={message}
-                    isStreaming={isStreamingAssistant}
-                  />
+                  <Fragment key={`${index}-${message.citations?.length || 0}`}>
+                    {/* Reasoning steps panel ABOVE the last assistant message */}
+                    {showReasoningBeforeThis && (
+                      <div className="flex justify-start">
+                        <div className="max-w-full">
+                          <ReasoningSteps
+                            steps={reasoningSteps}
+                            isStreaming={isLoading || isStreaming}
+                            defaultOpen={false}
+                          >
+                            <ReasoningStepsTrigger steps={reasoningSteps} />
+                            <ReasoningStepsContent steps={reasoningSteps} />
+                          </ReasoningSteps>
+                        </div>
+                      </div>
+                    )}
+                    <ChatMessageBubble
+                      message={message}
+                      isStreaming={isStreamingAssistant}
+                    />
+                  </Fragment>
                 );
               })}
-              
-              {/* Reasoning steps panel for advanced RAG mode */}
-              {agent?.ragType === "advanced" && reasoningSteps.length > 0 && (
+
+              {/* Reasoning steps when still loading (before assistant message exists) */}
+              {agent?.ragType === "advanced" && 
+                reasoningSteps.length > 0 && 
+                messages.length > 0 && 
+                messages[messages.length - 1].role !== "assistant" && (
                 <div className="flex justify-start">
-                  <div className="w-full max-w-full">
+                  <div className="max-w-full">
                     <ReasoningSteps
                       steps={reasoningSteps}
                       isStreaming={isLoading || isStreaming}
