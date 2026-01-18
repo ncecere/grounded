@@ -52,7 +52,7 @@ tasks:
     tags: [crawl, policy]
 
   - title: Add skipped_non_html status with reason tracking
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [crawl, reporting]
 

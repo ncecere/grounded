@@ -440,3 +440,94 @@ Implemented HTML content-type validation in the fetch stage of the ingestion pip
 - All 78 new tests pass
 - All existing tests pass (473 tests in shared package)
 - TypeScript typechecking passes across all packages
+
+## 2026-01-18: Add skipped_non_html status with reason tracking
+
+### Summary
+Implemented a comprehensive skip reason tracking system for the ingestion pipeline. Added `SKIPPED_NON_HTML` status to `PageStatus` enum and introduced a `SkipReason` enum with helper functions for creating, converting, and managing skip details. This enables proper categorization and tracking of pages skipped due to non-HTML content types.
+
+### Changes Made
+1. **packages/shared/src/types/index.ts**
+   - Added `SKIPPED_NON_HTML: "skipped_non_html"` to `PageStatus` enum
+   - Added `SkipReason` enum with 6 categorized reasons:
+     - `NON_HTML_CONTENT_TYPE` - Content type is not HTML
+     - `CONTENT_UNCHANGED` - Content unchanged since last crawl
+     - `ROBOTS_BLOCKED` - URL blocked by robots.txt
+     - `DEPTH_EXCEEDED` - URL exceeds depth limit
+     - `PATTERN_EXCLUDED` - URL excluded by pattern filter
+     - `ALREADY_CRAWLED` - URL already crawled in this run
+   - Added `PageSkipDetails` interface for structured skip metadata storage
+   - Added helper functions:
+     - `createNonHtmlSkipDetails()` - Creates skip details for non-HTML content
+     - `createContentUnchangedSkipDetails()` - Creates skip details for unchanged content
+     - `createRobotsBlockedSkipDetails()` - Creates skip details for robots.txt blocks
+     - `createDepthExceededSkipDetails()` - Creates skip details for depth limit
+     - `createPatternExcludedSkipDetails()` - Creates skip details for pattern exclusions
+     - `createAlreadyCrawledSkipDetails()` - Creates skip details for duplicate URLs
+     - `skipReasonToPageStatus()` - Maps SkipReason to PageStatus
+     - `isSkippedStatus()` - Checks if a status indicates a skip
+     - `pageStatusToSkipReason()` - Reverse mapping from PageStatus to SkipReason
+
+2. **packages/db/src/schema/knowledge.ts**
+   - Updated `sourceRunPages.status` type to include `"skipped_non_html"` in the union type
+
+3. **packages/shared/src/types/skip-reason-tracking.test.ts** (new file)
+   - Added 55 tests covering:
+     - PageStatus enum validation
+     - SkipReason enum validation
+     - All skip detail creation functions
+     - Skip reason to page status mapping
+     - isSkippedStatus helper
+     - Page status to skip reason mapping
+     - PageSkipDetails interface validation
+     - Integration tests for round-trip conversions
+     - Type safety tests
+
+### Key Design Decisions
+- **Extensible enum approach**: `SkipReason` is designed to support future skip reasons with minimal changes
+- **Detailed metadata**: `PageSkipDetails` interface captures stage, timestamp, and reason-specific details
+- **Bidirectional mapping**: Functions support converting between SkipReason and PageStatus for flexibility
+- **Stage awareness**: Each skip reason tracks which ingestion stage triggered it
+- **Structured storage**: Details are designed to be stored in `sourceRunPageStages.metadata` field
+
+### Skip Reason Categories
+| Reason | Stage | Description |
+|--------|-------|-------------|
+| non_html_content_type | fetch | Content-Type header is not HTML |
+| content_unchanged | fetch | Content hash matches previous crawl |
+| robots_blocked | discover | URL blocked by robots.txt |
+| depth_exceeded | discover | URL depth exceeds max depth setting |
+| pattern_excluded | discover | URL matches exclusion pattern |
+| already_crawled | discover | URL already processed in this run |
+
+### PageSkipDetails Structure
+```typescript
+{
+  reason: SkipReason;
+  description: string;
+  stage: IngestionStage;
+  skippedAt: string; // ISO timestamp
+  details?: {
+    contentType?: string;
+    mimeType?: string;
+    contentCategory?: "non_html" | "unknown";
+    contentHash?: string;
+    depth?: number;
+    maxDepth?: number;
+    pattern?: string;
+    httpStatus?: number;
+  };
+}
+```
+
+### Acceptance Criteria Met
+- ✅ Add skipped_non_html status with reason tracking
+- ✅ SkipReason enum with categorized reasons for future extensibility
+- ✅ Helper functions for creating skip details with appropriate metadata
+- ✅ Database schema updated to support new status
+- ✅ Bidirectional mapping between skip reasons and page statuses
+
+### Tests
+- All 55 new tests pass
+- All existing tests pass (528 tests in shared package)
+- TypeScript typechecking passes across all packages

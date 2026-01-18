@@ -154,7 +154,7 @@ export const sourceRunPages = pgTable(
     contentHash: text("content_hash"),
     status: text("status")
       .notNull()
-      .$type<"succeeded" | "failed" | "skipped_unchanged">(),
+      .$type<"succeeded" | "failed" | "skipped_unchanged" | "skipped_non_html">(),
     error: text("error"),
     // Per-stage tracking for V2 ingestion contract
     currentStage: text("current_stage").$type<IngestionStage>(),

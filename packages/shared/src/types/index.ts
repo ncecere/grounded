@@ -53,8 +53,243 @@ export const PageStatus = {
   SUCCEEDED: "succeeded",
   FAILED: "failed",
   SKIPPED_UNCHANGED: "skipped_unchanged",
+  SKIPPED_NON_HTML: "skipped_non_html",
 } as const;
 export type PageStatus = (typeof PageStatus)[keyof typeof PageStatus];
+
+// ============================================================================
+// Skip Reason Tracking
+// ============================================================================
+
+/**
+ * Categorized reasons for skipping a page during ingestion.
+ */
+export const SkipReason = {
+  /** Content type is not HTML (e.g., PDF, image, JSON) */
+  NON_HTML_CONTENT_TYPE: "non_html_content_type",
+  /** Content unchanged since last crawl (hash match) */
+  CONTENT_UNCHANGED: "content_unchanged",
+  /** URL blocked by robots.txt */
+  ROBOTS_BLOCKED: "robots_blocked",
+  /** URL exceeds depth limit */
+  DEPTH_EXCEEDED: "depth_exceeded",
+  /** URL excluded by pattern filter */
+  PATTERN_EXCLUDED: "pattern_excluded",
+  /** URL already crawled in this run */
+  ALREADY_CRAWLED: "already_crawled",
+} as const;
+export type SkipReason = (typeof SkipReason)[keyof typeof SkipReason];
+
+/**
+ * Detailed metadata for a skipped page.
+ * Stored in sourceRunPageStages.metadata for the relevant stage.
+ */
+export interface PageSkipDetails {
+  /** The categorized skip reason */
+  reason: SkipReason;
+  /** Human-readable description of why the page was skipped */
+  description: string;
+  /** The stage at which the skip occurred */
+  stage: IngestionStage;
+  /** Timestamp when the skip was recorded */
+  skippedAt: string;
+  /** Additional details specific to the skip reason */
+  details?: {
+    /** For non-HTML skips: the detected content type */
+    contentType?: string;
+    /** For non-HTML skips: the parsed MIME type */
+    mimeType?: string;
+    /** For non-HTML skips: the content category (non_html, unknown) */
+    contentCategory?: "non_html" | "unknown";
+    /** For content unchanged skips: the content hash */
+    contentHash?: string;
+    /** For depth exceeded skips: the actual depth */
+    depth?: number;
+    /** For depth exceeded skips: the max allowed depth */
+    maxDepth?: number;
+    /** For pattern excluded skips: the pattern that matched */
+    pattern?: string;
+    /** HTTP status code if relevant */
+    httpStatus?: number;
+  };
+}
+
+/**
+ * Creates skip details for a non-HTML content type skip.
+ *
+ * @param contentType - The raw content-type header
+ * @param mimeType - The parsed MIME type
+ * @param contentCategory - The category of the content (non_html, unknown)
+ * @param httpStatus - Optional HTTP status code
+ * @returns PageSkipDetails for the non-HTML skip
+ */
+export function createNonHtmlSkipDetails(
+  contentType: string,
+  mimeType: string,
+  contentCategory: "non_html" | "unknown",
+  httpStatus?: number
+): PageSkipDetails {
+  return {
+    reason: SkipReason.NON_HTML_CONTENT_TYPE,
+    description: `Content type "${mimeType}" is not HTML`,
+    stage: IngestionStage.FETCH,
+    skippedAt: new Date().toISOString(),
+    details: {
+      contentType,
+      mimeType,
+      contentCategory,
+      httpStatus,
+    },
+  };
+}
+
+/**
+ * Creates skip details for an unchanged content skip.
+ *
+ * @param contentHash - The content hash that matched
+ * @returns PageSkipDetails for the unchanged content skip
+ */
+export function createContentUnchangedSkipDetails(
+  contentHash: string
+): PageSkipDetails {
+  return {
+    reason: SkipReason.CONTENT_UNCHANGED,
+    description: "Content unchanged since last crawl",
+    stage: IngestionStage.FETCH,
+    skippedAt: new Date().toISOString(),
+    details: {
+      contentHash,
+    },
+  };
+}
+
+/**
+ * Creates skip details for a robots.txt blocked skip.
+ *
+ * @param url - The blocked URL
+ * @returns PageSkipDetails for the robots blocked skip
+ */
+export function createRobotsBlockedSkipDetails(url: string): PageSkipDetails {
+  return {
+    reason: SkipReason.ROBOTS_BLOCKED,
+    description: `URL blocked by robots.txt`,
+    stage: IngestionStage.DISCOVER,
+    skippedAt: new Date().toISOString(),
+    details: {},
+  };
+}
+
+/**
+ * Creates skip details for a depth exceeded skip.
+ *
+ * @param depth - The actual depth of the URL
+ * @param maxDepth - The maximum allowed depth
+ * @returns PageSkipDetails for the depth exceeded skip
+ */
+export function createDepthExceededSkipDetails(
+  depth: number,
+  maxDepth: number
+): PageSkipDetails {
+  return {
+    reason: SkipReason.DEPTH_EXCEEDED,
+    description: `URL depth ${depth} exceeds maximum ${maxDepth}`,
+    stage: IngestionStage.DISCOVER,
+    skippedAt: new Date().toISOString(),
+    details: {
+      depth,
+      maxDepth,
+    },
+  };
+}
+
+/**
+ * Creates skip details for a pattern exclusion skip.
+ *
+ * @param pattern - The pattern that caused the exclusion
+ * @returns PageSkipDetails for the pattern excluded skip
+ */
+export function createPatternExcludedSkipDetails(
+  pattern: string
+): PageSkipDetails {
+  return {
+    reason: SkipReason.PATTERN_EXCLUDED,
+    description: `URL excluded by pattern: ${pattern}`,
+    stage: IngestionStage.DISCOVER,
+    skippedAt: new Date().toISOString(),
+    details: {
+      pattern,
+    },
+  };
+}
+
+/**
+ * Creates skip details for an already crawled skip.
+ *
+ * @returns PageSkipDetails for the already crawled skip
+ */
+export function createAlreadyCrawledSkipDetails(): PageSkipDetails {
+  return {
+    reason: SkipReason.ALREADY_CRAWLED,
+    description: "URL already crawled in this run",
+    stage: IngestionStage.DISCOVER,
+    skippedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Maps a SkipReason to the appropriate PageStatus.
+ *
+ * @param reason - The skip reason
+ * @returns The corresponding PageStatus
+ */
+export function skipReasonToPageStatus(reason: SkipReason): PageStatus {
+  switch (reason) {
+    case SkipReason.NON_HTML_CONTENT_TYPE:
+      return PageStatus.SKIPPED_NON_HTML;
+    case SkipReason.CONTENT_UNCHANGED:
+      return PageStatus.SKIPPED_UNCHANGED;
+    // Future skip reasons can map to their own statuses
+    case SkipReason.ROBOTS_BLOCKED:
+    case SkipReason.DEPTH_EXCEEDED:
+    case SkipReason.PATTERN_EXCLUDED:
+    case SkipReason.ALREADY_CRAWLED:
+      // These currently don't have dedicated statuses, but pages are typically
+      // not created for these cases. If they were, they would use a generic skip.
+      return PageStatus.SKIPPED_UNCHANGED; // Placeholder for future expansion
+    default:
+      return PageStatus.SKIPPED_UNCHANGED;
+  }
+}
+
+/**
+ * Checks if a PageStatus indicates the page was skipped (not failed or succeeded).
+ *
+ * @param status - The page status to check
+ * @returns true if the status is a skip status
+ */
+export function isSkippedStatus(status: PageStatus): boolean {
+  return (
+    status === PageStatus.SKIPPED_UNCHANGED ||
+    status === PageStatus.SKIPPED_NON_HTML
+  );
+}
+
+/**
+ * Gets the SkipReason from a PageStatus if applicable.
+ *
+ * @param status - The page status
+ * @returns The associated SkipReason or undefined if not a skip status
+ */
+export function pageStatusToSkipReason(status: PageStatus): SkipReason | undefined {
+  switch (status) {
+    case PageStatus.SKIPPED_NON_HTML:
+      return SkipReason.NON_HTML_CONTENT_TYPE;
+    case PageStatus.SKIPPED_UNCHANGED:
+      return SkipReason.CONTENT_UNCHANGED;
+    default:
+      return undefined;
+  }
+}
 
 // ============================================================================
 // Ingestion Stage Pipeline
