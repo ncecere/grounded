@@ -168,7 +168,7 @@ tasks:
     file: phase-5-frontend-chat-ui.md
 
   - title: Integrate reasoning steps into Chat page
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [web, ui, chat]
     file: phase-5-frontend-chat-ui.md

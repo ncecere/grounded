@@ -1321,3 +1321,64 @@ Verified that the retrieval config routes already properly support the `historyT
 - `apps/web/src/components/ai-elements/reasoning-steps.tsx` (NEW - ReasoningSteps component)
 - `apps/web/src/components/ai-elements/reasoning-steps.test.ts` (NEW - 65 tests)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 4 - Integrate reasoning steps into Chat page
+
+### Completed Task
+**Task:** Integrate reasoning steps into Chat page
+**Phase:** Phase 4 - Frontend - Agent Form & Chat UI & Widget
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Updated Chat page to support advanced RAG mode:**
+   - `apps/web/src/pages/Chat.tsx`
+   - Added import for ReasoningSteps, ReasoningStepsTrigger, ReasoningStepsContent components
+   - Added import for ReasoningStep type from api
+
+2. **Added state for reasoning steps:**
+   - Added `reasoningSteps` state (array of ReasoningStep)
+   - Added `pendingReasoningStepsRef` ref (Map for deduplicating steps by ID)
+
+3. **Implemented RAG type routing:**
+   - Checks agent's `ragType` to determine which streaming method to use
+   - Uses `advancedChatStream` for advanced mode (includes onReasoning callback)
+   - Uses `simpleChatStream` for simple mode (existing behavior)
+   - Different initial status messages: "Analyzing query..." vs "Searching knowledge base..."
+
+4. **Implemented onReasoning callback:**
+   - Updates steps Map with each incoming step (handles both in_progress and completed states)
+   - Converts Map to array to maintain step order for display
+   - Steps are deduplicated by ID, keeping the latest status
+
+5. **Added ReasoningSteps panel display:**
+   - Shown when agent is in advanced mode AND reasoning steps exist
+   - Panel is collapsed by default (per task requirement)
+   - Passes `isStreaming` based on loading OR streaming state
+   - Positioned above the loading indicator in the message list
+
+6. **Updated loading indicator logic:**
+   - Simple loading shown for simple mode OR when in advanced mode before reasoning starts
+   - Hidden when reasoning steps panel is visible (advanced mode with steps)
+
+7. **Updated state cleanup:**
+   - `handleClearChat` clears reasoning steps and pending steps ref
+   - Error handlers clear reasoning steps and pending steps ref
+
+8. **Added comprehensive tests:**
+   - `apps/web/src/pages/Chat.test.ts` (NEW - 42 tests)
+   - Tests for module exports, ChatProps interface, RAG type routing
+   - Tests for reasoning steps state management, display logic
+   - Tests for loading indicator logic, status messages
+   - Tests for streaming state, clear chat behavior, error handling
+   - Tests for onReasoning callback, chat message integration
+   - Tests for ReasoningSteps component props, API integration
+
+### Test Results
+- All 307 tests pass in web (increased from 265)
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `apps/web/src/pages/Chat.tsx` (MODIFIED - integrated reasoning steps)
+- `apps/web/src/pages/Chat.test.ts` (NEW - 42 tests)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)

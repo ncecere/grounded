@@ -3,9 +3,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { marked } from "marked";
-import { api, type ChatMessage } from "../lib/api";
+import { api, type ChatMessage, type ReasoningStep } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { ArrowLeft, RotateCcw, MessageSquareText, Send } from "lucide-react";
+import {
+  ReasoningSteps,
+  ReasoningStepsTrigger,
+  ReasoningStepsContent,
+} from "../components/ai-elements/reasoning-steps";
 
 // Configure marked for chat use
 marked.setOptions({
@@ -145,8 +150,10 @@ export function Chat({ agentId, onBack }: ChatProps) {
   const [streamingContent, setStreamingContent] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [statusMessage, setStatusMessage] = useState<string>("");
+  const [reasoningSteps, setReasoningSteps] = useState<ReasoningStep[]>([]);
   const streamingContentRef = useRef("");
   const pendingSourcesRef = useRef<ChatMessage["citations"]>([]);
+  const pendingReasoningStepsRef = useRef<Map<string, ReasoningStep>>(new Map());
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -197,84 +204,117 @@ export function Chat({ agentId, onBack }: ChatProps) {
       const userMessage = inputValue.trim();
       if (!userMessage || isLoading || isStreaming) return;
 
+      const isAdvancedMode = agent?.ragType === "advanced";
+
       setInputValue("");
       setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
       setIsLoading(true);
       setStreamingContent("");
       streamingContentRef.current = "";
       pendingSourcesRef.current = [];
-      setStatusMessage("Searching knowledge base...");
+      pendingReasoningStepsRef.current.clear();
+      setReasoningSteps([]);
+      setStatusMessage(isAdvancedMode ? "Analyzing query..." : "Searching knowledge base...");
+
+      // Common callbacks
+      const onChunk = (text: string) => {
+        setIsLoading(false);
+        setIsStreaming(true);
+        streamingContentRef.current += text;
+        setStreamingContent(streamingContentRef.current);
+      };
+
+      const onSources = (sources: Array<{ id: string; title: string; url?: string; snippet: string; index: number }>) => {
+        const citations: ChatMessage["citations"] = sources.map((s) => ({
+          index: s.index,
+          title: s.title,
+          url: s.url,
+          snippet: s.snippet,
+        }));
+        pendingSourcesRef.current = citations;
+      };
+
+      const onDone = (newConversationId: string) => {
+        const finalContent = streamingContentRef.current;
+        const citationsToSet = pendingSourcesRef.current ? [...pendingSourcesRef.current] : [];
+
+        setConversationId(newConversationId);
+        setMessages((prev) => {
+          const newMessages = [...prev];
+          const lastIndex = newMessages.length - 1;
+          if (lastIndex >= 0 && newMessages[lastIndex].role === "assistant") {
+            newMessages[lastIndex] = {
+              ...newMessages[lastIndex],
+              content: finalContent,
+              citations: citationsToSet,
+            };
+          }
+          return newMessages;
+        });
+        setIsStreaming(false);
+        setStreamingContent("");
+        streamingContentRef.current = "";
+        pendingSourcesRef.current = [];
+        setStatusMessage("");
+        setTimeout(() => inputRef.current?.focus(), 50);
+      };
+
+      const onError = (error: string) => {
+        console.error("Stream error:", error);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "I apologize, but I encountered an error processing your request. Please try again.",
+          },
+        ]);
+        setIsLoading(false);
+        setIsStreaming(false);
+        setStreamingContent("");
+        streamingContentRef.current = "";
+        pendingSourcesRef.current = [];
+        pendingReasoningStepsRef.current.clear();
+        setReasoningSteps([]);
+        setStatusMessage("");
+        setTimeout(() => inputRef.current?.focus(), 50);
+      };
+
+      const onStatus = (status: { status: string; message: string; sourceCount?: number }) => {
+        setStatusMessage(status.message);
+      };
+
+      const onReasoning = (step: ReasoningStep) => {
+        // Update the step in our map (handles both in_progress and completed states)
+        pendingReasoningStepsRef.current.set(step.id, step);
+        // Convert map to array maintaining order
+        setReasoningSteps(Array.from(pendingReasoningStepsRef.current.values()));
+      };
 
       try {
-        await api.simpleChatStream(
-          agentId,
-          userMessage,
-          conversationId,
-          // onChunk
-          (text) => {
-            setIsLoading(false);
-            setIsStreaming(true);
-            streamingContentRef.current += text;
-            setStreamingContent(streamingContentRef.current);
-          },
-          // onSources
-          (sources) => {
-            const citations: ChatMessage["citations"] = sources.map((s) => ({
-              index: s.index,
-              title: s.title,
-              url: s.url,
-              snippet: s.snippet,
-            }));
-            pendingSourcesRef.current = citations;
-          },
-          // onDone
-          (newConversationId) => {
-            const finalContent = streamingContentRef.current;
-            const citationsToSet = pendingSourcesRef.current ? [...pendingSourcesRef.current] : [];
-
-            setConversationId(newConversationId);
-            setMessages((prev) => {
-              const newMessages = [...prev];
-              const lastIndex = newMessages.length - 1;
-              if (lastIndex >= 0 && newMessages[lastIndex].role === "assistant") {
-                newMessages[lastIndex] = {
-                  ...newMessages[lastIndex],
-                  content: finalContent,
-                  citations: citationsToSet,
-                };
-              }
-              return newMessages;
-            });
-            setIsStreaming(false);
-            setStreamingContent("");
-            streamingContentRef.current = "";
-            pendingSourcesRef.current = [];
-            setStatusMessage("");
-            setTimeout(() => inputRef.current?.focus(), 50);
-          },
-          // onError
-          (error) => {
-            console.error("Stream error:", error);
-            setMessages((prev) => [
-              ...prev,
-              {
-                role: "assistant",
-                content: "I apologize, but I encountered an error processing your request. Please try again.",
-              },
-            ]);
-            setIsLoading(false);
-            setIsStreaming(false);
-            setStreamingContent("");
-            streamingContentRef.current = "";
-            pendingSourcesRef.current = [];
-            setStatusMessage("");
-            setTimeout(() => inputRef.current?.focus(), 50);
-          },
-          // onStatus
-          (status) => {
-            setStatusMessage(status.message);
-          }
-        );
+        if (isAdvancedMode) {
+          await api.advancedChatStream(
+            agentId,
+            userMessage,
+            conversationId,
+            onChunk,
+            onSources,
+            onDone,
+            onError,
+            onReasoning,
+            onStatus
+          );
+        } else {
+          await api.simpleChatStream(
+            agentId,
+            userMessage,
+            conversationId,
+            onChunk,
+            onSources,
+            onDone,
+            onError,
+            onStatus
+          );
+        }
       } catch (error) {
         console.error("Chat error:", error);
         setMessages((prev) => [
@@ -288,11 +328,13 @@ export function Chat({ agentId, onBack }: ChatProps) {
         setIsStreaming(false);
         streamingContentRef.current = "";
         pendingSourcesRef.current = [];
+        pendingReasoningStepsRef.current.clear();
+        setReasoningSteps([]);
         setStatusMessage("");
         setTimeout(() => inputRef.current?.focus(), 50);
       }
     },
-    [isLoading, isStreaming, agentId, conversationId, inputValue]
+    [isLoading, isStreaming, agentId, conversationId, inputValue, agent?.ragType]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -313,6 +355,8 @@ export function Chat({ agentId, onBack }: ChatProps) {
     streamingContentRef.current = "";
     setIsStreaming(false);
     pendingSourcesRef.current = [];
+    pendingReasoningStepsRef.current.clear();
+    setReasoningSteps([]);
     setStatusMessage("");
   };
 
@@ -396,8 +440,24 @@ export function Chat({ agentId, onBack }: ChatProps) {
                 );
               })}
               
-              {/* Simple loading indicator */}
-              {isLoading && (
+              {/* Reasoning steps panel for advanced RAG mode */}
+              {agent?.ragType === "advanced" && reasoningSteps.length > 0 && (
+                <div className="flex justify-start">
+                  <div className="w-full max-w-full">
+                    <ReasoningSteps
+                      steps={reasoningSteps}
+                      isStreaming={isLoading || isStreaming}
+                      defaultOpen={false}
+                    >
+                      <ReasoningStepsTrigger steps={reasoningSteps} />
+                      <ReasoningStepsContent steps={reasoningSteps} />
+                    </ReasoningSteps>
+                  </div>
+                </div>
+              )}
+
+              {/* Simple loading indicator (for simple mode or before reasoning starts) */}
+              {isLoading && (agent?.ragType !== "advanced" || reasoningSteps.length === 0) && (
                 <div className="flex justify-start">
                   <div className="bg-muted rounded-2xl px-4 py-2 flex items-center gap-2">
                     <Loader size={16} />
