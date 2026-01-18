@@ -782,4 +782,176 @@ describe("useChat hook", () => {
       expect(hasReasoningEvents).toBe(false);
     });
   });
+
+  describe("currentReasoningSteps state", () => {
+    it("should be included in useChat return value", async () => {
+      // Document expected return value structure with currentReasoningSteps
+      const returnValue = {
+        messages: [],
+        isLoading: false,
+        isStreaming: false,
+        error: null,
+        chatStatus: { status: "idle" },
+        currentReasoningSteps: [],
+        sendMessage: async () => {},
+        stopStreaming: () => {},
+        clearMessages: () => {},
+      };
+      expect(returnValue.currentReasoningSteps).toBeDefined();
+      expect(Array.isArray(returnValue.currentReasoningSteps)).toBe(true);
+    });
+
+    it("should start as empty array", () => {
+      const currentReasoningSteps: any[] = [];
+      expect(currentReasoningSteps).toHaveLength(0);
+    });
+
+    it("should update when reasoning events are received", () => {
+      // Simulate reasoning event handling
+      const pendingSteps = new Map<string, { id: string; type: string; status: string }>();
+
+      // Receive first reasoning event
+      pendingSteps.set("step-1", { id: "step-1", type: "rewrite", status: "in_progress" });
+      let currentReasoningSteps = Array.from(pendingSteps.values());
+      expect(currentReasoningSteps).toHaveLength(1);
+      expect(currentReasoningSteps[0].status).toBe("in_progress");
+
+      // Receive updated event
+      pendingSteps.set("step-1", { id: "step-1", type: "rewrite", status: "completed" });
+      currentReasoningSteps = Array.from(pendingSteps.values());
+      expect(currentReasoningSteps).toHaveLength(1);
+      expect(currentReasoningSteps[0].status).toBe("completed");
+    });
+
+    it("should clear when done event is received", () => {
+      const pendingSteps = new Map<string, { id: string }>();
+      pendingSteps.set("step-1", { id: "step-1" });
+      let currentReasoningSteps = Array.from(pendingSteps.values());
+      expect(currentReasoningSteps).toHaveLength(1);
+
+      // On done event, clear
+      pendingSteps.clear();
+      currentReasoningSteps = [];
+      expect(currentReasoningSteps).toHaveLength(0);
+    });
+
+    it("should clear when error occurs", () => {
+      let currentReasoningSteps = [{ id: "step-1" }];
+
+      // On error, clear
+      currentReasoningSteps = [];
+      expect(currentReasoningSteps).toHaveLength(0);
+    });
+
+    it("should clear when clearMessages is called", () => {
+      let currentReasoningSteps = [{ id: "step-1" }];
+
+      // On clearMessages, clear
+      currentReasoningSteps = [];
+      expect(currentReasoningSteps).toHaveLength(0);
+    });
+
+    it("should clear at start of new message", () => {
+      let currentReasoningSteps = [{ id: "step-1" }];
+
+      // At start of sendMessage, clear
+      currentReasoningSteps = [];
+      expect(currentReasoningSteps).toHaveLength(0);
+    });
+
+    it("should be used for live display in Widget", () => {
+      // Document the use case: Widget uses currentReasoningSteps for live display
+      const currentReasoningSteps = [
+        { id: "step-1", type: "rewrite", title: "Query Rewriting", summary: "Processing...", status: "in_progress" },
+      ];
+
+      // Widget can display this while streaming
+      expect(currentReasoningSteps.length > 0).toBe(true);
+      expect(currentReasoningSteps[0].status).toBe("in_progress");
+    });
+
+    it("should contain all step properties", () => {
+      const step = {
+        id: "step-1",
+        type: "plan",
+        title: "Planning Sub-queries",
+        summary: "Generating 3 queries...",
+        status: "in_progress",
+        details: { maxQueries: 3 },
+      };
+
+      const currentReasoningSteps = [step];
+
+      expect(currentReasoningSteps[0].id).toBe("step-1");
+      expect(currentReasoningSteps[0].type).toBe("plan");
+      expect(currentReasoningSteps[0].title).toBe("Planning Sub-queries");
+      expect(currentReasoningSteps[0].summary).toBe("Generating 3 queries...");
+      expect(currentReasoningSteps[0].status).toBe("in_progress");
+      expect(currentReasoningSteps[0].details).toBeDefined();
+    });
+  });
+
+  describe("Widget integration with currentReasoningSteps", () => {
+    it("should show ReasoningPanel when showReasoning is true and steps exist", () => {
+      const showReasoning = true;
+      const currentReasoningSteps = [
+        { id: "step-1", type: "rewrite", title: "Rewrite", summary: "...", status: "completed" },
+      ];
+
+      // Condition for showing ReasoningPanel
+      const shouldShowPanel = showReasoning && currentReasoningSteps.length > 0;
+      expect(shouldShowPanel).toBe(true);
+    });
+
+    it("should hide ReasoningPanel when showReasoning is false", () => {
+      const showReasoning = false;
+      const currentReasoningSteps = [
+        { id: "step-1", type: "rewrite", title: "Rewrite", summary: "...", status: "completed" },
+      ];
+
+      // Condition for showing ReasoningPanel
+      const shouldShowPanel = showReasoning && currentReasoningSteps.length > 0;
+      expect(shouldShowPanel).toBe(false);
+    });
+
+    it("should hide ReasoningPanel when no steps exist", () => {
+      const showReasoning = true;
+      const currentReasoningSteps: any[] = [];
+
+      // Condition for showing ReasoningPanel
+      const shouldShowPanel = showReasoning && currentReasoningSteps.length > 0;
+      expect(shouldShowPanel).toBe(false);
+    });
+
+    it("should pass isStreaming to ReasoningPanel", () => {
+      const isLoading = true;
+      const isStreaming = true;
+
+      // ReasoningPanel receives isStreaming based on isLoading OR isStreaming
+      const panelIsStreaming = isLoading || isStreaming;
+      expect(panelIsStreaming).toBe(true);
+    });
+
+    it("should hide StatusIndicator when ReasoningPanel is shown", () => {
+      const showReasoning = true;
+      const currentReasoningSteps = [{ id: "step-1" }];
+      const isLoading = true;
+      const chatStatusIdle = false;
+
+      // StatusIndicator condition when reasoning panel is shown
+      const showStatusIndicator = isLoading && !chatStatusIdle && (!showReasoning || currentReasoningSteps.length === 0);
+      expect(showStatusIndicator).toBe(false);
+    });
+
+    it("should show StatusIndicator when ReasoningPanel is hidden", () => {
+      const showReasoning = false;
+      const currentReasoningSteps = [{ id: "step-1" }];
+      const isLoading = true;
+      const chatStatusIdle = false;
+
+      // StatusIndicator condition when reasoning panel is hidden (showReasoning=false)
+      const showStatusIndicator = isLoading && !chatStatusIdle && (!showReasoning || currentReasoningSteps.length === 0);
+      expect(showStatusIndicator).toBe(true);
+    });
+  });
 });

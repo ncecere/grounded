@@ -199,7 +199,7 @@ tasks:
     file: phase-6-widget-updates.md
 
   - title: Add widget config for reasoning visibility
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [widget, config]
     file: phase-6-widget-updates.md
@@ -251,7 +251,7 @@ parallel_groups:
   4:
     name: Frontend & Widget
     description: Agent form, chat UI reasoning display, and widget updates
-    status: pending
+    status: completed
     depends_on: [3]
   5:
     name: Testing & Docs

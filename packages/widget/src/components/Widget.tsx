@@ -3,6 +3,7 @@ import type { JSX } from 'preact';
 import { useChat } from '../hooks/useChat';
 import { useConfig } from '../hooks/useConfig';
 import { Message, StatusIndicator } from './Message';
+import { ReasoningPanel } from './ReasoningPanel';
 import { ChatIcon, CloseIcon, SendIcon, SparklesIcon, ExpandIcon, ShrinkIcon, HelpIcon, QuestionIcon, MessageIcon } from './Icons';
 import type { WidgetOptions, ButtonIcon, ButtonStyle, ButtonSize } from '../types';
 
@@ -13,7 +14,7 @@ interface WidgetProps {
 }
 
 export function Widget({ options, initialOpen = false, onOpenChange }: WidgetProps): JSX.Element {
-  const { token, apiBase = '', position = 'bottom-right' } = options;
+  const { token, apiBase = '', position = 'bottom-right', showReasoning = false } = options;
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [isExpanded, setIsExpanded] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -22,18 +23,18 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
 
   // Always load config on mount (needed for button customization)
   const { config, isLoading: configLoading } = useConfig({ token, apiBase });
-  
-  const { messages, isLoading, chatStatus, sendMessage } = useChat({ 
-    token, 
+
+  const { messages, isLoading, isStreaming, chatStatus, currentReasoningSteps, sendMessage } = useChat({
+    token,
     apiBase,
   });
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages or reasoning steps change
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isLoading]);
+  }, [messages, isLoading, currentReasoningSteps]);
 
   // Focus input when opening
   useEffect(() => {
@@ -170,9 +171,18 @@ export function Widget({ options, initialOpen = false, onOpenChange }: WidgetPro
               {messages.filter(m => m.content || m.role === 'user').map((message) => (
                 <Message key={message.id} message={message} />
               ))}
-              
-              {/* Show status indicator when loading/searching */}
-              {(isLoading || chatStatus.status !== 'idle') && chatStatus.status !== 'streaming' && (
+
+              {/* Show reasoning panel when enabled and there are current reasoning steps */}
+              {showReasoning && currentReasoningSteps.length > 0 && (
+                <ReasoningPanel
+                  steps={currentReasoningSteps}
+                  isStreaming={isLoading || isStreaming}
+                  defaultOpen={false}
+                />
+              )}
+
+              {/* Show status indicator when loading/searching (hide when reasoning panel is shown) */}
+              {(isLoading || chatStatus.status !== 'idle') && chatStatus.status !== 'streaming' && (!showReasoning || currentReasoningSteps.length === 0) && (
                 <StatusIndicator status={chatStatus} />
               )}
             </>

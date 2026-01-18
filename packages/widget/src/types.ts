@@ -100,4 +100,12 @@ export interface WidgetOptions {
    * - 'auto': Detect from system preference (default)
    */
   colorScheme?: WidgetColorScheme;
+  /**
+   * Whether to show reasoning steps panel for advanced RAG mode.
+   * When enabled, users can see the AI's thinking process (query rewriting,
+   * planning, searching, merging, and generating steps).
+   * - true: Show reasoning panel for advanced RAG agents
+   * - false: Hide reasoning panel (default)
+   */
+  showReasoning?: boolean;
 }

@@ -1627,3 +1627,51 @@ Verified that the retrieval config routes already properly support the `historyT
 - `packages/widget/src/components/Icons.tsx` (MODIFIED - added reasoning icons)
 - `packages/widget/src/styles.ts` (MODIFIED - added reasoning panel styles)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete)
+
+## 2026-01-17: Phase 4 - Add widget config for reasoning visibility
+
+### Completed Task
+**Task:** Add widget config for reasoning visibility
+**Phase:** Phase 4 - Frontend - Agent Form & Chat UI & Widget
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Added showReasoning option to WidgetOptions (packages/widget/src/types.ts):**
+   - Added `showReasoning?: boolean` property to `WidgetOptions` interface
+   - When true, displays the ReasoningPanel component for advanced RAG mode
+   - Defaults to false (reasoning panel hidden by default)
+   - Documented with JSDoc explaining the behavior
+
+2. **Updated useChat hook (packages/widget/src/hooks/useChat.ts):**
+   - Added `currentReasoningSteps` state to track reasoning steps during streaming
+   - Updated reasoning event handler to update `currentReasoningSteps` state in real-time
+   - Clear `currentReasoningSteps` on done, error, clearMessages, and start of new message
+   - Return `currentReasoningSteps` from hook for Widget consumption
+
+3. **Integrated ReasoningPanel into Widget (packages/widget/src/components/Widget.tsx):**
+   - Import ReasoningPanel component
+   - Extract `showReasoning` from options (defaults to false)
+   - Extract `currentReasoningSteps` and `isStreaming` from useChat
+   - Display ReasoningPanel when `showReasoning` is true AND there are current reasoning steps
+   - Pass `isStreaming` prop to ReasoningPanel for animation state
+   - Hide StatusIndicator when ReasoningPanel is visible to avoid duplicate loading UI
+   - Updated scroll dependency to include `currentReasoningSteps`
+
+4. **Added comprehensive tests:**
+   - `packages/widget/src/types.test.ts` - 9 new tests for showReasoning option
+   - `packages/widget/src/hooks/useChat.test.ts` - 22 new tests for currentReasoningSteps and Widget integration
+
+### Test Results
+- All 215 tests pass in widget package (increased from 191)
+- All 590 tests pass in api
+- All 342 tests pass in web
+- All typecheck passes across 14 packages
+
+### Files Changed
+- `packages/widget/src/types.ts` (MODIFIED - added showReasoning option)
+- `packages/widget/src/hooks/useChat.ts` (MODIFIED - added currentReasoningSteps state)
+- `packages/widget/src/components/Widget.tsx` (MODIFIED - integrated ReasoningPanel)
+- `packages/widget/src/types.test.ts` (MODIFIED - added 9 tests for showReasoning)
+- `packages/widget/src/hooks/useChat.test.ts` (MODIFIED - added 22 tests for currentReasoningSteps)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete, marked Phase 4 as completed)

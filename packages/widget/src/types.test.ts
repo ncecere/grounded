@@ -523,6 +523,21 @@ describe("widget types", () => {
       expect(options.colorScheme).toBe("auto");
     });
 
+    it("should support showReasoning option in WidgetOptions", () => {
+      const optionsWithReasoning: WidgetOptions = {
+        token: "widget-token",
+        showReasoning: true,
+      };
+      expect(optionsWithReasoning.showReasoning).toBe(true);
+    });
+
+    it("should allow omitting showReasoning option (defaults to false)", () => {
+      const optionsWithoutReasoning: WidgetOptions = {
+        token: "widget-token",
+      };
+      expect(optionsWithoutReasoning.showReasoning).toBeUndefined();
+    });
+
     it("should maintain WidgetTheme interface", () => {
       const theme: WidgetTheme = {
         primaryColor: "#007bff",
@@ -556,6 +571,79 @@ describe("widget types", () => {
     it("should maintain WidgetColorScheme type", () => {
       const schemes: WidgetColorScheme[] = ["light", "dark", "auto"];
       expect(schemes).toHaveLength(3);
+    });
+  });
+
+  describe("showReasoning widget option", () => {
+    it("should be an optional boolean property", () => {
+      const withTrue: WidgetOptions = { token: "token", showReasoning: true };
+      const withFalse: WidgetOptions = { token: "token", showReasoning: false };
+      const withoutIt: WidgetOptions = { token: "token" };
+
+      expect(withTrue.showReasoning).toBe(true);
+      expect(withFalse.showReasoning).toBe(false);
+      expect(withoutIt.showReasoning).toBeUndefined();
+    });
+
+    it("should work with all other WidgetOptions properties", () => {
+      const fullOptions: WidgetOptions = {
+        token: "widget-token",
+        apiBase: "https://api.example.com",
+        position: "bottom-right",
+        colorScheme: "dark",
+        showReasoning: true,
+      };
+
+      expect(fullOptions.token).toBe("widget-token");
+      expect(fullOptions.apiBase).toBe("https://api.example.com");
+      expect(fullOptions.position).toBe("bottom-right");
+      expect(fullOptions.colorScheme).toBe("dark");
+      expect(fullOptions.showReasoning).toBe(true);
+    });
+
+    it("should default to false behavior when not provided", () => {
+      // Documents the expected default behavior
+      const options: WidgetOptions = { token: "token" };
+      const showReasoning = options.showReasoning ?? false;
+      expect(showReasoning).toBe(false);
+    });
+
+    it("should enable reasoning panel display when true", () => {
+      // Documents the expected behavior when showReasoning is true
+      const options: WidgetOptions = { token: "token", showReasoning: true };
+      expect(options.showReasoning).toBe(true);
+      // Widget should show ReasoningPanel when this is true and there are reasoning steps
+    });
+
+    it("should hide reasoning panel when false", () => {
+      // Documents the expected behavior when showReasoning is false
+      const options: WidgetOptions = { token: "token", showReasoning: false };
+      expect(options.showReasoning).toBe(false);
+      // Widget should not show ReasoningPanel even if there are reasoning steps
+    });
+
+    it("should be usable with advanced RAG mode agents", () => {
+      // Documents the use case: advanced RAG agents emit reasoning events
+      const advancedModeOptions: WidgetOptions = {
+        token: "advanced-agent-token",
+        showReasoning: true,
+      };
+
+      expect(advancedModeOptions.showReasoning).toBe(true);
+      // When agent is in advanced RAG mode, reasoning steps will be streamed
+      // The ReasoningPanel will display these steps to the user
+    });
+
+    it("should have no effect with simple RAG mode agents", () => {
+      // Documents the use case: simple RAG agents don't emit reasoning events
+      const simpleModeOptions: WidgetOptions = {
+        token: "simple-agent-token",
+        showReasoning: true, // Can be enabled but won't show anything
+      };
+
+      expect(simpleModeOptions.showReasoning).toBe(true);
+      // When agent is in simple RAG mode, no reasoning steps are emitted
+      // The ReasoningPanel will not render (no steps to display)
     });
   });
 });

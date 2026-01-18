@@ -36,6 +36,7 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatStatus, setChatStatus] = useState<ChatStatus>({ status: 'idle' });
+  const [currentReasoningSteps, setCurrentReasoningSteps] = useState<ReasoningStep[]>([]);
   const conversationIdRef = useRef<string | null>(
     typeof sessionStorage !== 'undefined'
       ? sessionStorage.getItem(`grounded_conv_${token}`)
@@ -64,6 +65,7 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
     setIsStreaming(true);
     setError(null);
     setChatStatus({ status: 'searching', message: 'Searching knowledge base...' });
+    setCurrentReasoningSteps([]);
     pendingSourcesRef.current = null;
     pendingReasoningStepsRef.current.clear();
 
@@ -147,6 +149,8 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
               } else if (data.type === 'reasoning' && data.step) {
                 // Collect reasoning steps (deduplicate by ID, keeping latest status)
                 pendingReasoningStepsRef.current.set(data.step.id, data.step);
+                // Update current reasoning steps state for live display
+                setCurrentReasoningSteps(Array.from(pendingReasoningStepsRef.current.values()));
               } else if (data.type === 'text' && data.content) {
                 // First text chunk means we're now streaming
                 if (!fullContent) {
@@ -176,6 +180,8 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
                 // Convert reasoning steps Map to array, preserving order
                 const reasoningStepsToSet = Array.from(pendingReasoningStepsRef.current.values());
                 pendingReasoningStepsRef.current.clear();
+                // Clear current reasoning steps now that they're attached to the message
+                setCurrentReasoningSteps([]);
 
                 // Finalize message with citations and reasoning steps
                 setMessages(prev => prev.map(msg =>
@@ -204,6 +210,7 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
     } catch (err) {
       // Clear pending refs on error
       pendingReasoningStepsRef.current.clear();
+      setCurrentReasoningSteps([]);
 
       if ((err as Error).name === 'AbortError') {
         // Request was aborted, don't show error
@@ -251,6 +258,7 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
     setMessages([]);
     conversationIdRef.current = null;
     pendingReasoningStepsRef.current.clear();
+    setCurrentReasoningSteps([]);
     try {
       sessionStorage.removeItem(`grounded_conv_${token}`);
     } catch {
@@ -264,6 +272,7 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
     isStreaming,
     error,
     chatStatus,
+    currentReasoningSteps,
     sendMessage,
     stopStreaming,
     clearMessages,
