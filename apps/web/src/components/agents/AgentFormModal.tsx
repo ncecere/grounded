@@ -491,6 +491,67 @@ export function AgentFormModal({
                     </span>
                   </div>
                 </div>
+
+                {/* Advanced Mode Settings - only shown when ragType is "advanced" */}
+                {formData.ragType === "advanced" && (
+                  <>
+                    <div className="border-t pt-4 mt-4">
+                      <h3 className="text-sm font-medium mb-3">Advanced Mode Settings</h3>
+                      <p className="text-xs text-muted-foreground mb-4">
+                        These settings only apply when Advanced RAG mode is enabled.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>History Turns</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Number of conversation turns used for query rewriting (1-20). Each turn = one user + assistant exchange.
+                      </p>
+                      <Select
+                        value={String(retrievalConfig.historyTurns)}
+                        onValueChange={(value) =>
+                          setRetrievalConfig({ ...retrievalConfig, historyTurns: parseInt(value) })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 turn</SelectItem>
+                          <SelectItem value="3">3 turns</SelectItem>
+                          <SelectItem value="5">5 turns (default)</SelectItem>
+                          <SelectItem value="10">10 turns</SelectItem>
+                          <SelectItem value="15">15 turns</SelectItem>
+                          <SelectItem value="20">20 turns</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Max Sub-queries</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Maximum number of sub-queries generated for comprehensive search (1-5). More sub-queries = more thorough but slower.
+                      </p>
+                      <Select
+                        value={String(retrievalConfig.advancedMaxSubqueries)}
+                        onValueChange={(value) =>
+                          setRetrievalConfig({ ...retrievalConfig, advancedMaxSubqueries: parseInt(value) })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 (minimal)</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                          <SelectItem value="3">3 (default)</SelectItem>
+                          <SelectItem value="4">4</SelectItem>
+                          <SelectItem value="5">5 (thorough)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
               </TabsContent>
 
               {/* Status Tab (Edit only) */}

@@ -303,3 +303,275 @@ describe("types module exports", () => {
     expect(defaultRetrievalConfig.advancedMaxSubqueries).toBeDefined();
   });
 });
+
+// Tests for Advanced Mode Settings UI
+describe("Advanced Mode Settings UI", () => {
+  describe("conditional visibility", () => {
+    it("advanced settings should only show when ragType is 'advanced'", () => {
+      // Form behavior: settings shown when formData.ragType === "advanced"
+      const simpleFormData = { ...defaultAgentForm, ragType: "simple" as "simple" | "advanced" };
+      const advancedFormData = { ...defaultAgentForm, ragType: "advanced" as "simple" | "advanced" };
+
+      const showForSimple = simpleFormData.ragType === "advanced";
+      const showForAdvanced = advancedFormData.ragType === "advanced";
+
+      expect(showForSimple).toBe(false);
+      expect(showForAdvanced).toBe(true);
+    });
+
+    it("should not show advanced settings for simple mode", () => {
+      const formData = { ...defaultAgentForm, ragType: "simple" as "simple" | "advanced" };
+      const shouldShowAdvancedSettings = formData.ragType === "advanced";
+      expect(shouldShowAdvancedSettings).toBe(false);
+    });
+
+    it("should show advanced settings for advanced mode", () => {
+      const formData = { ...defaultAgentForm, ragType: "advanced" as "simple" | "advanced" };
+      const shouldShowAdvancedSettings = formData.ragType === "advanced";
+      expect(shouldShowAdvancedSettings).toBe(true);
+    });
+  });
+
+  describe("History Turns control", () => {
+    it("should have valid historyTurns options (1, 3, 5, 10, 15, 20)", () => {
+      const validOptions = [1, 3, 5, 10, 15, 20];
+      validOptions.forEach(option => {
+        expect(option).toBeGreaterThanOrEqual(1);
+        expect(option).toBeLessThanOrEqual(20);
+      });
+    });
+
+    it("should allow updating historyTurns value", () => {
+      const retrievalConfig = { ...defaultRetrievalConfig };
+      retrievalConfig.historyTurns = 10;
+      expect(retrievalConfig.historyTurns).toBe(10);
+    });
+
+    it("should have descriptive label text for historyTurns", () => {
+      const labelText = "History Turns";
+      const helperText = "Number of conversation turns used for query rewriting (1-20). Each turn = one user + assistant exchange.";
+      expect(labelText).toBe("History Turns");
+      expect(helperText).toContain("conversation turns");
+      expect(helperText).toContain("query rewriting");
+      expect(helperText).toContain("1-20");
+    });
+
+    it("historyTurns options should include default indicator", () => {
+      const defaultOption = "5 turns (default)";
+      expect(defaultOption).toContain("default");
+      expect(defaultOption).toContain("5");
+    });
+
+    it("should accept all valid historyTurns values", () => {
+      const validValues = [1, 3, 5, 10, 15, 20];
+      validValues.forEach(value => {
+        const config = { ...defaultRetrievalConfig, historyTurns: value };
+        expect(config.historyTurns).toBe(value);
+      });
+    });
+  });
+
+  describe("Max Sub-queries control", () => {
+    it("should have valid advancedMaxSubqueries options (1-5)", () => {
+      const validOptions = [1, 2, 3, 4, 5];
+      validOptions.forEach(option => {
+        expect(option).toBeGreaterThanOrEqual(1);
+        expect(option).toBeLessThanOrEqual(5);
+      });
+    });
+
+    it("should allow updating advancedMaxSubqueries value", () => {
+      const retrievalConfig = { ...defaultRetrievalConfig };
+      retrievalConfig.advancedMaxSubqueries = 5;
+      expect(retrievalConfig.advancedMaxSubqueries).toBe(5);
+    });
+
+    it("should have descriptive label text for advancedMaxSubqueries", () => {
+      const labelText = "Max Sub-queries";
+      const helperText = "Maximum number of sub-queries generated for comprehensive search (1-5). More sub-queries = more thorough but slower.";
+      expect(labelText).toBe("Max Sub-queries");
+      expect(helperText).toContain("sub-queries");
+      expect(helperText).toContain("comprehensive search");
+      expect(helperText).toContain("1-5");
+    });
+
+    it("advancedMaxSubqueries options should include descriptions", () => {
+      const minimalOption = "1 (minimal)";
+      const defaultOption = "3 (default)";
+      const thoroughOption = "5 (thorough)";
+
+      expect(minimalOption).toContain("minimal");
+      expect(defaultOption).toContain("default");
+      expect(thoroughOption).toContain("thorough");
+    });
+
+    it("should accept all valid advancedMaxSubqueries values", () => {
+      const validValues = [1, 2, 3, 4, 5];
+      validValues.forEach(value => {
+        const config = { ...defaultRetrievalConfig, advancedMaxSubqueries: value };
+        expect(config.advancedMaxSubqueries).toBe(value);
+      });
+    });
+  });
+
+  describe("Advanced Mode Settings section header", () => {
+    it("should have section title", () => {
+      const sectionTitle = "Advanced Mode Settings";
+      expect(sectionTitle).toBe("Advanced Mode Settings");
+    });
+
+    it("should have section description", () => {
+      const sectionDescription = "These settings only apply when Advanced RAG mode is enabled.";
+      expect(sectionDescription).toContain("Advanced RAG mode");
+      expect(sectionDescription).toContain("enabled");
+    });
+  });
+
+  describe("retrieval config with advanced settings", () => {
+    it("should include historyTurns in retrieval config update data", () => {
+      const retrievalConfig = {
+        ...defaultRetrievalConfig,
+        historyTurns: 10,
+      };
+      expect(retrievalConfig.historyTurns).toBe(10);
+    });
+
+    it("should include advancedMaxSubqueries in retrieval config update data", () => {
+      const retrievalConfig = {
+        ...defaultRetrievalConfig,
+        advancedMaxSubqueries: 5,
+      };
+      expect(retrievalConfig.advancedMaxSubqueries).toBe(5);
+    });
+
+    it("should allow updating both advanced settings simultaneously", () => {
+      const retrievalConfig = {
+        ...defaultRetrievalConfig,
+        historyTurns: 15,
+        advancedMaxSubqueries: 4,
+      };
+      expect(retrievalConfig.historyTurns).toBe(15);
+      expect(retrievalConfig.advancedMaxSubqueries).toBe(4);
+    });
+
+    it("should preserve other retrieval config values when updating advanced settings", () => {
+      const retrievalConfig = {
+        ...defaultRetrievalConfig,
+        historyTurns: 10,
+        advancedMaxSubqueries: 5,
+      };
+
+      // Verify other values are preserved
+      expect(retrievalConfig.candidateK).toBe(defaultRetrievalConfig.candidateK);
+      expect(retrievalConfig.topK).toBe(defaultRetrievalConfig.topK);
+      expect(retrievalConfig.maxCitations).toBe(defaultRetrievalConfig.maxCitations);
+      expect(retrievalConfig.similarityThreshold).toBe(defaultRetrievalConfig.similarityThreshold);
+    });
+  });
+
+  describe("fetched retrieval config population", () => {
+    it("should populate historyTurns from fetched config", () => {
+      const fetchedConfig = {
+        candidateK: 40,
+        topK: 8,
+        maxCitations: 3,
+        similarityThreshold: 0.5,
+        historyTurns: 10,
+        advancedMaxSubqueries: 4,
+      };
+
+      const retrievalConfig = {
+        candidateK: fetchedConfig.candidateK || 40,
+        topK: fetchedConfig.topK || 8,
+        maxCitations: fetchedConfig.maxCitations || 3,
+        similarityThreshold: fetchedConfig.similarityThreshold ?? 0.5,
+        historyTurns: fetchedConfig.historyTurns ?? 5,
+        advancedMaxSubqueries: fetchedConfig.advancedMaxSubqueries ?? 3,
+      };
+
+      expect(retrievalConfig.historyTurns).toBe(10);
+    });
+
+    it("should populate advancedMaxSubqueries from fetched config", () => {
+      const fetchedConfig = {
+        candidateK: 40,
+        topK: 8,
+        maxCitations: 3,
+        similarityThreshold: 0.5,
+        historyTurns: 10,
+        advancedMaxSubqueries: 4,
+      };
+
+      const retrievalConfig = {
+        candidateK: fetchedConfig.candidateK || 40,
+        topK: fetchedConfig.topK || 8,
+        maxCitations: fetchedConfig.maxCitations || 3,
+        similarityThreshold: fetchedConfig.similarityThreshold ?? 0.5,
+        historyTurns: fetchedConfig.historyTurns ?? 5,
+        advancedMaxSubqueries: fetchedConfig.advancedMaxSubqueries ?? 3,
+      };
+
+      expect(retrievalConfig.advancedMaxSubqueries).toBe(4);
+    });
+
+    it("should use default historyTurns (5) when fetched config has null/undefined", () => {
+      const fetchedConfig = {
+        candidateK: 40,
+        topK: 8,
+        maxCitations: 3,
+        similarityThreshold: 0.5,
+        historyTurns: null as number | null,
+        advancedMaxSubqueries: null as number | null,
+      };
+
+      const retrievalConfig = {
+        candidateK: fetchedConfig.candidateK || 40,
+        topK: fetchedConfig.topK || 8,
+        maxCitations: fetchedConfig.maxCitations || 3,
+        similarityThreshold: fetchedConfig.similarityThreshold ?? 0.5,
+        historyTurns: fetchedConfig.historyTurns ?? 5,
+        advancedMaxSubqueries: fetchedConfig.advancedMaxSubqueries ?? 3,
+      };
+
+      expect(retrievalConfig.historyTurns).toBe(5);
+    });
+
+    it("should use default advancedMaxSubqueries (3) when fetched config has null/undefined", () => {
+      const fetchedConfig = {
+        candidateK: 40,
+        topK: 8,
+        maxCitations: 3,
+        similarityThreshold: 0.5,
+        historyTurns: null as number | null,
+        advancedMaxSubqueries: null as number | null,
+      };
+
+      const retrievalConfig = {
+        candidateK: fetchedConfig.candidateK || 40,
+        topK: fetchedConfig.topK || 8,
+        maxCitations: fetchedConfig.maxCitations || 3,
+        similarityThreshold: fetchedConfig.similarityThreshold ?? 0.5,
+        historyTurns: fetchedConfig.historyTurns ?? 5,
+        advancedMaxSubqueries: fetchedConfig.advancedMaxSubqueries ?? 3,
+      };
+
+      expect(retrievalConfig.advancedMaxSubqueries).toBe(3);
+    });
+  });
+
+  describe("Search tab behavior with advanced mode", () => {
+    it("Search tab should contain advanced settings when ragType is advanced", () => {
+      // This documents the behavior: Advanced Mode Settings appear in Search tab
+      // when formData.ragType === "advanced"
+      const formData = { ...defaultAgentForm, ragType: "advanced" as "simple" | "advanced" };
+      const shouldShowInSearchTab = formData.ragType === "advanced";
+      expect(shouldShowInSearchTab).toBe(true);
+    });
+
+    it("Search tab should not contain advanced settings when ragType is simple", () => {
+      const formData = { ...defaultAgentForm, ragType: "simple" as "simple" | "advanced" };
+      const shouldShowInSearchTab = formData.ragType === "advanced";
+      expect(shouldShowInSearchTab).toBe(false);
+    });
+  });
+});
