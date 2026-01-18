@@ -213,3 +213,86 @@ Per-queue: `SOURCE_RUN_CONCURRENCY`, `PAGE_FETCH_CONCURRENCY`, `PAGE_PROCESS_CON
 - All 63 new tests pass
 - All existing tests pass (271 tests in shared package, 1306 total)
 - TypeScript typechecking passes
+
+## 2026-01-18: Add per-tenant and per-domain concurrency limits
+
+### Summary
+Implemented per-tenant and per-domain concurrency limits for the fetch/crawl pipeline. This prevents any single tenant from consuming all worker capacity and protects target servers from being overwhelmed by concurrent connections.
+
+### Changes Made
+1. **packages/shared/src/constants/index.ts**
+   - Added `DEFAULT_TENANT_CONCURRENCY` (5) - Default concurrent fetch jobs per tenant
+   - Added `DEFAULT_DOMAIN_CONCURRENCY` (3) - Default concurrent fetch jobs per domain
+   - Added `DOMAIN_CONCURRENCY_ENV_VAR` - Environment variable for domain concurrency override
+   - Added `CONCURRENCY_KEY_PREFIXES` - Redis key prefixes for tenant, domain, and tenant+domain tracking
+   - Added `CONCURRENCY_KEY_TTL_SECONDS` (300) - TTL for tracking keys
+   - Added `CONCURRENCY_RETRY_DELAY_MS` (5000) - Retry delay for rate-limited jobs
+
+2. **packages/shared/src/types/index.ts**
+   - Added `ConcurrencyCheckResult` interface - Result of single limit check
+   - Added `CombinedConcurrencyCheckResult` interface - Combined result of all limit checks
+   - Added `ActiveJobTracker` interface - Tracks active jobs for cleanup
+   - Added `ConcurrencyLimitOptions` interface - Options for limit configuration
+   - Added `ConcurrencyMetrics` interface - Metrics snapshot for monitoring
+   - Added `extractDomainFromUrl()` - Extracts and normalizes domain from URL
+   - Added `buildTenantConcurrencyKey()` - Builds Redis key for tenant tracking
+   - Added `buildDomainConcurrencyKey()` - Builds Redis key for domain tracking
+   - Added `buildTenantDomainConcurrencyKey()` - Builds Redis key for combined tracking
+   - Added `resolveDomainConcurrency()` - Resolves domain limit with env var support
+   - Added `getTenantConcurrencyLimit()` - Gets tenant limit from quotas
+   - Added `createConcurrencyLimitOptions()` - Creates options from quotas and env
+   - Added `getConcurrencyKeyTtl()` / `getConcurrencyRetryDelay()` - Getter helpers
+
+3. **packages/queue/src/index.ts**
+   - Added `checkTenantConcurrency()` - Checks if tenant has capacity
+   - Added `checkDomainConcurrency()` - Checks if domain has capacity
+   - Added `checkTenantDomainConcurrency()` - Checks combined tenant+domain limit
+   - Added `checkFetchConcurrencyLimits()` - Checks all applicable limits
+   - Added `acquireFetchConcurrencySlots()` - Atomically increments counters
+   - Added `releaseFetchConcurrencySlots()` - Decrements counters on job completion
+   - Added `getTenantActiveFetchCount()` / `getDomainActiveFetchCount()` - Monitoring helpers
+   - Added `resetTenantConcurrency()` / `resetDomainConcurrency()` - Emergency cleanup
+   - Added `createConcurrencyOptionsFromQuotas()` - Creates options from quotas
+   - Re-exported all new constants and types
+
+4. **packages/shared/src/types/concurrency-limits.test.ts** (new file)
+   - Added 70 tests covering:
+     - All concurrency constants and their values
+     - Domain extraction from URLs (normalization, www removal, case handling)
+     - Redis key building functions
+     - Limit resolution functions with env var overrides
+     - Type interface validation
+     - Integration scenarios for multi-tenant domain sharing
+
+### Key Design Decisions
+- **Per-domain limits**: Applied globally across all tenants to prevent overwhelming target servers (default: 3)
+- **Per-tenant limits**: Uses existing `TenantQuotas.maxCrawlConcurrency` field (default: 5)
+- **Domain normalization**: Removes www prefix and lowercases for consistent tracking
+- **Redis-based tracking**: Uses INCR/DECR with TTL for atomic, self-healing counters
+- **Optional tenant+domain**: Allows stricter per-tenant-per-domain limits when needed
+
+### Concurrency Limits
+| Type | Default | Rationale |
+|------|---------|-----------|
+| Per-tenant | 5 | Prevents single tenant from consuming all capacity |
+| Per-domain | 3 | Protects target servers from being overwhelmed |
+
+### Redis Key Patterns
+- Tenant: `concurrency:tenant:{tenantId}`
+- Domain: `concurrency:domain:{domain}`
+- Combined: `concurrency:tenant_domain:{tenantId}:{domain}`
+
+### Environment Variables
+- `DOMAIN_CONCURRENCY` - Override default per-domain limit
+
+### Acceptance Criteria Met
+- ✅ Per-tenant concurrency limits with TenantQuotas integration
+- ✅ Per-domain concurrency limits to protect target servers
+- ✅ Redis-based atomic tracking with TTL for auto-cleanup
+- ✅ Helper functions for checking and managing limits
+- ✅ Integration with existing quota system
+
+### Tests
+- All 70 new tests pass
+- All existing tests pass (341 tests in shared package)
+- TypeScript typechecking passes

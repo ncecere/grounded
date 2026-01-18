@@ -34,7 +34,7 @@ tasks:
     depends_on: ["Define staged ingestion contract and per-stage status model"]
 
   - title: Add per-tenant and per-domain concurrency limits
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [queue, scaling]
 

@@ -190,6 +190,62 @@ export const QUEUE_CONCURRENCY_ENV_VARS = {
 } as const;
 
 // ============================================================================
+// Tenant and Domain Concurrency Limits
+// ============================================================================
+
+/**
+ * Default per-tenant concurrency limit for fetch/crawl jobs.
+ * Can be overridden per-tenant via TenantQuotas.maxCrawlConcurrency.
+ *
+ * Rationale:
+ * - Prevents a single tenant from consuming all worker capacity
+ * - Ensures fair resource distribution across tenants
+ * - Can be increased for enterprise tenants
+ */
+export const DEFAULT_TENANT_CONCURRENCY = 5;
+
+/**
+ * Default per-domain concurrency limit for fetch jobs.
+ * Applies globally regardless of tenant to prevent overwhelming target servers.
+ *
+ * Rationale:
+ * - Limits concurrent connections to any single domain
+ * - Prevents accidental DDoS behavior on target servers
+ * - Respects common rate limiting practices (2-5 concurrent requests)
+ */
+export const DEFAULT_DOMAIN_CONCURRENCY = 3;
+
+/**
+ * Environment variable to override the default domain concurrency limit.
+ */
+export const DOMAIN_CONCURRENCY_ENV_VAR = "DOMAIN_CONCURRENCY";
+
+/**
+ * Redis key prefixes for concurrency tracking.
+ */
+export const CONCURRENCY_KEY_PREFIXES = {
+  /** Tracks active jobs per tenant: concurrency:tenant:{tenantId} */
+  TENANT: "concurrency:tenant:",
+  /** Tracks active jobs per domain: concurrency:domain:{domain} */
+  DOMAIN: "concurrency:domain:",
+  /** Tracks active jobs per tenant+domain: concurrency:tenant_domain:{tenantId}:{domain} */
+  TENANT_DOMAIN: "concurrency:tenant_domain:",
+} as const;
+
+/**
+ * TTL for concurrency tracking keys in seconds.
+ * Jobs should complete or fail within this time, after which keys auto-expire.
+ * Set conservatively high to handle long-running jobs.
+ */
+export const CONCURRENCY_KEY_TTL_SECONDS = 300; // 5 minutes
+
+/**
+ * Delay in milliseconds when a job is rate-limited and should be retried.
+ * Used for re-queuing jobs that exceed concurrency limits.
+ */
+export const CONCURRENCY_RETRY_DELAY_MS = 5000;
+
+// ============================================================================
 // API Versions
 // ============================================================================
 

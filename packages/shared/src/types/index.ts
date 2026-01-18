@@ -1014,6 +1014,12 @@ import {
   STAGE_CONCURRENCY_ENV_VARS,
   QUEUE_DEFAULT_CONCURRENCY,
   QUEUE_CONCURRENCY_ENV_VARS,
+  DEFAULT_TENANT_CONCURRENCY,
+  DEFAULT_DOMAIN_CONCURRENCY,
+  DOMAIN_CONCURRENCY_ENV_VAR,
+  CONCURRENCY_KEY_PREFIXES,
+  CONCURRENCY_KEY_TTL_SECONDS,
+  CONCURRENCY_RETRY_DELAY_MS,
 } from "../constants";
 
 /**
@@ -1142,3 +1148,217 @@ export function resolveStageConcurrency(
 
   return STAGE_DEFAULT_CONCURRENCY[stage];
 }
+
+// ============================================================================
+// Tenant and Domain Concurrency Limit Types
+// ============================================================================
+
+/**
+ * Result of a concurrency limit check.
+ */
+export interface ConcurrencyCheckResult {
+  /** Whether the request is allowed to proceed */
+  allowed: boolean;
+  /** Current number of active jobs for this limiter */
+  current: number;
+  /** Maximum allowed concurrent jobs */
+  limit: number;
+  /** Key used for this limiter (for debugging/logging) */
+  key: string;
+  /** Reason for denial if not allowed */
+  reason?: "tenant_limit" | "domain_limit" | "tenant_domain_limit";
+}
+
+/**
+ * Combined result of checking multiple concurrency limits.
+ */
+export interface CombinedConcurrencyCheckResult {
+  /** Whether all limits allow the request */
+  allowed: boolean;
+  /** Result of tenant-level check */
+  tenantCheck?: ConcurrencyCheckResult;
+  /** Result of domain-level check */
+  domainCheck?: ConcurrencyCheckResult;
+  /** Result of tenant+domain check (optional, for stricter control) */
+  tenantDomainCheck?: ConcurrencyCheckResult;
+  /** The first reason for denial if not allowed */
+  reason?: "tenant_limit" | "domain_limit" | "tenant_domain_limit";
+}
+
+/**
+ * Tracks active job state for cleanup on completion.
+ */
+export interface ActiveJobTracker {
+  /** Unique job identifier */
+  jobId: string;
+  /** Tenant ID for this job */
+  tenantId: string;
+  /** Domain being fetched (normalized) */
+  domain: string;
+  /** Timestamp when tracking started */
+  startedAt: number;
+}
+
+/**
+ * Options for concurrency limit operations.
+ */
+export interface ConcurrencyLimitOptions {
+  /** Per-tenant concurrency limit (defaults to TenantQuotas.maxCrawlConcurrency or DEFAULT_TENANT_CONCURRENCY) */
+  tenantLimit?: number;
+  /** Per-domain concurrency limit (defaults to DEFAULT_DOMAIN_CONCURRENCY) */
+  domainLimit?: number;
+  /** Whether to also check per-tenant-domain combined limit */
+  checkTenantDomainLimit?: boolean;
+  /** Per-tenant-per-domain limit when checkTenantDomainLimit is true */
+  tenantDomainLimit?: number;
+}
+
+/**
+ * Metrics snapshot for concurrency tracking.
+ */
+export interface ConcurrencyMetrics {
+  /** Active jobs per tenant (map of tenantId -> count) */
+  byTenant: Map<string, number>;
+  /** Active jobs per domain (map of domain -> count) */
+  byDomain: Map<string, number>;
+  /** Total active tracked jobs */
+  totalActive: number;
+}
+
+// ============================================================================
+// Tenant and Domain Concurrency Helper Functions
+// ============================================================================
+
+/**
+ * Extracts the domain from a URL for concurrency tracking.
+ * Normalizes to lowercase and removes 'www.' prefix for consistency.
+ *
+ * @param url - The URL to extract domain from
+ * @returns The normalized domain, or null if URL is invalid
+ */
+export function extractDomainFromUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    let domain = parsed.hostname.toLowerCase();
+    // Remove www. prefix for normalization
+    if (domain.startsWith("www.")) {
+      domain = domain.slice(4);
+    }
+    return domain;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Builds the Redis key for tenant concurrency tracking.
+ * @param tenantId - The tenant identifier
+ * @returns Redis key string
+ */
+export function buildTenantConcurrencyKey(tenantId: string): string {
+  return `${CONCURRENCY_KEY_PREFIXES.TENANT}${tenantId}`;
+}
+
+/**
+ * Builds the Redis key for domain concurrency tracking.
+ * @param domain - The normalized domain
+ * @returns Redis key string
+ */
+export function buildDomainConcurrencyKey(domain: string): string {
+  return `${CONCURRENCY_KEY_PREFIXES.DOMAIN}${domain}`;
+}
+
+/**
+ * Builds the Redis key for tenant+domain combined tracking.
+ * @param tenantId - The tenant identifier
+ * @param domain - The normalized domain
+ * @returns Redis key string
+ */
+export function buildTenantDomainConcurrencyKey(
+  tenantId: string,
+  domain: string
+): string {
+  return `${CONCURRENCY_KEY_PREFIXES.TENANT_DOMAIN}${tenantId}:${domain}`;
+}
+
+/**
+ * Resolves the effective domain concurrency limit.
+ * Checks environment variable first, then falls back to default.
+ *
+ * @param getEnv - Function to get environment variables
+ * @returns The resolved domain concurrency limit
+ */
+export function resolveDomainConcurrency(
+  getEnv: (key: string) => string | undefined
+): number {
+  const envValue = getEnv(DOMAIN_CONCURRENCY_ENV_VAR);
+
+  if (envValue !== undefined) {
+    const parsed = parseInt(envValue, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return DEFAULT_DOMAIN_CONCURRENCY;
+}
+
+/**
+ * Gets the effective tenant concurrency limit.
+ * Uses the tenant's quota if provided, otherwise falls back to default.
+ *
+ * @param tenantQuotas - Optional tenant quotas (from database)
+ * @returns The effective tenant concurrency limit
+ */
+export function getTenantConcurrencyLimit(
+  tenantQuotas?: Partial<TenantQuotas>
+): number {
+  if (tenantQuotas?.maxCrawlConcurrency !== undefined) {
+    return tenantQuotas.maxCrawlConcurrency;
+  }
+  return DEFAULT_TENANT_CONCURRENCY;
+}
+
+/**
+ * Creates default concurrency limit options with resolved values.
+ *
+ * @param tenantQuotas - Optional tenant quotas
+ * @param getEnv - Function to get environment variables
+ * @returns Resolved concurrency limit options
+ */
+export function createConcurrencyLimitOptions(
+  tenantQuotas?: Partial<TenantQuotas>,
+  getEnv: (key: string) => string | undefined = () => undefined
+): Required<Omit<ConcurrencyLimitOptions, "checkTenantDomainLimit" | "tenantDomainLimit">> &
+   Pick<ConcurrencyLimitOptions, "checkTenantDomainLimit" | "tenantDomainLimit"> {
+  return {
+    tenantLimit: getTenantConcurrencyLimit(tenantQuotas),
+    domainLimit: resolveDomainConcurrency(getEnv),
+    checkTenantDomainLimit: false,
+    tenantDomainLimit: undefined,
+  };
+}
+
+/**
+ * Gets the concurrency key TTL in seconds.
+ */
+export function getConcurrencyKeyTtl(): number {
+  return CONCURRENCY_KEY_TTL_SECONDS;
+}
+
+/**
+ * Gets the retry delay for rate-limited jobs.
+ */
+export function getConcurrencyRetryDelay(): number {
+  return CONCURRENCY_RETRY_DELAY_MS;
+}
+
+// Re-export constants for convenience
+export {
+  DEFAULT_TENANT_CONCURRENCY,
+  DEFAULT_DOMAIN_CONCURRENCY,
+  DOMAIN_CONCURRENCY_ENV_VAR,
+  CONCURRENCY_KEY_PREFIXES,
+  CONCURRENCY_KEY_TTL_SECONDS,
+  CONCURRENCY_RETRY_DELAY_MS,
+};
