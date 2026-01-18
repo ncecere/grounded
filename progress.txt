@@ -771,3 +771,46 @@ Enhanced the AdvancedRAGService's `buildSystemPrompt` method to include explicit
 - `apps/api/src/services/advanced-rag.ts` (MODIFIED - enhanced buildSystemPrompt with citation instructions)
 - `apps/api/src/services/advanced-rag.test.ts` (MODIFIED - added 63 tests for final answer generation)
 - `Tasks/tasks.yml` (MODIFIED - marked task complete, marked Phase 2 as completed)
+
+## 2026-01-17: Phase 3 - Update admin chat route for RAG type routing
+
+### Completed Task
+**Task:** Update admin chat route for RAG type routing
+**Phase:** Phase 3 - API Routing & Integration
+**Status:** COMPLETED
+
+### Changes Made
+
+1. **Updated chat route to support RAG type routing:**
+   - `apps/api/src/routes/chat.ts`
+   - Added import for AdvancedRAGService
+   - Added database imports (db, agents, eq, and, isNull from drizzle-orm)
+   - Route now fetches agent's ragType before streaming
+   - Routes to AdvancedRAGService when ragType is "advanced"
+   - Routes to SimpleRAGService when ragType is "simple" (default)
+   - Returns 404 error if agent not found
+
+2. **Routing logic:**
+   - Queries agent by agentId, tenantId, and deletedAt IS NULL
+   - Only fetches ragType column for efficiency
+   - AdvancedRAGService instantiated with "admin_ui" channel
+   - SimpleRAGService used for simple mode (existing behavior)
+
+3. **Added comprehensive tests:**
+   - `apps/api/src/routes/chat.test.ts` (NEW - 58 tests)
+   - chatSchema validation tests (message, conversationId)
+   - RAG type routing logic tests
+   - Agent lookup behavior tests
+   - Stream event type tests (Simple and Advanced)
+   - SSE headers tests
+   - Rate limiting configuration tests
+
+### Test Results
+- All 458 tests pass (442 in api, 16 in web)
+- All typecheck passes across 14 packages
+- Added 58 new tests for chat route RAG type routing
+
+### Files Changed
+- `apps/api/src/routes/chat.ts` (MODIFIED - added RAG type routing)
+- `apps/api/src/routes/chat.test.ts` (NEW - 58 tests)
+- `Tasks/tasks.yml` (MODIFIED - marked task complete)
