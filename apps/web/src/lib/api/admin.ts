@@ -1,6 +1,7 @@
 import { API_BASE, request, getToken } from "./client";
 import type {
   SystemSetting,
+  FairnessMetrics,
   ModelProvider,
   ModelConfiguration,
   ProviderType,
@@ -450,4 +451,13 @@ export const adminApi = {
     const params = days ? `?days=${days}` : "";
     return request<{ summary: AuditSummary }>(`/admin/audit/summary/${tenantId}${params}`);
   },
+
+  // Worker/Fairness
+  getFairnessMetrics: () =>
+    request<{ success: boolean; metrics: FairnessMetrics | null; error?: string }>("/admin/settings/workers/fairness/metrics"),
+
+  resetFairnessState: () =>
+    request<{ success: boolean; message?: string; error?: string }>("/admin/settings/workers/fairness/reset", {
+      method: "POST",
+    }),
 };

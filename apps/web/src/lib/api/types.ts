@@ -290,6 +290,15 @@ export interface SystemSetting {
   updatedAt: string | null;
 }
 
+export interface FairnessMetrics {
+  activeRunCount: number;
+  totalSlotsInUse: number;
+  totalSlotsAvailable: number;
+  runSlots: Record<string, number>;
+  fairSharePerRun: number;
+  timestamp: string;
+}
+
 export interface AdminUser {
   id: string;
   email: string | null;

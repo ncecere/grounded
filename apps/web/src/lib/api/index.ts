@@ -191,6 +191,10 @@ export const api = {
   getAuditLogFilters: adminApi.getAuditLogFilters,
   getResourceAuditHistory: adminApi.getResourceAuditHistory,
   getAuditSummary: adminApi.getAuditSummary,
+
+  // Worker/Fairness
+  getFairnessMetrics: adminApi.getFairnessMetrics,
+  resetFairnessState: adminApi.resetFairnessState,
 };
 
 // Export domain APIs for direct use
