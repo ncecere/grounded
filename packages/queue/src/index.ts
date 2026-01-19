@@ -1,4 +1,4 @@
-import { Queue, Worker, Job, QueueEvents, ConnectionOptions } from "bullmq";
+import { Queue, Worker, Job, QueueEvents, ConnectionOptions, DelayedError } from "bullmq";
 import { Redis } from "ioredis";
 import {
   QUEUE_NAMES,
@@ -11,11 +11,13 @@ import {
   type SourceDiscoverUrlsJob,
   type PageFetchJob,
   type PageProcessJob,
+  type PageIndexJob,
   type EmbedChunksBatchJob,
   type EnrichPageJob,
   type SourceRunFinalizeJob,
   type HardDeleteObjectJob,
   type KbReindexJob,
+  type StageTransitionJob,
 } from "@grounded/shared";
 
 // ============================================================================
@@ -66,6 +68,19 @@ export const pageFetchQueue = new Queue<PageFetchJob>(QUEUE_NAMES.PAGE_FETCH, {
 });
 
 export const pageProcessQueue = new Queue<PageProcessJob>(QUEUE_NAMES.PAGE_PROCESS, {
+  connection,
+  defaultJobOptions: {
+    attempts: JOB_RETRY_ATTEMPTS,
+    backoff: {
+      type: JOB_BACKOFF_TYPE,
+      delay: JOB_RETRY_DELAY_MS,
+    },
+    removeOnComplete: 1000,
+    removeOnFail: 5000,
+  },
+});
+
+export const pageIndexQueue = new Queue<PageIndexJob>(QUEUE_NAMES.PAGE_INDEX, {
   connection,
   defaultJobOptions: {
     attempts: JOB_RETRY_ATTEMPTS,
@@ -133,6 +148,7 @@ export const kbReindexQueue = new Queue<KbReindexJob>(QUEUE_NAMES.KB_REINDEX, {
 export const sourceRunEvents = new QueueEvents(QUEUE_NAMES.SOURCE_RUN, { connection });
 export const pageFetchEvents = new QueueEvents(QUEUE_NAMES.PAGE_FETCH, { connection });
 export const pageProcessEvents = new QueueEvents(QUEUE_NAMES.PAGE_PROCESS, { connection });
+export const pageIndexEvents = new QueueEvents(QUEUE_NAMES.PAGE_INDEX, { connection });
 export const embedChunksEvents = new QueueEvents(QUEUE_NAMES.EMBED_CHUNKS, { connection });
 
 // ============================================================================
@@ -151,23 +167,36 @@ export async function addSourceDiscoverUrlsJob(data: SourceDiscoverUrlsJob): Pro
   });
 }
 
-export async function addPageFetchJob(data: PageFetchJob): Promise<Job> {
+export interface JobOptions {
+  priority?: number;
+}
+
+export async function addPageFetchJob(data: PageFetchJob, options?: JobOptions): Promise<Job> {
   // Use full base64 URL to ensure unique job IDs (truncation caused collisions)
   const urlHash = Buffer.from(data.url).toString("base64url");
   return pageFetchQueue.add("fetch", data, {
     jobId: `page-fetch-${data.runId}-${urlHash}`,
+    priority: options?.priority,
   });
 }
 
-export async function addPageProcessJob(data: PageProcessJob): Promise<Job> {
+export async function addPageProcessJob(data: PageProcessJob, options?: JobOptions): Promise<Job> {
   // Use full base64 URL to ensure unique job IDs (truncation caused collisions)
   const urlHash = Buffer.from(data.url).toString("base64url");
   return pageProcessQueue.add("process", data, {
     jobId: `page-process-${data.runId}-${urlHash}`,
+    priority: options?.priority,
   });
 }
 
-export async function addEmbedChunksBatchJob(data: EmbedChunksBatchJob): Promise<Job> {
+export async function addPageIndexJob(data: PageIndexJob, options?: JobOptions): Promise<Job> {
+  return pageIndexQueue.add("index", data, {
+    jobId: `page-index-${data.runId}-${data.pageId}`,
+    priority: options?.priority,
+  });
+}
+
+export async function addEmbedChunksBatchJob(data: EmbedChunksBatchJob, options?: JobOptions): Promise<Job> {
   // Generate deterministic job ID based on chunk IDs
   // This ensures:
   // 1. Same chunks always produce the same job ID (idempotent re-queuing)
@@ -177,6 +206,7 @@ export async function addEmbedChunksBatchJob(data: EmbedChunksBatchJob): Promise
 
   return embedChunksQueue.add("embed", data, {
     jobId,
+    priority: options?.priority,
   });
 }
 
@@ -202,6 +232,193 @@ export async function addKbReindexJob(data: KbReindexJob): Promise<Job> {
   return kbReindexQueue.add("reindex", data, {
     jobId: `kb-reindex-${data.kbId}`,
   });
+}
+
+export async function addStageTransitionJob(data: StageTransitionJob): Promise<Job> {
+  return sourceRunQueue.add("stage-transition", data, {
+    jobId: `stage-transition-${data.runId}-${data.completedStage}`,
+  });
+}
+
+// ============================================================================
+// Job Cleanup for Canceled Runs
+// ============================================================================
+
+/**
+ * Remove all pending embed jobs for a given source run.
+ * This should be called when a source run is canceled to prevent
+ * wasted embedding API calls and queue blockage.
+ * 
+ * @returns The number of jobs removed
+ */
+export async function removeEmbedJobsForRun(runId: string): Promise<number> {
+  let removed = 0;
+  
+  // Get all waiting jobs and filter by runId
+  // BullMQ stores job data in Redis, so we need to check each job
+  const waitingJobs = await embedChunksQueue.getJobs(["waiting", "delayed"]);
+  
+  for (const job of waitingJobs) {
+    if (job.data?.runId === runId) {
+      try {
+        await job.remove();
+        removed++;
+      } catch (error) {
+        // Job might have already been processed or removed
+        // This is fine, just continue
+      }
+    }
+  }
+  
+  return removed;
+}
+
+/**
+ * Remove all pending source-run jobs (start, discover, finalize, stage-transition) for a given run.
+ */
+export async function removeSourceRunJobsForRun(runId: string): Promise<number> {
+  let removed = 0;
+  
+  const waitingJobs = await sourceRunQueue.getJobs(["waiting", "delayed"]);
+  
+  for (const job of waitingJobs) {
+    if (job.data?.runId === runId) {
+      try {
+        await job.remove();
+        removed++;
+      } catch (error) {
+        // Job might have already been processed or removed
+      }
+    }
+  }
+  
+  return removed;
+}
+
+/**
+ * Remove all pending page-fetch jobs for a given source run.
+ */
+export async function removePageFetchJobsForRun(runId: string): Promise<number> {
+  let removed = 0;
+  
+  const waitingJobs = await pageFetchQueue.getJobs(["waiting", "delayed"]);
+  
+  for (const job of waitingJobs) {
+    if (job.data?.runId === runId) {
+      try {
+        await job.remove();
+        removed++;
+      } catch (error) {
+        // Job might have already been processed or removed
+      }
+    }
+  }
+  
+  return removed;
+}
+
+/**
+ * Remove all pending page-process jobs for a given source run.
+ */
+export async function removePageProcessJobsForRun(runId: string): Promise<number> {
+  let removed = 0;
+  
+  const waitingJobs = await pageProcessQueue.getJobs(["waiting", "delayed"]);
+  
+  for (const job of waitingJobs) {
+    if (job.data?.runId === runId) {
+      try {
+        await job.remove();
+        removed++;
+      } catch (error) {
+        // Job might have already been processed or removed
+      }
+    }
+  }
+  
+  return removed;
+}
+
+/**
+ * Remove all pending page-index jobs for a given source run.
+ */
+export async function removePageIndexJobsForRun(runId: string): Promise<number> {
+  let removed = 0;
+  
+  const waitingJobs = await pageIndexQueue.getJobs(["waiting", "delayed"]);
+  
+  for (const job of waitingJobs) {
+    if (job.data?.runId === runId) {
+      try {
+        await job.remove();
+        removed++;
+      } catch (error) {
+        // Job might have already been processed or removed
+      }
+    }
+  }
+  
+  return removed;
+}
+
+/**
+ * Clean up all Redis state for a canceled run.
+ * This includes pending index jobs counter, crawl state, and stage batch tracking.
+ */
+export async function cleanupRunRedisState(runId: string): Promise<void> {
+  // Delete pending index jobs counter
+  await redis.del(`pending_index_jobs:${runId}`);
+  
+  // Delete stage batch pending key
+  await redis.del(`batch:${runId}:pending`);
+  
+  // Delete crawl state keys (pattern: crawl:{runId}:*)
+  const crawlKeys = await redis.keys(`crawl:${runId}:*`);
+  if (crawlKeys.length > 0) {
+    await redis.del(...crawlKeys);
+  }
+  
+  // Delete chunk embed status keys (pattern: chunk_embed_status:{runId}:*)
+  const embedStatusKeys = await redis.keys(`chunk_embed_status:${runId}:*`);
+  if (embedStatusKeys.length > 0) {
+    await redis.del(...embedStatusKeys);
+  }
+}
+
+/**
+ * Remove all pending jobs across all queues for a given source run.
+ * Call this when canceling a source run to clean up the queue.
+ * Also cleans up Redis state.
+ * 
+ * @returns Object with count of removed jobs per queue
+ */
+export async function removeAllJobsForRun(runId: string): Promise<{
+  sourceRun: number;
+  pageFetch: number;
+  pageProcess: number;
+  pageIndex: number;
+  embed: number;
+  total: number;
+}> {
+  // Clean up all Redis state for this run
+  await cleanupRunRedisState(runId);
+  
+  const [sourceRun, pageFetch, pageProcess, pageIndex, embed] = await Promise.all([
+    removeSourceRunJobsForRun(runId),
+    removePageFetchJobsForRun(runId),
+    removePageProcessJobsForRun(runId),
+    removePageIndexJobsForRun(runId),
+    removeEmbedJobsForRun(runId),
+  ]);
+  
+  return {
+    sourceRun,
+    pageFetch,
+    pageProcess,
+    pageIndex,
+    embed,
+    total: sourceRun + pageFetch + pageProcess + pageIndex + embed,
+  };
 }
 
 // ============================================================================
@@ -520,6 +737,10 @@ export async function releaseFetchConcurrencySlots(
   tracker: ActiveJobTracker,
   options: { checkTenantDomainLimit?: boolean } = {}
 ): Promise<void> {
+  if (!tracker.tenantId) {
+    return;
+  }
+
   const pipeline = redis.pipeline();
 
   const tenantKey = buildTenantConcurrencyKey(tracker.tenantId);
@@ -1175,8 +1396,303 @@ export async function cleanupChunkEmbedStatuses(runId: string): Promise<number> 
 // ============================================================================
 // Worker Creation Helpers
 // ============================================================================
+// Pending Page-Index Job Tracking
+// ============================================================================
 
-export { Worker, Job, QueueEvents };
+const PENDING_INDEX_JOBS_KEY_PREFIX = "pending_index_jobs:";
+const PENDING_INDEX_JOBS_TTL_SECONDS = 86400; // 24 hours
+
+/**
+ * Builds the Redis key for tracking pending page-index jobs for a run.
+ */
+function buildPendingIndexJobsKey(runId: string): string {
+  return `${PENDING_INDEX_JOBS_KEY_PREFIX}${runId}`;
+}
+
+/**
+ * Increments the pending page-index jobs counter for a run.
+ * Call this when queuing a page-index job.
+ *
+ * @param runId - Source run ID
+ * @param count - Number of jobs being added (default 1)
+ * @returns New counter value
+ */
+export async function incrementPendingIndexJobs(runId: string, count: number = 1): Promise<number> {
+  const key = buildPendingIndexJobsKey(runId);
+  const newValue = await redis.incrby(key, count);
+  await redis.expire(key, PENDING_INDEX_JOBS_TTL_SECONDS);
+  return newValue;
+}
+
+/**
+ * Decrements the pending page-index jobs counter for a run.
+ * Call this when a page-index job completes (success or failure).
+ *
+ * @param runId - Source run ID
+ * @param count - Number of jobs completed (default 1)
+ * @returns New counter value (0 if all jobs complete)
+ */
+export async function decrementPendingIndexJobs(runId: string, count: number = 1): Promise<number> {
+  const key = buildPendingIndexJobsKey(runId);
+  const newValue = await redis.decrby(key, count);
+  // Ensure counter doesn't go negative
+  if (newValue <= 0) {
+    await redis.del(key);
+    return 0;
+  }
+  return newValue;
+}
+
+/**
+ * Gets the current count of pending page-index jobs for a run.
+ *
+ * @param runId - Source run ID
+ * @returns Current counter value
+ */
+export async function getPendingIndexJobsCount(runId: string): Promise<number> {
+  const key = buildPendingIndexJobsKey(runId);
+  const value = await redis.get(key);
+  return value ? parseInt(value, 10) : 0;
+}
+
+/**
+ * Checks if all page-index jobs are complete for a run.
+ *
+ * @param runId - Source run ID
+ * @returns true if counter is 0 or key doesn't exist
+ */
+export async function areAllIndexJobsComplete(runId: string): Promise<boolean> {
+  const count = await getPendingIndexJobsCount(runId);
+  return count === 0;
+}
+
+// ============================================================================
+// Stage Progress Tracking (Redis-based for cross-worker coordination)
+// ============================================================================
+
+const STAGE_PROGRESS_KEY_PREFIX = "stage_progress:";
+const STAGE_PROGRESS_TTL_SECONDS = 86400; // 24 hours
+
+/**
+ * Builds the Redis key for stage progress tracking.
+ */
+function buildStageProgressKey(runId: string, field: "total" | "completed" | "failed"): string {
+  return `${STAGE_PROGRESS_KEY_PREFIX}${runId}:${field}`;
+}
+
+/**
+ * Initializes stage progress counters in Redis.
+ * Call this when starting a new stage.
+ * 
+ * @param runId - Source run ID
+ * @param total - Total items expected in this stage
+ */
+export async function initializeStageProgress(
+  runId: string, 
+  total: number
+): Promise<void> {
+  const pipeline = redis.pipeline();
+  pipeline.set(buildStageProgressKey(runId, "total"), total);
+  pipeline.expire(buildStageProgressKey(runId, "total"), STAGE_PROGRESS_TTL_SECONDS);
+  pipeline.set(buildStageProgressKey(runId, "completed"), 0);
+  pipeline.expire(buildStageProgressKey(runId, "completed"), STAGE_PROGRESS_TTL_SECONDS);
+  pipeline.set(buildStageProgressKey(runId, "failed"), 0);
+  pipeline.expire(buildStageProgressKey(runId, "failed"), STAGE_PROGRESS_TTL_SECONDS);
+  await pipeline.exec();
+}
+
+/**
+ * Increments the stage completed counter and returns the new values.
+ * Uses atomic increment for safe concurrent updates from multiple workers.
+ * 
+ * @param runId - Source run ID
+ * @returns Object with total, completed, failed counts and whether stage is complete
+ */
+export async function incrementStageProgress(
+  runId: string, 
+  failed: boolean = false
+): Promise<{ total: number; completed: number; failed: number; isComplete: boolean }> {
+  const key = failed 
+    ? buildStageProgressKey(runId, "failed")
+    : buildStageProgressKey(runId, "completed");
+  
+  const pipeline = redis.pipeline();
+  pipeline.incr(key);
+  pipeline.get(buildStageProgressKey(runId, "total"));
+  pipeline.get(buildStageProgressKey(runId, "completed"));
+  pipeline.get(buildStageProgressKey(runId, "failed"));
+  
+  const results = await pipeline.exec();
+  
+  const total = parseInt(String(results?.[1]?.[1] || "0"), 10);
+  const completed = parseInt(String(results?.[2]?.[1] || "0"), 10);
+  const failedCount = parseInt(String(results?.[3]?.[1] || "0"), 10);
+  
+  return {
+    total,
+    completed,
+    failed: failedCount,
+    isComplete: (completed + failedCount) >= total && total > 0,
+  };
+}
+
+/**
+ * Gets current stage progress from Redis.
+ * 
+ * @param runId - Source run ID
+ * @returns Object with total, completed, failed counts
+ */
+export async function getStageProgress(
+  runId: string
+): Promise<{ total: number; completed: number; failed: number; isComplete: boolean }> {
+  const pipeline = redis.pipeline();
+  pipeline.get(buildStageProgressKey(runId, "total"));
+  pipeline.get(buildStageProgressKey(runId, "completed"));
+  pipeline.get(buildStageProgressKey(runId, "failed"));
+  
+  const results = await pipeline.exec();
+  
+  const total = parseInt(String(results?.[0]?.[1] || "0"), 10);
+  const completed = parseInt(String(results?.[1]?.[1] || "0"), 10);
+  const failed = parseInt(String(results?.[2]?.[1] || "0"), 10);
+  
+  return {
+    total,
+    completed,
+    failed,
+    isComplete: (completed + failed) >= total && total > 0,
+  };
+}
+
+/**
+ * Cleans up stage progress keys for a run.
+ * 
+ * @param runId - Source run ID
+ */
+export async function cleanupStageProgress(runId: string): Promise<void> {
+  await redis.del(
+    buildStageProgressKey(runId, "total"),
+    buildStageProgressKey(runId, "completed"),
+    buildStageProgressKey(runId, "failed")
+  );
+}
+
+// ============================================================================
+// Fetched HTML Staging (Redis-based temporary storage between stages)
+// ============================================================================
+
+const FETCHED_HTML_KEY_PREFIX = "fetched_html:";
+const FETCHED_HTML_TTL_SECONDS = 3600; // 1 hour (should be processed quickly)
+
+/**
+ * Builds the Redis key for storing fetched HTML.
+ */
+function buildFetchedHtmlKey(runId: string, url: string): string {
+  // Use base64 encoding to handle URLs with special characters
+  const urlHash = Buffer.from(url).toString("base64url");
+  return `${FETCHED_HTML_KEY_PREFIX}${runId}:${urlHash}`;
+}
+
+/**
+ * Stores fetched HTML content in Redis for later processing.
+ * Called by page-fetch after successfully fetching a page.
+ * 
+ * @param runId - Source run ID
+ * @param url - The URL that was fetched
+ * @param html - The HTML content
+ * @param title - The page title (optional)
+ */
+export async function storeFetchedHtml(
+  runId: string,
+  url: string,
+  html: string,
+  title: string | null
+): Promise<void> {
+  const key = buildFetchedHtmlKey(runId, url);
+  const data = JSON.stringify({ html, title, url, storedAt: Date.now() });
+  await redis.setex(key, FETCHED_HTML_TTL_SECONDS, data);
+}
+
+/**
+ * Retrieves fetched HTML content from Redis.
+ * Called by page-process to get the HTML for processing.
+ * 
+ * @param runId - Source run ID
+ * @param url - The URL to retrieve
+ * @returns The stored data or null if not found/expired
+ */
+export async function getFetchedHtml(
+  runId: string,
+  url: string
+): Promise<{ html: string; title: string | null; url: string } | null> {
+  const key = buildFetchedHtmlKey(runId, url);
+  const data = await redis.get(key);
+  if (!data) return null;
+  
+  try {
+    const parsed = JSON.parse(data);
+    return { html: parsed.html, title: parsed.title, url: parsed.url };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Deletes fetched HTML content from Redis after processing.
+ * Called by page-process after successfully processing a page.
+ * 
+ * @param runId - Source run ID
+ * @param url - The URL to delete
+ */
+export async function deleteFetchedHtml(runId: string, url: string): Promise<void> {
+  const key = buildFetchedHtmlKey(runId, url);
+  await redis.del(key);
+}
+
+/**
+ * Gets all URLs with fetched HTML waiting to be processed.
+ * Used by stage-job-queuer to queue processing jobs.
+ * 
+ * @param runId - Source run ID
+ * @returns Array of URLs with fetched HTML
+ */
+export async function getFetchedHtmlUrls(runId: string): Promise<string[]> {
+  const pattern = `${FETCHED_HTML_KEY_PREFIX}${runId}:*`;
+  const keys = await redis.keys(pattern);
+  
+  const urls: string[] = [];
+  for (const key of keys) {
+    const data = await redis.get(key);
+    if (data) {
+      try {
+        const parsed = JSON.parse(data);
+        urls.push(parsed.url);
+      } catch {
+        // Skip invalid entries
+      }
+    }
+  }
+  
+  return urls;
+}
+
+/**
+ * Cleans up all fetched HTML for a run.
+ * Called during run cleanup.
+ * 
+ * @param runId - Source run ID
+ */
+export async function cleanupFetchedHtml(runId: string): Promise<void> {
+  const pattern = `${FETCHED_HTML_KEY_PREFIX}${runId}:*`;
+  const keys = await redis.keys(pattern);
+  if (keys.length > 0) {
+    await redis.del(...keys);
+  }
+}
+
+// ============================================================================
+
+export { Worker, Job, QueueEvents, DelayedError };
 export type { ConnectionOptions };
 
 // Re-export constants from shared for convenience
@@ -1288,4 +1804,34 @@ export type {
   ChunkEmbedStatusSummary,
   EmbedCompletionGatingConfig,
   EmbedCompletionCheckResult,
+  // Fairness scheduler types
+  FairnessConfig,
+  FairnessSlotResult,
+  FairnessMetrics,
 } from "@grounded/shared";
+
+// ============================================================================
+// Fairness Scheduler
+// ============================================================================
+
+export {
+  // Core functions
+  registerRun,
+  unregisterRun,
+  acquireSlot,
+  releaseSlot,
+  // Query functions
+  getActiveRuns,
+  getRunSlotCount,
+  getFairnessMetrics,
+  isRunRegistered,
+  // Configuration
+  getFairnessConfig,
+  resetFairnessConfigCache,
+  setFairnessConfig,
+  // Utilities
+  resetFairnessState,
+  // Error types
+  FairnessSlotUnavailableError,
+  isFairnessSlotError,
+} from "./fairness-scheduler";

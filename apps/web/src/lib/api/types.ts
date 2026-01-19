@@ -90,7 +90,8 @@ export interface Source {
   name: string;
   type: "web" | "upload" | "api";
   config: Record<string, unknown>;
-  status: "active" | "paused" | "error" | "embedding_incomplete";
+  status: "active" | "paused" | "error";
+  lastRunStatus?: string | null;
   lastRunAt: string | null;
   nextRunAt: string | null;
   createdAt: string;
@@ -104,15 +105,23 @@ export interface SourceRunStats {
   tokensEstimated: number;
 }
 
+export type SourceRunStage = "discovering" | "scraping" | "processing" | "indexing" | "embedding" | "completed";
+
 export interface SourceRun {
   id: string;
   sourceId: string;
-  tenantId: string;
-  status: "pending" | "running" | "partial" | "succeeded" | "failed" | "canceled" | "embedding_incomplete";
+  tenantId: string | null;
+  status: "pending" | "running" | "partial" | "succeeded" | "failed" | "canceled";
+  stage: SourceRunStage | null;
   trigger: "manual" | "scheduled";
   startedAt: string | null;
   finishedAt: string | null;
   stats: SourceRunStats;
+  // Stage progress tracking
+  stageTotal: number;
+  stageCompleted: number;
+  stageFailed: number;
+  // Legacy chunk tracking (still used for embedding stage)
   chunksToEmbed: number;
   chunksEmbedded: number;
   error: string | null;
@@ -702,7 +711,7 @@ export type ToolConfig = ApiToolConfig | McpToolConfig | BuiltinToolConfig;
 
 export interface ToolDefinition {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   name: string;
   description: string;
   type: ToolType;

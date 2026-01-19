@@ -1,21 +1,33 @@
+/**
+ * Source Run Finalization
+ * 
+ * With the new sequential stage architecture, this processor is only called
+ * when ALL stages have completed (including embedding). There's no longer
+ * a need to wait for embeddings or handle "embedding_incomplete" status.
+ * 
+ * This processor:
+ * 1. Calculates final statistics
+ * 2. Determines final status (succeeded, partial, failed)
+ * 3. Cleans up Redis state
+ * 4. Logs run summary
+ */
+
 import { db } from "@grounded/db";
 import { sourceRuns, sourceRunPages } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
-import {
-  redis,
-  waitForRunEmbeddingCompletion,
-  cleanupChunkEmbedStatuses,
-  resolveEmbedCompletionGatingConfig,
-} from "@grounded/queue";
+import { redis, cleanupChunkEmbedStatuses } from "@grounded/queue";
 import { log } from "@grounded/logger";
-import type { SourceRunFinalizeJob, PageSkipDetails } from "@grounded/shared";
-import {
+import { 
+  SourceRunStage,
+  type SourceRunFinalizeJob, 
+  type PageSkipDetails,
   createRunSummaryLog,
   createCompactRunSummary,
   getRunSummaryLogLevel,
   type RunSummaryInput,
 } from "@grounded/shared";
 import { createCrawlState } from "@grounded/crawl-state";
+import { cleanupRunRedisState } from "../stage-manager";
 
 export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise<void> {
   const { runId, requestId, traceId } = data;
@@ -34,108 +46,51 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
     throw new Error(`Run ${runId} not found`);
   }
 
-  // Get progress from Redis (accurate)
-  const redisProgress = await crawlState.getProgress();
-  log.debug("ingestion-worker", "Redis progress for run", { runId, redisProgress });
+  // If run is already canceled, skip finalization
+  if (run.status === "canceled") {
+    log.info("ingestion-worker", "Run was canceled, skipping finalization", { runId });
+    await cleanupRunRedisState(runId);
+    return;
+  }
 
-  // Also get PostgreSQL stats for comparison/backup
+  // Get all pages for statistics
   const allPages = await db
     .select()
     .from(sourceRunPages)
     .where(eq(sourceRunPages.sourceRunId, runId));
 
-  const pgStats = {
+  const stats = {
     total: allPages.length,
     succeeded: allPages.filter(p => p.status === 'succeeded').length,
     failed: allPages.filter(p => p.status === 'failed').length,
-    skipped: allPages.filter(p => p.status === 'skipped_unchanged').length,
+    skipped: allPages.filter(p => p.status === 'skipped_unchanged' || p.status === 'skipped_non_html').length,
   };
 
-  log.debug("ingestion-worker", "PostgreSQL stats for run", { runId, pgStats });
+  log.debug("ingestion-worker", "Page stats for run", { runId, stats });
 
-  // Use Redis stats as primary (they're accurate)
-  // Fall back to PostgreSQL if Redis data is missing
-  const stats = {
-    total: redisProgress.total || pgStats.total,
-    succeeded: redisProgress.processed || pgStats.succeeded,
-    failed: redisProgress.failed || pgStats.failed,
-    skipped: pgStats.skipped, // Skipped pages are only tracked in PostgreSQL
-  };
-
-  // Determine if there were page-level failures
-  const hasPageFailures = stats.failed > 0;
+  // Determine final status based on failures
+  let finalStatus: "succeeded" | "partial" | "failed";
+  
   const successfulPages = stats.succeeded + stats.skipped;
-
-  // Wait for embedding completion if gating is enabled
-  const gatingConfig = resolveEmbedCompletionGatingConfig();
-  const chunksToEmbed = run.chunksToEmbed || 0;
-
-  let finalStatus: "succeeded" | "partial" | "failed" | "embedding_incomplete";
-
-  if (chunksToEmbed > 0 && gatingConfig.enabled) {
-    log.info("ingestion-worker", "Waiting for embedding completion", {
-      runId,
-      chunksToEmbed,
-      chunksEmbedded: run.chunksEmbedded || 0,
-      maxWaitMs: gatingConfig.maxWaitMs,
-    });
-
-    const embedResult = await waitForRunEmbeddingCompletion(
-      runId,
-      chunksToEmbed,
-      hasPageFailures,
-      gatingConfig
-    );
-
-    log.info("ingestion-worker", "Embedding completion check result", {
-      runId,
-      isComplete: embedResult.isComplete,
-      allSucceeded: embedResult.allSucceeded,
-      pendingCount: embedResult.pendingCount,
-      failedCount: embedResult.failedCount,
-      succeededCount: embedResult.succeededCount,
-      totalCount: embedResult.totalCount,
-      suggestedStatus: embedResult.suggestedStatus,
-    });
-
-    // Use the suggested status from embedding completion check
-    if (embedResult.suggestedStatus === "embedding_incomplete") {
-      finalStatus = "embedding_incomplete";
-      log.warn("ingestion-worker", "Run finalized with incomplete embeddings", {
-        runId,
-        pendingCount: embedResult.pendingCount,
-        failedCount: embedResult.failedCount,
-      });
-    } else if (embedResult.suggestedStatus === "partial" || hasPageFailures || embedResult.failedCount > 0) {
-      finalStatus = "partial";
-    } else if (successfulPages > 0) {
-      finalStatus = "succeeded";
-    } else {
-      finalStatus = "failed";
-    }
+  
+  if (successfulPages === 0 && stats.failed > 0) {
+    finalStatus = "failed";
+  } else if (stats.failed > 0 || run.stageFailed > 0) {
+    finalStatus = "partial";
   } else {
-    // No embedding gating - use page-level status only
-    if (successfulPages > 0 && stats.failed === 0) {
-      finalStatus = "succeeded";
-    } else if (successfulPages > 0 && stats.failed > 0) {
-      finalStatus = "partial";
-    } else {
-      finalStatus = "failed";
-    }
+    finalStatus = "succeeded";
   }
 
   const finishedAt = new Date();
-  const storedFinishedAt = finalStatus === "embedding_incomplete" ? null : finishedAt;
 
-  log.debug("ingestion-worker", "Updating run with status", { runId, finalStatus });
-
+  // Update run with final status
   try {
-    // Update run
     await db
       .update(sourceRuns)
       .set({
         status: finalStatus,
-        finishedAt: storedFinishedAt,
+        stage: SourceRunStage.COMPLETED,
+        finishedAt,
         stats: {
           pagesSeen: stats.total,
           pagesIndexed: stats.succeeded,
@@ -145,13 +100,17 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
         },
       })
       .where(eq(sourceRuns.id, runId));
-    log.debug("ingestion-worker", "Run updated successfully", { runId });
+
+    log.debug("ingestion-worker", "Run updated successfully", { runId, status: finalStatus });
   } catch (e) {
-    log.error("ingestion-worker", "Error updating run", { runId, error: e instanceof Error ? e.message : String(e) });
+    log.error("ingestion-worker", "Error updating run", { 
+      runId, 
+      error: e instanceof Error ? e.message : String(e) 
+    });
     throw e;
   }
 
-  // Get failed URLs for logging and summary
+  // Get failed URLs for logging
   const failedUrls = await crawlState.getFailedUrls();
   if (failedUrls.length > 0) {
     log.warn("ingestion-worker", "Failed URLs for run", {
@@ -161,21 +120,34 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
     });
   }
 
-  // Build skipped pages list from PostgreSQL data
+  // Build skipped pages list
   const skippedPages = allPages
     .filter(p => p.status === 'skipped_unchanged' || p.status === 'skipped_non_html')
     .map(p => ({
       url: p.url,
       skipDetails: p.status === 'skipped_non_html'
-        ? { reason: 'non_html_content_type' as const, description: 'Non-HTML content type', stage: 'fetch' as const, skippedAt: new Date().toISOString() } as PageSkipDetails
-        : { reason: 'content_unchanged' as const, description: 'Content unchanged since last crawl', stage: 'fetch' as const, skippedAt: new Date().toISOString() } as PageSkipDetails,
+        ? { 
+            reason: 'non_html_content_type' as const, 
+            description: 'Non-HTML content type', 
+            stage: 'fetch' as const, 
+            skippedAt: new Date().toISOString() 
+          } as PageSkipDetails
+        : { 
+            reason: 'content_unchanged' as const, 
+            description: 'Content unchanged since last crawl', 
+            stage: 'fetch' as const, 
+            skippedAt: new Date().toISOString() 
+          } as PageSkipDetails,
     }));
 
   // Create run summary input
+  const chunksToEmbed = run.chunksToEmbed || 0;
+  const chunksEmbedded = run.chunksEmbedded || 0;
+  
   const summaryInput: RunSummaryInput = {
     runId,
     sourceId: run.sourceId || "unknown",
-    tenantId: run.tenantId || "unknown",
+    tenantId: run.tenantId ?? null,
     finalStatus,
     runStartedAt: run.startedAt || new Date(),
     runFinishedAt: finishedAt,
@@ -183,12 +155,12 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
       total: stats.total,
       succeeded: stats.succeeded,
       failed: stats.failed,
-      skipped: stats.skipped + allPages.filter(p => p.status === 'skipped_non_html').length,
+      skipped: stats.skipped,
     },
     embeddings: chunksToEmbed > 0 ? {
       chunksToEmbed,
-      chunksEmbedded: run.chunksEmbedded || 0,
-      chunksFailed: chunksToEmbed - (run.chunksEmbedded || 0),
+      chunksEmbedded,
+      chunksFailed: chunksToEmbed - chunksEmbedded,
     } : undefined,
     failedPages: failedUrls,
     skippedPages,
@@ -231,22 +203,18 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
     });
   }
 
-  // Cleanup Redis crawl state data
-  // This is important to prevent Redis memory growth
-  log.debug("ingestion-worker", "Cleaning up Redis crawl state for run", { runId });
+  // Cleanup Redis state
+  log.debug("ingestion-worker", "Cleaning up Redis state for run", { runId });
   await crawlState.cleanup();
-
-  // Cleanup chunk embed status tracking data
-  if (finalStatus !== "embedding_incomplete") {
-    const cleanedUpStatuses = await cleanupChunkEmbedStatuses(runId);
-    if (cleanedUpStatuses > 0) {
-      log.debug("ingestion-worker", "Cleaned up chunk embed status keys", {
-        runId,
-        keysDeleted: cleanedUpStatuses,
-      });
-    }
-  } else {
-    log.debug("ingestion-worker", "Skipping embed status cleanup for embedding_incomplete run", { runId });
+  await cleanupRunRedisState(runId);
+  
+  // Cleanup chunk embed status tracking
+  const cleanedUpStatuses = await cleanupChunkEmbedStatuses(runId);
+  if (cleanedUpStatuses > 0) {
+    log.debug("ingestion-worker", "Cleaned up chunk embed status keys", {
+      runId,
+      keysDeleted: cleanedUpStatuses,
+    });
   }
 
   log.info("ingestion-worker", "Source run finalized", {
@@ -257,6 +225,6 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
     failed: stats.failed,
     skipped: stats.skipped,
     chunksToEmbed,
-    chunksEmbedded: run.chunksEmbedded || 0,
+    chunksEmbedded,
   });
 }

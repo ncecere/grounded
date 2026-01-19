@@ -47,8 +47,8 @@ describe("Queue Configuration", () => {
       expect(STAGE_QUEUE_MAPPING.embed).toBe(QUEUE_NAMES.EMBED_CHUNKS);
     });
 
-    it("should map index stage to embed-chunks queue", () => {
-      expect(STAGE_QUEUE_MAPPING.index).toBe(QUEUE_NAMES.EMBED_CHUNKS);
+    it("should map index stage to page-index queue", () => {
+      expect(STAGE_QUEUE_MAPPING.index).toBe(QUEUE_NAMES.PAGE_INDEX);
     });
   });
 
@@ -104,8 +104,8 @@ describe("Queue Configuration", () => {
   });
 
   describe("QUEUE_DEFAULT_CONCURRENCY", () => {
-    it("should define concurrency for all 7 queues", () => {
-      expect(Object.keys(QUEUE_DEFAULT_CONCURRENCY)).toHaveLength(7);
+    it("should define concurrency for all 8 queues", () => {
+      expect(Object.keys(QUEUE_DEFAULT_CONCURRENCY)).toHaveLength(8);
     });
 
     it("should have source-run concurrency of 5", () => {
@@ -138,8 +138,8 @@ describe("Queue Configuration", () => {
   });
 
   describe("QUEUE_CONCURRENCY_ENV_VARS", () => {
-    it("should define env vars for all 7 queues", () => {
-      expect(Object.keys(QUEUE_CONCURRENCY_ENV_VARS)).toHaveLength(7);
+    it("should define env vars for all 8 queues", () => {
+      expect(Object.keys(QUEUE_CONCURRENCY_ENV_VARS)).toHaveLength(8);
     });
 
     it("should have consistent naming pattern", () => {
@@ -177,7 +177,7 @@ describe("Queue Configuration Helper Functions", () => {
     });
 
     it("should return correct queue for index stage", () => {
-      expect(getQueueForStage("index")).toBe(QUEUE_NAMES.EMBED_CHUNKS);
+      expect(getQueueForStage("index")).toBe(QUEUE_NAMES.PAGE_INDEX);
     });
   });
 
@@ -236,11 +236,16 @@ describe("Queue Configuration Helper Functions", () => {
       expect(stages).toHaveLength(2);
     });
 
-    it("should return embed and index for embed-chunks queue", () => {
+    it("should return embed for embed-chunks queue", () => {
       const stages = getStagesForQueue(QUEUE_NAMES.EMBED_CHUNKS);
       expect(stages).toContain("embed");
+      expect(stages).toHaveLength(1);
+    });
+
+    it("should return index for page-index queue", () => {
+      const stages = getStagesForQueue(QUEUE_NAMES.PAGE_INDEX);
       expect(stages).toContain("index");
-      expect(stages).toHaveLength(2);
+      expect(stages).toHaveLength(1);
     });
 
     it("should return empty array for queues without stages", () => {
@@ -250,9 +255,9 @@ describe("Queue Configuration Helper Functions", () => {
   });
 
   describe("buildQueueConfigMap", () => {
-    it("should return a map with all 7 queues", () => {
+    it("should return a map with all 8 queues", () => {
       const configMap = buildQueueConfigMap();
-      expect(configMap.size).toBe(7);
+      expect(configMap.size).toBe(8);
     });
 
     it("should include correct config for source-run queue", () => {

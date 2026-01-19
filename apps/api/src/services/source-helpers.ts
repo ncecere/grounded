@@ -13,7 +13,7 @@ import { addSourceRunStartJob } from "@grounded/queue";
  */
 export const createSourceBaseSchema = z.object({
   name: z.string().min(1).max(100),
-  type: z.enum(["web"]),
+  type: z.enum(["web", "upload"]),
   config: sourceConfigSchema,
   enrichmentEnabled: z.boolean().default(false),
 });
@@ -231,7 +231,7 @@ export async function queueSourceRunJob(params: {
   traceId?: string;
 }): Promise<void> {
   await addSourceRunStartJob({
-    tenantId: params.tenantId as string, // Cast needed for queue types
+    tenantId: params.tenantId,
     sourceId: params.sourceId,
     runId: params.runId,
     requestId: params.requestId,

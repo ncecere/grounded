@@ -55,8 +55,8 @@ describe("ChunkEmbedStatus", () => {
       expect(CHUNK_EMBED_FAILED_SET_KEY_PREFIX).toBe("chunk_embed_failed:");
     });
 
-    it("should have correct default wait time (30 seconds)", () => {
-      expect(DEFAULT_EMBED_COMPLETION_WAIT_MS).toBe(30000);
+    it("should have correct default wait time (2 minutes)", () => {
+      expect(DEFAULT_EMBED_COMPLETION_WAIT_MS).toBe(120000);
     });
 
     it("should have correct check interval (2 seconds)", () => {

@@ -1,4 +1,4 @@
-import { Worker, Job, connection, QUEUE_NAMES } from "@grounded/queue";
+import { Worker, Job, connection, QUEUE_NAMES, isFairnessSlotError, getFairnessConfig, DelayedError } from "@grounded/queue";
 import { getEnvNumber, getEnvBool } from "@grounded/shared";
 import { createWorkerLogger, createJobLogger } from "@grounded/logger/worker";
 import { shouldSample, createSamplingConfig } from "@grounded/logger";
@@ -9,6 +9,10 @@ const logger = createWorkerLogger("scraper-worker");
 
 const CONCURRENCY = getEnvNumber("WORKER_CONCURRENCY", 5);
 const HEADLESS = getEnvBool("PLAYWRIGHT_HEADLESS", true);
+
+// Initialize fairness config with worker concurrency
+// This ensures the fairness scheduler knows how many total slots are available
+getFairnessConfig(CONCURRENCY);
 
 // Sampling config from environment variables with worker-specific defaults
 // Workers log 100% by default (can reduce with LOG_SAMPLE_RATE env var)
@@ -60,6 +64,33 @@ const pageFetchWorker = new Worker(
       await processPageFetch(job.data, browser);
       event.success();
     } catch (error) {
+      // Handle fairness slot unavailable errors specially
+      // Instead of counting this as a failure/retry, delay the job and try again
+      if (isFairnessSlotError(error)) {
+        // Don't log as error - this is expected behavior for fairness
+        event.addFields({
+          fairnessDelay: true,
+          retryDelayMs: error.retryDelayMs,
+          currentSlots: error.slotResult.currentSlots,
+          maxAllowedSlots: error.slotResult.maxAllowedSlots,
+          activeRunCount: error.slotResult.activeRunCount,
+        });
+        
+        // Emit log before throwing (finally block won't run after DelayedError)
+        if (shouldSample(event.getEvent(), samplingConfig)) {
+          event.emit();
+        }
+        
+        // Move job to delayed state - it will be retried after the delay
+        // This doesn't count against the retry limit
+        await job.moveToDelayed(Date.now() + error.retryDelayMs, job.token);
+        
+        // IMPORTANT: Throw DelayedError to tell BullMQ we already handled the job state
+        // Without this, BullMQ would try to call moveToFinished which would fail
+        // because moveToDelayed already released the lock
+        throw new DelayedError();
+      }
+      
       if (error instanceof Error) {
         event.setError(error);
       } else {

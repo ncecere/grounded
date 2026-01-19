@@ -1,3 +1,17 @@
+/**
+ * Embed Chunks Processor
+ * 
+ * Generates vector embeddings for chunks and stores them in pgvector.
+ * 
+ * In the sequential stage architecture:
+ * 1. Processes batches of chunks from the EMBEDDING stage
+ * 2. Tracks stage progress via Redis-based incrementStageProgress
+ * 3. Triggers stage transition to COMPLETED when all chunks are embedded
+ * 
+ * NOTE: This processor handles batches of chunks (not individual chunks).
+ * Stage progress is tracked per-batch, not per-chunk.
+ */
+
 import { db } from "@grounded/db";
 import { kbChunks, knowledgeBases, sourceRuns } from "@grounded/db/schema";
 import { eq, inArray, isNull, and, sql } from "drizzle-orm";
@@ -5,13 +19,15 @@ import { generateEmbeddings } from "@grounded/embeddings";
 import { getAIRegistry } from "@grounded/ai-providers";
 import { getVectorStore } from "@grounded/vector-store";
 import { log } from "@grounded/logger";
-import type { EmbedChunksBatchJob } from "@grounded/shared";
+import { SourceRunStage, type EmbedChunksBatchJob } from "@grounded/shared";
 import {
   markChunksEmbedInProgress,
   markChunksEmbedSucceeded,
   markChunksEmbedFailed,
-  checkRunEmbeddingCompletion,
+  incrementStageProgress,
+  addStageTransitionJob,
 } from "@grounded/queue";
+import { isRunCanceled } from "../stage-manager";
 
 export class EmbeddingDimensionMismatchError extends Error {
   constructor(expected: number, actual: number, kbId: string) {
@@ -25,58 +41,29 @@ export class EmbeddingDimensionMismatchError extends Error {
   }
 }
 
-async function maybeFinalizeEmbeddingCompletion(runId: string): Promise<void> {
-  const run = await db.query.sourceRuns.findFirst({
-    where: eq(sourceRuns.id, runId),
-  });
-
-  if (!run || run.finishedAt) {
-    return;
-  }
-
-  if (run.status !== "embedding_incomplete") {
-    return;
-  }
-
-  const chunksToEmbed = run.chunksToEmbed || 0;
-  if (chunksToEmbed === 0) {
-    return;
-  }
-
-  const hasPageFailures = (run.stats?.pagesFailed ?? 0) > 0;
-  const embedResult = await checkRunEmbeddingCompletion(runId, chunksToEmbed, hasPageFailures);
-
-  if (!embedResult.isComplete) {
-    return;
-  }
-
-  const finalStatus = embedResult.suggestedStatus === "embedding_incomplete"
-    ? "embedding_incomplete"
-    : embedResult.suggestedStatus;
-
-  const updatePayload: { status: typeof finalStatus; finishedAt?: Date } = {
-    status: finalStatus,
-  };
-
-  if (finalStatus !== "embedding_incomplete") {
-    updatePayload.finishedAt = new Date();
-  }
-
-  await db
-    .update(sourceRuns)
-    .set(updatePayload)
-    .where(eq(sourceRuns.id, runId));
-}
-
 export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<void> {
   const { tenantId, kbId, chunkIds, runId, requestId, traceId } = data;
 
-  log.info("ingestion-worker", "Embedding chunks for KB", { chunkCount: chunkIds.length, kbId, requestId, traceId });
+  log.info("ingestion-worker", "Embedding chunks for KB", { 
+    chunkCount: chunkIds.length, 
+    kbId, 
+    runId,
+    requestId, 
+    traceId 
+  });
 
-  // Mark chunks as in-progress if runId is provided (for per-chunk tracking)
+  // Check if run is canceled before processing
+  if (runId && await isRunCanceled(runId)) {
+    log.info("ingestion-worker", "Run canceled, skipping embed job", { runId, chunkCount: chunkIds.length });
+    return;
+  }
+
+  // Mark chunks as in-progress if runId is provided
   if (runId) {
     await markChunksEmbedInProgress(runId, chunkIds);
   }
+
+  let succeeded = false;
 
   try {
     // Get the KB to check its embedding dimensions
@@ -85,7 +72,6 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
     });
 
     if (!kb) {
-      // Mark all chunks as permanently failed - KB not found is non-retryable
       if (runId) {
         await markChunksEmbedFailed(
           runId,
@@ -111,7 +97,6 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
 
     if (chunks.length === 0) {
       log.debug("ingestion-worker", "No chunks found to embed");
-      // Mark missing chunks as permanently failed
       if (runId) {
         await markChunksEmbedFailed(
           runId,
@@ -121,6 +106,8 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
           false
         );
       }
+      // Still need to track progress for this batch (failed)
+      succeeded = false;
       return;
     }
 
@@ -138,18 +125,17 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
       });
     }
 
-    // Generate embeddings using the KB's configured model if available
+    // Generate embeddings
     const texts = chunks.map((c) => c.content);
     const embeddingResults = await generateEmbeddings(
       texts,
-      kb.embeddingModelId || undefined // Use KB's model if set
+      kb.embeddingModelId || undefined
     );
 
     // Validate embedding dimensions
     if (embeddingResults.length > 0) {
       const actualDimensions = embeddingResults[0].embedding.length;
       if (actualDimensions !== expectedDimensions) {
-        // Dimension mismatch is a permanent error - configuration issue
         const error = new EmbeddingDimensionMismatchError(expectedDimensions, actualDimensions, kbId);
         if (runId) {
           await markChunksEmbedFailed(
@@ -167,7 +153,6 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
     // Get the vector store
     const vectorStore = getVectorStore();
     if (!vectorStore) {
-      // Vector store not configured is a permanent error
       if (runId) {
         await markChunksEmbedFailed(
           runId,
@@ -180,8 +165,7 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
       throw new Error("Vector store not configured. Set VECTOR_DB_URL or VECTOR_DB_HOST environment variables.");
     }
 
-    // Build vector records for the vector store
-    // Note: We use chunk.id as the vector id so we can look up chunk details from app DB
+    // Build vector records
     const vectorRecords = chunks.map((chunk, index) => ({
       id: chunk.id,
       tenantId,
@@ -190,7 +174,7 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
       embedding: embeddingResults[index].embedding,
     }));
 
-    // Upsert vectors to the vector store (handles delete + insert atomically)
+    // Upsert vectors to the vector store
     await vectorStore.upsert(vectorRecords);
 
     // Mark chunks as successfully embedded
@@ -199,7 +183,7 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
       await markChunksEmbedSucceeded(runId, successfulChunkIds, expectedDimensions);
     }
 
-    // Update chunks_embedded counter if runId is provided
+    // Update chunks_embedded counter
     if (runId) {
       await db
         .update(sourceRuns)
@@ -207,20 +191,21 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
           chunksEmbedded: sql`${sourceRuns.chunksEmbedded} + ${chunks.length}`,
         })
         .where(eq(sourceRuns.id, runId));
-
-      // If embeddings are fully complete, re-validate run status
-      await maybeFinalizeEmbeddingCompletion(runId);
     }
 
-    log.info("ingestion-worker", "Embedded chunks for KB", { chunkCount: chunks.length, dimensions: expectedDimensions, kbId });
+    succeeded = true;
+    log.info("ingestion-worker", "Embedded chunks for KB", { 
+      chunkCount: chunks.length, 
+      dimensions: expectedDimensions, 
+      kbId 
+    });
+
   } catch (error) {
-    // If we haven't already marked the failure, mark it as retryable
-    // (specific errors above are marked as non-retryable)
+    // Mark as retryable error if not already marked
     if (runId && !(error instanceof EmbeddingDimensionMismatchError)) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const isRetryable = !errorMessage.includes("not found") && !errorMessage.includes("not configured");
 
-      // Only mark as failed if it's a retryable error (non-retryable errors were already marked above)
       if (isRetryable) {
         await markChunksEmbedFailed(
           runId,
@@ -231,7 +216,34 @@ export async function processEmbedChunks(data: EmbedChunksBatchJob): Promise<voi
         );
       }
     }
-
     throw error;
+
+  } finally {
+    // Track stage progress for this batch
+    // NOTE: Each embed job represents a batch, not individual chunks
+    // Stage progress is initialized with the number of embed JOBS (batches), not chunks
+    if (runId) {
+      const stageProgress = await incrementStageProgress(runId, !succeeded);
+      log.info("ingestion-worker", "Stage progress after embed batch", { 
+        runId, 
+        completed: stageProgress.completed, 
+        failed: stageProgress.failed,
+        total: stageProgress.total,
+        isComplete: stageProgress.isComplete,
+        batchSucceeded: succeeded,
+      });
+
+      // If stage is complete, trigger transition to COMPLETED (finalization)
+      if (stageProgress.isComplete) {
+        log.info("ingestion-worker", "EMBEDDING stage complete, triggering transition to COMPLETED", { runId });
+        await addStageTransitionJob({
+          tenantId: tenantId,
+          runId,
+          completedStage: SourceRunStage.EMBEDDING,
+          requestId,
+          traceId,
+        });
+      }
+    }
   }
 }

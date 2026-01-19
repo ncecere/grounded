@@ -9,6 +9,7 @@ import {
   pageFetchJobSchema,
   uploadSourceRunStartJobSchema,
   pageProcessJobSchema,
+  pageIndexJobSchema,
   embedChunksBatchJobSchema,
   enrichPageJobSchema,
   sourceRunFinalizeJobSchema,
@@ -24,6 +25,7 @@ import {
   type UploadSourceRunStartJobPayload,
   type PageFetchJobPayload,
   type PageProcessJobPayload,
+  type PageIndexJobPayload,
   type EmbedChunksBatchJobPayload,
   type SourceRunJobPayload,
   type IngestionJobPayload,
@@ -37,6 +39,8 @@ const TEST_RUN_ID = "550e8400-e29b-41d4-a716-446655440003";
 const TEST_KB_ID = "550e8400-e29b-41d4-a716-446655440004";
 const TEST_UPLOAD_ID = "550e8400-e29b-41d4-a716-446655440005";
 const TEST_CHUNK_ID = "550e8400-e29b-41d4-a716-446655440006";
+const TEST_PAGE_ID = "550e8400-e29b-41d4-a716-446655440008";
+const TEST_CONTENT_ID = "550e8400-e29b-41d4-a716-446655440009";
 const TEST_REQUEST_ID = "550e8400-e29b-41d4-a716-446655440007";
 
 describe("Job Payload Schemas", () => {
@@ -439,6 +443,29 @@ describe("Job Payload Schemas", () => {
       };
       const result = pageProcessJobSchema.safeParse(payload);
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe("pageIndexJobSchema", () => {
+    it("should accept valid payload", () => {
+      const payload: PageIndexJobPayload = {
+        tenantId: TEST_TENANT_ID,
+        runId: TEST_RUN_ID,
+        pageId: TEST_PAGE_ID,
+        contentId: TEST_CONTENT_ID,
+      };
+      const result = pageIndexJobSchema.safeParse(payload);
+      expect(result.success).toBe(true);
+    });
+
+    it("should reject missing contentId", () => {
+      const payload = {
+        tenantId: TEST_TENANT_ID,
+        runId: TEST_RUN_ID,
+        pageId: TEST_PAGE_ID,
+      };
+      const result = pageIndexJobSchema.safeParse(payload);
+      expect(result.success).toBe(false);
     });
   });
 

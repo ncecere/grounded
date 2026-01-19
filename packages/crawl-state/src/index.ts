@@ -211,6 +211,8 @@ export class CrawlState {
         const originalUrl = normalizedMap.get(normalized)!;
         newUrls.push(originalUrl);
         queuePipeline.sadd(this.key("urls:queued"), normalized);
+        // Store mapping from normalized to original URL
+        queuePipeline.hset(this.key("urls:original"), normalized, originalUrl);
         hasNew = true;
       }
     });
@@ -219,6 +221,7 @@ export class CrawlState {
       await queuePipeline.exec();
       await this.redis.expire(this.key("urls:all"), this.ttl);
       await this.redis.expire(this.key("urls:queued"), this.ttl);
+      await this.redis.expire(this.key("urls:original"), this.ttl);
     }
 
     if (newUrls.length < urls.length) {
@@ -341,6 +344,27 @@ export class CrawlState {
       url,
       error: errors[url] || "Unknown error",
     }));
+  }
+
+  /**
+   * Get all queued URLs (discovered but not yet fetched).
+   * Used by the stage manager to queue fetch jobs for the SCRAPING stage.
+   * Returns the original URLs (with protocol), not normalized URLs.
+   */
+  async getQueuedUrls(): Promise<string[]> {
+    const normalizedUrls = await this.redis.smembers(this.key("urls:queued"));
+    if (normalizedUrls.length === 0) return [];
+    
+    // Get original URLs from the mapping
+    const originalUrls = await this.redis.hmget(this.key("urls:original"), ...normalizedUrls);
+    
+    // Return original URLs, falling back to https:// + normalized if mapping is missing
+    return normalizedUrls.map((normalized, index) => {
+      const original = originalUrls[index];
+      if (original) return original;
+      // Fallback: assume https protocol if no mapping exists
+      return `https://${normalized}`;
+    });
   }
 
   // ============================================================

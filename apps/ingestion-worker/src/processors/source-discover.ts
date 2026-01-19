@@ -1,12 +1,14 @@
 import { db } from "@grounded/db";
-import { sourceRuns, sources } from "@grounded/db/schema";
+import { sourceRuns, sources, sourceRunPages } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
-import { addPageFetchJob, addSourceRunFinalizeJob, redis } from "@grounded/queue";
+import { addStageTransitionJob, redis, initializeStageProgress } from "@grounded/queue";
 import { log } from "@grounded/logger";
+import { initializeStage } from "../stage-manager";
 import {
   normalizeUrl,
   type SourceDiscoverUrlsJob,
   FetchMode,
+  SourceRunStage,
   parseRobotsTxt,
   filterUrlsByRobotsTxt,
   buildRobotsTxtUrl,
@@ -236,7 +238,7 @@ export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promis
   // Store metadata for later reference
   await crawlState.setMetadata({
     sourceId: source.id,
-    tenantId,
+    tenantId: tenantId ?? "global",
     mode: source.config.mode,
     startedAt: Date.now(),
   });
@@ -309,9 +311,11 @@ export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promis
   log.info("ingestion-worker", "Found initial URLs after pattern filtering", { urlCount: filteredUrls.length, runId });
 
   if (filteredUrls.length === 0) {
-    // No URLs to process, finalize immediately
-    log.info("ingestion-worker", "No URLs to process, finalizing run", { runId });
-    await addSourceRunFinalizeJob({ tenantId, runId, requestId, traceId });
+    // No URLs to process - initialize DISCOVERING as complete with 0 items
+    // and trigger transition (which will skip to finalization)
+    log.info("ingestion-worker", "No URLs to process, completing discovery", { runId });
+    await initializeStage(runId, SourceRunStage.DISCOVERING, 0);
+    await addStageTransitionJob({ tenantId, runId, completedStage: SourceRunStage.DISCOVERING, requestId, traceId });
     return;
   }
 
@@ -362,13 +366,14 @@ export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promis
   const robotsFilteredUrls = robotsResult.allowed;
 
   if (robotsFilteredUrls.length === 0) {
-    // All URLs were blocked by robots.txt, finalize immediately
-    log.info("ingestion-worker", "All URLs blocked by robots.txt, finalizing run", {
+    // All URLs were blocked by robots.txt - complete discovery with 0 items
+    log.info("ingestion-worker", "All URLs blocked by robots.txt, completing discovery", {
       runId,
       blockedCount: robotsResult.blocked.length,
       overrideUsed: robotsResult.overrideUsed,
     });
-    await addSourceRunFinalizeJob({ tenantId, runId, requestId, traceId });
+    await initializeStage(runId, SourceRunStage.DISCOVERING, 0);
+    await addStageTransitionJob({ tenantId, runId, completedStage: SourceRunStage.DISCOVERING, requestId, traceId });
     return;
   }
 
@@ -379,8 +384,9 @@ export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promis
     runId,
   });
 
-  // Queue URLs atomically using CrawlState
+  // Queue URLs atomically using CrawlState (for deduplication during domain crawl)
   // This returns only the truly new URLs (prevents duplicates)
+  // URLs are stored in Redis and will be fetched during SCRAPING stage
   const newUrls = await crawlState.queueUrls(robotsFilteredUrls);
 
   log.debug("ingestion-worker", "Queued URLs in Redis for run", { urlCount: newUrls.length, runId });
@@ -396,23 +402,34 @@ export async function processSourceDiscover(data: SourceDiscoverUrlsJob): Promis
     })
     .where(eq(sourceRuns.id, runId));
 
-  // Determine fetch mode
-  const fetchMode: FetchMode = config.firecrawlEnabled ? "firecrawl" : "auto";
+  // Initialize DISCOVERING stage as complete (discovery is a single job)
+  // The count is 1 because we count the discovery job itself, not individual URLs
+  await initializeStage(runId, SourceRunStage.DISCOVERING, 1);
+  
+  // Mark stage as complete by updating counters
+  await db
+    .update(sourceRuns)
+    .set({ stageCompleted: 1 })
+    .where(eq(sourceRuns.id, runId));
 
-  // Queue page fetch jobs for new URLs
-  for (const url of newUrls) {
-    await addPageFetchJob({
-      tenantId,
-      runId,
-      url,
-      fetchMode,
-      depth: 0, // Starting depth
-      requestId,
-      traceId,
-    });
-  }
+  // Initialize Redis-based stage progress for SCRAPING stage
+  // This is used for cross-worker progress tracking
+  await initializeStageProgress(runId, newUrls.length);
 
-  log.info("ingestion-worker", "Queued page fetch jobs for run", { jobCount: newUrls.length, runId });
+  // Trigger transition to SCRAPING stage
+  // The stage transition processor will queue fetch jobs based on URLs in crawl state
+  await addStageTransitionJob({ 
+    tenantId, 
+    runId, 
+    completedStage: SourceRunStage.DISCOVERING, 
+    requestId, 
+    traceId 
+  });
+
+  log.info("ingestion-worker", "Discovery complete, transitioning to scraping", { 
+    urlCount: newUrls.length, 
+    runId 
+  });
 }
 
 async function discoverFromSitemap(sitemapUrl: string): Promise<string[]> {

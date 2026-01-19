@@ -9,13 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Source run stop control for pending, running, or embedding runs.
-- New `embedding_incomplete` run status to reflect delayed embeddings.
+- **Sequential Stage Architecture**: Complete refactor of ingestion pipeline to process stages sequentially (DISCOVERING -> SCRAPING -> PROCESSING -> INDEXING -> EMBEDDING -> COMPLETED), ensuring reliable progress tracking and stage transitions.
+- **Fairness Scheduler for Scraper Worker**: Dynamic fair-share slot allocation system that distributes worker capacity evenly across concurrent source runs, preventing one large run from monopolizing resources.
+- **Stage Progress Tracking**: Redis-based atomic counters for tracking job completion within each stage, enabling accurate stage transition detection.
+- **Stage Transition Jobs**: New job type that coordinates transitions between pipeline stages, queueing jobs for the next stage when the current stage completes.
+- **Upload Support for Global KBs**: Admin can now upload documents directly to shared/global knowledge bases.
+- **Source Run Cancellation Improvements**: Canceling a run now cleans up all pending jobs across queues and unregisters from fairness scheduler.
 
 ### Changed
 
-- Run finalization now waits longer for embeddings before marking incomplete.
-- Embedding completion re-validates runs after the embed backlog clears.
+- **Ingestion Pipeline**: Refactored from parallel/chaotic processing to sequential stage-based processing for better reliability and observability.
+- **BullMQ Delayed Job Handling**: Fixed lock errors by properly throwing `DelayedError` after `moveToDelayed()` to signal BullMQ that job state was already handled.
+- **Page Processing**: Split into two stages - PROCESSING (chunking/content extraction) and INDEXING (database writes), with HTML stored temporarily in Redis between SCRAPING and PROCESSING stages.
+
+### Technical
+
+- New `fairness-scheduler.ts` module with Lua scripts for atomic slot acquisition/release
+- New `stage-job-queuer.ts` for batching and queueing jobs at stage transitions
+- New `stage-manager.ts` for stage state management utilities
+- New `stage-transition.ts` processor for handling stage completion events
+- New `page-index.ts` processor for the INDEXING stage
+- Exported `DelayedError` from BullMQ through `@grounded/queue` package
 
 ## [0.2.0] - 2026-01-18
 

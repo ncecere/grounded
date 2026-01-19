@@ -6,7 +6,9 @@ import { shouldSample, createSamplingConfig } from "@grounded/logger";
 import { processSourceRunStart } from "./processors/source-run-start";
 import { processSourceDiscover } from "./processors/source-discover";
 import { processSourceFinalize } from "./processors/source-finalize";
+import { processStageTransition } from "./processors/stage-transition";
 import { processPageProcess } from "./processors/page-process";
+import { processPageIndex } from "./processors/page-index";
 import { processEmbedChunks } from "./processors/embed-chunks";
 import { processEnrichPage } from "./processors/enrich-page";
 import { processHardDelete } from "./processors/hard-delete";
@@ -22,9 +24,10 @@ const samplingConfig = createSamplingConfig({
 });
 
 const CONCURRENCY = getEnvNumber("WORKER_CONCURRENCY", 5);
+const INDEX_CONCURRENCY = getEnvNumber("INDEX_WORKER_CONCURRENCY", 5);
 const EMBED_CONCURRENCY = getEnvNumber("EMBED_WORKER_CONCURRENCY", 4);
 
-logger.info({ concurrency: CONCURRENCY, embedConcurrency: EMBED_CONCURRENCY }, "Starting Ingestion Worker...");
+logger.info({ concurrency: CONCURRENCY, indexConcurrency: INDEX_CONCURRENCY, embedConcurrency: EMBED_CONCURRENCY }, "Starting Ingestion Worker...");
 
 // Initialize vector store on startup
 (async () => {
@@ -63,6 +66,9 @@ const sourceRunWorker = new Worker(
           break;
         case "finalize":
           await processSourceFinalize(job.data);
+          break;
+        case "stage-transition":
+          await processStageTransition(job.data);
           break;
         default:
           throw new Error(`Unknown job name: ${job.name}`);
@@ -120,6 +126,42 @@ const pageProcessWorker = new Worker(
   {
     connection,
     concurrency: CONCURRENCY,
+  }
+);
+
+// ============================================================================
+// Page Index Worker
+// ============================================================================
+
+const pageIndexWorker = new Worker(
+  QUEUE_NAMES.PAGE_INDEX,
+  async (job: Job) => {
+    const event = createJobLogger(
+      { service: "ingestion-worker", queue: QUEUE_NAMES.PAGE_INDEX },
+      job
+    );
+    event.setOperation("page_index");
+    event.addFields({ pageId: job.data.pageId, contentId: job.data.contentId });
+
+    try {
+      await processPageIndex(job.data);
+      event.success();
+    } catch (error) {
+      if (error instanceof Error) {
+        event.setError(error);
+      } else {
+        event.setError({ type: "UnknownError", message: String(error) });
+      }
+      throw error;
+    } finally {
+      if (shouldSample(event.getEvent(), samplingConfig)) {
+        event.emit();
+      }
+    }
+  },
+  {
+    connection,
+    concurrency: INDEX_CONCURRENCY,
   }
 );
 
@@ -274,6 +316,7 @@ process.on("SIGTERM", async () => {
   logger.info("Received SIGTERM, shutting down...");
   await sourceRunWorker.close();
   await pageProcessWorker.close();
+  await pageIndexWorker.close();
   await embedChunksWorker.close();
   await enrichPageWorker.close();
   await deletionWorker.close();
@@ -285,6 +328,7 @@ process.on("SIGINT", async () => {
   logger.info("Received SIGINT, shutting down...");
   await sourceRunWorker.close();
   await pageProcessWorker.close();
+  await pageIndexWorker.close();
   await embedChunksWorker.close();
   await enrichPageWorker.close();
   await deletionWorker.close();

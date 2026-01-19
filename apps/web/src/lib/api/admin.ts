@@ -267,9 +267,49 @@ export const adminApi = {
     return res.runs;
   },
 
+  cancelSharedKbSourceRun: async (kbId: string, sourceId: string, runId: string) => {
+    const res = await request<{ run: SourceRun }>(
+      `/admin/shared-kbs/${kbId}/sources/${sourceId}/runs/${runId}/cancel`,
+      { method: "POST" }
+    );
+    return res.run;
+  },
+
   getSharedKbSourceStats: async (kbId: string, sourceId: string) => {
     const res = await request<{ stats: { pageCount: number; chunkCount: number } }>(`/admin/shared-kbs/${kbId}/sources/${sourceId}/stats`);
     return res.stats;
+  },
+
+  uploadSharedKbFile: async (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string }) => {
+    const token = getToken();
+    const headers: Record<string, string> = {};
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    if (options?.sourceName) {
+      formData.append("sourceName", options.sourceName);
+    }
+    if (options?.sourceId) {
+      formData.append("sourceId", options.sourceId);
+    }
+
+    const response = await fetch(`${API_BASE}/admin/shared-kbs/${kbId}/uploads`, {
+      method: "POST",
+      body: formData,
+      headers,
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: "Upload failed" }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+
+    return response.json();
   },
 
   // Dashboard

@@ -1,8 +1,20 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { knowledgeBases, tenantKbSubscriptions, tenants, sources, users, sourceRuns, modelConfigurations } from "@grounded/db/schema";
-import { eq, and, isNull, inArray, desc } from "drizzle-orm";
+import {
+  knowledgeBases,
+  tenantKbSubscriptions,
+  tenants,
+  sources,
+  users,
+  sourceRuns,
+  modelConfigurations,
+  uploads,
+  tenantUsage,
+} from "@grounded/db/schema";
+import { eq, and, isNull, inArray, desc, or, lt, sql } from "drizzle-orm";
+import { addPageProcessJob, removeAllJobsForRun, unregisterRun } from "@grounded/queue";
+import { log } from "@grounded/logger";
 import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { NotFoundError, BadRequestError } from "../../middleware/error-handler";
 import {
@@ -16,6 +28,11 @@ import {
   createSourceRun,
   queueSourceRunJob,
 } from "../../services/source-helpers";
+import {
+  SUPPORTED_MIME_TYPES,
+  EXTENSION_TO_MIME,
+  extractTextFromUpload,
+} from "../../services/upload-helpers";
 import {
   getKbCountMapsWithShares,
   getKbAggregatedCounts,
@@ -51,7 +68,6 @@ const shareWithTenantSchema = z.object({
 
 adminSharedKbsRoutes.get("/", async (c) => {
   const { globalKbs, sourceCountMap, chunkCountMap, shareCountMap, creatorMap } = await withRequestRLS(c, async (tx) => {
-    // Get ALL global KBs (both published and unpublished)
     const globalKbs = await tx.query.knowledgeBases.findMany({
       where: and(
         eq(knowledgeBases.isGlobal, true),
@@ -61,11 +77,9 @@ adminSharedKbsRoutes.get("/", async (c) => {
 
     const kbIds = globalKbs.map((kb) => kb.id);
 
-    // Get aggregated counts using shared helpers
     const { sourceCountMap, chunkCountMap, shareCountMap } =
       await getKbCountMapsWithShares(tx, kbIds);
 
-    // Get creator info
     const creatorIds = [...new Set(globalKbs.map((kb) => kb.createdBy))];
     const creators = creatorIds.length > 0 ? await tx
       .select({ id: users.id, email: users.primaryEmail })
@@ -101,9 +115,8 @@ adminSharedKbsRoutes.post(
     const body = c.req.valid("json");
 
     const kb = await withRequestRLS(c, async (tx) => {
-      // If embeddingModelId is provided, get the dimensions from the model
       let embeddingModelId = body.embeddingModelId;
-      let embeddingDimensions = 768; // Default dimensions
+      let embeddingDimensions = 768;
 
       if (embeddingModelId) {
         const model = await tx.query.modelConfigurations.findFirst({
@@ -117,11 +130,9 @@ adminSharedKbsRoutes.post(
         if (model) {
           embeddingDimensions = model.dimensions || 768;
         } else {
-          // Model not found or not enabled, use default
           embeddingModelId = undefined;
         }
       } else {
-        // No model specified, try to get the default embedding model
         const defaultModel = await tx.query.modelConfigurations.findFirst({
           where: and(
             eq(modelConfigurations.modelType, "embedding"),
@@ -139,7 +150,7 @@ adminSharedKbsRoutes.post(
       const [kb] = await tx
         .insert(knowledgeBases)
         .values({
-          tenantId: null, // Global KBs have no tenant
+          tenantId: null,
           name: body.name,
           description: body.description,
           createdBy: authContext.user.id,
@@ -176,10 +187,8 @@ adminSharedKbsRoutes.get("/:kbId", async (c) => {
       return { kb: null, counts: null, subscriptions: [], creator: null };
     }
 
-    // Get aggregated counts using shared helper
     const counts = await getKbAggregatedCounts(tx, kbId);
 
-    // Get subscriptions (tenants this KB is shared with)
     const subscriptions = await tx
       .select({
         tenantId: tenantKbSubscriptions.tenantId,
@@ -195,7 +204,6 @@ adminSharedKbsRoutes.get("/:kbId", async (c) => {
         isNull(tenants.deletedAt)
       ));
 
-    // Get creator info
     const creator = await tx.query.users.findFirst({
       where: eq(users.id, kb.createdBy),
     });
@@ -278,7 +286,6 @@ adminSharedKbsRoutes.delete("/:kbId", async (c) => {
       .returning();
 
     if (kb) {
-      // Also soft-delete all subscriptions
       await tx
         .update(tenantKbSubscriptions)
         .set({ deletedAt: new Date() })
@@ -369,7 +376,6 @@ adminSharedKbsRoutes.post(
     const { tenantId } = c.req.valid("json");
 
     const { kb, tenant, existing } = await withRequestRLS(c, async (tx) => {
-      // Verify KB exists and is global
       const kb = await tx.query.knowledgeBases.findFirst({
         where: and(
           eq(knowledgeBases.id, kbId),
@@ -378,7 +384,6 @@ adminSharedKbsRoutes.post(
         ),
       });
 
-      // Verify tenant exists
       const tenant = await tx.query.tenants.findFirst({
         where: and(
           eq(tenants.id, tenantId),
@@ -386,7 +391,6 @@ adminSharedKbsRoutes.post(
         ),
       });
 
-      // Check if already shared
       const existing = kb && tenant ? await tx.query.tenantKbSubscriptions.findFirst({
         where: and(
           eq(tenantKbSubscriptions.tenantId, tenantId),
@@ -434,7 +438,6 @@ adminSharedKbsRoutes.delete("/:kbId/shares/:tenantId", async (c) => {
   const tenantId = c.req.param("tenantId");
 
   const { kb, result } = await withRequestRLS(c, async (tx) => {
-    // Verify KB exists and is global
     const kb = await tx.query.knowledgeBases.findFirst({
       where: and(
         eq(knowledgeBases.id, kbId),
@@ -481,12 +484,10 @@ adminSharedKbsRoutes.get("/:kbId/available-tenants", async (c) => {
   const kbId = c.req.param("kbId");
 
   const { allTenants, sharedTenants } = await withRequestRLS(c, async (tx) => {
-    // Get all tenants
     const allTenants = await tx.query.tenants.findMany({
       where: isNull(tenants.deletedAt),
     });
 
-    // Get already shared tenant IDs
     const sharedTenants = await tx
       .select({ tenantId: tenantKbSubscriptions.tenantId })
       .from(tenantKbSubscriptions)
@@ -514,7 +515,6 @@ adminSharedKbsRoutes.get("/:kbId/available-tenants", async (c) => {
 // SOURCE MANAGEMENT FOR GLOBAL KBs
 // ============================================================================
 
-// Helper to verify global KB exists
 async function verifyGlobalKb(c: any, kbId: string) {
   const kb = await withRequestRLS(c, async (tx) => {
     return tx.query.knowledgeBases.findFirst({
@@ -545,7 +545,6 @@ adminSharedKbsRoutes.get("/:kbId/sources", async (c) => {
       orderBy: [desc(sources.createdAt)],
     });
 
-    // Get last run info for each source
     const sourceIds = sourcesResult.map((s) => s.id);
     const lastRuns = sourceIds.length > 0 ? await tx
       .select({
@@ -560,7 +559,6 @@ adminSharedKbsRoutes.get("/:kbId/sources", async (c) => {
     return { sourcesResult, lastRuns };
   });
 
-  // Create map of latest run per source
   const lastRunMap = new Map<string, { status: string; createdAt: Date }>();
   for (const run of lastRuns) {
     if (!lastRunMap.has(run.sourceId)) {
@@ -573,7 +571,7 @@ adminSharedKbsRoutes.get("/:kbId/sources", async (c) => {
       const lastRun = lastRunMap.get(source.id);
       return {
         ...source,
-        status: lastRun?.status || "new",
+        lastRunStatus: lastRun?.status || null,
         lastRunAt: lastRun?.createdAt || null,
       };
     }),
@@ -598,7 +596,7 @@ adminSharedKbsRoutes.post(
       return tx
         .insert(sources)
         .values({
-          tenantId: null, // Global KB sources have no tenant
+          tenantId: null,
           kbId,
           name: body.name,
           type: body.type,
@@ -610,6 +608,191 @@ adminSharedKbsRoutes.post(
     });
 
     return c.json({ source }, 201);
+  }
+);
+
+// ============================================================================
+// Upload Document to Global KB
+// ============================================================================
+
+adminSharedKbsRoutes.post(
+  "/:kbId/uploads",
+  async (c) => {
+    const kbId = c.req.param("kbId");
+    const authContext = c.get("auth");
+
+    await verifyGlobalKb(c, kbId);
+
+    const formData = await c.req.parseBody();
+    const file = formData["file"];
+
+    if (!file || typeof file === "string") {
+      throw new BadRequestError("No file uploaded");
+    }
+
+    let mimeType = file.type;
+    if (!SUPPORTED_MIME_TYPES[mimeType]) {
+      const ext = "." + file.name.split(".").pop()?.toLowerCase();
+      if (ext && EXTENSION_TO_MIME[ext]) {
+        mimeType = EXTENSION_TO_MIME[ext];
+      }
+    }
+
+    if (!SUPPORTED_MIME_TYPES[mimeType]) {
+      const supportedExtensions = Object.keys(EXTENSION_TO_MIME).join(", ");
+      throw new BadRequestError(
+        `Unsupported file type. Supported formats: ${supportedExtensions}`
+      );
+    }
+
+    const sourceName = formData["sourceName"];
+    const sourceNameStr = typeof sourceName === "string" && sourceName.trim()
+      ? sourceName.trim()
+      : file.name;
+
+    const existingSourceId = formData["sourceId"];
+
+    const arrayBuffer = await file.arrayBuffer();
+    const content = new Uint8Array(arrayBuffer);
+    const sizeBytes = content.length;
+
+    const { upload, uploadSource } = await withRequestRLS(c, async (tx) => {
+      let source;
+      if (typeof existingSourceId === "string" && existingSourceId.trim()) {
+        source = await tx.query.sources.findFirst({
+          where: and(
+            eq(sources.id, existingSourceId),
+            eq(sources.kbId, kbId),
+            eq(sources.type, "upload"),
+            isNull(sources.deletedAt)
+          ),
+        });
+
+        if (!source) {
+          throw new BadRequestError("Source not found");
+        }
+      } else {
+        [source] = await tx
+          .insert(sources)
+          .values({
+            tenantId: null,
+            kbId,
+            type: "upload",
+            name: sourceNameStr,
+            config: {
+              mode: "single",
+              depth: 1,
+              includePatterns: [],
+              excludePatterns: [],
+              includeSubdomains: false,
+              schedule: null,
+              firecrawlEnabled: false,
+              respectRobotsTxt: true,
+            },
+            enrichmentEnabled: false,
+            createdBy: authContext.user.id,
+          })
+          .returning();
+      }
+
+      const [uploadRecord] = await tx
+        .insert(uploads)
+        .values({
+          tenantId: null,
+          kbId,
+          sourceId: source.id,
+          filename: file.name,
+          mimeType,
+          sizeBytes,
+          status: "pending",
+          createdBy: authContext.user.id,
+        })
+        .returning();
+
+      return { upload: uploadRecord, uploadSource: source };
+    });
+
+    let extractedText: string;
+    try {
+      extractedText = await extractTextFromUpload(content, mimeType, file.name);
+    } catch (err) {
+      await withRequestRLS(c, async (tx) => {
+        await tx
+          .update(uploads)
+          .set({
+            status: "failed",
+            error: err instanceof Error ? err.message : "Text extraction failed",
+          })
+          .where(eq(uploads.id, upload.id));
+      });
+
+      throw new BadRequestError("Failed to extract text from document");
+    }
+
+    const sourceRun = await withRequestRLS(c, async (tx) => {
+      await tx
+        .update(uploads)
+        .set({
+          extractedText,
+          status: "processing",
+        })
+        .where(eq(uploads.id, upload.id));
+
+      const [run] = await tx
+        .insert(sourceRuns)
+        .values({
+          tenantId: null,
+          sourceId: uploadSource.id,
+          status: "running",
+          trigger: "manual",
+          forceReindex: false,
+          startedAt: new Date(),
+          stats: {
+            pagesSeen: 1,
+            pagesIndexed: 0,
+            pagesFailed: 0,
+            tokensEstimated: 0,
+          },
+        })
+        .returning();
+
+      await tx
+        .update(uploads)
+        .set({ sourceRunId: run.id })
+        .where(eq(uploads.id, upload.id));
+
+      return run;
+    });
+
+      await addPageProcessJob({
+        tenantId: null,
+        runId: sourceRun.id,
+        url: `upload://${upload.id}/${file.name}`,
+        html: extractedText,
+        title: file.name,
+        sourceType: "upload",
+        uploadMetadata: {
+          uploadId: upload.id,
+          filename: upload.filename,
+          mimeType: upload.mimeType,
+          sizeBytes: upload.sizeBytes,
+        },
+      });
+
+
+    return c.json(
+      {
+        upload: {
+          id: upload.id,
+          sourceId: uploadSource.id,
+          filename: upload.filename,
+          mimeType: upload.mimeType,
+          sizeBytes: upload.sizeBytes,
+          status: "processing",
+        },
+      },
+      201
+    );
   }
 );
 
@@ -706,7 +889,6 @@ adminSharedKbsRoutes.delete("/:kbId/sources/:sourceId", async (c) => {
       .returning();
 
     if (source) {
-      // Also soft-delete all chunks from this source
       await cascadeSoftDeleteSourceChunks(tx, sourceId);
     }
 
@@ -748,14 +930,12 @@ adminSharedKbsRoutes.post(
         return { source: null as null };
       }
 
-      // Check for running runs
       const runningRun = await findRunningRun(tx, sourceId);
 
       if (runningRun) {
         return { source, error: "A run is already in progress" as const };
       }
 
-      // Create new run (tenantId null for global KB)
       const run = await createSourceRun(tx, {
         tenantId: null,
         sourceId,
@@ -773,7 +953,6 @@ adminSharedKbsRoutes.post(
       return c.json({ error: result.error }, 409);
     }
 
-    // Queue the run (pass null for tenantId)
     await queueSourceRunJob({
       tenantId: null,
       sourceId,
@@ -823,6 +1002,65 @@ adminSharedKbsRoutes.get("/:kbId/sources/:sourceId/runs", async (c) => {
 
   return c.json({ runs });
 });
+
+// ============================================================================
+// Cancel Source Run
+// ============================================================================
+
+adminSharedKbsRoutes.post(
+  "/:kbId/sources/:sourceId/runs/:runId/cancel",
+  async (c) => {
+    const kbId = c.req.param("kbId");
+    const sourceId = c.req.param("sourceId");
+    const runId = c.req.param("runId");
+
+    await verifyGlobalKb(c, kbId);
+
+    const run = await withRequestRLS(c, async (tx) => {
+      const [run] = await tx
+        .update(sourceRuns)
+        .set({
+          status: "canceled",
+          finishedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(sourceRuns.id, runId),
+            eq(sourceRuns.sourceId, sourceId),
+            inArray(sourceRuns.status, ["running", "pending"])
+          )
+        )
+        .returning();
+
+      return run;
+    });
+
+    if (!run) {
+      throw new NotFoundError("Cancelable source run");
+    }
+
+    // Clean up pending jobs for this run to prevent queue blockage
+    // Also unregister from fairness scheduler to free up slots
+    Promise.all([
+      removeAllJobsForRun(runId),
+      unregisterRun(runId),
+    ]).then(([removed]) => {
+      if (removed.total > 0) {
+        log.info("api", "Cleaned up pending jobs for canceled run", {
+          runId,
+          removedJobs: removed,
+        });
+      }
+    }).catch((error) => {
+      log.error("api", "Failed to clean up jobs for canceled run", {
+        runId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+
+    return c.json({ run });
+  }
+);
 
 // ============================================================================
 // Get Source Stats

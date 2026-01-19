@@ -8,25 +8,21 @@ import { PageHeader } from "@/components/ui/page-header";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { FormSection } from "@/components/ui/form-section";
 import { InfoBox } from "@/components/ui/info-box";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ApiKeyManager } from "@/components/api-key-manager";
 import {
   CheckCircle,
   XCircle,
   Mail,
-  AlertTriangle,
-  Play,
-  Square,
-  RefreshCw,
   Key,
   BarChart3,
   Bell,
   Info,
   KeyRound,
+  Settings,
 } from "lucide-react";
 
-type SettingsTab = "auth" | "quotas" | "email" | "alerts" | "tokens";
+type SettingsTab = "auth" | "quotas" | "email" | "alerts" | "workers" | "tokens";
 
 interface SettingInputProps {
   setting: SystemSetting;
@@ -162,6 +158,10 @@ export function AdminSettings() {
       title: "Alert Settings",
       description: "Configure automated health monitoring alerts for tenants.",
     },
+    workers: {
+      title: "Worker Settings",
+      description: "Tune worker fairness and throughput behavior.",
+    },
     tokens: {
       title: "API Tokens",
       description: "Create and manage API tokens for system administration automation.",
@@ -202,6 +202,10 @@ export function AdminSettings() {
           <TabsTrigger value="alerts" className="gap-2">
             <Bell className="w-4 h-4" />
             Alerts
+          </TabsTrigger>
+          <TabsTrigger value="workers" className="gap-2">
+            <Settings className="w-4 h-4" />
+            Workers
           </TabsTrigger>
           <TabsTrigger value="tokens" className="gap-2">
             <KeyRound className="w-4 h-4" />
@@ -255,18 +259,22 @@ export function AdminSettings() {
             onUpdate={handleUpdate}
             isUpdating={updateMutation.isPending}
           />
-          <AlertControlSection />
-          <InfoBox icon={AlertTriangle} variant="warning" className="mt-6">
-            <h3 className="text-sm font-medium">Alert Requirements</h3>
-            <p className="mt-1 text-sm">
-              Email alerts require a configured SMTP server. Make sure to set up your
-              SMTP settings in the <strong>Email (SMTP)</strong> tab before enabling alerts.
-            </p>
-          </InfoBox>
+        </TabsContent>
+
+        <TabsContent value="workers">
+          <SettingsSection
+            title={tabDescriptions.workers.title}
+            description={tabDescriptions.workers.description}
+            settings={filteredSettings}
+            onUpdate={handleUpdate}
+            isUpdating={updateMutation.isPending}
+          />
         </TabsContent>
 
         <TabsContent value="tokens">
-          <AdminTokensSection />
+          <FormSection title={tabDescriptions.tokens.title} description={tabDescriptions.tokens.description}>
+            <AdminTokensSection />
+          </FormSection>
         </TabsContent>
       </Tabs>
     </div>
@@ -418,130 +426,4 @@ function AdminTokensSection() {
 // Alert Control Section
 // ============================================================================
 
-function AlertControlSection() {
-  const queryClient = useQueryClient();
-  const [checkResult, setCheckResult] = useState<{
-    checked: boolean;
-    tenantsWithIssues: number;
-    alertSent: boolean;
-    error?: string;
-  } | null>(null);
 
-  const { data: alertStatus, isLoading: statusLoading } = useQuery({
-    queryKey: ["alert-status"],
-    queryFn: () => api.getAlertStatus(),
-    refetchInterval: 30000, // Refresh every 30 seconds
-  });
-
-  const runCheckMutation = useMutation({
-    mutationFn: () => api.runHealthCheck(),
-    onSuccess: (data) => {
-      setCheckResult(data);
-      queryClient.invalidateQueries({ queryKey: ["alert-status"] });
-    },
-    onError: (error) => setCheckResult({
-      checked: false,
-      tenantsWithIssues: 0,
-      alertSent: false,
-      error: error.message,
-    }),
-  });
-
-  const startMutation = useMutation({
-    mutationFn: () => api.startAlertScheduler(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alert-status"] }),
-  });
-
-  const stopMutation = useMutation({
-    mutationFn: () => api.stopAlertScheduler(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alert-status"] }),
-  });
-
-  const isRunning = alertStatus?.schedulerRunning ?? false;
-
-  return (
-    <FormSection
-      title="Alert Scheduler"
-      description="Control the automated health check scheduler and run manual checks."
-      className="mt-6"
-    >
-      {/* Scheduler Status */}
-      <div className="py-4 border-b border-border">
-        <h3 className="text-sm font-medium text-foreground mb-2">Scheduler Status</h3>
-        <div className="flex items-center gap-4">
-          <StatusBadge
-            status={isRunning ? "active" : "inactive"}
-            label={statusLoading ? "Loading..." : isRunning ? "Running" : "Stopped"}
-          />
-          {alertStatus?.lastCheckTime && (
-            <span className="text-sm text-muted-foreground">
-              Last check: {new Date(alertStatus.lastCheckTime).toLocaleString()}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Scheduler Controls */}
-      <div className="py-4 border-b border-border">
-        <h3 className="text-sm font-medium text-foreground mb-2">Scheduler Controls</h3>
-        <div className="flex items-center gap-3">
-          {isRunning ? (
-            <Button
-              variant="outline"
-              onClick={() => stopMutation.mutate()}
-              disabled={stopMutation.isPending}
-            >
-              <Square className="w-4 h-4 mr-2" />
-              {stopMutation.isPending ? "Stopping..." : "Stop Scheduler"}
-            </Button>
-          ) : (
-            <Button
-              onClick={() => startMutation.mutate()}
-              disabled={startMutation.isPending}
-            >
-              <Play className="w-4 h-4 mr-2" />
-              {startMutation.isPending ? "Starting..." : "Start Scheduler"}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Manual Check */}
-      <div className="py-4">
-        <h3 className="text-sm font-medium text-foreground mb-2">Manual Health Check</h3>
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={() => runCheckMutation.mutate()}
-            disabled={runCheckMutation.isPending}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${runCheckMutation.isPending ? "animate-spin" : ""}`} />
-            {runCheckMutation.isPending ? "Running..." : "Run Health Check Now"}
-          </Button>
-        </div>
-        {checkResult && (
-          <div className={`mt-3 p-3 rounded-lg ${
-            checkResult.error
-              ? "bg-destructive/10 text-destructive"
-              : checkResult.tenantsWithIssues > 0
-              ? "bg-warning/10 text-warning"
-              : "bg-success/10 text-success"
-          }`}>
-            {checkResult.error ? (
-              <p>Error: {checkResult.error}</p>
-            ) : checkResult.checked ? (
-              <p>
-                Check complete. {checkResult.tenantsWithIssues === 0
-                  ? "All tenants are healthy."
-                  : `Found ${checkResult.tenantsWithIssues} tenant(s) with issues.`}
-                {checkResult.alertSent && " Alert email sent."}
-              </p>
-            ) : (
-              <p>Check skipped (alerts disabled or not configured)</p>
-            )}
-          </div>
-        )}
-      </div>
-    </FormSection>
-  );
-}

@@ -136,6 +136,7 @@ export const QUEUE_NAMES = {
   SOURCE_RUN: "source-run",
   PAGE_FETCH: "page-fetch",
   PAGE_PROCESS: "page-process",
+  PAGE_INDEX: "page-index",
   EMBED_CHUNKS: "embed-chunks",
   ENRICH_PAGE: "enrich-page",
   DELETION: "deletion",
@@ -198,7 +199,7 @@ export const STAGE_QUEUE_MAPPING = {
   extract: QUEUE_NAMES.PAGE_PROCESS,
   chunk: QUEUE_NAMES.PAGE_PROCESS,
   embed: QUEUE_NAMES.EMBED_CHUNKS,
-  index: QUEUE_NAMES.EMBED_CHUNKS, // Index happens as part of embed completion
+  index: QUEUE_NAMES.PAGE_INDEX,
 } as const;
 
 /**
@@ -242,6 +243,7 @@ export const QUEUE_DEFAULT_CONCURRENCY = {
   [QUEUE_NAMES.SOURCE_RUN]: 5,
   [QUEUE_NAMES.PAGE_FETCH]: 5,
   [QUEUE_NAMES.PAGE_PROCESS]: 5,
+  [QUEUE_NAMES.PAGE_INDEX]: 4,
   [QUEUE_NAMES.EMBED_CHUNKS]: 4,
   [QUEUE_NAMES.ENRICH_PAGE]: 2,
   [QUEUE_NAMES.DELETION]: 2,
@@ -255,6 +257,7 @@ export const QUEUE_CONCURRENCY_ENV_VARS = {
   [QUEUE_NAMES.SOURCE_RUN]: "SOURCE_RUN_CONCURRENCY",
   [QUEUE_NAMES.PAGE_FETCH]: "PAGE_FETCH_CONCURRENCY",
   [QUEUE_NAMES.PAGE_PROCESS]: "PAGE_PROCESS_CONCURRENCY",
+  [QUEUE_NAMES.PAGE_INDEX]: "PAGE_INDEX_CONCURRENCY",
   [QUEUE_NAMES.EMBED_CHUNKS]: "EMBED_CHUNKS_CONCURRENCY",
   [QUEUE_NAMES.ENRICH_PAGE]: "ENRICH_PAGE_CONCURRENCY",
   [QUEUE_NAMES.DELETION]: "DELETION_CONCURRENCY",
@@ -676,3 +679,90 @@ export const STAGE_METRICS_ENV_VARS = {
 
 export const API_VERSION = "v1";
 export const API_BASE_PATH = `/api/${API_VERSION}`;
+
+// ============================================================================
+// Fairness Scheduler Configuration
+// ============================================================================
+
+/**
+ * Redis key prefix for fairness scheduler active runs set.
+ * Tracks which source runs are currently in the SCRAPING stage.
+ */
+export const FAIRNESS_ACTIVE_RUNS_KEY = "fairness:active_runs";
+
+/**
+ * Redis key prefix for per-run slot counters.
+ * Key pattern: fairness:slots:{runId}
+ */
+export const FAIRNESS_SLOTS_KEY_PREFIX = "fairness:slots:";
+
+/**
+ * Redis key prefix for tracking when a run was last served.
+ * Used for weighted fair queuing (least recently served gets priority).
+ * Key pattern: fairness:last_served:{runId}
+ */
+export const FAIRNESS_LAST_SERVED_KEY_PREFIX = "fairness:last_served:";
+
+/**
+ * TTL for fairness slot keys in seconds.
+ * Acts as a safety mechanism - if a worker crashes, slots are auto-released.
+ * Should be longer than the longest expected job duration.
+ */
+export const FAIRNESS_SLOT_TTL_SECONDS = 300; // 5 minutes
+
+/**
+ * Default delay (ms) when a job cannot acquire a fairness slot.
+ * The job will be retried after this delay.
+ */
+export const FAIRNESS_RETRY_DELAY_MS = 500;
+
+/**
+ * Default minimum slots guaranteed per run regardless of total active runs.
+ * Ensures every run makes some progress even under high contention.
+ */
+export const FAIRNESS_MIN_SLOTS_PER_RUN = 1;
+
+/**
+ * Environment variable to disable the fairness scheduler entirely.
+ * Set to "true" or "1" to disable fairness (all jobs processed FIFO).
+ */
+export const FAIRNESS_DISABLED_ENV_VAR = "FAIRNESS_DISABLED";
+
+/**
+ * Environment variable to override total slots available.
+ * Defaults to WORKER_CONCURRENCY if not set.
+ */
+export const FAIRNESS_TOTAL_SLOTS_ENV_VAR = "FAIRNESS_TOTAL_SLOTS";
+
+/**
+ * Environment variable to override minimum slots per run.
+ */
+export const FAIRNESS_MIN_SLOTS_ENV_VAR = "FAIRNESS_MIN_SLOTS_PER_RUN";
+
+/**
+ * Environment variable to override maximum slots per run.
+ */
+export const FAIRNESS_MAX_SLOTS_ENV_VAR = "FAIRNESS_MAX_SLOTS_PER_RUN";
+
+/**
+ * Environment variable to override retry delay when slot unavailable.
+ */
+export const FAIRNESS_RETRY_DELAY_ENV_VAR = "FAIRNESS_RETRY_DELAY_MS";
+
+/**
+ * Environment variable names for fairness configuration.
+ */
+export const FAIRNESS_ENV_VARS = {
+  /** Disable fairness scheduler */
+  DISABLED: "FAIRNESS_DISABLED",
+  /** Override total slots */
+  TOTAL_SLOTS: "FAIRNESS_TOTAL_SLOTS",
+  /** Override min slots per run */
+  MIN_SLOTS: "FAIRNESS_MIN_SLOTS_PER_RUN",
+  /** Override max slots per run */
+  MAX_SLOTS: "FAIRNESS_MAX_SLOTS_PER_RUN",
+  /** Override retry delay */
+  RETRY_DELAY_MS: "FAIRNESS_RETRY_DELAY_MS",
+  /** Enable debug logging */
+  DEBUG: "FAIRNESS_DEBUG",
+} as const;

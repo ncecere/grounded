@@ -30,6 +30,18 @@ describe("source-helpers", () => {
       expect(result.success).toBe(true);
     });
 
+    it("should accept upload type", () => {
+      const validPayload = {
+        name: "Uploaded Files",
+        type: "upload" as const,
+        config: validConfig,
+        enrichmentEnabled: false,
+      };
+
+      const result = createSourceBaseSchema.safeParse(validPayload);
+      expect(result.success).toBe(true);
+    });
+
     it("should reject empty name", () => {
       const invalidPayload = {
         name: "",

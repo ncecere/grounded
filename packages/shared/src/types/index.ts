@@ -38,10 +38,20 @@ export const SourceRunStatus = {
   SUCCEEDED: "succeeded",
   FAILED: "failed",
   CANCELED: "canceled",
-  EMBEDDING_INCOMPLETE: "embedding_incomplete",
 } as const;
 export type SourceRunStatus =
   (typeof SourceRunStatus)[keyof typeof SourceRunStatus];
+
+export const SourceRunStage = {
+  DISCOVERING: "discovering",
+  SCRAPING: "scraping",
+  PROCESSING: "processing",
+  INDEXING: "indexing",
+  EMBEDDING: "embedding",
+  COMPLETED: "completed",
+} as const;
+export type SourceRunStage =
+  (typeof SourceRunStage)[keyof typeof SourceRunStage];
 
 export const SourceRunTrigger = {
   MANUAL: "manual",
@@ -542,7 +552,7 @@ export interface KnowledgeBase {
 
 export interface Source {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   kbId: string;
   type: SourceType;
   name: string;
@@ -555,9 +565,10 @@ export interface Source {
 
 export interface SourceRun {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   sourceId: string;
   status: SourceRunStatus;
+  stage: SourceRunStage | null;
   trigger: SourceRunTrigger;
   startedAt: Date | null;
   finishedAt: Date | null;
@@ -840,18 +851,18 @@ export interface BaseJob {
 }
 
 export interface SourceRunStartJob extends BaseJob {
-  tenantId: string;
+  tenantId: string | null;
   sourceId: string;
   runId: string;
 }
 
 export interface SourceDiscoverUrlsJob extends BaseJob {
-  tenantId: string;
+  tenantId: string | null;
   runId: string;
 }
 
 export interface PageFetchJob extends BaseJob {
-  tenantId: string;
+  tenantId: string | null;
   runId: string;
   url: string;
   fetchMode: FetchMode;
@@ -859,34 +870,55 @@ export interface PageFetchJob extends BaseJob {
 }
 
 export interface PageProcessJob extends BaseJob {
-  tenantId: string;
+  tenantId: string | null;
   runId: string;
   url: string;
   html: string;
   title: string | null;
   depth?: number; // Current depth in the crawl (0 = starting page)
+  sourceType?: "web" | "upload";
+  uploadMetadata?: {
+    uploadId: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+  };
+}
+
+export interface PageIndexJob extends BaseJob {
+  tenantId: string | null;
+  runId: string;
+  pageId: string;
+  contentId: string;
+  sourceType?: "web" | "upload";
+  uploadMetadata?: {
+    uploadId: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+  };
 }
 
 export interface EmbedChunksBatchJob extends BaseJob {
-  tenantId: string;
+  tenantId: string | null;
   kbId: string;
   chunkIds: string[];
   runId?: string; // Source run ID for tracking embedding progress
 }
 
 export interface EnrichPageJob extends BaseJob {
-  tenantId: string;
+  tenantId: string | null;
   kbId: string;
   chunkIds: string[];
 }
 
 export interface SourceRunFinalizeJob extends BaseJob {
-  tenantId: string;
+  tenantId: string | null;
   runId: string;
 }
 
 export interface HardDeleteObjectJob extends BaseJob {
-  tenantId: string;
+  tenantId: string | null;
   objectType: DeletionObjectType;
   objectId: string;
 }
@@ -896,6 +928,12 @@ export interface KbReindexJob extends BaseJob {
   kbId: string;
   newEmbeddingModelId: string;
   newEmbeddingDimensions: number;
+}
+
+export interface StageTransitionJob extends BaseJob {
+  tenantId: string | null;
+  runId: string;
+  completedStage: SourceRunStage;
 }
 
 // ============================================================================
@@ -974,7 +1012,7 @@ export type SourceJobConfig = z.infer<typeof sourceJobConfigSchema>;
  * Initiates the crawl/scrape pipeline for a web source.
  */
 export const webSourceRunStartJobSchema = baseJobSchema.extend({
-  tenantId: z.string().uuid(),
+  tenantId: z.string().uuid().nullable(),
   sourceId: z.string().uuid(),
   runId: z.string().uuid(),
   /** Source configuration for the run */
@@ -987,7 +1025,7 @@ export type WebSourceRunStartJobPayload = z.infer<typeof webSourceRunStartJobSch
  * Discovers URLs from sitemap, domain crawl, or explicit list.
  */
 export const webSourceDiscoverJobSchema = baseJobSchema.extend({
-  tenantId: z.string().uuid(),
+  tenantId: z.string().uuid().nullable(),
   runId: z.string().uuid(),
   /** Crawl configuration for filtering discovered URLs */
   crawlConfig: z
@@ -1009,7 +1047,7 @@ export type WebSourceDiscoverJobPayload = z.infer<typeof webSourceDiscoverJobSch
  * Fetches raw HTML content from a URL.
  */
 export const pageFetchJobSchema = baseJobSchema.extend({
-  tenantId: z.string().uuid(),
+  tenantId: z.string().uuid().nullable(),
   runId: z.string().uuid(),
   /** URL to fetch */
   url: z.string().url(),
@@ -1031,7 +1069,7 @@ export type PageFetchJobPayload = z.infer<typeof pageFetchJobSchema>;
  * Processes an uploaded document through extraction and chunking.
  */
 export const uploadSourceRunStartJobSchema = baseJobSchema.extend({
-  tenantId: z.string().uuid(),
+  tenantId: z.string().uuid().nullable(),
   sourceId: z.string().uuid(),
   runId: z.string().uuid(),
   /** Upload-specific configuration */
@@ -1049,7 +1087,7 @@ export type UploadSourceRunStartJobPayload = z.infer<typeof uploadSourceRunStart
  * Used by both web sources (HTML) and upload sources (extracted text).
  */
 export const pageProcessJobSchema = baseJobSchema.extend({
-  tenantId: z.string().uuid(),
+  tenantId: z.string().uuid().nullable(),
   runId: z.string().uuid(),
   /** URL or upload:// URI identifying the content */
   url: z.string(),
@@ -1074,11 +1112,32 @@ export const pageProcessJobSchema = baseJobSchema.extend({
 export type PageProcessJobPayload = z.infer<typeof pageProcessJobSchema>;
 
 /**
+ * Schema for page/document indexing job.
+ * Reads staged content, chunks it, and queues embeddings.
+ */
+export const pageIndexJobSchema = baseJobSchema.extend({
+  tenantId: z.string().uuid().nullable(),
+  runId: z.string().uuid(),
+  pageId: z.string().uuid(),
+  contentId: z.string().uuid(),
+  sourceType: z.enum(["web", "upload"]).optional(),
+  uploadMetadata: z
+    .object({
+      uploadId: z.string().uuid(),
+      filename: z.string(),
+      mimeType: z.string(),
+      sizeBytes: z.number().int().min(0),
+    })
+    .optional(),
+});
+export type PageIndexJobPayload = z.infer<typeof pageIndexJobSchema>;
+
+/**
  * Schema for batch embedding job.
  * Generates vector embeddings for a batch of chunks.
  */
 export const embedChunksBatchJobSchema = baseJobSchema.extend({
-  tenantId: z.string().uuid(),
+  tenantId: z.string().uuid().nullable(),
   kbId: z.string().uuid(),
   /** Chunk IDs to embed */
   chunkIds: z.array(z.string().uuid()).min(1),
@@ -1099,7 +1158,7 @@ export type EmbedChunksBatchJobPayload = z.infer<typeof embedChunksBatchJobSchem
  * Enriches chunks with metadata (tags, entities, keywords).
  */
 export const enrichPageJobSchema = baseJobSchema.extend({
-  tenantId: z.string().uuid(),
+  tenantId: z.string().uuid().nullable(),
   kbId: z.string().uuid(),
   /** Chunk IDs to enrich */
   chunkIds: z.array(z.string().uuid()).min(1),
@@ -1113,7 +1172,7 @@ export type EnrichPageJobPayload = z.infer<typeof enrichPageJobSchema>;
  * Finalizes the run and updates completion stats.
  */
 export const sourceRunFinalizeJobSchema = baseJobSchema.extend({
-  tenantId: z.string().uuid(),
+  tenantId: z.string().uuid().nullable(),
   runId: z.string().uuid(),
   /** Source type for finalization behavior */
   sourceType: z.enum(["web", "upload"]).optional(),
@@ -1125,7 +1184,7 @@ export type SourceRunFinalizeJobPayload = z.infer<typeof sourceRunFinalizeJobSch
  * Permanently deletes objects and associated data.
  */
 export const hardDeleteObjectJobSchema = baseJobSchema.extend({
-  tenantId: z.string().uuid(),
+  tenantId: z.string().uuid().nullable(),
   objectType: z.enum(["kb", "source", "agent", "tenant"]),
   objectId: z.string().uuid(),
   /** Whether to cascade delete related objects */
@@ -1168,6 +1227,7 @@ export type SourceRunJobPayload =
 export type IngestionJobPayload =
   | PageFetchJobPayload
   | PageProcessJobPayload
+  | PageIndexJobPayload
   | EmbedChunksBatchJobPayload
   | EnrichPageJobPayload;
 
@@ -1437,7 +1497,7 @@ export interface ActiveJobTracker {
   /** Unique job identifier */
   jobId: string;
   /** Tenant ID for this job */
-  tenantId: string;
+  tenantId: string | null;
   /** Domain being fetched (normalized) */
   domain: string;
   /** Timestamp when tracking started */
@@ -4514,7 +4574,7 @@ export interface RobotsOverrideLog {
   /** Source ID */
   sourceId: string;
   /** Tenant ID */
-  tenantId: string;
+  tenantId: string | null;
   /** Number of URLs that would have been checked */
   urlCount: number;
   /** Number of unique domains in the URL list */
@@ -4538,7 +4598,7 @@ export interface RobotsBlockedUrlLog {
   /** Source run ID */
   runId: string;
   /** Tenant ID */
-  tenantId: string;
+  tenantId: string | null;
   /** The robots.txt rule that blocked the URL */
   matchedRule?: string;
   /** User agent used for matching */
@@ -4559,7 +4619,7 @@ export interface RobotsBlockedSummaryLog {
   /** Source ID */
   sourceId: string;
   /** Tenant ID */
-  tenantId: string;
+  tenantId: string | null;
   /** Total URLs checked against robots.txt */
   totalUrlsChecked: number;
   /** Total URLs blocked by robots.txt */
@@ -4619,7 +4679,7 @@ export function createRobotsOverrideLog(params: {
   overrideType: RobotsOverrideType;
   runId: string;
   sourceId: string;
-  tenantId: string;
+  tenantId: string | null;
   urls: string[];
   config?: RobotsLoggingConfig;
 }): RobotsOverrideLog {
@@ -4666,7 +4726,7 @@ export function createRobotsOverrideLog(params: {
 export function createRobotsBlockedUrlLog(params: {
   url: string;
   runId: string;
-  tenantId: string;
+  tenantId: string | null;
   matchedRule?: string;
   userAgent?: string;
   reason?: string;
@@ -4699,7 +4759,7 @@ export function createRobotsBlockedUrlLog(params: {
 export function createRobotsBlockedSummaryLog(params: {
   runId: string;
   sourceId: string;
-  tenantId: string;
+  tenantId: string | null;
   totalUrlsChecked: number;
   blockedUrls: Array<{ url: string; reason: string; rule?: string }>;
   robotsTxtRespected: boolean;
@@ -5023,7 +5083,7 @@ export interface RunStageMetricsAccumulator {
   /** Source ID */
   sourceId: string;
   /** Tenant ID */
-  tenantId: string;
+  tenantId: string | null;
   /** When accumulator was created */
   createdAt: string;
   /** Last updated timestamp */
@@ -5056,7 +5116,7 @@ export interface StageMetricsSnapshot {
   /** Source ID */
   sourceId: string;
   /** Tenant ID */
-  tenantId: string;
+  tenantId: string | null;
   /** When the snapshot was taken */
   timestamp: string;
   /** The stage this snapshot is for */
@@ -5076,7 +5136,7 @@ export interface RunMetricsSummary {
   /** Source ID */
   sourceId: string;
   /** Tenant ID */
-  tenantId: string;
+  tenantId: string | null;
   /** When the summary was generated */
   timestamp: string;
   /** Run start time */
@@ -5087,35 +5147,32 @@ export interface RunMetricsSummary {
   runDurationMs?: number;
   /** Metrics for each stage */
   stages: Partial<Record<IngestionStage, StageMetrics>>;
-  /** Overall summary */
+  /** Overall aggregated metrics */
   overall: {
-    /** Total items that entered the pipeline */
     totalItemsProcessed: number;
-    /** Total items that completed all stages */
     totalItemsCompleted: number;
-    /** Total items that failed at any stage */
     totalItemsFailed: number;
-    /** Total items that were skipped */
     totalItemsSkipped: number;
-    /** Overall success rate */
     overallSuccessRate: number;
-    /** Critical path (stages with highest latency) */
     criticalPath: IngestionStage[];
-    /** Bottleneck stage (lowest throughput) */
     bottleneckStage?: IngestionStage;
   };
-}
-
-/**
- * Configuration for stage metrics collection and emission.
- */
-export interface StageMetricsConfig {
-  /** Whether metrics collection is enabled */
-  enabled: boolean;
-  /** Interval in ms for emitting periodic metrics (0 to disable periodic emission) */
-  emitIntervalMs: number;
-  /** Whether to emit debug logs */
-  debug: boolean;
+  /** Throughput summary */
+  throughput?: {
+    avgThroughputPerSecond: number;
+    maxThroughputPerSecond: number;
+    minThroughputPerSecond: number;
+    maxThroughputStage?: IngestionStage;
+    minThroughputStage?: IngestionStage;
+  };
+  /** Latency summary */
+  latency?: {
+    avgLatencyMs: number;
+    maxLatencyMs: number;
+    minLatencyMs: number;
+    maxLatencyStage?: IngestionStage;
+    minLatencyStage?: IngestionStage;
+  };
 }
 
 /**
@@ -5129,7 +5186,7 @@ export interface StageMetricsLog {
   /** Run context */
   runId: string;
   sourceId: string;
-  tenantId: string;
+  tenantId: string | null;
   /** Timestamp */
   timestamp: string;
   /** Whether this is a final emission */
@@ -5148,6 +5205,19 @@ export interface StageMetricsLog {
   totalDurationMs: number;
   /** Timing */
   wallClockDurationMs?: number;
+}
+
+
+/**
+ * Configuration for stage metrics collection and emission.
+ */
+export interface StageMetricsConfig {
+  /** Whether metrics collection is enabled */
+  enabled: boolean;
+  /** Interval in ms for emitting periodic metrics (0 to disable periodic emission) */
+  emitIntervalMs: number;
+  /** Whether to emit debug logs */
+  debug: boolean;
 }
 
 // ============================================================================
@@ -5265,7 +5335,7 @@ export function createEmptyStageMetricsData(): StageMetricsData {
 export function createRunStageMetricsAccumulator(
   runId: string,
   sourceId: string,
-  tenantId: string
+  tenantId: string | null
 ): RunStageMetricsAccumulator {
   const now = new Date().toISOString();
   return {
@@ -5866,7 +5936,7 @@ export interface RunSummaryLog {
   /** Source identifier */
   sourceId: string;
   /** Tenant identifier */
-  tenantId: string;
+  tenantId: string | null;
   /** Timestamp when summary was generated */
   timestamp: string;
   /** Final run status */
@@ -5954,7 +6024,7 @@ export interface RunSummaryLoggingConfig {
 export interface RunSummaryInput {
   runId: string;
   sourceId: string;
-  tenantId: string;
+  tenantId: string | null;
   finalStatus: "succeeded" | "partial" | "failed" | "embedding_incomplete";
   runStartedAt: Date;
   runFinishedAt: Date;
@@ -6516,3 +6586,185 @@ export function createCompactRunSummary(summary: RunSummaryLog): string {
 
   return parts.join(" | ");
 }
+
+// ============================================================================
+// Fairness Scheduler Types
+// ============================================================================
+
+import {
+  FAIRNESS_ACTIVE_RUNS_KEY,
+  FAIRNESS_SLOTS_KEY_PREFIX,
+  FAIRNESS_LAST_SERVED_KEY_PREFIX,
+  FAIRNESS_SLOT_TTL_SECONDS,
+  FAIRNESS_RETRY_DELAY_MS,
+  FAIRNESS_MIN_SLOTS_PER_RUN,
+  FAIRNESS_ENV_VARS,
+} from "../constants";
+
+/**
+ * Configuration for the fairness scheduler.
+ * Controls how concurrent jobs are distributed across source runs.
+ */
+export interface FairnessConfig {
+  /** Whether fairness scheduling is enabled */
+  enabled: boolean;
+  /** Total concurrent slots available (typically matches WORKER_CONCURRENCY) */
+  totalSlots: number;
+  /** Minimum slots guaranteed per run regardless of active run count */
+  minSlotsPerRun: number;
+  /** Maximum slots any single run can use (prevents monopolization) */
+  maxSlotsPerRun: number;
+  /** Delay in ms when a job cannot acquire a slot and needs to retry */
+  retryDelayMs: number;
+  /** TTL for slot tracking keys in seconds (safety for crashed workers) */
+  slotTtlSeconds: number;
+  /** Enable debug logging for fairness decisions */
+  debug: boolean;
+}
+
+/**
+ * Result of attempting to acquire a fairness slot.
+ */
+export interface FairnessSlotResult {
+  /** Whether a slot was successfully acquired */
+  acquired: boolean;
+  /** If not acquired, the suggested delay before retry */
+  retryDelayMs?: number;
+  /** Current number of active slots for this run */
+  currentSlots: number;
+  /** Maximum slots allowed for this run (based on active runs) */
+  maxAllowedSlots: number;
+  /** Number of currently active runs */
+  activeRunCount: number;
+  /** Reason if slot was not acquired */
+  reason?: "at_limit" | "not_registered" | "disabled";
+}
+
+/**
+ * Metrics snapshot for fairness scheduler monitoring.
+ */
+export interface FairnessMetrics {
+  /** Number of currently active source runs */
+  activeRunCount: number;
+  /** Total slots currently in use across all runs */
+  totalSlotsInUse: number;
+  /** Total slots available */
+  totalSlotsAvailable: number;
+  /** Per-run slot usage */
+  runSlots: Record<string, number>;
+  /** Calculated fair share per run */
+  fairSharePerRun: number;
+  /** Timestamp of this snapshot */
+  timestamp: string;
+}
+
+/**
+ * Builds the Redis key for tracking active slots for a run.
+ */
+export function buildFairnessSlotKey(runId: string): string {
+  return `${FAIRNESS_SLOTS_KEY_PREFIX}${runId}`;
+}
+
+/**
+ * Builds the Redis key for tracking when a run was last served.
+ */
+export function buildFairnessLastServedKey(runId: string): string {
+  return `${FAIRNESS_LAST_SERVED_KEY_PREFIX}${runId}`;
+}
+
+/**
+ * Resolves fairness configuration from environment variables.
+ *
+ * @param getEnv - Function to retrieve environment variables
+ * @param defaultTotalSlots - Default total slots (typically from WORKER_CONCURRENCY)
+ * @returns Resolved FairnessConfig
+ */
+export function resolveFairnessConfig(
+  getEnv: (key: string) => string | undefined,
+  defaultTotalSlots: number = 5
+): FairnessConfig {
+  const disabledValue = getEnv(FAIRNESS_ENV_VARS.DISABLED);
+  const enabled = !(disabledValue === "true" || disabledValue === "1");
+
+  const totalSlotsValue = getEnv(FAIRNESS_ENV_VARS.TOTAL_SLOTS);
+  const totalSlots = totalSlotsValue ? parseInt(totalSlotsValue, 10) : defaultTotalSlots;
+
+  const minSlotsValue = getEnv(FAIRNESS_ENV_VARS.MIN_SLOTS);
+  const minSlotsPerRun = minSlotsValue ? parseInt(minSlotsValue, 10) : FAIRNESS_MIN_SLOTS_PER_RUN;
+
+  const maxSlotsValue = getEnv(FAIRNESS_ENV_VARS.MAX_SLOTS);
+  const maxSlotsPerRun = maxSlotsValue ? parseInt(maxSlotsValue, 10) : totalSlots;
+
+  const retryDelayValue = getEnv(FAIRNESS_ENV_VARS.RETRY_DELAY_MS);
+  const retryDelayMs = retryDelayValue ? parseInt(retryDelayValue, 10) : FAIRNESS_RETRY_DELAY_MS;
+
+  const debugValue = getEnv(FAIRNESS_ENV_VARS.DEBUG);
+  const debug = debugValue === "true" || debugValue === "1";
+
+  return {
+    enabled,
+    totalSlots: Math.max(1, totalSlots),
+    minSlotsPerRun: Math.max(1, minSlotsPerRun),
+    maxSlotsPerRun: Math.max(1, maxSlotsPerRun),
+    retryDelayMs: Math.max(100, retryDelayMs),
+    slotTtlSeconds: FAIRNESS_SLOT_TTL_SECONDS,
+    debug,
+  };
+}
+
+/**
+ * Calculates the fair share of slots for each run based on active run count.
+ * Uses dynamic fair share: total / activeRuns, but respects min/max bounds.
+ *
+ * @param totalSlots - Total available slots
+ * @param activeRunCount - Number of currently active runs
+ * @param minPerRun - Minimum slots per run
+ * @param maxPerRun - Maximum slots per run
+ * @returns Fair share slot count for each run
+ */
+export function calculateFairShare(
+  totalSlots: number,
+  activeRunCount: number,
+  minPerRun: number,
+  maxPerRun: number
+): number {
+  if (activeRunCount <= 0) {
+    return maxPerRun; // No active runs, use max
+  }
+
+  // Calculate raw fair share
+  const rawFairShare = Math.floor(totalSlots / activeRunCount);
+
+  // Ensure at least minPerRun, but no more than maxPerRun
+  return Math.max(minPerRun, Math.min(rawFairShare, maxPerRun));
+}
+
+/**
+ * Creates a default fairness configuration.
+ * Useful for testing or when environment is not available.
+ *
+ * @param totalSlots - Total available slots
+ * @returns Default FairnessConfig
+ */
+export function getDefaultFairnessConfig(totalSlots: number = 5): FairnessConfig {
+  return {
+    enabled: true,
+    totalSlots,
+    minSlotsPerRun: FAIRNESS_MIN_SLOTS_PER_RUN,
+    maxSlotsPerRun: totalSlots,
+    retryDelayMs: FAIRNESS_RETRY_DELAY_MS,
+    slotTtlSeconds: FAIRNESS_SLOT_TTL_SECONDS,
+    debug: false,
+  };
+}
+
+// Re-export fairness constants for convenience
+export {
+  FAIRNESS_ACTIVE_RUNS_KEY,
+  FAIRNESS_SLOTS_KEY_PREFIX,
+  FAIRNESS_LAST_SERVED_KEY_PREFIX,
+  FAIRNESS_SLOT_TTL_SECONDS,
+  FAIRNESS_RETRY_DELAY_MS,
+  FAIRNESS_MIN_SLOTS_PER_RUN,
+  FAIRNESS_ENV_VARS,
+};

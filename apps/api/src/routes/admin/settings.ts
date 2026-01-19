@@ -24,7 +24,7 @@ adminSettingsRoutes.use("*", auth(), requireSystemAdmin());
 // Types and Metadata
 // ============================================================================
 
-type SettingCategory = "auth" | "quotas" | "email" | "alerts" | "general";
+type SettingCategory = "auth" | "quotas" | "email" | "alerts" | "general" | "workers";
 
 interface SettingMeta {
   category: SettingCategory;

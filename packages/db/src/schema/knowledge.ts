@@ -17,6 +17,7 @@ import type {
   SourceRunStats,
   IngestionStage,
   StageStatus,
+  SourceRunStage,
 } from "@grounded/shared";
 
 export const knowledgeBases = pgTable(
@@ -113,8 +114,9 @@ export const sourceRuns = pgTable(
       .references(() => sources.id, { onDelete: "cascade" }),
     status: text("status")
       .notNull()
-      .$type<"pending" | "running" | "partial" | "succeeded" | "failed" | "canceled" | "embedding_incomplete">()
+      .$type<"pending" | "running" | "partial" | "succeeded" | "failed" | "canceled">()
       .default("pending"),
+    stage: text("stage").$type<SourceRunStage>(),
     trigger: text("trigger").notNull().$type<"manual" | "scheduled">(),
     forceReindex: boolean("force_reindex").default(false).notNull(),
     startedAt: timestamp("started_at", { withTimezone: true }),
@@ -125,7 +127,11 @@ export const sourceRuns = pgTable(
       pagesFailed: 0,
       tokensEstimated: 0,
     }).notNull(),
-    // Embedding progress tracking
+    // Stage progress tracking (current stage)
+    stageTotal: integer("stage_total").default(0).notNull(),
+    stageCompleted: integer("stage_completed").default(0).notNull(),
+    stageFailed: integer("stage_failed").default(0).notNull(),
+    // Legacy embedding progress tracking (used for embedding stage)
     chunksToEmbed: integer("chunks_to_embed").default(0).notNull(),
     chunksEmbedded: integer("chunks_embedded").default(0).notNull(),
     error: text("error"),
@@ -135,6 +141,7 @@ export const sourceRuns = pgTable(
     index("source_runs_source_created_idx").on(table.sourceId, table.createdAt),
     index("source_runs_tenant_created_idx").on(table.tenantId, table.createdAt),
     index("source_runs_status_idx").on(table.status),
+    index("source_runs_stage_idx").on(table.stage),
   ]
 );
 
@@ -208,5 +215,31 @@ export const sourceRunPageStages = pgTable(
     ),
     index("source_run_page_stages_status_idx").on(table.status),
     index("source_run_page_stages_stage_status_idx").on(table.stage, table.status),
+  ]
+);
+
+export const sourceRunPageContents = pgTable(
+  "source_run_page_contents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    sourceRunId: uuid("source_run_id")
+      .notNull()
+      .references(() => sourceRuns.id, { onDelete: "cascade" }),
+    sourceRunPageId: uuid("source_run_page_id")
+      .notNull()
+      .references(() => sourceRunPages.id, { onDelete: "cascade" }),
+    normalizedUrl: text("normalized_url").notNull(),
+    title: text("title"),
+    content: text("content").notNull(),
+    contentHash: text("content_hash").notNull(),
+    headings: jsonb("headings").$type<{ level: number; text: string; path: string; position: number }[]>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("source_run_page_contents_page_unique").on(table.sourceRunPageId),
+    index("source_run_page_contents_run_id_idx").on(table.sourceRunId),
+    index("source_run_page_contents_tenant_url_idx").on(table.tenantId, table.normalizedUrl),
   ]
 );
