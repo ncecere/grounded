@@ -31,7 +31,7 @@ export interface VectorRecord {
   /** Unique identifier (typically matches kb_chunks.id) */
   id: string;
   /** Tenant ID for multi-tenancy filtering */
-  tenantId: string;
+  tenantId: string | null;
   /** Knowledge base ID for filtering */
   kbId: string;
   /** Source ID for filtering/deletion */

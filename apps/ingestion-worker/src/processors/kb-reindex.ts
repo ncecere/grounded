@@ -81,7 +81,7 @@ export async function processKbReindex(data: KbReindexJob): Promise<void> {
       // Build vector records - these will overwrite existing vectors with same ID
       const vectorRecords = chunks.map((chunk, index) => ({
         id: chunk.id,
-        tenantId: chunk.tenantId || "", // Use empty string for global KBs
+        tenantId: chunk.tenantId,
         kbId,
         sourceId: chunk.sourceId,
         embedding: embeddingResults[index].embedding,

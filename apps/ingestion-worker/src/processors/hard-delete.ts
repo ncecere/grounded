@@ -47,12 +47,21 @@ export async function processHardDelete(data: HardDeleteObjectJob): Promise<void
   try {
     switch (objectType) {
       case "kb":
+        if (!tenantId) {
+          throw new Error("Tenant ID is required to delete knowledge base");
+        }
         await deleteKnowledgeBase(tenantId, objectId);
         break;
       case "source":
+        if (!tenantId) {
+          throw new Error("Tenant ID is required to delete source");
+        }
         await deleteSource(tenantId, objectId);
         break;
       case "agent":
+        if (!tenantId) {
+          throw new Error("Tenant ID is required to delete agent");
+        }
         await deleteAgent(tenantId, objectId);
         break;
       case "tenant":

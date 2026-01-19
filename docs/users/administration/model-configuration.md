@@ -89,37 +89,114 @@ For self-hosted or alternative providers that use OpenAI's API format.
 
 **Navigate to:** Sidebar > **AI Models** (in the Admin section)
 
-### Step 1: Add Provider
+![AI Models - Providers Tab](./assets/ai-models-providers-final.png)
 
-1. Click **Add Provider**
-2. Select provider type
-3. Fill in details:
+The Providers tab shows all configured AI providers with their type, status, and model count.
+
+### Step 1: Open Add Provider Dialog
+
+Click **Add Provider** to open the configuration dialog.
+
+![Add Provider Dialog](./assets/ai-models-add-provider.png)
+
+### Step 2: Select Provider Type
+
+Click the provider type dropdown to see available options:
+
+![Provider Types](./assets/ai-models-provider-types.png)
+
+| Type | Description |
+|------|-------------|
+| **OpenAI** | OpenAI's official API |
+| **Anthropic** | Anthropic's Claude models |
+| **Google AI** | Google's Gemini models |
+| **OpenAI Compatible** | Any provider with OpenAI-compatible API |
+
+### Step 3: Fill Provider Details
 
 **For OpenAI/Anthropic/Google:**
-```
-Display Name: OpenAI Production
-API Key: sk-xxxxxxxxxxxxxxxxxxxxx
-```
+- **Name**: Internal identifier (lowercase, hyphens allowed)
+- **Display Name**: Friendly name shown in UI
+- **API Key**: Your provider API key
 
 **For OpenAI-Compatible:**
-```
-Display Name: Local Ollama
-API Key: (optional)
-Base URL: http://localhost:11434/v1
-```
+All the above, plus:
+- **Base URL**: The API endpoint (e.g., `https://api.groq.com/openai/v1`)
+
+![Filled Provider Form](./assets/ai-models-add-provider-filled.png)
+
+Click **Save** to create the provider.
+
+### Step 4: Test Connection
+
+After adding a provider:
+1. Find the provider in the list
+2. Click **Test** button
+3. Verify it shows a success message
+
+![Providers List](./assets/ai-models-providers-list.png)
+
+## Adding Models
+
+Navigate to the **Models** tab to add and manage models.
+
+![Models Tab](./assets/ai-models-models-tab.png)
+
+### Adding a Chat Model
+
+1. Click **Add Model**
+2. Select the provider from the dropdown
+
+![Select Provider](./assets/ai-models-select-provider.png)
+
+3. Fill in the model details:
+
+![Add Chat Model](./assets/ai-models-add-chat-model-filled.png)
+
+| Field | Description |
+|-------|-------------|
+| **Model ID** | The provider's model identifier (e.g., `llama-3.3-70b-versatile`) |
+| **Display Name** | Friendly name shown to users |
+| **Model Type** | Select "Chat / LLM" |
+| **Max Tokens** | Maximum response length |
+| **Temperature** | Creativity level (0.0-2.0) |
+| **Supports Streaming** | Enable for real-time responses |
+| **Supports Tools** | Enable for function calling |
+| **Enabled** | Whether the model is available |
+| **Set as Default** | Use as default chat model |
 
 4. Click **Save**
 
-### Step 2: Test Connection
+### Adding an Embedding Model
 
-After adding a provider:
-1. Click **Test Connection**
-2. Verify it shows "Connected"
+1. Click **Add Model**
+2. Select the provider
+3. Select "Embedding" as the model type
 
-### Step 3: Add Models
+![Add Embedding Model](./assets/ai-models-add-embedding-filled.png)
 
-1. Click **Add Model** under the provider
-2. Configure the model:
+For embedding models, configure:
+- **Model ID**: e.g., `text-embedding-3-small`
+- **Display Name**: e.g., "OpenAI Embeddings (Small)"
+- **Dimensions**: Vector dimensions (e.g., 1536)
+
+4. Click **Save**
+
+### Models List
+
+After adding models, they appear in the Models tab:
+
+![All Models](./assets/ai-models-all-models.png)
+
+Use the type filter dropdown to show only Chat or Embedding models.
+
+## Model Status
+
+The **Status** tab shows the current state of the model registry:
+
+![Model Status](./assets/ai-models-status.png)
+
+Click **Refresh Registry** to reload the model configuration from the database.
 
 ```
 Model ID: gpt-4o

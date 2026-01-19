@@ -1,12 +1,14 @@
 import { Worker, Job, connection, QUEUE_NAMES } from "@grounded/queue";
-import { getEnvNumber } from "@grounded/shared";
+import { getEnvNumber, initSettingsClient, type WorkerSettings } from "@grounded/shared";
 import { initializeVectorStore, isVectorStoreConfigured } from "@grounded/vector-store";
 import { createWorkerLogger, createJobLogger } from "@grounded/logger/worker";
 import { shouldSample, createSamplingConfig } from "@grounded/logger";
 import { processSourceRunStart } from "./processors/source-run-start";
 import { processSourceDiscover } from "./processors/source-discover";
 import { processSourceFinalize } from "./processors/source-finalize";
+import { processStageTransition } from "./processors/stage-transition";
 import { processPageProcess } from "./processors/page-process";
+import { processPageIndex } from "./processors/page-index";
 import { processEmbedChunks } from "./processors/embed-chunks";
 import { processEnrichPage } from "./processors/enrich-page";
 import { processHardDelete } from "./processors/hard-delete";
@@ -21,13 +23,48 @@ const samplingConfig = createSamplingConfig({
   slowRequestThresholdMs: 30000, // 30s is slow for a job
 });
 
-const CONCURRENCY = getEnvNumber("WORKER_CONCURRENCY", 5);
-const EMBED_CONCURRENCY = getEnvNumber("EMBED_WORKER_CONCURRENCY", 4);
+// Default concurrency from environment (used as fallback)
+const DEFAULT_CONCURRENCY = getEnvNumber("WORKER_CONCURRENCY", 5);
+const DEFAULT_INDEX_CONCURRENCY = getEnvNumber("INDEX_WORKER_CONCURRENCY", 5);
+const DEFAULT_EMBED_CONCURRENCY = getEnvNumber("EMBED_WORKER_CONCURRENCY", 4);
 
-logger.info({ concurrency: CONCURRENCY, embedConcurrency: EMBED_CONCURRENCY }, "Starting Ingestion Worker...");
+// Current concurrency values (may be updated from API settings)
+let currentConcurrency = DEFAULT_CONCURRENCY;
+let currentEmbedConcurrency = DEFAULT_EMBED_CONCURRENCY;
 
-// Initialize vector store on startup
+// Initialize settings client with callback to track concurrency changes
+const settingsClient = initSettingsClient({
+  onSettingsUpdate: (settings: WorkerSettings) => {
+    logger.info({ 
+      ingestionConcurrency: settings.ingestion.concurrency,
+      embedConcurrency: settings.embed.concurrency,
+    }, "Settings updated from API");
+    
+    // Track concurrency changes (worker restart required to apply)
+    if (settings.ingestion.concurrency !== currentConcurrency) {
+      logger.warn({
+        oldConcurrency: currentConcurrency,
+        newConcurrency: settings.ingestion.concurrency,
+      }, "Ingestion concurrency changed in settings - restart worker to apply");
+    }
+    if (settings.embed.concurrency !== currentEmbedConcurrency) {
+      logger.warn({
+        oldConcurrency: currentEmbedConcurrency,
+        newConcurrency: settings.embed.concurrency,
+      }, "Embed concurrency changed in settings - restart worker to apply");
+    }
+  },
+});
+
+logger.info({ 
+  concurrency: DEFAULT_CONCURRENCY, 
+  indexConcurrency: DEFAULT_INDEX_CONCURRENCY, 
+  embedConcurrency: DEFAULT_EMBED_CONCURRENCY 
+}, "Starting Ingestion Worker...");
+
+// Initialize vector store and settings on startup
 (async () => {
+  // Initialize vector store
   if (isVectorStoreConfigured()) {
     try {
       await initializeVectorStore();
@@ -37,6 +74,24 @@ logger.info({ concurrency: CONCURRENCY, embedConcurrency: EMBED_CONCURRENCY }, "
     }
   } else {
     logger.warn("Vector store not configured. Set VECTOR_DB_URL or VECTOR_DB_HOST.");
+  }
+  
+  // Load settings from API
+  try {
+    const settings = await settingsClient.fetchSettings();
+    logger.info({ 
+      ingestionConcurrency: settings.ingestion.concurrency,
+      embedConcurrency: settings.embed.concurrency,
+    }, "Loaded settings from API");
+    
+    // Update current concurrency values for tracking
+    currentConcurrency = settings.ingestion.concurrency;
+    currentEmbedConcurrency = settings.embed.concurrency;
+    
+    // Start periodic refresh
+    settingsClient.startPeriodicRefresh();
+  } catch (error) {
+    logger.warn({ error }, "Failed to load settings from API, using environment defaults");
   }
 })();
 
@@ -64,6 +119,9 @@ const sourceRunWorker = new Worker(
         case "finalize":
           await processSourceFinalize(job.data);
           break;
+        case "stage-transition":
+          await processStageTransition(job.data);
+          break;
         default:
           throw new Error(`Unknown job name: ${job.name}`);
       }
@@ -83,7 +141,7 @@ const sourceRunWorker = new Worker(
   },
   {
     connection,
-    concurrency: CONCURRENCY,
+    concurrency: DEFAULT_CONCURRENCY,
   }
 );
 
@@ -119,7 +177,43 @@ const pageProcessWorker = new Worker(
   },
   {
     connection,
-    concurrency: CONCURRENCY,
+    concurrency: DEFAULT_CONCURRENCY,
+  }
+);
+
+// ============================================================================
+// Page Index Worker
+// ============================================================================
+
+const pageIndexWorker = new Worker(
+  QUEUE_NAMES.PAGE_INDEX,
+  async (job: Job) => {
+    const event = createJobLogger(
+      { service: "ingestion-worker", queue: QUEUE_NAMES.PAGE_INDEX },
+      job
+    );
+    event.setOperation("page_index");
+    event.addFields({ pageId: job.data.pageId, contentId: job.data.contentId });
+
+    try {
+      await processPageIndex(job.data);
+      event.success();
+    } catch (error) {
+      if (error instanceof Error) {
+        event.setError(error);
+      } else {
+        event.setError({ type: "UnknownError", message: String(error) });
+      }
+      throw error;
+    } finally {
+      if (shouldSample(event.getEvent(), samplingConfig)) {
+        event.emit();
+      }
+    }
+  },
+  {
+    connection,
+    concurrency: DEFAULT_INDEX_CONCURRENCY,
   }
 );
 
@@ -155,7 +249,7 @@ const embedChunksWorker = new Worker(
   },
   {
     connection,
-    concurrency: EMBED_CONCURRENCY,
+    concurrency: DEFAULT_EMBED_CONCURRENCY,
   }
 );
 
@@ -191,7 +285,7 @@ const enrichPageWorker = new Worker(
   },
   {
     connection,
-    concurrency: Math.max(1, Math.floor(CONCURRENCY / 2)),
+    concurrency: Math.max(1, Math.floor(DEFAULT_CONCURRENCY / 2)),
   }
 );
 
@@ -270,26 +364,23 @@ const kbReindexWorker = new Worker(
 // Graceful Shutdown
 // ============================================================================
 
-process.on("SIGTERM", async () => {
-  logger.info("Received SIGTERM, shutting down...");
+async function shutdown() {
+  logger.info("Shutting down...");
+  
+  // Stop settings refresh
+  settingsClient.stopPeriodicRefresh();
+  
   await sourceRunWorker.close();
   await pageProcessWorker.close();
+  await pageIndexWorker.close();
   await embedChunksWorker.close();
   await enrichPageWorker.close();
   await deletionWorker.close();
   await kbReindexWorker.close();
   process.exit(0);
-});
+}
 
-process.on("SIGINT", async () => {
-  logger.info("Received SIGINT, shutting down...");
-  await sourceRunWorker.close();
-  await pageProcessWorker.close();
-  await embedChunksWorker.close();
-  await enrichPageWorker.close();
-  await deletionWorker.close();
-  await kbReindexWorker.close();
-  process.exit(0);
-});
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
 
 logger.info("Ingestion Worker started successfully");

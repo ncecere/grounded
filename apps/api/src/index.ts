@@ -30,6 +30,7 @@ import { adminAnalyticsRoutes } from "./routes/admin/analytics";
 import { adminTokensRoutes } from "./routes/admin/tokens";
 import { adminAuditRoutes } from "./routes/admin/audit";
 import { toolRoutes } from "./routes/tools";
+import { internalWorkersRoutes } from "./routes/internal/workers";
 import { runMigrations } from "./startup/run-migrations";
 import { seedSystemAdmin } from "./startup/seed-admin";
 
@@ -166,6 +167,9 @@ v1.route("/admin/shared-kbs", adminSharedKbsRoutes);
 v1.route("/admin/analytics", adminAnalyticsRoutes);
 v1.route("/admin/tokens", adminTokensRoutes);
 v1.route("/admin/audit", adminAuditRoutes);
+
+// Internal routes (for workers to fetch configuration)
+v1.route("/internal/workers", internalWorkersRoutes);
 
 // Mount v1 routes
 app.route("/api/v1", v1);

@@ -14,6 +14,7 @@ import {
   isSchedulerRunning,
   getLastCheckTime,
 } from "../../services/health-alerts";
+import { getFairnessMetrics, resetFairnessState } from "@grounded/queue";
 
 export const adminSettingsRoutes = new Hono();
 
@@ -24,7 +25,7 @@ adminSettingsRoutes.use("*", auth(), requireSystemAdmin());
 // Types and Metadata
 // ============================================================================
 
-type SettingCategory = "auth" | "quotas" | "email" | "alerts" | "general";
+type SettingCategory = "auth" | "quotas" | "email" | "alerts" | "general" | "workers";
 
 interface SettingMeta {
   category: SettingCategory;
@@ -190,6 +191,56 @@ const SETTINGS_METADATA: Record<string, SettingMeta> = {
     isSecret: false,
     description: "Include summary even when all tenants are healthy",
     defaultValue: false,
+  },
+
+  // Worker/Fairness Settings
+  "workers.fairness_enabled": {
+    category: "workers",
+    isSecret: false,
+    description: "Enable fairness scheduler to distribute worker capacity across concurrent runs",
+    defaultValue: true,
+  },
+  "workers.fairness_total_slots": {
+    category: "workers",
+    isSecret: false,
+    description: "Total worker slots available for scraping (defaults to WORKER_CONCURRENCY)",
+    defaultValue: 5,
+  },
+  "workers.fairness_min_slots_per_run": {
+    category: "workers",
+    isSecret: false,
+    description: "Minimum slots guaranteed per run (prevents starvation)",
+    defaultValue: 1,
+  },
+  "workers.fairness_max_slots_per_run": {
+    category: "workers",
+    isSecret: false,
+    description: "Maximum slots a single run can use (prevents monopolization)",
+    defaultValue: 10,
+  },
+  "workers.fairness_retry_delay_ms": {
+    category: "workers",
+    isSecret: false,
+    description: "Delay in milliseconds before retrying when slots unavailable",
+    defaultValue: 500,
+  },
+  "workers.scraper_concurrency": {
+    category: "workers",
+    isSecret: false,
+    description: "Number of concurrent page fetch jobs per scraper worker",
+    defaultValue: 5,
+  },
+  "workers.ingestion_concurrency": {
+    category: "workers",
+    isSecret: false,
+    description: "Number of concurrent page processing jobs per ingestion worker",
+    defaultValue: 5,
+  },
+  "workers.embed_concurrency": {
+    category: "workers",
+    isSecret: false,
+    description: "Number of concurrent embedding jobs per worker",
+    defaultValue: 4,
   },
 };
 
@@ -514,4 +565,47 @@ adminSettingsRoutes.post("/alerts/stop", async (c) => {
     running: false,
     message: "Alert scheduler stopped",
   });
+});
+
+// ============================================================================
+// Worker/Fairness Endpoints
+// ============================================================================
+
+/**
+ * Get current fairness scheduler metrics
+ * Shows active runs, slot allocation, and throughput
+ */
+adminSettingsRoutes.get("/workers/fairness/metrics", async (c) => {
+  try {
+    const metrics = await getFairnessMetrics();
+    return c.json({
+      success: true,
+      metrics,
+    });
+  } catch (error) {
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get fairness metrics",
+      metrics: null,
+    });
+  }
+});
+
+/**
+ * Reset fairness state (emergency use only)
+ * Clears all active run registrations and slot counts
+ */
+adminSettingsRoutes.post("/workers/fairness/reset", async (c) => {
+  try {
+    await resetFairnessState();
+    return c.json({
+      success: true,
+      message: "Fairness state reset successfully",
+    });
+  } catch (error) {
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to reset fairness state",
+    });
+  }
 });

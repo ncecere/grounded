@@ -46,6 +46,13 @@ export const sourcesApi = {
     return res.run;
   },
 
+  cancelSourceRun: async (_kbId: string, runId: string) => {
+    const res = await request<{ run: SourceRun }>(`/sources/runs/${runId}/cancel`, {
+      method: "POST",
+    });
+    return res.run;
+  },
+
   listSourceRuns: async (_kbId: string, id: string) => {
     const res = await request<{ runs: SourceRun[] }>(`/sources/${id}/runs`);
     return res.runs;

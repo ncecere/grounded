@@ -65,6 +65,7 @@ export const api = {
   updateSource: sourcesApi.updateSource,
   deleteSource: sourcesApi.deleteSource,
   triggerSourceRun: sourcesApi.triggerSourceRun,
+  cancelSourceRun: sourcesApi.cancelSourceRun,
   listSourceRuns: sourcesApi.listSourceRuns,
   getSourceStats: sourcesApi.getSourceStats,
   uploadFile: sourcesApi.uploadFile,
@@ -190,6 +191,10 @@ export const api = {
   getAuditLogFilters: adminApi.getAuditLogFilters,
   getResourceAuditHistory: adminApi.getResourceAuditHistory,
   getAuditSummary: adminApi.getAuditSummary,
+
+  // Worker/Fairness
+  getFairnessMetrics: adminApi.getFairnessMetrics,
+  resetFairnessState: adminApi.resetFairnessState,
 };
 
 // Export domain APIs for direct use

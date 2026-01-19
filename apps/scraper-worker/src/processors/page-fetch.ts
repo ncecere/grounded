@@ -2,7 +2,15 @@ import type { Browser } from "playwright";
 import { db } from "@grounded/db";
 import { sourceRuns, sourceRunPages, sources, tenantUsage } from "@grounded/db/schema";
 import { eq, sql, and } from "drizzle-orm";
-import { addPageProcessJob, redis } from "@grounded/queue";
+import {
+  redis,
+  incrementStageProgress,
+  storeFetchedHtml,
+  addStageTransitionJob,
+  acquireSlot,
+  releaseSlot,
+  FairnessSlotUnavailableError,
+} from "@grounded/queue";
 import { log } from "@grounded/logger";
 import {
   normalizeUrl,
@@ -10,8 +18,16 @@ import {
   SCRAPE_TIMEOUT_MS,
   MAX_PAGE_SIZE_BYTES,
   type PageFetchJob,
-  FetchMode,
+  SourceRunStage,
+  validateHtmlContentType,
+  isContentTypeEnforcementEnabled,
+  ContentError,
+  ErrorCode,
+  isPlaywrightDownloadsDisabled,
+  shouldLogBlockedDownloads,
+  createBlockedDownloadInfo,
 } from "@grounded/shared";
+
 import { createCrawlState } from "@grounded/crawl-state";
 
 const FIRECRAWL_API_KEY = getEnv("FIRECRAWL_API_KEY", "");
@@ -23,9 +39,47 @@ export async function processPageFetch(
 ): Promise<void> {
   const { tenantId, runId, url, fetchMode, depth = 0, requestId, traceId } = data;
 
+  // Try to acquire a fairness slot before processing
+  // This ensures fair distribution of worker capacity across concurrent source runs
+  const slotResult = await acquireSlot(runId);
+  
+  if (!slotResult.acquired) {
+    // Slot not available - throw special error to trigger delayed retry
+    log.debug("scraper-worker", "Fairness slot not available, will retry", {
+      runId,
+      url,
+      currentSlots: slotResult.currentSlots,
+      maxAllowedSlots: slotResult.maxAllowedSlots,
+      activeRunCount: slotResult.activeRunCount,
+      retryDelayMs: slotResult.retryDelayMs,
+    });
+    throw new FairnessSlotUnavailableError(runId, slotResult);
+  }
+
+  // Slot acquired - process the job
+  // IMPORTANT: Always release the slot in the finally block
+  try {
+    await processPageFetchWithSlot(data, browser);
+  } finally {
+    // Always release the slot, even if processing failed
+    await releaseSlot(runId);
+  }
+}
+
+/**
+ * Internal function that processes the page fetch after a slot has been acquired.
+ * This is separated to ensure the slot is always released in the outer function's finally block.
+ */
+async function processPageFetchWithSlot(
+  data: PageFetchJob,
+  browser: Browser
+): Promise<void> {
+  const { tenantId, runId, url, fetchMode, depth = 0, requestId, traceId } = data;
+
   log.info("scraper-worker", "Fetching page", { url, fetchMode, depth, requestId, traceId });
 
   // Initialize CrawlState for this run
+
   const crawlState = createCrawlState(redis, runId);
 
   // Get run and source
@@ -92,34 +146,50 @@ export async function processPageFetch(
     // Mark URL as fetched in Redis (atomic state transition)
     await crawlState.markFetched(url);
 
-    // Update usage
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    await db
-      .update(tenantUsage)
-      .set({
-        scrapedPages: sql`${tenantUsage.scrapedPages} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(tenantUsage.tenantId, tenantId),
-          eq(tenantUsage.month, currentMonth)
-        )
-      );
+    if (tenantId) {
+      // Update usage
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      await db
+        .update(tenantUsage)
+        .set({
+          scrapedPages: sql`${tenantUsage.scrapedPages} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(tenantUsage.tenantId, tenantId),
+            eq(tenantUsage.month, currentMonth)
+          )
+        );
+    }
 
-    // Queue page processing
-    await addPageProcessJob({
-      tenantId,
-      runId,
-      url,
-      html,
-      title,
-      depth,
-      requestId,
-      traceId,
+    // Store fetched HTML in Redis for later processing (sequential stage model)
+    // The PROCESSING stage will retrieve this HTML when it runs
+    await storeFetchedHtml(runId, url, html, title);
+
+    // Track SCRAPING stage progress (success)
+    const stageProgress = await incrementStageProgress(runId, false);
+    log.info("scraper-worker", "Page fetched successfully", { 
+      url, 
+      stageProgress: `${stageProgress.completed}/${stageProgress.total}`,
     });
 
-    log.info("scraper-worker", "Page fetched successfully", { url });
+    // If SCRAPING stage is complete, trigger transition to PROCESSING
+    if (stageProgress.isComplete) {
+      log.info("scraper-worker", "SCRAPING stage complete, triggering transition to PROCESSING", {
+        runId,
+        completed: stageProgress.completed,
+        failed: stageProgress.failed,
+        total: stageProgress.total,
+      });
+      await addStageTransitionJob({
+        tenantId,
+        runId,
+        completedStage: SourceRunStage.SCRAPING,
+        requestId,
+        traceId,
+      });
+    }
   } catch (error) {
     log.error("scraper-worker", "Error fetching page", { url, error: error instanceof Error ? error.message : String(error) });
 
@@ -138,8 +208,29 @@ export async function processPageFetch(
       error: errorMessage,
     });
 
-    // Check if crawl is complete
-    await checkAndFinalize(runId, tenantId, crawlState);
+    // Track SCRAPING stage progress (failure)
+    const stageProgress = await incrementStageProgress(runId, true);
+    log.debug("scraper-worker", "Page fetch failed, stage progress updated", {
+      url,
+      stageProgress: `${stageProgress.completed + stageProgress.failed}/${stageProgress.total}`,
+    });
+
+    // If SCRAPING stage is complete (even with failures), trigger transition to PROCESSING
+    if (stageProgress.isComplete) {
+      log.info("scraper-worker", "SCRAPING stage complete (with failures), triggering transition to PROCESSING", {
+        runId,
+        completed: stageProgress.completed,
+        failed: stageProgress.failed,
+        total: stageProgress.total,
+      });
+      await addStageTransitionJob({
+        tenantId,
+        runId,
+        completedStage: SourceRunStage.SCRAPING,
+        requestId,
+        traceId,
+      });
+    }
   }
 }
 
@@ -163,6 +254,35 @@ async function fetchWithHttp(
       throw new Error(`HTTP ${response.status}`);
     }
 
+    // Validate content type (HTML allowlist enforcement)
+    if (isContentTypeEnforcementEnabled()) {
+      const contentType = response.headers.get("content-type");
+      const validation = validateHtmlContentType(contentType);
+
+      if (!validation.isValid) {
+        log.info("scraper-worker", "Skipping non-HTML content", {
+          url,
+          contentType: validation.rawContentType,
+          mimeType: validation.mimeType,
+          category: validation.category,
+          reason: validation.rejectionReason,
+        });
+        throw new ContentError(
+          ErrorCode.CONTENT_UNSUPPORTED_TYPE,
+          validation.rejectionReason || `Non-HTML content type: ${validation.mimeType}`,
+          { metadata: { url, contentType: validation.rawContentType, mimeType: validation.mimeType } }
+        );
+      }
+
+      // Log a warning for unknown/empty content types that we're allowing through
+      if (validation.category === "unknown") {
+        log.warn("scraper-worker", "Processing page with unknown content type", {
+          url,
+          contentType: validation.rawContentType,
+        });
+      }
+    }
+
     const contentLength = response.headers.get("content-length");
     if (contentLength && parseInt(contentLength) > MAX_PAGE_SIZE_BYTES) {
       throw new Error("Page too large");
@@ -184,13 +304,36 @@ async function fetchWithPlaywright(
   url: string,
   browser: Browser
 ): Promise<{ html: string; title: string | null }> {
+  // Determine download configuration
+  const downloadsDisabled = isPlaywrightDownloadsDisabled();
+  const logBlockedDownloads = shouldLogBlockedDownloads();
+
   const context = await browser.newContext({
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     viewport: { width: 1280, height: 720 },
+    // Disable downloads during crawl to prevent disk consumption and slow page loading
+    acceptDownloads: !downloadsDisabled,
   });
 
   const page = await context.newPage();
+
+  // Set up download event handler for logging blocked downloads
+  if (downloadsDisabled && logBlockedDownloads) {
+    page.on("download", async (download) => {
+      const downloadInfo = createBlockedDownloadInfo(
+        url,
+        download.url(),
+        download.suggestedFilename()
+      );
+      log.info("scraper-worker", "Blocked download during crawl", {
+        ...downloadInfo,
+        reason: "downloads_disabled",
+      });
+      // Cancel the download
+      await download.cancel();
+    });
+  }
 
   try {
     await page.goto(url, {
@@ -275,29 +418,4 @@ function needsJsRendering(html: string): boolean {
   }
 
   return false;
-}
-
-async function checkAndFinalize(
-  runId: string,
-  tenantId: string,
-  crawlState: ReturnType<typeof createCrawlState>
-): Promise<void> {
-  // Use Redis-based completion check
-  const isComplete = await crawlState.isComplete();
-
-  if (!isComplete) {
-    // Log progress
-    const progress = await crawlState.getProgress();
-    log.debug("scraper-worker", "Run progress", {
-      runId,
-      completed: progress.processed + progress.failed,
-      total: progress.total,
-      percentComplete: progress.percentComplete,
-      queued: progress.queued,
-      fetching: progress.fetched,
-    });
-    return;
-  }
-
-  log.info("scraper-worker", "Crawl complete for run, will be finalized by page-process", { runId });
 }

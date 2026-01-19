@@ -26,6 +26,12 @@ This ensures that tenants cannot access each other's data.
 
 **Navigate to:** Administration > Tenants
 
+![Tenants List](./assets/tenants-list.png)
+
+If no tenants exist yet, you'll see an empty state prompting you to create your first tenant:
+
+![Empty Tenants List](./assets/tenants-list-empty.png)
+
 The tenant list shows:
 - Tenant name
 - Owner email
@@ -36,21 +42,28 @@ The tenant list shows:
 
 ### Tenant Details
 
-Click a tenant to view:
+Click **Manage** on a tenant to view its details:
 
-- **Overview**: Basic information and statistics
+![Tenant Management](./assets/tenant-management.png)
+
 - **Members**: User memberships and roles
-- **Quotas**: Usage limits and current usage
-- **Settings**: Tenant configuration
+- **Alert Settings**: Tenant-specific alert configuration
 
 ## Creating Tenants
 
 ### From Admin Panel
 
 1. Go to **Tenants** > **Create Tenant**
+
+![Create Tenant Dialog](./assets/create-tenant-dialog.png)
+
 2. Enter:
    - **Name**: Organization name
-   - **Owner Email**: Email of initial owner
+   - **Slug**: URL-friendly identifier (auto-generated)
+   - **Owner Email**: Email of initial owner (optional)
+
+![Create Tenant Filled](./assets/create-tenant-filled.png)
+
 3. Click **Create**
 
 If the owner email exists:
@@ -87,11 +100,14 @@ Content-Type: application/json
 
 ### Adding Members
 
-1. Open tenant details
+1. Open tenant details by clicking **Manage**
 2. Go to **Members** tab
-3. Click **Add Member**
-4. Enter email and select role
-5. Click **Add**
+3. Enter email and select role
+4. Click **Add**
+
+![Add Tenant Member](./assets/add-tenant-member.png)
+
+![Tenant Members List](./assets/tenant-members-list.png)
 
 ### Changing Roles
 

@@ -99,6 +99,27 @@ Copy `.env.example` to `.env`. Key variables:
 - `REDIS_URL` - Redis connection
 - `SESSION_SECRET` - JWT signing (32+ chars)
 - `ADMIN_EMAIL/ADMIN_PASSWORD` - Initial admin user
+- `INTERNAL_API_KEY` - For worker-to-API communication (optional in dev)
+
+## Worker Settings
+
+Workers can be configured via environment variables or the Admin UI (Settings > Workers).
+
+**Settings priority**: Admin UI settings take precedence over environment variables. Workers fetch settings from the API at startup and refresh periodically (every 60 seconds by default).
+
+**Fairness Scheduler**: Distributes scraper worker capacity across concurrent source runs to prevent any single run from monopolizing resources. Settings:
+- `workers.fairness_enabled` - Enable/disable fairness scheduling
+- `workers.fairness_total_slots` - Total worker slots available
+- `workers.fairness_min_slots_per_run` - Minimum slots per run (prevents starvation)
+- `workers.fairness_max_slots_per_run` - Maximum slots per run (prevents monopolization)
+- `workers.fairness_retry_delay_ms` - Delay before retry when slots unavailable
+
+**Concurrency Settings** (require worker restart to apply):
+- `workers.scraper_concurrency` - Concurrent page fetch jobs per scraper worker
+- `workers.ingestion_concurrency` - Concurrent processing jobs per ingestion worker
+- `workers.embed_concurrency` - Concurrent embedding jobs per worker
+
+**Internal API**: Workers fetch settings from `/api/v1/internal/workers/settings`. In production, secure this with `INTERNAL_API_KEY`. In development, the endpoint is open if no key is configured.
 
 ## Agent Configuration
 

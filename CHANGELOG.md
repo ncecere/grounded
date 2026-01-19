@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-01-19
+
+### Added
+
+- **Sequential Stage Architecture**: Complete refactor of ingestion pipeline to process stages sequentially (DISCOVERING -> SCRAPING -> PROCESSING -> INDEXING -> EMBEDDING -> COMPLETED), ensuring reliable progress tracking and stage transitions.
+- **Fairness Scheduler for Scraper Worker**: Dynamic fair-share slot allocation system that distributes worker capacity evenly across concurrent source runs, preventing one large run from monopolizing resources.
+- **Worker Settings UI**: New Admin Settings tab for configuring worker fairness and concurrency settings via the UI, with real-time fairness metrics display showing active runs, slot allocation, and fair share per run.
+- **Worker Settings API**: Internal API endpoint (`/api/v1/internal/workers/settings`) for workers to fetch configuration from the database, with `WorkerSettingsClient` for periodic settings refresh.
+- **Stage Progress Tracking**: Redis-based atomic counters for tracking job completion within each stage, enabling accurate stage transition detection.
+- **Stage Transition Jobs**: New job type that coordinates transitions between pipeline stages, queueing jobs for the next stage when the current stage completes.
+- **Upload Support for Global KBs**: Admin can now upload documents directly to shared/global knowledge bases.
+- **Source Run Cancellation Improvements**: Canceling a run now cleans up all pending jobs across queues and unregisters from fairness scheduler.
+
+### Documentation
+
+- **System Settings Guide** (`system-settings.md`): Comprehensive documentation for all admin settings tabs including Authentication (OIDC/SSO), Quotas, Email (SMTP), Alerts, and API Tokens with screenshots.
+- **Shared Knowledge Bases Guide** (`shared-knowledge-bases.md`): New guide covering global KB creation, sharing methods (publish to all vs. individual tenants), source management, and tenant read-only experience.
+- **Worker Settings Guide** (`worker-settings.md`): Documentation for worker concurrency and fairness scheduler configuration via Admin UI.
+- **AI Models Guide Updates**: Enhanced `model-configuration.md` with step-by-step screenshots for adding providers, chat models, and embedding models.
+- **Administration Screenshots**: 40+ new screenshots for admin documentation covering Settings, AI Models, and Shared KBs pages.
+- **Tenant Guide Screenshots**: Updated tenant documentation with screenshots for Knowledge Bases, Agents, Sources, and Team Management.
+
+### Changed
+
+- **Ingestion Pipeline**: Refactored from parallel/chaotic processing to sequential stage-based processing for better reliability and observability.
+- **BullMQ Delayed Job Handling**: Fixed lock errors by properly throwing `DelayedError` after `moveToDelayed()` to signal BullMQ that job state was already handled.
+- **Page Processing**: Split into two stages - PROCESSING (chunking/content extraction) and INDEXING (database writes), with HTML stored temporarily in Redis between SCRAPING and PROCESSING stages.
+
+### Technical
+
+- New `fairness-scheduler.ts` module with Lua scripts for atomic slot acquisition/release
+- New `stage-job-queuer.ts` for batching and queueing jobs at stage transitions
+- New `stage-manager.ts` for stage state management utilities
+- New `stage-transition.ts` processor for handling stage completion events
+- New `page-index.ts` processor for the INDEXING stage
+- Exported `DelayedError` from BullMQ through `@grounded/queue` package
+
 ## [0.2.0] - 2026-01-18
 
 ### Added
@@ -104,6 +141,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - User documentation for administrators and tenants
 - API integration guides
 
-[unreleased]: https://github.com/ncecere/grounded/compare/v0.2.0...HEAD
+[unreleased]: https://github.com/ncecere/grounded/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/ncecere/grounded/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/ncecere/grounded/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ncecere/grounded/releases/tag/v0.1.0

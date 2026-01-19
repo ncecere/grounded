@@ -9,6 +9,12 @@ A knowledge base is a collection of:
 - **Uploads**: Documents you upload directly
 - **Chunks**: Processed text segments ready for search
 
+![Knowledge Bases List](./assets/knowledge-bases-list.png)
+
+If you haven't created any knowledge bases yet, you'll see an empty state with a prompt to create your first one:
+
+![Empty Knowledge Bases](./assets/knowledge-bases-empty.png)
+
 When someone asks a question, the system:
 1. Searches the knowledge base for relevant chunks
 2. Provides those chunks as context to the AI
@@ -26,6 +32,8 @@ When someone asks a question, the system:
    - **Embedding Model**: Usually leave as default
 4. Click **Create**
 
+![Create Knowledge Base](./assets/create-kb-filled.png)
+
 ### Embedding Model Selection
 
 The embedding model determines how text is converted to vectors for search. Once set, it cannot be changed.
@@ -41,6 +49,8 @@ The embedding model determines how text is converted to vectors for search. Once
 
 Web sources automatically fetch and index content from URLs.
 
+![Knowledge Base Detail](./assets/kb-detail-empty.png)
+
 ### Creating a Web Source
 
 1. Open your knowledge base
@@ -50,6 +60,8 @@ Web sources automatically fetch and index content from URLs.
    - **Name**: Identifier for this source
    - **URL**: Starting point URL
    - **Crawl Mode**: How to discover pages
+
+![Add Source Dialog](./assets/add-source-filled.png)
 
 ### Crawl Modes
 
@@ -87,6 +99,8 @@ Exclude: /admin/*, /login/*
 1. Open the source
 2. Click **Start Crawl**
 3. Monitor progress in the **Runs** tab
+
+![Source Running](./assets/source-running.png)
 
 Each run shows:
 - Pages discovered

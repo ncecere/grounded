@@ -1,0 +1,123 @@
+project: grounded-ingestion
+version: "1.0"
+
+tasks:
+  # ===========================================================================
+  # PARALLEL GROUP 1: Architecture & contracts
+  # ===========================================================================
+  - title: Define staged ingestion contract and per-stage status model
+    completed: true
+    parallel_group: 1
+    tags: [architecture, ingestion]
+    acceptance_criteria:
+      - Document inputs/outputs for discover, fetch, extract, chunk, embed, index
+      - Define per-stage status fields and timestamps
+      - Preserve compatibility with existing runs
+
+  - title: Standardize job payload schemas for web and upload sources
+    completed: true
+    parallel_group: 1
+    tags: [architecture, jobs]
+
+  - title: Define error taxonomy with retryable vs permanent categories
+    completed: true
+    parallel_group: 1
+    tags: [reliability, errors]
+
+  # ===========================================================================
+  # PARALLEL GROUP 2: High-volume queueing & backpressure
+  # ===========================================================================
+  - title: Split queues by stage and define concurrency defaults
+    completed: true
+    parallel_group: 2
+    tags: [queue, scaling]
+    depends_on: ["Define staged ingestion contract and per-stage status model"]
+
+  - title: Add per-tenant and per-domain concurrency limits
+    completed: true
+    parallel_group: 2
+    tags: [queue, scaling]
+
+  - title: Implement embed lag backpressure for process queue
+    completed: true
+    parallel_group: 2
+    tags: [queue, backpressure]
+
+  # ===========================================================================
+  # PARALLEL GROUP 3: HTML-only crawling
+  # ===========================================================================
+  - title: Enforce HTML content-type allowlist in fetch
+    completed: true
+    parallel_group: 3
+    tags: [crawl, policy]
+
+  - title: Add skipped_non_html status with reason tracking
+    completed: true
+    parallel_group: 3
+    tags: [crawl, reporting]
+
+  - title: Disable Playwright downloads during crawl
+    completed: true
+    parallel_group: 3
+    tags: [crawl, policy]
+
+  # ===========================================================================
+  # PARALLEL GROUP 4: Retry strategy
+  # ===========================================================================
+  - title: Implement exponential backoff with jitter for retryable errors
+    completed: true
+    parallel_group: 4
+    tags: [reliability, retry]
+
+  - title: Limit retry attempts per stage and log outcomes
+    completed: true
+    parallel_group: 4
+    tags: [reliability, logging]
+
+  # ===========================================================================
+  # PARALLEL GROUP 5: Embedding integrity
+  # ===========================================================================
+  - title: Use deterministic embed job IDs based on chunk IDs
+    completed: true
+    parallel_group: 5
+    tags: [embedding, integrity]
+
+  - title: Track per-chunk embed status and gate run completion
+    completed: true
+    parallel_group: 5
+    tags: [embedding, integrity]
+
+  - title: Add embedding_incomplete run status
+    completed: true
+    parallel_group: 5
+    tags: [embedding, reporting]
+
+  # ===========================================================================
+  # PARALLEL GROUP 6: Robots policy overrides
+  # ===========================================================================
+  - title: Implement robots.txt enforcement with override flag
+    completed: true
+    parallel_group: 6
+    tags: [crawl, policy]
+
+  - title: Log robots override usage and blocked URLs
+    completed: true
+    parallel_group: 6
+    tags: [crawl, logging]
+
+  # ===========================================================================
+  # PARALLEL GROUP 7: Observability
+  # ===========================================================================
+  - title: Emit per-stage throughput and latency metrics
+    completed: true
+    parallel_group: 7
+    tags: [observability, metrics]
+
+  - title: Add run summary logs with error breakdown and skip counts
+    completed: true
+    parallel_group: 7
+    tags: [observability, logs]
+
+metadata:
+  created_at: "2026-01-18"
+  owner: grounded-team

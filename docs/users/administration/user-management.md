@@ -28,6 +28,8 @@ Grounded has two levels of user access:
 
 **Navigate to:** Administration > Users
 
+![Users List](./assets/users-list.png)
+
 The user list shows:
 - Email address
 - Admin status (badge)
@@ -56,10 +58,13 @@ If local registration is enabled (Settings > Authentication):
 
 1. Go to **Users** > **Create User**
 2. Enter the user's email
-3. System generates a temporary password
-4. Click **Create**
-5. Share the temporary password with the user
-6. User must change password on first login
+3. Optionally set a password (or let system generate one)
+4. Optionally make them a System Administrator
+5. Click **Create**
+
+![Create User Dialog](./assets/create-user-dialog.png)
+
+![Create User Filled](./assets/create-user-filled.png)
 
 ### Method 3: OIDC Provisioning
 

@@ -8,25 +8,23 @@ import { PageHeader } from "@/components/ui/page-header";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { FormSection } from "@/components/ui/form-section";
 import { InfoBox } from "@/components/ui/info-box";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ApiKeyManager } from "@/components/api-key-manager";
 import {
   CheckCircle,
   XCircle,
   Mail,
-  AlertTriangle,
-  Play,
-  Square,
-  RefreshCw,
   Key,
   BarChart3,
   Bell,
   Info,
   KeyRound,
+  Settings,
+  RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 
-type SettingsTab = "auth" | "quotas" | "email" | "alerts" | "tokens";
+type SettingsTab = "auth" | "quotas" | "email" | "alerts" | "workers" | "tokens";
 
 interface SettingInputProps {
   setting: SystemSetting;
@@ -162,6 +160,10 @@ export function AdminSettings() {
       title: "Alert Settings",
       description: "Configure automated health monitoring alerts for tenants.",
     },
+    workers: {
+      title: "Worker Settings",
+      description: "Tune worker fairness and throughput behavior.",
+    },
     tokens: {
       title: "API Tokens",
       description: "Create and manage API tokens for system administration automation.",
@@ -202,6 +204,10 @@ export function AdminSettings() {
           <TabsTrigger value="alerts" className="gap-2">
             <Bell className="w-4 h-4" />
             Alerts
+          </TabsTrigger>
+          <TabsTrigger value="workers" className="gap-2">
+            <Settings className="w-4 h-4" />
+            Workers
           </TabsTrigger>
           <TabsTrigger value="tokens" className="gap-2">
             <KeyRound className="w-4 h-4" />
@@ -255,18 +261,23 @@ export function AdminSettings() {
             onUpdate={handleUpdate}
             isUpdating={updateMutation.isPending}
           />
-          <AlertControlSection />
-          <InfoBox icon={AlertTriangle} variant="warning" className="mt-6">
-            <h3 className="text-sm font-medium">Alert Requirements</h3>
-            <p className="mt-1 text-sm">
-              Email alerts require a configured SMTP server. Make sure to set up your
-              SMTP settings in the <strong>Email (SMTP)</strong> tab before enabling alerts.
-            </p>
-          </InfoBox>
+        </TabsContent>
+
+        <TabsContent value="workers">
+          <SettingsSection
+            title={tabDescriptions.workers.title}
+            description={tabDescriptions.workers.description}
+            settings={filteredSettings}
+            onUpdate={handleUpdate}
+            isUpdating={updateMutation.isPending}
+          />
+          <FairnessMetricsSection />
         </TabsContent>
 
         <TabsContent value="tokens">
-          <AdminTokensSection />
+          <FormSection title={tabDescriptions.tokens.title} description={tabDescriptions.tokens.description}>
+            <AdminTokensSection />
+          </FormSection>
         </TabsContent>
       </Tabs>
     </div>
@@ -415,133 +426,120 @@ function AdminTokensSection() {
 }
 
 // ============================================================================
-// Alert Control Section
+// Fairness Metrics Section
 // ============================================================================
 
-function AlertControlSection() {
+function FairnessMetricsSection() {
   const queryClient = useQueryClient();
-  const [checkResult, setCheckResult] = useState<{
-    checked: boolean;
-    tenantsWithIssues: number;
-    alertSent: boolean;
-    error?: string;
-  } | null>(null);
 
-  const { data: alertStatus, isLoading: statusLoading } = useQuery({
-    queryKey: ["alert-status"],
-    queryFn: () => api.getAlertStatus(),
-    refetchInterval: 30000, // Refresh every 30 seconds
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["fairness-metrics"],
+    queryFn: () => api.getFairnessMetrics(),
+    refetchInterval: 5000, // Refresh every 5 seconds
   });
 
-  const runCheckMutation = useMutation({
-    mutationFn: () => api.runHealthCheck(),
-    onSuccess: (data) => {
-      setCheckResult(data);
-      queryClient.invalidateQueries({ queryKey: ["alert-status"] });
+  const resetMutation = useMutation({
+    mutationFn: () => api.resetFairnessState(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fairness-metrics"] });
     },
-    onError: (error) => setCheckResult({
-      checked: false,
-      tenantsWithIssues: 0,
-      alertSent: false,
-      error: error.message,
-    }),
   });
 
-  const startMutation = useMutation({
-    mutationFn: () => api.startAlertScheduler(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alert-status"] }),
-  });
-
-  const stopMutation = useMutation({
-    mutationFn: () => api.stopAlertScheduler(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alert-status"] }),
-  });
-
-  const isRunning = alertStatus?.schedulerRunning ?? false;
+  const metrics = data?.metrics;
 
   return (
     <FormSection
-      title="Alert Scheduler"
-      description="Control the automated health check scheduler and run manual checks."
+      title="Fairness Scheduler Status"
+      description="Real-time status of the scraper fairness scheduler. Shows how worker capacity is distributed across concurrent source runs."
       className="mt-6"
     >
-      {/* Scheduler Status */}
-      <div className="py-4 border-b border-border">
-        <h3 className="text-sm font-medium text-foreground mb-2">Scheduler Status</h3>
-        <div className="flex items-center gap-4">
-          <StatusBadge
-            status={isRunning ? "active" : "inactive"}
-            label={statusLoading ? "Loading..." : isRunning ? "Running" : "Stopped"}
-          />
-          {alertStatus?.lastCheckTime && (
-            <span className="text-sm text-muted-foreground">
-              Last check: {new Date(alertStatus.lastCheckTime).toLocaleString()}
-            </span>
-          )}
+      {isLoading ? (
+        <div className="py-4 text-sm text-muted-foreground">Loading metrics...</div>
+      ) : error || !data?.success ? (
+        <div className="py-4 flex items-center gap-2 text-sm text-destructive">
+          <AlertTriangle className="w-4 h-4" />
+          {data?.error || "Failed to load fairness metrics"}
         </div>
-      </div>
+      ) : metrics ? (
+        <div className="py-4 space-y-4">
+          {/* Summary Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-3 bg-muted rounded-lg">
+              <div className="text-xs text-muted-foreground">Active Runs</div>
+              <div className="text-2xl font-semibold">{metrics.activeRunCount}</div>
+            </div>
+            <div className="p-3 bg-muted rounded-lg">
+              <div className="text-xs text-muted-foreground">Slots In Use</div>
+              <div className="text-2xl font-semibold">
+                {metrics.totalSlotsInUse} / {metrics.totalSlotsAvailable}
+              </div>
+            </div>
+            <div className="p-3 bg-muted rounded-lg">
+              <div className="text-xs text-muted-foreground">Fair Share/Run</div>
+              <div className="text-2xl font-semibold">{metrics.fairSharePerRun}</div>
+            </div>
+            <div className="p-3 bg-muted rounded-lg">
+              <div className="text-xs text-muted-foreground">Last Updated</div>
+              <div className="text-sm font-medium">
+                {new Date(metrics.timestamp).toLocaleTimeString()}
+              </div>
+            </div>
+          </div>
 
-      {/* Scheduler Controls */}
-      <div className="py-4 border-b border-border">
-        <h3 className="text-sm font-medium text-foreground mb-2">Scheduler Controls</h3>
-        <div className="flex items-center gap-3">
-          {isRunning ? (
+          {/* Per-Run Slot Allocation */}
+          {Object.keys(metrics.runSlots).length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-sm font-medium mb-2">Active Run Slot Allocation</h4>
+              <div className="space-y-2">
+                {Object.entries(metrics.runSlots).map(([runId, slots]) => (
+                  <div key={runId} className="flex items-center gap-2 text-sm">
+                    <code className="text-xs bg-muted px-2 py-0.5 rounded">
+                      {runId.substring(0, 8)}...
+                    </code>
+                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all"
+                        style={{
+                          width: `${Math.min(100, (slots / metrics.totalSlotsAvailable) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="text-xs text-muted-foreground w-12 text-right">
+                      {slots} slots
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Reset Button */}
+          <div className="pt-4 border-t border-border">
             <Button
               variant="outline"
-              onClick={() => stopMutation.mutate()}
-              disabled={stopMutation.isPending}
+              size="sm"
+              onClick={() => resetMutation.mutate()}
+              disabled={resetMutation.isPending}
+              className="gap-2"
             >
-              <Square className="w-4 h-4 mr-2" />
-              {stopMutation.isPending ? "Stopping..." : "Stop Scheduler"}
+              <RefreshCw className={`w-4 h-4 ${resetMutation.isPending ? "animate-spin" : ""}`} />
+              Reset Fairness State
             </Button>
-          ) : (
-            <Button
-              onClick={() => startMutation.mutate()}
-              disabled={startMutation.isPending}
-            >
-              <Play className="w-4 h-4 mr-2" />
-              {startMutation.isPending ? "Starting..." : "Start Scheduler"}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Manual Check */}
-      <div className="py-4">
-        <h3 className="text-sm font-medium text-foreground mb-2">Manual Health Check</h3>
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={() => runCheckMutation.mutate()}
-            disabled={runCheckMutation.isPending}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${runCheckMutation.isPending ? "animate-spin" : ""}`} />
-            {runCheckMutation.isPending ? "Running..." : "Run Health Check Now"}
-          </Button>
-        </div>
-        {checkResult && (
-          <div className={`mt-3 p-3 rounded-lg ${
-            checkResult.error
-              ? "bg-destructive/10 text-destructive"
-              : checkResult.tenantsWithIssues > 0
-              ? "bg-warning/10 text-warning"
-              : "bg-success/10 text-success"
-          }`}>
-            {checkResult.error ? (
-              <p>Error: {checkResult.error}</p>
-            ) : checkResult.checked ? (
-              <p>
-                Check complete. {checkResult.tenantsWithIssues === 0
-                  ? "All tenants are healthy."
-                  : `Found ${checkResult.tenantsWithIssues} tenant(s) with issues.`}
-                {checkResult.alertSent && " Alert email sent."}
-              </p>
-            ) : (
-              <p>Check skipped (alerts disabled or not configured)</p>
-            )}
+            <p className="mt-1 text-xs text-muted-foreground">
+              Emergency reset - clears all active run registrations and slot counts.
+            </p>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="py-4 text-sm text-muted-foreground">
+          No active runs. Fairness metrics will appear when source runs are processing.
+        </div>
+      )}
     </FormSection>
   );
 }
+
+// ============================================================================
+// Alert Control Section
+// ============================================================================
+

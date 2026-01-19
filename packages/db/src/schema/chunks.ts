@@ -69,7 +69,6 @@ export const uploads = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: uuid("tenant_id")
-      .notNull()
       .references(() => tenants.id, { onDelete: "cascade" }),
     kbId: uuid("kb_id")
       .notNull()

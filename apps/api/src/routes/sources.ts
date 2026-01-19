@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { sources, sourceRuns, knowledgeBases } from "@grounded/db/schema";
-import { eq, and, isNull, desc } from "drizzle-orm";
-import { redis } from "@grounded/queue";
+import { eq, and, isNull, desc, inArray, or, lt } from "drizzle-orm";
+import { redis, removeAllJobsForRun, unregisterRun } from "@grounded/queue";
 import { createCrawlState } from "@grounded/crawl-state";
+import { log } from "@grounded/logger";
 import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
 import { NotFoundError, ForbiddenError } from "../middleware/error-handler";
 import {
@@ -362,27 +363,47 @@ sourceRoutes.post(
     const authContext = c.get("auth");
 
     const run = await withRequestRLS(c, async (tx) => {
-      const [run] = await tx
-        .update(sourceRuns)
-        .set({
-          status: "canceled",
-          finishedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(sourceRuns.id, runId),
-            eq(sourceRuns.tenantId, authContext.tenantId!),
-            eq(sourceRuns.status, "running")
+        const [run] = await tx
+          .update(sourceRuns)
+          .set({
+            status: "canceled",
+            finishedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(sourceRuns.id, runId),
+              eq(sourceRuns.tenantId, authContext.tenantId!),
+              inArray(sourceRuns.status, ["running", "pending"])
+            )
           )
-        )
-        .returning();
+          .returning();
 
       return run;
     });
 
     if (!run) {
-      throw new NotFoundError("Running source run");
+      throw new NotFoundError("Cancelable source run");
     }
+
+    // Clean up pending jobs for this run to prevent queue blockage
+    // Also unregister from fairness scheduler to free up slots
+    // This runs async but we don't need to wait for it
+    Promise.all([
+      removeAllJobsForRun(runId),
+      unregisterRun(runId),
+    ]).then(([removed]) => {
+      if (removed.total > 0) {
+        log.info("api", "Cleaned up pending jobs for canceled run", {
+          runId,
+          removedJobs: removed,
+        });
+      }
+    }).catch((error) => {
+      log.error("api", "Failed to clean up jobs for canceled run", {
+        runId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
 
     return c.json({ run });
   }
