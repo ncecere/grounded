@@ -1829,6 +1829,7 @@ export {
   getFairnessConfig,
   resetFairnessConfigCache,
   setFairnessConfig,
+  updateFairnessConfigFromSettings,
   // Utilities
   resetFairnessState,
   // Error types

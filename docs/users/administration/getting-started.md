@@ -36,6 +36,8 @@ INSERT INTO system_admins (user_id) VALUES ('your-user-id');
 
 After logging in as a system admin, you'll see the admin navigation in the sidebar:
 
+![Admin Dashboard](./assets/admin-dashboard.png)
+
 | Section | Purpose |
 |---------|---------|
 | **Dashboard** | System health and overview metrics |
@@ -44,7 +46,8 @@ After logging in as a system admin, you'll see the admin navigation in the sideb
 | **Users** | Manage user accounts |
 | **Shared KBs** | Global knowledge bases |
 | **AI Models** | Configure LLM providers |
-| **Settings** | System configuration |
+| **Settings** | System configuration (auth, quotas, email, alerts, workers) |
+| **Audit Logs** | View system audit trail |
 
 ## Initial Setup Checklist
 
@@ -53,6 +56,8 @@ After logging in as a system admin, you'll see the admin navigation in the sideb
 Before users can chat, you need to configure at least one LLM provider.
 
 **Navigate to:** Settings > AI Models
+
+![AI Models - Providers](./assets/ai-models-providers.png)
 
 **Add a Provider:**
 
@@ -89,6 +94,8 @@ Before users can chat, you need to configure at least one LLM provider.
 
 **Navigate to:** Settings
 
+![Settings Overview](./assets/settings-overview.png)
+
 Review and configure:
 
 **Authentication:**
@@ -103,15 +110,27 @@ Review and configure:
 - Configure alert email
 - Set latency thresholds
 
+**Workers:**
+- Configure worker concurrency
+- Manage fairness scheduler settings
+
+![Worker Settings](./assets/workers-settings.png)
+
 ### 3. Create Your First Tenant
 
 **Navigate to:** Tenants > Create Tenant
+
+![Create Tenant Dialog](./assets/create-tenant-dialog.png)
 
 1. Enter tenant name (e.g., "My Company")
 2. Add the owner's email
 3. Click **Create**
 
+![Create Tenant Filled](./assets/create-tenant-filled.png)
+
 The owner will receive access to their new tenant.
+
+![Tenants List](./assets/tenants-list.png)
 
 ### 4. Verify System Health
 
@@ -206,6 +225,17 @@ For large organizations:
 4. Configure quotas based on department size
 5. Enable health monitoring and alerts
 
+## Monitoring with Audit Logs
+
+Track all system activity in **Audit Logs**:
+
+![Audit Logs](./assets/audit-logs.png)
+
+- User logins and logouts
+- Tenant creation and deletion
+- Configuration changes
+- API access
+
 ## Next Steps
 
 After initial setup:
@@ -213,6 +243,7 @@ After initial setup:
 1. **[Model Configuration](./model-configuration.md)** - Deep dive into AI model setup
 2. **[User Management](./user-management.md)** - Managing users and access
 3. **[Tenant Management](./tenant-management.md)** - Working with tenants
+4. **[Worker Settings](./worker-settings.md)** - Configure worker concurrency and fairness
 
 ---
 

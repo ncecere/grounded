@@ -1,5 +1,5 @@
-import { Worker, Job, connection, QUEUE_NAMES, isFairnessSlotError, getFairnessConfig, DelayedError } from "@grounded/queue";
-import { getEnvNumber, getEnvBool } from "@grounded/shared";
+import { Worker, Job, connection, QUEUE_NAMES, isFairnessSlotError, getFairnessConfig, updateFairnessConfigFromSettings, DelayedError } from "@grounded/queue";
+import { getEnvNumber, getEnvBool, initSettingsClient, type WorkerSettings } from "@grounded/shared";
 import { createWorkerLogger, createJobLogger } from "@grounded/logger/worker";
 import { shouldSample, createSamplingConfig } from "@grounded/logger";
 import { chromium, Browser } from "playwright";
@@ -7,12 +7,37 @@ import { processPageFetch } from "./processors/page-fetch";
 
 const logger = createWorkerLogger("scraper-worker");
 
-const CONCURRENCY = getEnvNumber("WORKER_CONCURRENCY", 5);
+// Default concurrency from environment (used as fallback)
+const DEFAULT_CONCURRENCY = getEnvNumber("WORKER_CONCURRENCY", 5);
 const HEADLESS = getEnvBool("PLAYWRIGHT_HEADLESS", true);
 
-// Initialize fairness config with worker concurrency
-// This ensures the fairness scheduler knows how many total slots are available
-getFairnessConfig(CONCURRENCY);
+// Current concurrency (may be updated from API settings)
+let currentConcurrency = DEFAULT_CONCURRENCY;
+
+// Initialize fairness config with default worker concurrency
+// This will be updated when we fetch settings from API
+getFairnessConfig(DEFAULT_CONCURRENCY);
+
+// Initialize settings client with callback to update fairness config
+const settingsClient = initSettingsClient({
+  onSettingsUpdate: (settings: WorkerSettings) => {
+    logger.info({ 
+      fairness: settings.fairness,
+      scraperConcurrency: settings.scraper.concurrency,
+    }, "Settings updated from API");
+    
+    // Update fairness scheduler config
+    updateFairnessConfigFromSettings(settings.fairness);
+    
+    // Track concurrency changes (worker restart required to apply)
+    if (settings.scraper.concurrency !== currentConcurrency) {
+      logger.warn({
+        oldConcurrency: currentConcurrency,
+        newConcurrency: settings.scraper.concurrency,
+      }, "Scraper concurrency changed in settings - restart worker to apply");
+    }
+  },
+});
 
 // Sampling config from environment variables with worker-specific defaults
 // Workers log 100% by default (can reduce with LOG_SAMPLE_RATE env var)
@@ -21,7 +46,26 @@ const samplingConfig = createSamplingConfig({
   slowRequestThresholdMs: 30000, // 30s is slow for a job
 });
 
-logger.info({ concurrency: CONCURRENCY, headless: HEADLESS }, "Starting Scraper Worker...");
+// Fetch settings from API at startup
+async function initializeSettings(): Promise<void> {
+  try {
+    const settings = await settingsClient.fetchSettings();
+    logger.info({ 
+      fairness: settings.fairness,
+      scraperConcurrency: settings.scraper.concurrency,
+    }, "Loaded settings from API");
+    
+    // Update fairness config with API settings
+    updateFairnessConfigFromSettings(settings.fairness);
+    
+    // Use concurrency from API settings
+    currentConcurrency = settings.scraper.concurrency;
+  } catch (error) {
+    logger.warn({ error }, "Failed to load settings from API, using environment defaults");
+  }
+}
+
+logger.info({ concurrency: DEFAULT_CONCURRENCY, headless: HEADLESS }, "Starting Scraper Worker...");
 
 // ============================================================================
 // Browser Pool
@@ -105,9 +149,28 @@ const pageFetchWorker = new Worker(
   },
   {
     connection,
-    concurrency: CONCURRENCY,
+    concurrency: DEFAULT_CONCURRENCY, // Use default initially, settings loaded async
   }
 );
+
+// ============================================================================
+// Startup
+// ============================================================================
+
+// Start the worker and load settings
+(async () => {
+  try {
+    // Load settings from API (will update fairness config)
+    await initializeSettings();
+    
+    // Start periodic settings refresh (every minute by default)
+    settingsClient.startPeriodicRefresh();
+    
+    logger.info("Scraper Worker started successfully");
+  } catch (error) {
+    logger.error({ error }, "Failed to initialize settings, continuing with defaults");
+  }
+})();
 
 // ============================================================================
 // Graceful Shutdown
@@ -115,6 +178,9 @@ const pageFetchWorker = new Worker(
 
 async function shutdown(): Promise<void> {
   logger.info("Shutting down...");
+
+  // Stop settings refresh
+  settingsClient.stopPeriodicRefresh();
 
   await pageFetchWorker.close();
 
@@ -128,5 +194,3 @@ async function shutdown(): Promise<void> {
 
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
-
-logger.info("Scraper Worker started successfully");

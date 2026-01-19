@@ -10,6 +10,12 @@ An agent combines:
 - **LLM Model**: The AI that generates responses
 - **Retrieval Settings**: How content is searched
 
+![Agents List](./assets/agents-list.png)
+
+If you haven't created any agents yet, you'll see an empty state:
+
+![Empty Agents](./assets/agents-empty.png)
+
 ## Creating an Agent
 
 ### Basic Setup
@@ -21,11 +27,19 @@ An agent combines:
    - **Description**: What this agent does
    - **Welcome Message**: First message shown to users
 
+![Create Agent - General](./assets/create-agent-general.png)
+
 4. Select **Knowledge Bases**:
    - Choose one or more KBs
    - Agent can reference all attached KBs
 
-5. Click **Create**
+![Create Agent - Model & KB](./assets/create-agent-model-kb.png)
+
+5. Configure **Search** settings (optional):
+
+![Create Agent - Search](./assets/create-agent-search.png)
+
+6. Click **Create**
 
 ### Initial Configuration
 
@@ -171,6 +185,8 @@ Go to **Agent** > **Retrieval Config**
 
 Access via **Agent** > **Test Chat**
 
+![Test Chat](./assets/test-chat.png)
+
 Test features:
 - Send messages as users would
 - See full responses with citations
@@ -215,6 +231,10 @@ Embed the agent as a chat widget on your website.
 4. Copy the embed code
 5. Add to your website
 
+![Widget Configuration](./assets/widget-config.png)
+
+![Widget Embed Code](./assets/widget-embed-code.png)
+
 See [Widget Integration](../integration/widget.md) for details.
 
 ### API (Programmatic)
@@ -224,6 +244,8 @@ Integrate the agent via REST API.
 1. Click the **Chat** button on your agent
 2. Click **Create API Endpoint**
 3. Copy the endpoint URL for use in your application
+
+![Chat Endpoints](./assets/chat-endpoints.png)
 
 See [API Integration](../integration/api.md) for details.
 

@@ -122,11 +122,28 @@ CORS_ORIGINS=https://grounded.yourdomain.com,https://app.yourdomain.com
 CORS_ORIGINS=*
 ```
 
+### Internal Communication
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `INTERNAL_API_KEY` | No | - | API key for worker-to-API communication |
+| `SKIP_MIGRATIONS` | No | `false` | Skip database migrations on startup |
+
+**Internal API Key:**
+Workers fetch configuration from the API. In production, secure this with a key:
+```bash
+# Generate a secure key
+openssl rand -hex 32
+```
+
+If not set, the internal API endpoints are open (suitable for local development only).
+
 ### External Services
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `FIRECRAWL_API_KEY` | No | - | Firecrawl API key for enhanced scraping |
+| `FIRECRAWL_API_URL` | No | - | Custom Firecrawl endpoint URL |
 
 ### Email Configuration
 
@@ -179,6 +196,40 @@ These settings are configured through the admin UI after deployment.
 | `health.databaseLatencyThresholdMs` | DB latency alert | `1000` |
 | `health.vectorStoreLatencyThresholdMs` | Vector latency alert | `2000` |
 | `health.llmLatencyThresholdMs` | LLM latency alert | `10000` |
+
+### Worker Settings
+
+Worker settings can be configured via the Admin UI (Settings > Workers) or environment variables. **Admin UI settings take precedence**.
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `workers.fairness_enabled` | Enable fairness scheduler | `true` |
+| `workers.fairness_total_slots` | Total worker slots available | `5` |
+| `workers.fairness_min_slots_per_run` | Minimum slots per run | `1` |
+| `workers.fairness_max_slots_per_run` | Maximum slots per run | `10` |
+| `workers.fairness_retry_delay_ms` | Retry delay when slots unavailable | `500` |
+| `workers.scraper_concurrency` | Concurrent scraper jobs | `5` |
+| `workers.ingestion_concurrency` | Concurrent ingestion jobs | `5` |
+| `workers.embed_concurrency` | Concurrent embedding jobs | `4` |
+
+**Environment Variable Fallbacks:**
+
+Workers use these environment variables when Admin UI settings aren't configured:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WORKER_CONCURRENCY` | `5` | Scraper/ingestion worker concurrency |
+| `INDEX_WORKER_CONCURRENCY` | `5` | Page index worker concurrency |
+| `EMBED_WORKER_CONCURRENCY` | `4` | Embedding worker concurrency |
+| `FAIRNESS_DISABLED` | `false` | Disable fairness scheduler |
+| `FAIRNESS_TOTAL_SLOTS` | `5` | Total slots (defaults to WORKER_CONCURRENCY) |
+| `FAIRNESS_MIN_SLOTS_PER_RUN` | `1` | Minimum slots per run |
+| `FAIRNESS_MAX_SLOTS_PER_RUN` | `10` | Maximum slots per run |
+| `FAIRNESS_RETRY_DELAY_MS` | `500` | Retry delay in milliseconds |
+| `FAIRNESS_DEBUG` | `false` | Enable debug logging |
+| `SETTINGS_REFRESH_INTERVAL_MS` | `60000` | How often workers refresh settings |
+
+See [Worker Settings](../administration/worker-settings.md) for detailed configuration guidance.
 
 ## AI Model Configuration
 
@@ -281,16 +332,12 @@ Per-agent widget settings:
 DATABASE_URL=postgres://grounded:your_password@localhost:5432/grounded
 
 # Vector database (pgvector)
-VECTOR_DB_TYPE=pgvector
 VECTOR_DB_URL=postgres://grounded_vectors:your_password@localhost:5433/vectors
 
 # For Docker Compose (creates these users/databases)
 POSTGRES_USER=grounded
 POSTGRES_PASSWORD=your_password
 POSTGRES_DB=grounded
-VECTOR_DB_USER=grounded_vectors
-VECTOR_DB_PASSWORD=your_password
-VECTOR_DB_NAME=vectors
 
 # -----------------------------------------------------------------------------
 # Redis
@@ -303,6 +350,9 @@ REDIS_URL=redis://localhost:6379
 # JWT signing secret (generate with: openssl rand -base64 48)
 SESSION_SECRET=your_64_character_random_string_here
 
+# Internal API key for worker communication (generate with: openssl rand -hex 32)
+# INTERNAL_API_KEY=your_internal_api_key
+
 # -----------------------------------------------------------------------------
 # Authentication
 # -----------------------------------------------------------------------------
@@ -311,10 +361,10 @@ ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=SecurePassword123!
 
 # OIDC Configuration (optional)
-OIDC_ISSUER_URL=
-OIDC_CLIENT_ID=
-OIDC_CLIENT_SECRET=
-OIDC_REDIRECT_URI=
+# OIDC_ISSUER=https://your-idp.com
+# OIDC_CLIENT_ID=your-client-id
+# OIDC_CLIENT_SECRET=your-secret
+# OIDC_REDIRECT_URI=https://grounded.yourdomain.com/api/v1/auth/oidc/callback
 
 # -----------------------------------------------------------------------------
 # API Configuration
@@ -328,14 +378,35 @@ API_URL=https://grounded.yourdomain.com
 # External Services (optional)
 # -----------------------------------------------------------------------------
 # Firecrawl for enhanced web scraping
-FIRECRAWL_API_KEY=
+# FIRECRAWL_API_KEY=your-firecrawl-key
 
 # Email (SMTP)
-SMTP_HOST=
-SMTP_PORT=587
-SMTP_USER=
-SMTP_PASSWORD=
-SMTP_FROM=
+# SMTP_HOST=smtp.sendgrid.net
+# SMTP_PORT=587
+# SMTP_USER=apikey
+# SMTP_PASSWORD=your-smtp-password
+# SMTP_FROM=noreply@yourdomain.com
+
+# -----------------------------------------------------------------------------
+# Worker Configuration (optional - prefer Admin UI settings)
+# -----------------------------------------------------------------------------
+# Worker concurrency (fallback values)
+# WORKER_CONCURRENCY=5
+# INDEX_WORKER_CONCURRENCY=5
+# EMBED_WORKER_CONCURRENCY=4
+
+# Fairness scheduler (fallback values)
+# FAIRNESS_DISABLED=false
+# FAIRNESS_TOTAL_SLOTS=5
+# FAIRNESS_MIN_SLOTS_PER_RUN=1
+# FAIRNESS_MAX_SLOTS_PER_RUN=10
+# FAIRNESS_RETRY_DELAY_MS=500
+
+# -----------------------------------------------------------------------------
+# Logging (optional)
+# -----------------------------------------------------------------------------
+# LOG_LEVEL=info
+# LOG_SAMPLE_RATE=1.0
 
 # =============================================================================
 # Note: LLM API keys are configured in the admin UI, not environment variables

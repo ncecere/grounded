@@ -41,11 +41,12 @@ Team management allows you to:
 
 ### Send an Invitation
 
-1. Go to **Settings** > **Team**
-2. Click **Invite Member**
-3. Enter email address
-4. Select role
-5. Click **Send Invitation**
+1. Go to **Settings** > **Team Members**
+2. Enter the email address
+3. Select role from dropdown
+4. Click **Add**
+
+![Team Settings](./assets/tenant-settings-team.png)
 
 ### Invitation Process
 
@@ -71,11 +72,13 @@ Invitations expire after 7 days. Resend if expired.
 
 ### View Team
 
-Go to **Settings** > **Team** to see:
+Go to **Settings** > **Team Members** to see:
 - All team members
 - Their roles
-- Join date
-- Last active
+- Role change dropdown
+- Remove button
+
+![Team Members](./assets/tenant-settings-team.png)
 
 ### Change User Role
 
@@ -134,6 +137,17 @@ Chat endpoints are public and don't require authentication. However, they are ti
 - Endpoints can be created by users with edit access to the agent
 - Endpoints can be revoked by the creator or admins
 - Each endpoint is specific to one agent
+
+### API Keys
+
+For programmatic access, create API keys in **Settings** > **API Keys**:
+
+![API Keys](./assets/tenant-settings-api-keys.png)
+
+1. Click **Create API Key**
+2. Give it a descriptive name
+3. Copy the key immediately (it won't be shown again)
+4. Use the key in the `Authorization: Bearer <key>` header
 
 ## Activity Monitoring
 

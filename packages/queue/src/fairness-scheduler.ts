@@ -23,11 +23,13 @@ import {
   type FairnessSlotResult,
   type FairnessMetrics,
   FAIRNESS_ACTIVE_RUNS_KEY,
+  FAIRNESS_SLOT_TTL_SECONDS,
   buildFairnessSlotKey,
   buildFairnessLastServedKey,
   resolveFairnessConfig,
   calculateFairShare,
   getDefaultFairnessConfig,
+  type FairnessSettings,
 } from "@grounded/shared";
 import { redis } from "./index";
 
@@ -36,6 +38,7 @@ import { redis } from "./index";
 // ============================================================================
 
 let cachedConfig: FairnessConfig | null = null;
+let defaultTotalSlotsValue: number = 5;
 
 /**
  * Gets the fairness configuration, resolving from environment on first call.
@@ -44,10 +47,15 @@ let cachedConfig: FairnessConfig | null = null;
  * @returns Resolved FairnessConfig
  */
 export function getFairnessConfig(defaultTotalSlots: number = 5): FairnessConfig {
+  // Store the default for later use
+  if (defaultTotalSlots !== 5) {
+    defaultTotalSlotsValue = defaultTotalSlots;
+  }
+  
   if (!cachedConfig) {
     cachedConfig = resolveFairnessConfig(
       (key) => process.env[key],
-      defaultTotalSlots
+      defaultTotalSlotsValue
     );
   }
   return cachedConfig;
@@ -61,10 +69,56 @@ export function resetFairnessConfigCache(): void {
 }
 
 /**
- * Sets the fairness configuration directly. Useful for testing.
+ * Sets the fairness configuration directly. Useful for testing or dynamic updates.
  */
 export function setFairnessConfig(config: FairnessConfig): void {
   cachedConfig = config;
+}
+
+/**
+ * Updates the fairness configuration from FairnessSettings (from API).
+ * This allows workers to dynamically update config when settings change in the Admin UI.
+ * 
+ * @param settings - Fairness settings from the API
+ */
+export function updateFairnessConfigFromSettings(settings: FairnessSettings): void {
+  const newConfig: FairnessConfig = {
+    enabled: settings.enabled,
+    totalSlots: Math.max(1, settings.totalSlots),
+    minSlotsPerRun: Math.max(1, settings.minSlotsPerRun),
+    maxSlotsPerRun: Math.max(1, settings.maxSlotsPerRun),
+    retryDelayMs: Math.max(100, settings.retryDelayMs),
+    slotTtlSeconds: FAIRNESS_SLOT_TTL_SECONDS,
+    debug: cachedConfig?.debug ?? false, // Preserve debug setting
+  };
+  
+  // Log if config changed
+  if (cachedConfig) {
+    const changes: string[] = [];
+    if (cachedConfig.enabled !== newConfig.enabled) {
+      changes.push(`enabled: ${cachedConfig.enabled} -> ${newConfig.enabled}`);
+    }
+    if (cachedConfig.totalSlots !== newConfig.totalSlots) {
+      changes.push(`totalSlots: ${cachedConfig.totalSlots} -> ${newConfig.totalSlots}`);
+    }
+    if (cachedConfig.minSlotsPerRun !== newConfig.minSlotsPerRun) {
+      changes.push(`minSlotsPerRun: ${cachedConfig.minSlotsPerRun} -> ${newConfig.minSlotsPerRun}`);
+    }
+    if (cachedConfig.maxSlotsPerRun !== newConfig.maxSlotsPerRun) {
+      changes.push(`maxSlotsPerRun: ${cachedConfig.maxSlotsPerRun} -> ${newConfig.maxSlotsPerRun}`);
+    }
+    if (cachedConfig.retryDelayMs !== newConfig.retryDelayMs) {
+      changes.push(`retryDelayMs: ${cachedConfig.retryDelayMs} -> ${newConfig.retryDelayMs}`);
+    }
+    
+    if (changes.length > 0) {
+      console.log(`[Fairness] Config updated: ${changes.join(", ")}`);
+    }
+  } else {
+    console.log("[Fairness] Config initialized from API settings");
+  }
+  
+  cachedConfig = newConfig;
 }
 
 // ============================================================================

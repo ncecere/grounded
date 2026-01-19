@@ -19,6 +19,8 @@ A tenant is your organization's workspace in Grounded. Within your tenant, you c
    - **Email/Password**: Use the login form
    - **SSO**: Click "Sign in with SSO" if configured
 
+![Login Page](./assets/login-page.png)
+
 ### Selecting Your Tenant
 
 If you belong to multiple tenants:
@@ -28,6 +30,12 @@ If you belong to multiple tenants:
 3. Select the tenant you want to work with
 
 Your current tenant is shown in the header.
+
+![Tenant Workspace](./assets/tenant-workspace.png)
+
+When you first access a tenant with no knowledge bases, you'll see the empty state:
+
+![Tenant Dashboard](./assets/tenant-dashboard.png)
 
 ## Navigation Overview
 
@@ -66,6 +74,8 @@ A knowledge base stores your content for the AI to reference.
 3. Enter a name (e.g., "Product Documentation")
 4. Click **Create**
 
+![Create Knowledge Base](./assets/create-kb-dialog.png)
+
 ### 2. Add Content
 
 Add sources to your knowledge base:
@@ -87,6 +97,8 @@ Add sources to your knowledge base:
 5. Click **Create**
 6. Click **Start Crawl**
 
+![Add Web Source](./assets/add-source-dialog.png)
+
 ### 3. Create an Agent
 
 An agent is the AI that answers questions using your knowledge.
@@ -99,12 +111,16 @@ An agent is the AI that answers questions using your knowledge.
    - **System Prompt**: (optional) Customize behavior
 4. Click **Create**
 
+![Create Agent](./assets/create-agent-dialog.png)
+
 ### 4. Test Your Agent
 
 1. Open your agent
 2. Click **Test Chat**
 3. Ask questions about your content
 4. Verify responses include citations
+
+![Test Chat](./assets/test-chat.png)
 
 ### 5. Deploy
 
@@ -151,6 +167,8 @@ The analytics dashboard shows:
 - Average response time
 - Daily usage trends
 - Agent-specific metrics
+
+![Analytics](./assets/analytics.png)
 
 ## Common Tasks
 

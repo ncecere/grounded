@@ -16,8 +16,12 @@ Web sources automatically fetch and index content from URLs.
 
 1. Open your knowledge base
 2. Go to **Sources** tab
-3. Click **Add Web Source**
+3. Click **Add Source**
 4. Configure the source settings
+
+![Add Source Dialog](./assets/add-source-dialog.png)
+
+![Add Source Filled](./assets/add-source-filled.png)
 
 ### Source Configuration
 
@@ -129,10 +133,14 @@ Configure automatic re-crawling to keep content fresh.
 #### Manual Trigger
 
 1. Open the source
-2. Click **Start Crawl**
-3. Monitor progress in **Runs** tab
+2. Click **Run Now**
+3. Monitor progress as the crawl runs
+
+![Source Created](./assets/source-created.png)
 
 #### Viewing Crawl Status
+
+![Source Running](./assets/source-running.png)
 
 Each crawl run shows:
 - **Status**: Running, Completed, Failed
