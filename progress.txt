@@ -995,6 +995,23 @@ Created a tenant analytics pass rate line chart with zone shading, tooltips, and
 ### Tests
 - `bun test apps/web/src/components/analytics/PassRateLineChart.test.ts`
 
+## 2026-01-20: Create recent regressions analytics table
+
+### Summary
+Added the RecentRegressionsTable component to highlight failing test suite runs with pass rate deltas and run links.
+
+### Changes Made
+1. **apps/web/src/components/analytics/RecentRegressionsTable.tsx** (new file)
+   - Added regressions table UI with agent/suite labels, pass rate change styling, and relative timestamps
+   - Included empty and loading states plus run selection action
+   - Added formatting helpers for pass rate change and relative time
+
+2. **apps/web/src/components/analytics/RecentRegressionsTable.test.ts** (new file)
+   - Added module export coverage and helper formatting tests
+
+### Tests
+- `bun test apps/web/src/components/analytics/RecentRegressionsTable.test.ts`
+
 ## 2026-01-18: Track per-chunk embed status and gate run completion
 
 ### Summary
