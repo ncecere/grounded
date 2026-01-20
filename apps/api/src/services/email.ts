@@ -37,6 +37,18 @@ interface TenantHealthAlert {
   totalQueries: number;
 }
 
+interface TestRegressionAlert {
+  tenantName: string;
+  agentName: string;
+  suiteName: string;
+  runId: string;
+  previousPassRate: number;
+  currentPassRate: number;
+  passRateDrop: number;
+  newlyFailingCases: Array<{ testCaseId: string; testCaseName: string; question: string }>;
+  runUrl: string;
+}
+
 // ============================================================================
 // Email Service
 // ============================================================================
@@ -381,6 +393,93 @@ class EmailService {
     return this.send({
       to: recipients,
       subject: `[Grounded Alert] ${alert.tenantName} - ${alert.flags.length} issue(s) detected`,
+      html,
+    });
+  }
+
+  /**
+   * Send a test regression alert email
+   */
+  async sendTestRegressionAlert(
+    recipients: string[],
+    data: TestRegressionAlert
+  ): Promise<{ success: boolean; error?: string }> {
+    const dropLabel = data.passRateDrop >= 0
+      ? `Drop: ${data.passRateDrop.toFixed(1)}%`
+      : `Increase: ${Math.abs(data.passRateDrop).toFixed(1)}%`;
+    const dropColor = data.passRateDrop >= 0 ? "#b91c1c" : "#166534";
+
+    const newlyFailingList = data.newlyFailingCases
+      .map(
+        (testCase) => `
+        <li style="margin-bottom: 12px;">
+          <strong style="color: #111827;">${testCase.testCaseName}</strong><br>
+          <span style="color: #6b7280; font-size: 13px;">${testCase.question}</span>
+        </li>
+      `
+      )
+      .join("");
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 720px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #111827; margin-bottom: 16px;">Test Suite Regression Detected</h2>
+
+        <div style="background: #fef2f2; padding: 16px; border-radius: 10px; margin-bottom: 20px;">
+          <p style="margin: 0; color: #991b1b; font-weight: 600;">A regression was detected in ${data.suiteName}.</p>
+        </div>
+
+        <table style="width: 100%; margin-bottom: 24px;">
+          <tr>
+            <td style="padding: 4px 0; color: #6b7280; width: 120px;">Tenant</td>
+            <td style="padding: 4px 0; color: #111827;">${data.tenantName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0; color: #6b7280;">Agent</td>
+            <td style="padding: 4px 0; color: #111827;">${data.agentName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0; color: #6b7280;">Test Suite</td>
+            <td style="padding: 4px 0; color: #111827;">${data.suiteName}</td>
+          </tr>
+        </table>
+
+        <div style="border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; margin-bottom: 24px;">
+          <h3 style="margin: 0 0 12px 0; color: #111827; font-size: 15px;">Pass Rate Change</h3>
+          <p style="margin: 0; color: #374151;">
+            Previous: <strong>${data.previousPassRate.toFixed(1)}%</strong><br>
+            Current: <strong>${data.currentPassRate.toFixed(1)}%</strong><br>
+            <span style="color: ${dropColor}; font-weight: 600;">${dropLabel}</span>
+          </p>
+        </div>
+
+        ${
+          data.newlyFailingCases.length > 0
+            ? `
+          <div style="margin-bottom: 24px;">
+            <h3 style="margin: 0 0 12px 0; color: #111827; font-size: 15px;">
+              Newly Failing Tests (${data.newlyFailingCases.length})
+            </h3>
+            <ul style="margin: 0; padding-left: 20px; color: #111827;">
+              ${newlyFailingList}
+            </ul>
+          </div>
+        `
+            : ""
+        }
+
+        <a href="${data.runUrl}" style="display: inline-block; background: #2563eb; color: white; text-decoration: none; padding: 10px 16px; border-radius: 6px; font-weight: 600;">View Run Details</a>
+
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0 16px;">
+        <p style="color: #9ca3af; font-size: 12px;">
+          Run ID: ${data.runId}<br>
+          Generated at: ${new Date().toISOString()}
+        </p>
+      </div>
+    `;
+
+    return this.send({
+      to: recipients,
+      subject: `[Grounded] Test Regression: ${data.suiteName} for ${data.agentName}`,
       html,
     });
   }

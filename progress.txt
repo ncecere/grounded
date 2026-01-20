@@ -1556,3 +1556,25 @@ Added a background scheduler for running test suites on hourly/daily/weekly sche
 
 ### Tests
 - `bun test apps/api/src/services/test-suite-scheduler.test.ts`
+
+## 2026-01-20: Send regression alert emails for test suites
+
+### Summary
+Added regression alert email delivery for test suite runs with templates that highlight pass rate changes and newly failing cases.
+
+### Changes Made
+1. **apps/api/src/services/email.ts**
+   - Added `sendTestRegressionAlert()` email template with pass rate summary and failing case list
+
+2. **apps/api/src/services/test-runner.ts**
+   - Added regression alert recipient resolution and run URL builder
+   - Wired regression alerts into run completion handling
+
+3. **apps/api/src/services/email.test.ts** (new file)
+   - Added regression alert template test coverage
+
+4. **.env.example**
+   - Documented optional `APP_URL` for alert email links
+
+### Tests
+- `bun test apps/api/src/services/email.test.ts`

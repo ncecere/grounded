@@ -136,7 +136,7 @@ tasks:
       - Respect alertOnRegression setting
 
   - title: "Phase 5 (phase-5-alert-integration.md): Implement regression alert emails"
-    completed: false
+    completed: true
     parallel_group: 14
     tags: [test-suites, alerts]
     depends_on: ["Phase 5: Implement regression detection"]

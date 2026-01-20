@@ -1,5 +1,5 @@
 import { generateText } from "ai";
-import { and, asc, desc, eq, isNull, lt } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lt } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 import { db } from "@grounded/db";
 import {
@@ -8,8 +8,12 @@ import {
   testSuiteRuns,
   testCaseResults,
   agents,
+  tenants,
   agentKbs,
   knowledgeBases,
+  tenantAlertSettings,
+  tenantMemberships,
+  users,
   type ExpectedBehavior,
   type CheckResult,
 } from "@grounded/db/schema";
@@ -17,7 +21,10 @@ import { getAIRegistry } from "@grounded/ai-providers";
 import { cosineSimilarity, generateEmbedding } from "@grounded/embeddings";
 import { log } from "@grounded/logger";
 import { redis } from "@grounded/queue";
+import { getEnv } from "@grounded/shared";
 import { SimpleRAGService } from "./simple-rag";
+import { emailService, getAlertSettings } from "./email";
+import { parseAdditionalEmails, resolveAlertSettings } from "./tenant-alert-helpers";
 
 // ============================================================================
 // Types
@@ -119,6 +126,7 @@ const RUN_LOCK_TTL_MS = 45 * 60 * 1000;
 const RUN_LOCK_RENEW_MS = 5 * 60 * 1000;
 const DEFAULT_CASE_TIMEOUT_MS = 60 * 1000;
 const DEFAULT_EVALUATION_TIMEOUT_MS = 45 * 1000;
+const DEFAULT_APP_URL = "http://localhost:8088";
 
 const RENEW_LOCK_SCRIPT =
   "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('pexpire', KEYS[1], ARGV[2]) end return 0";
@@ -542,9 +550,10 @@ export function createTestRunner(deps?: Partial<TestRunnerDependencies>) {
             passRateDrop: regression.passRateDrop,
             newlyFailingCount: regression.newlyFailingCases.length,
           });
+          await sendRegressionAlert(run.suiteId, runId, regression);
         }
       } catch (error) {
-        log.error("api", "TestRunner: Regression detection failed", {
+        log.error("api", "TestRunner: Regression handling failed", {
           runId,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -648,6 +657,145 @@ export async function checkForRegression(
     passRateDrop,
     newlyFailingCases,
   };
+}
+
+async function sendRegressionAlert(
+  suiteId: string,
+  runId: string,
+  regression: RegressionInfo
+): Promise<void> {
+  const suiteRows = await db
+    .select({
+      suiteId: agentTestSuites.id,
+      suiteName: agentTestSuites.name,
+      agentId: agents.id,
+      agentName: agents.name,
+      tenantId: tenants.id,
+      tenantName: tenants.name,
+    })
+    .from(agentTestSuites)
+    .innerJoin(agents, eq(agents.id, agentTestSuites.agentId))
+    .innerJoin(tenants, eq(tenants.id, agentTestSuites.tenantId))
+    .where(and(eq(agentTestSuites.id, suiteId), isNull(agentTestSuites.deletedAt)))
+    .limit(1);
+
+  const suite = suiteRows[0];
+  if (!suite) {
+    log.debug("api", "TestRunner: Regression alert skipped (suite not found)", { suiteId, runId });
+    return;
+  }
+
+  const recipients = await getRegressionAlertRecipients(suite.tenantId);
+  if (recipients.length === 0) {
+    log.debug("api", "TestRunner: Regression alert skipped (no recipients)", { suiteId, runId });
+    return;
+  }
+
+  const runUrl = buildRunUrl(suite.agentId, suite.suiteId, runId);
+  const result = await emailService.sendTestRegressionAlert(recipients, {
+    tenantName: suite.tenantName,
+    agentName: suite.agentName,
+    suiteName: suite.suiteName,
+    runId,
+    previousPassRate: regression.previousPassRate,
+    currentPassRate: regression.currentPassRate,
+    passRateDrop: regression.passRateDrop,
+    newlyFailingCases: regression.newlyFailingCases,
+    runUrl,
+  });
+
+  if (result.success) {
+    log.info("api", "TestRunner: Sent regression alert", {
+      suiteId,
+      runId,
+      recipientCount: recipients.length,
+    });
+  } else {
+    log.error("api", "TestRunner: Regression alert failed", {
+      suiteId,
+      runId,
+      error: result.error,
+    });
+  }
+}
+
+async function getRegressionAlertRecipients(tenantId: string): Promise<string[]> {
+  const systemSettings = await getAlertSettings();
+  if (!systemSettings.enabled) {
+    return [];
+  }
+
+  const tenantSettings = await db.query.tenantAlertSettings.findFirst({
+    where: eq(tenantAlertSettings.tenantId, tenantId),
+  });
+  const resolved = resolveAlertSettings(tenantSettings ?? null, {
+    errorRateThreshold: systemSettings.errorRateThreshold,
+    quotaWarningThreshold: systemSettings.quotaWarningThreshold,
+    inactivityDays: systemSettings.inactivityDays,
+  });
+
+  if (!resolved.enabled) {
+    return [];
+  }
+
+  const memberships = await db
+    .select({
+      role: tenantMemberships.role,
+      email: users.primaryEmail,
+    })
+    .from(tenantMemberships)
+    .innerJoin(users, eq(users.id, tenantMemberships.userId))
+    .where(
+      and(
+        eq(tenantMemberships.tenantId, tenantId),
+        inArray(tenantMemberships.role, ["owner", "admin"]),
+        isNull(tenantMemberships.deletedAt)
+      )
+    );
+
+  const recipients: string[] = [];
+  if (resolved.notifyOwners) {
+    recipients.push(
+      ...memberships
+        .filter((member) => member.role === "owner" && member.email)
+        .map((member) => member.email as string)
+    );
+  }
+
+  if (resolved.notifyAdmins) {
+    recipients.push(
+      ...memberships
+        .filter((member) => member.role === "admin" && member.email)
+        .map((member) => member.email as string)
+    );
+  }
+
+  recipients.push(...parseAdditionalEmails(resolved.additionalEmails));
+
+  return [...new Set(recipients.filter(Boolean))];
+}
+
+function buildRunUrl(agentId: string, suiteId: string, runId: string): string {
+  const baseUrl = getAppBaseUrl();
+  return `${baseUrl}/agents/${agentId}/test-suites/${suiteId}/runs/${runId}`;
+}
+
+function getAppBaseUrl(): string {
+  const appUrl = getEnv("APP_URL", "").trim();
+  if (appUrl) {
+    return appUrl.replace(/\/+$/, "");
+  }
+
+  const corsOrigin = getEnv("CORS_ORIGINS", "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .find((origin) => origin && origin !== "*");
+
+  if (corsOrigin) {
+    return corsOrigin.replace(/\/+$/, "");
+  }
+
+  return DEFAULT_APP_URL;
 }
 
 function calculatePassRate(run: TestSuiteRun): number {
