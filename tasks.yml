@@ -327,7 +327,7 @@ tasks:
       - Empty state when no regressions
 
   - title: "Phase 8 (phase-8-workspace-analytics.md): Create TestSuiteAnalyticsSection component"
-    completed: false
+    completed: true
     parallel_group: 20
     tags: [test-suites, ui, analytics]
     depends_on: ["Phase 8: Create PassRateLineChart component", "Phase 8: Create AgentTestHealthTable component", "Phase 8: Create RecentRegressionsTable component"]

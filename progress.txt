@@ -962,6 +962,23 @@ Built the PassRateChart component to visualize test suite pass rates over time w
 
 ## 2026-01-20: Create agent test health table component
 
+## 2026-01-20: Add test suite analytics section component
+
+### Summary
+Built the workspace test suite analytics section with summary stat cards, pass rate trend chart, agent health table, and regression table wiring.
+
+### Changes Made
+1. **apps/web/src/components/analytics/TestSuiteAnalyticsSection.tsx**
+   - Added analytics section component with summary cards, chart, agent table, and regression table
+   - Added helpers for empty state detection, pass rate formatting, and data mapping
+   - Included empty-state handling and pass rate severity coloring
+
+2. **apps/web/src/components/analytics/TestSuiteAnalyticsSection.test.ts** (new file)
+   - Added export coverage and helper function tests
+
+### Tests
+- `bun test apps/web/src/components/analytics/TestSuiteAnalyticsSection.test.ts`
+
 ### Summary
 Added the AgentTestHealthTable analytics component with sortable columns, pass rate trends, and last run status indicators.
 
