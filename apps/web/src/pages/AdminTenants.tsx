@@ -11,9 +11,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { PageHeader } from "../components/ui/page-header";
 import { InfoBox } from "../components/ui/info-box";
 import { LoadingSkeleton } from "../components/ui/loading-skeleton";
+import { EmptyState } from "../components/ui/empty-state";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { Switch } from "../components/ui/switch";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import {
   Table,
   TableBody,
@@ -31,11 +40,12 @@ import {
 } from "../components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Badge } from "../components/ui/badge";
-import { X, ChevronDown } from "lucide-react";
+import { Building2, Settings, Trash2, ChevronDown, Users, Bell } from "lucide-react";
 
 export function AdminTenants() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -55,6 +65,7 @@ export function AdminTenants() {
     mutationFn: api.deleteTenant,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-tenants"] });
+      setTenantToDelete(null);
     },
   });
 
@@ -79,67 +90,77 @@ export function AdminTenants() {
       />
 
       {/* Tenants Table */}
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tenant</TableHead>
-              <TableHead>Slug</TableHead>
-              <TableHead>Members</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data?.tenants.map((tenant) => (
-              <TableRow key={tenant.id}>
-                <TableCell>
-                  <div className="text-sm font-medium text-foreground">{tenant.name}</div>
-                  <div className="text-xs text-muted-foreground">{tenant.id}</div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary">
-                    {tenant.slug}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {tenant.memberCount || 0}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {new Date(tenant.createdAt).toLocaleDateString()}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="link"
-                    onClick={() => setSelectedTenant(tenant)}
-                    className="mr-2"
-                  >
-                    Manage
-                  </Button>
-                  <Button
-                    variant="link"
-                    onClick={() => {
-                      if (confirm(`Delete tenant "${tenant.name}"? This cannot be undone.`)) {
-                        deleteMutation.mutate(tenant.id);
-                      }
-                    }}
-                    className="text-destructive"
-                  >
-                    Delete
-                  </Button>
-                </TableCell>
+      {(!data?.tenants || data.tenants.length === 0) ? (
+        <EmptyState
+          icon={Building2}
+          title="No tenants yet"
+          description="Create a tenant to get started."
+          action={{
+            label: "Create Tenant",
+            onClick: () => setIsCreateModalOpen(true),
+          }}
+        />
+      ) : (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead>Tenant</TableHead>
+                <TableHead>Slug</TableHead>
+                <TableHead>Members</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-            {(!data?.tenants || data.tenants.length === 0) && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                  No tenants yet. Create one to get started.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+            </TableHeader>
+            <TableBody>
+              {data.tenants.map((tenant) => (
+                <TableRow key={tenant.id}>
+                  <TableCell>
+                    <div className="text-sm font-medium text-foreground">{tenant.name}</div>
+                    <div className="text-xs text-muted-foreground font-mono">{tenant.id.substring(0, 8)}...</div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">
+                      {tenant.slug}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                      <Users className="w-4 h-4" />
+                      {tenant.memberCount || 0}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {new Date(tenant.createdAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setSelectedTenant(tenant)}
+                        title="Manage tenant"
+                      >
+                        <Settings className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => setTenantToDelete(tenant)}
+                        title="Delete tenant"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       {/* Create Tenant Modal */}
       <CreateTenantModal
@@ -150,13 +171,34 @@ export function AdminTenants() {
         error={createMutation.error?.message}
       />
 
-      {/* Tenant Members Modal */}
+      {/* Tenant Management Modal */}
       {selectedTenant && (
-        <TenantMembersModal
+        <TenantManagementModal
           tenant={selectedTenant}
-          onClose={() => setSelectedTenant(null)}
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setSelectedTenant(null);
+          }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={!!tenantToDelete}
+        onOpenChange={(open) => {
+          if (!open) setTenantToDelete(null);
+        }}
+        title="Delete Tenant"
+        description={`Are you sure you want to delete "${tenantToDelete?.name}"? This will remove all associated data including knowledge bases, agents, and members. This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => {
+          if (tenantToDelete) {
+            deleteMutation.mutate(tenantToDelete.id);
+          }
+        }}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }
@@ -372,7 +414,7 @@ function CreateTenantModal({
           <DialogFooter>
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               onClick={() => onOpenChange(false)}
             >
               Cancel
@@ -390,20 +432,24 @@ function CreateTenantModal({
   );
 }
 
-function TenantMembersModal({
+function TenantManagementModal({
   tenant,
-  onClose,
+  open,
+  onOpenChange,
 }: {
   tenant: Tenant;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
   const [addEmail, setAddEmail] = useState("");
   const [addRole, setAddRole] = useState<string>("member");
+  const [memberToRemove, setMemberToRemove] = useState<{ userId: string; email: string } | null>(null);
   const queryClient = useQueryClient();
 
   const { data: membersData, isLoading } = useQuery({
     queryKey: ["tenant-members", tenant.id],
     queryFn: () => api.listTenantMembers(tenant.id),
+    enabled: open,
   });
 
   const addMemberMutation = useMutation({
@@ -429,6 +475,7 @@ function TenantMembersModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-members", tenant.id] });
       queryClient.invalidateQueries({ queryKey: ["admin-tenants"] });
+      setMemberToRemove(null);
     },
   });
 
@@ -439,118 +486,156 @@ function TenantMembersModal({
     }
   };
 
+  const roles = [
+    { value: "owner", label: "Owner" },
+    { value: "admin", label: "Admin" },
+    { value: "member", label: "Member" },
+    { value: "viewer", label: "Viewer" },
+  ];
+
   return (
-    <div className="fixed inset-0 overlay-dim backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-card rounded-lg shadow-xl w-full max-w-2xl p-6 max-h-[80vh] overflow-y-auto border border-border">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">{tenant.name}</h2>
-            <p className="text-sm text-muted-foreground">Manage tenant settings</p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{tenant.name}</DialogTitle>
+          </DialogHeader>
 
-        <Tabs defaultValue="members">
-          <TabsList>
-            <TabsTrigger value="members">Members</TabsTrigger>
-            <TabsTrigger value="alerts">Alert Settings</TabsTrigger>
-          </TabsList>
+          <Tabs defaultValue="members">
+            <TabsList>
+              <TabsTrigger value="members" className="gap-2">
+                <Users className="w-4 h-4" />
+                Members
+              </TabsTrigger>
+              <TabsTrigger value="alerts" className="gap-2">
+                <Bell className="w-4 h-4" />
+                Alert Settings
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="members" className="mt-4">
-            {/* Add Member Form */}
-            <form onSubmit={handleAddMember} className="mb-6 p-4 bg-muted rounded-lg">
-              <h3 className="text-sm font-medium text-foreground mb-3">Add Member</h3>
-              <div className="flex gap-3">
-                <Input
-                  type="email"
-                  value={addEmail}
-                  onChange={(e) => setAddEmail(e.target.value)}
-                  className="flex-1"
-                  placeholder="user@example.com"
-                />
-                <select
-                  value={addRole}
-                  onChange={(e) => setAddRole(e.target.value)}
-                  className="rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="owner">Owner</option>
-                  <option value="admin">Admin</option>
-                  <option value="member">Member</option>
-                  <option value="viewer">Viewer</option>
-                </select>
-                <Button
-                  type="submit"
-                  disabled={!addEmail || addMemberMutation.isPending}
-                >
-                  Add
-                </Button>
-              </div>
-              {addMemberMutation.error && (
-                <p className="mt-2 text-sm text-destructive">{addMemberMutation.error.message}</p>
-              )}
-            </form>
-
-            {/* Members List */}
-            {isLoading ? (
-              <LoadingSkeleton variant="table" count={3} />
-            ) : (
-              <div className="space-y-2">
-                {membersData?.members.map((member) => (
-                  <div
-                    key={member.userId}
-                    className="flex items-center justify-between p-3 bg-card border border-border rounded-lg"
+            <TabsContent value="members" className="mt-4">
+              {/* Add Member Form */}
+              <form onSubmit={handleAddMember} className="mb-6 p-4 bg-muted rounded-lg">
+                <h3 className="text-sm font-medium text-foreground mb-3">Add Member</h3>
+                <div className="flex gap-3">
+                  <Input
+                    type="email"
+                    value={addEmail}
+                    onChange={(e) => setAddEmail(e.target.value)}
+                    className="flex-1"
+                    placeholder="user@example.com"
+                  />
+                  <Select value={addRole} onValueChange={setAddRole}>
+                    <SelectTrigger className="w-[130px]">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.map((role) => (
+                        <SelectItem key={role.value} value={role.value}>
+                          {role.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="submit"
+                    disabled={!addEmail || addMemberMutation.isPending}
                   >
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{member.email}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Added {new Date(member.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <select
-                        value={member.role}
-                        onChange={(e) =>
-                          updateRoleMutation.mutate({
-                            userId: member.userId,
-                            role: e.target.value,
-                          })
-                        }
-                        className="rounded border border-input bg-background px-2 py-1 text-sm"
-                      >
-                        <option value="owner">Owner</option>
-                        <option value="admin">Admin</option>
-                        <option value="member">Member</option>
-                        <option value="viewer">Viewer</option>
-                      </select>
-                      <Button
-                        variant="link"
-                        onClick={() => {
-                          if (confirm(`Remove ${member.email} from this tenant?`)) {
-                            removeMemberMutation.mutate(member.userId);
-                          }
-                        }}
-                        className="text-destructive"
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {(!membersData?.members || membersData.members.length === 0) && (
-                  <p className="text-center text-muted-foreground py-4">No members yet.</p>
+                    {addMemberMutation.isPending ? "Adding..." : "Add"}
+                  </Button>
+                </div>
+                {addMemberMutation.error && (
+                  <p className="mt-2 text-sm text-destructive">{addMemberMutation.error.message}</p>
                 )}
-              </div>
-            )}
-          </TabsContent>
+              </form>
 
-          <TabsContent value="alerts" className="mt-4">
-            <TenantAlertSettingsTab tenantId={tenant.id} />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
+              {/* Members List */}
+              {isLoading ? (
+                <LoadingSkeleton variant="table" count={3} />
+              ) : (
+                <div className="space-y-2">
+                  {membersData?.members.map((member) => (
+                    <div
+                      key={member.userId}
+                      className="flex items-center justify-between p-3 bg-card border border-border rounded-lg"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{member.email}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Added {new Date(member.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Select
+                          value={member.role}
+                          onValueChange={(value) =>
+                            updateRoleMutation.mutate({
+                              userId: member.userId,
+                              role: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger className="w-[110px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {roles.map((role) => (
+                              <SelectItem key={role.value} value={role.value}>
+                                {role.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => setMemberToRemove({ userId: member.userId, email: member.email })}
+                          title="Remove member"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {(!membersData?.members || membersData.members.length === 0) && (
+                    <p className="text-center text-muted-foreground py-4">No members yet.</p>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="alerts" className="mt-4">
+              <TenantAlertSettingsTab tenantId={tenant.id} />
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Member Confirmation */}
+      <ConfirmDialog
+        open={!!memberToRemove}
+        onOpenChange={(open) => {
+          if (!open) setMemberToRemove(null);
+        }}
+        title="Remove Member"
+        description={`Are you sure you want to remove ${memberToRemove?.email} from this tenant?`}
+        confirmLabel="Remove"
+        variant="destructive"
+        onConfirm={() => {
+          if (memberToRemove) {
+            removeMemberMutation.mutate(memberToRemove.userId);
+          }
+        }}
+        isLoading={removeMemberMutation.isPending}
+      />
+    </>
   );
 }
 
@@ -717,7 +802,7 @@ function TenantAlertSettingsTab({ tenantId }: { tenantId: string }) {
       {hasChanges && (
         <div className="flex justify-end gap-3">
           <Button
-            variant="ghost"
+            variant="outline"
             onClick={() => setLocalSettings({})}
           >
             Cancel

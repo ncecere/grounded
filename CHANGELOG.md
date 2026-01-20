@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-01-19
+
+### Changed
+
+- **Agents Page UI Redesign**: Replaced multiple modals with a unified slide-out panel for cleaner UX:
+  - New `AgentCard` component with hover-to-reveal actions (Chat, Configure, Delete)
+  - New `AgentDetailPanel` slide-out panel with 4 tabs: General, Model & RAG, Widget, Chat & API
+  - Consolidated General + Status tabs into single General tab with inline status toggle
+  - Consolidated Model & KB + Search tabs into single Model & RAG tab
+  - Widget configuration and Chat/API endpoints moved from separate modals to panel tabs
+  - Create mode shows only General and Model & RAG tabs (Widget/Chat tabs appear after creation)
+
+- **Knowledge Bases Page UI Redesign**: Applied same card/panel pattern for consistency:
+  - New `KBCard` component with hover-to-reveal actions (Open, Configure, Delete for owned KBs; View for shared KBs)
+  - Shared badge moved to upper right corner of card
+  - Consistent footer layout with sources, chunks, created date, and read-only indicator
+  - New `KBDetailPanel` slide-out panel for creating/editing KB settings
+  - Embedding model selection with reindex confirmation flow preserved
+
+- **Admin Tenants Page**: Refactored to match styling patterns used in other admin pages (Users, Shared KBs, Models):
+  - Table now uses proper border styling with `rounded-lg border` wrapper and `bg-muted/50` header background
+  - Replaced text link buttons ("Manage", "Delete") with icon buttons (Settings, Trash2)
+  - Added EmptyState component when no tenants exist
+  - Converted custom modal to Dialog component with consistent `max-w-2xl` sizing
+  - Added icons to modal tabs (Users for Members, Bell for Alert Settings)
+  - Using ConfirmDialog for delete confirmations instead of browser `confirm()`
+
+### Fixed
+
+- **Dropdown Styling Consistency**: Replaced native HTML `<select>` elements with Radix Select components across tenant management:
+  - Admin Tenants modal (add member and role selector dropdowns)
+  - Tenant Settings page / MembersList component (add member and role selector dropdowns)
+  - Admin Shared KBs tenant selection dropdown
+- **Modal Size Stability**: Tenant management modal no longer changes size when switching between Members and Alert Settings tabs
+- **Button Variants**: Standardized Cancel buttons to use `variant="outline"` instead of `variant="ghost"`
+- **Remove Button Style**: Changed member remove action from text link to icon button with trash icon for consistency
+- **Shared KB Chunk Counts**: Fixed RLS policies so tenants can now see chunk/source counts for published global knowledge bases. Previously, chunk counts showed as 0 because the RLS policy only allowed access to tenant-owned data, not global KB data with `tenant_id = NULL`.
+- **Shared KB Detail Page**: The `GET /knowledge-bases/:id` endpoint now returns `sourceCount` and `chunkCount` fields, fixing the shared KB detail page which previously showed 0 chunks even though the list view showed the correct count.
+
 ## [0.3.0] - 2026-01-19
 
 ### Added
