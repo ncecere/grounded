@@ -1848,3 +1848,22 @@ Integrated the test suites workflow into the Agent detail panel with a dedicated
 
 ### Tests
 - `bun test apps/web/src/components/agents/tabs/TestSuitesTab.test.ts`
+
+## 2026-01-20: Create tenant-wide test suite analytics API
+
+### Summary
+Added a tenant-wide analytics endpoint for test suites with pass rate trends, regressions, and date filtering.
+
+### Changes Made
+1. **apps/api/src/routes/analytics.ts**
+   - Added `/analytics/test-suites` route with summary stats, trend data, and regression list
+   - Included date range handling and per-agent breakdowns
+
+2. **apps/api/src/services/test-suite-analytics.ts** (new file)
+   - Added regression detection and trend direction helpers for analytics
+
+3. **apps/api/src/services/test-suite-analytics.test.ts** (new file)
+   - Added regression and trend direction unit tests
+
+### Tests
+- `bun test apps/api/src/services/test-suite-analytics.test.ts`

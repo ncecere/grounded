@@ -278,7 +278,7 @@ tasks:
   # Phase 8: Workspace Analytics (see phase-8-workspace-analytics.md)
   # ---------------------------------------------------------------------------
   - title: "Phase 8 (phase-8-workspace-analytics.md): Create tenant-wide test suite analytics API"
-    completed: false
+    completed: true
     parallel_group: 18
     tags: [test-suites, api, analytics]
     depends_on: ["Phase 3: Create test runs API routes"]
