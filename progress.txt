@@ -1706,3 +1706,40 @@ Implemented the ExpectedBehaviorEditor UI for configuring structured test case e
 
 ### Tests
 - `bun test apps/web/src/components/test-suites/ExpectedBehaviorEditor.test.ts`
+
+## 2026-01-20: Add TestCase card and inline editing UI
+
+### Summary
+Implemented the TestCase card, inline editing form, and drag-and-drop reordering flow in the test suite detail panel.
+
+### Changes Made
+1. **apps/web/src/components/test-suites/TestCaseCard.tsx**
+   - Added card layout with question preview, check badges, and last-result status
+   - Added drag handle UI and action buttons for edit/delete
+   - Added helper utilities for check badge summaries and status labels
+
+2. **apps/web/src/components/test-suites/TestCaseForm.tsx**
+   - Added inline form with question textarea, enabled toggle, and ExpectedBehaviorEditor
+   - Added validation and default form state helpers
+
+3. **apps/web/src/components/test-suites/TestSuiteDetailPanel.tsx**
+   - Integrated test case list with create/edit flows inside the Cases tab
+   - Added drag-and-drop reordering with server-side persistence
+   - Added loading and empty states for test cases
+
+4. **apps/web/src/components/test-suites/index.ts**
+   - Exported the new TestCaseCard and TestCaseForm components
+
+5. **apps/web/src/components/test-suites/TestCaseCard.test.ts** (new file)
+   - Added tests for check badge summaries and last-result labels
+
+6. **apps/web/src/components/test-suites/TestCaseForm.test.ts** (new file)
+   - Added tests for form defaults and exports
+
+### Acceptance Criteria Met
+- ✅ Card with name, question, check badges, and last result
+- ✅ Inline editing form with question textarea and ExpectedBehaviorEditor
+- ✅ Drag-to-reorder support in test cases tab
+
+### Tests
+- `bun test apps/web/src/components/test-suites/TestCaseCard.test.ts apps/web/src/components/test-suites/TestCaseForm.test.ts`

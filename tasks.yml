@@ -220,7 +220,7 @@ tasks:
       - LLM judge with criteria field
 
   - title: "Phase 7 (phase-7-ui-components.md): Create TestCaseCard and TestCaseForm"
-    completed: false
+    completed: true
     parallel_group: 16
     tags: [test-suites, ui]
     depends_on: ["Phase 7: Create ExpectedBehaviorEditor"]

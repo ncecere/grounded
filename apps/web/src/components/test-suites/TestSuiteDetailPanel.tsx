@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Calendar, ListChecks, Settings } from "lucide-react";
-import { api, type ModelConfiguration, type TestSuite } from "../../lib/api";
+import { AlertCircle, Calendar, ListChecks, Plus, Settings } from "lucide-react";
+import { api, type ModelConfiguration, type TestCase, type TestSuite } from "../../lib/api";
+import {
+  useCreateTestCase,
+  useDeleteTestCase,
+  useReorderTestCases,
+  useTestCases,
+  useUpdateTestCase,
+} from "../../lib/api/test-suites.hooks";
 import {
   Sheet,
   SheetContent,
@@ -22,6 +29,11 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
+import { EmptyState } from "../ui/empty-state";
+import { LoadingSkeleton } from "../ui/loading-skeleton";
+import { TestCaseCard } from "./TestCaseCard";
+import { TestCaseForm, type TestCaseFormValues } from "./TestCaseForm";
+import { DEFAULT_EXPECTED_BEHAVIOR } from "./ExpectedBehaviorEditor";
 
 type DetailTab = "general" | "schedule" | "evaluation" | "cases";
 
@@ -58,6 +70,10 @@ export function TestSuiteDetailPanel({
   const [activeTab, setActiveTab] = useState<DetailTab>("general");
   const [formState, setFormState] = useState(DEFAULT_TEST_SUITE_FORM);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isCreatingCase, setIsCreatingCase] = useState(false);
+  const [editingCaseId, setEditingCaseId] = useState<string | null>(null);
+  const [draggingCaseId, setDraggingCaseId] = useState<string | null>(null);
+  const [caseOrder, setCaseOrder] = useState<string[]>([]);
 
   const isEditMode = !!suite && !isCreateMode;
 
@@ -72,10 +88,21 @@ export function TestSuiteDetailPanel({
 
   const judgeModels = judgeModelsData ?? [];
 
+  const suiteId = suite?.id ?? "";
+
+  const { data: testCases, isLoading: isCasesLoading } = useTestCases(suiteId);
+  const createCaseMutation = useCreateTestCase(suiteId);
+  const updateCaseMutation = useUpdateTestCase();
+  const deleteCaseMutation = useDeleteTestCase(suiteId);
+  const reorderCaseMutation = useReorderTestCases(suiteId);
+
   useEffect(() => {
     if (open) {
       setHasUnsavedChanges(false);
       setActiveTab("general");
+      setIsCreatingCase(false);
+      setEditingCaseId(null);
+      setDraggingCaseId(null);
 
       if (suite) {
         setFormState({
@@ -95,6 +122,13 @@ export function TestSuiteDetailPanel({
       }
     }
   }, [open, suite]);
+
+  useEffect(() => {
+    if (testCases) {
+      const sorted = [...testCases].sort((a, b) => a.sortOrder - b.sortOrder);
+      setCaseOrder(sorted.map((item) => item.id));
+    }
+  }, [testCases]);
 
   const updateField = (updates: Partial<typeof formState>) => {
     setFormState((prev) => ({ ...prev, ...updates }));
@@ -129,6 +163,15 @@ export function TestSuiteDetailPanel({
   }, [formState]);
 
   const isValid = Object.keys(errors).length === 0;
+
+  const orderedCases = useMemo(() => {
+    if (!testCases) return [] as TestCase[];
+    const map = new Map(testCases.map((item) => [item.id, item]));
+    if (caseOrder.length === 0) {
+      return [...testCases].sort((a, b) => a.sortOrder - b.sortOrder);
+    }
+    return caseOrder.map((id) => map.get(id)).filter(Boolean) as TestCase[];
+  }, [caseOrder, testCases]);
 
   const createMutation = useMutation({
     mutationFn: (data: Parameters<typeof api.createTestSuite>[1]) =>
@@ -178,6 +221,8 @@ export function TestSuiteDetailPanel({
 
   const pending = createMutation.isPending || updateMutation.isPending;
   const error = createMutation.error || updateMutation.error;
+  const isCaseMutationPending =
+    createCaseMutation.isPending || updateCaseMutation.isPending || deleteCaseMutation.isPending;
 
   const renderModelOptionLabel = (model: ModelConfiguration) => {
     const providerName = model.provider?.displayName;
@@ -185,6 +230,84 @@ export function TestSuiteDetailPanel({
       return `${model.displayName} (${providerName})${model.isDefault ? " - Default" : ""}`;
     }
     return `${model.displayName}${model.isDefault ? " - Default" : ""}`;
+  };
+
+  const buildDefaultCaseValues = (): TestCaseFormValues => ({
+    name: "",
+    description: "",
+    question: "",
+    expectedBehavior: DEFAULT_EXPECTED_BEHAVIOR,
+    isEnabled: true,
+  });
+
+  const handleCreateCase = (values: TestCaseFormValues) => {
+    if (!suiteId) return;
+    const maxSortOrder = orderedCases.length > 0 ? Math.max(...orderedCases.map((item) => item.sortOrder)) : 0;
+    createCaseMutation.mutate(
+      {
+        name: values.name,
+        description: values.description || undefined,
+        question: values.question,
+        expectedBehavior: values.expectedBehavior,
+        sortOrder: orderedCases.length > 0 ? maxSortOrder + 1 : 0,
+      },
+      {
+        onSuccess: () => {
+          setIsCreatingCase(false);
+        },
+      }
+    );
+  };
+
+  const handleUpdateCase = (caseId: string, values: TestCaseFormValues) => {
+    updateCaseMutation.mutate(
+      {
+        caseId,
+        data: {
+          name: values.name,
+          description: values.description || undefined,
+          question: values.question,
+          expectedBehavior: values.expectedBehavior,
+          isEnabled: values.isEnabled,
+        },
+      },
+      {
+        onSuccess: () => setEditingCaseId(null),
+      }
+    );
+  };
+
+  const handleDeleteCase = (testCase: TestCase) => {
+    deleteCaseMutation.mutate(testCase.id);
+  };
+
+  const handleDragStart = (caseId: string) => {
+    if (isCreatingCase || editingCaseId) return;
+    setDraggingCaseId(caseId);
+  };
+
+  const handleDrop = (targetId: string) => {
+    if (!draggingCaseId || draggingCaseId === targetId) {
+      setDraggingCaseId(null);
+      return;
+    }
+
+    const currentOrder = caseOrder.length
+      ? caseOrder
+      : orderedCases.map((item) => item.id);
+    const fromIndex = currentOrder.indexOf(draggingCaseId);
+    const toIndex = currentOrder.indexOf(targetId);
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggingCaseId(null);
+      return;
+    }
+
+    const nextOrder = [...currentOrder];
+    const [moved] = nextOrder.splice(fromIndex, 1);
+    nextOrder.splice(toIndex, 0, moved);
+    setCaseOrder(nextOrder);
+    reorderCaseMutation.mutate(nextOrder);
+    setDraggingCaseId(null);
   };
 
   return (
@@ -423,16 +546,109 @@ export function TestSuiteDetailPanel({
             </TabsContent>
 
             <TabsContent value="cases" className="mt-0 h-full">
-              <div className="space-y-4">
-                <div className="p-4 border border-dashed rounded-lg text-center text-sm text-muted-foreground">
-                  {isEditMode && suite
-                    ? `Manage ${suite.testCaseCount} test case${suite.testCaseCount !== 1 ? "s" : ""} here.`
-                    : "Create the suite first, then add test cases."}
+              {!isEditMode || !suite ? (
+                <div className="space-y-4">
+                  <div className="p-4 border border-dashed rounded-lg text-center text-sm text-muted-foreground">
+                    Create the suite first, then add test cases.
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Test cases support structured expectations, semantic similarity checks, and LLM judge criteria.
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Test cases support structured expectations, semantic similarity checks, and LLM judge criteria.
-                </p>
-              </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">Test Cases</p>
+                      <p className="text-xs text-muted-foreground">
+                        {orderedCases.length} case{orderedCases.length !== 1 ? "s" : ""} in this suite.
+                      </p>
+                    </div>
+                    {!isCreatingCase && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => setIsCreatingCase(true)}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Case
+                      </Button>
+                    )}
+                  </div>
+
+                  {isCreatingCase && (
+                    <div className="border border-border rounded-lg p-4 bg-muted/20">
+                      <TestCaseForm
+                        initialValues={buildDefaultCaseValues()}
+                        submitLabel="Create Test Case"
+                        onSubmit={handleCreateCase}
+                        onCancel={() => setIsCreatingCase(false)}
+                        disabled={isCaseMutationPending}
+                      />
+                    </div>
+                  )}
+
+                  {isCasesLoading ? (
+                    <LoadingSkeleton variant="card" count={3} />
+                  ) : orderedCases.length === 0 ? (
+                    <EmptyState
+                      title="No test cases yet"
+                      description="Add a test case to start validating agent responses."
+                      action={{
+                        label: "Add test case",
+                        onClick: () => setIsCreatingCase(true),
+                      }}
+                    />
+                  ) : (
+                    <div className="space-y-4">
+                      {orderedCases.map((testCase) => {
+                        if (editingCaseId === testCase.id) {
+                          return (
+                            <div key={testCase.id} className="border border-border rounded-lg p-4 bg-muted/20">
+                              <TestCaseForm
+                                initialValues={{
+                                  name: testCase.name,
+                                  description: testCase.description ?? "",
+                                  question: testCase.question,
+                                  expectedBehavior: testCase.expectedBehavior,
+                                  isEnabled: testCase.isEnabled,
+                                }}
+                                submitLabel="Save Changes"
+                                onSubmit={(values) => handleUpdateCase(testCase.id, values)}
+                                onCancel={() => setEditingCaseId(null)}
+                                disabled={isCaseMutationPending}
+                              />
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <TestCaseCard
+                            key={testCase.id}
+                            testCase={testCase}
+                            onEdit={(selected) => setEditingCaseId(selected.id)}
+                            onDelete={handleDeleteCase}
+                            isDragging={draggingCaseId === testCase.id}
+                            dragItemProps={{
+                              draggable: !isCreatingCase && !editingCaseId,
+                              onDragStart: () => handleDragStart(testCase.id),
+                              onDragOver: (event) => {
+                                event.preventDefault();
+                              },
+                              onDrop: (event) => {
+                                event.preventDefault();
+                                handleDrop(testCase.id);
+                              },
+                              onDragEnd: () => setDraggingCaseId(null),
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </TabsContent>
           </div>
         </Tabs>
