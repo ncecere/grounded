@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Agents Page UI Redesign**: Replaced multiple modals with a unified slide-out panel for cleaner UX:
+  - New `AgentCard` component with hover-to-reveal actions (Chat, Configure, Delete)
+  - New `AgentDetailPanel` slide-out panel with 4 tabs: General, Model & RAG, Widget, Chat & API
+  - Consolidated General + Status tabs into single General tab with inline status toggle
+  - Consolidated Model & KB + Search tabs into single Model & RAG tab
+  - Widget configuration and Chat/API endpoints moved from separate modals to panel tabs
+  - Create mode shows only General and Model & RAG tabs (Widget/Chat tabs appear after creation)
+
+- **Knowledge Bases Page UI Redesign**: Applied same card/panel pattern for consistency:
+  - New `KBCard` component with hover-to-reveal actions (Open, Configure, Delete for owned KBs; View for shared KBs)
+  - Shared badge moved to upper right corner of card
+  - Consistent footer layout with sources, chunks, created date, and read-only indicator
+  - New `KBDetailPanel` slide-out panel for creating/editing KB settings
+  - Embedding model selection with reindex confirmation flow preserved
+
 - **Admin Tenants Page**: Refactored to match styling patterns used in other admin pages (Users, Shared KBs, Models):
   - Table now uses proper border styling with `rounded-lg border` wrapper and `bg-muted/50` header background
   - Replaced text link buttons ("Manage", "Delete") with icon buttons (Settings, Trash2)
