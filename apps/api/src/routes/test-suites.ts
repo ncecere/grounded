@@ -6,6 +6,11 @@ import { and, asc, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
 import { BadRequestError, NotFoundError } from "../middleware/error-handler";
 import { loadAgentForTenant } from "../services/agent-helpers";
+import {
+  expectedBehaviorSchema,
+  parseTestCaseJsonl,
+  serializeTestCasesJsonl,
+} from "../services/test-suite-import";
 import { calculatePassRate, calculateRegressionCount } from "../services/test-suite-metrics";
 import { runTestSuite } from "../services/test-runner";
 
@@ -45,31 +50,6 @@ const updateTestSuiteSchema = z.object({
   alertOnRegression: z.boolean().optional(),
   alertThresholdPercent: z.number().int().min(1).max(100).optional(),
   isEnabled: z.boolean().optional(),
-});
-
-const expectedBehaviorSchema = z.object({
-  checks: z
-    .array(
-      z.discriminatedUnion("type", [
-        z.object({
-          type: z.literal("contains_phrases"),
-          phrases: z.array(z.string().min(1)).min(1),
-          caseSensitive: z.boolean().optional(),
-        }),
-        z.object({
-          type: z.literal("semantic_similarity"),
-          expectedAnswer: z.string().min(1),
-          threshold: z.number().min(0).max(1),
-        }),
-        z.object({
-          type: z.literal("llm_judge"),
-          expectedAnswer: z.string().min(1),
-          criteria: z.string().optional(),
-        }),
-      ])
-    )
-    .min(1),
-  mode: z.enum(["all", "any"]),
 });
 
 const createTestCaseSchema = z.object({
@@ -332,6 +312,109 @@ testSuiteRoutes.get("/:suiteId/cases", auth(), requireTenant(), async (c) => {
       lastResult: result.lastResults.get(testCase.id) ?? null,
     })),
   });
+});
+
+// ============================================================================
+// Import Test Cases
+// ============================================================================
+
+testSuiteRoutes.post(
+  "/:suiteId/import",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  async (c) => {
+    const suiteId = c.req.param("suiteId");
+    const authContext = c.get("auth");
+    const formData = await c.req.parseBody();
+    const file = formData["file"];
+
+    if (!file || typeof file === "string") {
+      throw new BadRequestError("No file uploaded");
+    }
+
+    const content = await file.text();
+    const { entries, errors, skipped } = parseTestCaseJsonl(content);
+
+    const imported = await withRequestRLS(c, async (tx) => {
+      await loadTestSuiteForTenant(tx, suiteId, authContext.tenantId!);
+
+      if (entries.length === 0) {
+        return 0;
+      }
+
+      const [maxRow] = await tx
+        .select({ maxSort: sql<number | null>`max(${testCases.sortOrder})` })
+        .from(testCases)
+        .where(
+          and(
+            eq(testCases.suiteId, suiteId),
+            eq(testCases.tenantId, authContext.tenantId!),
+            isNull(testCases.deletedAt)
+          )
+        );
+
+      const startingOrder = (maxRow?.maxSort ?? -1) + 1;
+      const values = entries.map((entry, index) => ({
+        tenantId: authContext.tenantId!,
+        suiteId,
+        name: entry.name,
+        description: entry.description ?? null,
+        question: entry.question,
+        expectedBehavior: entry.expectedBehavior,
+        sortOrder: startingOrder + index,
+        isEnabled: entry.isEnabled ?? true,
+      }));
+
+      const created = await tx
+        .insert(testCases)
+        .values(values)
+        .returning({ id: testCases.id });
+
+      return created.length;
+    });
+
+    return c.json({
+      imported,
+      skipped,
+      errors,
+    });
+  }
+);
+
+// ============================================================================
+// Export Test Cases
+// ============================================================================
+
+testSuiteRoutes.get("/:suiteId/export", auth(), requireTenant(), async (c) => {
+  const suiteId = c.req.param("suiteId");
+  const authContext = c.get("auth");
+
+  const cases = await withRequestRLS(c, async (tx) => {
+    await loadTestSuiteForTenant(tx, suiteId, authContext.tenantId!);
+
+    return tx.query.testCases.findMany({
+      columns: {
+        name: true,
+        description: true,
+        question: true,
+        expectedBehavior: true,
+        isEnabled: true,
+      },
+      where: and(
+        eq(testCases.suiteId, suiteId),
+        eq(testCases.tenantId, authContext.tenantId!),
+        isNull(testCases.deletedAt)
+      ),
+      orderBy: [asc(testCases.sortOrder), asc(testCases.createdAt)],
+    });
+  });
+
+  const jsonl = serializeTestCasesJsonl(cases);
+
+  c.header("Content-Type", "application/jsonl");
+  c.header("Content-Disposition", `attachment; filename="test-suite-${suiteId}.jsonl"`);
+  return c.text(jsonl);
 });
 
 // ============================================================================

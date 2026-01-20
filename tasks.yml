@@ -95,7 +95,7 @@ tasks:
       - Include pass rate calculations
 
   - title: "Phase 3 (phase-3-api-routes.md): Implement JSONL import/export"
-    completed: false
+    completed: true
     parallel_group: 12
     tags: [test-suites, api]
     depends_on: ["Phase 3: Create test cases API routes"]

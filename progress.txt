@@ -1493,3 +1493,23 @@ Added test run list/start/detail/cancel endpoints with pass rate calculations an
 
 ### Tests
 - `bun test apps/api/src/services/test-suite-metrics.test.ts`
+
+## 2026-01-20: Add JSONL import/export for test cases
+
+### Summary
+Implemented JSONL import and export endpoints for test cases with validation helpers and parsing tests.
+
+### Changes Made
+1. **apps/api/src/services/test-suite-import.ts** (new file)
+   - Added JSONL parsing and serialization helpers with expected behavior validation.
+   - Returns per-line error details and skipped counts for imports.
+
+2. **apps/api/src/routes/test-suites.ts**
+   - Added `/test-suites/:suiteId/import` and `/test-suites/:suiteId/export` endpoints.
+   - Imports validated test cases with sequential sort ordering and exports JSONL downloads.
+
+3. **apps/api/src/services/test-suite-import.test.ts** (new file)
+   - Added tests for valid JSONL parsing, invalid line handling, and export round-trips.
+
+### Tests
+- `bun test apps/api/src/services/test-suite-import.test.ts`
