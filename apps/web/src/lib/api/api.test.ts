@@ -112,6 +112,7 @@ describe("api module structure", () => {
       const { analyticsApi } = await import("./analytics");
       expect(analyticsApi).toBeDefined();
       expect(typeof analyticsApi.getAnalytics).toBe("function");
+      expect(typeof analyticsApi.getTestSuiteAnalytics).toBe("function");
     });
 
     it("should export testSuitesApi", async () => {

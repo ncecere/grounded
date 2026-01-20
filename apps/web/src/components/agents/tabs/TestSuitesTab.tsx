@@ -16,7 +16,7 @@ import {
   testSuiteKeys,
   useDeleteTestSuite,
   useTestRuns,
-  useTestSuiteAnalytics,
+  useTestSuiteRunAnalytics,
   useTestSuites,
 } from "../../../lib/api/test-suites.hooks";
 import { Button } from "../../ui/button";
@@ -74,7 +74,7 @@ export function TestSuitesTab({ agentId, agentName }: TestSuitesTabProps) {
     data: analytics,
     isLoading: analyticsLoading,
     error: analyticsError,
-  } = useTestSuiteAnalytics(suiteId, { days: 30 });
+  } = useTestSuiteRunAnalytics(suiteId, { days: 30 });
 
   const deleteSuiteMutation = useDeleteTestSuite(agentId);
   const startRunMutation = useMutation({

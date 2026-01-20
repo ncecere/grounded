@@ -333,7 +333,7 @@ export interface TestRunWithResults extends TestSuiteRun {
   results: TestCaseResult[];
 }
 
-export interface TestSuiteAnalytics {
+export interface TestSuiteRunAnalytics {
   runs: Array<{
     date: string;
     passRate: number;
@@ -342,6 +342,50 @@ export interface TestSuiteAnalytics {
   averagePassRate: number;
   totalRuns: number;
   regressions: number;
+}
+
+export interface TestSuiteAnalyticsSummary {
+  totalSuites: number;
+  totalCases: number;
+  totalRuns: number;
+  overallPassRate: number;
+}
+
+export interface TestSuiteAnalyticsAgent {
+  agentId: string;
+  agentName: string;
+  suiteCount: number;
+  caseCount: number;
+  runCount: number;
+  passRate: number;
+  previousPassRate: number | null;
+  passRateChange: number | null;
+  trend?: "up" | "down" | "stable" | "unknown";
+  lastRunAt?: string | null;
+  lastRunStatus?: "pending" | "running" | "completed" | "failed" | "cancelled";
+}
+
+export interface TestSuiteAnalyticsRegression {
+  runId: string;
+  suiteId: string;
+  suiteName: string;
+  agentId: string | null;
+  agentName: string;
+  completedAt: string;
+  previousPassRate: number;
+  currentPassRate: number;
+  passRateDrop: number;
+}
+
+export interface TestSuiteAnalytics {
+  summary: TestSuiteAnalyticsSummary;
+  passRateOverTime: Array<{
+    date: string;
+    passRate: number;
+    totalRuns: number;
+  }>;
+  agents: TestSuiteAnalyticsAgent[];
+  recentRegressions: TestSuiteAnalyticsRegression[];
 }
 
 export interface CreateTestSuiteDto {

@@ -6,7 +6,7 @@ import type {
   TestCase,
   TestRunWithResults,
   TestSuite,
-  TestSuiteAnalytics,
+  TestSuiteRunAnalytics,
   TestSuiteRun,
   UpdateTestCaseDto,
   UpdateTestSuiteDto,
@@ -91,8 +91,8 @@ export const useTestRun = (runId: string) =>
     },
   });
 
-export const useTestSuiteAnalytics = (suiteId: string, params?: { days?: number }) =>
-  useQuery<TestSuiteAnalytics>({
+export const useTestSuiteRunAnalytics = (suiteId: string, params?: { days?: number }) =>
+  useQuery<TestSuiteRunAnalytics>({
     queryKey: testSuiteKeys.analytics(suiteId, params?.days),
     queryFn: () => testSuitesApi.getTestSuiteAnalytics(suiteId, params),
     enabled: !!suiteId,

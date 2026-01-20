@@ -351,7 +351,7 @@ tasks:
       - Seamless visual integration
 
   - title: "Phase 8 (phase-8-workspace-analytics.md): Add test analytics API client and hooks"
-    completed: false
+    completed: true
     parallel_group: 19
     tags: [test-suites, frontend, analytics]
     depends_on: ["Phase 8: Create tenant-wide test suite analytics API"]

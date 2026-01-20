@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api, request } from "../lib/api";
+import { api, useTestSuiteAnalytics } from "../lib/api";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { MessageSquare, MessagesSquare, Clock, BarChart3 } from "lucide-react";
 import {
   TestSuiteAnalyticsSection,
-  type TestSuiteAnalyticsResponse,
 } from "@/components/analytics/TestSuiteAnalyticsSection";
 
 export const buildTestSuiteAnalyticsQuery = (range: {
@@ -40,13 +39,7 @@ export function Analytics() {
   });
 
   const { data: testSuiteAnalytics, isLoading: isTestSuiteAnalyticsLoading } =
-    useQuery<TestSuiteAnalyticsResponse>({
-      queryKey: ["analytics", "test-suites", dateRange],
-      queryFn: () =>
-        request<TestSuiteAnalyticsResponse>(
-          `/analytics/test-suites${buildTestSuiteAnalyticsQuery(dateRange)}`
-        ),
-    });
+    useTestSuiteAnalytics(dateRange);
 
   if (isLoading) {
     return (

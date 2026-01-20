@@ -5,7 +5,7 @@ import type {
   TestCase,
   TestRunWithResults,
   TestSuite,
-  TestSuiteAnalytics,
+  TestSuiteRunAnalytics,
   TestSuiteRun,
   UpdateTestCaseDto,
   UpdateTestSuiteDto,
@@ -151,7 +151,7 @@ export const testSuitesApi = {
     const searchParams = new URLSearchParams();
     if (params?.days !== undefined) searchParams.set("days", String(params.days));
     const query = searchParams.toString();
-    return request<TestSuiteAnalytics>(`/test-suites/${suiteId}/analytics${query ? `?${query}` : ""}`);
+    return request<TestSuiteRunAnalytics>(`/test-suites/${suiteId}/analytics${query ? `?${query}` : ""}`);
   },
 
   getTestRun: async (runId: string) => {

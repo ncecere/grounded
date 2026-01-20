@@ -8,7 +8,7 @@ import type {
   TestCaseResult,
   TestRunWithResults,
   TestSuite,
-  TestSuiteAnalytics,
+  TestSuiteRunAnalytics,
   TestSuiteRun,
   TestSuiteRunSummary,
   UpdateTestCaseDto,
@@ -121,7 +121,7 @@ describe("test suite api types", () => {
       averagePassRate: 90,
       totalRuns: 2,
       regressions: 0,
-    } satisfies TestSuiteAnalytics;
+    } satisfies TestSuiteRunAnalytics;
 
     const createSuite = {
       name: testSuite.name,

@@ -962,6 +962,34 @@ Built the PassRateChart component to visualize test suite pass rates over time w
 
 ## 2026-01-20: Create agent test health table component
 
+## 2026-01-20: Add test suite analytics API client and hooks
+
+### Summary
+Implemented tenant-wide test suite analytics types, API client method, and React Query hook, then wired the Analytics page to the new hook.
+
+### Changes Made
+1. **apps/web/src/lib/api/types.ts**
+   - Added tenant-wide test suite analytics types for summaries, agents, regressions, and responses
+   - Renamed suite-level analytics type to `TestSuiteRunAnalytics`
+
+2. **apps/web/src/lib/api/analytics.ts**
+   - Added `getTestSuiteAnalytics()` API method with date range query support
+
+3. **apps/web/src/lib/api/analytics.hooks.ts** (new file)
+   - Added analytics query keys and `useTestSuiteAnalytics()` hook
+
+4. **apps/web/src/pages/Analytics.tsx**
+   - Switched to the analytics hook for tenant-wide test suite analytics data
+
+5. **apps/web/src/components/analytics/TestSuiteAnalyticsSection.tsx**
+   - Reused shared analytics types from the API layer
+
+6. **apps/web/src/lib/api/test-suites.hooks.ts**
+   - Renamed suite-level analytics hook to `useTestSuiteRunAnalytics`
+
+### Tests
+- `bun test apps/web/src/lib/api/api.test.ts apps/web/src/lib/api/analytics.hooks.test.ts apps/web/src/lib/api/test-suites.hooks.test.ts apps/web/src/lib/api/test-suites.types.test.ts`
+
 ## 2026-01-20: Add test suite analytics section component
 
 ### Summary

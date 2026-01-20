@@ -9,7 +9,7 @@ describe("test suites hooks module", () => {
     expect(typeof hooks.useTestCase).toBe("function");
     expect(typeof hooks.useTestRuns).toBe("function");
     expect(typeof hooks.useTestRun).toBe("function");
-    expect(typeof hooks.useTestSuiteAnalytics).toBe("function");
+    expect(typeof hooks.useTestSuiteRunAnalytics).toBe("function");
   });
 
   it("should export mutation hooks", async () => {
@@ -41,6 +41,6 @@ describe("test suites hooks module", () => {
     expect(hooks.useTestCase.length).toBe(1);
     expect(hooks.useTestRuns.length).toBe(2);
     expect(hooks.useTestRun.length).toBe(1);
-    expect(hooks.useTestSuiteAnalytics.length).toBe(2);
+    expect(hooks.useTestSuiteRunAnalytics.length).toBe(2);
   });
 });

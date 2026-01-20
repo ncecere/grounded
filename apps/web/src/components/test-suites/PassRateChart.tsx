@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { TestSuiteAnalytics } from "@/lib/api";
+import type { TestSuiteRunAnalytics } from "@/lib/api";
 import { formatPassRate } from "./TestSuiteCard";
 
 const PASS_RATE_LABELS = [100, 75, 50, 25, 0];
@@ -14,7 +14,7 @@ export interface PassRateChartPoint {
 const clampPassRate = (value: number) => Math.max(0, Math.min(100, value));
 
 export const buildPassRateSeries = (
-  runs: TestSuiteAnalytics["runs"],
+  runs: TestSuiteRunAnalytics["runs"],
   maxPoints = 12
 ): PassRateChartPoint[] => {
   const trimmed = runs.slice(-maxPoints);
@@ -33,7 +33,7 @@ export const buildPassRateSeries = (
 };
 
 interface PassRateChartProps {
-  runs: TestSuiteAnalytics["runs"];
+  runs: TestSuiteRunAnalytics["runs"];
   maxPoints?: number;
   className?: string;
   emptyMessage?: string;

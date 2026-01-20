@@ -9,47 +9,19 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { StatCard, type IconColor } from "@/components/ui/stat-card";
 import { AgentTestHealthTable, type AgentTestHealthRow } from "./AgentTestHealthTable";
-import { PassRateLineChart, type PassRateLinePoint } from "./PassRateLineChart";
+import { PassRateLineChart } from "./PassRateLineChart";
 import { RecentRegressionsTable, type RecentRegressionRow } from "./RecentRegressionsTable";
+import type {
+  TestSuiteAnalytics as ApiTestSuiteAnalytics,
+  TestSuiteAnalyticsAgent as ApiTestSuiteAnalyticsAgent,
+  TestSuiteAnalyticsRegression as ApiTestSuiteAnalyticsRegression,
+  TestSuiteAnalyticsSummary as ApiTestSuiteAnalyticsSummary,
+} from "@/lib/api";
 
-export interface TestSuiteAnalyticsSummary {
-  totalSuites: number;
-  totalCases: number;
-  totalRuns: number;
-  overallPassRate: number;
-}
-
-export interface TestSuiteAnalyticsAgent {
-  agentId: string;
-  agentName: string;
-  suiteCount: number;
-  caseCount: number;
-  runCount: number;
-  passRate: number;
-  previousPassRate: number | null;
-  passRateChange: number | null;
-  lastRunAt?: string | null;
-  lastRunStatus?: AgentTestHealthRow["lastRunStatus"];
-}
-
-export interface TestSuiteAnalyticsRegression {
-  runId: string;
-  suiteId: string;
-  suiteName: string;
-  agentId: string | null;
-  agentName: string;
-  completedAt: string;
-  previousPassRate: number;
-  currentPassRate: number;
-  passRateDrop: number;
-}
-
-export interface TestSuiteAnalyticsResponse {
-  summary: TestSuiteAnalyticsSummary;
-  passRateOverTime: PassRateLinePoint[];
-  agents: TestSuiteAnalyticsAgent[];
-  recentRegressions: TestSuiteAnalyticsRegression[];
-}
+export type TestSuiteAnalyticsSummary = ApiTestSuiteAnalyticsSummary;
+export type TestSuiteAnalyticsAgent = ApiTestSuiteAnalyticsAgent;
+export type TestSuiteAnalyticsRegression = ApiTestSuiteAnalyticsRegression;
+export type TestSuiteAnalyticsResponse = ApiTestSuiteAnalytics;
 
 interface TestSuiteAnalyticsSectionProps {
   data?: TestSuiteAnalyticsResponse | null;
