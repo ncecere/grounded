@@ -961,6 +961,22 @@ Built the PassRateChart component to visualize test suite pass rates over time w
 ### Tests
 - `bun test apps/web/src/components/test-suites/PassRateChart.test.ts`
 
+## 2026-01-20: Add PassRateLineChart component for analytics
+
+### Summary
+Created a tenant analytics pass rate line chart with zone shading, tooltips, and helper formatting.
+
+### Changes Made
+1. **apps/web/src/components/analytics/PassRateLineChart.tsx**
+   - Added responsive line/area chart with green/yellow/red performance zones
+   - Included tooltip and axis rendering helpers with pass rate clamping
+
+2. **apps/web/src/components/analytics/PassRateLineChart.test.ts** (new file)
+   - Added export coverage and helper series tests
+
+### Tests
+- `bun test apps/web/src/components/analytics/PassRateLineChart.test.ts`
+
 ## 2026-01-18: Track per-chunk embed status and gate run completion
 
 ### Summary
