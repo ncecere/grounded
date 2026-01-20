@@ -19,7 +19,7 @@ import { widgetRoutes } from "./routes/widget";
 import { chatEndpointRoutes } from "./routes/chat-endpoint";
 import { analyticsRoutes } from "./routes/analytics";
 import { uploadRoutes } from "./routes/uploads";
-import { agentTestSuiteRoutes, testCaseRoutes, testSuiteRoutes } from "./routes/test-suites";
+import { agentTestSuiteRoutes, testCaseRoutes, testSuiteRoutes, testRunRoutes } from "./routes/test-suites";
 import { errorHandler } from "./middleware/error-handler";
 import { requestId } from "./middleware/request-id";
 import { adminSettingsRoutes } from "./routes/admin/settings";
@@ -145,6 +145,7 @@ v1.route("/agents", agentTestSuiteRoutes);
 // Test suites
 v1.route("/test-suites", testSuiteRoutes);
 v1.route("/test-cases", testCaseRoutes);
+v1.route("/test-runs", testRunRoutes);
 
 // Tools management
 v1.route("/tools", toolRoutes);

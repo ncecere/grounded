@@ -1471,3 +1471,25 @@ Added test case CRUD/reorder endpoints with ExpectedBehavior validation and last
 
 ### Tests
 - `bun test apps/api/src/routes/test-cases.test.ts`
+
+## 2026-01-20: Implement test run API routes and suite analytics
+
+### Summary
+Added test run list/start/detail/cancel endpoints with pass rate calculations and per-suite analytics aggregation helpers.
+
+### Changes Made
+1. **apps/api/src/routes/test-suites.ts**
+   - Added test run listing, start, detail, cancel/delete, and analytics endpoints.
+   - Calculated pass rates for runs and analytics responses.
+
+2. **apps/api/src/services/test-suite-metrics.ts** (new file)
+   - Added helper functions for pass rate and regression counting.
+
+3. **apps/api/src/services/test-suite-metrics.test.ts** (new file)
+   - Added coverage for pass rate calculation and regression detection.
+
+4. **apps/api/src/index.ts**
+   - Mounted `/api/v1/test-runs` routes.
+
+### Tests
+- `bun test apps/api/src/services/test-suite-metrics.test.ts`

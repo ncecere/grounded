@@ -1,15 +1,18 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { agentTestSuites, testCases, testCaseResults } from "@grounded/db/schema";
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { agentTestSuites, testCases, testCaseResults, testSuiteRuns, users } from "@grounded/db/schema";
+import { and, asc, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
 import { BadRequestError, NotFoundError } from "../middleware/error-handler";
 import { loadAgentForTenant } from "../services/agent-helpers";
+import { calculatePassRate, calculateRegressionCount } from "../services/test-suite-metrics";
+import { runTestSuite } from "../services/test-runner";
 
 export const agentTestSuiteRoutes = new Hono();
 export const testSuiteRoutes = new Hono();
 export const testCaseRoutes = new Hono();
+export const testRunRoutes = new Hono();
 
 // ============================================================================
 // Validation Schemas
@@ -89,6 +92,15 @@ const updateTestCaseSchema = z.object({
 
 const reorderTestCasesSchema = z.object({
   caseIds: z.array(z.string().uuid()).min(1),
+});
+
+const listRunsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+const analyticsQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(365).default(30),
 });
 
 // ============================================================================
@@ -532,6 +544,316 @@ testCaseRoutes.delete(
 );
 
 // ============================================================================
+// List Test Runs for Suite
+// ============================================================================
+
+testSuiteRoutes.get(
+  "/:suiteId/runs",
+  auth(),
+  requireTenant(),
+  zValidator("query", listRunsQuerySchema),
+  async (c) => {
+    const suiteId = c.req.param("suiteId");
+    const authContext = c.get("auth");
+    const query = c.req.valid("query");
+
+    const result = await withRequestRLS(c, async (tx) => {
+      await loadTestSuiteForTenant(tx, suiteId, authContext.tenantId!);
+
+      const runs = await tx.query.testSuiteRuns.findMany({
+        where: and(
+          eq(testSuiteRuns.suiteId, suiteId),
+          eq(testSuiteRuns.tenantId, authContext.tenantId!)
+        ),
+        orderBy: [desc(testSuiteRuns.createdAt)],
+        limit: query.limit,
+        offset: query.offset,
+      });
+
+      const [totalRow] = await tx
+        .select({ count: sql<number>`count(*)` })
+        .from(testSuiteRuns)
+        .where(
+          and(
+            eq(testSuiteRuns.suiteId, suiteId),
+            eq(testSuiteRuns.tenantId, authContext.tenantId!)
+          )
+        );
+
+      return { runs, total: Number(totalRow?.count ?? 0) };
+    });
+
+    return c.json({
+      runs: result.runs.map((run) => ({
+        ...run,
+        passRate: calculatePassRate({
+          passedCases: run.passedCases,
+          totalCases: run.totalCases,
+          skippedCases: run.skippedCases,
+        }),
+      })),
+      total: result.total,
+    });
+  }
+);
+
+// ============================================================================
+// Start Test Run
+// ============================================================================
+
+testSuiteRoutes.post(
+  "/:suiteId/runs",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  async (c) => {
+    const suiteId = c.req.param("suiteId");
+    const authContext = c.get("auth");
+
+    await withRequestRLS(c, async (tx) => {
+      await loadTestSuiteForTenant(tx, suiteId, authContext.tenantId!);
+    });
+
+    const result = await runTestSuite(suiteId, "manual", authContext.user.id);
+
+    if (result.status === "error") {
+      throw new BadRequestError(result.error ?? "Failed to start test suite");
+    }
+
+    return c.json({
+      id: result.runId,
+      status: result.status,
+      message: result.status === "started" ? "Test run started" : "Test run queued",
+    });
+  }
+);
+
+// ============================================================================
+// Suite Analytics
+// ============================================================================
+
+testSuiteRoutes.get(
+  "/:suiteId/analytics",
+  auth(),
+  requireTenant(),
+  zValidator("query", analyticsQuerySchema),
+  async (c) => {
+    const suiteId = c.req.param("suiteId");
+    const authContext = c.get("auth");
+    const query = c.req.valid("query");
+    const startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(startDate.getDate() - (query.days - 1));
+
+    const result = await withRequestRLS(c, async (tx) => {
+      await loadTestSuiteForTenant(tx, suiteId, authContext.tenantId!);
+
+      const runRows = await tx.query.testSuiteRuns.findMany({
+        columns: {
+          passedCases: true,
+          totalCases: true,
+          skippedCases: true,
+          completedAt: true,
+        },
+        where: and(
+          eq(testSuiteRuns.suiteId, suiteId),
+          eq(testSuiteRuns.tenantId, authContext.tenantId!),
+          eq(testSuiteRuns.status, "completed"),
+          gte(testSuiteRuns.completedAt, startDate)
+        ),
+        orderBy: [asc(testSuiteRuns.completedAt)],
+      });
+
+      const passRates = runRows.map((run) =>
+        calculatePassRate({
+          passedCases: run.passedCases,
+          totalCases: run.totalCases,
+          skippedCases: run.skippedCases,
+        })
+      );
+
+      const averagePassRate =
+        passRates.length > 0
+          ? passRates.reduce((sum, value) => sum + value, 0) / passRates.length
+          : 0;
+
+      const runsByDay = await tx
+        .select({
+          date: sql<string>`to_char(${testSuiteRuns.completedAt}, 'YYYY-MM-DD')`,
+          passRate: sql<number>`avg(${testSuiteRuns.passedCases}::float / greatest(${testSuiteRuns.totalCases} - ${testSuiteRuns.skippedCases}, 1) * 100)`,
+          totalRuns: sql<number>`count(*)`,
+        })
+        .from(testSuiteRuns)
+        .where(
+          and(
+            eq(testSuiteRuns.suiteId, suiteId),
+            eq(testSuiteRuns.tenantId, authContext.tenantId!),
+            eq(testSuiteRuns.status, "completed"),
+            gte(testSuiteRuns.completedAt, startDate)
+          )
+        )
+        .groupBy(sql`to_char(${testSuiteRuns.completedAt}, 'YYYY-MM-DD')`)
+        .orderBy(sql`to_char(${testSuiteRuns.completedAt}, 'YYYY-MM-DD')`);
+
+      return {
+        passRates,
+        averagePassRate,
+        totalRuns: runRows.length,
+        runsByDay,
+      };
+    });
+
+    return c.json({
+      runs: result.runsByDay.map((row) => ({
+        date: row.date,
+        passRate: Number(row.passRate) || 0,
+        totalRuns: Number(row.totalRuns) || 0,
+      })),
+      averagePassRate: result.averagePassRate,
+      totalRuns: result.totalRuns,
+      regressions: calculateRegressionCount(result.passRates),
+    });
+  }
+);
+
+// ============================================================================
+// Get Test Run Details
+// ============================================================================
+
+testRunRoutes.get("/:runId", auth(), requireTenant(), async (c) => {
+  const runId = c.req.param("runId");
+  const authContext = c.get("auth");
+
+  const result = await withRequestRLS(c, async (tx) => {
+    const run = await tx.query.testSuiteRuns.findFirst({
+      where: and(
+        eq(testSuiteRuns.id, runId),
+        eq(testSuiteRuns.tenantId, authContext.tenantId!)
+      ),
+    });
+
+    if (!run) {
+      throw new NotFoundError("Test run");
+    }
+
+    const suite = await loadTestSuiteForTenant(tx, run.suiteId, authContext.tenantId!);
+
+    const triggeredByUser = run.triggeredByUserId
+      ? await tx.query.users.findFirst({
+          columns: { id: true, primaryEmail: true },
+          where: eq(users.id, run.triggeredByUserId),
+        })
+      : null;
+
+    const results = await tx
+      .select({
+        id: testCaseResults.id,
+        testCaseId: testCaseResults.testCaseId,
+        testCaseName: testCases.name,
+        question: testCases.question,
+        status: testCaseResults.status,
+        actualResponse: testCaseResults.actualResponse,
+        checkResults: testCaseResults.checkResults,
+        durationMs: testCaseResults.durationMs,
+        errorMessage: testCaseResults.errorMessage,
+      })
+      .from(testCaseResults)
+      .innerJoin(testCases, eq(testCases.id, testCaseResults.testCaseId))
+      .where(
+        and(
+          eq(testCaseResults.runId, runId),
+          eq(testCaseResults.tenantId, authContext.tenantId!)
+        )
+      )
+      .orderBy(asc(testCases.sortOrder), asc(testCaseResults.createdAt));
+
+    return { run, suite, triggeredByUser, results };
+  });
+
+  const durationMs =
+    result.run.startedAt && result.run.completedAt
+      ? result.run.completedAt.getTime() - result.run.startedAt.getTime()
+      : null;
+
+  return c.json({
+    testRun: {
+      id: result.run.id,
+      suiteId: result.run.suiteId,
+      suiteName: result.suite.name,
+      status: result.run.status,
+      triggeredBy: result.run.triggeredBy,
+      triggeredByUser: result.triggeredByUser
+        ? {
+            id: result.triggeredByUser.id,
+            name: result.triggeredByUser.primaryEmail ?? "Unknown user",
+          }
+        : null,
+      totalCases: result.run.totalCases,
+      passedCases: result.run.passedCases,
+      failedCases: result.run.failedCases,
+      skippedCases: result.run.skippedCases,
+      passRate: calculatePassRate({
+        passedCases: result.run.passedCases,
+        totalCases: result.run.totalCases,
+        skippedCases: result.run.skippedCases,
+      }),
+      startedAt: result.run.startedAt,
+      completedAt: result.run.completedAt,
+      durationMs,
+      errorMessage: result.run.errorMessage,
+      results: result.results,
+    },
+  });
+});
+
+// ============================================================================
+// Delete or Cancel Test Run
+// ============================================================================
+
+testRunRoutes.delete(
+  "/:runId",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  async (c) => {
+    const runId = c.req.param("runId");
+    const authContext = c.get("auth");
+
+    const result = await withRequestRLS(c, async (tx) => {
+      const run = await tx.query.testSuiteRuns.findFirst({
+        where: and(
+          eq(testSuiteRuns.id, runId),
+          eq(testSuiteRuns.tenantId, authContext.tenantId!)
+        ),
+      });
+
+      if (!run) {
+        throw new NotFoundError("Test run");
+      }
+
+      if (run.status === "pending" || run.status === "running") {
+        const [updated] = await tx
+          .update(testSuiteRuns)
+          .set({ status: "cancelled", completedAt: new Date() })
+          .where(eq(testSuiteRuns.id, runId))
+          .returning({ id: testSuiteRuns.id });
+
+        return { cancelled: true, runId: updated?.id ?? runId };
+      }
+
+      await tx.delete(testSuiteRuns).where(eq(testSuiteRuns.id, runId));
+      return { cancelled: false, runId };
+    });
+
+    return c.json({
+      message: result.cancelled
+        ? "Test run cancelled"
+        : "Test run deleted",
+    });
+  }
+);
+
+// ============================================================================
 // Helpers
 // ============================================================================
 
@@ -540,7 +862,7 @@ async function loadTestSuiteForTenant(
   tx: any,
   suiteId: string,
   tenantId: string
-): Promise<void> {
+): Promise<typeof agentTestSuites.$inferSelect> {
   const suite = await tx.query.agentTestSuites.findFirst({
     where: and(
       eq(agentTestSuites.id, suiteId),
@@ -552,4 +874,6 @@ async function loadTestSuiteForTenant(
   if (!suite) {
     throw new NotFoundError("Test suite");
   }
+
+  return suite;
 }
