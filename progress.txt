@@ -532,6 +532,26 @@ Implemented a comprehensive skip reason tracking system for the ingestion pipeli
 - All existing tests pass (528 tests in shared package)
 - TypeScript typechecking passes across all packages
 
+## 2026-01-20: Add TanStack Query hooks for test suites
+
+### Summary
+Added dedicated React Query hooks and query keys for the test suites API, including polling for active runs and cache invalidation for mutations.
+
+### Changes Made
+1. **apps/web/src/lib/api/test-suites.hooks.ts**
+   - Added query key helpers for suites, cases, runs, and analytics
+   - Added query hooks for suites, cases, runs, and analytics with polling for in-progress runs
+   - Added mutation hooks for suite/case/run workflows with cache invalidation
+
+2. **apps/web/src/lib/api/index.ts**
+   - Exported the new test suite hooks
+
+3. **apps/web/src/lib/api/test-suites.hooks.test.ts** (new file)
+   - Added export and signature coverage for the new hooks
+
+### Tests
+- `bun test apps/web/src/lib/api/test-suites.hooks.test.ts`
+
 ## 2026-01-19: Add test suite API routes
 
 ### Summary

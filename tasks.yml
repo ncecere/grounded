@@ -172,7 +172,7 @@ tasks:
       - Handle errors consistently
 
   - title: "Phase 6 (phase-6-api-client.md): Create TanStack Query hooks"
-    completed: false
+    completed: true
     parallel_group: 15
     tags: [test-suites, frontend]
     depends_on: ["Phase 6: Add API client methods"]

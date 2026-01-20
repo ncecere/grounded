@@ -229,3 +229,4 @@ export { toolsApi } from "./tools";
 export { analyticsApi } from "./analytics";
 export { adminApi } from "./admin";
 export { testSuitesApi } from "./test-suites";
+export * from "./test-suites.hooks";
