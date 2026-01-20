@@ -365,7 +365,7 @@ tasks:
   # Final: Testing and Polish
   # ---------------------------------------------------------------------------
   - title: "Final (phase-7-ui-components.md, phase-8-workspace-analytics.md): End-to-end testing of test suites feature"
-    completed: false
+    completed: true
     parallel_group: 22
     tags: [test-suites, testing]
     depends_on: ["Phase 8: Integrate test analytics into Analytics page"]

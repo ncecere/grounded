@@ -962,6 +962,20 @@ Built the PassRateChart component to visualize test suite pass rates over time w
 
 ## 2026-01-20: Create agent test health table component
 
+## 2026-01-20: Add end-to-end test suites workflow test
+
+### Summary
+Added an end-to-end API test that exercises JSONL import/export, test suite execution, and regression analytics in one flow.
+
+### Changes Made
+1. **apps/api/src/services/test-suite-e2e.test.ts** (new file)
+   - Mocked the RAG chat service to return deterministic responses
+   - Parsed JSONL test cases, executed a suite run, and asserted run outcomes
+   - Verified JSONL export round-trip and regression analytics calculations
+
+### Tests
+- `bun test apps/api/src/services/test-suite-e2e.test.ts`
+
 ## 2026-01-20: Add test suite analytics API client and hooks
 
 ### Summary
