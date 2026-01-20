@@ -532,6 +532,26 @@ Implemented a comprehensive skip reason tracking system for the ingestion pipeli
 - All existing tests pass (528 tests in shared package)
 - TypeScript typechecking passes across all packages
 
+## 2026-01-19: Add test suite API routes
+
+### Summary
+Implemented test suite CRUD routes and agent-scoped listing/creation with Zod validation.
+
+### Changes Made
+1. **apps/api/src/routes/test-suites.ts**
+   - Added agent-scoped list/create routes for test suites
+   - Added suite-level get/update/delete routes with tenant validation
+   - Implemented scheduling and alert setting validation via Zod
+
+2. **apps/api/src/index.ts**
+   - Mounted new agent and test suite routes under `/api/v1`
+
+3. **apps/api/src/routes/test-suites.test.ts** (new file)
+   - Added schema validation tests for schedule settings and alert thresholds
+
+### Tests
+- `bun test apps/api/src/routes/test-suites.test.ts`
+
 ## 2026-01-18: Disable Playwright downloads during crawl
 
 ### Summary
