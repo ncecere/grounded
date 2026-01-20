@@ -114,6 +114,15 @@ describe("api module structure", () => {
       expect(typeof analyticsApi.getAnalytics).toBe("function");
     });
 
+    it("should export testSuitesApi", async () => {
+      const { testSuitesApi } = await import("./test-suites");
+      expect(testSuitesApi).toBeDefined();
+      expect(typeof testSuitesApi.listTestSuites).toBe("function");
+      expect(typeof testSuitesApi.createTestSuite).toBe("function");
+      expect(typeof testSuitesApi.listTestCases).toBe("function");
+      expect(typeof testSuitesApi.listTestRuns).toBe("function");
+    });
+
     it("should export adminApi", async () => {
       const { adminApi } = await import("./admin");
       expect(adminApi).toBeDefined();
@@ -164,6 +173,12 @@ describe("api module structure", () => {
       expect(typeof api.listTools).toBe("function");
       expect(typeof api.listAgentTools).toBe("function");
 
+      // Test suite methods
+      expect(typeof api.listTestSuites).toBe("function");
+      expect(typeof api.createTestSuite).toBe("function");
+      expect(typeof api.listTestCases).toBe("function");
+      expect(typeof api.listTestRuns).toBe("function");
+
       // Admin methods
       expect(typeof api.getAdminSettings).toBe("function");
       expect(typeof api.listProviders).toBe("function");
@@ -194,6 +209,7 @@ describe("api module structure", () => {
       expect(mainApi.chatApi).toBeDefined();
       expect(mainApi.toolsApi).toBeDefined();
       expect(mainApi.analyticsApi).toBeDefined();
+      expect(mainApi.testSuitesApi).toBeDefined();
       expect(mainApi.adminApi).toBeDefined();
     });
   });

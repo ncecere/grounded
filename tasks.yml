@@ -161,7 +161,7 @@ tasks:
       - Export from appropriate location
 
   - title: "Phase 6 (phase-6-api-client.md): Add API client methods"
-    completed: false
+    completed: true
     parallel_group: 15
     tags: [test-suites, frontend]
     depends_on: ["Phase 6: Add TypeScript types for test suites"]

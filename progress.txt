@@ -1595,3 +1595,26 @@ Added frontend TypeScript types for agent test suite entities, expected behavior
 
 ### Tests
 - `bun test apps/web/src/lib/api/test-suites.types.test.ts`
+
+## 2026-01-20: Add test suite API client methods
+
+### Summary
+Implemented the frontend API client for test suites, including CRUD helpers, run analytics, and JSONL import/export support.
+
+### Changes Made
+1. **apps/web/src/lib/api/test-suites.ts**
+   - Added suite, case, and run CRUD methods
+   - Added import/export helpers with auth headers
+   - Added analytics and run query helpers
+
+2. **apps/web/src/lib/api/test-suites.test.ts**
+   - Added export and parameter count tests for test suite API methods
+
+3. **apps/web/src/lib/api/index.ts**
+   - Registered test suites API in unified client exports
+
+4. **apps/web/src/lib/api/api.test.ts**
+   - Added test suite API export coverage
+
+### Tests
+- `bun test apps/web/src/lib/api/test-suites.test.ts apps/web/src/lib/api/api.test.ts`

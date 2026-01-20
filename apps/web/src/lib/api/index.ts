@@ -23,6 +23,7 @@ import { chatApi } from "./chat";
 import { toolsApi } from "./tools";
 import { analyticsApi } from "./analytics";
 import { adminApi } from "./admin";
+import { testSuitesApi } from "./test-suites";
 
 // Unified API object for backward compatibility
 export const api = {
@@ -104,6 +105,26 @@ export const api = {
 
   // Analytics
   getAnalytics: analyticsApi.getAnalytics,
+
+  // Test Suites
+  listTestSuites: testSuitesApi.listTestSuites,
+  createTestSuite: testSuitesApi.createTestSuite,
+  getTestSuite: testSuitesApi.getTestSuite,
+  updateTestSuite: testSuitesApi.updateTestSuite,
+  deleteTestSuite: testSuitesApi.deleteTestSuite,
+  listTestCases: testSuitesApi.listTestCases,
+  createTestCase: testSuitesApi.createTestCase,
+  reorderTestCases: testSuitesApi.reorderTestCases,
+  getTestCase: testSuitesApi.getTestCase,
+  updateTestCase: testSuitesApi.updateTestCase,
+  deleteTestCase: testSuitesApi.deleteTestCase,
+  importTestCases: testSuitesApi.importTestCases,
+  exportTestCases: testSuitesApi.exportTestCases,
+  listTestRuns: testSuitesApi.listTestRuns,
+  startTestRun: testSuitesApi.startTestRun,
+  getTestSuiteAnalytics: testSuitesApi.getTestSuiteAnalytics,
+  getTestRun: testSuitesApi.getTestRun,
+  deleteTestRun: testSuitesApi.deleteTestRun,
 
   // Admin Settings
   getAdminSettings: adminApi.getAdminSettings,
@@ -207,3 +228,4 @@ export { chatApi } from "./chat";
 export { toolsApi } from "./tools";
 export { analyticsApi } from "./analytics";
 export { adminApi } from "./admin";
+export { testSuitesApi } from "./test-suites";
