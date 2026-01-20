@@ -109,7 +109,7 @@ tasks:
   # Phase 4: Scheduler (see phase-4-scheduler.md)
   # ---------------------------------------------------------------------------
   - title: "Phase 4 (phase-4-scheduler.md): Implement test suite scheduler"
-    completed: false
+    completed: true
     parallel_group: 13
     tags: [test-suites, backend]
     depends_on: ["Phase 3: Create test runs API routes"]

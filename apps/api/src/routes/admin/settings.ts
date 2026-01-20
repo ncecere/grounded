@@ -14,6 +14,11 @@ import {
   isSchedulerRunning,
   getLastCheckTime,
 } from "../../services/health-alerts";
+import {
+  getTestSuiteSchedulerStatus,
+  startTestSuiteScheduler,
+  stopTestSuiteScheduler,
+} from "../../services/test-suite-scheduler";
 import { getFairnessMetrics, resetFairnessState } from "@grounded/queue";
 
 export const adminSettingsRoutes = new Hono();
@@ -25,7 +30,7 @@ adminSettingsRoutes.use("*", auth(), requireSystemAdmin());
 // Types and Metadata
 // ============================================================================
 
-type SettingCategory = "auth" | "quotas" | "email" | "alerts" | "general" | "workers";
+type SettingCategory = "auth" | "quotas" | "email" | "alerts" | "general" | "workers" | "test_suites";
 
 interface SettingMeta {
   category: SettingCategory;
@@ -241,6 +246,24 @@ const SETTINGS_METADATA: Record<string, SettingMeta> = {
     isSecret: false,
     description: "Number of concurrent embedding jobs per worker",
     defaultValue: 4,
+  },
+  "test_suites.retention_cleanup_time": {
+    category: "test_suites",
+    isSecret: false,
+    description: "Daily cleanup time for test suite retention (UTC, HH:MM)",
+    defaultValue: "02:00",
+  },
+  "test_suites.retention_days": {
+    category: "test_suites",
+    isSecret: false,
+    description: "Number of days to keep test suite runs",
+    defaultValue: 30,
+  },
+  "test_suites.retention_runs": {
+    category: "test_suites",
+    isSecret: false,
+    description: "Minimum number of recent runs to retain per suite",
+    defaultValue: 30,
   },
 };
 
@@ -564,6 +587,26 @@ adminSettingsRoutes.post("/alerts/stop", async (c) => {
     success: true,
     running: false,
     message: "Alert scheduler stopped",
+  });
+});
+
+// ============================================================================
+// Test Suite Scheduler Endpoints
+// ============================================================================
+
+adminSettingsRoutes.get("/test-scheduler/status", async (c) => {
+  const status = await getTestSuiteSchedulerStatus();
+  return c.json(status);
+});
+
+adminSettingsRoutes.post("/test-scheduler/restart", async (c) => {
+  stopTestSuiteScheduler();
+  await startTestSuiteScheduler();
+  const status = await getTestSuiteSchedulerStatus();
+
+  return c.json({
+    success: true,
+    ...status,
   });
 });
 

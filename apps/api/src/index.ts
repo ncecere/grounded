@@ -34,6 +34,7 @@ import { toolRoutes } from "./routes/tools";
 import { internalWorkersRoutes } from "./routes/internal/workers";
 import { runMigrations } from "./startup/run-migrations";
 import { seedSystemAdmin } from "./startup/seed-admin";
+import { startTestSuiteScheduler, stopTestSuiteScheduler } from "./services/test-suite-scheduler";
 
 const app = new Hono();
 
@@ -51,10 +52,20 @@ const app = new Hono();
     } else {
       log.warn("api", "Vector store not configured. Set VECTOR_DB_URL or VECTOR_DB_HOST.");
     }
+
+    await startTestSuiteScheduler();
   } catch (error) {
     log.error("api", "Startup tasks failed", { error: error instanceof Error ? error.message : String(error) });
   }
 })();
+
+process.on("SIGTERM", () => {
+  stopTestSuiteScheduler();
+});
+
+process.on("SIGINT", () => {
+  stopTestSuiteScheduler();
+});
 
 // ============================================================================
 // Global Middleware

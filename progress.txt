@@ -1513,3 +1513,29 @@ Implemented JSONL import and export endpoints for test cases with validation hel
 
 ### Tests
 - `bun test apps/api/src/services/test-suite-import.test.ts`
+
+## 2026-01-20: Implement test suite scheduler and retention cleanup
+
+### Summary
+Added a background scheduler for running test suites on hourly/daily/weekly schedules, plus nightly retention cleanup with configurable settings and admin controls.
+
+### Changes Made
+1. **apps/api/src/services/test-suite-scheduler.ts** (new file)
+   - Added interval-based scheduler with Redis schedule-window reservations.
+   - Implemented schedule logic, duplicate run prevention, and retention cleanup workflow.
+   - Added retention settings resolution with env fallbacks and cleanup selection helpers.
+
+2. **apps/api/src/index.ts**
+   - Starts the test suite scheduler on API startup and stops on shutdown signals.
+
+3. **apps/api/src/routes/admin/settings.ts**
+   - Added retention settings metadata and admin endpoints for scheduler status/restart.
+
+4. **packages/db/src/schema/tenants.ts**
+   - Expanded system settings category type to include `test_suites`.
+
+5. **apps/api/src/services/test-suite-scheduler.test.ts** (new file)
+   - Added unit tests for schedule timing, retention cleanup selection, and window calculations.
+
+### Tests
+- `bun test apps/api/src/services/test-suite-scheduler.test.ts`
