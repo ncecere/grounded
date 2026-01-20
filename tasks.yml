@@ -3,120 +3,380 @@ version: "1.0"
 
 tasks:
   # ===========================================================================
-  # PARALLEL GROUP 1: Architecture & contracts
+  # AGENT TEST SUITES FEATURE
+  # Documentation: Tasks/agent-test-suites/
   # ===========================================================================
-  - title: Define staged ingestion contract and per-stage status model
+
+  # ---------------------------------------------------------------------------
+  # Phase 1: Database Schema (see phase-1-database-schema.md)
+  # ---------------------------------------------------------------------------
+  - title: "Phase 1 (phase-1-database-schema.md): Create test suites database schema"
     completed: true
-    parallel_group: 1
-    tags: [architecture, ingestion]
+    parallel_group: 10
+    tags: [test-suites, database]
     acceptance_criteria:
-      - Document inputs/outputs for discover, fetch, extract, chunk, embed, index
-      - Define per-stage status fields and timestamps
-      - Preserve compatibility with existing runs
+      - Create agent_test_suites table with scheduling and alert settings
+      - Create test_cases table with expectedBehavior JSONB column
+      - Create test_suite_runs table for execution records
+      - Create test_case_results table with checkResults JSONB
+      - Add proper indexes and foreign key constraints
+      - Export from packages/db/src/schema/index.ts
 
-  - title: Standardize job payload schemas for web and upload sources
-    completed: true
-    parallel_group: 1
-    tags: [architecture, jobs]
+  - title: "Phase 1 (phase-1-database-schema.md): Generate and apply database migration"
+    completed: false
+    parallel_group: 10
+    tags: [test-suites, database]
+    depends_on: ["Phase 1: Create test suites database schema"]
+    acceptance_criteria:
+      - Run bun run db:generate
+      - Review generated SQL migration
+      - Run bun run db:migrate
+      - Verify tables created correctly
 
-  - title: Define error taxonomy with retryable vs permanent categories
-    completed: true
-    parallel_group: 1
-    tags: [reliability, errors]
+  # ---------------------------------------------------------------------------
+  # Phase 2: Test Runner Service (see phase-2-test-runner-service.md)
+  # ---------------------------------------------------------------------------
+  - title: "Phase 2 (phase-2-test-runner-service.md): Implement test runner core service"
+    completed: false
+    parallel_group: 11
+    tags: [test-suites, backend]
+    depends_on: ["Phase 1: Generate and apply database migration"]
+    acceptance_criteria:
+      - Create runTestSuite() function with queuing logic
+      - Implement executeTestRun() with per-case execution
+      - Add concurrency control (one run per suite)
+      - Handle errors gracefully, continue on case failures
 
-  # ===========================================================================
-  # PARALLEL GROUP 2: High-volume queueing & backpressure
-  # ===========================================================================
-  - title: Split queues by stage and define concurrency defaults
-    completed: true
-    parallel_group: 2
-    tags: [queue, scaling]
-    depends_on: ["Define staged ingestion contract and per-stage status model"]
+  - title: "Phase 2 (phase-2-test-runner-service.md): Implement evaluation functions"
+    completed: false
+    parallel_group: 11
+    tags: [test-suites, backend]
+    depends_on: ["Phase 1: Generate and apply database migration"]
+    acceptance_criteria:
+      - Implement evaluateContainsPhrases() with case sensitivity
+      - Implement evaluateSemanticSimilarity() using KB embedding model
+      - Implement evaluateLlmJudge() with configurable model
+      - Implement evaluateResponse() combining checks with all/any mode
 
-  - title: Add per-tenant and per-domain concurrency limits
-    completed: true
-    parallel_group: 2
-    tags: [queue, scaling]
+  # ---------------------------------------------------------------------------
+  # Phase 3: API Routes (see phase-3-api-routes.md)
+  # ---------------------------------------------------------------------------
+  - title: "Phase 3 (phase-3-api-routes.md): Create test suites API routes"
+    completed: false
+    parallel_group: 12
+    tags: [test-suites, api]
+    depends_on: ["Phase 2: Implement test runner core service"]
+    acceptance_criteria:
+      - GET/POST /agents/:agentId/test-suites
+      - GET/PATCH/DELETE /test-suites/:suiteId
+      - Proper auth and tenant validation
+      - Zod schema validation
 
-  - title: Implement embed lag backpressure for process queue
-    completed: true
-    parallel_group: 2
-    tags: [queue, backpressure]
+  - title: "Phase 3 (phase-3-api-routes.md): Create test cases API routes"
+    completed: false
+    parallel_group: 12
+    tags: [test-suites, api]
+    depends_on: ["Phase 2: Implement test runner core service"]
+    acceptance_criteria:
+      - GET/POST /test-suites/:suiteId/cases
+      - GET/PATCH/DELETE /test-cases/:caseId
+      - POST /test-suites/:suiteId/cases/reorder
+      - ExpectedBehavior validation with Zod
 
-  # ===========================================================================
-  # PARALLEL GROUP 3: HTML-only crawling
-  # ===========================================================================
-  - title: Enforce HTML content-type allowlist in fetch
-    completed: true
-    parallel_group: 3
-    tags: [crawl, policy]
+  - title: "Phase 3 (phase-3-api-routes.md): Create test runs API routes"
+    completed: false
+    parallel_group: 12
+    tags: [test-suites, api]
+    depends_on: ["Phase 2: Implement test runner core service"]
+    acceptance_criteria:
+      - GET/POST /test-suites/:suiteId/runs
+      - GET/DELETE /test-runs/:runId
+      - GET /test-suites/:suiteId/analytics
+      - Include pass rate calculations
 
-  - title: Add skipped_non_html status with reason tracking
-    completed: true
-    parallel_group: 3
-    tags: [crawl, reporting]
+  - title: "Phase 3 (phase-3-api-routes.md): Implement JSONL import/export"
+    completed: false
+    parallel_group: 12
+    tags: [test-suites, api]
+    depends_on: ["Phase 3: Create test cases API routes"]
+    acceptance_criteria:
+      - POST /test-suites/:suiteId/import with multipart file
+      - GET /test-suites/:suiteId/export as JSONL download
+      - Parse and validate JSONL format
+      - Return import summary with errors
 
-  - title: Disable Playwright downloads during crawl
-    completed: true
-    parallel_group: 3
-    tags: [crawl, policy]
+  # ---------------------------------------------------------------------------
+  # Phase 4: Scheduler (see phase-4-scheduler.md)
+  # ---------------------------------------------------------------------------
+  - title: "Phase 4 (phase-4-scheduler.md): Implement test suite scheduler"
+    completed: false
+    parallel_group: 13
+    tags: [test-suites, backend]
+    depends_on: ["Phase 3: Create test runs API routes"]
+    acceptance_criteria:
+      - Create startTestSuiteScheduler() with setInterval
+      - Implement shouldRunNow() for hourly/daily/weekly schedules
+      - Prevent duplicate runs in same time window
+      - Integrate with API server startup/shutdown
+      - Run nightly retention cleanup at configurable time (UI/env)
+      - Add test_suites retention settings metadata and env fallbacks
 
-  # ===========================================================================
-  # PARALLEL GROUP 4: Retry strategy
-  # ===========================================================================
-  - title: Implement exponential backoff with jitter for retryable errors
-    completed: true
-    parallel_group: 4
-    tags: [reliability, retry]
+  # ---------------------------------------------------------------------------
+  # Phase 5: Alert Integration (see phase-5-alert-integration.md)
+  # ---------------------------------------------------------------------------
+  - title: "Phase 5 (phase-5-alert-integration.md): Implement regression detection"
+    completed: false
+    parallel_group: 14
+    tags: [test-suites, alerts]
+    depends_on: ["Phase 4: Implement test suite scheduler"]
+    acceptance_criteria:
+      - Detect pass rate drops beyond threshold
+      - Identify newly failing test cases
+      - Compare current run with previous completed run
+      - Respect alertOnRegression setting
 
-  - title: Limit retry attempts per stage and log outcomes
-    completed: true
-    parallel_group: 4
-    tags: [reliability, logging]
+  - title: "Phase 5 (phase-5-alert-integration.md): Implement regression alert emails"
+    completed: false
+    parallel_group: 14
+    tags: [test-suites, alerts]
+    depends_on: ["Phase 5: Implement regression detection"]
+    acceptance_criteria:
+      - Add sendTestRegressionAlert() to email service
+      - Include pass rate change and newly failing cases
+      - Use tenant alert recipients
+      - Link to run details in email
 
-  # ===========================================================================
-  # PARALLEL GROUP 5: Embedding integrity
-  # ===========================================================================
-  - title: Use deterministic embed job IDs based on chunk IDs
-    completed: true
-    parallel_group: 5
-    tags: [embedding, integrity]
+  # ---------------------------------------------------------------------------
+  # Phase 6: API Client (see phase-6-api-client.md)
+  # ---------------------------------------------------------------------------
+  - title: "Phase 6 (phase-6-api-client.md): Add TypeScript types for test suites"
+    completed: false
+    parallel_group: 15
+    tags: [test-suites, frontend]
+    depends_on: ["Phase 3: Create test runs API routes"]
+    acceptance_criteria:
+      - Define TestSuite, TestCase, TestRun types
+      - Define ExpectedBehavior and CheckResult types
+      - Define DTO types for create/update operations
+      - Export from appropriate location
 
-  - title: Track per-chunk embed status and gate run completion
-    completed: true
-    parallel_group: 5
-    tags: [embedding, integrity]
+  - title: "Phase 6 (phase-6-api-client.md): Add API client methods"
+    completed: false
+    parallel_group: 15
+    tags: [test-suites, frontend]
+    depends_on: ["Phase 6: Add TypeScript types for test suites"]
+    acceptance_criteria:
+      - Add CRUD methods for suites, cases, runs
+      - Add import/export methods
+      - Add analytics method
+      - Handle errors consistently
 
-  - title: Add embedding_incomplete run status
-    completed: true
-    parallel_group: 5
-    tags: [embedding, reporting]
+  - title: "Phase 6 (phase-6-api-client.md): Create TanStack Query hooks"
+    completed: false
+    parallel_group: 15
+    tags: [test-suites, frontend]
+    depends_on: ["Phase 6: Add API client methods"]
+    acceptance_criteria:
+      - Create useTestSuites, useTestSuite hooks
+      - Create useTestCases, useTestCase hooks
+      - Create useTestRuns, useTestRun with polling
+      - Create mutation hooks with cache invalidation
 
-  # ===========================================================================
-  # PARALLEL GROUP 6: Robots policy overrides
-  # ===========================================================================
-  - title: Implement robots.txt enforcement with override flag
-    completed: true
-    parallel_group: 6
-    tags: [crawl, policy]
+  # ---------------------------------------------------------------------------
+  # Phase 7: UI Components (see phase-7-ui-components.md)
+  # ---------------------------------------------------------------------------
+  - title: "Phase 7 (phase-7-ui-components.md): Create TestSuiteCard and TestSuiteList"
+    completed: false
+    parallel_group: 16
+    tags: [test-suites, ui]
+    depends_on: ["Phase 6: Create TanStack Query hooks"]
+    acceptance_criteria:
+      - Card with name, schedule badge, test count, last run status
+      - Hover actions for run, edit, delete
+      - List with loading/empty states
+      - Follow existing card patterns
 
-  - title: Log robots override usage and blocked URLs
-    completed: true
-    parallel_group: 6
-    tags: [crawl, logging]
+  - title: "Phase 7 (phase-7-ui-components.md): Create TestSuiteDetailPanel"
+    completed: false
+    parallel_group: 16
+    tags: [test-suites, ui]
+    depends_on: ["Phase 7: Create TestSuiteCard and TestSuiteList"]
+    acceptance_criteria:
+      - Slide-out panel with tabs (General, Schedule, Evaluation, Test Cases)
+      - Create and edit modes
+      - LLM Judge model selector
+      - Alert settings controls
 
-  # ===========================================================================
-  # PARALLEL GROUP 7: Observability
-  # ===========================================================================
-  - title: Emit per-stage throughput and latency metrics
-    completed: true
-    parallel_group: 7
-    tags: [observability, metrics]
+  - title: "Phase 7 (phase-7-ui-components.md): Create ExpectedBehaviorEditor"
+    completed: false
+    parallel_group: 16
+    tags: [test-suites, ui]
+    depends_on: ["Phase 7: Create TestSuiteDetailPanel"]
+    acceptance_criteria:
+      - Mode toggle (all/any)
+      - Add/remove checks of each type
+      - Contains phrases with multi-input
+      - Semantic similarity with threshold slider
+      - LLM judge with criteria field
 
-  - title: Add run summary logs with error breakdown and skip counts
-    completed: true
-    parallel_group: 7
-    tags: [observability, logs]
+  - title: "Phase 7 (phase-7-ui-components.md): Create TestCaseCard and TestCaseForm"
+    completed: false
+    parallel_group: 16
+    tags: [test-suites, ui]
+    depends_on: ["Phase 7: Create ExpectedBehaviorEditor"]
+    acceptance_criteria:
+      - Card with name, question, check badges, last result
+      - Form with question textarea and ExpectedBehaviorEditor
+      - Inline editing in test cases tab
+      - Drag to reorder support
+
+  - title: "Phase 7 (phase-7-ui-components.md): Create TestRunCard and TestRunDetailPanel"
+    completed: false
+    parallel_group: 17
+    tags: [test-suites, ui]
+    depends_on: ["Phase 7: Create TestCaseCard and TestCaseForm"]
+    acceptance_criteria:
+      - Run card with status, pass rate bar, counts
+      - Detail panel with results list
+      - Filter by status (all/passed/failed/error)
+      - CheckResultDisplay for each result
+
+  - title: "Phase 7 (phase-7-ui-components.md): Create ImportTestCasesDialog"
+    completed: false
+    parallel_group: 17
+    tags: [test-suites, ui]
+    depends_on: ["Phase 7: Create TestCaseCard and TestCaseForm"]
+    acceptance_criteria:
+      - File drop zone
+      - Format instructions
+      - Import results summary
+      - Error display
+
+  - title: "Phase 7 (phase-7-ui-components.md): Create PassRateChart"
+    completed: false
+    parallel_group: 17
+    tags: [test-suites, ui]
+    depends_on: ["Phase 7: Create TestRunCard and TestRunDetailPanel"]
+    acceptance_criteria:
+      - Line chart of pass rate over time
+      - Use analytics data
+      - Highlight regressions
+      - Responsive sizing
+
+  - title: "Phase 7 (phase-7-ui-components.md): Integrate with Agent page"
+    completed: false
+    parallel_group: 18
+    tags: [test-suites, ui]
+    depends_on: ["Phase 7: Create PassRateChart"]
+    acceptance_criteria:
+      - Add Test Suites tab to AgentDetailPanel
+      - Or add navigation to dedicated view
+      - Toast notifications for actions
+      - Loading and error states
+
+  # ---------------------------------------------------------------------------
+  # Phase 8: Workspace Analytics (see phase-8-workspace-analytics.md)
+  # ---------------------------------------------------------------------------
+  - title: "Phase 8 (phase-8-workspace-analytics.md): Create tenant-wide test suite analytics API"
+    completed: false
+    parallel_group: 18
+    tags: [test-suites, api, analytics]
+    depends_on: ["Phase 3: Create test runs API routes"]
+    acceptance_criteria:
+      - GET /api/v1/analytics/test-suites endpoint
+      - Summary stats (total suites, cases, runs, overall pass rate)
+      - Per-agent breakdown with pass rate trends
+      - Recent regressions list
+      - Pass rate over time data for charting
+      - Date range filtering support
+
+  - title: "Phase 8 (phase-8-workspace-analytics.md): Create PassRateLineChart component"
+    completed: false
+    parallel_group: 19
+    tags: [test-suites, ui, analytics]
+    depends_on: ["Phase 8: Create tenant-wide test suite analytics API"]
+    acceptance_criteria:
+      - Line/area chart showing pass rate over time
+      - Y-axis 0-100% with color zones (green/yellow/red)
+      - Tooltips with pass rate and run count
+      - Follow existing chart patterns
+      - Responsive sizing
+
+  - title: "Phase 8 (phase-8-workspace-analytics.md): Create AgentTestHealthTable component"
+    completed: false
+    parallel_group: 19
+    tags: [test-suites, ui, analytics]
+    depends_on: ["Phase 8: Create tenant-wide test suite analytics API"]
+    acceptance_criteria:
+      - Table with agent name, suite/case counts
+      - Pass rate with trend indicator (up/down/stable)
+      - Last run time and status
+      - Link to agent test suites
+      - Sortable columns
+
+  - title: "Phase 8 (phase-8-workspace-analytics.md): Create RecentRegressionsTable component"
+    completed: false
+    parallel_group: 19
+    tags: [test-suites, ui, analytics]
+    depends_on: ["Phase 8: Create tenant-wide test suite analytics API"]
+    acceptance_criteria:
+      - Table showing recent test regressions
+      - Agent/suite name, pass rate change, timestamp
+      - Visual emphasis on failures (red styling)
+      - Link to run details
+      - Empty state when no regressions
+
+  - title: "Phase 8 (phase-8-workspace-analytics.md): Create TestSuiteAnalyticsSection component"
+    completed: false
+    parallel_group: 20
+    tags: [test-suites, ui, analytics]
+    depends_on: ["Phase 8: Create PassRateLineChart component", "Phase 8: Create AgentTestHealthTable component", "Phase 8: Create RecentRegressionsTable component"]
+    acceptance_criteria:
+      - Summary stat cards (suites, cases, pass rate, regressions)
+      - PassRateLineChart integration
+      - AgentTestHealthTable integration
+      - RecentRegressionsTable integration
+      - Loading and empty states
+
+  - title: "Phase 8 (phase-8-workspace-analytics.md): Integrate test analytics into Analytics page"
+    completed: false
+    parallel_group: 21
+    tags: [test-suites, ui, analytics]
+    depends_on: ["Phase 8: Create TestSuiteAnalyticsSection component"]
+    acceptance_criteria:
+      - Add "Agent Test Health" section to Analytics page
+      - Or implement tabbed layout (Usage / Testing)
+      - Respect date range filter
+      - Empty state when no test suites exist
+      - Seamless visual integration
+
+  - title: "Phase 8 (phase-8-workspace-analytics.md): Add test analytics API client and hooks"
+    completed: false
+    parallel_group: 19
+    tags: [test-suites, frontend, analytics]
+    depends_on: ["Phase 8: Create tenant-wide test suite analytics API"]
+    acceptance_criteria:
+      - Add TestSuiteAnalytics type
+      - Add getTestSuiteAnalytics() API method
+      - Add useTestSuiteAnalytics() hook
+      - Handle date range parameters
+
+  # ---------------------------------------------------------------------------
+  # Final: Testing and Polish
+  # ---------------------------------------------------------------------------
+  - title: "Final (phase-7-ui-components.md, phase-8-workspace-analytics.md): End-to-end testing of test suites feature"
+    completed: false
+    parallel_group: 22
+    tags: [test-suites, testing]
+    depends_on: ["Phase 8: Integrate test analytics into Analytics page"]
+    acceptance_criteria:
+      - Create suite, add cases, run tests manually
+      - Verify scheduled runs work
+      - Verify regression alerts sent
+      - Test JSONL import/export
+      - Test all UI flows
+      - Verify analytics page shows test data
+      - Test pass rate charts and tables
 
 metadata:
   created_at: "2026-01-18"

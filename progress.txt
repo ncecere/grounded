@@ -1400,3 +1400,5 @@ status=partial | pages=80/100 | failed=10 | skipped=10 | duration=5.0s | embedde
 - All 107 new tests pass
 - All existing tests pass (1110 tests in shared package)
 - TypeScript typechecking passes across all packages
+
+2026-01-19 - Added agent test suite schema tables, exported them, and added schema tests (bun run --filter @grounded/db test).

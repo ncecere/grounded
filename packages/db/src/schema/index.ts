@@ -6,3 +6,4 @@ export * from "./analytics";
 export * from "./ai-models";
 export * from "./audit";
 export * from "./tools";
+export * from "./test-suites";
