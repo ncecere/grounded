@@ -58,6 +58,7 @@ interface TestSuiteDetailPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isCreateMode?: boolean;
+  onSuiteSaved?: (suite: TestSuite, action: "created" | "updated") => void;
 }
 
 export function TestSuiteDetailPanel({
@@ -66,6 +67,7 @@ export function TestSuiteDetailPanel({
   open,
   onOpenChange,
   isCreateMode = false,
+  onSuiteSaved,
 }: TestSuiteDetailPanelProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<DetailTab>("general");
@@ -179,18 +181,20 @@ export function TestSuiteDetailPanel({
   const createMutation = useMutation({
     mutationFn: (data: Parameters<typeof api.createTestSuite>[1]) =>
       api.createTestSuite(agentId, data),
-    onSuccess: () => {
+    onSuccess: (createdSuite) => {
       queryClient.invalidateQueries({ queryKey: ["test-suites", agentId] });
       onOpenChange(false);
+      onSuiteSaved?.(createdSuite, "created");
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: (data: Parameters<typeof api.updateTestSuite>[1]) =>
       api.updateTestSuite(suite!.id, data),
-    onSuccess: () => {
+    onSuccess: (updatedSuite) => {
       queryClient.invalidateQueries({ queryKey: ["test-suites", agentId] });
       setHasUnsavedChanges(false);
+      onSuiteSaved?.(updatedSuite, "updated");
     },
   });
 

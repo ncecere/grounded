@@ -1821,3 +1821,30 @@ Implemented the TestCase card, inline editing form, and drag-and-drop reordering
 
 ### Tests
 - `bun test apps/web/src/components/test-suites/TestCaseCard.test.ts apps/web/src/components/test-suites/TestCaseForm.test.ts`
+
+## 2026-01-20: Integrate test suites into agent panel
+
+### Summary
+Integrated the test suites workflow into the Agent detail panel with a dedicated tab, analytics snapshot, and run history list.
+
+### Changes Made
+1. **apps/web/src/components/agents/AgentDetailPanel.tsx**
+   - Added the Test Suites tab to the agent slide-out panel
+   - Wired the new tab content into the existing tab layout
+
+2. **apps/web/src/components/agents/tabs/TestSuitesTab.tsx** (new file)
+   - Added suite listing, analytics summary, pass rate chart, and recent runs
+   - Added run/start/delete actions with toast notifications and error handling
+   - Added sheet integration for suite editing and run details
+
+3. **apps/web/src/components/test-suites/TestSuiteDetailPanel.tsx**
+   - Added optional callbacks for create/update success notifications
+
+4. **apps/web/src/components/agents/tabs/index.ts**
+   - Exported the new TestSuitesTab component
+
+5. **apps/web/src/components/agents/tabs/TestSuitesTab.test.ts** (new file)
+   - Added module export coverage
+
+### Tests
+- `bun test apps/web/src/components/agents/tabs/TestSuitesTab.test.ts`
