@@ -1638,3 +1638,30 @@ Implemented the frontend API client for test suites, including CRUD helpers, run
 
 ### Tests
 - `bun test apps/web/src/lib/api/test-suites.test.ts apps/web/src/lib/api/api.test.ts`
+
+## 2026-01-20: Create test suite cards and list UI
+
+### Summary
+Built TestSuiteCard and TestSuiteList components with schedule badges, last-run status, and empty/loading states for test suite management.
+
+### Changes Made
+1. **apps/web/src/components/test-suites/TestSuiteCard.tsx**
+   - Added card layout with schedule badge, test count, and last-run status badge
+   - Added helper functions for schedule labels, run status badges, and timestamps
+   - Added hover actions for run, edit, and delete workflows
+
+2. **apps/web/src/components/test-suites/TestSuiteList.tsx**
+   - Added list layout with loading skeleton and empty state handling
+   - Added default empty state copy and action support
+
+3. **apps/web/src/components/test-suites/index.ts**
+   - Exported new test suite components
+
+4. **apps/web/src/components/test-suites/TestSuiteCard.test.ts** (new file)
+   - Added helper function coverage for schedule labels and run status handling
+
+5. **apps/web/src/components/test-suites/TestSuiteList.test.ts** (new file)
+   - Added export checks and default empty state coverage
+
+### Tests
+- `bun test apps/web/src/components/test-suites/TestSuiteCard.test.ts apps/web/src/components/test-suites/TestSuiteList.test.ts`
