@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Button Variants**: Standardized Cancel buttons to use `variant="outline"` instead of `variant="ghost"`
 - **Remove Button Style**: Changed member remove action from text link to icon button with trash icon for consistency
 - **Shared KB Chunk Counts**: Fixed RLS policies so tenants can now see chunk/source counts for published global knowledge bases. Previously, chunk counts showed as 0 because the RLS policy only allowed access to tenant-owned data, not global KB data with `tenant_id = NULL`.
+- **Shared KB Detail Page**: The `GET /knowledge-bases/:id` endpoint now returns `sourceCount` and `chunkCount` fields, fixing the shared KB detail page which previously showed 0 chunks even though the list view showed the correct count.
 
 ## [0.3.0] - 2026-01-19
 

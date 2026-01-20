@@ -212,7 +212,15 @@ kbRoutes.get("/:kbId", auth(), requireTenant(), async (c) => {
       throw new ForbiddenError("Access denied");
     }
 
-    return result;
+    // Get source and chunk counts
+    const { sourceCountMap, chunkCountMap } = await getKbCountMaps(tx, [kbId]);
+
+    return {
+      ...result,
+      sourceCount: sourceCountMap.get(kbId) || 0,
+      chunkCount: chunkCountMap.get(kbId) || 0,
+      isShared: result.isGlobal && result.tenantId !== authContext.tenantId,
+    };
   });
 
   return c.json({ knowledgeBase: kb });
