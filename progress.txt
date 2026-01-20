@@ -1665,3 +1665,23 @@ Built TestSuiteCard and TestSuiteList components with schedule badges, last-run 
 
 ### Tests
 - `bun test apps/web/src/components/test-suites/TestSuiteCard.test.ts apps/web/src/components/test-suites/TestSuiteList.test.ts`
+
+## 2026-01-20: Add TestSuiteDetailPanel UI
+
+### Summary
+Implemented the TestSuiteDetailPanel with tabbed editing for general settings, scheduling, evaluation, and test cases.
+
+### Changes Made
+1. **apps/web/src/components/test-suites/TestSuiteDetailPanel.tsx**
+   - Added sheet panel with tabs and validation for create/edit flows
+   - Included LLM judge model selector and regression alert controls
+   - Added schedule configuration with daily/weekly time and day selection
+
+2. **apps/web/src/components/test-suites/TestSuiteDetailPanel.test.ts** (new file)
+   - Added export and default form coverage
+
+3. **apps/web/src/components/test-suites/index.ts**
+   - Exported TestSuiteDetailPanel
+
+### Tests
+- `bun test apps/web/src/components/test-suites/TestSuiteDetailPanel.test.ts`
