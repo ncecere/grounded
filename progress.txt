@@ -1451,3 +1451,23 @@ Added coverage for test suite evaluation helpers, including phrase checks, seman
 
 ### Tests
 - `bun test apps/api/src/services/test-runner-evaluations.test.ts`
+
+## 2026-01-20: Implement test case API routes and validation
+
+### Summary
+Added test case CRUD/reorder endpoints with ExpectedBehavior validation and last-result hydration for listing cases.
+
+### Changes Made
+1. **apps/api/src/routes/test-suites.ts**
+   - Added expected behavior validation schemas and test case routes.
+   - Implemented suite-scoped listing with last result lookups.
+   - Added create, update, delete, and reorder endpoints for test cases.
+
+2. **apps/api/src/index.ts**
+   - Mounted `/api/v1/test-cases` routes.
+
+3. **apps/api/src/routes/test-cases.test.ts** (new file)
+   - Added schema tests for expected behavior and test case validation.
+
+### Tests
+- `bun test apps/api/src/routes/test-cases.test.ts`
