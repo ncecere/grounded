@@ -941,6 +941,26 @@ Implemented the Import Test Cases dialog with JSONL file drop zone, format guida
 ### Tests
 - `bun test apps/web/src/components/test-suites/ImportTestCasesDialog.test.ts`
 
+## 2026-01-20: Add pass rate chart for test suite analytics
+
+### Summary
+Built the PassRateChart component to visualize test suite pass rates over time with regression highlighting and responsive sizing.
+
+### Changes Made
+1. **apps/web/src/components/test-suites/PassRateChart.tsx** (new file)
+   - Added line chart rendering with regression-highlighted segments
+   - Included tooltips with pass rate and run counts
+   - Added helper to build chart series with regression detection
+
+2. **apps/web/src/components/test-suites/index.ts**
+   - Exported PassRateChart
+
+3. **apps/web/src/components/test-suites/PassRateChart.test.ts** (new file)
+   - Added regression detection, clamping, and max-point tests
+
+### Tests
+- `bun test apps/web/src/components/test-suites/PassRateChart.test.ts`
+
 ## 2026-01-18: Track per-chunk embed status and gate run completion
 
 ### Summary

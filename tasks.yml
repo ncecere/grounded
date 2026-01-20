@@ -253,7 +253,7 @@ tasks:
       - Error display
 
   - title: "Phase 7 (phase-7-ui-components.md): Create PassRateChart"
-    completed: false
+    completed: true
     parallel_group: 17
     tags: [test-suites, ui]
     depends_on: ["Phase 7: Create TestRunCard and TestRunDetailPanel"]

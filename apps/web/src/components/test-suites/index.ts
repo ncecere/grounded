@@ -8,3 +8,4 @@ export { TestRunCard } from "./TestRunCard";
 export { TestRunDetailPanel } from "./TestRunDetailPanel";
 export { CheckResultDisplay } from "./CheckResultDisplay";
 export { ImportTestCasesDialog } from "./ImportTestCasesDialog";
+export { PassRateChart } from "./PassRateChart";
