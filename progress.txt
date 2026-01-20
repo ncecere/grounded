@@ -1578,3 +1578,20 @@ Added regression alert email delivery for test suite runs with templates that hi
 
 ### Tests
 - `bun test apps/api/src/services/email.test.ts`
+
+## 2026-01-20: Add test suite API client types
+
+### Summary
+Added frontend TypeScript types for agent test suite entities, expected behavior checks, and DTOs.
+
+### Changes Made
+1. **apps/web/src/lib/api/types.ts**
+   - Added ExpectedBehavior and CheckResult types
+   - Added TestSuite, TestCase, and TestSuiteRun models
+   - Added result, analytics, and DTO type definitions
+
+2. **apps/web/src/lib/api/test-suites.types.test.ts** (new file)
+   - Added type-shape coverage for test suite entities and DTOs
+
+### Tests
+- `bun test apps/web/src/lib/api/test-suites.types.test.ts`

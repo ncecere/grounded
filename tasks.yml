@@ -150,7 +150,7 @@ tasks:
   # Phase 6: API Client (see phase-6-api-client.md)
   # ---------------------------------------------------------------------------
   - title: "Phase 6 (phase-6-api-client.md): Add TypeScript types for test suites"
-    completed: false
+    completed: true
     parallel_group: 15
     tags: [test-suites, frontend]
     depends_on: ["Phase 3: Create test runs API routes"]
