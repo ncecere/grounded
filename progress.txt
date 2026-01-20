@@ -1935,3 +1935,20 @@ Added a tenant-wide analytics endpoint for test suites with pass rate trends, re
 
 ### Tests
 - `bun test apps/api/src/services/test-suite-analytics.test.ts`
+
+## 2026-01-20: Integrate test analytics into Analytics page
+
+### Summary
+Added the Agent Test Health analytics section to the Analytics page with date range filtering and loading support.
+
+### Changes Made
+1. **apps/web/src/pages/Analytics.tsx**
+   - Added test suite analytics query using the existing date range filter
+   - Rendered the Agent Test Health section with TestSuiteAnalyticsSection
+   - Added a helper to build the analytics query string
+
+2. **apps/web/src/pages/Analytics.test.ts** (new file)
+   - Added query builder tests for date range handling
+
+### Tests
+- `bun test apps/web/src/pages/Analytics.test.ts`

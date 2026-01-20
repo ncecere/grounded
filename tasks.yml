@@ -339,7 +339,7 @@ tasks:
       - Loading and empty states
 
   - title: "Phase 8 (phase-8-workspace-analytics.md): Integrate test analytics into Analytics page"
-    completed: false
+    completed: true
     parallel_group: 21
     tags: [test-suites, ui, analytics]
     depends_on: ["Phase 8: Create TestSuiteAnalyticsSection component"]

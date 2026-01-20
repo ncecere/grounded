@@ -1,10 +1,32 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "../lib/api";
+import { api, request } from "../lib/api";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { MessageSquare, MessagesSquare, Clock, BarChart3 } from "lucide-react";
+import {
+  TestSuiteAnalyticsSection,
+  type TestSuiteAnalyticsResponse,
+} from "@/components/analytics/TestSuiteAnalyticsSection";
+
+export const buildTestSuiteAnalyticsQuery = (range: {
+  startDate?: string;
+  endDate?: string;
+}) => {
+  const searchParams = new URLSearchParams();
+
+  if (range.startDate) {
+    searchParams.set("startDate", range.startDate);
+  }
+
+  if (range.endDate) {
+    searchParams.set("endDate", range.endDate);
+  }
+
+  const query = searchParams.toString();
+  return query ? `?${query}` : "";
+};
 
 export function Analytics() {
   const [dateRange, setDateRange] = useState({
@@ -16,6 +38,15 @@ export function Analytics() {
     queryKey: ["analytics", dateRange],
     queryFn: () => api.getAnalytics(dateRange),
   });
+
+  const { data: testSuiteAnalytics, isLoading: isTestSuiteAnalyticsLoading } =
+    useQuery<TestSuiteAnalyticsResponse>({
+      queryKey: ["analytics", "test-suites", dateRange],
+      queryFn: () =>
+        request<TestSuiteAnalyticsResponse>(
+          `/analytics/test-suites${buildTestSuiteAnalyticsQuery(dateRange)}`
+        ),
+    });
 
   if (isLoading) {
     return (
@@ -155,6 +186,19 @@ export function Analytics() {
             No data available for this period
           </div>
         )}
+      </div>
+
+      <div className="mt-10">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-foreground">Agent Test Health</h2>
+          <p className="text-sm text-muted-foreground">
+            Track test suite coverage, pass rates, and recent regressions across your agents.
+          </p>
+        </div>
+        <TestSuiteAnalyticsSection
+          data={testSuiteAnalytics}
+          isLoading={isTestSuiteAnalyticsLoading}
+        />
       </div>
     </div>
   );
