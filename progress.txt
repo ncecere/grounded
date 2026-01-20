@@ -1685,3 +1685,24 @@ Implemented the TestSuiteDetailPanel with tabbed editing for general settings, s
 
 ### Tests
 - `bun test apps/web/src/components/test-suites/TestSuiteDetailPanel.test.ts`
+
+## 2026-01-20: Add ExpectedBehaviorEditor for test cases
+
+### Summary
+Implemented the ExpectedBehaviorEditor UI for configuring structured test case expectations and evaluation modes.
+
+### Changes Made
+1. **apps/web/src/components/test-suites/ExpectedBehaviorEditor.tsx** (new file)
+   - Added mode toggle for all/any evaluation
+   - Added add/remove flows for contains phrases, semantic similarity, and LLM judge checks
+   - Implemented phrase multi-input, similarity threshold slider, and criteria fields
+   - Added defaults for expected behavior and similarity threshold
+
+2. **apps/web/src/components/test-suites/ExpectedBehaviorEditor.test.ts** (new file)
+   - Added export coverage and default value tests
+
+3. **apps/web/src/components/test-suites/index.ts**
+   - Exported ExpectedBehaviorEditor
+
+### Tests
+- `bun test apps/web/src/components/test-suites/ExpectedBehaviorEditor.test.ts`
