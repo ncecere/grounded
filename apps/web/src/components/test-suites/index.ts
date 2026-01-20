@@ -4,3 +4,6 @@ export { TestSuiteDetailPanel } from "./TestSuiteDetailPanel";
 export { ExpectedBehaviorEditor } from "./ExpectedBehaviorEditor";
 export { TestCaseCard } from "./TestCaseCard";
 export { TestCaseForm } from "./TestCaseForm";
+export { TestRunCard } from "./TestRunCard";
+export { TestRunDetailPanel } from "./TestRunDetailPanel";
+export { CheckResultDisplay } from "./CheckResultDisplay";

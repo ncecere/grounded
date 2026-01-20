@@ -552,6 +552,40 @@ Added dedicated React Query hooks and query keys for the test suites API, includ
 ### Tests
 - `bun test apps/web/src/lib/api/test-suites.hooks.test.ts`
 
+## 2026-01-20: Add test run UI components
+
+### Summary
+Implemented test run cards and detailed run results panels with check result displays and filtering.
+
+### Changes Made
+1. **apps/web/src/components/test-suites/TestRunCard.tsx**
+   - Added run card with status, pass rate bar, counts, and trigger metadata
+   - Added helper formatters for timing, duration, triggers, and status badges
+
+2. **apps/web/src/components/test-suites/TestRunDetailPanel.tsx**
+   - Added sheet-based run detail panel with stats, timing, and result filtering
+   - Rendered per-case results with actual responses, errors, and check results
+
+3. **apps/web/src/components/test-suites/CheckResultDisplay.tsx**
+   - Added check result display with summaries and detail text per check type
+
+4. **apps/web/src/components/test-suites/index.ts**
+   - Exported new test run and check result components
+
+5. **apps/web/src/components/test-suites/TestRunCard.test.ts** (new file)
+   - Added formatter and status badge tests for run cards
+
+6. **apps/web/src/components/test-suites/CheckResultDisplay.test.ts** (new file)
+   - Added summary/detail formatting tests for check results
+
+7. **apps/web/src/components/test-suites/TestRunDetailPanel.test.ts** (new file)
+   - Added module export coverage for run detail panel
+
+### Tests
+- `bun test apps/web/src/components/test-suites/TestRunCard.test.ts`
+- `bun test apps/web/src/components/test-suites/CheckResultDisplay.test.ts`
+- `bun test apps/web/src/components/test-suites/TestRunDetailPanel.test.ts`
+
 ## 2026-01-19: Add test suite API routes
 
 ### Summary
