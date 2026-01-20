@@ -23,7 +23,7 @@ tasks:
       - Export from packages/db/src/schema/index.ts
 
   - title: "Phase 1 (phase-1-database-schema.md): Generate and apply database migration"
-    completed: false
+    completed: true
     parallel_group: 10
     tags: [test-suites, database]
     depends_on: ["Phase 1: Create test suites database schema"]
@@ -37,7 +37,7 @@ tasks:
   # Phase 2: Test Runner Service (see phase-2-test-runner-service.md)
   # ---------------------------------------------------------------------------
   - title: "Phase 2 (phase-2-test-runner-service.md): Implement test runner core service"
-    completed: false
+    completed: true
     parallel_group: 11
     tags: [test-suites, backend]
     depends_on: ["Phase 1: Generate and apply database migration"]

@@ -1362,6 +1362,20 @@ Implemented comprehensive run summary logging for the ingestion pipeline. The sy
 - **Reuses existing types**: Uses existing `SkipReason`, `IngestionStage`, `PageSkipDetails` interfaces
 - **Configurable verbosity**: Config controls stage breakdown, sample size, and logging thresholds
 
+## 2026-01-19: Implement test runner core service
+
+### Summary
+Implemented the core test runner service with suite execution flow, Redis-backed locking, and run lifecycle updates.
+
+### Changes Made
+1. **apps/api/src/services/test-runner.ts**
+   - Added runTestSuite and executeTestRun with queueing, lock renewal, and lifecycle updates
+   - Implemented evaluation helpers, chat response collection, and per-case timeout handling
+   - Added Redis lock manager and store abstraction for easier testing
+
+2. **apps/api/src/services/test-runner.test.ts**
+   - Added tests for missing suite handling, queueing behavior, and zero-case completion
+
 ### Run Summary Structure
 ```typescript
 {
