@@ -303,7 +303,7 @@ tasks:
       - Responsive sizing
 
   - title: "Phase 8 (phase-8-workspace-analytics.md): Create AgentTestHealthTable component"
-    completed: false
+    completed: true
     parallel_group: 19
     tags: [test-suites, ui, analytics]
     depends_on: ["Phase 8: Create tenant-wide test suite analytics API"]

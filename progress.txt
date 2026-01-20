@@ -959,6 +959,24 @@ Built the PassRateChart component to visualize test suite pass rates over time w
    - Added regression detection, clamping, and max-point tests
 
 ### Tests
+
+## 2026-01-20: Create agent test health table component
+
+### Summary
+Added the AgentTestHealthTable analytics component with sortable columns, pass rate trends, and last run status indicators.
+
+### Changes Made
+1. **apps/web/src/components/analytics/AgentTestHealthTable.tsx**
+   - Added sortable analytics table for agent test health metrics
+   - Added pass rate trend indicators, status badges, and last run formatting helpers
+   - Added optional agent selection callback for linking to test suites
+
+2. **apps/web/src/components/analytics/AgentTestHealthTable.test.ts** (new file)
+   - Added helper tests for trend detection, sorting, and formatting
+   - Added module export coverage
+
+### Tests
+- `bun test apps/web/src/components/analytics/AgentTestHealthTable.test.ts`
 - `bun test apps/web/src/components/test-suites/PassRateChart.test.ts`
 
 ## 2026-01-20: Add PassRateLineChart component for analytics
