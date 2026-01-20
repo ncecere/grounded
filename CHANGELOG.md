@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Admin Tenants Page**: Refactored to match styling patterns used in other admin pages (Users, Shared KBs, Models):
+  - Table now uses proper border styling with `rounded-lg border` wrapper and `bg-muted/50` header background
+  - Replaced text link buttons ("Manage", "Delete") with icon buttons (Settings, Trash2)
+  - Added EmptyState component when no tenants exist
+  - Converted custom modal to Dialog component with consistent `max-w-2xl` sizing
+  - Added icons to modal tabs (Users for Members, Bell for Alert Settings)
+  - Using ConfirmDialog for delete confirmations instead of browser `confirm()`
+
+### Fixed
+
+- **Dropdown Styling Consistency**: Replaced native HTML `<select>` elements with Radix Select components across tenant management:
+  - Admin Tenants modal (add member and role selector dropdowns)
+  - Tenant Settings page / MembersList component (add member and role selector dropdowns)
+  - Admin Shared KBs tenant selection dropdown
+- **Modal Size Stability**: Tenant management modal no longer changes size when switching between Members and Alert Settings tabs
+- **Button Variants**: Standardized Cancel buttons to use `variant="outline"` instead of `variant="ghost"`
+- **Remove Button Style**: Changed member remove action from text link to icon button with trash icon for consistency
+
 ## [0.3.0] - 2026-01-19
 
 ### Added

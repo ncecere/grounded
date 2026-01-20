@@ -1,10 +1,18 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { Trash2 } from "lucide-react"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface MembersListProps {
   tenantId: string
@@ -88,17 +96,18 @@ export function MembersList({
               className="flex-1"
               placeholder="user@example.com"
             />
-            <select
-              value={addRole}
-              onChange={(e) => setAddRole(e.target.value)}
-              className="rounded-lg border border-input bg-background px-3 py-2 text-sm"
-            >
-              {roles.map((role) => (
-                <option key={role.value} value={role.value}>
-                  {role.label}
-                </option>
-              ))}
-            </select>
+            <Select value={addRole} onValueChange={setAddRole}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                {roles.map((role) => (
+                  <SelectItem key={role.value} value={role.value}>
+                    {role.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               type="submit"
               disabled={!addEmail || addMemberMutation.isPending}
@@ -128,28 +137,34 @@ export function MembersList({
             <div className="flex items-center gap-3">
               {canEdit ? (
                 <>
-                  <select
+                  <Select
                     value={member.role}
-                    onChange={(e) =>
+                    onValueChange={(value) =>
                       updateRoleMutation.mutate({
                         userId: member.userId,
-                        role: e.target.value,
+                        role: value,
                       })
                     }
-                    className="rounded border border-input bg-background px-2 py-1 text-sm"
                   >
-                    {roles.map((role) => (
-                      <option key={role.value} value={role.value}>
-                        {role.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-[110px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.map((role) => (
+                        <SelectItem key={role.value} value={role.value}>
+                          {role.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button
-                    variant="link"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
                     onClick={() => setMemberToRemove({ userId: member.userId, email: member.email })}
-                    className="text-destructive"
+                    title="Remove member"
                   >
-                    Remove
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </>
               ) : (

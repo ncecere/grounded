@@ -657,25 +657,27 @@ function KbDetailModal({
               {!kb.isPublished && showTenantSelect && (
                 <div className="mb-3 p-3 bg-primary/5 border border-primary/10 rounded-lg">
                   <Label className="text-sm mb-2 block">Select tenant to share with:</Label>
-                  <select
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        shareMutation.mutate(e.target.value);
+                  <Select
+                    onValueChange={(value) => {
+                      if (value) {
+                        shareMutation.mutate(value);
                       }
                     }}
-                    defaultValue=""
                     disabled={shareMutation.isPending}
                   >
-                    <option value="">Choose a tenant...</option>
-                    {tenantsData?.tenants
-                      .filter((t) => !t.isShared)
-                      .map((tenant) => (
-                        <option key={tenant.id} value={tenant.id}>
-                          {tenant.name} ({tenant.slug})
-                        </option>
-                      ))}
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Choose a tenant..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tenantsData?.tenants
+                        .filter((t) => !t.isShared)
+                        .map((tenant) => (
+                          <SelectItem key={tenant.id} value={tenant.id}>
+                            {tenant.name} ({tenant.slug})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                   {shareMutation.error && (
                     <p className="text-xs text-destructive mt-1">{shareMutation.error.message}</p>
                   )}
