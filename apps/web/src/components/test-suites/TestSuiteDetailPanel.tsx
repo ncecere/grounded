@@ -33,6 +33,7 @@ import { EmptyState } from "../ui/empty-state";
 import { LoadingSkeleton } from "../ui/loading-skeleton";
 import { TestCaseCard } from "./TestCaseCard";
 import { TestCaseForm, type TestCaseFormValues } from "./TestCaseForm";
+import { ImportTestCasesDialog } from "./ImportTestCasesDialog";
 import { DEFAULT_EXPECTED_BEHAVIOR } from "./ExpectedBehaviorEditor";
 
 type DetailTab = "general" | "schedule" | "evaluation" | "cases";
@@ -71,6 +72,7 @@ export function TestSuiteDetailPanel({
   const [formState, setFormState] = useState(DEFAULT_TEST_SUITE_FORM);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isCreatingCase, setIsCreatingCase] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingCaseId, setEditingCaseId] = useState<string | null>(null);
   const [draggingCaseId, setDraggingCaseId] = useState<string | null>(null);
   const [caseOrder, setCaseOrder] = useState<string[]>([]);
@@ -101,6 +103,7 @@ export function TestSuiteDetailPanel({
       setHasUnsavedChanges(false);
       setActiveTab("general");
       setIsCreatingCase(false);
+      setIsImportDialogOpen(false);
       setEditingCaseId(null);
       setDraggingCaseId(null);
 
@@ -564,18 +567,35 @@ export function TestSuiteDetailPanel({
                         {orderedCases.length} case{orderedCases.length !== 1 ? "s" : ""} in this suite.
                       </p>
                     </div>
-                    {!isCreatingCase && (
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         variant="outline"
                         size="sm"
                         className="gap-2"
-                        onClick={() => setIsCreatingCase(true)}
+                        onClick={() => setIsImportDialogOpen(true)}
                       >
                         <Plus className="h-4 w-4" />
-                        Add Case
+                        Import JSONL
                       </Button>
-                    )}
+                      {!isCreatingCase && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                          onClick={() => setIsCreatingCase(true)}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add Case
+                        </Button>
+                      )}
+                    </div>
                   </div>
+
+                  <ImportTestCasesDialog
+                    suiteId={suiteId}
+                    open={isImportDialogOpen}
+                    onOpenChange={setIsImportDialogOpen}
+                  />
 
                   {isCreatingCase && (
                     <div className="border border-border rounded-lg p-4 bg-muted/20">

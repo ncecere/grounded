@@ -917,6 +917,30 @@ Output: "abc123def4567890"
 - All existing tests pass (732 tests in shared package)
 - TypeScript typechecking passes across all packages
 
+## 2026-01-20: Add ImportTestCasesDialog for test suites
+
+### Summary
+Implemented the Import Test Cases dialog with JSONL file drop zone, format guidance, and import results reporting, plus wired it into the test suite detail panel.
+
+### Changes Made
+1. **apps/web/src/components/test-suites/ImportTestCasesDialog.tsx**
+   - Added dialog UI with drag-and-drop JSONL upload and import action
+   - Included format instructions with JSONL example
+   - Displayed import summary counts and line-level errors
+
+2. **apps/web/src/components/test-suites/TestSuiteDetailPanel.tsx**
+   - Added Import JSONL action in the test cases header
+   - Wired dialog open state into the suite detail panel
+
+3. **apps/web/src/components/test-suites/index.ts**
+   - Exported ImportTestCasesDialog
+
+4. **apps/web/src/components/test-suites/ImportTestCasesDialog.test.ts** (new file)
+   - Added module export coverage
+
+### Tests
+- `bun test apps/web/src/components/test-suites/ImportTestCasesDialog.test.ts`
+
 ## 2026-01-18: Track per-chunk embed status and gate run completion
 
 ### Summary
