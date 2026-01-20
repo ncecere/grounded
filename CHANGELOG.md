@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Modal Size Stability**: Tenant management modal no longer changes size when switching between Members and Alert Settings tabs
 - **Button Variants**: Standardized Cancel buttons to use `variant="outline"` instead of `variant="ghost"`
 - **Remove Button Style**: Changed member remove action from text link to icon button with trash icon for consistency
+- **Shared KB Chunk Counts**: Fixed RLS policies so tenants can now see chunk/source counts for published global knowledge bases. Previously, chunk counts showed as 0 because the RLS policy only allowed access to tenant-owned data, not global KB data with `tenant_id = NULL`.
 
 ## [0.3.0] - 2026-01-19
 
