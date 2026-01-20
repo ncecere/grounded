@@ -536,7 +536,7 @@ export const { runTestSuite, executeTestRun } = createTestRunner();
 
 interface EvaluationContext {
   embeddingModelId: string | null;
-  llmModel: LlmModel;
+  llmModel: LlmModel | null;
 }
 
 function getMissingModelError(
@@ -558,7 +558,7 @@ function getMissingModelError(
   return null;
 }
 
-async function evaluateContainsPhrases(
+export async function evaluateContainsPhrases(
   response: string,
   check: { type: "contains_phrases"; phrases: string[]; caseSensitive?: boolean }
 ): Promise<CheckResult> {
@@ -583,7 +583,7 @@ async function evaluateContainsPhrases(
   };
 }
 
-async function evaluateSemanticSimilarity(
+export async function evaluateSemanticSimilarity(
   response: string,
   check: { type: "semantic_similarity"; expectedAnswer: string; threshold: number },
   embeddingModelId: string
@@ -603,7 +603,7 @@ async function evaluateSemanticSimilarity(
   };
 }
 
-async function evaluateLlmJudge(
+export async function evaluateLlmJudge(
   question: string,
   response: string,
   check: { type: "llm_judge"; expectedAnswer: string; criteria?: string },
@@ -655,7 +655,7 @@ Respond with JSON:
   };
 }
 
-async function evaluateResponse(
+export async function evaluateResponse(
   question: string,
   response: string,
   expectedBehavior: ExpectedBehavior,
@@ -717,7 +717,7 @@ async function getCaseResponse(
   return response;
 }
 
-function safeParseJson(value: string): any | null {
+export function safeParseJson(value: string): any | null {
   const match = value.match(/\{[\s\S]*\}/);
   if (!match) return null;
 
