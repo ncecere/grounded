@@ -1,5 +1,5 @@
 import { generateText } from "ai";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, lt } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 import { db } from "@grounded/db";
 import {
@@ -42,6 +42,7 @@ export interface TestRunnerStore {
   getSuite: (suiteId: string) => Promise<TestSuite | null>;
   getRun: (runId: string) => Promise<TestSuiteRun | null>;
   getRunStatus: (runId: string) => Promise<TestSuiteRun["status"] | null>;
+  getPreviousCompletedRun: (suiteId: string, beforeDate: Date) => Promise<TestSuiteRun | null>;
   createRun: (values: {
     suiteId: string;
     tenantId: string;
@@ -63,6 +64,16 @@ export interface TestRunnerStore {
   }) => Promise<void>;
   findPendingRun: (suiteId: string) => Promise<TestSuiteRun | null>;
   getEmbeddingModelIdForAgent: (agentId: string) => Promise<string | null>;
+  getTestCaseResultsForRun: (
+    runId: string,
+    options?: { includeTestCase?: boolean }
+  ) => Promise<
+    Array<{
+      testCaseId: string;
+      status: "passed" | "failed" | "skipped" | "error";
+      testCase?: { name: string; question: string } | null;
+    }>
+  >;
 }
 
 export interface RunLockState {
@@ -78,6 +89,18 @@ export interface RunLockHandle {
 
 export interface RunLockManager {
   acquire: (suiteId: string, runId: string) => Promise<RunLockHandle>;
+}
+
+export interface RegressionInfo {
+  isRegression: boolean;
+  previousPassRate: number;
+  currentPassRate: number;
+  passRateDrop: number;
+  newlyFailingCases: Array<{
+    testCaseId: string;
+    testCaseName: string;
+    question: string;
+  }>;
 }
 
 export interface TestRunnerDependencies {
@@ -126,6 +149,17 @@ function createDefaultStore(): TestRunnerStore {
         where: eq(testSuiteRuns.id, runId),
       });
       return run?.status ?? null;
+    },
+    async getPreviousCompletedRun(suiteId, beforeDate) {
+      const run = await db.query.testSuiteRuns.findFirst({
+        where: and(
+          eq(testSuiteRuns.suiteId, suiteId),
+          eq(testSuiteRuns.status, "completed"),
+          lt(testSuiteRuns.createdAt, beforeDate)
+        ),
+        orderBy: [desc(testSuiteRuns.createdAt)],
+      });
+      return run ?? null;
     },
     async createRun(values) {
       const rows = await db
@@ -195,6 +229,12 @@ function createDefaultStore(): TestRunnerStore {
       });
 
       return kb?.embeddingModelId ?? null;
+    },
+    async getTestCaseResultsForRun(runId, options) {
+      return db.query.testCaseResults.findMany({
+        where: eq(testCaseResults.runId, runId),
+        with: options?.includeTestCase ? { testCase: true } : undefined,
+      });
     },
   };
 }
@@ -492,6 +532,23 @@ export function createTestRunner(deps?: Partial<TestRunnerDependencies>) {
         failedCases,
         skippedCases,
       });
+
+      try {
+        const regression = await checkForRegression(run.suiteId, runId, dependencies.store);
+        if (regression.isRegression) {
+          log.info("api", "TestRunner: Regression detected", {
+            suiteId: run.suiteId,
+            runId,
+            passRateDrop: regression.passRateDrop,
+            newlyFailingCount: regression.newlyFailingCases.length,
+          });
+        }
+      } catch (error) {
+        log.error("api", "TestRunner: Regression detection failed", {
+          runId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     } catch (error) {
       log.error("api", "Test suite execution failed", {
         error: error instanceof Error ? error.message : String(error),
@@ -529,6 +586,107 @@ export function createTestRunner(deps?: Partial<TestRunnerDependencies>) {
 }
 
 export const { runTestSuite, executeTestRun } = createTestRunner();
+
+// =========================================================================
+// Regression detection
+// =========================================================================
+
+export async function checkForRegression(
+  suiteId: string,
+  currentRunId: string,
+  store: TestRunnerStore
+): Promise<RegressionInfo> {
+  const emptyResult: RegressionInfo = {
+    isRegression: false,
+    previousPassRate: 0,
+    currentPassRate: 0,
+    passRateDrop: 0,
+    newlyFailingCases: [],
+  };
+
+  const currentRun = await store.getRun(currentRunId);
+  if (!currentRun || currentRun.status !== "completed") {
+    return emptyResult;
+  }
+
+  const totalCounted = (currentRun.totalCases ?? 0) - (currentRun.skippedCases ?? 0);
+  if (totalCounted <= 0) {
+    return emptyResult;
+  }
+
+  const previousRun = await store.getPreviousCompletedRun(suiteId, currentRun.createdAt);
+  if (!previousRun) {
+    return emptyResult;
+  }
+
+  const currentPassRate = calculatePassRate(currentRun);
+  const previousPassRate = calculatePassRate(previousRun);
+  const passRateDrop = previousPassRate - currentPassRate;
+
+  const suite = await store.getSuite(suiteId);
+  if (!suite?.alertOnRegression) {
+    return {
+      ...emptyResult,
+      previousPassRate,
+      currentPassRate,
+      passRateDrop,
+    };
+  }
+
+  const newlyFailingCases = await findNewlyFailingCases(
+    currentRunId,
+    previousRun.id,
+    store
+  );
+  const thresholdExceeded = passRateDrop >= suite.alertThresholdPercent;
+  const isRegression = thresholdExceeded || newlyFailingCases.length > 0;
+
+  return {
+    isRegression,
+    previousPassRate,
+    currentPassRate,
+    passRateDrop,
+    newlyFailingCases,
+  };
+}
+
+function calculatePassRate(run: TestSuiteRun): number {
+  const totalCounted = (run.totalCases ?? 0) - (run.skippedCases ?? 0);
+  if (totalCounted <= 0) return 100;
+  return (run.passedCases / totalCounted) * 100;
+}
+
+async function findNewlyFailingCases(
+  currentRunId: string,
+  previousRunId: string,
+  store: TestRunnerStore
+): Promise<
+  Array<{
+    testCaseId: string;
+    testCaseName: string;
+    question: string;
+  }>
+> {
+  const [currentResults, previousResults] = await Promise.all([
+    store.getTestCaseResultsForRun(currentRunId, { includeTestCase: true }),
+    store.getTestCaseResultsForRun(previousRunId),
+  ]);
+
+  const previousStatusMap = new Map(
+    previousResults.map((result) => [result.testCaseId, result.status])
+  );
+
+  return currentResults
+    .filter((result) => {
+      const previousStatus = previousStatusMap.get(result.testCaseId);
+      return previousStatus === "passed" && result.status === "failed";
+    })
+    .map((result) => ({
+      testCaseId: result.testCaseId,
+      testCaseName: result.testCase?.name ?? "",
+      question: result.testCase?.question ?? "",
+    }));
+}
 
 // ============================================================================
 // Evaluation helpers

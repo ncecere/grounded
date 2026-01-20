@@ -125,7 +125,7 @@ tasks:
   # Phase 5: Alert Integration (see phase-5-alert-integration.md)
   # ---------------------------------------------------------------------------
   - title: "Phase 5 (phase-5-alert-integration.md): Implement regression detection"
-    completed: false
+    completed: true
     parallel_group: 14
     tags: [test-suites, alerts]
     depends_on: ["Phase 4: Implement test suite scheduler"]

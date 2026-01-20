@@ -916,7 +916,24 @@ Implemented per-chunk embedding status tracking using Redis and added embedding 
 4. **apps/ingestion-worker/src/processors/embed-chunks.ts**
    - Added import for status tracking functions
    - Added `markChunksEmbedInProgress()` at job start to track embedding lifecycle
-   - Added `markChunksEmbedSucceeded()` on successful embedding
+    - Added `markChunksEmbedSucceeded()` on successful embedding
+
+## 2026-01-20: Implement regression detection for test suite runs
+
+### Summary
+Added regression detection logic to compare completed test runs and identify pass rate drops or newly failing cases.
+
+### Changes Made
+1. **apps/api/src/services/test-runner.ts**
+   - Added regression detection helpers (`checkForRegression`, `calculatePassRate`, `findNewlyFailingCases`)
+   - Extended test runner store with regression queries for previous runs and case results
+   - Invoked regression detection after completed runs with logging on regression
+
+2. **apps/api/src/services/test-runner.test.ts**
+   - Added regression detection unit tests for pass rate drops, newly failing cases, and disabled alerts
+
+### Tests
+- `bun test apps/api/src/services/test-runner.test.ts`
    - Added `markChunksEmbedFailed()` for various error scenarios:
      - KB not found (non-retryable)
      - Chunks not found (non-retryable)

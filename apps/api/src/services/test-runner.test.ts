@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import {
+  checkForRegression,
   createTestRunner,
   type TestRunnerStore,
   type RunLockManager,
@@ -60,10 +61,22 @@ const buildRun = () => ({
   createdAt: new Date("2026-01-19T00:00:00Z"),
 });
 
+const buildCompletedRun = (values: Partial<ReturnType<typeof buildRun>> = {}) => ({
+  ...buildRun(),
+  status: "completed" as const,
+  totalCases: 10,
+  passedCases: 10,
+  failedCases: 0,
+  skippedCases: 0,
+  completedAt: new Date("2026-01-19T01:00:00Z"),
+  ...values,
+});
+
 const createStore = (overrides: Partial<TestRunnerStore>): TestRunnerStore => ({
   getSuite: mock(async () => buildSuite()),
   getRun: mock(async () => buildRun()),
   getRunStatus: mock(async () => "running" as const) as TestRunnerStore["getRunStatus"],
+  getPreviousCompletedRun: mock(async () => null),
   createRun: mock(async () => ({ id: "run-1" })),
   updateRun: mock(async () => {}),
   getAgent: mock(async () => buildAgent()),
@@ -71,6 +84,7 @@ const createStore = (overrides: Partial<TestRunnerStore>): TestRunnerStore => ({
   insertTestCaseResult: mock(async () => {}),
   findPendingRun: mock(async () => null),
   getEmbeddingModelIdForAgent: mock(async () => null),
+  getTestCaseResultsForRun: mock(async () => []),
   ...overrides,
 });
 
@@ -136,5 +150,105 @@ describe("test-runner", () => {
     expect(finalUpdate.failedCases).toBe(0);
     expect(finalUpdate.completedAt).toEqual(now);
     expect(store.insertTestCaseResult).not.toHaveBeenCalled();
+  });
+
+  it("detects pass rate regression beyond threshold", async () => {
+    const suite = buildSuite();
+    const previousRun = buildCompletedRun({
+      id: "run-prev",
+      passedCases: 9,
+      totalCases: 10,
+      createdAt: new Date("2026-01-18T00:00:00Z"),
+    });
+    const currentRun = buildCompletedRun({
+      id: "run-current",
+      passedCases: 6,
+      totalCases: 10,
+      createdAt: new Date("2026-01-19T00:00:00Z"),
+    });
+    const store = createStore({
+      getSuite: mock(async () => suite),
+      getRun: mock(async () => currentRun),
+      getPreviousCompletedRun: mock(async () => previousRun),
+      getTestCaseResultsForRun: mock(async () => []),
+    });
+
+    const result = await checkForRegression(suite.id, currentRun.id, store);
+
+    expect(result.isRegression).toBe(true);
+    expect(result.passRateDrop).toBe(30);
+    expect(result.newlyFailingCases).toHaveLength(0);
+  });
+
+  it("detects newly failing cases even without threshold drop", async () => {
+    const suite = buildSuite();
+    suite.alertThresholdPercent = 50;
+    const previousRun = buildCompletedRun({
+      id: "run-prev",
+      createdAt: new Date("2026-01-18T00:00:00Z"),
+    });
+    const currentRun = buildCompletedRun({
+      id: "run-current",
+      passedCases: 9,
+      failedCases: 1,
+      totalCases: 10,
+      createdAt: new Date("2026-01-19T00:00:00Z"),
+    });
+    const store = createStore({
+      getSuite: mock(async () => suite),
+      getRun: mock(async () => currentRun),
+      getPreviousCompletedRun: mock(async () => previousRun),
+      getTestCaseResultsForRun: mock(async (runId: string, options?: { includeTestCase?: boolean }) => {
+        if (runId === currentRun.id) {
+          return [
+            {
+              testCaseId: "case-1",
+              status: "failed" as const,
+              testCase: options?.includeTestCase
+                ? { name: "Case 1", question: "Why?" }
+                : null,
+            },
+          ];
+        }
+        return [{ testCaseId: "case-1", status: "passed" as const }];
+      }),
+    });
+
+    const result = await checkForRegression(suite.id, currentRun.id, store);
+
+    expect(result.isRegression).toBe(true);
+    expect(result.passRateDrop).toBe(10);
+    expect(result.newlyFailingCases).toEqual([
+      { testCaseId: "case-1", testCaseName: "Case 1", question: "Why?" },
+    ]);
+  });
+
+  it("returns no regression when alerts are disabled", async () => {
+    const suite = buildSuite();
+    suite.alertOnRegression = false;
+    const previousRun = buildCompletedRun({
+      id: "run-prev",
+      passedCases: 10,
+      createdAt: new Date("2026-01-18T00:00:00Z"),
+    });
+    const currentRun = buildCompletedRun({
+      id: "run-current",
+      passedCases: 5,
+      failedCases: 5,
+      createdAt: new Date("2026-01-19T00:00:00Z"),
+    });
+    const store = createStore({
+      getSuite: mock(async () => suite),
+      getRun: mock(async () => currentRun),
+      getPreviousCompletedRun: mock(async () => previousRun),
+      getTestCaseResultsForRun: mock(async () => [
+        { testCaseId: "case-1", status: "failed" as const },
+      ]),
+    });
+
+    const result = await checkForRegression(suite.id, currentRun.id, store);
+
+    expect(result.isRegression).toBe(false);
+    expect(result.passRateDrop).toBe(50);
   });
 });
