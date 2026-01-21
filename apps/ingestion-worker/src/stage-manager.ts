@@ -12,3 +12,7 @@ export * from "./stage/progress";
 export * from "./stage/transitions";
 export * from "./stage/cleanup";
 export * from "./stage/priority";
+export * from "./stage/queue-scraping";
+export * from "./stage/queue-processing";
+export * from "./stage/queue-indexing";
+export * from "./stage/queue-embedding";
