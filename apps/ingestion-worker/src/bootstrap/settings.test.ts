@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import type { WorkerSettings } from "@grounded/shared";
 import {
+  DEFAULT_CONCURRENCY,
+  DEFAULT_EMBED_CONCURRENCY,
   getCurrentConcurrency,
   getCurrentEmbedConcurrency,
   initializeSettings,
@@ -34,8 +36,8 @@ describe("initializeSettings", () => {
     expect(result).toEqual(baseSettings);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(refreshSpy).toHaveBeenCalledTimes(1);
-    expect(getCurrentConcurrency()).toBe(baseSettings.ingestion.concurrency);
-    expect(getCurrentEmbedConcurrency()).toBe(baseSettings.embed.concurrency);
+    expect(getCurrentConcurrency()).toBe(DEFAULT_CONCURRENCY);
+    expect(getCurrentEmbedConcurrency()).toBe(DEFAULT_EMBED_CONCURRENCY);
   });
 
   it("returns null when settings fetch fails", async () => {
@@ -45,6 +47,6 @@ describe("initializeSettings", () => {
     const result = await initializeSettings();
 
     expect(result).toBeNull();
-    expect(refreshSpy).not.toHaveBeenCalled();
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
   });
 });

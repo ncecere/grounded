@@ -608,7 +608,7 @@ tasks:
       - Behavior unchanged
 
   - title: phase-2-ingestion-worker.md - Preserve settings refresh behavior and concurrency semantics
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [ingestion, settings]
     file: phase-2-ingestion-worker.md

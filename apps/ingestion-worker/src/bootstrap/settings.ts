@@ -12,39 +12,48 @@ export const DEFAULT_CONCURRENCY = getEnvNumber("WORKER_CONCURRENCY", 5);
 export const DEFAULT_INDEX_CONCURRENCY = getEnvNumber("INDEX_WORKER_CONCURRENCY", 5);
 export const DEFAULT_EMBED_CONCURRENCY = getEnvNumber("EMBED_WORKER_CONCURRENCY", 4);
 
-// Current concurrency values (may be updated from API settings)
+// Current concurrency values (active in worker, from environment)
 let currentConcurrency = DEFAULT_CONCURRENCY;
 let currentEmbedConcurrency = DEFAULT_EMBED_CONCURRENCY;
+let lastIngestionSetting: number | null = null;
+let lastEmbedSetting: number | null = null;
 
 export const settingsClient = initSettingsClient({
   onSettingsUpdate: (settings: WorkerSettings) => {
+    const ingestionConcurrency = settings.ingestion.concurrency;
+    const embedConcurrency = settings.embed.concurrency;
     logger.info(
       {
-        ingestionConcurrency: settings.ingestion.concurrency,
-        embedConcurrency: settings.embed.concurrency,
+        ingestionConcurrency,
+        embedConcurrency,
       },
       "Settings updated from API"
     );
 
     // Track concurrency changes (worker restart required to apply)
-    if (settings.ingestion.concurrency !== currentConcurrency) {
+    const previousIngestion = lastIngestionSetting ?? currentConcurrency;
+    if (ingestionConcurrency !== previousIngestion) {
       logger.warn(
         {
-          oldConcurrency: currentConcurrency,
-          newConcurrency: settings.ingestion.concurrency,
+          oldConcurrency: previousIngestion,
+          newConcurrency: ingestionConcurrency,
         },
         "Ingestion concurrency changed in settings - restart worker to apply"
       );
     }
-    if (settings.embed.concurrency !== currentEmbedConcurrency) {
+    const previousEmbed = lastEmbedSetting ?? currentEmbedConcurrency;
+    if (embedConcurrency !== previousEmbed) {
       logger.warn(
         {
-          oldConcurrency: currentEmbedConcurrency,
-          newConcurrency: settings.embed.concurrency,
+          oldConcurrency: previousEmbed,
+          newConcurrency: embedConcurrency,
         },
         "Embed concurrency changed in settings - restart worker to apply"
       );
     }
+
+    lastIngestionSetting = ingestionConcurrency;
+    lastEmbedSetting = embedConcurrency;
   },
 });
 
@@ -58,17 +67,13 @@ export async function initializeSettings(): Promise<WorkerSettings | null> {
       },
       "Loaded settings from API"
     );
-
-    // Update current concurrency values for tracking
-    currentConcurrency = settings.ingestion.concurrency;
-    currentEmbedConcurrency = settings.embed.concurrency;
-
-    // Start periodic refresh
-    settingsClient.startPeriodicRefresh();
     return settings;
   } catch (error) {
     logger.warn({ error }, "Failed to load settings from API, using environment defaults");
     return null;
+  } finally {
+    // Start periodic refresh even if initial fetch fails
+    settingsClient.startPeriodicRefresh();
   }
 }
 
