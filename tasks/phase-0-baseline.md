@@ -724,6 +724,25 @@
 - Dimensions for aggregations: `service`, `operation`, `outcome`, `queue`, `job.name`, `tenant.id`, `sourceRun.id`, `knowledgeBase.id`.
 - No separate metrics exporter is configured; dashboards rely on these log fields.
 
+## Baseline Throughput and Performance Snapshot (Queues)
+
+- Snapshot date: 2026-01-21.
+- Source: default worker settings in `packages/shared/src/settings/index.ts`, stage manager config in `apps/ingestion-worker/src/stage-manager.ts`, and worker entrypoints in `apps/ingestion-worker/src/index.ts` + `apps/scraper-worker/src/index.ts`.
+- Note: Baseline reflects configured concurrency/rate limits (no production telemetry captured yet).
+
+### Ingestion worker queues (source-run, page-process, page-index, embed-chunks)
+- `source-run`: default concurrency 5 (`WORKER_CONCURRENCY`), batch size 100 (`STAGE_BATCH_SIZE`), rate limit 10 jobs/sec/run (`JOBS_PER_SECOND_PER_RUN`).
+- `page-process`/`page-index`: default concurrency 5 (`WORKER_CONCURRENCY` or `INDEX_WORKER_CONCURRENCY`).
+- `embed-chunks`: default concurrency 4 (`EMBED_WORKER_CONCURRENCY`).
+- Slow job threshold: 30s (`slowRequestThresholdMs`).
+- Throughput baseline: up to 5 concurrent jobs per queue (4 for embed) with 10 jobs/sec/run queued per stage.
+
+### Scraper worker queue (page-fetch)
+- `page-fetch`: default concurrency 5 (`WORKER_CONCURRENCY`).
+- Fairness scheduler defaults: total slots 5, min 1, max 10, retry delay 500ms (`FAIRNESS_*`).
+- Slow job threshold: 30s (`slowRequestThresholdMs`).
+- Throughput baseline: up to 5 concurrent fetches gated by fairness slots.
+
 ## Task List
 - [x] Document runtime entrypoints and startup sequence per app.
 - [x] Document environment variables and settings precedence per app (including dynamic settings fetch).

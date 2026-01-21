@@ -101,6 +101,16 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("CONTENT_UNSUPPORTED_TYPE");
   });
 
+  it("records baseline throughput and performance metrics", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Baseline Throughput and Performance Snapshot (Queues)");
+    expect(content).toContain("JOBS_PER_SECOND_PER_RUN");
+    expect(content).toContain("EMBED_WORKER_CONCURRENCY");
+    expect(content).toContain("page-fetch");
+    expect(content).toContain("FAIRNESS_*");
+  });
+
   it("inventories API routes by method and owner", async () => {
     const content = await readFile(baselineDocPath, "utf-8");
 

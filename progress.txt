@@ -12,3 +12,4 @@
 2026-01-21 - Added shared package inventory (shared/queue/logger/db) with consumers to phase-0 baseline; added baseline doc test coverage.
 2026-01-21 - Documented startup environment/config dependencies in phase-0 baseline and extended baseline doc tests for config dependencies.
 2026-01-21 - Documented external service dependencies (AI providers, vector store, SMTP, Firecrawl, uploads) in phase-0 baseline and added baseline doc test coverage.
+2026-01-21 - Added baseline throughput snapshot for ingestion and scraper queues with config-based metrics; updated baseline doc tests.
