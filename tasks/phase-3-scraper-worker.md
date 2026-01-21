@@ -17,6 +17,48 @@
 ## Dependencies
 - Phase 0 baseline inventory complete.
 
+## Folder Layout
+Proposed structure for `apps/scraper-worker/src/`:
+
+```
+apps/scraper-worker/src/
+  index.ts
+  bootstrap/
+    index.ts
+    settings.ts
+  jobs/
+    index.ts
+    page-fetch.ts
+  fetch/
+    index.ts
+    http.ts
+    playwright.ts
+    firecrawl.ts
+    selection.ts
+  browser/
+    pool.ts
+  services/
+    content-validation.ts
+    fairness-slots.ts
+```
+
+### File Mapping from Current to Proposed
+
+| Current Location | Proposed Location | Notes |
+| --- | --- | --- |
+| `index.ts` (settings init + refresh) | `bootstrap/settings.ts` | Own settings fetch, fairness config updates. |
+| `index.ts` (startup + shutdown wiring) | `bootstrap/index.ts` | Initialize settings, register shutdown handlers. |
+| `index.ts` (browser lifecycle) | `browser/pool.ts` | Centralized Playwright reuse + teardown. |
+| `index.ts` (page fetch worker) | `jobs/page-fetch.ts` | Job orchestration and error handling. |
+| `processors/page-fetch.ts` | `jobs/page-fetch.ts` + `fetch/*` + `services/content-validation.ts` | Split fetch strategy + validation helpers. |
+
+### Module Responsibilities
+- **bootstrap/**: Initialize settings client, fairness config refresh, startup/shutdown wiring.
+- **jobs/**: BullMQ handlers that orchestrate fetch selection and page processing.
+- **fetch/**: Strategy-specific fetch implementations with shared request interface.
+- **browser/**: Playwright browser pool lifecycle and reuse policies.
+- **services/**: Shared helpers (fairness slots, content validation) used by jobs.
+
 ## Task List
 - [ ] Define folder layout: `bootstrap/`, `jobs/`, `fetch/`, `browser/`, `services/`.
 - [ ] Extract fetch strategies into `fetch/http.ts`, `fetch/playwright.ts`, and `fetch/firecrawl.ts`.

@@ -685,7 +685,7 @@ tasks:
   # Depends on Group 3
   # ===========================================================================
   - title: phase-3-scraper-worker.md - Define scraper worker folder layout
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [scraper, worker]
     file: phase-3-scraper-worker.md
