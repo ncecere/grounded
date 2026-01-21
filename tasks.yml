@@ -502,7 +502,7 @@ tasks:
   # Depends on Group 2
   # ===========================================================================
   - title: phase-2-ingestion-worker.md - Define ingestion worker folder layout
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [ingestion, worker]
     file: phase-2-ingestion-worker.md
