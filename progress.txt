@@ -56,3 +56,4 @@
 2026-01-21 - Added ingestion worker shutdown helper with signal registration, updated entrypoint to use it, and added shutdown helper tests.
 2026-01-21 - Documented ingestion worker graceful shutdown expectations for in-flight jobs in phase-2 plan and added doc coverage test; bun test apps/ingestion-worker/src/phase-2-ingestion-worker-doc.test.ts passes.
 2026-01-21 - Updated ingestion worker entrypoint to use queues index/allWorkers wiring, added entrypoint-wiring test coverage, and verified bun test apps/ingestion-worker.
+2026-01-21 - Added stage helper unit tests for ingestion worker stage transitions and queueing helpers (scraping, processing, indexing, embedding); bun test apps/ingestion-worker/src/stage-helpers.test.ts passes.

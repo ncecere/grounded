@@ -649,7 +649,7 @@ tasks:
       - Typecheck passes
 
   - title: phase-2-ingestion-worker.md - Add ingestion unit tests for stage helpers
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [ingestion, tests]
     file: phase-2-ingestion-worker.md
