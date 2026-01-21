@@ -4,12 +4,11 @@ import { secureHeaders } from "hono/secure-headers";
 import { prettyJSON } from "hono/pretty-json";
 import { getEnv } from "@grounded/shared";
 import { wideEventMiddleware } from "@grounded/logger/middleware";
-import { readFileSync, existsSync } from "fs";
-import { join } from "path";
 
 import { errorHandler } from "./middleware/error-handler";
 import { requestId } from "./middleware/request-id";
 import { createV1Routes } from "./routes";
+import { hostedChatRoutes } from "./routes/hosted-chat";
 
 export const createApiApp = () => {
   const app = new Hono();
@@ -90,44 +89,7 @@ export const createApiApp = () => {
   // Hosted Chat Page (top-level for nicer URLs)
   // ==========================================================================
 
-  // Redirect /chat/:token to /api/v1/c/:token for the hosted chat page
-  app.get("/chat/:token", async (c) => {
-    const token = c.req.param("token");
-    // Forward to the chat endpoint route
-    return c.redirect(`/api/v1/c/${token}`);
-  });
-
-  // Serve published-chat.js for hosted chat pages
-  // Cache the JS content in memory (loaded on first request)
-  let publishedChatJsCache: string | null = null;
-
-  app.get("/published-chat.js", (c) => {
-    if (!publishedChatJsCache) {
-      // Try multiple paths:
-      // - Docker/production: /app/packages/widget/dist/published-chat.js
-      // - Local dev from project root: packages/widget/dist/published-chat.js
-      // - Local dev from apps/api: ../../packages/widget/dist/published-chat.js
-      const paths = [
-        join(process.cwd(), "packages/widget/dist/published-chat.js"),
-        join(process.cwd(), "../../packages/widget/dist/published-chat.js"),
-      ];
-
-      for (const path of paths) {
-        if (existsSync(path)) {
-          publishedChatJsCache = readFileSync(path, "utf-8");
-          break;
-        }
-      }
-
-      if (!publishedChatJsCache) {
-        return c.text("// Published chat JS not found", 404);
-      }
-    }
-
-    c.header("Content-Type", "application/javascript");
-    c.header("Cache-Control", "public, max-age=3600");
-    return c.body(publishedChatJsCache);
-  });
+  app.route("/", hostedChatRoutes);
 
   // ==========================================================================
   // Error Handler

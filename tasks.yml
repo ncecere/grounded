@@ -364,7 +364,7 @@ tasks:
       - Verified against route registry
 
   - title: phase-1-api-structure.md - Move hosted chat page asset serving into a module
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, hosted-chat]
     file: phase-1-api-structure.md
