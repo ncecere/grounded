@@ -57,4 +57,15 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("HardDeleteObjectJob");
     expect(content).toContain("apps/ingestion-worker/src/processors/kb-reindex.ts");
   });
+
+  it("captures API and SSE contract baselines", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Contract Baselines (API, SSE, Queue Payloads)");
+    expect(content).toContain("token_type");
+    expect(content).toContain("Widget config");
+    expect(content).toContain("Simple RAG stream event types");
+    expect(content).toContain("reasoning");
+    expect(content).toContain("conversationId");
+  });
 });

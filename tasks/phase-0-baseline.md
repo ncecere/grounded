@@ -189,12 +189,46 @@
 - Payload: `KbReindexJob` with `tenantId`, `kbId`, `newEmbeddingModelId`, `newEmbeddingDimensions` (+ optional `requestId`, `traceId`).
 - Processor: `apps/ingestion-worker/src/processors/kb-reindex.ts`.
 
+## Contract Baselines (API, SSE, Queue Payloads)
+
+### API Response Contracts
+- Local auth register/login (`POST /api/v1/auth/register`, `POST /api/v1/auth/login`):
+  - `{ user: { id, email }, token, token_type }`
+  - `token_type` is the literal string `"Bearer"`.
+- Current user (`GET /api/v1/auth/me`):
+  - `{ id, email, name, avatarUrl, tenantId, role, isSystemAdmin }`
+  - `name` and `avatarUrl` are `null` today because the users table does not store them yet.
+- Tenant list (`GET /api/v1/auth/tenants`):
+  - `{ tenants: [{ id, name, slug, role }] }`
+- Widget config (`GET /api/v1/widget/:token/config`):
+  - `{ agentName, description, welcomeMessage, logoUrl, theme, isPublic, ragType, showReasoningSteps }`
+
+### SSE Stream Contracts (Chat + Widget)
+- All chat streams emit SSE events where `data` is JSON and includes a `type` field.
+- Simple RAG stream event types (`apps/api/src/services/simple-rag.ts`):
+  - `status`: `{ type, status, message, sourceCount? }`
+  - `text`: `{ type, content }` (streamed chunks)
+  - `sources`: `{ type, sources: [{ id, title, url?, snippet, index }] }`
+  - `done`: `{ type, conversationId }`
+  - `error`: `{ type, message }`
+- Advanced RAG stream event types (`apps/api/src/services/advanced-rag.ts`):
+  - All Simple RAG events, plus `reasoning` events with `{ type, step }`.
+  - `step` payload: `{ id, type, title, summary, status, details? }` where `type` is one of `rewrite`, `plan`, `search`, `merge`, `generate` and `status` is `pending | in_progress | completed | error`.
+- Ordering invariants:
+  - `status` event is emitted before response text streaming for both modes.
+  - `sources` is emitted after streaming completes, followed by `done` with the `conversationId`.
+
+### Queue Payload Invariants
+- All queue payloads include `tenantId` plus job-specific identifiers (see queue section above).
+- Optional tracing fields are `requestId` and `traceId` across ingestion queues.
+- Job names and payload keys are stable and should not change without updating baseline docs.
+
 ## Task List
 - [x] Document runtime entrypoints and startup sequence per app.
 - [x] Document environment variables and settings precedence per app (including dynamic settings fetch).
 - [ ] Map the ingestion pipeline flow with owning modules and queues.
 - [x] Map queue names to job payloads and owning processors.
-- [ ] Capture contract baselines for API responses, SSE events, and queue payloads.
+- [x] Capture contract baselines for API responses, SSE events, and queue payloads.
 - [ ] Capture observability keys (log fields, error codes, metrics) by app.
 - [ ] Inventory API routes and their owning files.
 - [ ] Inventory web pages and navigation flows.

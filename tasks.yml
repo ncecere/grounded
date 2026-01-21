@@ -48,7 +48,7 @@ tasks:
       - Verified against queue registration code
 
   - title: phase-0-baseline.md - Capture contract baselines for API responses, SSE events, and queue payloads
-    completed: false
+    completed: true
     parallel_group: 1
     tags: [baseline, contracts]
     file: phase-0-baseline.md
