@@ -554,7 +554,7 @@ tasks:
       - No missing job registrations
 
   - title: phase-2-ingestion-worker.md - Split ingestion stage manager into stage modules
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [ingestion, stage]
     file: phase-2-ingestion-worker.md
