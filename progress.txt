@@ -25,3 +25,4 @@
 2026-01-21 - Defined API domain module boundaries and migration order in tasks/phase-1-api-structure.md with doc coverage tests.
 2026-01-21 - Documented API module boundary rules/import directions in tasks/phase-1-api-structure.md; added doc coverage tests.
 2026-01-21 - Defined API module template guidance in tasks/phase-1-api-structure.md and added doc test coverage for the template section.
+2026-01-21 - Documented required exports and optional module layers in tasks/phase-1-api-structure.md and extended doc test coverage.

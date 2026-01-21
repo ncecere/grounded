@@ -52,4 +52,15 @@ describe("phase 1 api structure plan", () => {
     expect(content).toContain("repo.ts");
     expect(content).toContain("types.ts");
   });
+
+  it("documents required exports and optional layers", async () => {
+    const content = await readFile(apiStructurePath, "utf-8");
+
+    expect(content).toContain("Required Exports and Optional Layers");
+    expect(content).toContain("Required exports");
+    expect(content).toContain("`routes`");
+    expect(content).toContain("`service`");
+    expect(content).toContain("Optional layers");
+    expect(content).toContain("`repo.ts` can be omitted");
+  });
 });

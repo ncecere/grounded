@@ -290,7 +290,7 @@ tasks:
       - Ready for adoption by new modules
 
   - title: phase-1-api-structure.md - Document required exports and optional module layers
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, structure]
     file: phase-1-api-structure.md
