@@ -222,7 +222,7 @@ tasks:
       - Links to dependency and test matrix docs
 
   - title: phase-0-baseline.md - Create dependency map note
-    completed: false
+    completed: true
     parallel_group: 1
     tags: [docs, dependencies]
     file: phase-0-baseline.md

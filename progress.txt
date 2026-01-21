@@ -19,3 +19,4 @@
 2026-01-21 - Documented refactor constraints in phase-0 baseline and added baseline doc test coverage for the constraints section.
 2026-01-21 - Documented phase dependencies/potential blockers in phase-0 baseline and added baseline doc test coverage.
 2026-01-21 - Added `docs/refactor/baseline.md` index note with inventory coverage and supporting doc links; added baseline inventory doc tests.
+2026-01-21 - Added `docs/refactor/dependencies.md` dependency map with package/service owners plus doc coverage tests.
