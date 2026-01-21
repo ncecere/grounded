@@ -15,6 +15,13 @@
 - API behavior changes.
 - Database schema or migration updates.
 
+## Refactor Constraints
+- Preserve API response shapes, SSE event payloads, and queue payload schemas; no field additions/removals without explicit contract review.
+- Keep database schema, migrations, and RLS policies unchanged; do not modify enum values or table definitions.
+- Maintain route paths, auth gating, and tenant scoping rules as-is (including internal/admin mounts).
+- Retain logging keys, error codes, and metrics fields to protect dashboards and alerts.
+- Keep worker settings refresh cadence and default concurrency semantics unchanged unless approved.
+
 ## Dependencies
 - None (information gathering only).
 
@@ -808,7 +815,7 @@
 - [x] Build a critical workflow checklist with expected outputs (auth, chat SSE, ingestion, scrape).
 - [x] List existing tests and smoke checks used today.
 - [ ] Build a test/smoke matrix by app and workflow.
-- [ ] Define refactor constraints (no API response changes, no schema changes).
+- [x] Define refactor constraints (no API response changes, no schema changes).
 - [ ] Note phase dependencies and potential blockers.
 - [ ] Create a baseline inventory note in `docs/refactor/baseline.md`.
 - [ ] Create `docs/refactor/dependencies.md` with package and service dependencies.

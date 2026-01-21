@@ -133,6 +133,16 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("Smoke checks (manual)");
   });
 
+  it("defines refactor constraints", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Refactor Constraints");
+    expect(content).toContain("API response shapes");
+    expect(content).toContain("schema, migrations, and RLS policies");
+    expect(content).toContain("route paths");
+    expect(content).toContain("logging keys, error codes");
+  });
+
   it("inventories API routes by method and owner", async () => {
     const content = await readFile(baselineDocPath, "utf-8");
 
