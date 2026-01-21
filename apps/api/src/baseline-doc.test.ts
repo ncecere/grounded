@@ -23,4 +23,14 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("Fetch worker settings from the API");
     expect(content).toContain("Create the React Query `QueryClient`");
   });
+
+  it("documents environment variables and precedence", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Environment Variables and Settings Precedence");
+    expect(content).toContain("SESSION_SECRET");
+    expect(content).toContain("WORKER_CONCURRENCY");
+    expect(content).toContain("SETTINGS_REFRESH_INTERVAL_MS");
+    expect(content).toContain("INTERNAL_API_KEY");
+  });
 });
