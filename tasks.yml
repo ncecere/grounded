@@ -659,7 +659,7 @@ tasks:
       - Tests pass
 
   - title: phase-2-ingestion-worker.md - Create ingestion job mapping doc
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [docs, ingestion]
     file: phase-2-ingestion-worker.md
