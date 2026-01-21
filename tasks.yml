@@ -523,7 +523,7 @@ tasks:
       - Log output remains consistent
 
   - title: phase-2-ingestion-worker.md - Preserve logging/metric keys and error codes
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [ingestion, observability]
     file: phase-2-ingestion-worker.md
