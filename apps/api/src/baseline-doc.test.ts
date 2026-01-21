@@ -33,4 +33,18 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("SETTINGS_REFRESH_INTERVAL_MS");
     expect(content).toContain("INTERNAL_API_KEY");
   });
+
+  it("captures ingestion pipeline flow and queue ownership", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Ingestion Pipeline Flow");
+    expect(content).toContain("DISCOVERING → SCRAPING → PROCESSING → INDEXING → EMBEDDING → COMPLETED");
+    expect(content).toContain("source-run");
+    expect(content).toContain("stage-transition");
+    expect(content).toContain("page-fetch");
+    expect(content).toContain("page-process");
+    expect(content).toContain("page-index");
+    expect(content).toContain("embed-chunks");
+    expect(content).toContain("apps/scraper-worker/src/processors/page-fetch.ts");
+  });
 });

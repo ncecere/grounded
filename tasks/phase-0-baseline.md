@@ -122,6 +122,27 @@
   - Worker settings are fetched from the internal API and refreshed periodically.
   - Env vars provide fallbacks when API settings are unavailable; fairness defaults are computed from `WORKER_CONCURRENCY`.
 
+## Ingestion Pipeline Flow
+
+### End-to-End Stage Order
+- Stage order is sequential: DISCOVERING → SCRAPING → PROCESSING → INDEXING → EMBEDDING → COMPLETED (defined in `apps/ingestion-worker/src/stage-manager.ts`).
+- Stage transitions are driven by `stage-transition` jobs on the `source-run` queue (BullMQ) and queue jobs for the next stage via `apps/ingestion-worker/src/stage-job-queuer.ts`.
+
+### Flow Steps, Queues, and Owners
+- Trigger and start: API `queueSourceRunJob` in `apps/api/src/services/source-helpers.ts` queues a `start` job on `source-run` (`addSourceRunStartJob`). Ingestion worker handles it in `apps/ingestion-worker/src/processors/source-run-start.ts` and queues the `discover` job.
+- Discovery (DISCOVERING): `discover` job on `source-run` handled by `apps/ingestion-worker/src/processors/source-discover.ts`. It discovers URLs, applies robots.txt rules, stores crawl state in Redis via `@grounded/crawl-state`, initializes stage progress, and queues `stage-transition`.
+- Stage transition: `stage-transition` job on `source-run` handled by `apps/ingestion-worker/src/processors/stage-transition.ts`. It calls `transitionToNextStage` in `apps/ingestion-worker/src/stage-manager.ts` and queues the next stage's jobs via `queueJobsForStage`.
+- Scraping (SCRAPING): `queueScrapingJobs` in `apps/ingestion-worker/src/stage-job-queuer.ts` queues `page-fetch` jobs on the `page-fetch` queue. Scraper worker `apps/scraper-worker/src/processors/page-fetch.ts` fetches HTML, stores it in Redis (`storeFetchedHtml`), updates stage progress, and triggers a `stage-transition` when complete.
+- Processing (PROCESSING): `queueProcessingJobs` queues `page-process` jobs on the `page-process` queue. Ingestion worker `apps/ingestion-worker/src/processors/page-process.ts` loads HTML from Redis (or upload data), extracts content, writes `source_run_pages` + `source_run_page_contents`, updates stage progress, and triggers `stage-transition` to INDEXING.
+- Indexing (INDEXING): `queueIndexingJobs` queues `page-index` jobs on the `page-index` queue. Ingestion worker `apps/ingestion-worker/src/processors/page-index.ts` chunks content into `kb_chunks`, updates run chunk counters, optionally queues `enrich-page` jobs on `enrich-page`, updates stage progress, and triggers `stage-transition` to EMBEDDING.
+- Embedding (EMBEDDING): `queueEmbeddingJobs` queues batch `embed-chunks` jobs on the `embed-chunks` queue and initializes chunk embed statuses. Ingestion worker `apps/ingestion-worker/src/processors/embed-chunks.ts` generates embeddings, upserts vectors, updates embed status + stage progress, and triggers `stage-transition` to COMPLETED.
+- Completion: `transitionToNextStage` in `apps/ingestion-worker/src/stage-manager.ts` finalizes the run when EMBEDDING completes (updates status/stats and cleans Redis state). `apps/ingestion-worker/src/processors/source-finalize.ts` handles `finalize` jobs on `source-run` when explicitly queued.
+
+### Data Stores and State
+- Redis: crawl state (`@grounded/crawl-state`), fetched HTML staging (`storeFetchedHtml`/`getFetchedHtml`), and stage progress counters (`initializeStageProgress`, `incrementStageProgress`).
+- Postgres: run + page state (`source_runs`, `source_run_pages`, `source_run_page_contents`) and chunk storage (`kb_chunks`).
+- Vector store (pgvector): embedding upserts from `apps/ingestion-worker/src/processors/embed-chunks.ts` via `@grounded/vector-store`.
+
 ## Task List
 - [x] Document runtime entrypoints and startup sequence per app.
 - [x] Document environment variables and settings precedence per app (including dynamic settings fetch).

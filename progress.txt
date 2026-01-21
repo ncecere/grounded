@@ -1,2 +1,3 @@
 2026-01-21 - Documented runtime entrypoints/startup sequences for API, web, ingestion worker, and scraper worker in phase-0 baseline; added baseline doc test coverage.
 2026-01-21 - Documented environment variables and settings precedence per app in phase-0 baseline, including worker settings fetch; added baseline doc test coverage.
+2026-01-21 - Documented ingestion pipeline flow with queues and ownership in phase-0 baseline; added baseline doc test coverage for pipeline flow.
