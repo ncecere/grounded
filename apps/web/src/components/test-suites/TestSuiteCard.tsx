@@ -94,6 +94,7 @@ export function TestSuiteCard({ suite, onOpen, onRun, onEdit, onDelete }: TestSu
   const runStatus = getRunStatusBadge(suite.lastRun);
   const runTimestamp = getRunTimestampLabel(suite.lastRun);
   const scheduleLabel = getScheduleLabel(suite);
+  const testCaseCount = suite.testCaseCount ?? 0;
 
   return (
     <div
@@ -118,7 +119,7 @@ export function TestSuiteCard({ suite, onOpen, onRun, onEdit, onDelete }: TestSu
       <div className="mt-4 flex items-center justify-between gap-3 text-sm text-muted-foreground">
         <span className="inline-flex items-center gap-1">
           <ListChecks className="w-4 h-4" />
-          {suite.testCaseCount} test case{suite.testCaseCount === 1 ? "" : "s"}
+          {testCaseCount} test case{testCaseCount === 1 ? "" : "s"}
         </span>
         <StatusBadge status={runStatus.status} label={runStatus.label} />
       </div>

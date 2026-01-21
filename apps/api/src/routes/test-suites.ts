@@ -94,7 +94,7 @@ agentTestSuiteRoutes.get("/:agentId/test-suites", auth(), requireTenant(), async
   const suites = await withRequestRLS(c, async (tx) => {
     await loadAgentForTenant(tx, agentId, authContext.tenantId!);
 
-    return tx.query.agentTestSuites.findMany({
+    const baseSuites = await tx.query.agentTestSuites.findMany({
       where: and(
         eq(agentTestSuites.agentId, agentId),
         eq(agentTestSuites.tenantId, authContext.tenantId!),
@@ -102,6 +102,72 @@ agentTestSuiteRoutes.get("/:agentId/test-suites", auth(), requireTenant(), async
       ),
       orderBy: [desc(agentTestSuites.createdAt)],
     });
+
+    if (baseSuites.length === 0) {
+      return [];
+    }
+
+    const suiteIds = baseSuites.map((suite) => suite.id);
+
+    const caseCounts = await tx
+      .select({
+        suiteId: testCases.suiteId,
+        count: sql<number>`count(*)`,
+      })
+      .from(testCases)
+      .where(
+        and(
+          inArray(testCases.suiteId, suiteIds),
+          eq(testCases.tenantId, authContext.tenantId!),
+          isNull(testCases.deletedAt)
+        )
+      )
+      .groupBy(testCases.suiteId);
+
+    const countsBySuite = new Map(
+      caseCounts.map((row) => [row.suiteId, Number(row.count)])
+    );
+
+    const runs = await tx
+      .select({
+        id: testSuiteRuns.id,
+        suiteId: testSuiteRuns.suiteId,
+        status: testSuiteRuns.status,
+        passedCases: testSuiteRuns.passedCases,
+        totalCases: testSuiteRuns.totalCases,
+        skippedCases: testSuiteRuns.skippedCases,
+        completedAt: testSuiteRuns.completedAt,
+        createdAt: testSuiteRuns.createdAt,
+      })
+      .from(testSuiteRuns)
+      .where(
+        and(
+          inArray(testSuiteRuns.suiteId, suiteIds),
+          eq(testSuiteRuns.tenantId, authContext.tenantId!)
+        )
+      )
+      .orderBy(desc(testSuiteRuns.createdAt));
+
+    const lastRunBySuite = new Map<string, { id: string; status: string; passRate: number; completedAt: Date | null }>();
+    for (const run of runs) {
+      if (lastRunBySuite.has(run.suiteId)) continue;
+      lastRunBySuite.set(run.suiteId, {
+        id: run.id,
+        status: run.status,
+        passRate: calculatePassRate({
+          passedCases: run.passedCases,
+          totalCases: run.totalCases,
+          skippedCases: run.skippedCases,
+        }),
+        completedAt: run.completedAt,
+      });
+    }
+
+    return baseSuites.map((suite) => ({
+      ...suite,
+      testCaseCount: countsBySuite.get(suite.id) ?? 0,
+      lastRun: lastRunBySuite.get(suite.id) ?? null,
+    }));
   });
 
   return c.json({ testSuites: suites });
@@ -763,7 +829,7 @@ testSuiteRoutes.get(
       const runsByDay = await tx
         .select({
           date: sql<string>`to_char(${testSuiteRuns.completedAt}, 'YYYY-MM-DD')`,
-          passRate: sql<number>`avg(${testSuiteRuns.passedCases}::float / greatest(${testSuiteRuns.totalCases} - ${testSuiteRuns.skippedCases}, 1) * 100)`,
+          passRate: sql<number>`avg(case when ${testSuiteRuns.totalCases} - ${testSuiteRuns.skippedCases} <= 0 then 100 else ${testSuiteRuns.passedCases}::float / (${testSuiteRuns.totalCases} - ${testSuiteRuns.skippedCases}) * 100 end)`,
           totalRuns: sql<number>`count(*)`,
         })
         .from(testSuiteRuns)
@@ -880,6 +946,7 @@ testRunRoutes.get("/:runId", auth(), requireTenant(), async (c) => {
         totalCases: result.run.totalCases,
         skippedCases: result.run.skippedCases,
       }),
+      systemPrompt: result.run.systemPrompt ?? null,
       startedAt: result.run.startedAt,
       completedAt: result.run.completedAt,
       durationMs,

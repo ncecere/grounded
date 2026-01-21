@@ -74,7 +74,7 @@ export function PassRateChart({
           ))}
         </div>
 
-        <div className="flex-1 border-l border-b border-border relative">
+        <div className="flex-1 border-l border-b border-border relative overflow-hidden">
           <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
             {PASS_RATE_LABELS.map((value) => (
               <div key={value} className="border-t border-border/50 w-full" />
@@ -97,17 +97,6 @@ export function PassRateChart({
                 />
               );
             })}
-            {points.map((point) => (
-              <circle
-                key={`${point.date}-dot`}
-                cx={point.x}
-                cy={point.y}
-                r={3}
-                className={point.isRegression ? "fill-destructive" : "fill-primary"}
-                stroke="hsl(var(--background))"
-                strokeWidth={1}
-              />
-            ))}
           </svg>
 
           {points.map((point) => {
@@ -119,7 +108,12 @@ export function PassRateChart({
                 className="absolute -translate-x-1/2 -translate-y-1/2 group"
                 style={{ left: `${point.x}%`, top: `${point.y}%` }}
               >
-                <div className="h-3 w-3" />
+              <div
+                className={cn(
+                  "h-2.5 w-2.5 rounded-full border border-background shadow-sm",
+                  point.isRegression ? "bg-destructive" : "bg-primary"
+                )}
+              />
                 <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border border-border shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
                   <div>{new Date(point.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
                   <div className={point.isRegression ? "text-destructive" : "text-foreground"}>

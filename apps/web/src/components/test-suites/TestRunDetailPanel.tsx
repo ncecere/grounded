@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
   Clock,
   ListChecks,
   Timer,
@@ -18,7 +19,9 @@ import { LoadingSkeleton } from "../ui/loading-skeleton";
 import { StatusBadge, type StatusType } from "../ui/status-badge";
 import { StatCard } from "../ui/stat-card";
 import { Progress } from "../ui/progress";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { CheckResultDisplay } from "./CheckResultDisplay";
+import { cn } from "@/lib/utils";
 import {
   formatRunDuration,
   formatRunTimingLabel,
@@ -77,7 +80,10 @@ export function TestRunDetailPanel({ runId, open, onOpenChange }: TestRunDetailP
   const durationLabel = formatRunDuration(run?.durationMs ?? null);
   const timingLabel = run ? formatRunTimingLabel(run) : "-";
   const triggerLabel = run ? formatRunTriggerLabel(run) : "";
-  const passRate = run ? Math.min(100, Math.max(0, Math.round(run.passRate))) : 0;
+  const totalCounted = run ? Math.max(0, run.totalCases - run.skippedCases) : 0;
+  const hasCases = totalCounted > 0;
+  const passRate = run && hasCases ? Math.min(100, Math.max(0, Math.round(run.passRate))) : 0;
+  const passRateLabel = run ? (hasCases ? `${passRate}%` : "No cases") : "-";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -120,10 +126,18 @@ export function TestRunDetailPanel({ runId, open, onOpenChange }: TestRunDetailP
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Pass rate</span>
-                  <span className="font-medium text-foreground">{passRate}%</span>
+                  <span className={cn("font-medium", hasCases ? "text-foreground" : "text-muted-foreground")}>
+                    {passRateLabel}
+                  </span>
                 </div>
-                <Progress value={passRate} className="h-2" />
+                <Progress value={passRate} className={cn("h-2", !hasCases && "opacity-40")} />
               </div>
+
+              {run.totalCases === 0 && (
+                <div className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+                  This run completed with no enabled test cases.
+                </div>
+              )}
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <StatCard
@@ -171,6 +185,23 @@ export function TestRunDetailPanel({ runId, open, onOpenChange }: TestRunDetailP
                 </div>
               </div>
 
+              {run.systemPrompt && (
+                <Collapsible defaultOpen={false} className="rounded-lg border border-border bg-muted/10">
+                  <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 p-4 text-left">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">System prompt</p>
+                      <p className="text-xs text-muted-foreground">Prompt used for this run</p>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="px-4 pb-4">
+                    <p className="text-sm text-foreground whitespace-pre-wrap">
+                      {run.systemPrompt}
+                    </p>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium">Test Case Results</p>
@@ -213,12 +244,20 @@ export function TestRunDetailPanel({ runId, open, onOpenChange }: TestRunDetailP
                         </div>
 
                         {result.actualResponse && (
-                          <div className="rounded-md border border-border bg-muted/20 p-3">
-                            <p className="text-xs uppercase text-muted-foreground">Actual response</p>
-                            <p className="mt-2 text-sm text-foreground whitespace-pre-wrap">
-                              {result.actualResponse}
-                            </p>
-                          </div>
+                          <Collapsible defaultOpen={false} className="rounded-md border border-border bg-muted/20">
+                            <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 p-3 text-left">
+                              <div>
+                                <p className="text-xs uppercase text-muted-foreground">Actual response</p>
+                                <p className="text-xs text-muted-foreground">Click to expand</p>
+                              </div>
+                              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="px-3 pb-3">
+                              <p className="text-sm text-foreground whitespace-pre-wrap">
+                                {result.actualResponse}
+                              </p>
+                            </CollapsibleContent>
+                          </Collapsible>
                         )}
 
                         {result.errorMessage && (

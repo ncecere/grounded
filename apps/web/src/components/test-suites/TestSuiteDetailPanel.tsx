@@ -80,6 +80,7 @@ export function TestSuiteDetailPanel({
   const [caseOrder, setCaseOrder] = useState<string[]>([]);
 
   const isEditMode = !!suite && !isCreateMode;
+  const suiteCaseCount = suite?.testCaseCount ?? 0;
 
   const { data: judgeModelsData } = useQuery({
     queryKey: ["models", "chat"],
@@ -247,6 +248,8 @@ export function TestSuiteDetailPanel({
     isEnabled: true,
   });
 
+  const defaultCaseValues = useMemo(() => buildDefaultCaseValues(), []);
+
   const handleCreateCase = (values: TestCaseFormValues) => {
     if (!suiteId) return;
     const maxSortOrder = orderedCases.length > 0 ? Math.max(...orderedCases.map((item) => item.sortOrder)) : 0;
@@ -329,7 +332,7 @@ export function TestSuiteDetailPanel({
           </SheetTitle>
           {!isCreateMode && suite && (
             <SheetDescription className="text-sm">
-              {suite.testCaseCount} case{suite.testCaseCount !== 1 ? "s" : ""} ·
+              {suiteCaseCount} case{suiteCaseCount !== 1 ? "s" : ""} ·
               {suite.isEnabled ? " Enabled" : " Disabled"}
             </SheetDescription>
           )}
@@ -604,7 +607,7 @@ export function TestSuiteDetailPanel({
                   {isCreatingCase && (
                     <div className="border border-border rounded-lg p-4 bg-muted/20">
                       <TestCaseForm
-                        initialValues={buildDefaultCaseValues()}
+                        initialValues={defaultCaseValues}
                         submitLabel="Create Test Case"
                         onSubmit={handleCreateCase}
                         onCancel={() => setIsCreatingCase(false)}

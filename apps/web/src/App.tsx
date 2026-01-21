@@ -18,6 +18,7 @@ import { KnowledgeBases } from "./pages/KnowledgeBases";
 import { Agents } from "./pages/Agents";
 import { Sources } from "./pages/Sources";
 import { Chat } from "./pages/Chat";
+import { AgentTestSuites } from "./pages/AgentTestSuites";
 import { Analytics } from "./pages/Analytics";
 import { AdminSettings } from "./pages/AdminSettings";
 import { AdminTenants } from "./pages/AdminTenants";
@@ -40,6 +41,7 @@ const pageNames: Record<Page, string> = {
   agents: "Agents",
   sources: "Sources",
   chat: "Chat",
+  "test-suites": "Test Suites",
   analytics: "Analytics",
   dashboard: "Dashboard",
   settings: "Settings",
@@ -239,11 +241,25 @@ export default function App() {
               setSelectedAgentId(id);
               setCurrentPage("chat");
             }}
+            onOpenTestSuites={(id) => {
+              setSelectedAgentId(id);
+              setCurrentPage("test-suites");
+            }}
           />
         );
       case "chat":
         return (
           <Chat
+            agentId={selectedAgentId!}
+            onBack={() => {
+              setSelectedAgentId(null);
+              setCurrentPage("agents");
+            }}
+          />
+        );
+      case "test-suites":
+        return (
+          <AgentTestSuites
             agentId={selectedAgentId!}
             onBack={() => {
               setSelectedAgentId(null);

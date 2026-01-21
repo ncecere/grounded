@@ -11,9 +11,10 @@ import { AgentCard, AgentDetailPanel } from "@/components/agents";
 
 interface AgentsProps {
   onSelectAgent: (id: string) => void;
+  onOpenTestSuites: (id: string) => void;
 }
 
-export function Agents({ onSelectAgent }: AgentsProps) {
+export function Agents({ onSelectAgent, onOpenTestSuites }: AgentsProps) {
   const queryClient = useQueryClient();
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [isCreateMode, setIsCreateMode] = useState(false);
@@ -56,6 +57,10 @@ export function Agents({ onSelectAgent }: AgentsProps) {
     onSelectAgent(agent.id);
   };
 
+  const handleTestSuites = (agent: Agent) => {
+    onOpenTestSuites(agent.id);
+  };
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -95,6 +100,7 @@ export function Agents({ onSelectAgent }: AgentsProps) {
               agent={agent}
               onSelect={(a) => handleOpenPanel(a, false)}
               onChat={handleChat}
+              onTestSuites={handleTestSuites}
               onDelete={setAgentToDelete}
             />
           ))}

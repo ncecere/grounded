@@ -1,4 +1,4 @@
-import { MessageSquare, Settings, Trash2, ExternalLink } from "lucide-react";
+import { MessageSquare, Settings, Trash2, ExternalLink, FlaskConical } from "lucide-react";
 import { Button } from "../ui/button";
 import type { Agent } from "../../lib/api";
 
@@ -6,10 +6,11 @@ interface AgentCardProps {
   agent: Agent;
   onSelect: (agent: Agent) => void;
   onChat: (agent: Agent) => void;
+  onTestSuites: (agent: Agent) => void;
   onDelete: (agent: Agent) => void;
 }
 
-export function AgentCard({ agent, onSelect, onChat, onDelete }: AgentCardProps) {
+export function AgentCard({ agent, onSelect, onChat, onTestSuites, onDelete }: AgentCardProps) {
   const isDisabled = agent.isEnabled === false;
 
   return (
@@ -64,7 +65,7 @@ export function AgentCard({ agent, onSelect, onChat, onDelete }: AgentCardProps)
 
       {/* Hover overlay with actions */}
       <div
-        className={`absolute inset-0 rounded-lg bg-background/95 backdrop-blur-sm flex items-center justify-center gap-2 transition-opacity ${
+        className={`absolute inset-0 rounded-lg bg-background/95 backdrop-blur-sm flex flex-wrap items-center justify-center gap-2 transition-opacity ${
           isDisabled
             ? "opacity-0 pointer-events-none"
             : "opacity-0 group-hover:opacity-100"
@@ -88,6 +89,15 @@ export function AgentCard({ agent, onSelect, onChat, onDelete }: AgentCardProps)
         >
           <Settings className="w-4 h-4" />
           Configure
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => onTestSuites(agent)}
+          className="gap-1.5"
+        >
+          <FlaskConical className="w-4 h-4" />
+          Test Suites
         </Button>
         <Button
           variant="ghost"

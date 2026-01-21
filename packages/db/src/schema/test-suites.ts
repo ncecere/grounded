@@ -131,6 +131,7 @@ export const testSuiteRuns = pgTable(
     startedAt: timestamp("started_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     errorMessage: text("error_message"),
+    systemPrompt: text("system_prompt"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [

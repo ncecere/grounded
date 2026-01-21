@@ -43,6 +43,13 @@
       "when": 1768764061158,
       "tag": "0005_allow_null_upload_tenant_id",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1768883700098,
+      "tag": "0006_agent_test_suites",
+      "breakpoints": true
     }
   ]
 }

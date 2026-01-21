@@ -406,6 +406,7 @@ export function createTestRunner(deps?: Partial<TestRunnerDependencies>) {
         passedCases: 0,
         failedCases: 0,
         skippedCases: 0,
+        systemPrompt: agent.systemPrompt || "You are a helpful assistant.",
       });
 
       if (enabledCases.length === 0) {
@@ -915,6 +916,8 @@ export async function evaluateLlmJudge(
   check: { type: "llm_judge"; expectedAnswer: string; criteria?: string },
   model: NonNullable<LlmModel>
 ): Promise<CheckResult> {
+  const systemPrompt =
+    "You are a strict evaluator. Respond with ONLY a valid JSON object. No markdown, no code fences, no extra text.";
   const prompt = `You are evaluating an AI assistant's response.
 
 Question asked: ${question}
@@ -933,15 +936,38 @@ Respond with JSON:
   "reasoning": "Brief explanation of your judgement"
 }`;
 
-  const result = await generateText({
-    model,
-    messages: [{ role: "user", content: prompt }],
-    maxOutputTokens: 256,
-    temperature: 0,
-  });
+  const parseJudgeResponse = (text: string) => {
+    const parsed = safeParseJson(text);
+    if (!parsed || parsed.passed === undefined) return null;
+    const passedValue = typeof parsed.passed === "string" ? parsed.passed.toLowerCase() : parsed.passed;
+    if (passedValue !== true && passedValue !== false) return null;
+    return {
+      passed: passedValue === true,
+      reasoning: typeof parsed.reasoning === "string" ? parsed.reasoning : "",
+    };
+  };
 
-  const parsed = safeParseJson(result.text);
-  if (!parsed || typeof parsed.passed !== "boolean") {
+  const runJudge = async (overridePrompt?: string) =>
+    generateText({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: overridePrompt ?? prompt },
+      ],
+      maxOutputTokens: 256,
+      temperature: 0,
+    });
+
+  const result = await runJudge();
+  let parsed = parseJudgeResponse(result.text);
+
+  if (!parsed) {
+    const retryPrompt = `${prompt}\n\nReturn ONLY JSON. Example: {"passed": true, "reasoning": "..."}`;
+    const retryResult = await runJudge(retryPrompt);
+    parsed = parseJudgeResponse(retryResult.text);
+  }
+
+  if (!parsed) {
     return {
       checkIndex: 0,
       checkType: "llm_judge",
@@ -956,7 +982,7 @@ Respond with JSON:
     passed: parsed.passed,
     details: {
       judgement: parsed.passed ? "pass" : "fail",
-      reasoning: typeof parsed.reasoning === "string" ? parsed.reasoning : "",
+      reasoning: parsed.reasoning,
     },
   };
 }
@@ -1025,7 +1051,15 @@ async function getCaseResponse(
 
 export function safeParseJson(value: string): any | null {
   const match = value.match(/\{[\s\S]*\}/);
-  if (!match) return null;
+  if (!match) {
+    const passedMatch = value.match(/passed\s*[:=]\s*(true|false)/i);
+    if (!passedMatch) return null;
+    const reasoningMatch = value.match(/reasoning\s*[:=]\s*"?([^\n"}]+)"?/i);
+    return {
+      passed: passedMatch[1].toLowerCase() === "true",
+      reasoning: reasoningMatch ? reasoningMatch[1].trim() : "",
+    };
+  }
 
   try {
     return JSON.parse(match[0]);

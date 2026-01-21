@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -42,6 +42,7 @@ interface NotificationMessage {
 interface TestSuitesTabProps {
   agentId: string;
   agentName?: string;
+  showHeader?: boolean;
 }
 
 const getErrorMessage = (error: unknown, fallback: string) =>
@@ -53,7 +54,7 @@ const notificationStyles: Record<NotificationType, string> = {
   info: "bg-blue-500/15 text-blue-800 dark:text-blue-300 border border-blue-500/30",
 };
 
-export function TestSuitesTab({ agentId, agentName }: TestSuitesTabProps) {
+export function TestSuitesTab({ agentId, agentName, showHeader = true }: TestSuitesTabProps) {
   const queryClient = useQueryClient();
   const { data: suites, isLoading, error } = useTestSuites(agentId);
   const [selectedSuite, setSelectedSuite] = useState<TestSuite | null>(null);
@@ -63,13 +64,15 @@ export function TestSuitesTab({ agentId, agentName }: TestSuitesTabProps) {
   const [suiteToDelete, setSuiteToDelete] = useState<TestSuite | null>(null);
   const [runDetailId, setRunDetailId] = useState<string | null>(null);
   const [notification, setNotification] = useState<NotificationMessage | null>(null);
+  const [pollingSuiteId, setPollingSuiteId] = useState<string | null>(null);
 
-  const suiteId = selectedSuite?.id ?? "";
+  const runListParams = useMemo(() => ({ limit: 6, offset: 0 }), []);
+  const suiteId = selectedSuite?.id ?? pollingSuiteId ?? "";
   const {
     data: runsData,
     isLoading: runsLoading,
     error: runsError,
-  } = useTestRuns(suiteId, { limit: 6 });
+  } = useTestRuns(suiteId, runListParams);
   const {
     data: analytics,
     isLoading: analyticsLoading,
@@ -80,11 +83,46 @@ export function TestSuitesTab({ agentId, agentName }: TestSuitesTabProps) {
   const startRunMutation = useMutation({
     mutationFn: (targetSuiteId: string) => api.startTestRun(targetSuiteId),
     onSuccess: (_response, targetSuiteId) => {
-      queryClient.invalidateQueries({ queryKey: testRunKeys.list(targetSuiteId) });
+      queryClient.invalidateQueries({ queryKey: testRunKeys.list(targetSuiteId, runListParams) });
       queryClient.invalidateQueries({ queryKey: testSuiteKeys.detail(targetSuiteId) });
       queryClient.invalidateQueries({ queryKey: testSuiteKeys.analytics(targetSuiteId) });
+      queryClient.invalidateQueries({ queryKey: testSuiteKeys.list(agentId) });
     },
   });
+
+  const latestRunStatus = runsData?.runs?.[0]?.status;
+  const lastRunStatusRef = useRef<string | null>(null);
+  const activeSuiteId = useMemo(
+    () => suites?.find((suite) => suite.lastRun?.status === "pending" || suite.lastRun?.status === "running")?.id ?? null,
+    [suites]
+  );
+
+  useEffect(() => {
+    if (!latestRunStatus || latestRunStatus === lastRunStatusRef.current) return;
+    lastRunStatusRef.current = latestRunStatus;
+    queryClient.invalidateQueries({ queryKey: testSuiteKeys.list(agentId) });
+  }, [agentId, latestRunStatus, queryClient]);
+
+  useEffect(() => {
+    if (activeSuiteId && activeSuiteId !== pollingSuiteId) {
+      setPollingSuiteId(activeSuiteId);
+      return;
+    }
+
+    if (!activeSuiteId && pollingSuiteId) {
+      setPollingSuiteId(null);
+    }
+  }, [activeSuiteId, pollingSuiteId]);
+
+  useEffect(() => {
+    if (!pollingSuiteId) return;
+    const interval = window.setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: testSuiteKeys.list(agentId) });
+      queryClient.invalidateQueries({ queryKey: testRunKeys.list(pollingSuiteId, runListParams) });
+      queryClient.invalidateQueries({ queryKey: testSuiteKeys.analytics(pollingSuiteId) });
+    }, 3000);
+    return () => window.clearInterval(interval);
+  }, [agentId, pollingSuiteId, queryClient, runListParams]);
 
   useEffect(() => {
     if (!notification) return;
@@ -146,6 +184,7 @@ export function TestSuitesTab({ agentId, agentName }: TestSuitesTabProps) {
     startRunMutation.mutate(suite.id, {
       onSuccess: (response) => {
         const statusLabel = response.status === "queued" ? "queued" : "started";
+        setPollingSuiteId(suite.id);
         setNotification({
           type: "success",
           message: response.message || `Run ${statusLabel} for \"${suite.name}\".`,
@@ -195,13 +234,17 @@ export function TestSuitesTab({ agentId, agentName }: TestSuitesTabProps) {
         </div>
       )}
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium">Test Suites</p>
-          <p className="text-xs text-muted-foreground">
-            {agentName ? `Track ${agentName} response quality over time.` : "Track response quality over time."}
-          </p>
-        </div>
+      <div
+        className={`flex flex-wrap items-start gap-3 ${showHeader ? "justify-between" : "justify-end"}`}
+      >
+        {showHeader && (
+          <div>
+            <p className="text-sm font-medium">Test Suites</p>
+            <p className="text-xs text-muted-foreground">
+              {agentName ? `Track ${agentName} response quality over time.` : "Track response quality over time."}
+            </p>
+          </div>
+        )}
         <Button size="sm" className="gap-2" onClick={openCreatePanel}>
           <Plus className="w-4 h-4" />
           Create Suite

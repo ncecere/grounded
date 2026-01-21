@@ -2,7 +2,10 @@ import { Clock, Timer, UserCircle } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
 import { StatusBadge, type StatusType } from "../ui/status-badge";
+import { Button } from "../ui/button";
 import type { TestSuiteRun } from "../../lib/api";
+import { cn } from "@/lib/utils";
+import { ChevronRight } from "lucide-react";
 
 export const formatRunDuration = (durationMs: number | null) => {
   if (!durationMs || durationMs <= 0) {
@@ -77,7 +80,10 @@ export function TestRunCard({ run, onOpen }: TestRunCardProps) {
   const durationLabel = formatRunDuration(run.durationMs);
   const timingLabel = formatRunTimingLabel(run);
   const triggerLabel = formatRunTriggerLabel(run);
-  const passRateValue = Math.min(100, Math.max(0, Math.round(run.passRate)));
+  const totalCounted = Math.max(0, run.totalCases - run.skippedCases);
+  const hasCases = totalCounted > 0;
+  const passRateValue = hasCases ? Math.min(100, Math.max(0, Math.round(run.passRate))) : 0;
+  const passRateLabel = hasCases ? `${passRateValue}%` : "No cases";
 
   return (
     <div
@@ -103,9 +109,11 @@ export function TestRunCard({ run, onOpen }: TestRunCardProps) {
       <div className="mt-4 space-y-2">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>Pass rate</span>
-          <span className="font-medium text-foreground">{passRateValue}%</span>
+          <span className={cn("font-medium", hasCases ? "text-foreground" : "text-muted-foreground")}>
+            {passRateLabel}
+          </span>
         </div>
-        <Progress value={passRateValue} className="h-2" />
+        <Progress value={passRateValue} className={cn("h-2", !hasCases && "opacity-40")} />
       </div>
 
       <div className="mt-4 grid grid-cols-4 gap-2 text-xs">
@@ -136,6 +144,21 @@ export function TestRunCard({ run, onOpen }: TestRunCardProps) {
           <Timer className="h-3.5 w-3.5" />
           {durationLabel}
         </span>
+      </div>
+
+      <div className="mt-3 flex items-center justify-end">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 gap-1 text-xs"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen(run);
+          }}
+        >
+          View results
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Button>
       </div>
     </div>
   );

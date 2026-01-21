@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Agent Test Suites Page**: Dedicated page for per-agent test suites with a new “Test Suites” action on agent cards.
+- **System Prompt Capture**: Test runs now store the agent system prompt and display it in the run detail view.
+
+### Changed
+
+- **Test Suite UX**: Run cards now surface “View results,” handle no-case runs explicitly, and the actual response is collapsible in run details.
+- **Suite List API**: Test suite list responses now include test case counts and last-run summaries for better status visibility.
+
+### Fixed
+
+- **Run Refreshing**: Active runs now auto-refresh suite status, analytics, and recent runs without page reloads.
+- **Pass Rate Accuracy**: Average pass rate calculations handle zero-case runs correctly, and chart markers no longer overflow.
+- **Test Case Creation**: Prevented create-case forms from resetting during edits, avoiding false “Name/Question required” errors.
+- **LLM Judge Robustness**: Improved JSON-only prompting and fallback parsing to reduce judge failures.
+- **Worker Settings Fetch**: Docker workers now reach the API service via `API_URL` in compose.
+
 ## [0.3.1] - 2026-01-19
 
 ### Changed

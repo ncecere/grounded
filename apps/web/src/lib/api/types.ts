@@ -310,6 +310,7 @@ export interface TestSuiteRun {
   failedCases: number;
   skippedCases: number;
   passRate: number;
+  systemPrompt?: string | null;
   startedAt: string | null;
   completedAt: string | null;
   durationMs: number | null;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bot, Brain, Palette, Code, FlaskConical } from "lucide-react";
+import { Bot, Brain, Palette, Code } from "lucide-react";
 import { api, type Agent } from "../../lib/api";
 import {
   Sheet,
@@ -15,12 +15,11 @@ import { GeneralTab } from "./tabs/GeneralTab";
 import { ModelRagTab } from "./tabs/ModelRagTab";
 import { WidgetTab } from "./tabs/WidgetTab";
 import { ChatApiTab } from "./tabs/ChatApiTab";
-import { TestSuitesTab } from "./tabs/TestSuitesTab";
 import type { AgentFormData, RetrievalConfig, KnowledgeBase, LLMModel } from "./types";
 import { defaultAgentForm, defaultRetrievalConfig } from "./types";
 import { validateAgentForm, isFormValid } from "./AgentFormModal";
 
-type PanelTab = "general" | "model" | "widget" | "chat" | "test-suites";
+type PanelTab = "general" | "model" | "widget" | "chat";
 
 interface AgentDetailPanelProps {
   agent: Agent | null;
@@ -238,7 +237,7 @@ export function AgentDetailPanel({
           onValueChange={(v) => setActiveTab(v as PanelTab)}
           className="flex flex-col flex-1 overflow-hidden"
         >
-          <TabsList className={`mx-6 mt-4 grid w-auto ${isCreateMode ? "grid-cols-2" : "grid-cols-5"}`}>
+          <TabsList className={`mx-6 mt-4 grid w-auto ${isCreateMode ? "grid-cols-2" : "grid-cols-4"}`}>
             <TabsTrigger value="general" className="gap-2">
               <Bot className="w-4 h-4" />
               <span className="hidden sm:inline">General</span>
@@ -256,10 +255,6 @@ export function AgentDetailPanel({
                 <TabsTrigger value="chat" className="gap-2">
                   <Code className="w-4 h-4" />
                   <span className="hidden sm:inline">Chat & API</span>
-                </TabsTrigger>
-                <TabsTrigger value="test-suites" className="gap-2">
-                  <FlaskConical className="w-4 h-4" />
-                  <span className="hidden sm:inline">Test Suites</span>
                 </TabsTrigger>
               </>
             )}
@@ -301,10 +296,6 @@ export function AgentDetailPanel({
 
                 <TabsContent value="chat" className="mt-0 h-full">
                   <ChatApiTab agent={agent} onOpenTestChat={onOpenTestChat} />
-                </TabsContent>
-
-                <TabsContent value="test-suites" className="mt-0 h-full">
-                  <TestSuitesTab agentId={agent.id} agentName={agent.name} />
                 </TabsContent>
               </>
             )}
