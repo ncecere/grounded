@@ -34,6 +34,16 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("INTERNAL_API_KEY");
   });
 
+  it("records startup environment and config dependencies", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Startup Environment/Config Dependencies");
+    expect(content).toContain("migrations/");
+    expect(content).toContain("published-chat.js");
+    expect(content).toContain("apps/web/index.html");
+    expect(content).toContain("REDIS_URL");
+  });
+
   it("captures ingestion pipeline flow and queue ownership", async () => {
     const content = await readFile(baselineDocPath, "utf-8");
 

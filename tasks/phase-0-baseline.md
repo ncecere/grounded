@@ -122,6 +122,40 @@
   - Worker settings are fetched from the internal API and refreshed periodically.
   - Env vars provide fallbacks when API settings are unavailable; fairness defaults are computed from `WORKER_CONCURRENCY`.
 
+## Startup Environment/Config Dependencies
+
+### API (apps/api)
+- Required:
+  - Environment provides `DATABASE_URL` and `SESSION_SECRET` (see env section above).
+  - Migrations directory is reachable at runtime; `runMigrations` searches `migrations/` in repo root, `../../migrations` from `apps/api`, or relative to `apps/api/src/startup/run-migrations.ts`.
+- Optional:
+  - `SKIP_MIGRATIONS=true` disables migration lookup/application.
+  - `packages/widget/dist/published-chat.js` for hosted chat asset serving at `/published-chat.js`; if missing, the API starts but returns 404 for the asset.
+  - `ADMIN_EMAIL`/`ADMIN_PASSWORD` to seed an initial system admin.
+
+### Web App (apps/web)
+- Required:
+  - Vite expects `apps/web/index.html` and `apps/web/src/main.tsx` to be present for dev and build startup.
+- Optional:
+  - None; runtime configuration is fetched from the API after load.
+
+### Ingestion Worker (apps/ingestion-worker)
+- Required:
+  - Redis connection configured via `REDIS_URL` (queue connection in `packages/queue`).
+  - Internal API reachable at `API_URL` (defaults to `http://localhost:3001`) to fetch worker settings; worker starts with env defaults if unreachable.
+- Optional:
+  - Vector store configuration via `VECTOR_DB_URL` or `VECTOR_DB_*` when embeddings are enabled.
+  - `INTERNAL_API_KEY` when the internal API is protected.
+
+### Scraper Worker (apps/scraper-worker)
+- Required:
+  - Redis connection configured via `REDIS_URL` (queue connection in `packages/queue`).
+  - Internal API reachable at `API_URL` (defaults to `http://localhost:3001`) to fetch worker settings; worker starts with env defaults if unreachable.
+  - Playwright Chromium binaries available for `chromium.launch`.
+- Optional:
+  - `PLAYWRIGHT_HEADLESS` to control browser mode.
+  - `FIRECRAWL_API_KEY`/`FIRECRAWL_API_URL` for Firecrawl fetch mode.
+
 ## Ingestion Pipeline Flow
 
 ### End-to-End Stage Order
@@ -679,7 +713,7 @@
 - [x] Capture cross-cutting helpers (auth, audit, RLS, logging, settings).
 - [x] Map tenant boundary/RLS enforcement touchpoints.
 - [x] Inventory shared packages and their consumers (shared, queue, logger, db).
-- [ ] Record current environment/config dependencies for startup.
+- [x] Record current environment/config dependencies for startup.
 - [ ] Record external service dependencies (AI providers, vector store, storage).
 - [ ] Record baseline throughput and performance metrics for ingestion and scraper queues.
 - [ ] Build a critical workflow checklist with expected outputs (auth, chat SSE, ingestion, scrape).
