@@ -143,11 +143,57 @@
 - Postgres: run + page state (`source_runs`, `source_run_pages`, `source_run_page_contents`) and chunk storage (`kb_chunks`).
 - Vector store (pgvector): embedding upserts from `apps/ingestion-worker/src/processors/embed-chunks.ts` via `@grounded/vector-store`.
 
+## Queue Names, Payloads, and Processors
+
+### source-run (ingestion worker)
+- Job names: `start`, `discover`, `finalize`, `stage-transition`.
+- Payloads:
+  - `SourceRunStartJob`: `tenantId`, `sourceId`, `runId` (+ optional `requestId`, `traceId`).
+  - `SourceDiscoverUrlsJob`: `tenantId`, `runId` (+ optional `requestId`, `traceId`).
+  - `SourceRunFinalizeJob`: `tenantId`, `runId` (+ optional `requestId`, `traceId`).
+  - `StageTransitionJob`: `tenantId`, `runId`, `completedStage` (+ optional `requestId`, `traceId`).
+- Processors: `apps/ingestion-worker/src/processors/source-run-start.ts`, `apps/ingestion-worker/src/processors/source-discover.ts`, `apps/ingestion-worker/src/processors/source-finalize.ts`, `apps/ingestion-worker/src/processors/stage-transition.ts`.
+
+### page-fetch (scraper worker)
+- Job name: `fetch`.
+- Payload: `PageFetchJob` with `tenantId`, `runId`, `url`, `fetchMode`, `depth` (+ optional `requestId`, `traceId`).
+- Processor: `apps/scraper-worker/src/processors/page-fetch.ts`.
+
+### page-process (ingestion worker)
+- Job name: `process`.
+- Payload: `PageProcessJob` with `tenantId`, `runId`, `url`, `html`, `title`, `depth`, optional `sourceType` + `uploadMetadata` (+ optional `requestId`, `traceId`).
+- Processor: `apps/ingestion-worker/src/processors/page-process.ts`.
+
+### page-index (ingestion worker)
+- Job name: `index`.
+- Payload: `PageIndexJob` with `tenantId`, `runId`, `pageId`, `contentId`, optional `sourceType` + `uploadMetadata` (+ optional `requestId`, `traceId`).
+- Processor: `apps/ingestion-worker/src/processors/page-index.ts`.
+
+### embed-chunks (ingestion worker)
+- Job name: `embed`.
+- Payload: `EmbedChunksBatchJob` with `tenantId`, `kbId`, `chunkIds`, optional `runId` (+ optional `requestId`, `traceId`).
+- Processor: `apps/ingestion-worker/src/processors/embed-chunks.ts`.
+
+### enrich-page (ingestion worker)
+- Job name: `enrich`.
+- Payload: `EnrichPageJob` with `tenantId`, `kbId`, `chunkIds` (+ optional `requestId`, `traceId`).
+- Processor: `apps/ingestion-worker/src/processors/enrich-page.ts`.
+
+### deletion (ingestion worker)
+- Job name: `delete`.
+- Payload: `HardDeleteObjectJob` with `tenantId`, `objectType`, `objectId` (+ optional `requestId`, `traceId`).
+- Processor: `apps/ingestion-worker/src/processors/hard-delete.ts`.
+
+### kb-reindex (ingestion worker)
+- Job name: `reindex`.
+- Payload: `KbReindexJob` with `tenantId`, `kbId`, `newEmbeddingModelId`, `newEmbeddingDimensions` (+ optional `requestId`, `traceId`).
+- Processor: `apps/ingestion-worker/src/processors/kb-reindex.ts`.
+
 ## Task List
 - [x] Document runtime entrypoints and startup sequence per app.
 - [x] Document environment variables and settings precedence per app (including dynamic settings fetch).
 - [ ] Map the ingestion pipeline flow with owning modules and queues.
-- [ ] Map queue names to job payloads and owning processors.
+- [x] Map queue names to job payloads and owning processors.
 - [ ] Capture contract baselines for API responses, SSE events, and queue payloads.
 - [ ] Capture observability keys (log fields, error codes, metrics) by app.
 - [ ] Inventory API routes and their owning files.

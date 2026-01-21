@@ -47,4 +47,14 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("embed-chunks");
     expect(content).toContain("apps/scraper-worker/src/processors/page-fetch.ts");
   });
+
+  it("documents queue payloads and processors", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Queue Names, Payloads, and Processors");
+    expect(content).toContain("SourceRunStartJob");
+    expect(content).toContain("PageFetchJob");
+    expect(content).toContain("HardDeleteObjectJob");
+    expect(content).toContain("apps/ingestion-worker/src/processors/kb-reindex.ts");
+  });
 });

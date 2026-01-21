@@ -38,7 +38,7 @@ tasks:
       - Verified against ingestion worker code
 
   - title: phase-0-baseline.md - Map queue names to job payloads and owning processors
-    completed: false
+    completed: true
     parallel_group: 1
     tags: [baseline, queue]
     file: phase-0-baseline.md
