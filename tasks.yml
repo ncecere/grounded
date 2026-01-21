@@ -1,271 +1,1178 @@
 project: grounded
 version: "1.0"
-feature: advanced-rag
+feature: refactor-plan
 
 tasks:
   # ===========================================================================
-  # PARALLEL GROUP 1: Schema & Types
+  # PARALLEL GROUP 1: Baseline & Inventory
   # Foundation - must complete first
   # ===========================================================================
-  - title: Add ragType column to agents table
+  - title: phase-0-baseline.md - Document runtime entrypoints and startup sequence per app
     completed: false
     parallel_group: 1
-    tags: [schema, database, agents]
-    file: phase-1-schema-types.md
-    notes: Add rag_type with values simple|advanced, default simple
+    tags: [baseline, inventory]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Entry points and start commands listed for each app/worker
+      - Startup sequence captures init steps and dependencies
+      - Verified against current scripts and entry files
 
-  - title: Add historyTurns and advancedMaxSubqueries to retrieval_configs
+  - title: phase-0-baseline.md - Document environment variables and settings precedence per app
     completed: false
     parallel_group: 1
-    tags: [schema, database, retrieval]
-    file: phase-1-schema-types.md
-    notes: historyTurns default 5, advancedMaxSubqueries default 3
+    tags: [baseline, config]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Env vars listed per app with required/optional status
+      - Settings precedence (env vs admin/settings API) documented
+      - Verified against config loaders and docs
 
-  - title: Generate and apply database migration
+  - title: phase-0-baseline.md - Map the ingestion pipeline flow with owning modules and queues
     completed: false
     parallel_group: 1
-    tags: [schema, database, migration]
-    file: phase-1-schema-types.md
+    tags: [baseline, pipeline]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - End-to-end flow documented from discover to embed
+      - Each stage references owning module and queue
+      - Verified against ingestion worker code
 
-  - title: Update shared types in packages/shared
+  - title: phase-0-baseline.md - Map queue names to job payloads and owning processors
     completed: false
     parallel_group: 1
-    tags: [types, shared]
-    file: phase-1-schema-types.md
-    notes: Add RagType enum, update Agent and RetrievalConfig interfaces
+    tags: [baseline, queue]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Queue list includes payload summary and processor file
+      - Ownership mapped to worker/package
+      - Verified against queue registration code
 
-  - title: Update web API types
+  - title: phase-0-baseline.md - Capture contract baselines for API responses, SSE events, and queue payloads
     completed: false
     parallel_group: 1
-    tags: [types, web]
-    file: phase-1-schema-types.md
+    tags: [baseline, contracts]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Baseline snapshots list key response/payload shapes and event names
+      - Contract invariants recorded (required fields, ordering)
+      - Stored in baseline docs and reviewed
 
-  - title: Update web component types and defaults
+  - title: phase-0-baseline.md - Capture observability keys (log fields, error codes, metrics) by app
     completed: false
     parallel_group: 1
-    tags: [types, web, components]
-    file: phase-1-schema-types.md
+    tags: [baseline, observability]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Log fields and error codes enumerated per app/worker
+      - Metrics names and dimensions listed where applicable
+      - Verified against logging/telemetry code
 
-  - title: Update API zod schemas for agents
+  - title: phase-0-baseline.md - Inventory API routes and their owning files
     completed: false
     parallel_group: 1
-    tags: [api, validation, agents]
-    file: phase-1-schema-types.md
+    tags: [baseline, api]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Route inventory includes method, path, and file/module
+      - Public/admin/internal grouping captured
+      - Verified against route registry
+
+  - title: phase-0-baseline.md - Inventory web pages and navigation flows
+    completed: false
+    parallel_group: 1
+    tags: [baseline, web]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Page list includes component file and nav label
+      - Workspace/admin grouping captured
+      - Verified against App.tsx and sidebar config
+
+  - title: phase-0-baseline.md - Identify the largest files and repeated patterns in each app
+    completed: false
+    parallel_group: 1
+    tags: [baseline, hotspots]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Top files identified with size/LOC and location
+      - Repeated patterns noted with candidate refactor ideas
+      - Reviewed for accuracy with codebase
+
+  - title: phase-0-baseline.md - Capture cross-cutting helpers (auth, audit, RLS, logging, settings)
+    completed: false
+    parallel_group: 1
+    tags: [baseline, helpers]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Helper modules listed with file paths and usage notes
+      - Coverage includes auth, audit, RLS, logging, settings
+      - Verified against current imports
+
+  - title: phase-0-baseline.md - Map tenant boundary/RLS enforcement touchpoints
+    completed: false
+    parallel_group: 1
+    tags: [baseline, rls]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - RLS policies and enforcement points listed
+      - Includes middleware and DB access layers
+      - Verified against schema and API code
+
+  - title: phase-0-baseline.md - Inventory shared packages and their consumers
+    completed: false
+    parallel_group: 1
+    tags: [baseline, packages]
+    file: phase-0-baseline.md
+    notes: shared, queue, logger, db
+    acceptance_criteria:
+      - Shared packages listed with consumer apps/workers
+      - Key exports and responsibilities summarized
+      - Verified against workspace dependencies
+
+  - title: phase-0-baseline.md - Record current environment/config dependencies for startup
+    completed: false
+    parallel_group: 1
+    tags: [baseline, config]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Startup dependencies documented (env vars, config files)
+      - Required vs optional noted
+      - Verified against bootstrap code
+
+  - title: phase-0-baseline.md - Record external service dependencies
+    completed: false
+    parallel_group: 1
+    tags: [baseline, dependencies]
+    file: phase-0-baseline.md
+    notes: AI providers, vector store, storage
+    acceptance_criteria:
+      - External services listed with purpose and owning module
+      - Connection details or client packages noted
+      - Verified against code/config
+
+  - title: phase-0-baseline.md - Record baseline throughput and performance metrics for ingestion and scraper queues
+    completed: false
+    parallel_group: 1
+    tags: [baseline, metrics]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Throughput/latency metrics captured with timestamp and source
+      - Metrics tied to queue names and stages
+      - Stored in baseline docs for comparison
+
+  - title: phase-0-baseline.md - Build a critical workflow checklist with expected outputs
+    completed: false
+    parallel_group: 1
+    tags: [baseline, workflows]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Checklist covers auth, chat SSE, ingestion, scrape flows
+      - Expected outputs and pass criteria recorded
+      - Reviewed with stakeholders
+
+  - title: phase-0-baseline.md - List existing tests and smoke checks used today
+    completed: false
+    parallel_group: 1
+    tags: [baseline, testing]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Test commands listed per app/worker
+      - Smoke checks documented with purpose
+      - Verified against package scripts or docs
+
+  - title: phase-0-baseline.md - Build a test/smoke matrix by app and workflow
+    completed: false
+    parallel_group: 1
+    tags: [baseline, testing]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Matrix links workflows to tests/smokes
+      - Owner/responsibility captured where known
+      - Stored in docs/refactor/test-matrix.md
+
+  - title: phase-0-baseline.md - Define refactor constraints
+    completed: false
+    parallel_group: 1
+    tags: [baseline, constraints]
+    file: phase-0-baseline.md
+    notes: no API response changes, no schema changes
+    acceptance_criteria:
+      - Constraints documented and aligned with plan scope
+      - Includes no behavior/schema change notes
+      - Reviewed by stakeholders
+
+  - title: phase-0-baseline.md - Note phase dependencies and potential blockers
+    completed: false
+    parallel_group: 1
+    tags: [baseline, planning]
+    file: phase-0-baseline.md
+    acceptance_criteria:
+      - Phase dependencies documented with rationale
+      - Risks/blockers noted with mitigation ideas
+      - Reviewed with plan owners
+
+  - title: phase-0-baseline.md - Create baseline inventory note
+    completed: false
+    parallel_group: 1
+    tags: [docs, baseline]
+    file: phase-0-baseline.md
+    notes: docs/refactor/baseline.md
+    acceptance_criteria:
+      - docs/refactor/baseline.md created
+      - Includes required inventory sections
+      - Links to dependency and test matrix docs
+
+  - title: phase-0-baseline.md - Create dependency map note
+    completed: false
+    parallel_group: 1
+    tags: [docs, dependencies]
+    file: phase-0-baseline.md
+    notes: docs/refactor/dependencies.md
+    acceptance_criteria:
+      - docs/refactor/dependencies.md created
+      - Includes package/service dependencies and owners
+      - Reviewed for completeness
+
+  - title: phase-0-baseline.md - Create test matrix note
+    completed: false
+    parallel_group: 1
+    tags: [docs, testing]
+    file: phase-0-baseline.md
+    notes: docs/refactor/test-matrix.md
+    acceptance_criteria:
+      - docs/refactor/test-matrix.md created
+      - Includes workflow to test/smoke mapping
+      - Reviewed for completeness
+
+  - title: phase-0-baseline.md - Create migration log template
+    completed: false
+    parallel_group: 1
+    tags: [docs, baseline]
+    file: phase-0-baseline.md
+    notes: docs/refactor/migration-log.md
+    acceptance_criteria:
+      - docs/refactor/migration-log.md created
+      - Template includes moves, decisions, owners sections
+      - Ready for ongoing updates
 
   # ===========================================================================
-  # PARALLEL GROUP 2: Advanced RAG Service
-  # Core implementation - depends on Group 1
+  # PARALLEL GROUP 2: API Structure and Domain Modules
+  # Depends on Group 1
   # ===========================================================================
-  - title: Create AdvancedRAGService file structure
+  - title: phase-1-api-structure.md - Define domain module boundaries and migration order
     completed: false
     parallel_group: 2
-    tags: [api, service, rag]
-    file: phase-2-advanced-rag-service.md
+    tags: [api, refactor]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - Domain module list includes responsibilities and route ownership
+      - Migration order documented with dependencies
+      - Reviewed with plan owners
 
-  - title: Implement query rewriting with conversation history
+  - title: phase-1-api-structure.md - Define module boundary rules and allowed import directions
     completed: false
     parallel_group: 2
-    tags: [api, service, rag, llm]
-    file: phase-2-advanced-rag-service.md
+    tags: [api, structure]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - Import direction rules documented
+      - Shared/cross-cutting modules defined
+      - Stored in API module guidance
 
-  - title: Implement multi-step plan generation
+  - title: phase-1-api-structure.md - Define API module template
     completed: false
     parallel_group: 2
-    tags: [api, service, rag, llm]
-    file: phase-2-advanced-rag-service.md
+    tags: [api, structure]
+    file: phase-1-api-structure.md
+    notes: routes.ts, schema.ts, service.ts, repo.ts, types.ts
+    acceptance_criteria:
+      - Template lists required files and responsibilities
+      - Example module layout documented
+      - Ready for adoption by new modules
 
-  - title: Implement sub-query retrieval and merging
+  - title: phase-1-api-structure.md - Document required exports and optional module layers
     completed: false
     parallel_group: 2
-    tags: [api, service, rag, vector]
-    file: phase-2-advanced-rag-service.md
+    tags: [api, structure]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - Required exports identified per module
+      - Optional layers and usage criteria documented
+      - Added to module template guidance
 
-  - title: Implement reasoning event emission
+  - title: phase-1-api-structure.md - Create API app assembly file
     completed: false
     parallel_group: 2
-    tags: [api, service, rag, sse]
-    file: phase-2-advanced-rag-service.md
+    tags: [api, app]
+    file: phase-1-api-structure.md
+    notes: apps/api/src/app.ts
+    acceptance_criteria:
+      - apps/api/src/app.ts builds Hono app with middleware
+      - Middleware order preserved
+      - App boots locally without errors
 
-  - title: Implement final answer generation with citations
+  - title: phase-1-api-structure.md - Create API routes index
     completed: false
     parallel_group: 2
-    tags: [api, service, rag, llm]
-    file: phase-2-advanced-rag-service.md
+    tags: [api, routes]
+    file: phase-1-api-structure.md
+    notes: apps/api/src/routes/index.ts
+    acceptance_criteria:
+      - apps/api/src/routes/index.ts mounts v1 routes
+      - Route paths unchanged from baseline
+      - Imports updated for new index
+
+  - title: phase-1-api-structure.md - Create API startup index
+    completed: false
+    parallel_group: 2
+    tags: [api, startup]
+    file: phase-1-api-structure.md
+    notes: apps/api/src/startup/index.ts
+    acceptance_criteria:
+      - apps/api/src/startup/index.ts encapsulates startup tasks
+      - Entry uses startup index for init/shutdown
+      - Startup behavior unchanged
+
+  - title: phase-1-api-structure.md - Document middleware order and route mount map
+    completed: false
+    parallel_group: 2
+    tags: [api, routing]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - Middleware order recorded with rationale
+      - Route mount map includes public/admin/internal
+      - Stored in API module documentation
+
+  - title: phase-1-api-structure.md - Add modules barrel export
+    completed: false
+    parallel_group: 2
+    tags: [api, modules]
+    file: phase-1-api-structure.md
+    notes: apps/api/src/modules/index.ts
+    acceptance_criteria:
+      - apps/api/src/modules/index.ts exports modules
+      - Import paths updated or documented for use
+      - Typecheck passes
+
+  - title: phase-1-api-structure.md - Keep route mount paths unchanged and document aliases
+    completed: false
+    parallel_group: 2
+    tags: [api, routing]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - Route paths match baseline
+      - Any aliases documented with justification
+      - Verified against route registry
+
+  - title: phase-1-api-structure.md - Move hosted chat page asset serving into a module
+    completed: false
+    parallel_group: 2
+    tags: [api, hosted-chat]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - Asset serving moved to dedicated module
+      - Route behavior and paths unchanged
+      - Module referenced in route assembly
+
+  - title: phase-1-api-structure.md - Extract validation schemas into module schema files
+    completed: false
+    parallel_group: 2
+    tags: [api, validation]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - Schemas moved into module schema files
+      - Routes import schemas from module
+      - Validation behavior unchanged
+
+  - title: phase-1-api-structure.md - Move DB queries into domain repos
+    completed: false
+    parallel_group: 2
+    tags: [api, repo]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - DB queries moved into domain repo functions
+      - Services/routes call repo layer
+      - Query behavior unchanged
+
+  - title: phase-1-api-structure.md - Add domain services for business logic
+    completed: false
+    parallel_group: 2
+    tags: [api, service]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - Service layer introduced for domain logic
+      - Routes call services instead of direct DB access
+      - Behavior unchanged
+
+  - title: phase-1-api-structure.md - Define service/repo transaction patterns and cross-module access rules
+    completed: false
+    parallel_group: 2
+    tags: [api, service]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - Transaction patterns documented for service/repo usage
+      - Cross-module access rules defined
+      - Guidance applied to updated modules
+
+  - title: phase-1-api-structure.md - Normalize API error usage
+    completed: false
+    parallel_group: 2
+    tags: [api, errors]
+    file: phase-1-api-structure.md
+    notes: NotFoundError, ForbiddenError, QuotaExceededError
+    acceptance_criteria:
+      - Standard error classes used consistently
+      - Error responses unchanged
+      - Guidance documented for new errors
+
+  - title: phase-1-api-structure.md - Preserve logging and error code parity for dashboards
+    completed: false
+    parallel_group: 2
+    tags: [api, observability]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - Logging keys and error codes unchanged
+      - Verified against observability baseline
+      - Exceptions documented if required
+
+  - title: phase-1-api-structure.md - Centralize audit logging helpers
+    completed: false
+    parallel_group: 2
+    tags: [api, audit]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - Audit logging helper centralized and reused
+      - Audit payloads and events unchanged
+      - Imports updated across modules
+
+  - title: phase-1-api-structure.md - Update route files to call services and import schemas
+    completed: false
+    parallel_group: 2
+    tags: [api, routes]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - Routes call services and import module schemas
+      - Route paths unchanged
+      - Typecheck/tests pass
+
+  - title: phase-1-api-structure.md - Add module-level tests for key routes
+    completed: false
+    parallel_group: 2
+    tags: [api, tests]
+    file: phase-1-api-structure.md
+    notes: agents, sources, chat
+    acceptance_criteria:
+      - Tests added/updated for agents, sources, and chat
+      - Covers success and error cases
+      - Tests pass locally
+
+  - title: phase-1-api-structure.md - Add SSE contract regression checks for chat and widget
+    completed: false
+    parallel_group: 2
+    tags: [api, tests]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - SSE event names and payload fields asserted in tests
+      - Matches baseline contract list
+      - Tests pass
+
+  - title: phase-1-api-structure.md - Update tests and imports after API file moves
+    completed: false
+    parallel_group: 2
+    tags: [api, tests]
+    file: phase-1-api-structure.md
+    acceptance_criteria:
+      - Import paths updated for new structure
+      - Tests compile and run
+      - No stale path references remain
+
+  - title: phase-1-api-structure.md - Create API module map doc
+    completed: false
+    parallel_group: 2
+    tags: [docs, api]
+    file: phase-1-api-structure.md
+    notes: docs/refactor/api-modules.md
+    acceptance_criteria:
+      - docs/refactor/api-modules.md created or updated
+      - Includes module map, boundaries, and middleware order
+      - Reviewed for accuracy
 
   # ===========================================================================
-  # PARALLEL GROUP 3: API Routing & Integration
-  # Wire up services - depends on Group 2
+  # PARALLEL GROUP 3: Ingestion Worker Modularization
+  # Depends on Group 2
   # ===========================================================================
-  - title: Update admin chat route for RAG type routing
+  - title: phase-2-ingestion-worker.md - Define ingestion worker folder layout
     completed: false
     parallel_group: 3
-    tags: [api, routes, chat]
-    file: phase-3-api-routing.md
+    tags: [ingestion, worker]
+    file: phase-2-ingestion-worker.md
+    notes: bootstrap, queues, jobs, stage, services
+    acceptance_criteria:
+      - Folder layout documented and matches plan
+      - Existing files mapped to new folders
+      - No behavior changes introduced
 
-  - title: Update widget chat helper for RAG type routing
+  - title: phase-2-ingestion-worker.md - Add ingestion worker helper for logging and errors
     completed: false
     parallel_group: 3
-    tags: [api, widget, chat]
-    file: phase-3-api-routing.md
+    tags: [ingestion, logging]
+    file: phase-2-ingestion-worker.md
+    acceptance_criteria:
+      - Logging/error helper created for worker
+      - Worker modules use shared helper
+      - Log output remains consistent
 
-  - title: Update chat endpoint route for RAG type routing
+  - title: phase-2-ingestion-worker.md - Preserve logging/metric keys and error codes
     completed: false
     parallel_group: 3
-    tags: [api, routes, chat-endpoint]
-    file: phase-3-api-routing.md
+    tags: [ingestion, observability]
+    file: phase-2-ingestion-worker.md
+    acceptance_criteria:
+      - Logging keys and error codes unchanged
+      - Verified against baseline observability list
+      - Exceptions documented if required
 
-  - title: Update agent CRUD routes for ragType field
+  - title: phase-2-ingestion-worker.md - Move ingestion processors into jobs and queues
     completed: false
     parallel_group: 3
-    tags: [api, routes, agents]
-    file: phase-3-api-routing.md
+    tags: [ingestion, jobs]
+    file: phase-2-ingestion-worker.md
+    acceptance_criteria:
+      - Processor functions moved into jobs/ modules
+      - Queue registrations reside in queues/
+      - Job names and wiring unchanged
 
-  - title: Update retrieval config routes for new fields
+  - title: phase-2-ingestion-worker.md - Add ingestion jobs index
     completed: false
     parallel_group: 3
-    tags: [api, routes, retrieval]
-    file: phase-3-api-routing.md
+    tags: [ingestion, jobs]
+    file: phase-2-ingestion-worker.md
+    notes: jobs/index.ts
+    acceptance_criteria:
+      - jobs/index.ts registers all job handlers
+      - Entry uses jobs index for setup
+      - No missing job registrations
+
+  - title: phase-2-ingestion-worker.md - Split ingestion stage manager into stage modules
+    completed: false
+    parallel_group: 3
+    tags: [ingestion, stage]
+    file: phase-2-ingestion-worker.md
+    notes: config, progress, transitions, cleanup, priority
+    acceptance_criteria:
+      - Stage manager split into defined modules
+      - Public API unchanged for callers
+      - Stage transition behavior preserved
+
+  - title: phase-2-ingestion-worker.md - Split ingestion stage job queuer
+    completed: false
+    parallel_group: 3
+    tags: [ingestion, stage]
+    file: phase-2-ingestion-worker.md
+    notes: queue-scraping, queue-processing, queue-indexing, queue-embedding
+    acceptance_criteria:
+      - Queueing logic moved into queue-* modules
+      - Queue selection rules unchanged
+      - Stage manager uses new queue helpers
+
+  - title: phase-2-ingestion-worker.md - Extract robots handling service
+    completed: false
+    parallel_group: 3
+    tags: [ingestion, services]
+    file: phase-2-ingestion-worker.md
+    notes: services/robots.ts
+    acceptance_criteria:
+      - Robots logic moved into services/robots.ts
+      - Call sites updated to use service
+      - Behavior unchanged
+
+  - title: phase-2-ingestion-worker.md - Extract HTML content parsing service
+    completed: false
+    parallel_group: 3
+    tags: [ingestion, services]
+    file: phase-2-ingestion-worker.md
+    notes: services/extraction.ts
+    acceptance_criteria:
+      - Extraction logic moved into services/extraction.ts
+      - Call sites updated to use service
+      - Behavior unchanged
+
+  - title: phase-2-ingestion-worker.md - Centralize ingestion settings and vector store init
+    completed: false
+    parallel_group: 3
+    tags: [ingestion, bootstrap]
+    file: phase-2-ingestion-worker.md
+    acceptance_criteria:
+      - Settings and vector store init moved to bootstrap module
+      - Startup uses centralized init
+      - Behavior unchanged
+
+  - title: phase-2-ingestion-worker.md - Preserve settings refresh behavior and concurrency semantics
+    completed: false
+    parallel_group: 3
+    tags: [ingestion, settings]
+    file: phase-2-ingestion-worker.md
+    acceptance_criteria:
+      - Settings refresh cadence preserved
+      - Concurrency values unchanged
+      - Verified against baseline settings
+
+  - title: phase-2-ingestion-worker.md - Add ingestion bootstrap shutdown helper
+    completed: false
+    parallel_group: 3
+    tags: [ingestion, bootstrap]
+    file: phase-2-ingestion-worker.md
+    notes: bootstrap/shutdown.ts
+    acceptance_criteria:
+      - bootstrap/shutdown.ts created and used
+      - Handles termination signals gracefully
+      - Local startup/shutdown works without errors
+
+  - title: phase-2-ingestion-worker.md - Define graceful shutdown expectations for in-flight jobs
+    completed: false
+    parallel_group: 3
+    tags: [ingestion, shutdown]
+    file: phase-2-ingestion-worker.md
+    acceptance_criteria:
+      - Shutdown behavior documented for in-flight jobs
+      - Matches current worker behavior
+      - Documented in worker notes
+
+  - title: phase-2-ingestion-worker.md - Update ingestion imports and job wiring
+    completed: false
+    parallel_group: 3
+    tags: [ingestion, wiring]
+    file: phase-2-ingestion-worker.md
+    acceptance_criteria:
+      - Imports updated to new structure
+      - Worker registers all jobs
+      - Typecheck passes
+
+  - title: phase-2-ingestion-worker.md - Add ingestion unit tests for stage helpers
+    completed: false
+    parallel_group: 3
+    tags: [ingestion, tests]
+    file: phase-2-ingestion-worker.md
+    acceptance_criteria:
+      - Unit tests cover stage transitions and queueing helpers
+      - Key success/failure cases included
+      - Tests pass
+
+  - title: phase-2-ingestion-worker.md - Create ingestion job mapping doc
+    completed: false
+    parallel_group: 3
+    tags: [docs, ingestion]
+    file: phase-2-ingestion-worker.md
+    notes: docs/refactor/ingestion-jobs.md
+    acceptance_criteria:
+      - docs/refactor/ingestion-jobs.md created or updated
+      - Job/queue mapping included with owners
+      - Reviewed for accuracy
+
+  - title: phase-2-ingestion-worker.md - Document job payload invariants and retry/idempotency rules
+    completed: false
+    parallel_group: 3
+    tags: [docs, ingestion]
+    file: phase-2-ingestion-worker.md
+    notes: docs/refactor/ingestion-jobs.md
+    acceptance_criteria:
+      - Payload invariants documented for each job
+      - Retry and idempotency rules recorded
+      - Included in ingestion job mapping doc
 
   # ===========================================================================
-  # PARALLEL GROUP 4: Frontend - Agent Form & Chat UI & Widget
-  # These can all run in parallel - depend on Group 3
+  # PARALLEL GROUP 4: Scraper Worker Modularization
+  # Depends on Group 3
   # ===========================================================================
-  - title: Update agent API client for ragType
+  - title: phase-3-scraper-worker.md - Define scraper worker folder layout
     completed: false
     parallel_group: 4
-    tags: [web, api-client, agents]
-    file: phase-4-frontend-agent-form.md
+    tags: [scraper, worker]
+    file: phase-3-scraper-worker.md
+    notes: bootstrap, jobs, fetch, browser, services
+    acceptance_criteria:
+      - Folder layout documented and matches plan
+      - Existing files mapped to new folders
+      - No behavior changes introduced
 
-  - title: Add RAG Type selector to agent form
+  - title: phase-3-scraper-worker.md - Extract scraper fetch strategies
     completed: false
     parallel_group: 4
-    tags: [web, ui, agents, form]
-    file: phase-4-frontend-agent-form.md
+    tags: [scraper, fetch]
+    file: phase-3-scraper-worker.md
+    notes: fetch/http.ts, fetch/playwright.ts, fetch/firecrawl.ts
+    acceptance_criteria:
+      - Fetch strategies moved into fetch modules
+      - Strategy behavior unchanged
+      - Used by fetch selection helper
 
-  - title: Add advanced mode settings to agent form
+  - title: phase-3-scraper-worker.md - Add scraper fetch selection helper
     completed: false
     parallel_group: 4
-    tags: [web, ui, agents, form]
-    file: phase-4-frontend-agent-form.md
-    notes: historyTurns and advancedMaxSubqueries, shown only for advanced mode
+    tags: [scraper, fetch]
+    file: phase-3-scraper-worker.md
+    acceptance_criteria:
+      - Fetch selection helper encapsulates decision rules
+      - Decision rules match current behavior
+      - Used by page fetch job
 
-  - title: Update form defaults and validation
+  - title: phase-3-scraper-worker.md - Create browser pool helper
     completed: false
     parallel_group: 4
-    tags: [web, ui, agents, form]
-    file: phase-4-frontend-agent-form.md
+    tags: [scraper, browser]
+    file: phase-3-scraper-worker.md
+    notes: browser/pool.ts
+    acceptance_criteria:
+      - browser/pool.ts manages lifecycle and reuse
+      - Pool used by Playwright fetcher
+      - Behavior unchanged
 
-  - title: Update chat API client for reasoning events
+  - title: phase-3-scraper-worker.md - Define browser pool shutdown expectations for in-flight pages
     completed: false
     parallel_group: 4
-    tags: [web, api-client, chat]
-    file: phase-5-frontend-chat-ui.md
+    tags: [scraper, shutdown]
+    file: phase-3-scraper-worker.md
+    acceptance_criteria:
+      - Shutdown expectations documented for in-flight pages
+      - Matches current behavior
+      - Included in worker notes
 
-  - title: Create ReasoningSteps component
+  - title: phase-3-scraper-worker.md - Add fairness slot helper
     completed: false
     parallel_group: 4
-    tags: [web, ui, chat, components]
-    file: phase-5-frontend-chat-ui.md
+    tags: [scraper, fairness]
+    file: phase-3-scraper-worker.md
+    acceptance_criteria:
+      - Fairness acquire/release logic wrapped in helper
+      - Behavior unchanged
+      - Used by page fetch job
 
-  - title: Integrate reasoning steps into Chat page
+  - title: phase-3-scraper-worker.md - Preserve fairness scheduling behavior and settings refresh semantics
     completed: false
     parallel_group: 4
-    tags: [web, ui, chat]
-    file: phase-5-frontend-chat-ui.md
-    notes: Collapsible panel, collapsed by default
+    tags: [scraper, settings]
+    file: phase-3-scraper-worker.md
+    acceptance_criteria:
+      - Fairness scheduling rules unchanged
+      - Settings refresh cadence preserved
+      - Verified against baseline settings
 
-  - title: Add styling for reasoning panel
+  - title: phase-3-scraper-worker.md - Move content validation helpers
     completed: false
     parallel_group: 4
-    tags: [web, ui, chat, styling]
-    file: phase-5-frontend-chat-ui.md
+    tags: [scraper, validation]
+    file: phase-3-scraper-worker.md
+    notes: services/content-validation.ts
+    acceptance_criteria:
+      - Content validation logic moved to services/content-validation.ts
+      - Call sites updated
+      - Validation behavior unchanged
 
-  - title: Update widget types for reasoning events
+  - title: phase-3-scraper-worker.md - Update page fetch job orchestration
     completed: false
     parallel_group: 4
-    tags: [widget, types]
-    file: phase-6-widget-updates.md
+    tags: [scraper, jobs]
+    file: phase-3-scraper-worker.md
+    acceptance_criteria:
+      - Page fetch job orchestrates fetch modules
+      - Inputs/outputs unchanged
+      - Typecheck/tests pass
 
-  - title: Update widget chat service for reasoning
+  - title: phase-3-scraper-worker.md - Centralize scraper settings initialization
     completed: false
     parallel_group: 4
-    tags: [widget, service]
-    file: phase-6-widget-updates.md
+    tags: [scraper, bootstrap]
+    file: phase-3-scraper-worker.md
+    acceptance_criteria:
+      - Settings init moved to bootstrap module
+      - Jobs reuse shared settings init
+      - Behavior unchanged
 
-  - title: Create widget reasoning panel component
+  - title: phase-3-scraper-worker.md - Preserve logging/metric keys and error codes
     completed: false
     parallel_group: 4
-    tags: [widget, ui, components]
-    file: phase-6-widget-updates.md
+    tags: [scraper, observability]
+    file: phase-3-scraper-worker.md
+    acceptance_criteria:
+      - Logging keys and error codes unchanged
+      - Verified against observability baseline
+      - Exceptions documented if required
 
-  - title: Add widget config for reasoning visibility
+  - title: phase-3-scraper-worker.md - Add scraper jobs index
     completed: false
     parallel_group: 4
-    tags: [widget, config]
-    file: phase-6-widget-updates.md
-    notes: Optional showReasoning config
+    tags: [scraper, jobs]
+    file: phase-3-scraper-worker.md
+    notes: jobs/index.ts
+    acceptance_criteria:
+      - jobs/index.ts registers all scraper jobs
+      - Entry uses jobs index
+      - No missing job handlers
+
+  - title: phase-3-scraper-worker.md - Update scraper imports and job wiring
+    completed: false
+    parallel_group: 4
+    tags: [scraper, wiring]
+    file: phase-3-scraper-worker.md
+    acceptance_criteria:
+      - Imports updated to new module locations
+      - Worker registers jobs successfully
+      - Typecheck passes
+
+  - title: phase-3-scraper-worker.md - Add scraper tests for fetch selection and validation
+    completed: false
+    parallel_group: 4
+    tags: [scraper, tests]
+    file: phase-3-scraper-worker.md
+    acceptance_criteria:
+      - Tests cover fetch selection and content validation
+      - Key cases included
+      - Tests pass
+
+  - title: phase-3-scraper-worker.md - Create scraper fetch flow doc
+    completed: false
+    parallel_group: 4
+    tags: [docs, scraper]
+    file: phase-3-scraper-worker.md
+    notes: docs/refactor/scraper-fetch.md
+    acceptance_criteria:
+      - docs/refactor/scraper-fetch.md created or updated
+      - Fetch flow and decision rules documented
+      - Reviewed for accuracy
+
+  - title: phase-3-scraper-worker.md - Document fetch payload invariants
+    completed: false
+    parallel_group: 4
+    tags: [docs, scraper]
+    file: phase-3-scraper-worker.md
+    notes: docs/refactor/scraper-fetch.md
+    acceptance_criteria:
+      - Fetch payload fields and invariants documented
+      - Includes size/content-type constraints
+      - Included in scraper fetch doc
 
   # ===========================================================================
-  # PARALLEL GROUP 5: Testing & Documentation
-  # Quality assurance - depends on Group 4
+  # PARALLEL GROUP 5: Web App Structure
+  # Depends on Group 4
   # ===========================================================================
-  - title: Add unit tests for AdvancedRAGService
+  - title: phase-4-web-app.md - Create web page registry
     completed: false
     parallel_group: 5
-    tags: [testing, unit, api]
-    file: phase-7-testing-docs.md
+    tags: [web, navigation]
+    file: phase-4-web-app.md
+    notes: apps/web/src/app/page-registry.ts
+    acceptance_criteria:
+      - apps/web/src/app/page-registry.ts created
+      - Registry includes current pages with labels/components
+      - Ready for App/sidebar usage
 
-  - title: Add integration tests for chat endpoints
+  - title: phase-4-web-app.md - Define page registry schema (label, group, component, auth gate, order)
     completed: false
     parallel_group: 5
-    tags: [testing, integration, api]
-    file: phase-7-testing-docs.md
+    tags: [web, navigation]
+    file: phase-4-web-app.md
+    acceptance_criteria:
+      - Registry schema includes label, group, component, auth gate, order
+      - Applied to existing pages
+      - Documented in web navigation docs
 
-  - title: Update CLAUDE.md documentation
+  - title: phase-4-web-app.md - Update App.tsx to use the page registry
     completed: false
     parallel_group: 5
-    tags: [docs]
-    file: phase-7-testing-docs.md
+    tags: [web, app]
+    file: phase-4-web-app.md
+    acceptance_criteria:
+      - App.tsx uses registry for page lookup and labels
+      - Navigation behavior unchanged
+      - Typecheck passes
 
-  - title: Manual testing checklist execution
+  - title: phase-4-web-app.md - Update app sidebar to use the page registry
     completed: false
     parallel_group: 5
-    tags: [testing, manual]
-    file: phase-7-testing-docs.md
-    notes: All automated tests pass (1306 total). Manual verification by user recommended.
+    tags: [web, sidebar]
+    file: phase-4-web-app.md
+    acceptance_criteria:
+      - Sidebar renders nav items from registry
+      - Labels and order match existing UI
+      - Manual smoke confirms navigation
+
+  - title: phase-4-web-app.md - Add navigation grouping metadata
+    completed: false
+    parallel_group: 5
+    tags: [web, navigation]
+    file: phase-4-web-app.md
+    notes: workspace vs admin
+    acceptance_criteria:
+      - Registry includes workspace/admin grouping metadata
+      - Sidebar groups items accordingly
+      - Grouping matches current UI
+
+  - title: phase-4-web-app.md - Preserve existing navigation gating and admin/workspace segmentation
+    completed: false
+    parallel_group: 5
+    tags: [web, navigation]
+    file: phase-4-web-app.md
+    acceptance_criteria:
+      - Auth/admin gating rules unchanged
+      - Admin/workspace segmentation preserved
+      - Manual smoke verifies access control
+
+  - title: phase-4-web-app.md - Add web providers for auth/session and tenant state
+    completed: false
+    parallel_group: 5
+    tags: [web, providers]
+    file: phase-4-web-app.md
+    acceptance_criteria:
+      - Providers created for auth/session and tenant state
+      - App uses providers for shared state
+      - Behavior unchanged
+
+  - title: phase-4-web-app.md - Migrate state management from App.tsx into providers
+    completed: false
+    parallel_group: 5
+    tags: [web, providers]
+    file: phase-4-web-app.md
+    acceptance_criteria:
+      - Shared state moved out of App.tsx
+      - App.tsx simplified without behavior changes
+      - Manual smoke passes
+
+  - title: phase-4-web-app.md - Document provider boundaries and responsibilities
+    completed: false
+    parallel_group: 5
+    tags: [web, providers]
+    file: phase-4-web-app.md
+    acceptance_criteria:
+      - Provider responsibilities documented
+      - Boundaries and ownership clarified
+      - Stored with web navigation docs
+
+  - title: phase-4-web-app.md - Split web API types by domain
+    completed: false
+    parallel_group: 5
+    tags: [web, api-types]
+    file: phase-4-web-app.md
+    notes: apps/web/src/lib/api/types
+    acceptance_criteria:
+      - Types split into domain files under apps/web/src/lib/api/types
+      - Domain grouping aligns with API modules
+      - Imports updated
+
+  - title: phase-4-web-app.md - Align API type split with shared package adoption plan
+    completed: false
+    parallel_group: 5
+    tags: [web, api-types]
+    file: phase-4-web-app.md
+    acceptance_criteria:
+      - Adoption plan documented to avoid double moves
+      - Alignment with Phase 5 steps recorded
+      - Stakeholders agree on sequence
+
+  - title: phase-4-web-app.md - Update type exports and imports across web app
+    completed: false
+    parallel_group: 5
+    tags: [web, api-types]
+    file: phase-4-web-app.md
+    acceptance_criteria:
+      - All type imports updated to new locations
+      - No unresolved type references
+      - Typecheck passes
+
+  - title: phase-4-web-app.md - Add API types barrel export
+    completed: false
+    parallel_group: 5
+    tags: [web, api-types]
+    file: phase-4-web-app.md
+    acceptance_criteria:
+      - Barrel export added for API types
+      - Consistent import path documented
+      - No circular dependencies introduced
+
+  - title: phase-4-web-app.md - Create web navigation doc
+    completed: false
+    parallel_group: 5
+    tags: [docs, web]
+    file: phase-4-web-app.md
+    notes: docs/refactor/web-navigation.md
+    acceptance_criteria:
+      - docs/refactor/web-navigation.md created or updated
+      - Describes page registry and gating rules
+      - Reviewed for accuracy
+
+  # ===========================================================================
+  # PARALLEL GROUP 6: Shared Packages and Documentation
+  # Depends on Group 5
+  # ===========================================================================
+  - title: phase-5-shared-packages-docs.md - Audit shared types across API, workers, and web
+    completed: false
+    parallel_group: 6
+    tags: [shared, audit]
+    file: phase-5-shared-packages-docs.md
+    acceptance_criteria:
+      - Duplicate/shared types enumerated with locations
+      - Ownership assigned per domain
+      - Audit results recorded in docs
+
+  - title: phase-5-shared-packages-docs.md - Create shared type submodules
+    completed: false
+    parallel_group: 6
+    tags: [shared, types]
+    file: phase-5-shared-packages-docs.md
+    notes: api, workers, queue, widget, analytics, admin
+    acceptance_criteria:
+      - Submodules created under packages/shared/src/types
+      - Domain naming matches plan
+      - Export structure documented
+
+  - title: phase-5-shared-packages-docs.md - Define shared export boundaries and deprecation strategy
+    completed: false
+    parallel_group: 6
+    tags: [shared, exports]
+    file: phase-5-shared-packages-docs.md
+    acceptance_criteria:
+      - Public vs internal export boundaries documented
+      - Deprecation strategy defined
+      - Added to shared package docs
+
+  - title: phase-5-shared-packages-docs.md - Add export maps/tsconfig path aliases to prevent deep imports
+    completed: false
+    parallel_group: 6
+    tags: [shared, exports]
+    file: phase-5-shared-packages-docs.md
+    acceptance_criteria:
+      - Export maps or path aliases added
+      - Deep import paths discouraged or blocked
+      - Typecheck/build still pass
+
+  - title: phase-5-shared-packages-docs.md - Move shared DTOs, enums, and errors into packages/shared
+    completed: false
+    parallel_group: 6
+    tags: [shared, types]
+    file: phase-5-shared-packages-docs.md
+    acceptance_criteria:
+      - Shared DTOs/enums/errors moved into packages/shared
+      - Consumers updated or re-exported
+      - Behavior unchanged
+
+  - title: phase-5-shared-packages-docs.md - Update imports and keep backward-compatible barrels
+    completed: false
+    parallel_group: 6
+    tags: [shared, imports]
+    file: phase-5-shared-packages-docs.md
+    acceptance_criteria:
+      - Imports updated to shared package
+      - Compatibility barrels kept where needed
+      - Typecheck passes
+
+  - title: phase-5-shared-packages-docs.md - Define a deprecation timeline and removal criteria for old types
+    completed: false
+    parallel_group: 6
+    tags: [shared, exports]
+    file: phase-5-shared-packages-docs.md
+    acceptance_criteria:
+      - Deprecation timeline documented with milestones
+      - Removal criteria defined (usage zero, version bump)
+      - Included in shared package docs
+
+  - title: phase-5-shared-packages-docs.md - Add an adoption plan for web API types to avoid churn
+    completed: false
+    parallel_group: 6
+    tags: [shared, types]
+    file: phase-5-shared-packages-docs.md
+    acceptance_criteria:
+      - Adoption plan documented with sequencing and owners
+      - Aligns with Phase 4 type split
+      - Reviewed by stakeholders
+
+  - title: phase-5-shared-packages-docs.md - Remove duplicate web API types after adoption
+    completed: false
+    parallel_group: 6
+    tags: [shared, cleanup]
+    file: phase-5-shared-packages-docs.md
+    notes: apps/web/src/lib/api/types.ts
+    acceptance_criteria:
+      - Duplicates removed only after shared adoption
+      - Imports updated to shared types
+      - Typecheck passes
+
+  - title: phase-5-shared-packages-docs.md - Add architecture notes
+    completed: false
+    parallel_group: 6
+    tags: [docs, architecture]
+    file: phase-5-shared-packages-docs.md
+    notes: docs/refactor/architecture.md
+    acceptance_criteria:
+      - docs/refactor/architecture.md created or updated
+      - Reflects new module boundaries
+      - Reviewed for accuracy
+
+  - title: phase-5-shared-packages-docs.md - Add module ownership guidelines
+    completed: false
+    parallel_group: 6
+    tags: [docs, ownership]
+    file: phase-5-shared-packages-docs.md
+    notes: docs/refactor/ownership.md
+    acceptance_criteria:
+      - docs/refactor/ownership.md created or updated
+      - Ownership rules and escalation paths documented
+      - Reviewed with stakeholders
+
+  - title: phase-5-shared-packages-docs.md - Add shared package conventions doc
+    completed: false
+    parallel_group: 6
+    tags: [docs, shared]
+    file: phase-5-shared-packages-docs.md
+    notes: docs/refactor/shared-packages.md
+    acceptance_criteria:
+      - docs/refactor/shared-packages.md created or updated
+      - Export conventions and import rules defined
+      - Reviewed for accuracy
+
+  - title: phase-5-shared-packages-docs.md - Remove dead code and unused helpers where verified
+    completed: false
+    parallel_group: 6
+    tags: [cleanup]
+    file: phase-5-shared-packages-docs.md
+    acceptance_criteria:
+      - Dead code removed with verification
+      - No behavior changes introduced
+      - Typecheck/tests pass
 
 parallel_groups:
   1:
-    name: Schema & Types
-    description: Database schema changes and type definitions
-    status: completed
+    name: Baseline & Inventory
+    description: Current state, dependencies, and test matrix
+    status: planned
   2:
-    name: Advanced RAG Service
-    description: Core AdvancedRAGService implementation
-    status: completed
+    name: API Structure
+    description: App assembly split and domain module boundaries
+    status: planned
     depends_on: [1]
   3:
-    name: API Routing
-    description: Wire up services to all chat endpoints
-    status: completed
+    name: Ingestion Worker
+    description: Job orchestration and stage modularization
+    status: planned
     depends_on: [2]
   4:
-    name: Frontend & Widget
-    description: Agent form, chat UI reasoning display, and widget updates
-    status: completed
+    name: Scraper Worker
+    description: Fetch strategy extraction and worker modularization
+    status: planned
     depends_on: [3]
   5:
-    name: Testing & Docs
-    description: Tests and documentation updates
-    status: completed
+    name: Web App
+    description: Page registry, providers, and API types split
+    status: planned
     depends_on: [4]
+  6:
+    name: Shared Packages & Docs
+    description: Shared types and documentation updates
+    status: planned
+    depends_on: [5]
 
 metadata:
-  created_at: "2026-01-17"
-  updated_at: "2026-01-17"
+  created_at: "2026-01-21"
+  updated_at: "2026-01-21"
   owner: "unassigned"
   feature_description: |
-    Add Advanced RAG mode to agents with multi-turn query rewriting,
-    sub-query planning, and reasoning step display. Agents can be
-    configured as "simple" (current behavior) or "advanced" (new
-    multi-step pipeline with visible reasoning).
+    Refactor the API, ingestion worker, scraper worker, and web app for
+    maintainability. Focus on modular boundaries, shared types, and
+    documentation updates without changing runtime behavior.
