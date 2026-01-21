@@ -583,6 +583,26 @@
 - Internal API settings endpoints live in `apps/api/src/routes/internal/workers.ts` and admin settings in `apps/api/src/routes/admin/settings.ts`.
 - Workers consume settings via `initSettingsClient` in `apps/ingestion-worker/src/index.ts` and `apps/scraper-worker/src/index.ts`.
 
+## Tenant Boundary and RLS Enforcement Touchpoints
+
+### RLS Policy Sources
+- Core tenant isolation policies live in `migrations/0002_rls_policies.sql` for tenant-owned tables (`tenants`, `tenant_memberships`, `knowledge_bases`, `tenant_kb_subscriptions`, `sources`, `source_runs`, `source_run_pages`, `kb_chunks`, `uploads`, `agents`, `agent_kbs`, `agent_widget_configs`, `retrieval_configs`, `widget_tokens`, `chat_events`, `api_keys`, `tenant_quotas`, `tenant_usage`, `deletion_jobs`).
+- Global KB read exceptions are defined in `migrations/0024_fix_global_kb_rls_policies.sql` for `kb_chunks`, `sources`, `source_runs`, `source_run_pages`, and `uploads` when `tenant_id` is NULL and the KB is published.
+- Prompt analysis A/B testing tables enforce tenant isolation in `migrations/0026_prompt_analysis_ab_testing.sql` (`test_run_experiments`, `test_run_prompt_analyses`).
+
+### DB Context and Enforcement
+- `packages/db/src/client.ts` defines `withRLSContext`, `withTenantContext`, and `withSystemAdminContext` to run transactions with `SET LOCAL app.tenant_id`, `app.user_id`, and `app.is_system_admin` for PostgreSQL RLS.
+- All RLS policies reference `current_setting('app.tenant_id', true)` and `current_setting('app.is_system_admin', true)` to enforce tenant scoping or system admin bypass.
+
+### API Middleware and Route Usage
+- `apps/api/src/middleware/auth/middleware.ts` resolves tenant context from auth and `X-Tenant-ID`, then stores `rlsContext` on the request.
+- `apps/api/src/middleware/auth/helpers.ts` exposes `withRequestRLS` to wrap route queries in an RLS-aware transaction.
+- Tenant-scoped routes use `withRequestRLS` across modules such as `apps/api/src/routes/knowledge-bases.ts`, `apps/api/src/routes/sources.ts`, `apps/api/src/routes/agents.ts`, `apps/api/src/routes/analytics.ts`, `apps/api/src/routes/test-suites.ts`, and `apps/api/src/routes/uploads.ts`.
+
+### System-Level Access Paths
+- Public token-based routes use `withRLSContext({ isSystemAdmin: true })` to bypass tenant scoping when looking up widget/chat tokens (`apps/api/src/routes/widget.ts`, `apps/api/src/routes/chat-endpoint.ts`, `apps/api/src/services/widget-chat-helpers.ts`).
+- Auth bootstrap flows (`apps/api/src/routes/auth.ts`) also run system-level RLS context for initial user creation and login.
+
 ## Observability Baseline (Logs, Error Codes, Metrics)
 
 ### Shared Logging Schema (Wide Events)
@@ -635,7 +655,7 @@
 - [x] Inventory web pages and navigation flows.
 - [ ] Identify the largest files and repeated patterns in each app.
 - [x] Capture cross-cutting helpers (auth, audit, RLS, logging, settings).
-- [ ] Map tenant boundary/RLS enforcement touchpoints.
+- [x] Map tenant boundary/RLS enforcement touchpoints.
 - [ ] Inventory shared packages and their consumers (shared, queue, logger, db).
 - [ ] Record current environment/config dependencies for startup.
 - [ ] Record external service dependencies (AI providers, vector store, storage).

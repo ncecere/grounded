@@ -122,4 +122,14 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("packages/logger/src/logger.ts");
     expect(content).toContain("packages/shared/src/settings/index.ts");
   });
+
+  it("maps tenant boundary and RLS touchpoints", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Tenant Boundary and RLS Enforcement Touchpoints");
+    expect(content).toContain("migrations/0002_rls_policies.sql");
+    expect(content).toContain("migrations/0024_fix_global_kb_rls_policies.sql");
+    expect(content).toContain("withRequestRLS");
+    expect(content).toContain("X-Tenant-ID");
+  });
 });

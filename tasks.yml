@@ -108,7 +108,7 @@ tasks:
       - Verified against current imports
 
   - title: phase-0-baseline.md - Map tenant boundary/RLS enforcement touchpoints
-    completed: false
+    completed: true
     parallel_group: 1
     tags: [baseline, rls]
     file: phase-0-baseline.md
