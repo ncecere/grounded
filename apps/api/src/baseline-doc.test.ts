@@ -143,6 +143,15 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("logging keys, error codes");
   });
 
+  it("notes phase dependencies and blockers", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Phase Dependencies and Potential Blockers");
+    expect(content).toContain("Phase 1 (API structure)");
+    expect(content).toContain("Potential blockers");
+    expect(content).toContain("Contract/observability drift");
+  });
+
   it("inventories API routes by method and owner", async () => {
     const content = await readFile(baselineDocPath, "utf-8");
 

@@ -25,6 +25,21 @@
 ## Dependencies
 - None (information gathering only).
 
+## Phase Dependencies and Potential Blockers
+
+### Phase dependencies
+- Phase 1 (API structure) depends on the Phase 0 baseline inventory, contract baselines, and refactor constraints being reviewed and accepted.
+- Phase 2 (ingestion worker) depends on Phase 1 module boundaries, startup assembly, and error/logging guidance.
+- Phase 3 (scraper worker) depends on Phase 2 ingestion worker structure to keep shared queue/job contracts aligned.
+- Phase 4 (web app) depends on Phase 1 API module boundaries and any shared type decisions to avoid churn.
+- Phase 5 (shared packages & docs) depends on Phase 4 web API type split sequencing and Phase 1/2 module ownership notes.
+
+### Potential blockers
+- Baseline deliverables pending review (dependency map, test matrix, migration log template) can delay Phase 1 kickoff.
+- Contract/observability drift risk if API or worker behavior changes before baselines are locked.
+- Limited worker-specific automated tests may slow refactor validation; plan time for new unit tests and smoke runs.
+- Cross-team agreement needed on shared types ownership to prevent duplicate moves during Phases 4-5.
+
 ## Runtime Entrypoints and Startup Sequence
 
 ### API (apps/api)
@@ -816,7 +831,7 @@
 - [x] List existing tests and smoke checks used today.
 - [ ] Build a test/smoke matrix by app and workflow.
 - [x] Define refactor constraints (no API response changes, no schema changes).
-- [ ] Note phase dependencies and potential blockers.
+- [x] Note phase dependencies and potential blockers.
 - [ ] Create a baseline inventory note in `docs/refactor/baseline.md`.
 - [ ] Create `docs/refactor/dependencies.md` with package and service dependencies.
 - [ ] Create `docs/refactor/test-matrix.md` with validation expectations.
