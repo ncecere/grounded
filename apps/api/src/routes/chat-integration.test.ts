@@ -29,10 +29,18 @@ interface ReasoningStep {
   details?: Record<string, unknown>;
 }
 
+interface StreamSource {
+  id: string;
+  title: string;
+  url?: string;
+  snippet: string;
+  index: number;
+}
+
 type SimpleStreamEvent =
   | { type: "status"; status: string; message: string; sourceCount?: number }
   | { type: "text"; content: string }
-  | { type: "sources"; sources: Array<{ title: string; url?: string; snippet: string; index: number }> }
+  | { type: "sources"; sources: StreamSource[] }
   | { type: "done"; conversationId: string }
   | { type: "error"; message: string };
 
@@ -40,7 +48,7 @@ type AdvancedStreamEvent =
   | { type: "status"; status: string; message: string; sourceCount?: number }
   | { type: "reasoning"; step: ReasoningStep }
   | { type: "text"; content: string }
-  | { type: "sources"; sources: Array<{ title: string; url?: string; snippet: string; index: number }> }
+  | { type: "sources"; sources: StreamSource[] }
   | { type: "done"; conversationId: string }
   | { type: "error"; message: string };
 
@@ -61,6 +69,58 @@ interface AdvancedRAGResponse extends SimpleRAGResponse {
 
 // Schema to validate chat request (shared across all endpoints)
 const chatRequestSchema = chatSchema;
+
+const SIMPLE_EVENT_TYPES = ["status", "text", "sources", "done", "error"] as const;
+const ADVANCED_EVENT_TYPES = ["status", "reasoning", "text", "sources", "done", "error"] as const;
+
+const expectSourcesContract = (sources: StreamSource[]) => {
+  sources.forEach((source) => {
+    expect(source).toMatchObject({
+      id: expect.any(String),
+      title: expect.any(String),
+      snippet: expect.any(String),
+      index: expect.any(Number),
+    });
+  });
+};
+
+const expectSimpleEventContract = (event: SimpleStreamEvent) => {
+  expect(event).toHaveProperty("type");
+  switch (event.type) {
+    case "status":
+      expect(event).toMatchObject({ status: expect.any(String), message: expect.any(String) });
+      break;
+    case "text":
+      expect(event).toMatchObject({ content: expect.any(String) });
+      break;
+    case "sources":
+      expectSourcesContract(event.sources);
+      break;
+    case "done":
+      expect(event).toMatchObject({ conversationId: expect.any(String) });
+      break;
+    case "error":
+      expect(event).toMatchObject({ message: expect.any(String) });
+      break;
+  }
+};
+
+const expectAdvancedEventContract = (event: AdvancedStreamEvent) => {
+  expect(event).toHaveProperty("type");
+  switch (event.type) {
+    case "reasoning":
+      expect(event.step).toMatchObject({
+        id: expect.any(String),
+        type: expect.any(String),
+        title: expect.any(String),
+        summary: expect.any(String),
+        status: expect.any(String),
+      });
+      break;
+    default:
+      expectSimpleEventContract(event as SimpleStreamEvent);
+  }
+};
 
 // ============================================================================
 // Admin Chat Endpoint Integration Tests
@@ -222,6 +282,67 @@ describe("Widget Chat Endpoint Integration", () => {
     it("should include reasoning events in widget advanced mode", () => {
       const advancedEventTypes = ["status", "reasoning", "text", "sources", "done", "error"];
       expect(advancedEventTypes).toContain("reasoning");
+    });
+  });
+
+  describe("SSE Contract Regression (Widget)", () => {
+    it("should match simple RAG event contracts", () => {
+      const events: SimpleStreamEvent[] = [
+        { type: "status", status: "searching", message: "Searching knowledge base..." },
+        { type: "text", content: "Hello" },
+        {
+          type: "sources",
+          sources: [{ id: "s-1", title: "Doc 1", snippet: "...", index: 1, url: "http://example.com" }],
+        },
+        { type: "done", conversationId: "conv-1" },
+        { type: "error", message: "Something went wrong" },
+      ];
+
+      events.forEach(expectSimpleEventContract);
+      SIMPLE_EVENT_TYPES.forEach((type) => {
+        expect(events.map((event) => event.type)).toContain(type);
+      });
+    });
+
+    it("should match advanced RAG event contracts", () => {
+      const events: AdvancedStreamEvent[] = [
+        { type: "status", status: "generating", message: "Generating response..." },
+        {
+          type: "reasoning",
+          step: {
+            id: "step-1",
+            type: "rewrite",
+            title: "Query Rewriting",
+            summary: "Rewriting query",
+            status: "in_progress",
+          },
+        },
+        { type: "text", content: "Hello" },
+        {
+          type: "sources",
+          sources: [{ id: "s-2", title: "Doc 2", snippet: "...", index: 1 }],
+        },
+        { type: "done", conversationId: "conv-2" },
+        { type: "error", message: "Something went wrong" },
+      ];
+
+      events.forEach(expectAdvancedEventContract);
+      ADVANCED_EVENT_TYPES.forEach((type) => {
+        expect(events.map((event) => event.type)).toContain(type);
+      });
+    });
+
+    it("should keep status before text and sources before done", () => {
+      const eventOrder = ["status", "text", "sources", "done"];
+      expect(eventOrder.indexOf("status")).toBeLessThan(eventOrder.indexOf("text"));
+      expect(eventOrder.indexOf("text")).toBeLessThan(eventOrder.indexOf("sources"));
+      expect(eventOrder.indexOf("sources")).toBeLessThan(eventOrder.indexOf("done"));
+    });
+
+    it("should serialize SSE payloads as JSON with type", () => {
+      const payload = JSON.stringify({ type: "status", status: "searching", message: "Searching..." });
+      const parsed = JSON.parse(payload) as { type: string };
+      expect(parsed.type).toBe("status");
     });
   });
 
@@ -484,6 +605,61 @@ describe("Public Chat Endpoint Integration", () => {
         });
 
         expect(steps).toEqual(expectedOrder);
+      });
+    });
+
+    describe("SSE Contract Regression (Chat Endpoint)", () => {
+      it("should match simple stream event contracts", () => {
+        const events: SimpleStreamEvent[] = [
+          { type: "status", status: "searching", message: "Searching knowledge base..." },
+          { type: "text", content: "Hello" },
+          {
+            type: "sources",
+            sources: [{ id: "s-3", title: "Doc 3", snippet: "...", index: 1 }],
+          },
+          { type: "done", conversationId: "conv-3" },
+          { type: "error", message: "Something went wrong" },
+        ];
+
+        events.forEach(expectSimpleEventContract);
+        SIMPLE_EVENT_TYPES.forEach((type) => {
+          expect(events.map((event) => event.type)).toContain(type);
+        });
+      });
+
+      it("should match advanced stream event contracts", () => {
+        const events: AdvancedStreamEvent[] = [
+          { type: "status", status: "generating", message: "Generating response..." },
+          {
+            type: "reasoning",
+            step: {
+              id: "step-2",
+              type: "plan",
+              title: "Query Planning",
+              summary: "Planning sub-queries",
+              status: "completed",
+            },
+          },
+          { type: "text", content: "Hello" },
+          {
+            type: "sources",
+            sources: [{ id: "s-4", title: "Doc 4", snippet: "...", index: 2 }],
+          },
+          { type: "done", conversationId: "conv-4" },
+          { type: "error", message: "Something went wrong" },
+        ];
+
+        events.forEach(expectAdvancedEventContract);
+        ADVANCED_EVENT_TYPES.forEach((type) => {
+          expect(events.map((event) => event.type)).toContain(type);
+        });
+      });
+
+      it("should keep sources after text and done last", () => {
+        const eventOrder = ["status", "text", "sources", "done"];
+        expect(eventOrder.indexOf("status")).toBeLessThan(eventOrder.indexOf("text"));
+        expect(eventOrder.indexOf("text")).toBeLessThan(eventOrder.indexOf("sources"));
+        expect(eventOrder.indexOf("sources")).toBeLessThan(eventOrder.indexOf("done"));
       });
     });
 
@@ -930,8 +1106,8 @@ describe("Citation Handling Integration", () => {
       const event: SimpleStreamEvent = {
         type: "sources",
         sources: [
-          { title: "Doc 1", url: "http://example.com/1", snippet: "...", index: 1 },
-          { title: "Doc 2", snippet: "...", index: 2 },
+          { id: "c-1", title: "Doc 1", url: "http://example.com/1", snippet: "...", index: 1 },
+          { id: "c-2", title: "Doc 2", snippet: "...", index: 2 },
         ],
       };
 

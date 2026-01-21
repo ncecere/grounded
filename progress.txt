@@ -39,3 +39,4 @@
 2026-01-21 - Documented service/repo transaction patterns in phase-1 API structure plan and added doc test coverage.
 2026-01-21 - Normalized knowledge base error handling to BadRequestError for invalid embedding models and added route test coverage for reindex validation.
 2026-01-21 - Centralized audit logging context creation in audit helpers, updated API routes to reuse it, and added coverage tests for the new helper.
+2026-01-21 - Added SSE contract regression checks for chat/widget streams with event payload assertions and ordering coverage; verified chat integration tests.

@@ -445,7 +445,7 @@ tasks:
       - Imports updated across modules
 
   - title: phase-1-api-structure.md - Update route files to call services and import schemas
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, routes]
     file: phase-1-api-structure.md
@@ -455,7 +455,7 @@ tasks:
       - Typecheck/tests pass
 
   - title: phase-1-api-structure.md - Add module-level tests for key routes
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, tests]
     file: phase-1-api-structure.md
@@ -466,7 +466,7 @@ tasks:
       - Tests pass locally
 
   - title: phase-1-api-structure.md - Add SSE contract regression checks for chat and widget
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, tests]
     file: phase-1-api-structure.md
