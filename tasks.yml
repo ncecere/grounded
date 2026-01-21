@@ -543,7 +543,7 @@ tasks:
       - Job names and wiring unchanged
 
   - title: phase-2-ingestion-worker.md - Add ingestion jobs index
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [ingestion, jobs]
     file: phase-2-ingestion-worker.md
