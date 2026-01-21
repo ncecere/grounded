@@ -696,7 +696,7 @@ tasks:
       - No behavior changes introduced
 
   - title: phase-3-scraper-worker.md - Extract scraper fetch strategies
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [scraper, fetch]
     file: phase-3-scraper-worker.md

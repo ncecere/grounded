@@ -14,24 +14,14 @@ import {
 import { log } from "@grounded/logger";
 import {
   normalizeUrl,
-  getEnv,
-  SCRAPE_TIMEOUT_MS,
-  MAX_PAGE_SIZE_BYTES,
   type PageFetchJob,
   SourceRunStage,
-  validateHtmlContentType,
-  isContentTypeEnforcementEnabled,
-  ContentError,
-  ErrorCode,
-  isPlaywrightDownloadsDisabled,
-  shouldLogBlockedDownloads,
-  createBlockedDownloadInfo,
 } from "@grounded/shared";
 
 import { createCrawlState } from "@grounded/crawl-state";
-
-const FIRECRAWL_API_KEY = getEnv("FIRECRAWL_API_KEY", "");
-const FIRECRAWL_API_URL = getEnv("FIRECRAWL_API_URL", "https://api.firecrawl.dev");
+import { fetchWithFirecrawl } from "../fetch/firecrawl";
+import { fetchWithHttp } from "../fetch/http";
+import { fetchWithPlaywright } from "../fetch/playwright";
 
 export async function processPageFetch(
   data: PageFetchJob,
@@ -234,158 +224,6 @@ async function processPageFetchWithSlot(
   }
 }
 
-async function fetchWithHttp(
-  url: string
-): Promise<{ html: string; title: string | null }> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), SCRAPE_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; Grounded-Bot/1.0; +https://grounded.example.com/bot)",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    // Validate content type (HTML allowlist enforcement)
-    if (isContentTypeEnforcementEnabled()) {
-      const contentType = response.headers.get("content-type");
-      const validation = validateHtmlContentType(contentType);
-
-      if (!validation.isValid) {
-        log.info("scraper-worker", "Skipping non-HTML content", {
-          url,
-          contentType: validation.rawContentType,
-          mimeType: validation.mimeType,
-          category: validation.category,
-          reason: validation.rejectionReason,
-        });
-        throw new ContentError(
-          ErrorCode.CONTENT_UNSUPPORTED_TYPE,
-          validation.rejectionReason || `Non-HTML content type: ${validation.mimeType}`,
-          { metadata: { url, contentType: validation.rawContentType, mimeType: validation.mimeType } }
-        );
-      }
-
-      // Log a warning for unknown/empty content types that we're allowing through
-      if (validation.category === "unknown") {
-        log.warn("scraper-worker", "Processing page with unknown content type", {
-          url,
-          contentType: validation.rawContentType,
-        });
-      }
-    }
-
-    const contentLength = response.headers.get("content-length");
-    if (contentLength && parseInt(contentLength) > MAX_PAGE_SIZE_BYTES) {
-      throw new Error("Page too large");
-    }
-
-    const html = await response.text();
-
-    // Extract title
-    const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
-    const title = titleMatch ? titleMatch[1].trim() : null;
-
-    return { html, title };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function fetchWithPlaywright(
-  url: string,
-  browser: Browser
-): Promise<{ html: string; title: string | null }> {
-  // Determine download configuration
-  const downloadsDisabled = isPlaywrightDownloadsDisabled();
-  const logBlockedDownloads = shouldLogBlockedDownloads();
-
-  const context = await browser.newContext({
-    userAgent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    viewport: { width: 1280, height: 720 },
-    // Disable downloads during crawl to prevent disk consumption and slow page loading
-    acceptDownloads: !downloadsDisabled,
-  });
-
-  const page = await context.newPage();
-
-  // Set up download event handler for logging blocked downloads
-  if (downloadsDisabled && logBlockedDownloads) {
-    page.on("download", async (download) => {
-      const downloadInfo = createBlockedDownloadInfo(
-        url,
-        download.url(),
-        download.suggestedFilename()
-      );
-      log.info("scraper-worker", "Blocked download during crawl", {
-        ...downloadInfo,
-        reason: "downloads_disabled",
-      });
-      // Cancel the download
-      await download.cancel();
-    });
-  }
-
-  try {
-    await page.goto(url, {
-      waitUntil: "networkidle",
-      timeout: SCRAPE_TIMEOUT_MS,
-    });
-
-    // Wait for any dynamic content
-    await page.waitForTimeout(1000);
-
-    const html = await page.content();
-    const title = await page.title();
-
-    return { html, title: title || null };
-  } finally {
-    await page.close();
-    await context.close();
-  }
-}
-
-async function fetchWithFirecrawl(
-  url: string
-): Promise<{ html: string; title: string | null }> {
-  if (!FIRECRAWL_API_KEY) {
-    throw new Error("Firecrawl API key not configured");
-  }
-
-  const response = await fetch(`${FIRECRAWL_API_URL}/v1/scrape`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-    },
-    body: JSON.stringify({
-      url,
-      formats: ["html"],
-      waitFor: 2000,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Firecrawl error: ${error}`);
-  }
-
-  const result = await response.json() as { data?: { html?: string; metadata?: { title?: string } } };
-
-  return {
-    html: result.data?.html || "",
-    title: result.data?.metadata?.title || null,
-  };
-}
 
 function needsJsRendering(html: string): boolean {
   // Heuristics to detect if page needs JS rendering

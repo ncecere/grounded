@@ -60,3 +60,4 @@
 2026-01-21 - Created docs/refactor/ingestion-jobs.md with ingestion queue/job mapping and ownership, plus doc coverage tests for the mapping.
 2026-01-21 - Documented ingestion job payload invariants plus retry/idempotency rules in docs/refactor/ingestion-jobs.md; updated ingestion-jobs doc tests and verified bun test apps/ingestion-worker/src/ingestion-jobs-doc.test.ts.
 2026-01-21 - Documented scraper worker folder layout, file mapping, and responsibilities in tasks/phase-3-scraper-worker.md; added scraper worker doc coverage tests.
+2026-01-21 - Extracted scraper fetch strategies into fetch/http.ts, fetch/playwright.ts, and fetch/firecrawl.ts; added scraper fetch unit tests and verified scraper-worker test suite.
