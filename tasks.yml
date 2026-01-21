@@ -78,7 +78,7 @@ tasks:
       - Verified against route registry
 
   - title: phase-0-baseline.md - Inventory web pages and navigation flows
-    completed: false
+    completed: true
     parallel_group: 1
     tags: [baseline, web]
     file: phase-0-baseline.md

@@ -472,6 +472,44 @@
 - GET `/api/v1/internal/workers/settings`
 - GET `/api/v1/internal/workers/settings/fairness`
 
+## Web App Page Inventory and Navigation Flows
+
+### Workspace pages (tenant required)
+- `kbs` (Knowledge Bases) -> `apps/web/src/pages/KnowledgeBases.tsx`
+- `agents` (Agents) -> `apps/web/src/pages/Agents.tsx`
+- `analytics` (Analytics) -> `apps/web/src/pages/Analytics.tsx`
+- `tenant-settings` (Settings, tenant owner/admin only) -> `apps/web/src/pages/TenantSettings.tsx`
+
+### Workspace detail flows (not in sidebar)
+- `sources` (Sources) -> `apps/web/src/pages/Sources.tsx`
+- `shared-kb-detail` (Shared Knowledge Base) -> `apps/web/src/pages/SharedKbDetail.tsx`
+- `chat` (Chat) -> `apps/web/src/pages/Chat.tsx`
+- `test-suites` (Test Suites) -> `apps/web/src/pages/AgentTestSuites.tsx`
+- `test-suite-detail` (Test Suite) -> `apps/web/src/pages/AgentTestSuiteDetail.tsx`
+
+### Administration pages (system admin)
+- `dashboard` (Dashboard) -> `apps/web/src/pages/AdminDashboard.tsx`
+- `admin-analytics` (Analytics) -> `apps/web/src/pages/AdminAnalytics.tsx`
+- `tenants` (Tenants) -> `apps/web/src/pages/AdminTenants.tsx`
+- `users` (Users) -> `apps/web/src/pages/AdminUsers.tsx`
+- `shared-kbs` (Shared KBs) -> `apps/web/src/pages/AdminSharedKBs.tsx`
+- `shared-kb-sources` (Shared KB Sources) -> `apps/web/src/pages/AdminSharedKbSources.tsx`
+- `models` (AI Models) -> `apps/web/src/pages/AdminModels.tsx`
+- `settings` (Settings) -> `apps/web/src/pages/AdminSettings.tsx`
+- `admin-audit-logs` (Audit Logs) -> `apps/web/src/pages/AdminAuditLogs.tsx`
+
+### Authentication and empty states
+- `Login` is rendered when no token is present -> `apps/web/src/pages/Login.tsx`.
+- No-tenant state: non-admin users see the "No Access" empty state; admins see the "No Tenants Yet" prompt.
+
+### Navigation flow notes
+- `apps/web/src/App.tsx` owns `currentPage` state and uses `pageNames` for breadcrumb labels.
+- `apps/web/src/components/app-sidebar.tsx` renders workspace vs administration groups and routes by page id.
+- Knowledge Bases -> Sources or Shared Knowledge Base detail depending on `isShared` selection.
+- Agents -> Chat; Agents -> Test Suites -> Test Suite Detail.
+- Shared KBs (admin) -> Shared KB Sources.
+- Tenant switcher resets navigation to Knowledge Bases and clears selected KB/agent IDs.
+
 ## Observability Baseline (Logs, Error Codes, Metrics)
 
 ### Shared Logging Schema (Wide Events)
@@ -521,7 +559,7 @@
 - [x] Capture contract baselines for API responses, SSE events, and queue payloads.
 - [x] Capture observability keys (log fields, error codes, metrics) by app.
 - [x] Inventory API routes and their owning files.
-- [ ] Inventory web pages and navigation flows.
+- [x] Inventory web pages and navigation flows.
 - [ ] Identify the largest files and repeated patterns in each app.
 - [ ] Capture cross-cutting helpers (auth, audit, RLS, logging, settings).
 - [ ] Map tenant boundary/RLS enforcement touchpoints.

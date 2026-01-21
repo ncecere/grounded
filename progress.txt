@@ -5,3 +5,4 @@
 2026-01-21 - Documented API response and SSE contract baselines in phase-0 baseline; added baseline doc test coverage for contract section.
 2026-01-21 - Documented observability baseline (wide event fields, error codes, metrics) and added doc test coverage.
 2026-01-21 - Added API route inventory to phase-0 baseline and expanded baseline doc tests for route coverage.
+2026-01-21 - Documented web app page inventory and navigation flows in phase-0 baseline; added baseline doc test coverage.

@@ -89,4 +89,16 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("GET `/api/v1/admin/settings`");
     expect(content).toContain("GET `/api/v1/internal/workers/settings`");
   });
+
+  it("inventories web pages and navigation flows", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Web App Page Inventory and Navigation Flows");
+    expect(content).toContain("Knowledge Bases");
+    expect(content).toContain("apps/web/src/pages/KnowledgeBases.tsx");
+    expect(content).toContain("apps/web/src/pages/Agents.tsx");
+    expect(content).toContain("Shared KBs");
+    expect(content).toContain("apps/web/src/pages/AdminSharedKBs.tsx");
+    expect(content).toContain("Agents -> Chat");
+  });
 });
