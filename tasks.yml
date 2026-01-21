@@ -300,7 +300,7 @@ tasks:
       - Added to module template guidance
 
   - title: phase-1-api-structure.md - Create API app assembly file
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, app]
     file: phase-1-api-structure.md

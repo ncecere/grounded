@@ -1,0 +1,227 @@
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { secureHeaders } from "hono/secure-headers";
+import { prettyJSON } from "hono/pretty-json";
+import { getEnv } from "@grounded/shared";
+import { wideEventMiddleware } from "@grounded/logger/middleware";
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
+
+import { authRoutes } from "./routes/auth";
+import { tenantRoutes } from "./routes/tenants";
+import { kbRoutes } from "./routes/knowledge-bases";
+import { sourceRoutes } from "./routes/sources";
+import { agentRoutes } from "./routes/agents";
+import { chatRoutes } from "./routes/chat";
+import { widgetRoutes } from "./routes/widget";
+import { chatEndpointRoutes } from "./routes/chat-endpoint";
+import { analyticsRoutes } from "./routes/analytics";
+import { uploadRoutes } from "./routes/uploads";
+import { agentTestSuiteRoutes, testCaseRoutes, testSuiteRoutes, testRunRoutes, experimentRoutes } from "./routes/test-suites";
+import { errorHandler } from "./middleware/error-handler";
+import { requestId } from "./middleware/request-id";
+import { adminSettingsRoutes } from "./routes/admin/settings";
+import { adminModelsRoutes } from "./routes/admin/models";
+import { adminUsersRoutes } from "./routes/admin/users";
+import { adminSharedKbsRoutes } from "./routes/admin/shared-kbs";
+import { adminDashboardRoutes } from "./routes/admin/dashboard";
+import { adminAnalyticsRoutes } from "./routes/admin/analytics";
+import { adminTokensRoutes } from "./routes/admin/tokens";
+import { adminAuditRoutes } from "./routes/admin/audit";
+import { toolRoutes } from "./routes/tools";
+import { internalWorkersRoutes } from "./routes/internal/workers";
+
+export const createApiApp = () => {
+  const app = new Hono();
+
+  // ==========================================================================
+  // Global Middleware
+  // ==========================================================================
+
+  app.use("*", requestId());
+  app.use("*", secureHeaders());
+  app.use("*", prettyJSON());
+  app.use(
+    "*",
+    cors({
+      origin: getEnv("CORS_ORIGINS", "*").split(","),
+      credentials: true,
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Tenant-ID"],
+      exposeHeaders: ["X-Request-ID", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
+    })
+  );
+
+  // Wide event logging middleware - logs comprehensive request info
+  app.use(
+    "*",
+    wideEventMiddleware({
+      service: "api",
+      skipPaths: ["/health"], // Skip health checks
+      sampling: {
+        baseSampleRate: 1.0, // Log 100% for now, can reduce later
+        alwaysLogErrors: true,
+        slowRequestThresholdMs: 2000,
+      },
+      // Extract tenant/user from auth context if available
+      getTenant: (c) => {
+        const auth = c.get("auth");
+        if (auth?.tenantId) {
+          return { id: auth.tenantId };
+        }
+        return undefined;
+      },
+      getUser: (c) => {
+        const auth = c.get("auth");
+        if (auth?.user) {
+          return {
+            id: auth.user.id,
+            email: auth.user.email || undefined,
+            role: auth.role || undefined,
+          };
+        }
+        return undefined;
+      },
+    })
+  );
+
+  // ==========================================================================
+  // Health Check
+  // ==========================================================================
+
+  app.get("/health", (c) => {
+    return c.json({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      version: "0.1.0",
+    });
+  });
+
+  // ==========================================================================
+  // API Routes (v1)
+  // ==========================================================================
+
+  const v1 = new Hono();
+
+  // Auth routes
+  v1.route("/auth", authRoutes);
+
+  // Tenant management
+  v1.route("/tenants", tenantRoutes);
+
+  // Knowledge base management
+  v1.route("/knowledge-bases", kbRoutes);
+  v1.route("/global-knowledge-bases", kbRoutes); // Global KB routes share the same router
+
+  // Source management
+  v1.route("/sources", sourceRoutes);
+
+  // Agent management
+  v1.route("/agents", agentRoutes);
+  v1.route("/agents", agentTestSuiteRoutes);
+
+  // Test suites
+  v1.route("/test-suites", testSuiteRoutes);
+  v1.route("/test-cases", testCaseRoutes);
+  v1.route("/test-runs", testRunRoutes);
+  v1.route("/experiments", experimentRoutes);
+
+  // Tools management
+  v1.route("/tools", toolRoutes);
+
+  // Chat
+  v1.route("/chat", chatRoutes);
+
+  // Widget (public endpoints)
+  v1.route("/widget", widgetRoutes);
+
+  // Chat Endpoints (public endpoints for published chat)
+  v1.route("/c", chatEndpointRoutes);
+
+  // Analytics
+  v1.route("/analytics", analyticsRoutes);
+
+  // Uploads
+  v1.route("/uploads", uploadRoutes);
+
+  // Admin routes (system admin only)
+  v1.route("/admin/dashboard", adminDashboardRoutes);
+  v1.route("/admin/settings", adminSettingsRoutes);
+  v1.route("/admin/models", adminModelsRoutes);
+  v1.route("/admin/users", adminUsersRoutes);
+  v1.route("/admin/shared-kbs", adminSharedKbsRoutes);
+  v1.route("/admin/analytics", adminAnalyticsRoutes);
+  v1.route("/admin/tokens", adminTokensRoutes);
+  v1.route("/admin/audit", adminAuditRoutes);
+
+  // Internal routes (for workers to fetch configuration)
+  v1.route("/internal/workers", internalWorkersRoutes);
+
+  // Mount v1 routes
+  app.route("/api/v1", v1);
+
+  // ==========================================================================
+  // Hosted Chat Page (top-level for nicer URLs)
+  // ==========================================================================
+
+  // Redirect /chat/:token to /api/v1/c/:token for the hosted chat page
+  app.get("/chat/:token", async (c) => {
+    const token = c.req.param("token");
+    // Forward to the chat endpoint route
+    return c.redirect(`/api/v1/c/${token}`);
+  });
+
+  // Serve published-chat.js for hosted chat pages
+  // Cache the JS content in memory (loaded on first request)
+  let publishedChatJsCache: string | null = null;
+
+  app.get("/published-chat.js", (c) => {
+    if (!publishedChatJsCache) {
+      // Try multiple paths:
+      // - Docker/production: /app/packages/widget/dist/published-chat.js
+      // - Local dev from project root: packages/widget/dist/published-chat.js
+      // - Local dev from apps/api: ../../packages/widget/dist/published-chat.js
+      const paths = [
+        join(process.cwd(), "packages/widget/dist/published-chat.js"),
+        join(process.cwd(), "../../packages/widget/dist/published-chat.js"),
+      ];
+
+      for (const path of paths) {
+        if (existsSync(path)) {
+          publishedChatJsCache = readFileSync(path, "utf-8");
+          break;
+        }
+      }
+
+      if (!publishedChatJsCache) {
+        return c.text("// Published chat JS not found", 404);
+      }
+    }
+
+    c.header("Content-Type", "application/javascript");
+    c.header("Cache-Control", "public, max-age=3600");
+    return c.body(publishedChatJsCache);
+  });
+
+  // ==========================================================================
+  // Error Handler
+  // ==========================================================================
+
+  app.onError(errorHandler);
+
+  // ==========================================================================
+  // 404 Handler
+  // ==========================================================================
+
+  app.notFound((c) => {
+    return c.json(
+      {
+        error: "Not Found",
+        message: `Route ${c.req.method} ${c.req.path} not found`,
+      },
+      404
+    );
+  });
+
+  return app;
+};
