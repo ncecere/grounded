@@ -8,7 +8,13 @@ import {
 } from "@grounded/db/schema";
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { auth, requireRole, requireTenant, requireSystemAdmin, withRequestRLS } from "../middleware/auth";
-import { NotFoundError, QuotaExceededError, ForbiddenError, ConflictError } from "../middleware/error-handler";
+import {
+  NotFoundError,
+  QuotaExceededError,
+  ForbiddenError,
+  ConflictError,
+  BadRequestError,
+} from "../middleware/error-handler";
 import { getAIRegistry } from "@grounded/ai-providers";
 import { addKbReindexJob } from "@grounded/queue";
 import { getKbCountMaps } from "../services/kb-aggregation-helpers";
@@ -143,7 +149,7 @@ kbRoutes.post(
         const models = await registry.listModels("embedding");
         embeddingModel = models.find(m => m.id === body.embeddingModelId);
         if (!embeddingModel) {
-          throw new Error("INVALID_MODEL");
+          throw new BadRequestError("INVALID_MODEL");
         }
       } else {
         // Use default embedding model
@@ -290,7 +296,7 @@ kbRoutes.post(
       }
 
       if (!newModel.dimensions) {
-        throw new Error("Embedding model does not have dimensions configured");
+        throw new BadRequestError("Embedding model does not have dimensions configured");
       }
 
       const newModelDimensions = newModel.dimensions;

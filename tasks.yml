@@ -414,7 +414,7 @@ tasks:
       - Guidance applied to updated modules
 
   - title: phase-1-api-structure.md - Normalize API error usage
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, errors]
     file: phase-1-api-structure.md
