@@ -555,6 +555,34 @@
   - `page-fetch` orchestrates fetch mode branching, fairness slot handling, and error mapping in one file.
   - Entrypoint mirrors ingestion worker setup (settings refresh + graceful shutdown wiring).
 
+## Cross-Cutting Helpers (Auth, Audit, RLS, Logging, Settings)
+
+### Auth and RBAC
+- `apps/api/src/middleware/auth/index.ts` re-exports auth middleware entry points and helper functions.
+- `apps/api/src/middleware/auth/middleware.ts` provides `auth()`, `requireRole()`, `requireTenant()`, and `requireSystemAdmin()`; it sets `rlsContext` on the request.
+- `apps/api/src/middleware/auth/helpers.ts` implements `withRequestRLS`, tenant membership resolution, and OIDC user creation helpers.
+
+### Audit Logging
+- `apps/api/src/services/audit.ts` defines `auditService`, `calculateChanges`, and `extractIpAddress` for consistent audit logging.
+- Audit logging is called from `apps/api/src/routes/auth.ts`, `apps/api/src/routes/agents.ts`, and `apps/api/src/routes/tools.ts` for create/update/delete events.
+- `apps/api/src/routes/admin/audit.ts` exposes admin queries and summaries; storage lives in `packages/db/src/schema/audit.ts`.
+
+### RLS Enforcement
+- `packages/db/src/client.ts` defines `withRLSContext`, `withTenantContext`, and `withSystemAdminContext` to apply `SET LOCAL` tenant/user context in transactions.
+- `apps/api/src/middleware/auth/helpers.ts` exposes `withRequestRLS` to run route queries using request-scoped RLS context.
+- `apps/api/src/middleware/auth/middleware.ts` is the primary point where `rlsContext` is populated for authenticated requests.
+- Public routes that need system-level access use `withRLSContext` directly (e.g., `apps/api/src/routes/widget.ts`, `apps/api/src/routes/chat-endpoint.ts`).
+
+### Logging Helpers
+- `packages/logger/src/logger.ts` provides `createLogger`, `WideEventBuilder`, and sampling via `shouldSample`.
+- `packages/logger/src/middleware/hono.ts` exports `wideEventMiddleware` for API request logging (wired in `apps/api/src/index.ts`).
+- `packages/logger/src/worker/job-logger.ts` exposes `createJobLogger`/`withJobLogging` for ingestion and scraper workers.
+
+### Settings Helpers
+- `packages/shared/src/settings/index.ts` implements the worker settings client (`WorkerSettingsClient`, `initSettingsClient`).
+- Internal API settings endpoints live in `apps/api/src/routes/internal/workers.ts` and admin settings in `apps/api/src/routes/admin/settings.ts`.
+- Workers consume settings via `initSettingsClient` in `apps/ingestion-worker/src/index.ts` and `apps/scraper-worker/src/index.ts`.
+
 ## Observability Baseline (Logs, Error Codes, Metrics)
 
 ### Shared Logging Schema (Wide Events)
@@ -606,7 +634,7 @@
 - [x] Inventory API routes and their owning files.
 - [x] Inventory web pages and navigation flows.
 - [ ] Identify the largest files and repeated patterns in each app.
-- [ ] Capture cross-cutting helpers (auth, audit, RLS, logging, settings).
+- [x] Capture cross-cutting helpers (auth, audit, RLS, logging, settings).
 - [ ] Map tenant boundary/RLS enforcement touchpoints.
 - [ ] Inventory shared packages and their consumers (shared, queue, logger, db).
 - [ ] Record current environment/config dependencies for startup.

@@ -7,3 +7,4 @@
 2026-01-21 - Added API route inventory to phase-0 baseline and expanded baseline doc tests for route coverage.
 2026-01-21 - Documented web app page inventory and navigation flows in phase-0 baseline; added baseline doc test coverage.
 2026-01-21 - Added largest file hotspots and repeated patterns per app to phase-0 baseline; extended baseline doc tests.
+2026-01-21 - Documented cross-cutting helpers (auth, audit, RLS, logging, settings) in phase-0 baseline; added baseline doc tests for helper inventory.

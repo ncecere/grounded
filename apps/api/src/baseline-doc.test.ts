@@ -111,4 +111,15 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("apps/ingestion-worker/src/processors/source-discover.ts");
     expect(content).toContain("apps/scraper-worker/src/processors/page-fetch.ts");
   });
+
+  it("captures cross-cutting helpers", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Cross-Cutting Helpers");
+    expect(content).toContain("apps/api/src/middleware/auth/middleware.ts");
+    expect(content).toContain("apps/api/src/services/audit.ts");
+    expect(content).toContain("packages/db/src/client.ts");
+    expect(content).toContain("packages/logger/src/logger.ts");
+    expect(content).toContain("packages/shared/src/settings/index.ts");
+  });
 });
