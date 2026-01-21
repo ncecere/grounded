@@ -271,6 +271,11 @@ export interface TestSuite {
   llmJudgeModelConfigId: string | null;
   alertOnRegression: boolean;
   alertThresholdPercent: number;
+  // Prompt analysis & A/B testing
+  promptAnalysisEnabled: boolean;
+  abTestingEnabled: boolean;
+  analysisModelConfigId: string | null;
+  manualCandidatePrompt: string | null;
   isEnabled: boolean;
   testCaseCount: number;
   lastRun: TestSuiteRunSummary | null;
@@ -311,6 +316,8 @@ export interface TestSuiteRun {
   skippedCases: number;
   passRate: number;
   systemPrompt?: string | null;
+  promptVariant?: "baseline" | "candidate" | null;
+  experimentId?: string | null;
   startedAt: string | null;
   completedAt: string | null;
   durationMs: number | null;
@@ -402,6 +409,10 @@ export interface CreateTestSuiteDto {
 
 export interface UpdateTestSuiteDto extends Partial<CreateTestSuiteDto> {
   isEnabled?: boolean;
+  promptAnalysisEnabled?: boolean;
+  abTestingEnabled?: boolean;
+  analysisModelConfigId?: string | null;
+  manualCandidatePrompt?: string | null;
 }
 
 export interface CreateTestCaseDto {
@@ -414,6 +425,79 @@ export interface CreateTestCaseDto {
 
 export interface UpdateTestCaseDto extends Partial<CreateTestCaseDto> {
   isEnabled?: boolean;
+}
+
+// =============================================================================
+// Prompt Analysis & A/B Experiment Types
+// =============================================================================
+
+export interface FailureCluster {
+  category: string;
+  description: string;
+  affectedCases: string[];
+  suggestedFix: string;
+}
+
+export interface PromptAnalysis {
+  id: string;
+  suiteId: string;
+  runId: string;
+  experimentId: string | null;
+  modelConfigId: string | null;
+  summary: string | null;
+  failureClusters: FailureCluster[] | null;
+  suggestedPrompt: string | null;
+  rationale: string | null;
+  appliedAt: string | null;
+  createdAt: string;
+}
+
+export type ExperimentStatus =
+  | "pending"
+  | "baseline_running"
+  | "analyzing"
+  | "candidate_running"
+  | "completed"
+  | "failed";
+
+export interface Experiment {
+  id: string;
+  suiteId: string;
+  baselineRunId: string | null;
+  candidateRunId: string | null;
+  status: ExperimentStatus;
+  candidateSource: "analysis" | "manual" | null;
+  candidatePrompt: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface ExperimentRunStats {
+  runId: string;
+  passRate: number;
+  passedCases: number;
+  failedCases: number;
+  totalCases: number;
+  systemPrompt: string | null;
+}
+
+export interface ExperimentComparison {
+  experiment: Experiment;
+  baseline: ExperimentRunStats | null;
+  candidate: ExperimentRunStats | null;
+  delta: {
+    passRate: number;
+    passedCases: number;
+    failedCases: number;
+  } | null;
+}
+
+export interface StartRunResponse {
+  id: string;
+  experimentId?: string;
+  status: "started" | "queued";
+  message: string;
+  isExperiment: boolean;
 }
 
 // =============================================================================

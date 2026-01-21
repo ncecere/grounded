@@ -2,6 +2,10 @@ import { API_BASE, request, getToken, getCurrentTenantId } from "./client";
 import type {
   CreateTestCaseDto,
   CreateTestSuiteDto,
+  Experiment,
+  ExperimentComparison,
+  PromptAnalysis,
+  StartRunResponse,
   TestCase,
   TestRunWithResults,
   TestSuite,
@@ -140,12 +144,15 @@ export const testSuitesApi = {
   },
 
   startTestRun: (suiteId: string) =>
-    request<{ id: string; status: "started" | "queued" | "error"; message: string }>(
-      `/test-suites/${suiteId}/runs`,
-      {
-        method: "POST",
-      }
-    ),
+    request<StartRunResponse>(`/test-suites/${suiteId}/runs`, {
+      method: "POST",
+    }),
+
+  startExperimentWithPrompt: (suiteId: string, candidatePrompt: string) =>
+    request<StartRunResponse>(`/test-suites/${suiteId}/experiment`, {
+      method: "POST",
+      body: JSON.stringify({ candidatePrompt }),
+    }),
 
   getTestSuiteAnalytics: (suiteId: string, params?: { days?: number }) => {
     const searchParams = new URLSearchParams();
@@ -161,4 +168,73 @@ export const testSuitesApi = {
 
   deleteTestRun: (runId: string) =>
     request<{ message: string }>(`/test-runs/${runId}`, { method: "DELETE" }),
+
+  // =====================================================================
+  // Prompt Analysis
+  // =====================================================================
+
+  getRunAnalysis: async (runId: string) => {
+    const res = await request<{ analysis: PromptAnalysis | null }>(`/test-runs/${runId}/analysis`);
+    return res.analysis;
+  },
+
+  getLatestAnalysis: async (suiteId: string) => {
+    const res = await request<{ analysis: PromptAnalysis | null }>(
+      `/test-suites/${suiteId}/latest-analysis`
+    );
+    return res.analysis;
+  },
+
+  listAnalyses: async (suiteId: string, params?: { limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit !== undefined) searchParams.set("limit", String(params.limit));
+    if (params?.offset !== undefined) searchParams.set("offset", String(params.offset));
+    const query = searchParams.toString();
+    const res = await request<{ analyses: PromptAnalysis[]; total: number }>(
+      `/test-suites/${suiteId}/analyses${query ? `?${query}` : ""}`
+    );
+    return res;
+  },
+
+  runPromptAnalysis: async (runId: string) => {
+    const res = await request<{
+      analysisId: string;
+      summary: string;
+      failureClusters: PromptAnalysis["failureClusters"];
+      suggestedPrompt: string;
+      rationale: string;
+    }>(`/test-runs/${runId}/analysis`, { method: "POST" });
+    return res;
+  },
+
+  applyAnalysis: (runId: string) =>
+    request<{ message: string }>(`/test-runs/${runId}/analysis/apply`, { method: "POST" }),
+
+  applyAnalysisToAgent: (runId: string) =>
+    request<{ message: string }>(`/test-runs/${runId}/analysis/apply-to-agent`, { method: "POST" }),
+
+  // =====================================================================
+  // Experiments
+  // =====================================================================
+
+  listExperiments: async (suiteId: string, params?: { limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit !== undefined) searchParams.set("limit", String(params.limit));
+    if (params?.offset !== undefined) searchParams.set("offset", String(params.offset));
+    const query = searchParams.toString();
+    const res = await request<{ experiments: Experiment[]; total: number }>(
+      `/test-suites/${suiteId}/experiments${query ? `?${query}` : ""}`
+    );
+    return res;
+  },
+
+  getExperiment: async (experimentId: string) => {
+    const res = await request<{ comparison: ExperimentComparison }>(
+      `/experiments/${experimentId}`
+    );
+    return res.comparison;
+  },
+
+  applyExperiment: (experimentId: string) =>
+    request<{ message: string }>(`/experiments/${experimentId}/apply`, { method: "POST" }),
 };

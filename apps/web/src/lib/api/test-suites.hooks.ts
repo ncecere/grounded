@@ -3,6 +3,9 @@ import { testSuitesApi } from "./test-suites";
 import type {
   CreateTestCaseDto,
   CreateTestSuiteDto,
+  Experiment,
+  ExperimentComparison,
+  PromptAnalysis,
   TestCase,
   TestRunWithResults,
   TestSuite,
@@ -33,6 +36,20 @@ export const testRunKeys = {
   list: (suiteId: string, params?: { limit?: number; offset?: number }) =>
     ["test-runs", suiteId, params?.limit ?? null, params?.offset ?? null] as const,
   detail: (runId: string) => ["test-run", runId] as const,
+  analysis: (runId: string) => ["test-run-analysis", runId] as const,
+};
+
+export const experimentKeys = {
+  all: ["experiments"] as const,
+  list: (suiteId: string, params?: { limit?: number; offset?: number }) =>
+    ["experiments", suiteId, params?.limit ?? null, params?.offset ?? null] as const,
+  detail: (experimentId: string) => ["experiment", experimentId] as const,
+};
+
+export const analysisKeys = {
+  all: ["analyses"] as const,
+  latest: (suiteId: string) => ["analysis-latest", suiteId] as const,
+  forRun: (runId: string) => ["analysis-run", runId] as const,
 };
 
 export const useTestSuites = (agentId: string) =>
@@ -210,6 +227,143 @@ export const useDeleteTestRun = (suiteId: string) => {
     onSuccess: (_response, runId) => {
       queryClient.invalidateQueries({ queryKey: testRunKeys.list(suiteId) });
       queryClient.removeQueries({ queryKey: testRunKeys.detail(runId) });
+      queryClient.invalidateQueries({ queryKey: testSuiteKeys.analytics(suiteId) });
+    },
+  });
+};
+
+// =============================================================================
+// Prompt Analysis Hooks
+// =============================================================================
+
+export const useRunAnalysis = (runId: string) =>
+  useQuery<PromptAnalysis | null>({
+    queryKey: analysisKeys.forRun(runId),
+    queryFn: () => testSuitesApi.getRunAnalysis(runId),
+    enabled: !!runId,
+  });
+
+export const useLatestAnalysis = (suiteId: string) =>
+  useQuery<PromptAnalysis | null>({
+    queryKey: analysisKeys.latest(suiteId),
+    queryFn: () => testSuitesApi.getLatestAnalysis(suiteId),
+    enabled: !!suiteId,
+  });
+
+type AnalysisListResponse = { analyses: PromptAnalysis[]; total: number };
+
+export const useAnalyses = (suiteId: string, params?: { limit?: number; offset?: number }) =>
+  useQuery<AnalysisListResponse>({
+    queryKey: ["analyses", suiteId, params?.limit ?? null, params?.offset ?? null],
+    queryFn: () => testSuitesApi.listAnalyses(suiteId, params),
+    enabled: !!suiteId,
+  });
+
+export const useRunPromptAnalysis = (suiteId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => testSuitesApi.runPromptAnalysis(runId),
+    onSuccess: (_analysis, runId) => {
+      queryClient.invalidateQueries({ queryKey: analysisKeys.forRun(runId) });
+      queryClient.invalidateQueries({ queryKey: analysisKeys.latest(suiteId) });
+    },
+  });
+};
+
+export const useApplyAnalysis = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => testSuitesApi.applyAnalysis(runId),
+    onSuccess: (_response, runId) => {
+      queryClient.invalidateQueries({ queryKey: analysisKeys.forRun(runId) });
+      queryClient.invalidateQueries({ queryKey: analysisKeys.all });
+    },
+  });
+};
+
+export const useApplyAnalysisToAgent = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => testSuitesApi.applyAnalysisToAgent(runId),
+    onSuccess: (_response, runId) => {
+      queryClient.invalidateQueries({ queryKey: analysisKeys.forRun(runId) });
+      queryClient.invalidateQueries({ queryKey: analysisKeys.all });
+    },
+  });
+};
+
+// =============================================================================
+// Experiment Hooks
+// =============================================================================
+
+type ExperimentListResponse = { experiments: Experiment[]; total: number };
+
+export const useExperiments = (suiteId: string, params?: { limit?: number; offset?: number }) =>
+  useQuery<ExperimentListResponse>({
+    queryKey: experimentKeys.list(suiteId, params),
+    queryFn: () => testSuitesApi.listExperiments(suiteId, params),
+    enabled: !!suiteId,
+    refetchInterval: (query) => {
+      const data = query.state.data as ExperimentListResponse | undefined;
+      // Auto-refresh while any experiment is in progress
+      if (
+        data?.experiments?.some(
+          (e) =>
+            e.status === "pending" ||
+            e.status === "baseline_running" ||
+            e.status === "analyzing" ||
+            e.status === "candidate_running"
+        )
+      ) {
+        return 3000;
+      }
+      return false;
+    },
+  });
+
+export const useExperiment = (experimentId: string) =>
+  useQuery<ExperimentComparison>({
+    queryKey: experimentKeys.detail(experimentId),
+    queryFn: () => testSuitesApi.getExperiment(experimentId),
+    enabled: !!experimentId,
+    refetchInterval: (query) => {
+      const data = query.state.data as ExperimentComparison | undefined;
+      // Auto-refresh while experiment is in progress
+      if (
+        data?.experiment?.status &&
+        ["pending", "baseline_running", "analyzing", "candidate_running"].includes(
+          data.experiment.status
+        )
+      ) {
+        return 3000;
+      }
+      return false;
+    },
+  });
+
+export const useApplyExperiment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (experimentId: string) => testSuitesApi.applyExperiment(experimentId),
+    onSuccess: (_data, experimentId) => {
+      queryClient.invalidateQueries({ queryKey: experimentKeys.detail(experimentId) });
+      // Also invalidate agents list and any agent details to refresh the updated system prompt
+      queryClient.invalidateQueries({ queryKey: ["agents"] });
+      queryClient.invalidateQueries({ queryKey: ["agent"] });
+    },
+  });
+};
+
+export const useStartExperimentWithPrompt = (suiteId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (candidatePrompt: string) =>
+      testSuitesApi.startExperimentWithPrompt(suiteId, candidatePrompt),
+    onSuccess: () => {
+      // Use partial key match to invalidate all runs for this suite regardless of pagination params
+      queryClient.invalidateQueries({ queryKey: ["test-runs", suiteId] });
+      queryClient.invalidateQueries({ queryKey: ["experiments", suiteId] });
+      queryClient.invalidateQueries({ queryKey: testSuiteKeys.detail(suiteId) });
       queryClient.invalidateQueries({ queryKey: testSuiteKeys.analytics(suiteId) });
     },
   });

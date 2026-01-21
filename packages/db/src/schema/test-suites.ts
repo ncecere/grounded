@@ -63,6 +63,13 @@ export const agentTestSuites = pgTable(
     ),
     alertOnRegression: boolean("alert_on_regression").default(true).notNull(),
     alertThresholdPercent: integer("alert_threshold_percent").default(10).notNull(),
+    promptAnalysisEnabled: boolean("prompt_analysis_enabled").default(false).notNull(),
+    abTestingEnabled: boolean("ab_testing_enabled").default(false).notNull(),
+    analysisModelConfigId: uuid("analysis_model_config_id").references(
+      () => modelConfigurations.id,
+      { onDelete: "set null" }
+    ),
+    manualCandidatePrompt: text("manual_candidate_prompt"),
     isEnabled: boolean("is_enabled").default(true).notNull(),
     createdBy: uuid("created_by")
       .notNull()
@@ -132,6 +139,8 @@ export const testSuiteRuns = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
     errorMessage: text("error_message"),
     systemPrompt: text("system_prompt"),
+    promptVariant: text("prompt_variant").$type<"baseline" | "candidate">(),
+    experimentId: uuid("experiment_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -139,6 +148,80 @@ export const testSuiteRuns = pgTable(
     index("test_suite_runs_tenant_idx").on(table.tenantId),
     index("test_suite_runs_status_idx").on(table.status),
     index("test_suite_runs_created_at_idx").on(table.createdAt),
+    index("test_suite_runs_experiment_idx").on(table.experimentId),
+  ]
+);
+
+export const testRunExperiments = pgTable(
+  "test_run_experiments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    suiteId: uuid("suite_id")
+      .notNull()
+      .references(() => agentTestSuites.id, { onDelete: "cascade" }),
+    baselineRunId: uuid("baseline_run_id").references(() => testSuiteRuns.id, {
+      onDelete: "set null",
+    }),
+    candidateRunId: uuid("candidate_run_id").references(() => testSuiteRuns.id, {
+      onDelete: "set null",
+    }),
+    status: text("status")
+      .$type<"pending" | "baseline_running" | "analyzing" | "candidate_running" | "completed" | "failed">()
+      .default("pending")
+      .notNull(),
+    candidateSource: text("candidate_source").$type<"analysis" | "manual">(),
+    candidatePrompt: text("candidate_prompt"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("test_run_experiments_tenant_idx").on(table.tenantId),
+    index("test_run_experiments_suite_idx").on(table.suiteId),
+    index("test_run_experiments_status_idx").on(table.status),
+  ]
+);
+
+export type FailureCluster = {
+  category: string;
+  description: string;
+  affectedCases: string[];
+  suggestedFix: string;
+};
+
+export const testRunPromptAnalyses = pgTable(
+  "test_run_prompt_analyses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    suiteId: uuid("suite_id")
+      .notNull()
+      .references(() => agentTestSuites.id, { onDelete: "cascade" }),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => testSuiteRuns.id, { onDelete: "cascade" }),
+    experimentId: uuid("experiment_id").references(() => testRunExperiments.id, {
+      onDelete: "cascade",
+    }),
+    modelConfigId: uuid("model_config_id").references(() => modelConfigurations.id, {
+      onDelete: "set null",
+    }),
+    summary: text("summary"),
+    failureClusters: jsonb("failure_clusters").$type<FailureCluster[]>(),
+    suggestedPrompt: text("suggested_prompt"),
+    rationale: text("rationale"),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("test_run_prompt_analyses_tenant_idx").on(table.tenantId),
+    index("test_run_prompt_analyses_suite_idx").on(table.suiteId),
+    index("test_run_prompt_analyses_run_idx").on(table.runId),
+    index("test_run_prompt_analyses_experiment_idx").on(table.experimentId),
   ]
 );
 

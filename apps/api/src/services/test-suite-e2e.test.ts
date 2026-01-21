@@ -66,6 +66,10 @@ describe("test suites end-to-end", () => {
       llmJudgeModelConfigId: null,
       alertOnRegression: false,
       alertThresholdPercent: 10,
+      promptAnalysisEnabled: false,
+      abTestingEnabled: false,
+      analysisModelConfigId: null,
+      manualCandidatePrompt: null,
       isEnabled: true,
       createdBy: "user-1",
       createdAt: new Date("2026-01-20T00:00:00Z"),
@@ -109,6 +113,9 @@ describe("test suites end-to-end", () => {
       startedAt: null,
       completedAt: null,
       errorMessage: null,
+      systemPrompt: null,
+      promptVariant: null,
+      experimentId: null,
       createdAt: new Date("2026-01-20T11:00:00Z"),
     };
     const previousRun = {
@@ -125,6 +132,9 @@ describe("test suites end-to-end", () => {
       startedAt: new Date("2026-01-19T10:00:00Z"),
       completedAt: new Date("2026-01-19T10:05:00Z"),
       errorMessage: null,
+      systemPrompt: null,
+      promptVariant: null,
+      experimentId: null,
       createdAt: new Date("2026-01-19T10:05:00Z"),
     };
 

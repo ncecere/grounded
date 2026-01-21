@@ -1,4 +1,4 @@
-import { CalendarClock, ListChecks, Play, Settings, Trash2, Clock } from "lucide-react";
+import { CalendarClock, Eye, ListChecks, Play, Settings, Trash2, Clock } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { StatusBadge, type StatusType } from "../ui/status-badge";
@@ -88,9 +88,10 @@ interface TestSuiteCardProps {
   onRun: (suite: TestSuite) => void;
   onEdit: (suite: TestSuite) => void;
   onDelete: (suite: TestSuite) => void;
+  onView?: (suite: TestSuite) => void;
 }
 
-export function TestSuiteCard({ suite, onOpen, onRun, onEdit, onDelete }: TestSuiteCardProps) {
+export function TestSuiteCard({ suite, onOpen, onRun, onEdit, onDelete, onView }: TestSuiteCardProps) {
   const runStatus = getRunStatusBadge(suite.lastRun);
   const runTimestamp = getRunTimestampLabel(suite.lastRun);
   const scheduleLabel = getScheduleLabel(suite);
@@ -133,7 +134,13 @@ export function TestSuiteCard({ suite, onOpen, onRun, onEdit, onDelete }: TestSu
         className="absolute inset-0 rounded-lg bg-background/95 backdrop-blur-sm flex items-center justify-center gap-2 transition-opacity opacity-0 group-hover:opacity-100"
         onClick={(event) => event.stopPropagation()}
       >
-        <Button variant="default" size="sm" onClick={() => onRun(suite)} className="gap-1.5">
+        {onView && (
+          <Button variant="default" size="sm" onClick={() => onView(suite)} className="gap-1.5">
+            <Eye className="w-4 h-4" />
+            View
+          </Button>
+        )}
+        <Button variant={onView ? "secondary" : "default"} size="sm" onClick={() => onRun(suite)} className="gap-1.5">
           <Play className="w-4 h-4" />
           Run
         </Button>

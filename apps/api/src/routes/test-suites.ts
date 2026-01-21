@@ -1,7 +1,17 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { agentTestSuites, testCases, testCaseResults, testSuiteRuns, users } from "@grounded/db/schema";
+import { db } from "@grounded/db";
+import {
+  agents,
+  agentTestSuites,
+  testCases,
+  testCaseResults,
+  testSuiteRuns,
+  testRunPromptAnalyses,
+  testRunExperiments,
+  users,
+} from "@grounded/db/schema";
 import { and, asc, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
 import { BadRequestError, NotFoundError } from "../middleware/error-handler";
@@ -13,11 +23,26 @@ import {
 } from "../services/test-suite-import";
 import { calculatePassRate, calculateRegressionCount } from "../services/test-suite-metrics";
 import { runTestSuite } from "../services/test-runner";
+import {
+  getLatestAnalysisForRun,
+  getLatestAnalysisForSuite,
+  listAnalysesForSuite,
+  runPromptAnalysis,
+  markAnalysisApplied,
+} from "../services/prompt-analysis";
+import {
+  startExperiment,
+  startExperimentWithPrompt,
+  getExperimentComparison,
+  listExperimentsForSuite,
+  getExperiment,
+} from "../services/ab-experiment";
 
 export const agentTestSuiteRoutes = new Hono();
 export const testSuiteRoutes = new Hono();
 export const testCaseRoutes = new Hono();
 export const testRunRoutes = new Hono();
+export const experimentRoutes = new Hono();
 
 // ============================================================================
 // Validation Schemas
@@ -49,6 +74,10 @@ const updateTestSuiteSchema = z.object({
   llmJudgeModelConfigId: z.string().uuid().nullable().optional(),
   alertOnRegression: z.boolean().optional(),
   alertThresholdPercent: z.number().int().min(1).max(100).optional(),
+  promptAnalysisEnabled: z.boolean().optional(),
+  abTestingEnabled: z.boolean().optional(),
+  analysisModelConfigId: z.string().uuid().nullable().optional(),
+  manualCandidatePrompt: z.string().max(8000).nullable().optional(),
   isEnabled: z.boolean().optional(),
 });
 
@@ -707,7 +736,7 @@ testSuiteRoutes.get(
     const query = c.req.valid("query");
 
     const result = await withRequestRLS(c, async (tx) => {
-      await loadTestSuiteForTenant(tx, suiteId, authContext.tenantId!);
+      const suite = await loadTestSuiteForTenant(tx, suiteId, authContext.tenantId!);
 
       const runs = await tx.query.testSuiteRuns.findMany({
         where: and(
@@ -719,6 +748,21 @@ testSuiteRoutes.get(
         offset: query.offset,
       });
 
+      // Batch fetch users for triggered by
+      const userIds = runs
+        .map((r) => r.triggeredByUserId)
+        .filter((id): id is string => id !== null);
+      const usersMap = new Map<string, { id: string; name: string }>();
+      if (userIds.length > 0) {
+        const foundUsers = await tx.query.users.findMany({
+          where: inArray(users.id, userIds),
+          columns: { id: true, primaryEmail: true },
+        });
+        for (const u of foundUsers) {
+          usersMap.set(u.id, { id: u.id, name: u.primaryEmail ?? "Unknown" });
+        }
+      }
+
       const [totalRow] = await tx
         .select({ count: sql<number>`count(*)` })
         .from(testSuiteRuns)
@@ -729,25 +773,36 @@ testSuiteRoutes.get(
           )
         );
 
-      return { runs, total: Number(totalRow?.count ?? 0) };
+      return { runs, total: Number(totalRow?.count ?? 0), suiteName: suite.name, usersMap };
     });
 
     return c.json({
-      runs: result.runs.map((run) => ({
-        ...run,
-        passRate: calculatePassRate({
-          passedCases: run.passedCases,
-          totalCases: run.totalCases,
-          skippedCases: run.skippedCases,
-        }),
-      })),
+      runs: result.runs.map((run) => {
+        const durationMs =
+          run.startedAt && run.completedAt
+            ? new Date(run.completedAt).getTime() - new Date(run.startedAt).getTime()
+            : null;
+        return {
+          ...run,
+          suiteName: result.suiteName,
+          triggeredByUser: run.triggeredByUserId
+            ? result.usersMap.get(run.triggeredByUserId) ?? null
+            : null,
+          durationMs,
+          passRate: calculatePassRate({
+            passedCases: run.passedCases,
+            totalCases: run.totalCases,
+            skippedCases: run.skippedCases,
+          }),
+        };
+      }),
       total: result.total,
     });
   }
 );
 
 // ============================================================================
-// Start Test Run
+// Start Test Run (or A/B Experiment if enabled)
 // ============================================================================
 
 testSuiteRoutes.post(
@@ -759,10 +814,31 @@ testSuiteRoutes.post(
     const suiteId = c.req.param("suiteId");
     const authContext = c.get("auth");
 
-    await withRequestRLS(c, async (tx) => {
-      await loadTestSuiteForTenant(tx, suiteId, authContext.tenantId!);
+    const suite = await withRequestRLS(c, async (tx) => {
+      return await loadTestSuiteForTenant(tx, suiteId, authContext.tenantId!);
     });
 
+    // If A/B testing is enabled, start an experiment instead of a regular run
+    if (suite.abTestingEnabled) {
+      const result = await startExperiment(suiteId, "manual", authContext.user.id);
+
+      if (result.status === "error") {
+        throw new BadRequestError(result.error ?? "Failed to start A/B experiment");
+      }
+
+      return c.json({
+        id: result.baselineRunId,
+        experimentId: result.experimentId,
+        status: result.status,
+        message:
+          result.status === "started"
+            ? "A/B experiment started (baseline running)"
+            : "A/B experiment queued",
+        isExperiment: true,
+      });
+    }
+
+    // Regular run
     const result = await runTestSuite(suiteId, "manual", authContext.user.id);
 
     if (result.status === "error") {
@@ -773,6 +849,54 @@ testSuiteRoutes.post(
       id: result.runId,
       status: result.status,
       message: result.status === "started" ? "Test run started" : "Test run queued",
+      isExperiment: false,
+    });
+  }
+);
+
+// ============================================================================
+// Start Experiment with Custom Prompt
+// ============================================================================
+
+const startExperimentWithPromptSchema = z.object({
+  candidatePrompt: z.string().min(1).max(16000),
+});
+
+testSuiteRoutes.post(
+  "/:suiteId/experiment",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  zValidator("json", startExperimentWithPromptSchema),
+  async (c) => {
+    const suiteId = c.req.param("suiteId");
+    const authContext = c.get("auth");
+    const body = c.req.valid("json");
+
+    await withRequestRLS(c, async (tx) => {
+      await loadTestSuiteForTenant(tx, suiteId, authContext.tenantId!);
+    });
+
+    const result = await startExperimentWithPrompt(
+      suiteId,
+      body.candidatePrompt,
+      "manual",
+      authContext.user.id
+    );
+
+    if (result.status === "error") {
+      throw new BadRequestError(result.error ?? "Failed to start experiment");
+    }
+
+    return c.json({
+      id: result.baselineRunId,
+      experimentId: result.experimentId,
+      status: result.status,
+      message:
+        result.status === "started"
+          ? "A/B experiment started with custom prompt (baseline running)"
+          : "A/B experiment queued with custom prompt",
+      isExperiment: true,
     });
   }
 );
@@ -947,6 +1071,8 @@ testRunRoutes.get("/:runId", auth(), requireTenant(), async (c) => {
         skippedCases: result.run.skippedCases,
       }),
       systemPrompt: result.run.systemPrompt ?? null,
+      promptVariant: result.run.promptVariant ?? null,
+      experimentId: result.run.experimentId ?? null,
       startedAt: result.run.startedAt,
       completedAt: result.run.completedAt,
       durationMs,
@@ -1000,6 +1126,328 @@ testRunRoutes.delete(
         ? "Test run cancelled"
         : "Test run deleted",
     });
+  }
+);
+
+// ============================================================================
+// Get Analysis for Test Run
+// ============================================================================
+
+testRunRoutes.get("/:runId/analysis", auth(), requireTenant(), async (c) => {
+  const runId = c.req.param("runId");
+  const authContext = c.get("auth");
+
+  const result = await withRequestRLS(c, async (tx) => {
+    const run = await tx.query.testSuiteRuns.findFirst({
+      where: and(
+        eq(testSuiteRuns.id, runId),
+        eq(testSuiteRuns.tenantId, authContext.tenantId!)
+      ),
+    });
+
+    if (!run) {
+      throw new NotFoundError("Test run");
+    }
+
+    const analysis = await getLatestAnalysisForRun(runId);
+    return { run, analysis };
+  });
+
+  return c.json({ analysis: result.analysis });
+});
+
+// ============================================================================
+// Run Analysis on Test Run (on demand)
+// ============================================================================
+
+testRunRoutes.post(
+  "/:runId/analysis",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  async (c) => {
+    const runId = c.req.param("runId");
+    const authContext = c.get("auth");
+
+    const result = await withRequestRLS(c, async (tx) => {
+      const run = await tx.query.testSuiteRuns.findFirst({
+        where: and(
+          eq(testSuiteRuns.id, runId),
+          eq(testSuiteRuns.tenantId, authContext.tenantId!)
+        ),
+      });
+
+      if (!run) {
+        throw new NotFoundError("Test run");
+      }
+
+      if (run.status !== "completed") {
+        throw new BadRequestError("Can only analyze completed runs");
+      }
+
+      if (!run.systemPrompt) {
+        throw new BadRequestError("Run has no system prompt recorded");
+      }
+
+      const suite = await loadTestSuiteForTenant(tx, run.suiteId, authContext.tenantId!);
+      return { run, suite };
+    });
+
+    const { analysisId, analysis } = await runPromptAnalysis(runId, {
+      modelConfigId: result.suite.analysisModelConfigId,
+    });
+
+    return c.json({
+      analysisId,
+      summary: analysis.summary,
+      failureClusters: analysis.failureClusters,
+      suggestedPrompt: analysis.suggestedPrompt,
+      rationale: analysis.rationale,
+    });
+  }
+);
+
+// ============================================================================
+// Mark Analysis as Applied (legacy - just marks without updating agent)
+// ============================================================================
+
+testRunRoutes.post(
+  "/:runId/analysis/apply",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  async (c) => {
+    const runId = c.req.param("runId");
+    const authContext = c.get("auth");
+
+    await withRequestRLS(c, async (tx) => {
+      const run = await tx.query.testSuiteRuns.findFirst({
+        where: and(
+          eq(testSuiteRuns.id, runId),
+          eq(testSuiteRuns.tenantId, authContext.tenantId!)
+        ),
+      });
+
+      if (!run) {
+        throw new NotFoundError("Test run");
+      }
+    });
+
+    const analysis = await getLatestAnalysisForRun(runId);
+    if (!analysis) {
+      throw new NotFoundError("Analysis");
+    }
+
+    await markAnalysisApplied(analysis.id);
+
+    return c.json({ message: "Analysis marked as applied" });
+  }
+);
+
+// ============================================================================
+// Apply Analysis Prompt to Agent
+// ============================================================================
+
+testRunRoutes.post(
+  "/:runId/analysis/apply-to-agent",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  async (c) => {
+    const runId = c.req.param("runId");
+    const authContext = c.get("auth");
+
+    const { run, suite } = await withRequestRLS(c, async (tx) => {
+      const runResult = await tx.query.testSuiteRuns.findFirst({
+        where: and(
+          eq(testSuiteRuns.id, runId),
+          eq(testSuiteRuns.tenantId, authContext.tenantId!)
+        ),
+      });
+
+      if (!runResult) {
+        throw new NotFoundError("Test run");
+      }
+
+      const suiteResult = await loadTestSuiteForTenant(tx, runResult.suiteId, authContext.tenantId!);
+      return { run: runResult, suite: suiteResult };
+    });
+
+    const analysis = await getLatestAnalysisForRun(runId);
+    if (!analysis) {
+      throw new NotFoundError("Analysis");
+    }
+
+    if (!analysis.suggestedPrompt) {
+      throw new BadRequestError("Analysis has no suggested prompt");
+    }
+
+    // Update the agent's system prompt
+    await db
+      .update(agents)
+      .set({ systemPrompt: analysis.suggestedPrompt })
+      .where(eq(agents.id, suite.agentId));
+
+    // Mark analysis as applied
+    await markAnalysisApplied(analysis.id);
+
+    return c.json({ message: "Suggested prompt applied to agent" });
+  }
+);
+
+// ============================================================================
+// List Experiments for Suite
+// ============================================================================
+
+const listExperimentsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+testSuiteRoutes.get(
+  "/:suiteId/experiments",
+  auth(),
+  requireTenant(),
+  zValidator("query", listExperimentsQuerySchema),
+  async (c) => {
+    const suiteId = c.req.param("suiteId");
+    const authContext = c.get("auth");
+    const query = c.req.valid("query");
+
+    await withRequestRLS(c, async (tx) => {
+      await loadTestSuiteForTenant(tx, suiteId, authContext.tenantId!);
+    });
+
+    const { experiments, total } = await listExperimentsForSuite(suiteId, {
+      limit: query.limit,
+      offset: query.offset,
+    });
+
+    return c.json({ experiments, total });
+  }
+);
+
+// ============================================================================
+// Get Latest Analysis for Suite
+// ============================================================================
+
+testSuiteRoutes.get("/:suiteId/latest-analysis", auth(), requireTenant(), async (c) => {
+  const suiteId = c.req.param("suiteId");
+  const authContext = c.get("auth");
+
+  await withRequestRLS(c, async (tx) => {
+    await loadTestSuiteForTenant(tx, suiteId, authContext.tenantId!);
+  });
+
+  const analysis = await getLatestAnalysisForSuite(suiteId);
+
+  return c.json({ analysis });
+});
+
+// ============================================================================
+// List Analyses for Suite
+// ============================================================================
+
+testSuiteRoutes.get(
+  "/:suiteId/analyses",
+  auth(),
+  requireTenant(),
+  zValidator(
+    "query",
+    z.object({
+      limit: z.coerce.number().int().min(1).max(100).optional().default(10),
+      offset: z.coerce.number().int().min(0).optional().default(0),
+    })
+  ),
+  async (c) => {
+    const suiteId = c.req.param("suiteId");
+    const query = c.req.valid("query");
+    const authContext = c.get("auth");
+
+    await withRequestRLS(c, async (tx) => {
+      await loadTestSuiteForTenant(tx, suiteId, authContext.tenantId!);
+    });
+
+    const { analyses, total } = await listAnalysesForSuite(suiteId, {
+      limit: query.limit,
+      offset: query.offset,
+    });
+
+    return c.json({ analyses, total });
+  }
+);
+
+// ============================================================================
+// Get Experiment Details with Comparison
+// ============================================================================
+
+experimentRoutes.get("/:experimentId", auth(), requireTenant(), async (c) => {
+  const experimentId = c.req.param("experimentId");
+  const authContext = c.get("auth");
+
+  const experiment = await getExperiment(experimentId);
+  if (!experiment) {
+    throw new NotFoundError("Experiment");
+  }
+
+  await withRequestRLS(c, async (tx) => {
+    await loadTestSuiteForTenant(tx, experiment.suiteId, authContext.tenantId!);
+  });
+
+  const comparison = await getExperimentComparison(experimentId);
+
+  return c.json({ comparison });
+});
+
+// ============================================================================
+// Apply Experiment Candidate Prompt to Agent
+// ============================================================================
+
+experimentRoutes.post(
+  "/:experimentId/apply",
+  auth(),
+  requireTenant(),
+  requireRole("owner", "admin"),
+  async (c) => {
+    const experimentId = c.req.param("experimentId");
+    const authContext = c.get("auth");
+
+    const experiment = await getExperiment(experimentId);
+    if (!experiment) {
+      throw new NotFoundError("Experiment");
+    }
+
+    if (!experiment.candidatePrompt) {
+      throw new BadRequestError("Experiment has no candidate prompt to apply");
+    }
+
+    if (experiment.status !== "completed") {
+      throw new BadRequestError("Can only apply prompts from completed experiments");
+    }
+
+    const suite = await withRequestRLS(c, async (tx) => {
+      return await loadTestSuiteForTenant(tx, experiment.suiteId, authContext.tenantId!);
+    });
+
+    // Update the agent's system prompt (with tenant check for security)
+    const [updatedAgent] = await db
+      .update(agents)
+      .set({
+        systemPrompt: experiment.candidatePrompt,
+      })
+      .where(
+        and(
+          eq(agents.id, suite.agentId),
+          eq(agents.tenantId, authContext.tenantId!)
+        )
+      )
+      .returning({ id: agents.id });
+
+    if (!updatedAgent) {
+      throw new NotFoundError("Agent");
+    }
+
+    return c.json({ message: "Candidate prompt applied to agent" });
   }
 );
 

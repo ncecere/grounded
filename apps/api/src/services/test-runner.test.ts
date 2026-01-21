@@ -18,6 +18,10 @@ const buildSuite = () => ({
   llmJudgeModelConfigId: null,
   alertOnRegression: true,
   alertThresholdPercent: 10,
+  promptAnalysisEnabled: false,
+  abTestingEnabled: false,
+  analysisModelConfigId: null,
+  manualCandidatePrompt: null,
   isEnabled: true,
   createdBy: "user-1",
   createdAt: new Date("2026-01-19T00:00:00Z"),
@@ -58,6 +62,9 @@ const buildRun = () => ({
   startedAt: null,
   completedAt: null,
   errorMessage: null,
+  systemPrompt: null,
+  promptVariant: null,
+  experimentId: null,
   createdAt: new Date("2026-01-19T00:00:00Z"),
 });
 

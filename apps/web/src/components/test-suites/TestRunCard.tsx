@@ -1,4 +1,4 @@
-import { Clock, Timer, UserCircle } from "lucide-react";
+import { Clock, FlaskConical, Timer, UserCircle } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
 import { StatusBadge, type StatusType } from "../ui/status-badge";
@@ -97,6 +97,20 @@ export function TestRunCard({ run, onOpen }: TestRunCardProps) {
             <Badge variant="outline" className="text-xs">
               {run.triggeredBy === "schedule" ? "Schedule" : "Manual"}
             </Badge>
+            {run.experimentId && (
+              <Badge 
+                variant="outline" 
+                className={cn(
+                  "text-xs gap-1",
+                  run.promptVariant === "baseline" 
+                    ? "border-blue-500/50 text-blue-600 dark:text-blue-400" 
+                    : "border-purple-500/50 text-purple-600 dark:text-purple-400"
+                )}
+              >
+                <FlaskConical className="h-3 w-3" />
+                {run.promptVariant === "baseline" ? "Baseline" : "Candidate"}
+              </Badge>
+            )}
             <span className="inline-flex items-center gap-1">
               <UserCircle className="h-3.5 w-3.5" />
               {triggerLabel}

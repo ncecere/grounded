@@ -399,6 +399,15 @@ export function createTestRunner(deps?: Partial<TestRunnerDependencies>) {
 
       const enabledCases = await dependencies.store.getEnabledTestCases(suite.id);
 
+      // Check for prompt override (used in A/B testing candidate runs)
+      // If the run already has a systemPrompt set, use that (candidate run)
+      // Otherwise use the agent's system prompt (baseline run)
+      const existingRun = await dependencies.store.getRun(runId);
+      const systemPromptToUse =
+        existingRun?.systemPrompt ||
+        agent.systemPrompt ||
+        "You are a helpful assistant.";
+
       await dependencies.store.updateRun(runId, {
         status: "running",
         startedAt: dependencies.now(),
@@ -406,7 +415,7 @@ export function createTestRunner(deps?: Partial<TestRunnerDependencies>) {
         passedCases: 0,
         failedCases: 0,
         skippedCases: 0,
-        systemPrompt: agent.systemPrompt || "You are a helpful assistant.",
+        systemPrompt: systemPromptToUse,
       });
 
       if (enabledCases.length === 0) {

@@ -19,7 +19,7 @@ import { widgetRoutes } from "./routes/widget";
 import { chatEndpointRoutes } from "./routes/chat-endpoint";
 import { analyticsRoutes } from "./routes/analytics";
 import { uploadRoutes } from "./routes/uploads";
-import { agentTestSuiteRoutes, testCaseRoutes, testSuiteRoutes, testRunRoutes } from "./routes/test-suites";
+import { agentTestSuiteRoutes, testCaseRoutes, testSuiteRoutes, testRunRoutes, experimentRoutes } from "./routes/test-suites";
 import { errorHandler } from "./middleware/error-handler";
 import { requestId } from "./middleware/request-id";
 import { adminSettingsRoutes } from "./routes/admin/settings";
@@ -35,6 +35,7 @@ import { internalWorkersRoutes } from "./routes/internal/workers";
 import { runMigrations } from "./startup/run-migrations";
 import { seedSystemAdmin } from "./startup/seed-admin";
 import { startTestSuiteScheduler, stopTestSuiteScheduler } from "./services/test-suite-scheduler";
+import { recoverOrphanedLocks, startPeriodicRecovery, stopPeriodicRecovery } from "./services/test-suite-lock-recovery";
 
 const app = new Hono();
 
@@ -53,6 +54,12 @@ const app = new Hono();
       log.warn("api", "Vector store not configured. Set VECTOR_DB_URL or VECTOR_DB_HOST.");
     }
 
+    // Recover any orphaned locks from previous runs/crashes
+    await recoverOrphanedLocks();
+
+    // Start periodic recovery for stuck experiments/locks
+    startPeriodicRecovery();
+
     await startTestSuiteScheduler();
   } catch (error) {
     log.error("api", "Startup tasks failed", { error: error instanceof Error ? error.message : String(error) });
@@ -61,10 +68,12 @@ const app = new Hono();
 
 process.on("SIGTERM", () => {
   stopTestSuiteScheduler();
+  stopPeriodicRecovery();
 });
 
 process.on("SIGINT", () => {
   stopTestSuiteScheduler();
+  stopPeriodicRecovery();
 });
 
 // ============================================================================
@@ -157,6 +166,7 @@ v1.route("/agents", agentTestSuiteRoutes);
 v1.route("/test-suites", testSuiteRoutes);
 v1.route("/test-cases", testCaseRoutes);
 v1.route("/test-runs", testRunRoutes);
+v1.route("/experiments", experimentRoutes);
 
 // Tools management
 v1.route("/tools", toolRoutes);

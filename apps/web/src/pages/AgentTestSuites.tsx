@@ -6,9 +6,10 @@ import { TestSuitesTab } from "@/components/agents/tabs/TestSuitesTab";
 interface AgentTestSuitesProps {
   agentId: string;
   onBack: () => void;
+  onViewSuite?: (suiteId: string) => void;
 }
 
-export function AgentTestSuites({ agentId, onBack }: AgentTestSuitesProps) {
+export function AgentTestSuites({ agentId, onBack, onViewSuite }: AgentTestSuitesProps) {
   const { data: agent } = useQuery({
     queryKey: ["agent", agentId],
     queryFn: () => api.getAgent(agentId),
@@ -20,7 +21,7 @@ export function AgentTestSuites({ agentId, onBack }: AgentTestSuitesProps) {
   return (
     <div className="p-6">
       <PageHeader title={title} backButton={{ onClick: onBack }} />
-      <TestSuitesTab agentId={agentId} agentName={agent?.name} showHeader={false} />
+      <TestSuitesTab agentId={agentId} agentName={agent?.name} showHeader={false} onViewSuite={onViewSuite} />
     </div>
   );
 }

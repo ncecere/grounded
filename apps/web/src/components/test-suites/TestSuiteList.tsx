@@ -17,6 +17,7 @@ interface TestSuiteListProps {
   onRun: (suite: TestSuite) => void;
   onEdit: (suite: TestSuite) => void;
   onDelete: (suite: TestSuite) => void;
+  onView?: (suite: TestSuite) => void;
   emptyStateAction?: {
     label: string;
     onClick: () => void;
@@ -31,6 +32,7 @@ export function TestSuiteList({
   onRun,
   onEdit,
   onDelete,
+  onView,
   emptyStateAction,
   className,
 }: TestSuiteListProps) {
@@ -60,6 +62,7 @@ export function TestSuiteList({
           onRun={onRun}
           onEdit={onEdit}
           onDelete={onDelete}
+          onView={onView}
         />
       ))}
     </div>

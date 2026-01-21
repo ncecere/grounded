@@ -47,6 +47,9 @@ export const DEFAULT_TEST_SUITE_FORM = {
   llmJudgeModelConfigId: "",
   alertOnRegression: true,
   alertThresholdPercent: 10,
+  promptAnalysisEnabled: false,
+  abTestingEnabled: false,
+  analysisModelConfigId: "",
   isEnabled: true,
 };
 
@@ -121,6 +124,9 @@ export function TestSuiteDetailPanel({
           llmJudgeModelConfigId: suite.llmJudgeModelConfigId ?? "",
           alertOnRegression: suite.alertOnRegression,
           alertThresholdPercent: suite.alertThresholdPercent,
+          promptAnalysisEnabled: suite.promptAnalysisEnabled,
+          abTestingEnabled: suite.abTestingEnabled,
+          analysisModelConfigId: suite.analysisModelConfigId ?? "",
           isEnabled: suite.isEnabled,
         });
       } else {
@@ -217,6 +223,9 @@ export function TestSuiteDetailPanel({
       llmJudgeModelConfigId: formState.llmJudgeModelConfigId || undefined,
       alertOnRegression: formState.alertOnRegression,
       alertThresholdPercent: Number(formState.alertThresholdPercent),
+      promptAnalysisEnabled: formState.promptAnalysisEnabled,
+      abTestingEnabled: formState.abTestingEnabled,
+      analysisModelConfigId: formState.analysisModelConfigId || undefined,
       isEnabled: formState.isEnabled,
     };
 
@@ -358,7 +367,7 @@ export function TestSuiteDetailPanel({
             </TabsTrigger>
             <TabsTrigger value="cases" className="gap-2">
               <ListChecks className="w-4 h-4" />
-              <span className="hidden sm:inline">Test Cases</span>
+              <span className="hidden sm:inline">Cases</span>
             </TabsTrigger>
           </TabsList>
 
@@ -550,6 +559,77 @@ export function TestSuiteDetailPanel({
                     {errors.alertThresholdPercent && (
                       <p className="text-xs text-destructive">{errors.alertThresholdPercent}</p>
                     )}
+                  </div>
+                </div>
+
+                {/* Prompt Analysis Settings */}
+                <div className="pt-4 border-t border-border">
+                  <h4 className="text-sm font-medium mb-4">Prompt Analysis</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 border border-border rounded-lg">
+                      <div>
+                        <Label className="text-sm">Auto-Analyze Runs</Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Automatically analyze test failures and suggest prompt improvements.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={formState.promptAnalysisEnabled}
+                        onCheckedChange={(checked) =>
+                          updateField({ promptAnalysisEnabled: checked })
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 border border-border rounded-lg">
+                      <div>
+                        <Label className="text-sm">A/B Testing</Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Run baseline vs. candidate prompt comparison when running suite.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={formState.abTestingEnabled}
+                        onCheckedChange={(checked) => updateField({ abTestingEnabled: checked })}
+                      />
+                    </div>
+
+                    {formState.promptAnalysisEnabled && (
+                      <div className="space-y-2">
+                        <Label>Analysis Model</Label>
+                        {judgeModels.length > 0 ? (
+                          <Select
+                            value={formState.analysisModelConfigId || "none"}
+                            onValueChange={(value) =>
+                              updateField({
+                                analysisModelConfigId: value === "none" ? "" : value,
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Use default model" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Use default model</SelectItem>
+                              {judgeModels.map((model) => (
+                                <SelectItem key={model.id} value={model.id}>
+                                  {renderModelOptionLabel(model)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg">
+                            Configure chat models to customize analysis model.
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Model used to analyze failures and generate prompt suggestions.
+                        </p>
+                      </div>
+                    )}
+
+
                   </div>
                 </div>
               </div>

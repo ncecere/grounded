@@ -4,9 +4,11 @@ import {
   AlertTriangle,
   CheckCircle2,
   FlaskConical,
+  History,
   Loader2,
   Play,
   Plus,
+  Sparkles,
   X,
   XCircle,
 } from "lucide-react";
@@ -24,15 +26,21 @@ import { ConfirmDialog } from "../../ui/confirm-dialog";
 import { EmptyState } from "../../ui/empty-state";
 import { LoadingSkeleton } from "../../ui/loading-skeleton";
 import { StatCard } from "../../ui/stat-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import {
   PassRateChart,
+  PromptAnalysisPanel,
   TestRunCard,
   TestRunDetailPanel,
   TestSuiteDetailPanel,
   TestSuiteList,
 } from "../../test-suites";
 
+// When onViewSuite is provided, we render a simplified list-only view
+// since users can click View to see details on a dedicated page
+
 type NotificationType = "success" | "error" | "info";
+type SuiteTab = "health" | "runs" | "analysis";
 
 interface NotificationMessage {
   type: NotificationType;
@@ -43,6 +51,7 @@ interface TestSuitesTabProps {
   agentId: string;
   agentName?: string;
   showHeader?: boolean;
+  onViewSuite?: (suiteId: string) => void;
 }
 
 const getErrorMessage = (error: unknown, fallback: string) =>
@@ -54,7 +63,7 @@ const notificationStyles: Record<NotificationType, string> = {
   info: "bg-blue-500/15 text-blue-800 dark:text-blue-300 border border-blue-500/30",
 };
 
-export function TestSuitesTab({ agentId, agentName, showHeader = true }: TestSuitesTabProps) {
+export function TestSuitesTab({ agentId, agentName, showHeader = true, onViewSuite }: TestSuitesTabProps) {
   const queryClient = useQueryClient();
   const { data: suites, isLoading, error } = useTestSuites(agentId);
   const [selectedSuite, setSelectedSuite] = useState<TestSuite | null>(null);
@@ -65,6 +74,7 @@ export function TestSuitesTab({ agentId, agentName, showHeader = true }: TestSui
   const [runDetailId, setRunDetailId] = useState<string | null>(null);
   const [notification, setNotification] = useState<NotificationMessage | null>(null);
   const [pollingSuiteId, setPollingSuiteId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<SuiteTab>("health");
 
   const runListParams = useMemo(() => ({ limit: 6, offset: 0 }), []);
   const suiteId = selectedSuite?.id ?? pollingSuiteId ?? "";
@@ -267,113 +277,146 @@ export function TestSuitesTab({ agentId, agentName, showHeader = true }: TestSui
         onEdit={(suite) => openSuitePanel(suite)}
         onRun={handleRunSuite}
         onDelete={setSuiteToDelete}
+        onView={onViewSuite ? (suite) => onViewSuite(suite.id) : undefined}
         emptyStateAction={{ label: "Create suite", onClick: openCreatePanel }}
       />
 
-      {selectedSuite && (
+      
+
+      {/* Full detailed view when no onViewSuite (inline experience) */}
+      {selectedSuite && !onViewSuite && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-medium">Suite Health</p>
-              <p className="text-xs text-muted-foreground">{selectedSuite.name}</p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => openSuitePanel(selectedSuite)}
-            >
-              <FlaskConical className="w-4 h-4" />
-              Manage Suite
-            </Button>
-          </div>
-
-          {analyticsErrorMessage && (
-            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
-                {analyticsErrorMessage}
-              </div>
-            </div>
-          )}
-
-          {analyticsLoading ? (
-            <LoadingSkeleton variant="stats" count={3} />
-          ) : analytics ? (
-            <div className="grid gap-4 md:grid-cols-3">
-              <StatCard
-                label="Average pass rate"
-                value={`${Math.round(analytics.averagePassRate)}%`}
-                icon={CheckCircle2}
-                iconColor="success"
-              />
-              <StatCard label="Total runs" value={analytics.totalRuns} icon={Play} iconColor="blue" />
-              <StatCard
-                label="Regressions"
-                value={analytics.regressions}
-                icon={AlertTriangle}
-                iconColor="warning"
-              />
-            </div>
-          ) : (
-            <EmptyState
-              icon={FlaskConical}
-              title="No analytics yet"
-              description="Run the suite to generate pass rate trends."
-            />
-          )}
-
-          <div className="rounded-lg border border-border bg-card p-4">
-            <PassRateChart runs={analytics?.runs ?? []} />
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium">Recent Runs</p>
+              <p className="text-sm font-medium">{selectedSuite.name}</p>
               <p className="text-xs text-muted-foreground">
-                {recentRuns.length} run{recentRuns.length === 1 ? "" : "s"} in the last 30 days.
+                {selectedSuite.testCaseCount} test case{selectedSuite.testCaseCount === 1 ? "" : "s"}
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => handleRunSuite(selectedSuite)}
-              disabled={startRunMutation.isPending}
-            >
-              {startRunMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Play className="w-4 h-4" />
-              )}
-              Run suite
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => handleRunSuite(selectedSuite)}
+                disabled={startRunMutation.isPending}
+              >
+                {startRunMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
+                Run Suite
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => openSuitePanel(selectedSuite)}
+              >
+                <FlaskConical className="w-4 h-4" />
+                Manage Suite
+              </Button>
+            </div>
           </div>
 
-          {runsErrorMessage && (
-            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
-                {runsErrorMessage}
-              </div>
-            </div>
-          )}
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as SuiteTab)}>
+            <TabsList className="mb-4">
+              <TabsTrigger value="health" className="gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                Health
+              </TabsTrigger>
+              <TabsTrigger value="runs" className="gap-2">
+                <History className="w-4 h-4" />
+                Runs
+              </TabsTrigger>
+              <TabsTrigger value="analysis" className="gap-2">
+                <Sparkles className="w-4 h-4" />
+                Prompt Analysis
+              </TabsTrigger>
+            </TabsList>
 
-          {runsLoading ? (
-            <LoadingSkeleton variant="card" count={3} />
-          ) : recentRuns.length === 0 ? (
-            <EmptyState
-              icon={FlaskConical}
-              title="No runs yet"
-              description="Run the suite to see test outcomes."
-            />
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {recentRuns.map((run) => (
-                <TestRunCard key={run.id} run={run} onOpen={(selected) => setRunDetailId(selected.id)} />
-              ))}
-            </div>
-          )}
+            {/* Health Tab */}
+            <TabsContent value="health" className="space-y-4 mt-0">
+              {analyticsErrorMessage && (
+                <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    {analyticsErrorMessage}
+                  </div>
+                </div>
+              )}
+
+              {analyticsLoading ? (
+                <LoadingSkeleton variant="stats" count={3} />
+              ) : analytics ? (
+                <div className="grid gap-4 md:grid-cols-3">
+                  <StatCard
+                    label="Average pass rate"
+                    value={`${Math.round(analytics.averagePassRate)}%`}
+                    icon={CheckCircle2}
+                    iconColor="success"
+                  />
+                  <StatCard label="Total runs" value={analytics.totalRuns} icon={Play} iconColor="blue" />
+                  <StatCard
+                    label="Regressions"
+                    value={analytics.regressions}
+                    icon={AlertTriangle}
+                    iconColor="warning"
+                  />
+                </div>
+              ) : (
+                <EmptyState
+                  icon={FlaskConical}
+                  title="No analytics yet"
+                  description="Run the suite to generate pass rate trends."
+                />
+              )}
+
+              <div className="rounded-lg border border-border bg-card p-4">
+                <PassRateChart runs={analytics?.runs ?? []} />
+              </div>
+            </TabsContent>
+
+            {/* Runs Tab */}
+            <TabsContent value="runs" className="space-y-4 mt-0">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  {recentRuns.length} run{recentRuns.length === 1 ? "" : "s"} in the last 30 days
+                </p>
+              </div>
+
+              {runsErrorMessage && (
+                <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    {runsErrorMessage}
+                  </div>
+                </div>
+              )}
+
+              {runsLoading ? (
+                <LoadingSkeleton variant="card" count={3} />
+              ) : recentRuns.length === 0 ? (
+                <EmptyState
+                  icon={FlaskConical}
+                  title="No runs yet"
+                  description="Run the suite to see test outcomes."
+                />
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {recentRuns.map((run) => (
+                    <TestRunCard key={run.id} run={run} onOpen={(selected) => setRunDetailId(selected.id)} />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Prompt Analysis Tab */}
+            <TabsContent value="analysis" className="mt-0">
+              <PromptAnalysisPanel suite={selectedSuite} />
+            </TabsContent>
+          </Tabs>
         </div>
       )}
 

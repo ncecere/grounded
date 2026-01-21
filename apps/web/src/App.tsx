@@ -19,6 +19,7 @@ import { Agents } from "./pages/Agents";
 import { Sources } from "./pages/Sources";
 import { Chat } from "./pages/Chat";
 import { AgentTestSuites } from "./pages/AgentTestSuites";
+import { AgentTestSuiteDetail } from "./pages/AgentTestSuiteDetail";
 import { Analytics } from "./pages/Analytics";
 import { AdminSettings } from "./pages/AdminSettings";
 import { AdminTenants } from "./pages/AdminTenants";
@@ -42,6 +43,7 @@ const pageNames: Record<Page, string> = {
   sources: "Sources",
   chat: "Chat",
   "test-suites": "Test Suites",
+  "test-suite-detail": "Test Suite",
   analytics: "Analytics",
   dashboard: "Dashboard",
   settings: "Settings",
@@ -61,6 +63,7 @@ export default function App() {
   const [selectedKbId, setSelectedKbId] = useState<string | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [selectedSharedKbId, setSelectedSharedKbId] = useState<string | null>(null);
+  const [selectedSuiteId, setSelectedSuiteId] = useState<string | null>(null);
   const [currentTenant, setCurrentTenant] = useState<UserTenant | null>(null);
   const queryClient = useQueryClient();
 
@@ -117,6 +120,7 @@ export default function App() {
     setSelectedKbId(null);
     setSelectedAgentId(null);
     setSelectedSharedKbId(null);
+    setSelectedSuiteId(null);
   };
 
   // Loading states
@@ -264,6 +268,21 @@ export default function App() {
             onBack={() => {
               setSelectedAgentId(null);
               setCurrentPage("agents");
+            }}
+            onViewSuite={(suiteId) => {
+              setSelectedSuiteId(suiteId);
+              setCurrentPage("test-suite-detail");
+            }}
+          />
+        );
+      case "test-suite-detail":
+        return (
+          <AgentTestSuiteDetail
+            suiteId={selectedSuiteId!}
+            agentId={selectedAgentId!}
+            onBack={() => {
+              setSelectedSuiteId(null);
+              setCurrentPage("test-suites");
             }}
           />
         );
