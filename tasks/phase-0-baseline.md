@@ -18,8 +18,50 @@
 ## Dependencies
 - None (information gathering only).
 
+## Runtime Entrypoints and Startup Sequence
+
+### API (apps/api)
+- Start (dev): `bun run dev:api` (root) or `bun run --filter @grounded/api dev`
+- Start (prod): `bun run --filter @grounded/api start`
+- Entry file: `apps/api/src/index.ts`
+- Startup sequence:
+  - Run database migrations, then seed the system admin user.
+  - Initialize the vector store when configured; warn when missing.
+  - Recover orphaned test suite locks, start periodic lock recovery, start the test suite scheduler.
+  - Register global middleware and v1 routes, then start the Hono server on `PORT` (default 3000).
+
+### Web App (apps/web)
+- Start (dev): `bun run dev:web` (root) or `bun run --filter @grounded/web dev`
+- Build/preview: `bun run --filter @grounded/web build` then `bun run --filter @grounded/web preview`
+- Entry file: `apps/web/src/main.tsx`
+- Startup sequence:
+  - Vite boots the app and loads `main.tsx`.
+  - Create the React Query `QueryClient` with default query settings.
+  - Render `App` inside `QueryClientProvider` and `ThemeProvider` into `#root`.
+
+### Ingestion Worker (apps/ingestion-worker)
+- Start (dev): `bun run dev:ingestion` (root) or `bun run --filter @grounded/ingestion-worker dev`
+- Start (prod): `bun run --filter @grounded/ingestion-worker start`
+- Entry file: `apps/ingestion-worker/src/index.ts`
+- Startup sequence:
+  - Initialize worker logger, sampling config, and settings client (with concurrency tracking).
+  - Initialize the vector store when configured.
+  - Fetch worker settings from the API and start periodic refresh.
+  - Register BullMQ workers for source-run, page processing, indexing, embedding, enrichment, deletion, and reindex queues.
+  - Listen for SIGTERM/SIGINT to stop refresh and close workers cleanly.
+
+### Scraper Worker (apps/scraper-worker)
+- Start (dev): `bun run dev:scraper` (root) or `bun run --filter @grounded/scraper-worker dev`
+- Start (prod): `bun run --filter @grounded/scraper-worker start`
+- Entry file: `apps/scraper-worker/src/index.ts`
+- Startup sequence:
+  - Initialize worker logger, default concurrency, and fairness config.
+  - Fetch worker settings from the API, update fairness config, and start periodic refresh.
+  - Create the page-fetch BullMQ worker and lazily launch Playwright browser instances as needed.
+  - Listen for SIGTERM/SIGINT to stop refresh, close the worker, and shut down the browser.
+
 ## Task List
-- [ ] Document runtime entrypoints and startup sequence per app.
+- [x] Document runtime entrypoints and startup sequence per app.
 - [ ] Document environment variables and settings precedence per app (including dynamic settings fetch).
 - [ ] Map the ingestion pipeline flow with owning modules and queues.
 - [ ] Map queue names to job payloads and owning processors.
