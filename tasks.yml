@@ -639,7 +639,7 @@ tasks:
       - Documented in worker notes
 
   - title: phase-2-ingestion-worker.md - Update ingestion imports and job wiring
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [ingestion, wiring]
     file: phase-2-ingestion-worker.md
