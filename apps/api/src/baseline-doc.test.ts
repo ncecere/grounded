@@ -44,6 +44,17 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("REDIS_URL");
   });
 
+  it("records external service dependencies", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("External Service Dependencies");
+    expect(content).toContain("OpenAI");
+    expect(content).toContain("Anthropic");
+    expect(content).toContain("VECTOR_DB_URL");
+    expect(content).toContain("SMTP");
+    expect(content).toContain("FIRECRAWL_API_KEY");
+  });
+
   it("captures ingestion pipeline flow and queue ownership", async () => {
     const content = await readFile(baselineDocPath, "utf-8");
 

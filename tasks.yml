@@ -139,7 +139,7 @@ tasks:
       - Verified against bootstrap code
 
   - title: phase-0-baseline.md - Record external service dependencies
-    completed: false
+    completed: true
     parallel_group: 1
     tags: [baseline, dependencies]
     file: phase-0-baseline.md

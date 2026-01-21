@@ -156,6 +156,30 @@
   - `PLAYWRIGHT_HEADLESS` to control browser mode.
   - `FIRECRAWL_API_KEY`/`FIRECRAWL_API_URL` for Firecrawl fetch mode.
 
+## External Service Dependencies
+
+### Core data stores
+- PostgreSQL 16 (primary app database) via `@grounded/db` for API, ingestion worker, and scraper worker data access.
+- Redis 7 for BullMQ queues and crawl state (`@grounded/queue`, `@grounded/crawl-state`).
+- Vector store via `@grounded/vector-store` (pgvector today, configured by `VECTOR_DB_URL` or `VECTOR_DB_*`); used by the API and ingestion worker for embedding writes/reads.
+
+### AI model providers
+- `packages/ai-providers/src/registry.ts` initializes OpenAI, Anthropic, Google Generative AI, and OpenAI-compatible providers.
+- Provider credentials and base URLs are stored in `model_providers`; model configs live in `model_configurations` and are loaded at runtime for chat and embedding.
+
+### Authentication and identity
+- Optional OIDC identity provider (issuer/client) configured via `OIDC_*` env vars and used by API auth routes.
+
+### Email and alert delivery
+- SMTP server configured in system settings (`email.smtp_*`, `email.from_*`) and used by `apps/api/src/services/email.ts` for alerts and test emails.
+
+### Scraper fetch integrations
+- Firecrawl API (optional) via `FIRECRAWL_API_KEY`/`FIRECRAWL_API_URL` for scraper worker fetch mode.
+- Playwright Chromium binaries are required locally for browser-based fetches (no hosted dependency).
+
+### Upload storage
+- Upload metadata and extracted text live in Postgres `uploads`; no external object storage dependency today.
+
 ## Ingestion Pipeline Flow
 
 ### End-to-End Stage Order
@@ -714,7 +738,7 @@
 - [x] Map tenant boundary/RLS enforcement touchpoints.
 - [x] Inventory shared packages and their consumers (shared, queue, logger, db).
 - [x] Record current environment/config dependencies for startup.
-- [ ] Record external service dependencies (AI providers, vector store, storage).
+- [x] Record external service dependencies (AI providers, vector store, storage).
 - [ ] Record baseline throughput and performance metrics for ingestion and scraper queues.
 - [ ] Build a critical workflow checklist with expected outputs (auth, chat SSE, ingestion, scrape).
 - [ ] List existing tests and smoke checks used today.
