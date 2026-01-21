@@ -42,3 +42,10 @@ export {
 } from "./settings";
 
 export { initVectorStore } from "./vector-store";
+
+export {
+  createShutdownHandler,
+  registerShutdownSignals,
+  type ShutdownHandler,
+  type ShutdownOptions,
+} from "./shutdown";

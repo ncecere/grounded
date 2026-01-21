@@ -7,8 +7,9 @@ import {
   DEFAULT_INDEX_CONCURRENCY,
   DEFAULT_EMBED_CONCURRENCY,
   initializeSettings,
-  stopSettingsRefresh,
   initVectorStore,
+  createShutdownHandler,
+  registerShutdownSignals,
 } from "./bootstrap";
 import { processSourceRunStart } from "./processors/source-run-start";
 import { processSourceDiscover } from "./processors/source-discover";
@@ -311,23 +312,18 @@ const kbReindexWorker = new Worker(
 // Graceful Shutdown
 // ============================================================================
 
-async function shutdown() {
-  logger.info("Shutting down...");
-  
-  // Stop settings refresh
-  stopSettingsRefresh();
-  
-  await sourceRunWorker.close();
-  await pageProcessWorker.close();
-  await pageIndexWorker.close();
-  await embedChunksWorker.close();
-  await enrichPageWorker.close();
-  await deletionWorker.close();
-  await kbReindexWorker.close();
-  process.exit(0);
-}
+const shutdown = createShutdownHandler({
+  workers: [
+    sourceRunWorker,
+    pageProcessWorker,
+    pageIndexWorker,
+    embedChunksWorker,
+    enrichPageWorker,
+    deletionWorker,
+    kbReindexWorker,
+  ],
+});
 
-process.on("SIGTERM", shutdown);
-process.on("SIGINT", shutdown);
+registerShutdownSignals(shutdown);
 
 logger.info("Ingestion Worker started successfully");

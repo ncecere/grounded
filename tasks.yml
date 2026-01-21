@@ -618,7 +618,7 @@ tasks:
       - Verified against baseline settings
 
   - title: phase-2-ingestion-worker.md - Add ingestion bootstrap shutdown helper
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [ingestion, bootstrap]
     file: phase-2-ingestion-worker.md
