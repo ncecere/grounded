@@ -223,6 +223,255 @@
 - Optional tracing fields are `requestId` and `traceId` across ingestion queues.
 - Job names and payload keys are stable and should not change without updating baseline docs.
 
+## API Route Inventory
+
+### Top-level (non `/api/v1`)
+- GET `/health` -> `apps/api/src/index.ts`
+- GET `/chat/:token` -> `apps/api/src/index.ts`
+- GET `/published-chat.js` -> `apps/api/src/index.ts`
+
+### Public routes (no auth middleware)
+
+#### `apps/api/src/routes/auth.ts`
+- POST `/api/v1/auth/register`
+- POST `/api/v1/auth/login`
+- GET `/api/v1/auth/oidc/login`
+- GET `/api/v1/auth/oidc/callback`
+
+#### `apps/api/src/routes/widget.ts`
+- GET `/api/v1/widget/:token/config`
+- POST `/api/v1/widget/:token/chat`
+- POST `/api/v1/widget/:token/chat/stream`
+
+#### `apps/api/src/routes/chat-endpoint.ts`
+- GET `/api/v1/c/:token/config`
+- GET `/api/v1/c/:token`
+- POST `/api/v1/c/:token/chat`
+- POST `/api/v1/c/:token/chat/stream`
+
+### Authenticated routes
+
+#### `apps/api/src/routes/auth.ts`
+- POST `/api/v1/auth/change-password`
+- GET `/api/v1/auth/me`
+- GET `/api/v1/auth/tenants`
+
+#### `apps/api/src/routes/tenants.ts`
+- GET `/api/v1/tenants`
+- POST `/api/v1/tenants`
+- GET `/api/v1/tenants/:tenantId`
+- PATCH `/api/v1/tenants/:tenantId`
+- DELETE `/api/v1/tenants/:tenantId`
+- GET `/api/v1/tenants/:tenantId/members`
+- POST `/api/v1/tenants/:tenantId/members`
+- PATCH `/api/v1/tenants/:tenantId/members/:userId`
+- DELETE `/api/v1/tenants/:tenantId/members/:userId`
+- GET `/api/v1/tenants/:tenantId/alert-settings`
+- PUT `/api/v1/tenants/:tenantId/alert-settings`
+- GET `/api/v1/tenants/:tenantId/api-keys`
+- POST `/api/v1/tenants/:tenantId/api-keys`
+- DELETE `/api/v1/tenants/:tenantId/api-keys/:keyId`
+
+#### `apps/api/src/routes/knowledge-bases.ts`
+- GET `/api/v1/knowledge-bases`
+- POST `/api/v1/knowledge-bases`
+- GET `/api/v1/knowledge-bases/:kbId`
+- PATCH `/api/v1/knowledge-bases/:kbId`
+- POST `/api/v1/knowledge-bases/:kbId/reindex`
+- POST `/api/v1/knowledge-bases/:kbId/reindex/cancel`
+- DELETE `/api/v1/knowledge-bases/:kbId`
+- GET `/api/v1/knowledge-bases/global`
+- POST `/api/v1/knowledge-bases/global`
+- POST `/api/v1/knowledge-bases/:kbId/publish`
+- POST `/api/v1/knowledge-bases/:kbId/unpublish`
+- POST `/api/v1/knowledge-bases/:kbId/subscribe`
+- POST `/api/v1/knowledge-bases/:kbId/unsubscribe`
+- Alias mount: all of the above are also available under `/api/v1/global-knowledge-bases/*`.
+
+#### `apps/api/src/routes/sources.ts`
+- GET `/api/v1/sources/kb/:kbId`
+- POST `/api/v1/sources`
+- GET `/api/v1/sources/:sourceId`
+- PATCH `/api/v1/sources/:sourceId`
+- DELETE `/api/v1/sources/:sourceId`
+- POST `/api/v1/sources/:sourceId/runs`
+- GET `/api/v1/sources/:sourceId/runs`
+- GET `/api/v1/sources/runs/:runId`
+- POST `/api/v1/sources/runs/:runId/cancel`
+- GET `/api/v1/sources/runs/:runId/progress`
+- GET `/api/v1/sources/:sourceId/stats`
+
+#### `apps/api/src/routes/agents.ts`
+- GET `/api/v1/agents/models`
+- GET `/api/v1/agents`
+- POST `/api/v1/agents`
+- GET `/api/v1/agents/:agentId`
+- PATCH `/api/v1/agents/:agentId`
+- DELETE `/api/v1/agents/:agentId`
+- GET `/api/v1/agents/:agentId/kbs`
+- PUT `/api/v1/agents/:agentId/kbs`
+- GET `/api/v1/agents/:agentId/retrieval-config`
+- PUT `/api/v1/agents/:agentId/retrieval-config`
+- GET `/api/v1/agents/:agentId/widget`
+- PUT `/api/v1/agents/:agentId/widget`
+- GET `/api/v1/agents/:agentId/widget-token`
+- POST `/api/v1/agents/:agentId/widget/tokens`
+- DELETE `/api/v1/agents/:agentId/widget/tokens/:tokenId`
+- GET `/api/v1/agents/:agentId/chat-endpoints`
+- POST `/api/v1/agents/:agentId/chat-endpoints`
+- DELETE `/api/v1/agents/:agentId/chat-endpoints/:endpointId`
+
+#### `apps/api/src/routes/chat.ts`
+- POST `/api/v1/chat/simple/:agentId`
+
+#### `apps/api/src/routes/analytics.ts`
+- GET `/api/v1/analytics`
+- GET `/api/v1/analytics/agents/:agentId`
+- GET `/api/v1/analytics/tenant`
+- GET `/api/v1/analytics/test-suites`
+
+#### `apps/api/src/routes/uploads.ts`
+- GET `/api/v1/uploads/kb/:kbId`
+- POST `/api/v1/uploads/kb/:kbId`
+
+#### `apps/api/src/routes/tools.ts`
+- GET `/api/v1/tools/builtin`
+- GET `/api/v1/tools`
+- GET `/api/v1/tools/:toolId`
+- POST `/api/v1/tools`
+- PATCH `/api/v1/tools/:toolId`
+- DELETE `/api/v1/tools/:toolId`
+- GET `/api/v1/tools/agents/:agentId/capabilities`
+- PUT `/api/v1/tools/agents/:agentId/capabilities`
+- GET `/api/v1/tools/agents/:agentId/tools`
+- POST `/api/v1/tools/agents/:agentId/tools`
+- DELETE `/api/v1/tools/agents/:agentId/tools/:toolId`
+
+#### `apps/api/src/routes/test-suites.ts`
+- GET `/api/v1/agents/:agentId/test-suites`
+- POST `/api/v1/agents/:agentId/test-suites`
+- GET `/api/v1/test-suites/:suiteId`
+- PATCH `/api/v1/test-suites/:suiteId`
+- DELETE `/api/v1/test-suites/:suiteId`
+- GET `/api/v1/test-suites/:suiteId/cases`
+- POST `/api/v1/test-suites/:suiteId/import`
+- GET `/api/v1/test-suites/:suiteId/export`
+- POST `/api/v1/test-suites/:suiteId/cases`
+- POST `/api/v1/test-suites/:suiteId/cases/reorder`
+- GET `/api/v1/test-suites/:suiteId/runs`
+- POST `/api/v1/test-suites/:suiteId/runs`
+- POST `/api/v1/test-suites/:suiteId/experiment`
+- GET `/api/v1/test-suites/:suiteId/analytics`
+- GET `/api/v1/test-suites/:suiteId/experiments`
+- GET `/api/v1/test-suites/:suiteId/latest-analysis`
+- GET `/api/v1/test-suites/:suiteId/analyses`
+- GET `/api/v1/test-cases/:caseId`
+- PATCH `/api/v1/test-cases/:caseId`
+- DELETE `/api/v1/test-cases/:caseId`
+- GET `/api/v1/test-runs/:runId`
+- DELETE `/api/v1/test-runs/:runId`
+- GET `/api/v1/test-runs/:runId/analysis`
+- POST `/api/v1/test-runs/:runId/analysis`
+- POST `/api/v1/test-runs/:runId/analysis/apply`
+- POST `/api/v1/test-runs/:runId/analysis/apply-to-agent`
+- GET `/api/v1/experiments/:experimentId`
+- POST `/api/v1/experiments/:experimentId/apply`
+
+### System admin routes (`/api/v1/admin`)
+
+#### `apps/api/src/routes/admin/dashboard.ts`
+- GET `/api/v1/admin/dashboard/health`
+- GET `/api/v1/admin/dashboard/stats`
+
+#### `apps/api/src/routes/admin/settings.ts`
+- GET `/api/v1/admin/settings`
+- GET `/api/v1/admin/settings/:key`
+- PUT `/api/v1/admin/settings/:key`
+- PUT `/api/v1/admin/settings`
+- GET `/api/v1/admin/settings/schema/all`
+- POST `/api/v1/admin/settings/email/verify`
+- POST `/api/v1/admin/settings/email/test`
+- GET `/api/v1/admin/settings/email/status`
+- GET `/api/v1/admin/settings/alerts/status`
+- POST `/api/v1/admin/settings/alerts/check`
+- POST `/api/v1/admin/settings/alerts/start`
+- POST `/api/v1/admin/settings/alerts/stop`
+- GET `/api/v1/admin/settings/test-scheduler/status`
+- POST `/api/v1/admin/settings/test-scheduler/restart`
+- GET `/api/v1/admin/settings/workers/fairness/metrics`
+- POST `/api/v1/admin/settings/workers/fairness/reset`
+
+#### `apps/api/src/routes/admin/models.ts`
+- GET `/api/v1/admin/models/providers`
+- GET `/api/v1/admin/models/providers/:id`
+- POST `/api/v1/admin/models/providers`
+- PATCH `/api/v1/admin/models/providers/:id`
+- DELETE `/api/v1/admin/models/providers/:id`
+- POST `/api/v1/admin/models/providers/:id/test`
+- GET `/api/v1/admin/models/models`
+- GET `/api/v1/admin/models/models/:id`
+- POST `/api/v1/admin/models/models`
+- PATCH `/api/v1/admin/models/models/:id`
+- DELETE `/api/v1/admin/models/models/:id`
+- POST `/api/v1/admin/models/models/:id/set-default`
+- GET `/api/v1/admin/models/status`
+- POST `/api/v1/admin/models/refresh`
+
+#### `apps/api/src/routes/admin/users.ts`
+- GET `/api/v1/admin/users`
+- GET `/api/v1/admin/users/:id`
+- POST `/api/v1/admin/users`
+- PATCH `/api/v1/admin/users/:id`
+- DELETE `/api/v1/admin/users/:id`
+- POST `/api/v1/admin/users/:id/reset-password`
+
+#### `apps/api/src/routes/admin/shared-kbs.ts`
+- GET `/api/v1/admin/shared-kbs`
+- POST `/api/v1/admin/shared-kbs`
+- GET `/api/v1/admin/shared-kbs/:kbId`
+- PATCH `/api/v1/admin/shared-kbs/:kbId`
+- DELETE `/api/v1/admin/shared-kbs/:kbId`
+- POST `/api/v1/admin/shared-kbs/:kbId/publish`
+- POST `/api/v1/admin/shared-kbs/:kbId/unpublish`
+- POST `/api/v1/admin/shared-kbs/:kbId/shares`
+- DELETE `/api/v1/admin/shared-kbs/:kbId/shares/:tenantId`
+- GET `/api/v1/admin/shared-kbs/:kbId/available-tenants`
+- GET `/api/v1/admin/shared-kbs/:kbId/sources`
+- POST `/api/v1/admin/shared-kbs/:kbId/sources`
+- POST `/api/v1/admin/shared-kbs/:kbId/uploads`
+- GET `/api/v1/admin/shared-kbs/:kbId/sources/:sourceId`
+- PATCH `/api/v1/admin/shared-kbs/:kbId/sources/:sourceId`
+- DELETE `/api/v1/admin/shared-kbs/:kbId/sources/:sourceId`
+- POST `/api/v1/admin/shared-kbs/:kbId/sources/:sourceId/runs`
+- GET `/api/v1/admin/shared-kbs/:kbId/sources/:sourceId/runs`
+- POST `/api/v1/admin/shared-kbs/:kbId/sources/:sourceId/runs/:runId/cancel`
+- GET `/api/v1/admin/shared-kbs/:kbId/sources/:sourceId/stats`
+
+#### `apps/api/src/routes/admin/analytics.ts`
+- GET `/api/v1/admin/analytics/overview`
+- GET `/api/v1/admin/analytics/tenants`
+- GET `/api/v1/admin/analytics/tenants/:tenantId`
+- GET `/api/v1/admin/analytics/export/overview`
+- GET `/api/v1/admin/analytics/export/tenants`
+
+#### `apps/api/src/routes/admin/tokens.ts`
+- GET `/api/v1/admin/tokens`
+- POST `/api/v1/admin/tokens`
+- DELETE `/api/v1/admin/tokens/:id`
+
+#### `apps/api/src/routes/admin/audit.ts`
+- GET `/api/v1/admin/audit`
+- GET `/api/v1/admin/audit/:id`
+- GET `/api/v1/admin/audit/resource/:resourceType/:resourceId`
+- GET `/api/v1/admin/audit/summary/:tenantId`
+- GET `/api/v1/admin/audit/filters/options`
+
+### Internal worker routes
+
+#### `apps/api/src/routes/internal/workers.ts`
+- GET `/api/v1/internal/workers/settings`
+- GET `/api/v1/internal/workers/settings/fairness`
+
 ## Observability Baseline (Logs, Error Codes, Metrics)
 
 ### Shared Logging Schema (Wide Events)
@@ -271,7 +520,7 @@
 - [x] Map queue names to job payloads and owning processors.
 - [x] Capture contract baselines for API responses, SSE events, and queue payloads.
 - [x] Capture observability keys (log fields, error codes, metrics) by app.
-- [ ] Inventory API routes and their owning files.
+- [x] Inventory API routes and their owning files.
 - [ ] Inventory web pages and navigation flows.
 - [ ] Identify the largest files and repeated patterns in each app.
 - [ ] Capture cross-cutting helpers (auth, audit, RLS, logging, settings).

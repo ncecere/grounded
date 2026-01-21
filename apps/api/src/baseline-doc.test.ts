@@ -79,4 +79,14 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("NETWORK_TIMEOUT");
     expect(content).toContain("CONTENT_UNSUPPORTED_TYPE");
   });
+
+  it("inventories API routes by method and owner", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("API Route Inventory");
+    expect(content).toContain("POST `/api/v1/auth/register`");
+    expect(content).toContain("GET `/api/v1/agents/:agentId`");
+    expect(content).toContain("GET `/api/v1/admin/settings`");
+    expect(content).toContain("GET `/api/v1/internal/workers/settings`");
+  });
 });
