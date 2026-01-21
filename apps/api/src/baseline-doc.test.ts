@@ -123,6 +123,18 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("packages/shared/src/settings/index.ts");
   });
 
+  it("inventories shared packages and consumers", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Shared Packages and Consumers");
+    expect(content).toContain("@grounded/shared");
+    expect(content).toContain("@grounded/queue");
+    expect(content).toContain("@grounded/logger");
+    expect(content).toContain("@grounded/db");
+    expect(content).toContain("apps/ingestion-worker");
+    expect(content).toContain("apps/scraper-worker");
+  });
+
   it("maps tenant boundary and RLS touchpoints", async () => {
     const content = await readFile(baselineDocPath, "utf-8");
 

@@ -583,6 +583,28 @@
 - Internal API settings endpoints live in `apps/api/src/routes/internal/workers.ts` and admin settings in `apps/api/src/routes/admin/settings.ts`.
 - Workers consume settings via `initSettingsClient` in `apps/ingestion-worker/src/index.ts` and `apps/scraper-worker/src/index.ts`.
 
+## Shared Packages and Consumers
+
+### `@grounded/shared` (packages/shared)
+- Responsibilities: shared types, constants, utilities, error taxonomies, and worker settings client.
+- Key exports: `packages/shared/src/types`, `packages/shared/src/constants`, `packages/shared/src/utils`, `packages/shared/src/errors`, `packages/shared/src/settings`.
+- Consumers: `apps/api`, `apps/ingestion-worker`, `apps/scraper-worker`, `packages/queue`.
+
+### `@grounded/queue` (packages/queue)
+- Responsibilities: BullMQ queue instances, job helpers, Redis connection wiring, rate limiting, concurrency and embed backpressure helpers.
+- Key exports: queue definitions (`sourceRunQueue`, `pageFetchQueue`, etc.), job add/remove helpers, Redis utilities, concurrency/backpressure helpers, queue constants re-exported from shared.
+- Consumers: `apps/api` (enqueue/cancel), `apps/ingestion-worker` (job orchestration), `apps/scraper-worker` (page fetch worker).
+
+### `@grounded/logger` (packages/logger)
+- Responsibilities: wide event logging, tracing helpers, sampling config, worker/job logging middleware.
+- Key exports: `createLogger`, `WideEventBuilder`, tracing helpers, log types; worker/job logging lives under `packages/logger/src/worker` and API middleware under `packages/logger/src/middleware`.
+- Consumers: `apps/api`, `apps/ingestion-worker`, `apps/scraper-worker`.
+
+### `@grounded/db` (packages/db)
+- Responsibilities: Drizzle schema definitions and Postgres client helpers with RLS contexts.
+- Key exports: `packages/db/src/schema`, `packages/db/src/client` (`withRLSContext`, `withTenantContext`, `withSystemAdminContext`).
+- Consumers: `apps/api`, `apps/ingestion-worker`, `apps/scraper-worker`.
+
 ## Tenant Boundary and RLS Enforcement Touchpoints
 
 ### RLS Policy Sources
@@ -656,7 +678,7 @@
 - [ ] Identify the largest files and repeated patterns in each app.
 - [x] Capture cross-cutting helpers (auth, audit, RLS, logging, settings).
 - [x] Map tenant boundary/RLS enforcement touchpoints.
-- [ ] Inventory shared packages and their consumers (shared, queue, logger, db).
+- [x] Inventory shared packages and their consumers (shared, queue, logger, db).
 - [ ] Record current environment/config dependencies for startup.
 - [ ] Record external service dependencies (AI providers, vector store, storage).
 - [ ] Record baseline throughput and performance metrics for ingestion and scraper queues.
