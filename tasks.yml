@@ -259,7 +259,7 @@ tasks:
   # Depends on Group 1
   # ===========================================================================
   - title: phase-1-api-structure.md - Define domain module boundaries and migration order
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, refactor]
     file: phase-1-api-structure.md

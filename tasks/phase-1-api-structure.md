@@ -18,6 +18,32 @@
 ## Dependencies
 - Phase 0 baseline inventory complete.
 
+## Domain Module Boundaries and Migration Order
+
+### Module Boundaries
+- `auth`: login, session, API key auth, auth-specific middleware
+- `tenants`: tenant CRUD, memberships, billing status, tenant-scoped access checks
+- `knowledge-bases`: knowledge base CRUD, attachments, sharing metadata
+- `sources`: source configuration, runs, source status, ingestion orchestration hooks
+- `agents`: agent CRUD, model selection, KB attachments, agent settings
+- `chat`: chat sessions, SSE streaming, retrieval orchestration entrypoints
+- `widget`: public widget config, hosted widget endpoints, widget chat entrypoints
+- `analytics`: usage metrics, dashboard aggregates, retention summaries
+- `tools`: agent tool registry, tool invocation metadata, tool config
+- `uploads`: file upload handling, storage metadata, signed URL helpers
+- `admin`: admin-only routes, tenant/user management, system settings
+- `internal`: worker-to-api routes, settings fetch, health checks
+- `test-suites`: internal test harness routes (non-production)
+
+### Migration Order
+1. `auth` and `tenants` (foundation for auth/session and tenant scoping)
+2. `knowledge-bases` and `sources` (core data and ingestion dependencies)
+3. `agents` (depends on KB and source metadata)
+4. `chat` and `widget` (depend on agents and KB retrieval)
+5. `uploads` and `tools` (supporting infrastructure)
+6. `analytics` (read-only aggregates after core routes stabilized)
+7. `admin`, `internal`, and `test-suites` (lowest risk, isolated changes)
+
 ## Task List
 - [ ] Define domain module boundaries and migration order.
 - [ ] Define module boundary rules and allowed import directions.
