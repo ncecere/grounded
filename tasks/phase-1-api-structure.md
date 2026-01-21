@@ -97,6 +97,59 @@ Optional layers (when they can be omitted):
 - `service.ts` can be omitted for trivial modules that only wrap a shared helper and contain no domain logic; routes can call the helper directly, but document the exception.
 - `types.ts` can be omitted if no cross-module types are required; keep types local to the file instead.
 
+## Middleware Order and Route Mount Map
+
+### Global Middleware Order (apps/api/src/app.ts)
+Middleware is registered in the order below and applies to all routes unless noted.
+
+1. `requestId()`
+2. `secureHeaders()`
+3. `prettyJSON()`
+4. `cors()`
+5. `wideEventMiddleware()` (skips `/health`)
+6. `app.onError(errorHandler)`
+7. `app.notFound()`
+
+### Top-Level Routes
+- `GET /health`
+- `GET /chat/:token` (redirects to `/api/v1/c/:token`)
+- `GET /published-chat.js`
+- `app.route("/api/v1", createV1Routes())`
+
+### V1 Route Mount Map
+Public (no auth required):
+- `/api/v1/auth`
+- `/api/v1/widget`
+- `/api/v1/c`
+
+Tenant/authenticated:
+- `/api/v1/tenants`
+- `/api/v1/knowledge-bases`
+- `/api/v1/global-knowledge-bases`
+- `/api/v1/sources`
+- `/api/v1/agents`
+- `/api/v1/test-suites`
+- `/api/v1/test-cases`
+- `/api/v1/test-runs`
+- `/api/v1/experiments`
+- `/api/v1/tools`
+- `/api/v1/chat`
+- `/api/v1/analytics`
+- `/api/v1/uploads`
+
+Admin:
+- `/api/v1/admin/dashboard`
+- `/api/v1/admin/settings`
+- `/api/v1/admin/models`
+- `/api/v1/admin/users`
+- `/api/v1/admin/shared-kbs`
+- `/api/v1/admin/analytics`
+- `/api/v1/admin/tokens`
+- `/api/v1/admin/audit`
+
+Internal:
+- `/api/v1/internal/workers`
+
 ## Task List
 - [ ] Define domain module boundaries and migration order.
 - [ ] Define module boundary rules and allowed import directions.
@@ -105,7 +158,7 @@ Optional layers (when they can be omitted):
 - [ ] Create `apps/api/src/app.ts` to build the Hono app with middleware.
 - [ ] Create `apps/api/src/routes/index.ts` to assemble v1 routes.
 - [ ] Create `apps/api/src/startup/index.ts` for migrations, seeding, scheduler startup, and signal handlers.
-- [ ] Document middleware order and route mount map (public/admin/internal).
+- [x] Document middleware order and route mount map (public/admin/internal).
 - [ ] Add `apps/api/src/modules/index.ts` for stable module exports.
 - [ ] Keep route mount paths unchanged and document any aliases.
 - [ ] Move hosted chat page asset serving into a dedicated module.

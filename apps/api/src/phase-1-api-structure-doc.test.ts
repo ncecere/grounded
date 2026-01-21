@@ -63,4 +63,17 @@ describe("phase 1 api structure plan", () => {
     expect(content).toContain("Optional layers");
     expect(content).toContain("`repo.ts` can be omitted");
   });
+
+  it("documents middleware order and route mounts", async () => {
+    const content = await readFile(apiStructurePath, "utf-8");
+
+    expect(content).toContain("Middleware Order and Route Mount Map");
+    expect(content).toContain("Global Middleware Order");
+    expect(content).toContain("requestId()");
+    expect(content).toContain("wideEventMiddleware()");
+    expect(content).toContain("V1 Route Mount Map");
+    expect(content).toContain("/api/v1/auth");
+    expect(content).toContain("/api/v1/admin");
+    expect(content).toContain("/api/v1/internal/workers");
+  });
 });

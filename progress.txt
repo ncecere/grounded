@@ -29,3 +29,4 @@
 2026-01-21 - Added API app assembly module with createApiApp plus health check test coverage.
 2026-01-21 - Added v1 routes index assembler with a regression test for auth callback route mounting.
 2026-01-21 - Added API startup index for startup tasks/shutdown handling with tests covering startup flow and shutdown cleanup.
+2026-01-21 - Documented API middleware order and route mount map in phase-1 plan; added doc test coverage.

@@ -333,7 +333,7 @@ tasks:
       - Startup behavior unchanged
 
   - title: phase-1-api-structure.md - Document middleware order and route mount map
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, routing]
     file: phase-1-api-structure.md
