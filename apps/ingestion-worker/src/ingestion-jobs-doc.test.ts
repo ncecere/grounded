@@ -72,4 +72,28 @@ describe("ingestion jobs documentation", () => {
 
     expect(content).toContain("ingestion-worker");
   });
+
+  it("documents payload invariants", async () => {
+    const content = await readFile(ingestionJobsDocPath, "utf-8");
+
+    expect(content).toContain("## Payload Invariants");
+    expect(content).toContain("requestId");
+    expect(content).toContain("traceId");
+    expect(content).toContain("PageProcessJob");
+    expect(content).toContain("upload://");
+    expect(content).toContain("SourceRunStage");
+    expect(content).toContain("chunkIds");
+  });
+
+  it("documents retry and idempotency rules", async () => {
+    const content = await readFile(ingestionJobsDocPath, "utf-8");
+
+    expect(content).toContain("## Retry and Idempotency Rules");
+    expect(content).toContain("JOB_RETRY_ATTEMPTS=3");
+    expect(content).toContain("JOB_BACKOFF_TYPE=exponential");
+    expect(content).toContain("kb-reindex");
+    expect(content).toContain("source-run-start-");
+    expect(content).toContain("page-process-");
+    expect(content).toContain("enrich-");
+  });
 });

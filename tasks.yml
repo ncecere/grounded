@@ -670,7 +670,7 @@ tasks:
       - Reviewed for accuracy
 
   - title: phase-2-ingestion-worker.md - Document job payload invariants and retry/idempotency rules
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [docs, ingestion]
     file: phase-2-ingestion-worker.md
