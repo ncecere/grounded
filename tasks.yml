@@ -1,383 +1,271 @@
-project: grounded-ingestion
+project: grounded
 version: "1.0"
+feature: advanced-rag
 
 tasks:
   # ===========================================================================
-  # AGENT TEST SUITES FEATURE
-  # Documentation: Tasks/agent-test-suites/
+  # PARALLEL GROUP 1: Schema & Types
+  # Foundation - must complete first
   # ===========================================================================
+  - title: Add ragType column to agents table
+    completed: false
+    parallel_group: 1
+    tags: [schema, database, agents]
+    file: phase-1-schema-types.md
+    notes: Add rag_type with values simple|advanced, default simple
 
-  # ---------------------------------------------------------------------------
-  # Phase 1: Database Schema (see phase-1-database-schema.md)
-  # ---------------------------------------------------------------------------
-  - title: "Phase 1 (phase-1-database-schema.md): Create test suites database schema"
-    completed: true
-    parallel_group: 10
-    tags: [test-suites, database]
-    acceptance_criteria:
-      - Create agent_test_suites table with scheduling and alert settings
-      - Create test_cases table with expectedBehavior JSONB column
-      - Create test_suite_runs table for execution records
-      - Create test_case_results table with checkResults JSONB
-      - Add proper indexes and foreign key constraints
-      - Export from packages/db/src/schema/index.ts
+  - title: Add historyTurns and advancedMaxSubqueries to retrieval_configs
+    completed: false
+    parallel_group: 1
+    tags: [schema, database, retrieval]
+    file: phase-1-schema-types.md
+    notes: historyTurns default 5, advancedMaxSubqueries default 3
 
-  - title: "Phase 1 (phase-1-database-schema.md): Generate and apply database migration"
-    completed: true
-    parallel_group: 10
-    tags: [test-suites, database]
-    depends_on: ["Phase 1: Create test suites database schema"]
-    acceptance_criteria:
-      - Run bun run db:generate
-      - Review generated SQL migration
-      - Run bun run db:migrate
-      - Verify tables created correctly
+  - title: Generate and apply database migration
+    completed: false
+    parallel_group: 1
+    tags: [schema, database, migration]
+    file: phase-1-schema-types.md
 
-  # ---------------------------------------------------------------------------
-  # Phase 2: Test Runner Service (see phase-2-test-runner-service.md)
-  # ---------------------------------------------------------------------------
-  - title: "Phase 2 (phase-2-test-runner-service.md): Implement test runner core service"
-    completed: true
-    parallel_group: 11
-    tags: [test-suites, backend]
-    depends_on: ["Phase 1: Generate and apply database migration"]
-    acceptance_criteria:
-      - Create runTestSuite() function with queuing logic
-      - Implement executeTestRun() with per-case execution
-      - Add concurrency control (one run per suite)
-      - Handle errors gracefully, continue on case failures
+  - title: Update shared types in packages/shared
+    completed: false
+    parallel_group: 1
+    tags: [types, shared]
+    file: phase-1-schema-types.md
+    notes: Add RagType enum, update Agent and RetrievalConfig interfaces
 
-  - title: "Phase 2 (phase-2-test-runner-service.md): Implement evaluation functions"
-    completed: true
-    parallel_group: 11
-    tags: [test-suites, backend]
-    depends_on: ["Phase 1: Generate and apply database migration"]
-    acceptance_criteria:
-      - Implement evaluateContainsPhrases() with case sensitivity
-      - Implement evaluateSemanticSimilarity() using KB embedding model
-      - Implement evaluateLlmJudge() with configurable model
-      - Implement evaluateResponse() combining checks with all/any mode
+  - title: Update web API types
+    completed: false
+    parallel_group: 1
+    tags: [types, web]
+    file: phase-1-schema-types.md
 
-  # ---------------------------------------------------------------------------
-  # Phase 3: API Routes (see phase-3-api-routes.md)
-  # ---------------------------------------------------------------------------
-  - title: "Phase 3 (phase-3-api-routes.md): Create test suites API routes"
-    completed: true
-    parallel_group: 12
-    tags: [test-suites, api]
-    depends_on: ["Phase 2: Implement test runner core service"]
-    acceptance_criteria:
-      - GET/POST /agents/:agentId/test-suites
-      - GET/PATCH/DELETE /test-suites/:suiteId
-      - Proper auth and tenant validation
-      - Zod schema validation
+  - title: Update web component types and defaults
+    completed: false
+    parallel_group: 1
+    tags: [types, web, components]
+    file: phase-1-schema-types.md
 
-  - title: "Phase 3 (phase-3-api-routes.md): Create test cases API routes"
-    completed: true
-    parallel_group: 12
-    tags: [test-suites, api]
-    depends_on: ["Phase 2: Implement test runner core service"]
-    acceptance_criteria:
-      - GET/POST /test-suites/:suiteId/cases
-      - GET/PATCH/DELETE /test-cases/:caseId
-      - POST /test-suites/:suiteId/cases/reorder
-      - ExpectedBehavior validation with Zod
+  - title: Update API zod schemas for agents
+    completed: false
+    parallel_group: 1
+    tags: [api, validation, agents]
+    file: phase-1-schema-types.md
 
-  - title: "Phase 3 (phase-3-api-routes.md): Create test runs API routes"
-    completed: true
-    parallel_group: 12
-    tags: [test-suites, api]
-    depends_on: ["Phase 2: Implement test runner core service"]
-    acceptance_criteria:
-      - GET/POST /test-suites/:suiteId/runs
-      - GET/DELETE /test-runs/:runId
-      - GET /test-suites/:suiteId/analytics
-      - Include pass rate calculations
+  # ===========================================================================
+  # PARALLEL GROUP 2: Advanced RAG Service
+  # Core implementation - depends on Group 1
+  # ===========================================================================
+  - title: Create AdvancedRAGService file structure
+    completed: false
+    parallel_group: 2
+    tags: [api, service, rag]
+    file: phase-2-advanced-rag-service.md
 
-  - title: "Phase 3 (phase-3-api-routes.md): Implement JSONL import/export"
-    completed: true
-    parallel_group: 12
-    tags: [test-suites, api]
-    depends_on: ["Phase 3: Create test cases API routes"]
-    acceptance_criteria:
-      - POST /test-suites/:suiteId/import with multipart file
-      - GET /test-suites/:suiteId/export as JSONL download
-      - Parse and validate JSONL format
-      - Return import summary with errors
+  - title: Implement query rewriting with conversation history
+    completed: false
+    parallel_group: 2
+    tags: [api, service, rag, llm]
+    file: phase-2-advanced-rag-service.md
 
-  # ---------------------------------------------------------------------------
-  # Phase 4: Scheduler (see phase-4-scheduler.md)
-  # ---------------------------------------------------------------------------
-  - title: "Phase 4 (phase-4-scheduler.md): Implement test suite scheduler"
-    completed: true
-    parallel_group: 13
-    tags: [test-suites, backend]
-    depends_on: ["Phase 3: Create test runs API routes"]
-    acceptance_criteria:
-      - Create startTestSuiteScheduler() with setInterval
-      - Implement shouldRunNow() for hourly/daily/weekly schedules
-      - Prevent duplicate runs in same time window
-      - Integrate with API server startup/shutdown
-      - Run nightly retention cleanup at configurable time (UI/env)
-      - Add test_suites retention settings metadata and env fallbacks
+  - title: Implement multi-step plan generation
+    completed: false
+    parallel_group: 2
+    tags: [api, service, rag, llm]
+    file: phase-2-advanced-rag-service.md
 
-  # ---------------------------------------------------------------------------
-  # Phase 5: Alert Integration (see phase-5-alert-integration.md)
-  # ---------------------------------------------------------------------------
-  - title: "Phase 5 (phase-5-alert-integration.md): Implement regression detection"
-    completed: true
-    parallel_group: 14
-    tags: [test-suites, alerts]
-    depends_on: ["Phase 4: Implement test suite scheduler"]
-    acceptance_criteria:
-      - Detect pass rate drops beyond threshold
-      - Identify newly failing test cases
-      - Compare current run with previous completed run
-      - Respect alertOnRegression setting
+  - title: Implement sub-query retrieval and merging
+    completed: false
+    parallel_group: 2
+    tags: [api, service, rag, vector]
+    file: phase-2-advanced-rag-service.md
 
-  - title: "Phase 5 (phase-5-alert-integration.md): Implement regression alert emails"
-    completed: true
-    parallel_group: 14
-    tags: [test-suites, alerts]
-    depends_on: ["Phase 5: Implement regression detection"]
-    acceptance_criteria:
-      - Add sendTestRegressionAlert() to email service
-      - Include pass rate change and newly failing cases
-      - Use tenant alert recipients
-      - Link to run details in email
+  - title: Implement reasoning event emission
+    completed: false
+    parallel_group: 2
+    tags: [api, service, rag, sse]
+    file: phase-2-advanced-rag-service.md
 
-  # ---------------------------------------------------------------------------
-  # Phase 6: API Client (see phase-6-api-client.md)
-  # ---------------------------------------------------------------------------
-  - title: "Phase 6 (phase-6-api-client.md): Add TypeScript types for test suites"
-    completed: true
-    parallel_group: 15
-    tags: [test-suites, frontend]
-    depends_on: ["Phase 3: Create test runs API routes"]
-    acceptance_criteria:
-      - Define TestSuite, TestCase, TestRun types
-      - Define ExpectedBehavior and CheckResult types
-      - Define DTO types for create/update operations
-      - Export from appropriate location
+  - title: Implement final answer generation with citations
+    completed: false
+    parallel_group: 2
+    tags: [api, service, rag, llm]
+    file: phase-2-advanced-rag-service.md
 
-  - title: "Phase 6 (phase-6-api-client.md): Add API client methods"
-    completed: true
-    parallel_group: 15
-    tags: [test-suites, frontend]
-    depends_on: ["Phase 6: Add TypeScript types for test suites"]
-    acceptance_criteria:
-      - Add CRUD methods for suites, cases, runs
-      - Add import/export methods
-      - Add analytics method
-      - Handle errors consistently
+  # ===========================================================================
+  # PARALLEL GROUP 3: API Routing & Integration
+  # Wire up services - depends on Group 2
+  # ===========================================================================
+  - title: Update admin chat route for RAG type routing
+    completed: false
+    parallel_group: 3
+    tags: [api, routes, chat]
+    file: phase-3-api-routing.md
 
-  - title: "Phase 6 (phase-6-api-client.md): Create TanStack Query hooks"
-    completed: true
-    parallel_group: 15
-    tags: [test-suites, frontend]
-    depends_on: ["Phase 6: Add API client methods"]
-    acceptance_criteria:
-      - Create useTestSuites, useTestSuite hooks
-      - Create useTestCases, useTestCase hooks
-      - Create useTestRuns, useTestRun with polling
-      - Create mutation hooks with cache invalidation
+  - title: Update widget chat helper for RAG type routing
+    completed: false
+    parallel_group: 3
+    tags: [api, widget, chat]
+    file: phase-3-api-routing.md
 
-  # ---------------------------------------------------------------------------
-  # Phase 7: UI Components (see phase-7-ui-components.md)
-  # ---------------------------------------------------------------------------
-  - title: "Phase 7 (phase-7-ui-components.md): Create TestSuiteCard and TestSuiteList"
-    completed: true
-    parallel_group: 16
-    tags: [test-suites, ui]
-    depends_on: ["Phase 6: Create TanStack Query hooks"]
-    acceptance_criteria:
-      - Card with name, schedule badge, test count, last run status
-      - Hover actions for run, edit, delete
-      - List with loading/empty states
-      - Follow existing card patterns
+  - title: Update chat endpoint route for RAG type routing
+    completed: false
+    parallel_group: 3
+    tags: [api, routes, chat-endpoint]
+    file: phase-3-api-routing.md
 
-  - title: "Phase 7 (phase-7-ui-components.md): Create TestSuiteDetailPanel"
-    completed: true
-    parallel_group: 16
-    tags: [test-suites, ui]
-    depends_on: ["Phase 7: Create TestSuiteCard and TestSuiteList"]
-    acceptance_criteria:
-      - Slide-out panel with tabs (General, Schedule, Evaluation, Test Cases)
-      - Create and edit modes
-      - LLM Judge model selector
-      - Alert settings controls
+  - title: Update agent CRUD routes for ragType field
+    completed: false
+    parallel_group: 3
+    tags: [api, routes, agents]
+    file: phase-3-api-routing.md
 
-  - title: "Phase 7 (phase-7-ui-components.md): Create ExpectedBehaviorEditor"
-    completed: true
-    parallel_group: 16
-    tags: [test-suites, ui]
-    depends_on: ["Phase 7: Create TestSuiteDetailPanel"]
-    acceptance_criteria:
-      - Mode toggle (all/any)
-      - Add/remove checks of each type
-      - Contains phrases with multi-input
-      - Semantic similarity with threshold slider
-      - LLM judge with criteria field
+  - title: Update retrieval config routes for new fields
+    completed: false
+    parallel_group: 3
+    tags: [api, routes, retrieval]
+    file: phase-3-api-routing.md
 
-  - title: "Phase 7 (phase-7-ui-components.md): Create TestCaseCard and TestCaseForm"
-    completed: true
-    parallel_group: 16
-    tags: [test-suites, ui]
-    depends_on: ["Phase 7: Create ExpectedBehaviorEditor"]
-    acceptance_criteria:
-      - Card with name, question, check badges, last result
-      - Form with question textarea and ExpectedBehaviorEditor
-      - Inline editing in test cases tab
-      - Drag to reorder support
+  # ===========================================================================
+  # PARALLEL GROUP 4: Frontend - Agent Form & Chat UI & Widget
+  # These can all run in parallel - depend on Group 3
+  # ===========================================================================
+  - title: Update agent API client for ragType
+    completed: false
+    parallel_group: 4
+    tags: [web, api-client, agents]
+    file: phase-4-frontend-agent-form.md
 
-  - title: "Phase 7 (phase-7-ui-components.md): Create TestRunCard and TestRunDetailPanel"
-    completed: true
-    parallel_group: 17
-    tags: [test-suites, ui]
-    depends_on: ["Phase 7: Create TestCaseCard and TestCaseForm"]
-    acceptance_criteria:
-      - Run card with status, pass rate bar, counts
-      - Detail panel with results list
-      - Filter by status (all/passed/failed/error)
-      - CheckResultDisplay for each result
+  - title: Add RAG Type selector to agent form
+    completed: false
+    parallel_group: 4
+    tags: [web, ui, agents, form]
+    file: phase-4-frontend-agent-form.md
 
-  - title: "Phase 7 (phase-7-ui-components.md): Create ImportTestCasesDialog"
-    completed: true
-    parallel_group: 17
-    tags: [test-suites, ui]
-    depends_on: ["Phase 7: Create TestCaseCard and TestCaseForm"]
-    acceptance_criteria:
-      - File drop zone
-      - Format instructions
-      - Import results summary
-      - Error display
+  - title: Add advanced mode settings to agent form
+    completed: false
+    parallel_group: 4
+    tags: [web, ui, agents, form]
+    file: phase-4-frontend-agent-form.md
+    notes: historyTurns and advancedMaxSubqueries, shown only for advanced mode
 
-  - title: "Phase 7 (phase-7-ui-components.md): Create PassRateChart"
-    completed: true
-    parallel_group: 17
-    tags: [test-suites, ui]
-    depends_on: ["Phase 7: Create TestRunCard and TestRunDetailPanel"]
-    acceptance_criteria:
-      - Line chart of pass rate over time
-      - Use analytics data
-      - Highlight regressions
-      - Responsive sizing
+  - title: Update form defaults and validation
+    completed: false
+    parallel_group: 4
+    tags: [web, ui, agents, form]
+    file: phase-4-frontend-agent-form.md
 
-  - title: "Phase 7 (phase-7-ui-components.md): Integrate with Agent page"
-    completed: true
-    parallel_group: 18
-    tags: [test-suites, ui]
-    depends_on: ["Phase 7: Create PassRateChart"]
-    acceptance_criteria:
-      - Add Test Suites tab to AgentDetailPanel
-      - Or add navigation to dedicated view
-      - Toast notifications for actions
-      - Loading and error states
+  - title: Update chat API client for reasoning events
+    completed: false
+    parallel_group: 4
+    tags: [web, api-client, chat]
+    file: phase-5-frontend-chat-ui.md
 
-  # ---------------------------------------------------------------------------
-  # Phase 8: Workspace Analytics (see phase-8-workspace-analytics.md)
-  # ---------------------------------------------------------------------------
-  - title: "Phase 8 (phase-8-workspace-analytics.md): Create tenant-wide test suite analytics API"
-    completed: true
-    parallel_group: 18
-    tags: [test-suites, api, analytics]
-    depends_on: ["Phase 3: Create test runs API routes"]
-    acceptance_criteria:
-      - GET /api/v1/analytics/test-suites endpoint
-      - Summary stats (total suites, cases, runs, overall pass rate)
-      - Per-agent breakdown with pass rate trends
-      - Recent regressions list
-      - Pass rate over time data for charting
-      - Date range filtering support
+  - title: Create ReasoningSteps component
+    completed: false
+    parallel_group: 4
+    tags: [web, ui, chat, components]
+    file: phase-5-frontend-chat-ui.md
 
-  - title: "Phase 8 (phase-8-workspace-analytics.md): Create PassRateLineChart component"
-    completed: true
-    parallel_group: 19
-    tags: [test-suites, ui, analytics]
-    depends_on: ["Phase 8: Create tenant-wide test suite analytics API"]
-    acceptance_criteria:
-      - Line/area chart showing pass rate over time
-      - Y-axis 0-100% with color zones (green/yellow/red)
-      - Tooltips with pass rate and run count
-      - Follow existing chart patterns
-      - Responsive sizing
+  - title: Integrate reasoning steps into Chat page
+    completed: false
+    parallel_group: 4
+    tags: [web, ui, chat]
+    file: phase-5-frontend-chat-ui.md
+    notes: Collapsible panel, collapsed by default
 
-  - title: "Phase 8 (phase-8-workspace-analytics.md): Create AgentTestHealthTable component"
-    completed: true
-    parallel_group: 19
-    tags: [test-suites, ui, analytics]
-    depends_on: ["Phase 8: Create tenant-wide test suite analytics API"]
-    acceptance_criteria:
-      - Table with agent name, suite/case counts
-      - Pass rate with trend indicator (up/down/stable)
-      - Last run time and status
-      - Link to agent test suites
-      - Sortable columns
+  - title: Add styling for reasoning panel
+    completed: false
+    parallel_group: 4
+    tags: [web, ui, chat, styling]
+    file: phase-5-frontend-chat-ui.md
 
-  - title: "Phase 8 (phase-8-workspace-analytics.md): Create RecentRegressionsTable component"
-    completed: true
-    parallel_group: 19
-    tags: [test-suites, ui, analytics]
-    depends_on: ["Phase 8: Create tenant-wide test suite analytics API"]
-    acceptance_criteria:
-      - Table showing recent test regressions
-      - Agent/suite name, pass rate change, timestamp
-      - Visual emphasis on failures (red styling)
-      - Link to run details
-      - Empty state when no regressions
+  - title: Update widget types for reasoning events
+    completed: false
+    parallel_group: 4
+    tags: [widget, types]
+    file: phase-6-widget-updates.md
 
-  - title: "Phase 8 (phase-8-workspace-analytics.md): Create TestSuiteAnalyticsSection component"
-    completed: true
-    parallel_group: 20
-    tags: [test-suites, ui, analytics]
-    depends_on: ["Phase 8: Create PassRateLineChart component", "Phase 8: Create AgentTestHealthTable component", "Phase 8: Create RecentRegressionsTable component"]
-    acceptance_criteria:
-      - Summary stat cards (suites, cases, pass rate, regressions)
-      - PassRateLineChart integration
-      - AgentTestHealthTable integration
-      - RecentRegressionsTable integration
-      - Loading and empty states
+  - title: Update widget chat service for reasoning
+    completed: false
+    parallel_group: 4
+    tags: [widget, service]
+    file: phase-6-widget-updates.md
 
-  - title: "Phase 8 (phase-8-workspace-analytics.md): Integrate test analytics into Analytics page"
-    completed: true
-    parallel_group: 21
-    tags: [test-suites, ui, analytics]
-    depends_on: ["Phase 8: Create TestSuiteAnalyticsSection component"]
-    acceptance_criteria:
-      - Add "Agent Test Health" section to Analytics page
-      - Or implement tabbed layout (Usage / Testing)
-      - Respect date range filter
-      - Empty state when no test suites exist
-      - Seamless visual integration
+  - title: Create widget reasoning panel component
+    completed: false
+    parallel_group: 4
+    tags: [widget, ui, components]
+    file: phase-6-widget-updates.md
 
-  - title: "Phase 8 (phase-8-workspace-analytics.md): Add test analytics API client and hooks"
-    completed: true
-    parallel_group: 19
-    tags: [test-suites, frontend, analytics]
-    depends_on: ["Phase 8: Create tenant-wide test suite analytics API"]
-    acceptance_criteria:
-      - Add TestSuiteAnalytics type
-      - Add getTestSuiteAnalytics() API method
-      - Add useTestSuiteAnalytics() hook
-      - Handle date range parameters
+  - title: Add widget config for reasoning visibility
+    completed: false
+    parallel_group: 4
+    tags: [widget, config]
+    file: phase-6-widget-updates.md
+    notes: Optional showReasoning config
 
-  # ---------------------------------------------------------------------------
-  # Final: Testing and Polish
-  # ---------------------------------------------------------------------------
-  - title: "Final (phase-7-ui-components.md, phase-8-workspace-analytics.md): End-to-end testing of test suites feature"
-    completed: true
-    parallel_group: 22
-    tags: [test-suites, testing]
-    depends_on: ["Phase 8: Integrate test analytics into Analytics page"]
-    acceptance_criteria:
-      - Create suite, add cases, run tests manually
-      - Verify scheduled runs work
-      - Verify regression alerts sent
-      - Test JSONL import/export
-      - Test all UI flows
-      - Verify analytics page shows test data
-      - Test pass rate charts and tables
+  # ===========================================================================
+  # PARALLEL GROUP 5: Testing & Documentation
+  # Quality assurance - depends on Group 4
+  # ===========================================================================
+  - title: Add unit tests for AdvancedRAGService
+    completed: false
+    parallel_group: 5
+    tags: [testing, unit, api]
+    file: phase-7-testing-docs.md
+
+  - title: Add integration tests for chat endpoints
+    completed: false
+    parallel_group: 5
+    tags: [testing, integration, api]
+    file: phase-7-testing-docs.md
+
+  - title: Update CLAUDE.md documentation
+    completed: false
+    parallel_group: 5
+    tags: [docs]
+    file: phase-7-testing-docs.md
+
+  - title: Manual testing checklist execution
+    completed: false
+    parallel_group: 5
+    tags: [testing, manual]
+    file: phase-7-testing-docs.md
+    notes: All automated tests pass (1306 total). Manual verification by user recommended.
+
+parallel_groups:
+  1:
+    name: Schema & Types
+    description: Database schema changes and type definitions
+    status: completed
+  2:
+    name: Advanced RAG Service
+    description: Core AdvancedRAGService implementation
+    status: completed
+    depends_on: [1]
+  3:
+    name: API Routing
+    description: Wire up services to all chat endpoints
+    status: completed
+    depends_on: [2]
+  4:
+    name: Frontend & Widget
+    description: Agent form, chat UI reasoning display, and widget updates
+    status: completed
+    depends_on: [3]
+  5:
+    name: Testing & Docs
+    description: Tests and documentation updates
+    status: completed
+    depends_on: [4]
 
 metadata:
-  created_at: "2026-01-18"
-  owner: grounded-team
+  created_at: "2026-01-17"
+  updated_at: "2026-01-17"
+  owner: "unassigned"
+  feature_description: |
+    Add Advanced RAG mode to agents with multi-turn query rewriting,
+    sub-query planning, and reasoning step display. Agents can be
+    configured as "simple" (current behavior) or "advanced" (new
+    multi-step pipeline with visible reasoning).
