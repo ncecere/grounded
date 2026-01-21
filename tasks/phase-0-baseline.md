@@ -510,6 +510,51 @@
 - Shared KBs (admin) -> Shared KB Sources.
 - Tenant switcher resets navigation to Knowledge Bases and clears selected KB/agent IDs.
 
+## Largest Files and Repeated Patterns
+
+### API (apps/api)
+- Largest files (by LOC snapshot):
+  - `apps/api/src/services/advanced-rag.test.ts` (~3754 LOC)
+  - `apps/api/src/routes/test-suites.ts` (~1477 LOC)
+  - `apps/api/src/routes/admin/shared-kbs.ts` (~1097 LOC)
+  - `apps/api/src/services/test-runner.ts` (~1096 LOC)
+  - `apps/api/src/routes/chat-integration.test.ts` (~1094 LOC)
+  - `apps/api/src/services/prompt-analysis.ts` (~1088 LOC)
+- Repeated patterns:
+  - Large route files start with extensive Zod schemas, then Hono handlers wired with `auth()`, `requireTenant()`, `requireRole()`, and `withRequestRLS`.
+  - Service/test files repeat suite setup for agents, runs, and prompt analysis workflows with similar helper usage.
+
+### Web App (apps/web)
+- Largest files (by LOC snapshot):
+  - `apps/web/public/widget.js` (~1811 LOC)
+  - `apps/web/public/published-chat.js` (~1811 LOC)
+  - `apps/web/src/components/ai-elements/prompt-input.tsx` (~1419 LOC)
+  - `apps/web/src/pages/SourcesManager.tsx` (~1183 LOC)
+  - `apps/web/src/components/ai-elements/reasoning-steps.test.ts` (~1149 LOC)
+- Repeated patterns:
+  - Large page components combine query hooks, forms, tables, and mutations in single modules (notably `SourcesManager`).
+  - AI elements components co-locate interaction state, keyboard handling, and rendering in monolithic files.
+  - Public widget assets are prebuilt bundles; treat them as generated outputs.
+
+### Ingestion Worker (apps/ingestion-worker)
+- Largest files (by LOC snapshot):
+  - `apps/ingestion-worker/src/processors/source-discover.ts` (~476 LOC)
+  - `apps/ingestion-worker/src/stage-manager.ts` (~445 LOC)
+  - `apps/ingestion-worker/src/index.ts` (~386 LOC)
+  - `apps/ingestion-worker/src/processors/page-index.ts` (~368 LOC)
+  - `apps/ingestion-worker/src/processors/page-process.ts` (~365 LOC)
+- Repeated patterns:
+  - Processor files share job data extraction, logger creation, stage progress updates, and next-stage queueing.
+  - Stage manager + job queuer centralize stage transition rules with repeated guard logic.
+
+### Scraper Worker (apps/scraper-worker)
+- Largest files (by LOC snapshot):
+  - `apps/scraper-worker/src/processors/page-fetch.ts` (~421 LOC)
+  - `apps/scraper-worker/src/index.ts` (~196 LOC)
+- Repeated patterns:
+  - `page-fetch` orchestrates fetch mode branching, fairness slot handling, and error mapping in one file.
+  - Entrypoint mirrors ingestion worker setup (settings refresh + graceful shutdown wiring).
+
 ## Observability Baseline (Logs, Error Codes, Metrics)
 
 ### Shared Logging Schema (Wide Events)

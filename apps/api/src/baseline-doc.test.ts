@@ -101,4 +101,14 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("apps/web/src/pages/AdminSharedKBs.tsx");
     expect(content).toContain("Agents -> Chat");
   });
+
+  it("documents largest files and repeated patterns", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Largest Files and Repeated Patterns");
+    expect(content).toContain("apps/api/src/services/advanced-rag.test.ts");
+    expect(content).toContain("apps/web/src/pages/SourcesManager.tsx");
+    expect(content).toContain("apps/ingestion-worker/src/processors/source-discover.ts");
+    expect(content).toContain("apps/scraper-worker/src/processors/page-fetch.ts");
+  });
 });
