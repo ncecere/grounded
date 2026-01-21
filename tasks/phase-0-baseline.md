@@ -223,13 +223,54 @@
 - Optional tracing fields are `requestId` and `traceId` across ingestion queues.
 - Job names and payload keys are stable and should not change without updating baseline docs.
 
+## Observability Baseline (Logs, Error Codes, Metrics)
+
+### Shared Logging Schema (Wide Events)
+- Logger package defines a canonical wide event (`packages/logger/src/types.ts`) emitted per request/job.
+- Core fields: `requestId`, `traceId`, `spanId`, `timestamp`, `service`, `env`, `version`, `deploymentId`.
+- Context fields: `tenant`, `user`, `http` (`method`, `path`, `statusCode`, `userAgent`, `ip`), `job` (`id`, `name`, `queue`, `attempt`, `maxAttempts`).
+- Business fields: `knowledgeBase`, `source`, `sourceRun`, `agent`, `operation`, `outcome`.
+- Error fields: `error.type`, `error.code`, `error.message`, `error.stack`, `error.retriable`.
+
+### API (apps/api)
+- Request logging uses `wideEventMiddleware` in `apps/api/src/index.ts` to emit one wide event per HTTP request.
+- Error codes:
+  - 5xx responses set `error.code` to the HTTP status string (e.g., `"500"`).
+  - 4xx responses are logged as `httpError` with outcome `success` (client error).
+  - RAG services also include `errorCode` fields when streaming fails (`apps/api/src/services/simple-rag.ts`, `advanced-rag.ts`).
+- Sampling controls via env: `LOG_SAMPLE_RATE`, `LOG_SLOW_THRESHOLD_MS`, `LOG_ALWAYS_ERRORS`, `LOG_ALWAYS_OPERATIONS`.
+
+### Ingestion Worker (apps/ingestion-worker)
+- Job logging uses `createJobLogger` in `apps/ingestion-worker/src/index.ts` for each BullMQ job.
+- Job context fields include queue name, job name, attempt counters, plus `tenantId`, `kbId`, `sourceId`, `runId` from job data.
+- Error codes follow the ingestion taxonomy in `packages/shared/src/errors/index.ts`.
+
+### Scraper Worker (apps/scraper-worker)
+- Job logging uses `createJobLogger` in `apps/scraper-worker/src/index.ts` for page fetch jobs.
+- Error codes rely on the same ingestion taxonomy (notably content and network errors) for `page-fetch` failures.
+
+### Error Code Taxonomy (shared ingestion errors)
+- Network: `NETWORK_TIMEOUT`, `NETWORK_CONNECTION_REFUSED`, `NETWORK_DNS_FAILURE`, `NETWORK_RESET`, `NETWORK_SSL_ERROR`.
+- Service: `SERVICE_UNAVAILABLE`, `SERVICE_RATE_LIMITED`, `SERVICE_TIMEOUT`, `SERVICE_BAD_GATEWAY`, `SERVICE_GATEWAY_TIMEOUT`, `SERVICE_OVERLOADED`, `SERVICE_API_ERROR`.
+- Content: `CONTENT_TOO_LARGE`, `CONTENT_INVALID_FORMAT`, `CONTENT_EMPTY`, `CONTENT_UNSUPPORTED_TYPE`, `CONTENT_PARSE_FAILED`, `CONTENT_ENCODING_ERROR`.
+- Config: `CONFIG_MISSING`, `CONFIG_INVALID`, `CONFIG_API_KEY_MISSING`, `CONFIG_MODEL_MISMATCH`, `CONFIG_DIMENSION_MISMATCH`.
+- Not found: `NOT_FOUND_RESOURCE`, `NOT_FOUND_URL`, `NOT_FOUND_KB`, `NOT_FOUND_SOURCE`, `NOT_FOUND_RUN`, `NOT_FOUND_CHUNK`.
+- Validation: `VALIDATION_SCHEMA`, `VALIDATION_URL_INVALID`, `VALIDATION_CONSTRAINT`, `VALIDATION_PAYLOAD`.
+- Auth: `AUTH_FORBIDDEN`, `AUTH_UNAUTHORIZED`, `AUTH_BLOCKED`.
+- System/unknown: `SYSTEM_OUT_OF_MEMORY`, `SYSTEM_DISK_FULL`, `SYSTEM_INTERNAL`, `SYSTEM_DATABASE_ERROR`, `UNKNOWN_ERROR`.
+
+### Metrics and Dimensions
+- Wide events include measurement fields: `durationMs`, `dbQueries`, `externalCalls`, `cacheHit`, `bytesProcessed`, `itemsProcessed`.
+- Dimensions for aggregations: `service`, `operation`, `outcome`, `queue`, `job.name`, `tenant.id`, `sourceRun.id`, `knowledgeBase.id`.
+- No separate metrics exporter is configured; dashboards rely on these log fields.
+
 ## Task List
 - [x] Document runtime entrypoints and startup sequence per app.
 - [x] Document environment variables and settings precedence per app (including dynamic settings fetch).
 - [ ] Map the ingestion pipeline flow with owning modules and queues.
 - [x] Map queue names to job payloads and owning processors.
 - [x] Capture contract baselines for API responses, SSE events, and queue payloads.
-- [ ] Capture observability keys (log fields, error codes, metrics) by app.
+- [x] Capture observability keys (log fields, error codes, metrics) by app.
 - [ ] Inventory API routes and their owning files.
 - [ ] Inventory web pages and navigation flows.
 - [ ] Identify the largest files and repeated patterns in each app.

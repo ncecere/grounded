@@ -68,4 +68,15 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("reasoning");
     expect(content).toContain("conversationId");
   });
+
+  it("captures observability log fields and error codes", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Observability Baseline");
+    expect(content).toContain("requestId");
+    expect(content).toContain("traceId");
+    expect(content).toContain("durationMs");
+    expect(content).toContain("NETWORK_TIMEOUT");
+    expect(content).toContain("CONTENT_UNSUPPORTED_TYPE");
+  });
 });
