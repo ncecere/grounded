@@ -51,3 +51,4 @@
 2026-01-21 - Split ingestion stage job queuer into stage/queue-* modules, updated stage-job-queuer dispatcher exports, added stage-queue-structure tests, and verified bun test apps/ingestion-worker/src/stage-queue-structure.test.ts.
 2026-01-21 - Extracted ingestion robots.txt handling into services/robots.ts, updated discovery jobs/processors to use the service, and added robots service tests (bun test apps/ingestion-worker/src/services/robots.test.ts).
 2026-01-21 - Extracted HTML content parsing into apps/ingestion-worker/src/services/extraction.ts, wired page process job/processor to the service, and added extraction service tests (bun test apps/ingestion-worker/src/services/extraction.test.ts).
+2026-01-21 - Centralized ingestion worker settings and vector store initialization into bootstrap modules, added tests for settings/vector-store initialization, and verified bun test apps/ingestion-worker/src.

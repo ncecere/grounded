@@ -1,8 +1,15 @@
 import { Worker, Job, connection, QUEUE_NAMES } from "@grounded/queue";
-import { getEnvNumber, initSettingsClient, type WorkerSettings } from "@grounded/shared";
-import { initializeVectorStore, isVectorStoreConfigured } from "@grounded/vector-store";
-import { createWorkerLogger, createJobLogger } from "@grounded/logger/worker";
+import { createJobLogger } from "@grounded/logger/worker";
 import { shouldSample, createSamplingConfig } from "@grounded/logger";
+import {
+  getWorkerLogger,
+  DEFAULT_CONCURRENCY,
+  DEFAULT_INDEX_CONCURRENCY,
+  DEFAULT_EMBED_CONCURRENCY,
+  initializeSettings,
+  stopSettingsRefresh,
+  initVectorStore,
+} from "./bootstrap";
 import { processSourceRunStart } from "./processors/source-run-start";
 import { processSourceDiscover } from "./processors/source-discover";
 import { processSourceFinalize } from "./processors/source-finalize";
@@ -14,46 +21,13 @@ import { processEnrichPage } from "./processors/enrich-page";
 import { processHardDelete } from "./processors/hard-delete";
 import { processKbReindex } from "./processors/kb-reindex";
 
-const logger = createWorkerLogger("ingestion-worker");
+const logger = getWorkerLogger();
 
 // Sampling config from environment variables with worker-specific defaults
 // Workers log 100% by default (can reduce with LOG_SAMPLE_RATE env var)
 const samplingConfig = createSamplingConfig({
   baseSampleRate: 1.0,  // Log all jobs by default
   slowRequestThresholdMs: 30000, // 30s is slow for a job
-});
-
-// Default concurrency from environment (used as fallback)
-const DEFAULT_CONCURRENCY = getEnvNumber("WORKER_CONCURRENCY", 5);
-const DEFAULT_INDEX_CONCURRENCY = getEnvNumber("INDEX_WORKER_CONCURRENCY", 5);
-const DEFAULT_EMBED_CONCURRENCY = getEnvNumber("EMBED_WORKER_CONCURRENCY", 4);
-
-// Current concurrency values (may be updated from API settings)
-let currentConcurrency = DEFAULT_CONCURRENCY;
-let currentEmbedConcurrency = DEFAULT_EMBED_CONCURRENCY;
-
-// Initialize settings client with callback to track concurrency changes
-const settingsClient = initSettingsClient({
-  onSettingsUpdate: (settings: WorkerSettings) => {
-    logger.info({ 
-      ingestionConcurrency: settings.ingestion.concurrency,
-      embedConcurrency: settings.embed.concurrency,
-    }, "Settings updated from API");
-    
-    // Track concurrency changes (worker restart required to apply)
-    if (settings.ingestion.concurrency !== currentConcurrency) {
-      logger.warn({
-        oldConcurrency: currentConcurrency,
-        newConcurrency: settings.ingestion.concurrency,
-      }, "Ingestion concurrency changed in settings - restart worker to apply");
-    }
-    if (settings.embed.concurrency !== currentEmbedConcurrency) {
-      logger.warn({
-        oldConcurrency: currentEmbedConcurrency,
-        newConcurrency: settings.embed.concurrency,
-      }, "Embed concurrency changed in settings - restart worker to apply");
-    }
-  },
 });
 
 logger.info({ 
@@ -64,35 +38,8 @@ logger.info({
 
 // Initialize vector store and settings on startup
 (async () => {
-  // Initialize vector store
-  if (isVectorStoreConfigured()) {
-    try {
-      await initializeVectorStore();
-      logger.info("Vector store initialized successfully");
-    } catch (error) {
-      logger.error({ error }, "Failed to initialize vector store");
-    }
-  } else {
-    logger.warn("Vector store not configured. Set VECTOR_DB_URL or VECTOR_DB_HOST.");
-  }
-  
-  // Load settings from API
-  try {
-    const settings = await settingsClient.fetchSettings();
-    logger.info({ 
-      ingestionConcurrency: settings.ingestion.concurrency,
-      embedConcurrency: settings.embed.concurrency,
-    }, "Loaded settings from API");
-    
-    // Update current concurrency values for tracking
-    currentConcurrency = settings.ingestion.concurrency;
-    currentEmbedConcurrency = settings.embed.concurrency;
-    
-    // Start periodic refresh
-    settingsClient.startPeriodicRefresh();
-  } catch (error) {
-    logger.warn({ error }, "Failed to load settings from API, using environment defaults");
-  }
+  await initVectorStore();
+  await initializeSettings();
 })();
 
 // ============================================================================
@@ -368,7 +315,7 @@ async function shutdown() {
   logger.info("Shutting down...");
   
   // Stop settings refresh
-  settingsClient.stopPeriodicRefresh();
+  stopSettingsRefresh();
   
   await sourceRunWorker.close();
   await pageProcessWorker.close();

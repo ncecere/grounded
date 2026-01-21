@@ -29,3 +29,16 @@ export {
   isRetriableError,
   withErrorLogging,
 } from "./helpers";
+
+export {
+  DEFAULT_CONCURRENCY,
+  DEFAULT_INDEX_CONCURRENCY,
+  DEFAULT_EMBED_CONCURRENCY,
+  settingsClient,
+  initializeSettings,
+  stopSettingsRefresh,
+  getCurrentConcurrency,
+  getCurrentEmbedConcurrency,
+} from "./settings";
+
+export { initVectorStore } from "./vector-store";

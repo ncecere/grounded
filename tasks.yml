@@ -598,7 +598,7 @@ tasks:
       - Behavior unchanged
 
   - title: phase-2-ingestion-worker.md - Centralize ingestion settings and vector store init
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [ingestion, bootstrap]
     file: phase-2-ingestion-worker.md
