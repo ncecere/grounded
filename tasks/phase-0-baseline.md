@@ -774,6 +774,21 @@
   - Redis stores fetched HTML for the run (`storeFetchedHtml`).
   - Stage progress increments and queues a `stage-transition` when complete.
 
+## Existing Tests and Smoke Checks
+
+### Automated tests and checks
+- Monorepo: `bun run test` (all workspaces), plus `bun run lint` and `bun run typecheck` for CI-style validation.
+- API: `bun run --filter @grounded/api test` (bun test for routes/services).
+- Web App: `bun run --filter @grounded/web test` (component/unit tests).
+- Ingestion Worker: no `test` script today; run `bun run --filter @grounded/ingestion-worker typecheck` and validate via ingestion smoke runs.
+- Scraper Worker: no `test` script today; run `bun run --filter @grounded/scraper-worker typecheck` and validate via page-fetch smoke runs.
+
+### Smoke checks (manual)
+- Auth + tenant access: verify register/login, `/api/v1/auth/me`, and tenant list responses.
+- Chat SSE streaming: validate `status` -> `text` -> `sources` -> `done` event order for widget/chat endpoints.
+- Ingestion run: confirm stage progression, progress counts, and chunk creation through EMBEDDING.
+- Scraper page fetch: validate fetch mode selection, Redis HTML storage, and stage transition triggers.
+
 ## Task List
 - [x] Document runtime entrypoints and startup sequence per app.
 - [x] Document environment variables and settings precedence per app (including dynamic settings fetch).
@@ -791,7 +806,7 @@
 - [x] Record external service dependencies (AI providers, vector store, storage).
 - [ ] Record baseline throughput and performance metrics for ingestion and scraper queues.
 - [x] Build a critical workflow checklist with expected outputs (auth, chat SSE, ingestion, scrape).
-- [ ] List existing tests and smoke checks used today.
+- [x] List existing tests and smoke checks used today.
 - [ ] Build a test/smoke matrix by app and workflow.
 - [ ] Define refactor constraints (no API response changes, no schema changes).
 - [ ] Note phase dependencies and potential blockers.

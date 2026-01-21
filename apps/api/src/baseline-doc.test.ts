@@ -122,6 +122,17 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("conversationId");
   });
 
+  it("lists existing tests and smoke checks", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Existing Tests and Smoke Checks");
+    expect(content).toContain("bun run --filter @grounded/api test");
+    expect(content).toContain("bun run --filter @grounded/web test");
+    expect(content).toContain("bun run --filter @grounded/ingestion-worker typecheck");
+    expect(content).toContain("bun run --filter @grounded/scraper-worker typecheck");
+    expect(content).toContain("Smoke checks (manual)");
+  });
+
   it("inventories API routes by method and owner", async () => {
     const content = await readFile(baselineDocPath, "utf-8");
 

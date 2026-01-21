@@ -14,3 +14,4 @@
 2026-01-21 - Documented external service dependencies (AI providers, vector store, SMTP, Firecrawl, uploads) in phase-0 baseline and added baseline doc test coverage.
 2026-01-21 - Added baseline throughput snapshot for ingestion and scraper queues with config-based metrics; updated baseline doc tests.
 2026-01-21 - Added critical workflow checklist for auth, chat SSE, ingestion, and scraping to phase-0 baseline; extended baseline doc tests.
+2026-01-21 - Documented existing test commands and smoke checks in phase-0 baseline; added baseline doc test coverage for test/smoke section.
