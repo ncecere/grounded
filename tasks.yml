@@ -423,6 +423,7 @@ tasks:
       - Standard error classes used consistently
       - Error responses unchanged
       - Guidance documented for new errors
+      - API tests pass for error handling paths
 
   - title: phase-1-api-structure.md - Preserve logging and error code parity for dashboards
     completed: true
@@ -476,7 +477,7 @@ tasks:
       - Tests pass
 
   - title: phase-1-api-structure.md - Update tests and imports after API file moves
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, tests]
     file: phase-1-api-structure.md

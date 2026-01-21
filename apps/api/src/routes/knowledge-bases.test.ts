@@ -49,13 +49,18 @@ const authMiddleware = () => async (c: Context, next: Next) => {
   await next();
 };
 
-mock.module("../middleware/auth", () => ({
+// Mock both the re-export file and the actual implementation to handle module caching
+const authMockExports = {
   auth: authMiddleware,
   requireTenant: () => async (_c: Context, next: Next) => next(),
   requireRole: () => async (_c: Context, next: Next) => next(),
   requireSystemAdmin: () => async (_c: Context, next: Next) => next(),
   withRequestRLS: withRequestRLSMock,
-}));
+};
+
+mock.module("../middleware/auth", () => authMockExports);
+mock.module("../middleware/auth/index", () => authMockExports);
+mock.module("../middleware/auth/middleware", () => authMockExports);
 
 mock.module("@grounded/ai-providers", () => ({
   getAIRegistry: getAIRegistryMock,
@@ -66,7 +71,9 @@ mock.module("@grounded/queue", () => ({
 }));
 
 const { errorHandler } = await import("../middleware/error-handler");
-const { kbRoutes } = await import("./knowledge-bases");
+// Use dynamic import with cache-busting query string for Bun mock isolation
+// @ts-expect-error - Bun supports query strings for module cache busting
+const { kbRoutes } = await import("./knowledge-bases?test=auth-mock");
 
 describe("knowledge base routes", () => {
   it("returns BadRequestError for embedding models without dimensions", async () => {
