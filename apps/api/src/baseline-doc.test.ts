@@ -111,6 +111,17 @@ describe("phase-0 baseline runtime entrypoints", () => {
     expect(content).toContain("FAIRNESS_*");
   });
 
+  it("defines the critical workflow checklist", async () => {
+    const content = await readFile(baselineDocPath, "utf-8");
+
+    expect(content).toContain("Critical Workflow Checklist");
+    expect(content).toContain("Auth and Tenant Access");
+    expect(content).toContain("Chat SSE");
+    expect(content).toContain("Ingestion Run");
+    expect(content).toContain("Scrape Page Fetch");
+    expect(content).toContain("conversationId");
+  });
+
   it("inventories API routes by method and owner", async () => {
     const content = await readFile(baselineDocPath, "utf-8");
 

@@ -743,6 +743,37 @@
 - Slow job threshold: 30s (`slowRequestThresholdMs`).
 - Throughput baseline: up to 5 concurrent fetches gated by fairness slots.
 
+## Critical Workflow Checklist
+
+### Auth and Tenant Access
+- Register or login via `/api/v1/auth/register` or `/api/v1/auth/login`.
+- Expected outputs:
+  - Response includes `{ user, token, token_type }` with `token_type: "Bearer"`.
+  - `/api/v1/auth/me` returns `tenantId`, `role`, and `isSystemAdmin` for the session.
+  - `/api/v1/auth/tenants` returns at least one tenant for non-system admins.
+
+### Chat SSE (Widget or Chat Endpoint)
+- Initiate stream via `/api/v1/widget/:token/chat/stream` or `/api/v1/c/:token/chat/stream`.
+- Expected outputs:
+  - `status` event emitted before any `text` chunks.
+  - `text` events stream incremental content.
+  - `sources` event emitted after streaming completes.
+  - `done` event includes `conversationId` and ends the stream.
+
+### Ingestion Run (Discover -> Embed)
+- Create or trigger a run via `POST /api/v1/sources/:sourceId/runs`.
+- Expected outputs:
+  - `GET /api/v1/sources/runs/:runId` shows status progressing through stages.
+  - `GET /api/v1/sources/runs/:runId/progress` reflects stage counts and transitions.
+  - `source_run_pages` and `kb_chunks` records exist for processed pages.
+
+### Scrape Page Fetch
+- Enqueue a run with crawl URLs or trigger scraper via ingestion `page-fetch` jobs.
+- Expected outputs:
+  - `page-fetch` job logs include the requested URL and fetch mode.
+  - Redis stores fetched HTML for the run (`storeFetchedHtml`).
+  - Stage progress increments and queues a `stage-transition` when complete.
+
 ## Task List
 - [x] Document runtime entrypoints and startup sequence per app.
 - [x] Document environment variables and settings precedence per app (including dynamic settings fetch).
@@ -759,7 +790,7 @@
 - [x] Record current environment/config dependencies for startup.
 - [x] Record external service dependencies (AI providers, vector store, storage).
 - [ ] Record baseline throughput and performance metrics for ingestion and scraper queues.
-- [ ] Build a critical workflow checklist with expected outputs (auth, chat SSE, ingestion, scrape).
+- [x] Build a critical workflow checklist with expected outputs (auth, chat SSE, ingestion, scrape).
 - [ ] List existing tests and smoke checks used today.
 - [ ] Build a test/smoke matrix by app and workflow.
 - [ ] Define refactor constraints (no API response changes, no schema changes).
