@@ -384,7 +384,7 @@ tasks:
       - Validation behavior unchanged
 
   - title: phase-1-api-structure.md - Move DB queries into domain repos
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, repo]
     file: phase-1-api-structure.md

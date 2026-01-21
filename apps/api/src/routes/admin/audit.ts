@@ -1,11 +1,13 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { db } from "@grounded/db";
-import { users, tenants } from "@grounded/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { auditQuerySchema } from "../../modules/admin/schema";
+import {
+  fetchAuditActorsByIds,
+  fetchAuditTenantsByIds,
+  fetchAuditTenantOptions,
+} from "../../modules/admin/repo";
 import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { auditService, type AuditQueryOptions } from "../../services/audit";
-import { auditQuerySchema } from "../../modules/admin/schema";
 
 export const adminAuditRoutes = new Hono();
 
@@ -40,18 +42,8 @@ adminAuditRoutes.get("/", zValidator("query", auditQuerySchema), async (c) => {
 
   const [actorsList, tenantsList] = await withRequestRLS(c, async (tx) => {
     return Promise.all([
-      actorIds.length > 0
-        ? tx
-            .select({ id: users.id, email: users.primaryEmail })
-            .from(users)
-            .where(inArray(users.id, actorIds))
-        : [],
-      tenantIds.length > 0
-        ? tx
-            .select({ id: tenants.id, name: tenants.name })
-            .from(tenants)
-            .where(inArray(tenants.id, tenantIds))
-        : [],
+      fetchAuditActorsByIds(tx, actorIds),
+      fetchAuditTenantsByIds(tx, tenantIds),
     ]);
   });
 
@@ -86,28 +78,19 @@ adminAuditRoutes.get("/:id", async (c) => {
 
   // Enrich with actor and tenant names
   const { actorEmail, tenantName } = await withRequestRLS(c, async (tx) => {
-    let actorEmail: string | null = null;
-    let tenantName: string | null = null;
+    const [actor] = await fetchAuditActorsByIds(
+      tx,
+      log.actorId ? [log.actorId] : []
+    );
+    const [tenant] = await fetchAuditTenantsByIds(
+      tx,
+      log.tenantId ? [log.tenantId] : []
+    );
 
-    if (log.actorId) {
-      const [actor] = await tx
-        .select({ email: users.primaryEmail })
-        .from(users)
-        .where(eq(users.id, log.actorId))
-        .limit(1);
-      actorEmail = actor?.email || null;
-    }
-
-    if (log.tenantId) {
-      const [tenant] = await tx
-        .select({ name: tenants.name })
-        .from(tenants)
-        .where(eq(tenants.id, log.tenantId))
-        .limit(1);
-      tenantName = tenant?.name || null;
-    }
-
-    return { actorEmail, tenantName };
+    return {
+      actorEmail: actor?.email || null,
+      tenantName: tenant?.name || null,
+    };
   });
 
   return c.json({
@@ -139,12 +122,7 @@ adminAuditRoutes.get(
     const actorIds = [...new Set(logs.map((l) => l.actorId).filter(Boolean))] as string[];
 
     const actorsList = await withRequestRLS(c, async (tx) => {
-      return actorIds.length > 0
-        ? tx
-            .select({ id: users.id, email: users.primaryEmail })
-            .from(users)
-            .where(inArray(users.id, actorIds))
-        : [];
+      return fetchAuditActorsByIds(tx, actorIds);
     });
 
     const actorMap = new Map(actorsList.map((a) => [a.id, a.email]));
@@ -245,10 +223,7 @@ adminAuditRoutes.get("/filters/options", async (c) => {
 
   // Get list of tenants for filter dropdown
   const tenantsList = await withRequestRLS(c, async (tx) => {
-    return tx
-      .select({ id: tenants.id, name: tenants.name })
-      .from(tenants)
-      .orderBy(tenants.name);
+    return fetchAuditTenantOptions(tx);
   });
 
   return c.json({
