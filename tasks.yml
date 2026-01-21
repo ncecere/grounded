@@ -533,7 +533,7 @@ tasks:
       - Exceptions documented if required
 
   - title: phase-2-ingestion-worker.md - Move ingestion processors into jobs and queues
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [ingestion, jobs]
     file: phase-2-ingestion-worker.md
