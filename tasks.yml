@@ -279,7 +279,7 @@ tasks:
       - Stored in API module guidance
 
   - title: phase-1-api-structure.md - Define API module template
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, structure]
     file: phase-1-api-structure.md

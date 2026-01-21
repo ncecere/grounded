@@ -60,10 +60,30 @@
 - Module-to-module type sharing should use exported `types.ts` or shared package types; avoid deep file imports.
 - Any exception must be documented in the module's README with rationale and planned cleanup.
 
+## Module Template (apps/api/src/modules/<domain>)
+
+Each domain module follows a predictable layout so routes, validation, business logic, and persistence stay isolated. The template below should be copied for new modules before adding additional helper files.
+
+```text
+apps/api/src/modules/<domain>/
+  routes.ts  # Hono routes: request wiring + response formatting
+  schema.ts  # Validation schemas + parsing helpers
+  service.ts # Business logic, orchestration, transactions
+  repo.ts    # Database queries and persistence helpers
+  types.ts   # Type-only exports shared across layers
+```
+
+Guidelines for the template:
+- Keep the files small and focused on the responsibilities listed above.
+- `routes.ts` should be the only file that registers Hono routes for the module.
+- `schema.ts` should not import from `service.ts` or `repo.ts`.
+- `types.ts` should only export type aliases/interfaces and avoid runtime imports.
+- Use the module root index to expose the public API for other modules.
+
 ## Task List
 - [ ] Define domain module boundaries and migration order.
 - [ ] Define module boundary rules and allowed import directions.
-- [ ] Define the module template for `apps/api/src/modules/<domain>` (routes.ts, schema.ts, service.ts, repo.ts, types.ts).
+- [x] Define the module template for `apps/api/src/modules/<domain>` (routes.ts, schema.ts, service.ts, repo.ts, types.ts).
 - [ ] Document required exports and where optional layers can be omitted.
 - [ ] Create `apps/api/src/app.ts` to build the Hono app with middleware.
 - [ ] Create `apps/api/src/routes/index.ts` to assemble v1 routes.

@@ -40,4 +40,16 @@ describe("phase 1 api structure plan", () => {
     expect(content).toContain("Cross-Module Access Rules");
     expect(content).toContain("Cross-module reads/writes go through");
   });
+
+  it("defines the module template", async () => {
+    const content = await readFile(apiStructurePath, "utf-8");
+
+    expect(content).toContain("Module Template");
+    expect(content).toContain("apps/api/src/modules/<domain>");
+    expect(content).toContain("routes.ts");
+    expect(content).toContain("schema.ts");
+    expect(content).toContain("service.ts");
+    expect(content).toContain("repo.ts");
+    expect(content).toContain("types.ts");
+  });
 });
