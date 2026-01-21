@@ -54,3 +54,4 @@
 2026-01-21 - Centralized ingestion worker settings and vector store initialization into bootstrap modules, added tests for settings/vector-store initialization, and verified bun test apps/ingestion-worker/src.
 2026-01-21 - Preserved ingestion worker settings refresh cadence and concurrency semantics: keep env-based concurrency while tracking settings updates, start refresh even on initial fetch failure, and updated bootstrap settings tests.
 2026-01-21 - Added ingestion worker shutdown helper with signal registration, updated entrypoint to use it, and added shutdown helper tests.
+2026-01-21 - Documented ingestion worker graceful shutdown expectations for in-flight jobs in phase-2 plan and added doc coverage test; bun test apps/ingestion-worker/src/phase-2-ingestion-worker-doc.test.ts passes.

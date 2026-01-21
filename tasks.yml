@@ -629,7 +629,7 @@ tasks:
       - Local startup/shutdown works without errors
 
   - title: phase-2-ingestion-worker.md - Define graceful shutdown expectations for in-flight jobs
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [ingestion, shutdown]
     file: phase-2-ingestion-worker.md

@@ -155,6 +155,16 @@ process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 ```
 
+## Graceful Shutdown Expectations
+
+When the ingestion worker receives `SIGTERM`/`SIGINT`, the shutdown handler follows the current runtime behavior:
+
+- Stop settings refresh so no new settings pulls happen during shutdown.
+- Run any `onShutdown` cleanup hook registered by the entrypoint (if present).
+- Call `worker.close()` on every BullMQ worker to stop fetching new jobs and wait for active handlers to finish.
+- If the process exits before a job completes, BullMQ handles retries using the existing attempt configuration.
+- Exit the process with the configured exit code once all workers are closed.
+
 ## Task List
 - [ ] Define folder layout: `bootstrap/`, `queues/`, `jobs/`, `stage/`, `services/`.
 - [ ] Add a worker helper for consistent logging and error handling.

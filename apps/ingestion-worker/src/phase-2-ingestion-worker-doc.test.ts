@@ -146,6 +146,15 @@ describe("phase 2 ingestion worker folder layout documentation", () => {
     expect(content).toContain("SIGINT");
   });
 
+  it("documents graceful shutdown expectations", async () => {
+    const content = await readFile(phase2DocPath, "utf-8");
+
+    expect(content).toContain("## Graceful Shutdown Expectations");
+    expect(content).toContain("Stop settings refresh");
+    expect(content).toContain("worker.close()");
+    expect(content).toContain("BullMQ handles retries");
+  });
+
   it("maps all existing processors to jobs folder", async () => {
     const content = await readFile(phase2DocPath, "utf-8");
 
