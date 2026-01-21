@@ -7,29 +7,9 @@ import { wideEventMiddleware } from "@grounded/logger/middleware";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 
-import { authRoutes } from "./routes/auth";
-import { tenantRoutes } from "./routes/tenants";
-import { kbRoutes } from "./routes/knowledge-bases";
-import { sourceRoutes } from "./routes/sources";
-import { agentRoutes } from "./routes/agents";
-import { chatRoutes } from "./routes/chat";
-import { widgetRoutes } from "./routes/widget";
-import { chatEndpointRoutes } from "./routes/chat-endpoint";
-import { analyticsRoutes } from "./routes/analytics";
-import { uploadRoutes } from "./routes/uploads";
-import { agentTestSuiteRoutes, testCaseRoutes, testSuiteRoutes, testRunRoutes, experimentRoutes } from "./routes/test-suites";
 import { errorHandler } from "./middleware/error-handler";
 import { requestId } from "./middleware/request-id";
-import { adminSettingsRoutes } from "./routes/admin/settings";
-import { adminModelsRoutes } from "./routes/admin/models";
-import { adminUsersRoutes } from "./routes/admin/users";
-import { adminSharedKbsRoutes } from "./routes/admin/shared-kbs";
-import { adminDashboardRoutes } from "./routes/admin/dashboard";
-import { adminAnalyticsRoutes } from "./routes/admin/analytics";
-import { adminTokensRoutes } from "./routes/admin/tokens";
-import { adminAuditRoutes } from "./routes/admin/audit";
-import { toolRoutes } from "./routes/tools";
-import { internalWorkersRoutes } from "./routes/internal/workers";
+import { createV1Routes } from "./routes";
 
 export const createApiApp = () => {
   const app = new Hono();
@@ -101,61 +81,7 @@ export const createApiApp = () => {
   // API Routes (v1)
   // ==========================================================================
 
-  const v1 = new Hono();
-
-  // Auth routes
-  v1.route("/auth", authRoutes);
-
-  // Tenant management
-  v1.route("/tenants", tenantRoutes);
-
-  // Knowledge base management
-  v1.route("/knowledge-bases", kbRoutes);
-  v1.route("/global-knowledge-bases", kbRoutes); // Global KB routes share the same router
-
-  // Source management
-  v1.route("/sources", sourceRoutes);
-
-  // Agent management
-  v1.route("/agents", agentRoutes);
-  v1.route("/agents", agentTestSuiteRoutes);
-
-  // Test suites
-  v1.route("/test-suites", testSuiteRoutes);
-  v1.route("/test-cases", testCaseRoutes);
-  v1.route("/test-runs", testRunRoutes);
-  v1.route("/experiments", experimentRoutes);
-
-  // Tools management
-  v1.route("/tools", toolRoutes);
-
-  // Chat
-  v1.route("/chat", chatRoutes);
-
-  // Widget (public endpoints)
-  v1.route("/widget", widgetRoutes);
-
-  // Chat Endpoints (public endpoints for published chat)
-  v1.route("/c", chatEndpointRoutes);
-
-  // Analytics
-  v1.route("/analytics", analyticsRoutes);
-
-  // Uploads
-  v1.route("/uploads", uploadRoutes);
-
-  // Admin routes (system admin only)
-  v1.route("/admin/dashboard", adminDashboardRoutes);
-  v1.route("/admin/settings", adminSettingsRoutes);
-  v1.route("/admin/models", adminModelsRoutes);
-  v1.route("/admin/users", adminUsersRoutes);
-  v1.route("/admin/shared-kbs", adminSharedKbsRoutes);
-  v1.route("/admin/analytics", adminAnalyticsRoutes);
-  v1.route("/admin/tokens", adminTokensRoutes);
-  v1.route("/admin/audit", adminAuditRoutes);
-
-  // Internal routes (for workers to fetch configuration)
-  v1.route("/internal/workers", internalWorkersRoutes);
+  const v1 = createV1Routes();
 
   // Mount v1 routes
   app.route("/api/v1", v1);

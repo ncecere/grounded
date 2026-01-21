@@ -311,7 +311,7 @@ tasks:
       - App boots locally without errors
 
   - title: phase-1-api-structure.md - Create API routes index
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, routes]
     file: phase-1-api-structure.md
