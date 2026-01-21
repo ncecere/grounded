@@ -150,6 +150,11 @@ Admin:
 Internal:
 - `/api/v1/internal/workers`
 
+### Route Aliases and Shared Routers
+- `/api/v1/global-knowledge-bases` uses the same router as `/api/v1/knowledge-bases` for shared CRUD behavior.
+- `/api/v1/agents` mounts both agent CRUD routes and agent test suite routes under the same prefix.
+- `GET /chat/:token` redirects to `/api/v1/c/:token` for hosted chat pages.
+
 ## Task List
 - [ ] Define domain module boundaries and migration order.
 - [ ] Define module boundary rules and allowed import directions.

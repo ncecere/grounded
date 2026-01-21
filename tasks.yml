@@ -354,7 +354,7 @@ tasks:
       - Typecheck passes
 
   - title: phase-1-api-structure.md - Keep route mount paths unchanged and document aliases
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, routing]
     file: phase-1-api-structure.md

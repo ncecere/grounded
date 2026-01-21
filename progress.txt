@@ -31,3 +31,4 @@
 2026-01-21 - Added API startup index for startup tasks/shutdown handling with tests covering startup flow and shutdown cleanup.
 2026-01-21 - Documented API middleware order and route mount map in phase-1 plan; added doc test coverage.
 2026-01-21 - Added API modules barrel export with re-exports and a regression test for module exports.
+2026-01-21 - Documented API route aliases/shared routers in phase-1 plan and added doc test coverage.

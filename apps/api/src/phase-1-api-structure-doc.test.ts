@@ -76,4 +76,14 @@ describe("phase 1 api structure plan", () => {
     expect(content).toContain("/api/v1/admin");
     expect(content).toContain("/api/v1/internal/workers");
   });
+
+  it("documents route aliases and shared routers", async () => {
+    const content = await readFile(apiStructurePath, "utf-8");
+
+    expect(content).toContain("Route Aliases and Shared Routers");
+    expect(content).toContain("/api/v1/global-knowledge-bases");
+    expect(content).toContain("/api/v1/agents");
+    expect(content).toContain("/chat/:token");
+    expect(content).toContain("/api/v1/c/:token");
+  });
 });
