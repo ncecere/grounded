@@ -38,3 +38,4 @@
 2026-01-21 - Added agent service layer, routed agent endpoints through services, and covered widget config merge behavior with service tests.
 2026-01-21 - Documented service/repo transaction patterns in phase-1 API structure plan and added doc test coverage.
 2026-01-21 - Normalized knowledge base error handling to BadRequestError for invalid embedding models and added route test coverage for reindex validation.
+2026-01-21 - Centralized audit logging context creation in audit helpers, updated API routes to reuse it, and added coverage tests for the new helper.

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
-import { auditService, extractIpAddress } from "../services/audit";
+import { auditService, buildAuditContext } from "../services/audit";
 import * as agentService from "../modules/agents/service";
 import {
   createAgentSchema,
@@ -62,11 +62,9 @@ agentRoutes.post(
     );
 
     // Audit log - agent created
-    await auditService.logSuccess("agent.created", "agent", {
-      actorId: authContext.user.id,
-      tenantId: authContext.tenantId!,
-      ipAddress: extractIpAddress(c.req.raw.headers),
-    }, {
+    const auditContext = buildAuditContext({ authContext, headers: c.req.raw.headers });
+
+    await auditService.logSuccess("agent.created", "agent", auditContext, {
       resourceId: agent.id,
       resourceName: agent.name,
       metadata: { kbIds },
@@ -124,11 +122,9 @@ agentRoutes.patch(
     );
 
     // Audit log - agent updated
-    await auditService.logSuccess("agent.updated", "agent", {
-      actorId: authContext.user.id,
-      tenantId: authContext.tenantId!,
-      ipAddress: extractIpAddress(c.req.raw.headers),
-    }, {
+    const auditContext = buildAuditContext({ authContext, headers: c.req.raw.headers });
+
+    await auditService.logSuccess("agent.updated", "agent", auditContext, {
       resourceId: agent.id,
       resourceName: agent.name,
       metadata: { updatedFields: Object.keys(body) },
@@ -159,11 +155,9 @@ agentRoutes.delete(
     );
 
     // Audit log - agent deleted
-    await auditService.logSuccess("agent.deleted", "agent", {
-      actorId: authContext.user.id,
-      tenantId: authContext.tenantId!,
-      ipAddress: extractIpAddress(c.req.raw.headers),
-    }, {
+    const auditContext = buildAuditContext({ authContext, headers: c.req.raw.headers });
+
+    await auditService.logSuccess("agent.deleted", "agent", auditContext, {
       resourceId: agent.id,
       resourceName: agent.name,
     });

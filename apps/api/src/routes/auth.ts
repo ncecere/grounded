@@ -6,7 +6,7 @@ import { getEnv, hashPassword, verifyPassword, validatePassword, validateEmail }
 import * as jose from "jose";
 import { auth, withRequestRLS } from "../middleware/auth";
 import { BadRequestError, UnauthorizedError } from "../middleware/error-handler";
-import { auditService, extractIpAddress } from "../services/audit";
+import { auditService, buildAuditContext } from "../services/audit";
 
 export const authRoutes = new Hono();
 
@@ -92,10 +92,12 @@ authRoutes.post("/register", async (c) => {
   const token = await generateLocalJWT(newUser.id, newUser.primaryEmail!);
 
   // Audit log - user created
-  await auditService.logSuccess("user.created", "user", {
+  const registerAuditContext = buildAuditContext({
     actorId: newUser.id,
-    ipAddress: extractIpAddress(c.req.raw.headers),
-  }, {
+    headers: c.req.raw.headers,
+  });
+
+  await auditService.logSuccess("user.created", "user", registerAuditContext, {
     resourceId: newUser.id,
     resourceName: newUser.primaryEmail!,
   });
@@ -117,7 +119,7 @@ authRoutes.post("/register", async (c) => {
 authRoutes.post("/login", async (c) => {
   const body = await c.req.json();
   const { email, password } = body;
-  const ipAddress = extractIpAddress(c.req.raw.headers);
+  const baseAuditContext = buildAuditContext({ headers: c.req.raw.headers });
 
   if (!email || !password) {
     throw new BadRequestError("Email and password are required");
@@ -144,9 +146,7 @@ authRoutes.post("/login", async (c) => {
 
   if (result.error === "user_not_found") {
     // Audit log - failed login (user not found)
-    await auditService.logFailure("auth.login_failed", "user", {
-      ipAddress,
-    }, "User not found", {
+    await auditService.logFailure("auth.login_failed", "user", baseAuditContext, "User not found", {
       metadata: { email: email.toLowerCase() },
     });
     throw new UnauthorizedError("Invalid email or password");
@@ -156,12 +156,15 @@ authRoutes.post("/login", async (c) => {
 
   if (!credentials) {
     // Audit log - failed login (OIDC user)
-    await auditService.logFailure("auth.login_failed", "user", {
-      actorId: user!.id,
-      ipAddress,
-    }, "OIDC account attempted local login", {
-      resourceId: user!.id,
-    });
+    await auditService.logFailure(
+      "auth.login_failed",
+      "user",
+      { ...baseAuditContext, actorId: user!.id },
+      "OIDC account attempted local login",
+      {
+        resourceId: user!.id,
+      }
+    );
     throw new UnauthorizedError("This account uses external login (OIDC). Please use the external login option.");
   }
 
@@ -169,24 +172,30 @@ authRoutes.post("/login", async (c) => {
   const isValid = await verifyPassword(password, credentials.passwordHash);
   if (!isValid) {
     // Audit log - failed login (wrong password)
-    await auditService.logFailure("auth.login_failed", "user", {
-      actorId: user!.id,
-      ipAddress,
-    }, "Invalid password", {
-      resourceId: user!.id,
-    });
+    await auditService.logFailure(
+      "auth.login_failed",
+      "user",
+      { ...baseAuditContext, actorId: user!.id },
+      "Invalid password",
+      {
+        resourceId: user!.id,
+      }
+    );
     throw new UnauthorizedError("Invalid email or password");
   }
 
   // Check if user is disabled
   if (user!.disabledAt) {
     // Audit log - failed login (disabled)
-    await auditService.logFailure("auth.login_failed", "user", {
-      actorId: user!.id,
-      ipAddress,
-    }, "Account disabled", {
-      resourceId: user!.id,
-    });
+    await auditService.logFailure(
+      "auth.login_failed",
+      "user",
+      { ...baseAuditContext, actorId: user!.id },
+      "Account disabled",
+      {
+        resourceId: user!.id,
+      }
+    );
     throw new UnauthorizedError("This account has been disabled");
   }
 
@@ -194,10 +203,7 @@ authRoutes.post("/login", async (c) => {
   const token = await generateLocalJWT(user!.id, user!.primaryEmail!);
 
   // Audit log - successful login
-  await auditService.logSuccess("auth.login", "user", {
-    actorId: user!.id,
-    ipAddress,
-  }, {
+  await auditService.logSuccess("auth.login", "user", { ...baseAuditContext, actorId: user!.id }, {
     resourceId: user!.id,
     resourceName: user!.primaryEmail!,
   });
@@ -257,10 +263,9 @@ authRoutes.post("/change-password", auth(), async (c) => {
   });
 
   // Audit log - password changed
-  await auditService.logSuccess("auth.password_changed", "user", {
-    actorId: authContext.user.id,
-    ipAddress: extractIpAddress(c.req.raw.headers),
-  }, {
+  const auditContext = buildAuditContext({ authContext, headers: c.req.raw.headers });
+
+  await auditService.logSuccess("auth.password_changed", "user", auditContext, {
     resourceId: authContext.user.id,
   });
 

@@ -425,7 +425,7 @@ tasks:
       - Guidance documented for new errors
 
   - title: phase-1-api-structure.md - Preserve logging and error code parity for dashboards
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, observability]
     file: phase-1-api-structure.md
@@ -435,7 +435,7 @@ tasks:
       - Exceptions documented if required
 
   - title: phase-1-api-structure.md - Centralize audit logging helpers
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, audit]
     file: phase-1-api-structure.md

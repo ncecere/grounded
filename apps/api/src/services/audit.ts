@@ -8,6 +8,7 @@ import {
 } from "@grounded/db/schema";
 import { desc, eq, and, gte, lte, or, ilike, sql } from "drizzle-orm";
 import { log } from "@grounded/logger";
+import type { AuthContext } from "../middleware/auth/types";
 
 // ============================================================================
 // Types
@@ -25,6 +26,14 @@ export interface AuditLogEntry {
 export interface AuditContext {
   actorId?: string;
   tenantId?: string;
+  ipAddress?: string;
+}
+
+export interface AuditContextOptions {
+  authContext?: AuthContext | null;
+  actorId?: string;
+  tenantId?: string | null;
+  headers?: Headers;
   ipAddress?: string;
 }
 
@@ -372,4 +381,16 @@ export function extractIpAddress(headers: Headers): string | undefined {
   }
 
   return undefined;
+}
+
+export function buildAuditContext(options: AuditContextOptions): AuditContext {
+  const actorId = options.actorId ?? options.authContext?.user?.id;
+  const tenantId = options.tenantId ?? options.authContext?.tenantId ?? undefined;
+  const ipAddress = options.ipAddress ?? (options.headers ? extractIpAddress(options.headers) : undefined);
+
+  return {
+    actorId,
+    tenantId: tenantId ?? undefined,
+    ipAddress,
+  };
 }

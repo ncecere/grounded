@@ -16,7 +16,7 @@ import {
 import { eq, and, isNull, inArray } from "drizzle-orm";
 import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
 import { NotFoundError } from "../middleware/error-handler";
-import { auditService, extractIpAddress } from "../services/audit";
+import { auditService, buildAuditContext } from "../services/audit";
 import { loadAgentForTenant, tryLoadAgentForTenant } from "../services/agent-helpers";
 import {
   createToolSchema,
@@ -153,11 +153,9 @@ toolRoutes.post(
         .returning();
     });
 
-    await auditService.logSuccess("api_key.created", "api_key", {
-      actorId: authContext.user.id,
-      tenantId: authContext.tenantId!,
-      ipAddress: extractIpAddress(c.req.raw.headers),
-    }, {
+    const auditContext = buildAuditContext({ authContext, headers: c.req.raw.headers });
+
+    await auditService.logSuccess("api_key.created", "api_key", auditContext, {
       resourceId: tool.id,
       resourceName: tool.name,
       metadata: { type: tool.type },
@@ -306,11 +304,9 @@ toolRoutes.put(
       return { agent, capabilities };
     });
 
-    await auditService.logSuccess("agent.updated", "agent", {
-      actorId: authContext.user.id,
-      tenantId: authContext.tenantId!,
-      ipAddress: extractIpAddress(c.req.raw.headers),
-    }, {
+    const auditContext = buildAuditContext({ authContext, headers: c.req.raw.headers });
+
+    await auditService.logSuccess("agent.updated", "agent", auditContext, {
       resourceId: agentId,
       resourceName: agent.name,
       metadata: { updatedCapabilities: Object.keys(body) },
