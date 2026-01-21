@@ -35,3 +35,4 @@
 2026-01-21 - Moved hosted chat page routes (redirect + published chat asset) into a dedicated module with route tests.
 2026-01-21 - Extracted API route validation schemas into module-level schema files, updated routes/services/tests to import them, and verified API tests pass.
 2026-01-21 - Moved admin audit enrichment queries into modules/admin/repo helpers with tests for empty-id shortcuts.
+2026-01-21 - Added agent service layer, routed agent endpoints through services, and covered widget config merge behavior with service tests.

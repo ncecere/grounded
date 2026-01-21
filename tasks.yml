@@ -394,7 +394,7 @@ tasks:
       - Query behavior unchanged
 
   - title: phase-1-api-structure.md - Add domain services for business logic
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, service]
     file: phase-1-api-structure.md
