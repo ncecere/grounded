@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { db } from "@grounded/db";
 import {
   knowledgeBases,
@@ -13,27 +12,9 @@ import { NotFoundError, QuotaExceededError, ForbiddenError, ConflictError } from
 import { getAIRegistry } from "@grounded/ai-providers";
 import { addKbReindexJob } from "@grounded/queue";
 import { getKbCountMaps } from "../services/kb-aggregation-helpers";
+import { createKbSchema, updateKbSchema, reindexKbSchema } from "../modules/knowledge-bases/schema";
 
 export const kbRoutes = new Hono();
-
-// ============================================================================
-// Validation Schemas
-// ============================================================================
-
-const createKbSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  embeddingModelId: z.string().uuid().optional(), // Optional: specify which embedding model to use
-});
-
-const updateKbSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional(),
-});
-
-const reindexKbSchema = z.object({
-  embeddingModelId: z.string().uuid(),
-});
 
 // ============================================================================
 // List Knowledge Bases

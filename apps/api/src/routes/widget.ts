@@ -4,10 +4,10 @@ import { withRLSContext } from "@grounded/db";
 import { agentWidgetConfigs } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
 import {
-  widgetChatSchema,
   validateWidgetToken,
   handleWidgetChatStream,
 } from "../services/widget-chat-helpers";
+import { widgetChatSchema } from "../modules/widget/schema";
 
 export const widgetRoutes = new Hono();
 

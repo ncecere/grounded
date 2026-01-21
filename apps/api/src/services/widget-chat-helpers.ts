@@ -11,19 +11,11 @@ import { checkRateLimit } from "@grounded/queue";
 import { NotFoundError, RateLimitError } from "../middleware/error-handler";
 import { SimpleRAGService } from "./simple-rag";
 import { AdvancedRAGService } from "./advanced-rag";
-import { z } from "zod";
 import type { InferSelectModel } from "drizzle-orm";
+import type { WidgetChatInput } from "../modules/widget/schema";
 
-// ============================================================================
-// Validation Schemas
-// ============================================================================
-
-export const widgetChatSchema = z.object({
-  message: z.string().min(1).max(4000),
-  conversationId: z.string().optional(),
-});
-
-export type WidgetChatInput = z.infer<typeof widgetChatSchema>;
+export { widgetChatSchema } from "../modules/widget/schema";
+export type { WidgetChatInput } from "../modules/widget/schema";
 
 // ============================================================================
 // Types

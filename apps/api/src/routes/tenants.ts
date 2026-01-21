@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { db } from "@grounded/db";
 import { tenants, tenantMemberships, users, tenantQuotas, tenantAlertSettings, apiKeys } from "@grounded/db/schema";
 import { hashString } from "@grounded/shared";
@@ -15,41 +14,16 @@ import {
   buildAlertSettingsInsertValues,
   buildAlertSettingsUpdateValues,
 } from "../services/tenant-alert-helpers";
+import {
+  quotaOverridesSchema,
+  createTenantSchema,
+  updateTenantSchema,
+  addMemberSchema,
+  updateMemberSchema,
+  createApiKeySchema,
+} from "../modules/tenants/schema";
 
 export const tenantRoutes = new Hono();
-
-// ============================================================================
-// Validation Schemas
-// ============================================================================
-
-const quotaOverridesSchema = z.object({
-  maxKbs: z.number().int().min(1).max(1000).optional(),
-  maxAgents: z.number().int().min(1).max(1000).optional(),
-  maxUploadedDocsPerMonth: z.number().int().min(1).max(100000).optional(),
-  maxScrapedPagesPerMonth: z.number().int().min(1).max(100000).optional(),
-  maxCrawlConcurrency: z.number().int().min(1).max(50).optional(),
-  chatRateLimitPerMinute: z.number().int().min(1).max(1000).optional(),
-});
-
-const createTenantSchema = z.object({
-  name: z.string().min(1).max(100),
-  slug: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/),
-  ownerEmail: z.string().email().optional(), // If not provided, admin creating becomes owner
-  quotas: quotaOverridesSchema.optional(),
-});
-
-const updateTenantSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-});
-
-const addMemberSchema = z.object({
-  email: z.string().email(),
-  role: z.enum(["owner", "admin", "member", "viewer"]),
-});
-
-const updateMemberSchema = z.object({
-  role: z.enum(["owner", "admin", "member", "viewer"]),
-});
 
 // ============================================================================
 // List All Tenants (System Admin Only)
@@ -498,12 +472,6 @@ function generateApiKey(): string {
   const randomPart = crypto.randomBytes(24).toString("base64url");
   return `${API_KEY_PREFIX}${randomPart}`;
 }
-
-const createApiKeySchema = z.object({
-  name: z.string().min(1).max(100),
-  scopes: z.array(z.enum(["chat", "read", "write"])).optional().default(["chat", "read"]),
-  expiresAt: z.string().datetime().optional(),
-});
 
 // List API Keys
 tenantRoutes.get(

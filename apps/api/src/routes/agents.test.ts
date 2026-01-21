@@ -1,47 +1,10 @@
 import { describe, it, expect } from "bun:test";
 import { z } from "zod";
-
-// ============================================================================
-// Schema Definitions (duplicated from agents.ts for isolated testing)
-// ============================================================================
-
-const createAgentSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  welcomeMessage: z.string().max(200).optional(),
-  logoUrl: z.string().url().max(500).nullable().optional(),
-  systemPrompt: z.string().max(4000).optional(),
-  rerankerEnabled: z.boolean().default(true),
-  citationsEnabled: z.boolean().default(true),
-  ragType: z.enum(["simple", "advanced"]).default("simple"),
-  kbIds: z.array(z.string().uuid()).optional(),
-  llmModelConfigId: z.string().uuid().optional(),
-});
-
-const updateAgentSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional(),
-  welcomeMessage: z.string().max(200).optional(),
-  logoUrl: z.string().url().max(500).nullable().optional(),
-  systemPrompt: z.string().max(4000).optional(),
-  rerankerEnabled: z.boolean().optional(),
-  citationsEnabled: z.boolean().optional(),
-  ragType: z.enum(["simple", "advanced"]).optional(),
-  isEnabled: z.boolean().optional(),
-  llmModelConfigId: z.string().uuid().nullable().optional(),
-  kbIds: z.array(z.string().uuid()).optional(),
-});
-
-const updateRetrievalConfigSchema = z.object({
-  topK: z.number().int().min(1).max(50).optional(),
-  candidateK: z.number().int().min(1).max(200).optional(),
-  maxCitations: z.number().int().min(1).max(20).optional(),
-  rerankerEnabled: z.boolean().optional(),
-  rerankerType: z.enum(["heuristic", "cross_encoder"]).optional(),
-  similarityThreshold: z.number().min(0).max(1).optional(),
-  historyTurns: z.number().int().min(1).max(20).optional(),
-  advancedMaxSubqueries: z.number().int().min(1).max(5).optional(),
-});
+import {
+  createAgentSchema,
+  updateAgentSchema,
+  updateRetrievalConfigSchema,
+} from "../modules/agents/schema";
 
 // ============================================================================
 // Tests for createAgentSchema

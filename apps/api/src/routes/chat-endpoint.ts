@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { streamSSE } from "hono/streaming";
 import { html } from "hono/html";
 import { withRLSContext, type Database } from "@grounded/db";
@@ -16,17 +15,9 @@ import { log } from "@grounded/logger";
 import { NotFoundError, RateLimitError } from "../middleware/error-handler";
 import { SimpleRAGService, type StreamEvent } from "../services/simple-rag";
 import { AdvancedRAGService, type ReasoningStep } from "../services/advanced-rag";
+import { chatRequestSchema } from "../modules/chat-endpoint/schema";
 
 export const chatEndpointRoutes = new Hono();
-
-// ============================================================================
-// Validation Schemas
-// ============================================================================
-
-const chatRequestSchema = z.object({
-  message: z.string().min(1).max(4000),
-  conversationId: z.string().optional(),
-});
 
 // ============================================================================
 // Get Chat Endpoint Config (Public - for hosted UI)

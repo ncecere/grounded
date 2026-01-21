@@ -1,32 +1,17 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { db } from "@grounded/db";
 import { users, systemAdmins, tenantMemberships, tenants, userCredentials } from "@grounded/db/schema";
 import { eq, isNull, sql, and } from "drizzle-orm";
 import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { BadRequestError, NotFoundError } from "../../middleware/error-handler";
 import { hashPassword, validatePassword, validateEmail } from "@grounded/shared";
+import { createUserSchema, updateUserSchema } from "../../modules/admin/schema";
 
 export const adminUsersRoutes = new Hono();
 
 // All routes require system admin
 adminUsersRoutes.use("*", auth(), requireSystemAdmin());
-
-// ============================================================================
-// Validation Schemas
-// ============================================================================
-
-const createUserSchema = z.object({
-  email: z.string().email(),
-  password: z.string().optional(),
-  isSystemAdmin: z.boolean().optional().default(false),
-});
-
-const updateUserSchema = z.object({
-  isSystemAdmin: z.boolean().optional(),
-  disabled: z.boolean().optional(),
-});
 
 // ============================================================================
 // List All Users

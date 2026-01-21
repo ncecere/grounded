@@ -1,0 +1,8 @@
+import { z } from "zod";
+
+export const widgetChatSchema = z.object({
+  message: z.string().min(1).max(4000),
+  conversationId: z.string().optional(),
+});
+
+export type WidgetChatInput = z.infer<typeof widgetChatSchema>;

@@ -1,14 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { z } from "zod";
-
-// ============================================================================
-// Schema Definitions (duplicated from chat-endpoint.ts for isolated testing)
-// ============================================================================
-
-const chatRequestSchema = z.object({
-  message: z.string().min(1).max(4000),
-  conversationId: z.string().optional(),
-});
+import { chatRequestSchema } from "../modules/chat-endpoint/schema";
 
 // ============================================================================
 // Tests for chatRequestSchema

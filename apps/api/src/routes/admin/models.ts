@@ -1,66 +1,22 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { db } from "@grounded/db";
 import { modelProviders, modelConfigurations, type ProviderType, type ModelType } from "@grounded/db/schema";
 import { eq, and, ne } from "drizzle-orm";
 import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { BadRequestError, NotFoundError } from "../../middleware/error-handler";
 import { getAIRegistry, resetAIRegistry } from "@grounded/ai-providers";
+import {
+  createProviderSchema,
+  updateProviderSchema,
+  createModelSchema,
+  updateModelSchema,
+} from "../../modules/admin/schema";
 
 export const adminModelsRoutes = new Hono();
 
 // All routes require system admin
 adminModelsRoutes.use("*", auth(), requireSystemAdmin());
-
-// ============================================================================
-// Validation Schemas
-// ============================================================================
-
-const providerTypes = ["openai", "anthropic", "google", "openai-compatible"] as const;
-const modelTypes = ["chat", "embedding"] as const;
-
-const createProviderSchema = z.object({
-  name: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/, "Must be lowercase alphanumeric with hyphens"),
-  displayName: z.string().min(1).max(200),
-  type: z.enum(providerTypes),
-  baseUrl: z.string().url().nullable().optional(),
-  apiKey: z.string().min(1),
-  isEnabled: z.boolean().optional().default(true),
-});
-
-const updateProviderSchema = z.object({
-  displayName: z.string().min(1).max(200).optional(),
-  type: z.enum(providerTypes).optional(),
-  baseUrl: z.string().url().nullable().optional(),
-  apiKey: z.string().min(1).optional(),
-  isEnabled: z.boolean().optional(),
-});
-
-const createModelSchema = z.object({
-  providerId: z.string().uuid(),
-  modelId: z.string().min(1).max(200),
-  displayName: z.string().min(1).max(200),
-  modelType: z.enum(modelTypes),
-  maxTokens: z.number().int().positive().optional(),
-  temperature: z.number().min(0).max(2).optional(),
-  supportsStreaming: z.boolean().optional().default(true),
-  supportsTools: z.boolean().optional().default(false),
-  dimensions: z.number().int().positive().optional().nullable(),
-  isEnabled: z.boolean().optional().default(true),
-  isDefault: z.boolean().optional().default(false),
-});
-
-const updateModelSchema = z.object({
-  displayName: z.string().min(1).max(200).optional(),
-  maxTokens: z.number().int().positive().optional(),
-  temperature: z.number().min(0).max(2).optional(),
-  supportsStreaming: z.boolean().optional(),
-  supportsTools: z.boolean().optional(),
-  dimensions: z.number().int().positive().optional().nullable(),
-  isEnabled: z.boolean().optional(),
-  isDefault: z.boolean().optional(),
-});
 
 // ============================================================================
 // Provider Routes

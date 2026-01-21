@@ -1,38 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { z } from "zod";
-
-// ============================================================================
-// Schema Definitions (duplicated from test-suites.ts for isolated testing)
-// ============================================================================
-
-const scheduleTypeSchema = z.enum(["manual", "hourly", "daily", "weekly"]);
-const scheduleTimeSchema = z
-  .string()
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Schedule time must be HH:MM in 24-hour format");
-
-const createTestSuiteSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  scheduleType: scheduleTypeSchema.default("manual"),
-  scheduleTime: scheduleTimeSchema.nullable().optional(),
-  scheduleDayOfWeek: z.number().int().min(0).max(6).nullable().optional(),
-  llmJudgeModelConfigId: z.string().uuid().nullable().optional(),
-  alertOnRegression: z.boolean().default(true),
-  alertThresholdPercent: z.number().int().min(1).max(100).default(10),
-  isEnabled: z.boolean().default(true),
-});
-
-const updateTestSuiteSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional().nullable(),
-  scheduleType: scheduleTypeSchema.optional(),
-  scheduleTime: scheduleTimeSchema.nullable().optional(),
-  scheduleDayOfWeek: z.number().int().min(0).max(6).nullable().optional(),
-  llmJudgeModelConfigId: z.string().uuid().nullable().optional(),
-  alertOnRegression: z.boolean().optional(),
-  alertThresholdPercent: z.number().int().min(1).max(100).optional(),
-  isEnabled: z.boolean().optional(),
-});
+import { createTestSuiteSchema, updateTestSuiteSchema } from "../modules/test-suites/schema";
 
 // ============================================================================
 // Tests for createTestSuiteSchema

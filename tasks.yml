@@ -374,7 +374,7 @@ tasks:
       - Module referenced in route assembly
 
   - title: phase-1-api-structure.md - Extract validation schemas into module schema files
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, validation]
     file: phase-1-api-structure.md

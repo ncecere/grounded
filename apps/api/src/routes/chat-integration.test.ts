@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { z } from "zod";
+import { chatSchema } from "../modules/chat/schema";
 
 /**
  * Integration Tests for Chat Endpoints
@@ -60,10 +60,7 @@ interface AdvancedRAGResponse extends SimpleRAGResponse {
 }
 
 // Schema to validate chat request (shared across all endpoints)
-const chatRequestSchema = z.object({
-  message: z.string().min(1).max(4000),
-  conversationId: z.string().optional(),
-});
+const chatRequestSchema = chatSchema;
 
 // ============================================================================
 // Admin Chat Endpoint Integration Tests

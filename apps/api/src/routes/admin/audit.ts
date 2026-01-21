@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { db } from "@grounded/db";
 import { users, tenants } from "@grounded/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { auditService, type AuditQueryOptions } from "../../services/audit";
+import { auditQuerySchema } from "../../modules/admin/schema";
 
 export const adminAuditRoutes = new Hono();
 
@@ -13,27 +13,10 @@ export const adminAuditRoutes = new Hono();
 adminAuditRoutes.use("*", auth(), requireSystemAdmin());
 
 // ============================================================================
-// Validation Schemas
-// ============================================================================
-
-const querySchema = z.object({
-  tenantId: z.string().uuid().optional(),
-  actorId: z.string().uuid().optional(),
-  action: z.string().optional(),
-  resourceType: z.string().optional(),
-  resourceId: z.string().uuid().optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
-  search: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
-  offset: z.coerce.number().int().min(0).optional().default(0),
-});
-
-// ============================================================================
 // List Audit Logs
 // ============================================================================
 
-adminAuditRoutes.get("/", zValidator("query", querySchema), async (c) => {
+adminAuditRoutes.get("/", zValidator("query", auditQuerySchema), async (c) => {
   const query = c.req.valid("query");
 
   const options: AuditQueryOptions = {

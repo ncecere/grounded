@@ -8,9 +8,6 @@ import { log } from "@grounded/logger";
 import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
 import { NotFoundError, ForbiddenError } from "../middleware/error-handler";
 import {
-  createSourceWithKbIdSchema,
-  updateSourceSchema,
-  triggerRunSchema,
   buildSourceUpdateData,
   calculateSourceStats,
   cascadeSoftDeleteSourceChunks,
@@ -18,6 +15,11 @@ import {
   createSourceRun,
   queueSourceRunJob,
 } from "../services/source-helpers";
+import {
+  createSourceWithKbIdSchema,
+  updateSourceSchema,
+  triggerRunSchema,
+} from "../modules/sources/schema";
 
 export const sourceRoutes = new Hono();
 

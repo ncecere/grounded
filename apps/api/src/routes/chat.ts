@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { streamSSE } from "hono/streaming";
 import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@grounded/db";
@@ -9,17 +8,9 @@ import { auth, requireTenant } from "../middleware/auth";
 import { rateLimit } from "../middleware/rate-limit";
 import { SimpleRAGService } from "../services/simple-rag";
 import { AdvancedRAGService } from "../services/advanced-rag";
+import { chatSchema } from "../modules/chat/schema";
 
 export const chatRoutes = new Hono();
-
-// ============================================================================
-// Validation Schemas
-// ============================================================================
-
-const chatSchema = z.object({
-  message: z.string().min(1).max(4000),
-  conversationId: z.string().optional(),
-});
 
 // ============================================================================
 // Simple RAG Streaming Chat Endpoint

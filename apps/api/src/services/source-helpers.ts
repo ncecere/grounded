@@ -1,54 +1,25 @@
-import { z } from "zod";
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { sources, sourceRuns, kbChunks } from "@grounded/db/schema";
-import { sourceConfigSchema, type SourceConfig } from "@grounded/shared";
+import type { SourceConfig } from "@grounded/shared";
 import { addSourceRunStartJob } from "@grounded/queue";
+import type { UpdateSource } from "../modules/sources/schema";
 
-// ============================================================================
-// Validation Schemas (shared between sources and shared-kbs routes)
-// ============================================================================
-
-/**
- * Base schema for creating a source (without kbId - provided by route param in shared-kbs)
- */
-export const createSourceBaseSchema = z.object({
-  name: z.string().min(1).max(100),
-  type: z.enum(["web", "upload"]),
-  config: sourceConfigSchema,
-  enrichmentEnabled: z.boolean().default(false),
-});
-
-/**
- * Schema for creating a source with kbId (used by tenant sources route)
- */
-export const createSourceWithKbIdSchema = createSourceBaseSchema.extend({
-  kbId: z.string().uuid(),
-});
-
-/**
- * Schema for updating a source (shared between routes)
- */
-export const updateSourceSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  config: sourceConfigSchema.partial().optional(),
-  enrichmentEnabled: z.boolean().optional(),
-});
-
-/**
- * Schema for triggering a source run
- */
-export const triggerRunSchema = z.object({
-  forceReindex: z.boolean().optional().default(false),
-});
+export {
+  createSourceBaseSchema,
+  createSourceWithKbIdSchema,
+  updateSourceSchema,
+  triggerRunSchema,
+} from "../modules/sources/schema";
+export type {
+  CreateSourceBase,
+  CreateSourceWithKbId,
+  UpdateSource,
+  TriggerRunInput,
+} from "../modules/sources/schema";
 
 // ============================================================================
 // Types
 // ============================================================================
-
-export type CreateSourceBase = z.infer<typeof createSourceBaseSchema>;
-export type CreateSourceWithKbId = z.infer<typeof createSourceWithKbIdSchema>;
-export type UpdateSource = z.infer<typeof updateSourceSchema>;
-export type TriggerRunInput = z.infer<typeof triggerRunSchema>;
 
 export interface SourceStats {
   pageCount: number;

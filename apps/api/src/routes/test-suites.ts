@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { db } from "@grounded/db";
 import {
   agents,
@@ -17,7 +16,6 @@ import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/
 import { BadRequestError, NotFoundError } from "../middleware/error-handler";
 import { loadAgentForTenant } from "../services/agent-helpers";
 import {
-  expectedBehaviorSchema,
   parseTestCaseJsonl,
   serializeTestCasesJsonl,
 } from "../services/test-suite-import";
@@ -37,80 +35,24 @@ import {
   listExperimentsForSuite,
   getExperiment,
 } from "../services/ab-experiment";
+import {
+  createTestSuiteSchema,
+  updateTestSuiteSchema,
+  createTestCaseSchema,
+  updateTestCaseSchema,
+  reorderTestCasesSchema,
+  listRunsQuerySchema,
+  analyticsQuerySchema,
+  startExperimentWithPromptSchema,
+  listExperimentsQuerySchema,
+  listAnalysesQuerySchema,
+} from "../modules/test-suites/schema";
 
 export const agentTestSuiteRoutes = new Hono();
 export const testSuiteRoutes = new Hono();
 export const testCaseRoutes = new Hono();
 export const testRunRoutes = new Hono();
 export const experimentRoutes = new Hono();
-
-// ============================================================================
-// Validation Schemas
-// ============================================================================
-
-const scheduleTypeSchema = z.enum(["manual", "hourly", "daily", "weekly"]);
-const scheduleTimeSchema = z
-  .string()
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Schedule time must be HH:MM in 24-hour format");
-
-const createTestSuiteSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  scheduleType: scheduleTypeSchema.default("manual"),
-  scheduleTime: scheduleTimeSchema.nullable().optional(),
-  scheduleDayOfWeek: z.number().int().min(0).max(6).nullable().optional(),
-  llmJudgeModelConfigId: z.string().uuid().nullable().optional(),
-  alertOnRegression: z.boolean().default(true),
-  alertThresholdPercent: z.number().int().min(1).max(100).default(10),
-  isEnabled: z.boolean().default(true),
-});
-
-const updateTestSuiteSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional().nullable(),
-  scheduleType: scheduleTypeSchema.optional(),
-  scheduleTime: scheduleTimeSchema.nullable().optional(),
-  scheduleDayOfWeek: z.number().int().min(0).max(6).nullable().optional(),
-  llmJudgeModelConfigId: z.string().uuid().nullable().optional(),
-  alertOnRegression: z.boolean().optional(),
-  alertThresholdPercent: z.number().int().min(1).max(100).optional(),
-  promptAnalysisEnabled: z.boolean().optional(),
-  abTestingEnabled: z.boolean().optional(),
-  analysisModelConfigId: z.string().uuid().nullable().optional(),
-  manualCandidatePrompt: z.string().max(8000).nullable().optional(),
-  isEnabled: z.boolean().optional(),
-});
-
-const createTestCaseSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  question: z.string().min(1).max(4000),
-  expectedBehavior: expectedBehaviorSchema,
-  sortOrder: z.number().int().min(0).optional(),
-  isEnabled: z.boolean().default(true),
-});
-
-const updateTestCaseSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional().nullable(),
-  question: z.string().min(1).max(4000).optional(),
-  expectedBehavior: expectedBehaviorSchema.optional(),
-  sortOrder: z.number().int().min(0).optional(),
-  isEnabled: z.boolean().optional(),
-});
-
-const reorderTestCasesSchema = z.object({
-  caseIds: z.array(z.string().uuid()).min(1),
-});
-
-const listRunsQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  offset: z.coerce.number().int().min(0).default(0),
-});
-
-const analyticsQuerySchema = z.object({
-  days: z.coerce.number().int().min(1).max(365).default(30),
-});
 
 // ============================================================================
 // List Test Suites for Agent
@@ -858,10 +800,6 @@ testSuiteRoutes.post(
 // Start Experiment with Custom Prompt
 // ============================================================================
 
-const startExperimentWithPromptSchema = z.object({
-  candidatePrompt: z.string().min(1).max(16000),
-});
-
 testSuiteRoutes.post(
   "/:suiteId/experiment",
   auth(),
@@ -1299,11 +1237,6 @@ testRunRoutes.post(
 // List Experiments for Suite
 // ============================================================================
 
-const listExperimentsQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(10),
-  offset: z.coerce.number().int().min(0).default(0),
-});
-
 testSuiteRoutes.get(
   "/:suiteId/experiments",
   auth(),
@@ -1352,13 +1285,7 @@ testSuiteRoutes.get(
   "/:suiteId/analyses",
   auth(),
   requireTenant(),
-  zValidator(
-    "query",
-    z.object({
-      limit: z.coerce.number().int().min(1).max(100).optional().default(10),
-      offset: z.coerce.number().int().min(0).optional().default(0),
-    })
-  ),
+  zValidator("query", listAnalysesQuerySchema),
   async (c) => {
     const suiteId = c.req.param("suiteId");
     const query = c.req.valid("query");

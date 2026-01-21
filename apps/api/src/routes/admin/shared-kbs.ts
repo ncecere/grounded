@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import {
   knowledgeBases,
   tenantKbSubscriptions,
@@ -18,9 +17,6 @@ import { log } from "@grounded/logger";
 import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { NotFoundError, BadRequestError } from "../../middleware/error-handler";
 import {
-  createSourceBaseSchema,
-  updateSourceSchema,
-  triggerRunSchema,
   buildSourceUpdateData,
   calculateSourceStats,
   cascadeSoftDeleteSourceChunks,
@@ -28,6 +24,11 @@ import {
   createSourceRun,
   queueSourceRunJob,
 } from "../../services/source-helpers";
+import {
+  createSourceBaseSchema,
+  updateSourceSchema,
+  triggerRunSchema,
+} from "../../modules/sources/schema";
 import {
   SUPPORTED_MIME_TYPES,
   EXTENSION_TO_MIME,
@@ -37,30 +38,16 @@ import {
   getKbCountMapsWithShares,
   getKbAggregatedCounts,
 } from "../../services/kb-aggregation-helpers";
+import {
+  createGlobalKbSchema,
+  updateGlobalKbSchema,
+  shareWithTenantSchema,
+} from "../../modules/admin/schema";
 
 export const adminSharedKbsRoutes = new Hono();
 
 // All routes require system admin
 adminSharedKbsRoutes.use("*", auth(), requireSystemAdmin());
-
-// ============================================================================
-// Validation Schemas
-// ============================================================================
-
-const createGlobalKbSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  embeddingModelId: z.string().uuid().optional(),
-});
-
-const updateGlobalKbSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional(),
-});
-
-const shareWithTenantSchema = z.object({
-  tenantId: z.string().uuid(),
-});
 
 // ============================================================================
 // List All Shared/Global Knowledge Bases (Admin View)

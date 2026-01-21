@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { db } from "@grounded/db";
 import {
   agentTestSuites,
@@ -18,13 +17,9 @@ import {
   getTrendDirection,
   type TestSuiteRunSnapshot,
 } from "../services/test-suite-analytics";
+import { testSuiteAnalyticsQuerySchema } from "../modules/analytics/schema";
 
 export const analyticsRoutes = new Hono();
-
-const testSuiteAnalyticsQuerySchema = z.object({
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-});
 
 // ============================================================================
 // Dashboard Analytics (matches frontend AnalyticsData interface)

@@ -1,52 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { z } from "zod";
-
-// ==========================================================================
-// Schema Definitions (duplicated from test-suites.ts for isolated testing)
-// ==========================================================================
-
-const expectedBehaviorSchema = z.object({
-  checks: z
-    .array(
-      z.discriminatedUnion("type", [
-        z.object({
-          type: z.literal("contains_phrases"),
-          phrases: z.array(z.string().min(1)).min(1),
-          caseSensitive: z.boolean().optional(),
-        }),
-        z.object({
-          type: z.literal("semantic_similarity"),
-          expectedAnswer: z.string().min(1),
-          threshold: z.number().min(0).max(1),
-        }),
-        z.object({
-          type: z.literal("llm_judge"),
-          expectedAnswer: z.string().min(1),
-          criteria: z.string().optional(),
-        }),
-      ])
-    )
-    .min(1),
-  mode: z.enum(["all", "any"]),
-});
-
-const createTestCaseSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  question: z.string().min(1).max(4000),
-  expectedBehavior: expectedBehaviorSchema,
-  sortOrder: z.number().int().min(0).optional(),
-  isEnabled: z.boolean().default(true),
-});
-
-const updateTestCaseSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional().nullable(),
-  question: z.string().min(1).max(4000).optional(),
-  expectedBehavior: expectedBehaviorSchema.optional(),
-  sortOrder: z.number().int().min(0).optional(),
-  isEnabled: z.boolean().optional(),
-});
+import { expectedBehaviorSchema } from "../services/test-suite-import";
+import { createTestCaseSchema, updateTestCaseSchema } from "../modules/test-suites/schema";
 
 // ==========================================================================
 // Expected Behavior Schema

@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { db, type Database } from "@grounded/db";
 import {
   agents,
@@ -15,74 +14,23 @@ import {
   modelProviders,
 } from "@grounded/db/schema";
 import { eq, and, isNull, sql, inArray } from "drizzle-orm";
-import { widgetThemeSchema, generateId } from "@grounded/shared";
+import { generateId } from "@grounded/shared";
 import { log } from "@grounded/logger";
 import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
 import { NotFoundError, QuotaExceededError, ForbiddenError } from "../middleware/error-handler";
 import { auditService, extractIpAddress } from "../services/audit";
 import { loadAgentForTenant } from "../services/agent-helpers";
+import {
+  createAgentSchema,
+  updateAgentSchema,
+  updateKbsSchema,
+  updateRetrievalConfigSchema,
+  updateWidgetConfigSchema,
+  createChatEndpointSchema,
+  createWidgetTokenSchema,
+} from "../modules/agents/schema";
 
 export const agentRoutes = new Hono();
-
-// ============================================================================
-// Validation Schemas
-// ============================================================================
-
-const createAgentSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  welcomeMessage: z.string().max(200).optional(),
-  logoUrl: z.string().url().max(500).nullable().optional(),
-  systemPrompt: z.string().max(4000).optional(),
-  rerankerEnabled: z.boolean().default(true),
-  citationsEnabled: z.boolean().default(true),
-  ragType: z.enum(["simple", "advanced"]).default("simple"),
-  showReasoningSteps: z.boolean().default(true),
-  kbIds: z.array(z.string().uuid()).optional(),
-  llmModelConfigId: z.string().uuid().optional(),
-});
-
-const updateAgentSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional(),
-  welcomeMessage: z.string().max(200).optional(),
-  logoUrl: z.string().url().max(500).nullable().optional(),
-  systemPrompt: z.string().max(4000).optional(),
-  rerankerEnabled: z.boolean().optional(),
-  citationsEnabled: z.boolean().optional(),
-  ragType: z.enum(["simple", "advanced"]).optional(),
-  showReasoningSteps: z.boolean().optional(),
-  isEnabled: z.boolean().optional(),
-  llmModelConfigId: z.string().uuid().nullable().optional(),
-  kbIds: z.array(z.string().uuid()).optional(),
-});
-
-const updateKbsSchema = z.object({
-  kbIds: z.array(z.string().uuid()),
-});
-
-const updateRetrievalConfigSchema = z.object({
-  topK: z.number().int().min(1).max(50).optional(),
-  candidateK: z.number().int().min(1).max(200).optional(),
-  maxCitations: z.number().int().min(1).max(20).optional(),
-  rerankerEnabled: z.boolean().optional(),
-  rerankerType: z.enum(["heuristic", "cross_encoder"]).optional(),
-  similarityThreshold: z.number().min(0).max(1).optional(),
-  historyTurns: z.number().int().min(1).max(20).optional(),
-  advancedMaxSubqueries: z.number().int().min(1).max(5).optional(),
-});
-
-const updateWidgetConfigSchema = z.object({
-  isPublic: z.boolean().optional(),
-  allowedDomains: z.array(z.string()).optional(),
-  oidcRequired: z.boolean().optional(),
-  theme: widgetThemeSchema.partial().optional(),
-});
-
-const createChatEndpointSchema = z.object({
-  name: z.string().max(100).optional(),
-  endpointType: z.enum(["api", "hosted"]).default("api"),
-});
 
 // ============================================================================
 // List Available LLM Models
@@ -642,7 +590,7 @@ agentRoutes.post(
   auth(),
   requireTenant(),
   requireRole("owner", "admin"),
-  zValidator("json", z.object({ name: z.string().optional() })),
+  zValidator("json", createWidgetTokenSchema),
   async (c) => {
     const agentId = c.req.param("agentId");
     const authContext = c.get("auth");

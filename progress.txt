@@ -33,3 +33,4 @@
 2026-01-21 - Added API modules barrel export with re-exports and a regression test for module exports.
 2026-01-21 - Documented API route aliases/shared routers in phase-1 plan and added doc test coverage.
 2026-01-21 - Moved hosted chat page routes (redirect + published chat asset) into a dedicated module with route tests.
+2026-01-21 - Extracted API route validation schemas into module-level schema files, updated routes/services/tests to import them, and verified API tests pass.

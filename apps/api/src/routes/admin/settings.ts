@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { db } from "@grounded/db";
 import { systemSettings } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
@@ -20,6 +19,11 @@ import {
   stopTestSuiteScheduler,
 } from "../../services/test-suite-scheduler";
 import { getFairnessMetrics, resetFairnessState } from "@grounded/queue";
+import {
+  updateSettingSchema,
+  updateSettingsSchema,
+  testEmailSchema,
+} from "../../modules/admin/schema";
 
 export const adminSettingsRoutes = new Hono();
 
@@ -276,23 +280,6 @@ function getSettingMetadata(key: string): SettingMeta | null {
 }
 
 // ============================================================================
-// Validation Schemas
-// ============================================================================
-
-const updateSettingSchema = z.object({
-  value: z.union([z.string(), z.number(), z.boolean()]),
-});
-
-const updateSettingsSchema = z.object({
-  settings: z.array(
-    z.object({
-      key: z.string(),
-      value: z.union([z.string(), z.number(), z.boolean()]),
-    })
-  ),
-});
-
-// ============================================================================
 // Get All Settings
 // ============================================================================
 
@@ -490,10 +477,6 @@ adminSettingsRoutes.get("/schema/all", async (c) => {
 // ============================================================================
 // Email Testing Endpoints
 // ============================================================================
-
-const testEmailSchema = z.object({
-  email: z.string().email(),
-});
 
 adminSettingsRoutes.post("/email/verify", async (c) => {
   // Invalidate cache to ensure we use latest settings

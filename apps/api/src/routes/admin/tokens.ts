@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { db } from "@grounded/db";
 import { adminApiTokens } from "@grounded/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
@@ -8,6 +7,7 @@ import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth"
 import { NotFoundError } from "../../middleware/error-handler";
 import { hashString } from "@grounded/shared";
 import crypto from "crypto";
+import { createTokenSchema } from "../../modules/admin/schema";
 
 export const adminTokensRoutes = new Hono();
 
@@ -24,15 +24,6 @@ function generateToken(): string {
   const randomPart = crypto.randomBytes(24).toString("base64url");
   return `${TOKEN_PREFIX}${randomPart}`;
 }
-
-// ============================================================================
-// Validation Schemas
-// ============================================================================
-
-const createTokenSchema = z.object({
-  name: z.string().min(1).max(100),
-  expiresAt: z.string().datetime().optional(),
-});
 
 // ============================================================================
 // List Tokens
