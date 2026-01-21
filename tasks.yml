@@ -576,7 +576,7 @@ tasks:
       - Stage manager uses new queue helpers
 
   - title: phase-2-ingestion-worker.md - Extract robots handling service
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [ingestion, services]
     file: phase-2-ingestion-worker.md
