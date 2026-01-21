@@ -513,7 +513,7 @@ tasks:
       - No behavior changes introduced
 
   - title: phase-2-ingestion-worker.md - Add ingestion worker helper for logging and errors
-    completed: false
+    completed: true
     parallel_group: 3
     tags: [ingestion, logging]
     file: phase-2-ingestion-worker.md
