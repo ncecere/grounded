@@ -28,3 +28,4 @@
 2026-01-21 - Documented required exports and optional module layers in tasks/phase-1-api-structure.md and extended doc test coverage.
 2026-01-21 - Added API app assembly module with createApiApp plus health check test coverage.
 2026-01-21 - Added v1 routes index assembler with a regression test for auth callback route mounting.
+2026-01-21 - Added API startup index for startup tasks/shutdown handling with tests covering startup flow and shutdown cleanup.

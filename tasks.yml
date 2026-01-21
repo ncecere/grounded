@@ -322,7 +322,7 @@ tasks:
       - Imports updated for new index
 
   - title: phase-1-api-structure.md - Create API startup index
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, startup]
     file: phase-1-api-structure.md
