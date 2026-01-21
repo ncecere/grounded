@@ -404,7 +404,7 @@ tasks:
       - Behavior unchanged
 
   - title: phase-1-api-structure.md - Define service/repo transaction patterns and cross-module access rules
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, service]
     file: phase-1-api-structure.md

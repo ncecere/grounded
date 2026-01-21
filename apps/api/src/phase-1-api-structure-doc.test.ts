@@ -39,6 +39,8 @@ describe("phase 1 api structure plan", () => {
     expect(content).toContain("`routes.ts` imports");
     expect(content).toContain("Cross-Module Access Rules");
     expect(content).toContain("Cross-module reads/writes go through");
+    expect(content).toContain("Service/Repo Transaction Patterns");
+    expect(content).toContain("Repos should accept an optional transaction client");
   });
 
   it("defines the module template", async () => {

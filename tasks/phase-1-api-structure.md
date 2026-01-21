@@ -60,6 +60,14 @@
 - Module-to-module type sharing should use exported `types.ts` or shared package types; avoid deep file imports.
 - Any exception must be documented in the module's README with rationale and planned cleanup.
 
+### Service/Repo Transaction Patterns
+- Services own transactions when a workflow spans multiple repo calls or mixes repo writes with side effects.
+- Repos should accept an optional transaction client (`tx`) and avoid opening their own transactions.
+- A service should pass the same transaction client to all repo calls that must commit or roll back together.
+- When a single repo call is the only DB operation, the service can call the repo without a transaction.
+- External side effects (queueing jobs, calling providers, storage uploads) should happen after a successful commit or be wrapped in an outbox pattern.
+- If a service needs cross-module data, call the owning module's service inside the same transaction only when both modules support the shared `tx` client.
+
 ## Module Template (apps/api/src/modules/<domain>)
 
 Each domain module follows a predictable layout so routes, validation, business logic, and persistence stay isolated. The template below should be copied for new modules before adding additional helper files.
