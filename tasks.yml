@@ -343,7 +343,7 @@ tasks:
       - Stored in API module documentation
 
   - title: phase-1-api-structure.md - Add modules barrel export
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, modules]
     file: phase-1-api-structure.md

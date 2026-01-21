@@ -1,26 +1,32 @@
 import { Hono } from "hono";
 
-import { authRoutes } from "./auth";
-import { tenantRoutes } from "./tenants";
-import { kbRoutes } from "./knowledge-bases";
-import { sourceRoutes } from "./sources";
-import { agentRoutes } from "./agents";
-import { chatRoutes } from "./chat";
-import { widgetRoutes } from "./widget";
-import { chatEndpointRoutes } from "./chat-endpoint";
-import { analyticsRoutes } from "./analytics";
-import { uploadRoutes } from "./uploads";
-import { agentTestSuiteRoutes, testCaseRoutes, testSuiteRoutes, testRunRoutes, experimentRoutes } from "./test-suites";
-import { adminSettingsRoutes } from "./admin/settings";
-import { adminModelsRoutes } from "./admin/models";
-import { adminUsersRoutes } from "./admin/users";
-import { adminSharedKbsRoutes } from "./admin/shared-kbs";
-import { adminDashboardRoutes } from "./admin/dashboard";
-import { adminAnalyticsRoutes } from "./admin/analytics";
-import { adminTokensRoutes } from "./admin/tokens";
-import { adminAuditRoutes } from "./admin/audit";
-import { toolRoutes } from "./tools";
-import { internalWorkersRoutes } from "./internal/workers";
+import {
+  adminAnalyticsRoutes,
+  adminAuditRoutes,
+  adminDashboardRoutes,
+  adminModelsRoutes,
+  adminSettingsRoutes,
+  adminSharedKbsRoutes,
+  adminTokensRoutes,
+  adminUsersRoutes,
+  agentRoutes,
+  agentTestSuiteRoutes,
+  analyticsRoutes,
+  authRoutes,
+  chatEndpointRoutes,
+  chatRoutes,
+  experimentRoutes,
+  internalWorkersRoutes,
+  kbRoutes,
+  sourceRoutes,
+  tenantRoutes,
+  testCaseRoutes,
+  testRunRoutes,
+  testSuiteRoutes,
+  toolRoutes,
+  uploadRoutes,
+  widgetRoutes,
+} from "../modules";
 
 export const createV1Routes = () => {
   const v1 = new Hono();
