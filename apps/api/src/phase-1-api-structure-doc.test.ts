@@ -30,4 +30,14 @@ describe("phase 1 api structure plan", () => {
     expect(content).toContain("chat");
     expect(content).toContain("admin");
   });
+
+  it("documents module boundary rules", async () => {
+    const content = await readFile(apiStructurePath, "utf-8");
+
+    expect(content).toContain("Module Boundary Rules and Import Directions");
+    expect(content).toContain("Allowed Import Directions");
+    expect(content).toContain("`routes.ts` imports");
+    expect(content).toContain("Cross-Module Access Rules");
+    expect(content).toContain("Cross-module reads/writes go through");
+  });
 });

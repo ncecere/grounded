@@ -44,6 +44,22 @@
 6. `analytics` (read-only aggregates after core routes stabilized)
 7. `admin`, `internal`, and `test-suites` (lowest risk, isolated changes)
 
+## Module Boundary Rules and Import Directions
+
+### Allowed Import Directions
+- `routes.ts` imports from `schema.ts`, `service.ts`, `types.ts`, and shared helpers.
+- `service.ts` imports from `repo.ts`, `schema.ts`, `types.ts`, and shared helpers.
+- `repo.ts` imports from shared DB clients, shared helpers, and `types.ts` (no service/route imports).
+- `schema.ts` is self-contained (zod/valibot, types, shared validation helpers).
+- `types.ts` is type-only and should not import runtime modules.
+
+### Cross-Module Access Rules
+- Cross-module reads/writes go through the owning module's `service.ts` exports.
+- Avoid cross-module `repo.ts` imports; if unavoidable, add a small service wrapper in the owning module.
+- Shared helpers (auth, audit, errors, RLS, logging, settings) live in shared modules and are safe to import from any layer.
+- Module-to-module type sharing should use exported `types.ts` or shared package types; avoid deep file imports.
+- Any exception must be documented in the module's README with rationale and planned cleanup.
+
 ## Task List
 - [ ] Define domain module boundaries and migration order.
 - [ ] Define module boundary rules and allowed import directions.

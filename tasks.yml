@@ -269,7 +269,7 @@ tasks:
       - Reviewed with plan owners
 
   - title: phase-1-api-structure.md - Define module boundary rules and allowed import directions
-    completed: false
+    completed: true
     parallel_group: 2
     tags: [api, structure]
     file: phase-1-api-structure.md
