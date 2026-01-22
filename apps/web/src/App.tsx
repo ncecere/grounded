@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, getToken, clearToken, getCurrentTenantId, setCurrentTenantId, clearCurrentTenantId, type UserTenant } from "./lib/api";
+import { useState } from "react";
+import type { UserTenant } from "./lib/api";
 import { AppSidebar, type Page } from "./components/app-sidebar";
 import {
   SidebarProvider,
@@ -28,6 +27,7 @@ import { Login } from "./pages/Login";
 import { Building2, AlertTriangle } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { canAccessPage, pageRegistryById, type PageId } from "./app/page-registry";
+import { useAuth, useTenant } from "./app/providers";
 
 const customPageIds = new Set<Page>([
   "kbs",
@@ -48,57 +48,25 @@ export default function App() {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [selectedSharedKbId, setSelectedSharedKbId] = useState<string | null>(null);
   const [selectedSuiteId, setSelectedSuiteId] = useState<string | null>(null);
-  const [currentTenant, setCurrentTenant] = useState<UserTenant | null>(null);
-  const queryClient = useQueryClient();
-  const hasTenant = !!currentTenant;
-  const canManageTenant = currentTenant?.role === "owner" || currentTenant?.role === "admin";
-
-  const { data: user, isLoading: userLoading, refetch } = useQuery({
-    queryKey: ["me"],
-    queryFn: api.getMe,
-    retry: false,
-    enabled: !!getToken(),
-  });
-
-  const { data: tenantsData, isLoading: tenantsLoading } = useQuery({
-    queryKey: ["my-tenants"],
-    queryFn: api.getMyTenants,
-    enabled: !!user,
-  });
-
-  // Set initial tenant from localStorage or first available
-  useEffect(() => {
-    if (tenantsData?.tenants && tenantsData.tenants.length > 0) {
-      const savedTenantId = getCurrentTenantId();
-      const savedTenant = savedTenantId
-        ? tenantsData.tenants.find((t) => t.id === savedTenantId)
-        : null;
-
-      if (savedTenant) {
-        setCurrentTenant(savedTenant);
-      } else {
-        setCurrentTenant(tenantsData.tenants[0]);
-        setCurrentTenantId(tenantsData.tenants[0].id);
-      }
-    }
-  }, [tenantsData]);
+  const { user, isLoading: userLoading, hasToken, refreshUser, logout } = useAuth();
+  const {
+    tenants,
+    currentTenant,
+    isLoading: tenantsLoading,
+    hasTenant,
+    canManageTenant,
+    selectTenant,
+  } = useTenant();
 
   const handleTenantChange = (tenant: UserTenant) => {
-    setCurrentTenant(tenant);
-    setCurrentTenantId(tenant.id);
-    queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] });
-    queryClient.invalidateQueries({ queryKey: ["agents"] });
-    queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    selectTenant(tenant);
     setSelectedKbId(null);
     setSelectedAgentId(null);
     setCurrentPage("kbs");
   };
 
   const handleLogout = () => {
-    clearCurrentTenantId();
-    clearToken();
-    setCurrentTenant(null);
-    refetch();
+    logout();
   };
 
   const handleNavigate = (page: Page) => {
@@ -135,7 +103,7 @@ export default function App() {
   };
 
   // Loading states
-  if ((userLoading && getToken()) || (user && tenantsLoading)) {
+  if ((userLoading && hasToken) || (user && tenantsLoading)) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-center">
@@ -147,13 +115,13 @@ export default function App() {
   }
 
   // Not logged in
-  if (!user || !getToken()) {
-    return <Login onSuccess={() => refetch()} />;
+  if (!user || !hasToken) {
+    return <Login onSuccess={() => refreshUser()} />;
   }
 
   const renderPage = () => {
     // No tenant state for non-admin users
-    if ((!tenantsData?.tenants || tenantsData.tenants.length === 0) && !user.isSystemAdmin) {
+    if (tenants.length === 0 && !user.isSystemAdmin) {
       return (
         <div className="flex items-center justify-center h-full">
           <div className="text-center max-w-md">
@@ -170,7 +138,7 @@ export default function App() {
     }
 
     // No tenant state for admin users - prompt to create
-    if ((!tenantsData?.tenants || tenantsData.tenants.length === 0) && user.isSystemAdmin) {
+    if (tenants.length === 0 && user.isSystemAdmin) {
       if (currentPage === "dashboard") return <AdminDashboard onNavigate={setCurrentPage} />;
       if (currentPage === "shared-kbs") return (
         <AdminSharedKBs
@@ -332,15 +300,15 @@ export default function App() {
 
   return (
     <SidebarProvider>
-      <AppSidebar
-        user={user}
-        currentPage={currentPage}
-        onNavigate={handleNavigate}
-        onLogout={handleLogout}
-        tenants={tenantsData?.tenants}
-        currentTenant={currentTenant}
-        onTenantChange={handleTenantChange}
-      />
+        <AppSidebar
+          user={user}
+          currentPage={currentPage}
+          onNavigate={handleNavigate}
+          onLogout={handleLogout}
+          tenants={tenants}
+          currentTenant={currentTenant}
+          onTenantChange={handleTenantChange}
+        />
       <SidebarInset className="overflow-hidden">
         {currentPage === "chat" ? (
           // Chat page - no header, full height for chat component
