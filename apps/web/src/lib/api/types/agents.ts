@@ -1,51 +1,37 @@
-export type RagType = "simple" | "advanced";
+import type {
+  Agent as SharedAgent,
+  RagType as SharedRagType,
+  RetrievalConfig as SharedRetrievalConfig,
+  WidgetConfig,
+} from "@grounded/shared/types/api";
 
-export interface Agent {
+export type RagType = SharedRagType;
+
+export type RetrievalConfig = Omit<SharedRetrievalConfig, "rerankerEnabled" | "rerankerType"> & {
+  maxCitations: number;
+  similarityThreshold: number;
+  rerankerEnabled?: SharedRetrievalConfig["rerankerEnabled"];
+  rerankerType?: SharedRetrievalConfig["rerankerType"];
+};
+
+export type AgentWidgetConfig = WidgetConfig & {
   id: string;
-  tenantId: string;
-  name: string;
+  agentId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export interface Agent extends SharedAgent {
   description: string | null;
-  systemPrompt: string;
   welcomeMessage: string | null;
   logoUrl: string | null;
   isEnabled: boolean;
-  ragType: RagType;
   showReasoningSteps: boolean;
   suggestedQuestions: string[];
   kbIds: string[];
   llmModelConfigId: string | null;
-  widgetConfig: {
-    id: string;
-    agentId: string;
-    isPublic: boolean;
-    allowedDomains: string[];
-    oidcRequired: boolean;
-    theme: {
-      primaryColor: string;
-      backgroundColor: string;
-      textColor: string;
-      buttonPosition: "bottom-right" | "bottom-left";
-      borderRadius: number;
-      buttonStyle: "circle" | "pill" | "square";
-      buttonSize: "small" | "medium" | "large";
-      buttonText: string;
-      buttonIcon: "chat" | "help" | "question" | "message";
-      buttonColor: string;
-      customIconUrl: string | null;
-      customIconSize: number | null;
-    };
-    createdAt: string;
-    updatedAt: string;
-  } | null;
-  retrievalConfig: {
-    topK: number;
-    candidateK: number;
-    maxCitations: number;
-    similarityThreshold: number;
-    historyTurns: number;
-    advancedMaxSubqueries: number;
-  };
-  createdAt: string;
+  widgetConfig: AgentWidgetConfig | null;
+  retrievalConfig: RetrievalConfig;
   updatedAt: string;
 }
 

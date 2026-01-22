@@ -1085,7 +1085,7 @@ tasks:
       - Reviewed by stakeholders
 
   - title: phase-5-shared-packages-docs.md - Remove duplicate web API types after adoption
-    completed: false
+    completed: true
     parallel_group: 6
     tags: [shared, cleanup]
     file: phase-5-shared-packages-docs.md

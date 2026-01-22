@@ -12,6 +12,11 @@ const promptAnalysisDetailPanelUrl = new URL(
 const authApiUrl = new URL("../auth.ts", import.meta.url);
 const tenantsApiUrl = new URL("../tenants.ts", import.meta.url);
 const adminApiUrl = new URL("../admin.ts", import.meta.url);
+const authTypesUrl = new URL("./auth.ts", import.meta.url);
+const tenantTypesUrl = new URL("./tenants.ts", import.meta.url);
+const knowledgeBaseTypesUrl = new URL("./knowledge-bases.ts", import.meta.url);
+const sourceTypesUrl = new URL("./sources.ts", import.meta.url);
+const agentTypesUrl = new URL("./agents.ts", import.meta.url);
 
 describe("web api type imports", () => {
   it("should use aliased domain type imports for key components", async () => {
@@ -37,5 +42,19 @@ describe("web api type imports", () => {
     expect(authApiSource).toContain('from "@grounded/shared/types/admin"');
     expect(tenantsApiSource).toContain('from "@grounded/shared/types/admin"');
     expect(adminApiSource).toContain('from "@grounded/shared/types/admin"');
+  });
+
+  it("should pull domain DTOs from shared api types", async () => {
+    const authTypesSource = await Bun.file(authTypesUrl).text();
+    const tenantTypesSource = await Bun.file(tenantTypesUrl).text();
+    const knowledgeBaseTypesSource = await Bun.file(knowledgeBaseTypesUrl).text();
+    const sourceTypesSource = await Bun.file(sourceTypesUrl).text();
+    const agentTypesSource = await Bun.file(agentTypesUrl).text();
+
+    expect(authTypesSource).toContain('from "@grounded/shared/types/api"');
+    expect(tenantTypesSource).toContain('from "@grounded/shared/types/api"');
+    expect(knowledgeBaseTypesSource).toContain('from "@grounded/shared/types/api"');
+    expect(sourceTypesSource).toContain('from "@grounded/shared/types/api"');
+    expect(agentTypesSource).toContain('from "@grounded/shared/types/api"');
   });
 });
