@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-01-21
+
+### Added
+
+- **Modular API Architecture**: New `apps/api/src/modules/` structure with domain-specific schemas and services for agents, admin, chat, tools, test-suites, and more.
+- **Route Assembly**: Centralized v1 route assembly in `apps/api/src/routes/index.ts` with dedicated hosted chat routes.
+- **Startup Tasks**: New `apps/api/src/startup/` module for centralized initialization.
+- **Agent Services Layer**: Extracted agent business logic into `modules/agents/service.ts` with full test coverage.
+- **Admin Repository**: New `modules/admin/repo.ts` for audit query logic.
+
+### Changed
+
+- **Ingestion Worker Modularization**: Complete restructure with new directories:
+  - `bootstrap/` - Settings, vector store, and shutdown helpers
+  - `jobs/` - Individual job processors (embed-chunks, page-index, page-process, source-discover, etc.)
+  - `queues/` - Queue definitions and registration
+  - `stage/` - Stage management (transitions, progress tracking, queue helpers)
+  - `services/` - Extraction and robots.txt handling
+- **Scraper Worker Modularization**: Complete restructure with new directories:
+  - `bootstrap/` - Settings initialization with acceptance tests
+  - `browser/` - Browser pool lifecycle management
+  - `fetch/` - Strategy selection (HTTP, Playwright, Firecrawl) with orchestration
+  - `jobs/` - Centralized job registration
+  - `services/` - Content validation, fairness slot management
+- **Web App Provider Pattern**: New provider architecture for cleaner state management:
+  - `AppStateProvider` - Centralized navigation and app state
+  - `AuthProvider` - Authentication context
+  - `TenantProvider` - Tenant context
+- **Page Registry**: Centralized page metadata with auth gates and navigation grouping in `apps/web/src/app/page-registry.ts`.
+- **API Types by Domain**: Split monolithic `types.ts` into domain-specific files (admin, agents, analytics, auth, chat, knowledge-bases, sources, tenants, test-suites, tools).
+- **Shared Package Consolidation**: Centralized tenant admin DTOs and HTTP errors in `@grounded/shared` with defined export boundaries.
+
+### Documentation
+
+- **Refactor Documentation**: Comprehensive docs in `docs/refactor/` covering:
+  - Architecture boundaries and constraints
+  - Module ownership guidelines
+  - API module patterns
+  - Dependency mapping
+  - Test matrix
+  - Migration log
+- **Phase Task Plans**: Detailed task breakdowns in `tasks/` for each refactor phase (0-5).
+- **Baseline Inventory**: Captured observability, API contracts, queue payloads, and cross-cutting concerns.
+
+### Technical
+
+- **246 files changed** across the codebase with improved separation of concerns
+- New barrel exports for cleaner imports across all apps
+- Extensive test coverage for new modules and refactored code
+- Import structure validation tests to enforce module boundaries
+- Docker build fix: Added missing `packages/shared` to web Dockerfile
+
 ## [0.4.0] - 2026-01-21
 
 ### Added
@@ -206,7 +258,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - User documentation for administrators and tenants
 - API integration guides
 
-[unreleased]: https://github.com/ncecere/grounded/compare/v0.4.0...HEAD
+[unreleased]: https://github.com/ncecere/grounded/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/ncecere/grounded/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ncecere/grounded/compare/v0.3.1...v0.4.0
 [0.3.0]: https://github.com/ncecere/grounded/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/ncecere/grounded/compare/v0.1.0...v0.2.0

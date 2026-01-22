@@ -163,6 +163,16 @@ Internal:
 - `/api/v1/agents` mounts both agent CRUD routes and agent test suite routes under the same prefix.
 - `GET /chat/:token` redirects to `/api/v1/c/:token` for hosted chat pages.
 
+## Observability Parity (Logging and Error Codes)
+
+Operational dashboards depend on stable logging keys and error code taxonomy. As modules move, preserve the existing shape and naming of logs and error codes so dashboards and alerts remain valid.
+
+Guidelines:
+- Keep `wideEventMiddleware` request logging active in `apps/api/src/app.ts` with the same field names documented in `tasks/phase-0-baseline.md`.
+- Retain error handling behavior in `apps/api/src/middleware/error-handler.ts` so `error.code` and `error.message` values match baseline expectations.
+- Preserve `errorCode` usage in RAG streaming services (`apps/api/src/services/simple-rag.ts`, `apps/api/src/services/advanced-rag.ts`).
+- If any log field or error code changes are unavoidable, document the exception in `docs/refactor/migration-log.md` with the before/after value.
+
 ## Task List
 - [ ] Define domain module boundaries and migration order.
 - [ ] Define module boundary rules and allowed import directions.

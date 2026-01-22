@@ -88,4 +88,14 @@ describe("phase 1 api structure plan", () => {
     expect(content).toContain("/chat/:token");
     expect(content).toContain("/api/v1/c/:token");
   });
+
+  it("captures observability parity guidance", async () => {
+    const content = await readFile(apiStructurePath, "utf-8");
+
+    expect(content).toContain("Observability Parity");
+    expect(content).toContain("wideEventMiddleware");
+    expect(content).toContain("error.code");
+    expect(content).toContain("tasks/phase-0-baseline.md");
+    expect(content).toContain("docs/refactor/migration-log.md");
+  });
 });
