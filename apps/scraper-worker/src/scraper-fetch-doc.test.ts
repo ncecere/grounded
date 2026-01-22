@@ -43,4 +43,16 @@ describe("scraper fetch documentation", () => {
     expect(content).toContain("FIRECRAWL_API_KEY");
     expect(content).toContain("/v1/scrape");
   });
+
+  it("documents fetch payload invariants", async () => {
+    const content = await readFile(scraperFetchDocPath, "utf-8");
+
+    expect(content).toContain("## Fetch Payload Invariants");
+    expect(content).toContain("PageFetchJob");
+    expect(content).toContain("fetchMode");
+    expect(content).toContain("parentUrl");
+    expect(content).toContain("requestId");
+    expect(content).toContain("MAX_PAGE_SIZE_BYTES");
+    expect(content).toContain("isContentTypeEnforcementEnabled()");
+  });
 });

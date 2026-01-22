@@ -841,7 +841,7 @@ tasks:
       - Reviewed for accuracy
 
   - title: phase-3-scraper-worker.md - Document fetch payload invariants
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [docs, scraper]
     file: phase-3-scraper-worker.md

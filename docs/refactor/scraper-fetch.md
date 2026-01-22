@@ -13,6 +13,22 @@
 6. HTML is staged in Redis via `storeFetchedHtml` for the ingestion processing stage.
 7. Stage progress is incremented; when scraping completes, a `StageTransitionJob` is queued.
 
+## Fetch Payload Invariants
+
+**Job payload (`PageFetchJob`)**
+- `tenantId` is a UUID or `null` for global runs.
+- `runId` is a required UUID for the source run.
+- `url` is a required absolute URL.
+- `fetchMode` is one of `auto`, `html`, `headless`, or `firecrawl`.
+- `depth` is an optional integer `>= 0` describing crawl depth.
+- `parentUrl` is an optional absolute URL for crawl graph context.
+- `requestId`/`traceId` are optional correlation fields for logs.
+
+**Fetch output constraints**
+- HTML responses are required when `isContentTypeEnforcementEnabled()` is true (`text/html` or `application/xhtml+xml`).
+- `Content-Length` and streamed body sizes must be `<= MAX_PAGE_SIZE_BYTES` (10 MB).
+- Pages that exceed size limits or fail content-type checks are rejected before storage.
+
 ## Decision Rules
 
 **Fetch mode selection**
