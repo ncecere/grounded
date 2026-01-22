@@ -1,3 +1,19 @@
+/**
+ * Page Fetch Processor
+ * 
+ * Orchestrates page fetch operations using modular services:
+ * - fairness-slots: Manages fair distribution of worker capacity across concurrent runs
+ * - fetch/selection: Selects and executes the appropriate fetch strategy
+ * - content-validation: Validates fetched content (used internally by selection)
+ * 
+ * The processor handles:
+ * 1. Fairness slot acquisition (via withFairnessSlotOrThrow)
+ * 2. Fetch execution (via selectAndFetch)
+ * 3. CrawlState updates (marking URLs as fetched/failed)
+ * 4. Usage tracking (tenant scraped pages count)
+ * 5. Stage progress tracking and transitions
+ */
+
 import type { Browser } from "playwright";
 import { db } from "@grounded/db";
 import { sourceRuns, sourceRunPages, sources, tenantUsage } from "@grounded/db/schema";
@@ -7,9 +23,6 @@ import {
   incrementStageProgress,
   storeFetchedHtml,
   addStageTransitionJob,
-  acquireSlot,
-  releaseSlot,
-  FairnessSlotUnavailableError,
 } from "@grounded/queue";
 import { log } from "@grounded/logger";
 import {
@@ -19,47 +32,47 @@ import {
 } from "@grounded/shared";
 
 import { createCrawlState } from "@grounded/crawl-state";
-import { fetchWithFirecrawl } from "../fetch/firecrawl";
-import { fetchWithHttp } from "../fetch/http";
-import { fetchWithPlaywright } from "../fetch/playwright";
-import { needsJsRendering } from "../services/content-validation";
+import { selectAndFetch } from "../fetch/selection";
+import { withFairnessSlotOrThrow } from "../services/fairness-slots";
 
+/**
+ * Processes a page fetch job with fairness slot management.
+ * 
+ * This is the main entry point called by the worker. It:
+ * 1. Acquires a fairness slot (throws FairnessSlotUnavailableError if unavailable)
+ * 2. Executes the page fetch with automatic slot release
+ * 
+ * The fairness slot ensures fair distribution of worker capacity across
+ * concurrent source runs, preventing any single run from monopolizing workers.
+ * 
+ * @throws FairnessSlotUnavailableError - If no slot is available (triggers delayed retry)
+ */
 export async function processPageFetch(
   data: PageFetchJob,
   browser: Browser
 ): Promise<void> {
-  const { tenantId, runId, url, fetchMode, depth = 0, requestId, traceId } = data;
+  const { runId, requestId, traceId } = data;
 
-  // Try to acquire a fairness slot before processing
-  // This ensures fair distribution of worker capacity across concurrent source runs
-  const slotResult = await acquireSlot(runId);
-  
-  if (!slotResult.acquired) {
-    // Slot not available - throw special error to trigger delayed retry
-    log.debug("scraper-worker", "Fairness slot not available, will retry", {
-      runId,
-      url,
-      currentSlots: slotResult.currentSlots,
-      maxAllowedSlots: slotResult.maxAllowedSlots,
-      activeRunCount: slotResult.activeRunCount,
-      retryDelayMs: slotResult.retryDelayMs,
-    });
-    throw new FairnessSlotUnavailableError(runId, slotResult);
-  }
-
-  // Slot acquired - process the job
-  // IMPORTANT: Always release the slot in the finally block
-  try {
-    await processPageFetchWithSlot(data, browser);
-  } finally {
-    // Always release the slot, even if processing failed
-    await releaseSlot(runId);
-  }
+  // Execute fetch within fairness slot context
+  // withFairnessSlotOrThrow handles:
+  // - Slot acquisition with logging
+  // - Automatic slot release in finally block
+  // - Throws FairnessSlotUnavailableError if slot unavailable
+  await withFairnessSlotOrThrow(
+    runId,
+    () => processPageFetchWithSlot(data, browser),
+    { requestId, traceId }
+  );
 }
 
 /**
  * Internal function that processes the page fetch after a slot has been acquired.
- * This is separated to ensure the slot is always released in the outer function's finally block.
+ * 
+ * This function orchestrates the actual fetch operation using modular services:
+ * 1. Validates run exists and is not canceled
+ * 2. Fetches page content using selectAndFetch (handles strategy selection)
+ * 3. Updates crawl state and usage tracking
+ * 4. Triggers stage transition when scraping phase completes
  */
 async function processPageFetchWithSlot(
   data: PageFetchJob,
@@ -70,7 +83,6 @@ async function processPageFetchWithSlot(
   log.info("scraper-worker", "Fetching page", { url, fetchMode, depth, requestId, traceId });
 
   // Initialize CrawlState for this run
-
   const crawlState = createCrawlState(redis, runId);
 
   // Get run and source
@@ -96,43 +108,22 @@ async function processPageFetchWithSlot(
     throw new Error(`Source ${run.sourceId} not found`);
   }
 
-  let html: string;
-  let title: string | null = null;
-
   try {
-    // Try different fetch methods based on mode
-    if (fetchMode === "firecrawl" || (fetchMode === "auto" && source.config.firecrawlEnabled)) {
-      // Use Firecrawl
-      const result = await fetchWithFirecrawl(url);
-      html = result.html;
-      title = result.title;
-    } else if (fetchMode === "headless") {
-      // Use Playwright directly
-      const result = await fetchWithPlaywright(url, browser);
-      html = result.html;
-      title = result.title;
-    } else {
-      // Auto mode: try HTML first, fall back to Playwright
-      try {
-        const result = await fetchWithHttp(url);
-        html = result.html;
-        title = result.title;
+    // Fetch page using the selection helper
+    // selectAndFetch handles:
+    // - Strategy selection based on fetchMode and source config
+    // - HTTP fetch with Playwright fallback (for auto/html modes)
+    // - JS rendering detection and fallback
+    const result = await selectAndFetch({
+      url,
+      fetchMode,
+      sourceConfig: {
+        firecrawlEnabled: source.config.firecrawlEnabled,
+      },
+      browser,
+    });
 
-        // Check if content looks like it needs JS rendering
-        if (needsJsRendering(html)) {
-          log.debug("scraper-worker", "Page needs JS rendering, using Playwright", { url });
-          const playwrightResult = await fetchWithPlaywright(url, browser);
-          html = playwrightResult.html;
-          title = playwrightResult.title;
-        }
-      } catch (error) {
-        // Fall back to Playwright
-        log.debug("scraper-worker", "HTTP fetch failed, trying Playwright", { url, error: error instanceof Error ? error.message : String(error) });
-        const result = await fetchWithPlaywright(url, browser);
-        html = result.html;
-        title = result.title;
-      }
-    }
+    const { html, title } = result;
 
     // Mark URL as fetched in Redis (atomic state transition)
     await crawlState.markFetched(url);
