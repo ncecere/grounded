@@ -2,8 +2,8 @@ import { Worker, Job, connection, QUEUE_NAMES, isFairnessSlotError, getFairnessC
 import { getEnvNumber, getEnvBool, initSettingsClient, type WorkerSettings } from "@grounded/shared";
 import { createWorkerLogger, createJobLogger } from "@grounded/logger/worker";
 import { shouldSample, createSamplingConfig } from "@grounded/logger";
-import { chromium, Browser } from "playwright";
 import { processPageFetch } from "./processors/page-fetch";
+import { initializeBrowserPool, getBrowser, shutdownBrowserPool } from "./browser/pool";
 
 const logger = createWorkerLogger("scraper-worker");
 
@@ -68,26 +68,14 @@ async function initializeSettings(): Promise<void> {
 logger.info({ concurrency: DEFAULT_CONCURRENCY, headless: HEADLESS }, "Starting Scraper Worker...");
 
 // ============================================================================
-// Browser Pool
+// Browser Pool Initialization
 // ============================================================================
 
-let browser: Browser | null = null;
-
-async function getBrowser(): Promise<Browser> {
-  if (!browser || !browser.isConnected()) {
-    logger.info("Launching browser...");
-    browser = await chromium.launch({
-      headless: HEADLESS,
-      args: [
-        "--disable-dev-shm-usage",
-        "--disable-setuid-sandbox",
-        "--no-sandbox",
-      ],
-    });
-    logger.info("Browser launched");
-  }
-  return browser;
-}
+// Initialize browser pool with configuration
+// The pool lazily launches the browser on first getBrowser() call
+initializeBrowserPool({
+  headless: HEADLESS,
+});
 
 // ============================================================================
 // Page Fetch Worker
@@ -182,12 +170,11 @@ async function shutdown(): Promise<void> {
   // Stop settings refresh
   settingsClient.stopPeriodicRefresh();
 
+  // Close worker first (waits for active jobs to complete)
   await pageFetchWorker.close();
 
-  if (browser) {
-    await browser.close();
-    browser = null;
-  }
+  // Then shutdown browser pool
+  await shutdownBrowserPool();
 
   process.exit(0);
 }

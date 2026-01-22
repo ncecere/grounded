@@ -717,7 +717,7 @@ tasks:
       - Used by page fetch job
 
   - title: phase-3-scraper-worker.md - Create browser pool helper
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [scraper, browser]
     file: phase-3-scraper-worker.md
