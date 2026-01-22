@@ -9,10 +9,7 @@ import {
   Lightbulb,
   Sparkles,
 } from "lucide-react";
-import type {
-  FailureCluster,
-  PromptAnalysis,
-} from "../../lib/api/types/test-suites";
+import type { FailureCluster, PromptAnalysis } from "@/lib/api/types/test-suites";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";

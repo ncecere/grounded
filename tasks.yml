@@ -969,7 +969,7 @@ tasks:
       - Stakeholders agree on sequence
 
   - title: phase-4-web-app.md - Update type exports and imports across web app
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [web, api-types]
     file: phase-4-web-app.md

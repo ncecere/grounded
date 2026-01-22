@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
-import type { Source, SourceRun } from "../lib/api/types/sources";
+import type { Source, SourceRun } from "@/lib/api/types/sources";
 
 const SUPPORTED_FORMATS = [
   { ext: ".pdf", desc: "PDF Documents" },
