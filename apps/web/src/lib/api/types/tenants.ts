@@ -13,4 +13,4 @@ export type {
   TenantApiKey,
   TenantApiKeyWithSecret,
   AvailableTenant,
-} from "@grounded/shared";
+} from "@grounded/shared/types/admin";

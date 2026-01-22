@@ -23,7 +23,7 @@ import type {
   SharedKnowledgeBaseDetail,
   SystemSetting,
 } from "./types/admin";
-import type { AvailableTenant } from "./types/tenants";
+import type { AvailableTenant } from "@grounded/shared/types/admin";
 import type { Source, SourceRun } from "./types/sources";
 
 export const adminApi = {

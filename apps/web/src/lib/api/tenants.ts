@@ -1,11 +1,11 @@
 import { request } from "./client";
+import type { Tenant } from "./types/tenants";
 import type {
-  Tenant,
   TenantAlertSettings,
   TenantApiKey,
   TenantApiKeyWithSecret,
   TenantMember,
-} from "./types/tenants";
+} from "@grounded/shared/types/admin";
 
 export const tenantsApi = {
   listAllTenants: () => request<{ tenants: Tenant[] }>("/tenants"),

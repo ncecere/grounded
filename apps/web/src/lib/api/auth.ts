@@ -1,6 +1,6 @@
 import { request, setToken, clearToken } from "./client";
 import type { AuthResponse, User } from "./types/auth";
-import type { UserTenant } from "./types/tenants";
+import type { UserTenant } from "@grounded/shared/types/admin";
 
 export const authApi = {
   getMe: () => request<User>("/auth/me"),

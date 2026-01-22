@@ -16,7 +16,9 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@grounded/shared": ["../../packages/shared/src/index.ts"],
+      "@grounded/shared/types/admin": ["../../packages/shared/src/types/admin.ts"]
     }
   },
   "include": ["src"],

@@ -94,3 +94,4 @@
 2026-01-21 - Documented shared export boundaries and deprecation flow in tasks/phase-5-shared-packages-docs.md with coverage tests in packages/shared/src/phase-5-shared-packages-doc.test.ts.
 2026-01-21 - Added shared export map subpaths and root tsconfig path aliases for shared entrypoints (types submodules, settings/errors), plus export map tests in packages/shared/src/exports-map.test.ts; bun test packages/shared/src/exports-map.test.ts passes.
 2026-01-21 - Moved tenant admin DTOs into @grounded/shared types, added shared HTTP error classes, wired API error handler to shared errors, added shared export paths for errors/http, and added shared HTTP error tests.
+2026-01-21 - Updated web tenant/admin API imports to use @grounded/shared admin types with compatibility barrels, added shared import regression checks, and verified bun test apps/web/src/lib/api/types/types-imports.test.ts.

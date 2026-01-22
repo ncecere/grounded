@@ -1055,7 +1055,7 @@ tasks:
       - Behavior unchanged
 
   - title: phase-5-shared-packages-docs.md - Update imports and keep backward-compatible barrels
-    completed: false
+    completed: true
     parallel_group: 6
     tags: [shared, imports]
     file: phase-5-shared-packages-docs.md
