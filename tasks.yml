@@ -810,7 +810,7 @@ tasks:
       - No missing job handlers
 
   - title: phase-3-scraper-worker.md - Update scraper imports and job wiring
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [scraper, wiring]
     file: phase-3-scraper-worker.md
