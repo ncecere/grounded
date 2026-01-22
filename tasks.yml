@@ -938,7 +938,7 @@ tasks:
       - Manual smoke passes
 
   - title: phase-4-web-app.md - Document provider boundaries and responsibilities
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [web, providers]
     file: phase-4-web-app.md

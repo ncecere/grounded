@@ -83,3 +83,4 @@
 2026-01-21 - Preserved web navigation gating by enforcing page registry auth gates in App and AppSidebar, added registry access tests, and ran bun test apps/web/src/components/app-sidebar.test.ts apps/web/src/app/app-registry-usage.test.ts.
 2026-01-21 - Added auth/session and tenant providers with shared state hooks, wrapped App with providers, added provider usage tests, and updated App to consume provider state.
 2026-01-21 - Moved App page/selection state into new AppStateProvider, wired App and main to consume it, added provider tests/usage assertions, and verified bun test apps/web/src/app/providers-usage.test.ts apps/web/src/app/providers/app-state-provider.test.ts.
+2026-01-21 - Documented web provider boundaries/responsibilities in docs/refactor/web-navigation.md with provider order notes and added web-navigation-doc.test.ts coverage.
