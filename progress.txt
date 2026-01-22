@@ -75,3 +75,4 @@
 2026-01-21 - Added selectAndFetch orchestration tests covering firecrawl/headless selection, HTTP success, JS-rendering fallback, and HTTP error fallback; ran bun test apps/scraper-worker/src/fetch/selection-orchestration.test.ts.
 2026-01-21 - Added scraper fetch flow documentation in docs/refactor/scraper-fetch.md with decision rules and strategy details; added scraper-fetch-doc.test.ts and ran bun test apps/scraper-worker/src/scraper-fetch-doc.test.ts.
 2026-01-21 - Documented scraper fetch payload invariants (PageFetchJob fields, content-type and size constraints) in docs/refactor/scraper-fetch.md; extended scraper-fetch-doc.test.ts and ran bun test apps/scraper-worker/src/scraper-fetch-doc.test.ts.
+2026-01-21 - Added web page registry in apps/web/src/app/page-registry.ts with current page labels/components, plus registry lookup tests in apps/web/src/app/page-registry.test.ts; bun test apps/web/src/app/page-registry.test.ts passes.

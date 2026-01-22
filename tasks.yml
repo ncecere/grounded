@@ -856,7 +856,7 @@ tasks:
   # Depends on Group 4
   # ===========================================================================
   - title: phase-4-web-app.md - Create web page registry
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [web, navigation]
     file: phase-4-web-app.md
