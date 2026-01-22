@@ -830,7 +830,7 @@ tasks:
       - Tests pass
 
   - title: phase-3-scraper-worker.md - Create scraper fetch flow doc
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [docs, scraper]
     file: phase-3-scraper-worker.md
