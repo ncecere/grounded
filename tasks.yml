@@ -728,7 +728,7 @@ tasks:
       - Behavior unchanged
 
   - title: phase-3-scraper-worker.md - Define browser pool shutdown expectations for in-flight pages
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [scraper, shutdown]
     file: phase-3-scraper-worker.md
