@@ -34,32 +34,6 @@ export function normalizeUrl(urlString: string): string {
   }
 }
 
-/**
- * Extract the hostname from a URL
- */
-export function getHostname(urlString: string): string {
-  try {
-    return new URL(urlString).hostname;
-  } catch {
-    return "";
-  }
-}
-
-/**
- * Check if two URLs have the same host
- */
-export function isSameHost(url1: string, url2: string): boolean {
-  return getHostname(url1) === getHostname(url2);
-}
-
-/**
- * Check if a URL is a subdomain of another
- */
-export function isSubdomain(url: string, baseUrl: string): boolean {
-  const urlHost = getHostname(url);
-  const baseHost = getHostname(baseUrl);
-  return urlHost.endsWith(`.${baseHost}`) || urlHost === baseHost;
-}
 
 /**
  * Sleep for a given number of milliseconds
@@ -117,45 +91,6 @@ export async function hashString(str: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/**
- * Truncate text to a maximum length
- */
-export function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength - 3) + "...";
-}
-
-/**
- * Check if a path matches any of the given patterns
- */
-export function matchesPattern(
-  path: string,
-  patterns: string[]
-): boolean {
-  return patterns.some((pattern) => {
-    // Convert glob pattern to regex
-    const regex = new RegExp(
-      "^" +
-        pattern
-          .replace(/\*\*/g, ".*")
-          .replace(/\*/g, "[^/]*")
-          .replace(/\?/g, ".") +
-        "$"
-    );
-    return regex.test(path);
-  });
-}
-
-/**
- * Validate that required environment variables are set
- */
-export function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
 
 /**
  * Get an optional environment variable with a default value

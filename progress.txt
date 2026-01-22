@@ -101,3 +101,4 @@
 2026-01-21 - Added refactor architecture notes in docs/refactor/architecture.md with module boundary highlights and contract touchpoints; added architecture doc coverage tests.
 2026-01-21 - Added module ownership guidelines in docs/refactor/ownership.md with escalation paths and coordination rules; added ownership doc coverage tests.
 2026-01-21 - Added shared package conventions doc in docs/refactor/shared-packages.md with export/import rules, deprecation guidance, and validation checklist; added shared-packages doc tests.
+2026-01-21 - Removed unused shared utils helpers (hostname checks, glob matching, truncate, requireEnv) and added utils-cleanup test coverage.

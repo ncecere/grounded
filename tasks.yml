@@ -1129,7 +1129,7 @@ tasks:
       - Reviewed for accuracy
 
   - title: phase-5-shared-packages-docs.md - Remove dead code and unused helpers where verified
-    completed: false
+    completed: true
     parallel_group: 6
     tags: [cleanup]
     file: phase-5-shared-packages-docs.md
