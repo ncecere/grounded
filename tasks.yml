@@ -877,7 +877,7 @@ tasks:
       - Documented in web navigation docs
 
   - title: phase-4-web-app.md - Update App.tsx to use the page registry
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [web, app]
     file: phase-4-web-app.md

@@ -20,43 +20,27 @@ import { Sources } from "./pages/Sources";
 import { Chat } from "./pages/Chat";
 import { AgentTestSuites } from "./pages/AgentTestSuites";
 import { AgentTestSuiteDetail } from "./pages/AgentTestSuiteDetail";
-import { Analytics } from "./pages/Analytics";
-import { AdminSettings } from "./pages/AdminSettings";
-import { AdminTenants } from "./pages/AdminTenants";
-import { AdminModels } from "./pages/AdminModels";
-import { AdminUsers } from "./pages/AdminUsers";
 import { AdminSharedKBs } from "./pages/AdminSharedKBs";
 import { AdminSharedKbSources } from "./pages/AdminSharedKbSources";
 import { SharedKbDetail } from "./pages/SharedKbDetail";
 import AdminDashboard from "./pages/AdminDashboard";
-import { AdminAnalytics } from "./pages/AdminAnalytics";
-import { TenantSettings } from "./pages/TenantSettings";
-
-import { AdminAuditLogs } from "./pages/AdminAuditLogs";
 import { Login } from "./pages/Login";
 import { Building2, AlertTriangle } from "lucide-react";
 import { Button } from "./components/ui/button";
+import { pageRegistryById, type PageId } from "./app/page-registry";
 
-const pageNames: Record<Page, string> = {
-  kbs: "Knowledge Bases",
-  agents: "Agents",
-  sources: "Sources",
-  chat: "Chat",
-  "test-suites": "Test Suites",
-  "test-suite-detail": "Test Suite",
-  analytics: "Analytics",
-  dashboard: "Dashboard",
-  settings: "Settings",
-  tenants: "Tenants",
-  models: "AI Models",
-  users: "Users",
-  "shared-kbs": "Shared Knowledge Bases",
-  "shared-kb-sources": "Shared KB Sources",
-  "shared-kb-detail": "Shared Knowledge Base",
-  "admin-analytics": "Analytics",
-  "tenant-settings": "Tenant Settings",
-  "admin-audit-logs": "Audit Logs",
-};
+const customPageIds = new Set<Page>([
+  "kbs",
+  "sources",
+  "shared-kb-detail",
+  "agents",
+  "chat",
+  "test-suites",
+  "test-suite-detail",
+  "dashboard",
+  "shared-kbs",
+  "shared-kb-sources",
+]);
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("kbs");
@@ -123,6 +107,21 @@ export default function App() {
     setSelectedSuiteId(null);
   };
 
+  const renderRegistryPage = (page: Page) => {
+    if (customPageIds.has(page)) {
+      return null;
+    }
+
+    const entry = pageRegistryById[page as PageId];
+
+    if (!entry) {
+      return null;
+    }
+
+    const PageComponent = entry.component;
+    return <PageComponent />;
+  };
+
   // Loading states
   if ((userLoading && getToken()) || (user && tenantsLoading)) {
     return (
@@ -161,11 +160,6 @@ export default function App() {
     // No tenant state for admin users - prompt to create
     if ((!tenantsData?.tenants || tenantsData.tenants.length === 0) && user.isSystemAdmin) {
       if (currentPage === "dashboard") return <AdminDashboard onNavigate={setCurrentPage} />;
-      if (currentPage === "admin-analytics") return <AdminAnalytics />;
-      if (currentPage === "tenants") return <AdminTenants />;
-      if (currentPage === "users") return <AdminUsers />;
-      if (currentPage === "settings") return <AdminSettings />;
-      if (currentPage === "models") return <AdminModels />;
       if (currentPage === "shared-kbs") return (
         <AdminSharedKBs
           onSelectKb={(id) => {
@@ -183,7 +177,11 @@ export default function App() {
           }}
         />
       );
-      if (currentPage === "admin-audit-logs") return <AdminAuditLogs />;
+
+      const registryPage = renderRegistryPage(currentPage);
+      if (registryPage) {
+        return registryPage;
+      }
 
       return (
         <div className="flex items-center justify-center h-full">
@@ -286,14 +284,8 @@ export default function App() {
             }}
           />
         );
-      case "analytics":
-        return <Analytics />;
       case "dashboard":
         return <AdminDashboard onNavigate={setCurrentPage} />;
-      case "tenants":
-        return <AdminTenants />;
-      case "users":
-        return <AdminUsers />;
       case "shared-kbs":
         return (
           <AdminSharedKBs
@@ -313,20 +305,18 @@ export default function App() {
             }}
           />
         );
-      case "models":
-        return <AdminModels />;
-      case "admin-analytics":
-        return <AdminAnalytics />;
-      case "settings":
-        return <AdminSettings />;
-      case "tenant-settings":
-        return <TenantSettings />;
-      case "admin-audit-logs":
-        return <AdminAuditLogs />;
-      default:
+      default: {
+        const registryPage = renderRegistryPage(currentPage);
+        if (registryPage) {
+          return registryPage;
+        }
+
         return <KnowledgeBases onSelectKb={() => {}} />;
+      }
     }
   };
+
+  const currentEntry = pageRegistryById[currentPage as PageId];
 
   return (
     <SidebarProvider>
@@ -355,7 +345,7 @@ export default function App() {
                 <Breadcrumb>
                   <BreadcrumbList>
                     <BreadcrumbItem>
-                      <BreadcrumbPage>{pageNames[currentPage]}</BreadcrumbPage>
+                      <BreadcrumbPage>{currentEntry?.label ?? "Page"}</BreadcrumbPage>
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
