@@ -779,7 +779,7 @@ tasks:
       - Typecheck/tests pass
 
   - title: phase-3-scraper-worker.md - Centralize scraper settings initialization
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [scraper, bootstrap]
     file: phase-3-scraper-worker.md
