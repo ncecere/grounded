@@ -11,7 +11,7 @@ import {
   ClipboardList,
 } from "lucide-react"
 
-import { pageRegistryById, type PageId } from "@/app/page-registry"
+import { pageRegistryById, type PageId, type PageRegistryEntry } from "@/app/page-registry"
 import { TenantSwitcher } from "@/components/tenant-switcher"
 import { NavMain, type NavItem } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -25,14 +25,11 @@ import {
 } from "@/components/ui/sidebar"
 import type { UserTenant } from "@/lib/api"
 
-const workspaceNavPageIds = [
+const navPageIds = [
   "kbs",
   "agents",
   "analytics",
   "tenant-settings",
-] as const satisfies readonly PageId[]
-
-const adminNavPageIds = [
   "dashboard",
   "admin-analytics",
   "tenants",
@@ -43,7 +40,7 @@ const adminNavPageIds = [
   "admin-audit-logs",
 ] as const satisfies readonly PageId[]
 
-type SidebarPageId = (typeof workspaceNavPageIds)[number] | (typeof adminNavPageIds)[number]
+type SidebarPageId = (typeof navPageIds)[number]
 
 const navIcons: Record<SidebarPageId, NavItem["icon"]> = {
   kbs: BookOpen,
@@ -64,6 +61,14 @@ const labelOverrides: Partial<Record<SidebarPageId, string>> = {
   "tenant-settings": "Settings",
   "shared-kbs": "Shared KBs",
 }
+
+const navEntries = navPageIds.flatMap((pageId) => {
+  const entry = pageRegistryById[pageId]
+  return entry ? [entry] : []
+})
+
+const workspaceNavEntries = navEntries.filter((entry) => entry.group === "workspace")
+const adminNavEntries = navEntries.filter((entry) => entry.group === "admin")
 
 export type Page = PageId
 
@@ -96,17 +101,18 @@ export function AppSidebar({
   // Check if user can manage tenant (owner or admin)
   const canManageTenant = currentTenant?.role === "owner" || currentTenant?.role === "admin"
 
-  const getNavItems = (pageIds: readonly SidebarPageId[]): NavItem[] =>
-    pageIds.reduce<NavItem[]>((items, pageId) => {
-      const entry = pageRegistryById[pageId]
-      if (!entry) {
+  const getNavItems = (entries: ReadonlyArray<PageRegistryEntry>): NavItem[] =>
+    entries.reduce<NavItem[]>((items, entry) => {
+      const pageId = entry.id as SidebarPageId
+      const icon = navIcons[pageId]
+      if (!icon) {
         return items
       }
 
       items.push({
         title: labelOverrides[pageId] ?? entry.label,
         id: entry.id,
-        icon: navIcons[pageId],
+        icon,
         isActive: currentPage === entry.id,
       })
       return items
@@ -116,17 +122,13 @@ export function AppSidebar({
   const mainNavItems: NavItem[] = hasTenant
     ? getNavItems(
         canManageTenant
-          ? workspaceNavPageIds
-          : (workspaceNavPageIds.filter(
-              (pageId) => pageId !== "tenant-settings"
-            ) as SidebarPageId[])
+          ? workspaceNavEntries
+          : workspaceNavEntries.filter((entry) => entry.id !== "tenant-settings")
       )
     : []
 
   // Admin navigation items
-  const adminNavItems: NavItem[] = user.isSystemAdmin
-    ? getNavItems(adminNavPageIds)
-    : []
+  const adminNavItems: NavItem[] = user.isSystemAdmin ? getNavItems(adminNavEntries) : []
 
   return (
     <Sidebar collapsible="icon" {...props}>

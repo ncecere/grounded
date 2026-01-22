@@ -10,10 +10,17 @@ describe("AppSidebar page registry usage", () => {
     expect(source).toContain("getNavItems");
   });
 
-  it("should define workspace and admin navigation ids", async () => {
+  it("should define navigation ids for the sidebar", async () => {
     const source = await Bun.file(appSidebarModuleUrl).text();
 
-    expect(source).toContain("workspaceNavPageIds");
-    expect(source).toContain("adminNavPageIds");
+    expect(source).toContain("navPageIds");
+  });
+
+  it("should group navigation items using registry metadata", async () => {
+    const source = await Bun.file(appSidebarModuleUrl).text();
+
+    expect(source).toContain("entry.group");
+    expect(source).toContain("workspaceNavEntries");
+    expect(source).toContain("adminNavEntries");
   });
 });

@@ -897,7 +897,7 @@ tasks:
       - Manual smoke confirms navigation
 
   - title: phase-4-web-app.md - Add navigation grouping metadata
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [web, navigation]
     file: phase-4-web-app.md
