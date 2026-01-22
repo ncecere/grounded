@@ -44,4 +44,13 @@ describe("phase 5 shared packages documentation", () => {
     expect(content).toContain("Deprecation Flow for Moved Types");
     expect(content).toContain("@deprecated");
   });
+
+  it("documents a deprecation timeline and removal criteria", async () => {
+    const content = await readFile(phase5DocPath, "utf-8");
+
+    expect(content).toContain("Deprecation Timeline and Removal Criteria");
+    expect(content).toContain("T0 (type move release)");
+    expect(content).toContain("Removal criteria");
+    expect(content).toContain("docs/refactor/shared-packages.md");
+  });
 });

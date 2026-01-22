@@ -1065,7 +1065,7 @@ tasks:
       - Typecheck passes
 
   - title: phase-5-shared-packages-docs.md - Define a deprecation timeline and removal criteria for old types
-    completed: false
+    completed: true
     parallel_group: 6
     tags: [shared, exports]
     file: phase-5-shared-packages-docs.md

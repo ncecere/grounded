@@ -49,6 +49,22 @@ submodules and tighten their export boundaries.
 4. Remove the deprecated export once all consumers have migrated and the removal
    criteria/timeline task is complete.
 
+### Deprecation Timeline and Removal Criteria
+- T0 (type move release): Add compatibility re-export with `@deprecated` JSDoc and log
+  the change in `docs/refactor/migration-log.md`.
+- T+1 release: Ensure all owners update their imports to shared paths and verify with
+  targeted tests (API/web/workers) plus the shared export map tests.
+- T+2 release: Remove legacy export only after all criteria below are met.
+
+Removal criteria (must all be true before removal):
+- Usage count for the legacy export is zero across the monorepo (confirmed via
+  `rg`/typecheck).
+- The shared type is exported from the correct submodule and documented in
+  `docs/refactor/shared-packages.md`.
+- Owners for the affected domains confirm adoption in the Phase 5 checklist.
+- The removal ships in a planned minor/major release, with release notes calling out
+  the breaking change (if any).
+
 ## Shared Type Duplication Audit
 Date: 2026-01-21
 
@@ -83,7 +99,7 @@ Date: 2026-01-21
 - [ ] Add export maps/tsconfig path aliases to prevent deep imports.
 - [ ] Move shared DTOs/enums/errors into the shared package.
 - [ ] Update imports gradually and keep backward-compatible barrels where needed.
-- [ ] Define a deprecation timeline and removal criteria for old type locations.
+- [x] Define a deprecation timeline and removal criteria for old type locations.
 - [ ] Add an adoption plan for web API types to avoid churn with Phase 4.
 - [ ] Remove duplicates in `apps/web/src/lib/api/types.ts` once shared types are adopted.
 - [ ] Add architecture notes in `docs/refactor/architecture.md`.
