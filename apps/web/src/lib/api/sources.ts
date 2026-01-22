@@ -1,5 +1,5 @@
 import { API_BASE, request, getToken, getCurrentTenantId } from "./client";
-import type { Source, SourceRun } from "./types";
+import type { Source, SourceRun } from "./types/sources";
 
 export const sourcesApi = {
   listSources: async (kbId: string) => {

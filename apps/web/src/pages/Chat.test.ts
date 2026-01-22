@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import type { ReasoningStep, RagType, ChatMessage } from "@/lib/api/types";
+import type { RagType } from "@/lib/api/types/agents";
+import type { ChatMessage, ReasoningStep } from "@/lib/api/types/chat";
 
 // =============================================================================
 // Module Exports Tests

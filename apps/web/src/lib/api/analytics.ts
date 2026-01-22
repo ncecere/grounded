@@ -1,5 +1,6 @@
 import { request } from "./client";
-import type { AnalyticsData, TestSuiteAnalytics } from "./types";
+import type { AnalyticsData } from "./types/analytics";
+import type { TestSuiteAnalytics } from "./types/test-suites";
 
 export const analyticsApi = {
   getAnalytics: (params?: { startDate?: string; endDate?: string }) => {

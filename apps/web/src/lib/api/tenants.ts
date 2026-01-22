@@ -1,5 +1,11 @@
 import { request } from "./client";
-import type { Tenant, TenantMember, TenantAlertSettings, TenantApiKey, TenantApiKeyWithSecret } from "./types";
+import type {
+  Tenant,
+  TenantAlertSettings,
+  TenantApiKey,
+  TenantApiKeyWithSecret,
+  TenantMember,
+} from "./types/tenants";
 
 export const tenantsApi = {
   listAllTenants: () => request<{ tenants: Tenant[] }>("/tenants"),

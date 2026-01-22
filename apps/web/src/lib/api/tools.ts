@@ -1,5 +1,12 @@
 import { request } from "./client";
-import type { ToolDefinition, ToolType, ToolConfig, ToolParameter, AgentTool, BuiltinToolInfo } from "./types";
+import type {
+  AgentTool,
+  BuiltinToolInfo,
+  ToolConfig,
+  ToolDefinition,
+  ToolParameter,
+  ToolType,
+} from "./types/tools";
 
 export const toolsApi = {
   listTools: () =>

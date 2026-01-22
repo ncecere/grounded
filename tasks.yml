@@ -948,7 +948,7 @@ tasks:
       - Stored with web navigation docs
 
   - title: phase-4-web-app.md - Split web API types by domain
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [web, api-types]
     file: phase-4-web-app.md

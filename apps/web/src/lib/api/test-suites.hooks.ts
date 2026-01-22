@@ -9,11 +9,11 @@ import type {
   TestCase,
   TestRunWithResults,
   TestSuite,
-  TestSuiteRunAnalytics,
   TestSuiteRun,
+  TestSuiteRunAnalytics,
   UpdateTestCaseDto,
   UpdateTestSuiteDto,
-} from "./types";
+} from "./types/test-suites";
 
 type TestRunListResponse = { runs: TestSuiteRun[]; total: number };
 

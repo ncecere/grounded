@@ -218,7 +218,7 @@ describe("api module structure", () => {
 
 describe("type exports", () => {
   it("should export User type", async () => {
-    const types = await import("./types");
+    const types = await import("./types/auth");
     // Type-only test: we can't test types at runtime, but we can verify the module loads
     expect(types).toBeDefined();
   });

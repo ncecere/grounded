@@ -1,5 +1,5 @@
 import { API_BASE, request, getToken, getCurrentTenantId } from "./client";
-import type { ChatMessage, ReasoningStep } from "./types";
+import type { ChatMessage, ReasoningStep } from "./types/chat";
 
 export const chatApi = {
   chat: async (

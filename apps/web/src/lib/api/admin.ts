@@ -1,31 +1,30 @@
 import { API_BASE, request, getToken } from "./client";
 import type {
-  SystemSetting,
-  FairnessMetrics,
-  ModelProvider,
-  ModelConfiguration,
-  ProviderType,
-  ModelType,
-  RegistryStatus,
-  AdminUser,
-  AdminUserDetail,
-  SharedKnowledgeBase,
-  SharedKnowledgeBaseDetail,
-  AvailableTenant,
-  Source,
-  SourceRun,
-  DashboardHealth,
-  DashboardStats,
   AdminAnalyticsOverview,
-  AdminAnalyticsTenants,
   AdminAnalyticsTenantDetail,
+  AdminAnalyticsTenants,
   AdminApiToken,
   AdminApiTokenWithSecret,
-  AuditLogResponse,
+  AdminUser,
+  AdminUserDetail,
   AuditLogEntry,
   AuditLogFilters,
+  AuditLogResponse,
   AuditSummary,
-} from "./types";
+  DashboardHealth,
+  DashboardStats,
+  FairnessMetrics,
+  ModelConfiguration,
+  ModelProvider,
+  ModelType,
+  ProviderType,
+  RegistryStatus,
+  SharedKnowledgeBase,
+  SharedKnowledgeBaseDetail,
+  SystemSetting,
+} from "./types/admin";
+import type { AvailableTenant } from "./types/tenants";
+import type { Source, SourceRun } from "./types/sources";
 
 export const adminApi = {
   // Settings

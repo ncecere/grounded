@@ -11,7 +11,16 @@ export {
 } from "./client";
 
 // Re-export all types
-export * from "./types";
+export * from "./types/admin";
+export * from "./types/agents";
+export * from "./types/analytics";
+export * from "./types/auth";
+export * from "./types/chat";
+export * from "./types/knowledge-bases";
+export * from "./types/sources";
+export * from "./types/tenants";
+export * from "./types/test-suites";
+export * from "./types/tools";
 
 // Import domain APIs
 import { authApi } from "./auth";

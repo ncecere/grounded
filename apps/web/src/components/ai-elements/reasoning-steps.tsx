@@ -25,9 +25,9 @@ import { Shimmer } from "./shimmer";
 import { Loader } from "./loader";
 import type {
   ReasoningStep,
-  ReasoningStepType,
   ReasoningStepStatus,
-} from "@/lib/api/types";
+  ReasoningStepType,
+} from "@/lib/api/types/chat";
 
 // =============================================================================
 // Context

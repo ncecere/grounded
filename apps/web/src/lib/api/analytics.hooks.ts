@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { analyticsApi } from "./analytics";
-import type { TestSuiteAnalytics } from "./types";
+import type { TestSuiteAnalytics } from "./types/test-suites";
 
 export const analyticsKeys = {
   all: ["analytics"] as const,

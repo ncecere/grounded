@@ -1,5 +1,5 @@
 import { request } from "./client";
-import type { Agent, LLMModel, ChatEndpoint, RagType } from "./types";
+import type { Agent, ChatEndpoint, LLMModel, RagType } from "./types/agents";
 
 export const agentsApi = {
   listAgents: async () => {

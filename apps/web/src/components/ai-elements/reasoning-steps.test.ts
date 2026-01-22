@@ -7,9 +7,9 @@ import {
 } from "./reasoning-steps";
 import type {
   ReasoningStep,
-  ReasoningStepType,
   ReasoningStepStatus,
-} from "@/lib/api/types";
+  ReasoningStepType,
+} from "@/lib/api/types/chat";
 
 // =============================================================================
 // Module Exports Tests

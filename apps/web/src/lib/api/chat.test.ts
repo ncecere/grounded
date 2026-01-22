@@ -84,20 +84,20 @@ describe("chat API client", () => {
 
   describe("ReasoningStep type", () => {
     it("should export ReasoningStep type from types module", async () => {
-      const types = await import("./types");
+      const types = await import("./types/chat");
       // Type-only check - verify module loads without ReasoningStep causing issues
       expect(types).toBeDefined();
     });
 
     it("should export ReasoningStepType union type", async () => {
       // ReasoningStepType = "rewrite" | "plan" | "search" | "merge" | "generate"
-      const types = await import("./types");
+      const types = await import("./types/chat");
       expect(types).toBeDefined();
     });
 
     it("should export ReasoningStepStatus union type", async () => {
       // ReasoningStepStatus = "pending" | "in_progress" | "completed" | "error"
-      const types = await import("./types");
+      const types = await import("./types/chat");
       expect(types).toBeDefined();
     });
   });

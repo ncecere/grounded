@@ -1,5 +1,5 @@
 import { request } from "./client";
-import type { KnowledgeBase } from "./types";
+import type { KnowledgeBase } from "./types/knowledge-bases";
 
 export const knowledgeBasesApi = {
   listKnowledgeBases: async () => {

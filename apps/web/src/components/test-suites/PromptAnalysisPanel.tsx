@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { FileText, Sparkles } from "lucide-react";
 import { useAnalyses } from "../../lib/api/test-suites.hooks";
-import type { PromptAnalysis, TestSuite } from "../../lib/api/types";
+import type { PromptAnalysis, TestSuite } from "../../lib/api/types/test-suites";
 import { EmptyState } from "../ui/empty-state";
 import { LoadingSkeleton } from "../ui/loading-skeleton";
 import { PromptAnalysisCard } from "./PromptAnalysisCard";

@@ -292,14 +292,14 @@ describe("Agent type contract", () => {
 
 describe("RagType type contract", () => {
   it("should accept 'simple' as valid RagType", async () => {
-    const types = await import("./types");
+    const types = await import("./types/agents");
     expect(types).toBeDefined();
     const ragType: "simple" | "advanced" = "simple";
     expect(ragType).toBe("simple");
   });
 
   it("should accept 'advanced' as valid RagType", async () => {
-    const types = await import("./types");
+    const types = await import("./types/agents");
     expect(types).toBeDefined();
     const ragType: "simple" | "advanced" = "advanced";
     expect(ragType).toBe("advanced");

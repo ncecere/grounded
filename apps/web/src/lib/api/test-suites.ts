@@ -9,11 +9,11 @@ import type {
   TestCase,
   TestRunWithResults,
   TestSuite,
-  TestSuiteRunAnalytics,
   TestSuiteRun,
+  TestSuiteRunAnalytics,
   UpdateTestCaseDto,
   UpdateTestSuiteDto,
-} from "./types";
+} from "./types/test-suites";
 
 export const testSuitesApi = {
   listTestSuites: async (agentId: string) => {

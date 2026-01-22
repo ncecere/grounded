@@ -13,7 +13,7 @@ import type {
   TestSuiteRunSummary,
   UpdateTestCaseDto,
   UpdateTestSuiteDto,
-} from "./types";
+} from "./types/test-suites";
 
 describe("test suite api types", () => {
   it("should support core test suite type shapes", () => {
