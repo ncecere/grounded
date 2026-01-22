@@ -223,6 +223,16 @@ describe("browser pool shutdown implementation verification", () => {
     const indexPath = join(scraperWorkerSrcPath, "index.ts");
     const content = await readFile(indexPath, "utf-8");
 
+    // After bootstrap refactor, index.ts calls stopSettingsRefresh() from bootstrap
+    expect(content).toContain("stopSettingsRefresh()");
+    expect(content).toContain('from "./bootstrap"');
+  });
+
+  it("bootstrap settings module stops periodic refresh", async () => {
+    const settingsPath = join(scraperWorkerSrcPath, "bootstrap/settings.ts");
+    const content = await readFile(settingsPath, "utf-8");
+
+    // The actual stopPeriodicRefresh call is now in the bootstrap module
     expect(content).toContain("settingsClient.stopPeriodicRefresh()");
   });
 });

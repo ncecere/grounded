@@ -748,7 +748,7 @@ tasks:
       - Used by page fetch job
 
   - title: phase-3-scraper-worker.md - Preserve fairness scheduling behavior and settings refresh semantics
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [scraper, settings]
     file: phase-3-scraper-worker.md
