@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { UserTenant } from "./lib/api";
 import { AppSidebar, type Page } from "./components/app-sidebar";
 import {
@@ -27,7 +26,7 @@ import { Login } from "./pages/Login";
 import { Building2, AlertTriangle } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { canAccessPage, pageRegistryById, type PageId } from "./app/page-registry";
-import { useAuth, useTenant } from "./app/providers";
+import { useAppState, useAuth, useTenant } from "./app/providers";
 
 const customPageIds = new Set<Page>([
   "kbs",
@@ -43,11 +42,20 @@ const customPageIds = new Set<Page>([
 ]);
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>("kbs");
-  const [selectedKbId, setSelectedKbId] = useState<string | null>(null);
-  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
-  const [selectedSharedKbId, setSelectedSharedKbId] = useState<string | null>(null);
-  const [selectedSuiteId, setSelectedSuiteId] = useState<string | null>(null);
+  const {
+    currentPage,
+    selectedKbId,
+    selectedAgentId,
+    selectedSharedKbId,
+    selectedSuiteId,
+    setCurrentPage,
+    setSelectedKbId,
+    setSelectedAgentId,
+    setSelectedSharedKbId,
+    setSelectedSuiteId,
+    navigate,
+    resetForTenantChange,
+  } = useAppState();
   const { user, isLoading: userLoading, hasToken, refreshUser, logout } = useAuth();
   const {
     tenants,
@@ -60,9 +68,7 @@ export default function App() {
 
   const handleTenantChange = (tenant: UserTenant) => {
     selectTenant(tenant);
-    setSelectedKbId(null);
-    setSelectedAgentId(null);
-    setCurrentPage("kbs");
+    resetForTenantChange();
   };
 
   const handleLogout = () => {
@@ -70,11 +76,7 @@ export default function App() {
   };
 
   const handleNavigate = (page: Page) => {
-    setCurrentPage(page);
-    setSelectedKbId(null);
-    setSelectedAgentId(null);
-    setSelectedSharedKbId(null);
-    setSelectedSuiteId(null);
+    navigate(page);
   };
 
   const renderRegistryPage = (page: Page) => {

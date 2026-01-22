@@ -9,6 +9,7 @@ describe("Auth/Tenant providers", () => {
 
     expect(source).toContain("<AuthProvider>");
     expect(source).toContain("<TenantProvider>");
+    expect(source).toContain("<AppStateProvider>");
   });
 
   it("should consume auth and tenant state in App", async () => {
@@ -16,5 +17,6 @@ describe("Auth/Tenant providers", () => {
 
     expect(source).toContain("useAuth");
     expect(source).toContain("useTenant");
+    expect(source).toContain("useAppState");
   });
 });
