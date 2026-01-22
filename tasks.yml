@@ -989,7 +989,7 @@ tasks:
       - No circular dependencies introduced
 
   - title: phase-4-web-app.md - Create web navigation doc
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [docs, web]
     file: phase-4-web-app.md

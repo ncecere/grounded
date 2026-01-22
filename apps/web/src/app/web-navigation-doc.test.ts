@@ -17,6 +17,15 @@ describe("web navigation documentation", () => {
     expect(content).toContain("AppStateProvider");
   });
 
+  it("documents the page registry", async () => {
+    const content = await readFile(webNavigationDocPath, "utf-8");
+
+    expect(content).toContain("## Page Registry");
+    expect(content).toContain("apps/web/src/app/page-registry.ts");
+    expect(content).toContain("authGate");
+    expect(content).toContain("order");
+  });
+
   it("notes key provider responsibilities", async () => {
     const content = await readFile(webNavigationDocPath, "utf-8");
 
@@ -33,5 +42,14 @@ describe("web navigation documentation", () => {
     expect(content).toContain("AuthProvider");
     expect(content).toContain("TenantProvider");
     expect(content).toContain("AppStateProvider");
+  });
+
+  it("captures page access gates", async () => {
+    const content = await readFile(webNavigationDocPath, "utf-8");
+
+    expect(content).toContain("## Page Access Gates");
+    expect(content).toContain("canAccessPage");
+    expect(content).toContain("tenant-admin");
+    expect(content).toContain("system-admin");
   });
 });

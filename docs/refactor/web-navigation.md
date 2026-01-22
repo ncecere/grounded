@@ -1,5 +1,16 @@
 # Web Navigation Notes
 
+## Page Registry
+- The page registry lives in `apps/web/src/app/page-registry.ts` and defines page metadata for navigation.
+- Each entry includes `id`, `label`, `group`, `component`, `authGate`, and `order`.
+- `group` is either `workspace` or `admin` to drive sidebar sections.
+- `order` is used to preserve the current nav ordering within each group.
+- `pageRegistryById` is the lookup map used by App and the sidebar.
+
+### Page Registry Usage
+- `App.tsx` resolves the current page via `pageRegistryById` and uses `pageRegistry` for default selection.
+- `AppSidebar` filters entries by access and group to render the navigation list.
+
 ## Provider Boundaries
 ### AuthProvider (session + identity)
 - Owns authentication state (token presence, current user, loading state).
@@ -22,3 +33,10 @@
 ### Provider Order
 - `AuthProvider` wraps `TenantProvider`, which wraps `AppStateProvider`, then `App`.
 - This ordering allows tenant state to react to auth changes while keeping navigation state independent.
+
+## Page Access Gates
+- Access rules are centralized in `canAccessPage` within the page registry module.
+- `tenant`: requires an active tenant (`hasTenant`).
+- `tenant-admin`: requires tenant admin rights (`hasTenant` + `canManageTenant`).
+- `system-admin`: requires system admin privileges (`isSystemAdmin`).
+- `App` and `AppSidebar` use these gates to enforce admin/workspace segmentation.
