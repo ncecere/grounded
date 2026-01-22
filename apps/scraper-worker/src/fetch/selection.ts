@@ -23,6 +23,7 @@ import { log } from "@grounded/logger";
 import { fetchWithFirecrawl } from "./firecrawl";
 import { fetchWithHttp } from "./http";
 import { fetchWithPlaywright } from "./playwright";
+import { needsJsRendering } from "../services/content-validation";
 
 /**
  * Result from a fetch operation
@@ -116,68 +117,12 @@ export function selectStrategy(
 }
 
 // ============================================================================
-// JS Rendering Detection
+// JS Rendering Detection - Re-exports from content-validation service
 // ============================================================================
 
-/** Minimum text content length to consider page fully rendered */
-const MIN_BODY_TEXT_LENGTH = 500;
-
-/** Text length threshold when JS framework indicators are present */
-const MIN_TEXT_WITH_FRAMEWORK = 1000;
-
-/** Common JS framework indicators in HTML */
-const JS_FRAMEWORK_INDICATORS = [
-  "data-reactroot",
-  "ng-app",
-  "ng-controller",
-  "__NEXT_DATA__",
-  "__NUXT__",
-  "id=\"app\"",
-  "id=\"root\"",
-] as const;
-
-/**
- * Determines if HTML content likely needs JavaScript rendering.
- * 
- * Heuristics:
- * 1. Body has very little text content (< 500 chars) → needs JS
- * 2. Page has JS framework indicators AND text content < 1000 chars → needs JS
- * 
- * This preserves the exact heuristics from the original page-fetch.ts.
- */
-export function needsJsRendering(html: string): boolean {
-  // Extract body content
-  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  const bodyContent = bodyMatch?.[1] || "";
-  
-  // Strip HTML tags to get text content
-  const textContent = bodyContent.replace(/<[^>]+>/g, "").trim();
-
-  // If body has very little text content, it likely needs JS
-  if (textContent.length < MIN_BODY_TEXT_LENGTH) {
-    return true;
-  }
-
-  // Check for common JS framework indicators
-  for (const indicator of JS_FRAMEWORK_INDICATORS) {
-    if (html.includes(indicator)) {
-      // Framework detected - only flag as needing JS if text is sparse
-      if (textContent.length < MIN_TEXT_WITH_FRAMEWORK) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-/**
- * Returns the framework indicators used for JS detection.
- * Exposed for testing purposes.
- */
-export function getJsFrameworkIndicators(): readonly string[] {
-  return JS_FRAMEWORK_INDICATORS;
-}
+// Re-export needsJsRendering and related utilities from content-validation service
+// for backward compatibility with existing callers
+export { needsJsRendering, getJsFrameworkIndicators } from "../services/content-validation";
 
 // ============================================================================
 // Fetch Execution
@@ -266,7 +211,5 @@ async function fetchWithHttpAndFallback(
 // Exports for Testing
 // ============================================================================
 
-export {
-  MIN_BODY_TEXT_LENGTH,
-  MIN_TEXT_WITH_FRAMEWORK,
-};
+// Re-export constants from content-validation service for backward compatibility
+export { MIN_BODY_TEXT_LENGTH, MIN_TEXT_WITH_FRAMEWORK } from "../services/content-validation";

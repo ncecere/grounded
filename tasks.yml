@@ -758,7 +758,7 @@ tasks:
       - Verified against baseline settings
 
   - title: phase-3-scraper-worker.md - Move content validation helpers
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [scraper, validation]
     file: phase-3-scraper-worker.md

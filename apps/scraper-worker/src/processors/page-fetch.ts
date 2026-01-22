@@ -22,6 +22,7 @@ import { createCrawlState } from "@grounded/crawl-state";
 import { fetchWithFirecrawl } from "../fetch/firecrawl";
 import { fetchWithHttp } from "../fetch/http";
 import { fetchWithPlaywright } from "../fetch/playwright";
+import { needsJsRendering } from "../services/content-validation";
 
 export async function processPageFetch(
   data: PageFetchJob,
@@ -222,38 +223,4 @@ async function processPageFetchWithSlot(
       });
     }
   }
-}
-
-
-function needsJsRendering(html: string): boolean {
-  // Heuristics to detect if page needs JS rendering
-  const bodyContent = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1] || "";
-  const textContent = bodyContent.replace(/<[^>]+>/g, "").trim();
-
-  // If body has very little text content, it might need JS
-  if (textContent.length < 500) {
-    return true;
-  }
-
-  // Check for common JS framework indicators
-  const jsFrameworkIndicators = [
-    "data-reactroot",
-    "ng-app",
-    "ng-controller",
-    "__NEXT_DATA__",
-    "__NUXT__",
-    "id=\"app\"",
-    "id=\"root\"",
-  ];
-
-  for (const indicator of jsFrameworkIndicators) {
-    if (html.includes(indicator)) {
-      // But only if there's not much visible content
-      if (textContent.length < 1000) {
-        return true;
-      }
-    }
-  }
-
-  return false;
 }

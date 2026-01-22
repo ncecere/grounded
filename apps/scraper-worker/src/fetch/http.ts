@@ -1,12 +1,12 @@
 import { log } from "@grounded/logger";
 import {
   SCRAPE_TIMEOUT_MS,
-  MAX_PAGE_SIZE_BYTES,
   validateHtmlContentType,
   isContentTypeEnforcementEnabled,
   ContentError,
   ErrorCode,
 } from "@grounded/shared";
+import { validateContentSize } from "../services/content-validation";
 
 export async function fetchWithHttp(
   url: string
@@ -57,9 +57,11 @@ export async function fetchWithHttp(
       }
     }
 
+    // Validate content size
     const contentLength = response.headers.get("content-length");
-    if (contentLength && parseInt(contentLength) > MAX_PAGE_SIZE_BYTES) {
-      throw new Error("Page too large");
+    const sizeValidation = validateContentSize(contentLength);
+    if (!sizeValidation.isValid) {
+      throw new Error(sizeValidation.rejectionReason || "Page too large");
     }
 
     const html = await response.text();
