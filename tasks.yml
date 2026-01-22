@@ -1118,7 +1118,7 @@ tasks:
       - Reviewed with stakeholders
 
   - title: phase-5-shared-packages-docs.md - Add shared package conventions doc
-    completed: false
+    completed: true
     parallel_group: 6
     tags: [docs, shared]
     file: phase-5-shared-packages-docs.md
