@@ -789,7 +789,7 @@ tasks:
       - Behavior unchanged
 
   - title: phase-3-scraper-worker.md - Preserve logging/metric keys and error codes
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [scraper, observability]
     file: phase-3-scraper-worker.md
