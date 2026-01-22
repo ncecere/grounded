@@ -34,6 +34,11 @@
 - [ ] Add a barrel export for the new types structure.
 - [ ] Create `docs/refactor/web-navigation.md` describing page registry usage.
 
+## API Types Barrel Export
+- Use `apps/web/src/lib/api/types/index.ts` as the shared entry point for web API types.
+- Preferred import path: `@/lib/api/types` (for example: `import type { Source } from "@/lib/api/types"`).
+- Domain modules remain the source of truth until Phase 5 shared package adoption.
+
 ## API Type Adoption Plan (Phase 4 -> Phase 5)
 - Phase 4 keeps the domain split inside `apps/web/src/lib/api/types` to avoid churn while the shared package work is prepared.
 - Phase 5 will introduce shared type submodules under `packages/shared/src/types` (see Phase 5 task list for `api`, `widget`, and `admin` domains).

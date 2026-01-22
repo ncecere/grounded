@@ -87,3 +87,4 @@
 2026-01-21 - Split web API types into domain-based modules under apps/web/src/lib/api/types, updated imports across web API/components/tests, and added type domain coverage test; bun test apps/web/src passes.
 2026-01-21 - Documented Phase 4 to Phase 5 web API type adoption plan in tasks/phase-4-web-app.md, added phase-4 doc coverage tests, and ran bun test apps/web/src/app/phase-4-web-app-doc.test.ts.
 2026-01-21 - Standardized web API type imports to use @/lib/api/types/* in SourcesManager and prompt analysis panels, added types-imports.test.ts to guard against legacy paths, and ran bun test apps/web/src/lib/api/types/types-imports.test.ts.
+2026-01-21 - Added web API types barrel export in apps/web/src/lib/api/types/index.ts with test coverage and documented the preferred import path in phase-4-web-app.md.

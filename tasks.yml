@@ -979,7 +979,7 @@ tasks:
       - Typecheck passes
 
   - title: phase-4-web-app.md - Add API types barrel export
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [web, api-types]
     file: phase-4-web-app.md
