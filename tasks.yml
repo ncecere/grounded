@@ -799,7 +799,7 @@ tasks:
       - Exceptions documented if required
 
   - title: phase-3-scraper-worker.md - Add scraper jobs index
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [scraper, jobs]
     file: phase-3-scraper-worker.md

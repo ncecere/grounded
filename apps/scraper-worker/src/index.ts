@@ -1,7 +1,6 @@
 import { Worker, Job, connection, QUEUE_NAMES, isFairnessSlotError, DelayedError } from "@grounded/queue";
 import { createWorkerLogger, createJobLogger } from "@grounded/logger/worker";
 import { shouldSample, createSamplingConfig } from "@grounded/logger";
-import { processPageFetch } from "./processors/page-fetch";
 import { initializeBrowserPool, getBrowser, shutdownBrowserPool } from "./browser/pool";
 import {
   initializeSettings,
@@ -10,6 +9,9 @@ import {
   getHeadlessMode,
   DEFAULT_CONCURRENCY,
 } from "./bootstrap";
+
+// Import job handlers from jobs index
+import { getPageFetchHandler, getJobCount, pageFetchJob } from "./jobs";
 
 const logger = createWorkerLogger("scraper-worker");
 
@@ -21,7 +23,10 @@ const samplingConfig = createSamplingConfig({
 });
 
 const HEADLESS = getHeadlessMode();
-logger.info({ concurrency: DEFAULT_CONCURRENCY, headless: HEADLESS }, "Starting Scraper Worker...");
+logger.info(
+  { concurrency: DEFAULT_CONCURRENCY, headless: HEADLESS, registeredJobs: getJobCount() },
+  "Starting Scraper Worker..."
+);
 
 // ============================================================================
 // Browser Pool Initialization
@@ -49,7 +54,9 @@ const pageFetchWorker = new Worker(
 
     try {
       const browser = await getBrowser();
-      await processPageFetch(job.data, browser);
+      // Use job handler from jobs index for dispatch
+      const handler = getPageFetchHandler();
+      await handler(job.data, browser);
       event.success();
     } catch (error) {
       // Handle fairness slot unavailable errors specially
