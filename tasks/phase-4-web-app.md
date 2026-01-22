@@ -34,6 +34,17 @@
 - [ ] Add a barrel export for the new types structure.
 - [ ] Create `docs/refactor/web-navigation.md` describing page registry usage.
 
+## API Type Adoption Plan (Phase 4 -> Phase 5)
+- Phase 4 keeps the domain split inside `apps/web/src/lib/api/types` to avoid churn while the shared package work is prepared.
+- Phase 5 will introduce shared type submodules under `packages/shared/src/types` (see Phase 5 task list for `api`, `widget`, and `admin` domains).
+- Adoption sequence:
+  1. Create shared submodules and export maps in Phase 5 before moving any web types.
+  2. Copy/move the domain modules from `apps/web/src/lib/api/types` into the shared package while keeping a compatibility barrel in the web app.
+  3. Update web imports to the shared barrel only after shared type exports are stable and documented.
+  4. Remove web-local duplicates once all consumers use the shared types and Phase 5 cleanup is complete.
+- To avoid double moves, new web features should continue to add or adjust types in the Phase 4 location until Phase 5 shared submodules are available.
+- Stakeholder review is required before step 3 to confirm sequencing and ownership for shared type modules.
+
 ## Deliverables
 - Central page registry for labels and components.
 - Providers for shared app state.

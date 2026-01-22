@@ -85,3 +85,4 @@
 2026-01-21 - Moved App page/selection state into new AppStateProvider, wired App and main to consume it, added provider tests/usage assertions, and verified bun test apps/web/src/app/providers-usage.test.ts apps/web/src/app/providers/app-state-provider.test.ts.
 2026-01-21 - Documented web provider boundaries/responsibilities in docs/refactor/web-navigation.md with provider order notes and added web-navigation-doc.test.ts coverage.
 2026-01-21 - Split web API types into domain-based modules under apps/web/src/lib/api/types, updated imports across web API/components/tests, and added type domain coverage test; bun test apps/web/src passes.
+2026-01-21 - Documented Phase 4 to Phase 5 web API type adoption plan in tasks/phase-4-web-app.md, added phase-4 doc coverage tests, and ran bun test apps/web/src/app/phase-4-web-app-doc.test.ts.

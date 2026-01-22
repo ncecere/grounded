@@ -959,7 +959,7 @@ tasks:
       - Imports updated
 
   - title: phase-4-web-app.md - Align API type split with shared package adoption plan
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [web, api-types]
     file: phase-4-web-app.md
