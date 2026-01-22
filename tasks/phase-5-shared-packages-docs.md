@@ -65,6 +65,33 @@ Removal criteria (must all be true before removal):
 - The removal ships in a planned minor/major release, with release notes calling out
   the breaking change (if any).
 
+## Web API Type Adoption Plan (Phase 4 -> Phase 5)
+Goal: migrate web API DTOs from `apps/web/src/lib/api/types/*` into shared types without
+breaking the Phase 4 type split or creating churn in the web app.
+
+Sequence:
+1. Inventory which web domain type files are already aligned with shared DTOs (Phase 4
+   split), and note gaps where the shared DTOs differ (timestamp formats, naming).
+2. For each domain (tenants/auth, sources/knowledge bases, agents/chat), define a
+   shared DTO or JSON-serializable adapter in `packages/shared/src/types/api.ts` and
+   document any conversions needed for UI usage.
+3. Add compatibility re-exports from `apps/web/src/lib/api/types/*` that point at the
+   shared types, keep existing names, and annotate with `@deprecated` to guide cleanup.
+4. Update web API client modules and UI components to import from
+   `@grounded/shared/types/api` or `@grounded/shared` barrel, one domain at a time.
+5. Add/expand regression tests in `apps/web/src/lib/api/types/types-imports.test.ts`
+   to prevent reintroducing legacy imports during the migration.
+6. Remove the deprecated web type exports once Phase 5 removal criteria are met and
+   confirm with owners before deleting any web type modules.
+
+Ownership and sequencing:
+- Owners: Web + API domain owners listed in the duplication audit (tenants/auth,
+  knowledge bases/sources, agents/chat) coordinate per domain migration.
+- Timing: align each domain migration with the API module that owns the DTOs to avoid
+  mismatched contracts; record each migration step in `docs/refactor/migration-log.md`.
+- Validation: run `bun test apps/web/src/lib/api/types/types-imports.test.ts` and the
+  shared export map tests after each domain migration.
+
 ## Shared Type Duplication Audit
 Date: 2026-01-21
 
@@ -100,7 +127,7 @@ Date: 2026-01-21
 - [ ] Move shared DTOs/enums/errors into the shared package.
 - [ ] Update imports gradually and keep backward-compatible barrels where needed.
 - [x] Define a deprecation timeline and removal criteria for old type locations.
-- [ ] Add an adoption plan for web API types to avoid churn with Phase 4.
+- [x] Add an adoption plan for web API types to avoid churn with Phase 4.
 - [ ] Remove duplicates in `apps/web/src/lib/api/types.ts` once shared types are adopted.
 - [ ] Add architecture notes in `docs/refactor/architecture.md`.
 - [ ] Add module ownership guidelines in `docs/refactor/ownership.md`.

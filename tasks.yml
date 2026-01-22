@@ -1075,7 +1075,7 @@ tasks:
       - Included in shared package docs
 
   - title: phase-5-shared-packages-docs.md - Add an adoption plan for web API types to avoid churn
-    completed: false
+    completed: true
     parallel_group: 6
     tags: [shared, types]
     file: phase-5-shared-packages-docs.md

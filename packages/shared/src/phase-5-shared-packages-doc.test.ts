@@ -53,4 +53,13 @@ describe("phase 5 shared packages documentation", () => {
     expect(content).toContain("Removal criteria");
     expect(content).toContain("docs/refactor/shared-packages.md");
   });
+
+  it("adds a web API type adoption plan", async () => {
+    const content = await readFile(phase5DocPath, "utf-8");
+
+    expect(content).toContain("Web API Type Adoption Plan");
+    expect(content).toContain("apps/web/src/lib/api/types");
+    expect(content).toContain("@grounded/shared/types/api");
+    expect(content).toContain("types-imports.test.ts");
+  });
 });
