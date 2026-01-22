@@ -1,6 +1,12 @@
 import { describe, it, expect } from "bun:test";
 
-import { pageRegistry, pageRegistryById, type PageId } from "./page-registry";
+import {
+  pageRegistry,
+  pageRegistryById,
+  type PageAuthGate,
+  type PageGroup,
+  type PageId,
+} from "./page-registry";
 
 // =============================================================================
 // Page Registry Tests
@@ -45,6 +51,23 @@ describe("pageRegistry", () => {
       expect(entry.component).toBeDefined();
       expect(typeof entry.component).toBe("function");
     });
+  });
+
+  it("should include group, auth gate, and order metadata", () => {
+    const validGroups: PageGroup[] = ["workspace", "admin"];
+    const validAuthGates: PageAuthGate[] = ["tenant", "tenant-admin", "system-admin"];
+
+    pageRegistry.forEach((entry) => {
+      expect(validGroups).toContain(entry.group);
+      expect(validAuthGates).toContain(entry.authGate);
+      expect(entry.order).toBeGreaterThan(0);
+    });
+  });
+
+  it("should keep entries ordered by the order field", () => {
+    const orders = pageRegistry.map((entry) => entry.order);
+    const sortedOrders = [...orders].sort((a, b) => a - b);
+    expect(orders).toEqual(sortedOrders);
   });
 });
 

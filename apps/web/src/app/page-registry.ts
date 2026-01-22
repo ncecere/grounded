@@ -19,31 +19,164 @@ import { AdminAnalytics } from "@/pages/AdminAnalytics";
 import { TenantSettings } from "@/pages/TenantSettings";
 import { AdminAuditLogs } from "@/pages/AdminAuditLogs";
 
+export type PageGroup = "workspace" | "admin";
+
+export type PageAuthGate = "tenant" | "tenant-admin" | "system-admin";
+
 export interface PageRegistryEntry {
   id: string;
   label: string;
+  group: PageGroup;
   component: ComponentType<any>;
+  authGate: PageAuthGate;
+  order: number;
 }
 
 export const pageRegistry = [
-  { id: "kbs", label: "Knowledge Bases", component: KnowledgeBases },
-  { id: "agents", label: "Agents", component: Agents },
-  { id: "sources", label: "Sources", component: Sources },
-  { id: "chat", label: "Chat", component: Chat },
-  { id: "test-suites", label: "Test Suites", component: AgentTestSuites },
-  { id: "test-suite-detail", label: "Test Suite", component: AgentTestSuiteDetail },
-  { id: "analytics", label: "Analytics", component: Analytics },
-  { id: "dashboard", label: "Dashboard", component: AdminDashboard },
-  { id: "settings", label: "Settings", component: AdminSettings },
-  { id: "tenants", label: "Tenants", component: AdminTenants },
-  { id: "models", label: "AI Models", component: AdminModels },
-  { id: "users", label: "Users", component: AdminUsers },
-  { id: "shared-kbs", label: "Shared Knowledge Bases", component: AdminSharedKBs },
-  { id: "shared-kb-sources", label: "Shared KB Sources", component: AdminSharedKbSources },
-  { id: "shared-kb-detail", label: "Shared Knowledge Base", component: SharedKbDetail },
-  { id: "admin-analytics", label: "Analytics", component: AdminAnalytics },
-  { id: "tenant-settings", label: "Tenant Settings", component: TenantSettings },
-  { id: "admin-audit-logs", label: "Audit Logs", component: AdminAuditLogs },
+  {
+    id: "kbs",
+    label: "Knowledge Bases",
+    group: "workspace",
+    component: KnowledgeBases,
+    authGate: "tenant",
+    order: 1,
+  },
+  {
+    id: "agents",
+    label: "Agents",
+    group: "workspace",
+    component: Agents,
+    authGate: "tenant",
+    order: 2,
+  },
+  {
+    id: "sources",
+    label: "Sources",
+    group: "workspace",
+    component: Sources,
+    authGate: "tenant",
+    order: 3,
+  },
+  {
+    id: "chat",
+    label: "Chat",
+    group: "workspace",
+    component: Chat,
+    authGate: "tenant",
+    order: 4,
+  },
+  {
+    id: "test-suites",
+    label: "Test Suites",
+    group: "workspace",
+    component: AgentTestSuites,
+    authGate: "tenant",
+    order: 5,
+  },
+  {
+    id: "test-suite-detail",
+    label: "Test Suite",
+    group: "workspace",
+    component: AgentTestSuiteDetail,
+    authGate: "tenant",
+    order: 6,
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    group: "workspace",
+    component: Analytics,
+    authGate: "tenant",
+    order: 7,
+  },
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    group: "admin",
+    component: AdminDashboard,
+    authGate: "system-admin",
+    order: 8,
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    group: "admin",
+    component: AdminSettings,
+    authGate: "system-admin",
+    order: 9,
+  },
+  {
+    id: "tenants",
+    label: "Tenants",
+    group: "admin",
+    component: AdminTenants,
+    authGate: "system-admin",
+    order: 10,
+  },
+  {
+    id: "models",
+    label: "AI Models",
+    group: "admin",
+    component: AdminModels,
+    authGate: "system-admin",
+    order: 11,
+  },
+  {
+    id: "users",
+    label: "Users",
+    group: "admin",
+    component: AdminUsers,
+    authGate: "system-admin",
+    order: 12,
+  },
+  {
+    id: "shared-kbs",
+    label: "Shared Knowledge Bases",
+    group: "admin",
+    component: AdminSharedKBs,
+    authGate: "system-admin",
+    order: 13,
+  },
+  {
+    id: "shared-kb-sources",
+    label: "Shared KB Sources",
+    group: "admin",
+    component: AdminSharedKbSources,
+    authGate: "system-admin",
+    order: 14,
+  },
+  {
+    id: "shared-kb-detail",
+    label: "Shared Knowledge Base",
+    group: "admin",
+    component: SharedKbDetail,
+    authGate: "system-admin",
+    order: 15,
+  },
+  {
+    id: "admin-analytics",
+    label: "Analytics",
+    group: "admin",
+    component: AdminAnalytics,
+    authGate: "system-admin",
+    order: 16,
+  },
+  {
+    id: "tenant-settings",
+    label: "Tenant Settings",
+    group: "workspace",
+    component: TenantSettings,
+    authGate: "tenant-admin",
+    order: 17,
+  },
+  {
+    id: "admin-audit-logs",
+    label: "Audit Logs",
+    group: "admin",
+    component: AdminAuditLogs,
+    authGate: "system-admin",
+    order: 18,
+  },
 ] as const satisfies ReadonlyArray<PageRegistryEntry>;
 
 export type PageId = (typeof pageRegistry)[number]["id"];

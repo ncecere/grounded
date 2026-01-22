@@ -76,3 +76,4 @@
 2026-01-21 - Added scraper fetch flow documentation in docs/refactor/scraper-fetch.md with decision rules and strategy details; added scraper-fetch-doc.test.ts and ran bun test apps/scraper-worker/src/scraper-fetch-doc.test.ts.
 2026-01-21 - Documented scraper fetch payload invariants (PageFetchJob fields, content-type and size constraints) in docs/refactor/scraper-fetch.md; extended scraper-fetch-doc.test.ts and ran bun test apps/scraper-worker/src/scraper-fetch-doc.test.ts.
 2026-01-21 - Added web page registry in apps/web/src/app/page-registry.ts with current page labels/components, plus registry lookup tests in apps/web/src/app/page-registry.test.ts; bun test apps/web/src/app/page-registry.test.ts passes.
+2026-01-21 - Defined page registry schema metadata (group, auth gate, order) in apps/web/src/app/page-registry.ts, expanded registry tests for metadata/order, and verified bun test apps/web/src/app/page-registry.test.ts.

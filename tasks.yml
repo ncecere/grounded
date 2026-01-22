@@ -867,7 +867,7 @@ tasks:
       - Ready for App/sidebar usage
 
   - title: phase-4-web-app.md - Define page registry schema (label, group, component, auth gate, order)
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [web, navigation]
     file: phase-4-web-app.md
