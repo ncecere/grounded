@@ -8,8 +8,16 @@
   "exports": {
     ".": "./src/index.ts",
     "./types": "./src/types/index.ts",
+    "./types/api": "./src/types/api.ts",
+    "./types/workers": "./src/types/workers.ts",
+    "./types/queue": "./src/types/queue.ts",
+    "./types/widget": "./src/types/widget.ts",
+    "./types/analytics": "./src/types/analytics.ts",
+    "./types/admin": "./src/types/admin.ts",
     "./utils": "./src/utils/index.ts",
-    "./constants": "./src/constants/index.ts"
+    "./constants": "./src/constants/index.ts",
+    "./errors": "./src/errors/index.ts",
+    "./settings": "./src/settings/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

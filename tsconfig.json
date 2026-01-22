@@ -14,7 +14,22 @@
     "declarationMap": true,
     "sourceMap": true,
     "noEmit": true,
-    "types": ["@types/bun"]
+    "types": ["@types/bun"],
+    "baseUrl": ".",
+    "paths": {
+      "@grounded/shared": ["packages/shared/src/index.ts"],
+      "@grounded/shared/types": ["packages/shared/src/types/index.ts"],
+      "@grounded/shared/types/api": ["packages/shared/src/types/api.ts"],
+      "@grounded/shared/types/workers": ["packages/shared/src/types/workers.ts"],
+      "@grounded/shared/types/queue": ["packages/shared/src/types/queue.ts"],
+      "@grounded/shared/types/widget": ["packages/shared/src/types/widget.ts"],
+      "@grounded/shared/types/analytics": ["packages/shared/src/types/analytics.ts"],
+      "@grounded/shared/types/admin": ["packages/shared/src/types/admin.ts"],
+      "@grounded/shared/constants": ["packages/shared/src/constants/index.ts"],
+      "@grounded/shared/utils": ["packages/shared/src/utils/index.ts"],
+      "@grounded/shared/errors": ["packages/shared/src/errors/index.ts"],
+      "@grounded/shared/settings": ["packages/shared/src/settings/index.ts"]
+    }
   },
   "exclude": ["node_modules", "dist"]
 }

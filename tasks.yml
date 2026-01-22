@@ -1035,7 +1035,7 @@ tasks:
       - Added to shared package docs
 
   - title: phase-5-shared-packages-docs.md - Add export maps/tsconfig path aliases to prevent deep imports
-    completed: false
+    completed: true
     parallel_group: 6
     tags: [shared, exports]
     file: phase-5-shared-packages-docs.md
