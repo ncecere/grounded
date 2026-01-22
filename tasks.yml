@@ -887,7 +887,7 @@ tasks:
       - Typecheck passes
 
   - title: phase-4-web-app.md - Update app sidebar to use the page registry
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [web, sidebar]
     file: phase-4-web-app.md

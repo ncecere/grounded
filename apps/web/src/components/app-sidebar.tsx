@@ -11,6 +11,7 @@ import {
   ClipboardList,
 } from "lucide-react"
 
+import { pageRegistryById, type PageId } from "@/app/page-registry"
 import { TenantSwitcher } from "@/components/tenant-switcher"
 import { NavMain, type NavItem } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -24,7 +25,47 @@ import {
 } from "@/components/ui/sidebar"
 import type { UserTenant } from "@/lib/api"
 
-export type Page = "kbs" | "agents" | "sources" | "chat" | "test-suites" | "test-suite-detail" | "analytics" | "dashboard" | "settings" | "tenants" | "models" | "users" | "shared-kbs" | "shared-kb-sources" | "shared-kb-detail" | "admin-analytics" | "tenant-settings" | "admin-audit-logs"
+const workspaceNavPageIds = [
+  "kbs",
+  "agents",
+  "analytics",
+  "tenant-settings",
+] as const satisfies readonly PageId[]
+
+const adminNavPageIds = [
+  "dashboard",
+  "admin-analytics",
+  "tenants",
+  "users",
+  "shared-kbs",
+  "models",
+  "settings",
+  "admin-audit-logs",
+] as const satisfies readonly PageId[]
+
+type SidebarPageId = (typeof workspaceNavPageIds)[number] | (typeof adminNavPageIds)[number]
+
+const navIcons: Record<SidebarPageId, NavItem["icon"]> = {
+  kbs: BookOpen,
+  agents: Bot,
+  analytics: BarChart3,
+  "tenant-settings": Settings,
+  dashboard: LayoutDashboard,
+  "admin-analytics": BarChart3,
+  tenants: Building2,
+  users: Users,
+  "shared-kbs": Share2,
+  models: Cpu,
+  settings: Settings,
+  "admin-audit-logs": ClipboardList,
+}
+
+const labelOverrides: Partial<Record<SidebarPageId, string>> = {
+  "tenant-settings": "Settings",
+  "shared-kbs": "Shared KBs",
+}
+
+export type Page = PageId
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   user: {
@@ -55,92 +96,36 @@ export function AppSidebar({
   // Check if user can manage tenant (owner or admin)
   const canManageTenant = currentTenant?.role === "owner" || currentTenant?.role === "admin"
 
+  const getNavItems = (pageIds: readonly SidebarPageId[]): NavItem[] =>
+    pageIds.reduce<NavItem[]>((items, pageId) => {
+      const entry = pageRegistryById[pageId]
+      if (!entry) {
+        return items
+      }
+
+      items.push({
+        title: labelOverrides[pageId] ?? entry.label,
+        id: entry.id,
+        icon: navIcons[pageId],
+        isActive: currentPage === entry.id,
+      })
+      return items
+    }, [])
+
   // Main navigation items (require a tenant)
   const mainNavItems: NavItem[] = hasTenant
-    ? [
-        {
-          title: "Knowledge Bases",
-          id: "kbs",
-          icon: BookOpen,
-          isActive: currentPage === "kbs",
-        },
-        {
-          title: "Agents",
-          id: "agents",
-          icon: Bot,
-          isActive: currentPage === "agents",
-        },
-        {
-          title: "Analytics",
-          id: "analytics",
-          icon: BarChart3,
-          isActive: currentPage === "analytics",
-        },
-        ...(canManageTenant
-          ? [
-              {
-                title: "Settings",
-                id: "tenant-settings" as const,
-                icon: Settings,
-                isActive: currentPage === "tenant-settings",
-              },
-            ]
-          : []),
-      ]
+    ? getNavItems(
+        canManageTenant
+          ? workspaceNavPageIds
+          : (workspaceNavPageIds.filter(
+              (pageId) => pageId !== "tenant-settings"
+            ) as SidebarPageId[])
+      )
     : []
 
   // Admin navigation items
   const adminNavItems: NavItem[] = user.isSystemAdmin
-    ? [
-        {
-          title: "Dashboard",
-          id: "dashboard",
-          icon: LayoutDashboard,
-          isActive: currentPage === "dashboard",
-        },
-        {
-          title: "Analytics",
-          id: "admin-analytics",
-          icon: BarChart3,
-          isActive: currentPage === "admin-analytics",
-        },
-        {
-          title: "Tenants",
-          id: "tenants",
-          icon: Building2,
-          isActive: currentPage === "tenants",
-        },
-        {
-          title: "Users",
-          id: "users",
-          icon: Users,
-          isActive: currentPage === "users",
-        },
-        {
-          title: "Shared KBs",
-          id: "shared-kbs",
-          icon: Share2,
-          isActive: currentPage === "shared-kbs",
-        },
-        {
-          title: "AI Models",
-          id: "models",
-          icon: Cpu,
-          isActive: currentPage === "models",
-        },
-        {
-          title: "Settings",
-          id: "settings",
-          icon: Settings,
-          isActive: currentPage === "settings",
-        },
-        {
-          title: "Audit Logs",
-          id: "admin-audit-logs",
-          icon: ClipboardList,
-          isActive: currentPage === "admin-audit-logs",
-        },
-      ]
+    ? getNavItems(adminNavPageIds)
     : []
 
   return (

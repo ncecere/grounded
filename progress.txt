@@ -78,3 +78,4 @@
 2026-01-21 - Added web page registry in apps/web/src/app/page-registry.ts with current page labels/components, plus registry lookup tests in apps/web/src/app/page-registry.test.ts; bun test apps/web/src/app/page-registry.test.ts passes.
 2026-01-21 - Defined page registry schema metadata (group, auth gate, order) in apps/web/src/app/page-registry.ts, expanded registry tests for metadata/order, and verified bun test apps/web/src/app/page-registry.test.ts.
 2026-01-21 - Updated App page rendering to use the page registry for labels and default page lookup, added app-registry-usage tests, and ran bun test apps/web/src/app/app-registry-usage.test.ts.
+2026-01-21 - Updated AppSidebar to derive navigation items from the page registry with label overrides to preserve current UI, added app-sidebar registry usage tests, and ran bun test apps/web/src/components/app-sidebar.test.ts.
