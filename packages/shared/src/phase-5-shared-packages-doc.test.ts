@@ -1,0 +1,26 @@
+import { describe, expect, it } from "bun:test";
+import { readFile } from "fs/promises";
+import { join } from "path";
+
+const phase5DocPath = join(
+  import.meta.dir,
+  "../../../tasks/phase-5-shared-packages-docs.md"
+);
+
+describe("phase 5 shared packages documentation", () => {
+  it("captures the shared type duplication audit", async () => {
+    const content = await readFile(phase5DocPath, "utf-8");
+
+    expect(content).toContain("## Shared Type Duplication Audit");
+    expect(content).toContain("packages/shared/src/types/index.ts");
+    expect(content).toContain("apps/web/src/lib/api/types/agents.ts");
+  });
+
+  it("calls out API and worker ownership notes", async () => {
+    const content = await readFile(phase5DocPath, "utf-8");
+
+    expect(content).toContain("apps/api/src/modules/agents/schema.ts");
+    expect(content).toContain("apps/ingestion-worker");
+    expect(content).toContain("apps/scraper-worker");
+  });
+});

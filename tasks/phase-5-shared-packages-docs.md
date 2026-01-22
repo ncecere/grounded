@@ -19,6 +19,33 @@
 - Use `packages/shared` as the single home for cross-app DTOs, enums, and errors.
 - Organize shared types by domain within `packages/shared/src/types/`.
 
+## Shared Type Duplication Audit
+Date: 2026-01-21
+
+### Accounts and tenants (owner: API auth/tenants)
+- Shared: `packages/shared/src/types/index.ts` exports `Tenant`, `User`, `TenantMembership`, `TenantRole`, `SystemRole`.
+- Web duplicates: `apps/web/src/lib/api/types/tenants.ts` (`Tenant`, `UserTenant`, `TenantMember`) and `apps/web/src/lib/api/types/auth.ts` (`User`).
+- Notes: Web DTOs use string timestamps and role strings; align with shared DTOs or introduce JSON-serializable variants.
+
+### Knowledge bases and sources (owner: API knowledge-bases/sources)
+- Shared: `KnowledgeBase`, `Source`, `SourceConfig`, `SourceType`, `SourceRun`, `SourceRunStats`, `SourceRunStage`, `SourceRunStatus`, `SourceRunTrigger` in `packages/shared/src/types/index.ts`.
+- Web duplicates: `apps/web/src/lib/api/types/knowledge-bases.ts`, `apps/web/src/lib/api/types/sources.ts`.
+- API usage: `apps/api/src/routes/uploads.ts` already imports `SourceRunStage` from shared.
+
+### Agents, chat, and retrieval (owner: API agents/chat)
+- Shared: `Agent`, `RagType`, `RerankerType`, `RetrievalConfig`, `Citation`, `ChatRequest`, `ChatResponse`, `ChatEndpointToken` in `packages/shared/src/types/index.ts`.
+- Web duplicates: `apps/web/src/lib/api/types/agents.ts` (`RagType`, `Agent`, `ChatEndpoint`, `retrievalConfig`, widget config shape).
+- API duplicates: `apps/api/src/modules/chat/service.ts` defines `ChatRagType`; `apps/api/src/modules/agents/schema.ts` uses `z.enum(["simple", "advanced"])` and `z.enum(["heuristic", "cross_encoder"])`.
+
+### Widget configuration (owner: widget)
+- Shared: `WidgetTheme`, `WidgetConfig`, `ButtonStyle`, `ButtonSize`, `ButtonIcon`, `widgetThemeSchema` in `packages/shared/src/types/index.ts`.
+- Web duplicates: `apps/web/src/lib/api/types/agents.ts` embeds widget theme fields.
+- API notes: `apps/api/src/modules/agents/schema.ts` already references `widgetThemeSchema`, but `apps/api/src/modules/agents/service.ts` keeps `WidgetTheme` typed as `Record<string, unknown>`.
+
+### Ingestion and scraper job contracts (owner: workers/ingestion + queue)
+- Shared: job payload types (`BaseJob`, `PageFetchJobPayload`, `EmbedChunksBatchJobPayload`), ingestion enums (`IngestionStage`, `StageStatus`, `PageStatus`, `SkipReason`), queue config helpers, and `FetchMode` in `packages/shared/src/types/index.ts`.
+- Worker usage: `apps/ingestion-worker` and `apps/scraper-worker` already import these from `@grounded/shared`; no local duplicates observed.
+
 ## Task List
 - [ ] Audit shared types across API, workers, and web for duplication.
 - [ ] Create submodules in `packages/shared/src/types/` (api, workers, queue, widget, analytics, admin).

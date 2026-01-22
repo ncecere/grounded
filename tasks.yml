@@ -1004,7 +1004,7 @@ tasks:
   # Depends on Group 5
   # ===========================================================================
   - title: phase-5-shared-packages-docs.md - Audit shared types across API, workers, and web
-    completed: false
+    completed: true
     parallel_group: 6
     tags: [shared, audit]
     file: phase-5-shared-packages-docs.md
