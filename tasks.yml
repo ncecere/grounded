@@ -1025,7 +1025,7 @@ tasks:
       - Export structure documented
 
   - title: phase-5-shared-packages-docs.md - Define shared export boundaries and deprecation strategy
-    completed: false
+    completed: true
     parallel_group: 6
     tags: [shared, exports]
     file: phase-5-shared-packages-docs.md

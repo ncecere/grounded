@@ -31,6 +31,24 @@ These modules currently re-export from `packages/shared/src/types/index.ts` whil
 type migration is staged. Subsequent tasks will move types into the matching
 submodules and tighten their export boundaries.
 
+## Export Boundaries and Deprecation Strategy
+- Public shared types are exported from `packages/shared/src/index.ts` and re-exported
+  through `packages/shared/src/types/index.ts` to keep a stable root import path.
+- Domain submodules (`packages/shared/src/types/*.ts`) are the preferred home for new
+  additions; direct imports should stay within the `@grounded/shared` package scope.
+- Internal-only helper types stay within their domain module (API/worker/web) and are
+  not exported from shared until they are needed across apps.
+
+### Deprecation Flow for Moved Types
+1. Move the type into the appropriate shared submodule and export it from
+   `packages/shared/src/types/index.ts`.
+2. Keep a compatibility re-export at the old location with a `@deprecated` JSDoc note
+   pointing to the shared export path.
+3. Update consumers incrementally to import from `@grounded/shared` (or the shared
+   submodule once export maps are in place) and track adoption in the Phase 5 tasks.
+4. Remove the deprecated export once all consumers have migrated and the removal
+   criteria/timeline task is complete.
+
 ## Shared Type Duplication Audit
 Date: 2026-01-21
 

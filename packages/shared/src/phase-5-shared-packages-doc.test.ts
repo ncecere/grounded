@@ -35,4 +35,13 @@ describe("phase 5 shared packages documentation", () => {
     expect(content).toContain("packages/shared/src/types/analytics.ts");
     expect(content).toContain("packages/shared/src/types/admin.ts");
   });
+
+  it("defines export boundaries and deprecation flow", async () => {
+    const content = await readFile(phase5DocPath, "utf-8");
+
+    expect(content).toContain("Export Boundaries and Deprecation Strategy");
+    expect(content).toContain("packages/shared/src/types/index.ts");
+    expect(content).toContain("Deprecation Flow for Moved Types");
+    expect(content).toContain("@deprecated");
+  });
 });
