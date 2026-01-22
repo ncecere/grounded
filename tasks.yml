@@ -707,7 +707,7 @@ tasks:
       - Used by fetch selection helper
 
   - title: phase-3-scraper-worker.md - Add scraper fetch selection helper
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [scraper, fetch]
     file: phase-3-scraper-worker.md
