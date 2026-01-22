@@ -1096,7 +1096,7 @@ tasks:
       - Typecheck passes
 
   - title: phase-5-shared-packages-docs.md - Add architecture notes
-    completed: false
+    completed: true
     parallel_group: 6
     tags: [docs, architecture]
     file: phase-5-shared-packages-docs.md
