@@ -90,3 +90,4 @@
 2026-01-21 - Added web API types barrel export in apps/web/src/lib/api/types/index.ts with test coverage and documented the preferred import path in phase-4-web-app.md.
 2026-01-21 - Expanded docs/refactor/web-navigation.md with page registry and access gate guidance, added doc coverage tests, and marked the web navigation doc task complete.
 2026-01-21 - Audited shared type duplication across API, web, and workers in tasks/phase-5-shared-packages-docs.md with ownership notes; added phase-5 doc coverage tests in packages/shared.
+2026-01-21 - Added shared type submodule barrels under packages/shared/src/types (api/workers/queue/widget/analytics/admin), documented initial export structure in phase-5 plan, and added submodule/doc tests.

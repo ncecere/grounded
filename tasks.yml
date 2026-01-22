@@ -1014,7 +1014,7 @@ tasks:
       - Audit results recorded in docs
 
   - title: phase-5-shared-packages-docs.md - Create shared type submodules
-    completed: false
+    completed: true
     parallel_group: 6
     tags: [shared, types]
     file: phase-5-shared-packages-docs.md

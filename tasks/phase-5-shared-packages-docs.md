@@ -19,6 +19,18 @@
 - Use `packages/shared` as the single home for cross-app DTOs, enums, and errors.
 - Organize shared types by domain within `packages/shared/src/types/`.
 
+### Type Submodules (Initial Pass)
+- `packages/shared/src/types/api.ts` - API-facing DTOs, enums, and retrieval/chat contracts.
+- `packages/shared/src/types/workers.ts` - Ingestion/scraper worker contracts and helpers.
+- `packages/shared/src/types/queue.ts` - Queue configuration and concurrency helpers.
+- `packages/shared/src/types/widget.ts` - Widget theme/config schemas and enums.
+- `packages/shared/src/types/analytics.ts` - Metrics/logging contracts and helpers.
+- `packages/shared/src/types/admin.ts` - Admin/system-level roles and contracts.
+
+These modules currently re-export from `packages/shared/src/types/index.ts` while the
+type migration is staged. Subsequent tasks will move types into the matching
+submodules and tighten their export boundaries.
+
 ## Shared Type Duplication Audit
 Date: 2026-01-21
 

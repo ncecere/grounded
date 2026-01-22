@@ -23,4 +23,16 @@ describe("phase 5 shared packages documentation", () => {
     expect(content).toContain("apps/ingestion-worker");
     expect(content).toContain("apps/scraper-worker");
   });
+
+  it("documents initial shared type submodules", async () => {
+    const content = await readFile(phase5DocPath, "utf-8");
+
+    expect(content).toContain("Type Submodules (Initial Pass)");
+    expect(content).toContain("packages/shared/src/types/api.ts");
+    expect(content).toContain("packages/shared/src/types/workers.ts");
+    expect(content).toContain("packages/shared/src/types/queue.ts");
+    expect(content).toContain("packages/shared/src/types/widget.ts");
+    expect(content).toContain("packages/shared/src/types/analytics.ts");
+    expect(content).toContain("packages/shared/src/types/admin.ts");
+  });
 });
