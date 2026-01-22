@@ -22,6 +22,7 @@ describe("shared export maps", () => {
       "./constants": "./src/constants/index.ts",
       "./utils": "./src/utils/index.ts",
       "./errors": "./src/errors/index.ts",
+      "./errors/http": "./src/errors/http.ts",
       "./settings": "./src/settings/index.ts",
     });
   });
@@ -42,6 +43,7 @@ describe("shared tsconfig path aliases", () => {
       "@grounded/shared/constants": ["packages/shared/src/constants/index.ts"],
       "@grounded/shared/utils": ["packages/shared/src/utils/index.ts"],
       "@grounded/shared/errors": ["packages/shared/src/errors/index.ts"],
+      "@grounded/shared/errors/http": ["packages/shared/src/errors/http.ts"],
       "@grounded/shared/settings": ["packages/shared/src/settings/index.ts"],
     });
   });

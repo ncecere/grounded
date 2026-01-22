@@ -1045,7 +1045,7 @@ tasks:
       - Typecheck/build still pass
 
   - title: phase-5-shared-packages-docs.md - Move shared DTOs, enums, and errors into packages/shared
-    completed: false
+    completed: true
     parallel_group: 6
     tags: [shared, types]
     file: phase-5-shared-packages-docs.md

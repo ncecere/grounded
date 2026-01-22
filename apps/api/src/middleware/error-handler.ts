@@ -1,59 +1,27 @@
 import type { Context } from "hono";
 import type { HTTPException } from "hono/http-exception";
 import { getWideEvent } from "@grounded/logger/middleware";
+import {
+  AppError,
+  NotFoundError,
+  UnauthorizedError,
+  ForbiddenError,
+  BadRequestError,
+  ConflictError,
+  RateLimitError,
+  QuotaExceededError,
+} from "@grounded/shared/errors/http";
 
-export class AppError extends Error {
-  constructor(
-    public statusCode: number,
-    message: string,
-    public code?: string
-  ) {
-    super(message);
-    this.name = "AppError";
-  }
-}
-
-export class NotFoundError extends AppError {
-  constructor(resource: string) {
-    super(404, `${resource} not found`, "NOT_FOUND");
-  }
-}
-
-export class UnauthorizedError extends AppError {
-  constructor(message = "Unauthorized") {
-    super(401, message, "UNAUTHORIZED");
-  }
-}
-
-export class ForbiddenError extends AppError {
-  constructor(message = "Forbidden") {
-    super(403, message, "FORBIDDEN");
-  }
-}
-
-export class BadRequestError extends AppError {
-  constructor(message: string) {
-    super(400, message, "BAD_REQUEST");
-  }
-}
-
-export class ConflictError extends AppError {
-  constructor(message: string) {
-    super(409, message, "CONFLICT");
-  }
-}
-
-export class RateLimitError extends AppError {
-  constructor(retryAfter: number) {
-    super(429, `Rate limit exceeded. Retry after ${retryAfter} seconds`, "RATE_LIMITED");
-  }
-}
-
-export class QuotaExceededError extends AppError {
-  constructor(resource: string) {
-    super(402, `Quota exceeded for ${resource}`, "QUOTA_EXCEEDED");
-  }
-}
+export {
+  AppError,
+  NotFoundError,
+  UnauthorizedError,
+  ForbiddenError,
+  BadRequestError,
+  ConflictError,
+  RateLimitError,
+  QuotaExceededError,
+};
 
 export function errorHandler(err: Error | HTTPException, c: Context) {
   // The wide event middleware will log the error with full context

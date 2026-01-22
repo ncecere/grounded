@@ -28,6 +28,7 @@
       "@grounded/shared/constants": ["packages/shared/src/constants/index.ts"],
       "@grounded/shared/utils": ["packages/shared/src/utils/index.ts"],
       "@grounded/shared/errors": ["packages/shared/src/errors/index.ts"],
+      "@grounded/shared/errors/http": ["packages/shared/src/errors/http.ts"],
       "@grounded/shared/settings": ["packages/shared/src/settings/index.ts"]
     }
   },

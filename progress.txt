@@ -93,3 +93,4 @@
 2026-01-21 - Added shared type submodule barrels under packages/shared/src/types (api/workers/queue/widget/analytics/admin), documented initial export structure in phase-5 plan, and added submodule/doc tests.
 2026-01-21 - Documented shared export boundaries and deprecation flow in tasks/phase-5-shared-packages-docs.md with coverage tests in packages/shared/src/phase-5-shared-packages-doc.test.ts.
 2026-01-21 - Added shared export map subpaths and root tsconfig path aliases for shared entrypoints (types submodules, settings/errors), plus export map tests in packages/shared/src/exports-map.test.ts; bun test packages/shared/src/exports-map.test.ts passes.
+2026-01-21 - Moved tenant admin DTOs into @grounded/shared types, added shared HTTP error classes, wired API error handler to shared errors, added shared export paths for errors/http, and added shared HTTP error tests.

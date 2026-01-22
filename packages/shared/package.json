@@ -17,6 +17,7 @@
     "./utils": "./src/utils/index.ts",
     "./constants": "./src/constants/index.ts",
     "./errors": "./src/errors/index.ts",
+    "./errors/http": "./src/errors/http.ts",
     "./settings": "./src/settings/index.ts"
   },
   "scripts": {
