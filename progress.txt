@@ -99,3 +99,4 @@
 2026-01-21 - Added Phase 5 web API type adoption plan (Phase 4 -> Phase 5) to tasks/phase-5-shared-packages-docs.md, expanded shared doc coverage tests for the plan, and updated checklist status.
 2026-01-21 - Adopted shared API DTOs in web type modules (auth, tenants, knowledge bases, sources, agents), added shared import regression checks for type files, and ran bun test apps/web/src/lib/api/types.
 2026-01-21 - Added refactor architecture notes in docs/refactor/architecture.md with module boundary highlights and contract touchpoints; added architecture doc coverage tests.
+2026-01-21 - Added module ownership guidelines in docs/refactor/ownership.md with escalation paths and coordination rules; added ownership doc coverage tests.
