@@ -820,7 +820,7 @@ tasks:
       - Typecheck passes
 
   - title: phase-3-scraper-worker.md - Add scraper tests for fetch selection and validation
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [scraper, tests]
     file: phase-3-scraper-worker.md
