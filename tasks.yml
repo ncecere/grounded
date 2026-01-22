@@ -738,7 +738,7 @@ tasks:
       - Included in worker notes
 
   - title: phase-3-scraper-worker.md - Add fairness slot helper
-    completed: false
+    completed: true
     parallel_group: 4
     tags: [scraper, fairness]
     file: phase-3-scraper-worker.md
