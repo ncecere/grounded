@@ -11,7 +11,7 @@ import {
   ClipboardList,
 } from "lucide-react"
 
-import { pageRegistryById, type PageId, type PageRegistryEntry } from "@/app/page-registry"
+import { canAccessPage, pageRegistryById, type PageId, type PageRegistryEntry } from "@/app/page-registry"
 import { TenantSwitcher } from "@/components/tenant-switcher"
 import { NavMain, type NavItem } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -62,13 +62,10 @@ const labelOverrides: Partial<Record<SidebarPageId, string>> = {
   "shared-kbs": "Shared KBs",
 }
 
-const navEntries = navPageIds.flatMap((pageId) => {
-  const entry = pageRegistryById[pageId]
-  return entry ? [entry] : []
-})
-
-const workspaceNavEntries = navEntries.filter((entry) => entry.group === "workspace")
-const adminNavEntries = navEntries.filter((entry) => entry.group === "admin")
+  const navEntries = navPageIds.flatMap((pageId) => {
+    const entry = pageRegistryById[pageId]
+    return entry ? [entry] : []
+  })
 
 export type Page = PageId
 
@@ -118,17 +115,21 @@ export function AppSidebar({
       return items
     }, [])
 
-  // Main navigation items (require a tenant)
-  const mainNavItems: NavItem[] = hasTenant
-    ? getNavItems(
-        canManageTenant
-          ? workspaceNavEntries
-          : workspaceNavEntries.filter((entry) => entry.id !== "tenant-settings")
-      )
-    : []
+  const accessContext = {
+    hasTenant: !!hasTenant,
+    canManageTenant: !!canManageTenant,
+    isSystemAdmin: user.isSystemAdmin,
+  }
+
+  const accessibleEntries = navEntries.filter((entry) => canAccessPage(entry, accessContext))
+  const workspaceNavEntries = accessibleEntries.filter((entry) => entry.group === "workspace")
+  const adminNavEntries = accessibleEntries.filter((entry) => entry.group === "admin")
+
+  // Main navigation items
+  const mainNavItems: NavItem[] = getNavItems(workspaceNavEntries)
 
   // Admin navigation items
-  const adminNavItems: NavItem[] = user.isSystemAdmin ? getNavItems(adminNavEntries) : []
+  const adminNavItems: NavItem[] = getNavItems(adminNavEntries)
 
   return (
     <Sidebar collapsible="icon" {...props}>

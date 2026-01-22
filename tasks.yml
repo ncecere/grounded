@@ -908,7 +908,7 @@ tasks:
       - Grouping matches current UI
 
   - title: phase-4-web-app.md - Preserve existing navigation gating and admin/workspace segmentation
-    completed: false
+    completed: true
     parallel_group: 5
     tags: [web, navigation]
     file: phase-4-web-app.md

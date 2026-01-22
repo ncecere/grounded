@@ -27,7 +27,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import { Login } from "./pages/Login";
 import { Building2, AlertTriangle } from "lucide-react";
 import { Button } from "./components/ui/button";
-import { pageRegistryById, type PageId } from "./app/page-registry";
+import { canAccessPage, pageRegistryById, type PageId } from "./app/page-registry";
 
 const customPageIds = new Set<Page>([
   "kbs",
@@ -50,6 +50,8 @@ export default function App() {
   const [selectedSuiteId, setSelectedSuiteId] = useState<string | null>(null);
   const [currentTenant, setCurrentTenant] = useState<UserTenant | null>(null);
   const queryClient = useQueryClient();
+  const hasTenant = !!currentTenant;
+  const canManageTenant = currentTenant?.role === "owner" || currentTenant?.role === "admin";
 
   const { data: user, isLoading: userLoading, refetch } = useQuery({
     queryKey: ["me"],
@@ -115,6 +117,16 @@ export default function App() {
     const entry = pageRegistryById[page as PageId];
 
     if (!entry) {
+      return null;
+    }
+
+    const hasAccess = canAccessPage(entry, {
+      hasTenant,
+      canManageTenant: !!canManageTenant,
+      isSystemAdmin: user?.isSystemAdmin,
+    });
+
+    if (!hasAccess) {
       return null;
     }
 

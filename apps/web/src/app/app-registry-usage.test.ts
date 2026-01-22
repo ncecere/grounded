@@ -17,4 +17,11 @@ describe("App page registry usage", () => {
     expect(source).toContain("customPageIds");
     expect(source).not.toContain("pageNames");
   });
+
+  it("should enforce auth gates for registry pages", async () => {
+    const source = await Bun.file(appModuleUrl).text();
+
+    expect(source).toContain("canAccessPage");
+    expect(source).toContain("hasAccess");
+  });
 });

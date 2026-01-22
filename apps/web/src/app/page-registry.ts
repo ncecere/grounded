@@ -32,6 +32,25 @@ export interface PageRegistryEntry {
   order: number;
 }
 
+export interface PageAccessContext {
+  hasTenant: boolean;
+  canManageTenant: boolean;
+  isSystemAdmin?: boolean;
+}
+
+export const canAccessPage = (entry: PageRegistryEntry, context: PageAccessContext) => {
+  switch (entry.authGate) {
+    case "tenant":
+      return context.hasTenant;
+    case "tenant-admin":
+      return context.hasTenant && context.canManageTenant;
+    case "system-admin":
+      return !!context.isSystemAdmin;
+    default:
+      return false;
+  }
+};
+
 export const pageRegistry = [
   {
     id: "kbs",

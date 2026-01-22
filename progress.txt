@@ -80,3 +80,4 @@
 2026-01-21 - Updated App page rendering to use the page registry for labels and default page lookup, added app-registry-usage tests, and ran bun test apps/web/src/app/app-registry-usage.test.ts.
 2026-01-21 - Updated AppSidebar to derive navigation items from the page registry with label overrides to preserve current UI, added app-sidebar registry usage tests, and ran bun test apps/web/src/components/app-sidebar.test.ts.
 2026-01-21 - Updated AppSidebar to derive workspace/admin sections from page registry grouping metadata while preserving nav ordering, expanded sidebar tests for grouping metadata usage, and ran bun test apps/web/src/components/app-sidebar.test.ts.
+2026-01-21 - Preserved web navigation gating by enforcing page registry auth gates in App and AppSidebar, added registry access tests, and ran bun test apps/web/src/components/app-sidebar.test.ts apps/web/src/app/app-registry-usage.test.ts.

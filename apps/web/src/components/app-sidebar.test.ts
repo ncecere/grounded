@@ -23,4 +23,11 @@ describe("AppSidebar page registry usage", () => {
     expect(source).toContain("workspaceNavEntries");
     expect(source).toContain("adminNavEntries");
   });
+
+  it("should gate navigation using registry auth rules", async () => {
+    const source = await Bun.file(appSidebarModuleUrl).text();
+
+    expect(source).toContain("canAccessPage");
+    expect(source).toContain("accessContext");
+  });
 });
