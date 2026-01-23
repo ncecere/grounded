@@ -134,7 +134,7 @@ export function TestSuiteAnalyticsSection({
         />
       </div>
 
-      <div className="bg-card rounded-lg border border-border p-5">
+      <div className="bg-card rounded-lg border border-border p-5 overflow-hidden">
         <h3 className="text-lg font-semibold text-foreground mb-4">Test Pass Rate Over Time</h3>
         <PassRateLineChart data={data.passRateOverTime} emptyMessage="No completed runs yet" />
       </div>

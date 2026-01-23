@@ -11,7 +11,7 @@ import {
   testRunExperiments,
   users,
 } from "@grounded/db/schema";
-import { and, asc, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, sql, or } from "drizzle-orm";
 import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
 import { BadRequestError, NotFoundError } from "../middleware/error-handler";
 import { loadAgentForTenant } from "../services/agent-helpers";
@@ -859,6 +859,11 @@ testSuiteRoutes.get(
     const result = await withRequestRLS(c, async (tx) => {
       await loadTestSuiteForTenant(tx, suiteId, authContext.tenantId!);
 
+      const baselineRunFilter = or(
+        isNull(testSuiteRuns.promptVariant),
+        eq(testSuiteRuns.promptVariant, "baseline")
+      );
+
       const runRows = await tx.query.testSuiteRuns.findMany({
         columns: {
           passedCases: true,
@@ -870,7 +875,8 @@ testSuiteRoutes.get(
           eq(testSuiteRuns.suiteId, suiteId),
           eq(testSuiteRuns.tenantId, authContext.tenantId!),
           eq(testSuiteRuns.status, "completed"),
-          gte(testSuiteRuns.completedAt, startDate)
+          gte(testSuiteRuns.completedAt, startDate),
+          baselineRunFilter
         ),
         orderBy: [asc(testSuiteRuns.completedAt)],
       });
@@ -900,7 +906,8 @@ testSuiteRoutes.get(
             eq(testSuiteRuns.suiteId, suiteId),
             eq(testSuiteRuns.tenantId, authContext.tenantId!),
             eq(testSuiteRuns.status, "completed"),
-            gte(testSuiteRuns.completedAt, startDate)
+            gte(testSuiteRuns.completedAt, startDate),
+            baselineRunFilter
           )
         )
         .groupBy(sql`to_char(${testSuiteRuns.completedAt}, 'YYYY-MM-DD')`)

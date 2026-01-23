@@ -9,7 +9,7 @@ import {
   testCases,
   testSuiteRuns,
 } from "@grounded/db/schema";
-import { eq, and, isNull, sql, gte, lte, desc } from "drizzle-orm";
+import { eq, and, isNull, sql, gte, lte, desc, or } from "drizzle-orm";
 import { auth, requireTenant, withRequestRLS } from "../middleware/auth";
 import { BadRequestError, NotFoundError } from "../middleware/error-handler";
 import {
@@ -296,11 +296,16 @@ analyticsRoutes.get(
         eq(testCases.tenantId, authContext.tenantId!),
         isNull(testCases.deletedAt)
       );
+      const baselineRunFilter = or(
+        isNull(testSuiteRuns.promptVariant),
+        eq(testSuiteRuns.promptVariant, "baseline")
+      );
       const runFilter = and(
         eq(testSuiteRuns.tenantId, authContext.tenantId!),
         eq(testSuiteRuns.status, "completed"),
         gte(testSuiteRuns.completedAt, rangeStart),
-        lte(testSuiteRuns.completedAt, rangeEnd)
+        lte(testSuiteRuns.completedAt, rangeEnd),
+        baselineRunFilter
       );
 
       const [suiteCount, caseCount, runSummary, passRateByDay, agentsSummary, previousAgentSummary, suites, runs] =
@@ -354,7 +359,8 @@ analyticsRoutes.get(
                 eq(testSuiteRuns.suiteId, agentTestSuites.id),
                 eq(testSuiteRuns.status, "completed"),
                 gte(testSuiteRuns.completedAt, rangeStart),
-                lte(testSuiteRuns.completedAt, rangeEnd)
+                lte(testSuiteRuns.completedAt, rangeEnd),
+                baselineRunFilter
               )
             )
             .where(and(eq(agents.tenantId, authContext.tenantId!), isNull(agents.deletedAt)))
@@ -376,7 +382,8 @@ analyticsRoutes.get(
                 eq(testSuiteRuns.suiteId, agentTestSuites.id),
                 eq(testSuiteRuns.status, "completed"),
                 gte(testSuiteRuns.completedAt, previousStart),
-                lte(testSuiteRuns.completedAt, previousEnd)
+                lte(testSuiteRuns.completedAt, previousEnd),
+                baselineRunFilter
               )
             )
             .where(and(eq(agents.tenantId, authContext.tenantId!), isNull(agents.deletedAt)))
@@ -404,7 +411,8 @@ analyticsRoutes.get(
                 eq(testSuiteRuns.tenantId, authContext.tenantId!),
                 eq(testSuiteRuns.status, "completed"),
                 gte(testSuiteRuns.completedAt, previousStart),
-                lte(testSuiteRuns.completedAt, rangeEnd)
+                lte(testSuiteRuns.completedAt, rangeEnd),
+                baselineRunFilter
               )
             ),
         ]);

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-01-22
+
+### Fixed
+
+- **Analytics Chart Overflow**: Fixed pass rate line chart bleeding into adjacent sections on the workspace Analytics page. Chart now properly clips content within its container using HTML-based circular data points and `vector-effect="non-scaling-stroke"` for consistent line rendering.
+- **View Run Button**: Clicking "View run" in the Recent Regressions table now opens the test run detail panel, allowing users to inspect run results directly from the Analytics page.
+- **Baseline-Only Analytics**: Test suite analytics now exclude candidate (A/B test) runs from calculations. Summary stats, pass rate charts, agent health metrics, and regression detection now only consider baseline runs for accurate historical tracking.
+
 ## [0.5.0] - 2026-01-21
 
 ### Added
@@ -258,7 +266,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - User documentation for administrators and tenants
 - API integration guides
 
-[unreleased]: https://github.com/ncecere/grounded/compare/v0.5.0...HEAD
+[unreleased]: https://github.com/ncecere/grounded/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/ncecere/grounded/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/ncecere/grounded/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ncecere/grounded/compare/v0.3.1...v0.4.0
 [0.3.0]: https://github.com/ncecere/grounded/compare/v0.2.0...v0.3.0

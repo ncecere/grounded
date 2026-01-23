@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { cn } from "@/lib/utils";
 
 const PASS_RATE_LABELS = [100, 75, 50, 25, 0];
@@ -15,10 +16,15 @@ export interface PassRateLinePoint {
 }
 
 export const buildPassRateLineSeries = (data: PassRateLinePoint[], maxPoints = 14) =>
-  data.slice(-maxPoints).map((point) => ({
-    ...point,
-    passRate: Math.max(0, Math.min(100, point.passRate)),
-  }));
+  data.slice(-maxPoints).map((point) => {
+    const parsedPassRate = Number(point.passRate);
+    const normalizedPassRate = Number.isFinite(parsedPassRate) ? parsedPassRate : 0;
+
+    return {
+      ...point,
+      passRate: Math.max(0, Math.min(100, normalizedPassRate)),
+    };
+  });
 
 const formatPassRate = (value: number) => `${Math.round(value)}%`;
 
@@ -35,6 +41,9 @@ export function PassRateLineChart({
   className,
   emptyMessage = "No pass rate data yet",
 }: PassRateLineChartProps) {
+  const chartId = useId().replace(/:/g, "");
+  const fillId = `pass-rate-fill-${chartId}`;
+
   if (!data.length) {
     return (
       <div className={cn("h-56 flex items-center justify-center text-muted-foreground", className)}>
@@ -74,37 +83,47 @@ export function PassRateLineChart({
             ))}
           </div>
 
-          <svg className="absolute inset-0" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <svg
+            className="absolute inset-0 z-10 w-full h-full"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+          >
             <defs>
-              <linearGradient id="pass-rate-fill" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.24} />
                 <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
               </linearGradient>
             </defs>
-            <polygon points={areaPoints} fill="url(#pass-rate-fill)" />
-            <polyline points={polylinePoints} fill="none" stroke="hsl(var(--primary))" strokeWidth={2} />
-            {points.map((point) => (
-              <circle
-                key={`${point.date}-dot`}
-                cx={point.x}
-                cy={point.y}
-                r={3}
-                fill="hsl(var(--primary))"
-                stroke="hsl(var(--background))"
-                strokeWidth={1}
-              />
-            ))}
+            <polygon points={areaPoints} fill={`url(#${fillId})`} />
+            <polyline
+              points={polylinePoints}
+              fill="none"
+              stroke="hsl(var(--primary))"
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+            />
           </svg>
+
+          {/* Render circles as HTML elements to keep them circular */}
+          {points.map((point) => (
+            <div
+              key={`${point.date}-dot`}
+              className="absolute w-2.5 h-2.5 rounded-full bg-primary border-2 border-background -translate-x-1/2 -translate-y-1/2 z-20"
+              style={{ left: `${point.x}%`, top: `${point.y}%` }}
+            />
+          ))}
 
           {points.map((point) => {
             const runsLabel = `${point.totalRuns} run${point.totalRuns === 1 ? "" : "s"}`;
+            // Clamp tooltip position to stay within chart bounds
+            const clampedY = Math.max(0, Math.min(100, point.y));
             return (
               <div
                 key={`${point.date}-tooltip`}
                 className="absolute -translate-x-1/2 -translate-y-1/2 group"
-                style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                style={{ left: `${point.x}%`, top: `${clampedY}%` }}
               >
-                <div className="h-3 w-3" />
+                <div className="h-4 w-4 cursor-pointer" />
                 <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border border-border shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
                   <div>{new Date(point.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
                   <div>{formatPassRate(point.passRate)} pass · {runsLabel}</div>

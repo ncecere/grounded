@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { MessageSquare, MessagesSquare, Clock, BarChart3 } from "lucide-react";
+import { TestRunDetailPanel } from "@/components/test-suites";
 import {
   TestSuiteAnalyticsSection,
 } from "@/components/analytics/TestSuiteAnalyticsSection";
@@ -32,6 +33,7 @@ export function Analytics() {
     startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
     endDate: new Date().toISOString().split("T")[0],
   });
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
 
   const { data: analytics, isLoading } = useQuery({
     queryKey: ["analytics", dateRange],
@@ -191,8 +193,19 @@ export function Analytics() {
         <TestSuiteAnalyticsSection
           data={testSuiteAnalytics}
           isLoading={isTestSuiteAnalyticsLoading}
+          onSelectRegression={(regression) => setSelectedRunId(regression.runId)}
         />
       </div>
+
+      <TestRunDetailPanel
+        runId={selectedRunId}
+        open={!!selectedRunId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedRunId(null);
+          }
+        }}
+      />
     </div>
   );
 }
