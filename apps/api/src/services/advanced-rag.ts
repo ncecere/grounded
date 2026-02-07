@@ -26,6 +26,7 @@ import {
   getEmbeddingCache,
   setEmbeddingCache,
 } from "./cache";
+import { hybridSearch } from "./hybrid-search";
 
 // ============================================================================
 // Types
@@ -654,10 +655,10 @@ Respond with ONLY a JSON array like: [{"query": "...", "purpose": "..."}]`,
       await Promise.all(cachePromises);
     }
 
-    // 3. Execute vector searches in parallel with pre-computed embeddings
+    // 3. Execute hybrid searches in parallel with pre-computed embeddings
     const results = await Promise.all(
       subQueries.map((sq, i) =>
-        this.searchKnowledgeWithEmbedding(embeddings[i]!)
+        this.searchKnowledgeWithEmbedding(embeddings[i]!, sq.query)
       )
     );
 
@@ -694,11 +695,12 @@ Respond with ONLY a JSON array like: [{"query": "...", "purpose": "..."}]`,
   }
 
   /**
-   * Search knowledge bases with a pre-computed embedding vector.
-   * Used by executeSubQueries after batch-generating embeddings.
+   * Search knowledge bases with a pre-computed embedding vector and query text.
+   * Uses hybrid search (vector + FTS merged with RRF).
    */
   private async searchKnowledgeWithEmbedding(
-    embedding: number[]
+    embedding: number[],
+    queryText: string
   ): Promise<RetrievedChunk[]> {
     if (!this.config || this.config.kbIds.length === 0) {
       return [];
@@ -721,8 +723,17 @@ Respond with ONLY a JSON array like: [{"query": "...", "purpose": "..."}]`,
       return [];
     }
 
+    // Hybrid search: FTS + vector merged via RRF
+    const rankedResults = await hybridSearch({
+      tenantId: this.tenantId,
+      kbIds: this.config.kbIds,
+      vectorResults: searchResults,
+      query: queryText,
+      ftsTopK: this.config.candidateK,
+    });
+
     // Take topK results per sub-query
-    const topResults = searchResults.slice(0, this.config.topK);
+    const topResults = rankedResults.slice(0, this.config.topK);
 
     const chunkIds = topResults.map((r) => r.id);
     const dbChunks = await db.query.kbChunks.findMany({
@@ -743,7 +754,7 @@ Respond with ONLY a JSON array like: [{"query": "...", "purpose": "..."}]`,
           content: chunk.content,
           title: chunk.title || chunk.heading || undefined,
           url: chunk.normalizedUrl || undefined,
-          score: result.score,
+          score: result.vectorScore ?? result.score,
         });
       }
     }

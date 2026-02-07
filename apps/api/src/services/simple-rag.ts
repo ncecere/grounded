@@ -25,6 +25,7 @@ import {
   getEmbeddingCache,
   setEmbeddingCache,
 } from "./cache";
+import { hybridSearch } from "./hybrid-search";
 
 // ============================================================================
 // Types
@@ -273,7 +274,8 @@ export class SimpleRAGService {
   }
 
   /**
-   * Search knowledge bases for relevant chunks
+   * Search knowledge bases for relevant chunks using hybrid search
+   * (vector similarity + full-text search merged with Reciprocal Rank Fusion).
    */
   private async searchKnowledge(query: string): Promise<RetrievedChunk[]> {
     if (!this.config || this.config.kbIds.length === 0) {
@@ -301,7 +303,7 @@ export class SimpleRAGService {
       return [];
     }
 
-    // 1. Search with candidateK to get a broader pool
+    // 1. Vector search with candidateK to get a broader pool
     const searchResults = await vectorStore.search(embedding, {
       tenantId: this.tenantId,
       kbIds: this.config.kbIds,
@@ -313,9 +315,21 @@ export class SimpleRAGService {
       return [];
     }
 
-    // Get chunk details from database
-    const candidateResults = searchResults.slice(0, this.config.candidateK);
-    const chunkIds = candidateResults.map((r) => r.id);
+    // 2. Hybrid search: run FTS in parallel and merge via RRF
+    //    (replaces the old naive JS token-overlap reranker)
+    const rankedResults = await hybridSearch({
+      tenantId: this.tenantId,
+      kbIds: this.config.kbIds,
+      vectorResults: searchResults,
+      query,
+      ftsTopK: this.config.candidateK,
+    });
+
+    // 3. Take topK results
+    const topResults = rankedResults.slice(0, this.config.topK);
+    const chunkIds = topResults.map((r) => r.id);
+
+    // 4. Fetch chunk details from database
     const chunks = await db.query.kbChunks.findMany({
       where: and(
         inArray(kbChunks.id, chunkIds),
@@ -323,33 +337,9 @@ export class SimpleRAGService {
       ),
     });
 
-    // Create a map for easy lookup
     const chunkMap = new Map(chunks.map((c) => [c.id, c]));
 
-    const queryTokens = query
-      .toLowerCase()
-      .split(/[^a-z0-9]+/g)
-      .filter((t) => t.length > 2);
-    const queryTokenSet = new Set(queryTokens);
-
-    const rerankedResults = this.config.rerankerEnabled
-      ? candidateResults
-          .map((result) => {
-            const chunk = chunkMap.get(result.id);
-            const content = (chunk?.content || "").toLowerCase();
-            const overlap = queryTokens.reduce((count, token) => {
-              return content.includes(token) ? count + 1 : count;
-            }, 0);
-            const overlapScore = queryTokenSet.size > 0 ? overlap / queryTokenSet.size : 0;
-            const combinedScore = result.score * 0.7 + overlapScore * 0.3;
-            return { ...result, combinedScore };
-          })
-          .sort((a, b) => b.combinedScore - a.combinedScore)
-      : candidateResults.map((result) => ({ ...result, combinedScore: result.score }));
-
-    const topResults = rerankedResults.slice(0, this.config.topK);
-
-    // Combine search results with chunk data, maintaining score order
+    // 5. Build results maintaining RRF rank order
     const retrieved: RetrievedChunk[] = [];
     for (const result of topResults) {
       const chunk = chunkMap.get(result.id);
@@ -359,7 +349,7 @@ export class SimpleRAGService {
           content: chunk.content,
           title: chunk.title || chunk.heading || undefined,
           url: chunk.normalizedUrl || undefined,
-          score: result.score,
+          score: result.vectorScore ?? result.score,
         });
       }
     }

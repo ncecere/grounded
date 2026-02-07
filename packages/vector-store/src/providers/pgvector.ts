@@ -13,11 +13,12 @@ import type {
  * pgvector implementation of VectorStore.
  * Uses a separate PostgreSQL cluster with the pgvector extension.
  *
- * Note: This implementation uses the `vector` type without specifying dimensions,
- * allowing different KBs to use different embedding models with varying dimensions.
- * The trade-off is that HNSW/IVFFlat indexes cannot be used (they require fixed dimensions),
- * but the filtering indexes on tenant_id, kb_id, source_id provide adequate performance
- * for typical KB sizes.
+ * The vectors table uses the untyped `vector` column (no fixed dimensions)
+ * so different KBs can use different embedding models. To still leverage HNSW
+ * indexes, a `dimensions` column tracks vector size and partial HNSW indexes
+ * are created per dimension value (see migrations/vector-db/0001_hnsw_indexes.sql).
+ * The search query includes `dimensions = N` in the WHERE clause to enable
+ * the planner to use the correct partial index.
  */
 export class PgVectorStore implements VectorStore {
   readonly type = "pgvector" as const;
@@ -74,6 +75,13 @@ export class PgVectorStore implements VectorStore {
         // Ignore error if column is already nullable
       });
 
+      // Add dimensions column for HNSW partial indexes
+      await this.sql`
+        ALTER TABLE vectors ADD COLUMN IF NOT EXISTS dimensions smallint
+      `.catch(() => {
+        // Ignore error if column already exists
+      });
+
       // Create indexes for filtering - these provide fast lookups for multi-tenant queries
       await this.sql`
         CREATE INDEX IF NOT EXISTS vectors_tenant_kb_idx
@@ -85,9 +93,9 @@ export class PgVectorStore implements VectorStore {
         ON vectors(source_id)
       `;
 
-      // Note: HNSW/IVFFlat indexes require fixed dimensions, so we skip them
-      // The filtering indexes above provide adequate performance for typical KB sizes
-      // Similarity search will be performed within the filtered result set
+      // Note: HNSW partial indexes per dimension are created via
+      // migrations/vector-db/0001_hnsw_indexes.sql and are used automatically
+      // when the search query includes `dimensions = N`.
 
       this.initialized = true;
       console.log("[VectorStore] pgvector initialized successfully");
@@ -105,19 +113,21 @@ export class PgVectorStore implements VectorStore {
     for (let i = 0; i < vectors.length; i += BATCH_SIZE) {
       const batch = vectors.slice(i, i + BATCH_SIZE);
 
-      // Build values for batch insert
+      // Build values for batch insert (include dimensions for HNSW index utilization)
       const values = batch.map(v => ({
         id: v.id,
         tenant_id: v.tenantId,
         kb_id: v.kbId,
         source_id: v.sourceId,
         embedding: `[${v.embedding.join(",")}]`,
+        dimensions: v.embedding.length,
       }));
 
       await this.sql`
         INSERT INTO vectors ${this.sql(values)}
         ON CONFLICT (id) DO UPDATE SET
           embedding = EXCLUDED.embedding,
+          dimensions = EXCLUDED.dimensions,
           created_at = NOW()
       `;
     }
@@ -128,6 +138,9 @@ export class PgVectorStore implements VectorStore {
 
     // Build the query vector string
     const queryVector = `[${query.join(",")}]`;
+
+    // Include dimensions in WHERE clause so Postgres uses partial HNSW indexes
+    const dims = query.length;
 
     // Build dynamic WHERE clause
     let results: Array<{ id: string; distance: number }>;
@@ -140,7 +153,8 @@ export class PgVectorStore implements VectorStore {
           id,
           embedding <=> ${queryVector}::vector AS distance
         FROM vectors
-        WHERE (tenant_id = ${tenantId} OR tenant_id IS NULL)
+        WHERE dimensions = ${dims}
+          AND (tenant_id = ${tenantId} OR tenant_id IS NULL)
           AND kb_id = ANY(${kbIds})
           AND source_id = ANY(${sourceIds})
         ORDER BY distance
@@ -152,7 +166,8 @@ export class PgVectorStore implements VectorStore {
           id,
           embedding <=> ${queryVector}::vector AS distance
         FROM vectors
-        WHERE (tenant_id = ${tenantId} OR tenant_id IS NULL)
+        WHERE dimensions = ${dims}
+          AND (tenant_id = ${tenantId} OR tenant_id IS NULL)
           AND kb_id = ANY(${kbIds})
         ORDER BY distance
         LIMIT ${topK}
@@ -163,7 +178,8 @@ export class PgVectorStore implements VectorStore {
           id,
           embedding <=> ${queryVector}::vector AS distance
         FROM vectors
-        WHERE (tenant_id = ${tenantId} OR tenant_id IS NULL)
+        WHERE dimensions = ${dims}
+          AND (tenant_id = ${tenantId} OR tenant_id IS NULL)
           AND source_id = ANY(${sourceIds})
         ORDER BY distance
         LIMIT ${topK}
@@ -174,7 +190,8 @@ export class PgVectorStore implements VectorStore {
           id,
           embedding <=> ${queryVector}::vector AS distance
         FROM vectors
-        WHERE tenant_id = ${tenantId}
+        WHERE dimensions = ${dims}
+          AND tenant_id = ${tenantId}
         ORDER BY distance
         LIMIT ${topK}
       `;
