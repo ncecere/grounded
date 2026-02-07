@@ -10,8 +10,10 @@ import { Separator } from "./components/ui/separator";
 import {
   Breadcrumb,
   BreadcrumbItem,
+  BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
+  BreadcrumbSeparator,
 } from "./components/ui/breadcrumb";
 import { Building2, AlertTriangle, Shield } from "lucide-react";
 import { Button } from "./components/ui/button";
@@ -109,6 +111,25 @@ export default function App() {
     }
   }, [user?.isSystemAdmin, tenantsLoading, tenants.length, isAdminMode, enterAdminMode]);
 
+  // Keyboard shortcut: Cmd+Shift+A to toggle admin mode (must be before early returns)
+  useEffect(() => {
+    if (!user?.isSystemAdmin) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey && e.shiftKey && e.key === "a") {
+        e.preventDefault();
+        if (isAdminMode) {
+          exitAdminMode();
+        } else {
+          enterAdminMode();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [user?.isSystemAdmin, isAdminMode, enterAdminMode, exitAdminMode]);
+
   const handleTenantChange = (tenant: UserTenant) => {
     selectTenant(tenant);
     resetForTenantChange();
@@ -183,9 +204,19 @@ export default function App() {
           />
         );
       case "shared-kb-sources":
+        if (!selectedSharedKbId) {
+          return (
+            <AdminSharedKBs
+              onSelectKb={(id) => {
+                setSelectedSharedKbId(id);
+                setCurrentPage("shared-kb-sources");
+              }}
+            />
+          );
+        }
         return (
           <AdminSharedKbSources
-            kbId={selectedSharedKbId!}
+            kbId={selectedSharedKbId}
             onBack={() => {
               setSelectedSharedKbId(null);
               setCurrentPage("shared-kbs");
@@ -233,7 +264,7 @@ export default function App() {
             <p className="text-muted-foreground mb-6">
               Get started by creating your first tenant in the Admin Panel.
             </p>
-            <Button onClick={enterAdminMode}>
+            <Button onClick={() => enterAdminMode()}>
               <Shield className="mr-2 h-4 w-4" />
               Open Admin Panel
             </Button>
@@ -355,11 +386,12 @@ export default function App() {
           tenants={tenants}
           currentTenant={currentTenant}
           onTenantChange={handleTenantChange}
+          canManageTenant={!!canManageTenant}
           isAdminMode={isAdminMode}
           onEnterAdminMode={enterAdminMode}
           onExitAdminMode={exitAdminMode}
         />
-      <SidebarInset className="overflow-hidden">
+      <SidebarInset className={`overflow-hidden ${isAdminMode ? "border-t-2 border-amber-500" : ""}`}>
         {currentPage === "chat" ? (
           // Chat page - no header, full height for chat component
           <div className="h-full flex flex-col overflow-hidden">
@@ -376,6 +408,23 @@ export default function App() {
                 <Separator orientation="vertical" className="mr-2 h-4" />
                 <Breadcrumb>
                   <BreadcrumbList>
+                    {isAdminMode && (
+                      <>
+                        <BreadcrumbItem>
+                          <BreadcrumbLink
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              navigate("dashboard");
+                            }}
+                            className="text-amber-600 dark:text-amber-400"
+                          >
+                            Admin
+                          </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                      </>
+                    )}
                     <BreadcrumbItem>
                       <BreadcrumbPage>{currentEntry?.label ?? "Page"}</BreadcrumbPage>
                     </BreadcrumbItem>

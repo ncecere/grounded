@@ -87,8 +87,9 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   tenants?: UserTenant[]
   currentTenant?: UserTenant | null
   onTenantChange?: (tenant: UserTenant) => void
+  canManageTenant?: boolean
   isAdminMode?: boolean
-  onEnterAdminMode?: () => void
+  onEnterAdminMode?: (targetPage?: Page) => void
   onExitAdminMode?: () => void
 }
 
@@ -100,15 +101,13 @@ export function AppSidebar({
   tenants = [],
   currentTenant,
   onTenantChange,
+  canManageTenant = false,
   isAdminMode = false,
   onEnterAdminMode,
   onExitAdminMode,
   ...props
 }: AppSidebarProps) {
   const hasTenant = tenants.length > 0 && currentTenant
-
-  // Check if user can manage tenant (owner or admin)
-  const canManageTenant = currentTenant?.role === "owner" || currentTenant?.role === "admin"
 
   const getNavItems = (entries: ReadonlyArray<PageRegistryEntry>): NavItem[] =>
     entries.reduce<NavItem[]>((items, entry) => {
@@ -165,9 +164,7 @@ export function AppSidebar({
             currentTenant={currentTenant}
             onTenantChange={onTenantChange}
             onCreateTenant={user.isSystemAdmin ? () => {
-              onEnterAdminMode?.();
-              // After entering admin mode, navigate to tenants page
-              onNavigate("tenants");
+              onEnterAdminMode?.("tenants");
             } : undefined}
             isAdmin={user.isSystemAdmin}
           />
@@ -232,7 +229,7 @@ export function AppSidebar({
           user={user}
           onLogout={onLogout}
           isAdminMode={isAdminMode}
-          onAdminPanel={user.isSystemAdmin ? onEnterAdminMode : undefined}
+          onAdminPanel={user.isSystemAdmin ? () => onEnterAdminMode?.() : undefined}
           onExitAdminMode={user.isSystemAdmin ? onExitAdminMode : undefined}
         />
       </SidebarFooter>

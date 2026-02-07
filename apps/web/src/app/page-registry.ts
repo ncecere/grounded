@@ -180,9 +180,9 @@ export const pageRegistry = [
   {
     id: "shared-kb-detail",
     label: "Shared Knowledge Base",
-    group: "admin",
+    group: "workspace",
     component: PlaceholderPage,
-    authGate: "system-admin",
+    authGate: "tenant",
     order: 15,
   },
   {

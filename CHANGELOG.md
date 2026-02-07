@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Workspace mode shows tenant switcher and workspace-only navigation (no admin items)
   - Avatar menu shows "Admin Panel" link for system admins in workspace mode, "Back to Workspace" in admin mode
   - Auto-enters admin mode when a system admin has no tenant memberships
+- **Admin Panel UX Improvements** (10 enhancements):
+  - **Session persistence**: Admin mode and current admin page persist across page refreshes via `sessionStorage` (resets on tab close for security)
+  - **Keyboard shortcut**: `Cmd+Shift+A` (Mac) / `Ctrl+Shift+A` toggles admin mode for system admins
+  - **Amber visual indicator**: Top border on the main content area turns amber while in admin mode for clear visual distinction
+  - **Admin breadcrumbs**: Header shows "Admin > [Page]" breadcrumb trail with amber-colored clickable "Admin" link that navigates to the admin dashboard
+  - **Query cache invalidation**: Entering/exiting admin mode invalidates TanStack Query cache for fresh data on mode transitions
+  - **Tenant ID save/restore**: Tenant context is saved to a ref on entering admin mode and restored on exit, preventing stale workspace state
+  - **Tenant switcher race fix**: "Create Tenant" from tenant switcher now calls `enterAdminMode("tenants")` as a single action instead of two separate calls
+  - **Null guard for shared-kb-sources**: Navigating to shared KB sources without a selected KB renders the AdminSharedKBs fallback instead of crashing
+  - **Button onClick wrapper**: `enterAdminMode()` calls wrapped in arrow functions to prevent React `MouseEvent` from being passed as `targetPage`
+  - **canManageTenant prop**: Sidebar now receives `canManageTenant` from the tenant provider instead of computing it locally, ensuring consistent access control
 
 ## [0.6.0] - 2026-02-06
 

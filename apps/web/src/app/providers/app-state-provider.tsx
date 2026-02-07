@@ -3,10 +3,16 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   type PropsWithChildren,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Page } from "../../components/app-sidebar";
+import { clearCurrentTenantId, getCurrentTenantId, setCurrentTenantId } from "../../lib/api/client";
+
+const ADMIN_MODE_KEY = "grounded_admin_mode";
+const ADMIN_PAGE_KEY = "grounded_admin_page";
 
 type AppStateContextValue = {
   currentPage: Page;
@@ -23,19 +29,33 @@ type AppStateContextValue = {
   resetSelections: () => void;
   navigate: (page: Page) => void;
   resetForTenantChange: () => void;
-  enterAdminMode: () => void;
+  enterAdminMode: (targetPage?: Page) => void;
   exitAdminMode: () => void;
 };
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
 
 export function AppStateProvider({ children }: PropsWithChildren) {
-  const [currentPage, setCurrentPage] = useState<Page>("kbs");
+  const queryClient = useQueryClient();
+
+  // Restore admin mode from sessionStorage on initial load
+  const [isAdminMode, setIsAdminMode] = useState(() =>
+    sessionStorage.getItem(ADMIN_MODE_KEY) === "true"
+  );
+  const [currentPage, setCurrentPage] = useState<Page>(() => {
+    if (sessionStorage.getItem(ADMIN_MODE_KEY) === "true") {
+      return (sessionStorage.getItem(ADMIN_PAGE_KEY) as Page) || "dashboard";
+    }
+    return "kbs";
+  });
+
   const [selectedKbId, setSelectedKbId] = useState<string | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [selectedSharedKbId, setSelectedSharedKbId] = useState<string | null>(null);
   const [selectedSuiteId, setSelectedSuiteId] = useState<string | null>(null);
-  const [isAdminMode, setIsAdminMode] = useState(false);
+
+  // Save tenant ID before entering admin mode so we can restore it on exit
+  const savedTenantIdRef = useRef<string | null>(null);
 
   const resetSelections = useCallback(() => {
     setSelectedKbId(null);
@@ -48,6 +68,10 @@ export function AppStateProvider({ children }: PropsWithChildren) {
     (page: Page) => {
       setCurrentPage(page);
       resetSelections();
+      // Keep sessionStorage in sync when navigating within admin mode
+      if (sessionStorage.getItem(ADMIN_MODE_KEY) === "true") {
+        sessionStorage.setItem(ADMIN_PAGE_KEY, page);
+      }
     },
     [resetSelections]
   );
@@ -57,17 +81,49 @@ export function AppStateProvider({ children }: PropsWithChildren) {
     setCurrentPage("kbs");
   }, [resetSelections]);
 
-  const enterAdminMode = useCallback(() => {
-    setIsAdminMode(true);
-    resetSelections();
-    setCurrentPage("dashboard");
-  }, [resetSelections]);
+  const enterAdminMode = useCallback(
+    (targetPage: Page = "dashboard") => {
+      // Save the current tenant ID so we can restore it on exit
+      savedTenantIdRef.current = getCurrentTenantId();
+      clearCurrentTenantId();
+
+      setIsAdminMode(true);
+      resetSelections();
+      setCurrentPage(targetPage);
+
+      // Persist to sessionStorage
+      sessionStorage.setItem(ADMIN_MODE_KEY, "true");
+      sessionStorage.setItem(ADMIN_PAGE_KEY, targetPage);
+
+      // Invalidate workspace queries since we cleared the tenant header
+      queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] });
+      queryClient.invalidateQueries({ queryKey: ["agents"] });
+      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    },
+    [resetSelections, queryClient]
+  );
 
   const exitAdminMode = useCallback(() => {
+    // Restore the saved tenant ID
+    if (savedTenantIdRef.current) {
+      setCurrentTenantId(savedTenantIdRef.current);
+      savedTenantIdRef.current = null;
+    }
+
     setIsAdminMode(false);
     resetSelections();
     setCurrentPage("kbs");
-  }, [resetSelections]);
+
+    // Clear sessionStorage
+    sessionStorage.removeItem(ADMIN_MODE_KEY);
+    sessionStorage.removeItem(ADMIN_PAGE_KEY);
+
+    // Invalidate admin queries so workspace data is fresh
+    queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] });
+    queryClient.invalidateQueries({ queryKey: ["agents"] });
+    queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    queryClient.invalidateQueries({ queryKey: ["admin"] });
+  }, [resetSelections, queryClient]);
 
   const value = useMemo<AppStateContextValue>(
     () => ({
