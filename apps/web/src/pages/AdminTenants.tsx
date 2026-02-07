@@ -57,6 +57,7 @@ export function AdminTenants() {
     mutationFn: api.createTenant,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
       setIsCreateModalOpen(false);
     },
   });
@@ -65,6 +66,7 @@ export function AdminTenants() {
     mutationFn: api.deleteTenant,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
       setTenantToDelete(null);
     },
   });
@@ -458,6 +460,7 @@ function TenantManagementModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-members", tenant.id] });
       queryClient.invalidateQueries({ queryKey: ["admin-tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
       setAddEmail("");
     },
   });
@@ -475,6 +478,7 @@ function TenantManagementModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-members", tenant.id] });
       queryClient.invalidateQueries({ queryKey: ["admin-tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
       setMemberToRemove(null);
     },
   });

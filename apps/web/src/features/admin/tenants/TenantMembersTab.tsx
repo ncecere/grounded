@@ -25,6 +25,7 @@ export function TenantMembersTab({ tenantId }: TenantMembersTabProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-members", tenantId] });
       queryClient.invalidateQueries({ queryKey: ["admin-tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
       setAddEmail("");
     },
   });
@@ -42,6 +43,7 @@ export function TenantMembersTab({ tenantId }: TenantMembersTabProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-members", tenantId] });
       queryClient.invalidateQueries({ queryKey: ["admin-tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
     },
   });
 

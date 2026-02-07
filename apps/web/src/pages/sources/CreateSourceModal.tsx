@@ -7,9 +7,16 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 import { SUPPORTED_FORMATS, ACCEPTED_FILE_TYPES } from "./source-utils";
 
-interface NewSourceForm {
+export interface NewSourceForm {
   name: string;
   type: "web" | "upload";
   mode: "single" | "list" | "sitemap" | "domain";
@@ -17,6 +24,10 @@ interface NewSourceForm {
   urls: string;
   depth: number;
   schedule: "daily" | "weekly" | null;
+  includePatterns: string;
+  excludePatterns: string;
+  includeSubdomains: boolean;
+  respectRobotsTxt: boolean;
 }
 
 interface CreateSourceModalProps {
@@ -42,6 +53,7 @@ export function CreateSourceModal({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, "pending" | "uploading" | "success" | "error">>({});
   const [isDragging, setIsDragging] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const handleFileSelect = (files: FileList | null) => {
     if (!files) return;
@@ -71,9 +83,9 @@ export function CreateSourceModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-card rounded-lg shadow-xl w-full max-w-md mx-4 border border-border">
-        <form onSubmit={onCreate}>
-          <div className="p-6">
+      <div className="bg-card rounded-lg shadow-xl w-full max-w-lg mx-4 border border-border max-h-[90vh] flex flex-col">
+        <form onSubmit={onCreate} className="flex flex-col max-h-[90vh]">
+          <div className="p-6 overflow-y-auto flex-1">
             <h2 className="text-lg font-semibold text-foreground">Add Source</h2>
             <div className="mt-4 space-y-4">
               <div>
@@ -390,14 +402,88 @@ export function CreateSourceModal({
                       Automatically re-scrape this source on a schedule
                     </p>
                   </div>
+
+                  {/* Advanced Settings — collapsible */}
+                  <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                    <CollapsibleTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors w-full"
+                      >
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform ${advancedOpen ? "rotate-0" : "-rotate-90"}`}
+                        />
+                        Advanced Settings
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-4 mt-3">
+                      {/* Include Patterns */}
+                      <div>
+                        <label className="block text-sm font-medium text-foreground">Include Patterns</label>
+                        <textarea
+                          value={newSource.includePatterns}
+                          onChange={(e) => setNewSource({ ...newSource, includePatterns: e.target.value })}
+                          className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground font-mono focus:border-primary focus:ring-primary"
+                          placeholder={"/docs/*\n/blog/*"}
+                          rows={3}
+                        />
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Only crawl URLs matching these patterns (one per line). Leave empty to include all.
+                        </p>
+                      </div>
+
+                      {/* Exclude Patterns */}
+                      <div>
+                        <label className="block text-sm font-medium text-foreground">Exclude Patterns</label>
+                        <textarea
+                          value={newSource.excludePatterns}
+                          onChange={(e) => setNewSource({ ...newSource, excludePatterns: e.target.value })}
+                          className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground font-mono focus:border-primary focus:ring-primary"
+                          placeholder={"/admin/*\n/private/*"}
+                          rows={3}
+                        />
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Skip URLs matching these patterns (one per line).
+                        </p>
+                      </div>
+
+                      {/* Include Subdomains */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="text-sm font-medium text-foreground">Include Subdomains</label>
+                          <p className="text-xs text-muted-foreground">Follow links to subdomains of the starting URL</p>
+                        </div>
+                        <Switch
+                          checked={newSource.includeSubdomains}
+                          onCheckedChange={(checked) =>
+                            setNewSource({ ...newSource, includeSubdomains: checked })
+                          }
+                        />
+                      </div>
+
+                      {/* Respect robots.txt */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="text-sm font-medium text-foreground">Respect robots.txt</label>
+                          <p className="text-xs text-muted-foreground">Honor the site's robots.txt crawl directives</p>
+                        </div>
+                        <Switch
+                          checked={newSource.respectRobotsTxt}
+                          onCheckedChange={(checked) =>
+                            setNewSource({ ...newSource, respectRobotsTxt: checked })
+                          }
+                        />
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </>
               )}
             </div>
           </div>
-          <div className="px-6 py-4 bg-muted/50 rounded-b-lg flex justify-end gap-3 border-t border-border">
+          <div className="px-6 py-4 bg-muted/50 rounded-b-lg flex justify-end gap-3 border-t border-border shrink-0">
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               onClick={() => {
                 setSelectedFiles([]);
                 setUploadProgress({});

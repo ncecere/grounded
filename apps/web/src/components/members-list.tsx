@@ -50,6 +50,7 @@ export function MembersList({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-members", tenantId] })
       queryClient.invalidateQueries({ queryKey: ["admin-tenants"] })
+      queryClient.invalidateQueries({ queryKey: ["my-tenants"] })
       setAddEmail("")
     },
   })
@@ -67,6 +68,7 @@ export function MembersList({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-members", tenantId] })
       queryClient.invalidateQueries({ queryKey: ["admin-tenants"] })
+      queryClient.invalidateQueries({ queryKey: ["my-tenants"] })
       setMemberToRemove(null)
     },
   })

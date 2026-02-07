@@ -48,7 +48,7 @@ export function SourcesManager({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedSource, setSelectedSource] = useState<Source | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
-  const [newSource, setNewSource] = useState({
+  const defaultNewSource = {
     name: "",
     type: "web" as "web" | "upload",
     mode: "single" as "single" | "list" | "sitemap" | "domain",
@@ -56,7 +56,12 @@ export function SourcesManager({
     urls: "",
     depth: 3,
     schedule: null as "daily" | "weekly" | null,
-  });
+    includePatterns: "",
+    excludePatterns: "",
+    includeSubdomains: false,
+    respectRobotsTxt: true,
+  };
+  const [newSource, setNewSource] = useState(defaultNewSource);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editSource, setEditSource] = useState<EditSourceData | null>(null);
 
@@ -104,7 +109,7 @@ export function SourcesManager({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sources", kbId] });
       setShowCreateModal(false);
-      setNewSource({ name: "", type: "web", mode: "single", url: "", urls: "", depth: 3, schedule: null });
+      setNewSource(defaultNewSource);
       showNotification("success", "Source created successfully");
     },
     onError: (error: Error) => {
@@ -209,7 +214,7 @@ export function SourcesManager({
         setSelectedFiles([]);
         setUploadProgress({});
         setShowCreateModal(false);
-        setNewSource({ name: "", type: "web", mode: "single", url: "", urls: "", depth: 3, schedule: null });
+        setNewSource(defaultNewSource);
       }, 1500);
     } else if (errorCount > 0) {
       showNotification("error", `${errorCount} file(s) failed to upload`);
@@ -226,12 +231,18 @@ export function SourcesManager({
       const baseConfig = {
         mode: newSource.mode,
         depth: newSource.depth,
-        includePatterns: [],
-        excludePatterns: [],
-        includeSubdomains: false,
+        includePatterns: newSource.includePatterns
+          .split("\n")
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0),
+        excludePatterns: newSource.excludePatterns
+          .split("\n")
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0),
+        includeSubdomains: newSource.includeSubdomains,
         schedule: newSource.schedule,
         firecrawlEnabled: false,
-        respectRobotsTxt: true,
+        respectRobotsTxt: newSource.respectRobotsTxt,
       };
 
       switch (newSource.mode) {
@@ -267,23 +278,67 @@ export function SourcesManager({
     e.preventDefault();
     if (!editSource) return;
 
+    const config: Record<string, unknown> = {
+      schedule: editSource.schedule,
+      depth: editSource.depth,
+    };
+
+    // Only include web-specific config for web sources
+    if (editSource.type === "web") {
+      config.mode = editSource.mode;
+      config.includeSubdomains = editSource.includeSubdomains;
+      config.respectRobotsTxt = editSource.respectRobotsTxt;
+      config.includePatterns = editSource.includePatterns
+        .split("\n")
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0);
+      config.excludePatterns = editSource.excludePatterns
+        .split("\n")
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0);
+
+      if (editSource.mode === "list") {
+        config.urls = editSource.urls
+          .split("\n")
+          .map((u) => u.trim())
+          .filter((u) => u.length > 0);
+      } else {
+        config.url = editSource.url;
+      }
+    }
+
     updateMutation.mutate({
       id: editSource.id,
       name: editSource.name.trim(),
-      config: {
-        schedule: editSource.schedule,
-        depth: editSource.depth,
-      },
+      config,
     });
   };
 
   const openEditModal = (source: Source) => {
+    const config = source.config ?? {};
+    const urls = Array.isArray(config.urls)
+      ? (config.urls as string[]).join("\n")
+      : "";
+    const includePatterns = Array.isArray(config.includePatterns)
+      ? (config.includePatterns as string[]).join("\n")
+      : "";
+    const excludePatterns = Array.isArray(config.excludePatterns)
+      ? (config.excludePatterns as string[]).join("\n")
+      : "";
+
     setEditSource({
       id: source.id,
       name: source.name,
       type: source.type as "web" | "upload",
-      schedule: (source.config?.schedule as "daily" | "weekly" | null) || null,
-      depth: (source.config?.depth as number) || 3,
+      mode: (config.mode as "single" | "list" | "sitemap" | "domain") || "single",
+      url: (config.url as string) || "",
+      urls,
+      depth: (config.depth as number) || 3,
+      schedule: (config.schedule as "daily" | "weekly" | null) || null,
+      includePatterns,
+      excludePatterns,
+      includeSubdomains: (config.includeSubdomains as boolean) ?? false,
+      respectRobotsTxt: (config.respectRobotsTxt as boolean) ?? true,
     });
     setShowEditModal(true);
   };

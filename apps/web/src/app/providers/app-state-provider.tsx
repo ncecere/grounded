@@ -104,7 +104,11 @@ export function AppStateProvider({ children }: PropsWithChildren) {
   );
 
   const exitAdminMode = useCallback(() => {
-    // Restore the saved tenant ID
+    // Restore the saved tenant ID only if it's still valid.
+    // We write it to localStorage so TenantProvider's useEffect can
+    // validate it against the fresh tenant list. If the tenant was
+    // deleted during the admin session, the useEffect will not find
+    // it and will auto-select tenants[0] instead.
     if (savedTenantIdRef.current) {
       setCurrentTenantId(savedTenantIdRef.current);
       savedTenantIdRef.current = null;
@@ -118,7 +122,11 @@ export function AppStateProvider({ children }: PropsWithChildren) {
     sessionStorage.removeItem(ADMIN_MODE_KEY);
     sessionStorage.removeItem(ADMIN_PAGE_KEY);
 
-    // Invalidate admin queries so workspace data is fresh
+    // Force refetch tenant list so TenantProvider validates against
+    // the current state (tenants may have been created/deleted in admin mode)
+    queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
+
+    // Invalidate workspace and admin queries so data is fresh
     queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] });
     queryClient.invalidateQueries({ queryKey: ["agents"] });
     queryClient.invalidateQueries({ queryKey: ["analytics"] });
