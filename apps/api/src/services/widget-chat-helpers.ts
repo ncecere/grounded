@@ -22,6 +22,7 @@ import {
   getClientIp,
 } from "./public-access-policy";
 import { streamWithHeartbeat } from "./sse-stream";
+import { getWidgetCache, setWidgetCache } from "./cache";
 
 export { widgetChatSchema } from "../modules/widget/schema";
 export type { WidgetChatInput } from "../modules/widget/schema";
@@ -50,6 +51,13 @@ export async function validateWidgetToken(
 ): Promise<WidgetTokenValidation> {
   const tokenHash = hashPublicToken(token);
 
+  // Check Redis cache (120s TTL) — avoids DB queries per widget request
+  const cached = await getWidgetCache<WidgetTokenValidation>(tokenHash);
+  if (cached) {
+    return cached;
+  }
+
+  // Step 1: Look up the token (needed to get agentId)
   const widgetToken = await tx.query.widgetTokens.findFirst({
     where: and(
       eq(widgetTokens.tokenHash, tokenHash),
@@ -61,22 +69,33 @@ export async function validateWidgetToken(
     throw new NotFoundError("Widget");
   }
 
-  const agent = await tx.query.agents.findFirst({
-    where: and(
-      eq(agents.id, widgetToken.agentId),
-      isNull(agents.deletedAt)
-    ),
-  });
+  // Step 2: Fetch agent + widget config in parallel (both only need agentId)
+  const [agent, widgetConfig] = await Promise.all([
+    tx.query.agents.findFirst({
+      where: and(
+        eq(agents.id, widgetToken.agentId),
+        isNull(agents.deletedAt)
+      ),
+    }),
+    tx.query.agentWidgetConfigs.findFirst({
+      where: eq(agentWidgetConfigs.agentId, widgetToken.agentId),
+    }),
+  ]);
 
   if (!agent) {
     throw new NotFoundError("Agent");
   }
 
-  const widgetConfig = await tx.query.agentWidgetConfigs.findFirst({
-    where: eq(agentWidgetConfigs.agentId, agent.id),
-  });
+  const result: WidgetTokenValidation = {
+    widgetToken,
+    agent,
+    widgetConfig: widgetConfig ?? null,
+  };
 
-  return { widgetToken, agent, widgetConfig: widgetConfig ?? null };
+  // Populate cache for subsequent requests
+  await setWidgetCache(tokenHash, result);
+
+  return result;
 }
 
 // ============================================================================

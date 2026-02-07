@@ -12,6 +12,7 @@ import {
   createChatEndpointSchema,
   createWidgetTokenSchema,
 } from "../modules/agents/schema";
+import { invalidateAgentConfigCache } from "../services/cache";
 
 export const agentRoutes = new Hono();
 
@@ -121,6 +122,9 @@ agentRoutes.patch(
       })
     );
 
+    // Invalidate agent config cache (system prompt, model, etc. may have changed)
+    await invalidateAgentConfigCache(authContext.tenantId!, agentId);
+
     // Audit log - agent updated
     const auditContext = buildAuditContext({ authContext, headers: c.req.raw.headers });
 
@@ -153,6 +157,9 @@ agentRoutes.delete(
         tenantId: authContext.tenantId!,
       })
     );
+
+    // Invalidate agent config cache
+    await invalidateAgentConfigCache(authContext.tenantId!, agentId);
 
     // Audit log - agent deleted
     const auditContext = buildAuditContext({ authContext, headers: c.req.raw.headers });
@@ -207,6 +214,9 @@ agentRoutes.put(
       })
     );
 
+    // Invalidate agent config cache (kbIds changed)
+    await invalidateAgentConfigCache(authContext.tenantId!, agentId);
+
     return c.json({ message: "Knowledge bases updated" });
   }
 );
@@ -257,6 +267,9 @@ agentRoutes.put(
       })
     );
 
+    // Invalidate agent config cache (retrieval params changed)
+    await invalidateAgentConfigCache(authContext.tenantId!, agentId);
+
     return c.json({ retrievalConfig: config });
   }
 );
@@ -306,6 +319,9 @@ agentRoutes.put(
         body,
       })
     );
+
+    // Invalidate agent config cache (widget config may affect RAG behavior)
+    await invalidateAgentConfigCache(authContext.tenantId!, agentId);
 
     return c.json({ widgetConfig: config });
   }

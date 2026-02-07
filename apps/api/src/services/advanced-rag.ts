@@ -10,7 +10,7 @@ import {
   kbChunks,
   chatEvents,
 } from "@grounded/db/schema";
-import { generateEmbedding } from "@grounded/embeddings";
+import { generateEmbedding, generateEmbeddings } from "@grounded/embeddings";
 import { getVectorStore } from "@grounded/vector-store";
 import { getAIRegistry } from "@grounded/ai-providers";
 import { log } from "@grounded/logger";
@@ -19,6 +19,13 @@ import {
   addToConversation,
   type ConversationTurn,
 } from "@grounded/queue";
+import {
+  getAgentConfigCache,
+  setAgentConfigCache,
+  embedCacheKey,
+  getEmbeddingCache,
+  setEmbeddingCache,
+} from "./cache";
 
 // ============================================================================
 // Types
@@ -351,9 +358,17 @@ export class AdvancedRAGService {
   }
 
   /**
-   * Load agent configuration from database
+   * Load agent configuration from database (with Redis cache, 60s TTL).
    */
   private async loadConfig(): Promise<void> {
+    // Check Redis cache first — uses a different type key prefix than simple RAG
+    // but the same domain ("agent_config") since the config is per-agent.
+    const cached = await getAgentConfigCache<AdvancedAgentConfig>(this.tenantId, this.agentId);
+    if (cached) {
+      this.config = cached;
+      return;
+    }
+
     // Fire all 3 config queries in parallel — each is independent and hits
     // different tables. This saves ~2 sequential DB round-trips (~60ms).
     const [agent, retrievalConfig, attachedKbs] = await Promise.all([
@@ -391,6 +406,9 @@ export class AdvancedRAGService {
       historyTurns: retrievalConfig?.historyTurns || 5,
       advancedMaxSubqueries: retrievalConfig?.advancedMaxSubqueries || 3,
     };
+
+    // Populate cache for subsequent requests
+    await setAgentConfigCache(this.tenantId, this.agentId, this.config);
   }
 
   /**
@@ -591,18 +609,59 @@ Respond with ONLY a JSON array like: [{"query": "...", "purpose": "..."}]`,
   }
 
   /**
-   * Execute all sub-queries in parallel and collect results
+   * Execute all sub-queries in parallel and collect results.
+   * Batches embedding generation for uncached queries into a single API call.
    */
   private async executeSubQueries(
     subQueries: SubQuery[]
   ): Promise<RetrievedChunk[]> {
-    const allChunks: RetrievedChunk[] = [];
+    if (!this.config || this.config.kbIds.length === 0) {
+      return [];
+    }
 
-    // Execute sub-queries in parallel
-    const results = await Promise.all(
-      subQueries.map((sq) => this.searchKnowledge(sq.query))
+    const modelConfigId = this.config.modelConfigId || "default";
+
+    // 1. Check embedding cache for each sub-query
+    const embeddings: (number[] | null)[] = await Promise.all(
+      subQueries.map((sq) => getEmbeddingCache(embedCacheKey(modelConfigId, sq.query)))
     );
 
+    // 2. Identify uncached queries and batch-generate embeddings
+    const uncachedIndices: number[] = [];
+    const uncachedTexts: string[] = [];
+    for (let i = 0; i < subQueries.length; i++) {
+      if (!embeddings[i]) {
+        uncachedIndices.push(i);
+        uncachedTexts.push(subQueries[i].query);
+      }
+    }
+
+    if (uncachedTexts.length > 0) {
+      // Single batched API call for all uncached queries
+      const batchResults = await generateEmbeddings(uncachedTexts);
+      // Fill in embeddings and cache them
+      const cachePromises: Promise<void>[] = [];
+      for (let j = 0; j < uncachedIndices.length; j++) {
+        const idx = uncachedIndices[j];
+        embeddings[idx] = batchResults[j].embedding;
+        cachePromises.push(
+          setEmbeddingCache(
+            embedCacheKey(modelConfigId, subQueries[idx].query),
+            batchResults[j].embedding
+          )
+        );
+      }
+      await Promise.all(cachePromises);
+    }
+
+    // 3. Execute vector searches in parallel with pre-computed embeddings
+    const results = await Promise.all(
+      subQueries.map((sq, i) =>
+        this.searchKnowledgeWithEmbedding(embeddings[i]!)
+      )
+    );
+
+    const allChunks: RetrievedChunk[] = [];
     for (const chunks of results) {
       allChunks.push(...chunks);
     }
@@ -635,14 +694,15 @@ Respond with ONLY a JSON array like: [{"query": "...", "purpose": "..."}]`,
   }
 
   /**
-   * Search knowledge bases for relevant chunks
+   * Search knowledge bases with a pre-computed embedding vector.
+   * Used by executeSubQueries after batch-generating embeddings.
    */
-  private async searchKnowledge(query: string): Promise<RetrievedChunk[]> {
+  private async searchKnowledgeWithEmbedding(
+    embedding: number[]
+  ): Promise<RetrievedChunk[]> {
     if (!this.config || this.config.kbIds.length === 0) {
       return [];
     }
-
-    const { embedding } = await generateEmbedding(query);
 
     const vectorStore = await getVectorStore();
     if (!vectorStore) {

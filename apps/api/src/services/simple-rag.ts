@@ -18,6 +18,13 @@ import {
   addToConversation,
   type ConversationTurn,
 } from "@grounded/queue";
+import {
+  getAgentConfigCache,
+  setAgentConfigCache,
+  embedCacheKey,
+  getEmbeddingCache,
+  setEmbeddingCache,
+} from "./cache";
 
 // ============================================================================
 // Types
@@ -214,9 +221,16 @@ export class SimpleRAGService {
   }
 
   /**
-   * Load agent configuration from database
+   * Load agent configuration from database (with Redis cache, 60s TTL).
    */
   private async loadConfig(): Promise<void> {
+    // Check Redis cache first
+    const cached = await getAgentConfigCache<AgentConfig>(this.tenantId, this.agentId);
+    if (cached) {
+      this.config = cached;
+      return;
+    }
+
     // Fire all 3 config queries in parallel — each is independent and hits
     // different tables. This saves ~2 sequential DB round-trips (~60ms).
     const [agent, retrievalConfig, attachedKbs] = await Promise.all([
@@ -253,6 +267,9 @@ export class SimpleRAGService {
       rerankerEnabled: retrievalConfig?.rerankerEnabled ?? true,
       kbIds: attachedKbs.map((kb) => kb.kbId),
     };
+
+    // Populate cache for subsequent requests
+    await setAgentConfigCache(this.tenantId, this.agentId, this.config);
   }
 
   /**
@@ -263,8 +280,19 @@ export class SimpleRAGService {
       return [];
     }
 
-    // Generate embedding for the query
-    const { embedding } = await generateEmbedding(query);
+    // Generate embedding for the query (with Redis cache, 5min TTL)
+    const modelConfigId = this.config.modelConfigId || "default";
+    const cacheKey = embedCacheKey(modelConfigId, query);
+    let embedding: number[];
+
+    const cachedEmbedding = await getEmbeddingCache(cacheKey);
+    if (cachedEmbedding) {
+      embedding = cachedEmbedding;
+    } else {
+      const result = await generateEmbedding(query);
+      embedding = result.embedding;
+      await setEmbeddingCache(cacheKey, embedding);
+    }
 
     // Search vector store
     const vectorStore = await getVectorStore();

@@ -258,6 +258,7 @@ describe("Browser Pool", () => {
         initialized: false,
         browserActive: false,
         shuttingDown: false,
+        pagesProcessed: 0,
         config: null,
       });
     });
