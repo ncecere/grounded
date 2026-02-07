@@ -39,7 +39,7 @@
     "diff": "8.0.3",
     "dompurify": "^3.3.0",
     "embla-carousel-react": "8.6.0",
-    "lucide-react": "0.562.0",
+    "lucide-react": "0.563.0",
     "marked": "^17.0.1",
     "motion": "12.25.0",
     "nanoid": "5.1.6",
