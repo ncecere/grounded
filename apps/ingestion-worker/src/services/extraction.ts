@@ -8,8 +8,12 @@ export interface Heading {
 export function extractContent(html: string): { mainContent: string; headings: Heading[] } {
   // Simple content extraction - in production use readability.js or similar
 
+  // Strip null bytes — PostgreSQL text columns cannot store \u0000
+  // eslint-disable-next-line no-control-regex
+  const sanitizedHtml = html.replace(/\x00/g, "");
+
   // Remove scripts and styles
-  let content = html
+  let content = sanitizedHtml
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
     .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")

@@ -41,41 +41,56 @@ export async function extractTextFromUpload(
   const decoder = new TextDecoder("utf-8");
   const buffer = Buffer.from(content);
 
+  let text: string;
+
   switch (mimeType) {
     case "text/plain":
     case "text/markdown":
-      return decoder.decode(content);
+      text = decoder.decode(content);
+      break;
     case "text/html":
-      return htmlToText(decoder.decode(content));
+      text = htmlToText(decoder.decode(content));
+      break;
     case "application/json":
       try {
         const json = JSON.parse(decoder.decode(content));
-        return JSON.stringify(json, null, 2);
+        text = JSON.stringify(json, null, 2);
       } catch {
-        return decoder.decode(content);
+        text = decoder.decode(content);
       }
+      break;
     case "application/xml":
     case "text/xml":
-      return xmlToText(decoder.decode(content));
+      text = xmlToText(decoder.decode(content));
+      break;
     case "application/pdf":
-      return await extractPdfText(buffer);
+      text = await extractPdfText(buffer);
+      break;
     case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-      return await extractDocxText(buffer);
+      text = await extractDocxText(buffer);
+      break;
     case "application/msword":
       throw new Error("Legacy .doc format not fully supported. Please convert to .docx format.");
     case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-      return await extractExcelText(buffer);
+      text = await extractExcelText(buffer);
+      break;
     case "application/vnd.ms-excel":
       throw new Error("Legacy .xls format is not supported. Please convert to .xlsx format.");
     case "text/csv":
-      return extractCsvText(decoder.decode(content));
+      text = extractCsvText(decoder.decode(content));
+      break;
     case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
-      return await extractPptxText(buffer);
+      text = await extractPptxText(buffer);
+      break;
     case "application/vnd.ms-powerpoint":
       throw new Error("Legacy .ppt format is not supported. Please convert to .pptx or .pdf format.");
     default:
       throw new Error(`Unsupported file type: ${mimeType}`);
   }
+
+  // Strip null bytes — PostgreSQL text columns cannot store \u0000
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/\x00/g, "");
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {

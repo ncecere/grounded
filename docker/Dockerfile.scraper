@@ -4,6 +4,10 @@ WORKDIR /app
 ARG VERSION=dev
 ENV APP_VERSION=$VERSION
 
+# Use a shared, fixed path for Playwright browsers so both root (build) and
+# UID 1000 (runtime) can find them.
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
+
 # Install Playwright dependencies
 RUN apt-get update && apt-get install -y \
     libnss3 \
@@ -33,8 +37,9 @@ COPY apps/scraper-worker ./apps/scraper-worker
 # Install dependencies after source is available
 RUN bun install || true
 
-# Install Playwright browsers
-RUN bunx playwright install chromium
+# Install Playwright browsers to the shared path
+RUN bunx playwright install chromium && \
+    chmod -R 755 $PLAYWRIGHT_BROWSERS_PATH
 
 # Create non-root user and fix permissions (GID/UID 1000 may already exist in base image)
 RUN getent group 1000 || groupadd -g 1000 appuser && \

@@ -45,12 +45,14 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
 
   log.info("ingestion-worker", "Processing page", { url, depth, sourceType, requestId, traceId });
 
-  // Get run and source
+  // Get run and source — errors here must still increment stage progress
   const run = await db.query.sourceRuns.findFirst({
     where: eq(sourceRuns.id, runId),
   });
 
   if (!run) {
+    // Cannot proceed without run — increment stage progress as failed and bail
+    await incrementStageProgress(runId, true);
     throw new Error(`Run ${runId} not found`);
   }
 
@@ -59,6 +61,7 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
   });
 
   if (!source) {
+    await incrementStageProgress(runId, true);
     throw new Error(`Source ${run.sourceId} not found`);
   }
 
@@ -69,6 +72,7 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
   if (sourceType === "upload" || url.startsWith("upload://")) {
     // Uploads have HTML in the job data
     if (!jobHtml) {
+      await incrementStageProgress(runId, true);
       throw new Error(`Upload job missing HTML content for ${url}`);
     }
     html = jobHtml;
@@ -248,15 +252,29 @@ export async function processPageProcess(data: PageProcessJob): Promise<void> {
 
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     
-    // Record page failure
-    await recordPageFailure(resolvedTenantId, runId, url, normalizedUrl, errorMessage, jobTitle);
-
-    // Clean up HTML from Redis on failure too
-    if (sourceType !== "upload" && !url.startsWith("upload://")) {
-      await deleteFetchedHtml(runId, url);
+    // Record page failure (wrapped so incrementStageProgress always runs)
+    try {
+      await recordPageFailure(resolvedTenantId, runId, url, normalizedUrl, errorMessage, jobTitle);
+    } catch (recordError) {
+      log.error("ingestion-worker", "Failed to record page failure in DB", {
+        url,
+        error: recordError instanceof Error ? recordError.message : String(recordError),
+      });
     }
 
-    // Track stage progress (failed)
+    // Clean up HTML from Redis on failure too
+    try {
+      if (sourceType !== "upload" && !url.startsWith("upload://")) {
+        await deleteFetchedHtml(runId, url);
+      }
+    } catch (cleanupError) {
+      log.error("ingestion-worker", "Failed to clean up fetched HTML", {
+        url,
+        error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+      });
+    }
+
+    // Track stage progress (failed) — MUST always run to prevent stuck runs
     const stageProgress = await incrementStageProgress(runId, true);
 
     // If stage is complete, trigger transition to INDEXING
@@ -283,6 +301,12 @@ async function recordPageFailure(
   errorMessage: string,
   title?: string | null
 ): Promise<void> {
+  // Strip null bytes from error message — PostgreSQL text columns cannot store \u0000.
+  // Error messages may contain scraped content that includes null bytes.
+  // Also truncate to 4000 chars to avoid bloating the error column.
+  // eslint-disable-next-line no-control-regex
+  const sanitizedError = errorMessage.replace(/\x00/g, "").slice(0, 4000);
+
   await db.insert(sourceRunPages).values({
     tenantId,
     sourceRunId: runId,
@@ -290,7 +314,7 @@ async function recordPageFailure(
     normalizedUrl,
     title: title ?? null,
     status: "failed",
-    error: errorMessage,
+    error: sanitizedError,
     currentStage: "extract",
   });
 }

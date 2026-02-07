@@ -5,6 +5,7 @@ import { backfillPublicTokenHashes } from "./backfill-public-token-hashes";
 import { seedSystemAdmin } from "./seed-admin";
 import { startTestSuiteScheduler, stopTestSuiteScheduler } from "../services/test-suite-scheduler";
 import { recoverOrphanedLocks, startPeriodicRecovery, stopPeriodicRecovery } from "../services/test-suite-lock-recovery";
+import { recoverStuckSourceRuns, startSourceRunRecovery, stopSourceRunRecovery } from "../services/source-run-recovery";
 
 export async function runStartupTasks(): Promise<void> {
   try {
@@ -21,6 +22,8 @@ export async function runStartupTasks(): Promise<void> {
 
     await recoverOrphanedLocks();
     startPeriodicRecovery();
+    await recoverStuckSourceRuns();
+    startSourceRunRecovery();
     await startTestSuiteScheduler();
   } catch (error) {
     log.error("api", "Startup tasks failed", {
@@ -32,6 +35,7 @@ export async function runStartupTasks(): Promise<void> {
 export function stopStartupTasks(): void {
   stopTestSuiteScheduler();
   stopPeriodicRecovery();
+  stopSourceRunRecovery();
 }
 
 export function registerShutdownHandlers(): void {

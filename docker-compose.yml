@@ -81,6 +81,8 @@ services:
       # Initial admin (optional - for first-time setup)
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Internal API key (for worker-to-API communication)
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
       # CORS - allow web frontend origin for local dev
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8088}
     ports:
@@ -93,7 +95,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -117,6 +119,7 @@ services:
     environment:
       NODE_ENV: production
       API_URL: http://api:3000
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
       DATABASE_URL: postgres://${POSTGRES_USER:-grounded}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-grounded}
       REDIS_URL: redis://redis:6379
       # Vector Database (dimensions are dynamic based on KB embedding model)
@@ -149,6 +152,7 @@ services:
     environment:
       NODE_ENV: production
       API_URL: http://api:3000
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
       DATABASE_URL: postgres://${POSTGRES_USER:-grounded}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-grounded}
       REDIS_URL: redis://redis:6379
       FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
