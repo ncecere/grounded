@@ -79,6 +79,7 @@ export const api = {
   listSourceRuns: sourcesApi.listSourceRuns,
   getSourceStats: sourcesApi.getSourceStats,
   uploadFile: sourcesApi.uploadFile,
+  finalizeUploadBatch: sourcesApi.finalizeUploadBatch,
 
   // Agents
   listAgents: agentsApi.listAgents,

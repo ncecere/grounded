@@ -148,6 +148,13 @@ uploadRoutes.post("/kb/:kbId", auth(), requireTenant(), requireRole("owner", "ad
   // Check if sourceId was provided (to add to existing source)
   const existingSourceId = formData["sourceId"];
 
+  // Check if sourceRunId was provided (batched upload — reuse existing run)
+  const existingSourceRunId = formData["sourceRunId"];
+
+  // Check if this is part of a batch (defer processing until finalize)
+  const batchFlag = formData["batch"];
+  const isBatchMode = batchFlag === "true" || (typeof existingSourceRunId === "string" && existingSourceRunId.trim());
+
   // Read file content OUTSIDE the transaction
   const arrayBuffer = await file.arrayBuffer();
   const content = new Uint8Array(arrayBuffer);
@@ -280,7 +287,10 @@ uploadRoutes.post("/kb/:kbId", auth(), requireTenant(), requireRole("owner", "ad
     throw new BadRequestError("Failed to extract text from document");
   }
 
-  // Second transaction: update upload with extracted text and create source run
+  // Determine if this is a batched upload (sourceRunId provided or batch flag set)
+  const isBatched = isBatchMode;
+
+  // Second transaction: update upload with extracted text, create or reuse source run
   const sourceRun = await withRequestRLS(c, async (tx) => {
     // Update upload with extracted text
     await tx
@@ -291,26 +301,51 @@ uploadRoutes.post("/kb/:kbId", auth(), requireTenant(), requireRole("owner", "ad
       })
       .where(eq(uploads.id, upload.id));
 
-    // Create a source run for this upload
-    // Uploads skip DISCOVERING and SCRAPING, starting directly at PROCESSING
-    const [run] = await tx
-      .insert(sourceRuns)
-      .values({
-        tenantId: authContext.tenantId!,
-        sourceId: uploadSource.id,
-        status: "running",
-        stage: SourceRunStage.PROCESSING,
-        trigger: "manual",
-        forceReindex: false,
-        startedAt: new Date(),
-        stats: {
-          pagesSeen: 1,
-          pagesIndexed: 0,
-          pagesFailed: 0,
-          tokensEstimated: 0,
-        },
-      })
-      .returning();
+    let run;
+    const hasExistingRun = typeof existingSourceRunId === "string" && existingSourceRunId.trim();
+
+    if (hasExistingRun) {
+      // Batched upload — reuse existing source run
+      run = await tx.query.sourceRuns.findFirst({
+        where: and(
+          eq(sourceRuns.id, existingSourceRunId as string),
+          eq(sourceRuns.sourceId, uploadSource.id)
+        ),
+      });
+
+      if (!run) {
+        throw new BadRequestError("Source run not found");
+      }
+
+      // Increment pagesSeen on existing run
+      await tx
+        .update(sourceRuns)
+        .set({
+          stats: sql`jsonb_set(${sourceRuns.stats}::jsonb, '{pagesSeen}', to_jsonb((${sourceRuns.stats}::jsonb->>'pagesSeen')::int + 1))`,
+        })
+        .where(eq(sourceRuns.id, run.id));
+    } else {
+      // Create a new source run
+      // Uploads skip DISCOVERING and SCRAPING, starting directly at PROCESSING
+      [run] = await tx
+        .insert(sourceRuns)
+        .values({
+          tenantId: authContext.tenantId!,
+          sourceId: uploadSource.id,
+          status: "running",
+          stage: SourceRunStage.PROCESSING,
+          trigger: "manual",
+          forceReindex: false,
+          startedAt: new Date(),
+          stats: {
+            pagesSeen: 1,
+            pagesIndexed: 0,
+            pagesFailed: 0,
+            tokensEstimated: 0,
+          },
+        })
+        .returning();
+    }
 
     // Update upload with source run reference
     await tx
@@ -321,31 +356,36 @@ uploadRoutes.post("/kb/:kbId", auth(), requireTenant(), requireRole("owner", "ad
     return run;
   });
 
-  // Initialize stage progress in Redis (1 document for PROCESSING stage)
-  await initializeStageProgress(sourceRun.id, 1);
+  // For batched uploads, don't enqueue jobs yet — wait for /finalize call
+  // For single-file uploads (no sourceRunId provided), process immediately
+  if (!isBatched) {
+    // Initialize stage progress in Redis (1 document for PROCESSING stage)
+    await initializeStageProgress(sourceRun.id, 1);
 
-  // Queue for chunking and embedding (outside transaction)
-  // Uploads pass HTML directly in the job since there's no SCRAPING stage
-  await addPageProcessJob({
-    tenantId: authContext.tenantId!,
-    runId: sourceRun.id,
-    url: `upload://${upload.id}/${file.name}`,
-    html: extractedText,
-    title: file.name,
-    sourceType: "upload",
-    uploadMetadata: {
-      uploadId: upload.id,
-      filename: upload.filename,
-      mimeType: upload.mimeType,
-      sizeBytes: upload.sizeBytes,
-    },
-  });
+    // Queue for chunking and embedding (outside transaction)
+    // Uploads pass HTML directly in the job since there's no SCRAPING stage
+    await addPageProcessJob({
+      tenantId: authContext.tenantId!,
+      runId: sourceRun.id,
+      url: `upload://${upload.id}/${file.name}`,
+      html: extractedText,
+      title: file.name,
+      sourceType: "upload",
+      uploadMetadata: {
+        uploadId: upload.id,
+        filename: upload.filename,
+        mimeType: upload.mimeType,
+        sizeBytes: upload.sizeBytes,
+      },
+    });
+  }
 
   return c.json(
     {
       upload: {
         id: upload.id,
         sourceId: uploadSource.id,
+        sourceRunId: sourceRun.id,
         filename: upload.filename,
         mimeType: upload.mimeType,
         sizeBytes: upload.sizeBytes,
@@ -354,6 +394,91 @@ uploadRoutes.post("/kb/:kbId", auth(), requireTenant(), requireRole("owner", "ad
     },
     201
   );
+});
+
+// ============================================================================
+// Finalize Batched Upload — enqueue all jobs for a source run
+// ============================================================================
+
+uploadRoutes.post("/kb/:kbId/finalize", auth(), requireTenant(), requireRole("owner", "admin"), async (c) => {
+  const kbId = c.req.param("kbId");
+  const authContext = c.get("auth");
+  const body = await c.req.json<{ sourceRunId: string }>();
+
+  if (!body.sourceRunId) {
+    throw new BadRequestError("sourceRunId is required");
+  }
+
+  // Get the source run and all its uploads
+  const { run, runUploads } = await withRequestRLS(c, async (tx) => {
+    // Verify KB access
+    const kb = await tx.query.knowledgeBases.findFirst({
+      where: and(
+        eq(knowledgeBases.id, kbId),
+        eq(knowledgeBases.tenantId, authContext.tenantId!),
+        isNull(knowledgeBases.deletedAt)
+      ),
+    });
+
+    if (!kb) {
+      throw new NotFoundError("Knowledge base");
+    }
+
+    const run = await tx.query.sourceRuns.findFirst({
+      where: eq(sourceRuns.id, body.sourceRunId),
+    });
+
+    if (!run) {
+      throw new NotFoundError("Source run");
+    }
+
+    // Get all uploads linked to this run that are ready for processing
+    const runUploads = await tx.query.uploads.findMany({
+      where: and(
+        eq(uploads.sourceRunId, run.id),
+        eq(uploads.status, "processing"),
+        isNull(uploads.deletedAt)
+      ),
+    });
+
+    return { run, runUploads };
+  });
+
+  if (runUploads.length === 0) {
+    throw new BadRequestError("No uploads ready for processing in this run");
+  }
+
+  // Initialize stage progress in Redis with total = number of files
+  await initializeStageProgress(run.id, runUploads.length);
+
+  // Enqueue a page-process job for each upload
+  for (const upload of runUploads) {
+    await addPageProcessJob({
+      tenantId: authContext.tenantId!,
+      runId: run.id,
+      url: `upload://${upload.id}/${upload.filename}`,
+      html: upload.extractedText || "",
+      title: upload.filename,
+      sourceType: "upload",
+      uploadMetadata: {
+        uploadId: upload.id,
+        filename: upload.filename,
+        mimeType: upload.mimeType,
+        sizeBytes: upload.sizeBytes,
+      },
+    });
+  }
+
+  log.info("api", "Finalized batched upload", {
+    sourceRunId: run.id,
+    fileCount: runUploads.length,
+  });
+
+  return c.json({
+    message: "Upload batch processing started",
+    sourceRunId: run.id,
+    fileCount: runUploads.length,
+  });
 });
 
 // ============================================================================

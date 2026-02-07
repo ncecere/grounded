@@ -39,7 +39,8 @@ interface EditSourceModalProps {
   onEdit: (e: React.FormEvent) => void;
   updateIsPending: boolean;
   kbId?: string;
-  uploadFile?: (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string }) => Promise<unknown>;
+  uploadFile?: (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string; sourceRunId?: string; batch?: boolean }) => Promise<unknown>;
+  finalizeUploadBatch?: (kbId: string, sourceRunId: string) => Promise<unknown>;
 }
 
 function InfoNote({ children }: { children: React.ReactNode }) {
@@ -76,10 +77,12 @@ function UploadFileManager({
   kbId,
   sourceId,
   uploadFile,
+  finalizeUploadBatch,
 }: {
   kbId: string;
   sourceId: string;
-  uploadFile: (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string }) => Promise<unknown>;
+  uploadFile: (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string; sourceRunId?: string; batch?: boolean }) => Promise<unknown>;
+  finalizeUploadBatch?: (kbId: string, sourceRunId: string) => Promise<unknown>;
 }) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -114,22 +117,46 @@ function UploadFileManager({
   };
 
   const handleFiles = useCallback(async (files: File[]) => {
+    const isBatch = files.length > 1 && !!finalizeUploadBatch;
+    let sourceRunId: string | undefined;
+    let successCount = 0;
+
     for (const file of files) {
       setUploadingFiles((prev) => ({ ...prev, [file.name]: "uploading" }));
       try {
-        await uploadFile(kbId, file, { sourceId });
+        const result = await uploadFile(kbId, file, {
+          sourceId,
+          sourceRunId: isBatch ? sourceRunId : undefined,
+          batch: isBatch || undefined,
+        });
+        const upload = (result as { upload?: { sourceRunId?: string } })?.upload;
+        if (!sourceRunId && upload?.sourceRunId) {
+          sourceRunId = upload.sourceRunId;
+        }
         setUploadingFiles((prev) => ({ ...prev, [file.name]: "success" }));
-        // Refresh file lists
-        queryClient.invalidateQueries({ queryKey: ["uploads", kbId, sourceId] });
-        queryClient.invalidateQueries({ queryKey: ["file-stats", kbId, sourceId] });
-        queryClient.invalidateQueries({ queryKey: ["source-stats", kbId] });
+        successCount++;
       } catch {
         setUploadingFiles((prev) => ({ ...prev, [file.name]: "error" }));
       }
     }
+
+    // Finalize batch to start processing all files as one run
+    if (isBatch && sourceRunId && successCount > 0) {
+      try {
+        await finalizeUploadBatch(kbId, sourceRunId);
+      } catch {
+        // Files uploaded but finalization failed — they'll be picked up by recovery
+      }
+    }
+
+    // Refresh file lists
+    queryClient.invalidateQueries({ queryKey: ["uploads", kbId, sourceId] });
+    queryClient.invalidateQueries({ queryKey: ["file-stats", kbId, sourceId] });
+    queryClient.invalidateQueries({ queryKey: ["source-stats", kbId] });
+
     // Clear upload statuses after a delay
     setTimeout(() => setUploadingFiles({}), 3000);
-  }, [kbId, sourceId, uploadFile, queryClient]);
+  }, [kbId, sourceId, uploadFile, finalizeUploadBatch, queryClient]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -287,6 +314,7 @@ export function EditSourceModal({
   updateIsPending,
   kbId,
   uploadFile,
+  finalizeUploadBatch,
 }: EditSourceModalProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const isWeb = editSource.type === "web";
@@ -508,6 +536,7 @@ export function EditSourceModal({
                   kbId={kbId}
                   sourceId={editSource.id}
                   uploadFile={uploadFile}
+                  finalizeUploadBatch={finalizeUploadBatch}
                 />
               )}
 

@@ -280,7 +280,7 @@ export const adminApi = {
     return res.stats;
   },
 
-  uploadSharedKbFile: async (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string }) => {
+  uploadSharedKbFile: async (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string; sourceRunId?: string; batch?: boolean }) => {
     const token = getToken();
     const headers: Record<string, string> = {};
 
@@ -296,6 +296,12 @@ export const adminApi = {
     if (options?.sourceId) {
       formData.append("sourceId", options.sourceId);
     }
+    if (options?.sourceRunId) {
+      formData.append("sourceRunId", options.sourceRunId);
+    }
+    if (options?.batch) {
+      formData.append("batch", "true");
+    }
 
     const response = await fetch(`${API_BASE}/admin/shared-kbs/${kbId}/uploads`, {
       method: "POST",
@@ -310,6 +316,17 @@ export const adminApi = {
     }
 
     return response.json();
+  },
+
+  finalizeSharedKbUploadBatch: async (kbId: string, sourceRunId: string) => {
+    const res = await request<{ message: string; sourceRunId: string; fileCount: number }>(
+      `/admin/shared-kbs/${kbId}/uploads/finalize`,
+      {
+        method: "POST",
+        body: JSON.stringify({ sourceRunId }),
+      }
+    );
+    return res;
   },
 
   // Dashboard

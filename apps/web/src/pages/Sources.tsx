@@ -22,6 +22,7 @@ export function Sources({ kbId, onBack }: SourcesProps) {
       triggerSourceRun={api.triggerSourceRun}
       cancelSourceRun={api.cancelSourceRun}
       uploadFile={api.uploadFile}
+      finalizeUploadBatch={api.finalizeUploadBatch}
     />
   );
 }

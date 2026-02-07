@@ -24,7 +24,8 @@ export interface SourcesManagerProps {
   deleteSource: (kbId: string, sourceId: string) => Promise<void>;
   triggerSourceRun: (kbId: string, sourceId: string, options?: { forceReindex?: boolean }) => Promise<SourceRun>;
   cancelSourceRun: (kbId: string, runId: string, sourceId?: string) => Promise<SourceRun>;
-  uploadFile: (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string }) => Promise<unknown>;
+  uploadFile: (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string; sourceRunId?: string; batch?: boolean }) => Promise<unknown>;
+  finalizeUploadBatch?: (kbId: string, sourceRunId: string) => Promise<unknown>;
   isAdminView?: boolean;
 }
 
@@ -43,6 +44,7 @@ export function SourcesManager({
   triggerSourceRun,
   cancelSourceRun,
   uploadFile,
+  finalizeUploadBatch,
 }: SourcesManagerProps) {
   const queryClient = useQueryClient();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -180,8 +182,10 @@ export function SourcesManager({
     let successCount = 0;
     let errorCount = 0;
     let createdSourceId: string | undefined;
+    let createdSourceRunId: string | undefined;
 
     const sourceName = newSource.name.trim() || files[0].name;
+    const isBatch = files.length > 1 && !!finalizeUploadBatch;
 
     for (const file of files) {
       setUploadProgress((prev) => ({ ...prev, [file.name]: "uploading" }));
@@ -190,11 +194,16 @@ export function SourcesManager({
         const result = await uploadFile(kbId, file, {
           sourceName: createdSourceId ? undefined : sourceName,
           sourceId: createdSourceId,
+          sourceRunId: isBatch ? createdSourceRunId : undefined,
+          batch: isBatch || undefined,
         });
 
-        const upload = (result as { upload?: { sourceId?: string } })?.upload;
+        const upload = (result as { upload?: { sourceId?: string; sourceRunId?: string } })?.upload;
         if (!createdSourceId && upload?.sourceId) {
           createdSourceId = upload.sourceId;
+        }
+        if (!createdSourceRunId && upload?.sourceRunId) {
+          createdSourceRunId = upload.sourceRunId;
         }
 
         setUploadProgress((prev) => ({ ...prev, [file.name]: "success" }));
@@ -202,6 +211,15 @@ export function SourcesManager({
       } catch (err) {
         setUploadProgress((prev) => ({ ...prev, [file.name]: "error" }));
         errorCount++;
+      }
+    }
+
+    // For batched uploads, finalize to start processing all files as one run
+    if (isBatch && createdSourceRunId && successCount > 0) {
+      try {
+        await finalizeUploadBatch(kbId, createdSourceRunId);
+      } catch (err) {
+        showNotification("error", "Files uploaded but failed to start processing");
       }
     }
 
@@ -645,6 +663,7 @@ export function SourcesManager({
           updateIsPending={updateMutation.isPending}
           kbId={kbId}
           uploadFile={uploadFile}
+          finalizeUploadBatch={finalizeUploadBatch}
         />
       )}
     </div>

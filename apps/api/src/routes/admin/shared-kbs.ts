@@ -12,7 +12,7 @@ import {
   tenantUsage,
 } from "@grounded/db/schema";
 import { eq, and, isNull, inArray, desc, or, lt, sql } from "drizzle-orm";
-import { addPageProcessJob, removeAllJobsForRun, unregisterRun } from "@grounded/queue";
+import { addPageProcessJob, initializeStageProgress, removeAllJobsForRun, unregisterRun } from "@grounded/queue";
 import { log } from "@grounded/logger";
 import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { NotFoundError, BadRequestError } from "../../middleware/error-handler";
@@ -642,6 +642,9 @@ adminSharedKbsRoutes.post(
       : file.name;
 
     const existingSourceId = formData["sourceId"];
+    const existingSourceRunId = formData["sourceRunId"];
+    const batchFlag = formData["batch"];
+    const isBatchMode = batchFlag === "true" || (typeof existingSourceRunId === "string" && existingSourceRunId.trim());
 
     const arrayBuffer = await file.arrayBuffer();
     const content = new Uint8Array(arrayBuffer);
@@ -720,6 +723,8 @@ adminSharedKbsRoutes.post(
       throw new BadRequestError("Failed to extract text from document");
     }
 
+    const isBatched = isBatchMode;
+
     const sourceRun = await withRequestRLS(c, async (tx) => {
       await tx
         .update(uploads)
@@ -729,23 +734,46 @@ adminSharedKbsRoutes.post(
         })
         .where(eq(uploads.id, upload.id));
 
-      const [run] = await tx
-        .insert(sourceRuns)
-        .values({
-          tenantId: null,
-          sourceId: uploadSource.id,
-          status: "running",
-          trigger: "manual",
-          forceReindex: false,
-          startedAt: new Date(),
-          stats: {
-            pagesSeen: 1,
-            pagesIndexed: 0,
-            pagesFailed: 0,
-            tokensEstimated: 0,
-          },
-        })
-        .returning();
+      let run;
+      const hasExistingRun = typeof existingSourceRunId === "string" && existingSourceRunId.trim();
+
+      if (hasExistingRun) {
+        run = await tx.query.sourceRuns.findFirst({
+          where: and(
+            eq(sourceRuns.id, existingSourceRunId as string),
+            eq(sourceRuns.sourceId, uploadSource.id)
+          ),
+        });
+
+        if (!run) {
+          throw new BadRequestError("Source run not found");
+        }
+
+        await tx
+          .update(sourceRuns)
+          .set({
+            stats: sql`jsonb_set(${sourceRuns.stats}::jsonb, '{pagesSeen}', to_jsonb((${sourceRuns.stats}::jsonb->>'pagesSeen')::int + 1))`,
+          })
+          .where(eq(sourceRuns.id, run.id));
+      } else {
+        [run] = await tx
+          .insert(sourceRuns)
+          .values({
+            tenantId: null,
+            sourceId: uploadSource.id,
+            status: "running",
+            trigger: "manual",
+            forceReindex: false,
+            startedAt: new Date(),
+            stats: {
+              pagesSeen: 1,
+              pagesIndexed: 0,
+              pagesFailed: 0,
+              tokensEstimated: 0,
+            },
+          })
+          .returning();
+      }
 
       await tx
         .update(uploads)
@@ -754,6 +782,9 @@ adminSharedKbsRoutes.post(
 
       return run;
     });
+
+    if (!isBatched) {
+      await initializeStageProgress(sourceRun.id, 1);
 
       await addPageProcessJob({
         tenantId: null,
@@ -769,13 +800,14 @@ adminSharedKbsRoutes.post(
           sizeBytes: upload.sizeBytes,
         },
       });
-
+    }
 
     return c.json(
       {
         upload: {
           id: upload.id,
           sourceId: uploadSource.id,
+          sourceRunId: sourceRun.id,
           filename: upload.filename,
           mimeType: upload.mimeType,
           sizeBytes: upload.sizeBytes,
@@ -786,6 +818,76 @@ adminSharedKbsRoutes.post(
     );
   }
 );
+
+// ============================================================================
+// Finalize Batched Upload for Global KB
+// ============================================================================
+
+adminSharedKbsRoutes.post("/:kbId/uploads/finalize", async (c) => {
+  const kbId = c.req.param("kbId");
+  await verifyGlobalKb(c, kbId);
+
+  const body = await c.req.json<{ sourceRunId: string }>();
+
+  if (!body.sourceRunId) {
+    throw new BadRequestError("sourceRunId is required");
+  }
+
+  const { run, runUploads } = await withRequestRLS(c, async (tx) => {
+    const run = await tx.query.sourceRuns.findFirst({
+      where: eq(sourceRuns.id, body.sourceRunId),
+    });
+
+    if (!run) {
+      throw new NotFoundError("Source run");
+    }
+
+    const runUploads = await tx.query.uploads.findMany({
+      where: and(
+        eq(uploads.sourceRunId, run.id),
+        eq(uploads.status, "processing"),
+        isNull(uploads.deletedAt)
+      ),
+    });
+
+    return { run, runUploads };
+  });
+
+  if (runUploads.length === 0) {
+    throw new BadRequestError("No uploads ready for processing in this run");
+  }
+
+  await initializeStageProgress(run.id, runUploads.length);
+
+  for (const upload of runUploads) {
+    await addPageProcessJob({
+      tenantId: null,
+      runId: run.id,
+      url: `upload://${upload.id}/${upload.filename}`,
+      html: upload.extractedText || "",
+      title: upload.filename,
+      sourceType: "upload",
+      uploadMetadata: {
+        uploadId: upload.id,
+        filename: upload.filename,
+        mimeType: upload.mimeType,
+        sizeBytes: upload.sizeBytes,
+      },
+    });
+  }
+
+  log.info("api", "Finalized batched upload for global KB", {
+    kbId,
+    sourceRunId: run.id,
+    fileCount: runUploads.length,
+  });
+
+  return c.json({
+    message: "Upload batch processing started",
+    sourceRunId: run.id,
+    fileCount: runUploads.length,
+  });
+});
 
 // ============================================================================
 // Get Source

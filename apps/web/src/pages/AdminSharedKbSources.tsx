@@ -34,6 +34,7 @@ export function AdminSharedKbSources({ kbId, onBack }: AdminSharedKbSourcesProps
         adminApi.cancelSharedKbSourceRun(kbIdValue, sourceId || "", runId)
       }
       uploadFile={adminApi.uploadSharedKbFile}
+      finalizeUploadBatch={adminApi.finalizeSharedKbUploadBatch}
     />
   );
 }

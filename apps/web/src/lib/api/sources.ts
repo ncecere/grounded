@@ -95,7 +95,7 @@ export const sourcesApi = {
     await request<void>(`/uploads/${uploadId}`, { method: "DELETE" });
   },
 
-  uploadFile: async (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string }) => {
+  uploadFile: async (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string; sourceRunId?: string; batch?: boolean }) => {
     const token = getToken();
     const tenantId = getCurrentTenantId();
     const headers: Record<string, string> = {};
@@ -115,6 +115,12 @@ export const sourcesApi = {
     if (options?.sourceId) {
       formData.append("sourceId", options.sourceId);
     }
+    if (options?.sourceRunId) {
+      formData.append("sourceRunId", options.sourceRunId);
+    }
+    if (options?.batch) {
+      formData.append("batch", "true");
+    }
     const response = await fetch(
       `${API_BASE}/uploads/kb/${kbId}`,
       {
@@ -129,5 +135,16 @@ export const sourcesApi = {
       throw new Error(error.message || `HTTP ${response.status}`);
     }
     return response.json();
+  },
+
+  finalizeUploadBatch: async (kbId: string, sourceRunId: string) => {
+    const res = await request<{ message: string; sourceRunId: string; fileCount: number }>(
+      `/uploads/kb/${kbId}/finalize`,
+      {
+        method: "POST",
+        body: JSON.stringify({ sourceRunId }),
+      }
+    );
+    return res;
   },
 };
