@@ -217,32 +217,31 @@ export class SimpleRAGService {
    * Load agent configuration from database
    */
   private async loadConfig(): Promise<void> {
-    // Get agent
-    const agent = await db.query.agents.findFirst({
-      where: and(
-        eq(agents.id, this.agentId),
-        eq(agents.tenantId, this.tenantId),
-        isNull(agents.deletedAt)
-      ),
-    });
+    // Fire all 3 config queries in parallel — each is independent and hits
+    // different tables. This saves ~2 sequential DB round-trips (~60ms).
+    const [agent, retrievalConfig, attachedKbs] = await Promise.all([
+      db.query.agents.findFirst({
+        where: and(
+          eq(agents.id, this.agentId),
+          eq(agents.tenantId, this.tenantId),
+          isNull(agents.deletedAt)
+        ),
+      }),
+      db.query.retrievalConfigs.findFirst({
+        where: eq(retrievalConfigs.agentId, this.agentId),
+      }),
+      db.query.agentKbs.findMany({
+        where: and(
+          eq(agentKbs.agentId, this.agentId),
+          isNull(agentKbs.deletedAt)
+        ),
+      }),
+    ]);
 
     if (!agent) {
       this.config = null;
       return;
     }
-
-    // Get retrieval config
-    const retrievalConfig = await db.query.retrievalConfigs.findFirst({
-      where: eq(retrievalConfigs.agentId, this.agentId),
-    });
-
-    // Get attached knowledge bases
-    const attachedKbs = await db.query.agentKbs.findMany({
-      where: and(
-        eq(agentKbs.agentId, this.agentId),
-        isNull(agentKbs.deletedAt)
-      ),
-    });
 
     this.config = {
       systemPrompt: agent.systemPrompt,

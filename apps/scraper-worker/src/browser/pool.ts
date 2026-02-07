@@ -50,6 +50,15 @@ let poolConfig: BrowserPoolConfig | null = null;
 /** Whether shutdown has been initiated */
 let isShuttingDown = false;
 
+/** In-flight launch promise to prevent concurrent chromium.launch() calls */
+let launchPromise: Promise<Browser> | null = null;
+
+/** Number of pages processed since last browser restart */
+let pagesProcessed = 0;
+
+/** Maximum pages before recycling browser (prevents memory fragmentation) */
+const MAX_PAGES_BEFORE_RECYCLE = 500;
+
 // ============================================================================
 // Browser Lifecycle
 // ============================================================================
@@ -87,21 +96,57 @@ export async function getBrowser(): Promise<Browser> {
     throw new Error("Browser pool is shutting down, cannot acquire browser");
   }
 
-  // Check if we need to launch or reconnect
-  if (!browser || !browser.isConnected()) {
-    logger.info("Launching browser...");
-    
-    const launchArgs = poolConfig.launchArgs ?? [...DEFAULT_LAUNCH_ARGS];
-    
-    browser = await chromium.launch({
-      headless: poolConfig.headless,
-      args: launchArgs,
-    });
-    
-    logger.info("Browser launched");
+  // Recycle browser if it has processed too many pages (prevents memory fragmentation)
+  if (browser && browser.isConnected() && pagesProcessed >= MAX_PAGES_BEFORE_RECYCLE) {
+    logger.info({ pagesProcessed }, "Recycling browser after max pages threshold");
+    try {
+      await browser.close();
+    } catch {
+      // Browser may already be closed
+    }
+    browser = null;
+    pagesProcessed = 0;
   }
 
-  return browser;
+  // Check if we need to launch or reconnect
+  if (!browser || !browser.isConnected()) {
+    // Use a launch mutex to prevent multiple concurrent chromium.launch() calls.
+    // Without this, concurrent BullMQ jobs could each trigger a separate launch,
+    // orphaning browser instances and leaking memory.
+    if (!launchPromise) {
+      launchPromise = (async () => {
+        logger.info("Launching browser...");
+        const launchArgs = poolConfig!.launchArgs ?? [...DEFAULT_LAUNCH_ARGS];
+        const b = await chromium.launch({
+          headless: poolConfig!.headless,
+          args: launchArgs,
+        });
+        browser = b;
+        pagesProcessed = 0;
+        logger.info("Browser launched");
+        return b;
+      })();
+
+      try {
+        await launchPromise;
+      } finally {
+        launchPromise = null;
+      }
+    } else {
+      // Another job is already launching — wait for it
+      await launchPromise;
+    }
+  }
+
+  return browser!;
+}
+
+/**
+ * Notify the pool that a page has been processed.
+ * Used to track recycling thresholds.
+ */
+export function notifyPageProcessed(): void {
+  pagesProcessed++;
 }
 
 /**
@@ -174,6 +219,8 @@ export async function resetBrowserPool(): Promise<void> {
   browser = null;
   poolConfig = null;
   isShuttingDown = false;
+  launchPromise = null;
+  pagesProcessed = 0;
 }
 
 // ============================================================================
@@ -189,6 +236,8 @@ export interface BrowserPoolStats {
   shuttingDown: boolean;
   /** Current pool configuration */
   config: BrowserPoolConfig | null;
+  /** Pages processed since last browser launch */
+  pagesProcessed: number;
 }
 
 /**
@@ -200,5 +249,6 @@ export function getBrowserPoolStats(): BrowserPoolStats {
     browserActive: browser !== null && browser.isConnected(),
     shuttingDown: isShuttingDown,
     config: poolConfig,
+    pagesProcessed,
   };
 }

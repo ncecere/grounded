@@ -25,6 +25,53 @@ import { fetchWithHttp } from "./http";
 import { fetchWithPlaywright } from "./playwright";
 import { needsJsRendering } from "../services/content-validation";
 
+// ============================================================================
+// Domain-Level JS Rendering Cache
+// ============================================================================
+
+/**
+ * Cache of domains known to require JS rendering.
+ * 
+ * When a page from domain X is fetched via HTTP and needsJsRendering() returns
+ * true, the domain is added to this cache. Subsequent pages from the same domain
+ * skip the HTTP attempt entirely and go straight to Playwright, avoiding the
+ * overhead of a wasted HTTP fetch + full HTML analysis.
+ * 
+ * The cache is bounded (LRU-style eviction at MAX_DOMAIN_CACHE_SIZE) and lives
+ * for the lifetime of the worker process. It resets on worker restart, which is
+ * acceptable since the cost of a single re-detection per domain is low.
+ */
+const jsRenderingDomains = new Map<string, boolean>();
+const MAX_DOMAIN_CACHE_SIZE = 500;
+
+function getDomain(url: string): string | null {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function markDomainNeedsJs(domain: string): void {
+  // Simple LRU eviction: drop oldest entry when at capacity
+  if (jsRenderingDomains.size >= MAX_DOMAIN_CACHE_SIZE) {
+    const firstKey = jsRenderingDomains.keys().next().value;
+    if (firstKey !== undefined) {
+      jsRenderingDomains.delete(firstKey);
+    }
+  }
+  jsRenderingDomains.set(domain, true);
+}
+
+function domainNeedsJs(domain: string): boolean {
+  return jsRenderingDomains.get(domain) === true;
+}
+
+/** Reset the domain cache (for testing). */
+export function resetJsRenderingCache(): void {
+  jsRenderingDomains.clear();
+}
+
 /**
  * Result from a fetch operation
  */
@@ -182,12 +229,26 @@ async function fetchWithHttpAndFallback(
   browser: Browser,
   allowFallback: boolean
 ): Promise<FetchResult> {
+  // Check domain-level JS rendering cache: if we already know this domain
+  // requires Playwright, skip the wasted HTTP fetch entirely.
+  if (allowFallback) {
+    const domain = getDomain(url);
+    if (domain && domainNeedsJs(domain)) {
+      log.debug("scraper-worker", "Domain cached as needing JS rendering, using Playwright directly", { url, domain });
+      return fetchWithPlaywright(url, browser);
+    }
+  }
+
   try {
     const result = await fetchWithHttp(url);
 
     // Check if content looks like it needs JS rendering
     if (allowFallback && needsJsRendering(result.html)) {
-      log.debug("scraper-worker", "Page needs JS rendering, using Playwright", { url });
+      const domain = getDomain(url);
+      if (domain) {
+        markDomainNeedsJs(domain);
+        log.debug("scraper-worker", "Page needs JS rendering, caching domain decision", { url, domain });
+      }
       return fetchWithPlaywright(url, browser);
     }
 

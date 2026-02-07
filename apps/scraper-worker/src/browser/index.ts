@@ -31,6 +31,7 @@ export {
   initializeBrowserPool,
   getBrowser,
   shutdownBrowserPool,
+  notifyPageProcessed,
   // State queries
   hasBrowser,
   isInitialized,

@@ -7,6 +7,7 @@ import {
   createBlockedDownloadInfo,
 } from "@grounded/shared";
 import { validateUrlForScraping } from "../services/url-validation";
+import { notifyPageProcessed } from "../browser";
 
 export async function fetchWithPlaywright(
   url: string,
@@ -51,9 +52,6 @@ export async function fetchWithPlaywright(
       timeout: SCRAPE_TIMEOUT_MS,
     });
 
-    // Wait for any dynamic content
-    await page.waitForTimeout(1000);
-
     const html = await page.content();
     const title = await page.title();
 
@@ -61,5 +59,6 @@ export async function fetchWithPlaywright(
   } finally {
     await page.close();
     await context.close();
+    notifyPageProcessed();
   }
 }

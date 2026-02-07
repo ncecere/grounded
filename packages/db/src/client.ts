@@ -6,8 +6,18 @@ import { sql } from "drizzle-orm";
 
 const connectionString = getEnv("DATABASE_URL", "postgresql://localhost:5432/grounded");
 
+// Connection pool configuration — tunable via environment variables.
+// Each RLS-scoped request holds a connection for the duration of its transaction
+// (BEGIN + SET LOCAL + queries + COMMIT), so the pool must be sized for
+// expected concurrent request count.
+const poolMax = parseInt(getEnv("DB_POOL_MAX", "20"), 10);
+
 // For queries
-const queryClient = postgres(connectionString);
+const queryClient = postgres(connectionString, {
+  max: poolMax,
+  idle_timeout: 30,      // Close idle connections after 30s
+  connect_timeout: 10,   // Fail fast on connection issues
+});
 
 // For migrations (single connection)
 export const migrationClient = postgres(connectionString, { max: 1 });
