@@ -392,29 +392,6 @@ describe("Worker Instance Types", () => {
   });
 });
 
-describe("Backward Compatibility", () => {
-  it("processors/ exports still work (for migration period)", async () => {
-    // Verify the old processor files still exist and export correctly
-    const sourceRunStart = await import("./processors/source-run-start");
-    const sourceDiscover = await import("./processors/source-discover");
-    const sourceFinalize = await import("./processors/source-finalize");
-    const stageTransition = await import("./processors/stage-transition");
-    const pageProcess = await import("./processors/page-process");
-    const pageIndex = await import("./processors/page-index");
-    const embedChunks = await import("./processors/embed-chunks");
-    const enrichPage = await import("./processors/enrich-page");
-    const hardDelete = await import("./processors/hard-delete");
-    const kbReindex = await import("./processors/kb-reindex");
-
-    expect(sourceRunStart.processSourceRunStart).toBeDefined();
-    expect(sourceDiscover.processSourceDiscover).toBeDefined();
-    expect(sourceFinalize.processSourceFinalize).toBeDefined();
-    expect(stageTransition.processStageTransition).toBeDefined();
-    expect(pageProcess.processPageProcess).toBeDefined();
-    expect(pageIndex.processPageIndex).toBeDefined();
-    expect(embedChunks.processEmbedChunks).toBeDefined();
-    expect(enrichPage.processEnrichPage).toBeDefined();
-    expect(hardDelete.processHardDelete).toBeDefined();
-    expect(kbReindex.processKbReindex).toBeDefined();
-  });
-});
+// Note: The old processors/ directory was removed — all job handlers
+// now live exclusively in jobs/. The backward compatibility test that
+// verified processors/ exports has been removed.
