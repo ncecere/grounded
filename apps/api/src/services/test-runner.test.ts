@@ -130,13 +130,13 @@ describe("test-runner", () => {
   });
 
   it("completes runs with no enabled test cases", async () => {
-    const updateCalls: Array<{ runId: string; values: any }> = [];
+    const updateCalls: Array<{ runId: string; values: Record<string, unknown> }> = [];
     const store = createStore({
       getSuite: mock(async () => buildSuite()),
       getRun: mock(async () => buildRun()),
       getAgent: mock(async () => buildAgent()),
       getEnabledTestCases: mock(async () => []),
-      updateRun: mock(async (runId: string, values: any) => {
+      updateRun: mock(async (runId: string, values: Record<string, unknown>) => {
         updateCalls.push({ runId, values });
       }),
     });

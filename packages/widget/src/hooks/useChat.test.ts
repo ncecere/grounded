@@ -627,7 +627,10 @@ describe("useChat hook", () => {
       const eventWithoutStep = {
         type: "reasoning" as const,
       };
-      expect(eventWithoutStep.type === "reasoning" && (eventWithoutStep as any).step).toBeFalsy();
+      expect(
+        eventWithoutStep.type === "reasoning" &&
+        (eventWithoutStep as { step?: unknown }).step
+      ).toBeFalsy();
     });
 
     it("should handle step status transitions", () => {
@@ -679,9 +682,9 @@ describe("useChat hook", () => {
 
     it("should not include reasoningSteps field for simple mode", () => {
       // Simple mode (no reasoning events received)
-      const emptySteps: any[] = [];
+      const emptySteps: unknown[] = [];
 
-      const msgData: Record<string, any> = {
+      const msgData: Record<string, unknown> = {
         content: "Hello",
         isStreaming: false,
         citations: [],
@@ -740,7 +743,7 @@ describe("useChat hook", () => {
       };
 
       expect(msgWithSteps.reasoningSteps).toBeDefined();
-      expect((msgWithoutSteps as any).reasoningSteps).toBeUndefined();
+      expect((msgWithoutSteps as { reasoningSteps?: unknown }).reasoningSteps).toBeUndefined();
     });
 
     it("user messages do not have reasoningSteps", () => {
@@ -752,7 +755,7 @@ describe("useChat hook", () => {
       };
 
       // User messages never have reasoning steps
-      expect((userMsg as any).reasoningSteps).toBeUndefined();
+      expect((userMsg as { reasoningSteps?: unknown }).reasoningSteps).toBeUndefined();
     });
   });
 
@@ -802,7 +805,7 @@ describe("useChat hook", () => {
     });
 
     it("should start as empty array", () => {
-      const currentReasoningSteps: any[] = [];
+      const currentReasoningSteps: unknown[] = [];
       expect(currentReasoningSteps).toHaveLength(0);
     });
 
@@ -916,7 +919,7 @@ describe("useChat hook", () => {
 
     it("should hide ReasoningPanel when no steps exist", () => {
       const showReasoning = true;
-      const currentReasoningSteps: any[] = [];
+      const currentReasoningSteps: unknown[] = [];
 
       // Condition for showing ReasoningPanel
       const shouldShowPanel = showReasoning && currentReasoningSteps.length > 0;

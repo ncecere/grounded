@@ -11,10 +11,13 @@ describe("getChatAgentRagType", () => {
       },
     };
 
-    const ragType = await getChatAgentRagType(mockTx as any, {
+    const ragType = await getChatAgentRagType(
+      mockTx as unknown as Parameters<typeof getChatAgentRagType>[0],
+      {
       agentId: "agent-123",
       tenantId: "tenant-123",
-    });
+      }
+    );
 
     expect(ragType).toBe("advanced");
   });
@@ -28,10 +31,13 @@ describe("getChatAgentRagType", () => {
       },
     };
 
-    const ragType = await getChatAgentRagType(mockTx as any, {
+    const ragType = await getChatAgentRagType(
+      mockTx as unknown as Parameters<typeof getChatAgentRagType>[0],
+      {
       agentId: "agent-missing",
       tenantId: "tenant-123",
-    });
+      }
+    );
 
     expect(ragType).toBeNull();
   });

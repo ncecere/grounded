@@ -12,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { PageHeader } from "../components/ui/page-header";
 import { StatCard } from "../components/ui/stat-card";
 import { LoadingSkeleton } from "../components/ui/loading-skeleton";
+import { DateRangeInput } from "../components/ui/date-range-input";
+import { QueryChart } from "../components/ui/query-chart";
 import {
   Table,
   TableBody,
@@ -86,21 +88,7 @@ export function AdminAnalytics() {
           description="System-wide usage metrics and tenant health monitoring"
           className="mb-0"
         />
-        <div className="flex items-center gap-3">
-          <input
-            type="date"
-            value={dateRange.startDate}
-            onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
-            className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:ring-primary"
-          />
-          <span className="text-muted-foreground">to</span>
-          <input
-            type="date"
-            value={dateRange.endDate}
-            onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
-            className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:ring-primary"
-          />
-        </div>
+        <DateRangeInput dateRange={dateRange} onChange={setDateRange} />
       </div>
 
       {/* Tabs */}
@@ -742,61 +730,6 @@ function TenantDetailView({
 // ============================================================================
 // Shared Components
 // ============================================================================
-
-function QueryChart({ data }: { data: Array<{ date: string; count: number; errors?: number }> }) {
-  const maxCount = Math.max(...data.map((d) => d.count));
-  const yMax = Math.max(maxCount, 1);
-  const yLabels = [yMax, Math.round(yMax * 0.75), Math.round(yMax * 0.5), Math.round(yMax * 0.25), 0];
-
-  return (
-    <div className="h-48">
-      <div className="flex h-40">
-        <div className="flex flex-col justify-between text-xs text-muted-foreground pr-2 py-1 w-10">
-          {yLabels.map((val, i) => (
-            <span key={i} className="text-right">{formatNumber(val)}</span>
-          ))}
-        </div>
-        <div className="flex-1 border-l border-b border-border relative">
-          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-            {yLabels.map((_, i) => (
-              <div key={i} className="border-t border-border/50 w-full" />
-            ))}
-          </div>
-          <div className="absolute inset-0 flex items-end justify-around px-1 pb-1">
-            {data.slice(-14).map((day, i) => {
-              const heightPercent = yMax > 0 ? (day.count / yMax) * 100 : 0;
-              return (
-                <div
-                  key={i}
-                  className="flex-1 flex justify-center max-w-[40px] h-full items-end"
-                >
-                  <div
-                    className="w-4 bg-primary rounded-t hover:bg-primary/80 transition-colors relative group cursor-pointer"
-                    style={{ height: `${Math.max(heightPercent, 2)}%` }}
-                  >
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border border-border shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                      {day.count} queries
-                      {day.errors !== undefined && day.errors > 0 && `, ${day.errors} errors`}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-      <div className="flex ml-10 mt-1 justify-around px-1 overflow-hidden">
-        {data.slice(-14).map((day, i) => (
-          <div key={i} className="flex-1 max-w-[40px] text-center">
-            <span className="text-xs text-muted-foreground">
-              {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function HealthScoreBadge({ score }: { score: number }) {
   let className = "bg-success/15 text-success";

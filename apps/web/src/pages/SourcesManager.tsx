@@ -1,32 +1,14 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/ui/select";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import type { Source, SourceRun } from "@/lib/api/types/sources";
-
-const SUPPORTED_FORMATS = [
-  { ext: ".pdf", desc: "PDF Documents" },
-  { ext: ".docx", desc: "Word Documents" },
-  { ext: ".xlsx/.xls", desc: "Excel Spreadsheets" },
-  { ext: ".pptx", desc: "PowerPoint Presentations" },
-  { ext: ".csv", desc: "CSV Files" },
-  { ext: ".txt", desc: "Text Files" },
-  { ext: ".md", desc: "Markdown Files" },
-  { ext: ".html", desc: "HTML Files" },
-  { ext: ".json", desc: "JSON Files" },
-  { ext: ".xml", desc: "XML Files" },
-];
-
-const ACCEPTED_FILE_TYPES = ".pdf,.docx,.doc,.xlsx,.xls,.csv,.pptx,.ppt,.txt,.md,.markdown,.html,.htm,.json,.xml";
+import { getDisplayStatus, getStageLabel, getStatusColor } from "./sources/source-utils";
+import { SourceRunHistory } from "./sources/SourceRunHistory";
+import { CreateSourceModal } from "./sources/CreateSourceModal";
+import { EditSourceModal, type EditSourceData } from "./sources/EditSourceModal";
 
 export interface SourcesManagerProps {
   kbId: string;
@@ -76,22 +58,14 @@ export function SourcesManager({
     schedule: null as "daily" | "weekly" | null,
   });
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editSource, setEditSource] = useState<{
-    id: string;
-    name: string;
-    type: "web" | "upload";
-    schedule: "daily" | "weekly" | null;
-    depth: number;
-  } | null>(null);
+  const [editSource, setEditSource] = useState<EditSourceData | null>(null);
 
   const headerActions = actions ?? (
     <Button onClick={() => setShowCreateModal(true)}>Add Source</Button>
   );
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, "pending" | "uploading" | "success" | "error">>({});
-  const [isDragging, setIsDragging] = useState(false);
+  const [, setUploadProgress] = useState<Record<string, "pending" | "uploading" | "success" | "error">>({});
 
   const showNotification = (type: "success" | "error" | "info", message: string) => {
     setNotification({ type, message });
@@ -196,32 +170,6 @@ export function SourcesManager({
     },
   });
 
-  const handleFileSelect = (files: FileList | null) => {
-    if (!files) return;
-    const newFiles = Array.from(files);
-    setSelectedFiles((prev) => [...prev, ...newFiles]);
-    const newProgress: Record<string, "pending"> = {};
-    newFiles.forEach((f) => {
-      newProgress[f.name] = "pending";
-    });
-    setUploadProgress((prev) => ({ ...prev, ...newProgress }));
-  };
-
-  const handleRemoveFile = (fileName: string) => {
-    setSelectedFiles((prev) => prev.filter((f) => f.name !== fileName));
-    setUploadProgress((prev) => {
-      const newProgress = { ...prev };
-      delete newProgress[fileName];
-      return newProgress;
-    });
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    handleFileSelect(e.dataTransfer.files);
-  };
-
   const handleUploadFiles = async () => {
     if (selectedFiles.length === 0) return;
 
@@ -261,15 +209,7 @@ export function SourcesManager({
         setSelectedFiles([]);
         setUploadProgress({});
         setShowCreateModal(false);
-        setNewSource({
-          name: "",
-          type: "web",
-          mode: "single",
-          url: "",
-          urls: "",
-          depth: 3,
-          schedule: null,
-        });
+        setNewSource({ name: "", type: "web", mode: "single", url: "", urls: "", depth: 3, schedule: null });
       }, 1500);
     } else if (errorCount > 0) {
       showNotification("error", `${errorCount} file(s) failed to upload`);
@@ -346,58 +286,6 @@ export function SourcesManager({
       depth: (source.config?.depth as number) || 3,
     });
     setShowEditModal(true);
-  };
-
-  const getDisplayStatus = (run: { status: string; stage?: string | null; chunksToEmbed: number; chunksEmbedded: number }) => {
-    // Use stage if run is active, otherwise use status
-    if (run.status === "running" && run.stage) {
-      return run.stage;
-    }
-    if (run.status === "succeeded" && run.chunksToEmbed > 0 && run.chunksEmbedded < run.chunksToEmbed) {
-      return "embedding";
-    }
-    return run.status;
-  };
-  
-  const getStageLabel = (stage: string) => {
-    switch (stage) {
-      case "processing":
-        return "Processing pages...";
-      case "indexing":
-        return "Indexing content...";
-      case "embedding":
-        return "Embedding chunks...";
-      case "completed":
-        return "Completed";
-      default:
-        return stage;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-      case "succeeded":
-      case "completed":
-        return "bg-green-500/15 text-green-700 dark:text-green-400";
-      case "paused":
-      case "pending":
-        return "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400";
-      case "error":
-      case "failed":
-      case "canceled":
-        return "bg-red-500/15 text-red-700 dark:text-red-400";
-      case "running":
-      case "partial":
-      case "processing":
-        return "bg-blue-500/15 text-blue-700 dark:text-blue-400";
-      case "indexing":
-        return "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400";
-      case "embedding":
-        return "bg-purple-500/15 text-purple-700 dark:text-purple-400";
-      default:
-        return "bg-muted text-muted-foreground";
-    }
   };
 
   if (isLoading) {
@@ -612,9 +500,8 @@ export function SourcesManager({
                     );
                   }
 
-                  // Show stage-based progress when run is active
                   const isStageActive = ["processing", "indexing", "embedding", "running"].includes(latestDisplayStatus);
-                  
+
                   if (!isStageActive && !isEmbeddingActive) {
                     return null;
                   }
@@ -672,511 +559,33 @@ export function SourcesManager({
           )}
         </div>
 
-        <div className="bg-card rounded-lg border border-border p-4">
-          <h3 className="font-medium text-foreground mb-4">Run History</h3>
-          {selectedSource ? (
-            runs && runs.length > 0 ? (
-              <div className="space-y-3">
-                {runs.map((run) => {
-                  const displayStatus = getDisplayStatus(run);
-                  const isEmbedding = displayStatus === "embedding";
-                  const embeddingPercent = run.chunksToEmbed > 0
-                    ? Math.round((run.chunksEmbedded / run.chunksToEmbed) * 100)
-                    : 0;
-
-                  return (
-                    <div key={run.id} className="p-3 bg-muted rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(displayStatus)}`}>
-                          {displayStatus}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {run.startedAt ? new Date(run.startedAt).toLocaleString() : "Pending"}
-                        </span>
-                      </div>
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        <p>Pages seen: {run.stats?.pagesSeen ?? 0}</p>
-                        <p>Pages indexed: {run.stats?.pagesIndexed ?? 0}</p>
-                        {(run.stats?.pagesFailed ?? 0) > 0 && (
-                          <p className="text-destructive">Failed: {run.stats.pagesFailed}</p>
-                        )}
-                      </div>
-                      {(isEmbedding || (run.chunksToEmbed > 0 && run.chunksEmbedded > 0)) && (
-                        <div className="mt-2">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                            <span className="flex items-center gap-1">
-                              {isEmbedding && (
-                                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                                </svg>
-                              )}
-                              Embeddings
-                            </span>
-                            <span>{run.chunksEmbedded} / {run.chunksToEmbed} chunks ({embeddingPercent}%)</span>
-                          </div>
-                          <div className="w-full bg-muted-foreground/20 rounded-full h-1.5">
-                            <div
-                              className={`h-1.5 rounded-full transition-all duration-300 ${isEmbedding ? "bg-purple-500" : "bg-green-500"}`}
-                              style={{ width: `${embeddingPercent}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      )}
-                      {run.error && (
-                        <p className="mt-2 text-xs text-destructive">{run.error}</p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No runs yet</p>
-            )
-          ) : (
-            <p className="text-sm text-muted-foreground">Select a source to view run history</p>
-          )}
-        </div>
+        <SourceRunHistory runs={runs} hasSelectedSource={!!selectedSource} />
       </div>
 
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-card rounded-lg shadow-xl w-full max-w-md mx-4 border border-border">
-            <form onSubmit={handleCreate}>
-              <div className="p-6">
-                <h2 className="text-lg font-semibold text-foreground">Add Source</h2>
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground">Name</label>
-                    <input
-                      type="text"
-                      value={newSource.name}
-                      onChange={(e) => setNewSource({ ...newSource, name: e.target.value })}
-                      className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
-                      placeholder="Documentation Site"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Type</label>
-                    <Select
-                      value={newSource.type}
-                      onValueChange={(value) => {
-                        setNewSource({ ...newSource, type: value as "web" | "upload" });
-                        if (value === "web") {
-                          setSelectedFiles([]);
-                          setUploadProgress({});
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select source type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="web">Web Scraping</SelectItem>
-                        <SelectItem value="upload">File Upload</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {newSource.type === "upload" && (
-                    <div className="space-y-4">
-                      <div
-                        className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                          isDragging
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          setIsDragging(true);
-                        }}
-                        onDragLeave={() => setIsDragging(false)}
-                        onDrop={handleDrop}
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          multiple
-                          accept={ACCEPTED_FILE_TYPES}
-                          className="hidden"
-                          onChange={(e) => handleFileSelect(e.target.files)}
-                        />
-                        <svg
-                          className="mx-auto h-12 w-12 text-muted-foreground"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                          />
-                        </svg>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          <span className="font-medium text-primary hover:text-primary/80 cursor-pointer">
-                            Click to upload
-                          </span>{" "}
-                          or drag and drop
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          PDF, Word, Excel, PowerPoint, CSV, TXT, Markdown, HTML, JSON, XML
-                        </p>
-                      </div>
-
-                      {selectedFiles.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium text-foreground">
-                            Selected Files ({selectedFiles.length})
-                          </p>
-                          <div className="max-h-40 overflow-y-auto space-y-2">
-                            {selectedFiles.map((file) => (
-                              <div
-                                key={file.name}
-                                className="flex items-center justify-between p-2 bg-muted rounded-lg"
-                              >
-                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                  <svg
-                                    className="w-5 h-5 text-muted-foreground shrink-0"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                    />
-                                  </svg>
-                                  <span className="text-sm text-foreground truncate">
-                                    {file.name}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground">
-                                    ({(file.size / 1024).toFixed(1)} KB)
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {uploadProgress[file.name] === "uploading" && (
-                                    <svg
-                                      className="w-4 h-4 text-primary animate-spin"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <circle
-                                        className="opacity-25"
-                                        cx="12"
-                                        cy="12"
-                                        r="10"
-                                        stroke="currentColor"
-                                        strokeWidth="4"
-                                      />
-                                      <path
-                                        className="opacity-75"
-                                        fill="currentColor"
-                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                                      />
-                                    </svg>
-                                  )}
-                                  {uploadProgress[file.name] === "success" && (
-                                    <svg
-                                      className="w-4 h-4 text-success"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M5 13l4 4L19 7"
-                                      />
-                                    </svg>
-                                  )}
-                                  {uploadProgress[file.name] === "error" && (
-                                    <svg
-                                      className="w-4 h-4 text-destructive"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M6 18L18 6M6 6l12 12"
-                                      />
-                                    </svg>
-                                  )}
-                                  {uploadProgress[file.name] === "pending" && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveFile(file.name)}
-                                      className="p-1 text-muted-foreground hover:text-destructive"
-                                    >
-                                      <svg
-                                        className="w-4 h-4"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M6 18L18 6M6 6l12 12"
-                                        />
-                                      </svg>
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="bg-muted rounded-lg p-3">
-                        <p className="text-xs font-medium text-foreground mb-2">Supported Formats:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {SUPPORTED_FORMATS.map((format) => (
-                            <span
-                              key={format.ext}
-                              className="px-2 py-0.5 bg-card border border-border rounded text-xs text-muted-foreground"
-                              title={format.desc}
-                            >
-                              {format.ext}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {newSource.type === "web" && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-1">Crawl Mode</label>
-                        <Select
-                          value={newSource.mode}
-                          onValueChange={(value) => setNewSource({ ...newSource, mode: value as "single" | "list" | "sitemap" | "domain" })}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select crawl mode" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="single">Single Page</SelectItem>
-                            <SelectItem value="list">List of URLs</SelectItem>
-                            <SelectItem value="sitemap">Sitemap</SelectItem>
-                            <SelectItem value="domain">Crawl Domain</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {newSource.mode === "single" && "Scrape a single page only"}
-                          {newSource.mode === "list" && "Scrape a specific list of URLs"}
-                          {newSource.mode === "sitemap" && "Discover pages from a sitemap.xml"}
-                          {newSource.mode === "domain" && "Recursively crawl pages within the domain"}
-                        </p>
-                      </div>
-
-                      {newSource.mode === "list" ? (
-                        <div>
-                          <label className="block text-sm font-medium text-foreground">URLs (one per line)</label>
-                          <textarea
-                            value={newSource.urls}
-                            onChange={(e) => setNewSource({ ...newSource, urls: e.target.value })}
-                            className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
-                            placeholder={"https://docs.example.com/page1\nhttps://docs.example.com/page2\nhttps://docs.example.com/page3"}
-                            rows={5}
-                            required
-                          />
-                        </div>
-                      ) : (
-                        <div>
-                          <label className="block text-sm font-medium text-foreground">
-                            {newSource.mode === "single" && "URL"}
-                            {newSource.mode === "sitemap" && "Sitemap URL"}
-                            {newSource.mode === "domain" && "Starting URL"}
-                          </label>
-                          <input
-                            type="url"
-                            value={newSource.url}
-                            onChange={(e) => setNewSource({ ...newSource, url: e.target.value })}
-                            className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
-                            placeholder={
-                              newSource.mode === "sitemap"
-                                ? "https://docs.example.com/sitemap.xml"
-                                : "https://docs.example.com"
-                            }
-                            required
-                          />
-                        </div>
-                      )}
-
-                      {newSource.mode === "domain" && (
-                        <div>
-                          <label className="block text-sm font-medium text-foreground mb-1">Max Depth</label>
-                          <Select
-                            value={String(newSource.depth)}
-                            onValueChange={(value) => setNewSource({ ...newSource, depth: parseInt(value) })}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select max depth" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1">1 level</SelectItem>
-                              <SelectItem value="2">2 levels</SelectItem>
-                              <SelectItem value="3">3 levels</SelectItem>
-                              <SelectItem value="5">5 levels</SelectItem>
-                              <SelectItem value="10">10 levels</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            How many links deep to follow from the starting URL
-                          </p>
-                        </div>
-                      )}
-
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-1">Auto-Refresh Schedule</label>
-                        <Select
-                          value={newSource.schedule || "none"}
-                          onValueChange={(value) => setNewSource({ ...newSource, schedule: value === "none" ? null : value as "daily" | "weekly" })}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select refresh schedule" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">No auto-refresh</SelectItem>
-                            <SelectItem value="daily">Daily</SelectItem>
-                            <SelectItem value="weekly">Weekly</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Automatically re-scrape this source on a schedule
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="px-6 py-4 bg-muted/50 rounded-b-lg flex justify-end gap-3 border-t border-border">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setSelectedFiles([]);
-                    setUploadProgress({});
-                  }}
-                >
-                  Cancel
-                </Button>
-                {newSource.type === "upload" ? (
-                  <Button
-                    type="button"
-                    onClick={handleUploadFiles}
-                    disabled={selectedFiles.length === 0 || Object.values(uploadProgress).some((s) => s === "uploading")}
-                  >
-                    {Object.values(uploadProgress).some((s) => s === "uploading")
-                      ? "Uploading..."
-                      : `Upload ${selectedFiles.length} File${selectedFiles.length !== 1 ? "s" : ""}`}
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    disabled={createMutation.isPending}
-                  >
-                    {createMutation.isPending ? "Creating..." : "Create"}
-                  </Button>
-                )}
-              </div>
-            </form>
-          </div>
-        </div>
+        <CreateSourceModal
+          newSource={newSource}
+          setNewSource={setNewSource}
+          onClose={() => setShowCreateModal(false)}
+          onCreate={handleCreate}
+          onUploadFiles={handleUploadFiles}
+          createIsPending={createMutation.isPending}
+          kbId={kbId}
+          uploadFile={uploadFile}
+        />
       )}
 
       {showEditModal && editSource && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-card rounded-lg shadow-xl w-full max-w-md mx-4 border border-border">
-            <form onSubmit={handleEdit}>
-              <div className="p-6">
-                <h2 className="text-lg font-semibold text-foreground">Edit Source</h2>
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground">Name</label>
-                    <input
-                      type="text"
-                      value={editSource.name}
-                      onChange={(e) => setEditSource({ ...editSource, name: e.target.value })}
-                      className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Max Depth</label>
-                    <Select
-                      value={String(editSource.depth)}
-                      onValueChange={(value) => setEditSource({ ...editSource, depth: parseInt(value) })}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select max depth" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">1 level</SelectItem>
-                        <SelectItem value="2">2 levels</SelectItem>
-                        <SelectItem value="3">3 levels</SelectItem>
-                        <SelectItem value="5">5 levels</SelectItem>
-                        <SelectItem value="10">10 levels</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Auto-Refresh Schedule</label>
-                    <Select
-                      value={editSource.schedule || "none"}
-                      onValueChange={(value) => setEditSource({ ...editSource, schedule: value === "none" ? null : value as "daily" | "weekly" })}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select refresh schedule" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No auto-refresh</SelectItem>
-                        <SelectItem value="daily">Daily</SelectItem>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Automatically re-scrape this source on a schedule
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="px-6 py-4 bg-muted/50 rounded-b-lg flex justify-end gap-3 border-t border-border">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setShowEditModal(false);
-                    setEditSource(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateMutation.isPending}
-                >
-                  {updateMutation.isPending ? "Saving..." : "Save Changes"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <EditSourceModal
+          editSource={editSource}
+          setEditSource={setEditSource}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditSource(null);
+          }}
+          onEdit={handleEdit}
+          updateIsPending={updateMutation.isPending}
+        />
       )}
     </div>
   );

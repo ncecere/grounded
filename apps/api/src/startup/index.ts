@@ -1,6 +1,7 @@
 import { initializeVectorStore, isVectorStoreConfigured } from "@grounded/vector-store";
 import { log } from "@grounded/logger";
 import { runMigrations } from "./run-migrations";
+import { backfillPublicTokenHashes } from "./backfill-public-token-hashes";
 import { seedSystemAdmin } from "./seed-admin";
 import { startTestSuiteScheduler, stopTestSuiteScheduler } from "../services/test-suite-scheduler";
 import { recoverOrphanedLocks, startPeriodicRecovery, stopPeriodicRecovery } from "../services/test-suite-lock-recovery";
@@ -8,6 +9,7 @@ import { recoverOrphanedLocks, startPeriodicRecovery, stopPeriodicRecovery } fro
 export async function runStartupTasks(): Promise<void> {
   try {
     await runMigrations();
+    await backfillPublicTokenHashes();
     await seedSystemAdmin();
 
     if (isVectorStoreConfigured()) {

@@ -183,7 +183,7 @@ export function createContentUnchangedSkipDetails(
  * @returns PageSkipDetails for the robots blocked skip
  */
 export function createRobotsBlockedSkipDetails(
-  url: string,
+  _url: string,
   matchedRule?: string,
   userAgent?: string
 ): PageSkipDetails {
@@ -5639,7 +5639,6 @@ export function createRunMetricsSummary(
   let totalCompleted = 0;
   let totalFailed = 0;
   let totalSkipped = 0;
-  let maxLatencyStage: IngestionStage | undefined;
   let maxLatency = 0;
   let minThroughputStage: IngestionStage | undefined;
   let minThroughput = Infinity;
@@ -5660,7 +5659,6 @@ export function createRunMetricsSummary(
       // Track stage with highest average latency
       if (metrics.latency.averageLatencyMs > maxLatency) {
         maxLatency = metrics.latency.averageLatencyMs;
-        maxLatencyStage = stage;
       }
 
       // Track stage with lowest throughput (excluding zero)

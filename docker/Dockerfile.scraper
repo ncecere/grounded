@@ -36,5 +36,11 @@ RUN bun install || true
 # Install Playwright browsers
 RUN bunx playwright install chromium
 
+# Create non-root user and fix permissions (GID/UID 1000 may already exist in base image)
+RUN getent group 1000 || groupadd -g 1000 appuser && \
+    getent passwd 1000 || useradd -u 1000 -g 1000 -m appuser
+RUN chown -R 1000:1000 /app
+USER 1000
+
 ENV NODE_ENV=production
 CMD ["bun", "run", "apps/scraper-worker/src/index.ts"]

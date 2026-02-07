@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import type { ChatMessage } from '../types';
 import type { ChatStatus } from '../hooks/useChat';
 import { ChevronDownIcon, BookIcon, FileIcon, SearchIcon, SparklesIcon } from './Icons';
@@ -46,7 +47,10 @@ function parseMarkdown(text: string): string {
   // Use marked for full markdown parsing (supports tables, code blocks, etc.)
   const html = marked.parse(cleaned, { async: false }) as string;
 
-  return html;
+  return DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
+  });
 }
 
 export function Message({ message }: MessageProps): JSX.Element {

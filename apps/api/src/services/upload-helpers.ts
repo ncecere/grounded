@@ -1,17 +1,15 @@
 import pdf from "pdf-parse";
 import mammoth from "mammoth";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
+import JSZip from "jszip";
 import { parse as csvParse } from "csv-parse/sync";
 
 export const SUPPORTED_MIME_TYPES: Record<string, string> = {
   "application/pdf": "pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
-  "application/msword": "doc",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
-  "application/vnd.ms-excel": "xls",
-  "text/csv": "csv",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
-  "application/vnd.ms-powerpoint": "ppt",
+  "text/csv": "csv",
   "text/plain": "txt",
   "text/markdown": "md",
   "text/html": "html",
@@ -23,12 +21,9 @@ export const SUPPORTED_MIME_TYPES: Record<string, string> = {
 export const EXTENSION_TO_MIME: Record<string, string> = {
   ".pdf": "application/pdf",
   ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ".doc": "application/msword",
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  ".xls": "application/vnd.ms-excel",
-  ".csv": "text/csv",
   ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  ".ppt": "application/vnd.ms-powerpoint",
+  ".csv": "text/csv",
   ".txt": "text/plain",
   ".md": "text/markdown",
   ".markdown": "text/markdown",
@@ -69,14 +64,15 @@ export async function extractTextFromUpload(
     case "application/msword":
       throw new Error("Legacy .doc format not fully supported. Please convert to .docx format.");
     case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+      return await extractExcelText(buffer);
     case "application/vnd.ms-excel":
-      return extractExcelText(buffer);
+      throw new Error("Legacy .xls format is not supported. Please convert to .xlsx format.");
     case "text/csv":
       return extractCsvText(decoder.decode(content));
     case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
-      return extractPptxText(buffer);
+      return await extractPptxText(buffer);
     case "application/vnd.ms-powerpoint":
-      throw new Error("Legacy .ppt format not fully supported. Please convert to .pptx format.");
+      throw new Error("Legacy .ppt format is not supported. Please convert to .pptx or .pdf format.");
     default:
       throw new Error(`Unsupported file type: ${mimeType}`);
   }
@@ -100,17 +96,47 @@ async function extractDocxText(buffer: Buffer): Promise<string> {
   }
 }
 
-function extractExcelText(buffer: Buffer): string {
+async function extractExcelText(buffer: Buffer): Promise<string> {
   try {
-    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const workbook = new ExcelJS.Workbook();
+    const excelPayload = buffer as unknown as Parameters<typeof workbook.xlsx.load>[0];
+    await workbook.xlsx.load(excelPayload);
     const textParts: string[] = [];
 
-    for (const sheetName of workbook.SheetNames) {
-      const sheet = workbook.Sheets[sheetName];
-      textParts.push(`## Sheet: ${sheetName}\n`);
+    for (const sheet of workbook.worksheets) {
+      textParts.push(`## Sheet: ${sheet.name}\n`);
 
-      const csv = XLSX.utils.sheet_to_csv(sheet);
-      textParts.push(csv);
+      let rowCount = 0;
+      sheet.eachRow((row) => {
+        rowCount += 1;
+        if (rowCount > 1000) {
+          return;
+        }
+
+        const rowValues = (row.values as Array<unknown>)
+          .slice(1)
+          .map((value) => {
+            if (value === null || value === undefined) return "";
+            if (typeof value === "object") {
+              if ("text" in (value as Record<string, unknown>)) {
+                return String((value as { text?: unknown }).text ?? "");
+              }
+              if ("result" in (value as Record<string, unknown>)) {
+                return String((value as { result?: unknown }).result ?? "");
+              }
+            }
+            return String(value);
+          });
+
+        const normalized = rowValues.join(", ").trim();
+        if (normalized) {
+          textParts.push(normalized);
+        }
+      });
+
+      if (sheet.rowCount > 1000) {
+        textParts.push(`... and ${sheet.rowCount - 1000} more rows`);
+      }
       textParts.push("\n");
     }
 
@@ -118,6 +144,106 @@ function extractExcelText(buffer: Buffer): string {
   } catch (err) {
     throw new Error(`Failed to extract Excel text: ${err instanceof Error ? err.message : "Unknown error"}`);
   }
+}
+
+const MAX_PPTX_ENTRIES = 3000;
+const MAX_PPTX_SLIDES = 200;
+const MAX_PPTX_XML_BYTES = 2 * 1024 * 1024;
+const MAX_PPTX_TEXT_CHARS = 1_000_000;
+
+async function extractPptxText(buffer: Buffer): Promise<string> {
+  try {
+    const zip = await JSZip.loadAsync(buffer, { checkCRC32: true });
+    const zipEntryPaths = Object.keys(zip.files);
+
+    if (zipEntryPaths.length > MAX_PPTX_ENTRIES) {
+      throw new Error("PPTX contains too many files to process safely.");
+    }
+
+    const slidePaths = zipEntryPaths
+      .filter((path) => /^ppt\/slides\/slide\d+\.xml$/i.test(path))
+      .sort((a, b) => extractSlideNumber(a) - extractSlideNumber(b))
+      .slice(0, MAX_PPTX_SLIDES);
+
+    if (slidePaths.length === 0) {
+      throw new Error("No slide content found in PPTX file.");
+    }
+
+    const decoder = new TextDecoder("utf-8");
+    const textParts: string[] = [];
+    let totalChars = 0;
+
+    for (let i = 0; i < slidePaths.length; i++) {
+      const slidePath = slidePaths[i];
+      const slideFile = zip.file(slidePath);
+      if (!slideFile) continue;
+
+      const xmlBytes = await slideFile.async("uint8array");
+      if (xmlBytes.byteLength > MAX_PPTX_XML_BYTES) {
+        throw new Error(`Slide ${i + 1} is too large to process safely.`);
+      }
+
+      const xml = decoder.decode(xmlBytes);
+      const slideText = extractPptxSlideText(xml);
+      if (!slideText) continue;
+
+      totalChars += slideText.length;
+      if (totalChars > MAX_PPTX_TEXT_CHARS) {
+        throw new Error("PPTX extracted text exceeds safe processing limits.");
+      }
+
+      textParts.push(`## Slide ${i + 1}`);
+      textParts.push(slideText);
+    }
+
+    return textParts.join("\n\n").trim();
+  } catch (err) {
+    throw new Error(`Failed to extract PPTX text: ${err instanceof Error ? err.message : "Unknown error"}`);
+  }
+}
+
+function extractSlideNumber(path: string): number {
+  const match = path.match(/slide(\d+)\.xml$/i);
+  return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+}
+
+function extractPptxSlideText(xml: string): string {
+  const textNodes = xml.matchAll(/<a:t[^>]*>([\s\S]*?)<\/a:t>/gi);
+  const parts: string[] = [];
+  for (const match of textNodes) {
+    const value = decodeXmlEntities(match[1]).replace(/\s+/g, " ").trim();
+    if (value) {
+      parts.push(value);
+    }
+  }
+  return parts.join("\n");
+}
+
+function decodeXmlEntities(value: string): string {
+  return value.replace(/&(#x?[0-9a-fA-F]+|amp|lt|gt|quot|apos);/g, (_, entity: string) => {
+    switch (entity) {
+      case "amp":
+        return "&";
+      case "lt":
+        return "<";
+      case "gt":
+        return ">";
+      case "quot":
+        return "\"";
+      case "apos":
+        return "'";
+      default:
+        if (entity.startsWith("#x")) {
+          const parsed = Number.parseInt(entity.slice(2), 16);
+          return Number.isFinite(parsed) ? String.fromCodePoint(parsed) : "";
+        }
+        if (entity.startsWith("#")) {
+          const parsed = Number.parseInt(entity.slice(1), 10);
+          return Number.isFinite(parsed) ? String.fromCodePoint(parsed) : "";
+        }
+        return "";
+    }
+  });
 }
 
 function extractCsvText(content: string): string {
@@ -151,28 +277,6 @@ function extractCsvText(content: string): string {
     return textParts.join("\n");
   } catch {
     return content;
-  }
-}
-
-function extractPptxText(buffer: Buffer): string {
-  try {
-    const workbook = XLSX.read(buffer, { type: "buffer" });
-    const textParts: string[] = [];
-
-    for (const sheetName of workbook.SheetNames) {
-      const sheet = workbook.Sheets[sheetName];
-      textParts.push(`## Slide: ${sheetName}\n`);
-
-      const text = XLSX.utils.sheet_to_txt(sheet);
-      if (text.trim()) {
-        textParts.push(text);
-      }
-      textParts.push("\n");
-    }
-
-    return textParts.join("\n") || "No text content found in presentation.";
-  } catch (err) {
-    throw new Error(`Failed to extract PowerPoint text: ${err instanceof Error ? err.message : "Unknown error"}`);
   }
 }
 

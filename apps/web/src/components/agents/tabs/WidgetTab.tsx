@@ -22,6 +22,7 @@ export function WidgetTab({ agent }: WidgetTabProps) {
   const queryClient = useQueryClient();
   const [buttonConfig, setButtonConfig] = useState<ButtonConfig>(defaultButtonConfig);
   const [copied, setCopied] = useState(false);
+  const [oneTimeToken, setOneTimeToken] = useState<string | null>(null);
 
   const { data: widgetConfigData } = useQuery({
     queryKey: ["widget-config", agent.id],
@@ -45,6 +46,12 @@ export function WidgetTab({ agent }: WidgetTabProps) {
     }
   }, [widgetConfigData]);
 
+  useEffect(() => {
+    if (!oneTimeToken && widgetConfigData?.issuedToken?.token) {
+      setOneTimeToken(widgetConfigData.issuedToken.token);
+    }
+  }, [widgetConfigData, oneTimeToken]);
+
   const updateWidgetConfigMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Omit<ButtonConfig, 'customIconUrl' | 'customIconSize'> & { customIconUrl: string | null; customIconSize: number | null } }) =>
       api.updateWidgetConfig(id, { theme: data }),
@@ -53,6 +60,17 @@ export function WidgetTab({ agent }: WidgetTabProps) {
       queryClient.invalidateQueries({ queryKey: ["widget-config", variables.id] });
     },
   });
+
+  const createWidgetTokenMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name?: string } }) =>
+      api.createWidgetToken(id, data),
+    onSuccess: (token) => {
+      setOneTimeToken(token.token);
+      queryClient.invalidateQueries({ queryKey: ["widget-config", agent.id] });
+    },
+  });
+
+  const activeToken = oneTimeToken || widgetConfigData?.issuedToken?.token || "";
 
   const handleSave = () => {
     updateWidgetConfigMutation.mutate({
@@ -66,6 +84,11 @@ export function WidgetTab({ agent }: WidgetTabProps) {
   };
 
   const handleTestWidget = async () => {
+    if (!activeToken) {
+      alert("No active widget token available. Generate a token first.");
+      return;
+    }
+
     await api.updateWidgetConfig(agent.id, {
       theme: {
         ...buttonConfig,
@@ -91,7 +114,7 @@ export function WidgetTab({ agent }: WidgetTabProps) {
   <p>This is a test page for the <strong>${agent.name}</strong> widget.</p>
   <div class="info">
     <p>The chat widget should appear in the bottom-right corner. Click the button to open it and test the conversation.</p>
-    <p>Token: <code>${widgetConfigData?.tokens?.[0]?.token || 'loading...'}</code></p>
+    <p>Token: <code>${activeToken}</code></p>
   </div>
   <p>Try asking questions to test your agent's responses and knowledge base integration.</p>
 
@@ -102,7 +125,7 @@ export function WidgetTab({ agent }: WidgetTabProps) {
       js=d.createElement(s);fjs=d.getElementsByTagName(s)[0];
       js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);
     })(window,document,'script','grounded','${window.location.origin}/widget.js');
-    grounded('init', { token: '${widgetConfigData?.tokens?.[0]?.token || ''}', apiBase: '${window.__GROUNDED_CONFIG__?.API_URL || window.location.origin}' });
+    grounded('init', { token: '${activeToken}', apiBase: '${window.__GROUNDED_CONFIG__?.API_URL || window.location.origin}' });
   </script>
 </body>
 </html>`;
@@ -112,6 +135,11 @@ export function WidgetTab({ agent }: WidgetTabProps) {
   };
 
   const copyEmbedCode = () => {
+    if (!activeToken) {
+      alert("No active widget token available. Generate a token first.");
+      return;
+    }
+
     const code = `<script>
   (function(w,d,s,o,f,js,fjs){
     w['GroundedWidget']=o;w[o]=w[o]||function(){
@@ -119,7 +147,7 @@ export function WidgetTab({ agent }: WidgetTabProps) {
     js=d.createElement(s);fjs=d.getElementsByTagName(s)[0];
     js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);
   })(window,document,'script','grounded','/widget.js');
-  grounded('init', { token: '${widgetConfigData?.tokens?.[0]?.token || ""}' });
+  grounded('init', { token: '${activeToken}' });
 </script>`;
     navigator.clipboard.writeText(code);
     setCopied(true);
@@ -369,6 +397,43 @@ export function WidgetTab({ agent }: WidgetTabProps) {
 
       {/* Embed Code */}
       <div className="pt-6 border-t border-border space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-foreground">Widget Token</h3>
+          <Button
+            variant="outline"
+            onClick={() =>
+              createWidgetTokenMutation.mutate({
+                id: agent.id,
+                data: { name: `Widget token ${new Date().toISOString()}` },
+              })
+            }
+            disabled={createWidgetTokenMutation.isPending}
+          >
+            {createWidgetTokenMutation.isPending ? "Generating..." : "Generate New Token"}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Token values are only shown once. Store the active token securely after generation.
+        </p>
+        {activeToken ? (
+          <code className="block bg-muted border border-border rounded px-2 py-1.5 text-xs break-all">
+            {activeToken}
+          </code>
+        ) : (
+          <code className="block bg-muted border border-border rounded px-2 py-1.5 text-xs">
+            No active token available
+          </code>
+        )}
+        {widgetConfigData?.tokens && widgetConfigData.tokens.length > 0 && (
+          <div className="space-y-1">
+            {widgetConfigData.tokens.map((token) => (
+              <p key={token.id} className="text-xs text-muted-foreground">
+                {token.name || "Widget token"}: {token.tokenPreview}
+              </p>
+            ))}
+          </div>
+        )}
+
         <h3 className="text-sm font-medium text-foreground">Embed Script</h3>
         <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-xs overflow-x-auto">
 {`<script>
@@ -378,7 +443,7 @@ export function WidgetTab({ agent }: WidgetTabProps) {
     js=d.createElement(s);fjs=d.getElementsByTagName(s)[0];
     js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);
   })(window,document,'script','grounded','/widget.js');
-  grounded('init', { token: '${widgetConfigData?.tokens?.[0]?.token || "loading..."}' });
+  grounded('init', { token: '${activeToken || "GENERATE_TOKEN_FIRST"}' });
 </script>`}
         </pre>
         <div className="flex gap-4 items-center">

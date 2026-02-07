@@ -85,7 +85,7 @@ describe("test-runner evaluations", () => {
         expectedAnswer: "Expected",
         criteria: "Must mention X",
       },
-      {} as any
+      {} as unknown as Parameters<typeof evaluateLlmJudge>[3]
     );
 
     expect(result.passed).toBe(true);
@@ -102,7 +102,7 @@ describe("test-runner evaluations", () => {
         type: "llm_judge",
         expectedAnswer: "Expected",
       },
-      {} as any
+      {} as unknown as Parameters<typeof evaluateLlmJudge>[3]
     );
 
     expect(result.passed).toBe(false);

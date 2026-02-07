@@ -10,6 +10,27 @@ interface PublishedChatOptions extends FullPageChatConfig {
   colorScheme?: ColorScheme;
 }
 
+type GroundedChatCommand = [command: string, payload?: unknown];
+
+type GroundedChatFunction = {
+  (command: string, payload?: unknown): void;
+  q?: GroundedChatCommand[];
+};
+
+declare global {
+  interface Window {
+    groundedChat?: GroundedChatFunction;
+  }
+}
+
+function isPublishedChatOptions(payload: unknown): payload is PublishedChatOptions {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+  const candidate = payload as { token?: unknown };
+  return typeof candidate.token === "string" && candidate.token.length > 0;
+}
+
 class PublishedChatManager {
   private context: ShadowDOMContext | null = null;
   private mounted = false;
@@ -57,8 +78,12 @@ class PublishedChatManager {
 
 const manager = new PublishedChatManager();
 
-function groundedChat(command: string, payload?: any) {
+function groundedChat(command: string, payload?: unknown) {
   if (command === 'init') {
+    if (!isPublishedChatOptions(payload)) {
+      console.error('[Grounded Chat] Invalid init payload');
+      return;
+    }
     manager.init(payload);
   } else if (command === 'destroy') {
     manager.destroy();
@@ -66,12 +91,12 @@ function groundedChat(command: string, payload?: any) {
 }
 
 // Process queue
-const queue = (window as any).groundedChat?.q || [];
+const queue = window.groundedChat?.q ?? [];
 for (const args of queue) {
   groundedChat(args[0], args[1]);
 }
 
 // Replace queue with actual function
-(window as any).groundedChat = groundedChat;
+window.groundedChat = groundedChat;
 
 export { groundedChat };

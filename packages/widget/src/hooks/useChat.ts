@@ -71,6 +71,13 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
 
     // Create abort controller for this request
     abortControllerRef.current = new AbortController();
+    const STREAM_TIMEOUT_MS = 60_000; // 60s inactivity timeout
+    let streamTimeoutId: ReturnType<typeof setTimeout>;
+
+    const resetStreamTimeout = () => {
+      clearTimeout(streamTimeoutId);
+      streamTimeoutId = setTimeout(() => abortControllerRef.current?.abort(), STREAM_TIMEOUT_MS);
+    };
 
     try {
       const body: Record<string, string> = { message: content.trim() };
@@ -83,6 +90,7 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
         ? `${apiBase}/api/v1/c/${token}/chat/stream`
         : `${apiBase}/api/v1/widget/${token}/chat/stream`;
 
+      resetStreamTimeout();
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -115,6 +123,7 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
       let fullContent = '';
 
       while (true) {
+        resetStreamTimeout();
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -213,8 +222,13 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
       setCurrentReasoningSteps([]);
 
       if ((err as Error).name === 'AbortError') {
-        // Request was aborted, don't show error
+        // Check if this was a timeout or user-initiated abort
         setChatStatus({ status: 'idle' });
+        // If the controller is still the same one, it was a timeout
+        if (abortControllerRef.current) {
+          setError('Connection timed out. Please try again.');
+        }
+        // If abortControllerRef was cleared (via stopStreaming), it was user-initiated
         return;
       }
 
@@ -239,6 +253,7 @@ export function useChat({ token, apiBase, endpointType = 'widget' }: UseChatOpti
         }];
       });
     } finally {
+      clearTimeout(streamTimeoutId!);
       setIsLoading(false);
       setIsStreaming(false);
       abortControllerRef.current = null;

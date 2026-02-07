@@ -51,6 +51,7 @@ interface AgentConfig {
   topK: number;            // How many chunks to include in LLM prompt
   maxCitations: number;    // How many sources to show in UI
   similarityThreshold: number;
+  rerankerEnabled: boolean;
   kbIds: string[];
 }
 
@@ -250,6 +251,7 @@ export class SimpleRAGService {
       topK: retrievalConfig?.topK || 8,
       maxCitations: retrievalConfig?.maxCitations || 3,
       similarityThreshold: retrievalConfig?.similarityThreshold || 0.5,
+      rerankerEnabled: retrievalConfig?.rerankerEnabled ?? true,
       kbIds: attachedKbs.map((kb) => kb.kbId),
     };
   }
@@ -284,11 +286,9 @@ export class SimpleRAGService {
       return [];
     }
 
-    // 2. Take only topK results for LLM context
-    const topResults = searchResults.slice(0, this.config.topK);
-
     // Get chunk details from database
-    const chunkIds = topResults.map((r) => r.id);
+    const candidateResults = searchResults.slice(0, this.config.candidateK);
+    const chunkIds = candidateResults.map((r) => r.id);
     const chunks = await db.query.kbChunks.findMany({
       where: and(
         inArray(kbChunks.id, chunkIds),
@@ -298,6 +298,29 @@ export class SimpleRAGService {
 
     // Create a map for easy lookup
     const chunkMap = new Map(chunks.map((c) => [c.id, c]));
+
+    const queryTokens = query
+      .toLowerCase()
+      .split(/[^a-z0-9]+/g)
+      .filter((t) => t.length > 2);
+    const queryTokenSet = new Set(queryTokens);
+
+    const rerankedResults = this.config.rerankerEnabled
+      ? candidateResults
+          .map((result) => {
+            const chunk = chunkMap.get(result.id);
+            const content = (chunk?.content || "").toLowerCase();
+            const overlap = queryTokens.reduce((count, token) => {
+              return content.includes(token) ? count + 1 : count;
+            }, 0);
+            const overlapScore = queryTokenSet.size > 0 ? overlap / queryTokenSet.size : 0;
+            const combinedScore = result.score * 0.7 + overlapScore * 0.3;
+            return { ...result, combinedScore };
+          })
+          .sort((a, b) => b.combinedScore - a.combinedScore)
+      : candidateResults.map((result) => ({ ...result, combinedScore: result.score }));
+
+    const topResults = rerankedResults.slice(0, this.config.topK);
 
     // Combine search results with chunk data, maintaining score order
     const retrieved: RetrievedChunk[] = [];
@@ -390,7 +413,7 @@ ${contextParts.join("\n\n")}`;
         promptTokens: data.promptTokens,
         completionTokens: data.completionTokens,
         retrievedChunks: data.retrievedChunks,
-        rerankerUsed: false,
+        rerankerUsed: this.config?.rerankerEnabled ?? false,
         errorCode: data.errorCode,
       });
     } catch (error) {

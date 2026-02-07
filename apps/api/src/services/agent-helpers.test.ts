@@ -52,7 +52,11 @@ describe("agent-helpers", () => {
       };
 
       await expect(
-        loadAgentForTenant(mockTx as any, "test-agent-id", "test-tenant-id")
+        loadAgentForTenant(
+          mockTx as unknown as Parameters<typeof loadAgentForTenant>[0],
+          "test-agent-id",
+          "test-tenant-id"
+        )
       ).rejects.toThrow(NotFoundError);
     });
 
@@ -76,7 +80,7 @@ describe("agent-helpers", () => {
       };
 
       const result = await loadAgentForTenant(
-        mockTx as any,
+        mockTx as unknown as Parameters<typeof loadAgentForTenant>[0],
         "test-agent-id",
         "test-tenant-id"
       );
@@ -101,7 +105,7 @@ describe("agent-helpers", () => {
       };
 
       const result = await tryLoadAgentForTenant(
-        mockTx as any,
+        mockTx as unknown as Parameters<typeof tryLoadAgentForTenant>[0],
         "test-agent-id",
         "test-tenant-id"
       );
@@ -129,7 +133,7 @@ describe("agent-helpers", () => {
       };
 
       const result = await tryLoadAgentForTenant(
-        mockTx as any,
+        mockTx as unknown as Parameters<typeof tryLoadAgentForTenant>[0],
         "test-agent-id",
         "test-tenant-id"
       );
@@ -152,7 +156,7 @@ describe("agent-helpers", () => {
       };
 
       const result = await tryLoadAgentForTenant(
-        mockTx as any,
+        mockTx as unknown as Parameters<typeof tryLoadAgentForTenant>[0],
         "test-agent-id",
         "test-tenant-id"
       );

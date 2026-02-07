@@ -1,4 +1,5 @@
 import { createMiddleware } from "hono/factory";
+import type { Context } from "hono";
 import { checkRateLimit } from "@grounded/queue";
 import { RateLimitError } from "./error-handler";
 
@@ -6,7 +7,7 @@ export const rateLimit = (options: {
   keyPrefix: string;
   limit: number;
   windowSeconds: number;
-  keyFn?: (c: any) => string;
+  keyFn?: (c: Context) => string;
 }) => {
   return createMiddleware(async (c, next) => {
     const auth = c.get("auth");

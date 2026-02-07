@@ -10,7 +10,10 @@ describe("admin repo", () => {
       },
     };
 
-    const result = await fetchAuditActorsByIds(mockTx as any, []);
+    const result = await fetchAuditActorsByIds(
+      mockTx as unknown as Parameters<typeof fetchAuditActorsByIds>[0],
+      []
+    );
 
     expect(result).toEqual([]);
   });
@@ -22,7 +25,10 @@ describe("admin repo", () => {
       },
     };
 
-    const result = await fetchAuditTenantsByIds(mockTx as any, []);
+    const result = await fetchAuditTenantsByIds(
+      mockTx as unknown as Parameters<typeof fetchAuditTenantsByIds>[0],
+      []
+    );
 
     expect(result).toEqual([]);
   });

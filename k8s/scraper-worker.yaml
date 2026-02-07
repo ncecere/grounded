@@ -13,10 +13,20 @@ spec:
       labels:
         app: scraper-worker
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: scraper-worker
           image: grounded-scraper-worker:latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           envFrom:
             - configMapRef:
                 name: grounded-config
@@ -26,6 +36,11 @@ spec:
                 secretKeyRef:
                   name: grounded-secrets
                   key: DATABASE_URL
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-secrets
+                  key: INTERNAL_API_KEY
             - name: FIRECRAWL_API_KEY
               valueFrom:
                 secretKeyRef:

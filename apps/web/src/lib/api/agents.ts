@@ -1,5 +1,12 @@
 import { request } from "./client";
-import type { Agent, ChatEndpoint, LLMModel, RagType } from "./types/agents";
+import type {
+  Agent,
+  ChatEndpoint,
+  LLMModel,
+  OneTimeTokenSecret,
+  RagType,
+  WidgetTokenMetadata,
+} from "./types/agents";
 
 export const agentsApi = {
   listAgents: async () => {
@@ -65,8 +72,23 @@ export const agentsApi = {
   getWidgetToken: (id: string) => request<{ token: string }>(`/agents/${id}/widget-token`),
 
   getWidgetConfig: async (agentId: string) => {
-    const res = await request<{ widgetConfig: Agent["widgetConfig"]; tokens: { id: string; name: string; token: string }[] }>(`/agents/${agentId}/widget`);
+    const res = await request<{
+      widgetConfig: Agent["widgetConfig"];
+      tokens: WidgetTokenMetadata[];
+      issuedToken: OneTimeTokenSecret | null;
+    }>(`/agents/${agentId}/widget`);
     return res;
+  },
+
+  createWidgetToken: async (agentId: string, data: { name?: string }) => {
+    const res = await request<{ token: (OneTimeTokenSecret & { id: string; name: string | null; createdAt: string }) }>(
+      `/agents/${agentId}/widget/tokens`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
+    return res.token;
   },
 
   updateWidgetConfig: async (

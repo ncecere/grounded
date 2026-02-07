@@ -194,12 +194,20 @@ export class WideEventBuilder {
   /** Set error context */
   setError(error: Error | WideEvent["error"]): this {
     if (error instanceof Error) {
+      const withMetadata = error as Error & {
+        code?: unknown;
+        retriable?: unknown;
+      };
+
       this.event.error = {
         type: error.name,
         message: error.message,
         stack: error.stack,
-        code: (error as any).code,
-        retriable: (error as any).retriable,
+        code: typeof withMetadata.code === "string" ? withMetadata.code : undefined,
+        retriable:
+          typeof withMetadata.retriable === "boolean"
+            ? withMetadata.retriable
+            : undefined,
       };
     } else {
       this.event.error = error;

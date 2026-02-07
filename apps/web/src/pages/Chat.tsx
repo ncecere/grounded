@@ -11,6 +11,9 @@ import {
   ReasoningStepsTrigger,
   ReasoningStepsContent,
 } from "../components/ai-elements/reasoning-steps";
+import { Suggestions, Suggestion } from "../components/ai-elements/suggestion";
+import { Loader } from "../components/ai-elements/loader";
+import { ChatMessageBubble } from "./chat/ChatMessageBubble";
 
 // Configure marked for chat use
 marked.setOptions({
@@ -26,120 +29,9 @@ renderer.link = ({ href, title, text }) => {
 };
 marked.use({ renderer });
 
-import { Suggestions, Suggestion } from "../components/ai-elements/suggestion";
-import { Loader } from "../components/ai-elements/loader";
-import { BookOpen, ChevronDown, ExternalLink } from "lucide-react";
-
 interface ChatProps {
   agentId: string;
   onBack: () => void;
-}
-
-// Simple sources component with local expand/collapse state
-function MessageSources({ citations }: { citations: ChatMessage["citations"] }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  if (!citations || citations.length === 0) return null;
-
-  return (
-    <div className="mt-3">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-      >
-        <BookOpen className="h-3.5 w-3.5" />
-        <span>Used {citations.length} sources</span>
-        <ChevronDown 
-          className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
-        />
-      </button>
-      
-      {isExpanded && (
-        <div className="mt-2 space-y-1.5 pl-5">
-          {citations.map((citation, i) => (
-            <a
-              key={i}
-              href={citation.url || "#"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors group"
-            >
-              <ExternalLink className="h-3 w-3 opacity-50 group-hover:opacity-100" />
-              <span className="truncate">{citation.title || `Source ${i + 1}`}</span>
-            </a>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Parse markdown and clean up any citation references from the text
-function parseMarkdown(text: string): string {
-  if (!text) return '';
-
-  let cleaned = text;
-
-  // Strip citation formats that the LLM might add
-  cleaned = cleaned.replace(/【[^】]*】/g, '');
-  cleaned = cleaned.replace(/Citation:\s*[^\n.]+[.\n]/gi, '');
-  cleaned = cleaned.replace(/\[Source:[^\]]*\]/gi, '');
-  cleaned = cleaned.replace(/\(Source:[^)]*\)/gi, '');
-  cleaned = cleaned.replace(/\[\d+\]/g, ''); // Remove [1], [2], etc.
-
-  const html = marked.parse(cleaned, { async: false }) as string;
-  return html;
-}
-
-// Simple markdown renderer
-function MarkdownContent({ content }: { content: string }) {
-  return (
-    <div
-      className="markdown-content text-sm leading-relaxed"
-      dangerouslySetInnerHTML={{ __html: parseMarkdown(content) }}
-    />
-  );
-}
-
-// Single chat message component
-function ChatMessageBubble({
-  message,
-  isStreaming,
-}: {
-  message: ChatMessage;
-  isStreaming?: boolean;
-}) {
-  const isUser = message.role === "user";
-
-  return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div className={`${isUser ? "max-w-[80%]" : "max-w-full"}`}>
-        <div
-          className={`rounded-2xl px-4 py-2 ${
-            isUser
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted"
-          }`}
-        >
-          {isUser ? (
-            <span className="text-sm">{message.content}</span>
-          ) : (
-            <>
-              {message.content ? (
-                <MarkdownContent content={message.content} />
-              ) : (
-                <span className="text-muted-foreground italic text-sm">Waiting for response...</span>
-              )}
-              {isStreaming && (
-                <span className="inline-block w-1.5 h-4 bg-primary animate-pulse ml-0.5 rounded-sm" />
-              )}
-            </>
-          )}
-        </div>
-        {!isUser && !isStreaming && <MessageSources citations={message.citations} />}
-      </div>
-    </div>
-  );
 }
 
 export function Chat({ agentId, onBack }: ChatProps) {
@@ -216,7 +108,6 @@ export function Chat({ agentId, onBack }: ChatProps) {
       setReasoningSteps([]);
       setStatusMessage(isAdvancedMode ? "Analyzing query..." : "Searching knowledge base...");
 
-      // Common callbacks
       const onChunk = (text: string) => {
         setIsLoading(false);
         setIsStreaming(true);
@@ -284,37 +175,24 @@ export function Chat({ agentId, onBack }: ChatProps) {
       };
 
       const onReasoning = (step: ReasoningStep) => {
-        // Update the step in our map (handles both in_progress and completed states)
         pendingReasoningStepsRef.current.set(step.id, step);
-        // Convert map to array maintaining order
         setReasoningSteps(Array.from(pendingReasoningStepsRef.current.values()));
       };
 
       try {
-        if (isAdvancedMode) {
-          await api.advancedChatStream(
-            agentId,
-            userMessage,
-            conversationId,
-            onChunk,
-            onSources,
-            onDone,
-            onError,
-            onReasoning,
-            onStatus
-          );
-        } else {
-          await api.simpleChatStream(
-            agentId,
-            userMessage,
-            conversationId,
-            onChunk,
-            onSources,
-            onDone,
-            onError,
-            onStatus
-          );
-        }
+        await api.chatStream(
+          agentId,
+          userMessage,
+          conversationId,
+          onChunk,
+          onSources,
+          onDone,
+          onError,
+          {
+            onReasoning: isAdvancedMode ? onReasoning : undefined,
+            onStatus,
+          }
+        );
       } catch (error) {
         console.error("Chat error:", error);
         setMessages((prev) => [
@@ -431,12 +309,12 @@ export function Chat({ agentId, onBack }: ChatProps) {
                 const isLastMessage = index === messages.length - 1;
                 const isStreamingAssistant = isStreaming && isLastMessage && message.role === "assistant";
                 const isLastAssistant = isLastMessage && message.role === "assistant";
-                const showReasoningBeforeThis = isLastAssistant && 
-                  agent?.ragType === "advanced" && 
+                const showReasoningBeforeThis = isLastAssistant &&
+                  agent?.ragType === "advanced" &&
                   reasoningSteps.length > 0;
 
                 return (
-                  <Fragment key={`${index}-${message.citations?.length || 0}`}>
+                  <Fragment key={message.content ? `${message.role}-${index}-${message.citations?.length || 0}` : `${message.role}-${index}`}>
                     {/* Reasoning steps panel ABOVE the last assistant message */}
                     {showReasoningBeforeThis && (
                       <div className="flex justify-start">
@@ -461,9 +339,9 @@ export function Chat({ agentId, onBack }: ChatProps) {
               })}
 
               {/* Reasoning steps when still loading (before assistant message exists) */}
-              {agent?.ragType === "advanced" && 
-                reasoningSteps.length > 0 && 
-                messages.length > 0 && 
+              {agent?.ragType === "advanced" &&
+                reasoningSteps.length > 0 &&
+                messages.length > 0 &&
                 messages[messages.length - 1].role !== "assistant" && (
                 <div className="flex justify-start">
                   <div className="max-w-full">

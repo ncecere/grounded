@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import type { UserTenant } from "./lib/api";
 import { AppSidebar, type Page } from "./components/app-sidebar";
 import {
@@ -12,21 +13,42 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "./components/ui/breadcrumb";
-import { KnowledgeBases } from "./pages/KnowledgeBases";
-import { Agents } from "./pages/Agents";
-import { Sources } from "./pages/Sources";
-import { Chat } from "./pages/Chat";
-import { AgentTestSuites } from "./pages/AgentTestSuites";
-import { AgentTestSuiteDetail } from "./pages/AgentTestSuiteDetail";
-import { AdminSharedKBs } from "./pages/AdminSharedKBs";
-import { AdminSharedKbSources } from "./pages/AdminSharedKbSources";
-import { SharedKbDetail } from "./pages/SharedKbDetail";
-import AdminDashboard from "./pages/AdminDashboard";
-import { Login } from "./pages/Login";
 import { Building2, AlertTriangle } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { canAccessPage, pageRegistryById, type PageId } from "./app/page-registry";
 import { useAppState, useAuth, useTenant } from "./app/providers";
+
+const KnowledgeBases = lazy(() =>
+  import("./pages/KnowledgeBases").then((m) => ({ default: m.KnowledgeBases }))
+);
+const Agents = lazy(() =>
+  import("./pages/Agents").then((m) => ({ default: m.Agents }))
+);
+const Sources = lazy(() =>
+  import("./pages/Sources").then((m) => ({ default: m.Sources }))
+);
+const Chat = lazy(() =>
+  import("./pages/Chat").then((m) => ({ default: m.Chat }))
+);
+const AgentTestSuites = lazy(() =>
+  import("./pages/AgentTestSuites").then((m) => ({ default: m.AgentTestSuites }))
+);
+const AgentTestSuiteDetail = lazy(() =>
+  import("./pages/AgentTestSuiteDetail").then((m) => ({ default: m.AgentTestSuiteDetail }))
+);
+const AdminSharedKBs = lazy(() =>
+  import("./pages/AdminSharedKBs").then((m) => ({ default: m.AdminSharedKBs }))
+);
+const AdminSharedKbSources = lazy(() =>
+  import("./pages/AdminSharedKbSources").then((m) => ({ default: m.AdminSharedKbSources }))
+);
+const SharedKbDetail = lazy(() =>
+  import("./pages/SharedKbDetail").then((m) => ({ default: m.SharedKbDetail }))
+);
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const Login = lazy(() =>
+  import("./pages/Login").then((m) => ({ default: m.Login }))
+);
 
 const customPageIds = new Set<Page>([
   "kbs",
@@ -40,6 +62,17 @@ const customPageIds = new Set<Page>([
   "shared-kbs",
   "shared-kb-sources",
 ]);
+
+function PageLoadingFallback() {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <div className="text-center">
+        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-b-2 border-primary" />
+        <p className="mt-3 text-sm text-muted-foreground">Loading page...</p>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const {
@@ -118,7 +151,11 @@ export default function App() {
 
   // Not logged in
   if (!user || !hasToken) {
-    return <Login onSuccess={() => refreshUser()} />;
+    return (
+      <Suspense fallback={<PageLoadingFallback />}>
+        <Login onSuccess={() => refreshUser()} />
+      </Suspense>
+    );
   }
 
   const renderPage = () => {
@@ -315,7 +352,9 @@ export default function App() {
         {currentPage === "chat" ? (
           // Chat page - no header, full height for chat component
           <div className="h-full flex flex-col overflow-hidden">
-            {renderPage()}
+            <Suspense fallback={<PageLoadingFallback />}>
+              {renderPage()}
+            </Suspense>
           </div>
         ) : (
           // Other pages - with header and scrollable content
@@ -335,7 +374,9 @@ export default function App() {
             </header>
             <div className="flex flex-1 flex-col overflow-hidden">
               <div className="flex-1 overflow-auto p-4">
-                {renderPage()}
+                <Suspense fallback={<PageLoadingFallback />}>
+                  {renderPage()}
+                </Suspense>
               </div>
             </div>
           </>

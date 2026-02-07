@@ -1,5 +1,6 @@
 import { eq, and, isNull, sql, inArray } from "drizzle-orm";
 import { sources, kbChunks, tenantKbSubscriptions } from "@grounded/db/schema";
+import type { Database } from "@grounded/db";
 
 // ============================================================================
 // Types
@@ -19,6 +20,8 @@ export interface KbAggregatedCountsWithShares extends KbAggregatedCounts {
   shareCount: number;
 }
 
+type KbAggregationTx = Pick<Database, "select">;
+
 // ============================================================================
 // Grouped Count Functions (for lists of KBs)
 // ============================================================================
@@ -32,8 +35,7 @@ export interface KbAggregatedCountsWithShares extends KbAggregatedCounts {
  * @returns Map of KB ID to source count
  */
 export async function getSourceCountsByKb(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: KbAggregationTx,
   kbIds: string[]
 ): Promise<Map<string, number>> {
   if (kbIds.length === 0) {
@@ -61,8 +63,7 @@ export async function getSourceCountsByKb(
  * @returns Map of KB ID to chunk count
  */
 export async function getChunkCountsByKb(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: KbAggregationTx,
   kbIds: string[]
 ): Promise<Map<string, number>> {
   if (kbIds.length === 0) {
@@ -90,8 +91,7 @@ export async function getChunkCountsByKb(
  * @returns Map of KB ID to share count
  */
 export async function getShareCountsByKb(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: KbAggregationTx,
   kbIds: string[]
 ): Promise<Map<string, number>> {
   if (kbIds.length === 0) {
@@ -124,8 +124,7 @@ export async function getShareCountsByKb(
  * @returns Object with sourceCountMap and chunkCountMap
  */
 export async function getKbCountMaps(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: KbAggregationTx,
   kbIds: string[]
 ): Promise<{
   sourceCountMap: Map<string, number>;
@@ -148,8 +147,7 @@ export async function getKbCountMaps(
  * @returns Object with sourceCountMap, chunkCountMap, and shareCountMap
  */
 export async function getKbCountMapsWithShares(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: KbAggregationTx,
   kbIds: string[]
 ): Promise<{
   sourceCountMap: Map<string, number>;
@@ -177,8 +175,7 @@ export async function getKbCountMapsWithShares(
  * @returns The source count
  */
 export async function getKbSourceCount(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: KbAggregationTx,
   kbId: string
 ): Promise<number> {
   const [result] = await tx
@@ -197,8 +194,7 @@ export async function getKbSourceCount(
  * @returns The chunk count
  */
 export async function getKbChunkCount(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: KbAggregationTx,
   kbId: string
 ): Promise<number> {
   const [result] = await tx
@@ -217,8 +213,7 @@ export async function getKbChunkCount(
  * @returns Object with sourceCount and chunkCount
  */
 export async function getKbAggregatedCounts(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: KbAggregationTx,
   kbId: string
 ): Promise<KbAggregatedCounts> {
   const [sourceCount, chunkCount] = await Promise.all([

@@ -6,11 +6,14 @@ import {
   shouldLogBlockedDownloads,
   createBlockedDownloadInfo,
 } from "@grounded/shared";
+import { validateUrlForScraping } from "../services/url-validation";
 
 export async function fetchWithPlaywright(
   url: string,
   browser: Browser
 ): Promise<{ html: string; title: string | null }> {
+  // SSRF protection: validate URL before fetching
+  validateUrlForScraping(url);
   // Determine download configuration
   const downloadsDisabled = isPlaywrightDownloadsDisabled();
   const logBlockedDownloads = shouldLogBlockedDownloads();

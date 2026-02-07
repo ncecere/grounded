@@ -279,12 +279,8 @@ agentRoutes.get("/:agentId/widget", auth(), requireTenant(), async (c) => {
 
   return c.json({
     widgetConfig: result.config,
-    tokens: result.tokens.map((t) => ({
-      id: t.id,
-      name: t.name,
-      token: t.token,
-      createdAt: t.createdAt,
-    })),
+    tokens: result.tokens,
+    issuedToken: result.issuedToken,
   });
 });
 
@@ -404,13 +400,7 @@ agentRoutes.get("/:agentId/chat-endpoints", auth(), requireTenant(), async (c) =
   );
 
   return c.json({
-    chatEndpoints: endpoints.map((ep) => ({
-      id: ep.id,
-      name: ep.name,
-      token: ep.token,
-      endpointType: ep.endpointType,
-      createdAt: ep.createdAt,
-    })),
+    chatEndpoints: endpoints,
   });
 });
 

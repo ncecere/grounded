@@ -19,16 +19,22 @@ describe("chat API client", () => {
       expect(typeof chatApi.simpleChatStream).toBe("function");
     });
 
+    it("should export chatStream method", async () => {
+      const { chatApi } = await import("./chat");
+      expect(typeof chatApi.chatStream).toBe("function");
+    });
+
     it("should export advancedChatStream method", async () => {
       const { chatApi } = await import("./chat");
       expect(typeof chatApi.advancedChatStream).toBe("function");
     });
 
-    it("should have exactly 3 methods", async () => {
+    it("should have exactly 4 methods", async () => {
       const { chatApi } = await import("./chat");
       const methods = Object.keys(chatApi);
-      expect(methods).toHaveLength(3);
+      expect(methods).toHaveLength(4);
       expect(methods).toContain("chat");
+      expect(methods).toContain("chatStream");
       expect(methods).toContain("simpleChatStream");
       expect(methods).toContain("advancedChatStream");
     });

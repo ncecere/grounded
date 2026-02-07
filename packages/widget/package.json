@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "dompurify": "^3.3.0",
     "preact": "^10.28.2",
     "marked": "^17.0.1"
   },

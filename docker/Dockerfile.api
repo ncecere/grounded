@@ -20,6 +20,12 @@ RUN cd packages/widget && bun run build:widget && bun run build:published-chat
 COPY docker/docker-entrypoint-api.sh /docker-entrypoint-api.sh
 RUN chmod +x /docker-entrypoint-api.sh
 
+# Create non-root user (GID/UID 1000 may already exist in base image)
+RUN getent group 1000 || groupadd -g 1000 appuser && \
+    getent passwd 1000 || useradd -u 1000 -g 1000 -m appuser
+RUN chown -R 1000:1000 /app
+USER 1000
+
 ENV NODE_ENV=production
 EXPOSE 3000
 ENTRYPOINT ["/docker-entrypoint-api.sh"]

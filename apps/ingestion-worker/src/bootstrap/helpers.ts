@@ -277,11 +277,19 @@ export function normalizeError(error: unknown): {
   }
 
   if (error instanceof Error) {
+    const withMetadata = error as Error & {
+      code?: unknown;
+      retriable?: unknown;
+    };
+
     return {
       type: error.name,
       message: error.message,
-      code: (error as any).code,
-      retriable: (error as any).retriable,
+      code: typeof withMetadata.code === "string" ? withMetadata.code : undefined,
+      retriable:
+        typeof withMetadata.retriable === "boolean"
+          ? withMetadata.retriable
+          : undefined,
       stack: error.stack,
     };
   }

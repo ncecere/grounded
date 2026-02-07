@@ -145,7 +145,8 @@ export const widgetTokens = pgTable(
     agentId: uuid("agent_id")
       .notNull()
       .references(() => agents.id, { onDelete: "cascade" }),
-    token: text("token").notNull(),
+    tokenHash: text("token_hash"),
+    tokenPrefix: text("token_prefix"),
     name: text("name"),
     createdBy: uuid("created_by")
       .notNull()
@@ -154,9 +155,10 @@ export const widgetTokens = pgTable(
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
   },
   (table) => [
-    uniqueIndex("widget_tokens_token_unique").on(table.token),
+    uniqueIndex("widget_tokens_token_hash_unique").on(table.tokenHash).where(sql`token_hash IS NOT NULL`),
     index("widget_tokens_tenant_idx").on(table.tenantId),
     index("widget_tokens_agent_idx").on(table.agentId),
+    index("widget_tokens_prefix_idx").on(table.tokenPrefix),
   ]
 );
 
@@ -170,7 +172,8 @@ export const chatEndpointTokens = pgTable(
     agentId: uuid("agent_id")
       .notNull()
       .references(() => agents.id, { onDelete: "cascade" }),
-    token: text("token").notNull(),
+    tokenHash: text("token_hash"),
+    tokenPrefix: text("token_prefix"),
     name: text("name"),
     // "api" for JSON API endpoint, "hosted" for hosted chat UI
     endpointType: text("endpoint_type").$type<"api" | "hosted">().default("api").notNull(),
@@ -181,8 +184,9 @@ export const chatEndpointTokens = pgTable(
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
   },
   (table) => [
-    uniqueIndex("chat_endpoint_tokens_token_unique").on(table.token),
+    uniqueIndex("chat_endpoint_tokens_token_hash_unique").on(table.tokenHash).where(sql`token_hash IS NOT NULL`),
     index("chat_endpoint_tokens_tenant_idx").on(table.tenantId),
     index("chat_endpoint_tokens_agent_idx").on(table.agentId),
+    index("chat_endpoint_tokens_prefix_idx").on(table.tokenPrefix),
   ]
 );

@@ -1,0 +1,110 @@
+## Default deny all ingress traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: grounded
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+## API: accept from ingress controller, workers, and web
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-ingress
+  namespace: grounded
+spec:
+  podSelector:
+    matchLabels:
+      app: api
+  policyTypes:
+    - Ingress
+  ingress:
+    # From ingress controller (external traffic)
+    - ports:
+        - protocol: TCP
+          port: 3000
+    # From workers (internal API)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: ingestion-worker
+        - podSelector:
+            matchLabels:
+              app: scraper-worker
+      ports:
+        - protocol: TCP
+          port: 3000
+---
+## Web: accept from ingress controller only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-web-ingress
+  namespace: grounded
+spec:
+  podSelector:
+    matchLabels:
+      app: web
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 80
+---
+## PostgreSQL: accept from API and workers only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres-ingress
+  namespace: grounded
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api
+        - podSelector:
+            matchLabels:
+              app: ingestion-worker
+        - podSelector:
+            matchLabels:
+              app: scraper-worker
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+## Redis: accept from API and workers only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-redis-ingress
+  namespace: grounded
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api
+        - podSelector:
+            matchLabels:
+              app: ingestion-worker
+        - podSelector:
+            matchLabels:
+              app: scraper-worker
+      ports:
+        - protocol: TCP
+          port: 6379

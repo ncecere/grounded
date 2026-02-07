@@ -1,5 +1,5 @@
 import * as jose from "jose";
-import { getEnv } from "@grounded/shared";
+
 import { UnauthorizedError, db, users, checkSystemAdmin, resolveTenantContext } from "./helpers";
 import type { AuthContext } from "./types";
 import { eq } from "drizzle-orm";
@@ -8,9 +8,22 @@ import { eq } from "drizzle-orm";
 // Local JWT Configuration
 // ============================================================================
 
-const secretString = getEnv("SESSION_SECRET", "dev-secret-change-in-production-must-be-32-chars-or-more");
-const paddedSecret = secretString.padEnd(32, "0");
-const LOCAL_JWT_SECRET = new TextEncoder().encode(paddedSecret);
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("SESSION_SECRET environment variable is required in production (32+ characters)");
+    }
+    // Dev-only fallback — never used in production
+    return new TextEncoder().encode("dev-only-insecure-secret-do-not-use-in-prod".padEnd(32, "0"));
+  }
+  if (secret.length < 32) {
+    throw new Error("SESSION_SECRET must be at least 32 characters");
+  }
+  return new TextEncoder().encode(secret);
+}
+
+export const LOCAL_JWT_SECRET = getJwtSecret();
 export const LOCAL_JWT_ISSUER = "grounded-local";
 export const LOCAL_JWT_AUDIENCE = "grounded-api";
 

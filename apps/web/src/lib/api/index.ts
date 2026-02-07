@@ -88,6 +88,7 @@ export const api = {
   updateAgent: agentsApi.updateAgent,
   deleteAgent: agentsApi.deleteAgent,
   getWidgetToken: agentsApi.getWidgetToken,
+  createWidgetToken: agentsApi.createWidgetToken,
   getWidgetConfig: agentsApi.getWidgetConfig,
   updateWidgetConfig: agentsApi.updateWidgetConfig,
   getRetrievalConfig: agentsApi.getRetrievalConfig,
@@ -98,6 +99,7 @@ export const api = {
 
   // Chat
   chat: chatApi.chat,
+  chatStream: chatApi.chatStream,
   simpleChatStream: chatApi.simpleChatStream,
   advancedChatStream: chatApi.advancedChatStream,
 

@@ -22,23 +22,31 @@ export const internalWorkersRoutes = new Hono();
 // ============================================================================
 
 /**
- * Simple middleware that validates the internal API key.
- * Falls back to allowing requests if no key is configured (dev mode).
+ * Middleware that validates the internal API key.
+ * INTERNAL_API_KEY is required by default in all environments.
+ * Local bypass is only allowed when ALLOW_UNAUTHENTICATED_INTERNAL_API=true and not in production.
  */
 internalWorkersRoutes.use("*", async (c, next) => {
   const configuredKey = getEnv("INTERNAL_API_KEY", "");
-  
-  // In dev mode without a configured key, allow all requests
+  const allowLocalBypass =
+    process.env.NODE_ENV !== "production" &&
+    getEnv("ALLOW_UNAUTHENTICATED_INTERNAL_API", "false").toLowerCase() === "true";
+
   if (!configuredKey) {
-    return next();
+    if (allowLocalBypass) {
+      return next();
+    }
+
+    console.error("[Internal API] INTERNAL_API_KEY is not set — rejecting request");
+    return c.json({ error: "Internal API key not configured" }, 500);
   }
-  
+
   const providedKey = c.req.header("X-Internal-API-Key");
-  
+
   if (providedKey !== configuredKey) {
     return c.json({ error: "Unauthorized" }, 401);
   }
-  
+
   return next();
 });
 

@@ -62,10 +62,13 @@ import { processKbReindex } from "./kb-reindex";
 
 /**
  * Generic job handler function signature.
- * The type parameter is contravariant, so use `any` for registry entries.
+ * Use `unknown` for registry entries to avoid leaking unsafely-typed payloads.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type JobHandler<T = any> = (data: T) => Promise<void>;
+type BivariantHandler<T> = {
+  bivarianceHack(data: T): Promise<void>;
+}["bivarianceHack"];
+
+export type JobHandler<T = unknown> = BivariantHandler<T>;
 
 /**
  * Job handler registry entry with metadata.
@@ -75,9 +78,8 @@ export interface JobRegistration {
   name: string;
   /** Queue this job belongs to */
   queue: string;
-  /** The handler function (uses any for type flexibility in registry) */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handler: JobHandler<any>;
+  /** The handler function */
+  handler: JobHandler<unknown>;
   /** Description for documentation */
   description: string;
 }

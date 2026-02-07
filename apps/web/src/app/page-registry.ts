@@ -1,23 +1,17 @@
 import type { ComponentType } from "react";
 
-import { KnowledgeBases } from "@/pages/KnowledgeBases";
-import { Agents } from "@/pages/Agents";
-import { Sources } from "@/pages/Sources";
-import { Chat } from "@/pages/Chat";
-import { AgentTestSuites } from "@/pages/AgentTestSuites";
-import { AgentTestSuiteDetail } from "@/pages/AgentTestSuiteDetail";
 import { Analytics } from "@/pages/Analytics";
 import { AdminSettings } from "@/pages/AdminSettings";
 import { AdminTenants } from "@/pages/AdminTenants";
 import { AdminModels } from "@/pages/AdminModels";
 import { AdminUsers } from "@/pages/AdminUsers";
-import { AdminSharedKBs } from "@/pages/AdminSharedKBs";
-import { AdminSharedKbSources } from "@/pages/AdminSharedKbSources";
-import { SharedKbDetail } from "@/pages/SharedKbDetail";
-import AdminDashboard from "@/pages/AdminDashboard";
 import { AdminAnalytics } from "@/pages/AdminAnalytics";
 import { TenantSettings } from "@/pages/TenantSettings";
 import { AdminAuditLogs } from "@/pages/AdminAuditLogs";
+
+type PageComponent = ComponentType<Record<string, never>>;
+
+const PlaceholderPage: PageComponent = () => null;
 
 export type PageGroup = "workspace" | "admin";
 
@@ -27,7 +21,7 @@ export interface PageRegistryEntry {
   id: string;
   label: string;
   group: PageGroup;
-  component: ComponentType<any>;
+  component: PageComponent;
   authGate: PageAuthGate;
   order: number;
 }
@@ -56,7 +50,7 @@ export const pageRegistry = [
     id: "kbs",
     label: "Knowledge Bases",
     group: "workspace",
-    component: KnowledgeBases,
+    component: PlaceholderPage,
     authGate: "tenant",
     order: 1,
   },
@@ -64,7 +58,7 @@ export const pageRegistry = [
     id: "agents",
     label: "Agents",
     group: "workspace",
-    component: Agents,
+    component: PlaceholderPage,
     authGate: "tenant",
     order: 2,
   },
@@ -72,7 +66,7 @@ export const pageRegistry = [
     id: "sources",
     label: "Sources",
     group: "workspace",
-    component: Sources,
+    component: PlaceholderPage,
     authGate: "tenant",
     order: 3,
   },
@@ -80,7 +74,7 @@ export const pageRegistry = [
     id: "chat",
     label: "Chat",
     group: "workspace",
-    component: Chat,
+    component: PlaceholderPage,
     authGate: "tenant",
     order: 4,
   },
@@ -88,7 +82,7 @@ export const pageRegistry = [
     id: "test-suites",
     label: "Test Suites",
     group: "workspace",
-    component: AgentTestSuites,
+    component: PlaceholderPage,
     authGate: "tenant",
     order: 5,
   },
@@ -96,7 +90,7 @@ export const pageRegistry = [
     id: "test-suite-detail",
     label: "Test Suite",
     group: "workspace",
-    component: AgentTestSuiteDetail,
+    component: PlaceholderPage,
     authGate: "tenant",
     order: 6,
   },
@@ -112,7 +106,7 @@ export const pageRegistry = [
     id: "dashboard",
     label: "Dashboard",
     group: "admin",
-    component: AdminDashboard,
+    component: PlaceholderPage,
     authGate: "system-admin",
     order: 8,
   },
@@ -152,7 +146,7 @@ export const pageRegistry = [
     id: "shared-kbs",
     label: "Shared Knowledge Bases",
     group: "admin",
-    component: AdminSharedKBs,
+    component: PlaceholderPage,
     authGate: "system-admin",
     order: 13,
   },
@@ -160,7 +154,7 @@ export const pageRegistry = [
     id: "shared-kb-sources",
     label: "Shared KB Sources",
     group: "admin",
-    component: AdminSharedKbSources,
+    component: PlaceholderPage,
     authGate: "system-admin",
     order: 14,
   },
@@ -168,7 +162,7 @@ export const pageRegistry = [
     id: "shared-kb-detail",
     label: "Shared Knowledge Base",
     group: "admin",
-    component: SharedKbDetail,
+    component: PlaceholderPage,
     authGate: "system-admin",
     order: 15,
   },

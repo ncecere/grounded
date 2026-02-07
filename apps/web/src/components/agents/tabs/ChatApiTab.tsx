@@ -13,6 +13,7 @@ interface ChatApiTabProps {
 export function ChatApiTab({ agent, onOpenTestChat }: ChatApiTabProps) {
   const queryClient = useQueryClient();
   const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
+  const [oneTimeTokens, setOneTimeTokens] = useState<Record<string, string>>({});
 
   const { data: chatEndpoints, isLoading } = useQuery({
     queryKey: ["chat-endpoints", agent.id],
@@ -23,7 +24,13 @@ export function ChatApiTab({ agent, onOpenTestChat }: ChatApiTabProps) {
   const createChatEndpointMutation = useMutation({
     mutationFn: ({ agentId, data }: { agentId: string; data: { name?: string; endpointType: "api" | "hosted" } }) =>
       api.createChatEndpoint(agentId, data),
-    onSuccess: () => {
+    onSuccess: (createdEndpoint) => {
+      if (createdEndpoint.token) {
+        setOneTimeTokens((prev) => ({
+          ...prev,
+          [createdEndpoint.id]: createdEndpoint.token!,
+        }));
+      }
       queryClient.invalidateQueries({ queryKey: ["chat-endpoints", agent.id] });
     },
   });
@@ -36,12 +43,12 @@ export function ChatApiTab({ agent, onOpenTestChat }: ChatApiTabProps) {
     },
   });
 
-  const getEndpointUrl = (endpoint: ChatEndpoint) => {
+  const getEndpointUrl = (endpoint: ChatEndpoint, token: string) => {
     const baseUrl = window.__GROUNDED_CONFIG__?.API_URL || window.location.origin;
     if (endpoint.endpointType === "hosted") {
-      return `${baseUrl}/chat/${endpoint.token}`;
+      return `${baseUrl}/chat/${token}`;
     }
-    return `${baseUrl}/api/v1/c/${endpoint.token}/chat`;
+    return `${baseUrl}/api/v1/c/${token}/chat`;
   };
 
   const copyToClipboard = (text: string, id: string) => {
@@ -109,9 +116,13 @@ export function ChatApiTab({ agent, onOpenTestChat }: ChatApiTabProps) {
       ) : chatEndpoints && chatEndpoints.length > 0 ? (
         <div className="space-y-3">
           {chatEndpoints.map((endpoint) => (
-            <div
-              key={endpoint.id}
-              className={`p-4 rounded-lg border ${
+            (() => {
+              const oneTimeToken = oneTimeTokens[endpoint.id] || endpoint.token;
+              const endpointUrl = oneTimeToken ? getEndpointUrl(endpoint, oneTimeToken) : null;
+              return (
+                <div
+                  key={endpoint.id}
+                  className={`p-4 rounded-lg border ${
                 endpoint.endpointType === "api"
                   ? "border-primary/30 bg-primary/5"
                   : "border-purple-500/30 bg-purple-500/5"
@@ -149,47 +160,55 @@ export function ChatApiTab({ agent, onOpenTestChat }: ChatApiTabProps) {
                 </button>
               </div>
 
-              <div className="mt-3">
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 text-xs bg-card rounded px-2 py-1.5 border border-border truncate">
-                    {getEndpointUrl(endpoint)}
-                  </code>
-                  <button
-                    onClick={() => copyToClipboard(getEndpointUrl(endpoint), endpoint.id)}
-                    className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                    title="Copy URL"
-                  >
-                    {copiedEndpoint === endpoint.id ? (
-                      <span className="text-green-600 dark:text-green-400 text-xs font-medium">Copied!</span>
-                    ) : (
-                      <Copy className="w-4 h-4" />
+                  <div className="mt-3">
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 text-xs bg-card rounded px-2 py-1.5 border border-border truncate">
+                        {endpointUrl || `Hidden token (${endpoint.tokenPreview})`}
+                      </code>
+                      <button
+                        onClick={() => endpointUrl && copyToClipboard(endpointUrl, endpoint.id)}
+                        className="p-1.5 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                        title="Copy URL"
+                        disabled={!endpointUrl}
+                      >
+                        {copiedEndpoint === endpoint.id ? (
+                          <span className="text-green-600 dark:text-green-400 text-xs font-medium">Copied!</span>
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                      {endpoint.endpointType === "hosted" && endpointUrl && (
+                        <a
+                          href={endpointUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                          title="Open in new tab"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
+                    </div>
+                    {!endpointUrl && (
+                      <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-400">
+                        Token value is hidden after creation. Create a new endpoint to copy a fresh URL.
+                      </p>
                     )}
-                  </button>
-                  {endpoint.endpointType === "hosted" && (
-                    <a
-                      href={getEndpointUrl(endpoint)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                      title="Open in new tab"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              {endpoint.endpointType === "api" && (
-                <div className="mt-3 text-xs text-muted-foreground">
-                  <p className="font-medium mb-1">Usage:</p>
-                  <pre className="bg-gray-900 text-gray-100 p-2 rounded overflow-x-auto">
-{`curl -X POST "${getEndpointUrl(endpoint)}" \\
+                  {endpoint.endpointType === "api" && endpointUrl && (
+                    <div className="mt-3 text-xs text-muted-foreground">
+                      <p className="font-medium mb-1">Usage:</p>
+                      <pre className="bg-gray-900 text-gray-100 p-2 rounded overflow-x-auto">
+{`curl -X POST "${endpointUrl}" \\
   -H "Content-Type: application/json" \\
   -d '{"message": "Hello"}'`}
-                  </pre>
+                      </pre>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()
           ))}
         </div>
       ) : (

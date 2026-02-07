@@ -46,7 +46,20 @@ export interface LLMModel {
 export interface ChatEndpoint {
   id: string;
   name: string | null;
-  token: string;
+  tokenPreview: string;
   endpointType: "api" | "hosted";
   createdAt: string;
+  token?: string;
+}
+
+export interface WidgetTokenMetadata {
+  id: string;
+  name: string | null;
+  tokenPreview: string;
+  createdAt: string;
+}
+
+export interface OneTimeTokenSecret {
+  token: string;
+  tokenPreview: string;
 }

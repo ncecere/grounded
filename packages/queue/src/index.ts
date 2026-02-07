@@ -366,6 +366,17 @@ export async function removePageIndexJobsForRun(runId: string): Promise<number> 
  * This includes pending index jobs counter, crawl state, and stage batch tracking.
  */
 export async function cleanupRunRedisState(runId: string): Promise<void> {
+  const deleteByPattern = async (pattern: string): Promise<void> => {
+    let cursor = "0";
+    do {
+      const [nextCursor, keys] = await redis.scan(cursor, "MATCH", pattern, "COUNT", 100);
+      cursor = nextCursor;
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+    } while (cursor !== "0");
+  };
+
   // Delete pending index jobs counter
   await redis.del(`pending_index_jobs:${runId}`);
   
@@ -373,16 +384,10 @@ export async function cleanupRunRedisState(runId: string): Promise<void> {
   await redis.del(`batch:${runId}:pending`);
   
   // Delete crawl state keys (pattern: crawl:{runId}:*)
-  const crawlKeys = await redis.keys(`crawl:${runId}:*`);
-  if (crawlKeys.length > 0) {
-    await redis.del(...crawlKeys);
-  }
-  
+  await deleteByPattern(`crawl:${runId}:*`);
+
   // Delete chunk embed status keys (pattern: chunk_embed_status:{runId}:*)
-  const embedStatusKeys = await redis.keys(`chunk_embed_status:${runId}:*`);
-  if (embedStatusKeys.length > 0) {
-    await redis.del(...embedStatusKeys);
-  }
+  await deleteByPattern(`chunk_embed_status:${runId}:*`);
 }
 
 /**

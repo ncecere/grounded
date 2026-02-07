@@ -13,10 +13,20 @@ spec:
       labels:
         app: ingestion-worker
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: ingestion-worker
           image: grounded-ingestion-worker:latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           envFrom:
             - configMapRef:
                 name: grounded-config
@@ -26,6 +36,11 @@ spec:
                 secretKeyRef:
                   name: grounded-secrets
                   key: DATABASE_URL
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-secrets
+                  key: INTERNAL_API_KEY
           resources:
             requests:
               memory: "128Mi"

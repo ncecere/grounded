@@ -10,12 +10,12 @@ const log = {
   fatal: mock(() => undefined),
 };
 
-const sourceRunsFindFirst = mock<(...args: any[]) => Promise<any>>(async () => null);
-const sourcesFindFirst = mock<(...args: any[]) => Promise<any>>(async () => null);
-const sourceRunPagesFindMany = mock<(...args: any[]) => Promise<Array<{ id: string }>>>(async () => []);
+const sourceRunsFindFirst = mock<(...args: unknown[]) => Promise<unknown>>(async () => null);
+const sourcesFindFirst = mock<(...args: unknown[]) => Promise<unknown>>(async () => null);
+const sourceRunPagesFindMany = mock<(...args: unknown[]) => Promise<Array<{ id: string }>>>(async () => []);
 const sourceRunPageContentsFindMany =
-  mock<(...args: any[]) => Promise<Array<{ id: string; sourceRunPageId: string }>>>(async () => []);
-const kbChunksFindMany = mock<(...args: any[]) => Promise<Array<{ id: string }>>>(async () => []);
+  mock<(...args: unknown[]) => Promise<Array<{ id: string; sourceRunPageId: string }>>>(async () => []);
+const kbChunksFindMany = mock<(...args: unknown[]) => Promise<Array<{ id: string }>>>(async () => []);
 const updateWhereMock = mock(() => undefined);
 const updateSetMock = mock(() => ({ where: updateWhereMock }));
 const updateMock = mock(() => ({ set: updateSetMock }));
@@ -31,17 +31,17 @@ const dbMock = {
   update: updateMock,
 };
 
-const addPageFetchJob = mock<(...args: any[]) => Promise<void>>(async () => undefined);
-const registerRun = mock<(...args: any[]) => Promise<void>>(async () => undefined);
-const initializeStageProgress = mock<(...args: any[]) => Promise<void>>(async () => undefined);
-const getFetchedHtmlUrls = mock<(...args: any[]) => Promise<string[]>>(async () => []);
-const getFetchedHtml = mock<(...args: any[]) => Promise<null | { title: string }>>(async () => null);
-const addPageProcessJob = mock<(...args: any[]) => Promise<void>>(async () => undefined);
-const addPageIndexJob = mock<(...args: any[]) => Promise<void>>(async () => undefined);
-const initializeChunkEmbedStatuses = mock<(...args: any[]) => Promise<void>>(async () => undefined);
-const addEmbedChunksBatchJob = mock<(...args: any[]) => Promise<void>>(async () => undefined);
+const addPageFetchJob = mock<(...args: unknown[]) => Promise<void>>(async () => undefined);
+const registerRun = mock<(...args: unknown[]) => Promise<void>>(async () => undefined);
+const initializeStageProgress = mock<(...args: unknown[]) => Promise<void>>(async () => undefined);
+const getFetchedHtmlUrls = mock<(...args: unknown[]) => Promise<string[]>>(async () => []);
+const getFetchedHtml = mock<(...args: unknown[]) => Promise<null | { title: string }>>(async () => null);
+const addPageProcessJob = mock<(...args: unknown[]) => Promise<void>>(async () => undefined);
+const addPageIndexJob = mock<(...args: unknown[]) => Promise<void>>(async () => undefined);
+const initializeChunkEmbedStatuses = mock<(...args: unknown[]) => Promise<void>>(async () => undefined);
+const addEmbedChunksBatchJob = mock<(...args: unknown[]) => Promise<void>>(async () => undefined);
 
-let getQueuedUrlsMock = mock<(...args: any[]) => Promise<string[]>>(async () => []);
+let getQueuedUrlsMock = mock<(...args: unknown[]) => Promise<string[]>>(async () => []);
 const createCrawlState = mock(() => ({
   getQueuedUrls: (...args: Parameters<typeof getQueuedUrlsMock>) => getQueuedUrlsMock(...args),
 }));
@@ -168,7 +168,8 @@ describe("queueing helpers", () => {
 
   it("queues processing jobs and skips missing HTML", async () => {
     getFetchedHtmlUrls.mockResolvedValueOnce(["url-1", "url-2", "url-3"]);
-    getFetchedHtml.mockImplementation(async (_runId: string, url: string) => {
+    getFetchedHtml.mockImplementation(async (...args: unknown[]) => {
+      const [, url] = args as [string, string];
       if (url === "url-2") {
         return null;
       }

@@ -1,6 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
 
 const runMigrationsMock = mock(async () => {});
+const backfillPublicTokenHashesMock = mock(async () => {});
 const seedSystemAdminMock = mock(async () => {});
 const initializeVectorStoreMock = mock(async () => {});
 const isVectorStoreConfiguredMock = mock(() => false);
@@ -30,6 +31,10 @@ mock.module("./run-migrations", () => ({
   runMigrations: runMigrationsMock,
 }));
 
+mock.module("./backfill-public-token-hashes", () => ({
+  backfillPublicTokenHashes: backfillPublicTokenHashesMock,
+}));
+
 mock.module("./seed-admin", () => ({
   seedSystemAdmin: seedSystemAdminMock,
 }));
@@ -52,6 +57,7 @@ describe("startup index", () => {
     await runStartupTasks();
 
     expect(runMigrationsMock).toHaveBeenCalled();
+    expect(backfillPublicTokenHashesMock).toHaveBeenCalled();
     expect(seedSystemAdminMock).toHaveBeenCalled();
     expect(isVectorStoreConfiguredMock).toHaveBeenCalled();
     expect(initializeVectorStoreMock).not.toHaveBeenCalled();

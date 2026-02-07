@@ -947,12 +947,16 @@ Respond with JSON:
 
   const parseJudgeResponse = (text: string) => {
     const parsed = safeParseJson(text);
-    if (!parsed || parsed.passed === undefined) return null;
-    const passedValue = typeof parsed.passed === "string" ? parsed.passed.toLowerCase() : parsed.passed;
+    if (!parsed || !("passed" in parsed)) return null;
+    const passedRaw = parsed.passed;
+    const passedValue = typeof passedRaw === "string" ? passedRaw.toLowerCase() : passedRaw;
     if (passedValue !== true && passedValue !== false) return null;
     return {
       passed: passedValue === true,
-      reasoning: typeof parsed.reasoning === "string" ? parsed.reasoning : "",
+      reasoning:
+        "reasoning" in parsed && typeof parsed.reasoning === "string"
+          ? parsed.reasoning
+          : "",
     };
   };
 
@@ -1058,7 +1062,7 @@ async function getCaseResponse(
   return response;
 }
 
-export function safeParseJson(value: string): any | null {
+export function safeParseJson(value: string): Record<string, unknown> | null {
   const match = value.match(/\{[\s\S]*\}/);
   if (!match) {
     const passedMatch = value.match(/passed\s*[:=]\s*(true|false)/i);

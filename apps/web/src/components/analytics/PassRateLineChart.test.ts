@@ -1,3 +1,4 @@
+import { describe, expect, it } from "bun:test";
 import { buildPassRateLineSeries } from "./PassRateLineChart";
 
 describe("PassRateLineChart module exports", () => {

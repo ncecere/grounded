@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { db } from "@grounded/db";
+import { db, type Database } from "@grounded/db";
 import {
   agents,
   agentTestSuites,
@@ -1390,8 +1390,7 @@ experimentRoutes.post(
 // ============================================================================
 
 async function loadTestSuiteForTenant(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: Database,
   suiteId: string,
   tenantId: string
 ): Promise<typeof agentTestSuites.$inferSelect> {

@@ -12,6 +12,9 @@ import { hostedChatRoutes } from "./routes/hosted-chat";
 
 export const createApiApp = () => {
   const app = new Hono();
+  const maxJsonBodyBytes = Number(getEnv("MAX_JSON_BODY_BYTES", "65536"));
+  const maxPublicChatBodyBytes = Number(getEnv("MAX_PUBLIC_CHAT_BODY_BYTES", "65536"));
+  const maxUploadBodyBytes = Number(getEnv("MAX_UPLOAD_BODY_BYTES", "15728640"));
 
   // ==========================================================================
   // Global Middleware
@@ -20,16 +23,62 @@ export const createApiApp = () => {
   app.use("*", requestId());
   app.use("*", secureHeaders());
   app.use("*", prettyJSON());
+  const corsOrigins = getEnv("CORS_ORIGINS", "http://localhost:8088,http://localhost:5173");
+  if (process.env.NODE_ENV === "production" && (corsOrigins === "*" || !process.env.CORS_ORIGINS)) {
+    throw new Error("CORS_ORIGINS must be explicitly set in production (not wildcard)");
+  }
   app.use(
     "*",
     cors({
-      origin: getEnv("CORS_ORIGINS", "*").split(","),
+      origin: corsOrigins.split(",").map((o) => o.trim()),
       credentials: true,
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Tenant-ID"],
       exposeHeaders: ["X-Request-ID", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
     })
   );
+
+  app.use("*", async (c, next) => {
+    const method = c.req.method.toUpperCase();
+    if (!["POST", "PUT", "PATCH"].includes(method)) {
+      return next();
+    }
+
+    const rawContentLength = c.req.header("content-length");
+    if (!rawContentLength) {
+      return next();
+    }
+
+    const contentLength = Number(rawContentLength);
+    if (!Number.isFinite(contentLength) || contentLength < 0) {
+      return c.json(
+        {
+          error: "BAD_REQUEST",
+          message: "Invalid Content-Length header",
+        },
+        400
+      );
+    }
+
+    const contentType = (c.req.header("content-type") || "").toLowerCase();
+    let maxBytes = contentType.includes("multipart/form-data") ? maxUploadBodyBytes : maxJsonBodyBytes;
+
+    if (c.req.path.startsWith("/api/v1/widget/") || c.req.path.startsWith("/api/v1/c/")) {
+      maxBytes = Math.min(maxBytes, maxPublicChatBodyBytes);
+    }
+
+    if (contentLength > maxBytes) {
+      return c.json(
+        {
+          error: "PAYLOAD_TOO_LARGE",
+          message: `Request body exceeds ${maxBytes} bytes`,
+        },
+        413
+      );
+    }
+
+    return next();
+  });
 
   // Wide event logging middleware - logs comprehensive request info
   app.use(

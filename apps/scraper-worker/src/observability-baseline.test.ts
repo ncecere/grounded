@@ -649,7 +649,7 @@ describe("Observability Baseline: Implementation Verification", () => {
 
       const event = createJobLogger(
         { service: "scraper-worker", queue: "page-fetch" },
-        mockJob as any
+        mockJob as unknown as Parameters<typeof createJobLogger>[1]
       );
 
       expect(typeof event.setOperation).toBe("function");
@@ -667,7 +667,7 @@ describe("Observability Baseline: Implementation Verification", () => {
 
       const event = createJobLogger(
         { service: "scraper-worker", queue: "page-fetch" },
-        mockJob as any
+        mockJob as unknown as Parameters<typeof createJobLogger>[1]
       );
 
       expect(typeof event.addFields).toBe("function");
@@ -685,7 +685,7 @@ describe("Observability Baseline: Implementation Verification", () => {
 
       const event = createJobLogger(
         { service: "scraper-worker", queue: "page-fetch" },
-        mockJob as any
+        mockJob as unknown as Parameters<typeof createJobLogger>[1]
       );
 
       expect(typeof event.success).toBe("function");
@@ -703,7 +703,7 @@ describe("Observability Baseline: Implementation Verification", () => {
 
       const event = createJobLogger(
         { service: "scraper-worker", queue: "page-fetch" },
-        mockJob as any
+        mockJob as unknown as Parameters<typeof createJobLogger>[1]
       );
 
       expect(typeof event.setError).toBe("function");
@@ -721,7 +721,7 @@ describe("Observability Baseline: Implementation Verification", () => {
 
       const event = createJobLogger(
         { service: "scraper-worker", queue: "page-fetch" },
-        mockJob as any
+        mockJob as unknown as Parameters<typeof createJobLogger>[1]
       );
 
       expect(typeof event.emit).toBe("function");
@@ -739,7 +739,7 @@ describe("Observability Baseline: Implementation Verification", () => {
 
       const event = createJobLogger(
         { service: "scraper-worker", queue: "page-fetch" },
-        mockJob as any
+        mockJob as unknown as Parameters<typeof createJobLogger>[1]
       );
 
       expect(typeof event.getEvent).toBe("function");

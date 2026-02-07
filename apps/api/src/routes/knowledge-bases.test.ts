@@ -30,7 +30,7 @@ const withRequestRLSMock = mock(async (_c: Context, callback: (tx: unknown) => P
     },
   };
 
-  return callback(mockTx as any);
+  return callback(mockTx);
 });
 
 const authMiddleware = () => async (c: Context, next: Next) => {

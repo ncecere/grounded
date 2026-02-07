@@ -502,7 +502,9 @@ adminSharedKbsRoutes.get("/:kbId/available-tenants", async (c) => {
 // SOURCE MANAGEMENT FOR GLOBAL KBs
 // ============================================================================
 
-async function verifyGlobalKb(c: any, kbId: string) {
+type RlsRequestContext = Parameters<typeof withRequestRLS>[0];
+
+async function verifyGlobalKb(c: RlsRequestContext, kbId: string) {
   const kb = await withRequestRLS(c, async (tx) => {
     return tx.query.knowledgeBases.findFirst({
       where: and(

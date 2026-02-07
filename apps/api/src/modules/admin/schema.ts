@@ -105,3 +105,7 @@ export const updateGlobalKbSchema = z.object({
 export const shareWithTenantSchema = z.object({
   tenantId: z.string().uuid(),
 });
+
+export const resetPasswordSchema = z.object({
+  newPassword: z.string().min(1, "Password is required"),
+});

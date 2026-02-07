@@ -1,3 +1,4 @@
+import { describe, expect, it } from "bun:test";
 describe("TestRunDetailPanel module exports", () => {
   it("should export TestRunDetailPanel component", async () => {
     const module = await import("./TestRunDetailPanel");

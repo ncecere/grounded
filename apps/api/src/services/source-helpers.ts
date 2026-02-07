@@ -1,5 +1,6 @@
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { sources, sourceRuns, kbChunks } from "@grounded/db/schema";
+import type { Database } from "@grounded/db";
 import type { SourceConfig } from "@grounded/shared";
 import { addSourceRunStartJob } from "@grounded/queue";
 import type { UpdateSource } from "../modules/sources/schema";
@@ -40,6 +41,8 @@ export interface TriggerRunResult {
 export interface TriggerRunError {
   error: string;
 }
+
+type SourceRunRecord = typeof sourceRuns.$inferSelect;
 
 // ============================================================================
 // Update Merging
@@ -83,8 +86,7 @@ export function buildSourceUpdateData(
  * @returns Object with pageCount and chunkCount
  */
 export async function calculateSourceStats(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: Database,
   sourceId: string
 ): Promise<SourceStats> {
   // Get total unique page count across all runs for this source
@@ -124,8 +126,7 @@ export async function calculateSourceStats(
  * @param sourceId - The source ID whose chunks should be deleted
  */
 export async function cascadeSoftDeleteSourceChunks(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: Database,
   sourceId: string
 ): Promise<void> {
   await tx
@@ -146,10 +147,9 @@ export async function cascadeSoftDeleteSourceChunks(
  * @returns The running run if one exists, null otherwise
  */
 export async function findRunningRun(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: Database,
   sourceId: string
-): Promise<unknown> {
+): Promise<SourceRunRecord | undefined> {
   return tx.query.sourceRuns.findFirst({
     where: and(
       eq(sourceRuns.sourceId, sourceId),
@@ -166,8 +166,7 @@ export async function findRunningRun(
  * @returns The created run
  */
 export async function createSourceRun(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: Database,
   params: {
     tenantId: string | null;
     sourceId: string;

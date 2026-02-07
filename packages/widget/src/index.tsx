@@ -1,7 +1,30 @@
 import { render } from 'preact';
 import { Widget } from './components/Widget';
-import { createShadowDOM, applyTheme, type ColorScheme, type ShadowDOMContext } from './lib/shadow-dom';
+import { createShadowDOM, type ColorScheme, type ShadowDOMContext } from './lib/shadow-dom';
 import type { WidgetOptions } from './types';
+
+type GroundedCommand = [command: string, payload?: unknown];
+
+type GroundedFunction = {
+  (command: string, payload?: unknown): void;
+  q?: GroundedCommand[];
+};
+
+declare global {
+  interface Window {
+    grounded?: GroundedFunction;
+    GroundedWidget?: GroundedWidgetManager;
+  }
+}
+
+function isWidgetOptions(payload: unknown): payload is WidgetOptions {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+
+  const candidate = payload as { token?: unknown };
+  return typeof candidate.token === "string" && candidate.token.length > 0;
+}
 
 // ============================================================================
 // Widget Manager - Handles initialization and API
@@ -20,15 +43,19 @@ class GroundedWidgetManager {
   }
 
   private processQueue() {
-    const queue = (window as any).grounded?.q || [];
+    const queue = window.grounded?.q ?? [];
     for (const args of queue) {
       this.handleCommand(args[0], args[1]);
     }
   }
 
-  handleCommand(command: string, payload?: any) {
+  handleCommand(command: string, payload?: unknown) {
     switch (command) {
       case 'init':
+        if (!isWidgetOptions(payload)) {
+          console.error('[Grounded Widget] Invalid init payload');
+          return;
+        }
         this.init(payload);
         break;
       case 'open':
@@ -169,14 +196,14 @@ class GroundedWidgetManager {
 const manager = new GroundedWidgetManager();
 
 // Create global grounded function
-function grounded(command: string, payload?: any) {
+function grounded(command: string, payload?: unknown) {
   manager.handleCommand(command, payload);
 }
 
 // Replace queue with actual function
-(window as any).grounded = grounded;
+window.grounded = grounded;
 
 // Also expose manager for advanced usage
-(window as any).GroundedWidget = manager;
+window.GroundedWidget = manager;
 
 export { grounded, manager as GroundedWidget };

@@ -45,6 +45,7 @@ const PromptSuggestionSchema = z.object({
 type TestCase = InferSelectModel<typeof testCases>;
 type TestCaseResult = InferSelectModel<typeof testCaseResults>;
 type PromptAnalysisDraft = z.infer<typeof PromptAnalysisDraftSchema>;
+type TextGenerationModel = Parameters<typeof generateText>[0]["model"];
 
 type FailureSignalSummary = {
   checkTypeStats: Record<string, { total: number; failed: number }>;
@@ -766,7 +767,7 @@ CRITICAL RULES:
  */
 async function analyzePromptSimple(
   input: PromptAnalysisInput,
-  model: any,
+  model: TextGenerationModel,
   systemPrompt: string,
   caseResults: CaseResultWithDetails[]
 ): Promise<PromptAnalysisResult> {
@@ -873,7 +874,12 @@ function parseAnalysisResponse(text: string): PromptAnalysisResult {
   }
 
   try {
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed: {
+      summary?: unknown;
+      failureClusters?: unknown;
+      suggestedPrompt?: unknown;
+      rationale?: unknown;
+    } = JSON.parse(jsonMatch[0]);
 
     // Handle case where summary might be an object (LLM sometimes nests things)
     let summary = "";
@@ -885,14 +891,17 @@ function parseAnalysisResponse(text: string): PromptAnalysisResult {
     }
 
     const failureClusters = Array.isArray(parsed.failureClusters)
-      ? parsed.failureClusters.map((c: any) => ({
-          category: String(c.category ?? "unknown"),
-          description: String(c.description ?? ""),
-          affectedCases: Array.isArray(c.affectedCases)
-            ? c.affectedCases.map(String)
-            : [],
-          suggestedFix: String(c.suggestedFix ?? ""),
-        }))
+      ? parsed.failureClusters.map((cluster: unknown) => {
+          const normalized = cluster as Partial<FailureCluster> & { affectedCases?: unknown };
+          return {
+            category: String(normalized.category ?? "unknown"),
+            description: String(normalized.description ?? ""),
+            affectedCases: Array.isArray(normalized.affectedCases)
+              ? normalized.affectedCases.map(String)
+              : [],
+            suggestedFix: String(normalized.suggestedFix ?? ""),
+          };
+        })
       : [];
 
     return {

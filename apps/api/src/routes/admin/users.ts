@@ -6,7 +6,7 @@ import { eq, isNull, sql, and } from "drizzle-orm";
 import { auth, requireSystemAdmin, withRequestRLS } from "../../middleware/auth";
 import { BadRequestError, NotFoundError } from "../../middleware/error-handler";
 import { hashPassword, validatePassword, validateEmail } from "@grounded/shared";
-import { createUserSchema, updateUserSchema } from "../../modules/admin/schema";
+import { createUserSchema, updateUserSchema, resetPasswordSchema } from "../../modules/admin/schema";
 
 export const adminUsersRoutes = new Hono();
 
@@ -268,10 +268,9 @@ adminUsersRoutes.delete("/:id", async (c) => {
 // Reset User Password
 // ============================================================================
 
-adminUsersRoutes.post("/:id/reset-password", async (c) => {
+adminUsersRoutes.post("/:id/reset-password", zValidator("json", resetPasswordSchema), async (c) => {
   const id = c.req.param("id");
-  const body = await c.req.json();
-  const { newPassword } = body;
+  const { newPassword } = c.req.valid("json");
 
   const user = await withRequestRLS(c, async (tx) => {
     return tx.query.users.findFirst({

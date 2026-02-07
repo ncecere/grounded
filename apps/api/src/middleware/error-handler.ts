@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import type { HTTPException } from "hono/http-exception";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { getWideEvent } from "@grounded/logger/middleware";
 import {
   AppError,
@@ -23,6 +24,16 @@ export {
   QuotaExceededError,
 };
 
+function toContentfulStatusCode(
+  status: number,
+  fallback: ContentfulStatusCode = 500
+): ContentfulStatusCode {
+  if (status >= 400 && status <= 599) {
+    return status as ContentfulStatusCode;
+  }
+  return fallback;
+}
+
 export function errorHandler(err: Error | HTTPException, c: Context) {
   // The wide event middleware will log the error with full context
   // Here we just enrich the event with additional error details
@@ -34,26 +45,20 @@ export function errorHandler(err: Error | HTTPException, c: Context) {
   }
 
   if (err instanceof AppError) {
-    return c.json(
-      {
-        error: err.code || err.name,
-        message: err.message,
-        requestId: c.get("requestId"),
-      },
-      err.statusCode as any
-    );
+    return c.json({
+      error: err.code || err.name,
+      message: err.message,
+      requestId: c.get("requestId"),
+    }, toContentfulStatusCode(err.statusCode));
   }
 
   // Handle Hono HTTP exceptions
   if ("status" in err && typeof err.status === "number") {
-    return c.json(
-      {
-        error: "HTTP_ERROR",
-        message: err.message,
-        requestId: c.get("requestId"),
-      },
-      err.status as any
-    );
+    return c.json({
+      error: "HTTP_ERROR",
+      message: err.message,
+      requestId: c.get("requestId"),
+    }, toContentfulStatusCode(err.status));
   }
 
   // Internal server error

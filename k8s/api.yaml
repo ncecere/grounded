@@ -26,12 +26,22 @@ spec:
       labels:
         app: api
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: api
           image: grounded-api:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           envFrom:
             - configMapRef:
                 name: grounded-config
@@ -46,6 +56,11 @@ spec:
                 secretKeyRef:
                   name: grounded-secrets
                   key: SESSION_SECRET
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-secrets
+                  key: INTERNAL_API_KEY
             - name: OIDC_ISSUER_URL
               valueFrom:
                 secretKeyRef:

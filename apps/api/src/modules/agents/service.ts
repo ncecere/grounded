@@ -15,8 +15,13 @@ import {
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { generateId } from "@grounded/shared";
 import { log } from "@grounded/logger";
-import { NotFoundError, QuotaExceededError } from "../../middleware/error-handler";
+import {
+  BadRequestError,
+  NotFoundError,
+  QuotaExceededError,
+} from "../../middleware/error-handler";
 import { loadAgentForTenant } from "../../services/agent-helpers";
+import { getPublicTokenPrefix, hashPublicToken } from "../../services/public-token-security";
 import {
   createAgentSchema,
   updateAgentSchema,
@@ -39,6 +44,101 @@ type WidgetTheme = Record<string, unknown>;
 type AgentWidgetConfigInsert = typeof agentWidgetConfigs.$inferInsert;
 type AgentWidgetConfigUpdate = Partial<AgentWidgetConfigInsert> & { updatedAt: Date };
 type WidgetThemeConfig = AgentWidgetConfigInsert["theme"];
+
+interface TokenMetadata {
+  id: string;
+  name: string | null;
+  tokenPreview: string;
+  createdAt: Date;
+}
+
+interface OneTimeTokenSecret extends TokenMetadata {
+  token: string;
+}
+
+function toTokenPreview(tokenPrefix: string | null): string {
+  return tokenPrefix ? `${tokenPrefix}...` : "redacted";
+}
+
+async function issueWidgetToken(
+  tx: Database,
+  {
+    tenantId,
+    agentId,
+    userId,
+    name,
+  }: {
+    tenantId: string;
+    agentId: string;
+    userId: string;
+    name: string;
+  }
+): Promise<OneTimeTokenSecret> {
+  const token = `wt_${generateId().replace(/-/g, "")}`;
+  const tokenPrefix = getPublicTokenPrefix(token);
+  const [created] = await tx
+    .insert(widgetTokens)
+    .values({
+      tenantId,
+      agentId,
+      tokenHash: hashPublicToken(token),
+      tokenPrefix,
+      name,
+      createdBy: userId,
+    })
+    .returning();
+
+  return {
+    id: created.id,
+    name: created.name ?? null,
+    token,
+    tokenPreview: toTokenPreview(created.tokenPrefix),
+    createdAt: created.createdAt,
+  };
+}
+
+async function issueChatEndpointToken(
+  tx: Database,
+  {
+    tenantId,
+    agentId,
+    userId,
+    name,
+    endpointType,
+  }: {
+    tenantId: string;
+    agentId: string;
+    userId: string;
+    name: string | undefined;
+    endpointType: "api" | "hosted";
+  }
+): Promise<OneTimeTokenSecret & { endpointType: "api" | "hosted" }> {
+  const prefix = endpointType === "hosted" ? "ch_" : "ce_";
+  const token = `${prefix}${generateId().replace(/-/g, "")}`;
+  const tokenPrefix = getPublicTokenPrefix(token);
+
+  const [created] = await tx
+    .insert(chatEndpointTokens)
+    .values({
+      tenantId,
+      agentId,
+      tokenHash: hashPublicToken(token),
+      tokenPrefix,
+      name,
+      endpointType,
+      createdBy: userId,
+    })
+    .returning();
+
+  return {
+    id: created.id,
+    name: created.name ?? null,
+    token,
+    tokenPreview: toTokenPreview(created.tokenPrefix),
+    endpointType: created.endpointType,
+    createdAt: created.createdAt,
+  };
+}
 
 export async function listModels(tx: Database) {
   return tx
@@ -127,13 +227,11 @@ export async function createAgent(
     agentId: newAgent.id,
   });
 
-  const token = `wt_${generateId().replace(/-/g, "")}`;
-  await tx.insert(widgetTokens).values({
+  await issueWidgetToken(tx, {
     tenantId,
     agentId: newAgent.id,
-    token,
+    userId,
     name: "Default",
-    createdBy: userId,
   });
 
   if (body.kbIds && body.kbIds.length > 0) {
@@ -307,26 +405,43 @@ export async function getWidgetConfig(
     where: eq(agentWidgetConfigs.agentId, agentId),
   });
 
-  let tokens = await tx.query.widgetTokens.findMany({
+  const existingTokens = await tx.query.widgetTokens.findMany({
     where: and(eq(widgetTokens.agentId, agentId), isNull(widgetTokens.revokedAt)),
   });
 
+  const tokens: TokenMetadata[] = existingTokens.map((token) => ({
+    id: token.id,
+    name: token.name ?? null,
+    tokenPreview: toTokenPreview(token.tokenPrefix),
+    createdAt: token.createdAt,
+  }));
+
+  let issuedToken: OneTimeTokenSecret | null = null;
   if (tokens.length === 0) {
-    const newToken = `wt_${generateId().replace(/-/g, "")}`;
-    const [created] = await tx
-      .insert(widgetTokens)
-      .values({
-        tenantId,
-        agentId,
-        token: newToken,
-        name: "Default",
-        createdBy: userId,
-      })
-      .returning();
-    tokens = [created];
+    issuedToken = await issueWidgetToken(tx, {
+      tenantId,
+      agentId,
+      userId,
+      name: "Default",
+    });
+    tokens.push({
+      id: issuedToken.id,
+      name: issuedToken.name,
+      tokenPreview: issuedToken.tokenPreview,
+      createdAt: issuedToken.createdAt,
+    });
   }
 
-  return { config, tokens };
+  return {
+    config,
+    tokens,
+    issuedToken: issuedToken
+      ? {
+          token: issuedToken.token,
+          tokenPreview: issuedToken.tokenPreview,
+        }
+      : null,
+  };
 }
 
 export function buildWidgetConfigUpdate(
@@ -412,20 +527,19 @@ export async function getWidgetToken(
   });
 
   if (existingToken) {
-    return existingToken.token;
+    throw new BadRequestError(
+      "Widget tokens are stored hashed and cannot be retrieved. Create a new token instead."
+    );
   }
 
-  const newToken = `wt_${generateId().replace(/-/g, "")}`;
-
-  await tx.insert(widgetTokens).values({
+  const issuedToken = await issueWidgetToken(tx, {
     tenantId,
     agentId,
-    token: newToken,
+    userId,
     name: "Default",
-    createdBy: userId,
   });
 
-  return newToken;
+  return issuedToken.token;
 }
 
 export async function createWidgetToken(
@@ -444,20 +558,12 @@ export async function createWidgetToken(
 ) {
   await loadAgentForTenant(tx, agentId, tenantId);
 
-  const token = `wt_${generateId().replace(/-/g, "")}`;
-
-  const [newToken] = await tx
-    .insert(widgetTokens)
-    .values({
-      tenantId,
-      agentId,
-      token,
-      name: body.name,
-      createdBy: userId,
-    })
-    .returning();
-
-  return newToken;
+  return issueWidgetToken(tx, {
+    tenantId,
+    agentId,
+    userId,
+    name: body.name || "Widget token",
+  });
 }
 
 export async function revokeWidgetToken(
@@ -498,9 +604,17 @@ export async function listChatEndpoints(
 ) {
   await loadAgentForTenant(tx, agentId, tenantId);
 
-  return tx.query.chatEndpointTokens.findMany({
+  const endpoints = await tx.query.chatEndpointTokens.findMany({
     where: and(eq(chatEndpointTokens.agentId, agentId), isNull(chatEndpointTokens.revokedAt)),
   });
+
+  return endpoints.map((endpoint) => ({
+    id: endpoint.id,
+    name: endpoint.name ?? null,
+    tokenPreview: toTokenPreview(endpoint.tokenPrefix),
+    endpointType: endpoint.endpointType,
+    createdAt: endpoint.createdAt,
+  }));
 }
 
 export async function createChatEndpoint(
@@ -519,22 +633,13 @@ export async function createChatEndpoint(
 ) {
   await loadAgentForTenant(tx, agentId, tenantId);
 
-  const prefix = body.endpointType === "hosted" ? "ch_" : "ce_";
-  const token = `${prefix}${generateId().replace(/-/g, "")}`;
-
-  const [newEndpoint] = await tx
-    .insert(chatEndpointTokens)
-    .values({
-      tenantId,
-      agentId,
-      token,
-      name: body.name,
-      endpointType: body.endpointType,
-      createdBy: userId,
-    })
-    .returning();
-
-  return newEndpoint;
+  return issueChatEndpointToken(tx, {
+    tenantId,
+    agentId,
+    userId,
+    name: body.name,
+    endpointType: body.endpointType,
+  });
 }
 
 export async function revokeChatEndpoint(

@@ -10,15 +10,20 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     # For streaming responses
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
-    # TLS (uncomment for production)
-    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Force HTTPS redirect
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    # TLS certificate issuer (requires cert-manager)
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
   ingressClassName: nginx
-  # TLS (uncomment for production)
-  # tls:
-  #   - hosts:
-  #       - grounded.example.com
-  #     secretName: grounded-tls
+  tls:
+    - hosts:
+        - grounded.example.com  # Change to your domain
+      secretName: grounded-tls
   rules:
     - host: grounded.example.com  # Change to your domain
       http:

@@ -5,7 +5,7 @@ services:
     container_name: grounded-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-grounded}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-grounded_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-grounded}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -25,7 +25,7 @@ services:
     container_name: grounded-postgres-vector
     environment:
       POSTGRES_USER: ${VECTOR_DB_USER:-grounded_vectors}
-      POSTGRES_PASSWORD: ${VECTOR_DB_PASSWORD:-grounded_vectors_password}
+      POSTGRES_PASSWORD: ${VECTOR_DB_PASSWORD:?VECTOR_DB_PASSWORD is required}
       POSTGRES_DB: ${VECTOR_DB_NAME:-vectors}
     volumes:
       - postgres_vector_data:/var/lib/postgresql/data
@@ -67,17 +67,17 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgres://${POSTGRES_USER:-grounded}:${POSTGRES_PASSWORD:-grounded_password}@postgres:5432/${POSTGRES_DB:-grounded}
+      DATABASE_URL: postgres://${POSTGRES_USER:-grounded}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-grounded}
       REDIS_URL: redis://redis:6379
       # Vector Database (dimensions are dynamic based on KB embedding model)
       VECTOR_DB_TYPE: ${VECTOR_DB_TYPE:-pgvector}
-      VECTOR_DB_URL: postgres://${VECTOR_DB_USER:-grounded_vectors}:${VECTOR_DB_PASSWORD:-grounded_vectors_password}@postgres-vector:5432/${VECTOR_DB_NAME:-vectors}
+      VECTOR_DB_URL: postgres://${VECTOR_DB_USER:-grounded_vectors}:${VECTOR_DB_PASSWORD}@postgres-vector:5432/${VECTOR_DB_NAME:-vectors}
       # OIDC Authentication (optional)
       OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
       OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-}
-      SESSION_SECRET: ${SESSION_SECRET:-change_me_in_production}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required (32+ characters)}
       # Initial admin (optional - for first-time setup)
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
@@ -117,11 +117,11 @@ services:
     environment:
       NODE_ENV: production
       API_URL: http://api:3000
-      DATABASE_URL: postgres://${POSTGRES_USER:-grounded}:${POSTGRES_PASSWORD:-grounded_password}@postgres:5432/${POSTGRES_DB:-grounded}
+      DATABASE_URL: postgres://${POSTGRES_USER:-grounded}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-grounded}
       REDIS_URL: redis://redis:6379
       # Vector Database (dimensions are dynamic based on KB embedding model)
       VECTOR_DB_TYPE: ${VECTOR_DB_TYPE:-pgvector}
-      VECTOR_DB_URL: postgres://${VECTOR_DB_USER:-grounded_vectors}:${VECTOR_DB_PASSWORD:-grounded_vectors_password}@postgres-vector:5432/${VECTOR_DB_NAME:-vectors}
+      VECTOR_DB_URL: postgres://${VECTOR_DB_USER:-grounded_vectors}:${VECTOR_DB_PASSWORD}@postgres-vector:5432/${VECTOR_DB_NAME:-vectors}
     depends_on:
       postgres:
         condition: service_healthy
@@ -149,7 +149,7 @@ services:
     environment:
       NODE_ENV: production
       API_URL: http://api:3000
-      DATABASE_URL: postgres://${POSTGRES_USER:-grounded}:${POSTGRES_PASSWORD:-grounded_password}@postgres:5432/${POSTGRES_DB:-grounded}
+      DATABASE_URL: postgres://${POSTGRES_USER:-grounded}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-grounded}
       REDIS_URL: redis://redis:6379
       FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
     depends_on:

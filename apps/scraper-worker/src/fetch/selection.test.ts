@@ -1,4 +1,5 @@
 import { describe, test, expect, mock, beforeEach, afterEach } from "bun:test";
+import type { Browser } from "playwright";
 import {
   selectStrategy,
   needsJsRendering,
@@ -292,7 +293,7 @@ describe("selectAndFetch", () => {
       url: "https://example.com",
       fetchMode: "auto",
       sourceConfig: {},
-      browser: {} as any, // Mock browser
+      browser: {} as unknown as Browser, // Mock browser
     };
 
     // We can't easily test the actual fetch without mocking,
@@ -306,7 +307,7 @@ describe("selectAndFetch", () => {
       url: "https://example.com",
       fetchMode: "firecrawl",
       sourceConfig: { firecrawlEnabled: true },
-      browser: {} as any,
+      browser: {} as unknown as Browser,
     };
 
     expect(context.url).toBeDefined();

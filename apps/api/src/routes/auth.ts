@@ -6,7 +6,10 @@ import { getEnv, hashPassword, verifyPassword, validatePassword, validateEmail }
 import * as jose from "jose";
 import { auth, withRequestRLS } from "../middleware/auth";
 import { BadRequestError, UnauthorizedError } from "../middleware/error-handler";
+import { rateLimit } from "../middleware/rate-limit";
 import { auditService, buildAuditContext } from "../services/audit";
+import { LOCAL_JWT_SECRET, LOCAL_JWT_ISSUER, LOCAL_JWT_AUDIENCE } from "../middleware/auth/bearer";
+import { redis } from "@grounded/queue";
 
 export const authRoutes = new Hono();
 
@@ -14,13 +17,9 @@ const OIDC_ISSUER = getEnv("OIDC_ISSUER", "");
 const OIDC_CLIENT_ID = getEnv("OIDC_CLIENT_ID", "");
 const OIDC_REDIRECT_URI = getEnv("OIDC_REDIRECT_URI", "");
 
-// JWT secret for local auth tokens (must be at least 32 bytes for HS256)
-const secretString = getEnv("SESSION_SECRET", "dev-secret-change-in-production-must-be-32-chars-or-more");
-// Pad the secret to ensure it's at least 32 bytes
-const paddedSecret = secretString.padEnd(32, "0");
-const JWT_SECRET = new TextEncoder().encode(paddedSecret);
-const JWT_ISSUER = "grounded-local";
-const JWT_AUDIENCE = "grounded-api";
+const JWT_SECRET = LOCAL_JWT_SECRET;
+const JWT_ISSUER = LOCAL_JWT_ISSUER;
+const JWT_AUDIENCE = LOCAL_JWT_AUDIENCE;
 const JWT_EXPIRES_IN = "7d";
 
 // ============================================================================
@@ -44,7 +43,7 @@ async function generateLocalJWT(userId: string, email: string): Promise<string> 
 // Local Auth - Register
 // ============================================================================
 
-authRoutes.post("/register", async (c) => {
+authRoutes.post("/register", rateLimit({ keyPrefix: "auth:register", limit: 10, windowSeconds: 3600 }), async (c) => {
   const body = await c.req.json();
   const { email, password, name } = body;
 
@@ -116,7 +115,7 @@ authRoutes.post("/register", async (c) => {
 // Local Auth - Login
 // ============================================================================
 
-authRoutes.post("/login", async (c) => {
+authRoutes.post("/login", rateLimit({ keyPrefix: "auth:login", limit: 20, windowSeconds: 300 }), async (c) => {
   const body = await c.req.json();
   const { email, password } = body;
   const baseAuditContext = buildAuditContext({ headers: c.req.raw.headers });
@@ -222,7 +221,7 @@ authRoutes.post("/login", async (c) => {
 // Local Auth - Change Password
 // ============================================================================
 
-authRoutes.post("/change-password", auth(), async (c) => {
+authRoutes.post("/change-password", auth(), rateLimit({ keyPrefix: "auth:change-pw", limit: 5, windowSeconds: 300 }), async (c) => {
   const authContext = c.get("auth");
   const body = await c.req.json();
   const { currentPassword, newPassword } = body;
@@ -276,11 +275,13 @@ authRoutes.post("/change-password", auth(), async (c) => {
 // OIDC Login
 // ============================================================================
 
-authRoutes.get("/oidc/login", async (c) => {
+authRoutes.get("/oidc/login", rateLimit({ keyPrefix: "auth:oidc", limit: 30, windowSeconds: 300 }), async (c) => {
   const state = crypto.randomUUID();
   const nonce = crypto.randomUUID();
 
-  // In production, store state/nonce in a secure session
+  // Store state/nonce in Redis with 10-minute TTL for CSRF protection
+  await redis.set(`oidc:state:${state}`, JSON.stringify({ nonce }), "EX", 600);
+
   const authUrl = new URL(`${OIDC_ISSUER}/authorize`);
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("client_id", OIDC_CLIENT_ID);
@@ -296,7 +297,7 @@ authRoutes.get("/oidc/login", async (c) => {
 // OIDC Callback
 // ============================================================================
 
-authRoutes.get("/oidc/callback", async (c) => {
+authRoutes.get("/oidc/callback", rateLimit({ keyPrefix: "auth:oidc-cb", limit: 30, windowSeconds: 300 }), async (c) => {
   const code = c.req.query("code");
   const state = c.req.query("state");
   const error = c.req.query("error");
@@ -308,6 +309,18 @@ authRoutes.get("/oidc/callback", async (c) => {
   if (!code) {
     return c.json({ error: "Missing authorization code" }, 400);
   }
+
+  if (!state) {
+    return c.json({ error: "Missing state parameter" }, 400);
+  }
+
+  // Validate state against stored value (CSRF protection)
+  const storedState = await redis.get(`oidc:state:${state}`);
+  if (!storedState) {
+    return c.json({ error: "Invalid or expired state parameter" }, 400);
+  }
+  // Delete state immediately to prevent replay
+  await redis.del(`oidc:state:${state}`);
 
   // Exchange code for tokens
   const tokenResponse = await fetch(`${OIDC_ISSUER}/oauth/token`, {

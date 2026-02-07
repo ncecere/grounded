@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+import type { Browser } from "playwright";
 
 let fetchWithHttpResult = { html: "<html><body>http</body></html>", title: "HTTP" };
 let fetchWithPlaywrightResult = { html: "<html><body>playwright</body></html>", title: "Playwright" };
@@ -61,7 +62,7 @@ describe("selectAndFetch orchestration", () => {
       url: "https://example.com",
       fetchMode: "firecrawl",
       sourceConfig: {},
-      browser: {} as any,
+      browser: {} as unknown as Browser,
     });
 
     expect(result).toEqual(fetchWithFirecrawlResult);
@@ -75,7 +76,7 @@ describe("selectAndFetch orchestration", () => {
       url: "https://example.com",
       fetchMode: "headless",
       sourceConfig: {},
-      browser: {} as any,
+      browser: {} as unknown as Browser,
     });
 
     expect(result).toEqual(fetchWithPlaywrightResult);
@@ -91,7 +92,7 @@ describe("selectAndFetch orchestration", () => {
       url: "https://example.com",
       fetchMode: "auto",
       sourceConfig: {},
-      browser: {} as any,
+      browser: {} as unknown as Browser,
     });
 
     expect(result).toEqual(fetchWithPlaywrightResult);
@@ -106,7 +107,7 @@ describe("selectAndFetch orchestration", () => {
       url: "https://example.com",
       fetchMode: "auto",
       sourceConfig: {},
-      browser: {} as any,
+      browser: {} as unknown as Browser,
     });
 
     expect(result).toEqual(fetchWithHttpResult);
@@ -121,7 +122,7 @@ describe("selectAndFetch orchestration", () => {
       url: "https://example.com",
       fetchMode: "html",
       sourceConfig: {},
-      browser: {} as any,
+      browser: {} as unknown as Browser,
     });
 
     expect(result).toEqual(fetchWithPlaywrightResult);

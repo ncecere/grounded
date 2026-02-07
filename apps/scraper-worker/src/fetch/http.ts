@@ -7,10 +7,14 @@ import {
   ErrorCode,
 } from "@grounded/shared";
 import { validateContentSize } from "../services/content-validation";
+import { validateUrlForScraping } from "../services/url-validation";
 
 export async function fetchWithHttp(
   url: string
 ): Promise<{ html: string; title: string | null }> {
+  // SSRF protection: validate URL before fetching
+  validateUrlForScraping(url);
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), SCRAPE_TIMEOUT_MS);
 

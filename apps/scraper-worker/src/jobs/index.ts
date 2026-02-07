@@ -39,13 +39,16 @@ import { handlePageFetch } from "./page-fetch";
  */
 export type PageFetchHandler = (data: PageFetchJob, browser: Browser) => Promise<void>;
 
+type BivariantJobHandler<T> = {
+  bivarianceHack(data: T, browser: Browser): Promise<void>;
+}["bivarianceHack"];
+
 /**
  * Generic job handler function signature for registry.
  * The scraper worker only has one job type, but this provides
  * consistency with the ingestion worker pattern.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type JobHandler<T = any> = (data: T, browser: Browser) => Promise<void>;
+export type JobHandler<T = unknown> = BivariantJobHandler<T>;
 
 /**
  * Job handler registry entry with metadata.

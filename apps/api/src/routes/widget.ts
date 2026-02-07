@@ -1,13 +1,12 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { withRLSContext } from "@grounded/db";
-import { agentWidgetConfigs } from "@grounded/db/schema";
-import { eq } from "drizzle-orm";
 import {
   validateWidgetToken,
   handleWidgetChatStream,
 } from "../services/widget-chat-helpers";
 import { widgetChatSchema } from "../modules/widget/schema";
+import { enforcePublicAccessPolicy } from "../services/public-access-policy";
 
 export const widgetRoutes = new Hono();
 
@@ -19,11 +18,14 @@ widgetRoutes.get("/:token/config", async (c) => {
   const token = c.req.param("token");
 
   return withRLSContext({ isSystemAdmin: true }, async (tx) => {
-    const { agent } = await validateWidgetToken(tx, token);
-
-    const widgetConfig = await tx.query.agentWidgetConfigs.findFirst({
-      where: eq(agentWidgetConfigs.agentId, agent.id),
+    const { agent, widgetConfig } = await validateWidgetToken(tx, token);
+    const accessDenied = await enforcePublicAccessPolicy(c, {
+      isPublic: widgetConfig?.isPublic ?? true,
+      allowedDomains: widgetConfig?.allowedDomains ?? [],
+      oidcRequired: widgetConfig?.oidcRequired ?? false,
+      requiredTenantId: agent.tenantId,
     });
+    if (accessDenied) return accessDenied;
 
     return c.json({
       agentName: agent.name,
