@@ -7,6 +7,8 @@ import crypto from "crypto";
 import { eq, and, isNull } from "drizzle-orm";
 import { auth, requireRole, requireTenant, requireSystemAdmin, withRequestRLS } from "../middleware/auth";
 import { NotFoundError, BadRequestError, ConflictError } from "../middleware/error-handler";
+import { cascadeSoftDeleteTenant } from "../services/source-helpers";
+import { scheduleDeletionJob } from "../services/hard-delete-scheduler";
 import {
   updateAlertSettingsSchema,
   validateAdditionalEmails,
@@ -197,6 +199,14 @@ tenantRoutes.delete(
         .set({ deletedAt: new Date() })
         .where(and(eq(tenants.id, tenantId), isNull(tenants.deletedAt)))
         .returning();
+
+      if (!deleted) {
+        return null;
+      }
+
+      // Cascade soft-delete: KBs, sources, chunks, uploads, vectors, agents, memberships
+      await cascadeSoftDeleteTenant(tx, tenantId);
+
       return deleted;
     });
 
@@ -204,8 +214,12 @@ tenantRoutes.delete(
       throw new NotFoundError("Tenant");
     }
 
-    // Schedule hard delete (would queue a deletion job here)
-    // await addHardDeleteJob({ tenantId, objectType: "tenant", objectId: tenantId });
+    // Schedule hard-delete (non-blocking)
+    scheduleDeletionJob({
+      tenantId: tenantId,
+      objectType: "tenant",
+      objectId: tenantId,
+    });
 
     return c.json({ message: "Tenant scheduled for deletion" });
   }

@@ -1,8 +1,10 @@
 import { eq, and, isNull, sql } from "drizzle-orm";
-import { sources, sourceRuns, kbChunks } from "@grounded/db/schema";
+import { sources, sourceRuns, kbChunks, uploads, knowledgeBases, agents, agentKbs, tenantMemberships, tenantKbSubscriptions } from "@grounded/db/schema";
 import type { Database } from "@grounded/db";
 import type { SourceConfig } from "@grounded/shared";
 import { addSourceRunStartJob } from "@grounded/queue";
+import { getVectorStore } from "@grounded/vector-store";
+import { log } from "@grounded/logger";
 import type { UpdateSource } from "../modules/sources/schema";
 
 export {
@@ -89,22 +91,18 @@ export async function calculateSourceStats(
   tx: Database,
   sourceId: string
 ): Promise<SourceStats> {
-  // Get total unique page count across all runs for this source
-  // Count distinct normalized URLs that succeeded
-  const pageResult = await tx.execute(sql`
-    SELECT COUNT(DISTINCT srp.normalized_url)::int as count
-    FROM source_run_pages srp
-    JOIN source_runs sr ON sr.id = srp.source_run_id
-    WHERE sr.source_id = ${sourceId}
-      AND srp.status = 'succeeded'
-  `);
-  // db.execute returns array directly or { rows: [...] } depending on driver
-  const pageRows = Array.isArray(pageResult)
-    ? pageResult
-    : (pageResult as { rows?: unknown[] }).rows || [];
-  const pageCount = (pageRows[0] as { count?: number })?.count || 0;
+  // Count distinct normalizedUrls from non-deleted chunks (reflects current state)
+  const pageResult = await tx
+    .select({ count: sql<number>`count(distinct ${kbChunks.normalizedUrl})::int` })
+    .from(kbChunks)
+    .where(and(
+      eq(kbChunks.sourceId, sourceId),
+      isNull(kbChunks.deletedAt),
+      sql`${kbChunks.normalizedUrl} IS NOT NULL`
+    ));
+  const pageCount = pageResult[0]?.count || 0;
 
-  // Get chunk count for this source
+  // Get chunk count for this source (only non-deleted chunks)
   const chunkResult = await tx
     .select({ count: sql<number>`count(*)::int` })
     .from(kbChunks)
@@ -115,24 +113,164 @@ export async function calculateSourceStats(
 }
 
 // ============================================================================
-// Cascade Delete
+// Cascade Soft Delete
 // ============================================================================
 
 /**
- * Soft-delete all chunks associated with a source.
- * Used when soft-deleting a source.
+ * Soft-delete all data associated with a source:
+ *   - kb_chunks (soft-delete)
+ *   - uploads (soft-delete)
+ *   - vectors in pgvector (hard-delete — so they can't answer questions)
  *
- * @param tx - Database transaction (withRequestRLS context)
- * @param sourceId - The source ID whose chunks should be deleted
+ * Does NOT soft-delete the source row itself (caller handles that).
  */
-export async function cascadeSoftDeleteSourceChunks(
+export async function cascadeSoftDeleteSource(
   tx: Database,
   sourceId: string
 ): Promise<void> {
+  const now = new Date();
+
+  // Soft-delete chunks
   await tx
     .update(kbChunks)
-    .set({ deletedAt: new Date() })
+    .set({ deletedAt: now })
     .where(and(eq(kbChunks.sourceId, sourceId), isNull(kbChunks.deletedAt)));
+
+  // Soft-delete uploads
+  await tx
+    .update(uploads)
+    .set({ deletedAt: now })
+    .where(and(eq(uploads.sourceId, sourceId), isNull(uploads.deletedAt)));
+
+  // Hard-delete vectors so they can't be used in search
+  try {
+    const vectorStore = getVectorStore();
+    if (vectorStore) {
+      await vectorStore.deleteByMetadata({ sourceId });
+    }
+  } catch (err) {
+    log.error("api", "Failed to delete vectors for source", {
+      sourceId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/**
+ * Backward-compatible alias for cascadeSoftDeleteSource.
+ * @deprecated Use cascadeSoftDeleteSource instead
+ */
+export const cascadeSoftDeleteSourceChunks = cascadeSoftDeleteSource;
+
+/**
+ * Soft-delete all data associated with a knowledge base:
+ *   - All sources + their chunks/uploads/vectors (via cascadeSoftDeleteSource)
+ *   - The sources themselves
+ *   - Tenant KB subscriptions
+ *
+ * Does NOT soft-delete the KB row itself (caller handles that).
+ */
+export async function cascadeSoftDeleteKb(
+  tx: Database,
+  kbId: string
+): Promise<void> {
+  const now = new Date();
+
+  // Find all non-deleted sources for this KB
+  const kbSources = await tx.query.sources.findMany({
+    where: and(eq(sources.kbId, kbId), isNull(sources.deletedAt)),
+    columns: { id: true },
+  });
+
+  // Cascade delete each source's data
+  for (const source of kbSources) {
+    await cascadeSoftDeleteSource(tx, source.id);
+  }
+
+  // Soft-delete the sources themselves
+  if (kbSources.length > 0) {
+    await tx
+      .update(sources)
+      .set({ deletedAt: now })
+      .where(and(eq(sources.kbId, kbId), isNull(sources.deletedAt)));
+  }
+
+  // Soft-delete tenant KB subscriptions
+  await tx
+    .update(tenantKbSubscriptions)
+    .set({ deletedAt: now })
+    .where(and(eq(tenantKbSubscriptions.kbId, kbId), isNull(tenantKbSubscriptions.deletedAt)));
+}
+
+/**
+ * Soft-delete all data associated with a tenant:
+ *   - All KBs + their sources/chunks/uploads/vectors (via cascadeSoftDeleteKb)
+ *   - The KBs themselves
+ *   - All agents + agent_kbs
+ *   - All memberships
+ *   - All vectors for the tenant (bulk cleanup in case any were missed)
+ *
+ * Does NOT soft-delete the tenant row itself (caller handles that).
+ */
+export async function cascadeSoftDeleteTenant(
+  tx: Database,
+  tenantId: string
+): Promise<void> {
+  const now = new Date();
+
+  // Find all non-deleted KBs for this tenant
+  const tenantKbs = await tx.query.knowledgeBases.findMany({
+    where: and(eq(knowledgeBases.tenantId, tenantId), isNull(knowledgeBases.deletedAt)),
+    columns: { id: true },
+  });
+
+  // Cascade delete each KB's data
+  for (const kb of tenantKbs) {
+    await cascadeSoftDeleteKb(tx, kb.id);
+  }
+
+  // Soft-delete the KBs themselves
+  if (tenantKbs.length > 0) {
+    await tx
+      .update(knowledgeBases)
+      .set({ deletedAt: now })
+      .where(and(eq(knowledgeBases.tenantId, tenantId), isNull(knowledgeBases.deletedAt)));
+  }
+
+  // Soft-delete agents and agent_kbs
+  await tx
+    .update(agentKbs)
+    .set({ deletedAt: now })
+    .where(
+      and(
+        sql`${agentKbs.agentId} IN (SELECT id FROM agents WHERE tenant_id = ${tenantId} AND deleted_at IS NULL)`,
+        isNull(agentKbs.deletedAt)
+      )
+    );
+
+  await tx
+    .update(agents)
+    .set({ deletedAt: now })
+    .where(and(eq(agents.tenantId, tenantId), isNull(agents.deletedAt)));
+
+  // Soft-delete memberships
+  await tx
+    .update(tenantMemberships)
+    .set({ deletedAt: now })
+    .where(and(eq(tenantMemberships.tenantId, tenantId), isNull(tenantMemberships.deletedAt)));
+
+  // Bulk-delete all vectors for tenant (catches anything missed)
+  try {
+    const vectorStore = getVectorStore();
+    if (vectorStore) {
+      await vectorStore.deleteByMetadata({ tenantId });
+    }
+  } catch (err) {
+    log.error("api", "Failed to delete vectors for tenant", {
+      tenantId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 // ============================================================================

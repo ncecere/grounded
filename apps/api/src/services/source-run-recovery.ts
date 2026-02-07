@@ -1,6 +1,6 @@
 import { eq, and, lt, inArray } from "drizzle-orm";
 import { db } from "@grounded/db";
-import { sourceRuns } from "@grounded/db/schema";
+import { sourceRuns, uploads } from "@grounded/db/schema";
 import { redis, removeAllJobsForRun, unregisterRun } from "@grounded/queue";
 import { createCrawlState } from "@grounded/crawl-state";
 import { log } from "@grounded/logger";
@@ -95,6 +95,12 @@ export async function recoverStuckSourceRuns(): Promise<void> {
               eq(sourceRuns.status, "running")
             )
           );
+
+        // 1b. Mark associated uploads as failed
+        await db
+          .update(uploads)
+          .set({ status: "failed" })
+          .where(eq(uploads.sourceRunId, run.id));
 
         // 2. Clean up BullMQ jobs and fairness scheduler (async, best-effort)
         try {

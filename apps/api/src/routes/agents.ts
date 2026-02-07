@@ -13,6 +13,7 @@ import {
   createWidgetTokenSchema,
 } from "../modules/agents/schema";
 import { invalidateAgentConfigCache } from "../services/cache";
+import { scheduleDeletionJob } from "../services/hard-delete-scheduler";
 
 export const agentRoutes = new Hono();
 
@@ -160,6 +161,13 @@ agentRoutes.delete(
 
     // Invalidate agent config cache
     await invalidateAgentConfigCache(authContext.tenantId!, agentId);
+
+    // Schedule hard-delete after retention period
+    await scheduleDeletionJob({
+      tenantId: authContext.tenantId!,
+      objectType: "agent",
+      objectId: agentId,
+    });
 
     // Audit log - agent deleted
     const auditContext = buildAuditContext({ authContext, headers: c.req.raw.headers });

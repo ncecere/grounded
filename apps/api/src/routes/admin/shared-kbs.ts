@@ -19,11 +19,13 @@ import { NotFoundError, BadRequestError } from "../../middleware/error-handler";
 import {
   buildSourceUpdateData,
   calculateSourceStats,
-  cascadeSoftDeleteSourceChunks,
+  cascadeSoftDeleteSource,
+  cascadeSoftDeleteKb,
   findRunningRun,
   createSourceRun,
   queueSourceRunJob,
 } from "../../services/source-helpers";
+import { scheduleDeletionJob } from "../../services/hard-delete-scheduler";
 import {
   createSourceBaseSchema,
   updateSourceSchema,
@@ -273,15 +275,8 @@ adminSharedKbsRoutes.delete("/:kbId", async (c) => {
       .returning();
 
     if (kb) {
-      await tx
-        .update(tenantKbSubscriptions)
-        .set({ deletedAt: new Date() })
-        .where(
-          and(
-            eq(tenantKbSubscriptions.kbId, kbId),
-            isNull(tenantKbSubscriptions.deletedAt)
-          )
-        );
+      // Cascade soft-delete: sources, chunks, uploads, vectors, subscriptions
+      await cascadeSoftDeleteKb(tx, kbId);
     }
 
     return kb;
@@ -290,6 +285,13 @@ adminSharedKbsRoutes.delete("/:kbId", async (c) => {
   if (!kb) {
     throw new NotFoundError("Global knowledge base");
   }
+
+  // Schedule hard-delete (non-blocking, tenantId null for global KBs)
+  scheduleDeletionJob({
+    tenantId: null,
+    objectType: "kb",
+    objectId: kbId,
+  });
 
   return c.json({ message: "Global knowledge base deleted" });
 });
@@ -878,7 +880,8 @@ adminSharedKbsRoutes.delete("/:kbId/sources/:sourceId", async (c) => {
       .returning();
 
     if (source) {
-      await cascadeSoftDeleteSourceChunks(tx, sourceId);
+      // Cascade soft-delete: chunks, uploads, vectors
+      await cascadeSoftDeleteSource(tx, sourceId);
     }
 
     return source;
@@ -887,6 +890,13 @@ adminSharedKbsRoutes.delete("/:kbId/sources/:sourceId", async (c) => {
   if (!source) {
     throw new NotFoundError("Source");
   }
+
+  // Schedule hard-delete (non-blocking, tenantId null for global KBs)
+  scheduleDeletionJob({
+    tenantId: source.tenantId,
+    objectType: "source",
+    objectId: sourceId,
+  });
 
   return c.json({ message: "Source scheduled for deletion" });
 });

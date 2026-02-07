@@ -9,8 +9,11 @@ import {
   agents,
   agentKbs,
   agentWidgetConfigs,
+  agentCapabilities,
+  agentTools,
   retrievalConfigs,
   widgetTokens,
+  chatEndpointTokens,
   deletionJobs,
   tenantMemberships,
   chatEvents,
@@ -19,6 +22,12 @@ import {
   tenantUsage,
   tenantKbSubscriptions,
   uploads,
+  agentTestSuites,
+  testCases,
+  testSuiteRuns,
+  testCaseResults,
+  testRunExperiments,
+  testRunPromptAnalyses,
 } from "@grounded/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { getVectorStore } from "@grounded/vector-store";
@@ -47,16 +56,10 @@ export async function processHardDelete(data: HardDeleteObjectJob): Promise<void
   try {
     switch (objectType) {
       case "kb":
-        if (!tenantId) {
-          throw new Error("Tenant ID is required to delete knowledge base");
-        }
-        await deleteKnowledgeBase(tenantId, objectId);
+        await deleteKnowledgeBase(objectId);
         break;
       case "source":
-        if (!tenantId) {
-          throw new Error("Tenant ID is required to delete source");
-        }
-        await deleteSource(tenantId, objectId);
+        await deleteSource(objectId);
         break;
       case "agent":
         if (!tenantId) {
@@ -106,7 +109,7 @@ export async function processHardDelete(data: HardDeleteObjectJob): Promise<void
   }
 }
 
-async function deleteKnowledgeBase(tenantId: string, kbId: string): Promise<void> {
+async function deleteKnowledgeBase(kbId: string): Promise<void> {
   // Get all sources for this KB
   const kbSources = await db.query.sources.findMany({
     where: eq(sources.kbId, kbId),
@@ -133,8 +136,11 @@ async function deleteKnowledgeBase(tenantId: string, kbId: string): Promise<void
   await db.delete(knowledgeBases).where(eq(knowledgeBases.id, kbId));
 }
 
-async function deleteSource(tenantId: string, sourceId: string): Promise<void> {
+async function deleteSource(sourceId: string): Promise<void> {
   await deleteSourceData(sourceId);
+  // Delete uploads for this source
+  await db.delete(uploads).where(eq(uploads.sourceId, sourceId));
+  // Delete the source
   await db.delete(sources).where(eq(sources.id, sourceId));
 }
 
@@ -174,6 +180,35 @@ async function deleteSourceData(sourceId: string): Promise<void> {
 }
 
 async function deleteAgent(tenantId: string, agentId: string): Promise<void> {
+  // Delete test suite data (results → runs → experiments → analyses → cases → suites)
+  const suites = await db.query.agentTestSuites.findMany({
+    where: eq(agentTestSuites.agentId, agentId),
+  });
+  const suiteIds = suites.map((s) => s.id);
+
+  if (suiteIds.length > 0) {
+    const runs = await db.query.testSuiteRuns.findMany({
+      where: inArray(testSuiteRuns.suiteId, suiteIds),
+    });
+    const runIds = runs.map((r) => r.id);
+
+    if (runIds.length > 0) {
+      await db.delete(testCaseResults).where(inArray(testCaseResults.runId, runIds));
+      await db.delete(testRunPromptAnalyses).where(inArray(testRunPromptAnalyses.runId, runIds));
+    }
+
+    await db.delete(testRunExperiments).where(inArray(testRunExperiments.suiteId, suiteIds));
+    await db.delete(testSuiteRuns).where(inArray(testSuiteRuns.suiteId, suiteIds));
+    await db.delete(testCases).where(inArray(testCases.suiteId, suiteIds));
+    await db.delete(agentTestSuites).where(inArray(agentTestSuites.id, suiteIds));
+  }
+
+  // Delete agent tools
+  await db.delete(agentTools).where(eq(agentTools.agentId, agentId));
+
+  // Delete agent capabilities
+  await db.delete(agentCapabilities).where(eq(agentCapabilities.agentId, agentId));
+
   // Delete agent KBs
   await db.delete(agentKbs).where(eq(agentKbs.agentId, agentId));
 
@@ -186,8 +221,11 @@ async function deleteAgent(tenantId: string, agentId: string): Promise<void> {
   // Delete widget tokens
   await db.delete(widgetTokens).where(eq(widgetTokens.agentId, agentId));
 
-  // Delete chat events (or keep for audit?)
-  // await db.delete(chatEvents).where(eq(chatEvents.agentId, agentId));
+  // Delete chat endpoint tokens
+  await db.delete(chatEndpointTokens).where(eq(chatEndpointTokens.agentId, agentId));
+
+  // Delete chat events for this agent
+  await db.delete(chatEvents).where(eq(chatEvents.agentId, agentId));
 
   // Delete the agent
   await db.delete(agents).where(eq(agents.id, agentId));
@@ -207,7 +245,7 @@ async function deleteTenant(tenantId: string): Promise<void> {
 
   // Delete each KB (vectors already deleted above, but this cleans up other data)
   for (const kb of tenantKbs) {
-    await deleteKnowledgeBase(tenantId, kb.id);
+    await deleteKnowledgeBase(kb.id);
   }
 
   // Get all agents for this tenant

@@ -106,6 +106,7 @@ export const systemSettings = pgTable(
         | "alerts"
         | "workers"
         | "test_suites"
+        | "deletion"
       >(),
     isSecret: boolean("is_secret").default(false).notNull(),
     description: text("description"),

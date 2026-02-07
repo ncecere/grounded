@@ -10,11 +10,12 @@ import { NotFoundError, ForbiddenError } from "../middleware/error-handler";
 import {
   buildSourceUpdateData,
   calculateSourceStats,
-  cascadeSoftDeleteSourceChunks,
+  cascadeSoftDeleteSource,
   findRunningRun,
   createSourceRun,
   queueSourceRunJob,
 } from "../services/source-helpers";
+import { scheduleDeletionJob } from "../services/hard-delete-scheduler";
 import {
   createSourceWithKbIdSchema,
   updateSourceSchema,
@@ -210,10 +211,17 @@ sourceRoutes.delete(
         throw new NotFoundError("Source");
       }
 
-      // Also soft-delete all chunks from this source
-      await cascadeSoftDeleteSourceChunks(tx, sourceId);
+      // Cascade soft-delete: chunks, uploads, vectors
+      await cascadeSoftDeleteSource(tx, sourceId);
 
       return source;
+    });
+
+    // Schedule hard-delete (non-blocking)
+    scheduleDeletionJob({
+      tenantId: authContext.tenantId!,
+      objectType: "source",
+      objectId: sourceId,
     });
 
     return c.json({ message: "Source scheduled for deletion" });

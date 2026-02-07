@@ -7,6 +7,8 @@ import { SourceRunStage } from "@grounded/shared";
 import { auth, requireRole, requireTenant, withRequestRLS } from "../middleware/auth";
 import { NotFoundError, QuotaExceededError, BadRequestError } from "../middleware/error-handler";
 import { SUPPORTED_MIME_TYPES, EXTENSION_TO_MIME, extractTextFromUpload } from "../services/upload-helpers";
+import { getVectorStore } from "@grounded/vector-store";
+import { log } from "@grounded/logger";
 
 export const uploadRoutes = new Hono();
 
@@ -377,6 +379,19 @@ uploadRoutes.delete("/:uploadId", auth(), requireTenant(), requireRole("owner", 
     }
 
     const now = new Date();
+    const urlPattern = 'upload://' + uploadId + '/%';
+
+    // Query chunk IDs before soft-deleting (needed for vector cleanup)
+    const chunksToDelete = await tx
+      .select({ id: kbChunks.id })
+      .from(kbChunks)
+      .where(
+        and(
+          eq(kbChunks.sourceId, upload.sourceId),
+          isNull(kbChunks.deletedAt),
+          sql`${kbChunks.normalizedUrl} LIKE ${urlPattern}`
+        )
+      );
 
     // Soft-delete the upload record
     await tx
@@ -385,18 +400,49 @@ uploadRoutes.delete("/:uploadId", auth(), requireTenant(), requireRole("owner", 
       .where(eq(uploads.id, uploadId));
 
     // Soft-delete associated chunks by normalizedUrl pattern
-    // Upload chunks have normalizedUrl like "upload://{uploadId}/{filename}"
-    await tx
-      .update(kbChunks)
-      .set({ deletedAt: now })
-      .where(
-        and(
-          eq(kbChunks.sourceId, upload.sourceId),
-          isNull(kbChunks.deletedAt),
-          sql`${kbChunks.normalizedUrl} LIKE ${'upload://' + uploadId + '/%'}`
-        )
-      );
+    if (chunksToDelete.length > 0) {
+      await tx
+        .update(kbChunks)
+        .set({ deletedAt: now })
+        .where(
+          and(
+            eq(kbChunks.sourceId, upload.sourceId),
+            isNull(kbChunks.deletedAt),
+            sql`${kbChunks.normalizedUrl} LIKE ${urlPattern}`
+          )
+        );
+    }
   });
+
+  // Delete vectors outside the transaction (vector store is a separate DB)
+  // Use chunk IDs to delete only vectors belonging to this upload's chunks
+  try {
+    const vectorStore = getVectorStore();
+    if (vectorStore) {
+      // Query vector IDs by the upload's normalizedUrl pattern
+      // The vector store stores chunk IDs as vector IDs
+      const chunkIdsResult = await db
+        .select({ id: kbChunks.id })
+        .from(kbChunks)
+        .where(
+          and(
+            sql`${kbChunks.normalizedUrl} LIKE ${'upload://' + uploadId + '/%'}`,
+            // Include soft-deleted chunks (we just soft-deleted them above)
+            sql`${kbChunks.deletedAt} IS NOT NULL`
+          )
+        );
+
+      const chunkIds = chunkIdsResult.map(r => r.id);
+      if (chunkIds.length > 0) {
+        await vectorStore.delete(chunkIds);
+      }
+    }
+  } catch (err) {
+    log.error("api", "Failed to delete vectors for upload", {
+      uploadId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   return c.json({ message: "Upload deleted" });
 });

@@ -6,6 +6,7 @@ import { seedSystemAdmin } from "./seed-admin";
 import { startTestSuiteScheduler, stopTestSuiteScheduler } from "../services/test-suite-scheduler";
 import { recoverOrphanedLocks, startPeriodicRecovery, stopPeriodicRecovery } from "../services/test-suite-lock-recovery";
 import { recoverStuckSourceRuns, startSourceRunRecovery, stopSourceRunRecovery } from "../services/source-run-recovery";
+import { startHardDeleteScheduler, stopHardDeleteScheduler } from "../services/hard-delete-scheduler";
 
 export async function runStartupTasks(): Promise<void> {
   try {
@@ -24,6 +25,7 @@ export async function runStartupTasks(): Promise<void> {
     startPeriodicRecovery();
     await recoverStuckSourceRuns();
     startSourceRunRecovery();
+    await startHardDeleteScheduler();
     await startTestSuiteScheduler();
   } catch (error) {
     log.error("api", "Startup tasks failed", {
@@ -34,6 +36,7 @@ export async function runStartupTasks(): Promise<void> {
 
 export function stopStartupTasks(): void {
   stopTestSuiteScheduler();
+  stopHardDeleteScheduler();
   stopPeriodicRecovery();
   stopSourceRunRecovery();
 }

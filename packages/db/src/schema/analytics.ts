@@ -121,7 +121,6 @@ export const deletionJobs = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: uuid("tenant_id")
-      .notNull()
       .references(() => tenants.id, { onDelete: "cascade" }),
     objectType: text("object_type").notNull().$type<"kb" | "source" | "agent" | "tenant">(),
     objectId: uuid("object_id").notNull(),

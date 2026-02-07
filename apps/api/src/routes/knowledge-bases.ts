@@ -18,6 +18,8 @@ import {
 import { getAIRegistry } from "@grounded/ai-providers";
 import { addKbReindexJob } from "@grounded/queue";
 import { getKbCountMaps } from "../services/kb-aggregation-helpers";
+import { cascadeSoftDeleteKb } from "../services/source-helpers";
+import { scheduleDeletionJob } from "../services/hard-delete-scheduler";
 import { createKbSchema, updateKbSchema, reindexKbSchema } from "../modules/knowledge-bases/schema";
 
 export const kbRoutes = new Hono();
@@ -425,6 +427,16 @@ kbRoutes.delete(
       if (!kb) {
         throw new NotFoundError("Knowledge base");
       }
+
+      // Cascade soft-delete: sources, chunks, uploads, vectors, subscriptions
+      await cascadeSoftDeleteKb(tx, kbId);
+    });
+
+    // Schedule hard-delete (non-blocking)
+    scheduleDeletionJob({
+      tenantId: authContext.tenantId!,
+      objectType: "kb",
+      objectId: kbId,
     });
 
     return c.json({ message: "Knowledge base scheduled for deletion" });

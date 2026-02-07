@@ -34,7 +34,7 @@ adminSettingsRoutes.use("*", auth(), requireSystemAdmin());
 // Types and Metadata
 // ============================================================================
 
-type SettingCategory = "auth" | "quotas" | "email" | "alerts" | "general" | "workers" | "test_suites";
+type SettingCategory = "auth" | "quotas" | "email" | "alerts" | "general" | "workers" | "test_suites" | "deletion";
 
 interface SettingMeta {
   category: SettingCategory;
@@ -268,6 +268,26 @@ const SETTINGS_METADATA: Record<string, SettingMeta> = {
     isSecret: false,
     description: "Minimum number of recent runs to retain per suite",
     defaultValue: 30,
+  },
+
+  // Deletion / Hard-Delete Settings
+  "deletion.hard_delete_enabled": {
+    category: "deletion",
+    isSecret: false,
+    description: "Enable automatic hard deletion of soft-deleted resources after the retention period",
+    defaultValue: true,
+  },
+  "deletion.hard_delete_delay_days": {
+    category: "deletion",
+    isSecret: false,
+    description: "Days to wait after soft-delete before permanently removing data (0 = immediate)",
+    defaultValue: 30,
+  },
+  "deletion.hard_delete_check_interval_minutes": {
+    category: "deletion",
+    isSecret: false,
+    description: "How often to scan for pending hard deletions (in minutes)",
+    defaultValue: 60,
   },
 };
 
