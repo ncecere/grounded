@@ -30,15 +30,19 @@ export interface NewSourceForm {
   respectRobotsTxt: boolean;
 }
 
+export type UploadProgressMap = Record<string, "pending" | "uploading" | "success" | "error">;
+
 interface CreateSourceModalProps {
   newSource: NewSourceForm;
   setNewSource: (value: NewSourceForm | ((prev: NewSourceForm) => NewSourceForm)) => void;
   onClose: () => void;
   onCreate: (e: React.FormEvent) => void;
-  onUploadFiles: () => void;
+  onUploadFiles: (files: File[]) => void;
   createIsPending: boolean;
   kbId: string;
   uploadFile: (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string }) => Promise<unknown>;
+  uploadProgress: UploadProgressMap;
+  setUploadProgress: React.Dispatch<React.SetStateAction<UploadProgressMap>>;
 }
 
 export function CreateSourceModal({
@@ -48,10 +52,11 @@ export function CreateSourceModal({
   onCreate,
   onUploadFiles,
   createIsPending,
+  uploadProgress,
+  setUploadProgress,
 }: CreateSourceModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, "pending" | "uploading" | "success" | "error">>({});
   const [isDragging, setIsDragging] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -495,7 +500,7 @@ export function CreateSourceModal({
             {newSource.type === "upload" ? (
               <Button
                 type="button"
-                onClick={onUploadFiles}
+                onClick={() => onUploadFiles(selectedFiles)}
                 disabled={selectedFiles.length === 0 || Object.values(uploadProgress).some((s) => s === "uploading")}
               >
                 {Object.values(uploadProgress).some((s) => s === "uploading")

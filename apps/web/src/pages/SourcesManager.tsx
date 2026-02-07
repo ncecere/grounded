@@ -7,7 +7,7 @@ import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import type { Source, SourceRun } from "@/lib/api/types/sources";
 import { getDisplayStatus, getStageLabel, getStatusColor } from "./sources/source-utils";
 import { SourceRunHistory } from "./sources/SourceRunHistory";
-import { CreateSourceModal } from "./sources/CreateSourceModal";
+import { CreateSourceModal, type UploadProgressMap } from "./sources/CreateSourceModal";
 import { EditSourceModal, type EditSourceData } from "./sources/EditSourceModal";
 
 export interface SourcesManagerProps {
@@ -69,8 +69,7 @@ export function SourcesManager({
     <Button onClick={() => setShowCreateModal(true)}>Add Source</Button>
   );
 
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [, setUploadProgress] = useState<Record<string, "pending" | "uploading" | "success" | "error">>({});
+  const [uploadProgress, setUploadProgress] = useState<UploadProgressMap>({});
 
   const showNotification = (type: "success" | "error" | "info", message: string) => {
     setNotification({ type, message });
@@ -175,16 +174,16 @@ export function SourcesManager({
     },
   });
 
-  const handleUploadFiles = async () => {
-    if (selectedFiles.length === 0) return;
+  const handleUploadFiles = async (files: File[]) => {
+    if (files.length === 0) return;
 
     let successCount = 0;
     let errorCount = 0;
     let createdSourceId: string | undefined;
 
-    const sourceName = newSource.name.trim() || selectedFiles[0].name;
+    const sourceName = newSource.name.trim() || files[0].name;
 
-    for (const file of selectedFiles) {
+    for (const file of files) {
       setUploadProgress((prev) => ({ ...prev, [file.name]: "uploading" }));
 
       try {
@@ -211,7 +210,6 @@ export function SourcesManager({
     if (successCount > 0 && errorCount === 0) {
       showNotification("success", `Successfully uploaded ${successCount} file(s)`);
       setTimeout(() => {
-        setSelectedFiles([]);
         setUploadProgress({});
         setShowCreateModal(false);
         setNewSource(defaultNewSource);
@@ -621,12 +619,17 @@ export function SourcesManager({
         <CreateSourceModal
           newSource={newSource}
           setNewSource={setNewSource}
-          onClose={() => setShowCreateModal(false)}
+          onClose={() => {
+            setUploadProgress({});
+            setShowCreateModal(false);
+          }}
           onCreate={handleCreate}
           onUploadFiles={handleUploadFiles}
           createIsPending={createMutation.isPending}
           kbId={kbId}
           uploadFile={uploadFile}
+          uploadProgress={uploadProgress}
+          setUploadProgress={setUploadProgress}
         />
       )}
 
