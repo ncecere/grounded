@@ -1,7 +1,7 @@
 import {
+  ArrowLeft,
   ChevronsUpDown,
   LogOut,
-  Settings,
   Shield,
 } from "lucide-react"
 
@@ -34,8 +34,9 @@ interface NavUserProps {
     avatar?: string
   }
   onLogout: () => void
-  onSettings?: () => void
-  onTenants?: () => void
+  onAdminPanel?: () => void
+  onExitAdminMode?: () => void
+  isAdminMode?: boolean
 }
 
 function getInitials(email: string): string {
@@ -46,7 +47,7 @@ function getInitials(email: string): string {
   return email.slice(0, 2).toUpperCase()
 }
 
-export function NavUser({ user, onLogout, onSettings, onTenants }: NavUserProps) {
+export function NavUser({ user, onLogout, onAdminPanel, onExitAdminMode, isAdminMode }: NavUserProps) {
   const { isMobile } = useSidebar()
 
   return (
@@ -99,17 +100,18 @@ export function NavUser({ user, onLogout, onSettings, onTenants }: NavUserProps)
             {user.isSystemAdmin && (
               <>
                 <DropdownMenuGroup>
-                  {onTenants && (
-                    <DropdownMenuItem onClick={onTenants}>
-                      <Shield className="mr-2 h-4 w-4" />
-                      Manage Tenants
+                  {isAdminMode && onExitAdminMode ? (
+                    <DropdownMenuItem onClick={onExitAdminMode}>
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back to Workspace
                     </DropdownMenuItem>
-                  )}
-                  {onSettings && (
-                    <DropdownMenuItem onClick={onSettings}>
-                      <Settings className="mr-2 h-4 w-4" />
-                      System Settings
-                    </DropdownMenuItem>
+                  ) : (
+                    onAdminPanel && (
+                      <DropdownMenuItem onClick={onAdminPanel}>
+                        <Shield className="mr-2 h-4 w-4" />
+                        Admin Panel
+                      </DropdownMenuItem>
+                    )
                   )}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />

@@ -9,6 +9,7 @@ import {
   Share2,
   LayoutDashboard,
   ClipboardList,
+  ArrowLeft,
 } from "lucide-react"
 
 import { canAccessPage, pageRegistryById, type PageId, type PageRegistryEntry } from "@/app/page-registry"
@@ -22,6 +23,11 @@ import {
   SidebarHeader,
   SidebarRail,
   SidebarSeparator,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
 } from "@/components/ui/sidebar"
 import type { UserTenant } from "@/lib/api"
 
@@ -81,6 +87,9 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   tenants?: UserTenant[]
   currentTenant?: UserTenant | null
   onTenantChange?: (tenant: UserTenant) => void
+  isAdminMode?: boolean
+  onEnterAdminMode?: () => void
+  onExitAdminMode?: () => void
 }
 
 export function AppSidebar({
@@ -91,6 +100,9 @@ export function AppSidebar({
   tenants = [],
   currentTenant,
   onTenantChange,
+  isAdminMode = false,
+  onEnterAdminMode,
+  onExitAdminMode,
   ...props
 }: AppSidebarProps) {
   const hasTenant = tenants.length > 0 && currentTenant
@@ -134,12 +146,29 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        {hasTenant && onTenantChange ? (
+        {isAdminMode ? (
+          // Admin mode: show Grounded / Admin Panel header
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <img
+              src="/grounded-logo.png"
+              alt="Grounded"
+              className="size-8 rounded-lg"
+            />
+            <div className="grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-semibold">Grounded</span>
+              <span className="truncate text-xs text-muted-foreground">Admin Panel</span>
+            </div>
+          </div>
+        ) : hasTenant && onTenantChange ? (
           <TenantSwitcher
             tenants={tenants}
             currentTenant={currentTenant}
             onTenantChange={onTenantChange}
-            onCreateTenant={user.isSystemAdmin ? () => onNavigate("tenants") : undefined}
+            onCreateTenant={user.isSystemAdmin ? () => {
+              onEnterAdminMode?.();
+              // After entering admin mode, navigate to tenants page
+              onNavigate("tenants");
+            } : undefined}
             isAdmin={user.isSystemAdmin}
           />
         ) : (
@@ -157,21 +186,44 @@ export function AppSidebar({
         )}
       </SidebarHeader>
       <SidebarContent>
-        {mainNavItems.length > 0 && (
-          <NavMain
-            items={mainNavItems}
-            onNavigate={(id) => onNavigate(id as Page)}
-            label="Workspace"
-          />
-        )}
-        {adminNavItems.length > 0 && (
+        {isAdminMode ? (
+          // Admin mode: show Back to Workspace + admin nav only
           <>
-            {mainNavItems.length > 0 && <SidebarSeparator />}
-            <NavMain
-              items={adminNavItems}
-              onNavigate={(id) => onNavigate(id as Page)}
-              label="Administration"
-            />
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={onExitAdminMode}
+                      tooltip="Back to Workspace"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <ArrowLeft />
+                      <span>Back to Workspace</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarSeparator />
+            {adminNavItems.length > 0 && (
+              <NavMain
+                items={adminNavItems}
+                onNavigate={(id) => onNavigate(id as Page)}
+                label="Administration"
+              />
+            )}
+          </>
+        ) : (
+          // Workspace mode: show workspace nav only
+          <>
+            {mainNavItems.length > 0 && (
+              <NavMain
+                items={mainNavItems}
+                onNavigate={(id) => onNavigate(id as Page)}
+                label="Workspace"
+              />
+            )}
           </>
         )}
       </SidebarContent>
@@ -179,8 +231,9 @@ export function AppSidebar({
         <NavUser
           user={user}
           onLogout={onLogout}
-          onSettings={user.isSystemAdmin ? () => onNavigate("settings") : undefined}
-          onTenants={user.isSystemAdmin ? () => onNavigate("tenants") : undefined}
+          isAdminMode={isAdminMode}
+          onAdminPanel={user.isSystemAdmin ? onEnterAdminMode : undefined}
+          onExitAdminMode={user.isSystemAdmin ? onExitAdminMode : undefined}
         />
       </SidebarFooter>
       <SidebarRail />

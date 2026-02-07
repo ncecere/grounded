@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import type { UserTenant } from "./lib/api";
 import { AppSidebar, type Page } from "./components/app-sidebar";
 import {
@@ -13,7 +13,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "./components/ui/breadcrumb";
-import { Building2, AlertTriangle } from "lucide-react";
+import { Building2, AlertTriangle, Shield } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { canAccessPage, pageRegistryById, type PageId } from "./app/page-registry";
 import { useAppState, useAuth, useTenant } from "./app/providers";
@@ -81,6 +81,7 @@ export default function App() {
     selectedAgentId,
     selectedSharedKbId,
     selectedSuiteId,
+    isAdminMode,
     setCurrentPage,
     setSelectedKbId,
     setSelectedAgentId,
@@ -88,6 +89,8 @@ export default function App() {
     setSelectedSuiteId,
     navigate,
     resetForTenantChange,
+    enterAdminMode,
+    exitAdminMode,
   } = useAppState();
   const { user, isLoading: userLoading, hasToken, refreshUser, logout } = useAuth();
   const {
@@ -98,6 +101,13 @@ export default function App() {
     canManageTenant,
     selectTenant,
   } = useTenant();
+
+  // Auto-enter admin mode for admins with no tenants
+  useEffect(() => {
+    if (user?.isSystemAdmin && !tenantsLoading && tenants.length === 0 && !isAdminMode) {
+      enterAdminMode();
+    }
+  }, [user?.isSystemAdmin, tenantsLoading, tenants.length, isAdminMode, enterAdminMode]);
 
   const handleTenantChange = (tenant: UserTenant) => {
     selectTenant(tenant);
@@ -158,7 +168,42 @@ export default function App() {
     );
   }
 
-  const renderPage = () => {
+  const renderAdminPage = () => {
+    // Admin mode: render admin pages
+    switch (currentPage) {
+      case "dashboard":
+        return <AdminDashboard onNavigate={setCurrentPage} />;
+      case "shared-kbs":
+        return (
+          <AdminSharedKBs
+            onSelectKb={(id) => {
+              setSelectedSharedKbId(id);
+              setCurrentPage("shared-kb-sources");
+            }}
+          />
+        );
+      case "shared-kb-sources":
+        return (
+          <AdminSharedKbSources
+            kbId={selectedSharedKbId!}
+            onBack={() => {
+              setSelectedSharedKbId(null);
+              setCurrentPage("shared-kbs");
+            }}
+          />
+        );
+      default: {
+        const registryPage = renderRegistryPage(currentPage);
+        if (registryPage) {
+          return registryPage;
+        }
+        // Fallback to dashboard if we're on an unrecognized admin page
+        return <AdminDashboard onNavigate={setCurrentPage} />;
+      }
+    }
+  };
+
+  const renderWorkspacePage = () => {
     // No tenant state for non-admin users
     if (tenants.length === 0 && !user.isSystemAdmin) {
       return (
@@ -176,32 +221,8 @@ export default function App() {
       );
     }
 
-    // No tenant state for admin users - prompt to create
+    // No tenant state for admin users - prompt to go to admin panel
     if (tenants.length === 0 && user.isSystemAdmin) {
-      if (currentPage === "dashboard") return <AdminDashboard onNavigate={setCurrentPage} />;
-      if (currentPage === "shared-kbs") return (
-        <AdminSharedKBs
-          onSelectKb={(id) => {
-            setSelectedSharedKbId(id);
-            setCurrentPage("shared-kb-sources");
-          }}
-        />
-      );
-      if (currentPage === "shared-kb-sources") return (
-        <AdminSharedKbSources
-          kbId={selectedSharedKbId!}
-          onBack={() => {
-            setSelectedSharedKbId(null);
-            setCurrentPage("shared-kbs");
-          }}
-        />
-      );
-
-      const registryPage = renderRegistryPage(currentPage);
-      if (registryPage) {
-        return registryPage;
-      }
-
       return (
         <div className="flex items-center justify-center h-full">
           <div className="text-center max-w-md">
@@ -210,17 +231,18 @@ export default function App() {
             </div>
             <h2 className="text-xl font-semibold mb-2">No Tenants Yet</h2>
             <p className="text-muted-foreground mb-6">
-              Get started by creating your first tenant.
+              Get started by creating your first tenant in the Admin Panel.
             </p>
-            <Button onClick={() => setCurrentPage("tenants")}>
-              Go to Tenants
+            <Button onClick={enterAdminMode}>
+              <Shield className="mr-2 h-4 w-4" />
+              Open Admin Panel
             </Button>
           </div>
         </div>
       );
     }
 
-    // Normal page rendering
+    // Normal workspace page rendering
     switch (currentPage) {
       case "kbs":
         return (
@@ -303,27 +325,6 @@ export default function App() {
             }}
           />
         );
-      case "dashboard":
-        return <AdminDashboard onNavigate={setCurrentPage} />;
-      case "shared-kbs":
-        return (
-          <AdminSharedKBs
-            onSelectKb={(id) => {
-              setSelectedSharedKbId(id);
-              setCurrentPage("shared-kb-sources");
-            }}
-          />
-        );
-      case "shared-kb-sources":
-        return (
-          <AdminSharedKbSources
-            kbId={selectedSharedKbId!}
-            onBack={() => {
-              setSelectedSharedKbId(null);
-              setCurrentPage("shared-kbs");
-            }}
-          />
-        );
       default: {
         const registryPage = renderRegistryPage(currentPage);
         if (registryPage) {
@@ -333,6 +334,13 @@ export default function App() {
         return <KnowledgeBases onSelectKb={() => {}} />;
       }
     }
+  };
+
+  const renderPage = () => {
+    if (isAdminMode && user.isSystemAdmin) {
+      return renderAdminPage();
+    }
+    return renderWorkspacePage();
   };
 
   const currentEntry = pageRegistryById[currentPage as PageId];
@@ -347,6 +355,9 @@ export default function App() {
           tenants={tenants}
           currentTenant={currentTenant}
           onTenantChange={handleTenantChange}
+          isAdminMode={isAdminMode}
+          onEnterAdminMode={enterAdminMode}
+          onExitAdminMode={exitAdminMode}
         />
       <SidebarInset className="overflow-hidden">
         {currentPage === "chat" ? (

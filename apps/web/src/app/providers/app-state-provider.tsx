@@ -14,6 +14,7 @@ type AppStateContextValue = {
   selectedAgentId: string | null;
   selectedSharedKbId: string | null;
   selectedSuiteId: string | null;
+  isAdminMode: boolean;
   setCurrentPage: (page: Page) => void;
   setSelectedKbId: (id: string | null) => void;
   setSelectedAgentId: (id: string | null) => void;
@@ -22,6 +23,8 @@ type AppStateContextValue = {
   resetSelections: () => void;
   navigate: (page: Page) => void;
   resetForTenantChange: () => void;
+  enterAdminMode: () => void;
+  exitAdminMode: () => void;
 };
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
@@ -32,6 +35,7 @@ export function AppStateProvider({ children }: PropsWithChildren) {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [selectedSharedKbId, setSelectedSharedKbId] = useState<string | null>(null);
   const [selectedSuiteId, setSelectedSuiteId] = useState<string | null>(null);
+  const [isAdminMode, setIsAdminMode] = useState(false);
 
   const resetSelections = useCallback(() => {
     setSelectedKbId(null);
@@ -53,6 +57,18 @@ export function AppStateProvider({ children }: PropsWithChildren) {
     setCurrentPage("kbs");
   }, [resetSelections]);
 
+  const enterAdminMode = useCallback(() => {
+    setIsAdminMode(true);
+    resetSelections();
+    setCurrentPage("dashboard");
+  }, [resetSelections]);
+
+  const exitAdminMode = useCallback(() => {
+    setIsAdminMode(false);
+    resetSelections();
+    setCurrentPage("kbs");
+  }, [resetSelections]);
+
   const value = useMemo<AppStateContextValue>(
     () => ({
       currentPage,
@@ -60,6 +76,7 @@ export function AppStateProvider({ children }: PropsWithChildren) {
       selectedAgentId,
       selectedSharedKbId,
       selectedSuiteId,
+      isAdminMode,
       setCurrentPage,
       setSelectedKbId,
       setSelectedAgentId,
@@ -68,6 +85,8 @@ export function AppStateProvider({ children }: PropsWithChildren) {
       resetSelections,
       navigate,
       resetForTenantChange,
+      enterAdminMode,
+      exitAdminMode,
     }),
     [
       currentPage,
@@ -75,9 +94,12 @@ export function AppStateProvider({ children }: PropsWithChildren) {
       selectedAgentId,
       selectedSharedKbId,
       selectedSuiteId,
+      isAdminMode,
       resetSelections,
       navigate,
       resetForTenantChange,
+      enterAdminMode,
+      exitAdminMode,
     ]
   );
 

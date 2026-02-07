@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Separate Admin Panel**: System admins now operate in normal workspace mode by default. A dedicated "Admin Panel" mode is toggled via the avatar menu, replacing the previous mixed sidebar that showed both workspace and administration items together.
+  - New `isAdminMode` state in `AppStateProvider` with `enterAdminMode()` / `exitAdminMode()` actions
+  - Admin mode shows dedicated sidebar with "Back to Workspace" button and administration-only navigation
+  - Workspace mode shows tenant switcher and workspace-only navigation (no admin items)
+  - Avatar menu shows "Admin Panel" link for system admins in workspace mode, "Back to Workspace" in admin mode
+  - Auto-enters admin mode when a system admin has no tenant memberships
+
 ## [0.6.0] - 2026-02-06
 
 ### Added
