@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { html } from "hono/html";
+import { html, raw } from "hono/html";
 import { withRLSContext, type Database } from "@grounded/db";
 import {
   chatEndpointTokens,
@@ -277,7 +277,7 @@ chatEndpointRoutes.get("/:token", async (c) => {
       <div id="grounded-chat-root"></div>
       <script src="/published-chat.js?v=${Date.now()}"></script>
       <script nonce="${nonce}">
-        const chatConfig = ${inlineConfig};
+        const chatConfig = ${raw(inlineConfig)};
         groundedChat('init', chatConfig);
       </script>
     </body>
