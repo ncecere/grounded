@@ -13,7 +13,7 @@
  */
 
 import { db } from "@grounded/db";
-import { sourceRuns, sourceRunPages } from "@grounded/db/schema";
+import { sourceRuns, sourceRunPages, uploads } from "@grounded/db/schema";
 import { eq } from "drizzle-orm";
 import { redis, cleanupChunkEmbedStatuses } from "@grounded/queue";
 import { log } from "@grounded/logger";
@@ -106,6 +106,22 @@ export async function processSourceFinalize(data: SourceRunFinalizeJob): Promise
       .where(eq(sourceRuns.id, runId));
 
     log.debug("ingestion-worker", "Run updated successfully", { runId, status: finalStatus });
+
+    // Update upload records linked to this run
+    const uploadStatus = finalStatus === "failed" ? "failed" : "succeeded";
+    const updatedUploads = await db
+      .update(uploads)
+      .set({ status: uploadStatus })
+      .where(eq(uploads.sourceRunId, runId))
+      .returning({ id: uploads.id });
+    
+    if (updatedUploads.length > 0) {
+      log.debug("ingestion-worker", "Updated upload statuses", { 
+        runId, 
+        uploadStatus, 
+        count: updatedUploads.length 
+      });
+    }
   } catch (e) {
     log.error("ingestion-worker", "Error updating run", { 
       runId, 

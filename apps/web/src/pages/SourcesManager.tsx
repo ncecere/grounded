@@ -643,6 +643,8 @@ export function SourcesManager({
           }}
           onEdit={handleEdit}
           updateIsPending={updateMutation.isPending}
+          kbId={kbId}
+          uploadFile={uploadFile}
         />
       )}
     </div>

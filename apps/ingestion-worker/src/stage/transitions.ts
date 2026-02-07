@@ -1,5 +1,5 @@
 import { db } from "@grounded/db";
-import { sourceRuns, sourceRunPages, kbChunks } from "@grounded/db/schema";
+import { sourceRuns, sourceRunPages, kbChunks, uploads } from "@grounded/db/schema";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { log } from "@grounded/logger";
 import { SourceRunStage } from "@grounded/shared";
@@ -195,6 +195,13 @@ async function finalizeRun(runId: string, hasFailures: boolean): Promise<void> {
       },
     })
     .where(eq(sourceRuns.id, runId));
+
+  // Update upload records linked to this run
+  const uploadStatus = finalStatus === "failed" ? "failed" : "succeeded";
+  await db
+    .update(uploads)
+    .set({ status: uploadStatus })
+    .where(eq(uploads.sourceRunId, runId));
 
   // Cleanup Redis state
   await cleanupRunRedisState(runId);

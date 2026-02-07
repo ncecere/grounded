@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Select,
   SelectContent,
@@ -13,7 +14,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, Info } from "lucide-react";
+import { ChevronDown, Info, Trash2, Upload, FileText, Loader2 } from "lucide-react";
+import { sourcesApi, type Upload as UploadRecord } from "@/lib/api/sources";
 
 export interface EditSourceData {
   id: string;
@@ -36,6 +38,8 @@ interface EditSourceModalProps {
   onClose: () => void;
   onEdit: (e: React.FormEvent) => void;
   updateIsPending: boolean;
+  kbId?: string;
+  uploadFile?: (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string }) => Promise<unknown>;
 }
 
 function InfoNote({ children }: { children: React.ReactNode }) {
@@ -47,12 +51,242 @@ function InfoNote({ children }: { children: React.ReactNode }) {
   );
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getStatusBadge(status: string) {
+  switch (status) {
+    case "succeeded":
+      return <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Ready</span>;
+    case "processing":
+      return <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Processing</span>;
+    case "pending":
+      return <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">Pending</span>;
+    case "failed":
+      return <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Failed</span>;
+    default:
+      return <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400">{status}</span>;
+  }
+}
+
+function UploadFileManager({
+  kbId,
+  sourceId,
+  uploadFile,
+}: {
+  kbId: string;
+  sourceId: string;
+  uploadFile: (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string }) => Promise<unknown>;
+}) {
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState<Record<string, "uploading" | "success" | "error">>({});
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const { data: fileUploads, isLoading: uploadsLoading } = useQuery({
+    queryKey: ["uploads", kbId, sourceId],
+    queryFn: () => sourcesApi.listUploads(kbId, sourceId),
+  });
+
+  const { data: fileStats } = useQuery({
+    queryKey: ["file-stats", kbId, sourceId],
+    queryFn: () => sourcesApi.getFileStats(kbId, sourceId),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (uploadId: string) => sourcesApi.deleteUpload(uploadId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["uploads", kbId, sourceId] });
+      queryClient.invalidateQueries({ queryKey: ["file-stats", kbId, sourceId] });
+      queryClient.invalidateQueries({ queryKey: ["source-stats", kbId] });
+      setConfirmDeleteId(null);
+    },
+  });
+
+  const getChunkCount = (upload: UploadRecord): number | null => {
+    if (!fileStats) return null;
+    const url = `upload://${upload.id}/${upload.filename}`;
+    return fileStats[url] ?? 0;
+  };
+
+  const handleFiles = useCallback(async (files: File[]) => {
+    for (const file of files) {
+      setUploadingFiles((prev) => ({ ...prev, [file.name]: "uploading" }));
+      try {
+        await uploadFile(kbId, file, { sourceId });
+        setUploadingFiles((prev) => ({ ...prev, [file.name]: "success" }));
+        // Refresh file lists
+        queryClient.invalidateQueries({ queryKey: ["uploads", kbId, sourceId] });
+        queryClient.invalidateQueries({ queryKey: ["file-stats", kbId, sourceId] });
+        queryClient.invalidateQueries({ queryKey: ["source-stats", kbId] });
+      } catch {
+        setUploadingFiles((prev) => ({ ...prev, [file.name]: "error" }));
+      }
+    }
+    // Clear upload statuses after a delay
+    setTimeout(() => setUploadingFiles({}), 3000);
+  }, [kbId, sourceId, uploadFile, queryClient]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) handleFiles(files);
+  }, [handleFiles]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  return (
+    <div className="space-y-3">
+      {/* Existing files */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          Files ({fileUploads?.length ?? 0})
+        </label>
+
+        {uploadsLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-4 justify-center">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading files...
+          </div>
+        ) : fileUploads && fileUploads.length > 0 ? (
+          <div className="space-y-1.5 max-h-48 overflow-y-auto">
+            {fileUploads.map((upload) => {
+              const chunks = getChunkCount(upload);
+              return (
+                <div
+                  key={upload.id}
+                  className="flex items-center gap-2 p-2 rounded-md border border-border bg-background group"
+                >
+                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{upload.filename}</p>
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <span>{formatFileSize(upload.sizeBytes)}</span>
+                      {chunks !== null && <span>{chunks} chunk{chunks !== 1 ? "s" : ""}</span>}
+                    </div>
+                  </div>
+                  {getStatusBadge(upload.status)}
+                  {confirmDeleteId === upload.id ? (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="h-6 px-2 text-[11px]"
+                        onClick={() => deleteMutation.mutate(upload.id)}
+                        disabled={deleteMutation.isPending}
+                      >
+                        {deleteMutation.isPending ? "..." : "Delete"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[11px]"
+                        onClick={() => setConfirmDeleteId(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(upload.id)}
+                      className="p-1 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                      title="Delete file"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground py-2">No files uploaded yet.</p>
+        )}
+      </div>
+
+      {/* Upload more files */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">Add More Files</label>
+        <div
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onClick={() => fileInputRef.current?.click()}
+          className={`relative flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
+            isDragging
+              ? "border-primary bg-primary/5"
+              : "border-border hover:border-primary/50 hover:bg-muted/50"
+          }`}
+        >
+          <Upload className="h-5 w-5 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            Drop files here or <span className="text-primary font-medium">browse</span>
+          </p>
+          <p className="text-[11px] text-muted-foreground">PDF, TXT, CSV, MD, DOCX, HTML</p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            accept=".pdf,.txt,.csv,.md,.docx,.doc,.html,.htm,.json,.xml"
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              if (files.length > 0) handleFiles(files);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Upload progress for new files */}
+      {Object.keys(uploadingFiles).length > 0 && (
+        <div className="space-y-1">
+          {Object.entries(uploadingFiles).map(([name, status]) => (
+            <div key={name} className="flex items-center gap-2 text-sm">
+              {status === "uploading" && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
+              {status === "success" && (
+                <svg className="h-3.5 w-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+              {status === "error" && (
+                <svg className="h-3.5 w-3.5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+              <span className="truncate text-muted-foreground">{name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function EditSourceModal({
   editSource,
   setEditSource,
   onClose,
   onEdit,
   updateIsPending,
+  kbId,
+  uploadFile,
 }: EditSourceModalProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const isWeb = editSource.type === "web";
@@ -268,8 +502,17 @@ export function EditSourceModal({
                 </>
               )}
 
-              {/* Upload type — name only, show info */}
-              {!isWeb && (
+              {/* Upload type — file management */}
+              {!isWeb && kbId && uploadFile && (
+                <UploadFileManager
+                  kbId={kbId}
+                  sourceId={editSource.id}
+                  uploadFile={uploadFile}
+                />
+              )}
+
+              {/* Upload type — fallback when props missing */}
+              {!isWeb && (!kbId || !uploadFile) && (
                 <div className="rounded-lg border border-border bg-muted/50 p-3">
                   <p className="text-sm text-muted-foreground">
                     Upload sources can only have their name changed. To update content, upload new files to this source.

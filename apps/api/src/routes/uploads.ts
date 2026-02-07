@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { db } from "@grounded/db";
-import { uploads, sources, knowledgeBases, tenantQuotas, tenantUsage, sourceRuns } from "@grounded/db/schema";
+import { uploads, sources, knowledgeBases, tenantQuotas, tenantUsage, sourceRuns, kbChunks } from "@grounded/db/schema";
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { addPageProcessJob, initializeStageProgress } from "@grounded/queue";
 import { SourceRunStage } from "@grounded/shared";
@@ -16,6 +16,7 @@ export const uploadRoutes = new Hono();
 
 uploadRoutes.get("/kb/:kbId", auth(), requireTenant(), async (c) => {
   const kbId = c.req.param("kbId");
+  const sourceId = c.req.query("sourceId");
   const authContext = c.get("auth");
 
   const result = await withRequestRLS(c, async (tx) => {
@@ -32,14 +33,75 @@ uploadRoutes.get("/kb/:kbId", auth(), requireTenant(), async (c) => {
       throw new NotFoundError("Knowledge base");
     }
 
+    const conditions = [eq(uploads.kbId, kbId), isNull(uploads.deletedAt)];
+    if (sourceId) {
+      conditions.push(eq(uploads.sourceId, sourceId));
+    }
+
     const uploadsList = await tx.query.uploads.findMany({
-      where: and(eq(uploads.kbId, kbId), isNull(uploads.deletedAt)),
+      where: and(...conditions),
     });
 
     return uploadsList;
   });
 
   return c.json({ uploads: result });
+});
+
+// ============================================================================
+// File Stats (chunk counts per file)
+// ============================================================================
+
+uploadRoutes.get("/kb/:kbId/file-stats", auth(), requireTenant(), async (c) => {
+  const kbId = c.req.param("kbId");
+  const sourceId = c.req.query("sourceId");
+  const authContext = c.get("auth");
+
+  if (!sourceId) {
+    throw new BadRequestError("sourceId query parameter is required");
+  }
+
+  const result = await withRequestRLS(c, async (tx) => {
+    // Verify KB access
+    const kb = await tx.query.knowledgeBases.findFirst({
+      where: and(
+        eq(knowledgeBases.id, kbId),
+        eq(knowledgeBases.tenantId, authContext.tenantId!),
+        isNull(knowledgeBases.deletedAt)
+      ),
+    });
+
+    if (!kb) {
+      throw new NotFoundError("Knowledge base");
+    }
+
+    // Group chunks by normalizedUrl to get per-file counts
+    const rows = await tx
+      .select({
+        normalizedUrl: kbChunks.normalizedUrl,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(kbChunks)
+      .where(
+        and(
+          eq(kbChunks.sourceId, sourceId),
+          isNull(kbChunks.deletedAt),
+          sql`${kbChunks.normalizedUrl} LIKE 'upload://%'`
+        )
+      )
+      .groupBy(kbChunks.normalizedUrl);
+
+    const stats: Record<string, number> = {};
+    for (const row of rows) {
+      if (row.normalizedUrl) {
+        stats[row.normalizedUrl] = row.count;
+      }
+    }
+
+    return stats;
+  });
+
+  return c.json({ stats: result });
 });
 
 // ============================================================================
@@ -290,4 +352,51 @@ uploadRoutes.post("/kb/:kbId", auth(), requireTenant(), requireRole("owner", "ad
     },
     201
   );
+});
+
+// ============================================================================
+// Delete Upload (soft-delete upload + chunks)
+// ============================================================================
+
+uploadRoutes.delete("/:uploadId", auth(), requireTenant(), requireRole("owner", "admin"), async (c) => {
+  const uploadId = c.req.param("uploadId");
+  const authContext = c.get("auth");
+
+  await withRequestRLS(c, async (tx) => {
+    // Verify upload exists and belongs to tenant
+    const upload = await tx.query.uploads.findFirst({
+      where: and(
+        eq(uploads.id, uploadId),
+        eq(uploads.tenantId, authContext.tenantId!),
+        isNull(uploads.deletedAt)
+      ),
+    });
+
+    if (!upload) {
+      throw new NotFoundError("Upload");
+    }
+
+    const now = new Date();
+
+    // Soft-delete the upload record
+    await tx
+      .update(uploads)
+      .set({ deletedAt: now })
+      .where(eq(uploads.id, uploadId));
+
+    // Soft-delete associated chunks by normalizedUrl pattern
+    // Upload chunks have normalizedUrl like "upload://{uploadId}/{filename}"
+    await tx
+      .update(kbChunks)
+      .set({ deletedAt: now })
+      .where(
+        and(
+          eq(kbChunks.sourceId, upload.sourceId),
+          isNull(kbChunks.deletedAt),
+          sql`${kbChunks.normalizedUrl} LIKE ${'upload://' + uploadId + '/%'}`
+        )
+      );
+  });
+
+  return c.json({ message: "Upload deleted" });
 });

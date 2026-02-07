@@ -1,6 +1,23 @@
 import { API_BASE, request, getToken, getCurrentTenantId } from "./client";
 import type { Source, SourceRun } from "./types/sources";
 
+export interface Upload {
+  id: string;
+  tenantId: string;
+  kbId: string;
+  sourceId: string;
+  sourceRunId: string | null;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  extractedText: string | null;
+  status: "pending" | "processing" | "succeeded" | "failed";
+  error: string | null;
+  createdBy: string;
+  createdAt: string;
+  deletedAt: string | null;
+}
+
 export const sourcesApi = {
   listSources: async (kbId: string) => {
     const res = await request<{ sources: Source[] }>(`/sources/kb/${kbId}`);
@@ -64,6 +81,20 @@ export const sourcesApi = {
   },
 
   // Uploads
+  listUploads: async (kbId: string, sourceId: string) => {
+    const res = await request<{ uploads: Upload[] }>(`/uploads/kb/${kbId}?sourceId=${sourceId}`);
+    return res.uploads;
+  },
+
+  getFileStats: async (kbId: string, sourceId: string) => {
+    const res = await request<{ stats: Record<string, number> }>(`/uploads/kb/${kbId}/file-stats?sourceId=${sourceId}`);
+    return res.stats;
+  },
+
+  deleteUpload: async (uploadId: string) => {
+    await request<void>(`/uploads/${uploadId}`, { method: "DELETE" });
+  },
+
   uploadFile: async (kbId: string, file: File, options?: { sourceName?: string; sourceId?: string }) => {
     const token = getToken();
     const tenantId = getCurrentTenantId();
