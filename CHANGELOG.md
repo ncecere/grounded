@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-02-06
+
+### Added
+
+- **Hybrid Search (RRF)**: Search now combines vector similarity with full-text search (`ts_rank_cd` on `kb_chunks.tsv`) merged via Reciprocal Rank Fusion (k=60). Replaces the naive JS token-overlap reranker in Simple RAG and adds FTS-augmented search to Advanced RAG. New `apps/api/src/services/hybrid-search.ts` module.
+- **Redis Caching Layer**: New `apps/api/src/services/cache.ts` with generic `cacheGet`/`cacheSet`/`cacheInvalidate` helpers.
+  - Agent config cached with 60s TTL, invalidated on 5 mutation routes (update, delete, KBs, retrieval config, widget config)
+  - Widget token validation cached with 120s TTL, with agent + widget config DB queries parallelized
+  - Query embeddings cached with 5min TTL to avoid repeated embedding API calls
+- **HNSW Vector Indexes**: Added `dimensions` column to the `vectors` table and created partial HNSW indexes for 768-dim and 1536-dim vectors. Vector search now includes `dimensions = N` in the WHERE clause for index utilization, changing search from O(n) sequential scan to O(log n) approximate nearest-neighbor.
+- **Source Run Recovery Service**: Periodic scanner (every 60s) finds runs stuck in `"running"` for >15 minutes, marks them `"failed"`, and cleans up BullMQ jobs, fairness scheduler slots, and Redis crawl state.
+
+### Changed
+
+- **Advanced RAG Sub-Query Batching**: Sub-query embeddings are now batch-generated in a single `generateEmbeddings()` call instead of 3 separate `generateEmbedding()` calls, reducing API round-trips.
+- **Browser Pool Improvements**: Fixed race condition with a launch mutex to prevent orphaned browser instances from concurrent BullMQ jobs. Added browser recycling after 500 pages to prevent memory fragmentation.
+- **Domain-Level JS-Rendering Memoization**: Bounded cache (max 500 domains) remembers which domains need Playwright, skipping the wasted HTTP fetch for subsequent pages from the same domain.
+- **DB Connection Pool Tuning**: Explicit pool configuration (`DB_POOL_MAX` env var, default 20) with 30s idle timeout and 10s connect timeout, replacing the default max of 10.
+- **RAG Config Loading**: Parallelized 3 sequential DB queries (agent, retrievalConfig, attachedKbs) into `Promise.all()` in both Simple and Advanced RAG services.
+- **Frontend Bundle Optimization**:
+  - Vite manual chunks for react, radix-ui, markdown, xyflow, and motion
+  - Lazy-loaded 8 admin/settings pages via `React.lazy()` in page-registry
+  - Removed unused `@tanstack/react-router` dependency
+  - Main bundle reduced from 644 KB to 319 KB (50% reduction)
+
+### Fixed
+
+- **Docker Deployment**: Made user/group creation idempotent in Dockerfiles (oven/bun:1 base already has UID/GID 1000). Wired `INTERNAL_API_KEY` env var to API and worker services. Fixed healthcheck from `curl` to `bun -e "fetch(...)"`. Set `PLAYWRIGHT_BROWSERS_PATH` for scraper worker.
+- **Null Byte Crashes**: Added `html.replace(/\x00/g, "")` in content extraction, error message recording, and upload text extraction. PostgreSQL text columns cannot store `\u0000`, which was causing page-process inserts to fail.
+- **Stuck Run Prevention**: Wrapped `recordPageFailure`/`deleteFetchedHtml` in try/catch so `incrementStageProgress` always runs, preventing runs from getting permanently stuck.
+
+### Removed
+
+- **Dead `processors/` Directory**: Removed 10 duplicate job handler files (2,059 lines) from `apps/ingestion-worker/src/processors/`. All handlers had been migrated to `jobs/` but the originals were never deleted.
+- **Duplicate GIN Index**: Dropped `kb_chunks_tsv_idx` (migration 0013 duplicate of `kb_chunks_tsv_gin_idx` from migration 0003).
+
+### Technical
+
+- New migration `0031_drop_duplicate_gin_index.sql` for main DB
+- New migration `vector-db/0001_hnsw_indexes.sql` for vector DB
+- Widget token validation now parallelizes agent + widget config queries after token lookup
+
 ## [0.5.1] - 2026-01-22
 
 ### Fixed
@@ -266,7 +308,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - User documentation for administrators and tenants
 - API integration guides
 
-[unreleased]: https://github.com/ncecere/grounded/compare/v0.5.1...HEAD
+[unreleased]: https://github.com/ncecere/grounded/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/ncecere/grounded/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/ncecere/grounded/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/ncecere/grounded/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ncecere/grounded/compare/v0.3.1...v0.4.0
