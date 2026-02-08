@@ -21,7 +21,7 @@
     "@grounded/shared": "workspace:*",
     "@grounded/vector-store": "workspace:*",
     "@hono/zod-validator": "^0.7.6",
-    "ai": "6.0.37",
+    "ai": "6.0.77",
     "csv-parse": "^6.1.0",
     "drizzle-orm": "^0.45.1",
     "exceljs": "^4.4.0",
