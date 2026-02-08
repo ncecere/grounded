@@ -15,6 +15,7 @@
     "@grounded/logger": "workspace:*",
     "@grounded/queue": "workspace:*",
     "@grounded/shared": "workspace:*",
+    "cheerio": "1.2.0",
     "drizzle-orm": "^0.45.1",
     "playwright": "^1.57.0"
   },

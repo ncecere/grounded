@@ -21,8 +21,10 @@ import { eq, sql, and } from "drizzle-orm";
 import {
   redis,
   incrementStageProgress,
+  incrementStageProgressTotal,
   storeFetchedHtml,
   addStageTransitionJob,
+  addPageFetchJob,
 } from "@grounded/queue";
 import { log } from "@grounded/logger";
 import {
@@ -34,6 +36,7 @@ import {
 import { createCrawlState } from "@grounded/crawl-state";
 import { selectAndFetch } from "../fetch/selection";
 import { withFairnessSlotOrThrow } from "../services/fairness-slots";
+import { discoverLinks } from "../services/link-extractor";
 
 /**
  * Processes a page fetch job with fairness slot management.
@@ -148,6 +151,83 @@ async function processPageFetchWithSlot(
     // Store fetched HTML in Redis for later processing (sequential stage model)
     // The PROCESSING stage will retrieve this HTML when it runs
     await storeFetchedHtml(runId, url, html, title);
+
+    // --- Domain crawl: discover and queue new URLs ---
+    if (source.config.mode === "domain" && source.config.url) {
+      try {
+        const newLinks = discoverLinks(
+          html,
+          url,
+          source.config.url,
+          {
+            depth: source.config.depth ?? 3,
+            includePatterns: source.config.includePatterns,
+            excludePatterns: source.config.excludePatterns,
+            includeSubdomains: source.config.includeSubdomains,
+          },
+          depth
+        );
+
+        if (newLinks.length > 0) {
+          // Deduplicate against already-seen URLs via CrawlState (atomic Redis SADD)
+          const trulyNewUrls = await crawlState.queueUrls(newLinks);
+
+          if (trulyNewUrls.length > 0) {
+            log.info("scraper-worker", "Discovered new URLs for domain crawl", {
+              runId,
+              pageUrl: url,
+              discovered: newLinks.length,
+              new: trulyNewUrls.length,
+              deduplicated: newLinks.length - trulyNewUrls.length,
+              currentDepth: depth,
+            });
+
+            // CRITICAL: Increment stage total BEFORE queueing jobs to prevent
+            // premature stage completion. If we queue first, another worker could
+            // complete the last existing job before our total is updated.
+            await incrementStageProgressTotal(runId, trulyNewUrls.length);
+
+            // Also update the DB stageTotal and pagesSeen for UI display
+            await db
+              .update(sourceRuns)
+              .set({
+                stageTotal: sql`${sourceRuns.stageTotal} + ${trulyNewUrls.length}`,
+                stats: sql`jsonb_set(${sourceRuns.stats}, '{pagesSeen}', to_jsonb((${sourceRuns.stats}->>'pagesSeen')::int + ${trulyNewUrls.length}))`,
+              })
+              .where(eq(sourceRuns.id, runId));
+
+            // Queue page-fetch jobs for each new URL at depth + 1
+            const newDepth = depth + 1;
+            await Promise.all(
+              trulyNewUrls.map((newUrl) =>
+                addPageFetchJob({
+                  tenantId,
+                  runId,
+                  url: newUrl,
+                  fetchMode,
+                  depth: newDepth,
+                  requestId,
+                  traceId,
+                })
+              )
+            );
+
+            log.info("scraper-worker", "Queued new page-fetch jobs", {
+              runId,
+              count: trulyNewUrls.length,
+              depth: newDepth,
+            });
+          }
+        }
+      } catch (linkError) {
+        // Link discovery failure should NOT fail the page fetch itself
+        log.error("scraper-worker", "Error during link discovery (non-fatal)", {
+          url,
+          runId,
+          error: linkError instanceof Error ? linkError.message : String(linkError),
+        });
+      }
+    }
 
     // Track SCRAPING stage progress (success)
     const stageProgress = await incrementStageProgress(runId, false);

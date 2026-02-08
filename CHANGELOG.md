@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Domain Crawl Link Discovery**: Domain-mode sources now recursively discover and crawl linked pages, fixing a regression where only the seed URL was fetched. After fetching each page, the scraper-worker extracts `<a href>` links from the HTML (via cheerio), filters them by same-domain, include/exclude glob patterns, and depth limit, deduplicates against already-seen URLs via CrawlState (atomic Redis SADD), and queues new page-fetch jobs at `depth + 1`.
+  - New `incrementStageProgressTotal()` function in `@grounded/queue` atomically expands the Redis stage progress total so the SCRAPING stage waits for all dynamically discovered URLs before transitioning
+  - New `incrementStageTotal()` function in ingestion-worker updates the DB `stageTotal` and `pagesSeen` for accurate UI progress display
+  - New `apps/scraper-worker/src/services/link-extractor.ts` with `extractLinksFromHTML()`, `filterLinksByDomain()`, `filterLinksByPatterns()`, and `discoverLinks()` pipeline
+  - Link discovery errors are caught and logged as non-fatal — a failed extraction never blocks the page fetch itself
+  - Stage total is incremented BEFORE new jobs are queued to prevent race conditions with premature stage completion
+  - Tested: Pydantic AI docs (154 pages), Hono docs (113 pages) — both completed end-to-end with 0 failures
+
 ### Changed
 
 - **Separate Admin Panel**: System admins now operate in normal workspace mode by default. A dedicated "Admin Panel" mode is toggled via the avatar menu, replacing the previous mixed sidebar that showed both workspace and administration items together.

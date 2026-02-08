@@ -1570,6 +1570,26 @@ export async function getStageProgress(
 }
 
 /**
+ * Atomically increments the stage progress total counter in Redis.
+ * Used when new work items are discovered dynamically (e.g., domain crawl link discovery).
+ * 
+ * IMPORTANT: Call this BEFORE queueing new jobs to prevent premature stage completion.
+ * The pattern is: increment total -> queue jobs -> worker completes jobs -> isComplete check
+ * 
+ * @param runId - Source run ID
+ * @param amount - Number to add to the total
+ * @returns The new total value
+ */
+export async function incrementStageProgressTotal(
+  runId: string,
+  amount: number
+): Promise<number> {
+  const key = buildStageProgressKey(runId, "total");
+  const newTotal = await redis.incrby(key, amount);
+  return newTotal;
+}
+
+/**
  * Cleans up stage progress keys for a run.
  * 
  * @param runId - Source run ID

@@ -142,3 +142,25 @@ export async function incrementStageCompleted(
 
   return { stageComplete, progress };
 }
+
+/**
+ * Atomically increment the stage total and pagesSeen in PostgreSQL.
+ * Used when new work items are discovered dynamically (e.g., domain crawl link discovery).
+ * 
+ * @param runId - Source run ID
+ * @param amount - Number to add to the total
+ */
+export async function incrementStageTotal(
+  runId: string,
+  amount: number
+): Promise<void> {
+  await db
+    .update(sourceRuns)
+    .set({
+      stageTotal: sql`${sourceRuns.stageTotal} + ${amount}`,
+      stats: sql`jsonb_set(${sourceRuns.stats}, '{pagesSeen}', to_jsonb((${sourceRuns.stats}->>'pagesSeen')::int + ${amount}))`,
+    })
+    .where(eq(sourceRuns.id, runId));
+
+  log.info("ingestion-worker", "Stage total incremented", { runId, amount });
+}
