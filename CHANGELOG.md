@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-02-13
+
 ### Added
 
 - **Domain Crawl Link Discovery**: Domain-mode sources now recursively discover and crawl linked pages, fixing a regression where only the seed URL was fetched. After fetching each page, the scraper-worker extracts `<a href>` links from the HTML (via cheerio), filters them by same-domain, include/exclude glob patterns, and depth limit, deduplicates against already-seen URLs via CrawlState (atomic Redis SADD), and queues new page-fetch jobs at `depth + 1`.
@@ -338,7 +340,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - User documentation for administrators and tenants
 - API integration guides
 
-[unreleased]: https://github.com/ncecere/grounded/compare/v0.6.0...HEAD
+[unreleased]: https://github.com/ncecere/grounded/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/ncecere/grounded/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/ncecere/grounded/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/ncecere/grounded/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/ncecere/grounded/compare/v0.4.0...v0.5.0
