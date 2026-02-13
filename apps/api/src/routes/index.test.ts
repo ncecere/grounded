@@ -1,4 +1,26 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, mock } from "bun:test";
+
+// Mock @grounded/queue BEFORE importing routes to prevent eager Redis connections.
+// Without Redis in CI, ioredis buffers commands indefinitely causing test timeouts.
+mock.module("@grounded/queue", () => ({
+  redis: {},
+  checkRateLimit: mock(async () => ({
+    allowed: true,
+    remaining: 59,
+    resetAt: Date.now() + 60_000,
+  })),
+  addSourceRunStartJob: mock(async () => {}),
+  addPageProcessJob: mock(async () => {}),
+  addKbReindexJob: mock(async () => {}),
+  addHardDeleteJob: mock(async () => {}),
+  initializeStageProgress: mock(async () => {}),
+  removeAllJobsForRun: mock(async () => {}),
+  unregisterRun: mock(async () => {}),
+  getFairnessMetrics: mock(async () => ({})),
+  resetFairnessState: mock(async () => {}),
+  getConversation: mock(async () => []),
+  addToConversation: mock(async () => {}),
+}));
 
 import { createV1Routes } from "./index";
 
