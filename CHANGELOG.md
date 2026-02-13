@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-02-13
+
+### Fixed
+
+- **CI: Route test timeout** — `createV1Routes > mounts the auth callback route` timed out after 5000ms in GitHub Actions because `@grounded/queue` eagerly opens Redis connections at import time and the `rateLimit()` middleware blocked indefinitely without a Redis instance. Added `mock.module("@grounded/queue", ...)` in `apps/api/src/routes/index.test.ts` to stub all 13 Redis-dependent exports, matching the pattern used in other test files.
+- **CI: Dependabot lockfile mismatch** — Dependabot PRs bumped `package.json` versions without regenerating `bun.lock`, causing `bun install --frozen-lockfile` to fail. Added `.github/workflows/dependabot-lockfile.yml` that detects Dependabot PRs, runs `bun install` to regenerate the lockfile, and commits it back to the PR branch.
+- **Web test: pageRegistry type check** — `pageRegistry > should provide labels and components for each entry` failed because `React.lazy()` returns an object (`LazyExoticComponent`), not a function. Updated the assertion in `apps/web/src/app/page-registry.test.ts` to accept both `"function"` and `"object"` component types.
+- **Security: qs DoS vulnerability (GHSA-w7fw-mjwx-w883)** — Overrode transitive dependency `qs` to `^6.14.2` to resolve a low-severity denial-of-service vulnerability in the `arrayLimit` bypass via comma parsing. Affected chain: `shadcn > @modelcontextprotocol/sdk > express > body-parser > qs`.
+
 ## [0.7.0] - 2026-02-13
 
 ### Added
