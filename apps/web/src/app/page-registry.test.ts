@@ -49,7 +49,9 @@ describe("pageRegistry", () => {
     pageRegistry.forEach((entry) => {
       expect(entry.label.length).toBeGreaterThan(0);
       expect(entry.component).toBeDefined();
-      expect(typeof entry.component).toBe("function");
+      // Components are either plain functions or React.lazy objects
+      const t = typeof entry.component;
+      expect(t === "function" || t === "object").toBe(true);
     });
   });
 
