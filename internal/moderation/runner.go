@@ -34,6 +34,9 @@ type bound struct {
 	timeout  time.Duration
 	model    uuid.UUID
 	revision int64
+	// systemOne: a SystemOne model, whose requests the SystemOne meter
+	// records (systemone_tokens and systemone_requests).
+	systemOne bool
 }
 
 // timeoutFor is a model's check timeout: its own setting, else the
@@ -55,7 +58,8 @@ func (s *Service) bind(t catalog.ModerationTarget) (bound, error) {
 	if err != nil {
 		return bound{}, err
 	}
-	return bound{Provider: p, timeout: s.timeoutFor(t.Model), model: t.Model.ID, revision: t.Model.Revision}, nil
+	return bound{Provider: p, timeout: s.timeoutFor(t.Model), model: t.Model.ID, revision: t.Model.Revision,
+		systemOne: t.Model.Kind == catalog.KindSystemOne}, nil
 }
 
 // provider builds the adapter of an enabled moderation model.

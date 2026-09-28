@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -107,6 +108,22 @@ type Plan struct {
 	once     sync.Once
 	provider bound
 	err      error
+	// requests counts answered checks by a moderation model (not SystemOne,
+	// which its meter records), for the moderation_requests usage events.
+	requests atomic.Int64
+}
+
+// UsageKind is the usage ledger kind of answered moderation requests
+// (docs/costs.md §2).
+const UsageKind = "moderation_requests"
+
+// Requests is how many checks a moderation model answered for this plan,
+// and the model (nil plans, and SystemOne providers, report none).
+func (p *Plan) Requests() (int64, uuid.UUID) {
+	if p == nil || p.ModelID == nil {
+		return 0, uuid.Nil
+	}
+	return p.requests.Load(), *p.ModelID
 }
 
 // Plan returns the effective moderation for an audience and an agent's
@@ -160,6 +177,9 @@ func (p *Plan) check(ctx context.Context, in Input) Decision {
 	var res Result
 	if err == nil {
 		res, err = p.s.run(ctx, prov, in)
+		if err == nil && !prov.systemOne {
+			p.requests.Add(1)
+		}
 	}
 	if err != nil {
 		p.s.Log.Warn("moderation check failed", "stage", in.Stage, "err", err, "failClosed", p.Policy.FailClosed)

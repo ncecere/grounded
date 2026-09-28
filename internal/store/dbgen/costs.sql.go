@@ -607,6 +607,35 @@ func (q *Queries) SumBudgetExtensions(ctx context.Context, arg SumBudgetExtensio
 	return total, err
 }
 
+const sumBudgetExtensionsByTeam = `-- name: SumBudgetExtensionsByTeam :many
+SELECT team_id, sum(amount)::text AS total FROM budget_extensions WHERE month = $1 GROUP BY team_id
+`
+
+type SumBudgetExtensionsByTeamRow struct {
+	TeamID uuid.UUID
+	Total  string
+}
+
+func (q *Queries) SumBudgetExtensionsByTeam(ctx context.Context, month pgtype.Date) ([]SumBudgetExtensionsByTeamRow, error) {
+	rows, err := q.db.Query(ctx, sumBudgetExtensionsByTeam, month)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SumBudgetExtensionsByTeamRow{}
+	for rows.Next() {
+		var i SumBudgetExtensionsByTeamRow
+		if err := rows.Scan(&i.TeamID, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const teamCostConfig = `-- name: TeamCostConfig :one
 SELECT s.mode AS platform_mode, s.currency, s.time_zone, s.warn_percent AS platform_warn_percent,
        coalesce(s.default_budget::text, '')::text AS default_budget, s.generation,

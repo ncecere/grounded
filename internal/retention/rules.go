@@ -117,12 +117,26 @@ WHERE u.occurred_at < $1::timestamptz - make_interval(days => %d)`
 
 // purgeUsage rolls the deleted events up per UTC day, kind, team, agent,
 // model and channel (usage_daily), in the same statement, so analytics
-// totals over any range stay the same.
+// totals over any range stay the same. Events of hours the costs rollup
+// hasn't reached yet also go into usage_rollup (docs/costs.md §3): the
+// watermark is read under a share lock, so a rollup can't count the same
+// events concurrently.
 func purgeUsage(ctx context.Context, _ *Runner, tx pgx.Tx, candidates string, now time.Time, batch int) (int64, error) {
+	var rolledUntil *time.Time
+	if err := tx.QueryRow(ctx, `SELECT rolled_until FROM usage_rollup_state WHERE singleton FOR SHARE`).Scan(&rolledUntil); err != nil {
+		return 0, err
+	}
 	var n int64
 	err := tx.QueryRow(ctx, fmt.Sprintf(`WITH del AS (
     DELETE FROM usage_events WHERE id IN (SELECT c.key FROM (%s) c WHERE NOT c.held LIMIT $2)
     RETURNING occurred_at, kind, team_id, agent_id, model_id, coalesce(metadata->>'channel', '') AS channel, quantity
+), roll AS (
+    INSERT INTO usage_rollup (hour, kind, team_id, agent_id, model_id, channel, quantity, events)
+    SELECT date_trunc('hour', occurred_at, 'UTC'), kind, team_id, agent_id, model_id, channel, sum(quantity), count(*)
+    FROM del WHERE $3::timestamptz IS NOT NULL AND occurred_at >= $3::timestamptz GROUP BY 1, 2, 3, 4, 5, 6
+    ON CONFLICT ON CONSTRAINT usage_rollup_key DO UPDATE
+    SET quantity = usage_rollup.quantity + EXCLUDED.quantity, events = usage_rollup.events + EXCLUDED.events
+    RETURNING 1
 ), ins AS (
     INSERT INTO usage_daily (day, kind, team_id, agent_id, model_id, channel, quantity, events)
     SELECT (occurred_at AT TIME ZONE 'UTC')::date, kind, team_id, agent_id, model_id, channel, sum(quantity), count(*)
@@ -131,7 +145,7 @@ func purgeUsage(ctx context.Context, _ *Runner, tx pgx.Tx, candidates string, no
     SET quantity = usage_daily.quantity + EXCLUDED.quantity, events = usage_daily.events + EXCLUDED.events
     RETURNING 1
 )
-SELECT count(*) FROM del`, candidates), now, batch).Scan(&n)
+SELECT count(*) FROM del`, candidates), now, batch, rolledUntil).Scan(&n)
 	return n, err
 }
 

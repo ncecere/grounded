@@ -10,6 +10,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/observability"
+	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
 // DefaultMaxConcurrent is a connection's default max_concurrent_requests:
@@ -45,6 +46,25 @@ type Call struct {
 
 // UsageKind is the usage ledger kind of SystemOne input tokens.
 const UsageKind = "systemone_tokens"
+
+// RequestsKind is the usage ledger kind of answered SystemOne requests (for
+// per-request prices, docs/costs.md §2).
+const RequestsKind = "systemone_requests"
+
+// UsageParams are a meter entry's usage events: its input tokens and its
+// answered requests, each when non-zero. The caller adds the team, agent,
+// user and key.
+func (e MeterEntry) UsageParams(meta []byte) []dbgen.InsertUsageParams {
+	var out []dbgen.InsertUsageParams
+	model := uuid.NullUUID{UUID: e.ModelID, Valid: e.ModelID != uuid.Nil}
+	if e.InputTokens > 0 {
+		out = append(out, dbgen.InsertUsageParams{Kind: UsageKind, Quantity: e.InputTokens, ModelID: model, Metadata: meta})
+	}
+	if e.Requests > 0 {
+		out = append(out, dbgen.InsertUsageParams{Kind: RequestsKind, Quantity: e.Requests, ModelID: model, Metadata: meta})
+	}
+	return out
+}
 
 // Features (usage event metadata).
 const (

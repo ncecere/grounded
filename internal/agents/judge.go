@@ -12,8 +12,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/google/uuid"
-
 	"github.com/ncecere/grounded/internal/kbs"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
@@ -162,16 +160,12 @@ func (sj *searchJudging) event() *RetrievalJudging {
 }
 
 // systemOneUsage are the usage events of the chat's SystemOne requests
-// (judging and moderation), by model and feature.
+// (judging and moderation), by model and feature: tokens and requests.
 func (ru *run) systemOneUsage() []dbgen.InsertUsageParams {
 	var out []dbgen.InsertUsageParams
 	for _, e := range ru.meter.Entries() {
-		if e.InputTokens <= 0 {
-			continue
-		}
 		meta, _ := json.Marshal(map[string]any{"channel": ru.channel, "agentVersion": ru.versionNum(), "feature": e.Feature})
-		out = append(out, dbgen.InsertUsageParams{Kind: systemone.UsageKind, Quantity: e.InputTokens,
-			ModelID: uuid.NullUUID{UUID: e.ModelID, Valid: e.ModelID != uuid.Nil}, Metadata: meta})
+		out = append(out, e.UsageParams(meta)...)
 	}
 	return out
 }

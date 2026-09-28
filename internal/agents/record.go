@@ -14,6 +14,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/llm"
+	"github.com/ncecere/grounded/internal/moderation"
 	"github.com/ncecere/grounded/internal/observability"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -124,8 +125,8 @@ func (ru *run) storeAnswer(ctx context.Context, q *dbgen.Queries, ans *Answer, m
 	return q.TouchConversation(ctx, dbgen.TouchConversationParams{ID: ru.conv.ID, LastVersionID: ru.versionID()})
 }
 
-// recordUsage writes the usage ledger: the query, chat tokens and embedding
-// tokens.
+// recordUsage writes the usage ledger: the query, chat tokens, embedding
+// tokens, moderation requests and SystemOne use.
 func (ru *run) recordUsage(ctx context.Context, q *dbgen.Queries, ans *Answer, modelID uuid.NullUUID) error {
 	meta, _ := json.Marshal(map[string]any{"channel": ru.channel, "agentVersion": ru.versionNum()})
 	team := uuid.NullUUID{UUID: ru.team.ID, Valid: true}
@@ -139,6 +140,9 @@ func (ru *run) recordUsage(ctx context.Context, q *dbgen.Queries, ans *Answer, m
 	}
 	for m, n := range ru.retr.embedTokens {
 		usage = append(usage, dbgen.InsertUsageParams{Kind: "embed_tokens", Quantity: int64(n), ModelID: uuid.NullUUID{UUID: m, Valid: true}})
+	}
+	if n, m := ru.mod.Requests(); n > 0 {
+		usage = append(usage, dbgen.InsertUsageParams{Kind: moderation.UsageKind, Quantity: n, ModelID: uuid.NullUUID{UUID: m, Valid: true}})
 	}
 	for i := range usage {
 		usage[i].Metadata = meta

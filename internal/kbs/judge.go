@@ -8,8 +8,6 @@ import (
 	"context"
 	"strings"
 
-	"github.com/google/uuid"
-
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -83,14 +81,11 @@ func judgeHits(ctx context.Context, plan *systemone.JudgePlan, query string, hit
 	return sorted, out
 }
 
-// meterUsage turns SystemOne use into usage events.
+// meterUsage turns SystemOne use into usage events (tokens and requests).
 func meterUsage(m *systemone.Meter) []dbgen.InsertUsageParams {
 	var out []dbgen.InsertUsageParams
 	for _, e := range m.Entries() {
-		if e.InputTokens > 0 {
-			out = append(out, dbgen.InsertUsageParams{Kind: systemone.UsageKind, Quantity: e.InputTokens,
-				ModelID: uuid.NullUUID{UUID: e.ModelID, Valid: e.ModelID != uuid.Nil}, Metadata: []byte(`{"feature":"` + e.Feature + `"}`)})
-		}
+		out = append(out, e.UsageParams([]byte(`{"feature":"`+e.Feature+`"}`))...)
 	}
 	return out
 }

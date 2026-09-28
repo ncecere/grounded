@@ -121,3 +121,6 @@ SELECT rolled_until FROM usage_rollup_state WHERE singleton FOR UPDATE;
 
 -- name: SetRollupState :exec
 UPDATE usage_rollup_state SET rolled_until = @rolled_until, updated_at = now() WHERE singleton;
+
+-- name: SumBudgetExtensionsByTeam :many
+SELECT team_id, sum(amount)::text AS total FROM budget_extensions WHERE month = @month GROUP BY team_id;
