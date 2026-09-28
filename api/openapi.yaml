@@ -6143,7 +6143,7 @@ components:
         embedding: { $ref: "#/components/schemas/Money" }
         systemone: { $ref: "#/components/schemas/Money" }
         moderation: { $ref: "#/components/schemas/Money" }
-        ocr: { $ref: "#/components/schemas/Money", description: "A vision model reading scanned pages (docs/ocr.md)" }
+        ocr: { $ref: "#/components/schemas/Money" }
     CostTotals:
       type: object
       required: [spend, byKind, tokens, requests, unpriced]

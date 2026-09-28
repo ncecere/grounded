@@ -3723,7 +3723,6 @@ export interface components {
             embedding: components["schemas"]["Money"];
             systemone: components["schemas"]["Money"];
             moderation: components["schemas"]["Money"];
-            /** @description A vision model reading scanned pages (docs/ocr.md) */
             ocr: components["schemas"]["Money"];
         };
         CostTotals: {

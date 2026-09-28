@@ -156,6 +156,7 @@ func newMatrixEnv(t *testing.T) *matrixEnv {
 	agent := newAgentEnvWith(t, func(c *config.Config) {
 		c.OIDC.Issuer, c.OIDC.ClientID, c.OIDC.ClientSecret = p.URL, p.ClientID, p.ClientSecret
 		c.LoginAttemptsPerMinute = 100_000 // the matrix signs many people in
+		c.RequestsPerMinute = 100_000      // and makes ~3,700 calls, over 600 a minute for one person
 	})
 	mod := &moderationEnv{agentEnv: agent}
 	code, e := agent.admin.call("POST", "/v1/admin/models", map[string]any{
