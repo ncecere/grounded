@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-09-27, evening. Phases 0–4 are done. **Phase 5 (deploy and harden) is built**: every item P1–P9 is on `main` except the final release steps. Next comes **`v0.1.0-rc.1`** on the reference install, then the final **v0.1.0**, which makes the repository public. Everything below the Phase 5 tables is a candidate: nothing is scheduled until the owner picks it, after v0.1.0.
+Status: refreshed 2026-09-28. Phases 0–5 are done, and **v0.1.0 is released**. Everything below the Phase 5 tables is a candidate: nothing is scheduled until the owner picks it.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -37,10 +37,18 @@ Earlier refreshes finished A1 (partly: SystemOne judging), A3, boilerplate suppr
 
 ---
 
-## Phase 5: what's left for v0.1.0
+## Phase 5: released as v0.1.0 (2026-09-28)
 
-| Step | Status |
+| Step | Done |
 |---|---|
+| Load tests and the restore rehearsal (P7) | merged |
+| **`v0.1.0-rc.1`** on the reference install, with its dashboards and alerts | 2026-09-28 |
+| Walkthrough of every page by role; records and long forms as pages instead of side sheets; the fixes it found, including a database-pool deadlock in profile migrations | **`v0.1.0-rc.2`** |
+| **P9:** a fresh public history (the old one archived privately), GitHub settings (private vulnerability reporting, branch protection, Dependabot, secret scanning), then **`v0.1.0`** | 2026-09-28 |
+
+Found in the walkthrough and left for later: a revoked API key's audit link lands on a list that hides it (needs the API to return revoked keys by id); a few dates are absolute where lists use relative ones; the command palette finds pages but not teams, users, agents or models; agents have no Settings tab; a notification about being added to a team stays after you're removed.
+
+---|---|
 | Merge the load-test and restore-rehearsal branch (P7) | in progress |
 | Tag **`v0.1.0-rc.1`**, deploy it to the reference install, and load its dashboards and alerts | next |
 | Run the release candidate for a while and fix what it shows (`rc.2` if needed) | — |

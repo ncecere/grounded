@@ -1,6 +1,6 @@
 # Phase 5: deploy and harden → v0.1.0
 
-Status: **specified; owner decisions recorded in §9** (2026-09-27). Built: all of it; see [`roadmap.md`](roadmap.md) for what's left before v0.1.0.
+Status: **done: released as v0.1.0 on 2026-09-28**. Owner decisions are recorded in §9.
 
 Phase 5 ends in the first release, **v0.1.0**, and that release is when the repository goes public (owner decision, 2026-09-27).
 

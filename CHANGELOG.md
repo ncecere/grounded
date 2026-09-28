@@ -4,7 +4,7 @@ All notable changes to Grounded are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Before 1.0, minor releases may include breaking changes; the release notes say how to adapt.
 
-## [0.1.0] - unreleased
+## [0.1.0] - 2026-09-28
 
 The first release. It covers the design's Phases 0 to 5. The release notes are in [`docs/releases/v0.1.0.md`](docs/releases/v0.1.0.md).
 
@@ -88,14 +88,17 @@ Development before this release happened in a private repository. The public rep
 - Fixed before release: `/metrics` was reachable through the generic Ingress. The API now serves metrics on an internal listener (`METRICS_ADDR`, `:9091` in the Kubernetes base).
 
 ### Changed
+- Records (documents, keys, audit entries, models, connections, holds, sessions, agent versions, domain requests) open as pages of their own over their list, and long create and edit forms are pages too; short forms stay in dialogs. There are no side sheets. Each page has a back link and a breadcrumb, can be linked to, and closes with Back.
+- Every list shares one filter row (search, filters, then Columns), page header actions line up with the title, sizes use IEC units (KiB, MiB, GiB) everywhere, and the layout fits a phone-width screen.
 - Ingest refills free worker slots as each document finishes, instead of in 5-second bursts: 8.7× the throughput in the load test.
 - The product is named Grounded (Go module `github.com/ncecere/grounded`, binary `grounded`). It was renamed from its working names, so cookies, metric prefixes and gateway tags use the new name ([ADR-0022](docs/adr/0022-name-grounded.md)).
 - Grounded is institution-neutral. Defaults, examples, UI text and test data name no institution, and each install supplies its own identity through configuration ([ADR-0018](docs/adr/0018-open-source-institution-neutral.md), [ADR-0023](docs/adr/0023-no-institution-data-in-the-repository.md)).
 - Break-glass can include conversation transcripts (in scope with the conversations scope), and approval by a second admin is a platform setting ([ADR-0024](docs/adr/0024-break-glass-scope-and-approval.md), amending ADR-0010 and ADR-0011).
 - Retention: deleting a document or source now removes its passages and vectors at once, but its stored files are kept until the deleted-files retention period (and any legal hold) allows deletion.
 
-[0.1.0]: https://github.com/ncecere/grounded/releases/tag/v0.1.0
 
 ### Fixed
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
+
+[0.1.0]: https://github.com/ncecere/grounded/releases/tag/v0.1.0
