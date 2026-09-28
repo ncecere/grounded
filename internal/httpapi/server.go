@@ -26,6 +26,7 @@ import (
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/moderation"
 	"github.com/ncecere/grounded/internal/notify"
+	"github.com/ncecere/grounded/internal/ocr"
 	"github.com/ncecere/grounded/internal/observability"
 	"github.com/ncecere/grounded/internal/platform"
 	"github.com/ncecere/grounded/internal/profilemig"
@@ -64,6 +65,8 @@ type Deps struct {
 	// SystemOne stores the platform SystemOne settings and tests SystemOne
 	// models (ADR-0020).
 	SystemOne *systemone.Service
+	// OCR stores the parsing settings and tests OCR backends (docs/ocr.md).
+	OCR *ocr.Service
 	// Public serves public agents to anonymous visitors and the widget.
 	Public *public.Service
 	// Retention administers retention periods, runs and legal holds.
@@ -132,7 +135,7 @@ func apiRoutes(d Deps) []route {
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.analyticsRoutes(),
 		a.publicRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
-		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(),
+		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(),
 	} {
 		routes = append(routes, group...)
 	}
@@ -199,6 +202,7 @@ func (a *api) sourceRoutes() []route {
 		{"GET", "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}", a.either(a.getDocument(teamOwner))},
 		{"PATCH", "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}", a.session(a.updateDocument(teamOwner))},
 		{"DELETE", "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}", a.session(a.deleteDocument(teamOwner))},
+		{"POST", "/v1/teams/{team}/sources/{sourceId}/documents/retry", a.session(a.retryDocuments(teamOwner))},
 		{"POST", "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/retry", a.session(a.retryDocument(teamOwner))},
 		{"POST", "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/refetch", a.session(a.refetchDocument(teamOwner))},
 		{"GET", "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/passages", a.either(a.listDocumentPassages(teamOwner))},
@@ -337,6 +341,7 @@ func (a *api) sharedSourceAdminRoutes() []route {
 		{"GET", "/v1/admin/shared-sources/{sourceId}/documents/{documentId}", a.admin(a.getDocument(platformOwner))},
 		{"PATCH", "/v1/admin/shared-sources/{sourceId}/documents/{documentId}", a.admin(a.updateDocument(platformOwner))},
 		{"DELETE", "/v1/admin/shared-sources/{sourceId}/documents/{documentId}", a.admin(a.deleteDocument(platformOwner))},
+		{"POST", "/v1/admin/shared-sources/{sourceId}/documents/retry", a.admin(a.retryDocuments(platformOwner))},
 		{"POST", "/v1/admin/shared-sources/{sourceId}/documents/{documentId}/retry", a.admin(a.retryDocument(platformOwner))},
 		{"POST", "/v1/admin/shared-sources/{sourceId}/documents/{documentId}/refetch", a.admin(a.refetchDocument(platformOwner))},
 		{"GET", "/v1/admin/shared-sources/{sourceId}/documents/{documentId}/passages", a.admin(a.listDocumentPassages(platformOwner))},

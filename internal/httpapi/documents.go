@@ -33,7 +33,7 @@ func toAPIDocument(d dbgen.Document) apitypes.Document {
 		SizeBytes: d.SizeBytes, Version: d.Version, Status: apitypes.DocumentStatus(d.Status),
 		ErrorCode: d.ErrorCode, ErrorMessage: msg, ErrorDetail: detail, Pages: d.Pages, ChunkCount: d.ChunkCount,
 		TokenCount: d.TokenCount, Warnings: warnings, Tags: nonNilStrings(d.Tags), CreatedAt: d.CreatedAt, UpdatedAt: d.UpdatedAt,
-		ProcessedAt: d.ProcessedAt,
+		ProcessedAt: d.ProcessedAt, Ocr: documentOCR(d.Metadata),
 	}
 }
 
@@ -72,10 +72,13 @@ func (a *api) listDocuments(owner ownerFunc) http.HandlerFunc {
 		f := sources.DocumentFilter{Status: status, Search: text}
 		if k := r.URL.Query().Get("kind"); k != "" {
 			if !documentKinds[k] {
-				httpx.Error(w, http.StatusBadRequest, "invalid_kind", "kind must be pdf, docx, pptx, html, markdown or text")
+				httpx.Error(w, http.StatusBadRequest, "invalid_kind", "kind must be pdf, docx, pptx, html, markdown, text or image")
 				return
 			}
 			f.Kind = &k
+		}
+		if code := r.URL.Query().Get("errorCode"); code != "" {
+			f.ErrorCode = &code
 		}
 		if raw := r.URL.Query().Get("tag"); raw != "" {
 			tag, ok := tags.One(raw)
@@ -289,7 +292,7 @@ func (a *api) getDocument(owner ownerFunc) http.HandlerFunc {
 }
 
 // documentKinds are the values of Document.kind (the ?kind= filter).
-var documentKinds = map[string]bool{"pdf": true, "docx": true, "pptx": true, "html": true, "markdown": true, "text": true}
+var documentKinds = map[string]bool{"pdf": true, "docx": true, "pptx": true, "html": true, "markdown": true, "text": true, "image": true}
 
 // listDocumentPassages returns a document's first passages (?limit=, 1-100, default 20).
 func (a *api) listDocumentPassages(owner ownerFunc) http.HandlerFunc {

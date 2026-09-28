@@ -52,6 +52,9 @@ var sharedPolicies = map[string]policy{
 	"adminRetrySharedDocument": {own: padmin, also: []string{"409"}, build: func(c *mctx) request {
 		return post(c.shared("/documents/"+c.e.sharedDoc+"/retry"), nil)
 	}},
+	"adminRetrySharedDocuments": {own: padmin, build: func(c *mctx) request {
+		return post(c.shared("/documents/retry"), map[string]any{"errorCode": "needs_ocr"})
+	}},
 	"adminRefetchSharedDocument": {own: padmin, also: []string{"409"}, build: func(c *mctx) request {
 		return post(c.sharedWeb("/documents/"+c.e.sharedWebDoc+"/refetch"), nil)
 	}},

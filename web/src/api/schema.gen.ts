@@ -1358,6 +1358,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/sources/{sourceId}/documents/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue a source's documents with one error code again (team editors)
+         * @description Queues the source's failed or skipped documents with the error code again, for example every document skipped as scanned (needs_ocr) once OCR is on. 400 invalid_error_code for other codes. Audited (document.retry_bulk).
+         */
+        post: operations["retryDocuments"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}": {
         parameters: {
             query?: never;
@@ -1960,6 +1984,28 @@ export interface paths {
         put?: never;
         /** Upload files to a shared upload source (multipart field "files") */
         post: operations["adminUploadSharedDocuments"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/shared-sources/{sourceId}/documents/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue a shared source's documents with one error code again (platform admins)
+         * @description Queues the source's failed or skipped documents with the error code again, for example every document skipped as scanned (needs_ocr) once OCR is on. 400 invalid_error_code for other codes. Audited (document.retry_bulk).
+         */
+        post: operations["adminRetrySharedDocuments"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3225,6 +3271,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/parsing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The platform's parsing settings, OCR for scanned documents (platform admins and auditors)
+         * @description OCR is off until an admin turns it on (docs/ocr.md). backends says which backends are configured (only those can be chosen); needsOcr counts the documents per team skipped as scanned, which OCR could now read.
+         */
+        get: operations["adminGetParsing"];
+        /**
+         * Replace the platform's parsing settings (platform admins; audited)
+         * @description 400 invalid_languages, invalid_backend, invalid_model (visionModelId is not a vision model) or backend_not_configured (OCR turned on with a backend that isn't configured, or the vision backend without a model).
+         */
+        put: operations["adminPutParsing"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/parsing/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read a built-in sample page with an OCR backend (platform admins)
+         * @description Fields left out use the saved settings, so a backend can be tested before OCR is turned on. A backend that fails is a result with ok false and its error, not an error response. A vision model's test costs tokens.
+         */
+        post: operations["adminTestParsing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/systemone/status": {
         parameters: {
             query?: never;
@@ -4289,10 +4379,10 @@ export interface components {
             timings?: components["schemas"]["RequestTimings"];
         };
         /**
-         * @description systemone is a SystemOne judgment model (ADR-0020): typed questions over POST {base}/v1/systemone
+         * @description systemone is a SystemOne judgment model (ADR-0020): typed questions over POST {base}/v1/systemone; vision reads page images for OCR (docs/ocr.md)
          * @enum {string}
          */
-        ModelKind: "chat" | "embedding" | "rerank" | "moderation" | "systemone";
+        ModelKind: "chat" | "embedding" | "rerank" | "moderation" | "systemone" | "vision";
         /** @description OpenAI-compatibility flags for proxy quirks (DESIGN.md §10). Omitted flags use defaults. A PATCH that sends compat replaces all flags, so send the flags to keep too. */
         ModelCompat: {
             /** @description Chat: send the system prompt with role developer. Default false. */
@@ -5020,6 +5110,8 @@ export interface components {
             /** @description The queued or running crawl, if any */
             activeCrawl: components["schemas"]["Crawl"] | null;
             boilerplate: components["schemas"]["SourceBoilerplate"];
+            /** @description Pages without text are read with OCR, when the platform has OCR on (docs/ocr.md) */
+            ocrEnabled: boolean;
         };
         /**
          * @description A source's repeated-boilerplate overrides (ADR-0021). An omitted field inherits the platform default for the source's type (on for web sources, off for uploads; minDocs 5, ratio 0.2 unless the install changes them). Sending the object replaces all overrides; send {} to use the defaults.
@@ -5107,6 +5199,11 @@ export interface components {
             embeddingProfileId?: string;
             web?: components["schemas"]["WebConfigInput"];
             boilerplate?: components["schemas"]["BoilerplateSettings"];
+            /**
+             * @description Read pages without text with OCR when the platform has it on
+             * @default true
+             */
+            ocrEnabled: boolean;
         };
         DataSourceUpdate: {
             name?: string;
@@ -5122,6 +5219,8 @@ export interface components {
             web?: components["schemas"]["WebConfigInput"];
             /** @description Replaces the boilerplate overrides; changing them re-checks the source's documents */
             boilerplate?: components["schemas"]["BoilerplateSettings"];
+            /** @description Read pages without text with OCR (applies to documents processed from now on; retry scanned ones) */
+            ocrEnabled?: boolean;
         };
         Document: {
             /** Format: uuid */
@@ -5131,7 +5230,7 @@ export interface components {
             title: string;
             filename: string;
             url: string;
-            /** @description Detected format: pdf, docx, pptx, html, markdown or text */
+            /** @description Detected format: pdf, docx, pptx, html, markdown, text or image */
             kind: string;
             /** Format: int64 */
             sizeBytes: number;
@@ -5158,6 +5257,125 @@ export interface components {
             updatedAt: string;
             /** Format: date-time */
             processedAt?: string | null;
+            /** @description The pages read with OCR (null when none were) */
+            ocr?: components["schemas"]["DocumentOcr"] | null;
+        };
+        /**
+         * @example {
+         *       "backend": "tesseract",
+         *       "pages": [
+         *         3,
+         *         4,
+         *         5,
+         *         6,
+         *         7
+         *       ]
+         *     }
+         */
+        DocumentOcr: {
+            backend: components["schemas"]["OcrBackend"];
+            /** @description 1-based page numbers, ascending */
+            pages: number[];
+        };
+        DocumentRetryInput: {
+            /**
+             * @description needs_ocr: documents skipped as scanned
+             * @enum {string}
+             */
+            errorCode: "needs_ocr";
+        };
+        DocumentRetryResult: {
+            /**
+             * Format: int32
+             * @description Documents queued again
+             */
+            retried: number;
+        };
+        /**
+         * @description tesseract: the grounded-ocr sidecar; tika: Apache Tika (the -full image); vision: a vision model
+         * @enum {string}
+         */
+        OcrBackend: "tesseract" | "tika" | "vision";
+        ParsingSettings: {
+            /** @description Read pages without a text layer (and image uploads) with OCR */
+            ocrEnabled: boolean;
+            backend: components["schemas"]["OcrBackend"];
+            /**
+             * Format: uuid
+             * @description The vision backend's model (kind vision)
+             */
+            visionModelId: string | null;
+            /** @description Tesseract language codes joined with +, e.g. eng+spa (Tesseract and Tika) */
+            languages: string;
+            backends: components["schemas"]["OcrBackendStatus"][];
+            /**
+             * Format: int32
+             * @description Pages read with OCR per document at most (OCR_MAX_PAGES_PER_DOCUMENT)
+             */
+            maxPagesPerDocument: number;
+            /**
+             * Format: int32
+             * @description Pages read at once per worker (OCR_CONCURRENCY)
+             */
+            concurrency: number;
+            /** @description Documents skipped as scanned (needs_ocr), per team; teamId null for platform-shared sources */
+            needsOcr: components["schemas"]["NeedsOcrCount"][];
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            updatedAt: string | null;
+        };
+        OcrBackendStatus: {
+            backend: components["schemas"]["OcrBackend"];
+            /** @description Whether it can be chosen */
+            configured: boolean;
+            /** @description What configures it: OCR_TESSERACT_URL, TIKA_URL or a vision model */
+            configuredBy: string;
+        };
+        NeedsOcrCount: {
+            /** Format: uuid */
+            teamId: string | null;
+            teamSlug: string;
+            teamName: string;
+            /** Format: int64 */
+            documents: number;
+        };
+        ParsingSettingsInput: {
+            ocrEnabled: boolean;
+            backend: components["schemas"]["OcrBackend"];
+            /** Format: uuid */
+            visionModelId: string | null;
+            /** @example eng+spa */
+            languages: string;
+        };
+        ParsingTestInput: {
+            backend?: components["schemas"]["OcrBackend"];
+            /** Format: uuid */
+            visionModelId?: string | null;
+            languages?: string;
+        };
+        ParsingTestResult: {
+            ok: boolean;
+            backend: components["schemas"]["OcrBackend"];
+            /** @description What the backend read */
+            text: string;
+            /** @description What the sample page says */
+            expected: string;
+            /**
+             * Format: double
+             * @description Mean word confidence (0-1), 0 when the backend reports none
+             */
+            confidence: number;
+            /** Format: int64 */
+            latencyMs: number;
+            /**
+             * Format: int32
+             * @description A vision model's input tokens
+             */
+            tokensIn: number;
+            /** Format: int32 */
+            tokensOut: number;
+            /** @description Why the backend failed (ok false) */
+            error?: string;
         };
         /** @description A searchable piece of a document (a chunk) */
         DocumentPassage: {
@@ -5602,7 +5820,7 @@ export interface components {
          * @description A team limit. See GET /v1/admin/limits for labels and descriptions.
          * @enum {string}
          */
-        LimitKey: "storage_bytes" | "documents" | "data_sources" | "knowledge_bases" | "agents" | "crawl_pages_per_day" | "concurrent_crawls" | "concurrent_ingest_jobs" | "queries_per_minute" | "queries_per_day" | "api_key_queries_per_minute" | "user_queries_per_minute" | "chat_tokens_per_day" | "concurrent_chats_per_user" | "public_queries_per_ip_per_minute" | "public_queries_per_session_per_minute" | "public_queries_per_agent_per_day" | "public_tokens_per_agent_per_day" | "public_concurrent_chats_per_agent" | "public_message_max_chars";
+        LimitKey: "storage_bytes" | "documents" | "data_sources" | "knowledge_bases" | "agents" | "crawl_pages_per_day" | "concurrent_crawls" | "concurrent_ingest_jobs" | "ocr_pages_per_day" | "queries_per_minute" | "queries_per_day" | "api_key_queries_per_minute" | "user_queries_per_minute" | "chat_tokens_per_day" | "concurrent_chats_per_user" | "public_queries_per_ip_per_minute" | "public_queries_per_session_per_minute" | "public_queries_per_agent_per_day" | "public_tokens_per_agent_per_day" | "public_concurrent_chats_per_agent" | "public_message_max_chars";
         /**
          * @description public limits apply per agent to anonymous public-page and widget traffic
          * @enum {string}
@@ -7577,6 +7795,8 @@ export interface components {
         LimitParam: number;
         /** @description Only documents of this kind: pdf, docx, pptx, html, markdown or text */
         DocumentKindParam: "pdf" | "docx" | "pptx" | "html" | "markdown" | "text";
+        /** @description Only documents with this error code, e.g. needs_ocr (skipped as scanned) */
+        DocumentErrorCodeParam: string;
         /** @description Only documents with this tag (case-insensitive) */
         DocumentTagParam: string;
         /** @description Case-insensitive substring match on the title, URL or file name */
@@ -10185,6 +10405,8 @@ export interface operations {
                 kind?: components["parameters"]["DocumentKindParam"];
                 /** @description Only documents with this tag (case-insensitive) */
                 tag?: components["parameters"]["DocumentTagParam"];
+                /** @description Only documents with this error code, e.g. needs_ocr (skipped as scanned) */
+                errorCode?: components["parameters"]["DocumentErrorCodeParam"];
                 /** @description nextCursor from the previous page */
                 cursor?: components["parameters"]["CursorParam"];
                 limit?: components["parameters"]["LimitParam"];
@@ -10252,6 +10474,40 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["LimitReachedReply"];
             413: components["responses"]["ErrorReply"];
+            503: components["responses"]["MaintenanceReply"];
+        };
+    };
+    retryDocuments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentRetryInput"];
+            };
+        };
+        responses: {
+            /** @description How many documents were queued */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocumentRetryResult"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
             503: components["responses"]["MaintenanceReply"];
         };
     };
@@ -11411,6 +11667,8 @@ export interface operations {
                 kind?: components["parameters"]["DocumentKindParam"];
                 /** @description Only documents with this tag (case-insensitive) */
                 tag?: components["parameters"]["DocumentTagParam"];
+                /** @description Only documents with this error code, e.g. needs_ocr (skipped as scanned) */
+                errorCode?: components["parameters"]["DocumentErrorCodeParam"];
                 /** @description nextCursor from the previous page */
                 cursor?: components["parameters"]["CursorParam"];
                 limit?: components["parameters"]["LimitParam"];
@@ -11474,6 +11732,38 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["LimitReachedReply"];
             413: components["responses"]["ErrorReply"];
+            503: components["responses"]["MaintenanceReply"];
+        };
+    };
+    adminRetrySharedDocuments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceId: components["parameters"]["SourceIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentRetryInput"];
+            };
+        };
+        responses: {
+            /** @description How many documents were queued */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocumentRetryResult"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
             503: components["responses"]["MaintenanceReply"];
         };
     };
@@ -13669,6 +13959,92 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetParsing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings (the defaults with revision 1 until saved) */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ParsingSettings"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminPutParsing: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ParsingSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ParsingSettings"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    adminTestParsing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ParsingTestInput"];
+            };
+        };
+        responses: {
+            /** @description What the backend read */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ParsingTestResult"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
         };
     };
     getSystemOneStatus: {

@@ -2149,6 +2149,7 @@ paths:
         - $ref: "#/components/parameters/DocumentSearchParam"
         - $ref: "#/components/parameters/DocumentKindParam"
         - $ref: "#/components/parameters/DocumentTagParam"
+        - $ref: "#/components/parameters/DocumentErrorCodeParam"
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
@@ -2200,6 +2201,41 @@ paths:
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/LimitReachedReply" }
         "413": { $ref: "#/components/responses/ErrorReply" }
+        "503": { $ref: "#/components/responses/MaintenanceReply" }
+  /v1/teams/{team}/sources/{sourceId}/documents/retry:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - name: sourceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [sources]
+      operationId: retryDocuments
+      summary: Queue a source's documents with one error code again (team editors)
+      description: >-
+        Queues the source's failed or skipped documents with the error code
+        again, for example every document skipped as scanned (needs_ocr) once
+        OCR is on. 400 invalid_error_code for other codes. Audited
+        (document.retry_bulk).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentRetryInput" }
+      responses:
+        "200":
+          description: How many documents were queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/DocumentRetryResult" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
         "503": { $ref: "#/components/responses/MaintenanceReply" }
   /v1/teams/{team}/sources/{sourceId}/documents/{documentId}:
     parameters:
@@ -3129,6 +3165,7 @@ paths:
         - $ref: "#/components/parameters/DocumentSearchParam"
         - $ref: "#/components/parameters/DocumentKindParam"
         - $ref: "#/components/parameters/DocumentTagParam"
+        - $ref: "#/components/parameters/DocumentErrorCodeParam"
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
@@ -3180,6 +3217,37 @@ paths:
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/LimitReachedReply" }
         "413": { $ref: "#/components/responses/ErrorReply" }
+        "503": { $ref: "#/components/responses/MaintenanceReply" }
+  /v1/admin/shared-sources/{sourceId}/documents/retry:
+    parameters:
+      - $ref: "#/components/parameters/SourceIdParam"
+    post:
+      tags: [admin, sources]
+      operationId: adminRetrySharedDocuments
+      summary: Queue a shared source's documents with one error code again (platform admins)
+      description: >-
+        Queues the source's failed or skipped documents with the error code
+        again, for example every document skipped as scanned (needs_ocr) once
+        OCR is on. 400 invalid_error_code for other codes. Audited
+        (document.retry_bulk).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentRetryInput" }
+      responses:
+        "200":
+          description: How many documents were queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/DocumentRetryResult" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
         "503": { $ref: "#/components/responses/MaintenanceReply" }
   /v1/admin/shared-sources/{sourceId}/documents/{documentId}:
     parameters:
@@ -5079,6 +5147,85 @@ paths:
         "403": { $ref: "#/components/responses/ErrorReply" }
         "412": { $ref: "#/components/responses/ErrorReply" }
         "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/parsing:
+    get:
+      tags: [admin]
+      operationId: adminGetParsing
+      summary: The platform's parsing settings, OCR for scanned documents (platform admins and auditors)
+      description: >-
+        OCR is off until an admin turns it on (docs/ocr.md). backends says which
+        backends are configured (only those can be chosen); needsOcr counts the
+        documents per team skipped as scanned, which OCR could now read.
+      responses:
+        "200":
+          description: The settings (the defaults with revision 1 until saved)
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ParsingSettings" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [admin]
+      operationId: adminPutParsing
+      summary: Replace the platform's parsing settings (platform admins; audited)
+      description: >-
+        400 invalid_languages, invalid_backend, invalid_model (visionModelId is
+        not a vision model) or backend_not_configured (OCR turned on with a
+        backend that isn't configured, or the vision backend without a model).
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ParsingSettingsInput" }
+      responses:
+        "200":
+          description: Saved
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ParsingSettings" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/parsing/test:
+    post:
+      tags: [admin]
+      operationId: adminTestParsing
+      summary: Read a built-in sample page with an OCR backend (platform admins)
+      description: >-
+        Fields left out use the saved settings, so a backend can be tested
+        before OCR is turned on. A backend that fails is a result with ok false
+        and its error, not an error response. A vision model's test costs tokens.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ParsingTestInput" }
+      responses:
+        "200":
+          description: What the backend read
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ParsingTestResult" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
   /v1/systemone/status:
     get:
       tags: [agents]
@@ -5273,6 +5420,12 @@ components:
       required: false
       description: "Only documents of this kind: pdf, docx, pptx, html, markdown or text"
       schema: { type: string, enum: [pdf, docx, pptx, html, markdown, text] }
+    DocumentErrorCodeParam:
+      name: errorCode
+      in: query
+      required: false
+      description: Only documents with this error code, e.g. needs_ocr (skipped as scanned)
+      schema: { type: string, maxLength: 64, pattern: "^[a-z_]+$" }
     DocumentTagParam:
       name: tag
       in: query
@@ -6463,8 +6616,8 @@ components:
         timings: { $ref: "#/components/schemas/RequestTimings" }
     ModelKind:
       type: string
-      description: "systemone is a SystemOne judgment model (ADR-0020): typed questions over POST {base}/v1/systemone"
-      enum: [chat, embedding, rerank, moderation, systemone]
+      description: "systemone is a SystemOne judgment model (ADR-0020): typed questions over POST {base}/v1/systemone; vision reads page images for OCR (docs/ocr.md)"
+      enum: [chat, embedding, rerank, moderation, systemone, vision]
     ModelCompat:
       type: object
       description: >-
@@ -7064,7 +7217,7 @@ components:
         chunks: { type: integer, format: int64 }
     DataSource:
       type: object
-      required: [id, name, description, type, classification, embeddingProfileId, status, documents, revision, createdAt, updatedAt, web, lastSyncAt, nextSyncAt, activeCrawl, boilerplate]
+      required: [id, name, description, type, classification, embeddingProfileId, status, documents, revision, createdAt, updatedAt, web, lastSyncAt, nextSyncAt, activeCrawl, boilerplate, ocrEnabled]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
@@ -7088,6 +7241,7 @@ components:
           nullable: true
           allOf: [{ $ref: "#/components/schemas/Crawl" }]
         boilerplate: { $ref: "#/components/schemas/SourceBoilerplate" }
+        ocrEnabled: { type: boolean, description: "Pages without text are read with OCR, when the platform has OCR on (docs/ocr.md)" }
     BoilerplateSettings:
       type: object
       description: >-
@@ -7136,6 +7290,7 @@ components:
         embeddingProfileId: { type: string, format: uuid, description: Defaults to the platform default profile }
         web: { $ref: "#/components/schemas/WebConfigInput" }
         boilerplate: { $ref: "#/components/schemas/BoilerplateSettings" }
+        ocrEnabled: { type: boolean, default: true, description: Read pages without text with OCR when the platform has it on }
     DataSourceUpdate:
       type: object
       properties:
@@ -7148,6 +7303,7 @@ components:
         boilerplate:
           description: Replaces the boilerplate overrides; changing them re-checks the source's documents
           allOf: [{ $ref: "#/components/schemas/BoilerplateSettings" }]
+        ocrEnabled: { type: boolean, description: "Read pages without text with OCR (applies to documents processed from now on; retry scanned ones)" }
     Document:
       type: object
       required: [id, sourceId, title, filename, url, kind, sizeBytes, version, status, errorCode, errorMessage, errorDetail, pages, chunkCount, tokenCount, warnings, tags, createdAt, updatedAt]
@@ -7157,7 +7313,7 @@ components:
         title: { type: string }
         filename: { type: string }
         url: { type: string }
-        kind: { type: string, description: "Detected format: pdf, docx, pptx, html, markdown or text" }
+        kind: { type: string, description: "Detected format: pdf, docx, pptx, html, markdown, text or image" }
         sizeBytes: { type: integer, format: int64 }
         version: { type: integer, format: int32 }
         status: { $ref: "#/components/schemas/DocumentStatus" }
@@ -7177,6 +7333,95 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         processedAt: { type: string, format: date-time, nullable: true }
+        ocr:
+          description: The pages read with OCR (null when none were)
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/DocumentOcr" }]
+    DocumentOcr:
+      type: object
+      required: [backend, pages]
+      properties:
+        backend: { $ref: "#/components/schemas/OcrBackend" }
+        pages:
+          type: array
+          description: 1-based page numbers, ascending
+          items: { type: integer, format: int32 }
+      example: { backend: tesseract, pages: [3, 4, 5, 6, 7] }
+    DocumentRetryInput:
+      type: object
+      required: [errorCode]
+      properties:
+        errorCode: { type: string, enum: [needs_ocr], description: "needs_ocr: documents skipped as scanned" }
+    DocumentRetryResult:
+      type: object
+      required: [retried]
+      properties:
+        retried: { type: integer, format: int32, description: Documents queued again }
+    OcrBackend:
+      type: string
+      description: "tesseract: the grounded-ocr sidecar; tika: Apache Tika (the -full image); vision: a vision model"
+      enum: [tesseract, tika, vision]
+    ParsingSettings:
+      type: object
+      required: [ocrEnabled, backend, visionModelId, languages, backends, maxPagesPerDocument, concurrency, needsOcr, revision, updatedAt]
+      properties:
+        ocrEnabled: { type: boolean, description: Read pages without a text layer (and image uploads) with OCR }
+        backend: { $ref: "#/components/schemas/OcrBackend" }
+        visionModelId: { type: string, format: uuid, nullable: true, description: The vision backend's model (kind vision) }
+        languages: { type: string, description: "Tesseract language codes joined with +, e.g. eng+spa (Tesseract and Tika)" }
+        backends:
+          type: array
+          items: { $ref: "#/components/schemas/OcrBackendStatus" }
+        maxPagesPerDocument: { type: integer, format: int32, description: "Pages read with OCR per document at most (OCR_MAX_PAGES_PER_DOCUMENT)" }
+        concurrency: { type: integer, format: int32, description: "Pages read at once per worker (OCR_CONCURRENCY)" }
+        needsOcr:
+          type: array
+          description: Documents skipped as scanned (needs_ocr), per team; teamId null for platform-shared sources
+          items: { $ref: "#/components/schemas/NeedsOcrCount" }
+        revision: { $ref: "#/components/schemas/Revision" }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    OcrBackendStatus:
+      type: object
+      required: [backend, configured, configuredBy]
+      properties:
+        backend: { $ref: "#/components/schemas/OcrBackend" }
+        configured: { type: boolean, description: Whether it can be chosen }
+        configuredBy: { type: string, description: "What configures it: OCR_TESSERACT_URL, TIKA_URL or a vision model" }
+    NeedsOcrCount:
+      type: object
+      required: [teamId, teamSlug, teamName, documents]
+      properties:
+        teamId: { type: string, format: uuid, nullable: true }
+        teamSlug: { type: string }
+        teamName: { type: string }
+        documents: { type: integer, format: int64 }
+    ParsingSettingsInput:
+      type: object
+      required: [ocrEnabled, backend, visionModelId, languages]
+      properties:
+        ocrEnabled: { type: boolean }
+        backend: { $ref: "#/components/schemas/OcrBackend" }
+        visionModelId: { type: string, format: uuid, nullable: true }
+        languages: { type: string, pattern: "^[a-z_]{3,16}(\\+[a-z_]{3,16}){0,9}$", example: eng+spa }
+    ParsingTestInput:
+      type: object
+      properties:
+        backend: { $ref: "#/components/schemas/OcrBackend" }
+        visionModelId: { type: string, format: uuid, nullable: true }
+        languages: { type: string }
+    ParsingTestResult:
+      type: object
+      required: [ok, backend, text, expected, confidence, latencyMs, tokensIn, tokensOut]
+      properties:
+        ok: { type: boolean }
+        backend: { $ref: "#/components/schemas/OcrBackend" }
+        text: { type: string, description: What the backend read }
+        expected: { type: string, description: What the sample page says }
+        confidence: { type: number, format: double, description: "Mean word confidence (0-1), 0 when the backend reports none" }
+        latencyMs: { type: integer, format: int64 }
+        tokensIn: { type: integer, format: int32, description: "A vision model's input tokens" }
+        tokensOut: { type: integer, format: int32 }
+        error: { type: string, description: Why the backend failed (ok false) }
     DocumentPassage:
       type: object
       description: A searchable piece of a document (a chunk)

@@ -91,6 +91,9 @@ var teamPolicies = map[string]policy{
 	"retryDocument": {own: editors, also: []string{"409"}, build: func(c *mctx) request {
 		return post(c.src("/documents/"+c.tf.doc+"/retry"), nil)
 	}},
+	"retryDocuments": {own: editors, build: func(c *mctx) request {
+		return post(c.src("/documents/retry"), map[string]any{"errorCode": "needs_ocr"})
+	}},
 	"refetchDocument": {own: editors, also: []string{"409"}, build: func(c *mctx) request {
 		return post(c.web("/documents/"+c.tf.webDoc+"/refetch"), nil)
 	}},

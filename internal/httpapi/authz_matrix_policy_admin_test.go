@@ -216,6 +216,18 @@ var adminPolicies = map[string]policy{
 		return post("/v1/admin/moderation/test", map[string]any{"modelId": c.e.classifier.Id, "text": "Where is the library?"})
 	}},
 
+	// Parsing (OCR, docs/ocr.md). The matrix configures no OCR backend: an
+	// admin's Test is refused as not configured, which counts as allowed.
+	"adminGetParsing": adminRead("/v1/admin/parsing"),
+	"adminPutParsing": {own: padmin, build: func(c *mctx) request {
+		cur := c.current("/v1/admin/parsing")
+		return put("/v1/admin/parsing", map[string]any{"ocrEnabled": false, "backend": cur["backend"], "visionModelId": nil,
+			"languages": cur["languages"]}).h(c.rev("/v1/admin/parsing"))
+	}},
+	"adminTestParsing": {own: padmin, also: []string{"400 backend_not_configured"}, build: func(c *mctx) request {
+		return post("/v1/admin/parsing/test", map[string]any{"backend": "tesseract", "languages": "eng"})
+	}},
+
 	// Profile migrations (P2).
 	"adminListKnowledgeBases":    adminRead("/v1/admin/knowledge-bases"),
 	"adminListProfileMigrations": adminRead("/v1/admin/profile-migrations"),

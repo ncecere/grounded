@@ -312,6 +312,9 @@ func (a *api) adminTestModel(w http.ResponseWriter, r *http.Request) {
 		case catalog.KindSystemOne:
 			a.testSystemOneModel(w, r, id)
 			return
+		case catalog.KindVision:
+			a.testVisionModel(w, r, id)
+			return
 		}
 	}
 	res, err := a.Catalog.TestModel(r.Context(), a.actor(r), id)

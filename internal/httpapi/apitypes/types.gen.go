@@ -930,6 +930,21 @@ func (e DataSourceUpdateStatus) Valid() bool {
 	}
 }
 
+// Defines values for DocumentRetryInputErrorCode.
+const (
+	NeedsOcr DocumentRetryInputErrorCode = "needs_ocr"
+)
+
+// Valid indicates whether the value is a known member of the DocumentRetryInputErrorCode enum.
+func (e DocumentRetryInputErrorCode) Valid() bool {
+	switch e {
+	case NeedsOcr:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DocumentStatus.
 const (
 	DocumentStatusFailed     DocumentStatus = "failed"
@@ -1332,6 +1347,7 @@ const (
 	LimitKeyDataSources                      LimitKey = "data_sources"
 	LimitKeyDocuments                        LimitKey = "documents"
 	LimitKeyKnowledgeBases                   LimitKey = "knowledge_bases"
+	LimitKeyOcrPagesPerDay                   LimitKey = "ocr_pages_per_day"
 	LimitKeyPublicConcurrentChatsPerAgent    LimitKey = "public_concurrent_chats_per_agent"
 	LimitKeyPublicMessageMaxChars            LimitKey = "public_message_max_chars"
 	LimitKeyPublicQueriesPerAgentPerDay      LimitKey = "public_queries_per_agent_per_day"
@@ -1366,6 +1382,8 @@ func (e LimitKey) Valid() bool {
 	case LimitKeyDocuments:
 		return true
 	case LimitKeyKnowledgeBases:
+		return true
+	case LimitKeyOcrPagesPerDay:
 		return true
 	case LimitKeyPublicConcurrentChatsPerAgent:
 		return true
@@ -1538,25 +1556,28 @@ func (e ModelCompatThinkingField) Valid() bool {
 
 // Defines values for ModelKind.
 const (
-	Chat       ModelKind = "chat"
-	Embedding  ModelKind = "embedding"
-	Moderation ModelKind = "moderation"
-	Rerank     ModelKind = "rerank"
-	Systemone  ModelKind = "systemone"
+	ModelKindChat       ModelKind = "chat"
+	ModelKindEmbedding  ModelKind = "embedding"
+	ModelKindModeration ModelKind = "moderation"
+	ModelKindRerank     ModelKind = "rerank"
+	ModelKindSystemone  ModelKind = "systemone"
+	ModelKindVision     ModelKind = "vision"
 )
 
 // Valid indicates whether the value is a known member of the ModelKind enum.
 func (e ModelKind) Valid() bool {
 	switch e {
-	case Chat:
+	case ModelKindChat:
 		return true
-	case Embedding:
+	case ModelKindEmbedding:
 		return true
-	case Moderation:
+	case ModelKindModeration:
 		return true
-	case Rerank:
+	case ModelKindRerank:
 		return true
-	case Systemone:
+	case ModelKindSystemone:
+		return true
+	case ModelKindVision:
 		return true
 	default:
 		return false
@@ -1848,6 +1869,27 @@ func (e NotificationType) Valid() bool {
 	case WebDomainRequestNew:
 		return true
 	case WebSyncFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OcrBackend.
+const (
+	OcrBackendTesseract OcrBackend = "tesseract"
+	OcrBackendTika      OcrBackend = "tika"
+	OcrBackendVision    OcrBackend = "vision"
+)
+
+// Valid indicates whether the value is a known member of the OcrBackend enum.
+func (e OcrBackend) Valid() bool {
+	switch e {
+	case OcrBackendTesseract:
+		return true
+	case OcrBackendTika:
+		return true
+	case OcrBackendVision:
 		return true
 	default:
 		return false
@@ -4384,6 +4426,9 @@ type DataSource struct {
 	// NextSyncAt When the next scheduled crawl starts
 	NextSyncAt *time.Time `json:"nextSyncAt"`
 
+	// OcrEnabled Pages without text are read with OCR, when the platform has OCR on (docs/ocr.md)
+	OcrEnabled bool `json:"ocrEnabled"`
+
 	// Revision Increases on every change. Send it back in If-Match.
 	Revision  Revision         `json:"revision"`
 	Status    DataSourceStatus `json:"status"`
@@ -4413,6 +4458,9 @@ type DataSourceCreate struct {
 	EmbeddingProfileId *openapi_types.UUID `json:"embeddingProfileId,omitempty"`
 	Name               string              `json:"name"`
 
+	// OcrEnabled Read pages without text with OCR when the platform has it on
+	OcrEnabled *bool `json:"ocrEnabled,omitempty"`
+
 	// Type Fixed at creation
 	Type *DataSourceCreateType `json:"type,omitempty"`
 
@@ -4430,6 +4478,9 @@ type DataSourceUpdate struct {
 	Classification *string              `json:"classification,omitempty"`
 	Description    *string              `json:"description,omitempty"`
 	Name           *string              `json:"name,omitempty"`
+
+	// OcrEnabled Read pages without text with OCR (applies to documents processed from now on; retry scanned ones)
+	OcrEnabled *bool `json:"ocrEnabled,omitempty"`
 
 	// Reason Required when lowering the classification
 	Reason *string `json:"reason,omitempty"`
@@ -4472,8 +4523,11 @@ type Document struct {
 	Filename     string             `json:"filename"`
 	Id           openapi_types.UUID `json:"id"`
 
-	// Kind Detected format: pdf, docx, pptx, html, markdown or text
-	Kind        string             `json:"kind"`
+	// Kind Detected format: pdf, docx, pptx, html, markdown, text or image
+	Kind string `json:"kind"`
+
+	// Ocr The pages read with OCR (null when none were)
+	Ocr         *DocumentOcr       `json:"ocr,omitempty"`
 	Pages       int32              `json:"pages"`
 	ProcessedAt *time.Time         `json:"processedAt,omitempty"`
 	SizeBytes   int64              `json:"sizeBytes"`
@@ -4504,6 +4558,15 @@ type DocumentCounts struct {
 	Total      int64 `json:"total"`
 }
 
+// DocumentOcr Example: {"backend":"tesseract","pages":[3,4,5,6,7]}
+type DocumentOcr struct {
+	// Backend tesseract: the grounded-ocr sidecar; tika: Apache Tika (the -full image); vision: a vision model
+	Backend OcrBackend `json:"backend"`
+
+	// Pages 1-based page numbers, ascending
+	Pages []int32 `json:"pages"`
+}
+
 // DocumentPage defines model for DocumentPage.
 type DocumentPage struct {
 	Items      []Document `json:"items"`
@@ -4530,6 +4593,21 @@ type DocumentPassagePage struct {
 
 	// Total All passages of the document
 	Total int32 `json:"total"`
+}
+
+// DocumentRetryInput defines model for DocumentRetryInput.
+type DocumentRetryInput struct {
+	// ErrorCode needs_ocr: documents skipped as scanned
+	ErrorCode DocumentRetryInputErrorCode `json:"errorCode"`
+}
+
+// DocumentRetryInputErrorCode needs_ocr: documents skipped as scanned
+type DocumentRetryInputErrorCode string
+
+// DocumentRetryResult defines model for DocumentRetryResult.
+type DocumentRetryResult struct {
+	// Retried Documents queued again
+	Retried int32 `json:"retried"`
 }
 
 // DocumentStatus defines model for DocumentStatus.
@@ -5286,7 +5364,7 @@ type Model struct {
 	// Key Example: nomic-embed
 	Key string `json:"key"`
 
-	// Kind systemone is a SystemOne judgment model (ADR-0020): typed questions over POST {base}/v1/systemone
+	// Kind systemone is a SystemOne judgment model (ADR-0020): typed questions over POST {base}/v1/systemone; vision reads page images for OCR (docs/ocr.md)
 	Kind              ModelKind `json:"kind"`
 	MaxClassification string    `json:"maxClassification"`
 	MaxInputTokens    *int32    `json:"maxInputTokens,omitempty"`
@@ -5358,7 +5436,7 @@ type ModelCreate struct {
 	Enabled     *bool  `json:"enabled,omitempty"`
 	Key         string `json:"key"`
 
-	// Kind systemone is a SystemOne judgment model (ADR-0020): typed questions over POST {base}/v1/systemone
+	// Kind systemone is a SystemOne judgment model (ADR-0020): typed questions over POST {base}/v1/systemone; vision reads page images for OCR (docs/ocr.md)
 	Kind              ModelKind        `json:"kind"`
 	MaxClassification string           `json:"maxClassification"`
 	MaxInputTokens    *int32           `json:"maxInputTokens,omitempty"`
@@ -5375,7 +5453,7 @@ type ModelCreate struct {
 	UpstreamModel            string `json:"upstreamModel"`
 }
 
-// ModelKind systemone is a SystemOne judgment model (ADR-0020): typed questions over POST {base}/v1/systemone
+// ModelKind systemone is a SystemOne judgment model (ADR-0020): typed questions over POST {base}/v1/systemone; vision reads page images for OCR (docs/ocr.md)
 type ModelKind string
 
 // ModelRef defines model for ModelRef.
@@ -5663,6 +5741,14 @@ type MyTeam struct {
 	Status            TeamStatus         `json:"status"`
 }
 
+// NeedsOcrCount defines model for NeedsOcrCount.
+type NeedsOcrCount struct {
+	Documents int64               `json:"documents"`
+	TeamId    *openapi_types.UUID `json:"teamId"`
+	TeamName  string              `json:"teamName"`
+	TeamSlug  string              `json:"teamSlug"`
+}
+
 // Notification defines model for Notification.
 type Notification struct {
 	// Body Plain text, with paragraphs separated by a blank line
@@ -5739,6 +5825,21 @@ type NotificationType string
 // NotificationUpdate defines model for NotificationUpdate.
 type NotificationUpdate struct {
 	Read bool `json:"read"`
+}
+
+// OcrBackend tesseract: the grounded-ocr sidecar; tika: Apache Tika (the -full image); vision: a vision model
+type OcrBackend string
+
+// OcrBackendStatus defines model for OcrBackendStatus.
+type OcrBackendStatus struct {
+	// Backend tesseract: the grounded-ocr sidecar; tika: Apache Tika (the -full image); vision: a vision model
+	Backend OcrBackend `json:"backend"`
+
+	// Configured Whether it can be chosen
+	Configured bool `json:"configured"`
+
+	// ConfiguredBy What configures it: OCR_TESSERACT_URL, TIKA_URL or a vision model
+	ConfiguredBy string `json:"configuredBy"`
 }
 
 // Ok defines model for Ok.
@@ -5852,6 +5953,78 @@ type OpenAIUsage struct {
 // OwnerAssign defines model for OwnerAssign.
 type OwnerAssign struct {
 	Email openapi_types.Email `json:"email"`
+}
+
+// ParsingSettings defines model for ParsingSettings.
+type ParsingSettings struct {
+	// Backend tesseract: the grounded-ocr sidecar; tika: Apache Tika (the -full image); vision: a vision model
+	Backend  OcrBackend         `json:"backend"`
+	Backends []OcrBackendStatus `json:"backends"`
+
+	// Concurrency Pages read at once per worker (OCR_CONCURRENCY)
+	Concurrency int32 `json:"concurrency"`
+
+	// Languages Tesseract language codes joined with +, e.g. eng+spa (Tesseract and Tika)
+	Languages string `json:"languages"`
+
+	// MaxPagesPerDocument Pages read with OCR per document at most (OCR_MAX_PAGES_PER_DOCUMENT)
+	MaxPagesPerDocument int32 `json:"maxPagesPerDocument"`
+
+	// NeedsOcr Documents skipped as scanned (needs_ocr), per team; teamId null for platform-shared sources
+	NeedsOcr []NeedsOcrCount `json:"needsOcr"`
+
+	// OcrEnabled Read pages without a text layer (and image uploads) with OCR
+	OcrEnabled bool `json:"ocrEnabled"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision  Revision   `json:"revision"`
+	UpdatedAt *time.Time `json:"updatedAt"`
+
+	// VisionModelId The vision backend's model (kind vision)
+	VisionModelId *openapi_types.UUID `json:"visionModelId"`
+}
+
+// ParsingSettingsInput defines model for ParsingSettingsInput.
+type ParsingSettingsInput struct {
+	// Backend tesseract: the grounded-ocr sidecar; tika: Apache Tika (the -full image); vision: a vision model
+	Backend OcrBackend `json:"backend"`
+
+	// Languages Example: eng+spa
+	Languages     string              `json:"languages"`
+	OcrEnabled    bool                `json:"ocrEnabled"`
+	VisionModelId *openapi_types.UUID `json:"visionModelId"`
+}
+
+// ParsingTestInput defines model for ParsingTestInput.
+type ParsingTestInput struct {
+	// Backend tesseract: the grounded-ocr sidecar; tika: Apache Tika (the -full image); vision: a vision model
+	Backend       *OcrBackend         `json:"backend,omitempty"`
+	Languages     *string             `json:"languages,omitempty"`
+	VisionModelId *openapi_types.UUID `json:"visionModelId,omitempty"`
+}
+
+// ParsingTestResult defines model for ParsingTestResult.
+type ParsingTestResult struct {
+	// Backend tesseract: the grounded-ocr sidecar; tika: Apache Tika (the -full image); vision: a vision model
+	Backend OcrBackend `json:"backend"`
+
+	// Confidence Mean word confidence (0-1), 0 when the backend reports none
+	Confidence float64 `json:"confidence"`
+
+	// Error Why the backend failed (ok false)
+	Error *string `json:"error,omitempty"`
+
+	// Expected What the sample page says
+	Expected  string `json:"expected"`
+	LatencyMs int64  `json:"latencyMs"`
+	Ok        bool   `json:"ok"`
+
+	// Text What the backend read
+	Text string `json:"text"`
+
+	// TokensIn A vision model's input tokens
+	TokensIn  int32 `json:"tokensIn"`
+	TokensOut int32 `json:"tokensOut"`
 }
 
 // PassageJudgment A SystemOne model's answers about the passage and the query, and the route the thresholds give it (docs/systemone.md §2). skipped: the request failed or timed out, so the passage kept its rank as evidence.
@@ -7308,6 +7481,9 @@ type CrawlIdParam = openapi_types.UUID
 // CursorParam defines model for CursorParam.
 type CursorParam = string
 
+// DocumentErrorCodeParam defines model for DocumentErrorCodeParam.
+type DocumentErrorCodeParam = string
+
 // DocumentIdParam defines model for DocumentIdParam.
 type DocumentIdParam = openapi_types.UUID
 
@@ -7623,6 +7799,12 @@ type AdminPutModerationPolicyParams struct {
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
+// AdminPutParsingParams defines parameters for AdminPutParsing.
+type AdminPutParsingParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminListProfileMigrationsParams defines parameters for AdminListProfileMigrations.
 type AdminListProfileMigrationsParams struct {
 	// KbId Only this knowledge base's migrations
@@ -7718,6 +7900,9 @@ type AdminListSharedDocumentsParams struct {
 
 	// Tag Only documents with this tag (case-insensitive)
 	Tag *DocumentTagParam `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// ErrorCode Only documents with this error code, e.g. needs_ocr (skipped as scanned)
+	ErrorCode *DocumentErrorCodeParam `form:"errorCode,omitempty" json:"errorCode,omitempty"`
 
 	// Cursor nextCursor from the previous page
 	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -7961,6 +8146,9 @@ type ListDocumentsParams struct {
 	// Tag Only documents with this tag (case-insensitive)
 	Tag *DocumentTagParam `form:"tag,omitempty" json:"tag,omitempty"`
 
+	// ErrorCode Only documents with this error code, e.g. needs_ocr (skipped as scanned)
+	ErrorCode *DocumentErrorCodeParam `form:"errorCode,omitempty" json:"errorCode,omitempty"`
+
 	// Cursor nextCursor from the previous page
 	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
@@ -8056,6 +8244,12 @@ type AdminPutModerationPolicyJSONRequestBody = ModerationPolicyInput
 // AdminTestModerationJSONRequestBody defines body for AdminTestModeration for application/json ContentType.
 type AdminTestModerationJSONRequestBody = ModerationTestRequest
 
+// AdminPutParsingJSONRequestBody defines body for AdminPutParsing for application/json ContentType.
+type AdminPutParsingJSONRequestBody = ParsingSettingsInput
+
+// AdminTestParsingJSONRequestBody defines body for AdminTestParsing for application/json ContentType.
+type AdminTestParsingJSONRequestBody = ParsingTestInput
+
 // AdminStartProfileMigrationJSONRequestBody defines body for AdminStartProfileMigration for application/json ContentType.
 type AdminStartProfileMigrationJSONRequestBody = ProfileMigrationStart
 
@@ -8085,6 +8279,9 @@ type AdminUpdateSharedSourceJSONRequestBody = DataSourceUpdate
 
 // AdminUploadSharedDocumentsMultipartRequestBody defines body for AdminUploadSharedDocuments for multipart/form-data ContentType.
 type AdminUploadSharedDocumentsMultipartRequestBody AdminUploadSharedDocumentsMultipartBody
+
+// AdminRetrySharedDocumentsJSONRequestBody defines body for AdminRetrySharedDocuments for application/json ContentType.
+type AdminRetrySharedDocumentsJSONRequestBody = DocumentRetryInput
 
 // AdminUpdateSharedDocumentJSONRequestBody defines body for AdminUpdateSharedDocument for application/json ContentType.
 type AdminUpdateSharedDocumentJSONRequestBody = DocumentUpdate
@@ -8190,6 +8387,9 @@ type UpdateSourceJSONRequestBody = DataSourceUpdate
 
 // UploadDocumentsMultipartRequestBody defines body for UploadDocuments for multipart/form-data ContentType.
 type UploadDocumentsMultipartRequestBody UploadDocumentsMultipartBody
+
+// RetryDocumentsJSONRequestBody defines body for RetryDocuments for application/json ContentType.
+type RetryDocumentsJSONRequestBody = DocumentRetryInput
 
 // UpdateDocumentJSONRequestBody defines body for UpdateDocument for application/json ContentType.
 type UpdateDocumentJSONRequestBody = DocumentUpdate
