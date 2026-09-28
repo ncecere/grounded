@@ -25,7 +25,9 @@ func init() {
 	}})
 }
 
-func (c *mctx) evalSet(suffix string) string { return c.team("/evaluation-sets/" + c.tf.evalSet + suffix) }
+func (c *mctx) evalSet(suffix string) string {
+	return c.team("/evaluation-sets/" + c.tf.evalSet + suffix)
+}
 
 // questionRev is an If-Match header with a question's revision.
 func (c *mctx) questionRev(path string) map[string]string {
