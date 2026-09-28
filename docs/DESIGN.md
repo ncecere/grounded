@@ -362,6 +362,10 @@ The React app has two portals.
   - later: break-glass, legal holds, moderation policy
   - Auditors see it read-only.
 - **Switching.** Platform admins and auditors get a Workspace / Admin switch at the top of the sidebar. Workspace is the ordinary user experience (team switcher and team pages, no admin links); Admin shows only the platform pages. Each side remembers the last page visited in the browser tab. Switching doesn't change what they're allowed to do: the admin portal still gives no team content access (ADR-0011).
+- **Command palette (⌘K / Ctrl+K).** Pages, "New …" actions, the user's teams and (for staff) admin pages are listed locally and filter instantly. What the user types (2 characters or more) is also searched on the server, `GET /v1/search?q=&limit=` (debounced about 180 ms; a newer query cancels the older request), and the matches are added in groups by type:
+  - everyone: agents of their teams (the team's agent page) and agents they may chat with (the directory's rules: published and active, of an active team, and either their team's, open to signed-in users, or public while public access is on), the knowledge bases and data sources of **all** their teams, and **their own** conversations by title (never anyone else's; deleted ones are gone);
+  - platform admins and auditors, in addition: teams, users, models, connections, embedding profiles and shared sources, which open their admin pages (`/admin/teams/{slug}`, `/admin/users/{id}`, `/admin/models?record=`, `/admin/connections?record=`, `/admin/embedding-profiles?record=`, `/admin/shared-sources/{id}`). Being staff adds no team content: another team's knowledge bases, sources and conversations are never returned (break-glass doesn't apply to search).
+  - Matching is case-insensitive on the name (users: display name or email; models and profiles: name or key), ranked prefix, then the start of a word, then anywhere; then by type. `limit` defaults to 20 (at most 50). Results carry a secondary line (team name, email, key, agent name), the state when unusual (archived, suspended, disabled, retired, paused) and what the app needs to link. Search is session-only: API keys get 401 (a key belongs to one team and has its lists). Trigram indexes (migration `search_indexes`) serve the name matches. The authorization matrix searches for another team's marker as every caller.
 
 ## 8. Conversations and analytics (ADR-0010)
 
@@ -580,6 +584,7 @@ Agents         /v1/teams/{team}/agents             (draft CRUD, POST /{id}/publi
                POST /v1/agents/{team}/{agent}/chat  (SSE)
                GET/DELETE /v1/conversations[/{id}]  (caller's own only), GET /{id}/export
                POST /v1/messages/{id}/feedback
+Search         GET  /v1/search?q=&limit=            (⌘K: objects the caller may see, by name; session only)
 Notifications  GET /v1/notifications, PATCH /v1/notifications/{id}, PUT /v1/me/notification-settings
 OpenAI compat  POST /v1/chat/completions  (model = "agent:{team}/{agent}")   GET /v1/models
 ```

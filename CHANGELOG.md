@@ -4,6 +4,11 @@ All notable changes to Grounded are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Before 1.0, minor releases may include breaking changes; the release notes say how to adapt.
 
+## [Unreleased]
+
+### Added
+- The command palette (⌘K) finds objects by name on the server (`GET /v1/search`, E15): the agents, knowledge bases and data sources of all your teams (no longer only the first ten), agents you may chat with, and your own conversations by title; platform admins and auditors also find teams, users, models, connections, embedding profiles and shared sources, which open their admin pages. Results are ranked by how the name matches (prefix, word start, anywhere) and only include what the caller may see. A migration adds trigram indexes for the searched names.
+
 ## [0.1.0] - 2026-09-28
 
 The first release. It covers the design's Phases 0 to 5. The release notes are in [`docs/releases/v0.1.0.md`](docs/releases/v0.1.0.md).
