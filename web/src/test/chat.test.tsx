@@ -285,6 +285,16 @@ describe("chat page", () => {
   });
 });
 
+describe("chat page for an agent you can't use", () => {
+  it("shows the shared not-available page with a way to find agents", async () => {
+    mockApi({ ...shellRoutes(), "GET /v1/agents/qa-team/qa-helper": () => Reply.error(404, "not_found", "Not found.") });
+    const { container } = renderApp("/a/qa-team/qa-helper");
+    expect(await screen.findByRole("heading", { level: 1, name: "Agent not available" })).toBeInTheDocument();
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Discover agents" })).toHaveAttribute("href", "/agents");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
 describe("chat error text", () => {
   it("tells a busy gateway apart from an outage", () => {
     expect(chatErrorText("model_busy").title).toBe("The AI model is busy");

@@ -6,14 +6,14 @@
  * stream's `conversation` event and the URL follows.
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { Bot, PanelLeft } from "lucide-react";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { PanelLeft } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
 import { agentProfileQuery, conversationsKey, conversationsQuery } from "../../api/queries";
+import { NotFoundState } from "../../components/not-found";
 import { ErrorAlert } from "@/components/ui/alert/alert";
-import { Button, IconButton } from "@/components/ui/button/button";
-import { EmptyState } from "@/components/ui/empty-state/empty-state";
+import { IconButton } from "@/components/ui/button/button";
 import { Sheet } from "@/components/ui/sheet/sheet";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { AgentInfo } from "./agent-info";
@@ -49,17 +49,9 @@ function ProfileGate({ profile }: { profile: { isLoading: boolean; error: unknow
   if (profile.isLoading) return <Loading label="Loading the agent…" />;
   if (profile.error || !profile.data)
     return (
-      <EmptyState
-        className={c.unavailable}
-        icon={<Bot />}
-        title="This agent isn't available"
-        description="It may have been deleted or unpublished, or it belongs to a team you're not on."
-        action={
-          <Button variant="secondary" render={<Link to="/agents" />}>
-            See your agents
-          </Button>
-        }
-      />
+      <div className={c.unavailable}>
+        <NotFoundState what="chat" />
+      </div>
     );
   return <AgentChat key={profile.data.id} card={profile.data} />;
 }

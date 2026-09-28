@@ -266,7 +266,7 @@
     "menu": {
       "files": {
         "src/components/ui/menu/menu.module.css": "4570ae6da4d79db75583a70c35c0a80286a78519da32f6b2e7f20f54f8edfec3",
-        "src/components/ui/menu/menu.tsx": "8146e13881b48c3b85017efa5ae8f5c724c3ab821ec05a0e2fac5fe9b8c0212d"
+        "src/components/ui/menu/menu.tsx": "32a10816b34dbb3ab7e4a30489a03577eb18d98f700ff3271e24d2ea0c23ac08"
       }
     },
     "message": {

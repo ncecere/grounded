@@ -4,7 +4,7 @@
  * decide, then render <NotFoundState what="team" /> instead of an inline error.
  */
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, LifeBuoy, SearchX, ShieldAlert, Shield } from "lucide-react";
+import { Compass, Home, LifeBuoy, SearchX, ShieldAlert, Shield } from "lucide-react";
 import { ApiError } from "../api/client";
 import { useCurrentUser, useInstance } from "../session";
 import s from "../pages/shared.module.css";
@@ -32,6 +32,8 @@ const titles = {
   team: { title: "Team not found", body: "There's no team at this address, or you aren't a member of it." },
   object: { title: "Not found", body: "It may have been deleted, or the link is wrong." },
   agent: { title: "Agent not found", body: "This agent may have been deleted, or the link is wrong." },
+  /** A chat address for an agent the user can't chat with (deleted, unpublished, or another team's). */
+  chat: { title: "Agent not available", body: "It may have been deleted or unpublished, or it belongs to a team you're not on." },
   source: { title: "Data source not found", body: "This data source may have been deleted, or the link is wrong." },
   kb: { title: "Knowledge base not found", body: "This knowledge base may have been deleted, or the link is wrong." },
   /** A signed-in user without the platform role on an admin page (no admin data is requested). */
@@ -55,10 +57,14 @@ export function NotFoundState({ what = "page" }: { what?: NotFoundWhat }) {
         <EmptyState
           icon={what === "forbidden" ? <ShieldAlert /> : <SearchX />}
           title={t.body}
-          description={what === "forbidden" ? "Ask a platform admin if you need access." : adminHome ? "Check the link, or go back to the admin overview." : "Check the link, or go back to your home page."}
+          description={what === "forbidden" ? "Ask a platform admin if you need access." : what === "chat" ? "Find the agents you can chat with." : adminHome ? "Check the link, or go back to the admin overview." : "Check the link, or go back to your home page."}
           action={
             <>
-              {adminHome ? (
+              {what === "chat" ? (
+                <Button variant="secondary" render={<Link to="/agents" />}>
+                  <Compass aria-hidden /> Discover agents
+                </Button>
+              ) : adminHome ? (
                 <Button variant="secondary" render={<Link to="/admin" />}>
                   <Shield aria-hidden /> Go to Admin overview
                 </Button>

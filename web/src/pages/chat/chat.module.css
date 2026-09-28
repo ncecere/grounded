@@ -99,8 +99,12 @@
   }
 }
 
+/* The not-available page inside the full-bleed chat layout: the usual page width and padding. */
 .unavailable {
-  margin: var(--space-8) auto;
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6);
 }
 
 .side {

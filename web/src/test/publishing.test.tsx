@@ -277,13 +277,40 @@ describe("agent editor sharing", () => {
     mockApi(editorRoutes());
     const { container } = renderApp("/teams/registrar/agents/ag1?tab=share");
     const group = await screen.findByRole("radiogroup", { name: "Who can chat" }, { timeout: 5000 });
-    await waitFor(() => expect(within(group).getByText(/Not available: A platform admin must set a public moderation policy/)).toBeInTheDocument());
+    // The selected option says why it can't be published, rather than "Not available".
+    await waitFor(() => expect(within(group).getByText(/You can't publish to it: A platform admin must set a public moderation policy/)).toBeInTheDocument());
     expect(within(group).getByRole("radio", { name: /Public/ })).toBeChecked();
     expect(within(group).getByRole("radio", { name: /Signed-in users/ })).not.toHaveAttribute("data-disabled");
     // Audience, then Links, then the Widget (the draft is Public).
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
     expect(headings.slice(-3)).toEqual(["Audience", "Links", "Widget"]);
     expect(await axe(container, { iframes: false })).toHaveNoViolations();
+  });
+
+  it("an editor who narrows a shared agent's draft can go back to the live audience", async () => {
+    const editorOnly = "Only team admins and owners can publish beyond the team";
+    const live = { ...agent, audience: "all_authenticated" as const, draft: { ...config, audience: "team" as const }, hasUnpublishedChanges: true,
+      published: { version: 4, publishedAt: "2026-09-26T10:00:00Z", publishedBy: null, note: "" } } as unknown as Schemas["Agent"];
+    mockApi({
+      ...editorRoutes({
+        "GET /v1/teams/registrar/agents/ag1": () => live,
+        "GET /v1/teams/registrar/agents/ag1/sharing": () => ({
+          ...sharing, audience: "all_authenticated", draftAudience: "team",
+          options: [
+            { audience: "team", allowed: true, reasons: [] },
+            { audience: "all_authenticated", allowed: false, reasons: [editorOnly] },
+            { audience: "public", allowed: false, reasons: [editorOnly] },
+          ],
+        }),
+      }),
+      ...shellRoutes("none", "editor"),
+    });
+    renderApp("/teams/registrar/agents/ag1?tab=share");
+    const group = await screen.findByRole("radiogroup", { name: "Who can chat" }, { timeout: 5000 });
+    const signedIn = within(group).getByRole("radio", { name: /Signed-in users/ });
+    await waitFor(() => expect(signedIn).not.toHaveAttribute("data-disabled"));
+    expect(within(group).getByText(/The live version uses it\. You can't publish to it/)).toBeInTheDocument();
+    expect(within(group).getByRole("radio", { name: /Public/ })).toHaveAttribute("data-disabled");
   });
 
   it("Share tab: links, keys, creating a key puts it in the snippet, and a preview", async () => {

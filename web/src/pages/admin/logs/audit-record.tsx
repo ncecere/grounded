@@ -29,7 +29,7 @@ export function auditSections(e: Entry, names: ReadonlyMap<string, string> = new
   const out: RecordSection[] = [];
   if (e.before != null || e.after != null) {
     out.push({
-      title: "Before and after",
+      title: "Changes",
       content: (
         <DiffViewer
           label={`Changes by ${actionLabel(e.action)}`}
@@ -42,7 +42,7 @@ export function auditSections(e: Entry, names: ReadonlyMap<string, string> = new
     });
   }
   if (Object.keys(e.metadata).length > 0) {
-    out.push({ title: "Details", content: <CodeBlock code={JSON.stringify(e.metadata, null, 2)} language="json" /> });
+    out.push({ title: "Metadata", content: <CodeBlock code={JSON.stringify(e.metadata, null, 2)} language="json" /> });
   }
   return out;
 }

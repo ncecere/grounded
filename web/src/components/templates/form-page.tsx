@@ -70,7 +70,7 @@ export function FormPage({
   const edits = useEditTracker();
   const guard = useCloseGuard((dirty ?? edits.edited) && !busy, onClose);
   return (
-    <TakeoverPage param="form" label={label} title={title} description={description} onBack={guard.requestClose}>
+    <TakeoverPage param="form" initialFocus="field" label={label} title={title} description={description} onBack={guard.requestClose}>
       {facts && facts.length > 0 && (
         <Card title="Details" titleAs="h2">
           <DescriptionList items={facts} dividers />

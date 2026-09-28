@@ -7,6 +7,7 @@
  * before/after in a diff viewer. Sign-ins aren't team entries, so there is
  * no "Hide sign-ins" here.
  */
+import { auditSections } from "../../admin/logs/audit-record";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Eye, FileClock } from "lucide-react";
 import { api, unwrap, type Schemas } from "../../../api/client";
@@ -19,7 +20,6 @@ import { RecordPage, useRecordParam } from "../../../components/templates/record
 import { membersKey } from "../../../components/members";
 import { terms } from "../../../lib/terms";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
-import { DiffViewer } from "@/components/ui/diff-viewer/diff-viewer";
 import type { Facet, FilterValue } from "@/components/ui/filter-bar/filter-bar";
 import { Time } from "@/components/ui/time/time";
 import s from "../../shared.module.css";
@@ -124,8 +124,6 @@ function AuditEntryPage({ id, loaded, onClose }: { id?: string; loaded?: Entry; 
     initialData: loaded,
   });
   const e = entry.data;
-  const changed = e && (e.before != null || e.after != null);
-  const metadata = e && Object.keys(e.metadata).length > 0;
   return (
     <RecordPage
       open={Boolean(id)}
@@ -145,10 +143,7 @@ function AuditEntryPage({ id, loaded, onClose }: { id?: string; loaded?: Entry; 
             ]
           : []
       }
-      sections={[
-        ...(changed ? [{ title: "Changes", content: <DiffViewer label={`Changes: ${actionLabel(e.action)}`} before={e.before ?? null} after={e.after ?? null} format="json" /> }] : []),
-        ...(metadata ? [{ title: "Details", content: <pre className={s.pre}>{JSON.stringify(e.metadata, null, 2)}</pre> }] : []),
-      ]}
+      sections={e ? auditSections(e) : []}
     />
   );
 }

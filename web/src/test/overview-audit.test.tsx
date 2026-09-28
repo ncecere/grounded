@@ -191,7 +191,7 @@ describe("team overview", () => {
     const { container } = renderApp("/teams/registrar/settings?tab=audit&record=9");
     const sheet = await screen.findByRole("region", { name: "Changed knowledge base" });
     expect(within(sheet).getByText("kb.update")).toBeInTheDocument();
-    expect(within(sheet).getByRole("table", { name: /Changes: Changed knowledge base/ })).toBeInTheDocument();
+    expect(within(sheet).getByRole("table", { name: /Changes by Changed knowledge base/ })).toBeInTheDocument();
     expect(sheet).toHaveTextContent('"New"');
     expect(await axe(container)).toHaveNoViolations();
   });

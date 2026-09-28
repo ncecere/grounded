@@ -61,6 +61,8 @@ export type TakeoverPageProps = {
   onBack: () => void;
   /** The URL parameter that opens this page: the back link's address is the current one without it. */
   param: "record" | "form";
+  /** What gets focus when the page opens: its heading (default), or its first field (a form). */
+  initialFocus?: "heading" | "field";
   children?: ReactNode;
 };
 
@@ -70,7 +72,7 @@ function currentHrefWithout(param: string) {
   return url.pathname + url.search;
 }
 
-export function TakeoverPage({ label, title, description, meta, actions, onBack, param, children }: TakeoverPageProps) {
+export function TakeoverPage({ label, title, description, meta, actions, onBack, param, initialFocus = "heading", children }: TakeoverPageProps) {
   const host = useContext(HostContext);
   const id = useId();
   const ref = useRef<HTMLElement>(null);
@@ -97,12 +99,14 @@ export function TakeoverPage({ label, title, description, meta, actions, onBack,
   useEffect(() => {
     if (!isTop || !hasHost) return;
     globalThis.scrollTo?.(0, 0);
+    const field = initialFocus === "field" ? ref.current?.querySelector<HTMLElement>("form :is(input, textarea, select):not([disabled]):not([type=hidden])") : null;
     const h = ref.current?.querySelector<HTMLElement>("h1");
-    if (h) {
+    if (field) field.focus({ preventScroll: true });
+    else if (h) {
       h.tabIndex = -1;
       h.focus({ preventScroll: true });
     }
-  }, [isTop, hasHost]);
+  }, [isTop, hasHost, initialFocus]);
 
   // A stable close for the crumb: callers pass inline functions, and a new
   // crumb on every render would re-render the shell in a loop.

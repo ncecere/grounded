@@ -99,6 +99,11 @@
   min-width: 0;
 }
 
+/* The heading takes focus when the page opens (for screen readers); it isn't a control, so no ring. */
+.takeover h1[tabindex="-1"]:focus {
+  outline: none;
+}
+
 /* "← Back to Audit log" above the title. */
 .backLink {
   display: inline-flex;

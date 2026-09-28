@@ -89,10 +89,15 @@ export function MenuItem({ icon, shortcut, tone = "default", className, children
 
 export type MenuLinkItemProps = Omit<BaseMenu.LinkItem.Props, "className"> & ItemExtras;
 
-/** A menu item that navigates. Pass `href`, or `render={<Link to=… />}` for router links. */
-export function MenuLinkItem({ icon, shortcut, tone = "default", className, children, ...props }: MenuLinkItemProps) {
+/**
+ * A menu item that navigates. Pass `href`, or `render={<Link to=… />}` for
+ * router links. It closes the menu when clicked (Base UI's default keeps it
+ * open, which suits full page loads but leaves it open over a client-side
+ * route); pass `closeOnClick={false}` to keep it.
+ */
+export function MenuLinkItem({ icon, shortcut, tone = "default", className, children, closeOnClick = true, ...props }: MenuLinkItemProps) {
   return (
-    <BaseMenu.LinkItem {...props} className={cx(popup.item, tone === "danger" && popup.itemDanger, className)}>
+    <BaseMenu.LinkItem {...props} closeOnClick={closeOnClick} className={cx(popup.item, tone === "danger" && popup.itemDanger, className)}>
       {icon}
       <span className={styles.label}>{children}</span>
       {shortcut && (
