@@ -94,7 +94,10 @@ function ToastList() {
             <BaseToast.Description className={styles.description} />
           </div>
           {t.actionProps && <BaseToast.Action className={styles.action} />}
-          <BaseToast.Close className={styles.close} aria-label="Dismiss notification">
+          {/* Base UI hides the close button from assistive technology until the
+              stack is expanded, but it stays visible and in the Tab order: a
+              focusable aria-hidden control (axe aria-hidden-focus). Always expose it. */}
+          <BaseToast.Close className={styles.close} aria-label="Dismiss notification" aria-hidden={false}>
             <X aria-hidden />
           </BaseToast.Close>
         </BaseToast.Content>
