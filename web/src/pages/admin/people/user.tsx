@@ -106,7 +106,7 @@ export function AdminUserPage() {
       <div className={p.sections}>
         <UserAccessCard user={user} isAdmin={isAdmin} update={update} />
         <UserTeamsCard teams={teams} />
-        <Card title="Activity" description={`Changes ${name} made, newest first, from the audit log.`} flush>
+        <Card title="Activity" description={`Changes ${name} made, newest first, from the audit log.`}>
           <UserActivity user={user} />
         </Card>
       </div>

@@ -25,6 +25,12 @@ type Props = {
   onKillSwitch: (a: AdminAgent) => void;
 };
 
+/** Whether uses of the agent are in the access log: every level above the lowest (rank 1 and up). */
+export function hasAccessLog(levels: Props["levels"], classification: string | null | undefined) {
+  const rank = levels?.find((l) => l.key === classification)?.rank;
+  return rank !== undefined && rank >= 1;
+}
+
 export function AgentRecordPage({ agent, open, loading, onClose, isAdmin, levels, onKillSwitch }: Props) {
   const disabled = agent?.status === "disabled_by_platform";
   return (
@@ -76,9 +82,11 @@ export function AgentRecordPage({ agent, open, loading, onClose, isAdmin, levels
       actions={
         agent && (
           <>
-            <Button variant="secondary" render={<Link to="/admin/logs" search={{ tab: "access", agent: agent.id } as never} />}>
-              <ScrollText aria-hidden /> Access log
-            </Button>
+            {hasAccessLog(levels, agent.classification) && (
+              <Button variant="secondary" render={<Link to="/admin/logs" search={{ tab: "access", agent: agent.id } as never} />}>
+                <ScrollText aria-hidden /> Access log
+              </Button>
+            )}
             {isAdmin && (
               <Button variant={disabled ? "primary" : "danger"} onClick={() => onKillSwitch(agent)}>
                 {disabled ? <Power aria-hidden /> : <PowerOff aria-hidden />} {disabled ? "Enable agent" : "Disable agent…"}

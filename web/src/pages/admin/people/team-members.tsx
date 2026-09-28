@@ -56,7 +56,6 @@ export function TeamMembersTab({ team, isAdmin }: { team: string; isAdmin: boole
           </Button>
         )
       }
-      flush
     >
       <ListPage<Member>
         id="admin-team-members"

@@ -27,15 +27,20 @@ describe("admin crawling page", () => {
       },
     });
     const { container } = renderWith(<CrawlingPage />, { platformRole: "platform_admin" });
-    // Requests come first (Q7), with the pending count on the tab.
+    // Requests come first (Q7), with the pending count on the tab; pending requests first in the list.
     expect(await screen.findByRole("tab", { name: /Requests/ })).toHaveAttribute("aria-selected", "true");
-    const table = await screen.findByRole("table", { name: "Domain requests, 1 pending" });
+    const table = await screen.findByRole("table", { name: "Domain requests" });
     expect(await within(table).findAllByText("Blair Dev")).toHaveLength(2);
+    expect(within(table).getAllByRole("rowheader").map((c) => c.textContent)).toEqual(["*.example.org", "news.example.com"]);
     expect(within(table).getByText("Pending review")).toBeInTheDocument();
-    expect(within(table).getByRole("button", { name: "Revoke news.example.com for Academic Advising" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
 
-    await userEvent.click(within(table).getByRole("button", { name: "Approve *.example.org for Academic Advising" }));
+    // Approve from the row menu (Revoke is offered on the approved one).
+    await userEvent.click(within(table).getByRole("button", { name: "Actions for news.example.com for Academic Advising" }));
+    expect(await screen.findByRole("menuitem", { name: "Revoke…" })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(within(table).getByRole("button", { name: "Actions for *.example.org for Academic Advising" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Approve…" }));
     const dialog = await screen.findByRole("alertdialog", { name: "Approve *.example.org?" });
     expect(dialog).toHaveTextContent("Academic Advising's web sources can crawl hosts matching *.example.org");
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Note" }), "Approved for transfer guides");
@@ -43,10 +48,14 @@ describe("admin crawling page", () => {
     await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
     expect(calls.find((c) => c.method === "POST")?.body).toEqual({ decision: "approve", note: "Approved for transfer guides" });
     expect(await screen.findByText("*.example.org was approved")).toBeInTheDocument();
-    await waitFor(() => expect(within(table).queryByRole("button", { name: "Approve *.example.org for Academic Advising" })).toBeNull());
-    expect(within(table).getByText("“Approved for transfer guides”")).toBeInTheDocument();
-    // Pending requests were asked for by default.
-    expect(calls.some((c) => c.url === "/v1/admin/domain-requests" && c.search.includes("status=pending"))).toBe(true);
+    await waitFor(() => expect(within(table).queryByText("Pending review")).toBeNull());
+
+    // The request's page has the note.
+    await userEvent.click(within(table).getByRole("button", { name: "Actions for *.example.org for Academic Advising" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
+    const page = await screen.findByRole("region", { name: "*.example.org" });
+    expect(within(page).getByText("Approved for transfer guides")).toBeInTheDocument();
+    await userEvent.click(within(page).getByRole("link", { name: /^Back/ }));
 
     await userEvent.click(screen.getByRole("tab", { name: "Allowlist" }));
     const allowlist = await screen.findByRole("table", { name: "Crawl allowlist" });
@@ -61,8 +70,11 @@ describe("admin crawling page", () => {
     });
     renderWith(<CrawlingPage />, { platformRole: "platform_auditor" });
     expect(await screen.findByText(/Auditors can view the allowlist/)).toBeInTheDocument();
-    await screen.findByRole("table", { name: /Domain requests/ });
-    expect(screen.queryByRole("button", { name: /Approve|Deny|Remove|Add pattern/ })).toBeNull();
+    const table = await screen.findByRole("table", { name: /Domain requests/ });
+    expect(screen.queryByRole("button", { name: /^(Approve|Deny|Remove|Add pattern)\b(?!d)/ })).toBeNull();
+    await userEvent.click(within(table).getByRole("button", { name: /^Actions for/ }));
+    expect(await screen.findByRole("menuitem", { name: "View details" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /Approve|Deny/ })).toBeNull();
   });
 });
 

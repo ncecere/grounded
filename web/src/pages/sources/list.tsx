@@ -131,15 +131,18 @@ export function SourcesTable({ sources, levels, profiles, caption = "Data source
         <CellText
           primary={<span className={w.nowrap}>{plural(src.documents.total, src.type === "web" ? "page" : "document")}</span>}
           secondary={
-            <span className={w.nowrap}>
-              {formatBytes(src.documents.bytes)}
+            <>
+              <span className={w.nowrap}>{formatBytes(src.documents.bytes)}</span>
               {src.documents.failed > 0 && (
                 <>
-                  {" · "}
-                  <span className={s.dangerText}>{src.documents.failed.toLocaleString()} failed</span>
+                  {" "}
+                  {/* The separator stays with what follows it, so a wrap never leaves "4.3 KB ·". */}
+                  <span className={w.nowrap}>
+                    · <span className={s.dangerText}>{src.documents.failed.toLocaleString()} failed</span>
+                  </span>
                 </>
               )}
-            </span>
+            </>
           }
         />
       ),

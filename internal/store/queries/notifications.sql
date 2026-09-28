@@ -110,3 +110,11 @@ JOIN teams t ON t.id = i.team_id
 WHERE i.accepted_at IS NULL AND i.revoked_at IS NULL AND t.status = 'active'
   AND i.expires_at > now() AND i.expires_at <= @before
 ORDER BY i.expires_at;
+
+-- Marks everyone's unread notifications of one kind about one object read,
+-- once the object is dealt with (a domain request someone decided).
+-- name: MarkNotificationsReadFor :exec
+UPDATE notifications n SET read_at = now()
+FROM notification_events e
+WHERE n.event_id = e.id AND n.read_at IS NULL
+  AND e.type = @type::text AND e.data ->> @data_key::text = @data_value::text;

@@ -147,9 +147,9 @@ export function EmbeddingProfilesPage() {
         rowActions={actions}
         empty={{ icon: <Layers />, title: "No embedding profiles yet.", description: "Add an embedding model first, then create a profile.", action: add || undefined }}
       />
-      <ProfileSheet
+      <ProfileRecordPage
         profile={open}
-        open={Boolean(record.id) && !fusion}
+        open={Boolean(record.id)}
         loading={profiles.isLoading}
         onClose={record.close}
         usage={open && usageById.get(open.id)}
@@ -171,9 +171,9 @@ export function EmbeddingProfilesPage() {
   );
 }
 
-type SheetProps = { profile?: Profile; open: boolean; loading: boolean; onClose: () => void; usage?: ProfileUsage; isAdmin: boolean; onFusion: (p: Profile) => void };
+type RecordProps = { profile?: Profile; open: boolean; loading: boolean; onClose: () => void; usage?: ProfileUsage; isAdmin: boolean; onFusion: (p: Profile) => void };
 
-function ProfileSheet({ profile: p, open, loading, onClose, usage, isAdmin, onFusion }: SheetProps) {
+function ProfileRecordPage({ profile: p, open, loading, onClose, usage, isAdmin, onFusion }: RecordProps) {
   const levelName = useLevelName();
   const usedBy = profileUsedBy(usage);
   return (

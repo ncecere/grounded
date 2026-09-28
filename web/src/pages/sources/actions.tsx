@@ -67,7 +67,7 @@ export function useSourceActions(source: DataSource) {
         if (!o) remove.reset();
       }}
       title={`Delete ${source.name}?`}
-      description={`${plural(source.documents.total, source.type === "web" ? "page" : "document")} and their passages are deleted. This can't be undone.`}
+      description={`${plural(source.documents.total, source.type === "web" ? "page" : "document")} and ${source.documents.total === 1 ? "its" : "their"} passages are deleted. This can't be undone.`}
       confirmLabel="Delete source"
       busy={remove.isPending}
       error={remove.error}

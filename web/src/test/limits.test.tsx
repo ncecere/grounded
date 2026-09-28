@@ -357,11 +357,11 @@ describe("team domain requests", () => {
     expect(await within(table).findByText("Blair Dev")).toBeInTheDocument();
     expect(within(table).getByText("blair@example.edu")).toBeInTheDocument();
     expect(within(table).queryByText("u2")).toBeNull();
-    // The review is in the request's record sheet (D4), opened from the row menu.
+    // The review is on the request's record page (D4), opened from the row menu.
     await userEvent.click(within(table).getByRole("button", { name: "Actions for *.example.org" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
     const sheet = await screen.findByRole("region", { name: "*.example.org" });
-    expect(within(sheet).getByText("Pat Admin")).toBeInTheDocument();
+    expect(within(sheet).getByText(/Pat Admin/)).toBeInTheDocument();
     expect(within(sheet).getByText("Partner college publishes our transfer guides.")).toBeInTheDocument();
   });
 });

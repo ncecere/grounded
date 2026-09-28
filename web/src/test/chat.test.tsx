@@ -301,3 +301,12 @@ describe("chat error text", () => {
     expect(chatErrorText("model_unavailable").title).toBe("The AI model is unavailable");
   });
 });
+
+describe("streaming citation markers", () => {
+  it("shows full-width and lenticular markers as [n] while streaming, spaced after a word", async () => {
+    const { normalizeMarkers } = await import("../pages/chat/thread");
+    expect(normalizeMarkers("online【2】.")).toBe("online [2].");
+    expect(normalizeMarkers("See 【1†L10-L12】 and ［1，3］.")).toBe("See [1] and [1,3].");
+    expect(normalizeMarkers("Already [1] fine; array[3] stays.")).toBe("Already [1] fine; array[3] stays.");
+  });
+});

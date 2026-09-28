@@ -557,7 +557,8 @@ describe("existing screens", () => {
         Reply.error(409, "kb_in_use", "Published agents use this knowledge base: Registrar assistant.", { agents: [{ id: "ag1", name: "Registrar assistant", slug: "registrar-assistant" }] }),
     });
     const { router } = renderApp("/teams/registrar/kbs/kb1?tab=sources");
-    await userEvent.click(await screen.findByRole("button", { name: "Attach source" }));
+    // The card's header button (the empty list offers the same action).
+    await userEvent.click((await screen.findAllByRole("button", { name: "Attach source" }))[0]!);
     const picker = await screen.findByRole("dialog", { name: /Attach a source/ });
     await userEvent.click(await within(picker).findByRole("button", { name: "Attach source" }));
     // The explanation opens at once; the alert stays behind with a button to reopen it.

@@ -129,7 +129,7 @@ export function KeysList({ team, agentId, onCreated }: Props) {
   );
 }
 
-type SheetProps = {
+type RecordProps = {
   team: string;
   agentId: string;
   current: PublishableKey | null;
@@ -140,7 +140,7 @@ type SheetProps = {
 
 const numOrNull = (v: string) => (v.trim() === "" ? null : Number(v));
 
-function WidgetKeyForm({ team, agentId, current, onClose, onRevoke, onSaved }: SheetProps) {
+function WidgetKeyForm({ team, agentId, current, onClose, onRevoke, onSaved }: RecordProps) {
   const [form, set, , dirty] = useFormState({
     name: current?.name ?? "",
     origins: current?.allowedOrigins ?? [],

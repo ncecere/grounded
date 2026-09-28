@@ -73,7 +73,7 @@ export function sharedColumns(levels: Classification[] | undefined, usage: Map<s
   ];
 }
 
-type SheetProps = { source?: DataSource; open: boolean; loading: boolean; onClose: () => void; attachments: Attachment[] };
+type RecordProps = { source?: DataSource; open: boolean; loading: boolean; onClose: () => void; attachments: Attachment[] };
 
 /** The teams (with their approved classification) and their knowledge bases that attach a shared source. */
 export function SharedUsageList({ attachments }: { attachments: Attachment[] }) {
@@ -113,7 +113,7 @@ export function SharedUsageTab({ sourceId }: { sourceId: string }) {
   );
 }
 
-export function SharedUsagePage({ source, open, loading, onClose, attachments }: SheetProps) {
+export function SharedUsagePage({ source, open, loading, onClose, attachments }: RecordProps) {
   return (
     <RecordPage
       open={open}

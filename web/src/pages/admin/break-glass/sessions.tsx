@@ -21,7 +21,7 @@ export function OpenSessionsCard({ onOpen }: { onOpen: (id: string) => void }) {
   const list = [...(q.data?.items ?? [])].sort((a, b) => Number(b.status === "pending") - Number(a.status === "pending"));
   const pending = list.filter((x) => x.status === "pending").length;
   return (
-    <Card title="Open sessions" description="Requests waiting for a second admin, and sessions that can read now." flush>
+    <Card title="Open sessions" description="Requests waiting for a second admin, and sessions that can read now.">
       <QueryView
         query={q}
         loadingLabel="Loading open sessions…"
@@ -80,7 +80,7 @@ export function AllSessionsList({ onOpen }: { onOpen: (id: string) => void }) {
   const q = useAllSessions();
   const items = q.data?.pages.flatMap((p) => p.items) ?? [];
   return (
-    <Card title="All sessions" description="Every session and request, newest first. Open one to see what it read." flush>
+    <Card title="All sessions" description="Every session and request, newest first. Open one to see what it read.">
       <ListPage<BreakGlassSession>
         id="admin-break-glass"
         caption="Break-glass sessions"

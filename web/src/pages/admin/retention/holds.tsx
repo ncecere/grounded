@@ -167,7 +167,10 @@ function HoldSheet({ id, onClose, isAdmin, onRelease }: { id?: string; onClose: 
       }
     >
       {h && h.deletedConversations > 0 && (
-        <Alert tone="warning" title={`${h.deletedConversations.toLocaleString()} deleted by their users, kept by this hold`}>
+        <Alert
+          tone="warning"
+          title={`${h.deletedConversations.toLocaleString()} deleted by their users, ${h.status === "active" ? "kept by this hold" : "kept until this hold was released"}`}
+        >
           {h.status === "active"
             ? "Their users deleted these conversations and no longer see them. This hold keeps them stored until it's released; then retention removes them as usual."
             : "Their users deleted these conversations. With the hold released, retention removes them as usual."}

@@ -4,6 +4,7 @@
  * opens a dialog listing every source, the ones that can't be attached
  * disabled with their reason (embedding profile, classification).
  */
+import { Stack } from "@/components/ui/layout/layout";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Database, Plus, Unlink } from "lucide-react";
@@ -132,42 +133,44 @@ export function KBSources({ kb }: { kb: KB }) {
           </Button>
         )
       }
-      flush
     >
-      {detach.error && !confirming ? (
-        <div className={s.pad}>
-          <ErrorAlert error={detach.error} />
-        </div>
-      ) : null}
-      {attachImpact && (
-        <div className={s.pad}>
-          <Alert
-            tone="warning"
-            title={`${sourceName(attach.variables ?? "")} wasn't attached`}
-            actions={
-              <Button size="sm" variant="secondary" onClick={() => setImpact(attachImpact)}>
-                Show which agents
+      <Stack gap={4}>
+        {detach.error && !confirming ? <ErrorAlert error={detach.error} /> : null}
+        {attachImpact && (
+          <div>
+            <Alert
+              tone="warning"
+              title={`${sourceName(attach.variables ?? "")} wasn't attached`}
+              actions={
+                <Button size="sm" variant="secondary" onClick={() => setImpact(attachImpact)}>
+                  Show which agents
+                </Button>
+              }
+            >
+              It would raise this knowledge base's classification, and {impactSummary(attachImpact)} using it can't serve that level.
+            </Alert>
+          </div>
+        )}
+        <ListPage<Attached>
+          id="kb-sources"
+          caption="Attached data sources"
+          columns={columns}
+          data={kb.sources}
+          getRowId={(src) => src.id}
+          rowLabel={(src) => src.name}
+          rowActions={(src) => [{ label: "Detach", icon: <Unlink aria-hidden />, danger: true, onSelect: () => requestDetach(src), hidden: !canEdit }]}
+          empty={{
+            icon: <Database />,
+            title: "No data sources attached yet.",
+            description: canEdit ? "Attach the sources this knowledge base should search." : undefined,
+            action: canEdit ? (
+              <Button variant="secondary" onClick={() => setAttaching(true)}>
+                <Plus aria-hidden /> Attach source
               </Button>
-            }
-          >
-            It would raise this knowledge base's classification, and {impactSummary(attachImpact)} using it can't serve that level.
-          </Alert>
-        </div>
-      )}
-      <ListPage<Attached>
-        id="kb-sources"
-        caption="Attached data sources"
-        columns={columns}
-        data={kb.sources}
-        getRowId={(src) => src.id}
-        rowLabel={(src) => src.name}
-        rowActions={(src) => [{ label: "Detach", icon: <Unlink aria-hidden />, danger: true, onSelect: () => requestDetach(src), hidden: !canEdit }]}
-        empty={{
-          icon: <Database />,
-          title: "No data sources attached yet.",
-          description: canEdit ? "Use Attach source to add the sources this knowledge base should search." : undefined,
-        }}
-      />
+            ) : undefined,
+          }}
+        />
+      </Stack>
       <DetachConfirm
         kb={kb}
         source={confirming}

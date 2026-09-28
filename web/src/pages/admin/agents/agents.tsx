@@ -6,7 +6,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Bot, Eye, Power, PowerOff } from "lucide-react";
+import { Bot, Eye, Power, PowerOff, ScrollText } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
@@ -22,7 +22,7 @@ import { audienceLabels } from "@/lib/terms";
 import s from "../../shared.module.css";
 import { ClassificationBadge, useClassificationLevels } from "../../team/common";
 import { useIsPlatformAdmin } from "../hooks";
-import { AgentRecordPage } from "./agent-record";
+import { AgentRecordPage, hasAccessLog } from "./agent-record";
 import a from "./agents.module.css";
 import { KillSwitchDialog } from "./kill-switch";
 
@@ -168,7 +168,12 @@ export function AdminAgentsPage() {
           label={`Actions for ${r.name}`}
           actions={[
             { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(r.id) },
-            { label: "Open access log", render: <Link to="/admin/logs" search={{ tab: "access", agent: r.id } as never} /> },
+            {
+              label: "Open access log",
+              icon: <ScrollText aria-hidden />,
+              hidden: !hasAccessLog(levels.data, r.classification),
+              render: <Link to="/admin/logs" search={{ tab: "access", agent: r.id } as never} />,
+            },
             {
               label: disabled ? "Enable agent" : "Disable agent…",
               icon: disabled ? <Power aria-hidden /> : <PowerOff aria-hidden />,

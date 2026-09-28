@@ -240,7 +240,7 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
         </Field>
         <Switch
           label="API keys may call /retrieve"
-          description="Off: team API keys can only reach knowledge bases at this level through an agent."
+          description="When it's off, team API keys can only reach knowledge bases at this level through an agent."
           checked={form.directRetrieve}
           onCheckedChange={(v) => set("directRetrieve", v)}
         />

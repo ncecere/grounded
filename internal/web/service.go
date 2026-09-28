@@ -440,6 +440,12 @@ func (s *Service) PendingRequests(ctx context.Context, a authz.Actor) (int64, er
 // notifyDecision tells the person who asked for a domain that it was
 // decided (docs/phase4-publishing.md §8).
 func (s *Service) notifyDecision(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, r dbgen.CrawlDomainRequest, decision string) error {
+	// The admins' "New domain request" items are dealt with now.
+	if err := q.MarkNotificationsReadFor(ctx, dbgen.MarkNotificationsReadForParams{
+		Type: string(notify.DomainRequestNew), DataKey: "requestId", DataValue: r.ID.String(),
+	}); err != nil {
+		return err
+	}
 	if s.Notify == nil || !r.RequestedBy.Valid {
 		return nil
 	}

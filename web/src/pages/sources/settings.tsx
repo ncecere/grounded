@@ -174,7 +174,7 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
           />
           <DangerAction
             title="Delete this source"
-            description={`Deletes ${plural(source.documents.total, web ? "page" : "document")} and their passages. ${
+            description={`Deletes ${plural(source.documents.total, web ? "page" : "document")} and ${source.documents.total === 1 ? "its" : "their"} passages. ${
               owner.kind === "platform" ? "Every team's knowledge bases must detach it first." : "Remove it from knowledge bases first."
             }`}
             action={

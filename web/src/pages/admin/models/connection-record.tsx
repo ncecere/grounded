@@ -3,6 +3,7 @@
  * models the proxy offers with "Add as model" for the ones not in the
  * catalog yet, and the models on it. Editing happens in a SheetForm.
  */
+import { plural } from "../../team/common";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
@@ -23,7 +24,7 @@ import type { ModelPreset } from "./model-dialog";
 import m from "./models.module.css";
 import { FormPage, FormSection } from "@/components/templates/form-page";
 
-type SheetProps = {
+type RecordProps = {
   conn?: Connection;
   open: boolean;
   loading: boolean;
@@ -35,7 +36,7 @@ type SheetProps = {
   onAddModel: (p: ModelPreset) => void;
 };
 
-export function ConnectionRecordPage({ conn, open, loading, onClose, models, isAdmin, onEdit, onDelete, onAddModel }: SheetProps) {
+export function ConnectionRecordPage({ conn, open, loading, onClose, models, isAdmin, onEdit, onDelete, onAddModel }: RecordProps) {
   const qc = useQueryClient();
   const test = useQuery({ ...connectionTestQuery(conn?.id ?? ""), enabled: false, gcTime: 0 });
   const onThis = models.filter((x) => x.connectionId === conn?.id);
@@ -83,7 +84,7 @@ export function ConnectionRecordPage({ conn, open, loading, onClose, models, isA
                     ) : test.data?.ok ? (
                       <>
                         <Alert tone="success" title={`Connected in ${test.data.latencyMs} ms`}>
-                          The proxy offers {test.data.models.length} models. Nothing is added until you add it.
+                          The proxy offers {plural(test.data.models.length, "model")}. Nothing is added until you add it.
                           <TimingsText timings={test.data.timings} />
                         </Alert>
                         <ul aria-label="Models offered by the proxy" className={m.offered}>

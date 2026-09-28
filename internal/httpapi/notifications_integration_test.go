@@ -257,8 +257,16 @@ func TestNotificationTeamEvents(t *testing.T) {
 	var dr apitypes.DomainRequest
 	code, e := alex.call("POST", env.base+"/domain-requests", map[string]any{"pattern": "docs.example.edu", "reason": "The handbook lives there."}, &dr, nil)
 	mustCode(t, "domain request", code, e, 201, "")
+	newReq := inbox(t, env.admin, url.Values{"type": {"web.domain_request_new"}}).Items
+	if len(newReq) != 1 || newReq[0].Read {
+		t.Fatalf("admin's new-request notification = %+v", newReq)
+	}
 	code, e = env.admin.call("POST", "/v1/admin/domain-requests/"+dr.Id.String()+"/review", map[string]any{"decision": "approve", "note": "Fine."}, nil, nil)
 	mustCode(t, "approve", code, e, 200, "")
+	// Deciding the request deals with the admins' "New domain request".
+	if n := inbox(t, env.admin, url.Values{"type": {"web.domain_request_new"}}).Items; len(n) != 1 || !n[0].Read {
+		t.Errorf("after the decision, the new-request notification = %+v", n)
+	}
 	expect("web.domain_request", "Domain request approved: docs.example.edu", map[*session]bool{alex: true, owner: false})
 	if p := mailTo(t, sink, "alex@localhost", "Domain request approved"); !strings.Contains(p.Text, "Note from the reviewer: Fine.") {
 		t.Errorf("decision email:\n%s", p.Text)

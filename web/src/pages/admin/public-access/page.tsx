@@ -94,7 +94,7 @@ function SwitchCard({ enabled, revision, isAdmin }: { enabled: boolean; revision
   return (
     <Card
       title="Public agents"
-      description="Off: public pages, embeds and the public API refuse, and the directory hides public agents. Published agents keep their audience, so turning it back on restores them. Changes are audited."
+      description="While it's off, public pages, embeds and the public API refuse, and the directory hides public agents. Published agents keep their audience, so turning it back on restores them. Changes are audited."
     >
       <Stack gap={3}>
         <Switch

@@ -33,6 +33,9 @@ export function boilerplateRule(source: DataSource): string {
   const pct = `${Math.round(bp.ratio * 100)}%`;
   const rule = `${bp.minDocs} or ${pct}, whichever is more`;
   if (bp.documentsCounted === 0) return `Blocks repeated in at least ${rule} of the ${unit}; one copy is kept.`;
+  // Too few to count anything as repeated yet.
+  if (bp.threshold > bp.documentsCounted)
+    return `Blocks repeated in at least ${bp.threshold} ${unit} (${rule}); with ${bp.documentsCounted} ${bp.documentsCounted === 1 ? unit.slice(0, -1) : unit} so far, none are removed yet.`;
   return `Blocks in at least ${bp.threshold} of ${bp.documentsCounted} ${unit} (${rule}); one copy is kept.`;
 }
 

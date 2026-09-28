@@ -231,7 +231,7 @@ function AssistantMessage({ item, agent, feedback, onPatch }: { item: AssistantI
           item.text && (
             // Answers quote team documents: never fetch image URLs from them.
             <LazyResponse streaming={streaming} renderCitation={renderCitation} images="alt">
-              {item.text}
+              {streaming ? normalizeMarkers(item.text) : item.text}
             </LazyResponse>
           )
         )}
@@ -281,6 +281,20 @@ type ChatMessagesProps = {
 };
 
 /** The messages of a chat; put them in <ConversationContent>. */
+
+/**
+ * While an answer streams, show the citation markers some models write in
+ * full-width or lenticular brackets (［1］, 【1】, 【1†L10-L12】) as [1], as the
+ * server does for the finished answer (internal/agents/citations.go), so
+ * they're chips from the start rather than raw text.
+ */
+export function normalizeMarkers(text: string) {
+  return text.replace(/(?:［|【)(\d{1,3}(?:\s*[,，]\s*\d{1,3})*)(?:†[^】］]*)?(?:］|】)/g, (_m, nums: string, at: number, all: string) => {
+    // Right after a word ("online【2】") it gets a space, or it would read as part of an identifier.
+    const space = at > 0 && /[\p{L}\p{N}_]/u.test(all[at - 1]!) ? " " : "";
+    return `${space}[${nums.replace(/，/g, ",")}]`;
+  });
+}
 export function ChatMessages({ items, agent, feedback = false, onPatch }: ChatMessagesProps) {
   return (
     <>

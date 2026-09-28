@@ -380,6 +380,26 @@ func (q *Queries) MarkNotificationEmailSent(ctx context.Context, id uuid.UUID) e
 	return err
 }
 
+const markNotificationsReadFor = `-- name: MarkNotificationsReadFor :exec
+UPDATE notifications n SET read_at = now()
+FROM notification_events e
+WHERE n.event_id = e.id AND n.read_at IS NULL
+  AND e.type = $1::text AND e.data ->> $2::text = $3::text
+`
+
+type MarkNotificationsReadForParams struct {
+	Type      string
+	DataKey   string
+	DataValue string
+}
+
+// Marks everyone's unread notifications of one kind about one object read,
+// once the object is dealt with (a domain request someone decided).
+func (q *Queries) MarkNotificationsReadFor(ctx context.Context, arg MarkNotificationsReadForParams) error {
+	_, err := q.db.Exec(ctx, markNotificationsReadFor, arg.Type, arg.DataKey, arg.DataValue)
+	return err
+}
+
 const notificationSettingsFor = `-- name: NotificationSettingsFor :many
 SELECT user_id, in_app, email
 FROM notification_settings
