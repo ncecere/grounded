@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-09-28. Phases 0–5 are done, and **v0.1.0 is released**. Everything below the Phase 5 tables is a candidate: nothing is scheduled until the owner picks it.
+Status: refreshed 2026-09-28 for **v0.2** planning (branch `v0.2`). Phases 0–5 are done and **v0.1.0 is released** (the reference install runs it). Nothing below is scheduled until the owner picks it; the proposed v0.2 short list is at the end.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -8,11 +8,11 @@ Status: refreshed 2026-09-28. Phases 0–5 are done, and **v0.1.0 is released**.
 - **Value** is my estimate of impact for teams and admins.
 - **Depends on** lists what must exist first.
 - ★ marks the items I'd recommend first in each section.
-- **New** marks items added in this refresh, found while building, testing and running Phase 5.
+- **New** marks items added in this refresh: from the v0.1.0 walkthrough of every page by role (four personas, 138 findings; the rest were fixed before release) and from running the release.
 
 ---
 
-## Done since the last refresh (Phase 5)
+## Done in v0.1.0 (Phase 5)
 
 | ID | Item | Where |
 |---|---|---|
@@ -37,22 +37,9 @@ Earlier refreshes finished A1 (partly: SystemOne judging), A3, boilerplate suppr
 
 ---
 
-## Phase 5: released as v0.1.0 (2026-09-28)
+## v0.1.0 (released 2026-09-28)
 
-| Step | Done |
-|---|---|
-| Load tests and the restore rehearsal (P7) | merged |
-| **`v0.1.0-rc.1`** on the reference install, with its dashboards and alerts | 2026-09-28 |
-| Walkthrough of every page by role; records and long forms as pages instead of side sheets; the fixes it found, including a database-pool deadlock in profile migrations | **`v0.1.0-rc.2`** |
-| **P9:** a fresh public history (the old one archived privately), GitHub settings (private vulnerability reporting, branch protection, Dependabot, secret scanning), then **`v0.1.0`** | 2026-09-28 |
-
-Found in the walkthrough and left for later: a revoked API key's audit link lands on a list that hides it (needs the API to return revoked keys by id); a few dates are absolute where lists use relative ones; the command palette finds pages but not teams, users, agents or models; agents have no Settings tab; a notification about being added to a team stays after you're removed.
-
----|---|
-| Merge the load-test and restore-rehearsal branch (P7) | in progress |
-| Tag **`v0.1.0-rc.1`**, deploy it to the reference install, and load its dashboards and alerts | next |
-| Run the release candidate for a while and fix what it shows (`rc.2` if needed) | — |
-| **P9:** a fresh public history (the current history archived privately), GitHub settings (private vulnerability reporting, branch protection, Dependabot, secret scanning), a public ghcr package, then tag **`v0.1.0`** | — |
+Phase 5 ended in **v0.1.0**: rc.1 and rc.2 ran on the reference install, a walkthrough of every page by role changed records and long forms into pages (no side sheets) and fixed what it found, including a database-pool deadlock in profile migrations. The repository and the image are public; bitop-ui is public too. Its known issue, the binary reporting its version as `v0.1`, is fixed in the image workflow for the next release (H1).
 
 ---
 
@@ -105,6 +92,8 @@ Found in the walkthrough and left for later: a revoked API key's audit link land
 | C10 | **Structured outputs and forms** | Agents return checklists, forms or JSON. | M | Medium | — |
 | C11 | **Version A/B tests** | Split traffic between two published versions. | M | Medium | — |
 | C12 | **Conversation sharing** | A read-only, revocable snapshot of your own conversation. | S | Medium | — |
+| C13 **New** | **Agent Settings tab, KB primary action** | Sources and KBs have a Settings tab with a Danger zone; agents keep name and address in Appearance and Disable/Delete in the "…" menu. A new, empty KB has no "Attach source" in its header. Make the three detail pages match. | S | Medium | — |
+| C14 **New** | **KB results per search vs the agent's** | A KB's Retrieval settings say agents use the same settings, but a new agent shows its own "results per search" (6) and records it in the version. Say which wins, or make the agent inherit until overridden. | S | Medium | — |
 
 ## D. Channels and integrations
 
@@ -132,6 +121,8 @@ Found in the walkthrough and left for later: a revoked API key's audit link land
 | E12 **Done** | **Clearer connection errors** | TLS, proxy and certificate failures all show as "request failed". Name the cause, e.g. "certificate not trusted", "TLS handshake failed", "proxy refused". **Done** (Phase 5 M2), with DNS, connect, TLS and first-byte timings in model tests and `grounded doctor`. | S | Medium | — |
 | E13 **New** | **Audience in the usage ledger** | Record the audience on usage events, so analytics can split token use by audience as well as by team. | S | Low–Medium | — |
 | E14 **New** | **Profile migration for team owners** | Only platform admins start profile migrations today, because the embedding load is platform-wide. Let owners request one for their KB, with admin approval or a budget. | S | Medium | P2 |
+| E15 **New** ★ | **Command palette finds objects** | ⌘K finds pages and actions, not teams, users, agents, sources, KBs or models by name (admin and workspace walkthroughs both asked for it). | S–M | Medium–High | — |
+| E16 **New** | **Admin team settings as read-only facts** | Admin → Team → Settings shows auditors disabled inputs; the workspace shows the same data as a read-only list. Use the read-only pattern for auditors. | S | Low–Medium | — |
 
 ## F. Platform and operations
 
@@ -146,6 +137,9 @@ Found in the walkthrough and left for later: a revoked API key's audit link land
 | F7 **Done** | **Flaky crawl timing test** | `TestFetcherPacesEveryRequest` fails under machine load. Make it tolerant, or use a fake clock. | S | Low (CI noise) | — |
 | F8 **New** | **Faster authorization matrix** | About 3,300 calls under `-race` take over 7 minutes on a 2-vCPU CI runner. Run the calls in parallel per team fixture, or give the matrix its own CI job. | S | Medium (CI time) | — |
 | F9 **New** | **Release assets** | Attach an SBOM file and a checksums file to each GitHub Release; today they exist only as attestations on the image. | S | Medium (adoption, compliance) | — |
+| F10 **New** ★ | **Remote Kustomize base for the reference install** | The repository is public, so the homelab overlay can reference `github.com/ncecere/grounded//deploy/kubernetes?ref=v0.1.0` and drop its vendored copy (`docs/deployments/kubernetes.md`, "Consuming the base"). Upgrades become a one-line ref and digest change. | S | Medium | — |
+| F11 **New** | **bitop-ui docs site and npm** | bitop-ui is public, but its docs site isn't published (`DEPLOY_PAGES` is off) and the CLI installs from a checkout. Publish the site, and consider a registry URL so Grounded (and others) install without a local clone. | S | Medium (adoption) | — |
+| F12 **New** | **Dependabot triage** | Weekly grouped update PRs now arrive for Go, npm, Actions and Docker. Decide who merges them and how (CI green → merge), so they don't pile up. | S (ongoing) | Medium | — |
 
 ## G. Small fixes and polish
 
@@ -160,20 +154,35 @@ Found in the walkthrough and left for later: a revoked API key's audit link land
 | G9 **New** | Pick up bitop-ui's review follow-ups as they land, above all M1 (clickable table rows add a tab stop per row and aren't announced as clickable) and M2 (a chart series below 3:1 contrast). | S |
 | G10 **New** | bitop-ui `Avatar` builds initials from punctuation: "Go docs (signed-in)" shows "G(". It should skip non-letters. | S |
 | G11 **New** | `cmd/sparkbench` still has its own copy of the old citation-marker regex; switch it to the `internal/agents` markers. | S |
+| G12 **New** | A revoked API key's audit-log link lands on the API keys list, which hides revoked keys. Let the API return a revoked key by id so its record page opens. | S |
+| G13 **New** | Dates: lists use relative times, but Home's "Continue where you left off", open invites and a few admin tables show absolute dates, and Analytics shows ISO dates. One rule: relative in lists (absolute on hover), absolute on record pages. | S |
+| G14 **New** | A "You were added to <team>" notification stays after the person is removed and leads to a no-access page. Resolve it on removal. | S |
+| G15 **New** | Toasts are exposed to screen readers as dialogs (Base UI's toast); they should be status messages. A bitop-ui change. | S |
+| G16 **New** | The answer feedback buttons have no pressed state (`aria-pressed`), and the selected thumb is only a faint fill. | S |
+| G17 **New** | Agent Appearance says the default accent is `#0021a5`, but the preview uses the theme's indigo: a leftover from the removed institution theme. | S |
+| G18 **New** | The widget key form opens with `?record=new`; every other form page uses `?form=`. | S |
+
+## H. Next release housekeeping
+
+| ID | Item | Size |
+|---|---|---|
+| H1 **New** | The v0.1.0 binary reports its version as `v0.1` (the image workflow passed the `vX.Y` tag as the version). Fixed in `.github/workflows/image.yml`; ships with the next release. | Done in CI |
+| H2 **New** | CHANGELOG: open an `[Unreleased]` section for v0.2, and keep release notes per version under `docs/releases/`. | S |
 
 ---
 
-## Short list for after v0.1.0
+## Proposed v0.2 short list
 
-My pick of ten, in order:
+The owner reviews and decides; this is my recommendation, highest priority first. The theme: **measure and raise answer quality, then make Grounded easier to run for many teams.**
 
-1. **A13:** citation marks per claim. It's the one quality issue users will see on real answers today.
-2. **A2:** evaluation sets in the product, so every later quality change is measured.
-3. **A1b:** cross-encoder reranking, a faster route to the gain SystemOne judging showed.
-4. **E1:** SSO group → team mapping, the first thing admins ask for at scale.
-5. **E2:** cost reporting and budgets.
-6. **B4:** OCR for scanned PDFs.
-7. **E11:** stored model health on the admin Overview.
-8. **C1 or D1:** MCP, or Teams/Slack bots, whichever channel matters more.
-9. **F8 + F9:** faster CI and proper release assets.
-10. **G1–G11:** the small fixes, done as one batch.
+1. **A2 ★ Evaluation sets and regression runs (M).** Every later quality change (A13, A1b, chunking, models) needs a score; today only `ragbench` on a laptop has one.
+2. **A13 ★ Citation marks per claim (M).** The quality issue users see on real answers today: one unsupported sentence marks a correct source as unsupported.
+3. **A1b Cross-encoder reranking (S–M).** The gain SystemOne judging showed, without ~0.7 s per candidate on one GPU. Measured with A2.
+4. **E1 ★ SSO group → team mapping (M).** The first thing admins ask for with more than a few teams; membership by hand doesn't scale.
+5. **E2 ★ Cost reporting and budgets (M).** Usage is recorded already; teams and admins need it priced and capped.
+6. **B4 ★ OCR for scanned PDFs (M).** Scanned PDFs are skipped silently today; common in policy and forms libraries.
+7. **E15 Command palette finds objects (S–M).** The biggest navigation gap from the walkthrough.
+8. **Small fixes as one batch (S each):** G1, G2, G4, G10–G18, C13, C14.
+9. **Operations (S each):** F10 remote base at home, F8 faster CI, F9 release assets, F12 Dependabot triage.
+
+Next in line, if v0.2 has room or for v0.3: **C1** MCP (expose KBs and agents as MCP servers first), **D1** Teams/Slack bots, **B1** Microsoft 365 connector (needs **B6** ACLs), **C2** unanswered-questions report, **E11** stored model health, **F1** tracing.
