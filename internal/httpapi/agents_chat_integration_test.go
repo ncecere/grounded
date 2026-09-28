@@ -114,6 +114,10 @@ func TestAgentLifecycleAndChat(t *testing.T) {
 		len(v1.KnowledgeBases) != 1 || v1.KnowledgeBases[0].Name != "Student help" || v1.Note != "launch" || v1.PublishedByName == "" {
 		t.Fatalf("version = %+v", v1)
 	}
+	// No results per search set: the version inherits the KB's top-k (C14).
+	if kb := v1.KnowledgeBases[0]; kb.TopK != 4 || !kb.Inherited || v1.Config.Kbs[0].TopK != nil {
+		t.Errorf("inherited top-k = %+v, config %+v", kb, v1.Config.Kbs[0])
+	}
 	editor.get(path, &ag)
 	if ag.Published == nil || ag.Published.Version != 1 || ag.HasUnpublishedChanges {
 		t.Fatalf("after publish = %+v", ag)

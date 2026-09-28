@@ -78,7 +78,7 @@ chatModelId          uuid (kind chat, enabled)
 temperature          number 0–2, optional
 maxOutputTokens      int, optional (≤ model max)
 reasoningEffort      low | medium | high, optional (sent only if the model's compat allows)
-kbs                  [{kbId, topK 1–20 (default 6)}], 1–5 entries, all in the agent's team
+kbs                  [{kbId, topK 1–20 or null}], 1–5 entries, all in the agent's team; null (since v0.2) inherits the KB's top-k
 retrievalMode        always | tool                       (default always)
 maxTurns             1–8 (default 4; tool mode)
 contextTokenBudget   500–32000 (default 6000; trimmed by estimated tokens, chars/4)

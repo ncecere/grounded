@@ -220,7 +220,7 @@ func TestJudgingInChat(t *testing.T) {
 	mustCode(t, "slow judging", code, e, 200, "")
 	env.proxy.SetJudgingDelay(0)
 	evs.one(t, "retrieval", &ret)
-	if ret.Judging == nil || ret.Judging.Dropped != 0 || ret.Judging.Kept != 6 || time.Since(start) > 5*time.Second { // the default top-k
+	if ret.Judging == nil || ret.Judging.Dropped != 0 || ret.Judging.Kept != 4 || time.Since(start) > 5*time.Second { // the KB's top-k, inherited
 		t.Errorf("fail-open = %+v after %v", ret.Judging, time.Since(start))
 	}
 	if rec, raw := judgingRecord(t, env.agentEnv, ag.Id.String()); rec.Skipped != 7 {

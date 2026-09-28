@@ -29,7 +29,7 @@ function settings(c: AgentConfig, names: ReadonlyMap<string, string>) {
     ...rest,
     chatModelId: undefined,
     chatModel: rest.chatModelId ? (names.get(rest.chatModelId) ?? rest.chatModelId) : undefined,
-    kbs: (rest.kbs ?? []).map((k) => ({ knowledgeBase: names.get(k.kbId) ?? k.kbId, topK: k.topK })),
+    kbs: (rest.kbs ?? []).map((k) => ({ knowledgeBase: names.get(k.kbId) ?? k.kbId, topK: k.topK ?? "inherited" })),
   };
   return JSON.parse(JSON.stringify(named)) as unknown;
 }

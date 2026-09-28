@@ -20,8 +20,8 @@ import { defaultConfig, slugify, useChatModels } from "./common";
 import a from "./agents.module.css";
 
 type ChatModel = NonNullable<ReturnType<typeof useChatModels>["data"]>[number];
-/** Chosen knowledge bases and their results per question. */
-type Picked = Record<string, number>;
+/** Chosen knowledge bases (each searched with its own results per search, C14). */
+type Picked = Record<string, true>;
 
 /** Validation of the dialog's fields (shown after the first submit, except the address). */
 function newAgentErrors(name: string, slug: string, kbCount: number) {
@@ -69,7 +69,7 @@ export function CreateAgentDialog({ onClose }: { onClose: () => void }) {
             name: name.trim(),
             slug: shownSlug || undefined,
             description: description.trim() || undefined,
-            config: { ...defaultConfig, chatModelId: model?.id ?? null, kbs: chosen.map(([kbId, topK]) => ({ kbId, topK })) },
+            config: { ...defaultConfig, chatModelId: model?.id ?? null, kbs: chosen.map(([kbId]) => ({ kbId })) },
           },
         }),
       ),
@@ -101,7 +101,7 @@ export function CreateAgentDialog({ onClose }: { onClose: () => void }) {
       <Field label="Name" error={submitted ? errors.name : undefined}>
         <Input aria-required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
-      <Fieldset legend="Knowledge bases" description="What the agent answers from (up to 5). Results per question can be tuned for each.">
+      <Fieldset legend="Knowledge bases" description="What the agent answers from (up to 5). Each is searched with its own results per search; you can override them in Build.">
         <KnowledgeBasePicker picked={picked} onChange={setPicked} levelName={levelName} />
         {errors.kbs && <p className={s.dangerText}>{errors.kbs}</p>}
       </Fieldset>
@@ -173,28 +173,15 @@ function KnowledgeBasePicker({ picked, onChange, levelName }: { picked: Picked; 
           <li key={kb.id} className={a.kbPickRow}>
             <Checkbox
               label={kb.name}
-              description={kb.effectiveClassification ? `Classification: ${levelName(kb.effectiveClassification)}` : "No sources attached"}
+              description={`${kb.effectiveClassification ? `Classification: ${levelName(kb.effectiveClassification)}` : "No sources attached"} · ${kb.topK} results per search`}
               checked={on}
               onCheckedChange={(checked) => {
                 const next = { ...picked };
-                if (checked) next[kb.id] = 6;
+                if (checked) next[kb.id] = true;
                 else delete next[kb.id];
                 onChange(next);
               }}
             />
-            {on && (
-              <Field label="Results" className={a.topK}>
-                <Input
-                  type="number"
-                  size="sm"
-                  min={1}
-                  max={20}
-                  value={picked[kb.id]}
-                  aria-label={`Results per question from ${kb.name}`}
-                  onChange={(e) => onChange({ ...picked, [kb.id]: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })}
-                />
-              </Field>
-            )}
           </li>
         );
       })}

@@ -28,7 +28,6 @@ const (
 	CitationSnippetLink = "snippet_link"
 
 	DefaultRefusal     = "I couldn't find an answer to that in the sources I have."
-	DefaultTopK        = 6
 	DefaultMaxTurns    = 4
 	DefaultTokenBudget = 6000
 
@@ -39,7 +38,17 @@ const (
 // KBRef is one KB an agent searches.
 type KBRef struct {
 	KBID uuid.UUID `json:"kbId"`
-	TopK int       `json:"topK"`
+	// TopK is the agent's results per search from this KB; nil inherits
+	// the KB's own top-k (C14). Agents saved before v0.2 store 6.
+	TopK *int `json:"topK"`
+}
+
+// EffectiveTopK is the results per search from a KB whose own top-k is kbTopK.
+func (r KBRef) EffectiveTopK(kbTopK int) int {
+	if r.TopK != nil {
+		return *r.TopK
+	}
+	return max(kbTopK, 1)
 }
 
 // Config is an agent's configuration, as stored in the draft and in
@@ -212,15 +221,16 @@ func (c *Config) normalizeModel(in configInput, p *problems) {
 	}
 }
 
-// normalizeKBs handles the KB list: unique KBs, top-k 1-20 (default 6).
+// normalizeKBs handles the KB list: unique KBs, top-k 1-20 or inherited
+// from the KB (absent, null or 0).
 func (c *Config) normalizeKBs(refs []KBRef, p *problems) {
 	if len(refs) > MaxKBs {
 		p.bad("kbs", "An agent can search at most %d knowledge bases", MaxKBs)
 	}
 	seen := map[uuid.UUID]bool{}
 	for i, ref := range refs {
-		if ref.TopK == 0 {
-			ref.TopK = DefaultTopK
+		if ref.TopK != nil && *ref.TopK == 0 {
+			ref.TopK = nil
 		}
 		field := "kbs[" + strconv.Itoa(i) + "]"
 		switch {
@@ -229,7 +239,7 @@ func (c *Config) normalizeKBs(refs []KBRef, p *problems) {
 		case seen[ref.KBID]:
 			p.bad(field+".kbId", "This knowledge base is listed twice")
 		}
-		if ref.TopK < 1 || ref.TopK > 20 {
+		if ref.TopK != nil && (*ref.TopK < 1 || *ref.TopK > 20) {
 			p.bad(field+".topK", "Results per knowledge base must be between 1 and 20")
 		}
 		seen[ref.KBID] = true

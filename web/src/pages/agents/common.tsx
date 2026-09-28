@@ -106,7 +106,7 @@ export function configInput(c: AgentConfig): AgentConfigInput {
     temperature: c.temperature ?? null,
     maxOutputTokens: c.maxOutputTokens ?? null,
     reasoningEffort: c.reasoningEffort ?? "",
-    kbs: c.kbs.map((k) => ({ kbId: k.kbId, topK: k.topK ?? 6 })),
+    kbs: c.kbs.map((k) => ({ kbId: k.kbId, topK: k.topK ?? null })), // null: the knowledge base's own (C14)
     retrievalMode: c.retrievalMode,
     maxTurns: c.maxTurns,
     contextTokenBudget: c.contextTokenBudget,

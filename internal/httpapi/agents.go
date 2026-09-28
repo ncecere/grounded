@@ -44,7 +44,7 @@ func toAPIVersion(v agents.Version) apitypes.AgentVersion {
 		KnowledgeBases: make([]apitypes.AgentVersionKB, len(v.KBs)),
 	}
 	for i, kb := range v.KBs {
-		out.KnowledgeBases[i] = apitypes.AgentVersionKB{Id: kb.ID, Name: kb.Name, TopK: kb.TopK}
+		out.KnowledgeBases[i] = apitypes.AgentVersionKB{Id: kb.ID, Name: kb.Name, TopK: kb.TopK, Inherited: kb.Inherited}
 	}
 	return out
 }

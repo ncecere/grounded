@@ -89,8 +89,22 @@ func TestConfigNormalization(t *testing.T) {
 	}
 	kb := uuid.New()
 	c, err := ParseConfig(json.RawMessage(`{"kbs":[{"kbId":"` + kb.String() + `"}],"filters":{"kinds":["MD"],"tags":[" A "]},"refusalMessage":"  "}`))
-	if err != nil || c.KBs[0].TopK != DefaultTopK || c.Filters.Kinds[0] != "markdown" || c.Filters.Tags[0] != "a" || c.RefusalMessage != DefaultRefusal {
+	if err != nil || c.KBs[0].TopK != nil || c.KBs[0].EffectiveTopK(8) != 8 || c.Filters.Kinds[0] != "markdown" || c.Filters.Tags[0] != "a" || c.RefusalMessage != DefaultRefusal {
 		t.Fatalf("parsed = %+v %v", c, err)
+	}
+	// Results per search: absent, null or 0 inherit the KB's top-k (C14); a
+	// number overrides it; stored configs from before keep their 6.
+	for raw, want := range map[string]*int{`null`: nil, `0`: nil, `12`: ptr(12)} {
+		c, err := ParseConfig(json.RawMessage(`{"kbs":[{"kbId":"` + kb.String() + `","topK":` + raw + `}]}`))
+		if got := c.KBs[0].TopK; err != nil || (got == nil) != (want == nil) || (got != nil && *got != *want) {
+			t.Errorf("topK %s = %v %v", raw, got, err)
+		}
+	}
+	if old := DecodeConfig(json.RawMessage(`{"kbs":[{"kbId":"` + kb.String() + `","topK":6}]}`)); old.KBs[0].EffectiveTopK(8) != 6 {
+		t.Errorf("stored 6 = %+v", old.KBs[0])
+	}
+	if _, err := ParseConfig(json.RawMessage(`{"kbs":[{"kbId":"` + kb.String() + `","topK":21}]}`)); err == nil {
+		t.Error("topK 21 accepted")
 	}
 	// Stored JSON round-trips.
 	if got := DecodeConfig(c.JSON()); string(got.JSON()) != string(c.JSON()) {

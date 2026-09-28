@@ -7894,7 +7894,15 @@ components:
       required: [kbId]
       properties:
         kbId: { type: string, format: uuid }
-        topK: { type: integer, minimum: 1, maximum: 20, default: 6 }
+        topK:
+          type: integer
+          minimum: 1
+          maximum: 20
+          nullable: true
+          description: >-
+            Results per search from this knowledge base. Absent or null
+            inherits the knowledge base's own top-k (and follows it when it
+            changes); a number overrides it for this agent.
     AgentConfig:
       type: object
       description: An agent's configuration (the draft, or a published version), with defaults applied.
@@ -8101,11 +8109,12 @@ components:
                   items: { $ref: "#/components/schemas/AgentProblem" }
     AgentVersionKB:
       type: object
-      required: [id, name, topK]
+      required: [id, name, topK, inherited]
       properties:
         id: { type: string, format: uuid }
         name: { type: string, description: '"" when the knowledge base no longer exists' }
-        topK: { type: integer }
+        topK: { type: integer, description: Results per search in effect (the knowledge base's current top-k when inherited) }
+        inherited: { type: boolean, description: The version doesn't set results per search for this knowledge base; it uses the knowledge base's }
     AgentVersion:
       type: object
       required: [id, version, publishedAt, publishedBy, publishedByName, note, chatModelId, chatModelName, effectiveRank, classification, knowledgeBases, config]

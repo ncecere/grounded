@@ -25,7 +25,7 @@ const config: Schemas["AgentConfig"] = {
 
 const version = {
   id: "v1", version: 3, publishedAt: "2026-09-26T10:00:00Z", publishedBy: "u1", publishedByName: "Una", note: "", chatModelId: "mod1",
-  chatModelName: "GPT-OSS 120B (Campus gateway)", effectiveRank: 0, classification: "open", knowledgeBases: [{ id: "kb1", name: "Registrar help", topK: 6 }], config,
+  chatModelName: "GPT-OSS 120B (Campus gateway)", effectiveRank: 0, classification: "open", knowledgeBases: [{ id: "kb1", name: "Registrar help", topK: 6, inherited: false }], config,
 };
 
 const agent = (extra: Partial<Schemas["Agent"]> = {}): Schemas["Agent"] => ({
@@ -143,6 +143,31 @@ describe("Build", () => {
     const drawer = await screen.findByRole("dialog", { name: "Test the draft" });
     expect(await within(drawer).findByRole("textbox", { name: "Message Helper" })).toBeInTheDocument();
   });
+
+  it("results per search inherit the knowledge base's until overridden, and back (C14)", async () => {
+    const draft = { ...config, kbs: [{ kbId: "kb1", topK: null }] };
+    const calls = mockApi(
+      routes(agent({ hasUnpublishedChanges: true, draft }), {
+        "PATCH /v1/teams/registrar/agents/ag1": (b) => agent({ revision: 3, hasUnpublishedChanges: true, draft: { ...draft, ...(b as { config: object }).config } }),
+      }),
+    );
+    const { container } = renderApp("/teams/registrar/agents/ag1");
+    await userEvent.click(await screen.findByRole("button", { name: /^Knowledge/ }, { timeout: 5000 }));
+    expect(await screen.findByText(/Inherited from the knowledge base \(8\)/)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(screen.getByRole("button", { name: "Override results per search from Registrar help" }));
+    const input = screen.getByRole("spinbutton", { name: "Results per search from Registrar help" });
+    expect(input).toHaveValue(8);
+    expect(input).toHaveFocus();
+    expect(screen.getByText(/Overridden/)).toBeInTheDocument();
+    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: 3000 });
+    expect((calls.find((c) => c.method === "PATCH")!.body as { config: { kbs: unknown } }).config.kbs).toEqual([{ kbId: "kb1", topK: 8 }]);
+    await userEvent.click(screen.getByRole("button", { name: "Use the results per search of Registrar help (8)" }));
+    expect(screen.getByRole("button", { name: "Override results per search from Registrar help" })).toHaveFocus();
+    await waitFor(() => expect((calls.filter((c) => c.method === "PATCH").at(-1)!.body as { config: { kbs: unknown } }).config.kbs).toEqual([{ kbId: "kb1", topK: null }]), {
+      timeout: 3000,
+    });
+  }, 15_000);
 
   it("old Configure links open Build", async () => {
     mockApi(routes(agent()));

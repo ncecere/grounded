@@ -5810,8 +5810,8 @@ export interface components {
         AgentKB: {
             /** Format: uuid */
             kbId: string;
-            /** @default 6 */
-            topK: number;
+            /** @description Results per search from this knowledge base. Absent or null inherits the knowledge base's own top-k (and follows it when it changes); a number overrides it for this agent. */
+            topK?: number | null;
         };
         /** @description An agent's configuration (the draft, or a published version), with defaults applied. */
         AgentConfig: {
@@ -6037,7 +6037,10 @@ export interface components {
             id: string;
             /** @description "" when the knowledge base no longer exists */
             name: string;
+            /** @description Results per search in effect (the knowledge base's current top-k when inherited) */
             topK: number;
+            /** @description The version doesn't set results per search for this knowledge base; it uses the knowledge base's */
+            inherited: boolean;
         };
         AgentVersion: {
             /** Format: uuid */

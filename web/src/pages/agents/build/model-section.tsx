@@ -1,7 +1,8 @@
 /* Build → Model (a searchable model picker with display names: Q11) and Build → Knowledge (knowledge bases and pinned filters). */
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Alert } from "@/components/ui/alert/alert";
+import { Button } from "@/components/ui/button/button";
 import { Checkbox } from "@/components/ui/checkbox/checkbox";
 import { Disclosure } from "@/components/ui/disclosure/disclosure";
 import { Field, Fieldset } from "@/components/ui/field/field";
@@ -108,7 +109,9 @@ function KnowledgeBaseRow({ kb, c, set, model, levelName }: RowProps) {
   const r = levels.data?.find((l) => l.key === kb.effectiveClassification)?.rank;
   const max = levels.data?.find((l) => l.key === model?.maxClassification)?.rank;
   const tooHigh = r !== undefined && max !== undefined && r > max;
-  const setOn = (on: boolean) => set({ kbs: on ? [...c.kbs, { kbId: kb.id, topK: 6 }] : c.kbs.filter((k) => k.kbId !== kb.id) });
+  // A new knowledge base inherits its own results per search (C14).
+  const setOn = (on: boolean) => set({ kbs: on ? [...c.kbs, { kbId: kb.id }] : c.kbs.filter((k) => k.kbId !== kb.id) });
+  const setTopK = (topK: number | null) => set({ kbs: c.kbs.map((k) => (k.kbId === kb.id ? { ...k, topK } : k)) });
   return (
     <div className={cf.kbRow}>
       <Checkbox
@@ -122,37 +125,73 @@ function KnowledgeBaseRow({ kb, c, set, model, levelName }: RowProps) {
         disabled={!ref && c.kbs.length >= 5}
         onCheckedChange={setOn}
       />
-      {ref && <TopK kb={kb} value={ref.topK ?? 6} onChange={(topK) => set({ kbs: c.kbs.map((k) => (k.kbId === kb.id ? { ...k, topK } : k)) })} />}
+      {ref && <TopK kb={kb} value={ref.topK ?? null} onChange={setTopK} />}
     </div>
   );
 }
 
-/** Results per search: text that isn't 1–20 stays on screen, marked, and holds the save status (F-26). */
-function TopK({ kb, value, onChange }: { kb: KB; value: number; onChange: (v: number) => void }) {
+/**
+ * Results per search (C14): the knowledge base's own until overridden, and
+ * the way back. An override that isn't 1–20 stays on screen, marked, and
+ * holds the save status (F-26). Focus follows the switch.
+ */
+function TopK({ kb, value, onChange }: { kb: KB; value: number | null; onChange: (v: number | null) => void }) {
+  // After Override or Inherit, focus moves to the control that replaced the button (once).
+  const moved = useRef(false);
+  const focus = useCallback((el: HTMLElement | null) => {
+    if (el && moved.current) {
+      moved.current = false;
+      el.focus();
+    }
+  }, []);
+  const change = (v: number | null) => {
+    moved.current = true;
+    onChange(v);
+  };
+  if (value === null) {
+    return (
+      <span className={cf.topKLabel}>
+        Results: Inherited from the knowledge base ({kb.topK})
+        <Button ref={focus} size="sm" variant="ghost" aria-label={`Override results per search from ${kb.name}`} onClick={() => change(Math.min(kb.topK, 20))}>
+          Override
+        </Button>
+      </span>
+    );
+  }
+  return (
+    <span className={cf.topKLabel}>
+      <TopKInput kb={kb} value={value} onChange={onChange} inputRef={focus} />
+      Overridden
+      <Button size="sm" variant="ghost" aria-label={`Use the results per search of ${kb.name} (${kb.topK})`} onClick={() => change(null)}>
+        Inherit
+      </Button>
+    </span>
+  );
+}
+
+function TopKInput({ kb, value, onChange, inputRef }: { kb: KB; value: number; onChange: (v: number) => void; inputRef: (el: HTMLInputElement | null) => void }) {
   const [text, setText] = useState(String(value));
   const n = Number(text);
   const invalid = !(Number.isInteger(n) && n >= 1 && n <= 20);
   useReportInvalid(`agent-field-kbs.${kb.id}`, invalid);
   return (
-    <label className={cf.topKLabel}>
-      <span aria-hidden>Results</span>
-      <Input
-        type="number"
-        size="sm"
-        min={1}
-        max={20}
-        className={cf.topKInput}
-        aria-label={`Results per search from ${kb.name}`}
-        aria-invalid={invalid || undefined}
-        title={invalid ? "Enter a whole number from 1 to 20." : undefined}
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          const v = Number(e.target.value);
-          if (Number.isInteger(v) && v >= 1 && v <= 20) onChange(v);
-        }}
-      />
-    </label>
+    <Input
+      ref={inputRef}
+      type="number"
+      size="sm"
+      min={1}
+      max={20}
+      className={cf.topKInput}
+      aria-label={`Results per search from ${kb.name}`}
+      aria-invalid={invalid || undefined}
+      title={invalid ? "Enter a whole number from 1 to 20." : undefined}
+      value={text}
+      onChange={(e) => {
+        setText(e.target.value);
+        const v = Number(e.target.value);
+        if (Number.isInteger(v) && v >= 1 && v <= 20) onChange(v);
+      }}
+    />
   );
 }
 

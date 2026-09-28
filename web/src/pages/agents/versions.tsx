@@ -31,10 +31,10 @@ import vs from "./versions.module.css";
 const versionsKey = (team: string, id: string) => [...agentKey(team, id), "versions"];
 
 /** A read-only summary of a configuration. */
-export function ConfigSummary({ config, kbs, modelName }: { config: AgentConfig; kbs: { id: string; name: string; topK: number }[]; modelName: string }) {
+export function ConfigSummary({ config, kbs, modelName }: { config: AgentConfig; kbs: { id: string; name: string; topK: number; inherited?: boolean }[]; modelName: string }) {
   const rows: [string, string][] = [
     ["Model", modelName],
-    ["Knowledge bases", kbs.map((k) => `${k.name || "Deleted knowledge base"} (${k.topK} results)`).join(", ") || "None"],
+    ["Knowledge bases", kbs.map((k) => `${k.name || "Deleted knowledge base"} (${k.topK} results${k.inherited ? ", the knowledge base's" : ""})`).join(", ") || "None"],
     ["When to search", retrievalModeLabels[config.retrievalMode] + (config.retrievalMode === "tool" ? `, up to ${config.maxTurns} searches` : "")],
     ["Answer only from sources", config.strictlyGrounded ? `Yes. Refusal: “${config.refusalMessage}”` : "No"],
     ["Citations", citationModeLabels[config.citationMode]],

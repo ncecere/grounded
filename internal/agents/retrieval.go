@@ -121,10 +121,7 @@ func (r *retriever) searchKBs(ctx context.Context, query string) ([]kbResult, in
 	var wg sync.WaitGroup
 	total := 0
 	for i, kb := range r.kbs {
-		topK := r.refs[kb.ID].TopK
-		if topK <= 0 {
-			topK = DefaultTopK
-		}
+		topK := r.refs[kb.ID].EffectiveTopK(int(kb.TopK))
 		total += topK
 		if r.judge != nil { // judging looks at more candidates than it keeps
 			topK = max(topK, r.judge.Candidates)

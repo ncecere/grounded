@@ -152,7 +152,9 @@ func (s *Service) loadAgent(ctx context.Context, q *dbgen.Queries, teamID, id uu
 type KBSummary struct {
 	ID   uuid.UUID
 	Name string
-	TopK int
+	TopK int // in effect: the agent's, or the KB's current top-k when inherited
+	// Inherited: the configuration doesn't set the top-k (C14).
+	Inherited bool
 }
 
 // Version is a published version.
@@ -179,11 +181,12 @@ type View struct {
 	Warnings []Problem
 }
 
-func (s *Service) kbNames(ctx context.Context, ids []uuid.UUID) map[uuid.UUID]string {
-	out := map[uuid.UUID]string{}
+// kbRows returns the KBs that still exist, by ID.
+func (s *Service) kbRows(ctx context.Context, ids []uuid.UUID) map[uuid.UUID]dbgen.KnowledgeBase {
+	out := map[uuid.UUID]dbgen.KnowledgeBase{}
 	for _, id := range ids {
 		if kb, err := s.q.GetKB(ctx, id); err == nil {
-			out[kb.ID] = kb.Name
+			out[kb.ID] = kb
 		}
 	}
 	return out
@@ -197,9 +200,10 @@ func (s *Service) versionView(ctx context.Context, v dbgen.AgentVersion, byName 
 	if l, err := s.q.ClassificationByRank(ctx, v.EffectiveRank); err == nil {
 		out.Classification = l.Key
 	}
-	names := s.kbNames(ctx, out.Config.KBIDs())
+	rows := s.kbRows(ctx, out.Config.KBIDs())
 	for _, ref := range out.Config.KBs {
-		out.KBs = append(out.KBs, KBSummary{ID: ref.KBID, Name: names[ref.KBID], TopK: ref.TopK})
+		kb := rows[ref.KBID]
+		out.KBs = append(out.KBs, KBSummary{ID: ref.KBID, Name: kb.Name, TopK: ref.EffectiveTopK(int(kb.TopK)), Inherited: ref.TopK == nil})
 	}
 	return out
 }

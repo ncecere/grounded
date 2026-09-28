@@ -76,7 +76,7 @@ export function KBSettings({ kb, onDelete }: { kb: KB; onDelete: () => void }) {
           <Textarea maxLength={2000} value={form.description} onChange={(e) => set({ description: e.target.value })} />
         </Field>
       </SettingsSection>
-      <SettingsSection title="Retrieval" description="How searches of this knowledge base rank and return passages. Agents searching it use the same settings.">
+      <SettingsSection title="Retrieval" description="How searches of this knowledge base rank and return passages. Agents use the same ranking, and these passages per search unless an agent overrides them.">
         <Slider
           label="Passages per search"
           min={1}

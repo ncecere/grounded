@@ -3360,7 +3360,9 @@ type AgentInvalidResponseErrorCode string
 // AgentKB defines model for AgentKB.
 type AgentKB struct {
 	KbId openapi_types.UUID `json:"kbId"`
-	TopK *int               `json:"topK,omitempty"`
+
+	// TopK Results per search from this knowledge base. Absent or null inherits the knowledge base's own top-k (and follows it when it changes); a number overrides it for this agent.
+	TopK *int `json:"topK,omitempty"`
 }
 
 // AgentModeration An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode buffer buffers where the platform streams. The Phase 3 value "off" is still accepted as no override.
@@ -3509,9 +3511,14 @@ type AgentVersion struct {
 type AgentVersionKB struct {
 	Id openapi_types.UUID `json:"id"`
 
+	// Inherited The version doesn't set results per search for this knowledge base; it uses the knowledge base's
+	Inherited bool `json:"inherited"`
+
 	// Name "" when the knowledge base no longer exists
 	Name string `json:"name"`
-	TopK int    `json:"topK"`
+
+	// TopK Results per search in effect (the knowledge base's current top-k when inherited)
+	TopK int `json:"topK"`
 }
 
 // AllowlistCreate defines model for AllowlistCreate.

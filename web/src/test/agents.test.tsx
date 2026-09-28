@@ -34,7 +34,7 @@ const version: Schemas["AgentVersion"] = {
   chatModelName: "GPT-OSS 120B (Campus gateway)",
   effectiveRank: 0,
   classification: "open",
-  knowledgeBases: [{ id: "kb1", name: "Registrar help", topK: 6 }],
+  knowledgeBases: [{ id: "kb1", name: "Registrar help", topK: 6, inherited: false }],
   config,
 };
 
@@ -162,7 +162,9 @@ describe("team agents list", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/teams/registrar/agents/ag1"));
     expect(router.state.location.search).toEqual({ test: "open" });
     const body = calls.find((c) => c.method === "POST" && c.url === "/v1/teams/registrar/agents")!.body as Record<string, unknown>;
-    expect(body).toMatchObject({ name: "Student Help Désk", slug: "student-help-desk", config: { chatModelId: "mod1", kbs: [{ kbId: "kb2", topK: 6 }] } });
+    expect(body).toMatchObject({ name: "Student Help Désk", slug: "student-help-desk", config: { chatModelId: "mod1" } });
+    // Results per search aren't set: the agent inherits each knowledge base's (C14).
+    expect((body.config as { kbs: unknown }).kbs).toEqual([{ kbId: "kb2" }]);
   });
 });
 
