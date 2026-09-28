@@ -115,7 +115,7 @@ kubectl -n $ns create secret generic grounded-s3 --from-literal=access_key=... -
 | `S3_BUCKET`, `S3_REGION`, `S3_FORCE_PATH_STYLE` | `grounded`, `us-east-1`, `true` | set bucket and region |
 | `SHUTDOWN_DELAY`, `SHUTDOWN_TIMEOUT` | `10s`, `90s` | raise together with `terminationGracePeriodSeconds` (120s) |
 
-Also commonly set: `OIDC_ALLOWED_EMAIL_DOMAINS`, `OIDC_SCOPES`, `INSTANCE_NAME`, `ORG_NAME`, `UI_LOGO_URL`, `SUPPORT_URL`, `TEAM_REQUEST_URL`, `CRAWL_ALLOWLIST_SEED`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_TLS`/`SMTP_FROM`, and `TRUSTED_PROXIES` (the ingress controller's pod CIDRs, so client IPs are logged and rate-limited correctly).
+Also commonly set: `OIDC_ALLOWED_EMAIL_DOMAINS`, `OIDC_SCOPES`, `OIDC_GROUPS_CLAIM` (default `groups`, for [SSO group mapping](../operations/sso-groups.md)), `INSTANCE_NAME`, `ORG_NAME`, `UI_LOGO_URL`, `SUPPORT_URL`, `TEAM_REQUEST_URL`, `CRAWL_ALLOWLIST_SEED`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_TLS`/`SMTP_FROM`, and `TRUSTED_PROXIES` (the ingress controller's pod CIDRs, so client IPs are logged and rate-limited correctly).
 
 `MIGRATE_ON_START` is pinned to `false` in the Deployments: migrations run in the `migrate` init container instead.
 
@@ -151,6 +151,7 @@ Some settings are allowed but deserve attention. They are logged at startup (`pr
 | `public_agents_without_moderation` | public agents are turned on, but the public audience has no moderation provider |
 | `smtp_not_configured` | `SMTP_HOST` is empty: notifications are in-app only |
 | `oidc_no_domain_restriction` (info) | OIDC is on and `OIDC_ALLOWED_EMAIL_DOMAINS` is empty; fine if the identity provider already limits access |
+| `sso_groups_claim_missing` | SSO group mapping rules exist, but no sign-in in the last 30 days carried the `OIDC_GROUPS_CLAIM` claim ([SSO groups](../operations/sso-groups.md)) |
 
 ## grounded doctor
 

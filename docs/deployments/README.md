@@ -28,7 +28,7 @@ The settings in DESIGN.md §15, "Configuration and instance identity":
 The product's identity is exposed to the UI through `GET /v1/auth/config` (`instance`).
 
 ### 2. Sign-in
-- The identity provider and how it speaks OIDC: `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` (from a secret), `OIDC_SCOPES`, `OIDC_EMAIL_CLAIM`, `OIDC_REQUIRE_VERIFIED_EMAIL`.
+- The identity provider and how it speaks OIDC: `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` (from a secret), `OIDC_SCOPES`, `OIDC_EMAIL_CLAIM`, `OIDC_REQUIRE_VERIFIED_EMAIL`, and `OIDC_GROUPS_CLAIM` if you map IdP groups to teams ([SSO groups](../operations/sso-groups.md)).
 - Who may sign in (`OIDC_ALLOWED_EMAIL_DOMAINS`). Everyone who can sign in counts as `authenticated` for agent audiences (DESIGN.md §7.2), so say who that includes: staff, students, affiliates, guests.
 - How the first platform admin is set (`BOOTSTRAP_ADMIN_SUBJECT`).
 - Which claims the IdP releases (affiliation, groups), for later audience rules.

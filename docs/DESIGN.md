@@ -65,7 +65,7 @@ Platform
 
 ### 3.1 Authentication
 - **Sign-in:** generic OIDC authorization-code flow with PKCE, state and nonce (`coreos/go-oidc`). Configurable per deployment: issuer, client, scopes and allowed email domains.
-- **Stored claims:** all OIDC claims are saved at each login (e.g. affiliation, groups). No v1 feature uses them, but they let us restrict audiences later without redesign (ADR-0009).
+- **Stored claims:** all OIDC claims are saved at each login (e.g. affiliation, groups), so audiences can later be restricted without redesign (ADR-0009). Since v0.2 the groups claim (`OIDC_GROUPS_CLAIM`, default `groups`) also drives SSO group mapping (§3.2); each person's last-seen groups are kept in `sso_user_groups`.
 - **Browser sessions:** stored server-side, with secure cookies, CSRF tokens and Origin checks.
 - **Bootstrap:** the first platform admin is set by exact `(issuer, sub)`, once only. This is the yoink pattern.
 - **Provisioning:** any permitted identity is created automatically as a consumer. To build anything, a user must be added to a team.
@@ -73,6 +73,7 @@ Platform
 
 ### 3.2 Team membership (ADR-0002)
 - Team admins add members **by email**. If the person has never signed in, this creates a pending invite. The invite links to their account when someone with that verified email first signs in. Invites expire after 30 days.
+- **SSO group mapping (v0.2, E1).** Platform admins map an IdP group to a team role (`sso_group_rules`: group, team, role). At each OIDC sign-in, after invites are accepted, the person gets the role of every rule they match (a new membership, or a higher role for one the mapping created; the highest role wins per team), and memberships the mapping created are lowered or removed for rules they no longer match. Each membership records its source: `manual` (no marker) or `sso:<rule id>` (`sso_memberships`). Memberships added by hand, by invite or by *Assign owner* are never changed by a rule, even to a lower role. A rule never lowers or removes a team's last owner. Saving or deleting a rule applies it at once from each person's last-seen groups (with a dry run first). Owners can't change or remove a rule-managed member by hand (`409 sso_managed`). Changes are audited with the system as the actor and the rule in the metadata. Runbook: [`operations/sso-groups.md`](operations/sso-groups.md).
 - **Requesting a team.** In v1, the app links to `TEAM_REQUEST_URL` (for example a service-desk request form), and a platform admin creates the team by hand. Later: an in-app request form (purpose, owner, requested maximum classification, justification) with an approval queue.
 
 ### 3.3 API keys (ADR-0012)
@@ -542,7 +543,7 @@ Resource caps are checked inside the creating transaction under a per-team advis
 
 `audit_log` is append-only. It records:
 - actions by platform admins and team admins
-- membership and role changes, and invites
+- membership and role changes, and invites (including those made by an SSO group mapping rule, with the system as the actor), and group mapping rule changes
 - API key creation and revocation
 - classification changes, including reasons
 - audience changes, publishes and kill switches
@@ -569,7 +570,7 @@ Conventions, following yoink:
 ```
 Auth / me      GET /v1/me   GET /v1/auth/config (sign-in methods and instance identity, no login needed)
                /auth/login  /auth/callback  /auth/logout
-Admin          /v1/admin/{users,teams,policy,classifications,connections,models,embedding-profiles,
+Admin          /v1/admin/{users,teams,group-mapping,policy,classifications,connections,models,embedding-profiles,
                           source-types,crawl-allowlist,domain-requests,shared-sources,agents,
                           short-names,break-glass,legal-holds,audit,access-log,usage,jobs}
 Team           /v1/teams/{team}/{members,invites,api-keys,usage,audit,analytics,domain-requests}
