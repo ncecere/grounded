@@ -23,28 +23,6 @@
   line-height: 1.7;
 }
 
-.details {
-  border-radius: var(--radius-control);
-  box-shadow: var(--shadow-ring);
-}
-
-.summary {
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-
-  &:focus-visible {
-    outline: 2px solid var(--color-focus-ring);
-    outline-offset: 2px;
-    border-radius: var(--radius-control);
-  }
-}
-
-.detailsBody {
-  padding: 0 var(--space-4) var(--space-4);
-}
-
 .sheetForm {
   display: flex;
   flex-direction: column;

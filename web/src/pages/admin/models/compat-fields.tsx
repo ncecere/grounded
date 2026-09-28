@@ -1,10 +1,11 @@
 /* The model dialog's "Compatibility" disclosure: per-server quirks of the chat completions and embeddings APIs (DESIGN.md §10). */
+import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox/checkbox";
+import { Disclosure } from "@/components/ui/disclosure/disclosure";
 import { Field } from "@/components/ui/field/field";
 import { NativeSelect, Textarea } from "@/components/ui/input/input";
 import s from "../../shared.module.css";
 import { extraBodyExample, type ModelForm } from "./model-form";
-import m from "./models.module.css";
 
 type SetField = <K extends keyof ModelForm>(k: K, v: ModelForm[K]) => void;
 
@@ -16,10 +17,11 @@ type Props = { form: ModelForm; set: SetField; extraBodyError?: string };
 
 /** Chat completion quirks, for chat models and chat-classifier moderation models. */
 export function ChatCompatFields({ form, set, extraBodyError }: Props) {
+  // Open when something is set; always open while a field is invalid, so its error is visible.
+  const [open, setOpen] = useState(() => Boolean(form.extraBody || form.supportsToolChoice));
   return (
-    <details className={m.details} open={Boolean(form.extraBody || form.supportsToolChoice || extraBodyError) || undefined}>
-      <summary className={m.summary}>Compatibility</summary>
-      <div className={`${s.grid2} ${m.detailsBody}`}>
+    <Disclosure title="Compatibility" open={open || Boolean(extraBodyError)} onOpenChange={setOpen}>
+      <div className={s.grid2}>
         <Field label="Output limit parameter">
           <NativeSelect value={form.maxTokensField} onChange={(e) => set("maxTokensField", e.target.value as typeof form.maxTokensField)}>
             <option value="">Default (max_tokens)</option>
@@ -59,7 +61,7 @@ export function ChatCompatFields({ form, set, extraBodyError }: Props) {
           <Textarea className={s.mono} rows={3} spellCheck={false} placeholder={extraBodyExample} value={form.extraBody} onChange={(e) => set("extraBody", e.target.value)} />
         </Field>
       </div>
-    </details>
+    </Disclosure>
   );
 }
 

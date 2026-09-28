@@ -37,7 +37,11 @@ describe("admin model compatibility fields", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Actions for Qwen" }, { timeout: 4000 }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Edit" }));
     const dialog = await screen.findByRole("region", { name: /^Edit Qwen/ });
-    await userEvent.click(within(dialog).getByText("Compatibility"));
+    // A bitop-ui Disclosure (G8): a button that says whether it's expanded.
+    const compat = within(dialog).getByRole("button", { name: "Compatibility" });
+    expect(compat).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(compat);
+    expect(compat).toHaveAttribute("aria-expanded", "true");
     await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Honours tool_choice" }), "yes");
     const extra = within(dialog).getByRole("textbox", { name: /Extra request fields/ });
     await userEvent.click(extra);

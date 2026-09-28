@@ -9,6 +9,12 @@
   overflow-wrap: anywhere;
 }
 
+/* The row's before/after/metadata disclosure: compact in the table cell. */
+.details {
+  min-width: 8rem;
+  font-size: var(--font-size-sm);
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;

@@ -4,14 +4,14 @@
  */
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { FileClock } from "lucide-react";
-import { useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
 import { formatDate } from "../../lib/format";
 import s from "../../pages/shared.module.css";
 import { LoadMore, QueryView } from "../query-view";
-import { Button } from "@/components/ui/button/button";
+import { Disclosure } from "@/components/ui/disclosure/disclosure";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Table, Td, Tr } from "@/components/ui/table/table";
+import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { actionLabel, actorName } from "./labels";
 import { type AuditScope, AuditTarget } from "./target";
 import a from "./audit.module.css";
@@ -88,7 +88,6 @@ function Who({ entry }: { entry: AuditEntry }) {
 }
 
 function AuditRow({ entry, scope }: { entry: AuditEntry; scope: AuditScope }) {
-  const [open, setOpen] = useState(false);
   const hasDetail = entry.before != null || entry.after != null || Object.keys(entry.metadata).length > 0;
   return (
     <Tr>
@@ -107,12 +106,16 @@ function AuditRow({ entry, scope }: { entry: AuditEntry; scope: AuditScope }) {
       </Td>
       <Td>
         {hasDetail ? (
-          <>
-            <Button size="sm" variant="ghost" aria-expanded={open} onClick={() => setOpen(!open)} aria-label={`${open ? "Hide" : "Show"} details of ${actionLabel(entry.action)}`}>
-              {open ? "Hide" : "Show"}
-            </Button>
-            {open && <pre className={s.pre}>{JSON.stringify({ before: entry.before, after: entry.after, metadata: entry.metadata }, null, 2)}</pre>}
-          </>
+          <Disclosure
+            className={a.details}
+            title={
+              <>
+                Details<VisuallyHidden> of {actionLabel(entry.action)}</VisuallyHidden>
+              </>
+            }
+          >
+            <pre className={s.pre}>{JSON.stringify({ before: entry.before, after: entry.after, metadata: entry.metadata }, null, 2)}</pre>
+          </Disclosure>
         ) : (
           <span className={s.muted}>—</span>
         )}
