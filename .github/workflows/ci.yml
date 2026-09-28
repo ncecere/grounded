@@ -1,0 +1,232 @@
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+
+# Every action is pinned by commit SHA; the comment gives the version
+# (docs/security/controls.md, "Supply chain").
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: grounded
+          POSTGRES_PASSWORD: grounded-ci-only
+          POSTGRES_DB: grounded
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U grounded -d grounded"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      CI: "true"
+      GROUNDED_TEST_DATABASE_URL: postgres://grounded:grounded-ci-only@localhost:5432/postgres?sslmode=disable
+      GROUNDED_TEST_VALKEY_URL: redis://localhost:6379/1
+      GROUNDED_TEST_S3_ENDPOINT: http://localhost:9000
+      GROUNDED_TEST_S3_ACCESS_KEY: grounded
+      GROUNDED_TEST_S3_SECRET_KEY: grounded-ci-only-secret
+      GROUNDED_TEST_S3_BUCKET: grounded
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: sqlc-dev/setup-sqlc@c0209b9199cd1cce6a14fc27cabcec491b651761 # v4.0.0
+        with:
+          sqlc-version: "1.31.1"
+      - name: Start S3-compatible storage
+        run: |
+          docker run -d --name s3 -p 9000:9000 -e MINIO_ROOT_USER=grounded -e MINIO_ROOT_PASSWORD=grounded-ci-only-secret \
+            pgsty/silo:RELEASE.2026-09-16T00-00-00Z server /data
+          for i in $(seq 1 30); do curl -sf http://localhost:9000/minio/health/ready && break; sleep 1; done
+          docker run --rm --network host --entrypoint sh pgsty/mc:RELEASE.2026-09-16T00-00-00Z -c \
+            "mc alias set s3 http://localhost:9000 grounded grounded-ci-only-secret && mc mb --ignore-existing s3/grounded"
+      - name: Install web dependencies
+        run: npm ci --ignore-scripts
+        working-directory: web
+      - name: Generated code is up to date
+        run: make check-generated SQLC=sqlc
+      - name: Lint
+        run: make lint
+      - name: Web styling policy (Base UI + CSS Modules + CSS variables)
+        run: npm run check:styling && npm run check:size
+        working-directory: web
+      - name: Web type-check, unit and accessibility tests
+        run: make web-test
+      - name: Go tests (with coverage)
+        run: make test COVER=1
+      - name: Coverage report
+        if: always() && hashFiles('coverage.out') != ''
+        run: make cover-report >> "$GITHUB_STEP_SUMMARY"
+      - name: Build (UI embedded)
+        run: make web build
+
+  # Browser end-to-end tests (web/e2e, Playwright, Chromium): tools/e2eserver
+  # runs `grounded serve` on its own database with dev sign-in and the fake
+  # model gateway; axe checks every page. The report, traces and server log
+  # are uploaded when it fails.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: grounded
+          POSTGRES_PASSWORD: grounded-ci-only
+          POSTGRES_DB: grounded
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U grounded -d grounded"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      CI: "true"
+      E2E_DATABASE_URL: postgres://grounded:grounded-ci-only@localhost:5432/postgres?sslmode=disable
+      E2E_VALKEY_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build (UI embedded)
+        run: make web build
+      - name: Playwright browsers cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+      - name: Install Chromium
+        working-directory: web
+        run: |
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install-deps chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
+      - name: End-to-end tests
+        working-directory: web
+        run: npx playwright test
+      - name: Upload the report, traces and server log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-output
+          path: |
+            web/e2e-output/
+            !web/e2e-output/.auth/
+          retention-days: 14
+
+  # Kubernetes manifests: kustomize build of every overlay and component
+  # set, validated with kubeconform -strict (deploy/kubernetes/scripts);
+  # then the dashboards and alert rules (promtool, deploy/observability).
+  k8s:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Render and validate manifests
+        run: make k8s-validate
+      - name: Validate dashboards and alert rules
+        run: make obs-validate
+
+  # End-to-end smoke test of the manifests on a throwaway kind cluster
+  # (deploy/kubernetes/scripts/kind-smoke.sh): builds the image, deploys the
+  # example-small shape with random dev-only secrets, waits for readiness,
+  # runs the backup job once and checks the API, worker and UI.
+  k8s-smoke:
+    needs: [k8s]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Smoke test on kind
+        run: make k8s-smoke
+
+  # Multi-arch image, SBOM, provenance, scan and cosign signature, on pushes
+  # to main and v* tags once tests, end-to-end tests, manifests and the smoke
+  # test pass.
+  image:
+    needs: [test, e2e, k8s, k8s-smoke]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/image.yml
+
+  # Upgrade test (docs/operations/upgrades.md): the previous release's image
+  # (before v0.1.0, the previous main commit's) migrates an empty database
+  # and gets fixture data; the image just published migrates it; the old and
+  # the new code must both serve it (expand/contract).
+  upgrade:
+    needs: [image]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the previous commit and the release tags
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upgrade from the previous version
+        run: NEW_IMAGE="ghcr.io/ncecere/grounded:sha-${GITHUB_SHA::7}" make upgrade-test
+
+  # GitHub Release for a v* tag, after its image is built, scanned and signed:
+  # notes from docs/releases/vX.Y.Z.md (the base version for -rc tags) plus
+  # the image digest and verification commands. Tags with a hyphen
+  # (v0.1.0-rc.1) are pre-releases.
+  release:
+    needs: [image]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+        run: deploy/release/github-release.sh

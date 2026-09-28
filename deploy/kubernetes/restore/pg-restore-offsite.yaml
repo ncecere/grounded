@@ -1,0 +1,139 @@
+# Restores a backup-pgdump dump from the off-site copy into an EMPTY
+# database (docs/operations/restore.md). Apply it in Grounded's namespace
+# with the app stopped:
+#
+#   kubectl -n <ns> apply -f deploy/kubernetes/restore/pg-restore-offsite.yaml
+#
+# Reads the database and off-site settings from the grounded-postgres-backup
+# ConfigMap (PGHOST, PGDATABASE, UPLOAD_S3_*), the password from
+# grounded-runtime and the off-site credentials from grounded-backup-s3.
+# DUMP in the optional ConfigMap grounded-restore picks a file
+# (grounded-<time>.dump); by default the newest. It refuses a database that
+# already has tables.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grounded-pg-restore
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: grounded
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 14400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grounded
+        app.kubernetes.io/component: backup
+        app.kubernetes.io/part-of: grounded
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: fetch
+          image: docker.io/rclone/rclone:1.75.1@sha256:45401ad7410db1d67ffdb58e19059ad20b0d8e0285a60e38bbec55cc1019c7a5
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              export RCLONE_CONFIG_OFFSITE_TYPE=s3 RCLONE_CONFIG_OFFSITE_PROVIDER=Other
+              export RCLONE_CONFIG_OFFSITE_ENDPOINT="$UPLOAD_S3_ENDPOINT" RCLONE_CONFIG_OFFSITE_REGION="$UPLOAD_S3_REGION"
+              export RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID="$UPLOAD_ACCESS_KEY" RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY="$UPLOAD_SECRET_KEY"
+              src="offsite:${UPLOAD_S3_BUCKET}/${UPLOAD_S3_PREFIX}"
+              dump="${DUMP:-$(rclone --config "" lsf --include 'grounded-*.dump' "$src" | sort | tail -n 1)}"
+              [ -n "$dump" ] || { echo "no grounded-*.dump in ${UPLOAD_S3_BUCKET}/${UPLOAD_S3_PREFIX}"; exit 1; }
+              rclone --config "" copyto "${src}/${dump}" "/restore/${dump}"
+              echo "fetched ${dump} ($(du -h "/restore/${dump}" | cut -f1))"
+          envFrom:
+            - configMapRef:
+                name: grounded-postgres-backup
+            - configMapRef:
+                name: grounded-restore
+                optional: true
+          env:
+            - name: HOME
+              value: /tmp
+            - name: UPLOAD_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-backup-s3
+                  key: access_key
+            - name: UPLOAD_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-backup-s3
+                  key: secret_key
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: "1", memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - { name: restore, mountPath: /restore }
+            - { name: tmp, mountPath: /tmp }
+      containers:
+        - name: pg-restore
+          # Same image as components/postgres-single, so pg_restore matches.
+          image: docker.io/pgvector/pgvector:0.8.6-pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              dump="$(ls -1 /restore/grounded-*.dump 2>/dev/null | sort | tail -n 1)"
+              [ -n "${DUMP:-}" ] && dump="/restore/${DUMP}"
+              [ -f "$dump" ] || { echo "no dump to restore"; exit 1; }
+              pg_restore --list "$dump" >/dev/null
+              tables="$(psql -X -At -c "SELECT count(*) FROM pg_tables WHERE schemaname = 'public'")"
+              if [ "$tables" != 0 ]; then
+                echo "refusing: database ${PGDATABASE} already has ${tables} tables; restore into an empty one"
+                exit 1
+              fi
+              echo "restoring $(basename "$dump") into ${PGDATABASE} on ${PGHOST}"
+              pg_restore --no-owner --no-privileges --exit-on-error --single-transaction --dbname="$PGDATABASE" "$dump"
+              psql -X -At -c "ANALYZE"
+              psql -X -At -F ' ' -c "SELECT 'restored:', (SELECT count(*) FROM teams) AS teams,
+                (SELECT count(*) FROM documents) AS documents, (SELECT count(*) FROM chunks) AS chunks,
+                (SELECT max(version_id) FROM goose_db_version) AS schema"
+          envFrom:
+            - configMapRef:
+                name: grounded-postgres-backup
+            - configMapRef:
+                name: grounded-restore
+                optional: true
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-runtime
+                  key: POSTGRES_PASSWORD
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: "2", memory: 1Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - { name: restore, mountPath: /restore, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        # Holds the dump: size it above the dump (restore.md).
+        - name: restore
+          emptyDir:
+            sizeLimit: 20Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi

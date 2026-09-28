@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{{.Title}}</title>
+</head>
+<body style="margin:0;padding:24px 16px;background:#f4f4f5;color:#18181b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;">
+<div role="article" aria-roledescription="email" aria-label="{{.Title}}" lang="en" style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e4e4e7;border-radius:8px;padding:24px;">
+<p style="margin:0 0 16px;color:#52525b;font-size:14px;">{{.Instance}}</p>
+<h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;color:#18181b;">{{.Title}}</h1>
+{{range .Paragraphs}}<p style="margin:0 0 16px;">{{.}}</p>
+{{end}}{{if .LinkURL}}<p style="margin:24px 0;"><a href="{{.LinkURL}}" style="display:inline-block;background:#1d4ed8;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:6px;font-weight:600;">Open in {{.Instance}}</a></p>
+<p style="margin:0 0 16px;font-size:14px;color:#52525b;">Or copy this link: <a href="{{.LinkURL}}" style="color:#1d4ed8;">{{.LinkURL}}</a></p>
+{{end}}<hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0 16px;">
+<p style="margin:0 0 8px;font-size:14px;color:#52525b;">{{if .Mandatory}}You receive this notice because it is required for everyone it concerns; it can't be turned off.{{else}}You receive this because &ldquo;{{.Label}}&rdquo; notifications are on.{{end}}</p>
+<p style="margin:0;font-size:14px;"><a href="{{.SettingsURL}}" style="color:#1d4ed8;">Manage notification settings</a></p>
+</div>
+</body>
+</html>

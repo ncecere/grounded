@@ -1,0 +1,93 @@
+# Restores a backup-pgdump dump from the grounded-postgres-backups PVC into
+# an EMPTY database (docs/operations/restore.md). Apply it in Grounded's
+# namespace with the app stopped:
+#
+#   kubectl -n <ns> apply -f deploy/kubernetes/restore/pg-restore-pvc.yaml
+#
+# Reads the database settings from the grounded-postgres-backup ConfigMap and
+# the password from grounded-runtime. DUMP in the optional ConfigMap
+# grounded-restore picks a file (grounded-<time>.dump); by default the
+# newest. It refuses a database that already has tables. When the PVC is
+# lost too, use pg-restore-offsite.yaml.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grounded-pg-restore
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: grounded
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 14400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grounded
+        app.kubernetes.io/component: backup
+        app.kubernetes.io/part-of: grounded
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: pg-restore
+          # Same image as components/postgres-single, so pg_restore matches.
+          image: docker.io/pgvector/pgvector:0.8.6-pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              dump="$(ls -1 /restore/grounded-*.dump 2>/dev/null | sort | tail -n 1)"
+              [ -n "${DUMP:-}" ] && dump="/restore/${DUMP}"
+              [ -f "$dump" ] || { echo "no dump to restore"; exit 1; }
+              pg_restore --list "$dump" >/dev/null
+              tables="$(psql -X -At -c "SELECT count(*) FROM pg_tables WHERE schemaname = 'public'")"
+              if [ "$tables" != 0 ]; then
+                echo "refusing: database ${PGDATABASE} already has ${tables} tables; restore into an empty one"
+                exit 1
+              fi
+              echo "restoring $(basename "$dump") into ${PGDATABASE} on ${PGHOST}"
+              pg_restore --no-owner --no-privileges --exit-on-error --single-transaction --dbname="$PGDATABASE" "$dump"
+              psql -X -At -c "ANALYZE"
+              psql -X -At -F ' ' -c "SELECT 'restored:', (SELECT count(*) FROM teams) AS teams,
+                (SELECT count(*) FROM documents) AS documents, (SELECT count(*) FROM chunks) AS chunks,
+                (SELECT max(version_id) FROM goose_db_version) AS schema"
+          envFrom:
+            - configMapRef:
+                name: grounded-postgres-backup
+            - configMapRef:
+                name: grounded-restore
+                optional: true
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-runtime
+                  key: POSTGRES_PASSWORD
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: "2", memory: 1Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - { name: restore, mountPath: /restore, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: restore
+          persistentVolumeClaim:
+            claimName: grounded-postgres-backups
+            readOnly: true
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi

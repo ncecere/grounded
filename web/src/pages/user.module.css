@@ -1,0 +1,32 @@
+/* Home: the team rows. Semantic tokens only. */
+
+.teamRow {
+  flex-wrap: wrap;
+}
+
+.teamLink {
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    border-radius: var(--radius-1);
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.teamBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.quickLinks {
+  flex-wrap: wrap;
+}

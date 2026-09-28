@@ -1,0 +1,57 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: grounded-postgres
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: postgres
+    app.kubernetes.io/part-of: grounded
+spec:
+  instances: 3
+  # The "standard" CloudNativePG images include pgvector.
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.11-standard-trixie@sha256:09892aaed3919234cf5d6e86abea13870f82d39b84826e9f0926d859a8fba3dc
+  primaryUpdateStrategy: unsupervised
+  # Pods get Grounded's labels, so the base NetworkPolicy
+  # grounded-app-egress-datastores lets api and worker reach them.
+  inheritedMetadata:
+    labels:
+      app.kubernetes.io/name: grounded
+      app.kubernetes.io/component: postgres
+      app.kubernetes.io/part-of: grounded
+  bootstrap:
+    initdb:
+      database: grounded
+      owner: grounded
+      # The application user is not a superuser. Grounded's migrations
+      # create these extensions IF NOT EXISTS; vector is not a trusted
+      # extension, so create them all here as the superuser.
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS vector
+        - CREATE EXTENSION IF NOT EXISTS citext
+        - CREATE EXTENSION IF NOT EXISTS btree_gin
+        - CREATE EXTENSION IF NOT EXISTS pg_trgm
+  postgresql:
+    parameters:
+      shared_buffers: 512MB
+      maintenance_work_mem: 512MB
+      max_connections: "200"
+  storage:
+    size: 50Gi
+  walStorage:
+    size: 10Gi
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+    podAntiAffinityType: preferred
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "4"
+      memory: 4Gi
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: grounded-postgres-backup

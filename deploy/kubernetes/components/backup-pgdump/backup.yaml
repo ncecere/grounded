@@ -1,0 +1,204 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grounded-backup
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: grounded
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grounded-postgres-backup
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: grounded
+data:
+  # The database to dump (components/postgres-single by default).
+  PGHOST: grounded-postgres
+  PGPORT: "5432"
+  PGUSER: grounded
+  PGDATABASE: grounded
+  # Dumps older than this many days are deleted from the PVC.
+  RETENTION_DAYS: "14"
+  # Off-site copy: empty UPLOAD_S3_BUCKET turns it off.
+  UPLOAD_S3_ENDPOINT: ""
+  UPLOAD_S3_REGION: us-east-1
+  UPLOAD_S3_BUCKET: ""
+  UPLOAD_S3_PREFIX: grounded/postgres
+  # Delete off-site dumps older than this many days; empty keeps them all
+  # (for example when a bucket lifecycle rule expires them instead).
+  UPLOAD_RETENTION_DAYS: ""
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grounded-postgres-backups
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: grounded
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: grounded-postgres-backup
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: grounded
+spec:
+  schedule: "17 3 * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 1800
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: grounded
+            app.kubernetes.io/component: backup
+            app.kubernetes.io/part-of: grounded
+        spec:
+          serviceAccountName: grounded-backup
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            fsGroup: 999
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+          initContainers:
+            # Same image as components/postgres-single, so pg_dump matches
+            # the server's major version.
+            - name: pg-dump
+              image: docker.io/pgvector/pgvector:0.8.6-pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
+              imagePullPolicy: IfNotPresent
+              command: [/bin/sh, -ec]
+              args:
+                - |
+                  umask 077
+                  timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+                  temporary="/backups/.grounded-${timestamp}.dump.tmp"
+                  destination="/backups/grounded-${timestamp}.dump"
+                  trap 'rm -f "$temporary"' EXIT
+                  pg_dump --format=custom --no-owner --file="$temporary"
+                  pg_restore --list "$temporary" >/dev/null
+                  mv "$temporary" "$destination"
+                  echo "backup ok: $destination ($(du -h "$destination" | cut -f1))"
+                  find /backups -maxdepth 1 -type f -name 'grounded-*.dump' -mtime +"${RETENTION_DAYS}" -print -delete
+              envFrom:
+                - configMapRef:
+                    name: grounded-postgres-backup
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: grounded-runtime
+                      key: POSTGRES_PASSWORD
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: "1"
+                  memory: 512Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                privileged: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+                - name: tmp
+                  mountPath: /tmp
+          containers:
+            # Copies the newest dump off-site when UPLOAD_S3_BUCKET is set.
+            - name: upload
+              image: docker.io/rclone/rclone:1.75.1@sha256:45401ad7410db1d67ffdb58e19059ad20b0d8e0285a60e38bbec55cc1019c7a5
+              imagePullPolicy: IfNotPresent
+              command: [/bin/sh, -ec]
+              args:
+                - |
+                  if [ -z "$UPLOAD_S3_BUCKET" ]; then
+                    echo "off-site copy disabled (UPLOAD_S3_BUCKET is empty)"
+                    exit 0
+                  fi
+                  export RCLONE_CONFIG_OFFSITE_TYPE=s3
+                  export RCLONE_CONFIG_OFFSITE_PROVIDER=Other
+                  export RCLONE_CONFIG_OFFSITE_ENDPOINT="$UPLOAD_S3_ENDPOINT"
+                  export RCLONE_CONFIG_OFFSITE_REGION="$UPLOAD_S3_REGION"
+                  export RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID="$UPLOAD_ACCESS_KEY"
+                  export RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY="$UPLOAD_SECRET_KEY"
+                  export RCLONE_CONFIG_OFFSITE_NO_CHECK_BUCKET=true
+                  latest="$(ls -1t /backups/grounded-*.dump | head -n 1)"
+                  target="offsite:${UPLOAD_S3_BUCKET}/${UPLOAD_S3_PREFIX}"
+                  rclone --config "" copyto "$latest" "${target}/$(basename "$latest")"
+                  echo "copied $(basename "$latest") to ${UPLOAD_S3_BUCKET}/${UPLOAD_S3_PREFIX}"
+                  if [ -n "$UPLOAD_RETENTION_DAYS" ]; then
+                    rclone --config "" delete --min-age "${UPLOAD_RETENTION_DAYS}d" --include 'grounded-*.dump' "$target"
+                  fi
+              envFrom:
+                - configMapRef:
+                    name: grounded-postgres-backup
+              env:
+                - name: HOME
+                  value: /tmp
+                - name: UPLOAD_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: grounded-backup-s3
+                      key: access_key
+                      optional: true
+                - name: UPLOAD_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: grounded-backup-s3
+                      key: secret_key
+                      optional: true
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: "1"
+                  memory: 256Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                privileged: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: grounded-postgres-backups
+            - name: tmp
+              emptyDir:
+                sizeLimit: 256Mi

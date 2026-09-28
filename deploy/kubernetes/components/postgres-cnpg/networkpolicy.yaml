@@ -1,0 +1,90 @@
+# CloudNativePG instance pods (and their bootstrap/join job pods) carry the
+# label cnpg.io/cluster. With the namespace's default-deny they need:
+#  - ingress from api/worker on 5432, from each other (replication, status),
+#    and from the operator and Barman Cloud Plugin namespace (patch
+#    cnpg-system if yours differs) on 5432 and the status port 8000;
+#  - egress to each other, to the Kubernetes API server (the instance
+#    manager watches the Cluster; 443/6443, patch for your control plane)
+#    and to the backup object store (443, or 9000 for in-cluster S3).
+# Some CNIs (Cilium, for example) need their own rule for API-server egress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-postgres-cnpg-ingress
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: postgres
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: grounded-postgres
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [grounded]
+              - key: app.kubernetes.io/component
+                operator: In
+                values: [api, worker, backup]
+      ports:
+        - protocol: TCP
+          port: 5432
+    - from:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: grounded-postgres
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-postgres-cnpg-egress
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: postgres
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: grounded-postgres
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: grounded-postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 8000
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+        - ipBlock:
+            cidr: ::/0
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 6443
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9000

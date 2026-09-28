@@ -1,0 +1,12 @@
+# A single pgvector Postgres 17 StatefulSet for small installs without
+# CloudNativePG or a managed database. Not highly available.
+#
+# Needs grounded-runtime key POSTGRES_PASSWORD, and DATABASE_URL pointing at
+# it: postgres://grounded:<POSTGRES_PASSWORD>@grounded-postgres:5432/grounded?sslmode=disable
+# (the password URL-encoded). Pair it with components/backup-pgdump.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - postgres.yaml
+  - networkpolicy.yaml

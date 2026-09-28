@@ -1,0 +1,169 @@
+# grounded worker: background jobs (sync, crawl, parse, embed, ...). Serves
+# only /healthz, /readyz and /metrics, on :9090.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grounded-worker
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: grounded
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grounded
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grounded
+        app.kubernetes.io/component: worker
+        app.kubernetes.io/part-of: grounded
+    spec:
+      serviceAccountName: grounded
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      # Running jobs get SHUTDOWN_TIMEOUT to finish, then 10s to cancel
+      # (jobs are idempotent and are retried).
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      # Workers spread across nodes when they can (ScheduleAnyway): jobs
+      # are retried elsewhere, so co-located workers are acceptable.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: grounded
+              app.kubernetes.io/component: worker
+          matchLabelKeys: [pod-template-hash]
+      initContainers:
+        # Same as the API's: a new worker version never starts against an
+        # older schema, whichever Deployment rolls out first.
+        - name: migrate
+          image: ghcr.io/ncecere/grounded
+          imagePullPolicy: IfNotPresent
+          args: [migrate]
+          envFrom:
+            - configMapRef:
+                name: grounded-config
+            - secretRef:
+                name: grounded-runtime
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+      containers:
+        - name: worker
+          image: ghcr.io/ncecere/grounded
+          imagePullPolicy: IfNotPresent
+          args: [worker]
+          envFrom:
+            - configMapRef:
+                name: grounded-config
+            - secretRef:
+                name: grounded-runtime
+            - secretRef:
+                name: grounded-smtp
+                optional: true
+          env:
+            - name: MIGRATE_ON_START
+              value: "false"
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-s3
+                  key: access_key
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-s3
+                  key: secret_key
+            - name: GOMEMLIMIT
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.memory
+          ports:
+            - name: http
+              containerPort: 9090
+              protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 2Gi
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: grounded-worker
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: grounded
+spec:
+  maxUnavailable: 1
+  unhealthyPodEvictionPolicy: AlwaysAllow
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grounded
+      app.kubernetes.io/component: worker

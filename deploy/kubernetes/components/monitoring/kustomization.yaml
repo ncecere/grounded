@@ -1,0 +1,12 @@
+# Prometheus Operator scraping: a ServiceMonitor for the "metrics" ports of
+# grounded-api (9091) and grounded-worker (9090), and a NetworkPolicy that
+# admits the scraper from the "monitoring" namespace (patch it to yours).
+#
+# Without the Prometheus Operator, use components/monitoring-annotations
+# instead (not both). Dashboards and alert rules: deploy/observability.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - servicemonitor.yaml
+  - networkpolicy.yaml

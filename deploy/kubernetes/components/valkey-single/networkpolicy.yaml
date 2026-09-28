@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-valkey-ingress
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: valkey
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: grounded
+      app.kubernetes.io/component: valkey
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [grounded]
+              - key: app.kubernetes.io/component
+                operator: In
+                values: [api, worker]
+      ports:
+        - protocol: TCP
+          port: 6379

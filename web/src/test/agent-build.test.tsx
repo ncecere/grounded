@@ -1,0 +1,188 @@
+/* The agent editor's Build tab (D2/W2) and honest status (Q5): section summaries, publish states, the Test drawer and the old tab links. */
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { axe } from "vitest-axe";
+import type { Schemas } from "../api/client";
+import { sectionSummary } from "../pages/agents/build/summaries";
+import { publishBlocked, saveView } from "../pages/agents/publish-state";
+import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
+
+const config: Schemas["AgentConfig"] = {
+  instructions: "Help students with registration.",
+  chatModelId: "mod1",
+  kbs: [{ kbId: "kb1", topK: 6 }],
+  retrievalMode: "always",
+  maxTurns: 4,
+  contextTokenBudget: 6000,
+  minSimilarity: 0,
+  strictlyGrounded: true,
+  refusalMessage: "No.",
+  citationMode: "snippet_link",
+  queryRewrite: true,
+  moderation: { categories: {}, outputMode: "" },
+  audience: "team",
+};
+
+const version = {
+  id: "v1", version: 3, publishedAt: "2026-09-26T10:00:00Z", publishedBy: "u1", publishedByName: "Una", note: "", chatModelId: "mod1",
+  chatModelName: "GPT-OSS 120B (Campus gateway)", effectiveRank: 0, classification: "open", knowledgeBases: [{ id: "kb1", name: "Registrar help", topK: 6 }], config,
+};
+
+const agent = (extra: Partial<Schemas["Agent"]> = {}): Schemas["Agent"] => ({
+  id: "ag1", teamId: "t1", teamSlug: "registrar", slug: "helper", name: "Helper", description: "", accentColor: "", welcomeMessage: "", starterQuestions: [],
+  status: "active", disabledReason: "", disabledAt: null, audience: "team", draft: config, draftRevision: 1, published: version, hasUnpublishedChanges: false,
+  warnings: [], revision: 2, createdAt: "2026-09-26T09:00:00Z", updatedAt: "2026-09-26T10:00:00Z", ...extra,
+});
+
+const models = [
+  { id: "mod1", key: "gpt-oss-120b", displayName: "GPT-OSS 120B (Campus gateway)", description: "", maxClassification: "sensitive", contextWindow: 131072, maxOutputTokens: 8192, supportsTools: true, supportsReasoningEffort: false },
+];
+const kb = { id: "kb1", name: "Registrar help", description: "", embeddingProfileId: "p1", topK: 8, effectiveClassification: "open", sources: [], revision: 1, createdAt: "", updatedAt: "" };
+
+const routes = (current: Schemas["Agent"], extra: Record<string, Handler> = {}, teamRole = "owner"): Record<string, Handler> => ({
+  ...shellRoutes("none", teamRole),
+  "GET /v1/teams/registrar/agents/ag1": () => current,
+  "GET /v1/teams/registrar/agents/ag1/versions": () => [version],
+  "GET /v1/chat-models": () => models,
+  "GET /v1/teams/registrar/kbs": () => [kb],
+  ...extra,
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  localStorage.clear();
+});
+beforeAll(() => {
+  window.scrollTo = () => {};
+});
+
+describe("pure helpers", () => {
+  it("summarises each closed section in a line", () => {
+    const input = { c: config, model: models[0], kbName: (id: string) => (id === "kb1" ? "Registrar help" : undefined) };
+    expect(sectionSummary("instructions", input)).toBe("Help students with registration.");
+    expect(sectionSummary("instructions", { ...input, c: { ...config, instructions: "" } })).toBe("Not written yet");
+    expect(sectionSummary("model", input)).toBe("GPT-OSS 120B (Campus gateway)");
+    expect(sectionSummary("knowledge", input)).toBe("Registrar help");
+    expect(sectionSummary("knowledge", { ...input, c: { ...config, kbs: [] } })).toMatch(/can't answer yet/);
+    expect(sectionSummary("answering", input)).toBe("Search before every answer · only from sources · title, snippet and link");
+    expect(sectionSummary("safety", input)).toBe("Platform policy only");
+    expect(sectionSummary("advanced", input)).toBe("model's temperature · 6,000 source tokens · rewrites follow-ups");
+    expect(sectionSummary("systemone", { ...input, systemOne: { judging: true, citations: false, citationMode: "annotate", scope: false } })).toBe(
+      "Platform defaults: judging on, citations off, scope off",
+    );
+  });
+
+  it("never says Draft saved while a field can't be saved, and says why Publish is off", () => {
+    expect(saveView("saved", false).text).toBe("Draft saved");
+    expect(saveView("saved", true).text).toBe("Not saved: fix the highlighted field");
+    expect(saveView("dirty", true).text).toBe("Not saved: fix the highlighted field");
+    const live = { published: version, hasUnpublishedChanges: false };
+    expect(publishBlocked({ agent: live, status: "saved", needsFix: false, audience: "team", isManager: true })).toBe("No changes since version 3");
+    expect(publishBlocked({ agent: live, status: "dirty", needsFix: false, audience: "team", isManager: true })).toBeUndefined();
+    expect(publishBlocked({ agent: { published: null, hasUnpublishedChanges: true }, status: "saved", needsFix: false, audience: "team", isManager: true })).toBeUndefined();
+    expect(publishBlocked({ agent: { ...live, hasUnpublishedChanges: true }, status: "saved", needsFix: false, audience: "public", isManager: false })).toMatch(
+      /Only team admins and owners can publish to Public/,
+    );
+  });
+});
+
+describe("Build", () => {
+  it("shows the sections beside the Test chat, with summaries, and Publish off when nothing changed (Q5)", async () => {
+    mockApi(routes(agent()));
+    const { container } = renderApp("/teams/registrar/agents/ag1");
+    expect(await screen.findByRole("tab", { name: "Build", selected: true }, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Build", "Appearance", "Share", "Versions", "Analytics"]);
+    expect(await screen.findByRole("region", { name: "Test" })).toBeInTheDocument();
+    expect(screen.getByRole("separator", { name: "Resize the test chat" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Model/ })).toHaveTextContent("GPT-OSS 120B (Campus gateway)"));
+    expect(screen.getByRole("button", { name: /^Knowledge/ })).toHaveTextContent("Registrar help");
+    const publish = screen.getByRole("button", { name: "Publish" });
+    expect(publish).toBeDisabled();
+    expect(publish).toHaveAccessibleDescription("No changes since version 3");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("an invalid value holds the status at 'Not saved' and marks its section (F-26)", async () => {
+    mockApi(routes(agent({ hasUnpublishedChanges: true })));
+    renderApp("/teams/registrar/agents/ag1");
+    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: 5000 }));
+    const temperature = screen.getByRole("textbox", { name: /Temperature/ });
+    await userEvent.type(temperature, "5");
+    expect(await screen.findByText("Enter a number from 0 to 2.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /^Advanced/ }));
+    expect(screen.getByRole("button", { name: /^Advanced/ })).toHaveTextContent("Not saved: fix the highlighted field");
+    await new Promise((r) => setTimeout(r, 1000));
+    expect(screen.queryByText("Draft saved")).toBeNull();
+    expect(screen.getAllByText("Not saved: fix the highlighted field").length).toBeGreaterThan(1);
+  }, 10_000);
+
+  it("editors can't start a publish to Public and are told why (P-03)", async () => {
+    mockApi(routes(agent({ hasUnpublishedChanges: true, draft: { ...config, audience: "public" } }), {}, "editor"));
+    renderApp("/teams/registrar/agents/ag1");
+    const publish = await screen.findByRole("button", { name: "Publish" }, { timeout: 5000 });
+    expect(publish).toBeDisabled();
+    expect(publish).toHaveAccessibleDescription(/Only team admins and owners can publish to Public/);
+  });
+
+  it("the publish dialog names the audience (F-15)", async () => {
+    mockApi(routes(agent({ hasUnpublishedChanges: true, draft: { ...config, audience: "public" } })));
+    renderApp("/teams/registrar/agents/ag1");
+    await userEvent.click(await screen.findByRole("button", { name: "Publish" }, { timeout: 5000 }));
+    const dialog = await screen.findByRole("dialog", { name: /Publish version 4/ });
+    expect(dialog).toHaveTextContent("Anyone, without signing in, will chat with this configuration");
+  });
+
+  it("below 1100 px the Test chat is a drawer opened from the header, kept in ?test=open", async () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: false, media: q, addEventListener: () => {}, removeEventListener: () => {} }));
+    mockApi(routes(agent()));
+    const { router } = renderApp("/teams/registrar/agents/ag1");
+    await screen.findByRole("button", { name: /^Instructions/ }, { timeout: 5000 });
+    expect(screen.queryByRole("region", { name: "Test" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Test" }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ test: "open" }));
+    const drawer = await screen.findByRole("dialog", { name: "Test the draft" });
+    expect(await within(drawer).findByRole("textbox", { name: "Message Helper" })).toBeInTheDocument();
+  });
+
+  it("old Configure links open Build", async () => {
+    mockApi(routes(agent()));
+    const { router } = renderApp("/teams/registrar/agents/ag1?tab=configure");
+    expect(await screen.findByRole("tab", { name: "Build", selected: true }, { timeout: 5000 })).toBeInTheDocument();
+    expect(router.state.location.search).toEqual({});
+  });
+
+  it("Versions compares a version with the draft (diff-viewer) and has no second Publish", async () => {
+    mockApi(
+      routes(agent({ hasUnpublishedChanges: true, draft: { ...config, instructions: "Help students briefly.", temperature: 0.2 } }), {
+        "GET /v1/teams/registrar/agents/ag1/versions/3": () => version,
+      }),
+    );
+    const { container } = renderApp("/teams/registrar/agents/ag1?tab=versions");
+    await screen.findByRole("table", { name: "Published versions" }, { timeout: 5000 });
+    expect(screen.getAllByRole("button", { name: /Publish/ })).toHaveLength(1);
+    const text = await screen.findByRole("table", { name: "Instructions: version 3 and the draft" });
+    expect(text).toHaveTextContent("Help students with registration.");
+    expect(text).toHaveTextContent("Help students briefly.");
+    expect(screen.getByRole("table", { name: "Settings: version 3 and the draft" })).toHaveTextContent("temperature");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("Share says a live public agent's links all work signed out, and hides the widget for other audiences", async () => {
+    const sharing = (audience: Schemas["Audience"]): Schemas["AgentSharing"] => ({
+      agentId: "ag1", audience, draftAudience: audience, shortName: null, publicAgentsEnabled: true, classification: "open", maxAudience: "public",
+      options: [{ audience: "team", allowed: true, reasons: [] }, { audience: "all_authenticated", allowed: true, reasons: [] }, { audience: "public", allowed: true, reasons: [] }],
+      links: { team: "https://rag.example.edu/a/registrar/helper", id: "https://rag.example.edu/a/id/ag1", short: null },
+      widget: { scriptUrl: "https://rag.example.edu/widget.js", integrity: "", maxMessageChars: 2000 },
+    });
+    mockApi(routes(agent({ audience: "public", draft: { ...config, audience: "public" } }), { "GET /v1/teams/registrar/agents/ag1/sharing": () => sharing("public"), "GET /v1/teams/registrar/agents/ag1/publishable-keys": () => [] }));
+    const v = renderApp("/teams/registrar/agents/ag1?tab=share");
+    expect(await screen.findByText("All three work without signing in.", {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Embed code" })).toBeInTheDocument();
+    v.unmount();
+    mockApi(routes(agent(), { "GET /v1/teams/registrar/agents/ag1/sharing": () => sharing("team") }));
+    renderApp("/teams/registrar/agents/ag1?tab=share");
+    expect(await screen.findByText(/People sign in first, and only team members can chat/, {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Embed code" })).toBeNull();
+  });
+});
+

@@ -1,0 +1,6 @@
+# Input hashes and code/reference whitespace are byte-level contracts.
+*.html -text
+*.md -text
+*.txt -text
+# These inputs/references deliberately preserve trailing spaces and tabs.
+codewhitespace.* -whitespace

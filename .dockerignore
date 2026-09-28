@@ -1,0 +1,13 @@
+.git
+.github
+.env
+*.env
+**/*.env
+*.env.local
+bin
+dist
+docs
+deploy
+web/node_modules
+web/dist
+*.test

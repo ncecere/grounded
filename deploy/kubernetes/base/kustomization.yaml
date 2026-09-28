@@ -1,0 +1,43 @@
+# Grounded: generic Kubernetes base (docs/deployments/kubernetes.md).
+#
+# Namespace-agnostic and free of secret values. An overlay sets the
+# namespace, pins the image by digest, patches grounded-config, provides the
+# secrets grounded-runtime and grounded-s3 (and optionally grounded-smtp),
+# and adds components from ../components.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - serviceaccount.yaml
+  - api.yaml
+  - worker.yaml
+  - services.yaml
+  - networkpolicies.yaml
+
+# grounded-config, from config.env. The name gets a hash of the content
+# (grounded-config-<hash>) and the Deployments' references follow, so a
+# configuration change rolls the pods. Overlays merge their own keys:
+#   configMapGenerator:
+#     - name: grounded-config
+#       behavior: merge
+#       literals:
+#         - APP_URL=https://grounded.example.org
+# (a patch on grounded-config works too).
+configMapGenerator:
+  - name: grounded-config
+    envs:
+      - config.env
+    options:
+      labels:
+        app.kubernetes.io/name: grounded
+        app.kubernetes.io/part-of: grounded
+
+# Deliberately not a real tag: overlays must pin the image, preferably by
+# digest (never by a mutable tag such as latest), for example
+#   images:
+#     - name: ghcr.io/ncecere/grounded
+#       newTag: v0.1.0
+#       digest: sha256:<digest from the image workflow summary>
+images:
+  - name: ghcr.io/ncecere/grounded
+    newTag: pin-a-digest-in-your-overlay

@@ -1,0 +1,83 @@
+# Example: the highly available topology of DESIGN §15 (99.9% target).
+#  - api: 3 replicas, at most one per node as in the base (needs 3
+#    schedulable nodes); the base PodDisruptionBudget (maxUnavailable 1)
+#    keeps 2 serving during drains. worker: 2 replicas.
+#  - Postgres: CloudNativePG, 1 primary + 2 replicas, WAL archiving and
+#    daily base backups to a separate S3 target (components/postgres-cnpg;
+#    needs the operator and the Barman Cloud Plugin).
+#  - Valkey: HA and outside this overlay (see README.md): a managed
+#    Redis/Valkey-compatible service or an operator-run primary with
+#    automatic failover behind one stable endpoint. VALKEY_URL in
+#    grounded-runtime points at it (rediss:// for TLS).
+#  - Prometheus Operator scraping (components/monitoring).
+#
+# Copy this directory into your own GitOps repository (ADR-0023) and replace
+# every example.org value and the documentation-range addresses.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: grounded
+
+resources:
+  - namespace.yaml
+  - ../../base
+  - valkey-egress.yaml
+
+components:
+  - ../../components/postgres-cnpg
+  - ../../components/ingress
+  - ../../components/monitoring
+
+images:
+  - name: ghcr.io/ncecere/grounded
+    newTag: v0.1.0
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+
+replicas:
+  - name: grounded-api
+    count: 3
+  - name: grounded-worker
+    count: 2
+
+patches:
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: grounded-config
+      data:
+        APP_URL: https://grounded.example.org
+        S3_ENDPOINT: https://s3.example.org
+        S3_BUCKET: grounded
+        OIDC_ALLOWED_EMAIL_DOMAINS: example.org
+        TRUSTED_PROXIES: 10.0.0.0/8
+  # Postgres backups go to a different storage system from the blobs.
+  - target:
+      kind: ObjectStore
+      name: grounded-postgres-backup
+    patch: |-
+      - op: replace
+        path: /spec/configuration/destinationPath
+        value: s3://example-backups/grounded/postgres
+      - op: replace
+        path: /spec/configuration/endpointURL
+        value: https://backup-s3.example.org
+  - target:
+      kind: Ingress
+      name: grounded
+    patch: |-
+      - op: add
+        path: /spec/ingressClassName
+        value: example-ingress-class
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts: [grounded.example.org]
+            secretName: grounded-tls
+  - target:
+      kind: NetworkPolicy
+      name: grounded-api-ingress
+    patch: |-
+      - op: replace
+        path: /spec/ingress/0/from/0/namespaceSelector/matchLabels/kubernetes.io~1metadata.name
+        value: example-ingress-namespace

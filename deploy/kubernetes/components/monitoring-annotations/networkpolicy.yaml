@@ -1,0 +1,29 @@
+# Admits the metrics scraper. Patch the namespace to where Prometheus (or
+# Alloy, the OpenTelemetry Collector, ...) runs.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-allow-metrics-scrape
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [grounded]
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [api, worker]
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9091
+        - protocol: TCP
+          port: 9090

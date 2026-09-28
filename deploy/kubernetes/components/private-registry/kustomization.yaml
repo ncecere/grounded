@@ -1,0 +1,15 @@
+# Pull the Grounded image with credentials: the image is private until
+# v0.1.0, and some installs mirror images into a private registry. Adds the
+# pull secret grounded-registry (type kubernetes.io/dockerconfigjson,
+# provided by the overlay) to the grounded ServiceAccount.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+patches:
+  - patch: |-
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: grounded
+      imagePullSecrets:
+        - name: grounded-registry

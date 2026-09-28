@@ -1,0 +1,29 @@
+# Highly available Postgres with CloudNativePG (DESIGN §15): a Cluster of
+# 1 primary and 2 replicas with automatic failover, continuous WAL archiving
+# and daily base backups to S3 through the Barman Cloud Plugin.
+#
+# Prerequisites in the cluster: the CloudNativePG operator (1.26 or later)
+# and the Barman Cloud Plugin, both in the cnpg-system namespace.
+#
+# DATABASE_URL: this component points api and worker at the operator's
+# generated secret grounded-postgres-app (key uri), which targets the
+# read-write service grounded-postgres-rw, so grounded-runtime needs no
+# DATABASE_URL or POSTGRES_PASSWORD.
+#
+# Backups need the secret grounded-postgres-backup-s3 (keys access_key,
+# secret_key) and patches to the ObjectStore grounded-postgres-backup:
+# destinationPath and endpointURL. Use a different storage system from the
+# one holding Grounded's blobs.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - cluster.yaml
+  - backup.yaml
+  - networkpolicy.yaml
+
+patches:
+  - path: database-url.yaml
+    target:
+      kind: Deployment
+      name: grounded-(api|worker)

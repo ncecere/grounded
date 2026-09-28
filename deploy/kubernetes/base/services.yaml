@@ -1,0 +1,44 @@
+# grounded-api: port "http" (80) is what the Ingress targets; port
+# "metrics" (9091) is the internal METRICS_ADDR listener, for scrapers only.
+# grounded-worker: headless, port "metrics" (9090), for scrapers only.
+apiVersion: v1
+kind: Service
+metadata:
+  name: grounded-api
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: grounded
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+    - name: metrics
+      port: 9091
+      targetPort: metrics
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grounded-worker
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: grounded
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: worker
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: http
+      protocol: TCP

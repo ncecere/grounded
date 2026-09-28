@@ -1,0 +1,61 @@
+/* Admin → Retention and Legal holds. Semantic tokens only. */
+.list {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  font-size: var(--font-size-sm);
+
+  & li + li {
+    margin-top: var(--space-1);
+  }
+}
+
+/* A period: the mode, the days when set, and what applies now. */
+.periodRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+
+  & > :first-child {
+    min-width: 14rem;
+  }
+}
+
+.now {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.pending {
+  color: var(--color-warning-text);
+}
+
+.reason {
+  display: block;
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.dates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.prewrap {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,42 @@
+.suggestions {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+
+  &[data-layout="wrap"] {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  &[data-layout="scroll"] {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-block: var(--space-1);
+    scrollbar-width: none;
+    /* Fade the clipped edge so it reads as scrollable (masks only use alpha). */
+    mask-image: linear-gradient(to right, currentColor calc(100% - var(--space-8)), transparent);
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
+.suggestion {
+  border-radius: var(--radius-pill);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text);
+
+  .suggestions[data-layout="scroll"] & {
+    flex: none;
+  }
+
+  & svg {
+    color: var(--color-text-muted);
+  }
+}
+
+.text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

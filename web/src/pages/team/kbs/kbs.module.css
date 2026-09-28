@@ -1,0 +1,90 @@
+/* Knowledge base pages: list cells, the attach dialog, Try it. Semantic tokens only. */
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.secondary {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.oneLine {
+  display: block;
+  max-width: 24rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usedBy {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+/* ---- settings: fusion weights ---- */
+
+.fusion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-muted);
+}
+
+.fusionTitle {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.effective {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.effectiveLabel {
+  font-weight: var(--font-weight-medium);
+}
+
+.sliders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-4) var(--space-6);
+}
+
+/* ---- attach dialog ---- */
+
+.attachList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: min(28rem, 60vh);
+  overflow-y: auto;
+}
+
+.optionLabel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+}
+
+.optionMeta {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-muted);
+}
+
+.nowrap {
+  white-space: nowrap;
+}

@@ -1,0 +1,9 @@
+.list {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  font-size: var(--font-size-sm);
+
+  & li + li {
+    margin-top: var(--space-1);
+  }
+}

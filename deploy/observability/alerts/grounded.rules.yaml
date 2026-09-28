@@ -1,0 +1,358 @@
+# Grounded alerting and recording rules (Prometheus rule format).
+#
+# Load them into Prometheus (rule_files), Mimir or Cortex (mimirtool rules
+# load), Grafana-managed alerting (import as data-source-managed rules), or
+# the Prometheus Operator (deploy/kubernetes/components/alerts, generated from
+# this file). Reference: docs/operations/monitoring.md; runbooks:
+# docs/operations/alerts.md. Validate with `make obs-validate`.
+#
+# SLOs (DESIGN §15): 99.9% of API requests succeed (not 5xx), and 95% of
+# non-streaming API requests finish within 1 s. (Prometheus 3 stores the
+# bucket label le="1" as le="1.0"; the rules match both.) Health checks and /metrics
+# (group "ops") are excluded from both; streamed chat (group "chat") is
+# excluded from latency and measured by grounded_chat_* instead. Burn-rate
+# alerts use the multi-window, multi-burn-rate method (Google SRE workbook,
+# chapter 5): budget 0.1% of requests for availability, 5% for latency.
+#
+# Rules aggregate by namespace, so one Prometheus can watch several installs.
+#
+# External dependencies (optional; the alerts stay silent without them):
+#   - kube-state-metrics: GroundedBackupMissing, GroundedBackupJobFailed
+#     (the CronJobs "grounded-postgres-backup" of components/backup-pgdump and
+#     "grounded-objects-backup" of components/backup-objects).
+#   - kubelet volume stats (scraped by kube-prometheus-stack, Alloy's
+#     kubernetes integration, ...): GroundedVolumeFillingUp, GroundedVolumeFull.
+groups:
+  - name: grounded-slo-recording
+    rules:
+      # Availability SLI: the share of API requests that failed (5xx).
+      - record: grounded:http_requests:rate5m
+        expr: sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[5m]))
+      - record: grounded:http_requests:rate1h
+        expr: sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[1h]))
+      - record: grounded:http_errors:ratio_rate5m
+        expr: (sum by (namespace) (rate(grounded_http_requests_total{group!="ops",status=~"5.."}[5m])) or 0 * sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[5m]))) / sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[5m]))
+      - record: grounded:http_errors:ratio_rate30m
+        expr: (sum by (namespace) (rate(grounded_http_requests_total{group!="ops",status=~"5.."}[30m])) or 0 * sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[30m]))) / sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[30m]))
+      - record: grounded:http_errors:ratio_rate1h
+        expr: (sum by (namespace) (rate(grounded_http_requests_total{group!="ops",status=~"5.."}[1h])) or 0 * sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[1h]))) / sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[1h]))
+      - record: grounded:http_errors:ratio_rate2h
+        expr: (sum by (namespace) (rate(grounded_http_requests_total{group!="ops",status=~"5.."}[2h])) or 0 * sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[2h]))) / sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[2h]))
+      - record: grounded:http_errors:ratio_rate6h
+        expr: (sum by (namespace) (rate(grounded_http_requests_total{group!="ops",status=~"5.."}[6h])) or 0 * sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[6h]))) / sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[6h]))
+      - record: grounded:http_errors:ratio_rate1d
+        expr: (sum by (namespace) (rate(grounded_http_requests_total{group!="ops",status=~"5.."}[1d])) or 0 * sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[1d]))) / sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[1d]))
+      - record: grounded:http_errors:ratio_rate3d
+        expr: (sum by (namespace) (rate(grounded_http_requests_total{group!="ops",status=~"5.."}[3d])) or 0 * sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[3d]))) / sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[3d]))
+      # Latency SLI: the share of non-streaming API requests slower than 1 s.
+      - record: grounded:http_slow:ratio_rate5m
+        expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat",le=~"1(\\.0)?"}[5m])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat"}[5m]))
+      - record: grounded:http_slow:ratio_rate30m
+        expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat",le=~"1(\\.0)?"}[30m])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat"}[30m]))
+      - record: grounded:http_slow:ratio_rate1h
+        expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat",le=~"1(\\.0)?"}[1h])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat"}[1h]))
+      - record: grounded:http_slow:ratio_rate2h
+        expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat",le=~"1(\\.0)?"}[2h])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat"}[2h]))
+      - record: grounded:http_slow:ratio_rate6h
+        expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat",le=~"1(\\.0)?"}[6h])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat"}[6h]))
+      - record: grounded:http_slow:ratio_rate1d
+        expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat",le=~"1(\\.0)?"}[1d])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat"}[1d]))
+      - record: grounded:http_slow:ratio_rate3d
+        expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat",le=~"1(\\.0)?"}[3d])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat"}[3d]))
+
+  - name: grounded-slo
+    rules:
+      # Fast burn: 2% of the 30-day budget in an hour, or 5% in six hours.
+      # A minimum of 1 request a minute keeps a single error on an idle
+      # install from paging.
+      - alert: GroundedAPIErrorBudgetBurn
+        expr: |
+          (
+              (grounded:http_errors:ratio_rate1h > (14.4 * 0.001) and grounded:http_errors:ratio_rate5m > (14.4 * 0.001))
+            or
+              (grounded:http_errors:ratio_rate6h > (6 * 0.001) and grounded:http_errors:ratio_rate30m > (6 * 0.001))
+          )
+          and grounded:http_requests:rate1h > (1 / 60)
+        for: 2m
+        labels:
+          severity: critical
+          service: grounded
+        annotations:
+          summary: Grounded API is burning its error budget fast
+          description: '{{ $value | humanizePercentage }} of API requests in {{ with $labels.namespace }}namespace {{ . }}{{ else }}this install{{ end }} are failing with 5xx; at this rate the 30-day 99.9% availability budget is gone within days.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedapierrorbudgetburn
+      # Slow burn: 10% of the budget in three days.
+      - alert: GroundedAPIErrorBudgetBurnSlow
+        expr: |
+          (
+              (grounded:http_errors:ratio_rate1d > (3 * 0.001) and grounded:http_errors:ratio_rate2h > (3 * 0.001))
+            or
+              (grounded:http_errors:ratio_rate3d > 0.001 and grounded:http_errors:ratio_rate6h > 0.001)
+          )
+          and grounded:http_requests:rate1h > (1 / 60)
+        for: 1h
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: Grounded API is slowly burning its error budget
+          description: '{{ $value | humanizePercentage }} of API requests fail with 5xx over the last day(s); the 99.9% availability target will be missed this month if it continues.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedapierrorbudgetburnslow
+      - alert: GroundedAPILatencyBudgetBurn
+        expr: |
+          (
+              (grounded:http_slow:ratio_rate1h > (14.4 * 0.05) and grounded:http_slow:ratio_rate5m > (14.4 * 0.05))
+            or
+              (grounded:http_slow:ratio_rate6h > (6 * 0.05) and grounded:http_slow:ratio_rate30m > (6 * 0.05))
+          )
+          and grounded:http_requests:rate1h > (1 / 60)
+        for: 2m
+        labels:
+          severity: critical
+          service: grounded
+        annotations:
+          summary: Grounded API requests are slow
+          description: '{{ $value | humanizePercentage }} of non-streaming API requests take longer than 1 s (the objective is at most 5%).'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedapilatencybudgetburn
+      - alert: GroundedAPILatencyBudgetBurnSlow
+        expr: |
+          (
+              (grounded:http_slow:ratio_rate1d > (3 * 0.05) and grounded:http_slow:ratio_rate2h > (3 * 0.05))
+            or
+              (grounded:http_slow:ratio_rate3d > 0.05 and grounded:http_slow:ratio_rate6h > 0.05)
+          )
+          and grounded:http_requests:rate1h > (1 / 60)
+        for: 1h
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: Grounded API latency is slowly eating its budget
+          description: '{{ $value | humanizePercentage }} of non-streaming API requests took longer than 1 s over the last day(s) (objective: at most 5%).'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedapilatencybudgetburnslow
+
+  - name: grounded-availability
+    rules:
+      - alert: GroundedAPIDown
+        expr: absent(grounded_build_info{mode=~"api|serve"})
+        for: 5m
+        labels:
+          severity: critical
+          service: grounded
+        annotations:
+          summary: No Grounded API instance is up
+          description: Prometheus has scraped no API (or serve) process for 5 minutes. Users cannot sign in or chat.
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedapidown
+      - alert: GroundedWorkerDown
+        expr: absent(grounded_build_info{mode=~"worker|serve"})
+        for: 10m
+        labels:
+          severity: critical
+          service: grounded
+        annotations:
+          summary: No Grounded worker is up
+          description: Prometheus has scraped no worker (or serve) process for 10 minutes. Uploads, crawls, syncs, notifications and retention are not running.
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedworkerdown
+      - alert: GroundedChatAnswersFailing
+        expr: |
+          sum by (namespace) (rate(grounded_chat_answers_total{outcome="error",channel!="test"}[15m]))
+            / sum by (namespace) (rate(grounded_chat_answers_total{channel!="test"}[15m])) > 0.1
+          and sum by (namespace) (increase(grounded_chat_answers_total{outcome="error",channel!="test"}[15m])) >= 3
+        for: 10m
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: Grounded chat answers are failing
+          description: '{{ $value | humanizePercentage }} of chat answers ended with an error in the last 15 minutes. Streamed answers fail after their HTTP 200, so the API error SLO does not see these.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedchatanswersfailing
+
+  - name: grounded-jobs
+    rules:
+      - alert: GroundedJobsFailing
+        expr: |
+          sum by (namespace, kind) (rate(grounded_jobs_worked_total{outcome=~"error|panic"}[15m]))
+            / sum by (namespace, kind) (rate(grounded_jobs_worked_total[15m])) > 0.25
+          and sum by (namespace, kind) (increase(grounded_jobs_worked_total{outcome=~"error|panic"}[15m])) >= 3
+        for: 15m
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: 'Grounded {{ $labels.kind }} jobs are failing'
+          description: '{{ $value | humanizePercentage }} of {{ $labels.kind }} jobs failed in the last 15 minutes. River retries them with backoff; they are discarded after their last attempt.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedjobsfailing
+      - alert: GroundedJobsDiscarded
+        expr: max by (namespace, kind) (delta(grounded_jobs{state="discarded"}[1h])) > 0
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: 'Grounded {{ $labels.kind }} jobs ran out of attempts'
+          description: '{{ $value }} {{ $labels.kind }} job(s) were discarded in the last hour after failing every attempt.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedjobsdiscarded
+      - alert: GroundedJobStuck
+        expr: max by (namespace, kind) (grounded_jobs_oldest_running_age_seconds) > 3600
+        for: 15m
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: 'A Grounded {{ $labels.kind }} job has been running for over an hour'
+          description: 'The oldest running {{ $labels.kind }} job started {{ $value | humanizeDuration }} ago; no job is meant to run longer than 35 minutes.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedjobstuck
+      - alert: GroundedQueueBacklog
+        expr: max by (namespace, kind) (grounded_jobs_oldest_available_age_seconds) > 900
+        for: 15m
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: 'Grounded {{ $labels.kind }} jobs are waiting for a worker'
+          description: 'The oldest {{ $labels.kind }} job ready to run has waited {{ $value | humanizeDuration }}. Workers are down, saturated or cannot reach Postgres.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedqueuebacklog
+      - alert: GroundedStateUnreadable
+        expr: min by (namespace) (grounded_state_up) == 0
+        for: 10m
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: A Grounded worker cannot read the queue state
+          description: The worker's metrics could not read the job queue and platform state from Postgres for 10 minutes, so the queue and maintenance alerts are blind.
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedstateunreadable
+      - alert: GroundedRetentionFailing
+        expr: sum by (namespace, kind) (increase(grounded_retention_errors_total[1h])) > 0
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: 'Grounded retention of {{ $labels.kind }} is failing'
+          description: 'Retention of {{ $labels.kind }} failed {{ $value }} time(s) in the last hour; data past its retention period is not being deleted.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedretentionfailing
+      - alert: GroundedRetentionStale
+        expr: time() - max by (namespace, kind) (grounded_retention_last_success_timestamp_seconds) > 3 * 3600
+        for: 15m
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: 'Grounded retention of {{ $labels.kind }} has not completed recently'
+          description: 'Retention of {{ $labels.kind }} last completed {{ $value | humanizeDuration }} ago; it runs every 10 minutes.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedretentionstale
+      - alert: GroundedMaintenanceModeLong
+        expr: |
+          max by (namespace) (grounded_maintenance_mode) == 1
+          and on (namespace) (time() - max by (namespace) (grounded_maintenance_mode_started_timestamp_seconds)) > 4 * 3600
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: Grounded has been in maintenance mode for over 4 hours
+          description: Maintenance mode never ends by itself. Uploads, crawls and syncs stay paused until a platform admin turns it off.
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedmaintenancemodelong
+
+  - name: grounded-dependencies
+    rules:
+      - alert: GroundedModelConnectionFailing
+        expr: |
+          sum by (namespace, connection, kind) (rate(grounded_model_requests_total{outcome!~"ok|canceled|throttled|rate_limited"}[10m]))
+            / sum by (namespace, connection, kind) (rate(grounded_model_requests_total{outcome!~"canceled|throttled"}[10m])) > 0.5
+          and sum by (namespace, connection, kind) (increase(grounded_model_requests_total{outcome!~"ok|canceled|throttled|rate_limited"}[10m])) >= 5
+        for: 10m
+        labels:
+          severity: critical
+          service: grounded
+        annotations:
+          summary: 'Model connection {{ $labels.connection }} ({{ $labels.kind }}) is failing'
+          description: '{{ $value | humanizePercentage }} of {{ $labels.kind }} requests to connection {{ $labels.connection }} failed in the last 10 minutes.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedmodelconnectionfailing
+      - alert: GroundedModelConnectionRateLimited
+        expr: |
+          sum by (namespace, connection, kind) (rate(grounded_model_requests_total{outcome=~"rate_limited|throttled"}[15m]))
+            / sum by (namespace, connection, kind) (rate(grounded_model_requests_total{outcome!="canceled"}[15m])) > 0.2
+        for: 30m
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: 'Model connection {{ $labels.connection }} ({{ $labels.kind }}) is rate limited'
+          description: '{{ $value | humanizePercentage }} of {{ $labels.kind }} requests to {{ $labels.connection }} were refused by the gateway (429) or by the connection''s own request limit for 30 minutes.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedmodelconnectionratelimited
+      - alert: GroundedDBPoolSaturated
+        expr: grounded_db_pool_acquired_connections / grounded_db_pool_max_connections > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: A Grounded process is out of Postgres connections
+          description: '{{ $labels.instance }} has used {{ $value | humanizePercentage }} of its connection pool for 10 minutes; requests wait for a connection.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundeddbpoolsaturated
+      - alert: GroundedValkeyErrors
+        expr: sum by (namespace) (rate(grounded_valkey_errors_total[5m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: Grounded cannot use Valkey reliably
+          description: '{{ $value | printf "%.2f" }} Valkey errors a second. Rate limits fail open and crawl pacing is affected while Valkey is unavailable.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedvalkeyerrors
+
+  - name: grounded-platform
+    rules:
+      # kube-state-metrics: the backup-pgdump and backup-objects CronJobs run daily.
+      - alert: GroundedBackupMissing
+        expr: time() - max by (namespace, cronjob) (kube_cronjob_status_last_successful_time{cronjob=~"grounded-(postgres|objects)-backup"}) > 26 * 3600
+        for: 30m
+        labels:
+          severity: critical
+          service: grounded
+        annotations:
+          summary: A Grounded backup has not succeeded for over a day
+          description: 'CronJob {{ $labels.cronjob }} last succeeded {{ $value | humanizeDuration }} ago; it is scheduled daily.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedbackupmissing
+      - alert: GroundedBackupJobFailed
+        expr: max by (namespace, job_name) (kube_job_status_failed{job_name=~"grounded-(postgres|objects)-backup-.*"}) > 0
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: A Grounded backup job failed
+          description: 'Job {{ $labels.job_name }} failed. The previous backups are kept; the next scheduled run tries again.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedbackupjobfailed
+      # Kubelet volume stats: Grounded's PersistentVolumeClaims
+      # (data-grounded-postgres-0, grounded-postgres-backups, CNPG's
+      # grounded-postgres-N, the Valkey volume). Adjust the selector if your
+      # overlay renames them.
+      - alert: GroundedVolumeFillingUp
+        expr: |
+          kubelet_volume_stats_used_bytes{persistentvolumeclaim=~".*grounded.*"}
+            / kubelet_volume_stats_capacity_bytes{persistentvolumeclaim=~".*grounded.*"} > 0.85
+        for: 15m
+        labels:
+          severity: warning
+          service: grounded
+        annotations:
+          summary: 'Volume {{ $labels.persistentvolumeclaim }} is {{ $value | humanizePercentage }} full'
+          description: 'PersistentVolumeClaim {{ $labels.persistentvolumeclaim }} in {{ $labels.namespace }} is over 85% full.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedvolumefillingup
+      - alert: GroundedVolumeFull
+        expr: |
+          kubelet_volume_stats_used_bytes{persistentvolumeclaim=~".*grounded.*"}
+            / kubelet_volume_stats_capacity_bytes{persistentvolumeclaim=~".*grounded.*"} > 0.95
+          or
+          (
+            predict_linear(kubelet_volume_stats_available_bytes{persistentvolumeclaim=~".*grounded.*"}[6h], 24 * 3600) < 0
+            and kubelet_volume_stats_used_bytes{persistentvolumeclaim=~".*grounded.*"}
+              / kubelet_volume_stats_capacity_bytes{persistentvolumeclaim=~".*grounded.*"} > 0.5
+          )
+        for: 15m
+        labels:
+          severity: critical
+          service: grounded
+        annotations:
+          summary: 'Volume {{ $labels.persistentvolumeclaim }} is full or will be within a day'
+          description: 'PersistentVolumeClaim {{ $labels.persistentvolumeclaim }} in {{ $labels.namespace }} is over 95% full, or at the rate of the last 6 hours fills within 24 hours.'
+          runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedvolumefull

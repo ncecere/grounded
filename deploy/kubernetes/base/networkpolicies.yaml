@@ -1,0 +1,169 @@
+# Default-deny for the namespace (Grounded expects a namespace of its own),
+# then only what api and worker need. Components add their own policies.
+#
+# Overlays commonly patch:
+#   grounded-api-ingress              the ingress controller's namespace
+#   grounded-app-egress-object-storage where in-cluster S3 runs (default: any
+#                                      pod on TCP 9000)
+#   grounded-allow-dns                 if cluster DNS is not kube-dns in
+#                                      kube-system
+# and add egress for anything else the install uses: a managed Postgres or
+# Valkey outside the namespace, SMTP (587/465), or self-hosted model servers
+# on other ports.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-default-deny
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-allow-dns
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# Traffic from the ingress controller to the API. Patch the namespace
+# label to the controller's namespace (for example ingress-nginx, traefik).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-api-ingress
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: grounded
+      app.kubernetes.io/component: api
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-controller
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+# Postgres and Valkey in this namespace (components postgres-single,
+# postgres-cnpg and valkey-single label their pods this way).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-app-egress-datastores
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [grounded]
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [api, worker]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: grounded
+              app.kubernetes.io/component: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: grounded
+              app.kubernetes.io/component: valkey
+      ports:
+        - protocol: TCP
+          port: 6379
+---
+# In-cluster S3-compatible storage (MinIO, RustFS, SeaweedFS, ...). The
+# default allows TCP 9000 to pods in any namespace; narrow it to the storage
+# namespace in the overlay. External S3 over https is covered by
+# grounded-app-egress-web.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-app-egress-object-storage
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [grounded]
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [api, worker]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9000
+---
+# HTTP(S) to anywhere: model gateways, the OIDC provider, external S3 and
+# the web crawler. The crawler's SSRF guard still applies inside the app:
+# it refuses private, loopback and link-local addresses and ports other
+# than 80/443, whatever this policy allows.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-app-egress-web
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [grounded]
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [api, worker]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+        - ipBlock:
+            cidr: ::/0
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80

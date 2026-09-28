@@ -1,0 +1,29 @@
+# Only api, worker (and their migrate init containers) and the pg_dump
+# backup job reach Postgres. Postgres itself needs no egress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-postgres-ingress
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: postgres
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: grounded
+      app.kubernetes.io/component: postgres
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [grounded]
+              - key: app.kubernetes.io/component
+                operator: In
+                values: [api, worker, backup]
+      ports:
+        - protocol: TCP
+          port: 5432

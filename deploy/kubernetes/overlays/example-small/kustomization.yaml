@@ -1,0 +1,75 @@
+# Example: a small install on one cluster. Single Postgres (pgvector) and
+# Valkey inside the namespace, daily pg_dump backups, an Ingress, external
+# S3-compatible storage and an OIDC provider. Not highly available.
+#
+# Copy this directory into your own GitOps repository (ADR-0023) and replace
+# every example.org value. Create the secrets first; see
+# docs/deployments/kubernetes.md, "Secrets".
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: grounded
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+components:
+  - ../../components/postgres-single
+  - ../../components/valkey-single
+  - ../../components/backup-pgdump
+  - ../../components/ingress
+
+# Pin by digest (printed in the image workflow's job summary).
+images:
+  - name: ghcr.io/ncecere/grounded
+    newTag: v0.1.0
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+
+patches:
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: grounded-config
+      data:
+        APP_URL: https://grounded.example.org
+        S3_ENDPOINT: https://s3.example.org
+        S3_BUCKET: grounded
+        OIDC_ALLOWED_EMAIL_DOMAINS: example.org
+        CRAWL_ALLOWLIST_SEED: "*.example.org"
+        # The ingress controller's pod network, so client IPs are logged and
+        # rate-limited correctly.
+        TRUSTED_PROXIES: 10.0.0.0/8
+  - patch: |-
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: grounded-postgres-backup
+      spec:
+        timeZone: America/New_York
+  - target:
+      kind: Ingress
+      name: grounded
+    patch: |-
+      # Traefik streams responses (SSE) without extra settings; see the
+      # Kubernetes guide for other controllers.
+      - op: add
+        path: /spec/ingressClassName
+        value: traefik
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts: [grounded.example.org]
+            secretName: grounded-tls
+      - op: add
+        path: /metadata/annotations
+        value:
+          cert-manager.io/cluster-issuer: example-issuer
+  - target:
+      kind: NetworkPolicy
+      name: grounded-api-ingress
+    patch: |-
+      - op: replace
+        path: /spec/ingress/0/from/0/namespaceSelector/matchLabels/kubernetes.io~1metadata.name
+        value: traefik

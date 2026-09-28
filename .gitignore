@@ -1,0 +1,34 @@
+/bin/
+/dist/
+# go build output left in command directories
+/cmd/grounded/grounded
+/cmd/ragbench/ragbench
+/cmd/vecbench/vecbench
+/cmd/sparkbench/sparkbench
+/cmd/fakeproxy/fakeproxy
+/cmd/widgetdemo/widgetdemo
+.env
+*.test
+*.out
+coverage.*
+.DS_Store
+/web/node_modules/
+/web/dist/*
+!/web/dist/.gitkeep
+/data/
+
+# Local model gateway credentials (never commit)
+ai.env
+# Any local credentials file (oidc.env, uf.env, …); examples are tracked explicitly.
+*.env
+!deploy/examples/*.env
+# Non-secret Kubernetes config (configMapGenerator env files) is tracked.
+!deploy/kubernetes/**/*.env
+*.env.local
+
+# Scratch directories of deploy/kubernetes/scripts
+/deploy/kubernetes/.tmp.*
+coverage.out
+
+# Playwright end-to-end output (web/e2e): report, traces, server log, signed-in states
+/web/e2e-output/

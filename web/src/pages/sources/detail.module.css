@@ -1,0 +1,34 @@
+/* The source detail page: the Sync now note, the Overview stats. Semantic tokens only. */
+
+/* Why Sync now is unavailable, under the header. */
+.syncReason {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.subtle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ---- overview stats ---- */
+
+.breakdown {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  & li[data-tone="danger"] {
+    color: var(--color-danger-text);
+    font-weight: var(--font-weight-medium);
+  }
+}
+
+/* "Used by": the first knowledge bases as links. */
+.usedBy {
+  overflow-wrap: anywhere;
+}

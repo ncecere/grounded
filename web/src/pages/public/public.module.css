@@ -1,0 +1,103 @@
+/* The public agent page and the widget's embed page: no app shell, instance branding, full height. */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.top {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.brand {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* The public page's single bar: the instance mark is set off from the agent by a rule. */
+.bar > .brand {
+  padding-inline-end: var(--space-3);
+  border-inline-end: 1px solid var(--color-border);
+}
+
+.logo {
+  height: 1.75rem;
+  width: auto;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.embed {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.chat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.compactHead {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.compactTitle {
+  flex: 1;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previewNote {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.privacy {
+  flex: none;
+  margin: 0 auto var(--space-3);
+  padding-inline: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+
+.captcha {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-3);
+}
+
+.unavailable {
+  margin: var(--space-8) auto;
+}

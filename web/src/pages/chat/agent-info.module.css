@@ -1,0 +1,48 @@
+/* The chat header's team link and its agent preview card (W11). Semantic tokens only. */
+.teamLink {
+  color: inherit;
+}
+
+.subtitleConv {
+  color: var(--color-text-muted);
+}
+
+.infoCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 20rem;
+}
+
+.infoHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.infoText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.infoName {
+  font-weight: var(--font-weight-semibold);
+}
+
+.infoTeam {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.infoBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.infoDescription {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}

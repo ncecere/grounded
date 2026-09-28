@@ -1,0 +1,41 @@
+/* Web source form and small shared pieces (type badge icon, impact reasons). Semantic tokens only. */
+
+.urls {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}
+
+.badgeIcon {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: none;
+}
+
+/* The crawl settings form: wide enough for three mode cards in a row. */
+.wideForm {
+  max-width: 48rem;
+}
+
+.reasons {
+  margin: 0;
+  padding-inline-start: var(--space-4);
+  font-size: var(--font-size-sm);
+}
+
+/* A secondary line in a table cell, clamped to one line. */
+/* One line with an ellipsis (the full text in `title`); narrow enough that the sources list fits at 1280 px. */
+.oneLine {
+  display: block;
+  max-width: 13rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nameCell {
+  min-width: 12rem;
+}
+
+.nowrap {
+  white-space: nowrap;
+}

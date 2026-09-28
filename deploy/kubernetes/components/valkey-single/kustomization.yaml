@@ -1,0 +1,12 @@
+# A single Valkey with a password, for installs without a managed or HA
+# Valkey. Valkey holds only rebuildable state (rate limits, crawl pacing,
+# caches; ADR-0015), so it keeps nothing on disk: a restart resets limits.
+#
+# Needs grounded-runtime key VALKEY_PASSWORD, and VALKEY_URL pointing at it:
+# redis://:<VALKEY_PASSWORD>@grounded-valkey:6379/0 (the password URL-encoded).
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - valkey.yaml
+  - networkpolicy.yaml

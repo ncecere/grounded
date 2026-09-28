@@ -1,0 +1,41 @@
+# Annotation-based scraping (prometheus.io/*) for Prometheus setups without
+# the Operator: Kubernetes pod service discovery with the common relabelling
+# rules, Grafana Alloy, the OpenTelemetry Collector, ... Plus the same
+# NetworkPolicy as components/monitoring (use one of the two, not both).
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - networkpolicy.yaml
+
+patches:
+  - target:
+      kind: Deployment
+      name: grounded-api
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: grounded-api
+      spec:
+        template:
+          metadata:
+            annotations:
+              prometheus.io/scrape: "true"
+              prometheus.io/port: "9091"
+              prometheus.io/path: /metrics
+  - target:
+      kind: Deployment
+      name: grounded-worker
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: grounded-worker
+      spec:
+        template:
+          metadata:
+            annotations:
+              prometheus.io/scrape: "true"
+              prometheus.io/port: "9090"
+              prometheus.io/path: /metrics

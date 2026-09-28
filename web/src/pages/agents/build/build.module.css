@@ -1,0 +1,126 @@
+/* The agent editor's Build tab: configuration sections beside the live Test chat (D2). */
+
+/* The split fills the window under the page header; each side scrolls on its own.
+   Doubled class: wins over the resizable group's own height: 100%. */
+.split.split {
+  height: calc(100dvh - var(--topbar-height) - 16rem);
+  min-height: 30rem;
+  border-radius: var(--radius-card);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-ring);
+}
+
+.configPane {
+  padding: var(--space-2) var(--space-5) var(--space-5);
+  scrollbar-gutter: stable;
+}
+
+.testPane {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4);
+  background-color: var(--color-surface-sunken);
+}
+
+/* Below 1100 px there's no split: the sections fill the width and Test is a drawer. */
+.narrow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.testDrawer.testDrawer[data-side="right"] {
+  width: min(40rem, calc(100vw - var(--space-8)));
+}
+
+.drawerBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* A container, so a closed section's summary can size to what's left beside its title. */
+.sections {
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.sectionTitle {
+  white-space: nowrap;
+}
+
+.summary {
+  display: block;
+  max-width: calc(100cqi - 11rem);
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fixMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-warning-text);
+  font-size: var(--font-size-sm);
+
+  & svg {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+}
+
+.instructions {
+  min-height: 14rem;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+}
+
+.modelPicker {
+  max-width: 28rem;
+}
+
+.kbList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  outline: none;
+}
+
+.kbRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.topKInput {
+  width: 5.5rem;
+  flex-shrink: 0;
+}
+
+.topKLabel {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.moderation {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.systemOne {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

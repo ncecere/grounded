@@ -1,0 +1,56 @@
+.days {
+  max-width: 8rem;
+}
+
+.list {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  display: grid;
+  gap: var(--space-1);
+}
+
+.sourceName {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.progress {
+  min-width: 10rem;
+}
+
+.meters {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.route {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.route svg {
+  flex: none;
+  width: 1em;
+  height: 1em;
+}
+
+.failures {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.failure {
+  display: grid;
+  gap: var(--space-1);
+}

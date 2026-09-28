@@ -1,0 +1,23 @@
+# Your Prometheus may select ServiceMonitors by label (for example
+# release: <name>); add that label in the overlay.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: grounded
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/part-of: grounded
+spec:
+  selector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [grounded]
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [api, worker]
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

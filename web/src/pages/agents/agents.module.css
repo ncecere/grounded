@@ -1,0 +1,169 @@
+/* Agents: the list and create dialog, the editor shell, and pieces shared by the editor tabs. */
+
+/* ---------------- list ---------------- */
+
+.nameCell {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.nameCell {
+  align-items: center;
+}
+
+.statusCell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.versionCell {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* "Unpublished changes": a dot with hidden text (W6). */
+.changesDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background-color: var(--color-info-text);
+}
+
+.kbPick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kbPickRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.modelPicker {
+  max-width: 28rem;
+}
+
+.topK {
+  width: 6rem;
+  flex-shrink: 0;
+}
+
+/* ---------------- editor ---------------- */
+
+.saveState {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+
+  & svg {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+
+  &[data-tone="success"] {
+    color: var(--color-success-text);
+  }
+
+  &[data-tone="warning"] {
+    color: var(--color-warning-text);
+  }
+
+  &[data-tone="danger"] {
+    color: var(--color-danger-text);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.idle {
+  opacity: 0.5;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+
+/* Chat · Test · Publish, and why Publish is disabled (Q5), right-aligned under them. */
+.headerActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.headerButtons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.publishReason {
+  max-width: 22rem;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  text-align: end;
+}
+
+.problemList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-inline-start: var(--space-5);
+}
+
+.problemLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-link);
+  font: inherit;
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-link-hover);
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-radius: var(--radius-1);
+    box-shadow: var(--shadow-focus);
+  }
+}
+
+/* A column of cards or fields, used by several editor tabs. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* Save conflict: the latest and the user's instructions (diff-viewer). */
+.conflictCompare {
+  margin-top: var(--space-3);
+}

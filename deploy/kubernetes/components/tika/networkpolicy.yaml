@@ -1,0 +1,56 @@
+# api and worker may call Tika; Tika itself needs no egress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-tika-ingress
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: tika
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: grounded
+      app.kubernetes.io/component: tika
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [grounded]
+              - key: app.kubernetes.io/component
+                operator: In
+                values: [api, worker]
+      ports:
+        - protocol: TCP
+          port: 9998
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-app-egress-tika
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: tika
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [grounded]
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [api, worker]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: grounded
+              app.kubernetes.io/component: tika
+      ports:
+        - protocol: TCP
+          port: 9998

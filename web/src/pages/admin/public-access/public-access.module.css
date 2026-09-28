@@ -1,0 +1,14 @@
+.affected {
+  max-height: 12rem;
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+  overflow-y: auto;
+  font-size: var(--font-size-sm);
+}
+
+.row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}

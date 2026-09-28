@@ -1,0 +1,119 @@
+.detail {
+  color: var(--color-text-muted);
+}
+
+.timings {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.modelList {
+  max-height: 18rem;
+  margin: 0;
+  padding: var(--space-3);
+  overflow-y: auto;
+  list-style: none;
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-sunken);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.7;
+}
+
+.details {
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-ring);
+}
+
+.summary {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-control);
+  }
+}
+
+.detailsBody {
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.sheetForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.formSection {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.formSectionTitle {
+  padding: 0;
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.formSectionBody {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.testRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.offered {
+  display: flex;
+  flex-direction: column;
+  max-height: 18rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.offered li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+}
+
+.offered li + li {
+  border-top: 1px solid var(--color-border-muted);
+}
+
+.usedBy {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--font-size-sm);
+}
+
+/* Classifications: the level's description reads as a paragraph, not a narrow column. */
+.levelCell {
+  min-width: 14rem;
+}

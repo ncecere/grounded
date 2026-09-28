@@ -1,0 +1,160 @@
+# A disposable S3-compatible server (a maintained MinIO build) with an
+# emptyDir, credentials from grounded-s3, and a Job creating the bucket.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grounded-smoke-s3
+  labels:
+    app.kubernetes.io/name: grounded-smoke-s3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grounded-smoke-s3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grounded-smoke-s3
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: s3
+          image: docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+          args: [server, /data, --certs-dir, /tmp/certs]
+          env:
+            - name: HOME
+              value: /tmp
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-s3
+                  key: access_key
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-s3
+                  key: secret_key
+          ports:
+            - name: s3
+              containerPort: 9000
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: s3
+            periodSeconds: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grounded-smoke-s3
+spec:
+  selector:
+    app.kubernetes.io/name: grounded-smoke-s3
+  ports:
+    - name: s3
+      port: 9000
+      targetPort: s3
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grounded-smoke-s3-bucket
+spec:
+  backoffLimit: 20
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grounded-smoke-s3-bucket
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mc
+          image: docker.io/pgsty/mc:RELEASE.2026-09-16T00-00-00Z
+          command: [/bin/sh, -ec]
+          args:
+            - >-
+              mc --config-dir /tmp/mc alias set s3 http://grounded-smoke-s3:9000 "$ACCESS_KEY" "$SECRET_KEY" &&
+              mc --config-dir /tmp/mc mb --ignore-existing s3/grounded
+          env:
+            - name: ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-s3
+                  key: access_key
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-s3
+                  key: secret_key
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-smoke-s3
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: grounded-smoke-s3
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-smoke-s3-bucket
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: grounded-smoke-s3-bucket
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: grounded-smoke-s3
+      ports:
+        - protocol: TCP
+          port: 9000

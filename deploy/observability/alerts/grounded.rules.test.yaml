@@ -1,0 +1,174 @@
+# Unit tests for grounded.rules.yaml: promtool test rules (make obs-validate).
+rule_files:
+  - grounded.rules.yaml
+
+evaluation_interval: 1m
+
+tests:
+  # 9% of requests fail: the fast burn pages; an idle install with the same
+  # ratio does not.
+  - interval: 1m
+    input_series:
+      - series: 'grounded_http_requests_total{namespace="busy",group="api",method="GET",route="GET /v1/me",status="200"}'
+        values: '0+100x90'
+      - series: 'grounded_http_requests_total{namespace="busy",group="api",method="GET",route="GET /v1/me",status="500"}'
+        values: '0+10x90'
+      - series: 'grounded_http_requests_total{namespace="busy",group="ops",method="GET",route="GET /healthz",status="503"}'
+        values: '0+1000x90'
+      - series: 'grounded_http_requests_total{namespace="idle",group="api",method="GET",route="GET /v1/me",status="500"}'
+        values: '0+0.01x90'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: GroundedAPIErrorBudgetBurn
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: grounded
+              namespace: busy
+            exp_annotations:
+              summary: Grounded API is burning its error budget fast
+              description: '9.091% of API requests in namespace busy are failing with 5xx; at this rate the 30-day 99.9% availability budget is gone within days.'
+              runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedapierrorbudgetburn
+    promql_expr_test:
+      - expr: grounded:http_errors:ratio_rate5m{namespace="busy"}
+        eval_time: 30m
+        exp_samples:
+          - labels: 'grounded:http_errors:ratio_rate5m{namespace="busy"}'
+            value: 0.0909090909090909
+
+  # Slow requests: 80% of non-streaming requests take longer than 1 s;
+  # streamed chat is not counted.
+  - interval: 1m
+    input_series:
+      - series: 'grounded_http_request_duration_seconds_bucket{namespace="g",group="api",method="GET",route="GET /v1/me",le="1.0"}'
+        values: '0+20x90'
+      - series: 'grounded_http_request_duration_seconds_count{namespace="g",group="api",method="GET",route="GET /v1/me"}'
+        values: '0+100x90'
+      - series: 'grounded_http_request_duration_seconds_bucket{namespace="g",group="chat",method="POST",route="POST /v1/agents/{team}/{agent}/chat",le="1"}'
+        values: '0+0x90'
+      - series: 'grounded_http_request_duration_seconds_count{namespace="g",group="chat",method="POST",route="POST /v1/agents/{team}/{agent}/chat"}'
+        values: '0+1000x90'
+      - series: 'grounded_http_requests_total{namespace="g",group="api",method="GET",route="GET /v1/me",status="200"}'
+        values: '0+100x90'
+    promql_expr_test:
+      - expr: grounded:http_slow:ratio_rate5m
+        eval_time: 30m
+        exp_samples:
+          - labels: 'grounded:http_slow:ratio_rate5m{namespace="g"}'
+            value: 0.8
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: GroundedAPILatencyBudgetBurn
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: grounded
+              namespace: g
+            exp_annotations:
+              summary: Grounded API requests are slow
+              description: '80% of non-streaming API requests take longer than 1 s (the objective is at most 5%).'
+              runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedapilatencybudgetburn
+
+  # Nothing scraped: both "down" alerts fire; a serve process satisfies both.
+  - interval: 1m
+    input_series:
+      - series: 'grounded_build_info{namespace="g",mode="serve",version="v0.1.0",commit="abc",goversion="go1.26.0"}'
+        values: '_x10 1x20'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: GroundedAPIDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: grounded
+            exp_annotations:
+              summary: No Grounded API instance is up
+              description: Prometheus has scraped no API (or serve) process for 5 minutes. Users cannot sign in or chat.
+              runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedapidown
+      - eval_time: 25m
+        alertname: GroundedAPIDown
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: GroundedWorkerDown
+        exp_alerts: []
+
+  # A model connection failing, and one only rate limited (not "failing").
+  - interval: 1m
+    input_series:
+      - series: 'grounded_model_requests_total{namespace="g",connection="gateway",kind="chat",outcome="ok"}'
+        values: '0+1x30'
+      - series: 'grounded_model_requests_total{namespace="g",connection="gateway",kind="chat",outcome="unavailable"}'
+        values: '0+4x30'
+      - series: 'grounded_model_requests_total{namespace="g",connection="spark",kind="embedding",outcome="ok"}'
+        values: '0+1x30'
+      - series: 'grounded_model_requests_total{namespace="g",connection="spark",kind="embedding",outcome="rate_limited"}'
+        values: '0+4x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: GroundedModelConnectionFailing
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: grounded
+              namespace: g
+              connection: gateway
+              kind: chat
+            exp_annotations:
+              summary: Model connection gateway (chat) is failing
+              description: 80% of chat requests to connection gateway failed in the last 10 minutes.
+              runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedmodelconnectionfailing
+
+  # Queue: a job waiting 20 minutes; maintenance mode on for 5 hours.
+  - interval: 1m
+    input_series:
+      - series: 'grounded_jobs_oldest_available_age_seconds{namespace="g",kind="ingest.document",instance="w1"}'
+        values: '1200+60x30'
+      - series: 'grounded_jobs_oldest_available_age_seconds{namespace="g",kind="ingest.document",instance="w2"}'
+        values: '1200+60x30'
+      - series: 'grounded_maintenance_mode{namespace="g",instance="w1"}'
+        values: '1x30'
+      - series: 'grounded_maintenance_mode_started_timestamp_seconds{namespace="g",instance="w1"}'
+        values: '-18000x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: GroundedQueueBacklog
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: grounded
+              namespace: g
+              kind: ingest.document
+            exp_annotations:
+              summary: Grounded ingest.document jobs are waiting for a worker
+              description: The oldest ingest.document job ready to run has waited 40m 0s. Workers are down, saturated or cannot reach Postgres.
+              runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedqueuebacklog
+      - eval_time: 5m
+        alertname: GroundedMaintenanceModeLong
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: grounded
+              namespace: g
+            exp_annotations:
+              summary: Grounded has been in maintenance mode for over 4 hours
+              description: Maintenance mode never ends by itself. Uploads, crawls and syncs stay paused until a platform admin turns it off.
+              runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedmaintenancemodelong
+
+  # kube-state-metrics: the backup CronJob last succeeded 30 hours ago.
+  - interval: 1m
+    input_series:
+      - series: 'kube_cronjob_status_last_successful_time{namespace="g",cronjob="grounded-postgres-backup"}'
+        values: '-108000x60'
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: GroundedBackupMissing
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: grounded
+              namespace: g
+              cronjob: grounded-postgres-backup
+            exp_annotations:
+              summary: A Grounded backup has not succeeded for over a day
+              description: CronJob grounded-postgres-backup last succeeded 1d 6h 45m 0s ago; it is scheduled daily.
+              runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedbackupmissing

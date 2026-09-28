@@ -1,0 +1,72 @@
+/* The agent editor's Share tab: Audience, Links, Widget. */
+
+.share {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.audience,
+.links,
+.widget,
+.widgetPart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.widgetPart {
+  min-width: 0;
+  gap: var(--space-3);
+}
+
+.whyNot {
+  color: var(--color-text-muted);
+}
+
+.access {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.subTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* The snippet beside the preview; stacked on narrow windows. */
+.embedGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 26rem);
+  align-items: start;
+  gap: var(--space-6);
+
+  @media (max-width: 64rem) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.previewLabel {
+  flex: 1;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.previewFrame {
+  height: 38rem;
+}
+
+.preview {
+  min-width: 0;
+}

@@ -1,0 +1,76 @@
+# Development dependencies only. Ports bind to loopback; never expose these.
+name: grounded
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    # Parallel HNSW index builds use shared memory; Docker's default is 64 MB.
+    shm_size: 1gb
+    environment:
+      POSTGRES_USER: grounded
+      POSTGRES_PASSWORD: grounded-dev-only
+      POSTGRES_DB: grounded
+    ports: ["127.0.0.1:55432:5432"]
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grounded -d grounded"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  valkey:
+    image: valkey/valkey:8-alpine
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    ports: ["127.0.0.1:56379:6379"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  # Optional. Built-in parsers handle every supported format; Tika is only a
+  # fallback (TIKA_URL). Start with: docker compose --profile tika up -d
+  # Use apache/tika:4.0.0-1-full for OCR of scanned PDFs (a much larger image).
+  tika:
+    image: apache/tika:4.0.0-1
+    profiles: ["tika"]
+    ports: ["127.0.0.1:59998:9998"]
+  # Optional S3-compatible object store for exercising the S3 blob backend
+  # (the filesystem backend is the default). Start with:
+  #   docker compose --profile s3 up -d minio minio-init
+  # Upstream minio/minio and minio/mc images were removed from Docker Hub in
+  # 2026; pgsty/silo is a maintained drop-in MinIO build (same S3 API, same
+  # MINIO_* env) and pgsty/mc is the matching client.
+  minio:
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+    profiles: ["s3"]
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: grounded
+      MINIO_ROOT_PASSWORD: grounded-dev-only-secret
+    ports: ["127.0.0.1:59000:9000", "127.0.0.1:59001:9001"]
+    volumes: [minio:/data]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  # One-shot: creates the "grounded" bucket once minio is healthy, then exits.
+  minio-init:
+    image: pgsty/mc:RELEASE.2026-09-16T00-00-00Z
+    profiles: ["s3"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - mc alias set local http://minio:9000 grounded grounded-dev-only-secret && mc mb --ignore-existing local/grounded
+    restart: "no"
+  # Optional mail catcher for notification email. Start with:
+  #   docker compose --profile mail up -d mailpit   (or: make mail-up)
+  # then run grounded with SMTP_HOST=127.0.0.1 SMTP_PORT=1025 SMTP_TLS=none and
+  # read the mail at http://127.0.0.1:8025.
+  mailpit:
+    image: axllent/mailpit:v1.31.2
+    profiles: ["mail"]
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
+volumes:
+  postgres: {}
+  minio: {}

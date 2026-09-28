@@ -1,0 +1,18 @@
+# Daily copy of Grounded's bucket (original documents, parsed text) to an
+# off-site S3-compatible target: object storage's RPO of 24 h (DESIGN §15).
+# rclone sync mirrors the bucket under UPLOAD_S3_PREFIX/current; files
+# changed or deleted since the last run move to UPLOAD_S3_PREFIX/previous/<date>
+# and are deleted after PREVIOUS_RETENTION_DAYS, so a deletion (including
+# one by retention, P3) leaves the backup within that many days.
+#
+# Reads the bucket settings (S3_ENDPOINT, S3_BUCKET, S3_REGION, S3_PREFIX)
+# from grounded-config and its credentials from grounded-s3. The target is
+# set in the grounded-objects-backup ConfigMap (UPLOAD_S3_BUCKET empty turns
+# it off) with the credentials in grounded-backup-s3, the same secret
+# backup-pgdump's off-site copy uses. Restore: docs/operations/restore.md.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - backup.yaml
+  - networkpolicy.yaml

@@ -1,0 +1,261 @@
+.playground {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.topK {
+  max-width: 16rem;
+}
+
+.summary {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+
+  &:empty {
+    display: none;
+  }
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-card);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-1);
+  transition: box-shadow var(--motion-duration-normal) var(--motion-ease-out);
+
+  &:hover {
+    box-shadow: var(--shadow-2);
+  }
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+.rank {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-2);
+  background-color: var(--color-primary-subtle);
+  color: var(--color-primary-subtle-text);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+
+  &:hover {
+    color: var(--color-link-hover);
+  }
+}
+
+.linkIcon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.file {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  overflow-wrap: anywhere;
+}
+
+.fileIcon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+}
+
+.pages {
+  padding: 0.0625rem var(--space-2);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.path {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+}
+
+.excerpt {
+  position: relative;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+
+  &[data-clamped] {
+    max-height: 11rem;
+    overflow: hidden;
+  }
+
+  &[data-clamped]::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0;
+    height: 3rem;
+    background: linear-gradient(transparent, var(--color-surface-sunken));
+    pointer-events: none;
+  }
+}
+
+.more {
+  align-self: flex-start;
+}
+
+.content {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-border-emphasis);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  background-color: var(--color-surface-sunken);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+.meter {
+  position: relative;
+  display: inline-block;
+  width: 4rem;
+  height: 0.375rem;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.meterFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background-color: var(--color-primary);
+}
+
+/* The cited page's address (web sources). */
+.url {
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.judge {
+  align-self: flex-start;
+}
+
+.judgment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- the query row (W4) ---- */
+
+.queryRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.query {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+
+/* Wide and in two columns, so every filter fits without scrolling on a 900 px tall window. */
+.popover {
+  width: min(46rem, calc(100vw - 2rem));
+  max-width: min(46rem, calc(100vw - 2rem));
+  max-height: min(40rem, calc(var(--available-height, 70vh) - var(--space-2)));
+  overflow-y: auto;
+}
+
+@media (min-width: 64rem) {
+  /* The filter fields (the last child; the passages field stays full width). */
+  .popoverBody > div:last-child {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--space-4) var(--space-6);
+  }
+}
+
+.popoverBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.activeFilters {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}

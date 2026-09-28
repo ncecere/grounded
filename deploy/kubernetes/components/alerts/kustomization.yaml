@@ -1,0 +1,12 @@
+# Prometheus Operator alerting: a PrometheusRule with Grounded's recording
+# and alerting rules, generated from deploy/observability/alerts (edit the
+# rules there, then run `go run ./tools/obsgen`). Use it with
+# components/monitoring (ServiceMonitor).
+#
+# Without the Operator, load deploy/observability/alerts/grounded.rules.yaml
+# into Prometheus, Mimir or Grafana directly: docs/operations/monitoring.md.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - prometheusrule.yaml

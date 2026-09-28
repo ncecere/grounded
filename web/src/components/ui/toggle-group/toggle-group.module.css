@@ -1,0 +1,76 @@
+.group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  width: fit-content;
+
+  &[data-orientation="vertical"] {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  &[data-disabled] {
+    cursor: not-allowed;
+  }
+}
+
+.item {
+  .group[data-orientation="vertical"] > & {
+    justify-content: flex-start;
+  }
+}
+
+/*
+ * Joined: a segmented control. Items overlap by 1px so neighbouring inset
+ * rings read as one shared border; the focused / pressed item is raised so
+ * its ring is never covered.
+ */
+.group[data-joined] {
+  flex-wrap: nowrap;
+  gap: 0;
+
+  & > .item {
+    border-radius: 0;
+  }
+
+  & > .item:is([data-pressed], :hover) {
+    z-index: 1;
+  }
+
+  & > .item:focus-visible {
+    z-index: 2;
+  }
+
+  &[data-orientation="horizontal"] {
+    & > .item:first-child {
+      border-start-start-radius: var(--radius-control);
+      border-end-start-radius: var(--radius-control);
+    }
+
+    & > .item:last-child {
+      border-start-end-radius: var(--radius-control);
+      border-end-end-radius: var(--radius-control);
+    }
+
+    & > .item + .item {
+      margin-inline-start: -1px;
+    }
+  }
+
+  &[data-orientation="vertical"] {
+    & > .item:first-child {
+      border-start-start-radius: var(--radius-control);
+      border-start-end-radius: var(--radius-control);
+    }
+
+    & > .item:last-child {
+      border-end-start-radius: var(--radius-control);
+      border-end-end-radius: var(--radius-control);
+    }
+
+    & > .item + .item {
+      margin-block-start: -1px;
+    }
+  }
+}

@@ -1,0 +1,19 @@
+# Optional Apache Tika as a fallback parser (TIKA_URL). Grounded's built-in
+# parsers handle every supported format without it; Tika is not on the
+# critical path (ADR-0013). For OCR of scanned PDFs use the much larger
+# apache/tika:<version>-full image.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - tika.yaml
+  - networkpolicy.yaml
+
+patches:
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: grounded-config
+      data:
+        TIKA_URL: http://grounded-tika:9998

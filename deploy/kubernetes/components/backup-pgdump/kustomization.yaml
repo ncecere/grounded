@@ -1,0 +1,17 @@
+# Daily logical backup for installs without CloudNativePG: pg_dump -Fc,
+# checked with pg_restore --list, kept RETENTION_DAYS on a PVC, and
+# optionally copied to an off-site S3 target (a different system from the
+# primary storage; DESIGN §15).
+#
+# Needs grounded-runtime key POSTGRES_PASSWORD. The off-site copy is off
+# until UPLOAD_S3_BUCKET is set in grounded-postgres-backup; it then reads
+# the optional secret grounded-backup-s3 (keys access_key, secret_key).
+#
+# Patch the CronJob's schedule/timeZone, the PVC's size and storageClassName,
+# and the ConfigMap as needed.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - backup.yaml
+  - networkpolicy.yaml

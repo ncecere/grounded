@@ -1,0 +1,140 @@
+/* The bell, its popover and notification rows (also used by the inbox page). */
+
+.bell {
+  position: relative;
+}
+
+/* The unread count over the bell; the button's accessible name carries it. */
+.count {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.25rem;
+  border-radius: var(--radius-full);
+  background-color: var(--color-danger);
+  color: var(--color-danger-contrast);
+  font-size: 0.6875rem;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px var(--color-surface);
+  transform: translate(25%, -25%);
+  pointer-events: none;
+}
+
+.popup {
+  width: min(24rem, calc(100vw - 2rem));
+  max-width: min(24rem, calc(100vw - 2rem));
+  padding: var(--space-3);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  max-height: min(26rem, 60vh);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 0.5rem minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: start;
+  padding: var(--space-2) var(--space-1);
+  border-radius: var(--radius-2);
+
+  & + & {
+    border-top: 1px solid var(--color-border-muted);
+  }
+}
+
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.4375rem;
+  border-radius: var(--radius-full);
+}
+
+.item[data-unread] .dot {
+  background-color: var(--color-primary);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.title {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-snug);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.item:not([data-unread]) .title {
+  font-weight: var(--font-weight-regular);
+}
+
+a.title:hover {
+  text-decoration: underline;
+}
+
+a.title:focus-visible {
+  border-radius: var(--radius-1);
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.body {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.body[data-compact] {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.time {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.toggle {
+  flex: none;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-muted);
+}
+
+.footerLinks {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}

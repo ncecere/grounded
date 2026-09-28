@@ -1,0 +1,4 @@
+go test fuzz v1
+string("\x85\x85\x85\x85 0")
+uint16(0)
+uint16(0)

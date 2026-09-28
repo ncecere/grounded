@@ -1,0 +1,90 @@
+# `grounded demo --serve-fake-models`: seeds the Demo team (a web source over
+# go.dev/doc, a KB and two agents, with the fake models) once, then serves
+# the fake OpenAI-compatible gateway on :8090 for every answer and embedding.
+# DEMO_FAKE_WORD_DELAY paces its answers (the load harness sets it).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grounded-fake-models
+  labels:
+    app.kubernetes.io/name: grounded-fake-models
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grounded-fake-models
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grounded-fake-models
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: fake-models
+          image: ghcr.io/ncecere/grounded
+          imagePullPolicy: IfNotPresent
+          args: [demo, --serve-fake-models]
+          envFrom:
+            - configMapRef:
+                name: grounded-config
+            - secretRef:
+                name: grounded-runtime
+          env:
+            - name: MIGRATE_ON_START
+              value: "false"
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-s3
+                  key: access_key
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: grounded-s3
+                  key: secret_key
+            - name: DEMO_FAKE_ADDR
+              value: 0.0.0.0:8090
+            - name: DEMO_FAKE_URL
+              value: http://grounded-fake-models:8090/v1
+            - name: DEMO_FAKE_WORD_DELAY
+              value: 0s
+          ports:
+            - name: http
+              containerPort: 8090
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 3
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: "2"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grounded-fake-models
+spec:
+  selector:
+    app.kubernetes.io/name: grounded-fake-models
+  ports:
+    - name: http
+      port: 8090
+      targetPort: http

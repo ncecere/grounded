@@ -1,0 +1,31 @@
+# The objects backup reads the bucket and writes the off-site target: S3
+# over https, or an in-cluster S3 on TCP 9000. (Allows the same as
+# backup-pgdump's policy, so either component works alone.)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-objects-backup-egress
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: grounded
+      app.kubernetes.io/component: backup
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9000
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+        - ipBlock:
+            cidr: ::/0
+      ports:
+        - protocol: TCP
+          port: 443

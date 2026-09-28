@@ -1,0 +1,11 @@
+{{.Title}}
+
+{{.Body}}
+{{if .LinkURL}}
+Open in {{.Instance}}: {{.LinkURL}}
+{{end}}
+--
+{{.Instance}}
+{{if .Mandatory}}You receive this notice because it is required for everyone it concerns; it can't be turned off.
+{{else}}You receive this because "{{.Label}}" notifications are on.
+{{end}}Manage notification settings: {{.SettingsURL}}

@@ -1,0 +1,110 @@
+/* Admin → Moderation, and moderation pieces shared with Models. Semantic tokens only. */
+
+.score {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.bar {
+  position: relative;
+  flex: 1;
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.fill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: var(--score);
+  background: var(--color-primary);
+}
+
+.bar[data-high] .fill {
+  background: var(--color-danger-text);
+}
+
+.scoreValue {
+  min-width: 3rem;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.samples {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.behaviour {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.testForm {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.testResult {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5) 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.testSheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.testOutcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.testSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.summary {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.rule {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ruleAction {
+  display: block;
+  width: 7.5rem;
+  flex: none;
+}
+
+.ruleThreshold {
+  width: 6rem;
+}
+
+.ruleUnit {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}

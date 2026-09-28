@@ -1,0 +1,62 @@
+/* The notifications inbox and settings pages. */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+}
+
+.type {
+  min-width: 16rem;
+}
+
+/* Inbox rows sit in a flush card: pad them like table cells, no inner scroll. */
+.list {
+  max-height: none;
+  overflow: visible;
+  padding: var(--space-1) var(--space-3);
+}
+
+.required {
+  margin-left: var(--space-2);
+  vertical-align: middle;
+
+  & svg {
+    width: 0.75rem;
+    height: 0.75rem;
+  }
+}
+
+.note {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.noteIcon {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.125rem;
+}
+
+/* "Saved" after a settings toggle (P-20). */
+.saved {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-2);
+  color: var(--color-success-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  vertical-align: middle;
+
+  & svg {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+}

@@ -1,0 +1,70 @@
+/* Admin → Overview. Semantic tokens only. */
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.queue {
+  display: flex;
+  flex-direction: column;
+}
+
+.row + .row {
+  border-top: 1px solid var(--color-border-muted);
+}
+
+.row {
+  border-radius: 0;
+  padding-inline: var(--space-5);
+}
+
+.row[data-tone="danger"] svg {
+  color: var(--color-danger-text);
+}
+
+.row[data-tone="warning"] svg {
+  color: var(--color-warning-text);
+}
+
+.allClear {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.allClear svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-success-text);
+}
+
+.glance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: var(--space-4);
+}

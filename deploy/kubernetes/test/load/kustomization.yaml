@@ -1,0 +1,43 @@
+# Test fixture for the load tests (deploy/loadtest/run.sh) and the restore
+# rehearsal (scripts/restore-rehearsal.sh): the test/kind shape (the
+# example-small components: 2 api, 2 worker, single Postgres and Valkey,
+# pg_dump backups, a disposable S3 server) plus
+#   - grounded-fake-models: `grounded demo --serve-fake-models`, which seeds
+#     the demo and serves the built-in fake model gateway (no model keys);
+#   - grounded-api-nodeport: the API on node port 30080, which the run
+#     scripts map to a loopback port on the host, so k6 and curl reach the
+#     pods without kubectl port-forward (a bottleneck under load);
+#   - components/backup-objects, which the restore rehearsal points at an
+#     off-site test server;
+#   - REQUESTS_PER_MINUTE raised so the per-session and per-key request limit
+#     never shapes a load test (the team limits are raised through the API).
+# Not an example install: see ../../overlays.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: grounded-smoke
+
+resources:
+  - ../kind
+  - fake-models.yaml
+  - access.yaml
+
+# The objects backup (off until the restore rehearsal sets a target).
+components:
+  - ../../components/backup-objects
+
+# A tag of its own (the run scripts build grounded:load), so a smoke test
+# building grounded:smoke at the same time cannot swap the image.
+images:
+  - name: ghcr.io/ncecere/grounded
+    newName: grounded
+    newTag: load
+  - name: grounded
+    newTag: load
+
+configMapGenerator:
+  - name: grounded-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=info
+      - REQUESTS_PER_MINUTE=1000000

@@ -1,0 +1,106 @@
+# Try Grounded on your own machine (docs/demo.md):
+#
+#   docker compose -f compose.demo.yaml up --build     # or: make demo
+#
+# then open http://localhost:8080 and sign in as "Dev Platform Admin".
+#
+# DEVELOPMENT ONLY. This file uses development sign-in (anyone can pick a
+# persona) and the public example keys from .env.example. Grounded accepts
+# both only because APP_URL is a loopback address, and the UI is published on
+# 127.0.0.1 only. Never expose it or reuse it for a real install: see
+# docs/deployments/ for that.
+#
+# `grounded demo` seeds a Demo team whose agents answer from the Go
+# documentation (https://go.dev/doc/, about 100 pages, crawled on the first
+# start), using the built-in fake model gateway: answers are canned quotes of
+# the best-matching passages, labelled as such. For real answers, start from
+# scratch with an OpenAI-compatible gateway (docs/demo.md, "Real models"):
+#
+#   DEMO_MODELS=openai-compatible DEMO_SERVE_FAKE_MODELS=false \
+#   DEMO_CHAT_URL=https://gateway.example.edu/v1 DEMO_CHAT_KEY=... \
+#   DEMO_CHAT_MODEL=... DEMO_EMBED_MODEL=... docker compose -f compose.demo.yaml up
+#
+# Another port: GROUNDED_DEMO_PORT=8081 docker compose -f compose.demo.yaml up
+# Start again from scratch: docker compose -f compose.demo.yaml down -v
+name: grounded-demo
+
+x-grounded: &grounded
+  build: .
+  image: ${GROUNDED_IMAGE:-grounded:demo}
+  depends_on:
+    postgres:
+      condition: service_healthy
+    valkey:
+      condition: service_healthy
+  environment: &grounded-env
+    APP_URL: http://localhost:${GROUNDED_DEMO_PORT:-8080}
+    DATABASE_URL: postgres://grounded:grounded-demo-only@postgres:5432/grounded?sslmode=disable
+    VALKEY_URL: redis://valkey:6379/0
+    MIGRATE_ON_START: "true"
+    # The public example values from .env.example: refused off loopback.
+    ENCRYPTION_KEY: dhi4PJ88URUmYkB0gc7BGWkWI2KrYJBM5bdj7IfEfTo=
+    API_KEY_PEPPER: FKaLRuR10brhXmbFfmm+9j92BGr82C9qu2OYaBxwfic=
+    DEV_AUTH: "true"
+    # The image runs as user 65532, whose home directory seeds the volume.
+    BLOB_DIR: /home/nonroot/blobs
+    LOG_FORMAT: text
+    LOG_LEVEL: info
+  volumes: [blobs:/home/nonroot]
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    shm_size: 1gb
+    environment:
+      POSTGRES_USER: grounded
+      POSTGRES_PASSWORD: grounded-demo-only
+      POSTGRES_DB: grounded
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grounded -d grounded"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+  valkey:
+    image: valkey/valkey:8-alpine
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+  # The API, the UI and the background worker in one process.
+  grounded:
+    <<: *grounded
+    command: ["serve"]
+    environment:
+      <<: *grounded-env
+      HTTP_ADDR: 0.0.0.0:8080
+    ports: ["127.0.0.1:${GROUNDED_DEMO_PORT:-8080}:8080"]
+  # Seeds the demo (once; later starts find it and add nothing), then serves
+  # the fake model gateway that the demo's agents use. With real models it
+  # exits after seeding.
+  demo:
+    <<: *grounded
+    command: ["demo"]
+    environment:
+      <<: *grounded-env
+      DEMO_MODELS: ${DEMO_MODELS:-fake}
+      DEMO_SERVE_FAKE_MODELS: ${DEMO_SERVE_FAKE_MODELS:-true}
+      DEMO_FAKE_ADDR: 0.0.0.0:8090
+      DEMO_FAKE_URL: http://demo:8090/v1
+      DEMO_OWNER_EMAIL: ${DEMO_OWNER_EMAIL:-}
+      DEMO_CHAT_URL: ${DEMO_CHAT_URL:-}
+      DEMO_CHAT_KEY: ${DEMO_CHAT_KEY:-}
+      DEMO_CHAT_MODEL: ${DEMO_CHAT_MODEL:-}
+      DEMO_EMBED_URL: ${DEMO_EMBED_URL:-}
+      DEMO_EMBED_KEY: ${DEMO_EMBED_KEY:-}
+      DEMO_EMBED_MODEL: ${DEMO_EMBED_MODEL:-}
+      DEMO_EMBED_DIMS: ${DEMO_EMBED_DIMS:-}
+      DEMO_SYSTEMONE_MODEL: ${DEMO_SYSTEMONE_MODEL:-}
+    restart: on-failure
+
+volumes:
+  postgres: {}
+  blobs: {}

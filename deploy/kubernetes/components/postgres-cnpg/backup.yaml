@@ -1,0 +1,45 @@
+# WAL archive and base backups (Postgres RPO 15 minutes: archive_timeout
+# defaults to 5 minutes). Patch destinationPath and endpointURL.
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: grounded-postgres-backup
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: postgres
+    app.kubernetes.io/part-of: grounded
+spec:
+  retentionPolicy: 30d
+  configuration:
+    destinationPath: s3://grounded-backups/postgres
+    endpointURL: https://backup-s3.example.org
+    s3Credentials:
+      accessKeyId:
+        name: grounded-postgres-backup-s3
+        key: access_key
+      secretAccessKey:
+        name: grounded-postgres-backup-s3
+        key: secret_key
+    wal:
+      compression: gzip
+    data:
+      compression: gzip
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: grounded-postgres-daily
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: postgres
+    app.kubernetes.io/part-of: grounded
+spec:
+  # Six fields (seconds first): daily at 03:17 UTC.
+  schedule: "0 17 3 * * *"
+  immediate: true
+  backupOwnerReference: self
+  cluster:
+    name: grounded-postgres
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io

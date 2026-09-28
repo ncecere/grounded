@@ -1,0 +1,36 @@
+/* Admin → Agents: no mid-word wrapping, the kill switch in the danger tone. */
+
+.nowrap {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 16rem;
+}
+
+.agentCell {
+  display: block;
+  min-width: 10rem;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+.kill {
+  color: var(--color-danger-text);
+}
+
+.shortForm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.shortForm > :first-child {
+  align-self: stretch;
+}

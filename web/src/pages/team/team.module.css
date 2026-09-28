@@ -1,0 +1,22 @@
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* The owners' break-glass notice above the team's pages. */
+.notices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+
+  & p {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  & p + p {
+    margin-top: var(--space-1);
+  }
+}

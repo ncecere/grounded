@@ -1,0 +1,32 @@
+# Grafana dashboards as ConfigMaps for the Grafana dashboard sidecar
+# (kiwigrid/k8s-sidecar, used by the grafana and kube-prometheus-stack Helm
+# charts): each carries the label grafana_dashboard: "1" and the annotation
+# grafana_folder: Grounded. The sidecar must search this namespace
+# (sidecar.dashboards.searchNamespace: ALL, or the install's namespace).
+#
+# The JSON files are copies of deploy/observability/dashboards written by
+# `go run ./tools/obsgen`: edit the originals. They select their data source
+# with the DS_PROMETHEUS variable (any Prometheus or Mimir data source).
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/part-of: grounded
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: Grounded
+
+configMapGenerator:
+  - name: grounded-dashboard-overview
+    files: [overview.json]
+  - name: grounded-dashboard-api
+    files: [api.json]
+  - name: grounded-dashboard-chat-retrieval
+    files: [chat-retrieval.json]
+  - name: grounded-dashboard-ingest-jobs
+    files: [ingest-jobs.json]
+  - name: grounded-dashboard-models-moderation
+    files: [models-moderation.json]

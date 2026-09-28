@@ -1,0 +1,27 @@
+# Egress to the external Valkey endpoint. 192.0.2.0/24 is a documentation
+# range: replace it with your service's address range (and the port if it
+# is not 6379).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-app-egress-valkey-external
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [grounded]
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [api, worker]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 192.0.2.0/24
+      ports:
+        - protocol: TCP
+          port: 6379

@@ -1,0 +1,55 @@
+/* Limits pages. Semantic tokens only. */
+
+.amountField {
+  min-width: 9rem;
+}
+
+.amount {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.amountInput {
+  width: 8.5rem;
+}
+
+.unit {
+  min-width: 4.5rem;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.override {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.modeField {
+  width: 9.5rem;
+}
+
+.saveAlerts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.groupDescription {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.intro {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.usage {
+  min-width: 9rem;
+}

@@ -1,0 +1,366 @@
+/* Grounded chat: thread details and the chat page layout. Components are bitop-ui AI elements (src/components/ui). */
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.thinking {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.userText {
+  white-space: pre-wrap;
+}
+
+.feedbackAction[data-pressed] {
+  background-color: var(--color-surface-active);
+  color: var(--color-text);
+}
+
+.waiting {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.note {
+  margin: 0;
+}
+
+.notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.statusNote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--color-info-text);
+  font-size: var(--font-size-sm);
+
+  &[data-tone="warning"] {
+    color: var(--color-warning-text);
+  }
+}
+
+.noteIcon {
+  flex-shrink: 0;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-top: 0.2em;
+}
+
+.welcome {
+  gap: var(--space-3);
+}
+
+.welcomeName {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.welcomeText {
+  max-width: 36rem;
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: var(--line-height-normal);
+  white-space: pre-wrap;
+}
+
+.starters {
+  max-width: 44rem;
+  margin-top: var(--space-3);
+}
+
+/* ---------------- chat page ---------------- */
+
+/*
+ * Fills the shell's main area (full width, full height; see the shell's
+ * fullBleed): the conversation list flush against the app sidebar, and the
+ * thread. Only the list and the messages scroll, never the page.
+ */
+.page {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+
+  @media (max-width: 60rem) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.unavailable {
+  margin: var(--space-8) auto;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  padding: var(--space-4) var(--space-3);
+  border-right: 1px solid var(--color-border);
+
+  @media (max-width: 60rem) {
+    display: none;
+  }
+}
+
+/* The same list inside the sheet on narrow screens. */
+.sheetList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sheetToggle {
+  @media (min-width: 60.001rem) {
+    display: none;
+  }
+}
+
+.sideTitle {
+  margin: var(--space-2) var(--space-2) 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+/* The conversation list scrolls; each day is a group with a small heading. */
+.convScroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.convGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.convDay {
+  margin: 0;
+  padding: 0 var(--space-2);
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.convList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conv {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-control);
+
+  &:hover,
+  &:focus-within {
+    background-color: var(--color-surface-hover);
+  }
+
+  &[data-current] {
+    background-color: var(--color-surface-active);
+  }
+}
+
+.convLink {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-control);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+}
+
+.convTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  .conv[data-current] & {
+    font-weight: var(--font-weight-medium);
+  }
+}
+
+.convDate {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.convEmpty {
+  margin: 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.headerText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle {
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The thread: messages, alerts and the composer share one centred reading
+ * column (--reading-width), so their edges line up. The viewport reserves
+ * the scrollbar gutter on both sides to keep the column centred.
+ */
+.pagePanel {
+  --reading-width: 47.5rem;
+  --reading-gutter: var(--space-5);
+
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pageConversation {
+  flex: 1;
+  min-height: 0;
+}
+
+.pageViewport {
+  scrollbar-gutter: stable both-edges;
+}
+
+.pagePanel .content {
+  max-width: calc(var(--reading-width) + 2 * var(--reading-gutter));
+  padding: var(--space-6) var(--reading-gutter);
+}
+
+.pagePanel .composer,
+.pagePanel .errorBox {
+  flex: none;
+  width: calc(100% - 2 * var(--reading-gutter));
+  max-width: var(--reading-width);
+  margin-inline: auto;
+}
+
+.pagePanel .errorBox {
+  margin-bottom: var(--space-3);
+}
+
+.pagePanel .composer {
+  margin-bottom: var(--space-4);
+}
+
+/* The agent editor's Test tab: a framed conversation above the composer. */
+.panel {
+  display: contents;
+}
+
+.conversation {
+  flex: 1;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background-color: var(--color-surface);
+}
+
+.content {
+  max-width: 50rem;
+  width: 100%;
+  margin-inline: auto;
+  padding: var(--space-6) var(--space-5);
+}
+
+.composer {
+  max-width: 50rem;
+  width: 100%;
+  margin-inline: auto;
+}
+
+/* The composer's status line: hint on the left, character count before Send. */
+.tools {
+  flex: 1;
+  gap: var(--space-2);
+  padding-inline: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.count[data-over] {
+  color: var(--color-danger-text);
+  font-weight: var(--font-weight-medium);
+}
+
+.hint {
+  flex: 1;
+  min-width: 0;
+}
+
+.errorBox {
+  max-width: 50rem;
+  width: 100%;
+  margin-inline: auto;
+}

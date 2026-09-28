@@ -1,0 +1,10 @@
+# A generic Ingress for grounded-api. Overlays patch the host (it must match
+# APP_URL), add spec.ingressClassName (the cluster default is used without
+# it) and TLS, and controller-specific annotations. Chat answers stream over
+# SSE: turn off response buffering and allow long reads where the controller
+# needs it (docs/deployments/kubernetes.md, "Ingress").
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - ingress.yaml
