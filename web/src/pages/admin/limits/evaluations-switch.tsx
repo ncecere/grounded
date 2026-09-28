@@ -30,8 +30,8 @@ export function EvaluationsSwitch({ isAdmin }: { isAdmin: boolean }) {
   });
   return (
     <Card
-      title="Evaluation sets"
-      description="Team editors, admins and owners build sets of test questions for their knowledge bases and agents, and run them to catch regressions. Members never see them. Changes are audited."
+      title="Evaluations feature"
+      description="Turn evaluations on or off for every team. Team editors, admins and owners build sets of test questions for their knowledge bases and agents, and run them to catch regressions. Members never see them. Changes are audited."
     >
       <QueryView query={settings} loadingLabel="Loading the setting…">
         {settings.data && (

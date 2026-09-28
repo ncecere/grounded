@@ -80,6 +80,7 @@ const (
 // a transient problem worth retrying.
 type outcome struct {
 	status, code, message string
+	kind                  parse.Kind // when parsing got that far (a skipped scan is still a PDF)
 	retry                 bool
 }
 
@@ -153,7 +154,7 @@ func (w *ProcessWorker) Work(ctx context.Context, job *river.Job[ProcessArgs]) e
 		observeDocument(IngestIndexed, time.Since(start))
 		return nil
 	}
-	return p.handleFailure(ctx, q, job, doc, err)
+	return p.handleFailure(ctx, q, job, doc, res.kind, err)
 }
 
 // Ingest outcomes (grounded_ingest_documents_total).
@@ -176,8 +177,8 @@ func observeDocument(outcome string, d time.Duration) {
 }
 
 // handleFailure snoozes, retries or finishes a document whose processing
-// failed.
-func (p *Processor) handleFailure(ctx context.Context, q *dbgen.Queries, job *river.Job[ProcessArgs], doc dbgen.Document, err error) error {
+// failed; kind is the document's kind when it was detected.
+func (p *Processor) handleFailure(ctx context.Context, q *dbgen.Queries, job *river.Job[ProcessArgs], doc dbgen.Document, kind parse.Kind, err error) error {
 	if errors.Is(err, errProfileMoved) && ctx.Err() == nil {
 		// Processed again for the source's new profile (not a failure).
 		if rerr := q.SnoozeDocument(ctx, dbgen.SnoozeDocumentParams{ID: doc.ID, ErrorCode: "profile_moved",
@@ -218,6 +219,7 @@ func (p *Processor) handleFailure(ctx context.Context, q *dbgen.Queries, job *ri
 	if o.retry {
 		o.status = StatusFailed
 	}
+	o.kind = kind
 	observeDocument(o.status, 0)
 	p.Log.InfoContext(ctx, "document not indexed", "document", doc.ID, "status", o.status, "code", o.code, "err", err)
 	return p.finishWithoutChunks(context.WithoutCancel(ctx), doc, o)

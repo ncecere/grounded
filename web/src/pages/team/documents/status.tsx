@@ -60,3 +60,12 @@ export const kindLabels: Record<string, string> = {
 };
 
 export const kindLabel = (kind: string) => (kind ? (kindLabels[kind] ?? kind.toUpperCase()) : "—");
+
+const kindsByExtension: Record<string, string> = { htm: "html", md: "markdown", txt: "text", png: "image", jpg: "image", jpeg: "image", tif: "image", tiff: "image" };
+
+/** The document's kind, or its file extension's when processing stopped before the kind was known (a skipped scan). */
+export function docKind(doc: Pick<Doc, "kind" | "filename">): string {
+  if (doc.kind) return doc.kind;
+  const ext = /\.([a-z0-9]+)$/i.exec(doc.filename ?? "")?.[1]?.toLowerCase() ?? "";
+  return kindsByExtension[ext] ?? (["pdf", "docx", "pptx", "html", "markdown"].includes(ext) ? ext : "");
+}

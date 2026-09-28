@@ -11,6 +11,7 @@ import { api, unwrap } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import { roleLabels } from "@/components/roles";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
+import { Alert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
@@ -105,7 +106,18 @@ export function RuleList({ team, isAdmin, title, description, notices }: Props) 
       id={team ? "admin-team-group-rules" : "admin-group-rules"}
       title={title}
       description={description}
-      notices={notices}
+      notices={
+        isAdmin ? (
+          notices
+        ) : (
+          <>
+            <Alert tone="info" title="Read-only">
+              You can view the rules. Only platform admins can add, change or delete them.
+            </Alert>
+            {notices}
+          </>
+        )
+      }
       primaryAction={addButton}
       caption={team ? `Group mapping rules for ${team.name}` : "Group mapping rules"}
       columns={columns(!team)}
@@ -157,16 +169,22 @@ export function RuleList({ team, isAdmin, title, description, notices }: Props) 
         mutation={remove}
         onConfirm={(r) => remove.mutate(r)}
         title={`Delete the rule for ${deleting?.group ?? "this group"}?`}
-        description={
-          deleting
-            ? `${plural(deleting.memberCount, "membership", "memberships")} in ${deleting.team.name} came from this rule. They're removed now, or keep another matching rule's role. A team's last owner is kept.`
-            : ""
-        }
+        description={deleting ? deleteText(deleting) : ""}
         confirmLabel="Delete rule"
       >
         {deleting && <RulePreview body={{ ruleId: deleting.id, delete: true }} />}
       </ConfirmMutationDialog>
     </>
+  );
+}
+
+/** What deleting a rule does to the memberships it made. */
+export function deleteText(r: Pick<GroupRule, "memberCount" | "team">) {
+  if (r.memberCount === 0) return `No memberships in ${r.team.name} came from this rule, so deleting it removes nobody.`;
+  return (
+    `${plural(r.memberCount, "membership", "memberships")} in ${r.team.name} came from this rule. ` +
+    `Deleting it removes ${r.memberCount === 1 ? "that person" : "those people"} from the team now; ` +
+    "anyone another rule also matches gets that rule's role instead, and the team's last owner is always kept."
   );
 }
 

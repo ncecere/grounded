@@ -136,7 +136,11 @@ export function actionLabel(action: string) {
   return `${group.charAt(0).toUpperCase()}${group.slice(1)}${words ? `: ${words}` : ""}`;
 }
 
-/** Action groups for the filter; `platform` groups are only offered in the platform log. */
+/**
+ * Action groups for the filter; `platform` groups are only offered in the
+ * platform log. "group_mapping." isn't a prefix: the API reads it as the
+ * group mapping rules' changes and the memberships they made.
+ */
 export const actionGroups: { prefix: string; label: string; platform?: boolean }[] = [
   { prefix: "agent.", label: "Agents" },
   { prefix: "apikey.", label: "API keys" },
@@ -147,6 +151,8 @@ export const actionGroups: { prefix: string; label: string; platform?: boolean }
   { prefix: "crawl.", label: "Crawling" },
   { prefix: "limits.", label: "Limits" },
   { prefix: "costs.", label: "Costs" },
+  { prefix: "evaluation.", label: "Evaluations" },
+  { prefix: "group_mapping.", label: "Group mapping" },
   { prefix: "breakglass.", label: "Break-glass" },
   { prefix: "platform.", label: "Platform settings", platform: true },
   { prefix: "auth.", label: "Sign-in", platform: true },
@@ -154,9 +160,18 @@ export const actionGroups: { prefix: string; label: string; platform?: boolean }
   { prefix: "retention.", label: "Retention", platform: true },
 ];
 
-/** Who did it: a person's name, the API key, or "System". */
-export function actorName(actor: AuditEntry["actor"]) {
-  if (actor.kind === "system") return "System";
+/**
+ * Who did it: a person's name, the API key, or "System". With the entry, a
+ * membership a group mapping rule made says so: "System (group mapping:
+ * advising-staff → Academic Advising)".
+ */
+export function actorName(actor: AuditEntry["actor"], entry?: Pick<AuditEntry, "metadata" | "teamName">) {
+  if (actor.kind === "system") {
+    if (entry?.metadata.via !== "sso_group_rule") return "System";
+    const group = typeof entry.metadata.group === "string" ? entry.metadata.group : "";
+    const rule = group && entry.teamName ? `${group} → ${entry.teamName}` : group;
+    return rule ? `System (group mapping: ${rule})` : "System (group mapping)";
+  }
   return actor.displayName || actor.email || (actor.userId ? "Unknown user" : "Unknown");
 }
 

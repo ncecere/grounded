@@ -31,6 +31,9 @@ export function TestSection({ form, disabled }: { form: ParsingForm; disabled: b
         </Button>
       }
     >
+      {!r && !test.error && (
+        <p className={s.muted}>{test.isPending ? "Reading the sample page…" : `Press Test to read the sample page with ${backendLabels[form.backend]}.`}</p>
+      )}
       <ErrorAlert error={test.error} title="The test couldn't run" />
       {r && !r.ok && (
         <Alert tone="danger" title={`${backendLabels[r.backend]} failed after ${r.latencyMs.toLocaleString()} ms`}>

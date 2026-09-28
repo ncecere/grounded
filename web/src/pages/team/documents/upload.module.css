@@ -57,3 +57,8 @@
   font-size: var(--font-size-xs);
   color: var(--color-danger-text);
 }
+
+.alertAction {
+  display: block;
+  margin-top: var(--space-2);
+}

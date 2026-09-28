@@ -107,29 +107,55 @@ func userOf(team uuid.NullUUID) string {
 // need OCR (docs/ocr.md §5a).
 const UnavailableMessage = "Images need OCR, which is off for this source"
 
-// Unavailable returns "" when src's images can be read with OCR, or the
-// reason they can't, for people.
-func (s *Service) Unavailable(ctx context.Context, src dbgen.DataSource) (string, error) {
-	if s == nil || !src.OcrEnabled {
-		return UnavailableMessage, nil
+// Whether OCR reads a source's scanned pages and images now (State).
+const (
+	StateOn          = "on"
+	StateSourceOff   = "source_off"   // the source's switch is off
+	StatePlatformOff = "platform_off" // off for the platform, or its backend or vision model is unusable
+	StateNotApproved = "not_approved" // the vision model is above the source's classification
+)
+
+// State says whether src's scanned pages and images can be read with OCR
+// now, and if not, why (one of the State constants).
+func (s *Service) State(ctx context.Context, src dbgen.DataSource) (string, error) {
+	if !src.OcrEnabled {
+		return StateSourceOff, nil
+	}
+	if s == nil {
+		return StatePlatformOff, nil
 	}
 	st, err := s.Load(ctx)
 	if err != nil {
 		return "", err
 	}
 	if !st.Enabled {
-		return UnavailableMessage, nil
+		return StatePlatformOff, nil
 	}
 	_, _, err = s.engine(ctx, st.Settings, src.Classification, true, "")
 	switch {
 	case err == nil:
-		return "", nil
+		return StateOn, nil
 	case errors.Is(err, errClassification):
-		return "Images need OCR, and the OCR vision model isn't approved for this source's classification", nil
+		return StateNotApproved, nil
 	case errors.Is(err, errOff), errors.Is(err, catalog.ErrVisionUnusable):
-		return UnavailableMessage, nil
+		return StatePlatformOff, nil
 	}
 	return "", err
+}
+
+// Unavailable returns "" when src's images can be read with OCR, or the
+// reason they can't, for people.
+func (s *Service) Unavailable(ctx context.Context, src dbgen.DataSource) (string, error) {
+	state, err := s.State(ctx, src)
+	switch {
+	case err != nil:
+		return "", err
+	case state == StateOn:
+		return "", nil
+	case state == StateNotApproved:
+		return "Images need OCR, and the OCR vision model isn't approved for this source's classification", nil
+	}
+	return UnavailableMessage, nil
 }
 
 // reserve admits pages of a team's document under ocr_pages_per_day (UTC

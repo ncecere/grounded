@@ -46,7 +46,7 @@ Only backends that are configured can be chosen. Admin → **Parsing** (new page
 
 ## 5a. Image uploads
 
-Uploads of PNG, JPEG and single-page TIFF become one-page documents, read with OCR (a new parse kind `image`). Where the source's OCR is off (or the platform's), the upload is refused at once with "Images need OCR, which is off for this source" rather than failing later. The crawler still ignores images. Multi-page TIFF is later (Go's TIFF decoder reads only the first page).
+Uploads of PNG, JPEG and single-page TIFF become one-page documents, read with OCR (a new parse kind `image`). Where the source's OCR is off (or the platform's), the upload is refused at once with "Images need OCR, which is off for this source" rather than failing later. The upload dialog knows beforehand from the source's `ocrState` (`on`, `source_off`, `platform_off` or `not_approved`): it lists images as accepted only when OCR reads them, and otherwise gives this reason for an image, with the way to the source's settings when its own switch is off. The crawler still ignores images. Multi-page TIFF is later (Go's TIFF decoder reads only the first page).
 
 ## 6. API (OpenAPI first)
 

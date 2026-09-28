@@ -68,6 +68,7 @@ describe("Admin → Group mapping", () => {
     expect(row).toHaveTextContent("Editor");
     expect(await screen.findByText(/People whose last sign-in carried it: 4 of 5/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Add rule/ })).toBeNull();
+    expect(screen.getByText("You can view the rules. Only platform admins can add, change or delete them.")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -85,6 +86,7 @@ describe("Admin → Group mapping", () => {
     await userEvent.click(await screen.findByRole("menuitem", { name: "Delete rule…" }));
     const dialog = await screen.findByRole("alertdialog", { name: /Delete the rule for registrar-staff/ });
     expect(await within(dialog).findByText("Pat Doe")).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("2 memberships in Office of the Registrar came from this rule. Deleting it removes those people from the team now;");
     await waitFor(() => expect(calls.find((c) => c.url === "/v1/admin/group-mapping/preview")?.body).toEqual({ ruleId: "r1", delete: true }));
     await userEvent.click(within(dialog).getByRole("button", { name: "Delete rule" }));
     await waitFor(() => expect(calls.some((c) => c.method === "DELETE" && c.url === "/v1/admin/group-mapping/rules/r1")).toBe(true));
@@ -99,16 +101,31 @@ describe("a team's Group mapping tab", () => {
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(screen.getAllByRole("button", { name: /Add rule/ })[0]!);
     const dialog = await screen.findByRole("dialog", { name: "Add group mapping rule" });
-    await userEvent.type(within(dialog).getByRole("combobox", { name: /IdP group/ }), "Registrar-Staff");
+    await userEvent.type(within(dialog).getByRole("combobox", { name: /IdP group/ }), "Registrar-Helpers");
     await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Role" }), "editor");
     expect(await within(dialog).findByText(/1 added/)).toBeInTheDocument();
     expect(within(dialog).getByText("Left alone: added by hand")).toBeInTheDocument();
+    expect(within(dialog).getByRole("columnheader", { name: "Groups last seen" })).toBeInTheDocument();
     await waitFor(() =>
-      expect(calls.filter((c) => c.url === "/v1/admin/group-mapping/preview").at(-1)?.body).toEqual({ group: "Registrar-Staff", team: "registrar", role: "editor", delete: false }),
+      expect(calls.filter((c) => c.url === "/v1/admin/group-mapping/preview").at(-1)?.body).toEqual({ group: "Registrar-Helpers", team: "registrar", role: "editor", delete: false }),
     );
     expect(await axe(dialog)).toHaveNoViolations();
     await userEvent.click(within(dialog).getByRole("button", { name: "Add rule" }));
-    await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.url === "/v1/admin/group-mapping/rules")?.body).toEqual({ group: "Registrar-Staff", team: "registrar", role: "editor" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.url === "/v1/admin/group-mapping/rules")?.body).toEqual({ group: "Registrar-Helpers", team: "registrar", role: "editor" }));
+  });
+
+  it("says once, under the group, that the team already has a rule for it (no failed dry run)", async () => {
+    const calls = mockApi(routes());
+    renderApp("/admin/teams/registrar?tab=group-mapping");
+    await screen.findByRole("table", { name: "Group mapping rules for Office of the Registrar" });
+    await userEvent.click(screen.getAllByRole("button", { name: /Add rule/ })[0]!);
+    const dialog = await screen.findByRole("dialog", { name: "Add group mapping rule" });
+    await userEvent.type(within(dialog).getByRole("combobox", { name: /IdP group/ }), "Registrar-Staff");
+    expect(await within(dialog).findAllByText("This team already has a rule for that group. Change that rule instead.")).toHaveLength(1);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Add rule" }));
+    expect(within(dialog).getAllByText(/already has a rule/)).toHaveLength(1);
+    expect(within(dialog).queryByText("Couldn't run the dry run")).toBeNull();
+    expect(calls.some((c) => c.method === "POST" && c.url === "/v1/admin/group-mapping/rules")).toBe(false);
   });
 
   it("asks for a group before saving", async () => {

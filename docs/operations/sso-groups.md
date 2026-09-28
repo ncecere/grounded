@@ -22,17 +22,17 @@ Matching ignores upper and lower case, and surrounding spaces. Up to 1,000 group
 
 ## Rules
 
-**Admin → Group mapping** lists every rule: the IdP group, the team, the role (owner, admin, editor or member) and how many memberships the rule grants now. A team's own rules are also on **Admin → Teams → the team → Group mapping**. Platform admins add, change and delete rules; platform auditors see them and can run the dry run.
+**Admin → Group mapping** lists every rule: the IdP group, the team, the role (owner, admin, editor or member) and how many memberships the rule grants now. A team's own rules are also on **Admin → Teams → the team → Group mapping**. Platform admins add, change and delete rules. Platform auditors see the rules (with a read-only notice) and can run the dry run through the API (`POST /v1/admin/group-mapping/preview`, below); the app shows the dry run only in the admins' rule form and delete confirmation.
 
 - One rule per group and team. A rule's team can't change: map the group to another team with a new rule.
 - Rules for an archived team are ignored, and no rule can be added to an archived team.
-- Every rule change is audited: `platform.sso_rule_create`, `platform.sso_rule_update` and `platform.sso_rule_delete`, in the platform log and the team's log.
+- Every rule change is audited: `platform.sso_rule_create`, `platform.sso_rule_update` and `platform.sso_rule_delete`, in the platform log and the team's log. The audit log's **Group mapping** action filter (API: `action=group_mapping.`) shows these and the memberships the rules added, changed or removed, whose actor reads "System (group mapping: *group* → *team*)".
 
 ### The dry run
 
 The rule form, and the delete confirmation, show what saving would do: who would be added, whose role would be raised or lowered, who would be removed, and who matches but is left alone (members added by hand, and a team's last owner). It uses the groups each person had **at their last sign-in**, so people who haven't signed in since the feature was installed, or whose groups changed since, aren't listed. They're matched at their next sign-in.
 
-`POST /v1/admin/group-mapping/preview` returns the same list.
+`POST /v1/admin/group-mapping/preview` returns the same list, for platform admins and auditors. It changes nothing.
 
 ### Saving applies at once
 
@@ -63,7 +63,7 @@ If the rule itself was deleted, such a kept membership has no rule. It no longer
 ## Limits
 
 - Groups are read at sign-in only. Someone removed from a group in the IdP keeps the membership until they sign in again (sessions last `SESSION_TTL`, 12 hours by default); personal API keys keep working until then. Removing them by hand isn't possible while a rule manages them: delete or change the rule, or suspend the user, for an immediate stop. SCIM provisioning (E4) is planned for later.
-- Adding someone because of a new rule uses their groups from their last sign-in, which may be out of date. Check the dry run's *Groups seen* column.
+- Adding someone because of a new rule uses their groups from their last sign-in, which may be out of date. Check the dry run's *Groups last seen* column.
 - Rules don't send notifications.
 
 ## Trying it locally

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const insertAudit = `-- name: InsertAudit :exec
@@ -59,6 +60,7 @@ SELECT a.id, a.occurred_at, a.actor_kind, a.actor_user_id, a.team_id, a.action,
        a.target_type, a.target_id, a.before_state, a.after_state, a.metadata,
        a.request_id, a.client_ip,
        COALESCE(u.email::text, '')::text AS actor_email,
+       COALESCE(tm.name, '')::text AS team_name, COALESCE(tm.slug::text, '')::text AS team_slug,
        u.display_name AS actor_display_name,
        k.name AS actor_api_key_name,
        COALESCE(live.label, '')::text AS live_label,
@@ -93,6 +95,7 @@ CROSS JOIN LATERAL (
                                     WHEN 'document' THEN a.metadata->>'sourceId' END AS raw) p
 ) ids
 LEFT JOIN users u ON u.id = a.actor_user_id
+LEFT JOIN teams tm ON tm.id = a.team_id
 LEFT JOIN api_keys k ON a.actor_kind = 'api_key' AND k.id = ids.key_uuid
 CROSS JOIN LATERAL (
     SELECT (CASE a.target_type
@@ -138,12 +141,14 @@ WHERE ($1::uuid IS NULL OR a.team_id = $1::uuid)
   AND ($3::text IS NULL OR a.action = $3::text)
   AND ($4::text IS NULL OR a.action LIKE $4::text || '%' ESCAPE '\')
   AND ($5::text IS NULL OR a.action NOT LIKE $5::text || '%' ESCAPE '\')
-  AND ($6::uuid IS NULL OR a.actor_user_id = $6::uuid)
-  AND ($7::text IS NULL OR a.target_type = $7::text)
-  AND ($8::timestamptz IS NULL OR a.occurred_at >= $8::timestamptz)
-  AND ($9::timestamptz IS NULL OR a.occurred_at < $9::timestamptz)
+  AND (NOT COALESCE($6::boolean, false)
+       OR a.action LIKE 'platform.sso\_rule\_%' ESCAPE '\' OR a.metadata->>'via' = 'sso_group_rule')
+  AND ($7::uuid IS NULL OR a.actor_user_id = $7::uuid)
+  AND ($8::text IS NULL OR a.target_type = $8::text)
+  AND ($9::timestamptz IS NULL OR a.occurred_at >= $9::timestamptz)
+  AND ($10::timestamptz IS NULL OR a.occurred_at < $10::timestamptz)
 ORDER BY a.id DESC
-LIMIT $10
+LIMIT $11
 `
 
 type ListAuditParams struct {
@@ -152,6 +157,7 @@ type ListAuditParams struct {
 	Action        *string
 	ActionPrefix  *string
 	ExcludePrefix *string
+	GroupMapping  pgtype.Bool
 	ActorUserID   uuid.NullUUID
 	TargetType    *string
 	OccurredFrom  *time.Time
@@ -174,6 +180,8 @@ type ListAuditRow struct {
 	RequestID        string
 	ClientIP         string
 	ActorEmail       string
+	TeamName         string
+	TeamSlug         string
 	ActorDisplayName *string
 	ActorApiKeyName  *string
 	LiveLabel        string
@@ -194,6 +202,8 @@ type ListAuditRow struct {
 // belongs to, for linking: a publishable key's agent, a document's source
 // (parent_label ” when the parent no longer exists).
 // action_prefix and exclude_prefix are LIKE-escaped by the caller.
+// group_mapping: the group mapping rules' changes and the memberships they
+// made (metadata.via = 'sso_group_rule'), across action groups.
 func (q *Queries) ListAudit(ctx context.Context, arg ListAuditParams) ([]ListAuditRow, error) {
 	rows, err := q.db.Query(ctx, listAudit,
 		arg.TeamID,
@@ -201,6 +211,7 @@ func (q *Queries) ListAudit(ctx context.Context, arg ListAuditParams) ([]ListAud
 		arg.Action,
 		arg.ActionPrefix,
 		arg.ExcludePrefix,
+		arg.GroupMapping,
 		arg.ActorUserID,
 		arg.TargetType,
 		arg.OccurredFrom,
@@ -229,6 +240,8 @@ func (q *Queries) ListAudit(ctx context.Context, arg ListAuditParams) ([]ListAud
 			&i.RequestID,
 			&i.ClientIP,
 			&i.ActorEmail,
+			&i.TeamName,
+			&i.TeamSlug,
 			&i.ActorDisplayName,
 			&i.ActorApiKeyName,
 			&i.LiveLabel,

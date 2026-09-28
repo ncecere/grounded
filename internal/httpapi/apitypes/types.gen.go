@@ -972,6 +972,30 @@ func (e CrawlStatus) Valid() bool {
 	}
 }
 
+// Defines values for DataSourceOcrState.
+const (
+	DataSourceOcrStateNotApproved DataSourceOcrState = "not_approved"
+	DataSourceOcrStateOn          DataSourceOcrState = "on"
+	DataSourceOcrStatePlatformOff DataSourceOcrState = "platform_off"
+	DataSourceOcrStateSourceOff   DataSourceOcrState = "source_off"
+)
+
+// Valid indicates whether the value is a known member of the DataSourceOcrState enum.
+func (e DataSourceOcrState) Valid() bool {
+	switch e {
+	case DataSourceOcrStateNotApproved:
+		return true
+	case DataSourceOcrStateOn:
+		return true
+	case DataSourceOcrStatePlatformOff:
+		return true
+	case DataSourceOcrStateSourceOff:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DataSourceStatus.
 const (
 	DataSourceStatusActive DataSourceStatus = "active"
@@ -4138,6 +4162,12 @@ type AuditEntry struct {
 	TargetLabel *string             `json:"targetLabel"`
 	TargetType  string              `json:"targetType"`
 	TeamId      *openapi_types.UUID `json:"teamId,omitempty"`
+
+	// TeamName The team's name for a team's entry (null for platform entries, or when the team was deleted)
+	TeamName *string `json:"teamName,omitempty"`
+
+	// TeamSlug The team's slug, with teamName
+	TeamSlug *string `json:"teamSlug,omitempty"`
 }
 
 // AuditEntryActorKind defines model for AuditEntry.ActorKind.
@@ -5119,6 +5149,9 @@ type DataSource struct {
 	// OcrEnabled Pages without text are read with OCR, when the platform has OCR on (docs/ocr.md)
 	OcrEnabled bool `json:"ocrEnabled"`
 
+	// OcrState Whether OCR reads this source's scanned pages and images now, in a single source's responses (not in lists): on; source_off (its switch is off); platform_off (off for the platform, or its OCR backend is unusable); not_approved (the vision model isn't approved for the source's classification)
+	OcrState *DataSourceOcrState `json:"ocrState,omitempty"`
+
 	// Revision Increases on every change. Send it back in If-Match.
 	Revision  Revision         `json:"revision"`
 	Status    DataSourceStatus `json:"status"`
@@ -5128,6 +5161,9 @@ type DataSource struct {
 	// Web The web configuration (web sources only)
 	Web *WebConfig `json:"web"`
 }
+
+// DataSourceOcrState Whether OCR reads this source's scanned pages and images now, in a single source's responses (not in lists): on; source_off (its switch is off); platform_off (off for the platform, or its OCR backend is unusable); not_approved (the vision model isn't approved for the source's classification)
+type DataSourceOcrState string
 
 // DataSourceStatus defines model for DataSource.Status.
 type DataSourceStatus string
@@ -8965,7 +9001,7 @@ type AdminListAuditParams struct {
 	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group.
+	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed.
 	Action *AuditActionParam `form:"action,omitempty" json:"action,omitempty"`
 
 	// ExcludeAction An action group (a prefix ending in a dot) to leave out, e.g. auth. to hide sign-ins and sign-outs.
@@ -9396,7 +9432,7 @@ type ListTeamAuditParams struct {
 	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group.
+	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed.
 	Action *AuditActionParam `form:"action,omitempty" json:"action,omitempty"`
 
 	// ExcludeAction An action group (a prefix ending in a dot) to leave out, e.g. auth. to hide sign-ins and sign-outs.

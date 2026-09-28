@@ -167,6 +167,15 @@ func ledger(t *testing.T, app *testApp, kind string) (sum int64, backend string)
 	return sum, backend
 }
 
+// ocrState checks what a single source's response says about OCR (the upload dialog and Retry use it).
+func ocrState(t *testing.T, s *session, path string, want apitypes.DataSourceOcrState) {
+	t.Helper()
+	var src apitypes.DataSource
+	if code := s.get(path, &src); code != 200 || src.OcrState == nil || *src.OcrState != want {
+		t.Errorf("ocrState = %d %v, want %s", code, src.OcrState, want)
+	}
+}
+
 func TestOCRIngestionAndRetry(t *testing.T) {
 	env, sidecar := ocrEnv(t)
 	owner, base := env.owner, "/v1/teams/"+env.team
@@ -187,10 +196,10 @@ func TestOCRIngestionAndRetry(t *testing.T) {
 		t.Fatalf("upload = %d %s %+v", code, e, results)
 	}
 	got := byName(owner.waitForDocuments(t, docs))
-	if d := got["scan.pdf"]; d.Status != "skipped" || d.ErrorCode != "needs_ocr" || d.Ocr != nil {
+	if d := got["scan.pdf"]; d.Status != "skipped" || d.ErrorCode != "needs_ocr" || d.Ocr != nil || d.Kind != "pdf" {
 		t.Fatalf("scan.pdf without OCR = %+v", d)
 	}
-	if d := got["mixed.pdf"]; d.Status != "ready" || !strings.Contains(strings.Join(d.Warnings, " "), "1 of 2 pages had no extractable text") {
+	if d := got["mixed.pdf"]; d.Status != "ready" || !strings.Contains(strings.Join(d.Warnings, " "), "1 of 2 pages had no text layer (possibly scanned) and was skipped") {
 		t.Errorf("mixed.pdf without OCR = %+v", d)
 	}
 	var page apitypes.DocumentPage
@@ -201,9 +210,11 @@ func TestOCRIngestionAndRetry(t *testing.T) {
 	if len(st.NeedsOcr) != 1 || st.NeedsOcr[0].TeamSlug != env.team || st.NeedsOcr[0].Documents != 1 {
 		t.Errorf("needs OCR counts = %+v", st.NeedsOcr)
 	}
+	ocrState(t, owner, base+"/sources/"+src.Id.String(), apitypes.DataSourceOcrStatePlatformOff)
 
 	// OCR on: retry the scanned documents together.
 	putParsing(t, env.admin, map[string]any{"ocrEnabled": true, "backend": "tesseract", "visionModelId": nil, "languages": "eng"})
+	ocrState(t, owner, base+"/sources/"+src.Id.String(), apitypes.DataSourceOcrStateOn)
 	var retried apitypes.DocumentRetryResult
 	code, e = owner.call("POST", docs+"/retry", map[string]any{"errorCode": "failed"}, nil, nil)
 	mustCode(t, "retry by another code", code, e, 400, "")
@@ -241,8 +252,8 @@ func TestOCRIngestionAndRetry(t *testing.T) {
 	var updated apitypes.DataSource
 	code, e = owner.call("PATCH", base+"/sources/"+src.Id.String(), map[string]any{"ocrEnabled": false}, &updated, ifMatch(src.Revision))
 	mustCode(t, "switch off", code, e, 200, "")
-	if updated.OcrEnabled {
-		t.Fatal("ocrEnabled still on")
+	if updated.OcrEnabled || updated.OcrState == nil || *updated.OcrState != apitypes.DataSourceOcrStateSourceOff {
+		t.Fatalf("switched off = %v, state %v", updated.OcrEnabled, updated.OcrState)
 	}
 	code, results, _ = owner.uploadFiles(docs, []upload{{"photo.jpg", testutil.EncodeImage(t, "jpeg", "PHOTO")}, {"scan2.pdf", scanned(t, "PAGE")}}, "")
 	if code != 200 || results[0].Error == nil || results[0].Error.Code != "ocr_off" || results[1].Status != "created" {

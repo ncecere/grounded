@@ -8,7 +8,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { RelativeTime } from "@/components/templates/list-page";
 import { RecordPage } from "@/components/templates/record-page";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
@@ -17,6 +16,7 @@ import { Disclosure } from "@/components/ui/disclosure/disclosure";
 import { Field } from "@/components/ui/field/field";
 import { TagInput } from "@/components/ui/tag-input/tag-input";
 import { TextLink } from "@/components/ui/text-link/text-link";
+import { Time } from "@/components/ui/time/time";
 import { maintenanceReason, useMaintenance } from "@/lib/maintenance";
 import { ocrNote } from "@/lib/parsing";
 import { markdownToText } from "@/lib/plain-text";
@@ -26,7 +26,7 @@ import { type Doc, formatBytes } from "../common";
 import { pageRange } from "../retrieve";
 import d from "./documents.module.css";
 import { canRetry, type DocumentMutations } from "./mutations";
-import { DocStatusBadge, docName, documentError, isWaiting, kindLabel } from "./status";
+import { DocStatusBadge, docKind, docName, documentError, isWaiting, kindLabel } from "./status";
 
 const previewSize = 5;
 
@@ -140,13 +140,13 @@ function documentFacts(doc: Doc, web: boolean) {
         doc.filename || "—"
       ),
     },
-    { label: "Kind · size", value: [doc.kind && kindLabel(doc.kind), formatBytes(doc.sizeBytes)].filter(Boolean).join(" · ") },
+    { label: "Kind · size", value: [docKind(doc) && kindLabel(docKind(doc)), formatBytes(doc.sizeBytes)].filter(Boolean).join(" · ") },
     ...(doc.pages > 0 ? [{ label: "Pages", value: doc.pages.toLocaleString() }] : []),
     ...(doc.ocr ? [{ label: "OCR", value: ocrNote(doc.ocr, doc.pages) }] : []),
     { label: terms.Passages, value: doc.status === "ready" ? `${passagesCount(doc.chunkCount)} · ${doc.tokenCount.toLocaleString()} tokens` : "—" },
     ...(doc.version > 1 ? [{ label: "Version", value: `Version ${doc.version}` }] : []),
-    { label: "Added", value: <RelativeTime value={doc.createdAt} /> },
-    { label: "Updated", value: <RelativeTime value={doc.updatedAt} /> },
+    { label: "Added", value: <Time value={doc.createdAt} format="datetime" /> },
+    { label: "Updated", value: <Time value={doc.updatedAt} format="datetime" /> },
   ];
 }
 

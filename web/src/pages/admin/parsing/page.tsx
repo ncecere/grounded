@@ -41,7 +41,9 @@ export function ParsingPage() {
     <Stack gap={6} className={s.page}>
       <PageHeader
         title="Parsing"
-        description="Grounded reads PDF, Word, PowerPoint, HTML, Markdown and text itself. OCR reads what has no text: scanned PDF pages and image uploads. It is off until you turn it on."
+        description={`Grounded reads PDF, Word, PowerPoint, HTML, Markdown and text itself. OCR reads what has no text: scanned PDF pages and image uploads. ${
+          settings.data?.ocrEnabled ? "It is on for the platform; each source can turn it off." : "It is off until a platform admin turns it on."
+        }`}
       />
       <QueryView query={settings} loadingLabel="Loading parsing settings…">
         {settings.data && <ParsingEditor key={settings.data.revision} saved={settings.data} visionModels={vision} isAdmin={isAdmin} />}
@@ -117,7 +119,8 @@ function ParsingEditor({ saved, visionModels, isAdmin }: { saved: ParsingSetting
           ]}
         />
       </SettingsSection>
-      <TestSection form={form} disabled={!isAdmin || Object.keys(problems).length > 0} />
+      {/* Auditors can't run the Test (it reads with the platform's backend): it's left out rather than shown disabled. */}
+      {isAdmin && <TestSection form={form} disabled={Object.keys(problems).length > 0} />}
       <NeedsOcrSection counts={saved.needsOcr} ocrOn={saved.ocrEnabled} />
     </SettingsPage>
   );

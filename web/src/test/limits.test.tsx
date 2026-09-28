@@ -298,16 +298,16 @@ describe("admin team limits card", () => {
 });
 
 describe("team usage card", () => {
-  it("shows usage meters, most used first, with rate limits in a disclosure (W10)", async () => {
+  it("shows usage meters in the limits' order (the same for every team), with rate limits in a disclosure (W10)", async () => {
     mockApi({ "GET /v1/teams/registrar/limits": usage, "GET /v1/teams/registrar/agents": () => [] });
     const { container } = renderWith(<UsageCard team="registrar" />, { teamRole: "owner" });
     const resources = await screen.findByRole("region", { name: "Team resources" });
-    // Sorted by share used: data sources (full), storage (20 %); knowledge bases are blocked (shown first as full).
+    // In the limits' order, not by share used, so every team's page reads the same: storage, then data sources (full).
     const meters = within(resources).getAllByRole("meter");
-    expect(meters.map((m) => m.getAttribute("aria-valuetext"))).toEqual(["5 of 5, at limit", "2 GiB of 10 GiB"]);
+    expect(meters.map((m) => m.getAttribute("aria-valuetext"))).toEqual(["2 GiB of 10 GiB", "5 of 5, at limit"]);
     expect(within(resources).getByText("Blocked for your team")).toBeInTheDocument();
     const ingestion = screen.getByRole("region", { name: "Ingestion" });
-    expect(within(ingestion).getAllByRole("meter").map((m) => m.getAttribute("aria-valuetext"))).toEqual(["1 of 2", "120 of 5,000"]);
+    expect(within(ingestion).getAllByRole("meter").map((m) => m.getAttribute("aria-valuetext"))).toEqual(["120 of 5,000", "1 of 2"]);
     expect(within(ingestion).getByText(/resets at midnight UTC/)).toBeInTheDocument();
     expect(screen.getAllByText("Set for your team")).toHaveLength(2);
     // Limits without a running total are in the disclosure; no public caps without a public agent.
@@ -325,7 +325,7 @@ describe("team usage card", () => {
     const { container } = renderWith(<UsageCard team="registrar" />, { teamRole: "owner" });
     const queries = await screen.findByRole("region", { name: "Queries & chat" });
     const meters = within(queries).getAllByRole("meter");
-    expect(meters.map((m) => m.getAttribute("aria-valuetext"))).toEqual(["40 of 120", "12 of 300", "3 of 600"]);
+    expect(meters.map((m) => m.getAttribute("aria-valuetext"))).toEqual(["3 of 600", "40 of 120", "12 of 300"]);
     expect(within(queries).getByText("This minute, the busiest person")).toBeInTheDocument();
     expect(within(queries).getByText("This minute, the busiest API key")).toBeInTheDocument();
     expect(within(queries).getByText("This minute")).toBeInTheDocument();

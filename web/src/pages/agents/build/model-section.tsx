@@ -1,6 +1,6 @@
 /* Build → Model (a searchable model picker with display names: Q11) and Build → Knowledge (knowledge bases and pinned filters). */
 import { Link } from "@tanstack/react-router";
-import { useCallback, useRef, useState } from "react";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 import { Alert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { Checkbox } from "@/components/ui/checkbox/checkbox";
@@ -159,39 +159,51 @@ function TopK({ kb, value, onChange }: { kb: KB; value: number | null; onChange:
     );
   }
   return (
-    <span className={cf.topKLabel}>
-      <TopKInput kb={kb} value={value} onChange={onChange} inputRef={focus} />
+    <TopKInput kb={kb} value={value} onChange={onChange} inputRef={focus}>
       Overridden
-      <Button size="sm" variant="ghost" aria-label={`Use the results per search of ${kb.name} (${kb.topK})`} onClick={() => change(null)}>
-        Inherit
+      {/* WCAG 2.5.3: the accessible name starts with the visible text. */}
+      <Button size="sm" variant="ghost" aria-label={`Inherit (${kb.topK}) from ${kb.name}`} onClick={() => change(null)}>
+        Inherit ({kb.topK})
       </Button>
-    </span>
+    </TopKInput>
   );
 }
 
-function TopKInput({ kb, value, onChange, inputRef }: { kb: KB; value: number; onChange: (v: number) => void; inputRef: (el: HTMLInputElement | null) => void }) {
+type TopKInputProps = { kb: KB; value: number; onChange: (v: number) => void; inputRef: (el: HTMLInputElement | null) => void; children: ReactNode };
+
+/** The override's number field, then `children`, then why the number can't be used (linked with aria-describedby). */
+function TopKInput({ kb, value, onChange, inputRef, children }: TopKInputProps) {
   const [text, setText] = useState(String(value));
   const n = Number(text);
   const invalid = !(Number.isInteger(n) && n >= 1 && n <= 20);
+  const errorId = `agent-field-kbs-${kb.id}-error`;
   useReportInvalid(`agent-field-kbs.${kb.id}`, invalid);
   return (
-    <Input
-      ref={inputRef}
-      type="number"
-      size="sm"
-      min={1}
-      max={20}
-      className={cf.topKInput}
-      aria-label={`Results per search from ${kb.name}`}
-      aria-invalid={invalid || undefined}
-      title={invalid ? "Enter a whole number from 1 to 20." : undefined}
-      value={text}
-      onChange={(e) => {
-        setText(e.target.value);
-        const v = Number(e.target.value);
-        if (Number.isInteger(v) && v >= 1 && v <= 20) onChange(v);
-      }}
-    />
+    <span className={cf.topKLabel}>
+      <Input
+        ref={inputRef}
+        type="number"
+        size="sm"
+        min={1}
+        max={20}
+        className={cf.topKInput}
+        aria-label={`Results per search from ${kb.name}`}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? errorId : undefined}
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          const v = Number(e.target.value);
+          if (Number.isInteger(v) && v >= 1 && v <= 20) onChange(v);
+        }}
+      />
+      {children}
+      {invalid && (
+        <span id={errorId} className={cf.topKError}>
+          Enter a whole number from 1 to 20.
+        </span>
+      )}
+    </span>
   );
 }
 

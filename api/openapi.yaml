@@ -6338,7 +6338,8 @@ components:
       required: false
       description: >-
         An exact action (agent.publish), or a prefix ending in a dot (agent.)
-        for every action in that group.
+        for every action in that group. group_mapping. is the SSO group mapping
+        rules' changes and the memberships the rules added, changed or removed.
       schema: { type: string, maxLength: 100, pattern: '^[a-z][a-z_]*\.[a-z_]*$', example: agent. }
     AuditExcludeActionParam:
       name: excludeAction
@@ -7655,6 +7656,8 @@ components:
         actorKind: { type: string, enum: [user, api_key, system] }
         actorUserId: { type: string, format: uuid, nullable: true }
         teamId: { type: string, format: uuid, nullable: true }
+        teamName: { type: string, nullable: true, description: "The team's name for a team's entry (null for platform entries, or when the team was deleted)" }
+        teamSlug: { type: string, nullable: true, description: "The team's slug, with teamName" }
         action: { type: string, example: team.member_add }
         actor: { $ref: "#/components/schemas/AuditActor" }
         targetType: { type: string }
@@ -8425,6 +8428,13 @@ components:
           allOf: [{ $ref: "#/components/schemas/Crawl" }]
         boilerplate: { $ref: "#/components/schemas/SourceBoilerplate" }
         ocrEnabled: { type: boolean, description: "Pages without text are read with OCR, when the platform has OCR on (docs/ocr.md)" }
+        ocrState:
+          type: string
+          enum: ["on", source_off, platform_off, not_approved]
+          description: >-
+            Whether OCR reads this source's scanned pages and images now, in a single source's responses (not in lists):
+            on; source_off (its switch is off); platform_off (off for the platform, or its OCR backend is unusable);
+            not_approved (the vision model isn't approved for the source's classification)
     BoilerplateSettings:
       type: object
       description: >-

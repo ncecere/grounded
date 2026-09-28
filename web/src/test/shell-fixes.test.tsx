@@ -77,5 +77,7 @@ describe("shell fixes", () => {
       "Data sources · Office of the Registrar · Example RAG",
     );
     expect(documentTitle([{ label: "Home" }], "Example RAG")).toBe("Home · Example RAG");
+    // A team still loading has no text crumb: the title never reads "… · Team · …".
+    expect(documentTitle([{ label: <span>Team</span> }, { label: "Team settings" }], "Example RAG")).toBe("Team settings · Example RAG");
   });
 });

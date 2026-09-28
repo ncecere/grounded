@@ -104,8 +104,9 @@ export function AppLayout({ children }: { children?: ReactNode }) {
             end={
               <>
                 {inAdmin && readOnlyAdmin && (
-                  <Badge tone="warning" dot className={styles.adminBadge}>
-                    {terms.readOnly}
+                  // On a phone only the dot shows (the word stays for screen readers), so the search button fits.
+                  <Badge tone="warning" dot className={styles.adminBadge} title={terms.readOnly}>
+                    <span className={styles.adminBadgeText}>{terms.readOnly}</span>
                   </Badge>
                 )}
                 <NotificationBell />

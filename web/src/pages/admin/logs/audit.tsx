@@ -16,7 +16,7 @@ import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { Switch } from "@/components/ui/switch/switch";
 import { useSearchParams } from "@/lib/url-search";
 import s from "../../shared.module.css";
-import { AuditEntryPage } from "./audit-record";
+import { AuditEntryPage, AuditTeam } from "./audit-record";
 import { ExportButton, one, rangeWindow, usePeopleOptions } from "./common";
 import l from "./logs.module.css";
 
@@ -48,10 +48,10 @@ const columns: DataTableColumn<Entry>[] = [
   {
     id: "who",
     header: "Who",
-    accessor: (e) => actorName(e.actor),
+    accessor: (e) => actorName(e.actor, e),
     cell: (e) => (
       <span className={e.actor.kind === "system" ? s.muted : s.primary} title={e.actor.email ?? undefined}>
-        {actorName(e.actor)}
+        {actorName(e.actor, e)}
         {e.actor.kind === "api_key" && <span className={s.secondary}>API key{e.actor.apiKeyName ? `: ${e.actor.apiKeyName}` : ""}</span>}
       </span>
     ),
@@ -76,6 +76,12 @@ const columns: DataTableColumn<Entry>[] = [
           <AuditTarget entry={e} scope={{ kind: "platform" }} />
         </span>
       ),
+  },
+  {
+    id: "team",
+    header: "Team",
+    accessor: (e) => e.teamName ?? "",
+    cell: (e) => (e.teamId ? <AuditTeam entry={e} /> : <span className={s.muted}>—</span>),
   },
   { id: "request", header: "Request ID", accessor: "requestId", muted: true, defaultHidden: true, cell: (e) => <span className={s.mono}>{e.requestId}</span> },
 ];
@@ -143,7 +149,7 @@ export function AuditLogTab() {
                 header={["occurredAt", "actor", "actorEmail", "action", "targetType", "targetId", "target", "teamId", "requestId", "before", "after", "metadata"]}
                 row={(e) => [
                   e.occurredAt,
-                  actorName(e.actor),
+                  actorName(e.actor, e),
                   e.actor.email ?? "",
                   e.action,
                   e.targetType,

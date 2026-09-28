@@ -1,8 +1,9 @@
 /*
  * Team settings › Usage & limits (W10, DESIGN §11.1): what the team uses
  * against its limits, in the admin Limits page's four groups (Team resources
- * · Ingestion · Queries & chat · Public agents). Usage meters are sorted by
- * share used and warn at 80 % (critical at 100 %). Query rates per minute
+ * · Ingestion · Queries & chat · Public agents). Usage meters keep the
+ * limits' own order, the same for every team, and warn at 80 % (critical at
+ * 100 %). Query rates per minute
  * show this minute's count: the team's, and the busiest API key's and
  * person's (G5). Limits without a usage figure (the public per-address and
  * per-visitor rates, per-person caps) sit in a disclosure. Public-agent
@@ -42,16 +43,9 @@ export function periodNote(it: TeamLimit) {
   return running(it) ? "Running now" : undefined;
 }
 
-/** Share of the limit used; blocked limits (0) count as full, unlimited as empty. */
-export function usageShare(it: TeamLimit) {
-  if (it.used === null || it.max === null) return 0;
-  if (it.max === 0) return 1;
-  return it.used / it.max;
-}
-
-/** Limits with a usage figure, most used first. */
-export function sortByUse(items: TeamLimit[]) {
-  return items.filter((it) => it.used !== null).sort((a, b) => usageShare(b) - usageShare(a));
+/** Limits with a usage figure, in the limits' order (the same on every team; the meters' tone shows what's nearly used up). */
+export function withUsage(items: TeamLimit[]) {
+  return items.filter((it) => it.used !== null);
 }
 
 function UsageMeter({ it }: { it: TeamLimit }) {
@@ -114,7 +108,7 @@ export function UsageCard({ team }: { team: string }) {
         <div className={u.body}>
           <div className={u.groups}>
             {groups.map((g) => {
-              const meters = sortByUse(items.filter((it) => it.group === g.key));
+              const meters = withUsage(items.filter((it) => it.group === g.key));
               if (meters.length === 0) return null;
               return (
                 <section key={g.key} aria-labelledby={`usage-${g.key}`} className={u.group}>

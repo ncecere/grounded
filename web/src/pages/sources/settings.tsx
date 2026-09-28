@@ -154,13 +154,20 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
             </Field>
           )}
         </SettingsSection>
-        <SettingsSection title="OCR" description="Scanned pages (without a text layer) and image uploads are read with OCR when the platform has it on.">
+        <SettingsSection
+          title="OCR"
+          description={
+            source.ocrState === "platform_off"
+              ? "Scanned pages (without a text layer) and image uploads are read with OCR when the platform has it on. It is off for the platform now: a platform admin can turn it on."
+              : "Scanned pages (without a text layer) and image uploads are read with OCR when the platform has it on."
+          }
+        >
           <Switch
             label="Read scanned pages with OCR"
             description={
               form.ocrEnabled
                 ? "Turn it off where scanned pages are noise: they are skipped, and images can't be uploaded. Documents already processed keep their text."
-                : "Scanned pages are skipped and images can't be uploaded. After turning it on, retry the documents that need OCR (Documents tab)."
+                : "Scanned pages are skipped and images can't be uploaded. After turning it on, retry the documents skipped as scanned (Documents tab, Needs OCR). A document indexed with only some pages skipped isn't retried: delete it and upload it again."
             }
             checked={form.ocrEnabled}
             onCheckedChange={(v) => set({ ocrEnabled: v })}

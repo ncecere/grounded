@@ -112,7 +112,7 @@ export function TeamOverviewTab({ summary }: { summary: Summary }) {
                     {e.targetLabel ? `: ${e.targetLabel}` : ""}
                   </ItemTitle>
                   <ItemDescription>
-                    {actorName(e.actor)} · <RelativeTime value={e.occurredAt} />
+                    {actorName(e.actor, e)} · <RelativeTime value={e.occurredAt} />
                   </ItemDescription>
                 </ItemContent>
               </Item>

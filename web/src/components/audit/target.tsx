@@ -96,8 +96,11 @@ function platformLink(e: AuditEntry): ReactElement | null {
       return <Link to="/admin/limits" />;
     case "cost_settings":
       return <Link to="/admin/costs" search={{ tab: "settings" }} />;
-    case "sso_group_rule":
-      return <Link to="/admin/group-mapping" />;
+    case "sso_group_rule": {
+      // Rules have no page of their own: the team's Group mapping tab lists its rules.
+      const team = e.teamSlug ?? e.teamId;
+      return team ? <Link to="/admin/teams/$team" params={{ team }} search={{ tab: "group-mapping" }} /> : <Link to="/admin/group-mapping" />;
+    }
     case "evaluation_settings":
       return <Link to="/admin/limits" search={{ tab: "evaluations" }} />;
     case "moderation_policy":
@@ -128,10 +131,13 @@ export function AuditTarget({ entry, scope }: { entry: AuditEntry; scope: AuditS
       ) : (
         <span className={s.primary}>{name}</span>
       )}
-      <span className={s.secondary}>
-        {type}
-        {!entry.targetExists && " (deleted)"}
-      </span>
+      {/* Settings are named by their type ("Cost settings"): say it once. */}
+      {(type !== name || !entry.targetExists) && (
+        <span className={s.secondary}>
+          {type}
+          {!entry.targetExists && " (deleted)"}
+        </span>
+      )}
     </>
   );
 }

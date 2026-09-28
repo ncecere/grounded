@@ -212,7 +212,7 @@ func TestPDFMetadataTitleAndScannedPages(t *testing.T) {
 	if doc.Title != "Official Catalog 2026" {
 		t.Errorf("title = %q", doc.Title)
 	}
-	if len(doc.Warnings) != 1 || !strings.Contains(doc.Warnings[0], "1 of 2 pages had no extractable text") {
+	if len(doc.Warnings) != 1 || !strings.Contains(doc.Warnings[0], "1 of 2 pages had no text layer (possibly scanned) and was skipped") {
 		t.Errorf("warnings = %v", doc.Warnings)
 	}
 }

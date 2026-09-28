@@ -1,17 +1,27 @@
 /* One audit entry in a RecordPage (A3): who, what, when, the target and a before/after diff (with model, connection and profile ids named). */
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { api, unwrap, type Schemas } from "@/api/client";
+import { auditChange } from "@/components/audit/changes";
 import { actionLabel, actorName, nameIds } from "@/components/audit/labels";
 import { AuditTarget } from "@/components/audit/target";
-import { RelativeTime } from "@/components/templates/list-page";
 import { RecordPage, type RecordSection } from "@/components/templates/record-page";
 import { CodeBlock } from "@/components/ui/code-block/code-block";
 import { DiffViewer } from "@/components/ui/diff-viewer/diff-viewer";
+import { TextLink } from "@/components/ui/text-link/text-link";
+import { Time } from "@/components/ui/time/time";
+import { useCostSettings } from "@/lib/costs";
 import s from "../../shared.module.css";
 import { useConnections, useModels } from "../models/common";
 import { profilesQuery } from "../overview/queries";
 
 type Entry = Schemas["AuditEntry"];
+
+/** The team a team's entry belongs to, linked to its admin page ("Deleted team" when it's gone). */
+export function AuditTeam({ entry }: { entry: Pick<Entry, "teamId" | "teamName" | "teamSlug"> }) {
+  if (!entry.teamName || !entry.teamSlug) return <span className={s.muted}>Deleted team</span>;
+  return <TextLink render={<Link to="/admin/teams/$team" params={{ team: entry.teamSlug }} />}>{entry.teamName}</TextLink>;
+}
 
 /** Catalog ids (models, connections, embedding profiles) and their names, from the admin lists (cached). */
 function useCatalogNames(enabled: boolean): Map<string, string> {
@@ -25,16 +35,18 @@ function useCatalogNames(enabled: boolean): Map<string, string> {
   return out;
 }
 
-export function auditSections(e: Entry, names: ReadonlyMap<string, string> = new Map()): RecordSection[] {
+/** The before and after (in words: auditChange) and the raw metadata. `currency` is the platform's, when the viewer can read it. */
+export function auditSections(e: Entry, names: ReadonlyMap<string, string> = new Map(), currency?: string): RecordSection[] {
   const out: RecordSection[] = [];
   if (e.before != null || e.after != null) {
+    const change = auditChange(e, currency);
     out.push({
       title: "Changes",
       content: (
         <DiffViewer
-          label={`Changes by ${actionLabel(e.action)}`}
-          before={nameIds(e.before ?? {}, names) as object}
-          after={nameIds(e.after ?? {}, names) as object}
+          label={`What changed: ${actionLabel(e.action)}`}
+          before={nameIds(change.before, names) as object}
+          after={nameIds(change.after, names) as object}
           format="json"
           defaultMode="split"
         />
@@ -61,6 +73,7 @@ export function AuditEntryPage({ id, listed, onClose }: Props) {
   const entry = listed ?? fetched.data;
   const missing = open && !entry && (fetched.isError || !/^\d+$/.test(id ?? ""));
   const names = useCatalogNames(open);
+  const currency = useCostSettings(open && Boolean(entry?.action.startsWith("costs."))).data?.currency;
   return (
     <RecordPage
       open={open}
@@ -72,15 +85,16 @@ export function AuditEntryPage({ id, listed, onClose }: Props) {
       facts={
         entry
           ? [
-              { label: "When", value: <RelativeTime value={entry.occurredAt} /> },
-              { label: "Who", value: entry.actor.email && entry.actor.displayName ? `${actorName(entry.actor)} (${entry.actor.email})` : actorName(entry.actor) },
+              { label: "When", value: <Time value={entry.occurredAt} format="datetime" /> },
+              { label: "Who", value: entry.actor.email && entry.actor.displayName ? `${actorName(entry.actor, entry)} (${entry.actor.email})` : actorName(entry.actor, entry) },
+              ...(entry.teamId ? [{ label: "Team", value: <AuditTeam entry={entry} /> }] : []),
               { label: "Action", value: <code className={s.mono}>{entry.action}</code> },
               { label: "Target", value: <AuditTarget entry={entry} scope={{ kind: "platform" }} /> },
               { label: "Request ID", value: <code className={s.mono}>{entry.requestId || "—"}</code> },
             ]
           : []
       }
-      sections={entry ? auditSections(entry, names) : []}
+      sections={entry ? auditSections(entry, names, currency) : []}
     />
   );
 }

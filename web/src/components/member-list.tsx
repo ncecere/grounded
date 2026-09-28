@@ -66,6 +66,14 @@ function useMemberMutations(team: string, myUserId: string, onRemoved: () => voi
   return { changeRole, remove };
 }
 
+/** What the only owner can do about it: SSO-managed members can't be made owners by hand. */
+export function soleOwnerHint(list: Member[], owner: Member) {
+  const others = list.filter((x) => x.user.id !== owner.user.id);
+  if (others.length > 0 && others.every((x) => ssoGroup(x) !== undefined))
+    return "The only owner. The other members are managed by SSO group mapping, so add someone as an owner, or ask a platform admin.";
+  return "The only owner. Make someone else an owner to change this.";
+}
+
 export function MemberList({ team, myRole, myUserId }: { team: string; myRole?: TeamRole; myUserId: string }) {
   const members = useQuery({
     queryKey: membersKey(team),
@@ -87,7 +95,7 @@ export function MemberList({ team, myRole, myUserId }: { team: string; myRole?: 
         <span>
           <Badge tone={m.role === "owner" ? "info" : "neutral"}>{roleLabels[m.role]}</Badge>
           {group !== undefined && <span className={s.secondary}>{managedBySso(group)}</span>}
-          {group === undefined && soleOwner && canManage(myRole, m.role) && <span className={s.secondary}>The only owner. Make someone else an owner to change this.</span>}
+          {group === undefined && soleOwner && canManage(myRole, m.role) && <span className={s.secondary}>{soleOwnerHint(list, m)}</span>}
         </span>
       );
     }

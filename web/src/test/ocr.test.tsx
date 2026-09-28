@@ -107,7 +107,9 @@ describe("Admin → Parsing", () => {
     renderApp("/admin/parsing");
     const toggle = await screen.findByRole("switch", { name: /Read scanned pages/ });
     expect(toggle.getAttribute("aria-disabled") === "true" || toggle.hasAttribute("data-disabled")).toBe(true);
-    expect(screen.getByRole("button", { name: "Test" })).toBeDisabled();
+    // Auditors can't run the Test (403), so it isn't offered; the page says OCR is off and who can turn it on.
+    expect(screen.queryByRole("button", { name: "Test" })).toBeNull();
+    expect(screen.getByText(/It is off until a platform admin turns it on\./)).toBeInTheDocument();
   });
 });
 
@@ -193,5 +195,41 @@ describe("OCR on a source", () => {
     await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.url.endsWith("/documents/retry"))?.body).toEqual({ errorCode: "needs_ocr" }));
     expect(await screen.findByText("1 document was queued again")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+  it("keeps the bulk retry until OCR is on for the source, and says why", async () => {
+    const skipped = doc("d2", { status: "skipped", errorCode: "needs_ocr", errorMessage: "This PDF has no text to read (it may be a scan).", chunkCount: 0 });
+    mockApi(routes(uploadSource({ ocrEnabled: false, ocrState: "source_off" }), [skipped]));
+    const { container } = renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
+    await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
+    await userEvent.click(await screen.findByRole("button", { name: "Needs OCR" }));
+    const retry = await screen.findByRole("button", { name: "Retry all that need OCR" });
+    expect(retry).toBeDisabled();
+    expect(retry).toHaveAccessibleDescription(/OCR is off for this source\. Turn it on in the Settings tab first/);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("refuses images with OCR's reason when it is off, and offers the source's settings", async () => {
+    mockApi(routes(uploadSource({ ocrEnabled: false, ocrState: "source_off" }), []));
+    const { container } = renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
+    await userEvent.click(await screen.findByRole("button", { name: "Upload files" }));
+    const dialog = await screen.findByRole("dialog", { name: "Upload files" });
+    expect(within(dialog).getByText(/plain text\. Images need OCR, which is off for this source\./)).toBeInTheDocument();
+    const input = dialog.querySelector<HTMLInputElement>('input[type="file"]')!;
+    expect(input.accept).not.toContain(".png");
+    await userEvent.upload(input, new File(["x"], "notice.png", { type: "image/png" }), { applyAccept: false });
+    expect(await within(dialog).findByText("notice.png wasn't uploaded")).toBeInTheDocument();
+    expect(within(dialog).getByText(/Turn on OCR in the source's settings to upload images\./)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Open settings" }));
+    expect(await screen.findByRole("switch", { name: /Read scanned pages with OCR/ })).not.toBeChecked();
+  });
+
+  it("accepts images when OCR is on for the platform and the source", async () => {
+    mockApi(routes(uploadSource({ ocrEnabled: true, ocrState: "on" }), []));
+    renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
+    await userEvent.click(await screen.findByRole("button", { name: "Upload files" }));
+    const dialog = await screen.findByRole("dialog", { name: "Upload files" });
+    expect(dialog.querySelector<HTMLInputElement>('input[type="file"]')!.accept).toContain(".png,.jpg,.jpeg,.tif,.tiff");
+    expect(within(dialog).getByText(/and PNG, JPEG or TIFF images \(read with OCR\)\./)).toBeInTheDocument();
   });
 });

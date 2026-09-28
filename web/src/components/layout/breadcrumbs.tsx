@@ -6,6 +6,7 @@ import { agentQuery, kbQuery, sourceQuery, teamQuery } from "../../pages/team/co
 import { type EvalSet, evalSetQuery } from "../../pages/team/evaluations/queries";
 import { terms } from "../../lib/terms";
 import { type BreadcrumbItem } from "@/components/ui/breadcrumbs/breadcrumbs";
+import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { isNotFound } from "../not-found";
 import { type PageCrumb, useCurrentCrumbTail, useCurrentPageCrumbs } from "./crumb-tail";
 import { isAdminRoute, isTeamRoute, type Location } from "./location";
@@ -93,7 +94,8 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
   if (slug && isNotFound(team.error)) return [{ label: "Home", icon: icon(Home), render: <Link to="/" /> }];
   if (slug) {
     const crumbs: BreadcrumbItem[] = [
-      { label: team.data?.team.name ?? "Team", icon: icon(Boxes), render: <Link to="/teams/$team" params={{ team: slug }} /> },
+      // Until the team loads, its crumb has no visible text and stays out of the document title (not "… · Team · …").
+      { label: team.data?.team.name ?? <VisuallyHidden>Team</VisuallyHidden>, icon: icon(Boxes), render: <Link to="/teams/$team" params={{ team: slug }} /> },
     ];
     const sub = routeId.slice("/app/teams/$team".length);
     if (sub === "/" || sub === "") crumbs.push({ label: "Overview" });

@@ -4,6 +4,7 @@
  * a team's last owner are listed too, as left alone.
  */
 import { useQuery } from "@tanstack/react-query";
+import { ApiError } from "@/api/client";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Loading } from "@/components/ui/spinner/spinner";
@@ -31,6 +32,8 @@ export function RulePreview({ body, enabled = true }: { body: PreviewRequest; en
   const preview = useQuery(groupRulePreviewQuery(debounced, enabled));
   if (!enabled) return null;
   if (preview.isLoading) return <Loading label="Checking who this changes…" />;
+  // A duplicate rule is said once, under the group (the dialog checks for it); it isn't a failed dry run.
+  if (preview.error instanceof ApiError && preview.error.code === "rule_exists") return null;
   if (preview.error) return <ErrorAlert error={preview.error} title="Couldn't run the dry run" />;
   const changes = preview.data?.changes ?? [];
   return (
@@ -40,7 +43,7 @@ export function RulePreview({ body, enabled = true }: { body: PreviewRequest; en
         <span className={s.muted}>From the groups each person had at their last sign-in; others are matched when they next sign in.</span>
       </p>
       {changes.length > 0 && (
-        <Table caption="People this changes" columns={["Person", "Change", "Role", "Groups seen"]} maxHeight="16rem">
+        <Table caption="People this changes" columns={["Person", "Change", "Role", "Groups last seen"]} maxHeight="16rem">
           {changes.map((c) => (
             <Tr key={c.user.id}>
               <Td>
