@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -72,6 +73,8 @@ type Result struct {
 	AgentSlug string
 	// CanOpen and CanChat are set for agents.
 	CanOpen, CanChat bool
+	// UpdatedAt is set for conversations: when they last changed.
+	UpdatedAt time.Time
 
 	rank int
 }
@@ -270,7 +273,7 @@ func (s *Service) conversations(ctx context.Context, p patterns) ([]Result, erro
 			st = "agent_deleted"
 		}
 		out = append(out, Result{Type: TypeConversation, ID: r.ID, Label: r.Title, Secondary: r.AgentName, TeamSlug: r.TeamSlug,
-			AgentSlug: r.AgentSlug, Status: st, rank: int(r.Rank)})
+			AgentSlug: r.AgentSlug, Status: st, UpdatedAt: r.UpdatedAt, rank: int(r.Rank)})
 	}
 	return out, err
 }

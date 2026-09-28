@@ -84,13 +84,21 @@ export function useEvalComparison(team: string, setId: string, a: string | undef
   });
 }
 
-/** Documents of the set's knowledge bases matching text (the expected-documents picker). */
-export function useEvalDocuments(team: string, setId: string | undefined, text: string) {
+/** Where the expected-documents picker searches: a set's knowledge bases, or, before the set exists, its knowledge base's or agent's. */
+export type DocumentScope = { setId: string } | { kbId: string } | { agentId: string };
+
+/** Documents matching text (the expected-documents picker). */
+export function useEvalDocuments(team: string, scope: DocumentScope | undefined, text: string) {
   return useQuery({
-    queryKey: ["team", team, "evaluation-set", setId, "documents", text],
-    queryFn: async () =>
-      unwrap(await api.GET("/v1/teams/{team}/evaluation-sets/{setId}/documents", { params: { path: { team, setId: setId! }, query: { q: text, limit: 20 } } })),
-    enabled: Boolean(setId),
+    queryKey: ["team", team, "evaluation-documents", scope, text],
+    queryFn: async () => {
+      if (scope && "setId" in scope)
+        return unwrap(
+          await api.GET("/v1/teams/{team}/evaluation-sets/{setId}/documents", { params: { path: { team, setId: scope.setId }, query: { q: text, limit: 20 } } }),
+        );
+      return unwrap(await api.GET("/v1/teams/{team}/evaluation-documents", { params: { path: { team }, query: { ...scope, q: text, limit: 20 } } }));
+    },
+    enabled: Boolean(scope),
     placeholderData: (prev) => prev,
   });
 }

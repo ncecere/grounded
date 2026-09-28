@@ -1,7 +1,8 @@
 /*
  * Run a set (docs/evaluations.md §2-§4): a retrieval check (the default,
  * no model calls) or, for an agent's set, a full-answer check of its draft
- * or published version, with an estimate of the answers it asks for.
+ * or published version, with the number of answers it asks for and, when
+ * the team's budget is enforced, that they count against it.
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -14,14 +15,20 @@ import { Field } from "@/components/ui/field/field";
 import { NativeSelect } from "@/components/ui/input/input";
 import { RadioGroup } from "@/components/ui/radio-group/radio-group";
 import { toast } from "@/components/ui/toast/toast";
-import { useTeam } from "../common";
+import { useBudgetStatus } from "@/lib/costs";
+import { plural, useTeam } from "../common";
 import { type EvalSet, evalRunsKey, evalSetKey, evalSetsKey } from "./queries";
 
 type Kind = "retrieval" | "answer";
 type Version = "draft" | "published";
 
-/** "About 40 answers": what a full-answer check asks the agent. */
-export const answerEstimate = (questions: number) => `About ${questions.toLocaleString()} ${questions === 1 ? "answer" : "answers"} from the agent, counted as chat usage.`;
+/**
+ * What a full-answer check asks the agent: one answer per question (the
+ * number is exact), counted as chat usage, and against the monthly budget
+ * when the team has an enforced one (costs on, docs/costs.md).
+ */
+export const answerEstimate = (questions: number, budgeted = false) =>
+  `${plural(questions, "answer")} from the agent, counted as chat usage${budgeted ? " and against the team's monthly budget" : ""}.`;
 
 /** Starts a run, then shows it: the Runs tab with the run's record page (one history entry). */
 export function RunDialog({ set, onClose }: { set: EvalSet; onClose: () => void }) {
@@ -31,6 +38,8 @@ export function RunDialog({ set, onClose }: { set: EvalSet; onClose: () => void 
   const agentSet = set.target.type === "agent";
   const [kind, setKind] = useState<Kind>("retrieval");
   const [version, setVersion] = useState<Version>("draft");
+  // "none" unless the budget is enforced; the amounts are for owners and admins only.
+  const budget = useBudgetStatus(agentSet ? slug : undefined).data?.state;
   const start = useMutation({
     mutationFn: async () =>
       unwrap(
@@ -72,7 +81,13 @@ export function RunDialog({ set, onClose }: { set: EvalSet; onClose: () => void 
           </NativeSelect>
         </Field>
       )}
-      {kind === "answer" && <Alert tone="info">{answerEstimate(set.questionCount)}</Alert>}
+      {kind === "answer" && (
+        <Alert tone={budget === "warning" || budget === "exhausted" ? "warning" : "info"}>
+          {answerEstimate(set.questionCount, Boolean(budget && budget !== "none"))}
+          {budget === "exhausted" && " The budget is used up, so the run would stop at the first answer."}
+          {budget === "warning" && " The team is near its budget."}
+        </Alert>
+      )}
     </FormDialog>
   );
 }

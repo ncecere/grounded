@@ -40,8 +40,25 @@ func TestParseCSV(t *testing.T) {
 	if len(probs) != 3 || lines[0] != 5 || lines[1] != 6 || lines[2] != 7 {
 		t.Errorf("problems = %+v", probs)
 	}
-	if !strings.Contains(probs[0].Message, "expected document") || !strings.Contains(probs[1].Message, "question") {
+	if !strings.Contains(probs[0].Message, "expected document") || probs[1].Message != "The question is empty." {
 		t.Errorf("problem messages = %+v", probs)
+	}
+	for _, p := range probs {
+		if !strings.HasSuffix(p.Message, ".") {
+			t.Errorf("line %d: %q doesn't end with a period", p.Line, p.Message)
+		}
+	}
+	_, probs = ParseCSV(strings.Repeat("x", MaxQuestionChars+1) + ",https://example.edu/\n")
+	if len(probs) != 1 || probs[0].Message != "The question must be 1\u20134,000 characters." {
+		t.Errorf("a long question: %+v", probs)
+	}
+}
+
+func TestThousands(t *testing.T) {
+	for n, want := range map[int]string{0: "0", 999: "999", 1000: "1,000", 2048: "2,048", 1234567: "1,234,567"} {
+		if got := thousands(n); got != want {
+			t.Errorf("thousands(%d) = %q, want %q", n, got, want)
+		}
 	}
 }
 

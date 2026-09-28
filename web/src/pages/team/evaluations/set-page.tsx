@@ -7,12 +7,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
 import { Download, History, ListChecks, Play, Settings2 } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { NotFoundState, isNotFound } from "@/components/not-found";
 import { DetailPage } from "@/components/templates/detail-page";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { TextLink } from "@/components/ui/text-link/text-link";
+import { Tooltip } from "@/components/ui/tooltip/tooltip";
+import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { evaluationSetTabs } from "@/lib/tabs";
 import { plural, useTeam } from "../common";
 import { ArchivedNotice, PageSkeleton } from "../layout";
@@ -44,6 +46,34 @@ function TargetLink({ set }: { set: EvalSet }) {
   );
 }
 
+/**
+ * Run, the page's one primary action. When the set can't run it stays
+ * focusable (aria-disabled, not disabled) and says why, so keyboard,
+ * screen-reader and touch users get the reason too (P-04).
+ */
+function RunButton({ set, onRun }: { set: EvalSet; onRun: () => void }) {
+  const { archived } = useTeam();
+  const reasonId = useId();
+  const reason = archived ? "The team is archived." : set.questionCount === 0 ? "Add questions first." : undefined;
+  if (!reason)
+    return (
+      <Button onClick={onRun}>
+        <Play aria-hidden /> Run
+      </Button>
+    );
+  return (
+    <>
+      <Tooltip content={reason}>
+        {/* A non-native button: aria-disabled and focusable, activation cancelled. */}
+        <Button disabled render={<button type="button" />} aria-describedby={reasonId}>
+          <Play aria-hidden /> Run
+        </Button>
+      </Tooltip>
+      <VisuallyHidden id={reasonId}>{reason}</VisuallyHidden>
+    </>
+  );
+}
+
 function SetPage({ set }: { set: EvalSet }) {
   const { slug, archived } = useTeam();
   const [running, setRunning] = useState(false);
@@ -59,11 +89,7 @@ function SetPage({ set }: { set: EvalSet }) {
           { id: "score", label: "Latest score", value: last && last.status === "completed" ? scoreText(last) : undefined },
           { id: "auto", label: "Automatic runs", value: set.autoRun ? "Automatic runs on" : "Automatic runs off" },
         ]}
-        primaryAction={
-          <Button onClick={() => setRunning(true)} disabled={archived || set.questionCount === 0} title={set.questionCount === 0 ? "Add questions first" : undefined}>
-            <Play aria-hidden /> Run
-          </Button>
-        }
+        primaryAction={<RunButton set={set} onRun={() => setRunning(true)} />}
         menuActions={[
           {
             label: "Export questions (CSV)",
@@ -76,7 +102,7 @@ function SetPage({ set }: { set: EvalSet }) {
         tabsLabel="Evaluation set sections"
         tabs={[
           { value: "questions", label: "Questions", icon: <ListChecks aria-hidden />, count: set.questionCount, content: <QuestionsTab set={set} /> },
-          { value: "runs", label: "Runs", icon: <History aria-hidden />, content: <RunsTab set={set} onRun={() => setRunning(true)} /> },
+          { value: "runs", label: "Runs", icon: <History aria-hidden />, content: <RunsTab set={set} /> },
           { value: "settings", label: "Settings", icon: <Settings2 aria-hidden />, hidden: archived, content: <SetSettings set={set} /> },
         ]}
       />

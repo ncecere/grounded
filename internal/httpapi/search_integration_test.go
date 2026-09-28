@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 )
@@ -109,8 +110,12 @@ func TestSearchVisibilityByRole(t *testing.T) {
 		*g.TeamSlug != "zephyr" || *g.AgentSlug != guide.Slug {
 		t.Errorf("blair's guide = %+v", g)
 	}
-	if c := rs[1]; c.Id.String() != blairConv || c.Secondary != "Zephyr campus guide" || *c.AgentSlug != guide.Slug {
+	if c := rs[1]; c.Id.String() != blairConv || c.Secondary != "Zephyr campus guide" || *c.AgentSlug != guide.Slug || c.UpdatedAt == nil ||
+		time.Since(*c.UpdatedAt) > time.Hour {
 		t.Errorf("blair's conversation = %+v", c)
+	}
+	if rs[0].UpdatedAt != nil {
+		t.Errorf("an agent has updatedAt: %+v", rs[0])
 	}
 
 	// Zephyr's owner (an editor of registrar): all of zephyr, and only her

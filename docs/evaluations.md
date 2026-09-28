@@ -30,8 +30,8 @@ No model calls except embedding the question, so it's fast and nearly free.
 
 - Asks the agent each question the way a chat would, from its **published** version or its **draft** (the run form picks; draft by default in the editor), without writing a conversation (the Test panel's mode).
 - Scores per question: did the answer **cite** an expected document; does it **mention** each must-mention phrase; did it **refuse** ("I don't know") when it shouldn't; and, when SystemOne citation checks are on for the agent, the share of **supported claims**.
-- A question passes when it cites an expected document and mentions every phrase. The answer text is stored with the result so editors can read it (it's the team's own test output, not a user conversation).
-- Tokens are metered as chat usage tagged as evaluation, priced by E2, refused when a budget is used up. The run form shows an estimate ("about 40 answers").
+- A question passes when it cites an expected document and mentions every phrase. The answer text is stored with the result so editors can read it (it's the team's own test output, not a user conversation), with its citations one per marker number (`[1]`, `[2]`…) and the cited passage, so the result page shows the answer formatted as in chat, with citation chips that match its markers.
+- Tokens are metered as chat usage tagged as evaluation, priced by E2, refused when a budget is used up. The run form says how many answers it asks for ("40 answers") and, when the team's budget is enforced, that they count against it.
 
 ## 4. Runs, results and trends
 
@@ -49,7 +49,7 @@ No model calls except embedding the question, so it's fast and nearly free.
 
 ## 6. API (OpenAPI first)
 
-Under `/v1/teams/{team}/evaluation-sets`: list and create (with `kbId` or `agentId`), get, update, delete; `/{setId}/questions` CRUD and `/{setId}/questions/import` (dry run and commit) and `/{setId}/questions.csv`; `/{setId}/runs` list and start, `/{setId}/runs/{runId}` get (with results) and cancel, `/{setId}/runs/compare?a&b`. Editors and above of the team; members get 404. Every operation in the authorization matrix. Audited: set and question changes, imports, runs started and cancelled.
+Under `/v1/teams/{team}/evaluation-sets`: list and create (with `kbId` or `agentId`), get, update, delete; `/{setId}/questions` CRUD and `/{setId}/questions/import` (dry run and commit) and `/{setId}/questions.csv`; `/{setId}/runs` list and start, `/{setId}/runs/{runId}` get (with results) and cancel, `/{setId}/runs/compare?a&b`; `/{setId}/documents?q` finds the documents a set's questions can expect (the picker), and `/v1/teams/{team}/evaluation-documents?kbId|agentId&q` does the same for a knowledge base or agent before its first set exists ("Add to evaluations" into a new set). Editors and above of the team; members get 404. Every operation in the authorization matrix. Audited: set and question changes, imports, runs started and cancelled.
 
 ## 7. Data
 

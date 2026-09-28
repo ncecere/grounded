@@ -5512,16 +5512,33 @@ type EvaluationExpected struct {
 	Urls        []string             `json:"urls"`
 }
 
-// EvaluationHit defines model for EvaluationHit.
+// EvaluationHit A document that came back (retrieval: once per document, at its best passage rank) or a citation of the answer (full answers: one per [n] marker number, in the answer's order, with the cited passage).
 type EvaluationHit struct {
 	DocumentId openapi_types.UUID `json:"documentId"`
 
 	// Expected One of the question's expected documents
 	Expected bool    `json:"expected"`
 	Filename *string `json:"filename,omitempty"`
-	Rank     int     `json:"rank"`
-	Title    string  `json:"title"`
-	Url      *string `json:"url,omitempty"`
+
+	// HeadingPath The cited passage's headings (full answers)
+	HeadingPath *[]string `json:"headingPath,omitempty"`
+
+	// N The answer's marker number: [n] cites this entry (full answers)
+	N *int `json:"n,omitempty"`
+
+	// PageEnd The cited passage's last page (full answers)
+	PageEnd *int `json:"pageEnd,omitempty"`
+
+	// PageStart The cited passage's first page (full answers)
+	PageStart *int `json:"pageStart,omitempty"`
+
+	// Rank The passage rank (retrieval) or the citation's position (answers)
+	Rank int `json:"rank"`
+
+	// Snippet The cited passage (full answers)
+	Snippet *string `json:"snippet,omitempty"`
+	Title   string  `json:"title"`
+	Url     *string `json:"url,omitempty"`
 }
 
 // EvaluationImportProblem defines model for EvaluationImportProblem.
@@ -5612,7 +5629,7 @@ type EvaluationQuestionResult struct {
 	Answer *string `json:"answer"`
 	Error  string  `json:"error"`
 
-	// Hits What came back (retrieval) or was cited (answers), once per document
+	// Hits What came back (retrieval), once per document, or what the answer cited (full answers), once per marker number
 	Hits      []EvaluationHit    `json:"hits"`
 	Id        openapi_types.UUID `json:"id"`
 	LatencyMs int                `json:"latencyMs"`
@@ -5644,7 +5661,7 @@ type EvaluationResult struct {
 	Answer *string `json:"answer"`
 	Error  string  `json:"error"`
 
-	// Hits What came back (retrieval) or was cited (answers), once per document
+	// Hits What came back (retrieval), once per document, or what the answer cited (full answers), once per marker number
 	Hits      []EvaluationHit    `json:"hits"`
 	Id        openapi_types.UUID `json:"id"`
 	LatencyMs int                `json:"latencyMs"`
@@ -8027,6 +8044,9 @@ type SearchResult struct {
 	// TeamSlug The team (teams, agents, knowledge bases, data sources, conversations)
 	TeamSlug *string          `json:"teamSlug,omitempty"`
 	Type     SearchResultType `json:"type"`
+
+	// UpdatedAt Conversations only. When it last changed, so the palette can tell conversations with the same title apart.
+	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
 }
 
 // SearchResultType defines model for SearchResult.Type.
@@ -9400,6 +9420,14 @@ type ListTeamConversationsParams struct {
 	// Cursor nextCursor from the previous page
 	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListEvaluationTargetDocumentsParams defines parameters for ListEvaluationTargetDocuments.
+type ListEvaluationTargetDocumentsParams struct {
+	KbId    *openapi_types.UUID `form:"kbId,omitempty" json:"kbId,omitempty"`
+	AgentId *openapi_types.UUID `form:"agentId,omitempty" json:"agentId,omitempty"`
+	Q       *string             `form:"q,omitempty" json:"q,omitempty"`
+	Limit   *int                `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // ListEvaluationSetsParams defines parameters for ListEvaluationSets.

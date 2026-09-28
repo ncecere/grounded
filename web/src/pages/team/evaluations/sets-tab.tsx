@@ -19,7 +19,9 @@ import { Input, Textarea } from "@/components/ui/input/input";
 import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { Switch } from "@/components/ui/switch/switch";
+import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
+import s from "../../shared.module.css";
 import { plural, useTeam } from "../common";
 import { pct, runStatus } from "./labels";
 import { type EvalSet, evalSetsKey, evalSetsQuery } from "./queries";
@@ -41,8 +43,9 @@ export function EvaluationsTab({ target }: { target: EvalTarget }) {
   const filter = target.kbId ? { kbId: target.kbId } : { agentId: target.agentId! };
   const sets = useQuery(evalSetsQuery(slug, filter));
   const open = (id: string) => void navigate({ to: "/teams/$team/evaluations/$setId", params: { team: slug, setId: id } });
+  // Secondary: the knowledge base's or agent's page has its own primary action (one per view).
   const newSet = canEdit ? (
-    <Button onClick={() => setCreating(true)}>
+    <Button variant="secondary" onClick={() => setCreating(true)}>
       <Plus aria-hidden /> New set
     </Button>
   ) : undefined;
@@ -54,8 +57,17 @@ export function EvaluationsTab({ target }: { target: EvalTarget }) {
       rowHeader: true,
       sortable: true,
       accessor: (x) => x.name,
-      // The row opens the set (a click, or Enter on its button); its menu has Open.
-      cell: (x) => <CellText primary={x.name} secondary={x.description || undefined} />,
+      // A link, like the knowledge base and agent lists: it can be opened in a new tab or copied.
+      cell: (x) => (
+        <CellText
+          primary={
+            <TextLink render={<Link to="/teams/$team/evaluations/$setId" params={{ team: slug, setId: x.id }} />} className={s.primary}>
+              {x.name}
+            </TextLink>
+          }
+          secondary={x.description || undefined}
+        />
+      ),
     },
     { id: "questions", header: "Questions", sortable: true, accessor: (x) => x.questionCount, cell: (x) => plural(x.questionCount, "question") },
     { id: "last", header: "Latest run", accessor: lastRunText, cell: (x) => <CellText primary={lastRunText(x)} secondary={x.lastRun ? <RelativeTime value={x.lastRun.createdAt} /> : undefined} /> },
@@ -82,7 +94,6 @@ export function EvaluationsTab({ target }: { target: EvalTarget }) {
         data={sets.data ?? []}
         getRowId={(x) => x.id}
         rowLabel={(x) => x.name}
-        onRowClick={(x) => open(x.id)}
         rowActions={(x) => [{ label: "Open", icon: <FolderOpen aria-hidden />, render: <Link to="/teams/$team/evaluations/$setId" params={{ team: slug, setId: x.id }} /> }]}
         empty={{ icon: <ClipboardCheck />, title: "No evaluation sets yet.", description: "A set is a list of questions with the documents that should answer them.", action: newSet }}
         loading={sets.isLoading}
@@ -133,7 +144,9 @@ export function CreateSetDialog({ target, onClose, onCreated }: { target: EvalTa
     >
       <ApiErrorAlert error={create.error} />
       <Field label="Name" error={nameError}>
-        <Input aria-required maxLength={200} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        {/* No autoFocus: the dialog focuses its first field itself. An input that takes focus while the dialog mounts
+            becomes where focus returns on close, and it's gone by then, so focus fell to <body>. */}
+        <Input aria-required maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
       <Field label="Description" labelHint="Optional">
         <Textarea maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} />

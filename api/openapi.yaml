@@ -5982,6 +5982,49 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/EvaluationDocument" }
         "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-documents:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+    get:
+      tags: [evaluations]
+      operationId: listEvaluationTargetDocuments
+      summary: Documents of a knowledge base or an agent's knowledge bases by title, filename or URL, before it has a set (editors, admins and owners)
+      description: >-
+        The expected-documents picker of "Add to evaluations" when the
+        question goes into a new set: the documents the set's questions
+        could expect, the same as the set's own /documents once it exists.
+        Give exactly one of kbId and agentId, of this team.
+      parameters:
+        - name: kbId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: agentId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        "200":
+          description: Documents, by title
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/EvaluationDocument" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/evaluation-sets/{setId}/runs:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -9644,6 +9687,10 @@ components:
         canChat:
           type: boolean
           description: Agents only. The agent is published and active and the caller may chat with it.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Conversations only. When it last changed, so the palette can tell conversations with the same title apart.
     AgentCard:
       type: object
       description: A published agent's public profile
@@ -11029,14 +11076,26 @@ components:
         finishedAt: { type: string, format: date-time, nullable: true }
     EvaluationHit:
       type: object
+      description: >-
+        A document that came back (retrieval: once per document, at its best
+        passage rank) or a citation of the answer (full answers: one per [n]
+        marker number, in the answer's order, with the cited passage).
       required: [rank, documentId, title, expected]
       properties:
-        rank: { type: integer }
+        rank: { type: integer, description: The passage rank (retrieval) or the citation's position (answers) }
         documentId: { type: string, format: uuid }
         title: { type: string }
         url: { type: string }
         filename: { type: string }
         expected: { type: boolean, description: One of the question's expected documents }
+        n: { type: integer, description: "The answer's marker number: [n] cites this entry (full answers)" }
+        snippet: { type: string, description: The cited passage (full answers) }
+        headingPath:
+          type: array
+          description: The cited passage's headings (full answers)
+          items: { type: string }
+        pageStart: { type: integer, description: The cited passage's first page (full answers) }
+        pageEnd: { type: integer, description: The cited passage's last page (full answers) }
     EvaluationMention:
       type: object
       required: [phrase, found]
@@ -11067,7 +11126,7 @@ components:
         rank: { type: integer, nullable: true, description: The rank of the first expected document (retrieval) }
         hits:
           type: array
-          description: What came back (retrieval) or was cited (answers), once per document
+          description: What came back (retrieval), once per document, or what the answer cited (full answers), once per marker number
           items: { $ref: "#/components/schemas/EvaluationHit" }
         answer: { type: string, nullable: true, description: The agent's answer (full-answer checks) }
         scores:

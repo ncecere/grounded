@@ -3768,6 +3768,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/evaluation-documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Documents of a knowledge base or an agent's knowledge bases by title, filename or URL, before it has a set (editors, admins and owners)
+         * @description The expected-documents picker of "Add to evaluations" when the question goes into a new set: the documents the set's questions could expect, the same as the set's own /documents once it exists. Give exactly one of kbId and agentId, of this team.
+         */
+        get: operations["listEvaluationTargetDocuments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}/evaluation-sets/{setId}/runs": {
         parameters: {
             query?: never;
@@ -7152,6 +7175,11 @@ export interface components {
             canOpen?: boolean;
             /** @description Agents only. The agent is published and active and the caller may chat with it. */
             canChat?: boolean;
+            /**
+             * Format: date-time
+             * @description Conversations only. When it last changed, so the palette can tell conversations with the same title apart.
+             */
+            updatedAt?: string;
         };
         /** @description A published agent's public profile */
         AgentCard: {
@@ -8586,7 +8614,9 @@ export interface components {
             /** Format: date-time */
             finishedAt: string | null;
         };
+        /** @description A document that came back (retrieval: once per document, at its best passage rank) or a citation of the answer (full answers: one per [n] marker number, in the answer's order, with the cited passage). */
         EvaluationHit: {
+            /** @description The passage rank (retrieval) or the citation's position (answers) */
             rank: number;
             /** Format: uuid */
             documentId: string;
@@ -8595,6 +8625,16 @@ export interface components {
             filename?: string;
             /** @description One of the question's expected documents */
             expected: boolean;
+            /** @description The answer's marker number: [n] cites this entry (full answers) */
+            n?: number;
+            /** @description The cited passage (full answers) */
+            snippet?: string;
+            /** @description The cited passage's headings (full answers) */
+            headingPath?: string[];
+            /** @description The cited passage's first page (full answers) */
+            pageStart?: number;
+            /** @description The cited passage's last page (full answers) */
+            pageEnd?: number;
         };
         EvaluationMention: {
             phrase: string;
@@ -8624,7 +8664,7 @@ export interface components {
             status: "pass" | "fail" | "missing" | "error";
             /** @description The rank of the first expected document (retrieval) */
             rank: number | null;
-            /** @description What came back (retrieval) or was cited (answers), once per document */
+            /** @description What came back (retrieval), once per document, or what the answer cited (full answers), once per marker number */
             hits: components["schemas"]["EvaluationHit"][];
             /** @description The agent's answer (full-answer checks) */
             answer: string | null;
@@ -16039,6 +16079,38 @@ export interface operations {
                     };
                 };
             };
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    listEvaluationTargetDocuments: {
+        parameters: {
+            query?: {
+                kbId?: string;
+                agentId?: string;
+                q?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Documents, by title */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationDocument"][];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
         };
     };

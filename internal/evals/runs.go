@@ -255,8 +255,10 @@ type Result struct {
 	Scores *AnswerScores
 }
 
-// HitView is a document that came back (or was cited), for the editor.
+// HitView is a document that came back, or a citation of an answer, for
+// the editor.
 type HitView struct {
+	// Rank is the passage rank (retrieval) or the citation's position.
 	Rank       int       `json:"rank"`
 	DocumentID uuid.UUID `json:"documentId"`
 	Title      string    `json:"title"`
@@ -264,6 +266,13 @@ type HitView struct {
 	Filename   string    `json:"filename,omitempty"`
 	// Expected: the document is one of the question's expected documents.
 	Expected bool `json:"expected"`
+	// N is the answer's marker number ([n]) and the rest the cited passage
+	// (full answers only).
+	N           int      `json:"n,omitempty"`
+	Snippet     string   `json:"snippet,omitempty"`
+	HeadingPath []string `json:"headingPath,omitempty"`
+	PageStart   *int32   `json:"pageStart,omitempty"`
+	PageEnd     *int32   `json:"pageEnd,omitempty"`
 }
 
 // DecodeResult reads a stored result.

@@ -23,6 +23,7 @@ func (a *api) evaluationRoutes() []route {
 	return []route{
 		{"GET", "/v1/teams/{team}/evaluation-sets", a.session(a.listEvaluationSets)},
 		{"POST", "/v1/teams/{team}/evaluation-sets", a.session(a.createEvaluationSet)},
+		{"GET", "/v1/teams/{team}/evaluation-documents", a.session(a.listEvaluationTargetDocuments)},
 		{"GET", set, a.session(a.getEvaluationSet)},
 		{"PATCH", set, a.session(a.updateEvaluationSet)},
 		{"DELETE", set, a.session(a.deleteEvaluationSet)},
@@ -157,10 +158,32 @@ func (a *api) listEvaluationDocuments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	docs, err := a.Evaluations.Documents(r.Context(), a.actor(r), r.PathValue("team"), id, r.URL.Query().Get("q"), limit)
-	writeList(w, r, docs, err, func(d evals.Document) apitypes.EvaluationDocument {
-		name := d.SourceName
-		return apitypes.EvaluationDocument{Id: d.ID, Title: d.Title, Filename: d.Filename, Url: d.URL, SourceName: &name}
-	})
+	writeList(w, r, docs, err, toAPIEvaluationDocument)
+}
+
+// listEvaluationTargetDocuments is the picker for a knowledge base or agent
+// without a set yet.
+func (a *api) listEvaluationTargetDocuments(w http.ResponseWriter, r *http.Request) {
+	kb, ok := queryUUID(w, r, "kbId")
+	if !ok {
+		return
+	}
+	agent, ok := queryUUID(w, r, "agentId")
+	if !ok {
+		return
+	}
+	limit, ok := queryLimit(w, r, 50)
+	if !ok {
+		return
+	}
+	docs, err := a.Evaluations.TargetDocuments(r.Context(), a.actor(r), r.PathValue("team"), evals.Filter{KBID: kb, AgentID: agent},
+		r.URL.Query().Get("q"), limit)
+	writeList(w, r, docs, err, toAPIEvaluationDocument)
+}
+
+func toAPIEvaluationDocument(d evals.Document) apitypes.EvaluationDocument {
+	name := d.SourceName
+	return apitypes.EvaluationDocument{Id: d.ID, Title: d.Title, Filename: d.Filename, Url: d.URL, SourceName: &name}
 }
 
 // ---- questions -----------------------------------------------------------------------

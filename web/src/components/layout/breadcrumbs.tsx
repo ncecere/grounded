@@ -153,15 +153,23 @@ export function documentTitle(crumbs: BreadcrumbItem[], instanceName: string) {
   return [...labels.slice(-2).reverse(), instanceName].join(" · ");
 }
 
-/** An evaluation set: its knowledge base's or agent's Evaluations tab, then the set. */
+/** An evaluation set, where its knowledge base's or agent's page puts it: Knowledge bases › Student help › Evaluations › the set. */
 function evalSetCrumbs(slug: string, set: EvalSet | undefined): BreadcrumbItem[] {
   if (!set) return [{ label: "Evaluation set" }];
   const t = set.target;
-  const back =
-    t.type === "agent" ? (
-      <Link to="/teams/$team/agents/$agentId" params={{ team: slug, agentId: t.id }} search={{ tab: "evaluations" }} />
+  const agent = t.type === "agent";
+  const page = (search?: { tab: "evaluations" }) =>
+    agent ? (
+      <Link to="/teams/$team/agents/$agentId" params={{ team: slug, agentId: t.id }} search={search} />
     ) : (
-      <Link to="/teams/$team/kbs/$kbId" params={{ team: slug, kbId: t.id }} search={{ tab: "evaluations" }} />
+      <Link to="/teams/$team/kbs/$kbId" params={{ team: slug, kbId: t.id }} search={search} />
     );
-  return [{ label: t.name, render: back }, { label: set.name }];
+  return [
+    agent
+      ? { label: "Agents", render: <Link to="/teams/$team/agents" params={{ team: slug }} /> }
+      : { label: "Knowledge bases", render: <Link to="/teams/$team/kbs" params={{ team: slug }} /> },
+    { label: t.name, render: page() },
+    { label: "Evaluations", render: page({ tab: "evaluations" }) },
+    { label: set.name },
+  ];
 }

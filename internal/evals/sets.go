@@ -206,13 +206,19 @@ func (s *Service) Delete(ctx context.Context, a authz.Actor, teamRef string, id 
 // kbIDs are the knowledge bases a set searches: its own, or the agent's
 // (the draft's and the published version's).
 func (s *Service) kbIDs(ctx context.Context, set dbgen.EvalSet) ([]uuid.UUID, error) {
-	if set.KBID.Valid {
-		return []uuid.UUID{set.KBID.UUID}, nil
+	return s.targetKBIDs(ctx, set.KBID, set.AgentID)
+}
+
+// targetKBIDs are the knowledge bases a set of the knowledge base or agent
+// searches.
+func (s *Service) targetKBIDs(ctx context.Context, kbID, agentID uuid.NullUUID) ([]uuid.UUID, error) {
+	if kbID.Valid {
+		return []uuid.UUID{kbID.UUID}, nil
 	}
 	ids := map[uuid.UUID]bool{}
 	var out []uuid.UUID
 	for _, published := range []bool{false, true} {
-		t, err := s.Agents.LoadEvalTarget(ctx, set.AgentID.UUID, published)
+		t, err := s.Agents.LoadEvalTarget(ctx, agentID.UUID, published)
 		if agents.ErrNoPublishedVersion(err) {
 			continue
 		} else if err != nil {
@@ -254,6 +260,30 @@ func (s *Service) Documents(ctx context.Context, a authz.Actor, teamRef string, 
 	if err != nil {
 		return nil, err
 	}
+	return s.searchDocuments(ctx, kbIDs, text, limit)
+}
+
+// TargetDocuments finds documents the way Documents does for a knowledge
+// base or agent of the team that has no set yet ("Add to evaluations" into
+// a new set).
+func (s *Service) TargetDocuments(ctx context.Context, a authz.Actor, teamRef string, f Filter, text string, limit int) ([]Document, error) {
+	acc, err := s.access(ctx, a, teamRef, false)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.checkTarget(ctx, s.q, acc.Team.ID, SetInput{KBID: f.KBID, AgentID: f.AgentID}); err != nil {
+		return nil, err
+	}
+	kbIDs, err := s.targetKBIDs(ctx, nullID(f.KBID), nullID(f.AgentID))
+	if err != nil {
+		return nil, err
+	}
+	return s.searchDocuments(ctx, kbIDs, text, limit)
+}
+
+// searchDocuments finds documents of the knowledge bases' sources by
+// title, filename or URL.
+func (s *Service) searchDocuments(ctx context.Context, kbIDs []uuid.UUID, text string, limit int) ([]Document, error) {
 	sources, err := s.sourceIDs(ctx, kbIDs)
 	if err != nil {
 		return nil, err
@@ -280,7 +310,7 @@ func (s *Service) checkDocuments(ctx context.Context, sources []uuid.UUID, ids [
 			return err
 		}
 		if !ok {
-			return invalidExpected("The document %s isn't in this set's knowledge base", id)
+			return invalidExpected("The document %s isn't in this set's knowledge base.", id)
 		}
 	}
 	return nil

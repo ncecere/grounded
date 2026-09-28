@@ -109,7 +109,7 @@ LIMIT @lim;
 -- The user's own conversations by title (never anyone else's; deleted
 -- ones are gone), most recent first within a rank.
 -- name: SearchConversations :many
-SELECT c.id, c.title, a.name AS agent_name, a.slug AS agent_slug, t.slug AS team_slug,
+SELECT c.id, c.title, c.updated_at, a.name AS agent_name, a.slug AS agent_slug, t.slug AS team_slug,
        (a.deleted_at IS NOT NULL)::bool AS agent_deleted,
        (CASE WHEN c.title ILIKE @prefix::text THEN 0 WHEN c.title ~* @word::text THEN 1 ELSE 2 END)::int AS rank
 FROM conversations c

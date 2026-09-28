@@ -41,7 +41,8 @@ describe("pure helpers", () => {
     expect(splitExpected([" https://example.edu/a* ", "guide.pdf", ""], ["d1"])).toEqual({ documentIds: ["d1"], urls: ["https://example.edu/a*"], filenames: ["guide.pdf"] });
     expect(importFormat("set.JSONL")).toBe("jsonl");
     expect(importFormat("questions.csv")).toBe("csv");
-    expect(answerEstimate(40)).toBe("About 40 answers from the agent, counted as chat usage.");
+    expect(answerEstimate(40)).toBe("40 answers from the agent, counted as chat usage.");
+    expect(answerEstimate(1, true)).toBe("1 answer from the agent, counted as chat usage and against the team's monthly budget.");
   });
 });
 
@@ -91,9 +92,56 @@ describe("a set's runs", () => {
     expect(within(page).getByRole("table", { name: "Questions compared with the other run" })).toHaveTextContent("Worse");
     expect(calls.find((c) => c.url.endsWith("/compare"))!.search.toString()).toBe("a=r1&b=r2");
     expect(await axe(container)).toHaveNoViolations();
-    // A result opens its question's record page on the Questions tab.
-    await userEvent.click(within(results).getByRole("button", { name: "When does registration open?" }));
-    await waitFor(() => expect(router.state.location.search).toMatchObject({ record: "q2" }));
+    // A result opens as a page over the run (a link: it can open in a new tab); its back link returns to the run.
+    await userEvent.click(within(page).getByRole("button", { name: "All" }));
+    const link = within(results).getByRole("link", { name: "When does registration open?" });
+    expect(link).toHaveAttribute("href", expect.stringContaining("result=res2"));
+    await userEvent.click(link);
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ record: "r2", result: "res2" }));
+    const res = await screen.findByRole("region", { name: "Result" });
+    expect(within(res).getByRole("link", { name: /Back to Run/ })).toBeInTheDocument();
+    expect(within(res).getByRole("heading", { level: 1, name: "When does registration open?" })).toBeInTheDocument();
+    expect(within(res).getAllByText("No expected document in the top results.").length).toBeGreaterThan(0);
+    expect(await axe(container)).toHaveNoViolations();
+    // "Open the question" goes to the question's own page.
+    await userEvent.click(within(res).getByRole("link", { name: /Open the question/ }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ record: "q2" }));
+  });
+
+  it("shows a full answer as chat does: Markdown, chips for its markers and one source per number, and why a question failed", async () => {
+    const answerRun = run("r5", "2026-09-28T10:00:00Z", { kind: "answer", summary: { ...runs[0]!.summary, passRate: 0 } });
+    const cite = (n: number, title: string, extra = {}) => ({ rank: n, n, documentId: `d${n}`, title, expected: n === 1, snippet: `**${title}** passage ${n}.`, ...extra });
+    const failed = result("res1", "How do I order a transcript?", "fail", {
+      answer: "**Order online** [1]. Diplomas are mailed [2], and fees apply [3].",
+      hits: [cite(1, "Transcripts"), cite(2, "Diplomas"), cite(3, "Transcripts", { documentId: "d1", expected: true, headingPath: ["Fees"], pageStart: 2 })],
+      scores: { cited: true, refused: false, mentions: [{ phrase: "transcript", found: true }, { phrase: "Parchment", found: false }] },
+    });
+    mockApi(
+      evalRoutes("editor", {
+        "GET /v1/teams/registrar/evaluation-sets/set1/runs": () => [answerRun, ...runs],
+        "GET /v1/teams/registrar/evaluation-sets/set1/runs/r5": () => ({ run: answerRun, results: [failed] }),
+      }),
+    );
+    const { container } = renderApp("/teams/registrar/evaluations/set1?tab=runs&record=r5&result=res1");
+    const res = await screen.findByRole("region", { name: "Result" }, T);
+    // Rendered Markdown, not raw asterisks.
+    expect(await within(res).findByText("Order online", { selector: "strong" }, T)).toBeInTheDocument();
+    const sources = within(res).getByRole("list", { name: "Sources for this answer" });
+    expect(within(sources).getAllByRole("listitem").map((li) => li.getAttribute("aria-label"))).toEqual([
+      "Source 1: Transcripts (an expected document)",
+      "Source 2: Diplomas",
+      "Source 3: Transcripts (an expected document)",
+    ]);
+    expect(within(sources).getByText(/Fees · p. 2/)).toBeInTheDocument();
+    expect(within(res).getAllByText("Doesn't mention “Parchment”").length).toBeGreaterThan(0);
+    expect(await axe(container)).toHaveNoViolations();
+    // The run's table: no Rank for full answers, a Why column instead, and each cited document once.
+    await userEvent.click(within(res).getByRole("link", { name: /Back to Run/ }));
+    const table = await screen.findByRole("table", { name: "Results" });
+    expect(within(table).queryByRole("columnheader", { name: /Rank/ })).toBeNull();
+    const row = within(table).getByRole("row", { name: /order a transcript/ });
+    expect(row).toHaveTextContent("Doesn't mention “Parchment”");
+    expect(row).toHaveTextContent("Transcripts, Diplomas");
   });
 
   it("shows a running run's progress and cancels it", async () => {
@@ -126,7 +174,7 @@ describe("a set's runs", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Run" }, T));
     const dialog = await screen.findByRole("dialog", { name: "Run Transcript questions" });
     await userEvent.click(within(dialog).getByRole("radio", { name: /Full-answer check/ }));
-    expect(within(dialog).getByText("About 40 answers from the agent, counted as chat usage.")).toBeInTheDocument();
+    expect(within(dialog).getByText("40 answers from the agent, counted as chat usage.")).toBeInTheDocument();
     await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Version" }), "published");
     expect(await axe(dialog)).toHaveNoViolations();
     await userEvent.click(within(dialog).getByRole("button", { name: "Start run" }));
@@ -165,7 +213,8 @@ describe("Add to evaluations", () => {
       ...shellRoutes("none", "editor"),
       "GET /v1/me": () => meWithEvals("editor"),
       "GET /v1/teams/registrar/evaluation-sets": () => [],
-      "POST /v1/teams/registrar/evaluation-sets": () => ({ ...set, id: "set7" }),
+      "GET /v1/teams/registrar/evaluation-documents": () => [{ id: "d1", title: "Bursar office", filename: "bursar.md", url: "", sourceName: "Policies" }],
+      "POST /v1/teams/registrar/evaluation-sets": () => ({ ...set, id: "set7", name: "Helper questions" }),
       "POST /v1/teams/registrar/evaluation-sets/set7/questions": () => questions[1],
     });
     const { AddToEvaluationsDialog } = await import("../pages/team/evaluations/add-to-evaluations");
@@ -173,6 +222,11 @@ describe("Add to evaluations", () => {
     const dialog = await screen.findByRole("dialog", { name: "Add to evaluations" });
     expect(within(dialog).getByRole("textbox", { name: "Question" })).toHaveValue("Where is the bursar?");
     expect(await within(dialog).findByRole("textbox", { name: "New set's name" })).toHaveValue("Helper questions");
+    // Before the set exists, the picker searches the agent's knowledge bases, by filename too.
+    await userEvent.type(within(dialog).getByRole("combobox", { name: "Expected documents" }), "bursar.md");
+    expect(await screen.findByRole("option", { name: /Bursar office · bursar.md/ })).toBeInTheDocument();
+    expect(calls.find((c) => c.url.endsWith("/evaluation-documents"))!.search.get("agentId")).toBe("ag1");
+    await userEvent.keyboard("{Escape}");
     await userEvent.type(within(dialog).getByRole("textbox", { name: /URLs and filenames/ }), "https://example.edu/bursar*{Enter}");
     expect(await axe(dialog)).toHaveNoViolations();
     await userEvent.click(within(dialog).getByRole("button", { name: "Add question" }));

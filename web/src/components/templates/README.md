@@ -77,7 +77,7 @@ Words come from `src/lib/terms.ts` (D8): "Passages", not chunks; "Signed-in user
 - Filters (`?status=failed`) and search (`?q=`) live in the URL and replace the history entry. Date facets use the same presets as `DateRangeFilter`.
 - Filtering is in memory by default. For server-side lists, read the values with `useListFilters(facets)`, pass them to the query, and set `manual` (plus `tableProps={{ loadMore }}` or `cursor`).
 - Dates use `timeColumn(id, header, get)` or `<RelativeTime value=…/>`, which show relative text with the full date as the title.
-- Rows that open a RecordPage get `onRowClick={(r) => record.open(r.id)}`: a click anywhere on the row (except its links and buttons) or Enter on the focused row opens it. Keep "View details" in the row menu too.
+- Rows that open a RecordPage get `onRowClick={(r) => record.open(r.id)}`: a click anywhere on the row (except its links and buttons) or Enter on the focused row opens it. Keep "View details" in the row menu too. Where people will want to open records in a new tab or copy their links, render the row header's name as `<RecordLink id={r.id}>` instead (a real link that opens in place on a plain click, like the knowledge base list's names) and leave `onRowClick` out: a link can't sit inside the row's open button.
 - Fit at 1280 px: the list sits in a 976 px column there. Give long text a one-line `max-width` with an ellipsis (the full text as `title`), keep short cells `nowrap`, and start low-priority columns hidden (`defaultHidden`, still in the Columns menu). A table never widens the page; it scrolls inside its own wrapper only as a last resort.
 - Without `title`, only the table renders (for a list inside a tab or card).
 - `tableProps` passes anything else to `DataTable`: `selectable`, `bulkActions`, `toolbar`, `loadMore`, `cursor`, `defaultSort`, `stickyHeader`.
@@ -108,6 +108,7 @@ const form = useFormParam();             // ?form=new or ?form=<id>
 - Each page has a back link ("← Back to Connections"), and its title is the last breadcrumb. The crumb under it closes it.
 - `open(value)` pushes a history entry, so the browser's Back closes the page. A pasted link with `?record=` or `?form=` opens it directly; reloading keeps it open.
 - Fetch the record by id (not from the list's page), so links work for rows that aren't loaded.
+- A record opened from another record's page (a run's result) uses its own parameter: `useRecordParam("result")` and `<RecordPage param="result" …>` stack it over the first, and its back link returns there.
 - A record's actions go in the header (`actions`: destructive first, the main action last). A form's buttons go under the form: Cancel, then the submit button; `startActions` holds "Change type" or a destructive action.
 - `FormPage` asks "Leave without saving?" on Cancel, the back link and the breadcrumb once anything was typed or picked; pass `dirty` when the form tracks its own changes. A `RecordPage` with edits passes `dirty` too.
 - After a create that goes to the new object's page, navigate with `replace: true`, so Back from it returns to the list, not to the form.

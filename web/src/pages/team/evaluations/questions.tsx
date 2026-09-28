@@ -10,7 +10,7 @@ import { api, unwrap } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import { useFormParam } from "@/components/templates/form-page";
 import { ListPage } from "@/components/templates/list-page";
-import { useRecordParam } from "@/components/templates/record-page";
+import { RecordLink, useRecordParam } from "@/components/templates/record-page";
 import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import { Stack } from "@/components/ui/layout/layout";
@@ -52,7 +52,14 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
   ) : undefined;
 
   const columns: DataTableColumn<EvalQuestion>[] = [
-    { id: "question", header: "Question", rowHeader: true, sortable: true, accessor: (q) => q.question, cell: (q) => <CellText primary={q.question} secondary={q.note || undefined} /> },
+    {
+      id: "question",
+      header: "Question",
+      rowHeader: true,
+      sortable: true,
+      accessor: (q) => q.question,
+      cell: (q) => <CellText primary={<RecordLink id={q.id}>{q.question}</RecordLink>} secondary={q.note || undefined} />,
+    },
     { id: "expected", header: "Expected", accessor: (q) => expectedList(q).join(", "), muted: true },
     { id: "mention", header: "Must mention", accessor: (q) => q.mustMention.join(", ") || "—", muted: true },
   ];
@@ -82,7 +89,6 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
         getRowId={(q) => q.id}
         rowLabel={(q) => q.question}
         search={{ label: "Search questions" }}
-        onRowClick={(q) => record.open(q.id)}
         rowActions={(q) => [
           { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(q.id) },
           { label: "Edit question", icon: <Pencil aria-hidden />, onSelect: () => setEditing(q), hidden: !canEdit },

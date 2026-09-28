@@ -105,28 +105,28 @@ func (e Expected) Normalize() (Expected, error) {
 			continue
 		}
 		if len(f) > maxFilenameLen || strings.ContainsAny(f, "/\\") {
-			return out, invalidExpected("%q isn't a filename, a document or an http(s) URL", clip(f, 60))
+			return out, invalidExpected("%q isn't a filename, a document or an http(s) URL.", clip(f, 60))
 		}
 		seen["f"+strings.ToLower(f)] = true
 		out.Filenames = append(out.Filenames, f)
 	}
 	switch n := out.Count(); {
 	case n == 0:
-		return out, invalidExpected("Add at least one expected document: a document, a URL or URL prefix, or a filename")
+		return out, invalidExpected("Add at least one expected document: a document, a URL or URL prefix, or a filename.")
 	case n > maxExpected:
-		return out, invalidExpected("A question can have at most %d expected documents", maxExpected)
+		return out, invalidExpected("A question can have at most %d expected documents.", maxExpected)
 	}
 	return out, nil
 }
 
 func checkURL(u string) error {
 	if len(u) > maxURLLen {
-		return invalidExpected("URLs can be at most %d characters", maxURLLen)
+		return invalidExpected("URLs can be at most %s characters.", thousands(maxURLLen))
 	}
 	base := strings.TrimSuffix(u, "*")
 	p, err := url.Parse(base)
 	if err != nil || (p.Scheme != "http" && p.Scheme != "https") || p.Host == "" || strings.Contains(base, "*") {
-		return invalidExpected("%q isn't an http(s) URL (end it with * for a prefix)", clip(u, 80))
+		return invalidExpected("%q isn't an http(s) URL (end it with * for a prefix).", clip(u, 80))
 	}
 	return nil
 }
@@ -225,13 +225,13 @@ func NormalizePhrases(in []string) ([]string, error) {
 			continue
 		}
 		if utf8.RuneCountInString(p) > maxPhraseChars {
-			return nil, apperr.Invalid("invalid_must_mention", fmt.Sprintf("Must-mention phrases can be at most %d characters", maxPhraseChars))
+			return nil, apperr.Invalid("invalid_must_mention", fmt.Sprintf("Must-mention phrases can be at most %d characters.", maxPhraseChars))
 		}
 		seen[strings.ToLower(p)] = true
 		out = append(out, p)
 	}
 	if len(out) > maxPhrases {
-		return nil, apperr.Invalid("invalid_must_mention", fmt.Sprintf("A question can have at most %d must-mention phrases", maxPhrases))
+		return nil, apperr.Invalid("invalid_must_mention", fmt.Sprintf("A question can have at most %d must-mention phrases.", maxPhrases))
 	}
 	return out, nil
 }
