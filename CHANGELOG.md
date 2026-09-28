@@ -30,7 +30,7 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are 
 - An agent's default accent colour is the theme's primary colour everywhere: Appearance no longer names `#0021a5` (a leftover from a removed institution theme), its first quick pick is the theme's indigo, and the widget's launcher uses the same default (G17).
 - The widget key form opens with `?form=new` (and `?form=<id>` to edit), like every other form page, instead of `?record=` (G18).
 - Adding an embedding profile for a model with known prefixes fills them in (nomic-embed: `search_document: ` / `search_query: `; Qwen3-Embedding: its query instruction), and warns with a "Use the recommended prefixes" button when they're emptied (G7).
-- The model form's "Compatibility" section and the audit table's row details use the bitop-ui `Disclosure` instead of hand-built toggles (G8).
+- The model form's "Compatibility" section uses the bitop-ui `Disclosure` instead of a hand-built `<details>` toggle (G8).
 - One date rule: lists show relative times with the full date on hover, record pages show absolute dates. Home's "Continue where you left off", open invites' "Expires", the crawl allowlist, crawl history, version history, moderation decisions and open break-glass sessions now follow it, and Analytics shows days as dates ("Sep 26, 2026") instead of ISO dates (G13).
 - Usage & limits shows this minute's count for every per-minute query rate, not only the team-wide one: the busiest API key's and the busiest person's (`GET /v1/teams/{team}/limits` fills `used` for them). The public per-address and per-visitor rates stay without a figure: they're counted per visitor (G5).
 
