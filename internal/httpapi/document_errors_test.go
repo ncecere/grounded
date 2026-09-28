@@ -19,6 +19,9 @@ func TestDocumentErrorIsFriendly(t *testing.T) {
 	if msg, _ := documentError("empty", "document contains no text", "markdown", "a.md"); msg != "This file contains no text." {
 		t.Errorf("empty markdown = %q", msg)
 	}
+	if msg, _ := documentError("needs_ocr", "no text", "", "scan.png"); msg != "This image has no text to read (it may be a scan), and OCR is off for it. Once OCR is on for this source, retry it." {
+		t.Errorf("needs_ocr image = %q", msg)
+	}
 	// Messages already written for people are kept, with no detail.
 	kept := "The embedding model or its connection is disabled. Ask a platform admin, then retry."
 	if msg, detail := documentError("profile_unusable", kept, "pdf", ""); msg != kept || detail != "" {

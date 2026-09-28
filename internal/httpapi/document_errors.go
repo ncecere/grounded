@@ -17,9 +17,9 @@ import (
 var friendlyDocumentErrors = map[string]string{
 	"corrupt":            "This {kind} appears to be damaged or password-protected, or isn't the format its name suggests. Try saving or exporting it again, then upload it again.",
 	"encrypted":          "This {kind} is password-protected. Remove the password, then upload it again.",
-	"unsupported_format": "This file type isn't supported. Upload PDF, Word (DOCX), PowerPoint (PPTX), HTML, Markdown or plain text.",
+	"unsupported_format": "This file type isn't supported. Upload PDF, Word (DOCX), PowerPoint (PPTX), HTML, Markdown or plain text, or PNG, JPEG or TIFF images when OCR is on.",
 	"too_large":          "This {kind} is too large to process. Split it into smaller files.",
-	"needs_ocr":          "This {kind} has no text to read (it may be a scan). Scanned documents aren't supported yet.",
+	"needs_ocr":          "This {kind} has no text to read (it may be a scan), and OCR is off for it. Once OCR is on for this source, retry it.",
 	"empty":              "This {kind} contains no text.",
 }
 
@@ -35,8 +35,11 @@ func documentError(code, message, kind, filename string) (friendly, detail strin
 		kind = strings.TrimPrefix(strings.ToLower(path.Ext(filename)), ".")
 	}
 	k := "file"
-	if kind == "pdf" || kind == "docx" || kind == "pptx" {
+	switch kind {
+	case "pdf", "docx", "pptx":
 		k = strings.ToUpper(kind)
+	case "image", "png", "jpg", "jpeg", "tif", "tiff":
+		k = "image"
 	}
 	friendly = strings.ReplaceAll(tmpl, "{kind}", k)
 	if message == friendly {
