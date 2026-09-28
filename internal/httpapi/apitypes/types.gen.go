@@ -1128,6 +1128,36 @@ func (e FeedbackReason) Valid() bool {
 	}
 }
 
+// Defines values for GroupRuleChangeKind.
+const (
+	GroupRuleChangeKindAdd       GroupRuleChangeKind = "add"
+	GroupRuleChangeKindLastOwner GroupRuleChangeKind = "last_owner"
+	GroupRuleChangeKindLower     GroupRuleChangeKind = "lower"
+	GroupRuleChangeKindManual    GroupRuleChangeKind = "manual"
+	GroupRuleChangeKindRaise     GroupRuleChangeKind = "raise"
+	GroupRuleChangeKindRemove    GroupRuleChangeKind = "remove"
+)
+
+// Valid indicates whether the value is a known member of the GroupRuleChangeKind enum.
+func (e GroupRuleChangeKind) Valid() bool {
+	switch e {
+	case GroupRuleChangeKindAdd:
+		return true
+	case GroupRuleChangeKindLastOwner:
+		return true
+	case GroupRuleChangeKindLower:
+		return true
+	case GroupRuleChangeKindManual:
+		return true
+	case GroupRuleChangeKindRaise:
+		return true
+	case GroupRuleChangeKindRemove:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GuardrailFamily.
 const (
 	GraniteGuardian GuardrailFamily = "granite_guardian"
@@ -4680,6 +4710,115 @@ type FusionWeights struct {
 	Vector  float64 `json:"vector"`
 }
 
+// GroupMappingStatus defines model for GroupMappingStatus.
+type GroupMappingStatus struct {
+	Groups []SeenGroup `json:"groups"`
+
+	// GroupsClaim The OIDC claim read at sign-in (OIDC_GROUPS_CLAIM)
+	//
+	// Example: groups
+	GroupsClaim string `json:"groupsClaim"`
+
+	// LastClaimAt The last sign-in that carried the claim
+	LastClaimAt *time.Time `json:"lastClaimAt,omitempty"`
+
+	// OidcEnabled Whether single sign-on is configured
+	OidcEnabled bool `json:"oidcEnabled"`
+
+	// PeopleSeen People who have signed in since group mapping was installed
+	PeopleSeen int64 `json:"peopleSeen"`
+
+	// PeopleWithClaim Of those, people whose last sign-in carried the claim
+	PeopleWithClaim int64 `json:"peopleWithClaim"`
+
+	// RecentSignIns People who signed in during the last 30 days
+	RecentSignIns int64 `json:"recentSignIns"`
+
+	// RecentWithClaim Of those, people whose sign-in carried the claim
+	RecentWithClaim int64 `json:"recentWithClaim"`
+	RuleCount       int64 `json:"ruleCount"`
+}
+
+// GroupRule defines model for GroupRule.
+type GroupRule struct {
+	CreatedAt time.Time `json:"createdAt"`
+
+	// Group The IdP group; matching ignores case
+	//
+	// Example: registrar-staff
+	Group string             `json:"group"`
+	Id    openapi_types.UUID `json:"id"`
+
+	// MemberCount Memberships this rule grants now
+	MemberCount int64 `json:"memberCount"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision   Revision   `json:"revision"`
+	Role       TeamRole   `json:"role"`
+	Team       TeamRef    `json:"team"`
+	TeamStatus TeamStatus `json:"teamStatus"`
+	UpdatedAt  time.Time  `json:"updatedAt"`
+}
+
+// GroupRuleChange defines model for GroupRuleChange.
+type GroupRuleChange struct {
+	// From The current role (absent when not a member)
+	From *TeamRole `json:"from,omitempty"`
+
+	// GroupsSeenAt The sign-in the person's groups are from
+	GroupsSeenAt *time.Time `json:"groupsSeenAt,omitempty"`
+
+	// Kind add, raise, lower and remove change the membership; manual (added by hand, left alone) and last_owner (the team's last owner, kept) don't
+	Kind GroupRuleChangeKind `json:"kind"`
+
+	// To The new role (absent when removed; for manual, the role the rule would give)
+	To   *TeamRole  `json:"to,omitempty"`
+	User MemberUser `json:"user"`
+}
+
+// GroupRuleChangeKind add, raise, lower and remove change the membership; manual (added by hand, left alone) and last_owner (the team's last owner, kept) don't
+type GroupRuleChangeKind string
+
+// GroupRuleCreate defines model for GroupRuleCreate.
+type GroupRuleCreate struct {
+	// Group Example: registrar-staff
+	Group string   `json:"group"`
+	Role  TeamRole `json:"role"`
+
+	// Team Team slug or ID
+	//
+	// Example: registrar
+	Team string `json:"team"`
+}
+
+// GroupRulePreview defines model for GroupRulePreview.
+type GroupRulePreview struct {
+	Changes []GroupRuleChange `json:"changes"`
+	Team    TeamRef           `json:"team"`
+}
+
+// GroupRulePreviewRequest defines model for GroupRulePreviewRequest.
+type GroupRulePreviewRequest struct {
+	// Delete Preview deleting ruleId
+	Delete *bool `json:"delete,omitempty"`
+
+	// Group The proposed group (not with delete)
+	Group *string   `json:"group,omitempty"`
+	Role  *TeamRole `json:"role,omitempty"`
+
+	// RuleId An existing rule (to change or delete)
+	RuleId *openapi_types.UUID `json:"ruleId,omitempty"`
+
+	// Team The team (slug or ID) of a new rule
+	Team *string `json:"team,omitempty"`
+}
+
+// GroupRuleUpdate defines model for GroupRuleUpdate.
+type GroupRuleUpdate struct {
+	Group *string   `json:"group,omitempty"`
+	Role  *TeamRole `json:"role,omitempty"`
+}
+
 // GuardrailFamily defines model for GuardrailFamily.
 type GuardrailFamily string
 
@@ -5054,6 +5193,9 @@ type Me struct {
 type Member struct {
 	CreatedAt time.Time `json:"createdAt"`
 
+	// ManagedBy The membership was created by the SSO group mapping. With a ruleId, the rule manages it: owners can't change or remove it by hand (it would be undone at the person's next sign-in). Without one, the rule was deleted while the person was the team's last owner; it can be changed by hand, and is removed at a later sign-in once the team has another owner.
+	ManagedBy *MemberManagedBy `json:"managedBy,omitempty"`
+
 	// Revision Increases on every change. Send it back in If-Match.
 	Revision Revision   `json:"revision"`
 	Role     TeamRole   `json:"role"`
@@ -5075,6 +5217,13 @@ type MemberAddResult struct {
 
 // MemberAddResultStatus defines model for MemberAddResult.Status.
 type MemberAddResultStatus string
+
+// MemberManagedBy The membership was created by the SSO group mapping. With a ruleId, the rule manages it: owners can't change or remove it by hand (it would be undone at the person's next sign-in). Without one, the rule was deleted while the person was the team's last owner; it can be changed by hand, and is removed at a later sign-in once the team has another owner.
+type MemberManagedBy struct {
+	// Group The rule's IdP group
+	Group  *string             `json:"group,omitempty"`
+	RuleId *openapi_types.UUID `json:"ruleId,omitempty"`
+}
 
 // MemberUpdate defines model for MemberUpdate.
 type MemberUpdate struct {
@@ -6565,6 +6714,15 @@ type SearchResult struct {
 // SearchResultType defines model for SearchResult.Type.
 type SearchResultType string
 
+// SeenGroup defines model for SeenGroup.
+type SeenGroup struct {
+	// Name The group, lower-cased
+	Name string `json:"name"`
+
+	// People People whose last sign-in carried it
+	People int64 `json:"people"`
+}
+
 // SharedSource A platform-shared source as teams see it (no documents)
 type SharedSource struct {
 	Classification     string             `json:"classification"`
@@ -7411,6 +7569,18 @@ type AdminUpdateEmbeddingProfileParams struct {
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
+// AdminListGroupRulesParams defines parameters for AdminListGroupRules.
+type AdminListGroupRulesParams struct {
+	// Team Only this team's rules (slug or ID; 404 team_not_found when there is no such team)
+	Team *string `form:"team,omitempty" json:"team,omitempty"`
+}
+
+// AdminUpdateGroupRuleParams defines parameters for AdminUpdateGroupRule.
+type AdminUpdateGroupRuleParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminListLegalHoldsParams defines parameters for AdminListLegalHolds.
 type AdminListLegalHoldsParams struct {
 	Status *AdminListLegalHoldsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -7845,6 +8015,15 @@ type AdminCreateEmbeddingProfileJSONRequestBody = EmbeddingProfileCreate
 
 // AdminUpdateEmbeddingProfileJSONRequestBody defines body for AdminUpdateEmbeddingProfile for application/json ContentType.
 type AdminUpdateEmbeddingProfileJSONRequestBody = EmbeddingProfileUpdate
+
+// AdminPreviewGroupRuleJSONRequestBody defines body for AdminPreviewGroupRule for application/json ContentType.
+type AdminPreviewGroupRuleJSONRequestBody = GroupRulePreviewRequest
+
+// AdminCreateGroupRuleJSONRequestBody defines body for AdminCreateGroupRule for application/json ContentType.
+type AdminCreateGroupRuleJSONRequestBody = GroupRuleCreate
+
+// AdminUpdateGroupRuleJSONRequestBody defines body for AdminUpdateGroupRule for application/json ContentType.
+type AdminUpdateGroupRuleJSONRequestBody = GroupRuleUpdate
 
 // AdminCreateLegalHoldJSONRequestBody defines body for AdminCreateLegalHold for application/json ContentType.
 type AdminCreateLegalHoldJSONRequestBody = LegalHoldCreate

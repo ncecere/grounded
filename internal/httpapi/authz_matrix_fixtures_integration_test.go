@@ -65,8 +65,10 @@ type matrixEnv struct {
 	sharedSource, sharedDoc, allowlist, profile, legalHold, breakGlass, retentionRun string
 	sharedWeb, sharedCrawl, sharedWebDoc                                             string
 	migration, migrationKB, targetProfile                                            string
-	publicSessions                                                                   [numCallers]bool
-	seq                                                                              atomic.Int64
+	// groupRule is an SSO group mapping rule on team B.
+	groupRule      string
+	publicSessions [numCallers]bool
+	seq            atomic.Int64
 }
 
 type ownObjects struct{ conv, message, notification string }
@@ -280,6 +282,7 @@ func (e *matrixEnv) seedPlatform(t *testing.T) {
 	a.raw("PUT", "/v1/admin/agents/"+e.a.agent+"/short-name", map[string]any{"shortName": "xyzzy"}, nil)
 	// A short name for team B's public agent.
 	must(t, a, "PUT", "/v1/admin/agents/"+e.b.agent+"/short-name", map[string]any{"shortName": "bhelp"}, nil)
+	e.groupRule = e.freshGroupRule(t)
 }
 
 // ---- fresh objects -----------------------------------------------------------------
@@ -378,6 +381,12 @@ func (e *matrixEnv) freshAllowlist(t *testing.T) string {
 func (e *matrixEnv) freshLegalHold(t *testing.T) string {
 	return field(must(t, e.admin, "POST", "/v1/admin/legal-holds", map[string]any{"scopeType": "team", "scope": e.b.slug,
 		"reason": fmt.Sprintf("Hold %d", e.next())}, nil), "id")
+}
+
+// freshGroupRule maps a new group (nobody has it) to team B.
+func (e *matrixEnv) freshGroupRule(t *testing.T) string {
+	return field(must(t, e.admin, "POST", "/v1/admin/group-mapping/rules", map[string]any{"group": fmt.Sprintf("matrix-group-%d", e.next()),
+		"team": e.b.slug, "role": "member"}, nil), "id")
 }
 
 // freshBreakGlass starts a session on team B (documents) for the admin.

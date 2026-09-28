@@ -451,6 +451,10 @@ paths:
       tags: [teams]
       operationId: updateMember
       summary: Change a member's role
+      description: >-
+        409 sso_managed (details {ruleId, group}) when an SSO group mapping
+        rule manages the membership: the role would be set back at the
+        person's next sign-in. 409 last_owner for the team's only owner.
       parameters:
         - $ref: "#/components/parameters/IfMatchHeader"
       requestBody:
@@ -479,6 +483,10 @@ paths:
       tags: [teams]
       operationId: removeMember
       summary: Remove a member, or leave the team (your own user ID)
+      description: >-
+        409 sso_managed (details {ruleId, group}) when an SSO group mapping
+        rule manages the membership: the person would be added again at their
+        next sign-in. 409 last_owner for the team's only owner.
       responses:
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
@@ -782,6 +790,182 @@ paths:
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/group-mapping:
+    get:
+      tags: [admin]
+      operationId: adminGetGroupMapping
+      summary: SSO group mapping status (platform admins and auditors)
+      description: >-
+        The OIDC claim read at sign-in (OIDC_GROUPS_CLAIM), how many people
+        have signed in with it, and the groups seen (lower-cased, most people
+        first, at most 500), for choosing a rule's group.
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/GroupMappingStatus" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/group-mapping/rules:
+    get:
+      tags: [admin]
+      operationId: adminListGroupRules
+      summary: SSO group mapping rules, by group (platform admins and auditors)
+      parameters:
+        - name: team
+          in: query
+          required: false
+          description: Only this team's rules (slug or ID; 404 team_not_found when there is no such team)
+          schema: { type: string }
+      responses:
+        "200":
+          description: Rules
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/GroupRule" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    post:
+      tags: [admin]
+      operationId: adminCreateGroupRule
+      summary: Map an IdP group to a team role (platform admins with a session; audited)
+      description: >-
+        Applied at once to the people whose groups at their last sign-in
+        include the group (see adminPreviewGroupRule), then at every sign-in.
+        Memberships added by hand are never changed. Audited as
+        platform.sso_rule_create; each membership change as team.member_add or
+        team.member_role_change by the system, with the rule in its metadata.
+        409 rule_exists when the team has a rule for the group; 409
+        team_archived for an archived team.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GroupRuleCreate" }
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/GroupRule" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/group-mapping/preview:
+    post:
+      tags: [admin]
+      operationId: adminPreviewGroupRule
+      summary: Dry run of a rule change (platform admins and auditors; changes nothing)
+      description: >-
+        Who a new rule (group, team, role), an existing rule's new group and
+        role (ruleId, group, role), or deleting a rule (ruleId, delete) would
+        add, raise, lower or remove, from each person's groups at their last
+        sign-in. Also lists matching people left alone: members added by hand
+        (manual) and a team's last owner (last_owner).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GroupRulePreviewRequest" }
+      responses:
+        "200":
+          description: Dry run
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/GroupRulePreview" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/group-mapping/rules/{ruleId}:
+    parameters:
+      - name: ruleId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [admin]
+      operationId: adminGetGroupRule
+      summary: One SSO group mapping rule (platform admins and auditors)
+      responses:
+        "200":
+          description: Rule
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/GroupRule" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    patch:
+      tags: [admin]
+      operationId: adminUpdateGroupRule
+      summary: Change a rule's group or role (platform admins with a session; audited)
+      description: >-
+        Applied at once, like a new rule; the rule's team never changes (add
+        a rule for another team instead). Audited as platform.sso_rule_update.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GroupRuleUpdate" }
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/GroupRule" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+    delete:
+      tags: [admin]
+      operationId: adminDeleteGroupRule
+      summary: Delete a rule (platform admins with a session; audited)
+      description: >-
+        The memberships the rule created are recomputed at once: removed, or
+        given another matching rule's role. A team's last owner is kept.
+        Audited as platform.sso_rule_delete.
+      responses:
+        "200": { $ref: "#/components/responses/OkReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/limits:
     get:
       tags: [limits, admin]
@@ -5897,6 +6081,99 @@ components:
         description: { type: string }
         maxClassification: { type: string }
         status: { $ref: "#/components/schemas/TeamStatus" }
+    GroupMappingStatus:
+      type: object
+      required: [groupsClaim, oidcEnabled, ruleCount, peopleSeen, peopleWithClaim, recentSignIns, recentWithClaim, groups]
+      properties:
+        groupsClaim: { type: string, description: The OIDC claim read at sign-in (OIDC_GROUPS_CLAIM), example: groups }
+        oidcEnabled: { type: boolean, description: Whether single sign-on is configured }
+        ruleCount: { type: integer, format: int64 }
+        peopleSeen: { type: integer, format: int64, description: People who have signed in since group mapping was installed }
+        peopleWithClaim: { type: integer, format: int64, description: "Of those, people whose last sign-in carried the claim" }
+        lastClaimAt: { type: string, format: date-time, nullable: true, description: The last sign-in that carried the claim }
+        recentSignIns: { type: integer, format: int64, description: People who signed in during the last 30 days }
+        recentWithClaim: { type: integer, format: int64, description: "Of those, people whose sign-in carried the claim" }
+        groups:
+          type: array
+          items: { $ref: "#/components/schemas/SeenGroup" }
+    SeenGroup:
+      type: object
+      required: [name, people]
+      properties:
+        name: { type: string, description: "The group, lower-cased" }
+        people: { type: integer, format: int64, description: People whose last sign-in carried it }
+    GroupRule:
+      type: object
+      required: [id, group, team, teamStatus, role, memberCount, revision, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        group: { type: string, description: The IdP group; matching ignores case, example: registrar-staff }
+        team: { $ref: "#/components/schemas/TeamRef" }
+        teamStatus: { $ref: "#/components/schemas/TeamStatus" }
+        role: { $ref: "#/components/schemas/TeamRole" }
+        memberCount: { type: integer, format: int64, description: Memberships this rule grants now }
+        revision: { $ref: "#/components/schemas/Revision" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    GroupRuleCreate:
+      type: object
+      required: [group, team, role]
+      properties:
+        group: { type: string, minLength: 1, maxLength: 256, example: registrar-staff }
+        team: { type: string, description: Team slug or ID, example: registrar }
+        role: { $ref: "#/components/schemas/TeamRole" }
+    GroupRuleUpdate:
+      type: object
+      properties:
+        group: { type: string, minLength: 1, maxLength: 256 }
+        role: { $ref: "#/components/schemas/TeamRole" }
+    GroupRulePreviewRequest:
+      type: object
+      properties:
+        ruleId: { type: string, format: uuid, description: An existing rule (to change or delete) }
+        group: { type: string, maxLength: 256, description: The proposed group (not with delete) }
+        team: { type: string, description: The team (slug or ID) of a new rule }
+        role: { $ref: "#/components/schemas/TeamRole" }
+        delete: { type: boolean, default: false, description: Preview deleting ruleId }
+    GroupRulePreview:
+      type: object
+      required: [team, changes]
+      properties:
+        team: { $ref: "#/components/schemas/TeamRef" }
+        changes:
+          type: array
+          items: { $ref: "#/components/schemas/GroupRuleChange" }
+    GroupRuleChange:
+      type: object
+      required: [user, kind]
+      properties:
+        user: { $ref: "#/components/schemas/MemberUser" }
+        kind:
+          type: string
+          enum: [add, raise, lower, remove, manual, last_owner]
+          description: >-
+            add, raise, lower and remove change the membership; manual (added
+            by hand, left alone) and last_owner (the team's last owner, kept)
+            don't
+        from:
+          description: The current role (absent when not a member)
+          allOf: [{ $ref: "#/components/schemas/TeamRole" }]
+        to:
+          description: The new role (absent when removed; for manual, the role the rule would give)
+          allOf: [{ $ref: "#/components/schemas/TeamRole" }]
+        groupsSeenAt: { type: string, format: date-time, nullable: true, description: The sign-in the person's groups are from }
+    MemberManagedBy:
+      type: object
+      description: >-
+        The membership was created by the SSO group mapping. With a ruleId,
+        the rule manages it: owners can't change or remove it by hand (it
+        would be undone at the person's next sign-in). Without one, the rule
+        was deleted while the person was the team's last owner; it can be
+        changed by hand, and is removed at a later sign-in once the team has
+        another owner.
+      properties:
+        ruleId: { type: string, format: uuid, nullable: true }
+        group: { type: string, nullable: true, description: The rule's IdP group }
     OwnerAssign:
       type: object
       required: [email]
@@ -5910,6 +6187,7 @@ components:
         role: { $ref: "#/components/schemas/TeamRole" }
         revision: { $ref: "#/components/schemas/Revision" }
         createdAt: { type: string, format: date-time }
+        managedBy: { $ref: "#/components/schemas/MemberManagedBy" }
     MemberUser:
       type: object
       required: [id, email, displayName, status]

@@ -32,6 +32,7 @@ import (
 	"github.com/ncecere/grounded/internal/public"
 	"github.com/ncecere/grounded/internal/retention"
 	"github.com/ncecere/grounded/internal/sources"
+	"github.com/ncecere/grounded/internal/ssogroups"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
 	"github.com/ncecere/grounded/internal/teams"
@@ -89,6 +90,9 @@ type api struct {
 	// analytics reads platform analytics; it needs only the pool.
 	analytics *analytics.Service
 	widget    *widgetAssets
+	// groups administers SSO group mapping rules; it needs only the pool
+	// and the OIDC settings.
+	groups *ssogroups.Service
 }
 
 // route is one entry in the served surface.
@@ -120,14 +124,15 @@ func publicOpsRoutes(d Deps) []route {
 
 // apiRoutes is the full served surface, grouped by area.
 func apiRoutes(d Deps) []route {
-	a := &api{Deps: d, q: dbgen.New(d.Pool), analytics: analytics.New(d.Pool), widget: &widgetAssets{}}
+	a := &api{Deps: d, q: dbgen.New(d.Pool), analytics: analytics.New(d.Pool), widget: &widgetAssets{},
+		groups: ssogroups.New(d.Pool, d.Config.OIDC.GroupsClaim, d.Config.OIDC.Enabled())}
 	routes := publicOpsRoutes(d)
 	for _, group := range [][]route{
 		a.authRoutes(), a.notificationRoutes(), a.teamRoutes(), a.sourceRoutes(), a.kbRoutes(), a.agentRoutes(), a.chatRoutes(),
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.analyticsRoutes(),
 		a.publicRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
-		a.profileMigrationRoutes(), a.searchRoutes(),
+		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(),
 	} {
 		routes = append(routes, group...)
 	}

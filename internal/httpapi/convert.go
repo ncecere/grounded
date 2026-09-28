@@ -66,7 +66,20 @@ func toAPIMember(m teams.Member) apitypes.Member {
 		Role:      apitypes.TeamRole(m.TeamMember.Role),
 		Revision:  m.TeamMember.Revision,
 		CreatedAt: m.TeamMember.CreatedAt,
+		ManagedBy: managedBy(m),
 	}
+}
+
+// managedBy is set for memberships the SSO group mapping created.
+func managedBy(m teams.Member) *apitypes.MemberManagedBy {
+	if !m.Sso {
+		return nil
+	}
+	out := &apitypes.MemberManagedBy{Group: m.SsoGroup}
+	if m.SsoRuleID.Valid {
+		out.RuleId = &m.SsoRuleID.UUID
+	}
+	return out
 }
 
 func toAPIInvite(inv dbgen.TeamInvite) apitypes.Invite {

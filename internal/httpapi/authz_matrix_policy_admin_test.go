@@ -49,6 +49,27 @@ var adminPolicies = map[string]policy{
 		return post("/v1/admin/teams/"+c.e.b.slug+"/owners", map[string]any{"email": c.e.freshUser(c.t).me.User.Email})
 	}},
 
+	// SSO group mapping.
+	"adminGetGroupMapping": adminRead("/v1/admin/group-mapping"),
+	"adminListGroupRules":  adminRead("/v1/admin/group-mapping/rules"),
+	"adminGetGroupRule": {own: platform, build: func(c *mctx) request {
+		return get("/v1/admin/group-mapping/rules/" + c.e.groupRule)
+	}},
+	"adminCreateGroupRule": {own: padmin, build: func(c *mctx) request {
+		return post("/v1/admin/group-mapping/rules", map[string]any{"group": fmt.Sprintf("matrix-new-%d", c.e.next()), "team": c.e.b.slug, "role": "member"})
+	}},
+	"adminUpdateGroupRule": {own: padmin, build: func(c *mctx) request {
+		p := "/v1/admin/group-mapping/rules/" + c.e.groupRule
+		return patch(p, map[string]any{"role": "member"}).h(c.rev(p))
+	}},
+	"adminDeleteGroupRule": {own: padmin, build: func(c *mctx) request {
+		return del("/v1/admin/group-mapping/rules/" + c.pickP(c.e.groupRule, c.e.freshGroupRule))
+	}},
+	// A read (the dry run changes nothing) sent as POST: auditors may run it.
+	"adminPreviewGroupRule": {own: platform, build: func(c *mctx) request {
+		return post("/v1/admin/group-mapping/preview", map[string]any{"group": "matrix-preview", "team": c.e.b.slug, "role": "editor"})
+	}},
+
 	// Limits and classifications.
 	"adminGetLimits": adminRead("/v1/admin/limits"),
 	"adminUpdateLimits": {own: padmin, build: func(c *mctx) request {

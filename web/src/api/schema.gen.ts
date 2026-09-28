@@ -366,11 +366,17 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Remove a member, or leave the team (your own user ID) */
+        /**
+         * Remove a member, or leave the team (your own user ID)
+         * @description 409 sso_managed (details {ruleId, group}) when an SSO group mapping rule manages the membership: the person would be added again at their next sign-in. 409 last_owner for the team's only owner.
+         */
         delete: operations["removeMember"];
         options?: never;
         head?: never;
-        /** Change a member's role */
+        /**
+         * Change a member's role
+         * @description 409 sso_managed (details {ruleId, group}) when an SSO group mapping rule manages the membership: the role would be set back at the person's next sign-in. 409 last_owner for the team's only owner.
+         */
         patch: operations["updateMember"];
         trace?: never;
     };
@@ -570,6 +576,94 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/group-mapping": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SSO group mapping status (platform admins and auditors)
+         * @description The OIDC claim read at sign-in (OIDC_GROUPS_CLAIM), how many people have signed in with it, and the groups seen (lower-cased, most people first, at most 500), for choosing a rule's group.
+         */
+        get: operations["adminGetGroupMapping"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/group-mapping/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** SSO group mapping rules, by group (platform admins and auditors) */
+        get: operations["adminListGroupRules"];
+        put?: never;
+        /**
+         * Map an IdP group to a team role (platform admins with a session; audited)
+         * @description Applied at once to the people whose groups at their last sign-in include the group (see adminPreviewGroupRule), then at every sign-in. Memberships added by hand are never changed. Audited as platform.sso_rule_create; each membership change as team.member_add or team.member_role_change by the system, with the rule in its metadata. 409 rule_exists when the team has a rule for the group; 409 team_archived for an archived team.
+         */
+        post: operations["adminCreateGroupRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/group-mapping/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dry run of a rule change (platform admins and auditors; changes nothing)
+         * @description Who a new rule (group, team, role), an existing rule's new group and role (ruleId, group, role), or deleting a rule (ruleId, delete) would add, raise, lower or remove, from each person's groups at their last sign-in. Also lists matching people left alone: members added by hand (manual) and a team's last owner (last_owner).
+         */
+        post: operations["adminPreviewGroupRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/group-mapping/rules/{ruleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        /** One SSO group mapping rule (platform admins and auditors) */
+        get: operations["adminGetGroupRule"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a rule (platform admins with a session; audited)
+         * @description The memberships the rule created are recomputed at once: removed, or given another matching rule's role. A team's last owner is kept. Audited as platform.sso_rule_delete.
+         */
+        delete: operations["adminDeleteGroupRule"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a rule's group or role (platform admins with a session; audited)
+         * @description Applied at once, like a new rule; the rule's team never changes (add a rule for another team instead). Audited as platform.sso_rule_update.
+         */
+        patch: operations["adminUpdateGroupRule"];
         trace?: never;
     };
     "/v1/admin/limits": {
@@ -3780,6 +3874,133 @@ export interface components {
             maxClassification?: string;
             status?: components["schemas"]["TeamStatus"];
         };
+        GroupMappingStatus: {
+            /**
+             * @description The OIDC claim read at sign-in (OIDC_GROUPS_CLAIM)
+             * @example groups
+             */
+            groupsClaim: string;
+            /** @description Whether single sign-on is configured */
+            oidcEnabled: boolean;
+            /** Format: int64 */
+            ruleCount: number;
+            /**
+             * Format: int64
+             * @description People who have signed in since group mapping was installed
+             */
+            peopleSeen: number;
+            /**
+             * Format: int64
+             * @description Of those, people whose last sign-in carried the claim
+             */
+            peopleWithClaim: number;
+            /**
+             * Format: date-time
+             * @description The last sign-in that carried the claim
+             */
+            lastClaimAt?: string | null;
+            /**
+             * Format: int64
+             * @description People who signed in during the last 30 days
+             */
+            recentSignIns: number;
+            /**
+             * Format: int64
+             * @description Of those, people whose sign-in carried the claim
+             */
+            recentWithClaim: number;
+            groups: components["schemas"]["SeenGroup"][];
+        };
+        SeenGroup: {
+            /** @description The group, lower-cased */
+            name: string;
+            /**
+             * Format: int64
+             * @description People whose last sign-in carried it
+             */
+            people: number;
+        };
+        GroupRule: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description The IdP group; matching ignores case
+             * @example registrar-staff
+             */
+            group: string;
+            team: components["schemas"]["TeamRef"];
+            teamStatus: components["schemas"]["TeamStatus"];
+            role: components["schemas"]["TeamRole"];
+            /**
+             * Format: int64
+             * @description Memberships this rule grants now
+             */
+            memberCount: number;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        GroupRuleCreate: {
+            /** @example registrar-staff */
+            group: string;
+            /**
+             * @description Team slug or ID
+             * @example registrar
+             */
+            team: string;
+            role: components["schemas"]["TeamRole"];
+        };
+        GroupRuleUpdate: {
+            group?: string;
+            role?: components["schemas"]["TeamRole"];
+        };
+        GroupRulePreviewRequest: {
+            /**
+             * Format: uuid
+             * @description An existing rule (to change or delete)
+             */
+            ruleId?: string;
+            /** @description The proposed group (not with delete) */
+            group?: string;
+            /** @description The team (slug or ID) of a new rule */
+            team?: string;
+            role?: components["schemas"]["TeamRole"];
+            /**
+             * @description Preview deleting ruleId
+             * @default false
+             */
+            delete: boolean;
+        };
+        GroupRulePreview: {
+            team: components["schemas"]["TeamRef"];
+            changes: components["schemas"]["GroupRuleChange"][];
+        };
+        GroupRuleChange: {
+            user: components["schemas"]["MemberUser"];
+            /**
+             * @description add, raise, lower and remove change the membership; manual (added by hand, left alone) and last_owner (the team's last owner, kept) don't
+             * @enum {string}
+             */
+            kind: "add" | "raise" | "lower" | "remove" | "manual" | "last_owner";
+            /** @description The current role (absent when not a member) */
+            from?: components["schemas"]["TeamRole"];
+            /** @description The new role (absent when removed; for manual, the role the rule would give) */
+            to?: components["schemas"]["TeamRole"];
+            /**
+             * Format: date-time
+             * @description The sign-in the person's groups are from
+             */
+            groupsSeenAt?: string | null;
+        };
+        /** @description The membership was created by the SSO group mapping. With a ruleId, the rule manages it: owners can't change or remove it by hand (it would be undone at the person's next sign-in). Without one, the rule was deleted while the person was the team's last owner; it can be changed by hand, and is removed at a later sign-in once the team has another owner. */
+        MemberManagedBy: {
+            /** Format: uuid */
+            ruleId?: string | null;
+            /** @description The rule's IdP group */
+            group?: string | null;
+        };
         OwnerAssign: {
             /** Format: email */
             email: string;
@@ -3790,6 +4011,7 @@ export interface components {
             revision: components["schemas"]["Revision"];
             /** Format: date-time */
             createdAt: string;
+            managedBy?: components["schemas"]["MemberManagedBy"];
         };
         MemberUser: {
             /** Format: uuid */
@@ -8334,6 +8556,198 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetGroupMapping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GroupMappingStatus"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminListGroupRules: {
+        parameters: {
+            query?: {
+                /** @description Only this team's rules (slug or ID; 404 team_not_found when there is no such team) */
+                team?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GroupRule"][];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminCreateGroupRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupRuleCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GroupRule"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    adminPreviewGroupRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupRulePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Dry run */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GroupRulePreview"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetGroupRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rule */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GroupRule"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminDeleteGroupRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminUpdateGroupRule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupRuleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GroupRule"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
         };
     };
     adminGetLimits: {
