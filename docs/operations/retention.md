@@ -18,6 +18,7 @@ Grounded deletes data only when a retention period says so, and never what a leg
 | Files of deleted documents and sources | **Keep** | Retention: *Files of deleted documents* (0 = next run) | See below. |
 | Expired or revoked invites | **Keep** | Retention: *Expired invites* | Accepted invites are kept. |
 | Anonymous sessions | Removed at expiry (`ANON_SESSION_TTL`) | Not configurable | They hold no content; their conversations follow their own period. |
+| Evaluation runs and their results | **180 days** (`RETENTION_EVALUATION_RUNS_DAYS`) | Retention: *Evaluation runs* | The one kind deleted by default (owner decision): runs hold only test questions and the agent's test answers, so legal holds don't apply ([`evaluations.md`](evaluations.md)). |
 | Browser sessions | Removed at expiry (`SESSION_TTL`) | Not configurable | An hourly job, as before. |
 
 Everything except the last two and anonymous conversations is kept until a period is set.

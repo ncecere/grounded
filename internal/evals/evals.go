@@ -1,5 +1,5 @@
 // Package evals implements evaluation sets and regression runs
-// (docs/evaluations.md, docs/v0.2.0.md §3.1 A2, DESIGN.md §6.1).
+// (docs/evaluations.md, docs/v0.2.0.md §3.1 A2, DESIGN.md §6 "Evaluations").
 //
 // A set belongs to one knowledge base or one agent and holds test
 // questions with what a good result is (expected documents, optionally

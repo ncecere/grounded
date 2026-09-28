@@ -268,6 +268,11 @@ source.sync ─► document.fetch ─► document.parse ─► [scan hook] ─�
 4. Merge the results with **weighted** reciprocal rank fusion: score = w<sub>v</sub>/(60 + vector rank) + w<sub>k</sub>/(60 + keyword rank). Ties break on the vector rank, then the keyword rank. Remove duplicates, and trim to the token budget.
 5. A reranker stage is optional and not in v1. The model kind `rerank` is reserved for it; not every gateway offers one.
 
+### Evaluations (v0.2; [`evaluations.md`](evaluations.md), runbook [`operations/evaluations.md`](operations/evaluations.md))
+- **Sets** of test questions belong to one KB or one agent (deleted with it) and are for the team's editors, admins and owners in the app; members, API keys and platform staff get 404, as does everyone while the platform switch (`evaluation_settings`, on by default, Admin → Limits → Evaluations) is off. A question names its expected documents (picked documents, URLs or URL prefixes ending in `*`, filenames; any counts), optional must-mention phrases and a note. Questions are typed, imported (CSV, or ragbench's URL-judged JSONL, with a dry run) or added from the editor's own thumbs-down or sourceless answers and the Test panel (the question text only, ADR-0010).
+- **Runs** are River jobs (`internal/evals`) that check a few questions at a time (`EVALUATION_CONCURRENCY`) under the team's query limits (and chat limits for full answers), so limits and budgets refuse them like any query; usage is tagged `"source": "evaluation"`. A **retrieval check** runs `kbs.RetrieveForEvaluation` or the agent's own search (`agents.EvalRetrieve`) with k = results per search and scores recall@k and MRR; questions whose documents were deleted are counted apart. A **full-answer check** asks the agent as the Test panel does (`agents.EvalAnswer`, no conversation; draft or published) and passes an answer that cites an expected document and mentions every phrase; it also records refusals and the SystemOne supported-claim share. Each run keeps a configuration snapshot (agent version, profiles, results per search) for the chart's markers.
+- **Automatic runs** (opt-in per set, retrieval only) follow a publish (`agents.OnPublished`), a profile switch (`profilemig.OnSwitched`), both in the change's transaction, and a nightly job for KBs whose documents changed; a drop of more than 5 points in recall@k or a newly failing question notifies the team's editors (`evaluation.regression`).
+
 ## 7. Agents (ADR-0009)
 
 ### 7.1 Definition
@@ -402,7 +407,7 @@ Teams never see who a user is. Unique-user counts use pseudonymous IDs.
 - **Legal hold.** Platform admins can place a hold on a user, team, agent or conversation. A hold pauses all deletion, including deletions requested by users and team purges.
 - **Each install confirms its default periods with its records management and legal counsel before production.** Public institutions may be subject to public records law, under which transcripts can be records.
 - **As built (Phase 5 P3; [`docs/operations/retention.md`](operations/retention.md)):**
-  - **Periods.** Conversations follow their classification level (§4): signed-in conversations are kept until the user deletes them unless the level sets days; anonymous ones go after the level's hours (24 by default). Every other kind (conversations users deleted, the access log, analytics events, the usage ledger, the audit log, deleted documents' files, expired invites) has an environment default (`RETENTION_*_DAYS`) that a platform admin can override in Administration → Retention. All are empty by default, which keeps the data. Anonymous and browser sessions end at expiry.
+  - **Periods.** Conversations follow their classification level (§4): signed-in conversations are kept until the user deletes them unless the level sets days; anonymous ones go after the level's hours (24 by default). Every other kind (conversations users deleted, the access log, analytics events, the usage ledger, the audit log, deleted documents' files, expired invites) has an environment default (`RETENTION_*_DAYS`) that a platform admin can override in Administration → Retention. All are empty by default, which keeps the data, except evaluation runs (`evaluation_runs`, 180 days by default, owner decision; they hold no user content and legal holds don't apply to them). Anonymous and browser sessions end at expiry.
   - **Jobs.** One River job every 10 minutes (and "Run now") applies a rule per kind in bounded batches, one transaction each, under a cross-worker lock. Each rule is one SQL query that selects what is due and whether a hold covers it; the same query serves the **dry-run report** (per team, level, audience and reason, in a read-only transaction) and the purge, so the report shows what the next run deletes. Runs are recorded with counts per kind, audited as the system (`retention.purge`, counts only) and exported as metrics.
   - **User deletes** hide a conversation from its user at once; the stored copy goes after the deleted-conversations grace period (or its level's period), unless a hold covers it.
   - **Usage** is rolled up per UTC day (`usage_daily`) in the same statement that deletes it, so analytics totals survive. **Deleted documents** leave search at once (rows, passages and vectors); their stored files wait in `deleted_files` for their own period.
@@ -519,6 +524,8 @@ Initial limits:
 | `agents` (live agents) | 25 | agent creation → 409 `limit_reached` |
 | `chat_tokens_per_day` (team, `chat_tokens_in` + `chat_tokens_out` ledger events) | 2,000,000 | chat → 429 `quota_exceeded` until midnight UTC |
 | `concurrent_chats_per_user` (each person, or service key) | 3 | chat → 429 `rate_limited`; Valkey counter with a TTL, fails open |
+| `evaluation_sets` | 50 | evaluation set creation → 409 `limit_reached` |
+| `evaluation_questions_per_set` | 500 | adding or importing questions → 409 `limit_reached` |
 
 Chat answers also count towards the four query limits above (one `query` event per answer; Phase 3).
 
@@ -558,6 +565,7 @@ Design and owner decisions: [`costs.md`](costs.md) (E2); runbook: [`operations/c
   - web sync failures
   - agent published to authenticated or public
   - team daily limit reached
+  - evaluation scores dropped (an automatic run, to the team's editors and above)
 - Events are recorded in the same transaction as the change. Email goes out after commit through a retried job. Details are in [`phase4-publishing.md`](phase4-publishing.md) §8.
 - **Later:** webhooks, for example to post to a Teams or Slack channel.
 
@@ -574,6 +582,7 @@ Design and owner decisions: [`costs.md`](costs.md) (E2); runbook: [`operations/c
 - document uploads (one entry per request: the document, or the source with counts) and deletions, in team and shared sources
 - break-glass start, approval or denial, every read under it (session ID, kind, target; never content), and its end, revocation or expiry, in the platform log and the team's log
 - legal holds and purges (retention runs are recorded as the system with counts only)
+- evaluation sets, questions and imports, and runs started (automatic ones as the system) and cancelled
 
 Configuration changes store before and after values. Platform auditors can see everything. Team admins see their own team's entries.
 
@@ -608,6 +617,8 @@ Agents         /v1/teams/{team}/agents             (draft CRUD, POST /{id}/publi
                GET/DELETE /v1/conversations[/{id}]  (caller's own only), GET /{id}/export
                POST /v1/messages/{id}/feedback
 Search         GET  /v1/search?q=&limit=            (⌘K: objects the caller may see, by name; session only)
+Evaluations    /v1/teams/{team}/evaluation-sets[/{setId}[/questions[/import|/{id}]|/questions.csv|/documents|/runs[/compare|/{runId}[/cancel]]]]
+               /v1/admin/settings/evaluations       (editors and above; 404 for everyone else and while off)
 Notifications  GET /v1/notifications, PATCH /v1/notifications/{id}, PUT /v1/me/notification-settings
 OpenAI compat  POST /v1/chat/completions  (model = "agent:{team}/{agent}")   GET /v1/models
 ```
