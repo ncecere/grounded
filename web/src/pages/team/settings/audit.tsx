@@ -14,7 +14,7 @@ import { api, unwrap, type Schemas } from "../../../api/client";
 import { auditKey } from "../../../components/audit/audit-log";
 import { actionGroups, actionLabel, actorName } from "../../../components/audit/labels";
 import { AuditTarget } from "../../../components/audit/target";
-import { DateRangeFilter, useDateRangeParam } from "../../../components/templates/date-range-filter";
+import { rangeWindow } from "../../admin/logs/common";
 import { ListPage, RelativeTime, useListFilters } from "../../../components/templates/list-page";
 import { RecordPage, useRecordParam } from "../../../components/templates/record-page";
 import { membersKey } from "../../../components/members";
@@ -56,6 +56,7 @@ function useFacets(team: string): Facet<Entry>[] {
       placeholder: "Anyone",
       options: (members.data ?? []).map((m) => ({ value: m.user.id, label: m.user.displayName || m.user.email })),
     },
+    { id: "range", label: "Date", type: "date-range" },
   ];
 }
 
@@ -64,13 +65,11 @@ export function TeamAuditLog() {
   const scope = { kind: "team" as const, team };
   const facets = useFacets(team);
   const filters = useListFilters(facets);
-  const range = useDateRangeParam();
   const record = useRecordParam();
   const query = {
     action: first(filters.values.action),
     actorUserId: first(filters.values.person),
-    from: range.from?.toISOString(),
-    to: range.toExclusive?.toISOString(),
+    ...rangeWindow(filters.values),
   };
   const log = useInfiniteQuery({
     queryKey: [...auditKey(scope), "list", query],
@@ -106,7 +105,6 @@ export function TeamAuditLog() {
         onRetry={() => void log.refetch()}
         empty={{ icon: <FileClock />, title: filtered ? "No entries match these filters." : "No audit entries yet." }}
         tableProps={{
-          toolbar: <DateRangeFilter range={range} label="When" />,
           loadMore: { hasMore: Boolean(log.hasNextPage), loading: log.isFetchingNextPage, onLoadMore: () => void log.fetchNextPage() },
         }}
       />

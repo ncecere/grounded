@@ -138,7 +138,7 @@ export function SourcesTable({ sources, levels, profiles, caption = "Data source
                   {" "}
                   {/* The separator stays with what follows it, so a wrap never leaves "4.3 KB ·". */}
                   <span className={w.nowrap}>
-                    · <span className={s.dangerText}>{src.documents.failed.toLocaleString()} failed</span>
+                    · <span className={w.failedCount}>{src.documents.failed.toLocaleString()} failed</span>
                   </span>
                 </>
               )}

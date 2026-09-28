@@ -39,3 +39,8 @@
 .nowrap {
   white-space: nowrap;
 }
+
+/* "· 3 failed" after a size in the sources list: inline, in the danger colour. */
+.failedCount {
+  color: var(--color-danger-text);
+}

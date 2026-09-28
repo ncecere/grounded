@@ -707,6 +707,47 @@ export function DataTable<T>({
     .join(" · ");
   const showLoadMore = Boolean(loadMore?.hasMore) && !(loading && data.length === 0);
 
+  const searchBox = (
+    <div className={styles.filter}>
+      <Field label={filterLabel} hideLabel>
+        <Input type="search" size="sm" value={filter} placeholder={filterPlaceholder} startIcon={<Search />} onValueChange={setFilter} />
+      </Field>
+    </div>
+  );
+  const tableActions = (
+    <div className={styles.actions}>
+      {toolbar}
+      {columnsMenu && (
+        <Menu
+          align="end"
+          trigger={
+            <Button size="sm" variant="secondary">
+              <Columns3 aria-hidden /> {columnsMenuLabel}
+            </Button>
+          }
+        >
+          <MenuGroup label="Show columns">
+            {columns.filter(isHideable).map((c) => {
+              const visible = !hiddenSet.has(c.id);
+              // Keep at least one column on screen.
+              const onlyOne = visible && shownColumns.length === 1;
+              return (
+                <MenuCheckboxItem
+                  key={c.id}
+                  checked={visible}
+                  disabled={onlyOne}
+                  onCheckedChange={(checked) => setHidden(checked ? hidden.filter((id) => id !== c.id) : [...hidden.filter((id) => id !== c.id), c.id])}
+                >
+                  {c.label ?? (typeof c.header === "string" ? c.header : c.id)}
+                </MenuCheckboxItem>
+              );
+            })}
+          </MenuGroup>
+        </Menu>
+      )}
+    </div>
+  );
+
   return (
     <div
       ref={rootRef}
@@ -716,58 +757,28 @@ export function DataTable<T>({
       onFocus={trackFocus}
       onBlur={trackBlur}
     >
-      {(filterable || toolbar || columnsMenu) && (
-        <div ref={toolbarRef} className={styles.toolbar}>
-          {filterable && (
-            <div className={styles.filter}>
-              <Field label={filterLabel} hideLabel>
-                <Input
-                type="search"
-                size="sm"
-                value={filter}
-                placeholder={filterPlaceholder}
-                startIcon={<Search />}
-                onValueChange={setFilter}
-                />
-              </Field>
-            </div>
-          )}
-          {(toolbar || columnsMenu) && (
-            <div className={styles.actions}>
-              {toolbar}
-              {columnsMenu && (
-                <Menu
-                  align="end"
-                  trigger={
-                    <Button size="sm" variant="secondary">
-                      <Columns3 aria-hidden /> {columnsMenuLabel}
-                    </Button>
-                  }
-                >
-                  <MenuGroup label="Show columns">
-                    {columns.filter(isHideable).map((c) => {
-                      const visible = !hiddenSet.has(c.id);
-                      // Keep at least one column on screen.
-                      const onlyOne = visible && shownColumns.length === 1;
-                      return (
-                        <MenuCheckboxItem
-                          key={c.id}
-                          checked={visible}
-                          disabled={onlyOne}
-                          onCheckedChange={(checked) => setHidden(checked ? hidden.filter((id) => id !== c.id) : [...hidden.filter((id) => id !== c.id), c.id])}
-                        >
-                          {c.label ?? (typeof c.header === "string" ? c.header : c.id)}
-                        </MenuCheckboxItem>
-                      );
-                    })}
-                  </MenuGroup>
-                </Menu>
-              )}
-            </div>
-          )}
+      {facets && facets.length > 0 ? (
+        // With filters: one row, as a standalone FilterBar lays it out: the
+        // search first, the filters, then the table's own actions (Columns) at the end.
+        <div ref={toolbarRef}>
+          <FilterBar
+            facets={facets}
+            value={facetValues}
+            onValueChange={setFacetValues}
+            counts={counts}
+            labels={facetLabels}
+            start={filterable ? searchBox : undefined}
+            end={toolbar || columnsMenu ? tableActions : undefined}
+          />
         </div>
+      ) : (
+        (filterable || toolbar || columnsMenu) && (
+          <div ref={toolbarRef} className={styles.toolbar}>
+            {filterable && searchBox}
+            {(toolbar || columnsMenu) && tableActions}
+          </div>
+        )
       )}
-      {facets && facets.length > 0 && <FilterBar facets={facets} value={facetValues} onValueChange={setFacetValues} counts={counts} labels={facetLabels} />}
       {bulkActions && actionableIds.length > 0 && (
         <div className={styles.bulk} role="group" aria-label="Bulk actions">
           <span className={styles.bulkCount}>{selectedLabel(actionableIds.length)}</span>

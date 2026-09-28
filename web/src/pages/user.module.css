@@ -27,6 +27,9 @@
   margin-top: var(--space-1);
 }
 
+/* Data sources · Knowledge bases · Agents: wrap under the team's name on a narrow screen. */
 .quickLinks {
   flex-wrap: wrap;
+  flex-shrink: 1;
+  min-width: 0;
 }

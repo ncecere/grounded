@@ -11,6 +11,8 @@
  * `from`/`toExclusive` are local-midnight Dates (for RFC 3339 API params);
  * `fromDay`/`toDay` are YYYY-MM-DD (inclusive) for date-only APIs.
  */
+import { cx } from "@/lib/bitop-utils";
+import styles from "./templates.module.css";
 import { useState } from "react";
 import { startOfDay } from "@/components/ui/calendar/calendar";
 import {
@@ -96,7 +98,7 @@ export function DateRangeFilter({ range, label = "Date range", max, size = "sm",
       }}
       clearable={!range.hasDefault}
       size={size}
-      className={className}
+      className={cx(styles.dateRange, className)}
       pickerProps={{ max: max ?? new Date() }}
     />
   );

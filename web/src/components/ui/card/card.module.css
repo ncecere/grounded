@@ -15,17 +15,21 @@
   }
 }
 
+/* The actions wrap under the heading when there's no room beside it (a
+   narrow screen), rather than squeezing the title into a thin column. */
 .header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-2) var(--space-4);
   padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--color-border);
 }
 
 .heading {
   display: flex;
+  flex: 1 1 14rem;
   flex-direction: column;
   gap: 0.125rem;
   min-width: 0;
