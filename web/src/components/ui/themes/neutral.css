@@ -7,7 +7,7 @@
  * Two tiers:
  *   1. Primitive palette (--palette-*): raw colours. Components never read these.
  *   2. Semantic tokens (--color-*, --shadow-*): what components use. A theme
- *      (or a brand override such as themes/uf.css) only changes semantic tokens.
+ *      (or a brand override such as themes/acme.css) only changes semantic tokens.
  *
  * Contrast (WCAG 2.1 AA) uses the WCAG relative-luminance formula and is
  * checked by tests/contrast.test.ts. Ratios are noted next to each pair:
