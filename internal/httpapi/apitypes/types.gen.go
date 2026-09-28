@@ -2683,6 +2683,7 @@ func (e WebSchedule) Valid() bool {
 const (
 	DocumentKindParamDocx     DocumentKindParam = "docx"
 	DocumentKindParamHtml     DocumentKindParam = "html"
+	DocumentKindParamImage    DocumentKindParam = "image"
 	DocumentKindParamMarkdown DocumentKindParam = "markdown"
 	DocumentKindParamPdf      DocumentKindParam = "pdf"
 	DocumentKindParamPptx     DocumentKindParam = "pptx"
@@ -2695,6 +2696,8 @@ func (e DocumentKindParam) Valid() bool {
 	case DocumentKindParamDocx:
 		return true
 	case DocumentKindParamHtml:
+		return true
+	case DocumentKindParamImage:
 		return true
 	case DocumentKindParamMarkdown:
 		return true
@@ -2821,6 +2824,7 @@ func (e AdminListLegalHoldsParamsStatus) Valid() bool {
 const (
 	AdminListSharedDocumentsParamsKindDocx     AdminListSharedDocumentsParamsKind = "docx"
 	AdminListSharedDocumentsParamsKindHtml     AdminListSharedDocumentsParamsKind = "html"
+	AdminListSharedDocumentsParamsKindImage    AdminListSharedDocumentsParamsKind = "image"
 	AdminListSharedDocumentsParamsKindMarkdown AdminListSharedDocumentsParamsKind = "markdown"
 	AdminListSharedDocumentsParamsKindPdf      AdminListSharedDocumentsParamsKind = "pdf"
 	AdminListSharedDocumentsParamsKindPptx     AdminListSharedDocumentsParamsKind = "pptx"
@@ -2833,6 +2837,8 @@ func (e AdminListSharedDocumentsParamsKind) Valid() bool {
 	case AdminListSharedDocumentsParamsKindDocx:
 		return true
 	case AdminListSharedDocumentsParamsKindHtml:
+		return true
+	case AdminListSharedDocumentsParamsKindImage:
 		return true
 	case AdminListSharedDocumentsParamsKindMarkdown:
 		return true
@@ -2869,6 +2875,7 @@ func (e ExportConversationParamsFormat) Valid() bool {
 const (
 	ListDocumentsParamsKindDocx     ListDocumentsParamsKind = "docx"
 	ListDocumentsParamsKindHtml     ListDocumentsParamsKind = "html"
+	ListDocumentsParamsKindImage    ListDocumentsParamsKind = "image"
 	ListDocumentsParamsKindMarkdown ListDocumentsParamsKind = "markdown"
 	ListDocumentsParamsKindPdf      ListDocumentsParamsKind = "pdf"
 	ListDocumentsParamsKindPptx     ListDocumentsParamsKind = "pptx"
@@ -2881,6 +2888,8 @@ func (e ListDocumentsParamsKind) Valid() bool {
 	case ListDocumentsParamsKindDocx:
 		return true
 	case ListDocumentsParamsKindHtml:
+		return true
+	case ListDocumentsParamsKindImage:
 		return true
 	case ListDocumentsParamsKindMarkdown:
 		return true
@@ -4458,7 +4467,7 @@ type DataSourceCreate struct {
 	EmbeddingProfileId *openapi_types.UUID `json:"embeddingProfileId,omitempty"`
 	Name               string              `json:"name"`
 
-	// OcrEnabled Read pages without text with OCR when the platform has it on
+	// OcrEnabled Read pages without text with OCR when the platform has it on (default true)
 	OcrEnabled *bool `json:"ocrEnabled,omitempty"`
 
 	// Type Fixed at creation
@@ -7895,7 +7904,7 @@ type AdminListSharedDocumentsParams struct {
 	// Q Case-insensitive substring match on the title, URL or file name
 	Q *DocumentSearchParam `form:"q,omitempty" json:"q,omitempty"`
 
-	// Kind Only documents of this kind: pdf, docx, pptx, html, markdown or text
+	// Kind Only documents of this kind: pdf, docx, pptx, html, markdown, text or image
 	Kind *AdminListSharedDocumentsParamsKind `form:"kind,omitempty" json:"kind,omitempty"`
 
 	// Tag Only documents with this tag (case-insensitive)
@@ -8140,7 +8149,7 @@ type ListDocumentsParams struct {
 	// Q Case-insensitive substring match on the title, URL or file name
 	Q *DocumentSearchParam `form:"q,omitempty" json:"q,omitempty"`
 
-	// Kind Only documents of this kind: pdf, docx, pptx, html, markdown or text
+	// Kind Only documents of this kind: pdf, docx, pptx, html, markdown, text or image
 	Kind *ListDocumentsParamsKind `form:"kind,omitempty" json:"kind,omitempty"`
 
 	// Tag Only documents with this tag (case-insensitive)

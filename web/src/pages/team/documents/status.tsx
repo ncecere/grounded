@@ -24,7 +24,11 @@ const docStatusTone: Record<DocStatus, Tone> = {
 /** Badge text: pending and queued documents both read "Queued". */
 const docStatusBadgeLabels: Record<DocStatus, string> = { ...docStatusLabels, pending: "Queued" };
 
-export function DocStatusBadge({ status }: { status: DocStatus }) {
+/** A pending document waiting for the team's daily OCR page limit (docs/ocr.md §4). */
+export const isWaiting = (d: Pick<Doc, "status" | "errorCode">) => d.status === "pending" && d.errorCode === "ocr_daily_limit";
+
+export function DocStatusBadge({ status, waiting = false }: { status: DocStatus; waiting?: boolean }) {
+  if (waiting) return <StatusBadge tone="warning">Waiting</StatusBadge>;
   return (
     <StatusBadge tone={docStatusTone[status]} pulse={status === "processing"}>
       {docStatusBadgeLabels[status]}
@@ -52,6 +56,7 @@ export const kindLabels: Record<string, string> = {
   md: "Markdown",
   text: "Text",
   txt: "Text",
+  image: "Image",
 };
 
 export const kindLabel = (kind: string) => (kind ? (kindLabels[kind] ?? kind.toUpperCase()) : "—");

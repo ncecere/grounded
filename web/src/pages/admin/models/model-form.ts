@@ -89,7 +89,7 @@ function compatOf(form: ModelForm): Compat {
   set("supportsDeveloperRole", form.supportsDeveloperRole);
   set("supportsToolChoice", form.supportsToolChoice);
   set("supportsDimensionsParam", form.kind === "embedding" && form.supportsDimensionsParam ? true : undefined);
-  set("extraBody", form.kind === "chat" || form.kind === "moderation" ? parseExtraBody(form.extraBody).value : undefined);
+  set("extraBody", form.kind === "chat" || form.kind === "moderation" || form.kind === "vision" ? parseExtraBody(form.extraBody).value : undefined);
   return compat;
 }
 

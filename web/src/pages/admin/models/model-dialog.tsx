@@ -50,7 +50,7 @@ export function ModelDialog({ model, connections, preset, onClose }: { model: Mo
   const available = useQuery({ ...connectionTestQuery(form.connectionId), enabled: !model && form.connectionId !== "", staleTime: 60_000 });
   const save = useSaveModel(model, form, onClose);
   const [submitted, setSubmitted] = useState(false);
-  const usesChatCompat = form.kind === "chat" || (form.kind === "moderation" && form.moderationProvider === "chat_classifier");
+  const usesChatCompat = form.kind === "chat" || form.kind === "vision" || (form.kind === "moderation" && form.moderationProvider === "chat_classifier");
   const extraBodyError = usesChatCompat ? parseExtraBody(form.extraBody).error : undefined;
 
   return (
@@ -86,6 +86,7 @@ export function ModelDialog({ model, connections, preset, onClose }: { model: Mo
         {form.kind === "embedding" && <EmbeddingCompatFields form={form} set={set} />}
         {form.kind === "moderation" && <ModerationFields form={form} set={set} />}
         {form.kind === "rerank" && <p className={`${s.settingDescription} ${m.wide}`}>Rerank models have no extra settings.</p>}
+        {form.kind === "vision" && <VisionFields form={form} set={set} />}
         {form.kind === "systemone" && (
           <p className={`${s.settingDescription} ${m.wide}`}>
             A SystemOne model answers typed questions (POST …/v1/systemone) for passage judging, checks and moderation. Choose it on Admin → SystemOne and Admin → Moderation. Cap the
@@ -175,6 +176,20 @@ function ChatFields({ form, set }: { form: ModelForm; set: SetField }) {
       </Field>
       <Checkbox label="Supports tool calling" checked={form.supportsTools} onCheckedChange={(v) => set("supportsTools", v)} />
       <Checkbox label="Supports images" checked={form.supportsVision} onCheckedChange={(v) => set("supportsVision", v)} />
+    </>
+  );
+}
+
+/** A vision model reads page images for OCR (docs/ocr.md). */
+function VisionFields({ form, set }: { form: ModelForm; set: SetField }) {
+  return (
+    <>
+      <Field label="Max output tokens" description="The longest transcription of one page. Empty uses 4096.">
+        <NumberInput maximumFractionDigits={0} value={form.maxOutputTokens} onValueChange={(v) => set("maxOutputTokens", v)} />
+      </Field>
+      <p className={`${s.settingDescription} ${m.wide}`}>
+        A vision model transcribes scanned pages as Markdown when Admin → Parsing uses the vision backend. Sources above its maximum classification can't use it.
+      </p>
     </>
   );
 }

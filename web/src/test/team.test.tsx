@@ -79,6 +79,7 @@ const source = (id: string, name: string, embeddingProfileId = "p1", classificat
   nextSyncAt: null,
   activeCrawl: null,
   boilerplate: boilerplate({ enabled: false }),
+  ocrEnabled: true,
 });
 
 const doc = (id: string, filename: string, status: Schemas["DocumentStatus"], extra: Partial<Schemas["Document"]> = {}): Schemas["Document"] => ({

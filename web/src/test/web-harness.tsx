@@ -123,6 +123,7 @@ export const webSource = (extra: Partial<Schemas["DataSource"]> = {}): Schemas["
   nextSyncAt: "2026-10-01T10:00:00Z",
   activeCrawl: null,
   boilerplate: boilerplate(),
+  ocrEnabled: true,
   ...extra,
 });
 

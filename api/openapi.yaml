@@ -5418,8 +5418,8 @@ components:
       name: kind
       in: query
       required: false
-      description: "Only documents of this kind: pdf, docx, pptx, html, markdown or text"
-      schema: { type: string, enum: [pdf, docx, pptx, html, markdown, text] }
+      description: "Only documents of this kind: pdf, docx, pptx, html, markdown, text or image"
+      schema: { type: string, enum: [pdf, docx, pptx, html, markdown, text, image] }
     DocumentErrorCodeParam:
       name: errorCode
       in: query
@@ -7290,7 +7290,7 @@ components:
         embeddingProfileId: { type: string, format: uuid, description: Defaults to the platform default profile }
         web: { $ref: "#/components/schemas/WebConfigInput" }
         boilerplate: { $ref: "#/components/schemas/BoilerplateSettings" }
-        ocrEnabled: { type: boolean, default: true, description: Read pages without text with OCR when the platform has it on }
+        ocrEnabled: { type: boolean, description: "Read pages without text with OCR when the platform has it on (default true)" }
     DataSourceUpdate:
       type: object
       properties:

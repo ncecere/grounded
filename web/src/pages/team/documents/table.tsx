@@ -25,11 +25,13 @@ import { type Doc, type DocStatus, formatBytes, plural } from "../common";
 import d from "./documents.module.css";
 import { canRetry, useDocumentMutations } from "./mutations";
 import { DocumentRecordPage } from "./record";
-import { DocStatusBadge, docName, docStatusLabels, documentError, isInProgress, kindLabel } from "./status";
+import { DocStatusBadge, docName, docStatusLabels, documentError, isInProgress, isWaiting, kindLabel } from "./status";
 
 const pageSize = 50;
 const statuses: DocStatus[] = ["ready", "processing", "queued", "failed", "skipped"];
-const kinds: DocKind[] = ["pdf", "docx", "pptx", "html", "markdown", "text"];
+const kinds: DocKind[] = ["pdf", "docx", "pptx", "html", "markdown", "text", "image"];
+/** The status filter's extra option: documents skipped as scanned (errorCode needs_ocr, docs/ocr.md §5). */
+const needsOcr = "needs_ocr";
 
 /** "/assets/fees.pdf" for a page's URL (the host is on the page already); the text as is when it isn't a URL. */
 export function urlPath(url: string) {
@@ -48,7 +50,7 @@ function facetsFor(tags: string[]): Facet<Doc>[] {
       label: "Status",
       type: "toggle",
       allLabel: "All",
-      options: statuses.map((v) => ({ value: v, label: docStatusLabels[v] })),
+      options: [...statuses.map((v) => ({ value: v as string, label: docStatusLabels[v] })), { value: needsOcr, label: "Needs OCR" }],
     },
     { id: "kind", label: "Kind", type: "select", placeholder: "Any kind", options: kinds.map((k) => ({ value: k, label: kindLabel(k) })) },
     ...(tags.length > 0 ? [{ id: "tag", label: "Tag", type: "select" as const, placeholder: "Any tag", options: tags.map((t) => ({ value: t, label: t })) }] : []),
@@ -70,8 +72,8 @@ function columns(web: boolean): DataTableColumn<Doc>[] {
       header: "Status",
       cell: (doc) => (
         <span className={d.status}>
-          <DocStatusBadge status={doc.status} />
-          {canRetry(doc) && documentError(doc) && (
+          <DocStatusBadge status={doc.status} waiting={isWaiting(doc)} />
+          {(canRetry(doc) || isWaiting(doc)) && documentError(doc) && (
             <span className={d.statusError} title={documentError(doc)}>
               {documentError(doc)}
             </span>
@@ -96,7 +98,14 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
   const filters = useListFilters(facets);
   const q = useDebounced(filters.query.trim(), 300);
   const first = (id: string) => (filters.values[id] as string[] | undefined)?.[0];
-  const query = { status: first("status") as DocStatus | undefined, kind: first("kind") as DocKind | undefined, tag: first("tag"), q: q || undefined };
+  const status = first("status");
+  const query = {
+    status: status === needsOcr ? undefined : (status as DocStatus | undefined),
+    errorCode: status === needsOcr ? needsOcr : undefined,
+    kind: first("kind") as DocKind | undefined,
+    tag: first("tag"),
+    q: q || undefined,
+  };
   const signature = JSON.stringify(query);
   const pager = useCursorPager();
   const [lastSignature, setLastSignature] = useState(signature);
@@ -111,13 +120,13 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
     queryKey: [...owner.keys.documents(source.id), query, pager.cursor],
     queryFn: () => owner.api.documents(source.id, { ...query, cursor: pager.cursor, limit: pageSize }),
     placeholderData: keepPreviousData,
-    refetchInterval: (qq) => (qq.state.data?.items.some((doc) => isInProgress(doc.status)) ? 2000 : false),
+    refetchInterval: (qq) => (qq.state.data?.items.some((doc) => isInProgress(doc.status) && !isWaiting(doc)) ? 2000 : false),
   });
   const mutations = useDocumentMutations(source.id);
   const [deleting, setDeleting] = useState<Doc[] | null>(null);
   const items = docs.data?.items ?? [];
   const byId = new Map(items.map((doc) => [doc.id, doc]));
-  const filtered = Boolean(query.status || query.kind || query.tag || query.q);
+  const filtered = Boolean(query.status || query.errorCode || query.kind || query.tag || query.q);
   const total = !filtered ? source.documents.total : query.status && !query.kind && !query.tag && !query.q ? countFor(source, query.status) : undefined;
 
   return (
@@ -151,7 +160,7 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
         ]}
         empty={{
           icon: web ? <Globe /> : <FileText />,
-          title: filtered ? `No ${noun} match these filters.` : `No ${noun} yet.`,
+          title: query.errorCode ? `No ${noun} need OCR.` : filtered ? `No ${noun} match these filters.` : `No ${noun} yet.`,
           description: filtered ? undefined : web ? "Pages appear here as the crawler fetches them." : undefined,
           action:
             !filtered && onUpload ? (
@@ -161,6 +170,19 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
             ) : undefined,
         }}
         tableProps={{
+          toolbar:
+            query.errorCode && owner.canEdit && items.length > 0 ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={Boolean(maintenance)}
+                loading={mutations.retryNeedsOcr.isPending}
+                title={maintenance ? maintenanceReason(maintenance, "Retrying") : "Read them again, with OCR if it is on for this source"}
+                onClick={() => mutations.retryNeedsOcr.mutate()}
+              >
+                <RotateCcw aria-hidden /> Retry all that need OCR
+              </Button>
+            ) : undefined,
           selectable: owner.canEdit,
           selectedLabel: (n) => `${plural(n, web ? "page" : "document")} selected`,
           bulkActions: owner.canEdit

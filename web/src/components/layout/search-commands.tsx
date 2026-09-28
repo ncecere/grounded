@@ -46,6 +46,7 @@ const kindLabels: Record<string, string> = {
   rerank: "Rerank model",
   moderation: "Moderation model",
   systemone: "SystemOne model",
+  vision: "Vision model",
   upload: "Uploads",
   web: "Website",
 };

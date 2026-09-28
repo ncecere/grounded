@@ -18,6 +18,7 @@ import { Field } from "@/components/ui/field/field";
 import { TagInput } from "@/components/ui/tag-input/tag-input";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { maintenanceReason, useMaintenance } from "@/lib/maintenance";
+import { ocrNote } from "@/lib/parsing";
 import { markdownToText } from "@/lib/plain-text";
 import { passagesCount, terms } from "@/lib/terms";
 import { useSourceOwner } from "../../sources/owner";
@@ -25,7 +26,7 @@ import { type Doc, formatBytes } from "../common";
 import { pageRange } from "../retrieve";
 import d from "./documents.module.css";
 import { canRetry, type DocumentMutations } from "./mutations";
-import { DocStatusBadge, docName, documentError, kindLabel } from "./status";
+import { DocStatusBadge, docName, documentError, isWaiting, kindLabel } from "./status";
 
 const previewSize = 5;
 
@@ -38,7 +39,7 @@ export function DocumentRecordPage({ sourceId, web, docId, onClose, mutations }:
     queryKey: key,
     queryFn: () => owner.api.document(sourceId, docId!),
     enabled: Boolean(docId),
-    refetchInterval: (q) => (q.state.data && ["pending", "queued", "processing"].includes(q.state.data.status) ? 2000 : false),
+    refetchInterval: (q) => (q.state.data && ["pending", "queued", "processing"].includes(q.state.data.status) && !isWaiting(q.state.data) ? 2000 : false),
   });
   const [deleting, setDeleting] = useState(false);
   const d0 = doc.data;
@@ -86,6 +87,11 @@ export function DocumentRecordPage({ sourceId, web, docId, onClose, mutations }:
           ) : undefined
         }
       >
+        {d0 && isWaiting(d0) && (
+          <Alert tone="info" title="Waiting for the daily OCR page limit">
+            {d0.errorMessage}
+          </Alert>
+        )}
         {paused && owner.canEdit && maintenance && (
           <Alert tone="warning" title="Paused for maintenance">
             {maintenanceReason(maintenance, web ? "Re-fetching" : "Retrying")}
@@ -123,7 +129,7 @@ export function DocumentRecordPage({ sourceId, web, docId, onClose, mutations }:
 
 function documentFacts(doc: Doc, web: boolean) {
   return [
-    { label: "Status", value: <DocStatusBadge status={doc.status} /> },
+    { label: "Status", value: <DocStatusBadge status={doc.status} waiting={isWaiting(doc)} /> },
     {
       label: web ? "Address" : "File name",
       value: web && doc.url ? (
@@ -136,6 +142,7 @@ function documentFacts(doc: Doc, web: boolean) {
     },
     { label: "Kind · size", value: [doc.kind && kindLabel(doc.kind), formatBytes(doc.sizeBytes)].filter(Boolean).join(" · ") },
     ...(doc.pages > 0 ? [{ label: "Pages", value: doc.pages.toLocaleString() }] : []),
+    ...(doc.ocr ? [{ label: "OCR", value: ocrNote(doc.ocr, doc.pages) }] : []),
     { label: terms.Passages, value: doc.status === "ready" ? `${passagesCount(doc.chunkCount)} · ${doc.tokenCount.toLocaleString()} tokens` : "—" },
     ...(doc.version > 1 ? [{ label: "Version", value: `Version ${doc.version}` }] : []),
     { label: "Added", value: <RelativeTime value={doc.createdAt} /> },

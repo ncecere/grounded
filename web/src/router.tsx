@@ -63,6 +63,7 @@ const pages = {
   breakGlass: () => import("./pages/admin/break-glass/page"),
   profileMigrations: () => import("./pages/admin/profile-migrations/page"),
   systemone: () => import("./pages/admin/systemone/page"),
+  parsing: () => import("./pages/admin/parsing/page"),
   groupMapping: () => import("./pages/admin/group-mapping/page"),
   publicPages: () => import("./pages/public/routes"),
 };
@@ -313,6 +314,7 @@ const appTree = appRoute.addChildren([
       adminTabs("shared-sources/$sourceId", sourceTabs, lazy(pages.shared, "SharedSourceDetailPage"), { passthrough: true }),
       adminTabs("crawl-domains", crawlDomainTabs, lazy(pages.crawling, "CrawlingPage")),
       adminMoved("crawling", "/admin/crawl-domains"),
+      admin("parsing", lazy(pages.parsing, "ParsingPage")),
       adminTabs("limits", limitTabs, lazy(pages.limits, "LimitsPage")),
       adminAgentsRoute,
       adminTabs("analytics", analyticsTabs, lazy(pages.adminAnalytics, "AdminAnalyticsPage")),

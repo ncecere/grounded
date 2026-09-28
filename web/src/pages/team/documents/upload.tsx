@@ -27,6 +27,8 @@ import d from "./upload.module.css";
 type UploadResult = Schemas["UploadResult"];
 
 const acceptedExtensions = [".pdf", ".docx", ".pptx", ".html", ".htm", ".md", ".markdown", ".txt"];
+/** Images are one-page documents read with OCR; the server refuses them where OCR is off (docs/ocr.md §5a). */
+const imageExtensions = [".png", ".jpg", ".jpeg", ".tif", ".tiff"];
 
 /** The server accepts at most this many files per request. */
 const batchSize = 100;
@@ -123,11 +125,13 @@ type UploadAreaProps = {
   disabledReason?: string;
   /** Called after a batch finishes with the number of files stored. */
   onUploaded?: (stored: number) => void;
+  /** The source reads images with OCR (its switch; the platform's is checked on upload). */
+  images?: boolean;
   /** Something would be lost by closing: an upload is running, or tags were chosen and nothing uploaded yet. */
   onPendingChange?: (pending: boolean) => void;
 };
 
-export function UploadArea({ sourceId, disabledReason, onUploaded, onPendingChange }: UploadAreaProps) {
+export function UploadArea({ sourceId, disabledReason, onUploaded, onPendingChange, images = false }: UploadAreaProps) {
   const owner = useSourceOwner();
   const { csrfToken } = useCurrentUser();
   const qc = useQueryClient();
@@ -201,8 +205,12 @@ export function UploadArea({ sourceId, disabledReason, onUploaded, onPendingChan
         busy={progress !== null}
         label="Drag and drop files here, or"
         buttonLabel="Choose files to upload"
-        accept={acceptedExtensions.join(",")}
-        description="PDF (text-based), Word (.docx), PowerPoint (.pptx), HTML, Markdown and plain text."
+        accept={[...acceptedExtensions, ...(images ? imageExtensions : [])].join(",")}
+        description={
+          images
+            ? "PDF, Word (.docx), PowerPoint (.pptx), HTML, Markdown and plain text, and PNG, JPEG or TIFF images when OCR is on."
+            : "PDF, Word (.docx), PowerPoint (.pptx), HTML, Markdown and plain text."
+        }
       />
       {progress && <Progress label={`Uploading ${plural(progress.files, "file")}`} value={percent} />}
       <p role="status" className={d.uploadStatus}>
@@ -236,6 +244,7 @@ export function UploadDialog({ source, open, onClose, onUploaded }: { source: Da
     >
       <UploadArea
         sourceId={source.id}
+        images={source.ocrEnabled}
         disabledReason={paused ? "This source is paused. Resume it to upload files." : undefined}
         onUploaded={(n) => n > 0 && onUploaded?.()}
         onPendingChange={setPending}

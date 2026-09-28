@@ -5199,11 +5199,8 @@ export interface components {
             embeddingProfileId?: string;
             web?: components["schemas"]["WebConfigInput"];
             boilerplate?: components["schemas"]["BoilerplateSettings"];
-            /**
-             * @description Read pages without text with OCR when the platform has it on
-             * @default true
-             */
-            ocrEnabled: boolean;
+            /** @description Read pages without text with OCR when the platform has it on (default true) */
+            ocrEnabled?: boolean;
         };
         DataSourceUpdate: {
             name?: string;
@@ -7793,8 +7790,8 @@ export interface components {
         CursorParam: string;
         BoilerplateLimitParam: number;
         LimitParam: number;
-        /** @description Only documents of this kind: pdf, docx, pptx, html, markdown or text */
-        DocumentKindParam: "pdf" | "docx" | "pptx" | "html" | "markdown" | "text";
+        /** @description Only documents of this kind: pdf, docx, pptx, html, markdown, text or image */
+        DocumentKindParam: "pdf" | "docx" | "pptx" | "html" | "markdown" | "text" | "image";
         /** @description Only documents with this error code, e.g. needs_ocr (skipped as scanned) */
         DocumentErrorCodeParam: string;
         /** @description Only documents with this tag (case-insensitive) */
@@ -10401,7 +10398,7 @@ export interface operations {
                 status?: components["schemas"]["DocumentStatus"];
                 /** @description Case-insensitive substring match on the title, URL or file name */
                 q?: components["parameters"]["DocumentSearchParam"];
-                /** @description Only documents of this kind: pdf, docx, pptx, html, markdown or text */
+                /** @description Only documents of this kind: pdf, docx, pptx, html, markdown, text or image */
                 kind?: components["parameters"]["DocumentKindParam"];
                 /** @description Only documents with this tag (case-insensitive) */
                 tag?: components["parameters"]["DocumentTagParam"];
@@ -11663,7 +11660,7 @@ export interface operations {
                 status?: components["schemas"]["DocumentStatus"];
                 /** @description Case-insensitive substring match on the title, URL or file name */
                 q?: components["parameters"]["DocumentSearchParam"];
-                /** @description Only documents of this kind: pdf, docx, pptx, html, markdown or text */
+                /** @description Only documents of this kind: pdf, docx, pptx, html, markdown, text or image */
                 kind?: components["parameters"]["DocumentKindParam"];
                 /** @description Only documents with this tag (case-insensitive) */
                 tag?: components["parameters"]["DocumentTagParam"];

@@ -1,4 +1,4 @@
-import { Archive, BarChart3, Bot, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench } from "lucide-react";
+import { Archive, BarChart3, Bot, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench } from "lucide-react";
 import { type ReactNode } from "react";
 import { terms } from "../../lib/terms";
 import { type Me } from "../../session";
@@ -18,6 +18,7 @@ export type AdminPath =
   | "/admin/systemone"
   | "/admin/shared-sources"
   | "/admin/crawl-domains"
+  | "/admin/parsing"
   | "/admin/limits"
   | "/admin/agents"
   | "/admin/analytics"
@@ -48,6 +49,7 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
       { to: "/admin/shared-sources", label: "Shared sources", icon: icon(Share2) },
       { to: "/admin/agents", label: "Agents", icon: icon(Bot) },
       { to: "/admin/crawl-domains", label: terms.crawlDomains, icon: icon(Globe) },
+      { to: "/admin/parsing", label: "Parsing", icon: icon(ScanText) },
       { to: "/admin/break-glass", label: "Break-glass", icon: icon(LockOpen) },
     ],
   },
@@ -89,6 +91,7 @@ export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
   "/admin": ["overview", "dashboard", "attention", "home"],
   "/admin/group-mapping": ["sso", "groups", "identity provider", "idp", "oidc", "membership rules", "access"],
   "/admin/crawl-domains": ["allowlist", "domain requests", "web", "crawling"],
+  "/admin/parsing": ["ocr", "scanned", "scan", "tesseract", "tika", "vision", "images", "pdf", "languages"],
   "/admin/limits": ["quota", "usage", "rate limit", "storage", "defaults", "ceilings"],
   "/admin/agents": ["kill switch", "disable", "chat", "assistant"],
   "/admin/analytics": ["usage", "dashboard", "answers", "statistics", "report", "csv", "tokens"],

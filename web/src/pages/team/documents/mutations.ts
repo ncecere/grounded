@@ -24,6 +24,13 @@ export function useDocumentMutations(sourceId: string) {
     onSuccess: (docs) => toast.info(docs.length === 1 ? `${docName(docs[0]!)} was queued again` : `${plural(docs.length, "document")} were queued again`),
     onSettled: invalidate,
   });
+  // Every document of the source skipped as scanned, queued again (docs/ocr.md §5).
+  const retryNeedsOcr = useMutation({
+    mutationFn: () => owner.api.retryDocuments(sourceId, "needs_ocr"),
+    onSuccess: (r) =>
+      r.retried > 0 ? toast.info(`${plural(r.retried, "document")} ${r.retried === 1 ? "was" : "were"} queued again`) : toast.info("No documents need OCR"),
+    onSettled: invalidate,
+  });
   const remove = useMutation({
     mutationFn: async (docs: Doc[]) => {
       for (const d of docs) await owner.api.deleteDocument(sourceId, d.id);
@@ -54,7 +61,7 @@ export function useDocumentMutations(sourceId: string) {
       qc.invalidateQueries({ queryKey: [...owner.keys.source(sourceId), "tags"] });
     },
   });
-  return { retry, refetch, remove, setTags };
+  return { retry, retryNeedsOcr, refetch, remove, setTags };
 }
 
 export type DocumentMutations = ReturnType<typeof useDocumentMutations>;

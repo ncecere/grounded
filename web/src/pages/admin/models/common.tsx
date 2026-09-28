@@ -9,7 +9,14 @@ export type Model = Schemas["Model"];
 export type ModelKind = Schemas["ModelKind"];
 export type Profile = Schemas["EmbeddingProfile"];
 
-export const kindLabels: Record<ModelKind, string> = { chat: "Chat", embedding: "Embedding", rerank: "Rerank", moderation: "Moderation", systemone: "SystemOne" };
+export const kindLabels: Record<ModelKind, string> = {
+  chat: "Chat",
+  embedding: "Embedding",
+  rerank: "Rerank",
+  moderation: "Moderation",
+  systemone: "SystemOne",
+  vision: "Vision (OCR)",
+};
 
 export function useConnections() {
   return useQuery({ queryKey: ["admin", "connections"], queryFn: async () => unwrap(await api.GET("/v1/admin/connections")) });

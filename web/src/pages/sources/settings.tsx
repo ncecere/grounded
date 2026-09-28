@@ -1,6 +1,6 @@
 /*
  * A source's Settings tab on the SettingsPage template (D3, W3): General ·
- * Crawling (web) · Classification · Danger zone, one form with ONE sticky
+ * Crawling (web) · Classification · OCR · Danger zone, one form with ONE sticky
  * save bar (F-17 guard included). While a field is invalid the bar says
  * "Not saved: fix the highlighted field" (F-26).
  */
@@ -11,6 +11,7 @@ import { Alert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { Field } from "@/components/ui/field/field";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
+import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
 import { type Classification, plural, rankOf } from "../team/common";
 import { type SourceActions, pauseHelp } from "./actions";
@@ -22,7 +23,7 @@ import { type ClassificationImpact, type DataSource, useSourceOwner } from "./ow
 import { WebConfigFields } from "./web";
 import { type WebFormState, formUrls, validateWeb, webFormFromConfig, webInput } from "./web-form";
 
-type Form = { name: string; description: string; classification: string; reason: string; web: WebFormState | null };
+type Form = { name: string; description: string; classification: string; reason: string; web: WebFormState | null; ocrEnabled: boolean };
 
 const formOf = (src: DataSource): Form => ({
   name: src.name,
@@ -30,6 +31,7 @@ const formOf = (src: DataSource): Form => ({
   classification: src.classification,
   reason: "",
   web: src.web ? webFormFromConfig(src.web) : null,
+  ocrEnabled: src.ocrEnabled,
 });
 
 const webChanged = (a: WebFormState | null, b: WebFormState | null) => Boolean(a && b) && JSON.stringify(webInput(a!)) !== JSON.stringify(webInput(b!));
@@ -56,7 +58,11 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
   };
   const invalid = Boolean(errors.name || errors.reason || Object.keys(errors.web).length > 0);
   const dirty =
-    form.name.trim() !== source.name || form.description !== source.description || form.classification !== source.classification || webChanged(form.web, initial.web);
+    form.name.trim() !== source.name ||
+    form.description !== source.description ||
+    form.classification !== source.classification ||
+    form.ocrEnabled !== source.ocrEnabled ||
+    webChanged(form.web, initial.web);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -73,6 +79,7 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
         }
       }
       if (form.web && webChanged(form.web, initial.web)) body.web = webInput(form.web);
+      if (form.ocrEnabled !== source.ocrEnabled) body.ocrEnabled = form.ocrEnabled;
       return owner.api.update(source, body);
     },
     onSuccess: (updated) => {
@@ -146,6 +153,18 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
               <Textarea aria-required minLength={10} value={form.reason} onChange={(e) => set({ reason: e.target.value })} />
             </Field>
           )}
+        </SettingsSection>
+        <SettingsSection title="OCR" description="Scanned pages (without a text layer) and image uploads are read with OCR when the platform has it on.">
+          <Switch
+            label="Read scanned pages with OCR"
+            description={
+              form.ocrEnabled
+                ? "Turn it off where scanned pages are noise: they are skipped, and images can't be uploaded. Documents already processed keep their text."
+                : "Scanned pages are skipped and images can't be uploaded. After turning it on, retry the documents that need OCR (Documents tab)."
+            }
+            checked={form.ocrEnabled}
+            onCheckedChange={(v) => set({ ocrEnabled: v })}
+          />
         </SettingsSection>
         {blocked ? (
           <Alert
