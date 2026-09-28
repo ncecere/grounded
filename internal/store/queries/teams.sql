@@ -62,10 +62,15 @@ ORDER BY t.name, t.id;
 -- name: GetMembership :one
 SELECT * FROM team_members WHERE team_id = @team_id AND user_id = @user_id;
 
+-- sso is true for memberships the SSO group mapping created; sso_group is
+-- the group of the rule that grants it (NULL when that rule was deleted).
 -- name: ListMembers :many
-SELECT sqlc.embed(m), sqlc.embed(u)
+SELECT sqlc.embed(m), sqlc.embed(u),
+       (s.user_id IS NOT NULL)::boolean AS sso, s.rule_id AS sso_rule_id, r.group_name AS sso_group
 FROM team_members m
 JOIN users u ON u.id = m.user_id
+LEFT JOIN sso_memberships s ON s.team_id = m.team_id AND s.user_id = m.user_id
+LEFT JOIN sso_group_rules r ON r.id = s.rule_id
 WHERE m.team_id = @team_id
 ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'editor' THEN 2 ELSE 3 END,
          u.email::text;

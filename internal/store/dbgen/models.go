@@ -650,6 +650,32 @@ type SourceEmbeddingSet struct {
 	UpdatedAt time.Time
 }
 
+type SsoGroupRule struct {
+	ID        uuid.UUID
+	GroupName string
+	TeamID    uuid.UUID
+	Role      string
+	CreatedBy uuid.NullUUID
+	Revision  int64
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type SsoMembership struct {
+	TeamID    uuid.UUID
+	UserID    uuid.UUID
+	RuleID    uuid.NullUUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type SsoUserGroup struct {
+	UserID       uuid.UUID
+	Groups       []string
+	ClaimPresent bool
+	SeenAt       time.Time
+}
+
 type SystemoneSetting struct {
 	Singleton bool
 	ModelID   uuid.NullUUID

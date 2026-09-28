@@ -287,9 +287,12 @@ func (q *Queries) InsertTeam(ctx context.Context, arg InsertTeamParams) (Team, e
 }
 
 const listMembers = `-- name: ListMembers :many
-SELECT m.team_id, m.user_id, m.role, m.added_by, m.revision, m.created_at, m.updated_at, u.id, u.oidc_issuer, u.oidc_subject, u.email, u.display_name, u.platform_role, u.status, u.claims, u.created_at, u.updated_at, u.last_login_at, u.revision
+SELECT m.team_id, m.user_id, m.role, m.added_by, m.revision, m.created_at, m.updated_at, u.id, u.oidc_issuer, u.oidc_subject, u.email, u.display_name, u.platform_role, u.status, u.claims, u.created_at, u.updated_at, u.last_login_at, u.revision,
+       (s.user_id IS NOT NULL)::boolean AS sso, s.rule_id AS sso_rule_id, r.group_name AS sso_group
 FROM team_members m
 JOIN users u ON u.id = m.user_id
+LEFT JOIN sso_memberships s ON s.team_id = m.team_id AND s.user_id = m.user_id
+LEFT JOIN sso_group_rules r ON r.id = s.rule_id
 WHERE m.team_id = $1
 ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'editor' THEN 2 ELSE 3 END,
          u.email::text
@@ -298,8 +301,13 @@ ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'editor' THEN 
 type ListMembersRow struct {
 	TeamMember TeamMember
 	User       User
+	Sso        bool
+	SsoRuleID  uuid.NullUUID
+	SsoGroup   *string
 }
 
+// sso is true for memberships the SSO group mapping created; sso_group is
+// the group of the rule that grants it (NULL when that rule was deleted).
 func (q *Queries) ListMembers(ctx context.Context, teamID uuid.UUID) ([]ListMembersRow, error) {
 	rows, err := q.db.Query(ctx, listMembers, teamID)
 	if err != nil {
@@ -329,6 +337,9 @@ func (q *Queries) ListMembers(ctx context.Context, teamID uuid.UUID) ([]ListMemb
 			&i.User.UpdatedAt,
 			&i.User.LastLoginAt,
 			&i.User.Revision,
+			&i.Sso,
+			&i.SsoRuleID,
+			&i.SsoGroup,
 		); err != nil {
 			return nil, err
 		}
