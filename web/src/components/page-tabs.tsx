@@ -11,6 +11,9 @@ import { Tab, Tabs, TabsList, TabsPanel } from "@/components/ui/tabs/tabs";
 import { useCrumbTail } from "./layout/crumb-tail";
 import t from "./page-tabs.module.css";
 
+/** Parameters that belong to what is open on a tab (a record page, a form page, the agent's Test panel): dropped when the tab changes. */
+const tabOverlays = ["record", "form", "test"];
+
 /**
  * The active tab (from ?tab=) and a way to change it. Changing tabs pushes a
  * history entry, so Back returns to the previous tab.
@@ -22,7 +25,10 @@ export function useUrlTab<T extends string>(tabs: readonly T[]): [T, (next: T, o
   const setTab = (next: T, opts?: { replace?: boolean }) =>
     void navigate({
       to: ".",
-      search: ((prev: Record<string, unknown>) => ({ ...prev, tab: next === tabs[0] ? undefined : next })) as never,
+      search: ((prev: Record<string, unknown>) => {
+        const kept = next === tab ? prev : Object.fromEntries(Object.entries(prev).filter(([k]) => !tabOverlays.includes(k)));
+        return { ...kept, tab: next === tabs[0] ? undefined : next };
+      }) as never,
       replace: opts?.replace ?? false,
     });
   return [tab, setTab];

@@ -42,6 +42,9 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are 
 - **Retry all that need OCR** is disabled, with the reason next to it, while OCR is off for the source or the platform: a retry would only skip the documents again.
 - A PDF indexed with some scanned pages skipped says "1 of 2 pages had no text layer (possibly scanned) and was skipped, because OCR is off for this document", and how to read them (turn OCR on, then delete the document and upload it again: a ready document isn't retried). The source's OCR switch no longer suggests a retry reaches such documents.
 - A document skipped as scanned shows its kind ("PDF · 24 KiB", not "24 KiB"): ingestion keeps the detected kind when it stops before indexing.
+- The agent's Settings tab shows the "Live" badge only for a published agent, and says what that means: these settings aren't part of versions, so saved changes reach people at once. An unpublished agent says nobody can chat with it until it's published (C13).
+- Build → Knowledge: the **Inherit** button shows the knowledge base's value ("Inherit (8)") and its accessible name starts with that text (WCAG 2.5.3), and an out-of-range results per search says "Enter a whole number from 1 to 20." next to the field, linked to it (C14).
+- Changing a page's tab drops what was open on the last one (`?record=`, `?form=`, the agent's `?test=open`).
 
 ## [0.1.0] - 2026-09-28
 

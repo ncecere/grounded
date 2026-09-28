@@ -28,8 +28,15 @@ export function AgentSettingsTab({ agent, d, onStatus, onDelete }: Props) {
   const managersOnly = isManager ? undefined : "Only team admins and owners can do this.";
   return (
     <div className={a.stack}>
+      {/* These fields aren't versioned: "Live" only for an agent people can chat with (published). */}
       <p className={ap.liveNote}>
-        <Badge tone="info">Live</Badge> Changes here reach people as soon as they're saved. They aren't part of versions.
+        {agent.published ? (
+          <>
+            <Badge tone="info">Live</Badge> These settings aren't part of versions: saved changes reach people at once, without publishing.
+          </>
+        ) : (
+          "These settings aren't part of versions. Nobody can chat with this agent until it's published; from then on, saved changes reach people at once."
+        )}
       </p>
       <SettingsSection title="General">
         <Field label="Name" error={errors.name}>

@@ -162,7 +162,13 @@ describe("Build", () => {
     expect(screen.getByText(/Overridden/)).toBeInTheDocument();
     await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: 3000 });
     expect((calls.find((c) => c.method === "PATCH")!.body as { config: { kbs: unknown } }).config.kbs).toEqual([{ kbId: "kb1", topK: 8 }]);
-    await userEvent.click(screen.getByRole("button", { name: "Use the results per search of Registrar help (8)" }));
+    // Out of range: the field says why (aria-describedby), and the button's name starts with its visible text (WCAG 2.5.3).
+    await userEvent.clear(input);
+    await userEvent.type(input, "25");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input).toHaveAccessibleDescription("Enter a whole number from 1 to 20.");
+    expect(screen.getByRole("button", { name: "Inherit (8) from Registrar help" })).toHaveTextContent("Inherit (8)");
+    await userEvent.click(screen.getByRole("button", { name: "Inherit (8) from Registrar help" }));
     expect(screen.getByRole("button", { name: "Override results per search from Registrar help" })).toHaveFocus();
     await waitFor(() => expect((calls.filter((c) => c.method === "PATCH").at(-1)!.body as { config: { kbs: unknown } }).config.kbs).toEqual([{ kbId: "kb1", topK: null }]), {
       timeout: 3000,
@@ -184,6 +190,15 @@ describe("Build", () => {
     await userEvent.click(screen.getByRole("button", { name: "Disable agent" }));
     expect(await screen.findByRole("dialog", { name: "Disable Helper desk?" })).toBeInTheDocument();
   }, 10_000);
+
+  it("Settings says Live only for a published agent, and a tab change drops what was open on the last tab (C13)", async () => {
+    mockApi(routes(agent({ published: null, hasUnpublishedChanges: true }), {}));
+    const { router } = renderApp("/teams/registrar/agents/ag1?tab=appearance&record=x&form=new");
+    await userEvent.click(await screen.findByRole("tab", { name: "Settings" }, { timeout: 5000 }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: "settings" }));
+    expect(await screen.findByText(/Nobody can chat with this agent until it's published/)).toBeInTheDocument();
+    expect(screen.queryByText("Live")).toBeNull();
+  });
 
   it("Appearance keeps the look and welcome only; editors see why they can't disable or delete (C13)", async () => {
     mockApi(routes(agent(), {}, "editor"));
