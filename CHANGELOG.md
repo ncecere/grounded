@@ -19,12 +19,14 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are 
 - CI: the authorization matrix (`TestAuthorizationMatrix*`, about 3,600 calls under `-race`) runs in its own `authz` job, in parallel with `test`, which skips it (`make test SKIP_AUTHZ=1`; `make test-authz` runs it alone). The image job needs both. The matrix and its break-glass pass run in parallel with each other, each on its own database.
 - `cmd/sparkbench` reads citation markers with `internal/agents` (exported `CitedNumbers`, `RemoveMarkers`, `IsRefusal`) instead of its own copy of the old pattern, so benchmark scores count markers exactly as the product does (never inside code or array indices).
 - CI: a tag build fails, before the image is scanned and signed, unless the built image reports exactly its tag (`grounded v0.2.0 (<commit>)`).
+- A knowledge base's page has "Attach source" as its primary header action (like a source's "Upload files" or "Sync now"), and an empty knowledge base's Overview asks for a source with the same button (C13).
+- The agent editor has a Settings tab like a source's and a knowledge base's: the name, address and description (moved from Appearance, which keeps the look and welcome) and a Danger zone to disable, enable or delete the agent. They save like the rest of the editor; Disable and Delete stay in the "…" menu too (C13).
+- An agent's results per search from a knowledge base inherit the knowledge base's own top-k until overridden (C14). Build says "Inherited from the knowledge base (N)" or "Overridden", with Override and Inherit buttons; new agents inherit. API: `kbs[].topK` is nullable, and absent or null inherits (it used to default to 6); agents saved before keep their 6. A version's `knowledgeBases[]` has `inherited`, and its `topK` is the value in effect.
 
 ### Fixed
 - A crawl waiting for the next day's page quota (`crawl_pages_per_day`) resumes as soon as a platform admin raises the limit, through a team override or the platform default, instead of at midnight UTC. A waiting crawl also re-checks its limit every 15 minutes.
 - Removing someone from a team (or leaving it) marks their unread "You were added to ..." and role-change notifications for that team read; they led to a page the person can no longer open.
 - Release images take the full git tag as their version: v0.1.0's binary reported `v0.1`.
-### Fixed
 - A deleted agent's conversations open read-only (`/conversations/<id>`): the transcript with a note that the agent was deleted, and no composer, instead of "Agent not available" (G2).
 - The answer feedback thumbs show which one you chose: both are toggle buttons (`aria-pressed`), and the chosen one has a primary tint and a filled icon (G16).
 - An agent's default accent colour is the theme's primary colour everywhere: Appearance no longer names `#0021a5` (a leftover from a removed institution theme), its first quick pick is the theme's indigo, and the widget's launcher uses the same default (G17).
@@ -33,11 +35,6 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are 
 - The model form's "Compatibility" section uses the bitop-ui `Disclosure` instead of a hand-built `<details>` toggle (G8).
 - One date rule: lists show relative times with the full date on hover, record pages show absolute dates. Home's "Continue where you left off", open invites' "Expires", the crawl allowlist, crawl history, version history, moderation decisions and open break-glass sessions now follow it, and Analytics shows days as dates ("Sep 26, 2026") instead of ISO dates (G13).
 - Usage & limits shows this minute's count for every per-minute query rate, not only the team-wide one: the busiest API key's and the busiest person's (`GET /v1/teams/{team}/limits` fills `used` for them). The public per-address and per-visitor rates stay without a figure: they're counted per visitor (G5).
-
-### Changed
-- A knowledge base's page has "Attach source" as its primary header action (like a source's "Upload files" or "Sync now"), and an empty knowledge base's Overview asks for a source with the same button (C13).
-- The agent editor has a Settings tab like a source's and a knowledge base's: the name, address and description (moved from Appearance, which keeps the look and welcome) and a Danger zone to disable, enable or delete the agent. They save like the rest of the editor; Disable and Delete stay in the "…" menu too (C13).
-- An agent's results per search from a knowledge base inherit the knowledge base's own top-k until overridden (C14). Build says "Inherited from the knowledge base (N)" or "Overridden", with Override and Inherit buttons; new agents inherit. API: `kbs[].topK` is nullable, and absent or null inherits (it used to default to 6); agents saved before keep their 6. A version's `knowledgeBases[]` has `inherited`, and its `topK` is the value in effect.
 
 ## [0.1.0] - 2026-09-28
 
