@@ -184,7 +184,7 @@ function ChatFields({ form, set }: { form: ModelForm; set: SetField }) {
 function VisionFields({ form, set }: { form: ModelForm; set: SetField }) {
   return (
     <>
-      <Field label="Max output tokens" description="The longest transcription of one page. Empty uses 4096.">
+      <Field label="Max output tokens" description="The longest transcription of one page. Empty uses 4,096.">
         <NumberInput maximumFractionDigits={0} value={form.maxOutputTokens} onValueChange={(v) => set("maxOutputTokens", v)} />
       </Field>
       <p className={`${s.settingDescription} ${m.wide}`}>

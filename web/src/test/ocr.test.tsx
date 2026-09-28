@@ -107,7 +107,9 @@ describe("Admin → Parsing", () => {
     renderApp("/admin/parsing");
     const toggle = await screen.findByRole("switch", { name: /Read scanned pages/ });
     expect(toggle.getAttribute("aria-disabled") === "true" || toggle.hasAttribute("data-disabled")).toBe(true);
-    expect(screen.getByRole("button", { name: "Test" })).toBeDisabled();
+    // Auditors can't run the Test (403), so it isn't offered; the page says OCR is off and who can turn it on.
+    expect(screen.queryByRole("button", { name: "Test" })).toBeNull();
+    expect(screen.getByText(/It is off until a platform admin turns it on\./)).toBeInTheDocument();
   });
 });
 

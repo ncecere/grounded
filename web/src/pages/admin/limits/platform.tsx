@@ -23,6 +23,7 @@ import { formatDate } from "@/lib/format";
 import { PageTabs, useUrlTab } from "@/components/page-tabs";
 import { formatLimit, limitGroups, platformLimitsQuery } from "@/lib/limits";
 import { limitTabs } from "@/lib/tabs";
+import { adminOnly } from "@/lib/terms";
 import { useCurrentUser } from "@/session";
 import s from "../../shared.module.css";
 import { AmountInput, LimitName } from "./fields";
@@ -90,6 +91,11 @@ export function LimitsPage() {
         description="Defaults apply to every team without its own value; a ceiling is the most any team can be given (lowering it caps existing team values). Empty means unlimited or no ceiling. A team's own values are on its page under Teams."
         meta={limits.data && limits.data.revision > 1 ? <span className={s.note}>Last changed {formatDate(limits.data.updatedAt)}</span> : undefined}
       />
+      {!isAdmin && (
+        <Alert tone="info" title="Read-only">
+          {adminOnly}
+        </Alert>
+      )}
       {limits.isLoading || !form ? (
         limits.error ? (
           <ErrorAlert error={limits.error} title="Couldn't load limits" />
