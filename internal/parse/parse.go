@@ -34,10 +34,13 @@ const (
 	KindHTML     Kind = "html"
 	KindMarkdown Kind = "markdown"
 	KindText     Kind = "text"
+	// KindImage is a PNG, JPEG or TIFF upload: one page read with OCR
+	// (docs/ocr.md §5a).
+	KindImage Kind = "image"
 )
 
 // Kinds lists every supported kind.
-var Kinds = []Kind{KindPDF, KindDOCX, KindPPTX, KindHTML, KindMarkdown, KindText}
+var Kinds = []Kind{KindPDF, KindDOCX, KindPPTX, KindHTML, KindMarkdown, KindText, KindImage}
 
 // MIMEType returns the canonical MIME type for a kind.
 func (k Kind) MIMEType() string {
@@ -52,6 +55,8 @@ func (k Kind) MIMEType() string {
 		return "text/html"
 	case KindMarkdown:
 		return "text/markdown"
+	case KindImage:
+		return "image/png"
 	default:
 		return "text/plain"
 	}
@@ -68,6 +73,10 @@ type Input struct {
 	// relative links resolve against BaseURL (the page URL).
 	WebPage bool
 	BaseURL string
+
+	// OCR reads pages without a text layer (PDF) and images; nil: OCR is
+	// off, and parsing is as without OCR.
+	OCR *OCROptions
 }
 
 // Document is parser output.
@@ -75,14 +84,17 @@ type Document struct {
 	Title    string
 	Markdown string   // with PageMarker lines for paginated formats
 	Pages    int      // number of pages/slides; 0 when not paginated
-	Parser   string   // e.g. "builtin:pdf" or "tika"
+	Parser   string   // e.g. "builtin:pdf", "builtin:pdf+ocr:tesseract" or "tika"
 	Warnings []string // non-fatal problems, shown to users
+	// OCR lists the pages read with OCR; nil when none were. It is also
+	// set with ErrEmpty when OCR ran and found no text, so its usage counts.
+	OCR *OCRInfo
 }
 
 // Errors callers act on. Wrap them with context; test with errors.Is.
 var (
 	ErrUnsupported = errors.New("unsupported document format")
-	ErrNeedsOCR    = errors.New("document has no extractable text (it may be scanned); OCR is not available yet")
+	ErrNeedsOCR    = errors.New("document has no extractable text (it may be scanned) and OCR is off")
 	ErrEncrypted   = errors.New("document is password-protected")
 	ErrCorrupt     = errors.New("document is damaged or not the format its name suggests")
 	ErrEmpty       = errors.New("document contains no text")
@@ -158,6 +170,8 @@ func Detect(name string, data []byte) (Kind, error) {
 		return KindPDF, nil
 	case bytes.HasPrefix(data, []byte("PK\x03\x04")):
 		return detectOOXML(data)
+	case IsImage(head):
+		return KindImage, nil
 	}
 	if bytes.IndexByte(head, 0) >= 0 && !hasUTF16BOM(data) {
 		return "", fmt.Errorf("%w: binary content", ErrUnsupported)
@@ -168,7 +182,7 @@ func Detect(name string, data []byte) (Kind, error) {
 	case ".md", ".markdown", ".mdown":
 		return KindMarkdown, nil
 	case ".txt", ".text", "":
-	case ".pdf", ".docx", ".pptx":
+	case ".pdf", ".docx", ".pptx", ".png", ".jpg", ".jpeg", ".tif", ".tiff":
 		return "", fmt.Errorf("%w: the file is named %s but its content does not match", ErrCorrupt, ext)
 	default:
 		if ct := http.DetectContentType(head); !strings.HasPrefix(ct, "text/") {
@@ -229,6 +243,11 @@ func (r *Router) Parse(ctx context.Context, in Input) (Document, error) {
 		doc, err := p.Parse(ctx, in)
 		if err == nil && strings.TrimSpace(stripMarkers(doc.Markdown)) == "" {
 			err = ErrEmpty
+			if doc.OCR != nil {
+				// OCR read the pages and found nothing: no fallback, and
+				// the pages it read still count.
+				return Document{Pages: doc.Pages, OCR: doc.OCR, Warnings: doc.Warnings}, err
+			}
 			if in.Kind == KindPDF && doc.Pages > 0 {
 				err = ErrNeedsOCR
 			}
@@ -242,7 +261,9 @@ func (r *Router) Parse(ctx context.Context, in Input) (Document, error) {
 		if firstErr == nil {
 			firstErr = err
 		}
-		if errors.Is(err, ErrEncrypted) || errors.Is(err, ErrTooLarge) {
+		// No fallback for a document that can't be read, or whose OCR must
+		// wait or be retried (another parser would skip the scanned pages).
+		if errors.Is(err, ErrEncrypted) || errors.Is(err, ErrTooLarge) || errors.Is(err, ErrOCRLimit) || fatalOCRError(ctx, err) {
 			break
 		}
 		if r.Log != nil {

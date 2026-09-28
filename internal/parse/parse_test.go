@@ -73,7 +73,10 @@ func TestDetect(t *testing.T) {
 		{"notes.txt", []byte("hello"), KindText, nil},
 		{"README", []byte("hello"), KindText, nil},
 		{"saved", []byte("<!DOCTYPE html><html><body>x</body></html>"), KindHTML, nil},
-		{"image.png", []byte("\x89PNG\r\n\x1a\n\x00\x00"), "", ErrUnsupported},
+		{"image.png", []byte("\x89PNG\r\n\x1a\n\x00\x00"), KindImage, nil},
+		{"photo", []byte("\xFF\xD8\xFF\xE0\x00"), KindImage, nil},
+		{"scan.tif", []byte("II*\x00\x08\x00"), KindImage, nil},
+		{"a.gif", []byte("GIF89a\x00\x00"), "", ErrUnsupported},
 		{"fake.pdf", []byte("just text"), "", ErrCorrupt},
 		{"sheet.xlsx", zipFiles(t, map[string]string{"xl/workbook.xml": "<x/>"}), "", ErrUnsupported},
 	}

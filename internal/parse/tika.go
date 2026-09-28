@@ -30,7 +30,9 @@ func NewTika(baseURL string, timeout time.Duration, lim Limits) *Tika {
 
 func (t *Tika) Name() string { return "tika" }
 
-func (t *Tika) Supports(k Kind) bool { return k != KindMarkdown && k != KindText }
+// Supports: images are read with OCR under Grounded's own page limits
+// (Recognize), never parsed by the fallback.
+func (t *Tika) Supports(k Kind) bool { return k != KindMarkdown && k != KindText && k != KindImage }
 
 // Ping checks that the Tika server answers (GET /version).
 func (t *Tika) Ping(ctx context.Context) error {
@@ -97,4 +99,35 @@ func (t *Tika) Parse(ctx context.Context, in Input) (Document, error) {
 		title = titleFromName(in.Name)
 	}
 	return Document{Title: title, Markdown: md, Pages: pages, Parser: "tika"}, nil
+}
+
+// Recognize reads one page image with Tika's Tesseract OCR (docs/ocr.md §2;
+// the apache/tika "-full" image has Tesseract). It makes Tika an OCR
+// backend. Tika without Tesseract returns no text.
+func (t *Tika) Recognize(ctx context.Context, img []byte, langs string) (OCRResult, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, t.BaseURL+"/tika", bytes.NewReader(img))
+	if err != nil {
+		return OCRResult{}, err
+	}
+	req.Header.Set("Content-Type", "image/png")
+	req.Header.Set("Accept", "text/plain")
+	if langs != "" {
+		req.Header.Set("X-Tika-OCRLanguage", langs)
+	}
+	res, err := t.HTTP.Do(req)
+	if err != nil {
+		return OCRResult{}, fmt.Errorf("%w: tika: %v", ErrOCRUnavailable, err)
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(res.Body, int64(t.Limits.MaxMarkdownBytes)))
+	if err != nil {
+		return OCRResult{}, fmt.Errorf("%w: tika response: %v", ErrOCRUnavailable, err)
+	}
+	switch {
+	case res.StatusCode >= 500 || res.StatusCode == http.StatusTooManyRequests:
+		return OCRResult{}, fmt.Errorf("%w: tika returned HTTP %d", ErrOCRUnavailable, res.StatusCode)
+	case res.StatusCode != http.StatusOK:
+		return OCRResult{}, fmt.Errorf("tika could not read the image (HTTP %d)", res.StatusCode)
+	}
+	return OCRResult{Text: string(body)}, nil
 }

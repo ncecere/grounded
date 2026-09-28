@@ -48,6 +48,8 @@ func (b *Builtin) Parse(ctx context.Context, in Input) (Document, error) {
 		return parseMarkdown(in)
 	case KindText:
 		return parseText(in)
+	case KindImage:
+		return parseImage(ctx, in)
 	}
 	return Document{}, fmt.Errorf("%w: %s", ErrUnsupported, in.Kind)
 }

@@ -86,7 +86,7 @@ func (e *pdfEngine) parse(ctx context.Context, in Input, lim Limits) (Document, 
 	}
 
 	var lines []pdfLine
-	emptyPages := 0
+	var empty []int // pages without text (1-based)
 	for i := 0; i < pages; i++ {
 		if err := ctx.Err(); err != nil {
 			return Document{}, err
@@ -98,27 +98,41 @@ func (e *pdfEngine) parse(ctx context.Context, in Input, lim Limits) (Document, 
 		})
 		if err != nil {
 			warnings = append(warnings, fmt.Sprintf("page %d could not be read", i+1))
-			emptyPages++
+			empty = append(empty, i+1)
 			continue
 		}
 		pageLines := linesFromRects(i+1, st.Rects)
 		if len(pageLines) == 0 {
-			emptyPages++
+			empty = append(empty, i+1)
 		}
 		lines = append(lines, pageLines...)
 	}
-	if len(lines) == 0 && pages > 0 {
+	// Pages without a text layer are read with OCR when it is on
+	// (docs/ocr.md); pages with text never are.
+	var ocrTexts map[int]string
+	var info *OCRInfo
+	if in.OCR != nil && len(empty) > 0 {
+		var more []string
+		if ocrTexts, info, more, err = ocrPDF(ctx, inst, opened.Document, in.OCR, empty); err != nil {
+			return Document{}, err
+		}
+		warnings = append(warnings, more...)
+	}
+	if len(lines) == 0 && len(ocrTexts) == 0 && pages > 0 {
+		if info != nil {
+			return Document{Pages: pages, Parser: parserName("builtin:pdf", info), OCR: info, Warnings: warnings}, nil // Router: empty
+		}
 		return Document{Pages: pages}, ErrNeedsOCR
 	}
-	if emptyPages > 0 {
-		warnings = append(warnings, fmt.Sprintf("%d of %d pages had no extractable text (possibly scanned) and were skipped", emptyPages, pages))
+	if in.OCR == nil && len(empty) > 0 {
+		warnings = append(warnings, fmt.Sprintf("%d of %d pages had no extractable text (possibly scanned) and were skipped", len(empty), pages))
 	}
 
 	title := ""
 	if meta, err := inst.FPDF_GetMetaText(&requests.FPDF_GetMetaText{Document: opened.Document, Tag: "Title"}); err == nil {
 		title = strings.TrimSpace(meta.Value)
 	}
-	md := renderPDF(removeRunningHeaders(lines, pages), pages)
+	md := renderPDF(removeRunningHeaders(lines, pages), pages, ocrTexts)
 	if len(md) > lim.MaxMarkdownBytes {
 		return Document{}, fmt.Errorf("%w: converted text exceeds the limit", ErrTooLarge)
 	}
@@ -129,7 +143,7 @@ func (e *pdfEngine) parse(ctx context.Context, in Input, lim Limits) (Document, 
 			title = titleFromName(in.Name)
 		}
 	}
-	return Document{Title: title, Markdown: md, Pages: pages, Parser: "builtin:pdf", Warnings: warnings}, nil
+	return Document{Title: title, Markdown: md, Pages: pages, Parser: parserName("builtin:pdf", info), Warnings: warnings, OCR: info}, nil
 }
 
 var fileNameRE = regexp.MustCompile(`(?i)\.[a-z0-9]{2,5}$`)
@@ -259,8 +273,9 @@ func removeRunningHeaders(lines []pdfLine, pages int) []pdfLine {
 var bulletRE = regexp.MustCompile(`^([•◦▪▫●○■□‣⁃\-–*]|\d{1,3}[.)]|[a-zA-Z][.)])\s+`)
 
 // renderPDF turns lines into Markdown with headings inferred from font size
-// and a page marker at each page start.
-func renderPDF(lines []pdfLine, pages int) string {
+// and a page marker at each page start. ocr holds the text of pages read
+// with OCR, written under their markers as it came.
+func renderPDF(lines []pdfLine, pages int, ocr map[int]string) string {
 	body := bodySize(lines)
 	levels := headingSizes(lines, body)
 	margins := leftMargins(lines)
@@ -279,7 +294,7 @@ func renderPDF(lines []pdfLine, pages int) string {
 		for page < l.page {
 			flushPara()
 			page++
-			b.WriteString(PageMarker(page) + "\n\n")
+			writePageStart(&b, page, ocr)
 			last = nil
 		}
 		if lvl := levels[roundSize(l.size)]; lvl > 0 && isHeadingText(l.text) {
@@ -314,9 +329,18 @@ func renderPDF(lines []pdfLine, pages int) string {
 	flushPara()
 	for page < pages {
 		page++
-		b.WriteString(PageMarker(page) + "\n\n")
+		writePageStart(&b, page, ocr)
 	}
 	return cleanMarkdown(b.String())
+}
+
+// writePageStart writes a page's marker and, for a page read with OCR, its
+// text.
+func writePageStart(b *strings.Builder, page int, ocr map[int]string) {
+	b.WriteString(PageMarker(page) + "\n\n")
+	if t := ocr[page]; t != "" {
+		b.WriteString(t + "\n\n")
+	}
 }
 
 // softHyphen marks a line-break hyphen. PDFium reports every hyphen at the
