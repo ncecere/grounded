@@ -171,18 +171,20 @@ Phase 5 ended in **v0.1.0**: rc.1 and rc.2 ran on the reference install, a walkt
 
 ---
 
-## Proposed v0.2 short list
+## v0.2 scope (owner decisions, 2026-09-28)
 
-The owner reviews and decides; this is my recommendation, highest priority first. The theme: **measure and raise answer quality, then make Grounded easier to run for many teams.**
+The spec is [`v0.2.md`](v0.2.md).
 
-1. **A2 ★ Evaluation sets and regression runs (M).** Every later quality change (A13, A1b, chunking, models) needs a score; today only `ragbench` on a laptop has one.
-2. **A13 ★ Citation marks per claim (M).** The quality issue users see on real answers today: one unsupported sentence marks a correct source as unsupported.
-3. **A1b Cross-encoder reranking (S–M).** The gain SystemOne judging showed, without ~0.7 s per candidate on one GPU. Measured with A2.
-4. **E1 ★ SSO group → team mapping (M).** The first thing admins ask for with more than a few teams; membership by hand doesn't scale.
-5. **E2 ★ Cost reporting and budgets (M).** Usage is recorded already; teams and admins need it priced and capped.
-6. **B4 ★ OCR for scanned PDFs (M).** Scanned PDFs are skipped silently today; common in policy and forms libraries.
-7. **E15 Command palette finds objects (S–M).** The biggest navigation gap from the walkthrough.
-8. **Small fixes as one batch (S each):** G1, G2, G4, G10–G18, C13, C14.
-9. **Operations (S each):** F10 remote base at home, F8 faster CI, F9 release assets, F12 Dependabot triage.
+| Item | Decision |
+|---|---|
+| **A2** evaluation sets | In: retrieval check, then the full-answer check if time allows. Optional: editors only, and a platform switch. |
+| **A13** citation marks per claim | Later: a refinement of the citation checks already in chat. |
+| **A1b** cross-encoder reranking | Parked until a rerank model is available to test with. |
+| **E1** SSO group → team mapping | In. |
+| **E2** cost reporting | In, with modes: Off, **Track only**, Enforce (budgets). |
+| **B4** OCR | In, optional and pluggable: Tesseract, Apache Tika, or a vision model. |
+| **E15** command palette finds objects | In. |
+| Small fixes: G1, G2, G4, G5, G7–G18, C13, C14 | In. |
+| Operations: F8, F9, F10, F12 | In. |
 
-Next in line, if v0.2 has room or for v0.3: **C1** MCP (expose KBs and agents as MCP servers first), **D1** Teams/Slack bots, **B1** Microsoft 365 connector (needs **B6** ACLs), **C2** unanswered-questions report, **E11** stored model health, **F1** tracing.
+Next in line for v0.3: **C1** MCP, **D1** Teams/Slack bots, **B1** Microsoft 365 connector (with **B6** ACLs), **C2** unanswered-questions report, **E11** stored model health, **F1** tracing, **A13**, **A1b** once there's a model.
