@@ -6,11 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are drafted in [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md).
+
 ### Added
 - The command palette (⌘K) finds objects by name on the server (`GET /v1/search`, E15): the agents, knowledge bases and data sources of all your teams (no longer only the first ten), agents you may chat with, and your own conversations by title; platform admins and auditors also find teams, users, models, connections, embedding profiles and shared sources, which open their admin pages. Results are ranked by how the name matches (prefix, word start, anywhere) and only include what the caller may see. A migration adds trigram indexes for the searched names.
 - SSO group mapping (E1): platform admins map an identity-provider group to a team role under **Admin → Group mapping** (and a team's **Group mapping** tab). At each OIDC sign-in the groups claim (`OIDC_GROUPS_CLAIM`, default `groups`) adds members or raises their role, and lowers or removes the memberships the mapping created; memberships added by hand are never changed, the highest role wins, and a team's last owner is kept. A dry run shows who a rule change affects, from each person's groups at their last sign-in; saving applies it at once. Every change is audited with the system as the actor. Owners see "Managed by SSO group X" and can't remove such members by hand. `DEV_AUTH_GROUPS` gives development personas groups; `grounded doctor` warns when rules exist but no sign-in carries the claim. Runbook: [`docs/operations/sso-groups.md`](docs/operations/sso-groups.md). Migration `00032_sso_group_mapping.sql`.
-Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). Release notes will be in `docs/releases/v0.2.0.md`.
-Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are drafted in [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md).
 - `GET /v1/teams/{team}/api-keys/{keyId}` returns one API key, including a revoked one (`revokedAt`), for team admins and the key's owner. An audit-log entry about a key links to its record page (`?tab=api-keys&record=<id>`), which now loads a revoked key by id and shows it read-only; before, the link led to the list, which hides revoked keys.
 - Release assets: each GitHub Release has the image's SPDX SBOM per platform (`grounded-<tag>-linux-amd64.sbom.spdx.json` and `-linux-arm64`), `grounded-<tag>.digest.txt` and a `checksums.txt` (SHA-256), next to the image attestations. The release fails clearly if the image has no SBOM or an upload fails.
 
