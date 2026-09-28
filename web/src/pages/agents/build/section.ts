@@ -43,10 +43,11 @@ const sectionOfField: Record<string, BuildSection> = {
 };
 
 /** The editor tab and Build section a problem's field lives in ("draft.kbs[0].topK", "agent-field-temperature"…). */
-export function fieldPlace(field: string): { tab: "build" | "appearance" | "share"; section?: BuildSection } {
+export function fieldPlace(field: string): { tab: "build" | "appearance" | "share" | "settings"; section?: BuildSection } {
   const base = field.replace(/^agent-field-/, "").replace(/^draft\./, "").split(/[.[]/)[0] ?? "";
   if (base === "audience") return { tab: "share" };
-  if (["accentColor", "name", "slug", "description", "welcomeMessage", "starterQuestions"].includes(base)) return { tab: "appearance" };
+  if (["name", "slug", "description"].includes(base)) return { tab: "settings" };
+  if (["accentColor", "welcomeMessage", "starterQuestions"].includes(base)) return { tab: "appearance" };
   return { tab: "build", section: sectionOfField[base] ?? "advanced" };
 }
 

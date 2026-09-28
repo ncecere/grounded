@@ -1,4 +1,4 @@
-/* The Appearance tab: name, address, description, accent colour, welcome message, starter questions and a live preview. */
+/* The Appearance tab: the look and welcome (accent colour, welcome message, starter questions) and a live preview. Name, address and description are in Settings (C13). */
 import { Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button, IconButton } from "@/components/ui/button/button";
@@ -7,14 +7,12 @@ import { ColorField } from "@/components/ui/color-field/color-field";
 import { Field } from "@/components/ui/field/field";
 import { Input, Textarea } from "@/components/ui/input/input";
 import { ChatWelcome } from "../chat/welcome";
-import { useTeam } from "../team/common";
 import { ACCENT_PRESETS, ACCENT_TEXT, themeAccent } from "./accents.colors";
 import { type AgentDraft, profileErrors } from "./draft";
 import a from "./agents.module.css";
 import ap from "./appearance.module.css";
 
 export function AppearanceTab({ d }: { d: AgentDraft }) {
-  const { slug: team } = useTeam();
   const p = d.draft.profile;
   const set = d.setProfile;
   const errors = profileErrors(p);
@@ -29,19 +27,6 @@ export function AppearanceTab({ d }: { d: AgentDraft }) {
         <p className={ap.liveNote}>
           <Badge tone="info">Live</Badge> Changes here reach people as soon as they're saved. They aren't part of versions.
         </p>
-        <Card title="Profile">
-          <div className={a.stack}>
-            <Field label="Name" error={errors.name}>
-              <Input id="agent-field-name" maxLength={80} value={p.name} onChange={(e) => set({ name: e.target.value })} />
-            </Field>
-            <Field label="Address" description={`Chat link: /a/${team}/${p.slug || "…"}. Changing it breaks links people saved.`} error={errors.slug}>
-              <Input id="agent-field-slug" maxLength={63} spellCheck={false} value={p.slug} onChange={(e) => set({ slug: e.target.value.toLowerCase() })} />
-            </Field>
-            <Field label="Description" labelHint="Optional" description="Shown in Discover agents.">
-              <Textarea rows={2} maxLength={500} value={p.description} onChange={(e) => set({ description: e.target.value })} />
-            </Field>
-          </div>
-        </Card>
         <Card title="Look and welcome">
           <div className={a.stack}>
             <Field

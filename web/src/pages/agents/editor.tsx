@@ -1,12 +1,13 @@
 /*
  * The agent editor (D2, D3): a DetailPage with the status, save state and
  * Chat · Test · Publish in the header, one facts line, and the pill tabs
- * Build · Appearance · Share · Versions · Analytics. Build is the
- * configuration beside a live Test chat.
+ * Build · Appearance · Share · Versions · Analytics · Settings. Build is the
+ * configuration beside a live Test chat; Settings has the name, address and
+ * the Danger zone, like a source's and a knowledge base's (C13).
  */
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
-import { BarChart3, Hammer, History, Palette, Power, Share2, Trash2 } from "lucide-react";
+import { BarChart3, Hammer, History, Palette, Power, Settings2, Share2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { NotFoundState, isNotFound } from "@/components/not-found";
 import { DetailPage } from "@/components/templates/detail-page";
@@ -31,6 +32,7 @@ import { useAgentDraft } from "./draft";
 import { DeleteAgent, StatusDialog } from "./editor-dialogs";
 import { ChatButton, EditorAlerts, HeaderActions, SaveIndicator } from "./editor-header";
 import { publishBlocked } from "./publish-state";
+import { AgentSettingsTab } from "./settings";
 import { ShareTab } from "./share/share-tab";
 import { ConfigSummary, PublishDialog, VersionsTab } from "./versions";
 import a from "./agents.module.css";
@@ -182,6 +184,12 @@ function Editor({ agent }: { agent: Agent }) {
             icon: <BarChart3 aria-hidden />,
             hidden: !(canEdit || role === "admin" || role === "owner"),
             content: <AnalyticsTab agent={current} />,
+          },
+          {
+            value: "settings",
+            label: "Settings",
+            icon: <Settings2 aria-hidden />,
+            content: <AgentSettingsTab key={d.epoch} agent={current} d={d} onStatus={() => setStatusOpen(true)} onDelete={() => setDeleting(true)} />,
           },
         ]}
       />

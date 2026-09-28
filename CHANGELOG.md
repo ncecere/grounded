@@ -36,6 +36,7 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are 
 
 ### Changed
 - A knowledge base's page has "Attach source" as its primary header action (like a source's "Upload files" or "Sync now"), and an empty knowledge base's Overview asks for a source with the same button (C13).
+- The agent editor has a Settings tab like a source's and a knowledge base's: the name, address and description (moved from Appearance, which keeps the look and welcome) and a Danger zone to disable, enable or delete the agent. They save like the rest of the editor; Disable and Delete stay in the "…" menu too (C13).
 - An agent's results per search from a knowledge base inherit the knowledge base's own top-k until overridden (C14). Build says "Inherited from the knowledge base (N)" or "Overridden", with Override and Inherit buttons; new agents inherit. API: `kbs[].topK` is nullable, and absent or null inherits (it used to default to 6); agents saved before keep their 6. A version's `knowledgeBases[]` has `inherited`, and its `topK` is the value in effect.
 
 ## [0.1.0] - 2026-09-28

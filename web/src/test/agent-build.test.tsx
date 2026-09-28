@@ -91,7 +91,7 @@ describe("Build", () => {
     mockApi(routes(agent()));
     const { container } = renderApp("/teams/registrar/agents/ag1");
     expect(await screen.findByRole("tab", { name: "Build", selected: true }, { timeout: 5000 })).toBeInTheDocument();
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Build", "Appearance", "Share", "Versions", "Analytics"]);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Build", "Appearance", "Share", "Versions", "Analytics", "Settings"]);
     expect(await screen.findByRole("region", { name: "Test" })).toBeInTheDocument();
     expect(screen.getByRole("separator", { name: "Resize the test chat" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: /^Model/ })).toHaveTextContent("GPT-OSS 120B (Campus gateway)"));
@@ -168,6 +168,33 @@ describe("Build", () => {
       timeout: 3000,
     });
   }, 15_000);
+
+  it("Settings has the name, address and description, saved like the rest, and a Danger zone (C13)", async () => {
+    const calls = mockApi(routes(agent(), { "PATCH /v1/teams/registrar/agents/ag1": (b) => agent({ revision: 3, ...(b as object) }) }));
+    const { container } = renderApp("/teams/registrar/agents/ag1?tab=settings");
+    const name = await screen.findByRole("textbox", { name: "Name" }, { timeout: 5000 });
+    expect(name).toHaveValue("Helper");
+    expect(screen.getByRole("textbox", { name: /^Address/ })).toHaveValue("helper");
+    expect(screen.getByRole("textbox", { name: /^Description/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.type(name, " desk");
+    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: 3000 });
+    expect(calls.find((c) => c.method === "PATCH")!.body).toEqual({ name: "Helper desk" });
+    await userEvent.click(screen.getByRole("button", { name: "Disable agent" }));
+    expect(await screen.findByRole("dialog", { name: "Disable Helper desk?" })).toBeInTheDocument();
+  }, 10_000);
+
+  it("Appearance keeps the look and welcome only; editors see why they can't disable or delete (C13)", async () => {
+    mockApi(routes(agent(), {}, "editor"));
+    renderApp("/teams/registrar/agents/ag1?tab=appearance");
+    expect(await screen.findByRole("textbox", { name: "Accent colour" }, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
+    await userEvent.click(screen.getByRole("tab", { name: "Settings" }));
+    expect(await screen.findByRole("button", { name: "Delete agent" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Disable agent" })).toBeDisabled();
+    expect(screen.getAllByText("Only team admins and owners can do this.")).toHaveLength(2);
+  });
 
   it("old Configure links open Build", async () => {
     mockApi(routes(agent()));
