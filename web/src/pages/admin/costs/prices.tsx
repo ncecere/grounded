@@ -50,7 +50,8 @@ export function PriceLines({ current, currency }: { current: Schemas["UnitPrice"
   );
 }
 
-const modelLink = (id: string) => <Link to="/admin/models" search={{ record: id } as never} />;
+// ?from= gives the model's record page a "Back to Costs" link.
+const modelLink = (id: string) => <Link to="/admin/models" search={{ record: id, from: "costs-prices" } as never} />;
 
 function columns(currency: string): DataTableColumn<Item>[] {
   return [

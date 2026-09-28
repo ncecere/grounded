@@ -94,17 +94,19 @@ export type RecordPageProps = {
    * "Leave without saving?" first (m7).
    */
   dirty?: boolean;
+  /** The back link's target when it isn't this page's list, e.g. the page that linked here ("Back to Costs"). */
+  back?: { label: string; href: string };
 };
 
 export function RecordPage({ open, ...props }: RecordPageProps) {
   return open ? <OpenRecordPage {...props} /> : null;
 }
 
-function OpenRecordPage({ onClose, title, label, description, meta, facts, sections, actions, loading, error, children, dirty = false }: Omit<RecordPageProps, "open">) {
+function OpenRecordPage({ onClose, title, label, description, meta, facts, sections, actions, loading, error, children, dirty = false, back }: Omit<RecordPageProps, "open">) {
   const guard = useCloseGuard(dirty, onClose);
   const name = label ?? (typeof title === "string" ? title : "Details");
   return (
-    <TakeoverPage param="record" label={name} title={title} meta={meta} description={description} actions={loading ? undefined : actions} onBack={guard.requestClose}>
+    <TakeoverPage param="record" label={name} title={title} meta={meta} description={description} actions={loading ? undefined : actions} onBack={guard.requestClose} back={back}>
       {Boolean(error) &&
         (isNotFound(error) ? (
           <Alert tone="warning" title="Not found">

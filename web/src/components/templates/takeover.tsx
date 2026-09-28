@@ -63,6 +63,8 @@ export type TakeoverPageProps = {
   param: "record" | "form";
   /** What gets focus when the page opens: its heading (default), or its first field (a form). */
   initialFocus?: "heading" | "field";
+  /** Where the back link leads when that isn't the page underneath, e.g. the page that linked here ("Back to Costs"). */
+  back?: { label: string; href: string };
   children?: ReactNode;
 };
 
@@ -72,7 +74,7 @@ function currentHrefWithout(param: string) {
   return url.pathname + url.search;
 }
 
-export function TakeoverPage({ label, title, description, meta, actions, onBack, param, initialFocus = "heading", children }: TakeoverPageProps) {
+export function TakeoverPage({ label, title, description, meta, actions, onBack, param, initialFocus = "heading", back: backTo, children }: TakeoverPageProps) {
   const host = useContext(HostContext);
   const id = useId();
   const ref = useRef<HTMLElement>(null);
@@ -119,7 +121,7 @@ export function TakeoverPage({ label, title, description, meta, actions, onBack,
   // The back link names what's underneath: the page below in the stack, or the route's page.
   const crumbs = useCurrentPageCrumbs();
   const below = crumbs[crumbs.findIndex((c) => c.id === id) - 1];
-  const back = below ? below.label : host?.backLabel;
+  const back = backTo?.label ?? (below ? below.label : host?.backLabel);
   const page = (
     <section ref={ref} aria-label={label} hidden={!isTop} className={cx(s.page, styles.takeover)}>
       <Stack gap={6}>
@@ -130,7 +132,7 @@ export function TakeoverPage({ label, title, description, meta, actions, onBack,
           actions={actions ? <div className={styles.headerActions}>{actions}</div> : undefined}
           breadcrumbs={
             <a
-              href={href}
+              href={backTo?.href ?? href}
               className={styles.backLink}
               onClick={(e) => {
                 if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
