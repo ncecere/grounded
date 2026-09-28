@@ -331,7 +331,7 @@ describe("web source detail", () => {
 
     // Pages (their own tab): one-line titles with the URL path only (the host is in the facts line).
     await userEvent.click(screen.getByRole("tab", { name: /^Pages/ }));
-    expect(await screen.findByRole("button", { name: "Academic calendar" })).toHaveAttribute("title", "Academic calendar");
+    expect(within(await screen.findByRole("button", { name: "Academic calendar" })).getByText("Academic calendar")).toHaveAttribute("title", "Academic calendar");
     expect(screen.getByText("/calendar/")).toHaveAttribute("title", "https://registrar.example.edu/calendar/");
     expect(await axe(container)).toHaveNoViolations();
   });

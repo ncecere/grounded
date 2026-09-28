@@ -20,7 +20,9 @@ import styles from "./response.module.css";
  *     defers the render (useDeferredValue) so typing stays responsive.
  *   - Raw HTML is never rendered: it shows as text (or is dropped with
  *     `skipHtml`). react-markdown's default URL filter strips javascript:
- *     and other unsafe protocols.
+ *     and other unsafe protocols. The one exception: a bare <br>, <br/> or
+ *     <br /> inside a table cell becomes a line break (GFM cells can't hold
+ *     a newline, so models write <br>); no other tag or attribute is read.
  *   - Task-list items say "Done:" / "To do:" instead of rendering an
  *     unlabelled disabled checkbox.
  *   - Links to other sites open in a new tab (rel="noreferrer noopener",
@@ -137,6 +139,30 @@ function visit(node: MdNode) {
 
 export function remarkCitationMarkers() {
   return (tree: MdNode) => visit(tree);
+}
+
+/* ---------- <br> in table cells ---------- */
+
+/** Exactly one bare br tag, nothing else (no attributes). */
+const BR = /^<br\s*\/?>$/i;
+
+function breakCells(node: MdNode, inCell: boolean) {
+  if (!node.children) return;
+  const cell = inCell || node.type === "tableCell";
+  node.children = node.children.map((child) => {
+    if (cell && child.type === "html" && BR.test((child.value ?? "").trim())) return { type: "break" };
+    breakCells(child, cell);
+    return child;
+  });
+}
+
+/**
+ * Turns a literal <br> (<br/>, <br />) inside a GFM table cell into a line
+ * break. Only that exact tag, only in table cells: all other raw HTML still
+ * shows as text (or is dropped with `skipHtml`). Always on in Response.
+ */
+export function remarkTableCellBreaks() {
+  return (tree: MdNode) => breakCells(tree, false);
 }
 
 /* ---------- element renderers ---------- */
@@ -317,7 +343,10 @@ function ResponseImpl({
     () => ({ ...makeComponents(headingOffset, highlight, cite, images), ...components }),
     [headingOffset, highlight, cite, images, components],
   );
-  const plugins = useMemo(() => [remarkGfm, ...(cite ? [remarkCitationMarkers] : []), ...(remarkPlugins ?? [])], [cite, remarkPlugins]);
+  const plugins = useMemo(
+    () => [remarkGfm, remarkTableCellBreaks, ...(cite ? [remarkCitationMarkers] : []), ...(remarkPlugins ?? [])],
+    [cite, remarkPlugins],
+  );
 
   return (
     <div {...props} className={cx(styles.response, className)} data-streaming={streaming ? "" : undefined}>

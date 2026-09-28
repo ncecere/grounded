@@ -66,8 +66,8 @@ describe("ListPage onRowClick", () => {
     await user.click(within(page).getByRole("link", { name: "Back" }));
     await waitFor(() => expect(screen.queryByRole("region", { name: "Catalog" })).toBeNull());
 
-    const row = screen.getByRole("rowheader", { name: "Handbook" }).closest("tr")!;
-    row.focus();
+    // Each row's one tab stop is the button in its row header.
+    within(screen.getByRole("rowheader", { name: "Handbook" })).getByRole("button").focus();
     await user.keyboard("{Enter}");
     expect(await screen.findByRole("region", { name: "Handbook" })).toBeInTheDocument();
     await user.click(screen.getByRole("link", { name: "Back" }));

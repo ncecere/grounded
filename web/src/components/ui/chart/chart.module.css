@@ -1,28 +1,36 @@
 /*
  * Series colours: --chart-color from the --color-chart-* tokens (>= 3:1 on
- * surface and bg in every theme; see themes/neutral.css).
+ * surface and bg in every theme; see themes/neutral.css), and
+ * --chart-color-soft, a paler variant that is also >= 3:1 (it falls back to
+ * the full colour with a theme from before the -soft tokens).
  */
 .tone {
   --chart-color: var(--color-chart-primary);
+  --chart-color-soft: var(--color-chart-primary-soft, var(--color-chart-primary));
 
   &[data-tone="info"] {
     --chart-color: var(--color-chart-info);
+    --chart-color-soft: var(--color-chart-info-soft, var(--color-chart-info));
   }
 
   &[data-tone="success"] {
     --chart-color: var(--color-chart-success);
+    --chart-color-soft: var(--color-chart-success-soft, var(--color-chart-success));
   }
 
   &[data-tone="warning"] {
     --chart-color: var(--color-chart-warning);
+    --chart-color-soft: var(--color-chart-warning-soft, var(--color-chart-warning));
   }
 
   &[data-tone="danger"] {
     --chart-color: var(--color-chart-danger);
+    --chart-color-soft: var(--color-chart-danger-soft, var(--color-chart-danger));
   }
 
   &[data-tone="neutral"] {
     --chart-color: var(--color-chart-neutral);
+    --chart-color-soft: var(--color-chart-neutral-soft, var(--color-chart-neutral));
   }
 }
 

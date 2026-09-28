@@ -153,6 +153,8 @@ export function ListPage<T>({
       manual={manual}
       rowActions={rowActions ? (row) => <ActionMenu actions={rowActions(row)} label={`Actions for ${rowLabel(row)}`} /> : undefined}
       onRowClick={onRowClick}
+      // The row's button (in its row header) is named like its menu and checkbox.
+      rowClickLabel={onRowClick ? rowLabel : undefined}
       empty={empty ? <EmptyState size="compact" icon={empty.icon} title={empty.title} description={empty.description} action={empty.action} /> : undefined}
       {...tableProps}
     />

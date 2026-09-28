@@ -15,8 +15,13 @@ import styles from "./toast.module.css";
  *   const t = useToast(); t.add({ title: "Saved", tone: "success" });
  *
  * The viewport is a polite live region labelled "Notifications" (F6 jumps
- * into it). Danger toasts use Base UI's high priority, which is announced
- * assertively.
+ * into it). Each toast is a status message (role="status", WCAG 4.1.3), not
+ * the non-modal dialog Base UI makes it by default: nothing about it is a
+ * dialog, and "dialog" makes screen readers announce a dialog that never
+ * takes focus. Danger toasts are role="alert" and use Base UI's high
+ * priority, which is announced assertively. Keyboard behaviour is Base UI's:
+ * F6 moves focus to the toasts, Tab moves through them and their buttons,
+ * Escape closes the focused toast, and focus returns where it was.
  */
 
 const manager = BaseToast.createToastManager();
@@ -73,7 +78,15 @@ function ToastList() {
     const tone = ((t.type as Tone | undefined) ?? "neutral") as Tone;
     const Icon = icons[tone] ?? null;
     return (
-      <BaseToast.Root key={t.id} toast={t} className={styles.toast} data-tone={tone}>
+      <BaseToast.Root
+        key={t.id}
+        toast={t}
+        className={styles.toast}
+        data-tone={tone}
+        role={t.priority === "high" ? "alert" : "status"}
+        aria-modal={undefined}
+        aria-atomic
+      >
         <BaseToast.Content className={styles.content}>
           {Icon && <Icon aria-hidden className={styles.icon} />}
           <div className={styles.text}>

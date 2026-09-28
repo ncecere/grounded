@@ -55,14 +55,14 @@ function facetsFor(tags: string[]): Facet<Doc>[] {
   ];
 }
 
-function columns(web: boolean, open: (doc: Doc) => void): DataTableColumn<Doc>[] {
+function columns(web: boolean): DataTableColumn<Doc>[] {
   return [
     {
       id: "title",
       header: web ? "Page" : "Document",
       rowHeader: true,
       accessor: (doc) => docName(doc),
-      cell: (doc) => <DocumentName doc={doc} web={web} onOpen={() => open(doc)} />,
+      cell: (doc) => <DocumentName doc={doc} web={web} />,
     },
     { id: "kind", header: "Kind · Size", cell: (doc) => <span className={d.nowrap}>{[doc.kind && kindLabel(doc.kind), formatBytes(doc.sizeBytes)].filter(Boolean).join(" · ")}</span>, muted: true },
     {
@@ -125,7 +125,7 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
       <ListPage<Doc>
         id={web ? "source-pages" : "source-documents"}
         caption={web ? "Pages" : "Documents"}
-        columns={columns(web, (doc) => record.open(doc.id))}
+        columns={columns(web)}
         data={items}
         getRowId={(doc) => doc.id}
         rowLabel={docName}
@@ -221,17 +221,21 @@ function countFor(source: DataSource, status: DocStatus) {
   return c[status];
 }
 
-/** A one-line title (full text as a tooltip) that opens the record page, and the URL path or file name under it. */
-function DocumentName({ doc, web, onOpen }: { doc: Doc; web: boolean; onOpen: () => void }) {
+/**
+ * A one-line title (full text as a tooltip) and the URL path or file name
+ * under it. The row opens the record page: DataTable makes this cell the
+ * row's button, so the title itself is plain text.
+ */
+function DocumentName({ doc, web }: { doc: Doc; web: boolean }) {
   const name = docName(doc);
   const secondary = web && doc.url ? urlPath(doc.url) : doc.title && doc.filename !== doc.title ? doc.filename : "";
   return (
     <span className={d.docName}>
       {web ? <Globe aria-hidden className={d.docIcon} /> : <FileText aria-hidden className={d.docIcon} />}
       <span className={d.docText}>
-        <button type="button" className={d.docTitle} title={name} onClick={onOpen}>
+        <span className={d.docTitle} title={name}>
           {name}
-        </button>
+        </span>
         {secondary && (
           <span className={d.docSecondary} title={web ? doc.url : secondary}>
             {secondary}

@@ -16,10 +16,21 @@ export type AvatarProps = {
   className?: string;
 };
 
+/** A letter or digit (any script), with any combining marks after it. */
+const WORD_START = /[\p{L}\p{N}][\p{M}]*/u;
+
+/**
+ * Up to two initials: the first letter or digit of the first and last words.
+ * Punctuation and symbols are skipped ("Go docs (signed-in)" → "GS", not
+ * "G("); a word with no letters or digits ("—", "(", "&") doesn't count.
+ */
 export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const first = parts[0]?.[0] ?? "";
-  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
+  const starts = name
+    .split(/\s+/)
+    .map((word) => word.match(WORD_START)?.[0])
+    .filter((s): s is string => !!s);
+  const first = starts[0] ?? "";
+  const last = starts.length > 1 ? starts[starts.length - 1]! : "";
   return (first + last).toUpperCase() || "?";
 }
 

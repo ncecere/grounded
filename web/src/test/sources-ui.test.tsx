@@ -114,8 +114,9 @@ describe("documents table and sheet (Q4, W3)", () => {
     const calls = mockApi(routes(uploadSource()));
     renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
     await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
+    // The row's button opens it; its one-line title keeps the full text as a tooltip.
     const title = await screen.findByRole("button", { name: "Scanned form" });
-    expect(title).toHaveAttribute("title", "Scanned form");
+    expect(within(title).getByText("Scanned form")).toHaveAttribute("title", "Scanned form");
     expect(screen.getByText("PDF · 586 KiB")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Failed" }));
     await waitFor(() => expect(calls.some((c) => c.url.endsWith("/documents") && new URLSearchParams(c.search).get("status") === "failed")).toBe(true));

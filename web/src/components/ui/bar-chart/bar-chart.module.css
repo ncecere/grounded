@@ -65,10 +65,14 @@
   inset: auto 0 0;
 }
 
-/* The back series is paler, in the plot and in its legend swatch. */
+/*
+ * The back series is paler, in the plot and in its legend swatch: a real
+ * colour (--chart-color-soft, >= 3:1 on surface and bg), not an opacity,
+ * so it keeps graphical-object contrast and is checked by the contrast test.
+ */
 .bars[data-layout="overlap"] .bar:first-child,
 .root[data-layout="overlap"] .legend > li:first-child > span {
-  opacity: 0.55;
+  background-color: var(--chart-color-soft, var(--color-chart-primary-soft));
 }
 
 /* Stacked series grow upwards; only the top one is rounded. */

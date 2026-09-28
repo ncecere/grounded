@@ -9,7 +9,6 @@ import {
   useState,
   type ComponentPropsWithRef,
   type FocusEvent,
-  type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
 } from "react";
@@ -100,9 +99,12 @@ import styles from "./data-table.module.css";
  *     user can't see); selections hidden by a filter are kept and come back
  *     when it's cleared. "Clear selection" clears all of them. In `manual`
  *     mode every selected id is passed.
- *   - `onRowClick`: the whole row opens the record (click, or Enter / Space
- *     on the focused row); clicks on links, buttons and other controls in
- *     the row keep their own behaviour.
+ *   - `onRowClick`: the row opens the record. The row header cell's content
+ *     (the first `rowHeader` column, else the first column) becomes a
+ *     button: one tab stop per row, announced as a button named after the
+ *     record, opened with Enter or Space. A click anywhere else on the row
+ *     opens it too, except on links, buttons, menus, checkboxes and other
+ *     controls in the row, which keep their own behaviour.
  *   - Table's `stickyHeader` (with `maxHeight`) and `density` pass through.
  */
 
@@ -229,13 +231,15 @@ export type DataTableProps<T> = Omit<TableProps, "columns" | "children" | "empty
   /** Per-row actions in a trailing, right-aligned, unsortable column. */
   rowActions?: (row: T) => ReactNode;
   /**
-   * Makes each row open something (usually the record's detail sheet): a
-   * click anywhere on the row that isn't on a control, or Enter / Space on
-   * the focused row (rows join the tab order). Keep an equivalent link,
-   * button or row action for assistive technology.
+   * Makes each row open something (usually the record's detail sheet). The
+   * row header cell's content (first `rowHeader` column, else the first
+   * column) is rendered inside a button that calls this: the row's single
+   * tab stop, opened with Enter or Space. A click anywhere on the row that
+   * isn't on a control also calls it. Keep that cell free of links and
+   * buttons (put them in other cells or `rowActions`).
    */
   onRowClick?: (row: T) => void;
-  /** Optional accessible name of a clickable row, e.g. (r) => `Open ${r.name}` (default: the row's content). */
+  /** Optional accessible name of the row's open button, e.g. (r) => `Open ${r.name}` (default: the cell's content). */
   rowClickLabel?: (row: T) => string;
   /** Accessible (visually hidden) header of the actions column (default "Actions"). */
   rowActionsLabel?: string;
@@ -278,6 +282,12 @@ export type CellTextProps = Omit<ComponentPropsWithRef<"span">, "children"> & {
   primary: ReactNode;
   /** A smaller, muted second line, e.g. an email or id. */
   secondary?: ReactNode;
+  /**
+   * How long words break: `word` (default) wraps at spaces and breaks a word
+   * only if it can't fit; `anywhere` also lets long unbroken values (ids,
+   * URLs, hashes) break so they never set the column's width.
+   */
+  wrap?: "word" | "anywhere";
 };
 
 /**
@@ -287,9 +297,9 @@ export type CellTextProps = Omit<ComponentPropsWithRef<"span">, "children"> & {
  *
  * A space separates the lines for assistive technology and copy/paste.
  */
-export function CellText({ primary, secondary, className, ...props }: CellTextProps) {
+export function CellText({ primary, secondary, wrap = "word", className, ...props }: CellTextProps) {
   return (
-    <span {...props} className={cx(styles.cellText, className)}>
+    <span {...props} className={cx(styles.cellText, className)} data-wrap={wrap}>
       <span className={styles.cellPrimary}>{primary}</span>
       {secondary !== undefined && secondary !== null && secondary !== "" && (
         <>
@@ -339,11 +349,17 @@ const EMPTY_FILTERS: FilterValues = {};
 
 const SKELETON_WIDTHS = ["72%", "48%", "86%", "60%", "40%"];
 
+const CONTROL = [
+  "a[href]", "button", "input", "select", "textarea", "label", "summary", "[tabindex]", '[contenteditable="true"]',
+  ...["button", "link", "checkbox", "switch", "radio", "menuitem", "menuitemcheckbox", "menuitemradio", "combobox", "option", "tab", "slider", "textbox"]
+    .map((role) => `[role="${role}"]`),
+].join(", ");
+
 /** Whether a click started on (or inside) a control of its own: those keep their own behaviour. */
 function fromControl(target: EventTarget | null, row: HTMLElement) {
   let el = target instanceof Element ? target : null;
   while (el && el !== row) {
-    if (el.matches('a[href], button, input, select, textarea, label, summary, [role="button"], [role="checkbox"], [role="switch"], [contenteditable="true"]')) return true;
+    if (el.matches(CONTROL)) return true;
     el = el.parentElement;
   }
   // Clicks inside portals (menus opened from the row) bubble through React, not the DOM tree.
@@ -451,6 +467,8 @@ export function DataTable<T>({
   const hiddenSet = new Set(hidden);
   const isHideable = (c: DataTableColumn<T>) => c.hideable ?? !c.rowHeader;
   const shownColumns = columns.filter((c) => !(isHideable(c) && hiddenSet.has(c.id)));
+  // With onRowClick, this column's cell holds the row's open button.
+  const openColumnId = (shownColumns.find((c) => c.rowHeader) ?? shownColumns[0])?.id;
   // Cursor paging and numbered paging are mutually exclusive: the cursor wins.
   const pageSize = cursor ? undefined : pageSizeProp;
 
@@ -809,25 +827,17 @@ export function DataTable<T>({
           ))}
         {visible.map(({ row, id }) => {
           const isSelected = selectedSet.has(id);
-          const clickLabel = onRowClick ? rowClickLabel?.(row) : undefined;
           return (
             <Tr
               key={id}
               selected={isSelected}
               {...(onRowClick && {
                 "data-clickable": "",
-                tabIndex: 0,
-                "aria-label": clickLabel,
+                // A pointer convenience; keyboard and screen-reader users use the row header's button.
                 onClick: (event: MouseEvent<HTMLTableRowElement>) => {
                   if (fromControl(event.target, event.currentTarget)) return;
                   // Selecting text in a cell isn't a click on the row.
                   if (typeof window !== "undefined" && window.getSelection()?.toString()) return;
-                  onRowClick(row);
-                },
-                onKeyDown: (event: KeyboardEvent<HTMLTableRowElement>) => {
-                  if (event.target !== event.currentTarget) return;
-                  if (event.key !== "Enter" && event.key !== " ") return;
-                  event.preventDefault();
                   onRowClick(row);
                 },
               })}
@@ -843,7 +853,15 @@ export function DataTable<T>({
                 </Td>
               )}
               {shownColumns.map((c) => {
-                const content = c.cell ? c.cell(row) : textOf(valueOf(row, c));
+                const value = c.cell ? c.cell(row) : textOf(valueOf(row, c));
+                const content =
+                  onRowClick && c.id === openColumnId ? (
+                    <button type="button" className={styles.rowOpen} aria-label={rowClickLabel?.(row)} onClick={() => onRowClick(row)}>
+                      {value}
+                    </button>
+                  ) : (
+                    value
+                  );
                 return c.rowHeader ? (
                   <Th key={c.id}>{content}</Th>
                 ) : (

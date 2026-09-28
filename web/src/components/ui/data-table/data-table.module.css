@@ -126,14 +126,32 @@
   opacity: 0.6;
 }
 
-/* onRowClick: the whole row opens the record. */
+/* onRowClick: the whole row opens the record; the row header's content is its button. */
 .table tbody tr[data-clickable] {
   cursor: pointer;
 }
 
-.table tbody tr[data-clickable]:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: -2px;
+.rowOpen {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.table tbody tr[data-clickable]:hover .rowOpen {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
 .table tbody tr.skeletonRow:hover {
@@ -173,6 +191,11 @@
   line-height: var(--line-height-snug);
   color: var(--color-text-muted);
   overflow-wrap: break-word;
+}
+
+/* wrap="anywhere": long ids and URLs break instead of widening the column. */
+.cellText[data-wrap="anywhere"] :is(.cellPrimary, .cellSecondary) {
+  overflow-wrap: anywhere;
 }
 
 @media (prefers-reduced-motion: reduce) {
