@@ -164,15 +164,12 @@ const lockKey = 7378431028
 // withLock runs fn while holding the retention lock; ran is false when
 // another run holds it.
 func (r *Runner) withLock(ctx context.Context, fn func() error) (ran bool, err error) {
-	conn, err := r.Pool.Acquire(ctx)
-	if err != nil {
+	// On a connection outside the pool, which fn uses (store.TryAdvisoryLock).
+	release, ran, err := store.TryAdvisoryLock(ctx, r.Pool, lockKey)
+	if err != nil || !ran {
 		return false, err
 	}
-	defer conn.Release()
-	if err := conn.QueryRow(ctx, `SELECT pg_try_advisory_lock($1)`, lockKey).Scan(&ran); err != nil || !ran {
-		return false, err
-	}
-	defer func() { _, _ = conn.Exec(context.WithoutCancel(ctx), `SELECT pg_advisory_unlock($1)`, lockKey) }()
+	defer release()
 	return true, fn()
 }
 

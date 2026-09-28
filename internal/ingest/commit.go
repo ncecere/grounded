@@ -60,6 +60,10 @@ func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) 
 		total += c.Tokens
 	}
 	warnings, _ := json.Marshal(nonNil(res.parsed.Warnings))
+	paused, err := p.paused(ctx)
+	if err != nil {
+		return err
+	}
 	return pgx.BeginFunc(ctx, p.Pool, func(tx pgx.Tx) error {
 		var version int32
 		var status string
@@ -94,37 +98,46 @@ func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) 
 		if err := recordBlocks(ctx, tx, doc, res.plan); err != nil {
 			return err
 		}
-		model := uuid.NullUUID{UUID: res.target.Model.ID, Valid: true}
-		meta, _ := json.Marshal(map[string]any{"pages": res.parsed.Pages, "chunks": n, "parser": res.parsed.Parser})
-		// The ledger keeps the proxy's figure (what budgets are charged in)
-		// and Grounded's own count beside it: some proxies count characters,
-		// not tokens (docs/DESIGN.md §18).
-		tokens := res.usage.Reported
-		if tokens <= 0 {
-			tokens = res.usage.Counted
-		}
-		embedMeta, _ := json.Marshal(map[string]any{"countedTokens": res.usage.Counted, "requests": res.usage.Requests,
-			"reportedByProxy": res.usage.Reported > 0})
-		for _, u := range []dbgen.InsertUsageParams{
-			{Kind: "embed_tokens", Quantity: int64(tokens), ModelID: model, Metadata: embedMeta},
-			{Kind: "document_processed", Quantity: 1, Metadata: meta},
-		} {
-			u.TeamID, u.SourceID, u.DocumentID = doc.TeamID, uuid.NullUUID{UUID: doc.SourceID, Valid: true}, uuid.NullUUID{UUID: doc.ID, Valid: true}
-			u.UserID = doc.UploadedBy
-			if u.Metadata == nil {
-				u.Metadata = json.RawMessage(`{}`)
-			}
-			if err := q.InsertUsage(ctx, u); err != nil {
-				return err
-			}
+		if err := recordUsage(ctx, q, doc, res, n); err != nil {
+			return err
 		}
 		// The source's other profiles (a profile migration) embed the new
 		// version in the background.
 		if err := KickSets(ctx, jobsFromContext(ctx), tx, doc.SourceID, prof.ID); err != nil {
 			return err
 		}
-		return p.refill(ctx, tx)
+		return p.refill(ctx, tx, paused)
 	})
+}
+
+// recordUsage writes the document's embedding tokens and its processing to
+// the usage ledger.
+func recordUsage(ctx context.Context, q *dbgen.Queries, doc dbgen.Document, res result, n int) error {
+	model := uuid.NullUUID{UUID: res.target.Model.ID, Valid: true}
+	meta, _ := json.Marshal(map[string]any{"pages": res.parsed.Pages, "chunks": n, "parser": res.parsed.Parser})
+	// The ledger keeps the proxy's figure (what budgets are charged in)
+	// and Grounded's own count beside it: some proxies count characters,
+	// not tokens (docs/DESIGN.md §18).
+	tokens := res.usage.Reported
+	if tokens <= 0 {
+		tokens = res.usage.Counted
+	}
+	embedMeta, _ := json.Marshal(map[string]any{"countedTokens": res.usage.Counted, "requests": res.usage.Requests,
+		"reportedByProxy": res.usage.Reported > 0})
+	for _, u := range []dbgen.InsertUsageParams{
+		{Kind: "embed_tokens", Quantity: int64(tokens), ModelID: model, Metadata: embedMeta},
+		{Kind: "document_processed", Quantity: 1, Metadata: meta},
+	} {
+		u.TeamID, u.SourceID, u.DocumentID = doc.TeamID, uuid.NullUUID{UUID: doc.SourceID, Valid: true}, uuid.NullUUID{UUID: doc.ID, Valid: true}
+		u.UserID = doc.UploadedBy
+		if u.Metadata == nil {
+			u.Metadata = json.RawMessage(`{}`)
+		}
+		if err := q.InsertUsage(ctx, u); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ensureProfile creates the profile's vector table once per process. It
@@ -144,6 +157,10 @@ func (p *Processor) ensureProfile(ctx context.Context, t catalog.EmbedTarget) (v
 // finishWithoutChunks records a final failed/skipped status and removes any
 // chunks from a previous version.
 func (p *Processor) finishWithoutChunks(ctx context.Context, doc dbgen.Document, o outcome) error {
+	paused, err := p.paused(ctx)
+	if err != nil {
+		return err
+	}
 	return pgx.BeginFunc(ctx, p.Pool, func(tx pgx.Tx) error {
 		var version int32
 		err := tx.QueryRow(ctx, "SELECT version FROM documents WHERE id = $1 FOR UPDATE", doc.ID).Scan(&version)
@@ -164,7 +181,7 @@ func (p *Processor) finishWithoutChunks(ctx context.Context, doc dbgen.Document,
 		}); err != nil {
 			return err
 		}
-		return p.refill(ctx, tx)
+		return p.refill(ctx, tx, paused)
 	})
 }
 
@@ -173,20 +190,31 @@ func (p *Processor) finishWithoutChunks(ctx context.Context, doc dbgen.Document,
 // savepoint, so a failed dispatch never fails the document; the kick is
 // the fallback), and otherwise kicks a dispatch job. Maintenance mode leaves
 // the slot to the periodic dispatch, which waits until it ends.
-func (p *Processor) refill(ctx context.Context, tx pgx.Tx) error {
+func (p *Processor) refill(ctx context.Context, tx pgx.Tx, paused bool) error {
 	client := jobsFromContext(ctx)
 	if client == nil {
 		return nil // not running under River (tests)
 	}
-	return p.refillWith(ctx, tx, client)
+	return p.refillWith(ctx, tx, client, paused)
 }
 
-func (p *Processor) refillWith(ctx context.Context, tx pgx.Tx, client *river.Client[pgx.Tx]) error {
+// paused reads maintenance mode for refill. Call it before opening the
+// commit transaction: the gate may read the database from the pool, and
+// asking for a second connection while holding one can exhaust a small pool
+// (every ingest worker holding one and waiting for another).
+func (p *Processor) paused(ctx context.Context) (bool, error) {
+	if p.Dispatcher == nil {
+		return false, nil
+	}
+	return p.Maintenance.Paused(ctx)
+}
+
+func (p *Processor) refillWith(ctx context.Context, tx pgx.Tx, client *river.Client[pgx.Tx], paused bool) error {
 	if p.Dispatcher == nil {
 		return Kick(ctx, client, tx)
 	}
-	if paused, err := p.Maintenance.Paused(ctx); err != nil || paused {
-		return err
+	if paused {
+		return nil
 	}
 	err := pgx.BeginFunc(ctx, tx, func(sp pgx.Tx) error {
 		_, err := p.Dispatcher.Dispatch(ctx, sp, client)

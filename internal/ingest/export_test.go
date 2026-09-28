@@ -10,5 +10,9 @@ import (
 // RefillWith exposes refill to the integration tests, with the River
 // client a job would find in its context.
 func (p *Processor) RefillWith(ctx context.Context, tx pgx.Tx, client *river.Client[pgx.Tx]) error {
-	return p.refillWith(ctx, tx, client)
+	paused, err := p.paused(ctx)
+	if err != nil {
+		return err
+	}
+	return p.refillWith(ctx, tx, client, paused)
 }

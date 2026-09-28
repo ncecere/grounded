@@ -108,25 +108,11 @@ func (w *SetWorker) Work(ctx context.Context, job *river.Job[ingest.SetArgs]) er
 	return w.S.finishSet(ctx, q, args)
 }
 
-// lockSet takes the set's session advisory lock on a connection of its
-// own, so one job per set runs at a time (a follow-up waits).
+// lockSet takes the set's session advisory lock, so one job per set runs
+// at a time (a follow-up waits). The lock is held on a connection of its
+// own, outside the pool the work uses (store.TryAdvisoryLock).
 func (w *SetWorker) lockSet(ctx context.Context, args ingest.SetArgs) (func(), bool, error) {
-	conn, err := w.S.Pool.Acquire(ctx)
-	if err != nil {
-		return nil, false, err
-	}
-	key := "grounded.embedding_set:" + args.SourceID.String() + ":" + args.ProfileID.String()
-	var got bool
-	if err := conn.QueryRow(ctx, "SELECT pg_try_advisory_lock(hashtextextended($1, 0))", key).Scan(&got); err != nil || !got {
-		conn.Release()
-		return nil, false, err
-	}
-	return func() {
-		if _, err := conn.Exec(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock(hashtextextended($1, 0))", key); err != nil {
-			conn.Conn().Close(context.Background()) // drops the session and its lock
-		}
-		conn.Release()
-	}, true, nil
+	return store.TryAdvisoryLockText(ctx, w.S.Pool, "grounded.embedding_set:"+args.SourceID.String()+":"+args.ProfileID.String())
 }
 
 // active loads the set's source and reports whether the set is still

@@ -72,6 +72,13 @@ func NewDB(t testing.TB) (*pgxpool.Pool, string) {
 		t.Fatal(err)
 	}
 	u.Path = "/" + name
+	// GROUNDED_TEST_POOL_MAX_CONNS sets the pool size, e.g. 4 to match a
+	// 2-CPU CI runner (pgxpool's default is max(4, CPUs)).
+	if n := os.Getenv("GROUNDED_TEST_POOL_MAX_CONNS"); n != "" {
+		q := u.Query()
+		q.Set("pool_max_conns", n)
+		u.RawQuery = q.Encode()
+	}
 	dbURL := u.String()
 	pool, err := store.Open(ctx, dbURL)
 	if err != nil {

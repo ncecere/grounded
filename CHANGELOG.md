@@ -95,3 +95,7 @@ Development before this release happened in a private repository. The public rep
 - Retention: deleting a document or source now removes its passages and vectors at once, but its stored files are kept until the deleted-files retention period (and any legal hold) allows deletion.
 
 [0.1.0]: https://github.com/ncecere/grounded/releases/tag/v0.1.0
+
+### Fixed
+- Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
+- "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
