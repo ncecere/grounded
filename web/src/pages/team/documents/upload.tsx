@@ -243,9 +243,9 @@ export function UploadArea({ sourceId, disabledReason, onUploaded, onPendingChan
   );
 }
 
-/** The header's "Upload files" dialog: tags first, then the drop zone and the results. */
 type UploadDialogProps = { source: DataSource; open: boolean; onClose: () => void; onUploaded?: () => void; onOpenSettings?: () => void };
 
+/** The header's "Upload files" dialog: tags first, then the drop zone and the results. */
 export function UploadDialog({ source, open, onClose, onUploaded, onOpenSettings }: UploadDialogProps) {
   const paused = source.status === "paused";
   const [pending, setPending] = useState(false);

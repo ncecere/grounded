@@ -17,7 +17,7 @@ export const imagesRefused: Record<Exclude<OcrState, "on">, string> = {
   not_approved: "Images need OCR, and the OCR vision model isn't approved for this source's classification.",
 };
 
-/** What turns OCR on, after imagesRefused (source_off: the Settings tab is offered as a link next to it). */
+/** What turns OCR on, after imagesRefused (source_off: the upload dialog also offers an "Open settings" button). */
 export const ocrFix: Record<Exclude<OcrState, "on">, string> = {
   source_off: "Turn on OCR in the source's settings to upload images.",
   platform_off: "A platform admin can turn it on under Admin → Parsing.",
