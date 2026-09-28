@@ -20,6 +20,7 @@ import { documentTitle, useBreadcrumbs } from "./breadcrumbs";
 import { useCurrentPageCrumbs } from "./crumb-tail";
 import { TakeoverHost } from "../templates/takeover";
 import { useCommands } from "./commands";
+import { PALETTE_LABEL } from "./search-commands";
 import { type Mode, useRememberHref } from "./mode-switch";
 import { MaintenanceBanner } from "./maintenance-banner";
 import { BreakGlassBanner } from "./break-glass-banner";
@@ -60,6 +61,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
   const under = pageCrumbs.length > 0 ? crumbs[crumbs.length - 1 - pageCrumbs.length]?.label : undefined;
   const backLabel = typeof under === "string" ? under : undefined;
   const commands = useCommands(me, active, paletteOpen);
+  const placeholder = canAdmin ? "Search teams, people, agents, conversations and pages…" : "Search agents, conversations, knowledge bases and pages…";
   // Only admins and auditors get the admin shell (its sidebar queries admin APIs);
   // others see the workspace shell around the no-access page.
   const inAdmin = canAdmin && isAdminRoute(loc.routeId);
@@ -120,7 +122,15 @@ export function AppLayout({ children }: { children?: ReactNode }) {
           </Main>
         )}
       </AppShell>
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} groups={commands} placeholder="Search agents, knowledge bases, sources and pages…" />
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        groups={commands.groups}
+        label={PALETTE_LABEL}
+        placeholder={placeholder}
+        // The empty state is a polite live region: it says a search is running, then its outcome.
+        emptyText={commands.searching ? "Searching…" : "No results found."}
+      />
     </TooltipProvider>
   );
 }

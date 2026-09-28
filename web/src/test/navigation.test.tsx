@@ -157,14 +157,14 @@ describe("not found (P-05)", () => {
 });
 
 describe("command palette (P-01)", () => {
-  it("finds agents, knowledge bases and sources by name", async () => {
+  it("finds agents, knowledge bases and sources by name (on the server, E15)", async () => {
     const user = userEvent.setup();
     mockApi({
       ...shellRoutes(),
       "GET /v1/agents": () => [card()],
-      "GET /v1/teams/registrar/agents": () => [{ id: "a1", name: "Registrar assistant" }],
-      "GET /v1/teams/registrar/kbs": () => [{ id: "k1", name: "Registrar handbook" }],
-      "GET /v1/teams/registrar/sources": () => [{ id: "s1", name: "Registrar website" }],
+      "GET /v1/search": () => [
+        { type: "knowledge_base", id: "k1", label: "Registrar handbook", secondary: "Office of the Registrar", teamSlug: "registrar" },
+      ],
     });
     const { router } = renderApp("/");
     await screen.findByRole("heading", { level: 1 });

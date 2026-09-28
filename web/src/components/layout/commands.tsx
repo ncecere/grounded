@@ -1,4 +1,4 @@
-/* The command palette's groups: pages, team actions, agents/KBs/sources by name, teams and admin pages. */
+/* The command palette's groups: pages, team actions, objects found on the server (search-commands.tsx), teams and admin pages. */
 import { useNavigate } from "@tanstack/react-router";
 import { Bell, Boxes, Compass, Globe, Home, MessagesSquare, Plus, UserPlus } from "lucide-react";
 import { useMemo } from "react";
@@ -9,9 +9,9 @@ import { type Me } from "../../session";
 import { type CommandGroup } from "@/components/ui/command-palette/command-palette";
 import { roleLabels } from "../roles";
 import { type ActiveTeam } from "./active-team";
-import { useEntityCommands } from "./entity-commands";
 import { useCapabilities } from "./location";
 import { adminKeywords, adminNav, icon, teamNavFor, type AdminPath, type TeamPath } from "./nav";
+import { useSearchCommands } from "./search-commands";
 
 type Navigate = ReturnType<typeof useNavigate>;
 type Membership = Me["teams"][number];
@@ -147,21 +147,26 @@ function adminGroup(navigate: Navigate, platformAdmin: boolean): CommandGroup {
   return { label: "Admin", items };
 }
 
-/** The palette's groups; `open` loads the agents, KBs and sources to search by name. */
-export function useCommands(me: Me, active: ActiveTeam, open: boolean): CommandGroup[] {
+/**
+ * The palette's groups, and whether a server search is on its way. While
+ * `open`, what is typed is also searched on the server (agents, KBs,
+ * sources, conversations and, for platform staff, admin objects).
+ */
+export function useCommands(me: Me, active: ActiveTeam, open: boolean): { groups: CommandGroup[]; searching: boolean } {
   const navigate = useNavigate();
   const { canAdmin } = useCapabilities(me);
   const slug = active.slug;
   const mine = active.membership;
-  const entities = useEntityCommands(me, open);
+  const found = useSearchCommands(open);
 
-  return useMemo(() => {
+  const groups = useMemo(() => {
     const groups: CommandGroup[] = [pageGroup(navigate, me, slug, mine)];
     if (slug && mine) groups.push(teamActionGroup(navigate, slug, mine));
-    groups.push(...entities);
+    groups.push(...found.groups);
     groups.push(teamsGroup(navigate, me.teams));
     if (canAdmin) groups.push(adminGroup(navigate, me.capabilities.platformAdmin));
     return groups;
     // `me` is only read for its teams (teamNavFor), which are a dependency.
-  }, [navigate, slug, mine, entities, me.teams, me.capabilities.platformAdmin, canAdmin]);
+  }, [navigate, slug, mine, found.groups, me.teams, me.capabilities.platformAdmin, canAdmin]);
+  return { groups, searching: found.searching };
 }
