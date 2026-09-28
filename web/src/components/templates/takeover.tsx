@@ -59,8 +59,8 @@ export type TakeoverPageProps = {
   actions?: ReactNode;
   /** Closes the page (the back link and the breadcrumb). */
   onBack: () => void;
-  /** The URL parameter that opens this page: the back link's address is the current one without it. */
-  param: "record" | "form";
+  /** The URL parameter that opens this page (record, form, or a nested record's own): the back link's address is the current one without it. */
+  param: string;
   /** What gets focus when the page opens: its heading (default), or its first field (a form). */
   initialFocus?: "heading" | "field";
   children?: ReactNode;
