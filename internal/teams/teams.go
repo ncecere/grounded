@@ -372,7 +372,16 @@ func (s *Service) RemoveMember(ctx context.Context, a authz.Actor, ref string, u
 			e.Metadata = map[string]any{}
 		}
 		e.Metadata["personalKeysRevoked"] = revoked
-		return audit.Record(ctx, q, e)
+		if err := audit.Record(ctx, q, e); err != nil {
+			return err
+		}
+		// "You were added to ..." (and role changes) would now lead to a
+		// team they can't open: they're dealt with.
+		_, err = q.MarkUserTeamNotificationsRead(ctx, dbgen.MarkUserTeamNotificationsReadParams{
+			UserID: uuid.NullUUID{UUID: userID, Valid: true}, TeamID: uuid.NullUUID{UUID: t.ID, Valid: true},
+			Type: string(notify.MembershipChanged),
+		})
+		return err
 	})
 }
 

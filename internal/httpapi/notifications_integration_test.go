@@ -328,3 +328,48 @@ func syncFailed(t *testing.T, env *agentEnv, sink *testutil.SMTPSink, expect fun
 		t.Errorf("sync failed email:\n%s", p.Text)
 	}
 }
+
+// A removed member's "You were added to ..." (and role change) items for
+// that team are marked read: they would lead to a team they can't open.
+// Their items about other teams stay unread.
+func TestNotificationMembershipResolvedOnRemoval(t *testing.T) {
+	app := newTestApp(t, nil)
+	admin, owner, alex := app.signIn("admin"), app.signIn("user"), app.signIn("alex")
+	createTeam(t, admin, "registrar", "user@localhost")
+	createTeam(t, admin, "library", "user@localhost")
+	owner.refresh()
+	for _, team := range []string{"registrar", "library"} {
+		code, e := owner.call("POST", "/v1/teams/"+team+"/members", map[string]string{"email": "alex@localhost", "role": "editor"}, nil, nil)
+		mustCode(t, "add alex to "+team, code, e, 201, "")
+	}
+	var members []apitypes.Member
+	owner.get("/v1/teams/registrar/members", &members)
+	var rev int64
+	for _, m := range members {
+		if m.User.Id == alex.me.User.Id {
+			rev = m.Revision
+		}
+	}
+	path := "/v1/teams/registrar/members/" + alex.me.User.Id.String()
+	code, e := owner.call("PATCH", path, map[string]string{"role": "member"}, nil, ifMatch(rev))
+	mustCode(t, "demote alex", code, e, 200, "")
+	if page := inbox(t, alex, nil); page.UnreadCount != 3 {
+		t.Fatalf("alex's inbox before removal = %+v", page)
+	}
+
+	code, e = owner.call("DELETE", path, nil, nil, nil)
+	mustCode(t, "remove alex", code, e, 200, "")
+	page := inbox(t, alex, nil)
+	if page.UnreadCount != 1 {
+		t.Errorf("unread after removal = %d, want 1 (library)", page.UnreadCount)
+	}
+	for _, n := range page.Items {
+		if wantRead := strings.Contains(n.Title, "REGISTRAR"); n.Read != wantRead {
+			t.Errorf("%q read = %v, want %v", n.Title, n.Read, wantRead)
+		}
+	}
+	// The owner's own items are untouched.
+	if page := inbox(t, owner, nil); page.UnreadCount != 2 {
+		t.Errorf("owner's unread = %d, want 2", page.UnreadCount)
+	}
+}

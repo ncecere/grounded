@@ -118,3 +118,12 @@ UPDATE notifications n SET read_at = now()
 FROM notification_events e
 WHERE n.event_id = e.id AND n.read_at IS NULL
   AND e.type = @type::text AND e.data ->> @data_key::text = @data_value::text;
+
+-- Marks a user's unread notifications of one kind about one team read (a
+-- removed member's "You were added to ..." items, which would lead to a
+-- team they can no longer open).
+-- name: MarkUserTeamNotificationsRead :execrows
+UPDATE notifications n SET read_at = now()
+FROM notification_events e
+WHERE n.event_id = e.id AND n.read_at IS NULL AND n.user_id = @user_id
+  AND e.team_id = @team_id AND e.type = @type::text;

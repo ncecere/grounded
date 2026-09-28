@@ -16,6 +16,7 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). Release notes will be 
 - CI: a tag build fails, before the image is scanned and signed, unless the built image reports exactly its tag (`grounded v0.2.0 (<commit>)`).
 
 ### Fixed
+- Removing someone from a team (or leaving it) marks their unread "You were added to ..." and role-change notifications for that team read; they led to a page the person can no longer open.
 - Release images take the full git tag as their version: v0.1.0's binary reported `v0.1`.
 
 ## [0.1.0] - 2026-09-28

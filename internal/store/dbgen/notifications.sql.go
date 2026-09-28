@@ -400,6 +400,30 @@ func (q *Queries) MarkNotificationsReadFor(ctx context.Context, arg MarkNotifica
 	return err
 }
 
+const markUserTeamNotificationsRead = `-- name: MarkUserTeamNotificationsRead :execrows
+UPDATE notifications n SET read_at = now()
+FROM notification_events e
+WHERE n.event_id = e.id AND n.read_at IS NULL AND n.user_id = $1
+  AND e.team_id = $2 AND e.type = $3::text
+`
+
+type MarkUserTeamNotificationsReadParams struct {
+	UserID uuid.NullUUID
+	TeamID uuid.NullUUID
+	Type   string
+}
+
+// Marks a user's unread notifications of one kind about one team read (a
+// removed member's "You were added to ..." items, which would lead to a
+// team they can no longer open).
+func (q *Queries) MarkUserTeamNotificationsRead(ctx context.Context, arg MarkUserTeamNotificationsReadParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markUserTeamNotificationsRead, arg.UserID, arg.TeamID, arg.Type)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const notificationSettingsFor = `-- name: NotificationSettingsFor :many
 SELECT user_id, in_app, email
 FROM notification_settings
