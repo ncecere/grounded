@@ -15,6 +15,8 @@ cosign verify "$IMAGE" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
+Since v0.2.0 each GitHub Release also carries them as files (`deploy/release/github-release.sh`): `grounded-<tag>-<os>-<arch>.sbom.spdx.json` for each platform, `grounded-<tag>.digest.txt` (the image reference by digest) and `checksums.txt` (SHA-256 of both; `sha256sum -c checksums.txt`). They are copies of the attestations of the digest the release names; the attestations remain the signed source.
+
 The SBOM covers the whole image: the Go modules compiled into `/grounded` (read from the binary's build information), the web UI's packages as bundled, and the distroless base's Debian packages.
 
 ## Direct dependencies and licenses

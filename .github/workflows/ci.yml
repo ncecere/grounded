@@ -256,7 +256,8 @@ jobs:
 
   # GitHub Release for a v* tag, after its image is built, scanned and signed:
   # notes from docs/releases/vX.Y.Z.md (the base version for -rc tags) plus
-  # the image digest and verification commands. Tags with a hyphen
+  # the image digest and verification commands, and as assets the image's
+  # SPDX SBOM per platform, its digest and checksums.txt. Tags with a hyphen
   # (v0.1.0-rc.1) are pre-releases.
   release:
     needs: [image]
@@ -264,8 +265,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      packages: read # the image's SBOM attestations
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Create the GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
