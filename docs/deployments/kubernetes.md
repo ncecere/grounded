@@ -13,6 +13,7 @@ deploy/kubernetes/
     backup-objects/         daily off-site copy of the bucket (rclone sync)
     ingress/                generic Ingress
     tika/                   optional Apache Tika
+    ocr-tesseract/          optional OCR sidecar (grounded-ocr, Tesseract)
     monitoring/             ServiceMonitor (Prometheus Operator)
     monitoring-annotations/ prometheus.io/* pod annotations (alternative to monitoring/)
     alerts/                 PrometheusRule with the alert and recording rules
@@ -56,8 +57,9 @@ Overlays patch these names; they are stable.
 | `grounded-postgres-backup` | CronJob + ConfigMap | component `backup-pgdump`; PVC `grounded-postgres-backups` (20Gi) |
 | `grounded-objects-backup` | CronJob + ConfigMap + ServiceAccount | component `backup-objects` |
 | `grounded-tika` | Deployment + Service (`http` 9998) | component `tika` |
+| `grounded-ocr` | Deployment + Service (`http` 8080) | component `ocr-tesseract` |
 
-Every resource carries `app.kubernetes.io/name: grounded`, `app.kubernetes.io/part-of: grounded` and, per workload, `app.kubernetes.io/component` (`api`, `worker`, `postgres`, `valkey`, `backup`, `tika`). NetworkPolicies select on these labels.
+Every resource carries `app.kubernetes.io/name: grounded`, `app.kubernetes.io/part-of: grounded` and, per workload, `app.kubernetes.io/component` (`api`, `worker`, `postgres`, `valkey`, `backup`, `tika`, `ocr`). NetworkPolicies select on these labels.
 
 ## Secrets
 
@@ -210,7 +212,8 @@ Add components in the overlay's `components:` list.
 - **`backup-pgdump`**: a CronJob (03:17 UTC; patch `schedule`/`timeZone`) that runs `pg_dump -Fc`, checks the dump with `pg_restore --list`, keeps it on the `grounded-postgres-backups` PVC and deletes dumps older than `RETENTION_DAYS` (14). Setting `UPLOAD_S3_BUCKET` (and `UPLOAD_S3_ENDPOINT`, `UPLOAD_S3_PREFIX`, optionally `UPLOAD_RETENTION_DAYS`) in the `grounded-postgres-backup` ConfigMap, plus the secret `grounded-backup-s3`, copies each dump off-site with rclone. `PGHOST` etc. in the same ConfigMap point it at another database. Run it on demand with `kubectl create job --from=cronjob/grounded-postgres-backup manual-backup`.
 - **`backup-objects`**: a CronJob (03:47 UTC, after the dump) that copies the bucket (`S3_*` from `grounded-config`, credentials from `grounded-s3`) off-site with `rclone sync` into `UPLOAD_S3_PREFIX/current`. Files changed or deleted since the last run move to `previous/<time>` and are kept `PREVIOUS_RETENTION_DAYS` (14). Set the target in the `grounded-objects-backup` ConfigMap (`UPLOAD_S3_ENDPOINT`, `UPLOAD_S3_BUCKET`, `UPLOAD_S3_PREFIX`) with the secret `grounded-backup-s3`; with `UPLOAD_S3_BUCKET` empty it does nothing. Restoring both: [`operations/restore.md`](../operations/restore.md).
 - **`ingress`**: an `Ingress` named `grounded` for `grounded.example.org` → `grounded-api:http`. Patch the host, add `spec.ingressClassName` and `spec.tls`.
-- **`tika`**: Apache Tika 4 on `grounded-tika:9998`, and `TIKA_URL` set in `grounded-config`.
+- **`tika`**: Apache Tika 4 on `grounded-tika:9998`, and `TIKA_URL` set in `grounded-config`. To make Tika the OCR backend, patch its image to the `-full` variant (it includes Tesseract; [`operations/ocr.md`](../operations/ocr.md)).
+- **`ocr-tesseract`**: the OCR sidecar `ghcr.io/ncecere/grounded-ocr` (Tesseract 5, common languages) on `grounded-ocr:8080`, a NetworkPolicy that lets only the api and worker call it, and `OCR_TESSERACT_URL` set in `grounded-config`. Pin its image by digest in the overlay, like Grounded's. OCR stays off until a platform admin turns it on in Admin → Parsing ([`operations/ocr.md`](../operations/ocr.md)).
 - **`monitoring`** or **`monitoring-annotations`**: see [Monitoring](#monitoring). Use one of them.
 - **`alerts`** and **`dashboards`**: Grounded's alert rules as a `PrometheusRule`, and its Grafana dashboards as ConfigMaps for the Grafana sidecar; see [Monitoring](#monitoring).
 - **`private-registry`**: adds the pull secret `grounded-registry` to the `grounded` ServiceAccount (the image is private until v0.1.0).

@@ -173,7 +173,7 @@ type DocumentSink interface {
 
 ### 5.2 `upload`
 - Files arrive through the API or UI. The API streams them to object storage and deduplicates by SHA-256.
-- **v1 file types:** PDF (text-based), DOCX, PPTX, HTML, Markdown and TXT. Other types are added later as parser plugins.
+- **File types:** PDF, DOCX, PPTX, HTML, Markdown and TXT, and PNG, JPEG and TIFF images, which become one-page documents read with OCR (parse kind `image`, [`ocr.md`](ocr.md) §5a). Where OCR is off for the platform or the source, an image upload is refused at once ("Images need OCR, which is off for this source"). Only a TIFF's first page is read (Go's decoder reads one), with a warning. Other types are added later as parser plugins.
 - **File size limit:** each source type has a maximum file size that admins can change. The default is 100 MB.
 - Replacing a file creates a new document version.
 
@@ -218,10 +218,18 @@ source.sync ─► document.fetch ─► document.parse ─► [scan hook] ─�
     - **DOCX and PPTX:** our own Office XML readers, with zip-bomb limits. DOCX gives headings (from styles and outline levels), lists and tables. PPTX gives one page per slide, in presentation order, with title, bullets, tables and speaker notes.
     - **HTML:** the yoink extractor, ported as `internal/htmlmd`.
     - **Markdown and text:** decoded from UTF-8, UTF-16 or Windows-1252.
-  - **Apache Tika is optional** (`TIKA_URL`). It is used as a fallback when a built-in parser fails, or first for the kinds listed in `TIKA_PREFER_KINDS`. With Tika's OCR image, it can also read scanned PDFs.
+  - **Apache Tika is optional** (`TIKA_URL`). It is used as a fallback when a built-in parser fails, or first for the kinds listed in `TIKA_PREFER_KINDS`. With its `-full` image it can also be the OCR backend (below). It never parses images as a fallback, and a document waiting for the OCR limit or for an unreachable OCR backend doesn't fall back to it.
   - Paginated formats mark page starts with `<!-- grounded:page N -->` lines, so chunks can cite page numbers. Parsed text stored before the rename (ADR-0022) has `<!-- ragd:page N -->` markers, which are still read.
   - `grounded parse FILE` prints what a file will turn into.
-  - **There is no OCR in v1.** Scanned PDFs are marked `skipped(needs_ocr)`. OCR will later be an optional parser stage.
+  - **OCR (optional, off by default; [`ocr.md`](ocr.md), runbook [`operations/ocr.md`](operations/ocr.md)).** With OCR off, parsing is as before: a PDF page without a text layer is skipped with a warning, and a PDF with no text at all is `skipped(needs_ocr)`.
+    - A platform admin turns it on in Admin → **Parsing** (`parsing_settings`, If-Match, audited) and picks one backend: **Tesseract** (our `grounded-ocr` sidecar, `OCR_TESSERACT_URL`, Kustomize component `components/ocr-tesseract`), **Apache Tika** (`TIKA_URL`, the `-full` image) or a **vision model** (a catalog model of kind `vision`, through the gateway, "transcribe this page as Markdown"). Only configured backends can be chosen. Languages (Tesseract codes such as `eng+spa`) apply to Tesseract and Tika. A **Test** button reads a built-in sample page.
+    - The built-in PDF parser renders **only the pages without text** (PDFium, 300 DPI greyscale PNG, the longest side at most 6,000 px) and sends each to the backend through one small interface (`parse.OCR`), so every backend gets the same input. The text goes under the page's marker, so page numbers and citations work as for any page. Pages with text are never OCR'd.
+    - The document records the pages and the backend: `parser` is e.g. `builtin:pdf+ocr:tesseract`, `metadata.ocr` is `{backend, pages}` (API: `Document.ocr`), and its record page says "Pages 3–7 were read with OCR (Tesseract)".
+    - **Per source:** `data_sources.ocr_enabled` (default true) turns it off where scans are noise.
+    - **Bounds:** at most `OCR_MAX_PAGES_PER_DOCUMENT` pages per document (default 200; the rest skipped with a warning); `OCR_CONCURRENCY` pages at once per worker process (default 2), across all documents; the team limit `ocr_pages_per_day` (§11.1).
+    - **A vision model is subject to its classification ceiling** like any model: a source above it gets no OCR (its scans stay `needs_ocr`, its image uploads are refused).
+    - An unreachable backend fails the document for retry (`ocr_unavailable`), never a silent skip; a vision model's 429 or Retry-After is backpressure, as for embeddings. One page the backend can't read is a warning. A retried document is OCR'd again (and counted again).
+    - Documents skipped as scanned can be retried in bulk: the documents list filters "Needs OCR" (`?errorCode=needs_ocr`) and `POST …/documents/retry {errorCode: needs_ocr}` queues them (audited `document.retry_bulk`). Admin → Parsing counts them per team.
 - **Scan hook.** A slot for PII scanning after parsing. It does nothing in v1. Planned next: pattern scanning (national ID numbers such as SSNs, institutional ID numbers, card numbers) that quarantines matching documents in Open or Sensitive sources until a team admin reviews them. After that, model-based detection.
 - **Chunking** follows the document's heading structure and is measured in tokens, using the size and overlap from the embedding profile. Each chunk stores metadata for citations and filtering: heading path, URL or filename, page or section, tags and dates. A chunk whose only text is images (alt text), headings and rules is not emitted, unless the whole document is like that.
 - **Repeated-boilerplate suppression (ADR-0021).** Sites repeat blocks inside the main content ("QUICKLINKS" lists, calls to action, "related content" cards, sign-offs). Those blocks get retrieved and cited instead of real content.
@@ -232,6 +240,7 @@ source.sync ─► document.fetch ─► document.parse ─► [scan hook] ─�
   - **Settings.** Per source, `boilerplate: {enabled, minDocs, ratio}`. It is on by default for web sources and off for uploads, and the platform defaults come from `BOILERPLATE_WEB`, `BOILERPLATE_UPLOAD`, `BOILERPLATE_MIN_DOCS` and `BOILERPLATE_RATIO`. Changes are audited (`source.boilerplate_update`) and schedule the refresh.
   - **Visibility.** The source's Overview (and API object) shows "N repeated blocks removed from M pages", with the most repeated blocks listed (`GET …/sources/{id}/boilerplate`).
 - **Document states:** `pending → fetching → parsing → chunking → embedding → ready`, or one of `failed`, `skipped`, `quarantined` or `deleted`. Failed documents keep their error and can be retried.
+- **Waiting for the daily OCR limit.** A document whose OCR would pass the team's `ocr_pages_per_day` goes back to `pending` with `waiting_until` (the next UTC midnight) and the reason in its error code (`ocr_daily_limit`), and frees its in-flight slot; the attempt isn't counted. The dispatcher skips waiting documents through a partial index (`documents_pending_ready_idx`), so they cost nothing, and its periodic run makes due ones pending again. Raising the limit (a team override or the platform default) wakes the team's waiting documents at once through the limits service's `OnChange` hook, as for waiting crawls.
 - **Backpressure:**
   - A dispatcher moves `pending` documents to `queued` **round-robin across teams**: every team's oldest document goes before any team's second, each team is capped by its `concurrent_ingest_jobs` limit (§11.1; built-in default `INGEST_MAX_INFLIGHT_PER_TEAM`), and the platform at `INGEST_MAX_INFLIGHT`. It runs every 5 s and whenever an upload lands or a document finishes.
   - One River job processes a document end to end (fetch, parse, chunk, embed, index); `INGEST_CONCURRENCY` bounds jobs per worker process.
@@ -441,7 +450,7 @@ type VectorStore interface {
   - **Test connection** calls `GET /models`. The response lists the proxy's model IDs to help the admin fill in forms. Nothing is added automatically.
 - **Models are added by admins.** A model belongs to a connection and has:
   - the upstream model ID sent to the proxy, and a display name
-  - a **kind**: `chat`, `embedding`, `rerank`, `moderation` or `systemone` (ADR-0020).
+  - a **kind**: `chat`, `embedding`, `rerank`, `moderation`, `systemone` (ADR-0020) or `vision` (reads page images for OCR, [`ocr.md`](ocr.md); its Test transcribes the built-in sample page).
   - the **maximum classification** it may process. Which models may take Restricted data is the install's policy (commonly self-hosted models, or services under a data agreement); admins tag each model as it is added.
   - kind-specific capabilities:
     - chat: context window, maximum output tokens, tool calling, vision
@@ -502,6 +511,7 @@ Initial limits:
 | `crawl_pages_per_day` (UTC day, `page_crawled` ledger events) | 5,000 | the crawl waits until the next UTC day (`waitingReason: daily_page_limit`), or until the limit is raised; not failed |
 | `concurrent_crawls` | 2 | further runs stay queued (`waitingReason: concurrent_crawls`) until a slot frees; manual, created and scheduled runs alike |
 | `concurrent_ingest_jobs` | `INGEST_MAX_INFLIGHT_PER_TEAM` (8) | the ingestion dispatcher's per-team in-flight cap |
+| `ocr_pages_per_day` (UTC day, `ocr_pages` ledger events) | 1,000 | a document that would pass it waits (`pending`, `ocr_daily_limit`) until the next UTC day or until the limit is raised; a document needing more pages than the whole limit reads what it allows, with a warning; 0 blocks OCR (scanned pages are skipped with a warning) |
 | `queries_per_minute` (team) | 600 | `/retrieve`, Valkey → 429 `rate_limited` + Retry-After |
 | `queries_per_day` (team, `query` ledger events) | 50,000 | `/retrieve`, Postgres → 429 until midnight UTC |
 | `api_key_queries_per_minute` (each key) | 300 | `/retrieve` with an API key |
@@ -520,7 +530,7 @@ Resource caps are checked inside the creating transaction under a per-team advis
 - **Per source type:** maximum file size (default 100 MB) and allowed MIME types.
 
 ### 11.2 Usage ledger
-`usage_events` is append-only. Each event records its kind (`embed_tokens`, `chat_tokens_in/out`, `query`, `page_crawled`, `document_parsed`, `storage_bytes`), the quantity, model, team, user, agent, KB, source, API key and timestamp. Events are rolled up daily. Prometheus metrics feed Grafana/Mimir.
+`usage_events` is append-only. Each event records its kind (`embed_tokens`, `chat_tokens_in/out`, `query`, `page_crawled`, `document_parsed`, `storage_bytes`, `ocr_pages` with the backend in its metadata, and for a vision model `vision_tokens_in/out` with the model), the quantity, model, team, user, agent, KB, source, API key and timestamp. Events are rolled up daily. Prometheus metrics feed Grafana/Mimir.
 
 ## 12. Notifications
 

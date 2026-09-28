@@ -60,6 +60,7 @@ People who run the admin portal: models, classifications, policies and governanc
 | [`operations/break-glass.md`](operations/break-glass.md) | Reading a team's content under a break-glass session |
 | [`operations/profile-migration.md`](operations/profile-migration.md) | Moving a knowledge base to a new embedding profile |
 | [`operations/sso-groups.md`](operations/sso-groups.md) | Mapping identity-provider groups to team roles (SSO group mapping) |
+| [`operations/ocr.md`](operations/ocr.md) | OCR for scanned documents: deploying the sidecar, choosing a backend, languages, retrying scanned documents, costs |
 | [`benchmarks/`](benchmarks/README.md) | Measurements that inform model and setting choices: [scale](benchmarks/scale-10k.md), [vector store](benchmarks/vector-gate.md), [boilerplate](benchmarks/boilerplate.md), [self-hosted models](benchmarks/spark-models.md), [SystemOne](benchmarks/systemone.md), [load at 2× the sizing](benchmarks/load.md) |
 
 ## Operators
@@ -78,7 +79,7 @@ People who deploy, upgrade and monitor an install:
 | [`operations/monitoring.md`](operations/monitoring.md) | Metrics, dashboards, alerts and SLOs |
 | [`operations/alerts.md`](operations/alerts.md) | A runbook for each alert |
 | [`../deploy/observability/README.md`](../deploy/observability/README.md) | The dashboards and alert rules |
-| [`operations/retention.md`](operations/retention.md), [`operations/break-glass.md`](operations/break-glass.md), [`operations/profile-migration.md`](operations/profile-migration.md), [`operations/sso-groups.md`](operations/sso-groups.md) | Runbooks shared with platform admins |
+| [`operations/retention.md`](operations/retention.md), [`operations/break-glass.md`](operations/break-glass.md), [`operations/profile-migration.md`](operations/profile-migration.md), [`operations/sso-groups.md`](operations/sso-groups.md), [`operations/ocr.md`](operations/ocr.md) | Runbooks shared with platform admins |
 | [DESIGN §15](DESIGN.md#15-architecture-deployment-and-operations-adr-0001-adr-0013-adr-0014) | Architecture, availability target, backups and delivery |
 
 ## Security reviewers

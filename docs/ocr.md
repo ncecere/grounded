@@ -67,3 +67,14 @@ A fixture PDF with a scanned page and a fully scanned PDF (generated in the test
 1. ~~The Tesseract sidecar?~~ **Our own `grounded-ocr` image** (owner, 2026-09-28), built, signed and released with Grounded (§3).
 2. ~~Image files as documents?~~ **Yes, uploads of PNG, JPEG and single-page TIFF** (owner, 2026-09-28): each is a one-page document read with OCR; refused with a clear message where OCR is off; the crawler still ignores images; multi-page TIFF later.
 3. ~~The vision-model backend?~~ **In v0.2** (owner, 2026-09-28), tested against the fake gateway; the reference install keeps Tesseract until a vision model runs on the Spark.
+
+## 10. Implementation notes (B4, v0.2)
+
+Built as agreed, with these choices where the design left room:
+- The per-document cap and the concurrency are configuration (`OCR_MAX_PAGES_PER_DOCUMENT`, `OCR_CONCURRENCY`), shown on Admin → Parsing, not settings stored in `parsing_settings`.
+- A document that needs more pages than the whole daily limit reads as many as the limit allows (with a warning), since it could never wait long enough; one that would only pass what is left of today waits. A limit of 0 skips OCR for the team (with a warning).
+- A waiting document is `pending` with `waiting_until` and the error code `ocr_daily_limit`; the dispatcher skips it through a partial index, so documents without OCR are dispatched as before.
+- OCR usage is recorded as soon as a document is parsed, whatever happens next; a document retried after a failure is read and counted again.
+- The sidecar's NetworkPolicy admits the api as well as the worker: the Test button runs in the api.
+- Admin → Parsing sits in the admin sidebar's Content group, next to Crawl domains (there is no Platform group).
+- The k8s smoke test doesn't deploy `components/ocr-tesseract`: it would build and load a second image (Tesseract and languages) on the smoke runners, and ingesting a document there needs a model gateway it doesn't have. `make k8s-validate` renders the component; CI's `ocr` job tests the sidecar with the real Tesseract.
