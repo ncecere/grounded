@@ -91,6 +91,9 @@ CROSS JOIN LATERAL (
         WHEN 'break_glass_session' THEN (SELECT 'Break-glass: ' || bt.name FROM break_glass_sessions bg JOIN teams bt ON bt.id = bg.team_id WHERE bg.id = ids.target_uuid)
         WHEN 'break_glass_settings' THEN 'Break-glass settings'
         WHEN 'sso_group_rule' THEN (SELECT 'Group ' || gr.group_name || ' → ' || grt.name FROM sso_group_rules gr JOIN teams grt ON grt.id = gr.team_id WHERE gr.id = ids.target_uuid)
+        WHEN 'evaluation_set' THEN (SELECT es.name FROM eval_sets es WHERE es.id = ids.target_uuid)
+        WHEN 'evaluation_run' THEN (SELECT 'Run of ' || ers.name FROM eval_runs er JOIN eval_sets ers ON ers.id = er.set_id WHERE er.id = ids.target_uuid)
+        WHEN 'evaluation_settings' THEN 'Evaluations'
         WHEN 'conversation' THEN (SELECT 'Conversation' FROM conversations cv WHERE cv.id = ids.target_uuid)
     END)::text AS label
 ) live

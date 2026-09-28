@@ -365,6 +365,74 @@ type EmbeddingSetFailure struct {
 	FailedAt     time.Time
 }
 
+type EvalCase struct {
+	ID          uuid.UUID
+	SetID       uuid.UUID
+	Question    string
+	Expected    json.RawMessage
+	MustMention []string
+	Note        string
+	CreatedBy   uuid.NullUUID
+	Revision    int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type EvalResult struct {
+	ID        uuid.UUID
+	RunID     uuid.UUID
+	CaseID    uuid.NullUUID
+	Question  string
+	Status    string
+	Rank      *int32
+	Hits      json.RawMessage
+	Answer    *string
+	Scores    json.RawMessage
+	Error     string
+	LatencyMs int32
+	CreatedAt time.Time
+}
+
+type EvalRun struct {
+	ID         uuid.UUID
+	SetID      uuid.UUID
+	TeamID     uuid.UUID
+	Kind       string
+	Trigger    string
+	Status     string
+	StartedBy  uuid.NullUUID
+	Config     json.RawMessage
+	Summary    json.RawMessage
+	Total      int32
+	Done       int32
+	Error      string
+	CreatedAt  time.Time
+	StartedAt  *time.Time
+	FinishedAt *time.Time
+}
+
+type EvalSet struct {
+	ID          uuid.UUID
+	TeamID      uuid.UUID
+	KBID        uuid.NullUUID
+	AgentID     uuid.NullUUID
+	Name        string
+	Description string
+	AutoRun     bool
+	CreatedBy   uuid.NullUUID
+	Revision    int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type EvaluationSetting struct {
+	Singleton bool
+	Enabled   bool
+	Revision  int64
+	UpdatedBy uuid.NullUUID
+	UpdatedAt time.Time
+}
+
 type KbSource struct {
 	KBID      uuid.UUID
 	SourceID  uuid.UUID
