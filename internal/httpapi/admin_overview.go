@@ -10,7 +10,8 @@ import (
 
 // adminGetOverview serves the admin Overview's counts and attention items
 // that no other endpoint gives (docs/ui-review A1): platform counts, failed
-// ingestion by team and teams near their resource limits. Pending domain
+// ingestion by team, teams near their resource limits and near or over
+// their monthly budget. Pending domain
 // requests come from /v1/admin/attention; agents, moderation, analytics and
 // recent changes from their own endpoints.
 func (a *api) adminGetOverview(w http.ResponseWriter, r *http.Request) {
@@ -32,6 +33,10 @@ func (a *api) adminGetOverview(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
+	nearBudget, err := a.nearBudget(r)
+	if failed(w, r, err) {
+		return
+	}
 	warnings, err := a.overviewWarnings(r)
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -46,6 +51,7 @@ func (a *api) adminGetOverview(w http.ResponseWriter, r *http.Request) {
 		},
 		FailedIngest:    []apitypes.AdminFailedIngest{},
 		TeamsNearLimits: []apitypes.AdminNearLimit{},
+		TeamsNearBudget: &nearBudget,
 		Warnings:        &warnings,
 	}
 	for _, f := range failedRows {

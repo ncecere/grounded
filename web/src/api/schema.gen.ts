@@ -1749,7 +1749,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Hybrid search over the knowledge base, with citations (session, or an API key with the query scope) */
+        /**
+         * Hybrid search over the knowledge base, with citations (session, or an API key with the query scope)
+         * @description 429 rate_limited (query limits, with Retry-After) or budget_exhausted (the team's enforced monthly budget is used up; details budget, spent, currency, resetsAt).
+         */
         post: operations["retrieve"];
         delete?: never;
         options?: never;
@@ -2594,7 +2597,7 @@ export interface paths {
         put?: never;
         /**
          * Ask a public agent as an anonymous visitor (needs the session cookie)
-         * @description The same events as POST /v1/agents/{team}/{agent}/chat. Public answers are moderated in buffer mode by default, so text arrives after the output check. The conversation is the session's current one; newConversation starts another. Guardrails run first: 400 message_too_long (public_message_max_chars), 429 rate_limited (per address or session, or too many concurrent chats) and quota_exceeded (daily caps) with Retry-After, 503 limits_unavailable when rate limits can't be checked (fail closed), 503 public_disabled, 403 agent_disabled.
+         * @description The same events as POST /v1/agents/{team}/{agent}/chat. Public answers are moderated in buffer mode by default, so text arrives after the output check. The conversation is the session's current one; newConversation starts another. Guardrails run first: 400 message_too_long (public_message_max_chars), 429 rate_limited (per address or session, or too many concurrent chats) and quota_exceeded (daily caps) with Retry-After, 503 limits_unavailable when rate limits can't be checked (fail closed), 503 public_disabled, 403 agent_disabled, 503 agent_unavailable when the team's monthly budget is used up (the visitor is not told why).
          */
         post: operations["publicChat"];
         delete?: never;
@@ -2699,7 +2702,7 @@ export interface paths {
         put?: never;
         /**
          * Ask an agent (session, or an API key with the query scope)
-         * @description Sessions and personal API keys store the conversation (send conversationId to continue one). Service keys are stateless: send prior turns in history; conversationId is rejected. With stream true (the default) the reply is Server-Sent Events: named events whose data is JSON (see ChatEvent* schemas), in this order: conversation, retrieval (always mode), message_start, then thinking_delta / text_delta / tool_call / retrieval / tool_result as they happen, moderation (only when moderation replaced the question's answer or the answer with a notice), message_end, citations_checked (only when SystemOne citation checks are on and the answer has citations: it follows message_end and replaces the answer's citations, and in enforce mode its text), error (only on failure), done. A blocked question gets conversation, message_start, moderation, message_end. A ": ping" comment is sent every 15 s. Errors before the answer starts (agent_disabled, agent_policy_violation, rate_limited, quota_exceeded, model_unavailable, model_busy) are plain HTTP errors. text_delta carries the raw model text; message_end.text is the final text (unknown [n] markers removed, [1, 2] written as [1][2], markers removed in citation mode none). Closing the connection stops the answer; the partial answer is saved with stopReason aborted.
+         * @description Sessions and personal API keys store the conversation (send conversationId to continue one). Service keys are stateless: send prior turns in history; conversationId is rejected. With stream true (the default) the reply is Server-Sent Events: named events whose data is JSON (see ChatEvent* schemas), in this order: conversation, retrieval (always mode), message_start, then thinking_delta / text_delta / tool_call / retrieval / tool_result as they happen, moderation (only when moderation replaced the question's answer or the answer with a notice), message_end, citations_checked (only when SystemOne citation checks are on and the answer has citations: it follows message_end and replaces the answer's citations, and in enforce mode its text), error (only on failure), done. A blocked question gets conversation, message_start, moderation, message_end. A ": ping" comment is sent every 15 s. Errors before the answer starts (agent_disabled, agent_policy_violation, rate_limited, quota_exceeded, budget_exhausted, model_unavailable, model_busy) are plain HTTP errors. 429 budget_exhausted (details budget, spent, currency, resetsAt) means the team's enforced monthly budget is used up (docs/costs.md). text_delta carries the raw model text; message_end.text is the final text (unknown [n] markers removed, [1, 2] written as [1][2], markers removed in citation mode none). Closing the connection stops the answer; the partial answer is saved with stopReason aborted.
          */
         post: operations["chat"];
         delete?: never;
@@ -3375,10 +3378,516 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/costs/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The cost settings (platform admins and auditors)
+         * @description The mode (off, track or enforce; teams may override it), the display currency, the time zone of the budget month and report days, the warning threshold and the optional default budget (docs/costs.md).
+         */
+        get: operations["adminGetCostSettings"];
+        /**
+         * Replace the cost settings (platform admins; audited as costs.settings_update)
+         * @description 400 invalid_mode, invalid_currency, invalid_time_zone (an IANA name such as America/New_York), invalid_threshold (1-100) or invalid_amount. Changing the time zone needs no rebuild: usage is kept by UTC hour and converted when read.
+         */
+        put: operations["adminUpdateCostSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/costs/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every priced model's current prices, with unpriced units (platform admins and auditors) */
+        get: operations["adminListCostPrices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/models/{modelId}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: string;
+            };
+            cookie?: never;
+        };
+        /** A model's current prices and their history (platform admins and auditors) */
+        get: operations["adminGetModelPrices"];
+        put?: never;
+        /**
+         * Add dated prices for some of a model's units (platform admins; audited as costs.price_add)
+         * @description Prices are never edited: a change adds rows effective from a date (in the platform time zone), and each day's usage is priced at the row in effect that day. A date in the past prices usage already recorded. Tokens are priced per million, requests per request. 400 not_priced, invalid_unit or invalid_amount; 409 price_exists when a unit already has a price from that date.
+         */
+        post: operations["adminAddModelPrices"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/models/{modelId}/prices/{priceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: string;
+                priceId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a mistaken price row (platform admins; audited as costs.price_delete) */
+        delete: operations["adminDeleteModelPrice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/costs/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Spend over a range of days, grouped by team, agent, model or day (platform admins and auditors)
+         * @description Days are in the platform time zone. Usage without a price costs nothing and is flagged unpriced. Rows by day include days without spend.
+         */
+        get: operations["adminGetCostReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/costs/report.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The cost report as CSV (platform admins and auditors), with the same parameters */
+        get: operations["adminExportCostReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/costs/budgets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every active team's mode, budget, month-to-date spend and projection (platform admins and auditors) */
+        get: operations["adminListBudgets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/teams/{team}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        /** A team's cost mode override, budget, this month's extensions and state (platform admins and auditors) */
+        get: operations["adminGetTeamBudget"];
+        /**
+         * Replace a team's mode override, monthly budget and threshold (platform admins; audited as costs.budget_update)
+         * @description Raising the budget wakes the team's waiting ingestion and crawls at once.
+         */
+        put: operations["adminUpdateTeamBudget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/teams/{team}/budget/extensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add an amount to a team's budget for the current month only, with a reason (platform admins; audited as costs.extension_grant)
+         * @description The extension lapses when the month ends. It wakes the team's waiting ingestion and crawls at once.
+         */
+        post: operations["adminGrantBudgetExtension"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/spend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * The team's spend this month against its budget, and by agent and model over a range (team owners and admins; platform admins and auditors)
+         * @description 404 costs_off while the team's cost mode is off. from and to default to this month so far (days in the platform time zone).
+         */
+        get: operations["getTeamSpend"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/budget-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Whether the team is near or over its monthly budget, for the workspace banner (team members; platform admins and auditors)
+         * @description Every member sees the state (none unless the budget is enforced); only owners, admins and platform readers get the amounts.
+         */
+        get: operations["getTeamBudgetStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description An exact decimal amount in the platform currency (never a float), with six decimals
+         * @example 12.500000
+         */
+        Money: string;
+        /**
+         * @description off: nothing is tracked or refused; track: spend is reported; enforce: track, plus monthly budgets
+         * @enum {string}
+         */
+        CostMode: "off" | "track" | "enforce";
+        /** @enum {string} */
+        CostModeOverride: "inherit" | "off" | "track" | "enforce";
+        /**
+         * @description none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused
+         * @enum {string}
+         */
+        BudgetState: "none" | "ok" | "warning" | "exhausted";
+        /**
+         * @description The usage ledger kind priced; tokens per million, requests per request
+         * @enum {string}
+         */
+        PriceUnit: "chat_tokens_in" | "chat_tokens_out" | "embed_tokens" | "systemone_tokens" | "systemone_requests" | "moderation_requests";
+        CostSettings: {
+            mode: components["schemas"]["CostMode"];
+            /**
+             * @description ISO 4217 code, for display only (no conversion)
+             * @example USD
+             */
+            currency: string;
+            /**
+             * @description IANA name of the budget month's and report days' time zone
+             * @example America/New_York
+             */
+            timeZone: string;
+            warnPercent: number;
+            /** @description The monthly budget of enforced teams without their own (null: none) */
+            defaultBudget: components["schemas"]["Money"] | null;
+            /** Format: int64 */
+            revision: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CostSettingsUpdate: {
+            mode: components["schemas"]["CostMode"];
+            currency: string;
+            timeZone: string;
+            warnPercent: number;
+            defaultBudget: string | null;
+        };
+        UnitPrice: {
+            unit: components["schemas"]["PriceUnit"];
+            /** @description null: unpriced (its usage costs nothing and is flagged) */
+            price: components["schemas"]["Money"] | null;
+            /** Format: date */
+            effectiveFrom: string | null;
+        };
+        ModelPrice: {
+            /** Format: uuid */
+            id: string;
+            unit: components["schemas"]["PriceUnit"];
+            price: components["schemas"]["Money"];
+            /** Format: date */
+            effectiveFrom: string;
+            /** Format: date-time */
+            createdAt: string;
+            createdByName: string;
+        };
+        ModelPricing: {
+            /** Format: uuid */
+            modelId: string;
+            modelKey: string;
+            displayName: string;
+            kind: string;
+            currency: string;
+            /** @description The units a model of this kind is priced in (none for kinds that aren't priced) */
+            units: components["schemas"]["PriceUnit"][];
+            /** @description The price of each unit today */
+            current: components["schemas"]["UnitPrice"][];
+            /** @description Every price row, newest date first */
+            history: components["schemas"]["ModelPrice"][];
+        };
+        ModelPricesCreate: {
+            /** Format: date */
+            effectiveFrom: string;
+            prices: {
+                unit: components["schemas"]["PriceUnit"];
+                /** @example 0.15 */
+                price: string;
+            }[];
+        };
+        CostPriceItem: {
+            /** Format: uuid */
+            modelId: string;
+            modelKey: string;
+            displayName: string;
+            kind: string;
+            enabled: boolean;
+            current: components["schemas"]["UnitPrice"][];
+            /** @description Some unit has no price today */
+            unpriced: boolean;
+        };
+        CostPriceList: {
+            currency: string;
+            items: components["schemas"]["CostPriceItem"][];
+        };
+        CostByKind: {
+            chat: components["schemas"]["Money"];
+            embedding: components["schemas"]["Money"];
+            systemone: components["schemas"]["Money"];
+            moderation: components["schemas"]["Money"];
+        };
+        CostTotals: {
+            spend: components["schemas"]["Money"];
+            byKind: components["schemas"]["CostByKind"];
+            /**
+             * Format: int64
+             * @description Chat, embedding and SystemOne tokens
+             */
+            tokens: number;
+            /**
+             * Format: int64
+             * @description SystemOne and moderation requests
+             */
+            requests: number;
+            /** @description Some usage had no price and counts as zero */
+            unpriced: boolean;
+        };
+        CostReportRow: {
+            /** @description The team, agent or model ID, or the date; empty for usage without one (such as searches outside agents) */
+            key: string;
+            label: string;
+            teamSlug?: string;
+            teamName?: string;
+            modelKind?: string;
+            /** @description The team, agent or model no longer exists */
+            deleted: boolean;
+            spend: components["schemas"]["Money"];
+            byKind: components["schemas"]["CostByKind"];
+            /** Format: int64 */
+            tokens: number;
+            /** Format: int64 */
+            requests: number;
+            unpriced: boolean;
+        };
+        CostReport: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** @enum {string} */
+            groupBy: "team" | "agent" | "model" | "day";
+            currency: string;
+            timeZone: string;
+            total: components["schemas"]["CostTotals"];
+            rows: components["schemas"]["CostReportRow"][];
+        };
+        TeamBudgetState: {
+            mode: components["schemas"]["CostMode"];
+            state: components["schemas"]["BudgetState"];
+            currency: string;
+            /**
+             * Format: date
+             * @description The first day of the budget month
+             */
+            month: string;
+            /**
+             * Format: date-time
+             * @description When the budget month ends
+             */
+            resetsAt: string;
+            /** @description The monthly budget: the team's own or the platform default (null: none, or not enforced) */
+            budget: components["schemas"]["Money"] | null;
+            /** @description This month's extensions */
+            extensions: components["schemas"]["Money"] | null;
+            /** @description Budget plus extensions */
+            limit: components["schemas"]["Money"] | null;
+            /** @description Month to date (null while the mode is off) */
+            spent: components["schemas"]["Money"] | null;
+            /** @description Spent as a whole percentage of the limit */
+            percent: number | null;
+            warnPercent: number;
+        };
+        BudgetListItem: {
+            /** Format: uuid */
+            teamId: string;
+            teamSlug: string;
+            teamName: string;
+            modeOverride: components["schemas"]["CostModeOverride"];
+            /** @description false: the platform default budget applies */
+            ownBudget: boolean;
+            status: components["schemas"]["TeamBudgetState"];
+            /** @description Month-end spend at the month-to-date rate */
+            projected: components["schemas"]["Money"] | null;
+        };
+        BudgetList: {
+            mode: components["schemas"]["CostMode"];
+            currency: string;
+            timeZone: string;
+            /** Format: date */
+            month: string;
+            /** Format: date-time */
+            resetsAt: string;
+            items: components["schemas"]["BudgetListItem"][];
+        };
+        BudgetExtension: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            month: string;
+            amount: components["schemas"]["Money"];
+            reason: string;
+            createdByName: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        BudgetExtensionCreate: {
+            /** @example 50 */
+            amount: string;
+            reason: string;
+        };
+        TeamBudget: {
+            /** Format: uuid */
+            teamId: string;
+            teamSlug: string;
+            teamName: string;
+            modeOverride: components["schemas"]["CostModeOverride"];
+            /** @description The team's own monthly budget (null: the platform default) */
+            amount: components["schemas"]["Money"] | null;
+            /** @description The team's own threshold (null: the platform's) */
+            warnPercent: number | null;
+            defaultBudget: components["schemas"]["Money"] | null;
+            status: components["schemas"]["TeamBudgetState"];
+            /** @description This month's extensions */
+            extensions: components["schemas"]["BudgetExtension"][];
+            /** Format: int64 */
+            revision: number;
+        };
+        TeamBudgetUpdate: {
+            mode: components["schemas"]["CostModeOverride"];
+            amount: string | null;
+            warnPercent: number | null;
+        };
+        TeamSpend: {
+            status: components["schemas"]["TeamBudgetState"];
+            timeZone: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            total: components["schemas"]["CostTotals"];
+            agents: components["schemas"]["CostReportRow"][];
+            models: components["schemas"]["CostReportRow"][];
+        };
+        TeamBudgetBanner: {
+            state: components["schemas"]["BudgetState"];
+            /** Format: date-time */
+            resetsAt?: string | null;
+            /** @description For the team's owners and admins, and platform readers */
+            amounts?: {
+                spent: components["schemas"]["Money"];
+                limit: components["schemas"]["Money"];
+                currency: string;
+                percent: number | null;
+            } | null;
+        };
+        AdminNearBudget: {
+            teamSlug: string;
+            teamName: string;
+            /** @enum {string} */
+            state: "warning" | "exhausted";
+            percent: number | null;
+            spent: components["schemas"]["Money"];
+            limit: components["schemas"]["Money"];
+            currency: string;
+        };
         ErrorResponse: {
             error: {
                 code: string;
@@ -3398,6 +3907,8 @@ export interface components {
             content: components["schemas"]["AdminOverviewContent"];
             failedIngest: components["schemas"]["AdminFailedIngest"][];
             teamsNearLimits: components["schemas"]["AdminNearLimit"][];
+            /** @description Enforced teams at or above their budget's warning threshold, fullest first */
+            teamsNearBudget?: components["schemas"]["AdminNearBudget"][];
             /** @description Production-readiness warnings, warnings before information (always sent) */
             warnings?: components["schemas"]["AdminWarning"][];
         };
@@ -5707,13 +6218,13 @@ export interface components {
              */
             truncatedReason: "max_pages" | "documents_limit" | "storage_limit" | null;
             /**
-             * @description Why an active crawl is waiting: queued until the team has a free crawl slot, paused until the next UTC day because the team crawled its pages for today, or parked until maintenance mode ends
+             * @description Why an active crawl is waiting: queued until the team has a free crawl slot, paused until the next UTC day because the team crawled its pages for today, parked until maintenance mode ends, or paused because the team's monthly budget is used up
              * @enum {string|null}
              */
-            waitingReason: "concurrent_crawls" | "daily_page_limit" | "maintenance" | null;
+            waitingReason: "concurrent_crawls" | "daily_page_limit" | "maintenance" | "monthly_budget" | null;
             /**
              * Format: date-time
-             * @description When a daily_page_limit wait ends
+             * @description When a daily_page_limit or monthly_budget wait ends
              */
             waitingUntil: string | null;
             error: string;
@@ -7768,6 +8279,11 @@ export interface components {
         };
     };
     parameters: {
+        /** @description The first day (in the platform time zone) */
+        CostFromParam: string;
+        /** @description The last day, inclusive (at most 366 days after from) */
+        CostToParam: string;
+        CostGroupByParam: "team" | "agent" | "model" | "day";
         /** @description First UTC day (default 29 days before to) */
         AnalyticsFromParam: string;
         /** @description Last UTC day, inclusive (default today); at most 366 days after from */
@@ -14158,6 +14674,412 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             503: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetCostSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cost settings */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CostSettings"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminUpdateCostSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CostSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated settings */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CostSettings"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    adminListCostPrices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Prices */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CostPriceList"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetModelPrices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The model's pricing */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ModelPricing"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminAddModelPrices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelPricesCreate"];
+            };
+        };
+        responses: {
+            /** @description The model's pricing */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ModelPricing"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    adminDeleteModelPrice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: string;
+                priceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Ok"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetCostReport: {
+        parameters: {
+            query: {
+                /** @description The first day (in the platform time zone) */
+                from: components["parameters"]["CostFromParam"];
+                /** @description The last day, inclusive (at most 366 days after from) */
+                to: components["parameters"]["CostToParam"];
+                groupBy: components["parameters"]["CostGroupByParam"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CostReport"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminExportCostReport: {
+        parameters: {
+            query: {
+                /** @description The first day (in the platform time zone) */
+                from: components["parameters"]["CostFromParam"];
+                /** @description The last day, inclusive (at most 366 days after from) */
+                to: components["parameters"]["CostToParam"];
+                groupBy: components["parameters"]["CostGroupByParam"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description An attachment with a header row and one row per group; amounts are decimal strings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example team,name,team,currency,spend,chat,embedding,systemone,moderation,tokens,requests,unpriced
+                     *     5b1d2c3e-6f7a-4b8c-9d0e-1f2a3b4c5d6e,Registrar,registrar,USD,12.500000,12.000000,0.500000,0.000000,0.000000,4100000,0,false
+                     */
+                    "text/csv": string;
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminListBudgets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Budgets */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BudgetList"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetTeamBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The team's budget */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TeamBudget"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminUpdateTeamBudget: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamBudgetUpdate"];
+            };
+        };
+        responses: {
+            /** @description The team's budget */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TeamBudget"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGrantBudgetExtension: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BudgetExtensionCreate"];
+            };
+        };
+        responses: {
+            /** @description The team's budget */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TeamBudget"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    getTeamSpend: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Spend */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TeamSpend"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    getTeamBudgetStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The budget state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TeamBudgetBanner"];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
         };
     };
 }

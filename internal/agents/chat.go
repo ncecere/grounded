@@ -146,6 +146,9 @@ type run struct {
 	// ledger; noContextReason is set by retrieveFirst.
 	meter           *systemone.Meter
 	noContextReason string
+	// usage are the usage events recorded for the answer (for the budget
+	// check's cached spend).
+	usage []dbgen.InsertUsageParams
 
 	// Citation checks and the scope check (docs/systemone.md §3-§4): nil
 	// when off. citeChanged: enforce changed the answer's text. answeredAt

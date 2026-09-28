@@ -41,8 +41,37 @@ type Status struct {
 type cached struct {
 	generation int64
 	month      Day
+	loc        *time.Location
 	spent, ext *big.Rat
 	at         time.Time
+}
+
+// Recorded adds usage this process just wrote to the ledger to the team's
+// cached month-to-date spend (at today's prices), so the next check sees it
+// without waiting for the cache to expire. Usage of other processes is seen
+// when the cache expires.
+func (s *Service) Recorded(teamID uuid.UUID, usage []dbgen.InsertUsageParams) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	c, ok := s.cache[teamID]
+	if !ok || s.prices == nil || s.prices.generation != c.generation {
+		return
+	}
+	today := DayOf(s.now(), c.loc)
+	spent := new(big.Rat).Set(c.spent)
+	for _, u := range usage {
+		if !u.ModelID.Valid {
+			continue
+		}
+		if p, ok := s.prices.book.At(u.ModelID.UUID, u.Kind, today); ok {
+			spent.Add(spent, Cost(u.Quantity, u.Kind, p.Price))
+		}
+	}
+	c.spent = spent
+	s.cache[teamID] = c
 }
 
 // status computes a team's budget state; fresh skips the cache.
@@ -120,7 +149,7 @@ func (s *Service) monthToDate(ctx context.Context, cfg dbgen.TeamCostConfigRow, 
 	}
 	ext = mustRat(total)
 	s.mu.Lock()
-	s.cache[teamID] = cached{generation: cfg.Generation, month: month, spent: spent, ext: ext, at: now}
+	s.cache[teamID] = cached{generation: cfg.Generation, month: month, loc: zone(cfg.TimeZone), spent: spent, ext: ext, at: now}
 	s.mu.Unlock()
 	return spent, ext, nil
 }

@@ -56,6 +56,10 @@ func (ru *run) record(ctx context.Context, ans *Answer, msg *llm.AssistantMessag
 	})
 	if err != nil {
 		ru.s.Log.Error("record answer", "err", err, "agent", ru.agent.ID)
+		return
+	}
+	if ru.s.Limits != nil {
+		ru.s.Limits.Recorded(ru.team.ID, ru.usage)
 	}
 }
 
@@ -148,12 +152,13 @@ func (ru *run) recordUsage(ctx context.Context, q *dbgen.Queries, ans *Answer, m
 		usage[i].Metadata = meta
 	}
 	usage = append(usage, ru.systemOneUsage()...)
-	for _, u := range usage {
-		u.TeamID, u.AgentID, u.UserID, u.APIKeyID = team, agent, nullUser(ru.a), keyID(ru.a)
-		if err := q.InsertUsage(ctx, u); err != nil {
+	for i := range usage {
+		usage[i].TeamID, usage[i].AgentID, usage[i].UserID, usage[i].APIKeyID = team, agent, nullUser(ru.a), keyID(ru.a)
+		if err := q.InsertUsage(ctx, usage[i]); err != nil {
 			return err
 		}
 	}
+	ru.usage = usage
 	return nil
 }
 

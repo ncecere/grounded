@@ -65,6 +65,16 @@ type Service struct {
 // (docs/costs.md §4).
 type BudgetChecker interface {
 	Check(ctx context.Context, teamID uuid.UUID) error
+	// Recorded adds usage this process just wrote to the ledger to the
+	// team's cached month-to-date spend, so the next check sees it.
+	Recorded(teamID uuid.UUID, usage []dbgen.InsertUsageParams)
+}
+
+// Recorded tells the budget check about usage just written to the ledger.
+func (s *Service) Recorded(teamID uuid.UUID, usage []dbgen.InsertUsageParams) {
+	if s != nil && s.Budget != nil {
+		s.Budget.Recorded(teamID, usage)
+	}
 }
 
 // New returns a Service. kvs may be nil (no per-minute limits).

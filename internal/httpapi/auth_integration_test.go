@@ -91,7 +91,8 @@ func newTestAppOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config),
 	deps := httpapi.Deps{
 		Config: cfg, Pool: pool, KV: kvs, Metrics: metrics, Log: log, Health: httpapi.NewHealth(nil),
 		Teams: svc.Teams, Platform: svc.Platform, Catalog: svc.Catalog, Sources: svc.Sources, KBs: svc.KBs, APIKeys: svc.APIKeys,
-		WebSources: svc.Web, Limits: svc.Limits, Agents: svc.Agents, Notify: svc.Notify, Moderation: svc.Moderation, SystemOne: svc.SystemOne, OCR: svc.OCR,
+		WebSources: svc.Web, Limits: svc.Limits, Costs: svc.Costs, Agents: svc.Agents, Notify: svc.Notify, Moderation: svc.Moderation, SystemOne: svc.SystemOne,
+		OCR: svc.OCR,
 		Public: svc.Public, Retention: svc.Retention, BreakGlass: svc.BreakGlass, Web: testWeb, WebBuilt: true,
 	}
 	deps.ProfileMigrations = svc.ProfileMigrations

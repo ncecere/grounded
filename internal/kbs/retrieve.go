@@ -250,6 +250,7 @@ func (s *Service) recordUsage(ctx context.Context, a authz.Actor, kb KB, hits in
 			return err
 		}
 	}
+	s.Limits.Recorded(kb.TeamID, usage)
 	return nil
 }
 

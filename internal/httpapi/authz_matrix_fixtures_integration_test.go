@@ -66,7 +66,9 @@ type matrixEnv struct {
 	sharedWeb, sharedCrawl, sharedWebDoc                                             string
 	migration, migrationKB, targetProfile                                            string
 	// groupRule is an SSO group mapping rule on team B.
-	groupRule      string
+	groupRule string
+	// price is a price row of the chat model.
+	price          string
 	publicSessions [numCallers]bool
 	seq            atomic.Int64
 }
@@ -283,6 +285,16 @@ func (e *matrixEnv) seedPlatform(t *testing.T) {
 	// A short name for team B's public agent.
 	must(t, a, "PUT", "/v1/admin/agents/"+e.b.agent+"/short-name", map[string]any{"shortName": "bhelp"}, nil)
 	e.groupRule = e.freshGroupRule(t)
+	// Costs on track, so teams' spend is readable; a price row.
+	must(t, a, "PUT", "/v1/admin/costs/settings", map[string]any{"mode": "track", "currency": "USD", "timeZone": "UTC", "warnPercent": 80,
+		"defaultBudget": nil}, ifMatch(revisionOf(t, a, "/v1/admin/costs/settings")))
+	e.price = e.freshPrice(t)
+}
+
+// freshPrice adds a price row to the chat model.
+func (e *matrixEnv) freshPrice(t *testing.T) string {
+	return field(must(t, e.admin, "POST", "/v1/admin/models/"+e.chat.Id.String()+"/prices", map[string]any{"effectiveFrom": e.priceDate(),
+		"prices": []any{map[string]any{"unit": "chat_tokens_out", "price": "1.25"}}}, nil), "history.0.id")
 }
 
 // ---- fresh objects -----------------------------------------------------------------

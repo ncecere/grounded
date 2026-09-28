@@ -20,6 +20,7 @@ import (
 	"github.com/ncecere/grounded/internal/captcha"
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/config"
+	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/kbs"
 	"github.com/ncecere/grounded/internal/kv"
@@ -56,6 +57,8 @@ type Deps struct {
 	WebSources *web.Service
 	// Limits reads and changes team limits.
 	Limits *limits.Service
+	// Costs reads and changes prices and budgets and reports spend.
+	Costs *costs.Service
 	// Agents manages agents and runs chats.
 	Agents *agents.Service
 	// Notify is the caller's inbox and notification settings.
@@ -135,7 +138,7 @@ func apiRoutes(d Deps) []route {
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.analyticsRoutes(),
 		a.publicRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
-		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(),
+		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.costsRoutes(),
 	} {
 		routes = append(routes, group...)
 	}

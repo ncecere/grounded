@@ -117,18 +117,36 @@ func (e AdminAgentStatusChangeStatus) Valid() bool {
 	}
 }
 
+// Defines values for AdminNearBudgetState.
+const (
+	AdminNearBudgetStateExhausted AdminNearBudgetState = "exhausted"
+	AdminNearBudgetStateWarning   AdminNearBudgetState = "warning"
+)
+
+// Valid indicates whether the value is a known member of the AdminNearBudgetState enum.
+func (e AdminNearBudgetState) Valid() bool {
+	switch e {
+	case AdminNearBudgetStateExhausted:
+		return true
+	case AdminNearBudgetStateWarning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminWarningSeverity.
 const (
-	Info    AdminWarningSeverity = "info"
-	Warning AdminWarningSeverity = "warning"
+	AdminWarningSeverityInfo    AdminWarningSeverity = "info"
+	AdminWarningSeverityWarning AdminWarningSeverity = "warning"
 )
 
 // Valid indicates whether the value is a known member of the AdminWarningSeverity enum.
 func (e AdminWarningSeverity) Valid() bool {
 	switch e {
-	case Info:
+	case AdminWarningSeverityInfo:
 		return true
-	case Warning:
+	case AdminWarningSeverityWarning:
 		return true
 	default:
 		return false
@@ -564,6 +582,30 @@ func (e BreakGlassStatus) Valid() bool {
 	}
 }
 
+// Defines values for BudgetState.
+const (
+	BudgetStateExhausted BudgetState = "exhausted"
+	BudgetStateNone      BudgetState = "none"
+	BudgetStateOk        BudgetState = "ok"
+	BudgetStateWarning   BudgetState = "warning"
+)
+
+// Valid indicates whether the value is a known member of the BudgetState enum.
+func (e BudgetState) Valid() bool {
+	switch e {
+	case BudgetStateExhausted:
+		return true
+	case BudgetStateNone:
+		return true
+	case BudgetStateOk:
+		return true
+	case BudgetStateWarning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CaptchaInfoProvider.
 const (
 	CaptchaInfoProviderNone      CaptchaInfoProvider = "none"
@@ -765,6 +807,75 @@ func (e ConversationMessageRole) Valid() bool {
 	}
 }
 
+// Defines values for CostMode.
+const (
+	CostModeEnforce CostMode = "enforce"
+	CostModeOff     CostMode = "off"
+	CostModeTrack   CostMode = "track"
+)
+
+// Valid indicates whether the value is a known member of the CostMode enum.
+func (e CostMode) Valid() bool {
+	switch e {
+	case CostModeEnforce:
+		return true
+	case CostModeOff:
+		return true
+	case CostModeTrack:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CostModeOverride.
+const (
+	CostModeOverrideEnforce CostModeOverride = "enforce"
+	CostModeOverrideInherit CostModeOverride = "inherit"
+	CostModeOverrideOff     CostModeOverride = "off"
+	CostModeOverrideTrack   CostModeOverride = "track"
+)
+
+// Valid indicates whether the value is a known member of the CostModeOverride enum.
+func (e CostModeOverride) Valid() bool {
+	switch e {
+	case CostModeOverrideEnforce:
+		return true
+	case CostModeOverrideInherit:
+		return true
+	case CostModeOverrideOff:
+		return true
+	case CostModeOverrideTrack:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CostReportGroupBy.
+const (
+	CostReportGroupByAgent CostReportGroupBy = "agent"
+	CostReportGroupByDay   CostReportGroupBy = "day"
+	CostReportGroupByModel CostReportGroupBy = "model"
+	CostReportGroupByTeam  CostReportGroupBy = "team"
+)
+
+// Valid indicates whether the value is a known member of the CostReportGroupBy enum.
+func (e CostReportGroupBy) Valid() bool {
+	switch e {
+	case CostReportGroupByAgent:
+		return true
+	case CostReportGroupByDay:
+		return true
+	case CostReportGroupByModel:
+		return true
+	case CostReportGroupByTeam:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CrawlTrigger.
 const (
 	CrawlTriggerCreate   CrawlTrigger = "create"
@@ -815,6 +926,7 @@ const (
 	CrawlWaitingReasonConcurrentCrawls CrawlWaitingReason = "concurrent_crawls"
 	CrawlWaitingReasonDailyPageLimit   CrawlWaitingReason = "daily_page_limit"
 	CrawlWaitingReasonMaintenance      CrawlWaitingReason = "maintenance"
+	CrawlWaitingReasonMonthlyBudget    CrawlWaitingReason = "monthly_budget"
 )
 
 // Valid indicates whether the value is a known member of the CrawlWaitingReason enum.
@@ -825,6 +937,8 @@ func (e CrawlWaitingReason) Valid() bool {
 	case CrawlWaitingReasonDailyPageLimit:
 		return true
 	case CrawlWaitingReasonMaintenance:
+		return true
+	case CrawlWaitingReasonMonthlyBudget:
 		return true
 	default:
 		return false
@@ -2100,6 +2214,36 @@ func (e PlatformRole) Valid() bool {
 	}
 }
 
+// Defines values for PriceUnit.
+const (
+	ChatTokensIn       PriceUnit = "chat_tokens_in"
+	ChatTokensOut      PriceUnit = "chat_tokens_out"
+	EmbedTokens        PriceUnit = "embed_tokens"
+	ModerationRequests PriceUnit = "moderation_requests"
+	SystemoneRequests  PriceUnit = "systemone_requests"
+	SystemoneTokens    PriceUnit = "systemone_tokens"
+)
+
+// Valid indicates whether the value is a known member of the PriceUnit enum.
+func (e PriceUnit) Valid() bool {
+	switch e {
+	case ChatTokensIn:
+		return true
+	case ChatTokensOut:
+		return true
+	case EmbedTokens:
+		return true
+	case ModerationRequests:
+		return true
+	case SystemoneRequests:
+		return true
+	case SystemoneTokens:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProfileMigrationSourceState.
 const (
 	Attention  ProfileMigrationSourceState = "attention"
@@ -2679,6 +2823,30 @@ func (e WebSchedule) Valid() bool {
 	}
 }
 
+// Defines values for CostGroupByParam.
+const (
+	CostGroupByParamAgent CostGroupByParam = "agent"
+	CostGroupByParamDay   CostGroupByParam = "day"
+	CostGroupByParamModel CostGroupByParam = "model"
+	CostGroupByParamTeam  CostGroupByParam = "team"
+)
+
+// Valid indicates whether the value is a known member of the CostGroupByParam enum.
+func (e CostGroupByParam) Valid() bool {
+	switch e {
+	case CostGroupByParamAgent:
+		return true
+	case CostGroupByParamDay:
+		return true
+	case CostGroupByParamModel:
+		return true
+	case CostGroupByParamTeam:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DocumentKindParam.
 const (
 	DocumentKindParamDocx     DocumentKindParam = "docx"
@@ -2793,6 +2961,54 @@ func (e AdminListBreakGlassSessionsParamsState) Valid() bool {
 	case Closed:
 		return true
 	case Open:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminGetCostReportParamsGroupBy.
+const (
+	AdminGetCostReportParamsGroupByAgent AdminGetCostReportParamsGroupBy = "agent"
+	AdminGetCostReportParamsGroupByDay   AdminGetCostReportParamsGroupBy = "day"
+	AdminGetCostReportParamsGroupByModel AdminGetCostReportParamsGroupBy = "model"
+	AdminGetCostReportParamsGroupByTeam  AdminGetCostReportParamsGroupBy = "team"
+)
+
+// Valid indicates whether the value is a known member of the AdminGetCostReportParamsGroupBy enum.
+func (e AdminGetCostReportParamsGroupBy) Valid() bool {
+	switch e {
+	case AdminGetCostReportParamsGroupByAgent:
+		return true
+	case AdminGetCostReportParamsGroupByDay:
+		return true
+	case AdminGetCostReportParamsGroupByModel:
+		return true
+	case AdminGetCostReportParamsGroupByTeam:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminExportCostReportParamsGroupBy.
+const (
+	AdminExportCostReportParamsGroupByAgent AdminExportCostReportParamsGroupBy = "agent"
+	AdminExportCostReportParamsGroupByDay   AdminExportCostReportParamsGroupBy = "day"
+	AdminExportCostReportParamsGroupByModel AdminExportCostReportParamsGroupBy = "model"
+	AdminExportCostReportParamsGroupByTeam  AdminExportCostReportParamsGroupBy = "team"
+)
+
+// Valid indicates whether the value is a known member of the AdminExportCostReportParamsGroupBy enum.
+func (e AdminExportCostReportParamsGroupBy) Valid() bool {
+	switch e {
+	case AdminExportCostReportParamsGroupByAgent:
+		return true
+	case AdminExportCostReportParamsGroupByDay:
+		return true
+	case AdminExportCostReportParamsGroupByModel:
+		return true
+	case AdminExportCostReportParamsGroupByTeam:
 		return true
 	default:
 		return false
@@ -3068,6 +3284,28 @@ type AdminKnowledgeBase struct {
 	TeamSlug string     `json:"teamSlug"`
 }
 
+// AdminNearBudget defines model for AdminNearBudget.
+type AdminNearBudget struct {
+	Currency string `json:"currency"`
+
+	// Limit An exact decimal amount in the platform currency (never a float), with six decimals
+	//
+	// Example: 12.500000
+	Limit   Money `json:"limit"`
+	Percent *int  `json:"percent"`
+
+	// Spent An exact decimal amount in the platform currency (never a float), with six decimals
+	//
+	// Example: 12.500000
+	Spent    Money                `json:"spent"`
+	State    AdminNearBudgetState `json:"state"`
+	TeamName string               `json:"teamName"`
+	TeamSlug string               `json:"teamSlug"`
+}
+
+// AdminNearBudgetState defines model for AdminNearBudget.State.
+type AdminNearBudgetState string
+
 // AdminNearLimit defines model for AdminNearLimit.
 type AdminNearLimit struct {
 	// Key A team limit. See GET /v1/admin/limits for labels and descriptions.
@@ -3082,11 +3320,14 @@ type AdminNearLimit struct {
 
 // AdminOverview defines model for AdminOverview.
 type AdminOverview struct {
-	Content         AdminOverviewContent `json:"content"`
-	FailedIngest    []AdminFailedIngest  `json:"failedIngest"`
-	Teams           AdminOverviewTeams   `json:"teams"`
-	TeamsNearLimits []AdminNearLimit     `json:"teamsNearLimits"`
-	Users           AdminOverviewUsers   `json:"users"`
+	Content      AdminOverviewContent `json:"content"`
+	FailedIngest []AdminFailedIngest  `json:"failedIngest"`
+	Teams        AdminOverviewTeams   `json:"teams"`
+
+	// TeamsNearBudget Enforced teams at or above their budget's warning threshold, fullest first
+	TeamsNearBudget *[]AdminNearBudget `json:"teamsNearBudget,omitempty"`
+	TeamsNearLimits []AdminNearLimit   `json:"teamsNearLimits"`
+	Users           AdminOverviewUsers `json:"users"`
 
 	// Warnings Production-readiness warnings, warnings before information (always sent)
 	Warnings *[]AdminWarning `json:"warnings,omitempty"`
@@ -3872,6 +4113,56 @@ type BreakGlassStart struct {
 // BreakGlassStatus pending: waiting for a second admin; active: reads allowed until expiresAt; ended: ended early (endedBy); expired: its time ran out; denied; cancelled: withdrawn before approval; request_expired: nobody approved it in time
 type BreakGlassStatus string
 
+// BudgetExtension defines model for BudgetExtension.
+type BudgetExtension struct {
+	// Amount An exact decimal amount in the platform currency (never a float), with six decimals
+	//
+	// Example: 12.500000
+	Amount        Money              `json:"amount"`
+	CreatedAt     time.Time          `json:"createdAt"`
+	CreatedByName string             `json:"createdByName"`
+	Id            openapi_types.UUID `json:"id"`
+	Month         openapi_types.Date `json:"month"`
+	Reason        string             `json:"reason"`
+}
+
+// BudgetExtensionCreate defines model for BudgetExtensionCreate.
+type BudgetExtensionCreate struct {
+	// Amount Example: 50
+	Amount string `json:"amount"`
+	Reason string `json:"reason"`
+}
+
+// BudgetList defines model for BudgetList.
+type BudgetList struct {
+	Currency string           `json:"currency"`
+	Items    []BudgetListItem `json:"items"`
+
+	// Mode off: nothing is tracked or refused; track: spend is reported; enforce: track, plus monthly budgets
+	Mode     CostMode           `json:"mode"`
+	Month    openapi_types.Date `json:"month"`
+	ResetsAt time.Time          `json:"resetsAt"`
+	TimeZone string             `json:"timeZone"`
+}
+
+// BudgetListItem defines model for BudgetListItem.
+type BudgetListItem struct {
+	ModeOverride CostModeOverride `json:"modeOverride"`
+
+	// OwnBudget false: the platform default budget applies
+	OwnBudget bool `json:"ownBudget"`
+
+	// Projected Month-end spend at the month-to-date rate
+	Projected *Money             `json:"projected"`
+	Status    TeamBudgetState    `json:"status"`
+	TeamId    openapi_types.UUID `json:"teamId"`
+	TeamName  string             `json:"teamName"`
+	TeamSlug  string             `json:"teamSlug"`
+}
+
+// BudgetState none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused
+type BudgetState string
+
 // Capabilities defines model for Capabilities.
 type Capabilities struct {
 	PlatformAdmin   bool `json:"platformAdmin"`
@@ -4350,6 +4641,143 @@ type ConversationUpdate struct {
 	Title string `json:"title"`
 }
 
+// CostByKind defines model for CostByKind.
+type CostByKind struct {
+	// Chat An exact decimal amount in the platform currency (never a float), with six decimals
+	//
+	// Example: 12.500000
+	Chat Money `json:"chat"`
+
+	// Embedding An exact decimal amount in the platform currency (never a float), with six decimals
+	//
+	// Example: 12.500000
+	Embedding Money `json:"embedding"`
+
+	// Moderation An exact decimal amount in the platform currency (never a float), with six decimals
+	//
+	// Example: 12.500000
+	Moderation Money `json:"moderation"`
+
+	// Systemone An exact decimal amount in the platform currency (never a float), with six decimals
+	//
+	// Example: 12.500000
+	Systemone Money `json:"systemone"`
+}
+
+// CostMode off: nothing is tracked or refused; track: spend is reported; enforce: track, plus monthly budgets
+type CostMode string
+
+// CostModeOverride defines model for CostModeOverride.
+type CostModeOverride string
+
+// CostPriceItem defines model for CostPriceItem.
+type CostPriceItem struct {
+	Current     []UnitPrice        `json:"current"`
+	DisplayName string             `json:"displayName"`
+	Enabled     bool               `json:"enabled"`
+	Kind        string             `json:"kind"`
+	ModelId     openapi_types.UUID `json:"modelId"`
+	ModelKey    string             `json:"modelKey"`
+
+	// Unpriced Some unit has no price today
+	Unpriced bool `json:"unpriced"`
+}
+
+// CostPriceList defines model for CostPriceList.
+type CostPriceList struct {
+	Currency string          `json:"currency"`
+	Items    []CostPriceItem `json:"items"`
+}
+
+// CostReport defines model for CostReport.
+type CostReport struct {
+	Currency string             `json:"currency"`
+	From     openapi_types.Date `json:"from"`
+	GroupBy  CostReportGroupBy  `json:"groupBy"`
+	Rows     []CostReportRow    `json:"rows"`
+	TimeZone string             `json:"timeZone"`
+	To       openapi_types.Date `json:"to"`
+	Total    CostTotals         `json:"total"`
+}
+
+// CostReportGroupBy defines model for CostReport.GroupBy.
+type CostReportGroupBy string
+
+// CostReportRow defines model for CostReportRow.
+type CostReportRow struct {
+	ByKind CostByKind `json:"byKind"`
+
+	// Deleted The team, agent or model no longer exists
+	Deleted bool `json:"deleted"`
+
+	// Key The team, agent or model ID, or the date; empty for usage without one (such as searches outside agents)
+	Key       string  `json:"key"`
+	Label     string  `json:"label"`
+	ModelKind *string `json:"modelKind,omitempty"`
+	Requests  int64   `json:"requests"`
+
+	// Spend An exact decimal amount in the platform currency (never a float), with six decimals
+	//
+	// Example: 12.500000
+	Spend    Money   `json:"spend"`
+	TeamName *string `json:"teamName,omitempty"`
+	TeamSlug *string `json:"teamSlug,omitempty"`
+	Tokens   int64   `json:"tokens"`
+	Unpriced bool    `json:"unpriced"`
+}
+
+// CostSettings defines model for CostSettings.
+type CostSettings struct {
+	// Currency ISO 4217 code, for display only (no conversion)
+	//
+	// Example: USD
+	Currency string `json:"currency"`
+
+	// DefaultBudget The monthly budget of enforced teams without their own (null: none)
+	DefaultBudget *Money `json:"defaultBudget"`
+
+	// Mode off: nothing is tracked or refused; track: spend is reported; enforce: track, plus monthly budgets
+	Mode     CostMode `json:"mode"`
+	Revision int64    `json:"revision"`
+
+	// TimeZone IANA name of the budget month's and report days' time zone
+	//
+	// Example: America/New_York
+	TimeZone    string    `json:"timeZone"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+	WarnPercent int       `json:"warnPercent"`
+}
+
+// CostSettingsUpdate defines model for CostSettingsUpdate.
+type CostSettingsUpdate struct {
+	Currency      string  `json:"currency"`
+	DefaultBudget *string `json:"defaultBudget"`
+
+	// Mode off: nothing is tracked or refused; track: spend is reported; enforce: track, plus monthly budgets
+	Mode        CostMode `json:"mode"`
+	TimeZone    string   `json:"timeZone"`
+	WarnPercent int      `json:"warnPercent"`
+}
+
+// CostTotals defines model for CostTotals.
+type CostTotals struct {
+	ByKind CostByKind `json:"byKind"`
+
+	// Requests SystemOne and moderation requests
+	Requests int64 `json:"requests"`
+
+	// Spend An exact decimal amount in the platform currency (never a float), with six decimals
+	//
+	// Example: 12.500000
+	Spend Money `json:"spend"`
+
+	// Tokens Chat, embedding and SystemOne tokens
+	Tokens int64 `json:"tokens"`
+
+	// Unpriced Some usage had no price and counts as zero
+	Unpriced bool `json:"unpriced"`
+}
+
 // Crawl defines model for Crawl.
 type Crawl struct {
 	CreatedAt time.Time `json:"createdAt"`
@@ -4384,10 +4812,10 @@ type Crawl struct {
 	// TruncatedReason Why the crawl stopped early: the source's maxPages, or the team's documents or storage limit
 	TruncatedReason *CrawlTruncatedReason `json:"truncatedReason"`
 
-	// WaitingReason Why an active crawl is waiting: queued until the team has a free crawl slot, paused until the next UTC day because the team crawled its pages for today, or parked until maintenance mode ends
+	// WaitingReason Why an active crawl is waiting: queued until the team has a free crawl slot, paused until the next UTC day because the team crawled its pages for today, parked until maintenance mode ends, or paused because the team's monthly budget is used up
 	WaitingReason *CrawlWaitingReason `json:"waitingReason"`
 
-	// WaitingUntil When a daily_page_limit wait ends
+	// WaitingUntil When a daily_page_limit or monthly_budget wait ends
 	WaitingUntil *time.Time `json:"waitingUntil"`
 }
 
@@ -4397,7 +4825,7 @@ type CrawlTrigger string
 // CrawlTruncatedReason Why the crawl stopped early: the source's maxPages, or the team's documents or storage limit
 type CrawlTruncatedReason string
 
-// CrawlWaitingReason Why an active crawl is waiting: queued until the team has a free crawl slot, paused until the next UTC day because the team crawled its pages for today, or parked until maintenance mode ends
+// CrawlWaitingReason Why an active crawl is waiting: queued until the team has a free crawl slot, paused until the next UTC day because the team crawled its pages for today, parked until maintenance mode ends, or paused because the team's monthly budget is used up
 type CrawlWaitingReason string
 
 // CrawlConflictResponse defines model for CrawlConflictResponse.
@@ -5465,6 +5893,52 @@ type ModelCreate struct {
 // ModelKind systemone is a SystemOne judgment model (ADR-0020): typed questions over POST {base}/v1/systemone; vision reads page images for OCR (docs/ocr.md)
 type ModelKind string
 
+// ModelPrice defines model for ModelPrice.
+type ModelPrice struct {
+	CreatedAt     time.Time          `json:"createdAt"`
+	CreatedByName string             `json:"createdByName"`
+	EffectiveFrom openapi_types.Date `json:"effectiveFrom"`
+	Id            openapi_types.UUID `json:"id"`
+
+	// Price An exact decimal amount in the platform currency (never a float), with six decimals
+	//
+	// Example: 12.500000
+	Price Money `json:"price"`
+
+	// Unit The usage ledger kind priced; tokens per million, requests per request
+	Unit PriceUnit `json:"unit"`
+}
+
+// ModelPricesCreate defines model for ModelPricesCreate.
+type ModelPricesCreate struct {
+	EffectiveFrom openapi_types.Date `json:"effectiveFrom"`
+	Prices        []struct {
+		// Price Example: 0.15
+		Price string `json:"price"`
+
+		// Unit The usage ledger kind priced; tokens per million, requests per request
+		Unit PriceUnit `json:"unit"`
+	} `json:"prices"`
+}
+
+// ModelPricing defines model for ModelPricing.
+type ModelPricing struct {
+	Currency string `json:"currency"`
+
+	// Current The price of each unit today
+	Current     []UnitPrice `json:"current"`
+	DisplayName string      `json:"displayName"`
+
+	// History Every price row, newest date first
+	History  []ModelPrice       `json:"history"`
+	Kind     string             `json:"kind"`
+	ModelId  openapi_types.UUID `json:"modelId"`
+	ModelKey string             `json:"modelKey"`
+
+	// Units The units a model of this kind is priced in (none for kinds that aren't priced)
+	Units []PriceUnit `json:"units"`
+}
+
 // ModelRef defines model for ModelRef.
 type ModelRef struct {
 	DisplayName       string             `json:"displayName"`
@@ -5739,6 +6213,11 @@ type ModerationTotals struct {
 	// Supported Answers replaced by the support message
 	Supported int64 `json:"supported"`
 }
+
+// Money An exact decimal amount in the platform currency (never a float), with six decimals
+//
+// Example: 12.500000
+type Money = string
 
 // MyTeam defines model for MyTeam.
 type MyTeam struct {
@@ -6266,6 +6745,9 @@ type PlatformLimitsUpdate struct {
 
 // PlatformRole defines model for PlatformRole.
 type PlatformRole string
+
+// PriceUnit The usage ledger kind priced; tokens per million, requests per request
+type PriceUnit string
 
 // ProfileMigration defines model for ProfileMigration.
 type ProfileMigration struct {
@@ -7126,6 +7608,87 @@ type Team struct {
 	UpdatedAt time.Time  `json:"updatedAt"`
 }
 
+// TeamBudget defines model for TeamBudget.
+type TeamBudget struct {
+	// Amount The team's own monthly budget (null: the platform default)
+	Amount        *Money `json:"amount"`
+	DefaultBudget *Money `json:"defaultBudget"`
+
+	// Extensions This month's extensions
+	Extensions   []BudgetExtension  `json:"extensions"`
+	ModeOverride CostModeOverride   `json:"modeOverride"`
+	Revision     int64              `json:"revision"`
+	Status       TeamBudgetState    `json:"status"`
+	TeamId       openapi_types.UUID `json:"teamId"`
+	TeamName     string             `json:"teamName"`
+	TeamSlug     string             `json:"teamSlug"`
+
+	// WarnPercent The team's own threshold (null: the platform's)
+	WarnPercent *int `json:"warnPercent"`
+}
+
+// TeamBudgetBanner defines model for TeamBudgetBanner.
+type TeamBudgetBanner struct {
+	// Amounts For the team's owners and admins, and platform readers
+	Amounts *struct {
+		Currency string `json:"currency"`
+
+		// Limit An exact decimal amount in the platform currency (never a float), with six decimals
+		//
+		// Example: 12.500000
+		Limit   Money `json:"limit"`
+		Percent *int  `json:"percent"`
+
+		// Spent An exact decimal amount in the platform currency (never a float), with six decimals
+		//
+		// Example: 12.500000
+		Spent Money `json:"spent"`
+	} `json:"amounts,omitempty"`
+	ResetsAt *time.Time `json:"resetsAt,omitempty"`
+
+	// State none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused
+	State BudgetState `json:"state"`
+}
+
+// TeamBudgetState defines model for TeamBudgetState.
+type TeamBudgetState struct {
+	// Budget The monthly budget: the team's own or the platform default (null: none, or not enforced)
+	Budget   *Money `json:"budget"`
+	Currency string `json:"currency"`
+
+	// Extensions This month's extensions
+	Extensions *Money `json:"extensions"`
+
+	// Limit Budget plus extensions
+	Limit *Money `json:"limit"`
+
+	// Mode off: nothing is tracked or refused; track: spend is reported; enforce: track, plus monthly budgets
+	Mode CostMode `json:"mode"`
+
+	// Month The first day of the budget month
+	Month openapi_types.Date `json:"month"`
+
+	// Percent Spent as a whole percentage of the limit
+	Percent *int `json:"percent"`
+
+	// ResetsAt When the budget month ends
+	ResetsAt time.Time `json:"resetsAt"`
+
+	// Spent Month to date (null while the mode is off)
+	Spent *Money `json:"spent"`
+
+	// State none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused
+	State       BudgetState `json:"state"`
+	WarnPercent int         `json:"warnPercent"`
+}
+
+// TeamBudgetUpdate defines model for TeamBudgetUpdate.
+type TeamBudgetUpdate struct {
+	Amount      *string          `json:"amount"`
+	Mode        CostModeOverride `json:"mode"`
+	WarnPercent *int             `json:"warnPercent"`
+}
+
 // TeamConversation defines model for TeamConversation.
 type TeamConversation struct {
 	AgentDeleted bool               `json:"agentDeleted"`
@@ -7265,6 +7828,17 @@ type TeamRef struct {
 // TeamRole defines model for TeamRole.
 type TeamRole string
 
+// TeamSpend defines model for TeamSpend.
+type TeamSpend struct {
+	Agents   []CostReportRow    `json:"agents"`
+	From     openapi_types.Date `json:"from"`
+	Models   []CostReportRow    `json:"models"`
+	Status   TeamBudgetState    `json:"status"`
+	TimeZone string             `json:"timeZone"`
+	To       openapi_types.Date `json:"to"`
+	Total    CostTotals         `json:"total"`
+}
+
 // TeamStatus defines model for TeamStatus.
 type TeamStatus string
 
@@ -7309,6 +7883,17 @@ type TokenUsage struct {
 	CompletionTokens int `json:"completionTokens"`
 	PromptTokens     int `json:"promptTokens"`
 	TotalTokens      int `json:"totalTokens"`
+}
+
+// UnitPrice defines model for UnitPrice.
+type UnitPrice struct {
+	EffectiveFrom *openapi_types.Date `json:"effectiveFrom"`
+
+	// Price null: unpriced (its usage costs nothing and is flagged)
+	Price *Money `json:"price"`
+
+	// Unit The usage ledger kind priced; tokens per million, requests per request
+	Unit PriceUnit `json:"unit"`
 }
 
 // UploadResult defines model for UploadResult.
@@ -7483,6 +8068,15 @@ type BreakGlassSessionIdParam = openapi_types.UUID
 
 // ConversationIdParam defines model for ConversationIdParam.
 type ConversationIdParam = openapi_types.UUID
+
+// CostFromParam defines model for CostFromParam.
+type CostFromParam = openapi_types.Date
+
+// CostGroupByParam defines model for CostGroupByParam.
+type CostGroupByParam string
+
+// CostToParam defines model for CostToParam.
+type CostToParam = openapi_types.Date
 
 // CrawlIdParam defines model for CrawlIdParam.
 type CrawlIdParam = openapi_types.UUID
@@ -7753,6 +8347,38 @@ type AdminUpdateConnectionParams struct {
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
+// AdminGetCostReportParams defines parameters for AdminGetCostReport.
+type AdminGetCostReportParams struct {
+	// From The first day (in the platform time zone)
+	From CostFromParam `form:"from" json:"from"`
+
+	// To The last day, inclusive (at most 366 days after from)
+	To      CostToParam                     `form:"to" json:"to"`
+	GroupBy AdminGetCostReportParamsGroupBy `form:"groupBy" json:"groupBy"`
+}
+
+// AdminGetCostReportParamsGroupBy defines parameters for AdminGetCostReport.
+type AdminGetCostReportParamsGroupBy string
+
+// AdminExportCostReportParams defines parameters for AdminExportCostReport.
+type AdminExportCostReportParams struct {
+	// From The first day (in the platform time zone)
+	From CostFromParam `form:"from" json:"from"`
+
+	// To The last day, inclusive (at most 366 days after from)
+	To      CostToParam                        `form:"to" json:"to"`
+	GroupBy AdminExportCostReportParamsGroupBy `form:"groupBy" json:"groupBy"`
+}
+
+// AdminExportCostReportParamsGroupBy defines parameters for AdminExportCostReport.
+type AdminExportCostReportParamsGroupBy string
+
+// AdminUpdateCostSettingsParams defines parameters for AdminUpdateCostSettings.
+type AdminUpdateCostSettingsParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminListDomainRequestsParams defines parameters for AdminListDomainRequests.
 type AdminListDomainRequestsParams struct {
 	Status *DomainRequestStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -7953,6 +8579,12 @@ type AdminListTeamsParams struct {
 
 // AdminUpdateTeamParams defines parameters for AdminUpdateTeam.
 type AdminUpdateTeamParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// AdminUpdateTeamBudgetParams defines parameters for AdminUpdateTeamBudget.
+type AdminUpdateTeamBudgetParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
@@ -8179,6 +8811,12 @@ type ListDocumentPassagesParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// GetTeamSpendParams defines parameters for GetTeamSpend.
+type GetTeamSpendParams struct {
+	From *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
+	To   *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
+}
+
 // CheckWidgetOriginsJSONBody defines parameters for CheckWidgetOrigins.
 type CheckWidgetOriginsJSONBody struct {
 	Origins []string `json:"origins"`
@@ -8210,6 +8848,9 @@ type AdminCreateConnectionJSONRequestBody = ConnectionCreate
 
 // AdminUpdateConnectionJSONRequestBody defines body for AdminUpdateConnection for application/json ContentType.
 type AdminUpdateConnectionJSONRequestBody = ConnectionUpdate
+
+// AdminUpdateCostSettingsJSONRequestBody defines body for AdminUpdateCostSettings for application/json ContentType.
+type AdminUpdateCostSettingsJSONRequestBody = CostSettingsUpdate
 
 // AdminAddCrawlAllowlistJSONRequestBody defines body for AdminAddCrawlAllowlist for application/json ContentType.
 type AdminAddCrawlAllowlistJSONRequestBody = AllowlistCreate
@@ -8246,6 +8887,9 @@ type AdminCreateModelJSONRequestBody = ModelCreate
 
 // AdminUpdateModelJSONRequestBody defines body for AdminUpdateModel for application/json ContentType.
 type AdminUpdateModelJSONRequestBody = ModelUpdate
+
+// AdminAddModelPricesJSONRequestBody defines body for AdminAddModelPrices for application/json ContentType.
+type AdminAddModelPricesJSONRequestBody = ModelPricesCreate
 
 // AdminPutModerationPolicyJSONRequestBody defines body for AdminPutModerationPolicy for application/json ContentType.
 type AdminPutModerationPolicyJSONRequestBody = ModerationPolicyInput
@@ -8303,6 +8947,12 @@ type AdminCreateTeamJSONRequestBody = TeamCreate
 
 // AdminUpdateTeamJSONRequestBody defines body for AdminUpdateTeam for application/json ContentType.
 type AdminUpdateTeamJSONRequestBody = TeamUpdate
+
+// AdminUpdateTeamBudgetJSONRequestBody defines body for AdminUpdateTeamBudget for application/json ContentType.
+type AdminUpdateTeamBudgetJSONRequestBody = TeamBudgetUpdate
+
+// AdminGrantBudgetExtensionJSONRequestBody defines body for AdminGrantBudgetExtension for application/json ContentType.
+type AdminGrantBudgetExtensionJSONRequestBody = BudgetExtensionCreate
 
 // AdminUpdateTeamLimitsJSONRequestBody defines body for AdminUpdateTeamLimits for application/json ContentType.
 type AdminUpdateTeamLimitsJSONRequestBody = TeamLimitOverridesUpdate

@@ -27,6 +27,8 @@ tags:
   - name: apikeys
   - name: limits
     description: Team limits (defaults, ceilings and overrides) and usage
+  - name: costs
+    description: Prices, spend reports and monthly team budgets (docs/costs.md)
   - name: agents
     description: Team agents, drafts, versions and analytics
   - name: chat
@@ -2756,6 +2758,10 @@ paths:
       tags: [kbs]
       operationId: retrieve
       summary: Hybrid search over the knowledge base, with citations (session, or an API key with the query scope)
+      description: >-
+        429 rate_limited (query limits, with Retry-After) or budget_exhausted
+        (the team's enforced monthly budget is used up; details budget, spent,
+        currency, resetsAt).
       requestBody:
         required: true
         content:
@@ -4062,7 +4068,9 @@ paths:
         message_too_long (public_message_max_chars), 429 rate_limited (per
         address or session, or too many concurrent chats) and quota_exceeded
         (daily caps) with Retry-After, 503 limits_unavailable when rate limits
-        can't be checked (fail closed), 503 public_disabled, 403 agent_disabled.
+        can't be checked (fail closed), 503 public_disabled, 403 agent_disabled,
+        503 agent_unavailable when the team's monthly budget is used up (the
+        visitor is not told why).
       requestBody:
         required: true
         content:
@@ -4188,7 +4196,9 @@ paths:
         (only on failure), done. A blocked
         question gets conversation, message_start, moderation, message_end. A ": ping" comment is sent every 15 s. Errors before the
         answer starts (agent_disabled, agent_policy_violation, rate_limited,
-        quota_exceeded, model_unavailable, model_busy) are plain HTTP errors. text_delta
+        quota_exceeded, budget_exhausted, model_unavailable, model_busy) are plain HTTP errors.
+        429 budget_exhausted (details budget, spent, currency, resetsAt) means the
+        team's enforced monthly budget is used up (docs/costs.md). text_delta
         carries the raw model text; message_end.text is the final text (unknown
         [n] markers removed, [1, 2] written as [1][2], markers removed in
         citation mode none). Closing the connection stops the answer; the
@@ -5326,12 +5336,369 @@ paths:
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "503": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/costs/settings:
+    get:
+      tags: [costs, admin]
+      operationId: adminGetCostSettings
+      summary: The cost settings (platform admins and auditors)
+      description: >-
+        The mode (off, track or enforce; teams may override it), the display
+        currency, the time zone of the budget month and report days, the
+        warning threshold and the optional default budget (docs/costs.md).
+      responses:
+        "200":
+          description: Cost settings
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/CostSettings" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [costs, admin]
+      operationId: adminUpdateCostSettings
+      summary: Replace the cost settings (platform admins; audited as costs.settings_update)
+      description: >-
+        400 invalid_mode, invalid_currency, invalid_time_zone (an IANA name
+        such as America/New_York), invalid_threshold (1-100) or
+        invalid_amount. Changing the time zone needs no rebuild: usage is
+        kept by UTC hour and converted when read.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CostSettingsUpdate" }
+      responses:
+        "200":
+          description: Updated settings
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/CostSettings" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/costs/prices:
+    get:
+      tags: [costs, admin]
+      operationId: adminListCostPrices
+      summary: Every priced model's current prices, with unpriced units (platform admins and auditors)
+      responses:
+        "200":
+          description: Prices
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/CostPriceList" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/models/{modelId}/prices:
+    parameters:
+      - name: modelId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [costs, admin]
+      operationId: adminGetModelPrices
+      summary: A model's current prices and their history (platform admins and auditors)
+      responses:
+        "200":
+          description: The model's pricing
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ModelPricing" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    post:
+      tags: [costs, admin]
+      operationId: adminAddModelPrices
+      summary: Add dated prices for some of a model's units (platform admins; audited as costs.price_add)
+      description: >-
+        Prices are never edited: a change adds rows effective from a date
+        (in the platform time zone), and each day's usage is priced at the
+        row in effect that day. A date in the past prices usage already
+        recorded. Tokens are priced per million, requests per request. 400
+        not_priced, invalid_unit or invalid_amount; 409 price_exists when a
+        unit already has a price from that date.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ModelPricesCreate" }
+      responses:
+        "201":
+          description: The model's pricing
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ModelPricing" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/models/{modelId}/prices/{priceId}:
+    parameters:
+      - name: modelId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: priceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [costs, admin]
+      operationId: adminDeleteModelPrice
+      summary: Delete a mistaken price row (platform admins; audited as costs.price_delete)
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Ok" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/costs/report:
+    get:
+      tags: [costs, admin]
+      operationId: adminGetCostReport
+      summary: Spend over a range of days, grouped by team, agent, model or day (platform admins and auditors)
+      description: >-
+        Days are in the platform time zone. Usage without a price costs
+        nothing and is flagged unpriced. Rows by day include days without
+        spend.
+      parameters:
+        - $ref: "#/components/parameters/CostFromParam"
+        - $ref: "#/components/parameters/CostToParam"
+        - $ref: "#/components/parameters/CostGroupByParam"
+      responses:
+        "200":
+          description: The report
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/CostReport" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/costs/report.csv:
+    get:
+      tags: [costs, admin]
+      operationId: adminExportCostReport
+      summary: The cost report as CSV (platform admins and auditors), with the same parameters
+      parameters:
+        - $ref: "#/components/parameters/CostFromParam"
+        - $ref: "#/components/parameters/CostToParam"
+        - $ref: "#/components/parameters/CostGroupByParam"
+      responses:
+        "200":
+          description: An attachment with a header row and one row per group; amounts are decimal strings
+          content:
+            text/csv:
+              schema: { type: string }
+              example: |
+                team,name,team,currency,spend,chat,embedding,systemone,moderation,tokens,requests,unpriced
+                5b1d2c3e-6f7a-4b8c-9d0e-1f2a3b4c5d6e,Registrar,registrar,USD,12.500000,12.000000,0.500000,0.000000,0.000000,4100000,0,false
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/costs/budgets:
+    get:
+      tags: [costs, admin]
+      operationId: adminListBudgets
+      summary: Every active team's mode, budget, month-to-date spend and projection (platform admins and auditors)
+      responses:
+        "200":
+          description: Budgets
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/BudgetList" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/teams/{team}/budget:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+    get:
+      tags: [costs, admin]
+      operationId: adminGetTeamBudget
+      summary: A team's cost mode override, budget, this month's extensions and state (platform admins and auditors)
+      responses:
+        "200":
+          description: The team's budget
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/TeamBudget" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [costs, admin]
+      operationId: adminUpdateTeamBudget
+      summary: Replace a team's mode override, monthly budget and threshold (platform admins; audited as costs.budget_update)
+      description: >-
+        Raising the budget wakes the team's waiting ingestion and crawls at
+        once.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TeamBudgetUpdate" }
+      responses:
+        "200":
+          description: The team's budget
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/TeamBudget" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/teams/{team}/budget/extensions:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+    post:
+      tags: [costs, admin]
+      operationId: adminGrantBudgetExtension
+      summary: Add an amount to a team's budget for the current month only, with a reason (platform admins; audited as costs.extension_grant)
+      description: The extension lapses when the month ends. It wakes the team's waiting ingestion and crawls at once.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BudgetExtensionCreate" }
+      responses:
+        "201":
+          description: The team's budget
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/TeamBudget" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/spend:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+    get:
+      tags: [costs, teams]
+      operationId: getTeamSpend
+      summary: The team's spend this month against its budget, and by agent and model over a range (team owners and admins; platform admins and auditors)
+      description: >-
+        404 costs_off while the team's cost mode is off. from and to default
+        to this month so far (days in the platform time zone).
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: false
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Spend
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/TeamSpend" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/budget-status:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+    get:
+      tags: [costs, teams]
+      operationId: getTeamBudgetStatus
+      summary: Whether the team is near or over its monthly budget, for the workspace banner (team members; platform admins and auditors)
+      description: >-
+        Every member sees the state (none unless the budget is enforced);
+        only owners, admins and platform readers get the amounts.
+      responses:
+        "200":
+          description: The budget state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/TeamBudgetBanner" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
 components:
   headers:
     ETag:
       description: Quoted revision, for If-Match on the next update
       schema: { type: string }
   parameters:
+    CostFromParam:
+      name: from
+      in: query
+      required: true
+      description: The first day (in the platform time zone)
+      schema: { type: string, format: date }
+    CostToParam:
+      name: to
+      in: query
+      required: true
+      description: The last day, inclusive (at most 366 days after from)
+      schema: { type: string, format: date }
+    CostGroupByParam:
+      name: groupBy
+      in: query
+      required: true
+      schema: { type: string, enum: [team, agent, model, day] }
     AnalyticsFromParam:
       name: from
       in: query
@@ -5655,6 +6022,284 @@ components:
             properties:
               data: { $ref: "#/components/schemas/AuditPage" }
   schemas:
+    Money:
+      type: string
+      description: An exact decimal amount in the platform currency (never a float), with six decimals
+      pattern: '^[0-9]{1,14}(\.[0-9]{1,6})?$'
+      example: "12.500000"
+    CostMode:
+      type: string
+      enum: [off, track, enforce]
+      description: "off: nothing is tracked or refused; track: spend is reported; enforce: track, plus monthly budgets"
+    CostModeOverride:
+      type: string
+      enum: [inherit, off, track, enforce]
+    BudgetState:
+      type: string
+      enum: [none, ok, warning, exhausted]
+      description: "none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused"
+    PriceUnit:
+      type: string
+      enum: [chat_tokens_in, chat_tokens_out, embed_tokens, systemone_tokens, systemone_requests, moderation_requests]
+      description: The usage ledger kind priced; tokens per million, requests per request
+    CostSettings:
+      type: object
+      required: [mode, currency, timeZone, warnPercent, defaultBudget, revision, updatedAt]
+      properties:
+        mode: { $ref: "#/components/schemas/CostMode" }
+        currency: { type: string, description: "ISO 4217 code, for display only (no conversion)", example: USD }
+        timeZone: { type: string, description: "IANA name of the budget month's and report days' time zone", example: America/New_York }
+        warnPercent: { type: integer, minimum: 1, maximum: 100 }
+        defaultBudget: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "The monthly budget of enforced teams without their own (null: none)" }
+        revision: { type: integer, format: int64 }
+        updatedAt: { type: string, format: date-time }
+    CostSettingsUpdate:
+      type: object
+      required: [mode, currency, timeZone, warnPercent, defaultBudget]
+      properties:
+        mode: { $ref: "#/components/schemas/CostMode" }
+        currency: { type: string }
+        timeZone: { type: string }
+        warnPercent: { type: integer }
+        defaultBudget: { type: string, nullable: true }
+    UnitPrice:
+      type: object
+      required: [unit, price, effectiveFrom]
+      properties:
+        unit: { $ref: "#/components/schemas/PriceUnit" }
+        price: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "null: unpriced (its usage costs nothing and is flagged)" }
+        effectiveFrom: { type: string, format: date, nullable: true }
+    ModelPrice:
+      type: object
+      required: [id, unit, price, effectiveFrom, createdAt, createdByName]
+      properties:
+        id: { type: string, format: uuid }
+        unit: { $ref: "#/components/schemas/PriceUnit" }
+        price: { $ref: "#/components/schemas/Money" }
+        effectiveFrom: { type: string, format: date }
+        createdAt: { type: string, format: date-time }
+        createdByName: { type: string }
+    ModelPricing:
+      type: object
+      required: [modelId, modelKey, displayName, kind, currency, units, current, history]
+      properties:
+        modelId: { type: string, format: uuid }
+        modelKey: { type: string }
+        displayName: { type: string }
+        kind: { type: string }
+        currency: { type: string }
+        units:
+          type: array
+          description: The units a model of this kind is priced in (none for kinds that aren't priced)
+          items: { $ref: "#/components/schemas/PriceUnit" }
+        current:
+          type: array
+          description: The price of each unit today
+          items: { $ref: "#/components/schemas/UnitPrice" }
+        history:
+          type: array
+          description: Every price row, newest date first
+          items: { $ref: "#/components/schemas/ModelPrice" }
+    ModelPricesCreate:
+      type: object
+      required: [effectiveFrom, prices]
+      properties:
+        effectiveFrom: { type: string, format: date }
+        prices:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [unit, price]
+            properties:
+              unit: { $ref: "#/components/schemas/PriceUnit" }
+              price: { type: string, example: "0.15" }
+    CostPriceItem:
+      type: object
+      required: [modelId, modelKey, displayName, kind, enabled, current, unpriced]
+      properties:
+        modelId: { type: string, format: uuid }
+        modelKey: { type: string }
+        displayName: { type: string }
+        kind: { type: string }
+        enabled: { type: boolean }
+        current:
+          type: array
+          items: { $ref: "#/components/schemas/UnitPrice" }
+        unpriced: { type: boolean, description: "Some unit has no price today" }
+    CostPriceList:
+      type: object
+      required: [currency, items]
+      properties:
+        currency: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/CostPriceItem" }
+    CostByKind:
+      type: object
+      required: [chat, embedding, systemone, moderation]
+      properties:
+        chat: { $ref: "#/components/schemas/Money" }
+        embedding: { $ref: "#/components/schemas/Money" }
+        systemone: { $ref: "#/components/schemas/Money" }
+        moderation: { $ref: "#/components/schemas/Money" }
+    CostTotals:
+      type: object
+      required: [spend, byKind, tokens, requests, unpriced]
+      properties:
+        spend: { $ref: "#/components/schemas/Money" }
+        byKind: { $ref: "#/components/schemas/CostByKind" }
+        tokens: { type: integer, format: int64, description: "Chat, embedding and SystemOne tokens" }
+        requests: { type: integer, format: int64, description: "SystemOne and moderation requests" }
+        unpriced: { type: boolean, description: "Some usage had no price and counts as zero" }
+    CostReportRow:
+      type: object
+      required: [key, label, deleted, spend, byKind, tokens, requests, unpriced]
+      properties:
+        key: { type: string, description: "The team, agent or model ID, or the date; empty for usage without one (such as searches outside agents)" }
+        label: { type: string }
+        teamSlug: { type: string }
+        teamName: { type: string }
+        modelKind: { type: string }
+        deleted: { type: boolean, description: "The team, agent or model no longer exists" }
+        spend: { $ref: "#/components/schemas/Money" }
+        byKind: { $ref: "#/components/schemas/CostByKind" }
+        tokens: { type: integer, format: int64 }
+        requests: { type: integer, format: int64 }
+        unpriced: { type: boolean }
+    CostReport:
+      type: object
+      required: [from, to, groupBy, currency, timeZone, total, rows]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        groupBy: { type: string, enum: [team, agent, model, day] }
+        currency: { type: string }
+        timeZone: { type: string }
+        total: { $ref: "#/components/schemas/CostTotals" }
+        rows:
+          type: array
+          items: { $ref: "#/components/schemas/CostReportRow" }
+    TeamBudgetState:
+      type: object
+      required: [mode, state, currency, month, resetsAt, budget, extensions, limit, spent, percent, warnPercent]
+      properties:
+        mode: { $ref: "#/components/schemas/CostMode" }
+        state: { $ref: "#/components/schemas/BudgetState" }
+        currency: { type: string }
+        month: { type: string, format: date, description: "The first day of the budget month" }
+        resetsAt: { type: string, format: date-time, description: "When the budget month ends" }
+        budget: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "The monthly budget: the team's own or the platform default (null: none, or not enforced)" }
+        extensions: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "This month's extensions" }
+        limit: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "Budget plus extensions" }
+        spent: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "Month to date (null while the mode is off)" }
+        percent: { type: integer, nullable: true, description: "Spent as a whole percentage of the limit" }
+        warnPercent: { type: integer }
+    BudgetListItem:
+      type: object
+      required: [teamId, teamSlug, teamName, modeOverride, ownBudget, status, projected]
+      properties:
+        teamId: { type: string, format: uuid }
+        teamSlug: { type: string }
+        teamName: { type: string }
+        modeOverride: { $ref: "#/components/schemas/CostModeOverride" }
+        ownBudget: { type: boolean, description: "false: the platform default budget applies" }
+        status: { $ref: "#/components/schemas/TeamBudgetState" }
+        projected: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "Month-end spend at the month-to-date rate" }
+    BudgetList:
+      type: object
+      required: [mode, currency, timeZone, month, resetsAt, items]
+      properties:
+        mode: { $ref: "#/components/schemas/CostMode" }
+        currency: { type: string }
+        timeZone: { type: string }
+        month: { type: string, format: date }
+        resetsAt: { type: string, format: date-time }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BudgetListItem" }
+    BudgetExtension:
+      type: object
+      required: [id, month, amount, reason, createdByName, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        month: { type: string, format: date }
+        amount: { $ref: "#/components/schemas/Money" }
+        reason: { type: string }
+        createdByName: { type: string }
+        createdAt: { type: string, format: date-time }
+    BudgetExtensionCreate:
+      type: object
+      required: [amount, reason]
+      properties:
+        amount: { type: string, example: "50" }
+        reason: { type: string, maxLength: 500 }
+    TeamBudget:
+      type: object
+      required: [teamId, teamSlug, teamName, modeOverride, amount, warnPercent, defaultBudget, status, extensions, revision]
+      properties:
+        teamId: { type: string, format: uuid }
+        teamSlug: { type: string }
+        teamName: { type: string }
+        modeOverride: { $ref: "#/components/schemas/CostModeOverride" }
+        amount: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "The team's own monthly budget (null: the platform default)" }
+        warnPercent: { type: integer, nullable: true, description: "The team's own threshold (null: the platform's)" }
+        defaultBudget: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true }
+        status: { $ref: "#/components/schemas/TeamBudgetState" }
+        extensions:
+          type: array
+          description: This month's extensions
+          items: { $ref: "#/components/schemas/BudgetExtension" }
+        revision: { type: integer, format: int64 }
+    TeamBudgetUpdate:
+      type: object
+      required: [mode, amount, warnPercent]
+      properties:
+        mode: { $ref: "#/components/schemas/CostModeOverride" }
+        amount: { type: string, nullable: true }
+        warnPercent: { type: integer, nullable: true }
+    TeamSpend:
+      type: object
+      required: [status, timeZone, from, to, total, agents, models]
+      properties:
+        status: { $ref: "#/components/schemas/TeamBudgetState" }
+        timeZone: { type: string }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        total: { $ref: "#/components/schemas/CostTotals" }
+        agents:
+          type: array
+          items: { $ref: "#/components/schemas/CostReportRow" }
+        models:
+          type: array
+          items: { $ref: "#/components/schemas/CostReportRow" }
+    TeamBudgetBanner:
+      type: object
+      required: [state]
+      properties:
+        state: { $ref: "#/components/schemas/BudgetState" }
+        resetsAt: { type: string, format: date-time, nullable: true }
+        amounts:
+          type: object
+          nullable: true
+          description: For the team's owners and admins, and platform readers
+          required: [spent, limit, currency, percent]
+          properties:
+            spent: { $ref: "#/components/schemas/Money" }
+            limit: { $ref: "#/components/schemas/Money" }
+            currency: { type: string }
+            percent: { type: integer, nullable: true }
+    AdminNearBudget:
+      type: object
+      required: [teamSlug, teamName, state, percent, spent, limit, currency]
+      properties:
+        teamSlug: { type: string }
+        teamName: { type: string }
+        state: { type: string, enum: [warning, exhausted] }
+        percent: { type: integer, nullable: true }
+        spent: { $ref: "#/components/schemas/Money" }
+        limit: { $ref: "#/components/schemas/Money" }
+        currency: { type: string }
     ErrorResponse:
       type: object
       required: [error]
@@ -5693,6 +6338,10 @@ components:
         teamsNearLimits:
           type: array
           items: { $ref: "#/components/schemas/AdminNearLimit" }
+        teamsNearBudget:
+          type: array
+          description: Enforced teams at or above their budget's warning threshold, fullest first
+          items: { $ref: "#/components/schemas/AdminNearBudget" }
         warnings:
           type: array
           description: Production-readiness warnings, warnings before information (always sent)
@@ -7759,9 +8408,9 @@ components:
         waitingReason:
           type: string
           nullable: true
-          enum: [concurrent_crawls, daily_page_limit, maintenance]
-          description: "Why an active crawl is waiting: queued until the team has a free crawl slot, paused until the next UTC day because the team crawled its pages for today, or parked until maintenance mode ends"
-        waitingUntil: { type: string, format: date-time, nullable: true, description: "When a daily_page_limit wait ends" }
+          enum: [concurrent_crawls, daily_page_limit, maintenance, monthly_budget]
+          description: "Why an active crawl is waiting: queued until the team has a free crawl slot, paused until the next UTC day because the team crawled its pages for today, parked until maintenance mode ends, or paused because the team's monthly budget is used up"
+        waitingUntil: { type: string, format: date-time, nullable: true, description: "When a daily_page_limit or monthly_budget wait ends" }
         error: { type: string }
         createdAt: { type: string, format: date-time }
         startedAt: { type: string, format: date-time, nullable: true }

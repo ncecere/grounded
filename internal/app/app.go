@@ -94,7 +94,7 @@ func Run(ctx context.Context, mode string, cfg config.Config, log *slog.Logger) 
 	deps := httpapi.Deps{
 		Config: cfg, Pool: pool, KV: kvs, Metrics: metrics, Health: health, Log: log,
 		Teams: svc.Teams, Platform: svc.Platform, Catalog: svc.Catalog,
-		Sources: svc.Sources, WebSources: svc.Web, KBs: svc.KBs, APIKeys: svc.APIKeys, Limits: svc.Limits,
+		Sources: svc.Sources, WebSources: svc.Web, KBs: svc.KBs, APIKeys: svc.APIKeys, Limits: svc.Limits, Costs: svc.Costs,
 		Agents: svc.Agents, Notify: svc.Notify, Moderation: svc.Moderation, SystemOne: svc.SystemOne, OCR: svc.OCR, Public: svc.Public,
 		Retention:  svc.Retention,
 		BreakGlass: svc.BreakGlass,
