@@ -159,6 +159,7 @@ export const targetTypeLabels: Record<string, string> = {
   classification: "Classification",
   crawl_allowlist: "Allowed domain",
   crawl_domain_request: "Domain request",
+  cost_settings: "Cost settings",
   data_source: "Data source",
   document: "Document",
   embedding_profile: "Embedding profile",

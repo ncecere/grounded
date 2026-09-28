@@ -116,6 +116,7 @@ CROSS JOIN LATERAL (
                                                         WHEN 'public' THEN 'Public moderation policy' END)
         WHEN 'platform_settings' THEN (CASE a.target_id WHEN 'public_agents_enabled' THEN 'Public access' ELSE 'Platform settings' END)
         WHEN 'platform_limits' THEN 'Platform limits'
+        WHEN 'cost_settings' THEN 'Cost settings'
         WHEN 'platform_keys' THEN 'Key rotation'
         WHEN 'systemone_settings' THEN 'SystemOne settings'
         WHEN 'parsing_settings' THEN 'Parsing settings'
