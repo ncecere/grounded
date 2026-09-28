@@ -42,21 +42,11 @@ func (s *Service) UpdatePlatform(ctx context.Context, a authz.Actor, changes []S
 	if a.Key != nil || !a.IsPlatformAdmin() {
 		return Platform{}, errAdminOnly
 	}
-	seen := map[Key]bool{}
-	for _, c := range changes {
-		d, ok := Lookup(c.Key)
-		if !ok {
-			return Platform{}, apperr.Invalid("unknown_limit", "Unknown limit: "+string(c.Key))
-		}
-		if seen[c.Key] {
-			return Platform{}, apperr.Invalid("duplicate_limit", "Each limit may appear once: "+string(c.Key))
-		}
-		seen[c.Key] = true
-		if err := ValidateSetting(d, c.Setting); err != nil {
-			return Platform{}, err
-		}
+	if err := checkSettingChanges(changes); err != nil {
+		return Platform{}, err
 	}
 	var out Platform
+	updated := false
 	err := store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {
 		cur, err := s.platform(ctx, q, true)
 		if err != nil {
@@ -95,6 +85,7 @@ func (s *Service) UpdatePlatform(ctx context.Context, a authz.Actor, changes []S
 		}); err != nil {
 			return err
 		}
+		updated = true
 		if out, err = s.platform(ctx, q, false); err != nil {
 			return err
 		}
@@ -102,7 +93,30 @@ func (s *Service) UpdatePlatform(ctx context.Context, a authz.Actor, changes []S
 		e.Before, e.After = settingsSnapshot(cur, changed), settingsSnapshot(out, changed)
 		return audit.Record(ctx, q, e)
 	})
+	if err == nil && updated {
+		s.changed(ctx, uuid.NullUUID{})
+	}
 	return out, err
+}
+
+// checkSettingChanges rejects unknown and repeated keys and invalid
+// settings.
+func checkSettingChanges(changes []SettingChange) error {
+	seen := map[Key]bool{}
+	for _, c := range changes {
+		d, ok := Lookup(c.Key)
+		if !ok {
+			return apperr.Invalid("unknown_limit", "Unknown limit: "+string(c.Key))
+		}
+		if seen[c.Key] {
+			return apperr.Invalid("duplicate_limit", "Each limit may appear once: "+string(c.Key))
+		}
+		seen[c.Key] = true
+		if err := ValidateSetting(d, c.Setting); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func eq(a, b *int64) bool { return (a == nil && b == nil) || (a != nil && b != nil && *a == *b) }
@@ -165,6 +179,7 @@ func (s *Service) UpdateTeamOverrides(ctx context.Context, a authz.Actor, teamRe
 		return TeamConfig{}, err
 	}
 	var out TeamConfig
+	updated := false
 	err = store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {
 		cur, err := s.teamConfig(ctx, q, acc.Team, true)
 		if err != nil {
@@ -184,6 +199,7 @@ func (s *Service) UpdateTeamOverrides(ctx context.Context, a authz.Actor, teamRe
 		if err := storeOverrides(ctx, q, acc.Team.ID, cur.Revision, next, uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil}); err != nil {
 			return err
 		}
+		updated = true
 		if out, err = s.teamConfig(ctx, q, acc.Team, false); err != nil {
 			return err
 		}
@@ -191,6 +207,9 @@ func (s *Service) UpdateTeamOverrides(ctx context.Context, a authz.Actor, teamRe
 		e.TeamID, e.Before, e.After = acc.Team.ID, before, after
 		return audit.Record(ctx, q, e)
 	})
+	if err == nil && updated {
+		s.changed(ctx, uuid.NullUUID{UUID: acc.Team.ID, Valid: true})
+	}
 	return out, err
 }
 

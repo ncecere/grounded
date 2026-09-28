@@ -498,7 +498,7 @@ Initial limits:
 | `documents` | 50,000 | same (`documents_limit`) |
 | `data_sources` | 100 | source creation → 409 |
 | `knowledge_bases` | 50 | KB creation → 409 |
-| `crawl_pages_per_day` (UTC day, `page_crawled` ledger events) | 5,000 | the crawl waits until the next UTC day (`waitingReason: daily_page_limit`); not failed |
+| `crawl_pages_per_day` (UTC day, `page_crawled` ledger events) | 5,000 | the crawl waits until the next UTC day (`waitingReason: daily_page_limit`), or until the limit is raised; not failed |
 | `concurrent_crawls` | 2 | further runs stay queued (`waitingReason: concurrent_crawls`) until a slot frees; manual, created and scheduled runs alike |
 | `concurrent_ingest_jobs` | `INGEST_MAX_INFLIGHT_PER_TEAM` (8) | the ingestion dispatcher's per-team in-flight cap |
 | `queries_per_minute` (team) | 600 | `/retrieve`, Valkey → 429 `rate_limited` + Retry-After |

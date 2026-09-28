@@ -114,6 +114,15 @@ LIMIT @page_size;
 UPDATE web_crawls SET waiting_reason = ''
 WHERE id = $1 AND status = 'queued' AND waiting_reason = 'concurrent_crawls';
 
+-- Runs waiting for the next day's crawled-page quota: one team's, or
+-- every team's (a platform default changed).
+-- name: DailyLimitedCrawls :many
+SELECT id FROM web_crawls
+WHERE status IN ('queued', 'running') AND waiting_reason = 'daily_page_limit'
+  AND (sqlc.narg(team_id)::uuid IS NULL OR team_id = sqlc.narg(team_id)::uuid)
+ORDER BY created_at, id
+LIMIT 1000;
+
 -- name: TeamsWithWaitingCrawls :many
 SELECT DISTINCT team_id FROM web_crawls
 WHERE status = 'queued' AND waiting_reason = 'concurrent_crawls' AND team_id IS NOT NULL

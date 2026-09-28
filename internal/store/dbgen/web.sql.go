@@ -187,6 +187,36 @@ func (q *Queries) CountPendingDomainRequests(ctx context.Context) (int64, error)
 	return count, err
 }
 
+const dailyLimitedCrawls = `-- name: DailyLimitedCrawls :many
+SELECT id FROM web_crawls
+WHERE status IN ('queued', 'running') AND waiting_reason = 'daily_page_limit'
+  AND ($1::uuid IS NULL OR team_id = $1::uuid)
+ORDER BY created_at, id
+LIMIT 1000
+`
+
+// Runs waiting for the next day's crawled-page quota: one team's, or
+// every team's (a platform default changed).
+func (q *Queries) DailyLimitedCrawls(ctx context.Context, teamID uuid.NullUUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, dailyLimitedCrawls, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteAllowlist = `-- name: DeleteAllowlist :one
 DELETE FROM crawl_allowlist WHERE id = $1 RETURNING id, pattern, note, created_by, created_at
 `

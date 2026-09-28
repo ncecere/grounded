@@ -145,6 +145,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.Limits = limits.New(pool, s.Teams, kvs, limits.Options{IngestJobsDefault: cfg.IngestMaxInflightTeam})
 	s.Web = web.New(pool, s.Teams, jobsClient, store, NewFetcher(cfg, kvs), cfg.Crawl.MaxPages, cfg.Crawl.MaxBodyBytes, log)
 	s.Web.Limits = s.Limits
+	s.Limits.OnChange = s.Web.LimitsChanged // a raised page limit wakes waiting crawls
 	s.Web.Maintenance = s.Platform.Gate
 	s.Sources = sources.New(pool, s.Teams, s.Catalog, store, jobsClient, s.Web, cfg.MaxUploadBytes, log)
 	s.Sources.Limits = s.Limits

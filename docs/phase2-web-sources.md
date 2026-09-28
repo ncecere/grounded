@@ -80,7 +80,7 @@ A `web` data source stores this JSON in `data_sources.config`. The type is fixed
 - **Page limit:** when `pages_fetched` reaches `maxPages`, the run marks `truncated` (`truncatedReason: max_pages`) and stops fetching new URLs.
 - **Team limits** (DESIGN.md §11.1; shared sources are exempt):
   - A new or changed page that would exceed the team's `documents` or `storage_bytes` limit is not stored; the run stops as truncated (`documents_limit` / `storage_limit`), so no stale pages are deleted.
-  - `crawl_pages_per_day`: each job invocation fetches at most the pages left for the UTC day and records them as `page_crawled` usage as it goes. At 0 left the run waits (`waitingReason: daily_page_limit`, `waitingUntil` = next UTC midnight) by snoozing its job.
+  - `crawl_pages_per_day`: each job invocation fetches at most the pages left for the UTC day and records them as `page_crawled` usage as it goes. At 0 left the run waits (`waitingReason: daily_page_limit`, `waitingUntil` = next UTC midnight) by snoozing its job. Raising the limit (a team override or the platform default) wakes waiting runs at once; a waiting run also re-checks its limit every 15 minutes.
   - `concurrent_crawls`: a run started while the team's slots are taken is created `queued` with `waitingReason: concurrent_crawls` and no job. When a run ends (or is cancelled, or its source paused or deleted) the oldest waiting run is admitted; the scheduler also re-checks every minute.
   - A limit of 0 refuses syncs with 409 `limit_reached`; the scheduler skips the source until its next period.
 - **Finishing a run:**

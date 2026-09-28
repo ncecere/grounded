@@ -60,7 +60,7 @@ function waitingText(c: Crawl): string | undefined {
     case "concurrent_crawls":
       return "Waiting for a free crawl slot. Your team has reached its limit of crawls running at once; this crawl starts when another finishes.";
     case "daily_page_limit":
-      return `Paused: your team has crawled its daily page limit. The crawl continues after midnight UTC${c.waitingUntil ? ` (${formatDate(c.waitingUntil)})` : ""}.`;
+      return `Paused: your team has crawled its daily page limit. The crawl continues after midnight UTC${c.waitingUntil ? ` (${formatDate(c.waitingUntil)})` : ""}, or as soon as a platform admin raises the limit.`;
     case "maintenance":
       return "Paused for maintenance after its last page. The crawl continues by itself when maintenance ends.";
     default:

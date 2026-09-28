@@ -397,11 +397,6 @@ func TestCrawlLimits(t *testing.T) {
 	env := newWebEnv(t, true)
 	owner, admin, site := env.owner, env.admin, env.site
 	sources := env.base + "/sources"
-	crawls := func(src apitypes.DataSource) []apitypes.Crawl {
-		var list []apitypes.Crawl
-		owner.get(sources+"/"+src.Id.String()+"/crawls", &list)
-		return list
-	}
 
 	// Concurrent crawls: with one slot, a second source's first crawl waits
 	// (queued) until the first finishes, then runs.
@@ -478,19 +473,9 @@ func TestCrawlLimits(t *testing.T) {
 	setTeamLimits(t, admin, env.team, map[string]any{"documents": nil, "crawl_pages_per_day": crawledToday + 2})
 	d := env.createWeb(t, owner, sources, "Daily", map[string]any{"mode": "crawl", "urls": []string{site.url("/")}, "maxDepth": 2, "useSitemaps": false})
 	dPath := sources + "/" + d.Id.String()
-	deadline := time.Now().Add(30 * time.Second)
-	var waiting apitypes.Crawl
-	for {
-		list := crawls(d)
-		waiting = list[0]
-		if waiting.WaitingReason != nil || waiting.Status != "running" && waiting.Status != "queued" || time.Now().After(deadline) {
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
+	waiting := waitDailyLimited(t, owner, dPath)
 	tomorrow := time.Now().UTC().Truncate(24 * time.Hour).Add(24 * time.Hour)
-	if waiting.Status != "running" || waiting.WaitingReason == nil || *waiting.WaitingReason != "daily_page_limit" ||
-		waiting.WaitingUntil == nil || !waiting.WaitingUntil.Equal(tomorrow) || waiting.PagesFetched != 2 {
+	if waiting.Status != "running" || waiting.WaitingUntil == nil || !waiting.WaitingUntil.Equal(tomorrow) || waiting.PagesFetched != 2 {
 		t.Fatalf("daily limit run = %+v", waiting)
 	}
 	if it := teamLimit(t, owner, env.team, "crawl_pages_per_day"); *it.Used != crawledToday+2 {
@@ -501,6 +486,68 @@ func TestCrawlLimits(t *testing.T) {
 	if srcNow.ActiveCrawl == nil || srcNow.ActiveCrawl.WaitingReason == nil {
 		t.Errorf("source active crawl = %+v", srcNow.ActiveCrawl)
 	}
-	code, e = owner.call("POST", dPath+"/crawls/"+waiting.Id.String()+"/cancel", nil, nil, nil)
-	mustCode(t, "cancel waiting run", code, e, 200, "")
+	// Raising the team's limit resumes the run now, not tomorrow (G4).
+	setTeamLimits(t, admin, env.team, map[string]any{"crawl_pages_per_day": crawledToday + 1000})
+	if done := waitCrawl(t, owner, dPath, waiting.Id); done.Status != "completed" || done.WaitingReason != nil || done.PagesFetched <= 2 {
+		t.Fatalf("run after the team limit was raised = %+v", done)
+	}
+	dailyLimitRaisedByPlatform(t, env, crawledToday+1000)
+}
+
+// dailyLimitRaisedByPlatform: a run waiting for the platform default of
+// crawled pages per day resumes when the default is raised.
+func dailyLimitRaisedByPlatform(t *testing.T, env *webEnv, maxPages int64) {
+	t.Helper()
+	owner, admin, site := env.owner, env.admin, env.site
+	setTeamLimits(t, admin, env.team, map[string]any{"crawl_pages_per_day": nil})
+	used := *teamLimit(t, owner, env.team, "crawl_pages_per_day").Used
+	setPlatformLimit(t, admin, "crawl_pages_per_day", used+1, maxPages)
+	e := env.createWeb(t, owner, env.base+"/sources", "Daily platform", map[string]any{
+		"mode": "batch", "urls": []string{site.url("/"), site.url("/about"), site.url("/new")},
+	})
+	ePath := env.base + "/sources/" + e.Id.String()
+	waiting := waitDailyLimited(t, owner, ePath)
+	if waiting.PagesFetched != 1 {
+		t.Fatalf("platform daily limit run = %+v", waiting)
+	}
+	setPlatformLimit(t, admin, "crawl_pages_per_day", maxPages, maxPages)
+	if done := waitCrawl(t, owner, ePath, waiting.Id); done.Status != "completed" || done.WaitingReason != nil || done.PagesFetched != 3 {
+		t.Fatalf("run after the platform default was raised = %+v", done)
+	}
+}
+
+// waitDailyLimited waits for a source's latest run to wait for the next
+// day's page quota.
+func waitDailyLimited(t *testing.T, s *session, sourcePath string) apitypes.Crawl {
+	t.Helper()
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		var list []apitypes.Crawl
+		s.get(sourcePath+"/crawls", &list)
+		if len(list) > 0 {
+			c := list[0]
+			if c.WaitingReason != nil && *c.WaitingReason == "daily_page_limit" {
+				return c
+			}
+			if c.Status != "running" && c.Status != "queued" {
+				t.Fatalf("run ended instead of waiting for the daily limit: %+v", c)
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("no run waiting for the daily limit: %+v", list)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+// setPlatformLimit sets one platform default and ceiling.
+func setPlatformLimit(t *testing.T, admin *session, key string, def, ceiling int64) {
+	t.Helper()
+	var p apitypes.PlatformLimits
+	if code := admin.get("/v1/admin/limits", &p); code != 200 {
+		t.Fatalf("get platform limits = %d", code)
+	}
+	body := map[string]any{"items": []map[string]any{{"key": key, "default": def, "ceiling": ceiling}}}
+	code, e := admin.call("PUT", "/v1/admin/limits", body, nil, ifMatch(p.Revision))
+	mustCode(t, "set platform limit "+key, code, e, 200, "")
 }

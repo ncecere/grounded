@@ -162,7 +162,7 @@ func (s *Service) admitRun(ctx context.Context, id uuid.UUID, pageBudget int) (*
 	if err := s.parkIfMaintenance(ctx, id, cr.WaitingReason); err != nil {
 		return nil, 0, err
 	}
-	pageBudget, stop, err := s.dailyBudget(ctx, id, src.TeamID, pageBudget)
+	pageBudget, stop, err := s.dailyBudget(ctx, cr, src.TeamID, pageBudget)
 	if stop || err != nil {
 		return nil, 0, err
 	}
@@ -182,9 +182,11 @@ func (s *Service) admitRun(ctx context.Context, id uuid.UUID, pageBudget int) (*
 
 // dailyBudget applies the team's crawled pages per day (from the usage
 // ledger) to pageBudget. When today's pages are used up the run waits for
-// the next UTC day (a snooze); when crawling is blocked it fails. stop
-// reports that the run must not continue now.
-func (s *Service) dailyBudget(ctx context.Context, id uuid.UUID, team uuid.NullUUID, pageBudget int) (int, bool, error) {
+// the next UTC day, or a raised limit (dailylimit.go), snoozing; when
+// crawling is blocked it fails. stop reports that the run must not
+// continue now.
+func (s *Service) dailyBudget(ctx context.Context, cr dbgen.WebCrawl, team uuid.NullUUID, pageBudget int) (int, bool, error) {
+	id := cr.ID
 	if !team.Valid || s.Limits == nil {
 		return pageBudget, false, nil
 	}
@@ -199,11 +201,15 @@ func (s *Service) dailyBudget(ctx context.Context, id uuid.UUID, team uuid.NullU
 		return 0, true, s.fail(ctx, id, team, CrawlFailed, "Crawling is blocked for this team (crawled pages per day is 0). Ask a platform admin.")
 	case *left == 0:
 		s.Limits.ReachedDaily(ctx, team.UUID, limits.CrawlPagesPerDay, limit)
-		until := limits.NextDay(s.Limits.Now())
-		if err := s.q.SetCrawlWaiting(ctx, dbgen.SetCrawlWaitingParams{ID: id, WaitingReason: WaitingDailyPage, WaitingUntil: &until}); err != nil {
-			return 0, true, err
+		now := s.Limits.Now()
+		until := limits.NextDay(now)
+		already := cr.WaitingReason == WaitingDailyPage && cr.WaitingUntil != nil && cr.WaitingUntil.Equal(until)
+		if !already {
+			if err := s.q.SetCrawlWaiting(ctx, dbgen.SetCrawlWaitingParams{ID: id, WaitingReason: WaitingDailyPage, WaitingUntil: &until}); err != nil {
+				return 0, true, err
+			}
 		}
-		return 0, true, river.JobSnooze(time.Until(until) + time.Second)
+		return 0, true, river.JobSnooze(dailyLimitSnooze(now, until))
 	}
 	return min(pageBudget, int(*left)), false, nil
 }

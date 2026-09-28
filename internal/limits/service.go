@@ -43,6 +43,10 @@ type Service struct {
 	// daily limit (max > 0), for the "daily limit reached" notification.
 	// It must be cheap on repeat calls (the caller dedupes per day).
 	OnDailyLimit func(ctx context.Context, teamID uuid.UUID, key Key, max int64)
+	// OnChange is called after limits changed and committed: a team's
+	// overrides (team set) or the platform settings (team not set), so work
+	// waiting for a daily limit can check it again (web.WakeDailyLimited).
+	OnChange func(ctx context.Context, team uuid.NullUUID)
 	// Now is the clock (tests may replace it).
 	Now func() time.Time
 }
@@ -105,6 +109,13 @@ func (s *Service) Effective(ctx context.Context, q *dbgen.Queries, teamID uuid.U
 		return Set{}, err
 	}
 	return Set{Platform: Platform{Settings: settings, Custom: custom}, Overrides: o}, nil
+}
+
+// changed runs the OnChange hook.
+func (s *Service) changed(ctx context.Context, team uuid.NullUUID) {
+	if s.OnChange != nil {
+		s.OnChange(ctx, team)
+	}
 }
 
 // ReachedDaily reports that a team used up a daily limit of max (> 0).
