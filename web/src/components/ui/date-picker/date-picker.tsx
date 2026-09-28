@@ -385,7 +385,9 @@ export type DateRangePresetsProps = {
   defaultValue?: DateRangeSelection | null;
   /**
    * Called with the preset and its range, `{ preset: "custom", range }`, or null when cleared.
-   * Pressing "Custom" before a range is picked calls it with `{ preset: "custom", range: null }`;
+   * A custom range is reported once both ends are picked (the first click in the calendar sets the
+   * start and keeps the picker open, the second sets the end); closing the picker in between keeps
+   * the previous range. Pressing "Custom" before a range is picked calls it with `{ preset: "custom", range: null }`;
    * if the parent stores that as null (as FilterBar does: no range, no filter), Custom stays
    * pressed and its picker stays open until a range, another preset or clearing.
    */
@@ -436,6 +438,9 @@ export function DateRangePresets({
     onValueChange?.(next);
   };
   const [pickerOpen, setPickerOpen] = useState(false);
+  // The start of a custom range while the end isn't picked yet. It isn't a selection (a URL can't
+  // hold half a range), so it stays here until the second pick.
+  const [draft, setDraft] = useState<DateRange | null>(null);
 
   return (
     <div className={cx(styles.presetsBar, className)}>
@@ -475,9 +480,19 @@ export function DateRangePresets({
           size={size}
           aria-label={pickerProps?.["aria-label"] ?? `${ariaLabel}: ${customLabel.toLocaleLowerCase()}`}
           open={pickerOpen}
-          onOpenChange={setPickerOpen}
-          value={value.range}
-          onValueChange={(range) => set({ preset: "custom", range })}
+          onOpenChange={(open) => {
+            setPickerOpen(open);
+            if (!open) setDraft(null);
+          }}
+          value={draft ?? value.range}
+          onValueChange={(range) => {
+            if (range && !range.to) {
+              setDraft(range);
+              return;
+            }
+            setDraft(null);
+            set({ preset: "custom", range });
+          }}
         />
       )}
     </div>

@@ -44,8 +44,8 @@ type FieldsProps = { team: string; scope?: DocumentScope; form: QuestionForm; on
 /**
  * A document's option: its title, then its filename (or URL) when that's
  * different. The server matches the typed text on the title, filename and
- * URL, but the Combobox filters the options again by their label and has no
- * way to turn that off, so the label carries what the server matched on.
+ * URL (the picker doesn't filter again: filter={null}), and the label shows
+ * which one it was.
  */
 export function documentLabel(d: Pick<EvalDocument, "title" | "filename" | "url">) {
   const other = d.filename || d.url;
@@ -73,6 +73,7 @@ export function QuestionFields({ team: slug, scope, form, onChange, errors }: Fi
       >
         <Combobox
           multiple
+          filter={null}
           items={options}
           value={form.documentIds}
           onInputValueChange={setText}

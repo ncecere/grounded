@@ -1,5 +1,6 @@
 "use client";
 
+import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
 import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
 import { Check, ChevronsUpDown, X } from "lucide-react";
 import { type ReactNode, useMemo, useRef } from "react";
@@ -26,6 +27,19 @@ import styles from "./combobox.module.css";
  * share a `group` are shown under a heading. Values are the items' string
  * `value`s; the input shows and filters by `label`.
  *
+ * Items the server already filtered (a search as you type): pass
+ * `filter={null}` so the list shows `items` as they are, and fetch them from
+ * `onInputValueChange`. `filter` can also be a function, e.g. to match a
+ * hint as well as the label.
+ *
+ *   <Combobox items={results} filter={null} onInputValueChange={setQuery} value={id} onValueChange={setId} />
+ *
+ * `freeText` accepts any text, with the items as suggestions (Base UI
+ * Autocomplete): the value is the input's text, and picking a suggestion
+ * fills in its `value`. Use it for names that may not be listed yet.
+ *
+ *   <Combobox freeText items={knownGroups} value={group} onValueChange={setGroup} />
+ *
  * Use Select when there are only a handful of options, and NativeSelect in
  * plain forms.
  */
@@ -44,6 +58,11 @@ export type ComboboxOption<V extends string = string> = {
 
 type ComboboxBaseProps<V extends string> = {
   items: ComboboxOption<V>[];
+  /**
+   * How items match the typed text. Default: the label contains the text (case- and
+   * accent-insensitive). `null` turns filtering off, for items the server already filtered.
+   */
+  filter?: ((option: ComboboxOption<V>, query: string) => boolean) | null;
   placeholder?: string;
   /** Shown (and announced) when nothing matches the typed text. */
   emptyText?: ReactNode;
@@ -75,6 +94,7 @@ type ComboboxBaseProps<V extends string> = {
 
 export type ComboboxSingleProps<V extends string = string> = ComboboxBaseProps<V> & {
   multiple?: false;
+  freeText?: false;
   value?: V | null;
   defaultValue?: V | null;
   onValueChange?: (value: V | null, option: ComboboxOption<V> | null) => void;
@@ -82,6 +102,7 @@ export type ComboboxSingleProps<V extends string = string> = ComboboxBaseProps<V
 
 export type ComboboxMultipleProps<V extends string = string> = ComboboxBaseProps<V> & {
   multiple: true;
+  freeText?: false;
   value?: V[];
   defaultValue?: V[];
   onValueChange?: (value: V[], options: ComboboxOption<V>[]) => void;
@@ -89,7 +110,16 @@ export type ComboboxMultipleProps<V extends string = string> = ComboboxBaseProps
   chipsLabel?: string;
 };
 
-export type ComboboxProps<V extends string = string> = ComboboxSingleProps<V> | ComboboxMultipleProps<V>;
+/** Any text, with `items` as suggestions: `value` is the text, and a picked suggestion fills in its `value`. */
+export type ComboboxFreeTextProps = Omit<ComboboxBaseProps<string>, "onInputValueChange"> & {
+  freeText: true;
+  multiple?: false;
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (text: string) => void;
+};
+
+export type ComboboxProps<V extends string = string> = ComboboxSingleProps<V> | ComboboxMultipleProps<V> | ComboboxFreeTextProps;
 
 type OptionGroup<V extends string> = { value: string; items: ComboboxOption<V>[] };
 
@@ -105,8 +135,18 @@ function groupOptions<V extends string>(items: ComboboxOption<V>[]): OptionGroup
 }
 
 export function Combobox<V extends string = string>(props: ComboboxProps<V>) {
+  return props.freeText ? <FreeTextCombobox {...props} /> : <SelectCombobox {...props} />;
+}
+
+function toBaseFilter<V extends string>(filter: ComboboxBaseProps<V>["filter"]) {
+  if (filter === undefined || filter === null) return filter;
+  return (item: unknown, query: string) => filter(item as ComboboxOption<V>, query);
+}
+
+function SelectCombobox<V extends string>(props: ComboboxSingleProps<V> | ComboboxMultipleProps<V>) {
   const {
     items,
+    filter,
     placeholder,
     emptyText = "No results.",
     clearable = false,
@@ -175,6 +215,7 @@ export function Combobox<V extends string = string>(props: ComboboxProps<V>) {
   return (
     <BaseCombobox.Root
       items={collection as never}
+      filter={toBaseFilter(filter) as never}
       multiple={props.multiple ?? false}
       value={props.value as never}
       defaultValue={props.defaultValue as never}
@@ -239,5 +280,101 @@ export function Combobox<V extends string = string>(props: ComboboxProps<V>) {
         </BaseCombobox.Positioner>
       </BaseCombobox.Portal>
     </BaseCombobox.Root>
+  );
+}
+
+/** The `freeText` mode: Base UI Autocomplete, whose value is the input's text. */
+function FreeTextCombobox(props: ComboboxFreeTextProps) {
+  const {
+    items,
+    filter,
+    placeholder,
+    emptyText,
+    clearable = false,
+    clearLabel = "Clear text",
+    triggerLabel = "Show suggestions",
+    "aria-label": ariaLabel,
+    autoHighlight,
+    limit,
+    open,
+    defaultOpen,
+    onOpenChange,
+    name,
+    id,
+    disabled,
+    readOnly,
+    required,
+    size = "md",
+    className,
+    value,
+    defaultValue,
+    onValueChange,
+  } = props;
+
+  const anchorRef = useRef<HTMLDivElement | null>(null);
+  const grouped = items.some((item) => item.group !== undefined);
+  const list = useMemo(() => (grouped ? groupOptions(items) : items), [items, grouped]);
+
+  const renderItem = (item: ComboboxOption) => (
+    <BaseAutocomplete.Item key={item.value} value={item} disabled={item.disabled} className={cx(popup.item, styles.item)}>
+      {item.icon && (
+        <span aria-hidden className={styles.itemIcon}>
+          {item.icon}
+        </span>
+      )}
+      <span className={styles.itemText}>{item.label}</span>
+      {item.hint && <span className={styles.hint}>{item.hint}</span>}
+    </BaseAutocomplete.Item>
+  );
+
+  return (
+    <BaseAutocomplete.Root
+      items={list as never}
+      itemToStringValue={(item: unknown) => (item as ComboboxOption).value}
+      filter={toBaseFilter(filter) as never}
+      value={value}
+      defaultValue={defaultValue}
+      onValueChange={onValueChange ? (text) => onValueChange(text) : undefined}
+      open={open}
+      defaultOpen={defaultOpen}
+      onOpenChange={onOpenChange ? (next) => onOpenChange(next) : undefined}
+      autoHighlight={autoHighlight}
+      limit={limit}
+      name={name}
+      disabled={disabled}
+      readOnly={readOnly}
+      required={required}
+    >
+      <BaseAutocomplete.InputGroup ref={anchorRef} data-size={size} className={cx(styles.control, className)}>
+        <BaseAutocomplete.Input id={id} aria-label={ariaLabel} placeholder={placeholder} className={styles.input} />
+        <div className={styles.actions}>
+          {clearable && (
+            <BaseAutocomplete.Clear className={styles.action} aria-label={clearLabel}>
+              <X aria-hidden />
+            </BaseAutocomplete.Clear>
+          )}
+          <BaseAutocomplete.Trigger className={styles.action} aria-label={triggerLabel}>
+            <ChevronsUpDown aria-hidden />
+          </BaseAutocomplete.Trigger>
+        </div>
+      </BaseAutocomplete.InputGroup>
+      <BaseAutocomplete.Portal>
+        <BaseAutocomplete.Positioner className={popup.positioner} anchor={anchorRef} align="start" sideOffset={6}>
+          <BaseAutocomplete.Popup className={cx(popup.popup, styles.popup)}>
+            {emptyText && <BaseAutocomplete.Empty className={styles.empty}>{emptyText}</BaseAutocomplete.Empty>}
+            <BaseAutocomplete.List className={styles.list}>
+              {grouped
+                ? (group: OptionGroup<string>) => (
+                    <BaseAutocomplete.Group key={group.value} items={group.items} className={styles.group}>
+                      {group.value && <BaseAutocomplete.GroupLabel className={popup.groupLabel}>{group.value}</BaseAutocomplete.GroupLabel>}
+                      <BaseAutocomplete.Collection>{renderItem}</BaseAutocomplete.Collection>
+                    </BaseAutocomplete.Group>
+                  )
+                : renderItem}
+            </BaseAutocomplete.List>
+          </BaseAutocomplete.Popup>
+        </BaseAutocomplete.Positioner>
+      </BaseAutocomplete.Portal>
+    </BaseAutocomplete.Root>
   );
 }

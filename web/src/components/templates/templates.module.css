@@ -172,15 +172,9 @@
   }
 }
 
-/* Date presets (Today · Last 7 days · … · Custom) scroll sideways on a narrow
-   screen instead of widening the page. */
+/* Date presets (Today · Last 7 days · … · Custom): the toggle group scrolls
+   sideways itself on a narrow screen, with a fade at the hidden edge. */
 .dateRange {
   max-width: 100%;
   min-width: 0;
-}
-
-.dateRange [role="group"] {
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: thin;
 }

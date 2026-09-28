@@ -102,6 +102,7 @@ describe("a team's Group mapping tab", () => {
     await userEvent.click(screen.getAllByRole("button", { name: /Add rule/ })[0]!);
     const dialog = await screen.findByRole("dialog", { name: "Add group mapping rule" });
     await userEvent.type(within(dialog).getByRole("combobox", { name: /IdP group/ }), "Registrar-Helpers");
+    await userEvent.tab(); // leave the group field (its suggestions close)
     await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Role" }), "editor");
     expect(await within(dialog).findByText(/1 added/)).toBeInTheDocument();
     expect(within(dialog).getByText("Left alone: added by hand")).toBeInTheDocument();
@@ -121,6 +122,7 @@ describe("a team's Group mapping tab", () => {
     await userEvent.click(screen.getAllByRole("button", { name: /Add rule/ })[0]!);
     const dialog = await screen.findByRole("dialog", { name: "Add group mapping rule" });
     await userEvent.type(within(dialog).getByRole("combobox", { name: /IdP group/ }), "Registrar-Staff");
+    await userEvent.tab(); // leave the group field (its suggestions close)
     expect(await within(dialog).findAllByText("This team already has a rule for that group. Change that rule instead.")).toHaveLength(1);
     await userEvent.click(within(dialog).getByRole("button", { name: "Add rule" }));
     expect(within(dialog).getAllByText(/already has a rule/)).toHaveLength(1);

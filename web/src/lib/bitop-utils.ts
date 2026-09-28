@@ -1,3 +1,5 @@
+import { type Ref, type RefCallback, useEffect, useState } from "react";
+
 /*
  * Shared helpers for bitop-ui components. Installed by the `core` item at
  * `@/lib/bitop-utils` (named so it never collides with shadcn's `lib/utils`).
@@ -40,3 +42,75 @@ export function matchesAccept(file: File, accept: string | undefined): boolean {
 
 /** Tones shared by badges, alerts, status dots and toasts. */
 export type Tone = "neutral" | "info" | "success" | "warning" | "danger";
+
+/** Calls every ref (callback or object) with the node. */
+export function mergeRefs<T>(...refs: (Ref<T> | undefined)[]): RefCallback<T> {
+  return (node) => {
+    for (const r of refs) {
+      if (typeof r === "function") r(node);
+      else if (r) (r as { current: T | null }).current = node;
+    }
+  };
+}
+
+/**
+ * Horizontal overflow of a scroll container: whether its content is wider
+ * than it (`overflowing`), and whether content is hidden before the inline
+ * start (`start`) or after the inline end (`end`). Works in RTL.
+ */
+export type ScrollEdges = { overflowing: boolean; start: boolean; end: boolean };
+
+const noEdges: ScrollEdges = { overflowing: false, start: false, end: false };
+
+/**
+ * Tracks a container's horizontal overflow (scroll, resize, children added
+ * or resized) so it can show a scroll cue. Pass the returned callback as the
+ * element's ref and spread `scrollEdgeAttrs(edges)` on it:
+ *
+ *   const [edgesRef, edges] = useScrollEdges<HTMLDivElement>();
+ *   <div ref={edgesRef} {...scrollEdgeAttrs(edges)} className={styles.strip}>…</div>
+ *
+ * and in CSS, e.g. `[data-overflowing] { overflow-x: auto }` plus a fade or
+ * shadow on `[data-overflow-start]` / `[data-overflow-end]`.
+ */
+export function useScrollEdges<T extends HTMLElement>(): [RefCallback<T>, ScrollEdges] {
+  const [node, setNode] = useState<T | null>(null);
+  const [edges, setEdges] = useState<ScrollEdges>(noEdges);
+  useEffect(() => {
+    if (!node) return;
+    const check = () => {
+      const max = node.scrollWidth - node.clientWidth;
+      const pos = Math.abs(node.scrollLeft);
+      const overflowing = max > 1;
+      const next = { overflowing, start: overflowing && pos > 1, end: overflowing && pos < max - 1 };
+      setEdges((prev) => (prev.overflowing === next.overflowing && prev.start === next.start && prev.end === next.end ? prev : next));
+    };
+    check();
+    node.addEventListener("scroll", check, { passive: true });
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(check);
+    const observe = () => {
+      if (!ro) return;
+      ro.disconnect();
+      ro.observe(node);
+      for (const child of Array.from(node.children)) ro.observe(child);
+    };
+    observe();
+    const mo = typeof MutationObserver === "undefined" ? null : new MutationObserver(() => (observe(), check()));
+    mo?.observe(node, { childList: true });
+    return () => {
+      node.removeEventListener("scroll", check);
+      ro?.disconnect();
+      mo?.disconnect();
+    };
+  }, [node]);
+  return [setNode, edges];
+}
+
+/** Data attributes for useScrollEdges: data-overflowing, data-overflow-start, data-overflow-end. */
+export function scrollEdgeAttrs(edges: ScrollEdges) {
+  return {
+    "data-overflowing": dataFlag(edges.overflowing),
+    "data-overflow-start": dataFlag(edges.start),
+    "data-overflow-end": dataFlag(edges.end),
+  };
+}

@@ -4,7 +4,7 @@
  * A rule's team never changes: map the group to another team with a new rule.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
 import { FormDialog } from "@/components/form-dialog";
 import { roleLabels, teamRoles, type TeamRole } from "@/components/roles";
@@ -46,7 +46,6 @@ type Props = {
 
 export function RuleDialog({ rule, team: fixedTeam, onClose }: Props) {
   const qc = useQueryClient();
-  const listId = useId();
   const [group, setGroup] = useState(rule?.group ?? "");
   const [role, setRole] = useState<TeamRole>(rule?.role ?? "member");
   const [team, setTeam] = useState<string | null>(rule?.team.slug ?? fixedTeam?.slug ?? null);
@@ -112,14 +111,16 @@ export function RuleDialog({ rule, team: fixedTeam, onClose }: Props) {
       busy={save.isPending}
       formProps={{ noValidate: true }}
     >
-      <Field label="IdP group" description="Matching ignores upper and lower case." error={submitted || duplicate ? groupError : undefined}>
-        <Input aria-required autoComplete="off" spellCheck={false} list={listId} placeholder="registrar-staff" value={group} onChange={(e) => setGroup(e.target.value)} />
+      <Field label="IdP group" description="Matching ignores upper and lower case. Suggestions are groups seen at recent sign-ins." error={submitted || duplicate ? groupError : undefined}>
+        <Combobox
+          freeText
+          items={(seen.data?.groups ?? []).map((g) => ({ value: g.name, label: g.name }))}
+          value={group}
+          onValueChange={setGroup}
+          placeholder="registrar-staff"
+          emptyText="No group seen at sign-in matches; any name works."
+        />
       </Field>
-      <datalist id={listId}>
-        {(seen.data?.groups ?? []).map((g) => (
-          <option key={g.name} value={g.name} />
-        ))}
-      </datalist>
       {rule || fixedTeam ? (
         <Field label="Team" description={rule ? "A rule's team can't change. Add a rule to map the group to another team." : undefined}>
           <Input value={rule?.team.name ?? fixedTeam?.name ?? ""} readOnly />

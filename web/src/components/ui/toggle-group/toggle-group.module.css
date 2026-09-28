@@ -4,6 +4,7 @@
   align-items: center;
   gap: var(--space-1);
   width: fit-content;
+  max-width: 100%;
 
   &[data-orientation="vertical"] {
     flex-direction: column;
@@ -30,7 +31,44 @@
   flex-wrap: nowrap;
   gap: 0;
 
+  /* Too wide for its container (a phone): scroll sideways, and fade the
+     edge where more items are hidden so it's clear the control scrolls. */
+  --toggle-group-fade-dir: to right;
+  --toggle-group-fade-start: 0px;
+  --toggle-group-fade-end: 0px;
+
+  &:dir(rtl) {
+    --toggle-group-fade-dir: to left;
+  }
+
+  &[data-overflowing] {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    mask-image: linear-gradient(
+      var(--toggle-group-fade-dir),
+      transparent,
+      currentColor var(--toggle-group-fade-start),
+      currentColor calc(100% - var(--toggle-group-fade-end)),
+      transparent
+    );
+
+    /* The scroll box clips anything outside it: keep the focus ring inside the item. */
+    & > .item:focus-visible {
+      outline-offset: -2px;
+    }
+  }
+
+  &[data-overflow-start] {
+    --toggle-group-fade-start: var(--space-8);
+  }
+
+  &[data-overflow-end] {
+    --toggle-group-fade-end: var(--space-8);
+  }
+
   & > .item {
+    flex-shrink: 0;
     border-radius: 0;
   }
 

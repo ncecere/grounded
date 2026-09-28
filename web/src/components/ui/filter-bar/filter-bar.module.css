@@ -22,14 +22,6 @@
   max-width: 100%;
 }
 
-/* A long segmented control (date presets) scrolls sideways on a narrow
-   screen instead of widening the page. */
-.facet [role="group"] {
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
 .label {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);

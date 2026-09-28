@@ -1,9 +1,24 @@
+/* The frame holds the scroll box and the edge shadows (which stay put while
+   the table scrolls under them). */
+.frame {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+
+  &[data-framed] {
+    border-radius: var(--radius-card);
+    background-color: var(--color-surface);
+    box-shadow: var(--shadow-2);
+  }
+}
+
 .wrap {
   /* Contains absolutely positioned content (visually hidden labels), so a
      wide table scrolls inside the wrapper and never widens the page. */
   position: relative;
   width: 100%;
   overflow-x: auto;
+  border-radius: inherit;
 
   &[data-scroll] {
     overflow: auto;
@@ -12,11 +27,39 @@
   &[data-overflowing]:focus-visible {
     outline-offset: -2px;
   }
+}
 
-  &[data-framed] {
-    border-radius: var(--radius-card);
-    background-color: var(--color-surface);
-    box-shadow: var(--shadow-2);
+/* Columns hidden to the side: a shadow on that edge shows the table scrolls. */
+.edge {
+  --table-edge-dir: to right;
+
+  position: absolute;
+  z-index: calc(var(--z-sticky) + 1);
+  inset-block: 0;
+  width: var(--space-5);
+  pointer-events: none;
+  background-image: linear-gradient(var(--table-edge-dir), color-mix(in srgb, var(--color-text) 14%, transparent), transparent);
+
+  &[data-side="start"] {
+    inset-inline-start: 0;
+    border-start-start-radius: inherit;
+    border-end-start-radius: inherit;
+  }
+
+  &[data-side="end"] {
+    --table-edge-dir: to left;
+
+    inset-inline-end: 0;
+    border-start-end-radius: inherit;
+    border-end-end-radius: inherit;
+  }
+
+  &:dir(rtl) {
+    --table-edge-dir: to left;
+  }
+
+  &[data-side="end"]:dir(rtl) {
+    --table-edge-dir: to right;
   }
 }
 

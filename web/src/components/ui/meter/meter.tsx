@@ -25,6 +25,11 @@ import styles from "./meter.module.css";
  * `marker` draws a tick on the track, e.g. a soft limit below a hard ceiling;
  * it's described in text under the bar. `max={null}` shows the usage with
  * "No limit" and no bar.
+ *
+ * Base UI's Meter.Root appends a visually hidden "x" to the meter's content
+ * (a workaround for meters with no text); this meter always contains its
+ * label, so the root is rendered without it and screen readers don't read a
+ * stray "x" after the value.
  */
 
 export type MeterLevel = "normal" | "warning" | "critical" | "over";
@@ -130,17 +135,8 @@ export function Meter({
   const clamped = Math.min(max, Math.max(min, value));
   const markerText = marker ? `${marker.label}: ${formatValue(marker.value)}` : null;
 
-  return (
-    <BaseMeter.Root
-      value={clamped}
-      min={min}
-      max={max}
-      aria-valuetext={status ? `${text}, ${status.toLocaleLowerCase()}` : text}
-      aria-describedby={description || marker ? descriptionId : undefined}
-      className={cx(styles.root, className)}
-      data-size={size}
-      data-level={level}
-    >
+  const body = (
+    <>
       <div className={styles.header}>
         <BaseMeter.Label className={cx(styles.label, hideLabel && "sr-only")}>{label}</BaseMeter.Label>
         <span aria-hidden className={styles.value}>
@@ -169,6 +165,21 @@ export function Meter({
           {description}
         </p>
       )}
-    </BaseMeter.Root>
+    </>
+  );
+
+  return (
+    <BaseMeter.Root
+      // Our own children replace Base UI's (which add the hidden "x").
+      render={(rootProps) => <div {...rootProps}>{body}</div>}
+      value={clamped}
+      min={min}
+      max={max}
+      aria-valuetext={status ? `${text}, ${status.toLocaleLowerCase()}` : text}
+      aria-describedby={description || marker ? descriptionId : undefined}
+      className={cx(styles.root, className)}
+      data-size={size}
+      data-level={level}
+    />
   );
 }

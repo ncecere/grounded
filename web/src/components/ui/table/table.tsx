@@ -1,7 +1,7 @@
 "use client";
 
-import { type ComponentPropsWithRef, type CSSProperties, type ReactNode, useEffect, useId, useRef, useState } from "react";
-import { cx, dataFlag } from "@/lib/bitop-utils";
+import { type ComponentPropsWithRef, type CSSProperties, type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react";
+import { cx, dataFlag, mergeRefs, useScrollEdges } from "@/lib/bitop-utils";
 import styles from "./table.module.css";
 
 /*
@@ -17,6 +17,8 @@ import styles from "./table.module.css";
  * taller than `maxHeight`), the wrapper becomes a focusable region named by
  * the caption, so keyboard users can scroll it (WCAG 2.1.1). Overflow is
  * measured with a ResizeObserver; a table that fits is not a tab stop.
+ * While columns are hidden to the side, that edge shows a shadow so it's
+ * clear the table scrolls (for example the actions column on a phone).
  */
 
 export type TableColumn =
@@ -64,6 +66,8 @@ export function Table({
 }: TableProps) {
   const captionId = useId();
   const wrap = useRef<HTMLDivElement>(null);
+  const [edgesRef, edges] = useScrollEdges<HTMLDivElement>();
+  const wrapRef = useMemo(() => mergeRefs(wrap, edgesRef), [edgesRef]);
   const [overflowing, setOverflowing] = useState(false);
   const wrapStyle: CSSProperties | undefined = maxHeight ? { maxHeight } : undefined;
 
@@ -80,56 +84,59 @@ export function Table({
   }, []);
 
   return (
-    <div
-      ref={wrap}
-      className={styles.wrap}
-      data-framed={dataFlag(framed)}
-      data-scroll={dataFlag(Boolean(maxHeight))}
-      data-overflowing={dataFlag(overflowing)}
-      style={wrapStyle}
-      {...(overflowing ? { tabIndex: 0, role: "region", "aria-labelledby": captionId } : {})}
-    >
-      <table
-        {...props}
-        data-density={density}
-        data-sticky={dataFlag(stickyHeader)}
-        className={cx(styles.table, className)}
+    <div className={styles.frame} data-framed={dataFlag(framed)}>
+      <div
+        ref={wrapRef}
+        className={styles.wrap}
+        data-scroll={dataFlag(Boolean(maxHeight))}
+        data-overflowing={dataFlag(overflowing)}
+        style={wrapStyle}
+        {...(overflowing ? { tabIndex: 0, role: "region", "aria-labelledby": captionId } : {})}
       >
-        <caption id={captionId} className={showCaption ? styles.caption : "sr-only"}>
-          {caption}
-        </caption>
-        <thead>
-          <tr>
-            {columns.map((c, i) => {
-              const col = typeof c === "string" ? { label: c } : c;
-              const blank = col.label === "" || col.label === undefined || col.label === null;
-              return (
-                <th
-                  key={i}
-                  scope="col"
-                  aria-sort={"sort" in col ? col.sort : undefined}
-                  data-numeric={dataFlag(col.numeric)}
-                  style={col.width ? { width: col.width } : undefined}
-                  className={styles.th}
-                >
-                  {blank ? <span className="sr-only">Actions</span> : col.hideLabel ? <span className="sr-only">{col.label}</span> : col.label}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {empty ? (
-            <tr className={styles.emptyRow}>
-              <td colSpan={columns.length} className={styles.emptyCell}>
-                {empty}
-              </td>
+        <table
+          {...props}
+          data-density={density}
+          data-sticky={dataFlag(stickyHeader)}
+          className={cx(styles.table, className)}
+        >
+          <caption id={captionId} className={showCaption ? styles.caption : "sr-only"}>
+            {caption}
+          </caption>
+          <thead>
+            <tr>
+              {columns.map((c, i) => {
+                const col = typeof c === "string" ? { label: c } : c;
+                const blank = col.label === "" || col.label === undefined || col.label === null;
+                return (
+                  <th
+                    key={i}
+                    scope="col"
+                    aria-sort={"sort" in col ? col.sort : undefined}
+                    data-numeric={dataFlag(col.numeric)}
+                    style={col.width ? { width: col.width } : undefined}
+                    className={styles.th}
+                  >
+                    {blank ? <span className="sr-only">Actions</span> : col.hideLabel ? <span className="sr-only">{col.label}</span> : col.label}
+                  </th>
+                );
+              })}
             </tr>
-          ) : (
-            children
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {empty ? (
+              <tr className={styles.emptyRow}>
+                <td colSpan={columns.length} className={styles.emptyCell}>
+                  {empty}
+                </td>
+              </tr>
+            ) : (
+              children
+            )}
+          </tbody>
+        </table>
+      </div>
+      {edges.start && <span aria-hidden className={styles.edge} data-side="start" />}
+      {edges.end && <span aria-hidden className={styles.edge} data-side="end" />}
     </div>
   );
 }
