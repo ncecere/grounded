@@ -295,6 +295,13 @@ export function chatErrorText(code: string, message = "", retryAfter?: number): 
         title: "Too many questions at once",
         message: `${message || "You've sent a lot of questions in a short time."}${retryAfter ? ` Try again in ${retryAfter} s.` : ""}`,
       };
+    case "budget_exhausted":
+      return {
+        title: "The team's monthly budget is used up",
+        message: message || "Chat is paused until the budget resets at the start of next month, or a platform admin raises it.",
+      };
+    case "agent_unavailable":
+      return { title: "This assistant is unavailable right now", message: message || "Please try again later." };
     case "quota_exceeded":
       return { title: "Daily limit reached", message: message || "The team's daily chat budget is used up. It resets at midnight UTC." };
     case "incomplete_answer":

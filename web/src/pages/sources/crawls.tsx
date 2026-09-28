@@ -64,6 +64,8 @@ function waitingText(c: Crawl): string | undefined {
       return `Paused: your team has crawled its daily page limit. The crawl continues after midnight UTC${c.waitingUntil ? ` (${formatDate(c.waitingUntil)})` : ""}, or as soon as a platform admin raises the limit.`;
     case "maintenance":
       return "Paused for maintenance after its last page. The crawl continues by itself when maintenance ends.";
+    case "monthly_budget":
+      return `Waiting: the team's monthly budget is used up. The crawl continues when the budget resets${c.waitingUntil ? ` (${formatDate(c.waitingUntil)})` : ""}, or as soon as a platform admin raises it or grants an extension.`;
     default:
       return undefined;
   }
@@ -74,6 +76,7 @@ const waitingLabels: Record<NonNullable<Crawl["waitingReason"]>, { title: string
   concurrent_crawls: { title: "Waiting for a crawl slot", short: "Waiting for a crawl slot" },
   daily_page_limit: { title: "Daily page limit reached", short: "Waiting for tomorrow's page limit" },
   maintenance: { title: "Paused for maintenance", short: "Paused for maintenance" },
+  monthly_budget: { title: "Monthly budget used up", short: "Waiting for the monthly budget" },
 };
 
 export const isActiveCrawl = (c?: Crawl | null): c is Crawl => !!c && (c.status === "queued" || c.status === "running");

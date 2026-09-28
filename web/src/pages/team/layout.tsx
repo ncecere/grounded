@@ -11,6 +11,7 @@ import s from "../shared.module.css";
 import { liveGrant, useMyBreakGlass } from "../../lib/break-glass";
 import { useCurrentUser } from "../../session";
 import { BreakGlassNotice } from "./break-glass-notice";
+import { BudgetBanner } from "./budget-banner";
 import { TeamContext, teamCtx, teamQuery, useTeam } from "./common";
 import t from "./team.module.css";
 
@@ -52,6 +53,7 @@ export function TeamLayout() {
   return (
     <TeamContext.Provider value={ctx}>
       {view.data.role === "owner" && <BreakGlassNotice team={view.data.team.slug} />}
+      {view.data.role && <BudgetBanner team={view.data.team.slug} manager={ctx.isManager} />}
       <Outlet />
     </TeamContext.Provider>
   );

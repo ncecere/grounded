@@ -1,0 +1,57 @@
+/* Costs pages: the range row, chart bodies, price lists and budget cells. */
+
+.rangeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.chartBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.prices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.priceLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.per {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.meterCell {
+  min-width: 10rem;
+}
+
+.formGrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

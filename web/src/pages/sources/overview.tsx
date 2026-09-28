@@ -18,6 +18,7 @@ import { passagesCount } from "@/lib/terms";
 import s from "../shared.module.css";
 import { type KB, formatBytes, kbsKey, plural, profileName, useEmbeddingProfiles } from "../team/common";
 import { ActiveCrawlPanel, isActiveCrawl } from "./crawls";
+import { useBudgetStatus } from "@/lib/costs";
 import { type DataSource, useSourceOwner } from "./owner";
 import { describeWeb, scheduleLabels } from "./web-form";
 import w from "./detail.module.css";
@@ -105,6 +106,8 @@ export function SourceStats({ source }: { source: DataSource }) {
     [c.skipped, "skipped"],
   ];
   const team = owner.kind === "team";
+  const budget = useBudgetStatus(team && inProgress > 0 ? owner.team : undefined);
+  const waitingForBudget = budget.data?.state === "exhausted";
   return (
     <section aria-label="Document counts" className={team ? s.stats : s.stats3}>
       <StatCard
@@ -120,7 +123,7 @@ export function SourceStats({ source }: { source: DataSource }) {
             ))}
           </ul>
         }
-        hint={inProgress > 0 ? "Updating automatically" : undefined}
+        hint={inProgress > 0 ? (waitingForBudget ? "Waiting: the team's monthly budget is used up" : "Updating automatically") : undefined}
       />
       <StatCard label="Passages" value={c.chunks.toLocaleString()} icon={<Layers />} hint="Searchable pieces of the documents" />
       <StatCard label="Size" value={formatBytes(c.bytes)} icon={<HardDrive />} hint={web ? "Fetched pages and files" : "Original files"} />

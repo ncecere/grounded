@@ -88,7 +88,7 @@ export function ChatPanel({ chat, agent, text, onTextChange, feedback, disabledR
         </Alert>
       )}
       {chat.error && (
-        <Alert tone={chat.error.code === "rate_limited" || chat.error.code === "quota_exceeded" ? "warning" : "danger"} title={chat.error.title} onDismiss={() => chat.setError(null)} className={c.errorBox}>
+        <Alert tone={chat.error.code === "rate_limited" || chat.error.code === "quota_exceeded" || chat.error.code === "budget_exhausted" ? "warning" : "danger"} title={chat.error.title} onDismiss={() => chat.setError(null)} className={c.errorBox}>
           {chat.error.message}
           {errorExtra}
         </Alert>

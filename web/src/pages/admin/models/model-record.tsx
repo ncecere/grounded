@@ -1,4 +1,4 @@
-/* One model in a RecordPage (A5): details, a test with its result in place, what uses it, and edit/delete. */
+/* One model in a RecordPage (A5): details, a test with its result in place, its prices (E2), what uses it, and edit/delete. */
 import { useMutation } from "@tanstack/react-query";
 import { FlaskConical, Pencil, Trash2 } from "lucide-react";
 import { api, unwrap } from "@/api/client";
@@ -14,6 +14,7 @@ import { ModerationSamples } from "../moderation/scores";
 import { SystemOneSample } from "../systemone/sample";
 import { EnabledBadge, kindLabels, type Model, type ModelUsage, modelUsedBy, ProxyErrorText, TimingsText } from "./common";
 import m from "./models.module.css";
+import { isPricedKind, ModelPricingSection } from "./pricing";
 
 export function useModelTest() {
   return useMutation({ mutationFn: async (model: Model) => unwrap(await api.POST("/v1/admin/models/{modelId}/test", { params: { path: { modelId: model.id } } })) });
@@ -106,6 +107,7 @@ export function ModelRecordPage({ model, open, loading, onClose, connectionName,
                   </div>
                 ),
               },
+              { title: "Pricing", hidden: !isPricedKind(model.kind), content: <ModelPricingSection modelId={model.id} isAdmin={isAdmin} /> },
               {
                 title: "Used by",
                 content: usedBy.length ? (

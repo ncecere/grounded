@@ -36,6 +36,8 @@ export const teamSettingsTabs = ["members", "usage", "api-keys", "crawl-domains"
 export type TeamSettingsTab = (typeof teamSettingsTabs)[number];
 export const logTabs = ["audit", "access"] as const;
 export const analyticsTabs = ["overview", "breakdown", "models", "top"] as const;
+/** Admin → Costs (E2). Overview and Budgets are hidden while the mode is Off. */
+export const costTabs = ["overview", "budgets", "prices", "settings"] as const;
 export const retentionTabs = ["settings", "report", "runs"] as const;
 export const legalHoldTabs = ["active", "released", "all"] as const;
 /** Admin → Break-glass (ADR-0024). */

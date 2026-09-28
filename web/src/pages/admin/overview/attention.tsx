@@ -5,14 +5,14 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, CheckCircle2, FileWarning, Gauge, Globe, LogIn, Mail, PowerOff, ShieldAlert, ShieldOff, TriangleAlert } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleDollarSign, FileWarning, Gauge, Globe, LogIn, Mail, PowerOff, ShieldAlert, ShieldOff, TriangleAlert } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item/item";
 import { SkeletonText } from "@/components/ui/skeleton/skeleton";
 import type { Schemas } from "@/api/client";
-import { formatStorage as formatBytes } from "@/lib/format";
+import { formatMoney, formatStorage as formatBytes } from "@/lib/format";
 import { adminAgentsQuery } from "../agents/agents";
 import { attentionQuery, overviewQuery, publicAccessQuery, publicPolicyQuery } from "./queries";
 import o from "./overview.module.css";
@@ -117,6 +117,17 @@ function useRows(): { rows: Row[]; loading: boolean } {
       action: "Team limits",
       link: <Link to="/admin/teams/$team" params={{ team: n.teamSlug }} search={{ tab: "limits" }} />,
       tone: n.used >= n.max ? "danger" : "warning",
+    });
+  }
+  for (const n of overview.data?.teamsNearBudget ?? []) {
+    rows.push({
+      id: `budget-${n.teamSlug}`,
+      icon: <CircleDollarSign />,
+      title: n.state === "exhausted" ? `${n.teamName} has used up its monthly budget` : `${n.teamName} is at ${n.percent ?? 0}% of its monthly budget`,
+      description: `${formatMoney(n.spent, n.currency)} of ${formatMoney(n.limit, n.currency)}${n.state === "exhausted" ? ": its chats, searches and ingestion are paused" : ""}`,
+      action: "Team budget",
+      link: <Link to="/admin/teams/$team" params={{ team: n.teamSlug }} search={{ tab: "limits" }} />,
+      tone: n.state === "exhausted" ? "danger" : "warning",
     });
   }
   return { rows, loading: overview.isLoading || attention.isLoading || agents.isLoading || policy.isLoading || access.isLoading };

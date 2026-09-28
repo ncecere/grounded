@@ -75,7 +75,8 @@ type LimitDetails = { limit: Schemas["LimitKey"]; max: number; current: number }
 
 /**
  * A title and message for team limit errors: 409 limit_reached (a resource
- * cap such as data sources or storage) and 429 rate_limited (query rates).
+ * cap such as data sources or storage), 429 rate_limited (query rates) and
+ * 429 budget_exhausted (the team's enforced monthly budget, docs/costs.md).
  * The server's message already names the limit, e.g. "Your team has reached
  * its limit of 100 data sources. Ask a platform admin to raise it."
  * Undefined for other errors.
@@ -85,6 +86,9 @@ export function limitError(err: unknown): { title: string; message: string; deta
   const details = err.details as LimitDetails | undefined;
   if (err.code === "limit_reached") {
     return { title: details?.max === 0 ? "Blocked for your team" : "Team limit reached", message: err.message, details };
+  }
+  if (err.code === "budget_exhausted") {
+    return { title: "Monthly budget used up", message: err.message };
   }
   if (err.code === "rate_limited") {
     const wait = err.retryAfter && err.retryAfter <= 120 ? ` You can try again in ${err.retryAfter} s.` : "";

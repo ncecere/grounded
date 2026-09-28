@@ -1,4 +1,4 @@
-import { Archive, BarChart3, Bot, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench } from "lucide-react";
+import { Archive, BarChart3, Bot, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign } from "lucide-react";
 import { type ReactNode } from "react";
 import { terms } from "../../lib/terms";
 import { type Me } from "../../session";
@@ -22,6 +22,7 @@ export type AdminPath =
   | "/admin/limits"
   | "/admin/agents"
   | "/admin/analytics"
+  | "/admin/costs"
   | "/admin/moderation"
   | "/admin/public-access"
   | "/admin/maintenance"
@@ -79,6 +80,7 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
     label: "Monitoring",
     items: [
       { to: "/admin/analytics", label: "Analytics", icon: icon(BarChart3) },
+      { to: "/admin/costs", label: "Costs", icon: icon(CircleDollarSign) },
       { to: "/admin/logs", label: terms.logs, icon: icon(ScrollText) },
     ],
   },
@@ -95,6 +97,7 @@ export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
   "/admin/limits": ["quota", "usage", "rate limit", "storage", "defaults", "ceilings"],
   "/admin/agents": ["kill switch", "disable", "chat", "assistant"],
   "/admin/analytics": ["usage", "dashboard", "answers", "statistics", "report", "csv", "tokens"],
+  "/admin/costs": ["spend", "budget", "prices", "pricing", "money", "billing", "currency", "extension", "tokens"],
   "/admin/logs": ["audit log", "access log", "sensitive", "restricted", "who used", "history", "changes"],
   "/admin/moderation": ["guardrail", "safety", "policy", "block", "public", "classifier"],
   "/admin/public-access": ["public", "anonymous", "widget", "embed", "captcha", "turnstile", "switch"],

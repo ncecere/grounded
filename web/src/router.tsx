@@ -6,6 +6,7 @@ import { publicRef } from "./pages/public/session";
 import {
   adminTeamTabs,
   analyticsTabs,
+  costTabs,
   breakGlassTabs,
   crawlDomainTabs,
   editorTabs,
@@ -56,6 +57,7 @@ const pages = {
   directory: () => import("./pages/chat/directory"),
   adminAgents: () => import("./pages/admin/agents/routes"),
   adminAnalytics: () => import("./pages/admin/analytics/page"),
+  costs: () => import("./pages/admin/costs/page"),
   notifications: () => import("./pages/notifications/routes"),
   publicAccess: () => import("./pages/admin/public-access/page"),
   maintenance: () => import("./pages/admin/maintenance/page"),
@@ -318,6 +320,7 @@ const appTree = appRoute.addChildren([
       adminTabs("limits", limitTabs, lazy(pages.limits, "LimitsPage")),
       adminAgentsRoute,
       adminTabs("analytics", analyticsTabs, lazy(pages.adminAnalytics, "AdminAnalyticsPage")),
+      adminTabs("costs", costTabs, lazy(pages.costs, "CostsPage")),
       adminTabs("moderation", moderationTabs, lazy(pages.moderation, "ModerationPage")),
       admin("public-access", lazy(pages.publicAccess, "PublicAccessPage")),
       admin("maintenance", lazy(pages.maintenance, "MaintenancePage")),

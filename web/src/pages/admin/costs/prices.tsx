@@ -1,0 +1,91 @@
+/* Costs › Prices: every priced model with its prices today and "Unpriced" where one is missing; a model opens its record, where prices are changed. */
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { Eye, Tags } from "lucide-react";
+import { api, unwrap, type Schemas } from "@/api/client";
+import { ListPage } from "@/components/templates/list-page";
+import { Badge } from "@/components/ui/badge/badge";
+import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
+import type { Facet } from "@/components/ui/filter-bar/filter-bar";
+import { TextLink } from "@/components/ui/text-link/text-link";
+import { unitLabels } from "@/lib/costs";
+import { formatMoney } from "@/lib/format";
+import { kindLabels } from "../models/common";
+import c from "./costs.module.css";
+import { UnpricedBadge } from "./overview";
+
+type Item = Schemas["CostPriceItem"];
+
+export const pricesQuery = () => ({
+  queryKey: ["admin", "costs", "prices"],
+  queryFn: async () => unwrap(await api.GET("/v1/admin/costs/prices")),
+});
+
+const facets: Facet<Item>[] = [
+  {
+    id: "priced",
+    label: "Prices",
+    type: "toggle",
+    allLabel: "All",
+    accessor: (r) => (r.unpriced ? "unpriced" : "priced"),
+    options: [
+      { value: "unpriced", label: "Unpriced" },
+      { value: "priced", label: "Priced" },
+    ],
+  },
+];
+
+/** A model's prices today, one line per unit. */
+export function PriceLines({ current, currency }: { current: Schemas["UnitPrice"][]; currency: string }) {
+  return (
+    <ul className={c.prices}>
+      {current.map((p) => (
+        <li key={p.unit} className={c.priceLine}>
+          <span>{unitLabels[p.unit].label}:</span>
+          {p.price === null ? <UnpricedBadge /> : <strong>{formatMoney(p.price, currency)}</strong>}
+          <span className={c.per}>{unitLabels[p.unit].per}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const modelLink = (id: string) => <Link to="/admin/models" search={{ record: id } as never} />;
+
+function columns(currency: string): DataTableColumn<Item>[] {
+  return [
+    {
+      id: "model",
+      header: "Model",
+      accessor: (r) => r.displayName,
+      rowHeader: true,
+      hideable: false,
+      cell: (r) => <CellText primary={<TextLink render={modelLink(r.modelId)}>{r.displayName}</TextLink>} secondary={r.modelKey} />,
+    },
+    { id: "kind", header: "Kind", accessor: "kind", cell: (r) => <Badge tone="info">{kindLabels[r.kind as keyof typeof kindLabels] ?? r.kind}</Badge> },
+    { id: "prices", header: "Prices today", accessor: (r) => (r.unpriced ? 0 : 1), cell: (r) => <PriceLines current={r.current} currency={currency} /> },
+    { id: "status", header: "Status", accessor: (r) => (r.enabled ? "Enabled" : "Disabled"), defaultHidden: true },
+  ];
+}
+
+export function PricesTab() {
+  const list = useQuery(pricesQuery());
+  const d = list.data;
+  return (
+    <ListPage<Item>
+      id="admin-cost-prices"
+      caption="Model prices"
+      columns={columns(d?.currency ?? "USD")}
+      data={d?.items ?? []}
+      getRowId={(r) => r.modelId}
+      rowLabel={(r) => r.displayName}
+      facets={facets}
+      search={{ label: "Search models", placeholder: "Name or key" }}
+      loading={list.isLoading}
+      error={list.error}
+      onRetry={() => void list.refetch()}
+      rowActions={(r) => [{ label: "View details", icon: <Eye aria-hidden />, render: modelLink(r.modelId) }]}
+      empty={{ icon: <Tags />, title: "No chat, embedding, SystemOne or moderation models yet." }}
+    />
+  );
+}
