@@ -14,7 +14,7 @@ import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/comp
 import { Meter } from "@/components/ui/meter/meter";
 import { SkeletonText } from "@/components/ui/skeleton/skeleton";
 import { StatCard } from "@/components/ui/stat-card/stat-card";
-import { formatBytes } from "@/lib/bitop-format";
+import { formatStorage as formatBytes } from "@/lib/format";
 import { formatAmount, teamLimitsQuery } from "@/lib/limits";
 import { pendingDomainRequestsQuery } from "../crawling/requests";
 import { usedShare } from "../limits/groups";

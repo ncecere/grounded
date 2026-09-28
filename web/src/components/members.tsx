@@ -55,7 +55,7 @@ export function AddMemberDialog({ team, myRole, open, onOpenChange }: { team: st
     <Dialog
       open={open}
       onOpenChange={close}
-      title="Add a member"
+      title="Add member"
       description="People who have never signed in get an invite that lasts 30 days. They join when they first sign in."
       footer={
         result ? (

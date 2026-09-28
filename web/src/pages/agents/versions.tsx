@@ -205,7 +205,7 @@ export function VersionsTab({ agent, d }: { agent: Agent; d: AgentDraft }) {
             <ErrorAlert error={versions.error} />
           </div>
         ) : list.length === 0 ? (
-          <EmptyState size="compact" icon={<History />} title="No versions yet" description="Publish the draft to create version 1." />
+          <EmptyState size="compact" icon={<History />} title="No versions yet." description="Publish the draft to create version 1." />
         ) : (
           <Table caption="Published versions" columns={[{ label: "Version", numeric: true }, "Note", "Published", "Classification", "Model", ""]}>
             {list.map((v) => (

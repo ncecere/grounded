@@ -38,7 +38,7 @@ export function TeamSwitcher({ me, active }: { me: Me; active: ActiveTeam }) {
           ))}
         </MenuGroup>
       ) : (
-        <MenuHeader>You aren't on any team yet.</MenuHeader>
+        <MenuHeader>You aren't on a team yet.</MenuHeader>
       )}
       {me.teams.length === 0 && config.data?.teamRequestUrl && (
         <MenuLinkItem href={config.data.teamRequestUrl} target="_blank" rel="noreferrer" icon={<Plus aria-hidden />}>

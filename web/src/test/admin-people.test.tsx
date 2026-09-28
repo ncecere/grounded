@@ -76,7 +76,7 @@ describe("admin users and teams", () => {
     const table = await screen.findByRole("table", { name: "Teams" });
     const row = (await within(table).findByText("Office of the Registrar")).closest("tr")!;
     expect(row).toHaveTextContent("4"); // agents
-    expect(row).toHaveTextContent("2 MB");
+    expect(row).toHaveTextContent("1.9 MiB");
   });
 
   it("opens a team on its Overview with usage, and archives from the menu (Q12)", async () => {

@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { TextLink } from "@/components/ui/text-link/text-link";
-import { formatBytes } from "@/lib/bitop-format";
+import { formatStorage as formatBytes } from "@/lib/format";
 import { ClassificationBadge, useClassificationLevels } from "../../team/common";
 import s from "../../shared.module.css";
 import { one, useDebounced, useIsPlatformAdmin } from "../hooks";

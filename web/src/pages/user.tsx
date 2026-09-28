@@ -76,7 +76,7 @@ function YourTeams({ me }: { me: Me }) {
         <EmptyState
           size="compact"
           icon={<Users />}
-          title="You aren't on a team yet"
+          title="You aren't on a team yet."
           description={
             requestUrl
               ? "Teams build data sources, knowledge bases and agents. Ask a team owner to add you, or request a new team."

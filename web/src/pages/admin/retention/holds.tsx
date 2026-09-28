@@ -6,7 +6,7 @@
  * auditors see holds. Tabs: Active · Released · All; a hold opens as a record page (?record=).
  */
 import { useQuery } from "@tanstack/react-query";
-import { Eye, Scale } from "lucide-react";
+import { Eye, List, Lock, LockOpen, Scale } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { PageTabs, useUrlTab } from "@/components/page-tabs";
@@ -67,6 +67,8 @@ function HoldStatus({ hold }: { hold: Hold }) {
   return hold.status === "active" ? <StatusBadge tone="warning">Active</StatusBadge> : <StatusBadge tone="neutral">Released</StatusBadge>;
 }
 
+const holdTabIcons = { active: <Lock aria-hidden />, released: <LockOpen aria-hidden />, all: <List aria-hidden /> } as const;
+
 export function LegalHoldsPage() {
   const isAdmin = useIsPlatformAdmin();
   const [tab, setTab] = useUrlTab(legalHoldTabs);
@@ -82,7 +84,7 @@ export function LegalHoldsPage() {
         label="Legal hold status"
         value={tab}
         onValueChange={setTab}
-        tabs={legalHoldTabs.map((t) => ({ value: t, label: { active: "Active", released: "Released", all: "All" }[t], content: <HoldList status={t} isAdmin={isAdmin} onPlace={() => setPlacing(true)} /> }))}
+        tabs={legalHoldTabs.map((t) => ({ value: t, label: { active: "Active", released: "Released", all: "All" }[t], icon: holdTabIcons[t], content: <HoldList status={t} isAdmin={isAdmin} onPlace={() => setPlacing(true)} /> }))}
       />
       {placing && <PlaceHoldDialog onClose={() => setPlacing(false)} />}
     </Stack>

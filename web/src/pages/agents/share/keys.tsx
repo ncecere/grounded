@@ -75,7 +75,7 @@ export function KeysList({ team, agentId, onCreated }: Props) {
   const open = record.id === "new" ? null : list.find((k) => k.id === record.id);
   const create = (
     <Button size="sm" variant="secondary" onClick={() => record.open("new")}>
-      <Plus aria-hidden /> Create key
+      <Plus aria-hidden /> New widget key
     </Button>
   );
   return (
@@ -173,8 +173,8 @@ function WidgetKeyForm({ team, agentId, current, onClose, onRevoke, onSaved }: R
   });
   return (
     <FormPage
-      label={current ? current.name : "Create a widget key"}
-      title={current ? current.name : "Create a widget key"}
+      label={current ? current.name : "New widget key"}
+      title={current ? current.name : "New widget key"}
       description="Only pages on the allowed origins can show the widget. The key sits in the page, so it isn't secret: origins, rate limits and daily caps protect the agent."
       facts={
         current

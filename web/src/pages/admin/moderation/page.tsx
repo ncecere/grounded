@@ -5,7 +5,7 @@
  * policy.
  */
 import { useQueries } from "@tanstack/react-query";
-import { FlaskConical } from "lucide-react";
+import { FlaskConical, Globe, Plug, UserCheck, Users } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { PageTabs, useUrlTab } from "@/components/page-tabs";
@@ -29,6 +29,8 @@ export const policyQuery = (audience: Audience) => ({
   queryKey: ["admin", "moderation", "policy", audience],
   queryFn: async () => unwrap(await api.GET("/v1/admin/moderation/policies/{audience}", { params: { path: { audience } } })),
 });
+
+const audienceTabIcons = { team: <Users aria-hidden />, all_authenticated: <UserCheck aria-hidden />, public: <Globe aria-hidden /> } as const;
 
 export function ModerationPage() {
   const isAdmin = useIsPlatformAdmin();
@@ -62,9 +64,10 @@ export function ModerationPage() {
           ...audienceTabs.map((t) => ({
             value: t.value,
             label: t.label,
+            icon: audienceTabIcons[t.value],
             content: <AudiencePolicy key={t.value} policy={byAudience.get(t.value)} providers={providers} isAdmin={isAdmin} />,
           })),
-          { value: "providers" as const, label: "Providers", content: <ProvidersTab models={models} providers={providers} byAudience={byAudience} /> },
+          { value: "providers" as const, label: "Providers", icon: <Plug aria-hidden />, content: <ProvidersTab models={models} providers={providers} byAudience={byAudience} /> },
         ]}
       />
       {testing && <TestDialog providers={providers} policy={current} onClose={() => setTesting(false)} />}

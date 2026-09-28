@@ -104,7 +104,7 @@ export function ConversationsPage() {
             <EmptyState
               icon={<MessagesSquare />}
               title="No conversations yet."
-              description="Start one from an agent's page."
+              description="Start one by choosing an agent."
               action={
                 <Button variant="secondary" render={<Link to="/agents" />}>
                   {terms.discoverAgents}

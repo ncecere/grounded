@@ -3,6 +3,7 @@
  * layout, permission helpers mirroring the server's rules, and the queries
  * several team pages use.
  */
+import { formatStorage } from "@/lib/format";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createContext, useContext } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
@@ -160,16 +161,7 @@ export function profileName(profiles: ProfileOption[] | undefined, id: string) {
   return profiles?.find((p) => p.id === id)?.name ?? "Unknown profile";
 }
 
-export function formatBytes(n: number) {
-  if (n < 1024) return `${n} B`;
-  const units = ["KB", "MB", "GB", "TB"];
-  let v = n / 1024;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${units[i]}`;
-}
+/** A size in IEC units, as everywhere (lib/format.ts formatStorage). */
+export const formatBytes = (n: number) => formatStorage(n);
 
 export const plural = (n: number, one: string, many = one + "s") => `${n.toLocaleString()} ${n === 1 ? one : many}`;

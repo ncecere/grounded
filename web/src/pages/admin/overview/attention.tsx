@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card/card";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item/item";
 import { SkeletonText } from "@/components/ui/skeleton/skeleton";
 import type { Schemas } from "@/api/client";
-import { formatBytes } from "@/lib/bitop-format";
+import { formatStorage as formatBytes } from "@/lib/format";
 import { adminAgentsQuery } from "../agents/agents";
 import { attentionQuery, overviewQuery, publicAccessQuery, publicPolicyQuery } from "./queries";
 import o from "./overview.module.css";

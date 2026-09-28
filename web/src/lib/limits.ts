@@ -1,4 +1,5 @@
 /* Team limits (DESIGN.md §11.1): queries and formatting shared by the admin and team pages. */
+import { formatStorage } from "./format";
 import { queryOptions } from "@tanstack/react-query";
 import { api, unwrap, type Schemas } from "../api/client";
 
@@ -34,18 +35,8 @@ export const teamLimitsQuery = (team: string) =>
 
 const GiB = 1024 ** 3;
 
-/** "10 GiB", "512 MiB", "1.5 KiB". */
-function formatBinaryBytes(n: number) {
-  const units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
-  let v = n;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  if (i === 0) return `${n.toLocaleString()} B`;
-  return `${Number.isInteger(v) ? v.toLocaleString() : v.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${units[i]}`;
-}
+/** "10 GiB", "512 MiB", "1.5 KiB": the same units as every other size (lib/format.ts). */
+const formatBinaryBytes = (n: number) => formatStorage(n);
 
 /** An amount of a limit: "10 GiB", "5,000". */
 export function formatAmount(unit: LimitUnit, n: number) {

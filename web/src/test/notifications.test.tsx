@@ -161,7 +161,7 @@ describe("notifications inbox", () => {
   it("shows an empty state, and no Mark all as read with nothing unread (Q5)", async () => {
     mockApi({ ...routes(), "GET /v1/notifications": () => ({ items: [], nextCursor: null, unreadCount: 0 }) });
     renderApp("/notifications?tab=unread");
-    expect(await screen.findByText("No unread notifications")).toBeInTheDocument();
+    expect(await screen.findByText("No unread notifications.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Mark (all|these) as read/ })).toBeNull();
   });
 });

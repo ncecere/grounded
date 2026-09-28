@@ -4,7 +4,7 @@
  */
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { BellOff, CheckCheck, Settings } from "lucide-react";
+import { BellDot, BellOff, CheckCheck, Inbox as InboxIcon, Settings } from "lucide-react";
 import { PageTabs, useUrlTab } from "../../components/page-tabs";
 import { LoadMore, QueryView } from "../../components/query-view";
 import { inboxQuery, notificationSettingsQuery, type NotificationType, useMarkAllRead } from "../../components/notifications/api";
@@ -78,8 +78,8 @@ export function NotificationsPage() {
         value={tab}
         onValueChange={setTab}
         tabs={[
-          { value: "all", label: "All", content: <Inbox unread={false} type={filter.type} /> },
-          { value: "unread", label: "Unread", content: <Inbox unread type={filter.type} /> },
+          { value: "all", label: "All", icon: <InboxIcon aria-hidden />, content: <Inbox unread={false} type={filter.type} /> },
+          { value: "unread", label: "Unread", icon: <BellDot aria-hidden />, content: <Inbox unread type={filter.type} /> },
         ]}
       />
     </Stack>
@@ -92,7 +92,7 @@ function Inbox({ unread, type }: { unread: boolean; type?: NotificationType }) {
   const empty = (
     <EmptyState
       icon={<BellOff />}
-      title={unread ? "No unread notifications" : "No notifications yet"}
+      title={unread ? "No unread notifications." : "No notifications yet."}
       description={type ? "Nothing of this type." : unread ? "You're all caught up." : "You'll see invites and updates about your teams here."}
     />
   );

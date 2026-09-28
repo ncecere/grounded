@@ -3,6 +3,7 @@
  * ceilings. Writes send If-Match so two admins can't overwrite each other.
  * One team's overrides are a card on the admin team page (team-card.tsx).
  */
+import { Boxes, Globe, MessagesSquare, Upload } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
@@ -65,6 +66,8 @@ function usePlatformLimitsForm() {
   return { limits, items, form, setForm, submitted, setSubmitted, changes, invalid, save, discard };
 }
 
+const limitGroupIcons = { resources: <Boxes aria-hidden />, ingestion: <Upload aria-hidden />, queries: <MessagesSquare aria-hidden />, public: <Globe aria-hidden /> } as const;
+
 export function LimitsPage() {
   const isAdmin = useCurrentUser().capabilities.platformAdmin;
   const formId = useId();
@@ -107,6 +110,7 @@ export function LimitsPage() {
             tabs={limitGroups.map((g) => ({
               value: g.key,
               label: g.label,
+              icon: limitGroupIcons[g.key],
               content: (
                 <Card title={g.label} description={g.description} flush>
                   <Table caption={`${g.label}: defaults and ceilings`} columns={["Limit", { label: "Default", width: "15rem" }, { label: "Ceiling", width: "15rem" }]}>

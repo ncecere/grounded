@@ -50,7 +50,7 @@ export function SourcesPage() {
           description: canEdit ? "Create one to upload files or index a website." : "Editors, admins and owners can create data sources.",
           action: canEdit && (
             <Button variant="secondary" onClick={() => newSource.start()}>
-              <Plus aria-hidden /> Create a data source
+              <Plus aria-hidden /> New data source
             </Button>
           ),
         }}

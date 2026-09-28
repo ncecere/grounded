@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { Bot, FileText, MessageSquare, UserRound, UsersRound } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card/stat-card";
 import { Sparkline } from "@/components/ui/sparkline/sparkline";
-import { formatBytes } from "@/lib/bitop-format";
+import { formatStorage as formatBytes } from "@/lib/format";
 import { audienceLabels } from "@/lib/terms";
 import { adminAgentsQuery } from "../agents/agents";
 import { overviewQuery, recentAnalyticsQuery } from "./queries";

@@ -135,7 +135,7 @@ describe("field messages (F-05)", () => {
     });
     renderApp("/teams/registrar/settings");
     await user.click(await screen.findByRole("button", { name: "Add member" }));
-    const dialog = await screen.findByRole("dialog", { name: "Add a member" });
+    const dialog = await screen.findByRole("dialog", { name: "Add member" });
     await user.click(within(dialog).getByRole("button", { name: "Add member" }));
     expect(await within(dialog).findByText("Enter an email address.")).toBeInTheDocument();
     await user.type(within(dialog).getByRole("textbox", { name: /Email address/ }), "not-an-email");

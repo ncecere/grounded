@@ -18,7 +18,7 @@ test("team settings: invite, usage meters, API key shown once and revoked, audit
 
     const email = `${unique("invitee")}@example.test`;
     await page.getByRole("button", { name: "Add member" }).click();
-    const dialog = page.getByRole("dialog", { name: "Add a member" });
+    const dialog = page.getByRole("dialog", { name: "Add member" });
     await dialog.getByLabel("Email address").fill(email);
     await dialog.getByLabel("Role").selectOption("editor");
     await a11y(page, "add a member");

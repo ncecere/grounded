@@ -503,7 +503,7 @@ describe("API keys", () => {
     });
     const { container } = renderTeam(<ApiKeysPage />, "member");
     expect(await screen.findByText("No API keys yet.")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "New API key" }));
+    await userEvent.click(screen.getAllByRole("button", { name: "New API key" })[0]!);
     const dialog = await screen.findByRole("dialog", { name: "New API key" });
     expect(within(dialog).queryByRole("combobox", { name: "Key type" })).toBeNull();
     expect(within(dialog).getAllByRole("checkbox", { name: /^(Query|Ingest|Manage):/ })).toHaveLength(1);

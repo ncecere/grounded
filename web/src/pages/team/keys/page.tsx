@@ -162,7 +162,7 @@ export function ApiKeysPage({ embedded = false }: { embedded?: boolean }) {
           description: "Create a key to call the retrieval API from your own programs.",
           action: !archived && (
             <Button variant="secondary" onClick={() => setCreating(true)}>
-              <Plus aria-hidden /> Create a key
+              <Plus aria-hidden /> New API key
             </Button>
           ),
         }}

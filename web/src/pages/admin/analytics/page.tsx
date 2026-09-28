@@ -6,7 +6,7 @@
  * (ADR-0010).
  */
 import { useQuery } from "@tanstack/react-query";
-import { Activity, BarChart3, Clock, Flag, Globe, MessageSquare, MessagesSquare, SearchX, ShieldAlert, ShieldOff, ShieldX, ThumbsUp, Timer, Users, Zap, LifeBuoy } from "lucide-react";
+import { Activity, BarChart3, ChartPie, Clock, Cpu, Flag, Globe, LayoutDashboard, LifeBuoy, MessageSquare, MessagesSquare, SearchX, ShieldAlert, ShieldOff, ShieldX, ThumbsUp, Timer, Trophy, Users, Zap } from "lucide-react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ModerationCard, ShareCard, StatGroup } from "@/components/analytics/breakdowns";
 import { CitationsGroup, ScopeGroup } from "@/components/analytics/checks";
@@ -84,6 +84,7 @@ export function AdminAnalyticsPage() {
             {
               value: "overview",
               label: "Overview",
+              icon: <LayoutDashboard aria-hidden />,
               content: (
                 <Stack gap={6}>
                   <Totals t={d.totals} audiences={d.audiences} />
@@ -104,6 +105,7 @@ export function AdminAnalyticsPage() {
             {
               value: "breakdown",
               label: "Breakdown",
+              icon: <ChartPie aria-hidden />,
               content: (
                 <Stack gap={6}>
                   <div className={an.grid2}>
@@ -125,10 +127,11 @@ export function AdminAnalyticsPage() {
                 </Stack>
               ),
             },
-            { value: "models", label: "Models & tokens", content: <ModelTokens models={d.models} audienceFiltered={Boolean(f.audience)} /> },
+            { value: "models", label: "Models & tokens", icon: <Cpu aria-hidden />, content: <ModelTokens models={d.models} audienceFiltered={Boolean(f.audience)} /> },
             {
               value: "top",
               label: "Top agents & teams",
+              icon: <Trophy aria-hidden />,
               // One card per row: the agents table needs the width at 1280 px.
               content: (
                 <Stack gap={6}>

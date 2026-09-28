@@ -295,7 +295,7 @@
     },
     "page-header": {
       "files": {
-        "src/components/ui/page-header/page-header.module.css": "d236ba13f8e53c18892a1bb884176c3860be58bae190dca44202299f5468d447",
+        "src/components/ui/page-header/page-header.module.css": "8ad33a119043c24b0190f23f4ee233e3456d997f399102bb7a3c691dcdfc1d74",
         "src/components/ui/page-header/page-header.tsx": "e9ffdc7acb15c1f4698879bbbdacbc0c575c1bc22046316663217ba68827d3f5"
       }
     },

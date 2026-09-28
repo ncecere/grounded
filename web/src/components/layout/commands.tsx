@@ -88,7 +88,7 @@ function teamActionGroup(navigate: Navigate, slug: string, mine: Membership): Co
     actions.items.push({ id: "new-key", label: "New API key", icon: <Plus aria-hidden />, keywords: ["create", "token"], onSelect: settings("api-keys", "new-api-key") });
   }
   if (active && (mine.role === "owner" || mine.role === "admin")) {
-    actions.items.push({ id: "add-member", label: "Add a member", icon: <UserPlus aria-hidden />, keywords: ["invite", "people", "team"], onSelect: settings("members", "add-member") });
+    actions.items.push({ id: "add-member", label: "Add member", icon: <UserPlus aria-hidden />, keywords: ["invite", "people", "team"], onSelect: settings("members", "add-member") });
   }
   return actions;
 }

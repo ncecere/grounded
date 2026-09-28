@@ -78,7 +78,7 @@ export function AgentList({ limit }: { limit?: number }) {
       <EmptyState
         size="compact"
         icon={<Bot />}
-        title="No agents yet"
+        title="No agents yet."
         description="Agents your teams publish appear here. Editors create them under a team's Agents page."
       />
     );
@@ -107,7 +107,7 @@ function DirectoryGroups({ q, team, show }: { q: string; team: string; show?: Gr
     return (
       <EmptyState
         icon={<Bot />}
-        title={q || team || show ? "No agents match." : "No agents yet"}
+        title={q || team || show ? "No agents match." : "No agents yet."}
         description={q || team || show ? "Try another search or filter." : "Agents published by your teams, and shared with everyone, appear here."}
       />
     );
@@ -135,7 +135,7 @@ export function RecentConversations({ limit = 8 }: { limit?: number }) {
   if (conversations.isLoading) return <Skeleton height="6rem" />;
   if (conversations.error) return <ErrorAlert error={conversations.error} title="Couldn't load conversations" />;
   const items = conversations.data?.items ?? [];
-  if (items.length === 0) return <EmptyState size="compact" icon={<MessagesSquare />} title="No conversations yet" description="Start one by choosing an agent." />;
+  if (items.length === 0) return <EmptyState size="compact" icon={<MessagesSquare />} title="No conversations yet." description="Start one by choosing an agent." />;
   return (
     <ul className={d.recent}>
       {items.map((c) => (

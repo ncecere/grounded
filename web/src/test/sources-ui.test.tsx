@@ -116,7 +116,7 @@ describe("documents table and sheet (Q4, W3)", () => {
     await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
     const title = await screen.findByRole("button", { name: "Scanned form" });
     expect(title).toHaveAttribute("title", "Scanned form");
-    expect(screen.getByText("PDF · 586 KB")).toBeInTheDocument();
+    expect(screen.getByText("PDF · 586 KiB")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Failed" }));
     await waitFor(() => expect(calls.some((c) => c.url.endsWith("/documents") && new URLSearchParams(c.search).get("status") === "failed")).toBe(true));
   });
@@ -142,7 +142,7 @@ describe("documents table and sheet (Q4, W3)", () => {
     await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
     await userEvent.click(await screen.findByRole("button", { name: "Scanned form" }));
     const sheet = await screen.findByRole("region", { name: "Scanned form" });
-    expect(sheet).toHaveTextContent("PDF · 586 KB");
+    expect(sheet).toHaveTextContent("PDF · 586 KiB");
     const previews = await within(sheet).findByRole("list", { name: "Passage previews" });
     expect(previews).toHaveTextContent("Fees › Refunds · p. 1");
     expect(previews).toHaveTextContent("Refunds are issued within 30 days.");

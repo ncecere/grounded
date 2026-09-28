@@ -139,7 +139,7 @@ function ModelPicker({ model, onChange, levelName }: { model: ChatModel | undefi
   if (models.error) return <ErrorAlert error={models.error} title="Couldn't load chat models" />;
   if ((models.data ?? []).length === 0) {
     return (
-      <Alert tone="warning" title="No chat models are available">
+      <Alert tone="warning" title="No chat models are available.">
         A platform admin needs to enable a chat model before agents can be published. You can still create a draft.
       </Alert>
     );
