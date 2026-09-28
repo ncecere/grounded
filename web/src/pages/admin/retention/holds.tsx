@@ -6,7 +6,7 @@
  * auditors see holds. Tabs: Active · Released · All; a hold opens as a record page (?record=).
  */
 import { useQuery } from "@tanstack/react-query";
-import { Scale } from "lucide-react";
+import { Eye, Scale } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { PageTabs, useUrlTab } from "@/components/page-tabs";
@@ -108,7 +108,7 @@ function HoldList({ status, isAdmin, onPlace }: { status: (typeof legalHoldTabs)
         onRetry={() => void holds.refetch()}
         onRowClick={(h) => record.open(h.id)}
         rowActions={(h) => [
-          { label: "View details", onSelect: () => record.open(h.id) },
+          { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(h.id) },
           { label: "Release hold", danger: true, hidden: !isAdmin || h.status !== "active", onSelect: () => setReleasing(h) },
         ]}
         empty={{

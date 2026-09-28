@@ -6,6 +6,7 @@
  * are told whom to ask. Danger zone: members leave the team (not the only
  * owner); platform admins archive or unarchive it.
  */
+import { TextLink } from "@/components/ui/text-link/text-link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -103,9 +104,7 @@ export function GeneralTab() {
         />
         {isPlatformAdmin && (
           <p>
-            <Link to="/admin/teams/$team" params={{ team: slug }}>
-              Change the classification and limits in Admin
-            </Link>
+            <TextLink render={<Link to="/admin/teams/$team" params={{ team: slug }} />}>Change the classification and limits in Admin</TextLink>
           </p>
         )}
       </SettingsSection>

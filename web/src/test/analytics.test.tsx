@@ -122,7 +122,7 @@ describe("admin analytics page", () => {
     expect(await screen.findByRole("table", { name: "Token use per model" })).toHaveTextContent(/Deleted model/);
     await userEvent.click(screen.getByRole("tab", { name: "Top agents & teams" }));
     const agents = await screen.findByRole("table", { name: "Agents with the most answers" });
-    expect(within(agents).getByRole("link", { name: "Registrar help" })).toHaveAttribute("href", "/admin/agents?team=registrar");
+    expect(within(agents).getByRole("link", { name: "Registrar help" })).toHaveAttribute("href", "/admin/agents?record=a1");
     expect(within(agents).getAllByRole("link", { name: "Registrar" })[0]).toHaveAttribute("href", "/admin/teams/registrar");
     expect(within(agents).getByText("Deleted agent")).toBeInTheDocument();
     expect(within(agents).getAllByRole("row")[1]).toHaveTextContent(/91%$/); // citation support rate

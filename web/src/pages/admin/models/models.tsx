@@ -169,7 +169,7 @@ export function ModelsPage() {
         onEdit={setEditing}
         onDelete={setDeleting}
       />
-      {editing && <ModelDialog model={editing === "new" ? null : editing} connections={conns.data ?? []} onClose={form.close} />}
+      {isAdmin && editing && <ModelDialog model={editing === "new" ? null : editing} connections={conns.data ?? []} onClose={form.close} />}
       <ConfirmMutationDialog
         target={deleting}
         onClose={() => setDeleting(null)}

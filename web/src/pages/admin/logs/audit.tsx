@@ -160,7 +160,7 @@ export function AuditLogTab() {
           ),
         }}
       />
-      <AuditEntryPage entry={open} open={Boolean(record.id)} loading={log.isLoading} onClose={record.close} />
+      <AuditEntryPage id={record.id} listed={open} onClose={record.close} />
     </>
   );
 }

@@ -104,7 +104,7 @@ export function ConnectionsPage() {
         onRetry={() => void conns.refetch()}
         onRowClick={(c) => record.open(c.id)}
         rowActions={(c) => [
-          { label: "View and test", icon: <Eye aria-hidden />, onSelect: () => record.open(c.id) },
+          { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(c.id) },
           { label: "Edit", icon: <Pencil aria-hidden />, hidden: !isAdmin, onSelect: () => setEditing(c) },
           {
             label: "Delete…",
@@ -129,8 +129,8 @@ export function ConnectionsPage() {
         onDelete={setDeleting}
         onAddModel={setAdding}
       />
-      {editing && <ConnectionForm conn={editing === "new" ? null : editing} onClose={form.close} />}
-      {adding && <ModelDialog model={null} connections={list} preset={adding} onClose={form.close} />}
+      {isAdmin && editing && <ConnectionForm conn={editing === "new" ? null : editing} onClose={form.close} />}
+      {isAdmin && adding && <ModelDialog model={null} connections={list} preset={adding} onClose={form.close} />}
       <ConfirmMutationDialog
         target={deleting}
         onClose={() => setDeleting(null)}

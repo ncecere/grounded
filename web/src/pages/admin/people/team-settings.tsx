@@ -1,4 +1,5 @@
 /* Admin team › Settings (A4): name, description and approved classification in one form, and Archive in the Danger zone. */
+import { adminOnly } from "@/lib/terms";
 import { useState } from "react";
 import type { Schemas } from "@/api/client";
 import { DangerAction, DangerZone, SettingsPage, SettingsSection } from "@/components/templates/settings-page";
@@ -24,7 +25,7 @@ export function TeamSettingsTab({ team, isAdmin, onArchive, status }: Props) {
   return (
     <SettingsPage
       dirty={dirty}
-      canEdit={isAdmin}
+      canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={status.isPending}
       error={status.error}
       onSave={() => status.mutate({ ...form, name: form.name.trim() })}

@@ -1,7 +1,7 @@
 /* Platform-shared sources (admin portal): the list with Used by (A6) and the detail page, reusing the team source components. */
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
-import { Network, Plus, Share2 } from "lucide-react";
+import { Database, Network, Plus, Share2 } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
 import { useIntent } from "../../lib/intents";
 import { ListPage } from "@/components/templates/list-page";
@@ -63,7 +63,7 @@ function SharedSourcesList() {
         error={sources.error}
         onRetry={() => void sources.refetch()}
         rowActions={(x) => [
-          { label: "Open", render: owner.sourceLink(x.id) },
+          { label: "Open", icon: <Database aria-hidden />, render: owner.sourceLink(x.id) },
           { label: "Where it's used", icon: <Network aria-hidden />, onSelect: () => record.open(x.id) },
         ]}
         empty={{ icon: <Share2 />, title: "No shared sources yet.", description: "Create one for content many teams need, such as the academic calendar.", action: create || undefined }}

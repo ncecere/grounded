@@ -4,7 +4,7 @@
  * run shows as due, and is audited. The list refreshes while a run waits.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { History, Play } from "lucide-react";
+import { Eye, History, Play } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
@@ -79,7 +79,7 @@ export function RetentionRunsTab({ isAdmin }: { isAdmin: boolean }) {
         error={runs.error}
         onRetry={() => void runs.refetch()}
         onRowClick={(x) => record.open(String(x.id))}
-        rowActions={(x) => [{ label: "View details", onSelect: () => record.open(String(x.id)) }]}
+        rowActions={(x) => [{ label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(String(x.id)) }]}
         empty={{ icon: <History />, title: "No runs yet.", description: "Retention runs every 10 minutes on a worker." }}
         tableProps={{
           toolbar: (
@@ -100,10 +100,12 @@ export function RetentionRunsTab({ isAdmin }: { isAdmin: boolean }) {
         title={open ? `Run of ${formatDate(open.createdAt)}` : "Retention run"}
         description="What one retention run deleted and what legal holds kept, per kind of data."
         loading={runs.isLoading}
+        error={!runs.isLoading && record.id && !open ? new Error("This run isn't one of the latest runs, or the link is wrong.") : undefined}
         facts={
           open && [
             { label: "Status", value: <RunStatus run={open} /> },
             { label: "Trigger", value: who(open) },
+            { label: "Started", value: formatDate(open.startedAt) },
             { label: "Finished", value: formatDate(open.finishedAt) },
             { label: "Error", value: open.error || "" },
           ]

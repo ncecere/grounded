@@ -15,7 +15,8 @@
  */
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useCallback, type ReactNode } from "react";
-import { ErrorAlert } from "@/components/ui/alert/alert";
+import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
+import { isNotFound } from "../not-found";
 import { Card } from "@/components/ui/card/card";
 import { type DescriptionEntry, DescriptionList } from "@/components/ui/description-list/description-list";
 import { SkeletonText } from "@/components/ui/skeleton/skeleton";
@@ -65,7 +66,8 @@ export function useRecordParam(param = RECORD_PARAM) {
 // Records opened by open() in this page session (their history entry is ours to pop).
 const openedHere = new Set<string>();
 
-export type RecordSection = { title: ReactNode; content: ReactNode; id?: string };
+/** A titled card on a record page; `hidden` leaves it out (e.g. an action the viewer can't run). */
+export type RecordSection = { title: ReactNode; content: ReactNode; id?: string; hidden?: boolean };
 
 export type RecordPageProps = {
   open: boolean;
@@ -103,7 +105,14 @@ function OpenRecordPage({ onClose, title, label, description, meta, facts, secti
   const name = label ?? (typeof title === "string" ? title : "Details");
   return (
     <TakeoverPage param="record" label={name} title={title} meta={meta} description={description} actions={loading ? undefined : actions} onBack={guard.requestClose}>
-      {Boolean(error) && <ErrorAlert error={error} title="Couldn't load this record" />}
+      {Boolean(error) &&
+        (isNotFound(error) ? (
+          <Alert tone="warning" title="Not found">
+            It may have been deleted, or the link is wrong.
+          </Alert>
+        ) : (
+          <ErrorAlert error={error} title="Couldn't load this record" />
+        ))}
       {loading ? (
         <div role="status" aria-label="Loading…">
           <SkeletonText lines={4} />
@@ -115,7 +124,7 @@ function OpenRecordPage({ onClose, title, label, description, meta, facts, secti
               <DescriptionList items={facts} dividers />
             </Card>
           )}
-          {sections?.map((sec, i) => (
+          {sections?.filter((sec) => !sec.hidden).map((sec, i) => (
             <Card key={sec.id ?? i} title={sec.title} titleAs="h2">
               {sec.content}
             </Card>

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/google/uuid"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/platform"
 	"github.com/ncecere/grounded/internal/store"
+	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/teams"
 )
 
@@ -272,4 +274,26 @@ func (a *api) adminUpdateClassification(w http.ResponseWriter, r *http.Request) 
 
 func (a *api) adminListAudit(w http.ResponseWriter, r *http.Request) {
 	a.writeAuditPage(w, r, uuid.NullUUID{})
+}
+
+// adminGetAuditEntry returns one entry by id, so a link to any entry opens
+// it (not only one on the list's loaded pages).
+func (a *api) adminGetAuditEntry(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("entryId"), 10, 64)
+	if err != nil || id <= 0 {
+		httpx.Error(w, http.StatusBadRequest, "invalid_id", "Invalid entryId")
+		return
+	}
+	// The list query, newest first below id+1, one row: exactly this entry if it exists.
+	before := id + 1
+	rows, err := a.q.ListAudit(r.Context(), dbgen.ListAuditParams{BeforeID: &before, PageSize: 1})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if len(rows) == 0 || rows[0].ID != id {
+		httpx.Error(w, http.StatusNotFound, "not_found", "Audit entry not found")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, toAPIAudit(rows[0]))
 }

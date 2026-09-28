@@ -16,7 +16,7 @@
  * part of the save. Give them type="button" (bitop's Button's default).
  */
 import type { FormEvent, ReactNode } from "react";
-import { ErrorAlert } from "@/components/ui/alert/alert";
+import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { Form } from "@/components/ui/field/field";
@@ -37,8 +37,10 @@ export type SettingsPageProps = {
   saveLabel?: string;
   /** Save bar text (default "Unsaved changes"); e.g. "Not saved: fix the highlighted field". */
   message?: ReactNode;
-  /** Viewers who can't edit get no save bar (and no guard). */
+  /** Viewers who can't edit get no save bar (and no guard), and a note saying so. */
   canEdit?: boolean;
+  /** The read-only note (default: the viewer's role can't change these settings). */
+  readOnlyNote?: ReactNode;
   /** Disable Save, e.g. while a field is invalid. */
   saveDisabled?: boolean;
   guard?: UnsavedGuardOptions;
@@ -55,6 +57,7 @@ export function SettingsPage({
   saveLabel = "Save changes",
   message,
   canEdit = true,
+  readOnlyNote = "You can view these settings, but your role can't change them.",
   saveDisabled = false,
   guard,
   children,
@@ -68,6 +71,11 @@ export function SettingsPage({
   };
   return (
     <Form noValidate onSubmit={submit} className={className ?? styles.settings}>
+      {!canEdit && (
+        <Alert tone="info" title="Read-only">
+          {readOnlyNote}
+        </Alert>
+      )}
       {children}
       {open && Boolean(error) && <ErrorAlert error={error} title="Couldn't save the changes" />}
       <SaveBar open={open} message={message}>

@@ -4,6 +4,7 @@
  * sessions) and links to the public agents and to Limits › Public agents,
  * the one place the public limits are shown and edited (Q9).
  */
+import { TextLink } from "@/components/ui/text-link/text-link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -60,7 +61,7 @@ export function PublicAccessPage() {
                       ),
                   },
                   { label: "Anonymous sessions end", value: `${hours(settings.data.anonSessionTtlSeconds)} after the last question` },
-                  { label: "Anonymous conversations", value: <>Deleted after their classification's <Link to="/admin/classifications">anonymous retention</Link></> },
+                  { label: "Anonymous conversations", value: <>Deleted after their classification's <TextLink render={<Link to="/admin/classifications" />}>anonymous retention</TextLink></> },
                   { label: "Configured by", value: <span className={s.mono}>CAPTCHA_PROVIDER, TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY, ANON_SESSION_TTL</span> },
                 ]}
               />

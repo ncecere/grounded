@@ -1,4 +1,5 @@
 /* One audience's moderation policy: provider, output mode, fail-closed, notice and per-category rules for questions and answers. */
+import { adminOnly } from "@/lib/terms";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
@@ -63,7 +64,7 @@ export function PolicyEditor({ policy, providers, isAdmin }: { policy: Policy; p
   return (
     <SettingsPage
       dirty={changes > 0}
-      canEdit={isAdmin}
+      canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={save.isPending}
       error={save.error}
       saveLabel="Save policy"

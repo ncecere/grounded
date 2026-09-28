@@ -46,6 +46,7 @@ const typeOf = (value: string | undefined): SourceType | undefined => (value ===
 
 /** The "New data source" flow: `start()` opens the type dialog; `element` renders it and the form page. */
 export function useCreateSource(): { start: () => void; element: ReactNode } {
+  const owner = useSourceOwner();
   const form = useFormParam();
   const [picking, setPicking] = useState(false);
   const type = typeOf(form.id);
@@ -62,7 +63,7 @@ export function useCreateSource(): { start: () => void; element: ReactNode } {
             }}
           />
         )}
-        {type && (
+        {type && owner.canEdit && (
           <CreateSourcePage
             key={type}
             type={type}

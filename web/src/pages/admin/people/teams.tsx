@@ -5,7 +5,7 @@
  */
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Plus, UsersRound } from "lucide-react";
+import { Plus, Users, UsersRound } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { PersonCell } from "@/components/person-cell";
@@ -119,7 +119,7 @@ export function AdminTeamsPage() {
         error={teams.error}
         onRetry={() => void teams.refetch()}
         rowActions={(r) => [
-          { label: "Open", render: <Link to="/admin/teams/$team" params={{ team: r.team.slug }} /> },
+          { label: "Open", icon: <Users aria-hidden />, render: <Link to="/admin/teams/$team" params={{ team: r.team.slug }} /> },
           { label: "Limits", render: <Link to="/admin/teams/$team" params={{ team: r.team.slug }} search={{ tab: "limits" }} /> },
           { label: "Agents", render: <Link to="/admin/agents" search={{ team: r.team.slug }} /> },
         ]}

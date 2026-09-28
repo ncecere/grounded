@@ -60,7 +60,7 @@ export function TopAgents({ agents }: { agents: Schemas["PlatformAnalyticsAgent"
             <Tr key={ag.agentId}>
               <Td>
                 {ag.agentName && ag.teamSlug ? (
-                  <TextLink render={<Link to="/admin/agents" search={{ team: ag.teamSlug }} />}>{ag.agentName}</TextLink>
+                  <TextLink render={<Link to="/admin/agents" search={{ record: ag.agentId } as never} />}>{ag.agentName}</TextLink>
                 ) : (
                   <span className={s.muted}>{ag.agentName || "Deleted agent"}</span>
                 )}{" "}

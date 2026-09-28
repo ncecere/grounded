@@ -36,7 +36,7 @@ export function RecentChanges() {
       ) : (
         <ItemGroup className={o.queue}>
           {items.map((e) => (
-            <Item key={e.id} size="xs" className={o.row} render={<Link to="/admin/logs" search={{ record: String(e.id) } as never} />}>
+            <Item key={e.id} size="xs" className={o.row} render={<Link to="/admin/logs" search={{ record: e.id } as never} />}>
               <ItemContent>
                 <ItemTitle>
                   {actionLabel(e.action)}

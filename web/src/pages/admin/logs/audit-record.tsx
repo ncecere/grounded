@@ -1,6 +1,6 @@
 /* One audit entry in a RecordPage (A3): who, what, when, the target and a before/after diff (with model, connection and profile ids named). */
 import { useQuery } from "@tanstack/react-query";
-import type { Schemas } from "@/api/client";
+import { api, unwrap, type Schemas } from "@/api/client";
 import { actionLabel, actorName, nameIds } from "@/components/audit/labels";
 import { AuditTarget } from "@/components/audit/target";
 import { RelativeTime } from "@/components/templates/list-page";
@@ -47,9 +47,19 @@ export function auditSections(e: Entry, names: ReadonlyMap<string, string> = new
   return out;
 }
 
-type Props = { entry: Entry | undefined; open: boolean; loading: boolean; onClose: () => void };
+/** `id` is the open entry (?record=); `listed` is it from the loaded list, if there. Otherwise it's fetched by id. */
+type Props = { id: string | undefined; listed: Entry | undefined; onClose: () => void };
 
-export function AuditEntryPage({ entry, open, loading, onClose }: Props) {
+export function AuditEntryPage({ id, listed, onClose }: Props) {
+  const open = Boolean(id);
+  const fetched = useQuery({
+    queryKey: ["admin", "audit", "entry", id],
+    queryFn: async () => unwrap(await api.GET("/v1/admin/audit/{entryId}", { params: { path: { entryId: Number(id) } } })),
+    enabled: open && !listed && /^\d+$/.test(id ?? ""),
+    retry: false,
+  });
+  const entry = listed ?? fetched.data;
+  const missing = open && !entry && (fetched.isError || !/^\d+$/.test(id ?? ""));
   const names = useCatalogNames(open);
   return (
     <RecordPage
@@ -57,8 +67,8 @@ export function AuditEntryPage({ entry, open, loading, onClose }: Props) {
       onClose={onClose}
       title={entry ? actionLabel(entry.action) : "Audit entry"}
       description="One entry of the platform audit log."
-      loading={loading && !entry}
-      error={!loading && open && !entry ? new Error("This entry isn't in the loaded part of the log. Load more or change the filters.") : undefined}
+      loading={!entry && !missing}
+      error={missing ? new Error("This audit entry doesn't exist, or the link is wrong.") : undefined}
       facts={
         entry
           ? [

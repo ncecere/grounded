@@ -124,7 +124,7 @@ export function ClassificationsPage() {
         empty={{ icon: <Tags />, title: "No classification levels yet." }}
         tableProps={{ defaultSort: { columnId: "rank", direction: "ascending" } }}
       />
-      {editing && <ClassificationForm level={editing === "new" ? null : editing} onClose={form.close} />}
+      {isAdmin && editing && <ClassificationForm level={editing === "new" ? null : editing} onClose={form.close} />}
     </>
   );
 }

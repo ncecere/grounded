@@ -4,6 +4,7 @@
  * which is edited on Classifications. One save bar; a save that starts or
  * speeds up deletion asks for confirmation first.
  */
+import { adminOnly } from "@/lib/terms";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -57,7 +58,7 @@ export function RetentionSettingsTab({ saved, isAdmin }: { saved: Settings; isAd
   return (
     <SettingsPage
       dirty={changes.length > 0}
-      canEdit={isAdmin}
+      canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={save.isPending && !confirming}
       error={confirming ? undefined : save.error}
       saveLabel="Save periods"

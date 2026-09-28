@@ -5,6 +5,7 @@
  * domains and the audit log are in Team settings (D1); old ?tab= links
  * redirect there (router.tsx).
  */
+import { TextLink } from "@/components/ui/text-link/text-link";
 import { Link } from "@tanstack/react-router";
 import { Bot, Plus, Settings } from "lucide-react";
 import { roleLabels } from "../../../components/roles";
@@ -53,9 +54,7 @@ export function TeamOverviewPage() {
       {!role && (
         <Alert tone="info" title="You're viewing this team as platform staff">
           You can see its members in Team settings. Its sources, knowledge bases and keys are private to members.{" "}
-          <Link to="/admin/teams/$team" params={{ team: slug }}>
-            Manage the team in Admin
-          </Link>
+          <TextLink render={<Link to="/admin/teams/$team" params={{ team: slug }} />}>Manage the team in Admin</TextLink>
           .
         </Alert>
       )}

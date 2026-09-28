@@ -4,6 +4,8 @@
  * switch, state, recent latency and tunables (shown when on). Everything is
  * off by default; the page is only usable once a SystemOne model exists.
  */
+import { adminOnly } from "@/lib/terms";
+import { TextLink } from "@/components/ui/text-link/text-link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
@@ -54,7 +56,7 @@ export function SystemOnePage() {
                 title="No SystemOne model yet."
                 description={
                   <>
-                    Add a connection to a SystemOne service, then <Link to="/admin/models">add a model of kind SystemOne</Link>. Until then Grounded works without it.
+                    Add a connection to a SystemOne service, then <TextLink render={<Link to="/admin/models" />}>add a model of kind SystemOne</TextLink>. Until then Grounded works without it.
                   </>
                 }
               />
@@ -97,7 +99,7 @@ function SettingsEditor({ saved, models, isAdmin }: { saved: SystemOneSettings; 
   return (
     <SettingsPage
       dirty={changes > 0}
-      canEdit={isAdmin}
+      canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={save.isPending}
       error={save.error}
       saveLabel="Save settings"

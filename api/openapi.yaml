@@ -950,6 +950,29 @@ paths:
         "200": { $ref: "#/components/responses/AuditPageReply" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/audit/{entryId}:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [admin]
+      operationId: adminGetAuditEntry
+      summary: One entry of the platform-wide audit log, for a linked entry (platform admins and auditors)
+      responses:
+        "200":
+          description: The entry
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AuditEntry" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/key-rotation:
     get:
       tags: [admin]

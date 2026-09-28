@@ -62,3 +62,6 @@ export const lifecycleLabels: Record<Lifecycle, string> = {
 
 /** "1 passage", "12 passages". */
 export const passagesCount = (n: number) => `${n.toLocaleString()} ${n === 1 ? terms.passage : terms.passages}`;
+
+/** The read-only note on admin settings pages (auditors see them, only admins change them). */
+export const adminOnly = "You can view these settings. Only platform admins can change them.";

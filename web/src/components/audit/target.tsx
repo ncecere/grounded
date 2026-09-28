@@ -8,8 +8,8 @@ import { targetTypeLabel } from "./labels";
 
 type AuditEntry = Schemas["AuditEntry"];
 
-/** Whose log this is: a team's (members' pages) or the platform's (admin pages). */
-export type AuditScope = { kind: "team"; team: string } | { kind: "platform" };
+/** Where the log is shown. On a team's log, `member` is false for platform staff, who can't open the team's pages. */
+export type AuditScope = { kind: "team"; team: string; member?: boolean } | { kind: "platform" };
 
 function teamLink(team: string, e: AuditEntry): ReactElement | null {
   const id = e.targetId;
@@ -49,19 +49,21 @@ function platformLink(e: AuditEntry): ReactElement | null {
       // Only shared (platform) sources have an admin page; team sources are private to members.
       return e.teamId ? null : <Link to="/admin/shared-sources/$sourceId" params={{ sourceId: id }} />;
     case "model":
-      return <Link to="/admin/models" />;
+      return <Link to="/admin/models" search={{ record: id } as never} />;
     case "model_connection":
-      return <Link to="/admin/connections" />;
+      return <Link to="/admin/connections" search={{ record: id } as never} />;
     case "embedding_profile":
-      return <Link to="/admin/embedding-profiles" />;
+      return <Link to="/admin/embedding-profiles" search={{ record: id } as never} />;
     case "classification":
       return <Link to="/admin/classifications" />;
     case "crawl_allowlist":
     case "crawl_domain_request":
       return <Link to="/admin/crawl-domains" />;
     case "agent":
+      return <Link to="/admin/agents" search={{ record: id } as never} />;
     case "publishable_key":
-      return <Link to="/admin/agents" />;
+      // A widget key's agent.
+      return e.parent?.exists ? <Link to="/admin/agents" search={{ record: e.parent.id } as never} /> : <Link to="/admin/agents" />;
     case "platform_settings":
       return <Link to="/admin/public-access" />;
     case "systemone_settings":
@@ -71,7 +73,8 @@ function platformLink(e: AuditEntry): ReactElement | null {
     case "legal_hold":
       return <Link to="/admin/legal-holds" search={{ tab: "all", record: id } as never} />;
     case "retention":
-      return <Link to="/admin/retention" search={{ tab: "runs" }} />;
+      // A retention run.
+      return /^\d+$/.test(id) ? <Link to="/admin/retention" search={{ tab: "runs", record: Number(id) } as never} /> : <Link to="/admin/retention" search={{ tab: "runs" }} />;
     case "retention_settings":
       return <Link to="/admin/retention" />;
     case "break_glass_session":
@@ -90,7 +93,7 @@ function platformLink(e: AuditEntry): ReactElement | null {
 export function AuditTarget({ entry, scope }: { entry: AuditEntry; scope: AuditScope }) {
   const type = targetTypeLabel(entry.targetType);
   const name = entry.targetLabel;
-  const link = entry.targetExists ? (scope.kind === "team" ? teamLink(scope.team, entry) : platformLink(entry)) : null;
+  const link = entry.targetExists ? (scope.kind === "team" ? (scope.member === false ? null : teamLink(scope.team, entry)) : platformLink(entry)) : null;
   if (!name) {
     return (
       <>

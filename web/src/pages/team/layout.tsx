@@ -39,7 +39,7 @@ export function TeamLayout() {
       <EmptyState
         icon={<Lock />}
         title="Only team members can see this"
-        description={`${view.data.team.name}'s sources, knowledge bases and keys are private to its members. As platform staff you can manage the team's settings and members.`}
+        description={`${view.data.team.name}'s sources, knowledge bases and keys are private to its members. As platform staff you can ${me.capabilities.platformAdmin ? "manage" : "see"} the team's settings and members.`}
         action={
           <Button render={<Link to="/admin/teams/$team" params={{ team }} />} variant="secondary">
             Open in Admin

@@ -70,6 +70,7 @@ var adminPolicies = map[string]policy{
 
 	// Audit, key rotation, retention and legal holds.
 	"adminListAudit":          adminRead("/v1/admin/audit"),
+	"adminGetAuditEntry":      adminRead("/v1/admin/audit/1"),
 	"adminGetKeyRotation":     adminRead("/v1/admin/key-rotation"),
 	"adminGetRetention":       adminRead("/v1/admin/retention"),
 	"adminGetRetentionReport": adminRead("/v1/admin/retention/report"),

@@ -34,6 +34,28 @@ const entry = (id: number, action: string, extra: Partial<Schemas["AuditEntry"]>
 const users = { items: [{ id: "u2", email: "alex@example.edu", displayName: "Alex", platformRole: "none", status: "active", revision: 1, createdAt: "" }], nextCursor: null };
 
 describe("admin logs", () => {
+  it("opens a linked entry that isn't on the loaded page, and says when one doesn't exist", async () => {
+    mockApi({
+      ...shellRoutes("platform_auditor"),
+      "GET /v1/admin/audit": () => ({ items: [entry(500, "platform.model_update")], nextCursor: "c1" }),
+      "GET /v1/admin/audit/100": () => entry(100, "platform.model_create"),
+      "GET /v1/admin/users": () => users,
+    });
+    renderApp("/admin/logs?record=100");
+    const page = await screen.findByRole("region", { name: "Added model" }, { timeout: 4000 });
+    expect(within(page).getByText("platform.model_create")).toBeInTheDocument();
+  });
+
+  it("shows a missing linked entry as not found", async () => {
+    mockApi({
+      ...shellRoutes("platform_auditor"),
+      "GET /v1/admin/audit": () => ({ items: [], nextCursor: null }),
+      "GET /v1/admin/users": () => users,
+    });
+    renderApp("/admin/logs?record=999");
+    expect(await screen.findByText(/This audit entry doesn't exist/, undefined, { timeout: 4000 })).toBeInTheDocument();
+  });
+
   it("hides sign-ins by default, filters in the URL and opens an entry with its diff", async () => {
     const calls = mockApi({
       ...shellRoutes("platform_admin"),

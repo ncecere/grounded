@@ -60,7 +60,7 @@ function useFacets(team: string): Facet<Entry>[] {
 }
 
 export function TeamAuditLog() {
-  const { slug: team } = useTeam();
+  const { slug: team, role } = useTeam();
   const scope = { kind: "team" as const, team };
   const facets = useFacets(team);
   const filters = useListFilters(facets);
@@ -85,7 +85,7 @@ export function TeamAuditLog() {
     { id: "when", header: "When", accessor: (e) => new Date(e.occurredAt), cell: (e) => <RelativeTime value={e.occurredAt} /> },
     { id: "who", header: "Who", accessor: (e) => actorName(e.actor), cell: (e) => <CellText primary={actorName(e.actor)} secondary={who(e)} /> },
     { id: "action", header: "Action", accessor: (e) => actionLabel(e.action), rowHeader: true, cell: (e) => <span className={s.primary}>{actionLabel(e.action)}</span> },
-    { id: "target", header: "Target", accessor: (e) => e.targetLabel ?? e.targetType, cell: (e) => <AuditTarget entry={e} scope={scope} /> },
+    { id: "target", header: "Target", accessor: (e) => e.targetLabel ?? e.targetType, cell: (e) => <AuditTarget entry={e} scope={{ ...scope, member: Boolean(role) }} /> },
   ];
 
   return (
@@ -116,7 +116,7 @@ export function TeamAuditLog() {
 }
 
 function AuditEntryPage({ id, loaded, onClose }: { id?: string; loaded?: Entry; onClose: () => void }) {
-  const { slug: team } = useTeam();
+  const { slug: team, role } = useTeam();
   const entry = useQuery({
     queryKey: [...auditKey({ kind: "team", team }), "entry", id],
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/audit/{entryId}", { params: { path: { team, entryId: Number(id) } } })),
@@ -138,7 +138,7 @@ function AuditEntryPage({ id, loaded, onClose }: { id?: string; loaded?: Entry; 
               { label: "When", value: <Time value={e.occurredAt} format="datetime" /> },
               { label: "Who", value: [actorName(e.actor), who(e)].filter(Boolean).join(" · ") },
               { label: "Action", value: <code className={s.mono}>{e.action}</code> },
-              { label: "Target", value: <AuditTarget entry={e} scope={{ kind: "team", team }} /> },
+              { label: "Target", value: <AuditTarget entry={e} scope={{ kind: "team", team, member: Boolean(role) }} /> },
               { label: "Request", value: e.requestId ? <code className={s.mono}>{e.requestId}</code> : undefined },
             ]
           : []

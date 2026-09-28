@@ -3,6 +3,7 @@
  * longest session and how long a request waits (phase5-deploy.md §9
  * decision 3: by default one admin with a written reason). Audited.
  */
+import { adminOnly } from "@/lib/terms";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
@@ -47,7 +48,7 @@ export function BreakGlassSettingsForm({ saved, isAdmin }: { saved: Settings; is
     },
   });
   return (
-    <SettingsPage dirty={dirty} canEdit={isAdmin} saving={save.isPending} error={save.error} saveLabel="Save settings" onSave={() => save.mutate(form)} onDiscard={() => setForm(initial)}>
+    <SettingsPage dirty={dirty} canEdit={isAdmin} readOnlyNote={adminOnly} saving={save.isPending} error={save.error} saveLabel="Save settings" onSave={() => save.mutate(form)} onDiscard={() => setForm(initial)}>
       <SettingsSection title="Approval" description="By default one platform admin starts a session alone, with a written reason. Every session is audited and the team's owners are notified either way.">
         <Switch
           label="Require a second admin's approval"

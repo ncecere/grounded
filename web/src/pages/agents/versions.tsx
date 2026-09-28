@@ -219,7 +219,7 @@ export function VersionsTab({ agent, d }: { agent: Agent; d: AgentDraft }) {
                     <ActionMenu
                       label={`Actions for version ${v.version}`}
                       actions={[
-                        { label: "View", icon: <Eye aria-hidden />, onSelect: () => setViewing(v.version) },
+                        { label: "View details", icon: <Eye aria-hidden />, onSelect: () => setViewing(v.version) },
                         { label: "Revert draft…", icon: <RotateCcw aria-hidden />, onSelect: () => setReverting(v) },
                       ]}
                     />

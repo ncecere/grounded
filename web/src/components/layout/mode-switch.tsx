@@ -1,4 +1,5 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { useCurrentUser } from "../../session";
 import { LayoutDashboard, Shield } from "lucide-react";
 import { type ComponentPropsWithoutRef, useEffect } from "react";
 import { SidebarModeSwitch, useAppShell } from "@/components/ui/app-shell/app-shell";
@@ -81,6 +82,7 @@ export function ModeSwitch({ mode }: { mode: Mode }) {
 /** The admin portal's name under the mode switch (auditors see the shell's one "Read-only" badge). */
 export function AdminHeader() {
   const shell = useAppShell();
+  const auditor = !useCurrentUser().capabilities.platformAdmin;
   // Collapsed, the mode switch's shield already marks admin mode; keep the text for screen readers.
   return (
     <div className={shell?.collapsed ? "sr-only" : styles.adminHeader}>
@@ -88,8 +90,8 @@ export function AdminHeader() {
         <Shield />
       </span>
       <span className={styles.adminHeaderText}>
-        <span className={styles.adminHeaderName}>Platform admin</span>
-        <span className={styles.adminHeaderDescription}>All teams and settings</span>
+        <span className={styles.adminHeaderName}>{auditor ? "Platform auditor" : "Platform admin"}</span>
+        <span className={styles.adminHeaderDescription}>{auditor ? "All teams and settings, read-only" : "All teams and settings"}</span>
       </span>
     </div>
   );

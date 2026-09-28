@@ -1,5 +1,5 @@
 /* Admin → Break-glass, Sessions: open sessions (pending approvals first) and every session. */
-import { LockOpen } from "lucide-react";
+import { Eye, LockOpen } from "lucide-react";
 import { type DataTableColumn } from "@/components/ui/data-table/data-table";
 import { QueryView } from "@/components/query-view";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
@@ -88,7 +88,7 @@ export function AllSessionsList({ onOpen }: { onOpen: (id: string) => void }) {
         data={items}
         getRowId={(x) => x.id}
         rowLabel={(x) => `${x.team.name}, ${personName(x.requestedBy)}`}
-        rowActions={(x) => [{ label: "View details", onSelect: () => onOpen(x.id) }]}
+        rowActions={(x) => [{ label: "View details", icon: <Eye aria-hidden />, onSelect: () => onOpen(x.id) }]}
         onRowClick={(x) => onOpen(x.id)}
         manual
         loading={q.isLoading}

@@ -1,4 +1,5 @@
 /* One team's limit overrides (DESIGN.md §11.1), the Limits tab of the admin team page. Writes send If-Match. */
+import { adminOnly } from "@/lib/terms";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -71,7 +72,7 @@ export function AdminTeamLimitsCard({ team, teamName }: { team: string; teamName
   return (
     <SettingsPage
       dirty={changes.length > 0 || invalid}
-      canEdit={isAdmin}
+      canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={save.isPending}
       error={save.error}
       saveLabel="Save team limits"

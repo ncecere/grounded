@@ -5,7 +5,7 @@
  */
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Users } from "lucide-react";
+import { UserRound, Users } from "lucide-react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { PersonCell } from "@/components/person-cell";
 import { ListPage, timeColumn, useListFilters } from "@/components/templates/list-page";
@@ -93,7 +93,7 @@ export function AdminUsersPage() {
       loading={users.isLoading}
       error={users.error}
       onRetry={() => void users.refetch()}
-      rowActions={(u) => [{ label: "Open", render: <Link to="/admin/users/$userId" params={{ userId: u.id }} /> }]}
+      rowActions={(u) => [{ label: "Open", icon: <UserRound aria-hidden />, render: <Link to="/admin/users/$userId" params={{ userId: u.id }} /> }]}
       empty={{ icon: <Users />, title: q || role || status ? "No users match." : "No users yet." }}
       tableProps={{ facetCounts: false, loadMore: { hasMore: Boolean(users.hasNextPage), loading: users.isFetchingNextPage, onLoadMore: () => void users.fetchNextPage() } }}
     />

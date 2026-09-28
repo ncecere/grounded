@@ -68,6 +68,7 @@ export function ConnectionRecordPage({ conn, open, loading, onClose, models, isA
           ? [
               {
                 title: "Test",
+                hidden: !isAdmin,
                 content: (
                   <div className={m.sheetForm}>
                     {isAdmin && (

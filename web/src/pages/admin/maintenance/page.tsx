@@ -4,6 +4,7 @@
  * users see and an optional planned end. On the settings template; turning
  * it on asks for confirmation and says what pauses. Audited.
  */
+import { adminOnly } from "@/lib/terms";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
@@ -129,7 +130,7 @@ function MaintenanceEditor({ saved, isAdmin }: { saved: Settings; isAdmin: boole
   return (
     <SettingsPage
       dirty={dirty}
-      canEdit={isAdmin}
+      canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={save.isPending && !confirming}
       error={confirming ? undefined : save.error}
       saveLabel={turningOn ? "Turn on maintenance mode" : turningOff ? "Turn off maintenance mode" : "Save changes"}

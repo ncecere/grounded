@@ -664,6 +664,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/audit/{entryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entryId: number;
+            };
+            cookie?: never;
+        };
+        /** One entry of the platform-wide audit log, for a linked entry (platform admins and auditors) */
+        get: operations["adminGetAuditEntry"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/key-rotation": {
         parameters: {
             query?: never;
@@ -8492,6 +8511,33 @@ export interface operations {
             200: components["responses"]["AuditPageReply"];
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetAuditEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The entry */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditEntry"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
         };
     };
     adminGetKeyRotation: {

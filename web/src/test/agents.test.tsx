@@ -364,7 +364,7 @@ describe("agent editor", () => {
     const table = await screen.findByRole("table", { name: "Published versions" });
     expect(within(table).getByText("First version")).toBeInTheDocument();
     await userEvent.click(within(table).getByRole("button", { name: "Actions for version 1" }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "View" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
     expect(await screen.findByRole("dialog", { name: "Version 1" })).toHaveTextContent("Help students.");
     await userEvent.keyboard("{Escape}");
     expect(await axe(v.container)).toHaveNoViolations();

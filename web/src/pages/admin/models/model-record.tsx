@@ -94,6 +94,7 @@ export function ModelRecordPage({ model, open, loading, onClose, connectionName,
           ? [
               {
                 title: "Test",
+                hidden: !isAdmin || model.kind === "rerank",
                 content: (
                   <div className={m.testRow}>
                     {isAdmin && model.kind !== "rerank" && (
