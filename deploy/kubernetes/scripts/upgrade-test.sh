@@ -21,6 +21,8 @@
 #               OLD_REF if it can be pulled, else built from OLD_REF
 #   OLD_REF     default: the last release tag before HEAD, or HEAD^ while there
 #               is none (v0.1.0 compares the previous main commit)
+#   BASELINE_IMAGE  used when HEAD has no parent (the first public commit):
+#               the last image built from the private development history
 # Other settings: OLD_PORT (18181) and NEW_PORT (18182) on 127.0.0.1,
 # RUN_ID (names), KEEP=1 (leave everything running for a look).
 #
@@ -70,6 +72,10 @@ build() { # tag dir ref
 	docker build -q --build-arg VERSION="upgrade-$3" --build-arg COMMIT="$3" -t "$1" "$2" >/dev/null
 }
 
+if [ -z "${OLD_IMAGE:-}" ] && [ -z "${OLD_REF:-}" ] && ! git -C "$ROOT" rev-parse -q --verify HEAD^ >/dev/null; then
+	OLD_IMAGE=${BASELINE_IMAGE:-$REGISTRY_IMAGE:sha-a73588e}
+	docker pull -q "$OLD_IMAGE" >/dev/null || fail "no parent commit, and the baseline image $OLD_IMAGE can't be pulled"
+fi
 if [ -z "${OLD_IMAGE:-}" ]; then
 	if [ -z "${OLD_REF:-}" ]; then
 		OLD_REF=$(git -C "$ROOT" describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || git -C "$ROOT" rev-parse HEAD^)
