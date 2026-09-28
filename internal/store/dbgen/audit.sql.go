@@ -118,6 +118,7 @@ CROSS JOIN LATERAL (
         WHEN 'platform_limits' THEN 'Platform limits'
         WHEN 'platform_keys' THEN 'Key rotation'
         WHEN 'systemone_settings' THEN 'SystemOne settings'
+        WHEN 'parsing_settings' THEN 'Parsing settings'
         WHEN 'retention_settings' THEN 'Retention settings'
         WHEN 'retention' THEN 'Retention run'
         WHEN 'legal_hold' THEN (SELECT 'Legal hold on ' || lh.scope_type || ' ' || lh.scope_label FROM legal_holds lh WHERE lh.id = ids.target_uuid)
