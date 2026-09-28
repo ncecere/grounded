@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). Release notes will be in `docs/releases/v0.2.0.md`.
 
 ### Changed
+- `CONTRIBUTING.md` has a Dependabot triage policy: routine weekly grouped updates are merged in a batch at each milestone with CI green, and security updates are merged promptly.
 - CI: the authorization matrix (`TestAuthorizationMatrix*`, about 3,600 calls under `-race`) runs in its own `authz` job, in parallel with `test`, which skips it (`make test SKIP_AUTHZ=1`; `make test-authz` runs it alone). The image job needs both. The matrix and its break-glass pass run in parallel with each other, each on its own database.
 - `cmd/sparkbench` reads citation markers with `internal/agents` (exported `CitedNumbers`, `RemoveMarkers`, `IsRefusal`) instead of its own copy of the old pattern, so benchmark scores count markers exactly as the product does (never inside code or array indices).
 - CI: a tag build fails, before the image is scanned and signed, unless the built image reports exactly its tag (`grounded v0.2.0 (<commit>)`).

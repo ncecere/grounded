@@ -125,6 +125,18 @@ Significant decisions are recorded in [`docs/adr/`](docs/adr/README.md), which e
 
 Accepted ADRs are historical records: don't rewrite their substance. To change a decision, write a new ADR that supersedes the old one.
 
+## Dependency updates (Dependabot)
+
+Dependabot ([`.github/dependabot.yml`](.github/dependabot.yml)) opens one grouped pull request per ecosystem each week: Go modules, npm (`web/`), GitHub Actions and Docker base images. It updates the open group in place, so there is at most one per ecosystem. Security updates arrive as separate pull requests. A maintainer handles them as follows:
+
+- **CI must be green.** Every required check has to pass, the same as for any other pull request. Don't merge a red update to fix it later.
+- **Routine updates are merged in a batch at each milestone,** not one by one. Before a milestone merges to the release branch, bring each group up to date, check that CI is green and merge them together. Record anything notable in the CHANGELOG.
+- **Security updates are merged promptly,** without waiting for the milestone: within days for high or critical findings. The same applies to fixes for findings from `govulncheck` (`make lint`) or the image scan. A fix that affects a released version ships as a patch release ([`SECURITY.md`](SECURITY.md)).
+- **If one package in a group breaks the build,** fix it on the pull request if that's quick. Otherwise add an `ignore` entry for that package, with a comment and an issue, and merge the rest of the group so it doesn't hold everything up.
+- **Major versions** (and Go or Node toolchain bumps) need their changelogs read. If they change behaviour or need code changes, move them to their own pull request.
+- **Pinned actions:** Dependabot updates the commit SHA and the version comment together. Check that they still match.
+- **Before a release,** regenerate the dependency and licence tables with `make deps-inventory` ([`docs/security/dependencies.md`](docs/security/dependencies.md)).
+
 ## Commits and pull requests
 
 - Keep pull requests focused on one change. Separate refactors from behaviour changes.
