@@ -71,13 +71,51 @@ jobs:
         working-directory: web
       - name: Web type-check, unit and accessibility tests
         run: make web-test
+      # The authorization matrix runs in the authz job below.
       - name: Go tests (with coverage)
-        run: make test COVER=1
+        run: make test COVER=1 SKIP_AUTHZ=1
       - name: Coverage report
         if: always() && hashFiles('coverage.out') != ''
         run: make cover-report >> "$GITHUB_STEP_SUMMARY"
       - name: Build (UI embedded)
         run: make web build
+
+  # The authorization matrix (internal/httpapi, TestAuthorizationMatrix*):
+  # every operation in api/openapi.yaml called as every kind of caller, about
+  # 3,600 calls under -race. Its own job, in parallel with test, so test stays
+  # well under its timeout (docs/v0.2.0.md, F8). A required check, like test.
+  authz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: grounded
+          POSTGRES_PASSWORD: grounded-ci-only
+          POSTGRES_DB: grounded
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U grounded -d grounded"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      CI: "true"
+      GROUNDED_TEST_DATABASE_URL: postgres://grounded:grounded-ci-only@localhost:5432/postgres?sslmode=disable
+      GROUNDED_TEST_VALKEY_URL: redis://localhost:6379/1
+      GROUNDED_TEST_POOL_MAX_CONNS: "3" # as in test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - name: Authorization matrix
+        run: make test-authz
 
   # Browser end-to-end tests (web/e2e, Playwright, Chromium): tools/e2eserver
   # runs `grounded serve` on its own database with dev sign-in and the fake
@@ -181,10 +219,10 @@ jobs:
         run: make k8s-smoke
 
   # Multi-arch image, SBOM, provenance, scan and cosign signature, on pushes
-  # to main and v* tags once tests, end-to-end tests, manifests and the smoke
-  # test pass.
+  # to main and v* tags once tests, the authorization matrix, end-to-end
+  # tests, manifests and the smoke test pass.
   image:
-    needs: [test, e2e, k8s, k8s-smoke]
+    needs: [test, authz, e2e, k8s, k8s-smoke]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     permissions:
       contents: read

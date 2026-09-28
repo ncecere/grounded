@@ -29,6 +29,7 @@ var breakGlassReads = map[string]map[string]bool{
 var publicAgentUse = map[string]bool{"getAgentProfile": true, "chat": true, "openaiChatCompletions": true}
 
 func TestAuthorizationMatrixBreakGlass(t *testing.T) {
+	t.Parallel() // with TestAuthorizationMatrix, on its own database
 	e := newMatrixEnv(t)
 	ops := specOperations(t)
 	scopes := []string{"documents", "conversations"}

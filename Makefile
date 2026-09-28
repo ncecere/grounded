@@ -22,7 +22,7 @@ KIND        := $(K8S_TOOLS)/kind-$(KIND_VERSION)/kind
 PROMETHEUS_VERSION ?= 3.15.0
 PROMTOOL := $(CURDIR)/bin/obs-tools/prometheus-$(PROMETHEUS_VERSION)/promtool
 
-.PHONY: help deps-up deps-down mail-up demo generate check-generated web web-test e2e web-dev fake-proxy widget-demo build run migrate test test-unit lint fmt docker k8s-validate k8s-smoke k8s-load k8s-restore-rehearsal vendor-k8s cover-report upgrade-test deps-inventory obs-validate obs-generate
+.PHONY: help deps-up deps-down mail-up demo generate check-generated web web-test e2e web-dev fake-proxy widget-demo build run migrate test test-authz test-unit lint fmt docker k8s-validate k8s-smoke k8s-load k8s-restore-rehearsal vendor-k8s cover-report upgrade-test deps-inventory obs-validate obs-generate
 
 help: ## Show targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-16s %s\n", $$1, $$2}'
@@ -76,8 +76,16 @@ run: build ## Run api + worker locally using .env
 migrate: build ## Apply migrations using .env
 	set -a && . ./.env && set +a && ./bin/grounded migrate
 
-test: ## All tests, including integration tests (needs `make deps-up`); COVER=1 writes coverage.out
-	$(GO) test -race -count=1 -timeout 25m $(if $(COVER),-covermode=atomic -coverpkg=./internal/... -coverprofile=coverage.out) ./...
+# The authorization matrix (internal/httpapi, TestAuthorizationMatrix*): about
+# 3,600 calls, minutes under -race on a small runner. CI runs it in its own
+# job (`authz`, `make test-authz`) and the `test` job skips it (SKIP_AUTHZ=1).
+AUTHZ_TESTS := ^TestAuthorizationMatrix
+
+test: ## All tests, including integration tests (needs `make deps-up`); COVER=1 writes coverage.out; SKIP_AUTHZ=1 leaves out the authorization matrix
+	$(GO) test -race -count=1 -timeout 25m $(if $(SKIP_AUTHZ),-skip '$(AUTHZ_TESTS)') $(if $(COVER),-covermode=atomic -coverpkg=./internal/... -coverprofile=coverage.out) ./...
+
+test-authz: ## The authorization matrix alone (CI job `authz`; needs `make deps-up`)
+	$(GO) test -race -count=1 -timeout 25m -run '$(AUTHZ_TESTS)' ./internal/httpapi/
 
 deps-inventory: ## Regenerate the dependency and license tables in docs/security/dependencies.md
 	$(GO) mod download

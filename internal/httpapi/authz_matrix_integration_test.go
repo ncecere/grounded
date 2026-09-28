@@ -361,7 +361,11 @@ func runsFor(s scope) []run {
 	}
 }
 
+// The matrix tests run in their own CI job (the "authz" job in
+// .github/workflows/ci.yml; `make test-authz`), in parallel with each
+// other: each has its own database, Valkey prefix and server.
 func TestAuthorizationMatrix(t *testing.T) {
+	t.Parallel()
 	ops := specOperations(t)
 	if missing := unclassified(ops); len(missing) > 0 {
 		t.Fatalf("unclassified operations (add them to matrixPolicies): %v", missing)

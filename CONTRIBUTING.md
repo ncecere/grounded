@@ -36,6 +36,7 @@ Never commit `.env`, `ai.env` (credentials for a real model gateway) or anything
 | Command | What it runs |
 |---|---|
 | `make test` | All Go tests with `-race`, including integration tests against the compose Postgres and Valkey. **Run `make deps-up` first.** |
+| `make test-authz` | The authorization matrix alone (`TestAuthorizationMatrix*` in `internal/httpapi`): every API operation as every kind of caller. `make test SKIP_AUTHZ=1` runs everything else. |
 | `make test-unit` | Go tests that need no infrastructure (integration tests skip) |
 | `make web-test` | UI type-check and vitest tests, including axe accessibility checks on every page |
 
@@ -44,7 +45,7 @@ Never commit `.env`, `ai.env` (credentials for a real model gateway) or anything
 - Tests against a real model gateway are opt-in (`GROUNDED_LIVE_LLM=1`) and never required. Use the fake gateway (`cmd/fakeproxy`, `testutil.FakeProxy`) instead.
 - Add or update tests with every behaviour change. Bug fixes come with a test that fails without the fix.
 
-CI runs, in order: `make check-generated`, `make lint`, `npm run check:styling` (in `web/`), `make web-test`, `make test` and `make web build`. Run the same before opening a pull request.
+CI's `test` job runs, in order: `make check-generated`, `make lint`, `npm run check:styling` (in `web/`), `make web-test`, `make test SKIP_AUTHZ=1` and `make web build`; the `authz` job runs `make test-authz` alongside it. Run the same (or plain `make test`, which includes the matrix) before opening a pull request. The required checks on `main` are `test`, `authz`, `e2e`, `k8s` and `k8s-smoke`.
 
 ## Code style
 
