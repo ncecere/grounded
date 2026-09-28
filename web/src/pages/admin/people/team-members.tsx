@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlus, UserRound } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
+import { ssoGroup } from "@/components/member-list";
 import { PersonCell } from "@/components/person-cell";
 import { roleLabels } from "@/components/roles";
 import { ListPage } from "@/components/templates/list-page";
@@ -19,6 +20,7 @@ import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Dialog, DialogClose } from "@/components/ui/dialog/dialog";
 import { Field, Form } from "@/components/ui/field/field";
 import { toast } from "@/components/ui/toast/toast";
+import { managedBySso } from "@/lib/terms";
 import { useDebounced } from "../hooks";
 
 type Member = Schemas["Member"];
@@ -36,7 +38,16 @@ const columns: DataTableColumn<Member>[] = [
       </PersonCell>
     ),
   },
-  { id: "role", header: "Role", accessor: (m) => roleLabels[m.role], sortable: true, cell: (m) => <Badge tone={m.role === "owner" ? "info" : "neutral"}>{roleLabels[m.role]}</Badge> },
+  {
+    id: "role",
+    header: "Role",
+    accessor: (m) => roleLabels[m.role],
+    sortable: true,
+    cell: (m) => {
+      const group = ssoGroup(m);
+      return <CellText primary={<Badge tone={m.role === "owner" ? "info" : "neutral"}>{roleLabels[m.role]}</Badge>} secondary={group !== undefined ? managedBySso(group) : undefined} />;
+    },
+  },
 ];
 
 export function TeamMembersTab({ team, isAdmin }: { team: string; isAdmin: boolean }) {
@@ -48,7 +59,7 @@ export function TeamMembersTab({ team, isAdmin }: { team: string; isAdmin: boole
   return (
     <Card
       title="Members"
-      description="Owners manage their team's members. Platform admins can only assign owners."
+      description="Owners manage their team's members. Platform admins assign owners, and map SSO groups to roles in the Group mapping tab."
       actions={
         isAdmin && (
           <Button size="sm" variant="secondary" onClick={() => setAssigning(true)}>

@@ -62,6 +62,7 @@ const pages = {
   breakGlass: () => import("./pages/admin/break-glass/page"),
   profileMigrations: () => import("./pages/admin/profile-migrations/page"),
   systemone: () => import("./pages/admin/systemone/page"),
+  groupMapping: () => import("./pages/admin/group-mapping/page"),
   publicPages: () => import("./pages/public/routes"),
 };
 const lazy = lazyRouteComponent;
@@ -293,6 +294,7 @@ const appTree = appRoute.addChildren([
       admin("users/$userId", lazy(pages.people, "AdminUserPage")),
       admin("teams", lazy(pages.people, "AdminTeamsPage")),
       adminTabs("teams/$team", adminTeamTabs, lazy(pages.people, "AdminTeamPage")),
+      admin("group-mapping", lazy(pages.groupMapping, "GroupMappingPage")),
       admin("classifications", lazy(pages.policy, "ClassificationsPage")),
       admin("connections", lazy(pages.models, "ConnectionsPage")),
       admin("models", lazy(pages.models, "ModelsPage")),

@@ -1,4 +1,4 @@
-import { Archive, BarChart3, Bot, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Plug, Scale, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench } from "lucide-react";
+import { Archive, BarChart3, Bot, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench } from "lucide-react";
 import { type ReactNode } from "react";
 import { terms } from "../../lib/terms";
 import { type Me } from "../../session";
@@ -9,6 +9,7 @@ export type AdminPath =
   | "/admin"
   | "/admin/users"
   | "/admin/teams"
+  | "/admin/group-mapping"
   | "/admin/classifications"
   | "/admin/connections"
   | "/admin/models"
@@ -38,6 +39,7 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
     items: [
       { to: "/admin/users", label: "Users", icon: icon(Users) },
       { to: "/admin/teams", label: "Teams", icon: icon(UsersRound) },
+      { to: "/admin/group-mapping", label: terms.groupMapping, icon: icon(Network) },
     ],
   },
   {
@@ -85,6 +87,7 @@ export const adminNav = adminSections.flatMap((section) => section.items);
 /** Extra command-palette search words for admin pages. */
 export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
   "/admin": ["overview", "dashboard", "attention", "home"],
+  "/admin/group-mapping": ["sso", "groups", "identity provider", "idp", "oidc", "membership rules", "access"],
   "/admin/crawl-domains": ["allowlist", "domain requests", "web", "crawling"],
   "/admin/limits": ["quota", "usage", "rate limit", "storage", "defaults", "ceilings"],
   "/admin/agents": ["kill switch", "disable", "chat", "assistant"],

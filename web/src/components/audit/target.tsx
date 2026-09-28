@@ -83,6 +83,8 @@ function platformLink(e: AuditEntry): ReactElement | null {
       return <Link to="/admin/break-glass" search={{ tab: "settings" }} />;
     case "platform_limits":
       return <Link to="/admin/limits" />;
+    case "sso_group_rule":
+      return <Link to="/admin/group-mapping" />;
     case "moderation_policy":
       return <Link to="/admin/moderation" search={{ tab: id === "team" ? undefined : (id as "public" | "all_authenticated") }} />;
     default:

@@ -34,7 +34,12 @@ export const terms = {
   dangerZone: "Danger zone",
   readOnly: "Read-only",
   systemOneModel: "SystemOne model",
+  /** Admin → Group mapping: IdP group → team role rules (SSO). */
+  groupMapping: "Group mapping",
 } as const;
+
+/** On a member whose membership an SSO group mapping rule manages. */
+export const managedBySso = (group: string) => `Managed by SSO group ${group}`;
 
 type Audience = Schemas["Audience"];
 

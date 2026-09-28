@@ -3,6 +3,8 @@
  * person's role (a select when the viewer may change it), and Leave / Remove
  * in the row's "…" menu (D5). The only owner gets no role select, with the
  * reason shown. A search box appears once the team has more than 20 members.
+ * Members an SSO group mapping rule manages say so, and can't be changed or
+ * removed by hand: the next sign-in would undo it.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LogOut, UserMinus, Users } from "lucide-react";
@@ -21,8 +23,20 @@ import { type DataTableColumn, DataTable } from "@/components/ui/data-table/data
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { NativeSelect } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
+import { managedBySso } from "@/lib/terms";
 
 type Member = Schemas["Member"];
+
+/** The group of the rule managing this membership, or undefined when it's hand-managed. */
+export function ssoGroup(m: Member) {
+  return m.managedBy?.ruleId ? (m.managedBy.group ?? "") : undefined;
+}
+
+/** Why a managed member can't be changed or removed by hand. */
+export const ssoBlockedReason = (m: Member, isMe: boolean) =>
+  isMe
+    ? `${managedBySso(ssoGroup(m) ?? "")}: you'd be added again at your next sign-in. Ask to be removed from the group in your identity provider.`
+    : `${managedBySso(ssoGroup(m) ?? "")}: they'd be added again at their next sign-in. A platform admin can change the group mapping rule.`;
 
 /** Past this many members the list gets a search box. */
 export const MEMBER_SEARCH_AT = 20;
@@ -67,11 +81,13 @@ export function MemberList({ team, myRole, myUserId }: { team: string; myRole?: 
 
   const roleCell = (m: Member) => {
     const soleOwner = m.role === "owner" && owners <= 1;
-    if (soleOwner || !canManage(myRole, m.role)) {
+    const group = ssoGroup(m);
+    if (soleOwner || group !== undefined || !canManage(myRole, m.role)) {
       return (
         <span>
           <Badge tone={m.role === "owner" ? "info" : "neutral"}>{roleLabels[m.role]}</Badge>
-          {soleOwner && canManage(myRole, m.role) && <span className={s.secondary}>The only owner. Make someone else an owner to change this.</span>}
+          {group !== undefined && <span className={s.secondary}>{managedBySso(group)}</span>}
+          {group === undefined && soleOwner && canManage(myRole, m.role) && <span className={s.secondary}>The only owner. Make someone else an owner to change this.</span>}
         </span>
       );
     }
@@ -145,12 +161,22 @@ export function MemberList({ team, myRole, myUserId }: { team: string; myRole?: 
         empty={<EmptyState size="compact" icon={<Users />} title="No members yet." />}
         rowActions={(m) => {
           const isMe = m.user.id === myUserId;
+          const managed = ssoGroup(m) !== undefined;
+          const leaveReason = managed ? ssoBlockedReason(m, true) : leaveBlocked;
           return (
             <ActionMenu
               label={`Actions for ${m.user.displayName || m.user.email}`}
               actions={[
-                { label: "Leave team", icon: <LogOut aria-hidden />, danger: true, hidden: !isMe || !myRole, disabled: Boolean(leaveBlocked), disabledReason: leaveBlocked, onSelect: () => setRemoving(m) },
-                { label: "Remove from team…", icon: <UserMinus aria-hidden />, danger: true, hidden: isMe || !canManage(myRole, m.role), onSelect: () => setRemoving(m) },
+                { label: "Leave team", icon: <LogOut aria-hidden />, danger: true, hidden: !isMe || !myRole, disabled: Boolean(leaveReason), disabledReason: leaveReason, onSelect: () => setRemoving(m) },
+                {
+                  label: "Remove from team…",
+                  icon: <UserMinus aria-hidden />,
+                  danger: true,
+                  hidden: isMe || !canManage(myRole, m.role),
+                  disabled: managed,
+                  disabledReason: managed ? ssoBlockedReason(m, false) : undefined,
+                  onSelect: () => setRemoving(m),
+                },
               ]}
             />
           );

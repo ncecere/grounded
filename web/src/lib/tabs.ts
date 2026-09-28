@@ -13,7 +13,7 @@ export const sourceTabs = ["overview", "documents", "crawls", "used-by", "settin
 export type SourceTab = (typeof sourceTabs)[number];
 /** Knowledge base detail (D3, W4). */
 export const kbTabs = ["overview", "sources", "try", "settings"] as const;
-export const adminTeamTabs = ["overview", "members", "limits", "settings"] as const;
+export const adminTeamTabs = ["overview", "members", "group-mapping", "limits", "settings"] as const;
 export const limitTabs = ["resources", "ingestion", "queries", "public"] as const;
 export const notificationTabs = ["all", "unread"] as const;
 export const moderationTabs = ["team", "all_authenticated", "public", "providers"] as const;

@@ -1,11 +1,11 @@
 /*
  * Admin → Teams › one team (A4, D3): a DetailPage with Overview · Members ·
- * Limits · Settings. Archive is a menu action and a Danger zone entry (Q12),
+ * Group mapping (the team's SSO group rules, E1) · Limits · Settings. Archive is a menu action and a Danger zone entry (Q12),
  * never a solid red header button.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
-import { Archive, ArchiveRestore, Bot, Gauge, LayoutDashboard, Settings2, UsersRound } from "lucide-react";
+import { Archive, ArchiveRestore, Bot, Gauge, LayoutDashboard, Network, Settings2, UsersRound } from "lucide-react";
 import { useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
 import { adminTeamQuery } from "@/api/queries";
@@ -18,6 +18,7 @@ import { adminTeamTabs } from "@/lib/tabs";
 import { PageSkeleton } from "../../team/layout";
 import { ClassificationBadge, useClassificationLevels } from "../../team/common";
 import { useIsPlatformAdmin } from "../hooks";
+import { RuleList } from "../group-mapping/rules";
 import { AdminTeamLimitsCard } from "../limits/team-card";
 import { TeamStatusBadge } from "./common";
 import { TeamMembersTab } from "./team-members";
@@ -73,6 +74,18 @@ export function AdminTeamPage() {
         tabs={[
           { value: "overview", label: "Overview", icon: <LayoutDashboard aria-hidden />, content: <TeamOverviewTab summary={sum} /> },
           { value: "members", label: "Members", icon: <UsersRound aria-hidden />, count: sum.memberCount, content: <TeamMembersTab team={team} isAdmin={isAdmin} /> },
+          {
+            value: "group-mapping",
+            label: "Group mapping",
+            icon: <Network aria-hidden />,
+            content: (
+              <RuleList
+                team={{ slug: t.slug, name: t.name }}
+                isAdmin={isAdmin && !archived}
+                description="People in these identity-provider groups get a role in this team when they sign in. Members added by hand are never changed."
+              />
+            ),
+          },
           { value: "limits", label: "Limits", icon: <Gauge aria-hidden />, content: <AdminTeamLimitsCard team={team} teamName={t.name} /> },
           {
             value: "settings",

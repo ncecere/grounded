@@ -68,10 +68,17 @@ export function AuditLog({ scope, filters = {}, pageSize = 50, single, caption =
   );
 }
 
+/** A change made by an SSO group mapping rule: "SSO group registrar-staff". */
+function ssoRuleActor(entry: AuditEntry) {
+  const m = entry.metadata as Record<string, unknown>;
+  if (entry.actor.kind !== "system" || m.via !== "sso_group_rule") return undefined;
+  return typeof m.group === "string" ? `SSO group ${m.group}` : "SSO group mapping";
+}
+
 function Who({ entry }: { entry: AuditEntry }) {
   const { actor } = entry;
   const name = actorName(actor);
-  const secondary = actor.kind === "api_key" ? `API key${actor.apiKeyName ? `: ${actor.apiKeyName}` : ""}` : actor.kind === "user" && actor.displayName ? actor.email : undefined;
+  const secondary = actor.kind === "api_key" ? `API key${actor.apiKeyName ? `: ${actor.apiKeyName}` : ""}` : actor.kind === "user" && actor.displayName ? actor.email : ssoRuleActor(entry);
   return (
     <>
       <span className={actor.kind === "system" ? s.muted : s.primary}>{name}</span>
