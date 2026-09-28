@@ -5,9 +5,11 @@
 #   grounded-<tag>-<os>-<arch>.sbom.spdx.json  the image's SPDX SBOM, per platform
 #                                              (from its BuildKit attestations)
 #   grounded-<tag>.digest.txt                  the image reference by digest
+#   grounded-ocr-<tag>.digest.txt              the OCR sidecar's reference (OCR_DIGEST)
 #   checksums.txt                              SHA-256 of the files above
 # Run by the `release` job in .github/workflows/ci.yml (needs GH_TOKEN, TAG,
-# DIGEST, and read access to the image). Tags with a hyphen (v0.1.0-rc.1)
+# DIGEST, and read access to the image; OCR_DIGEST is the grounded-ocr
+# image's digest, optional). Tags with a hyphen (v0.1.0-rc.1)
 # become pre-releases. Any failure (no SBOM, a malformed digest, a failed
 # upload) stops the script with a message saying what went wrong.
 set -euo pipefail
@@ -57,7 +59,17 @@ done <<<"$platforms"
 
 echo "$ref" >"${assets}/grounded-${TAG}.digest.txt"
 
-(cd "$assets" && sha256sum -- "${sbom_files[@]}" "grounded-${TAG}.digest.txt" >checksums.txt)
+# The OCR sidecar (docs/ocr.md §3), released with the same tag.
+ocr_files=()
+ocr_ref=""
+if [ -n "${OCR_DIGEST:-}" ]; then
+  [[ "$OCR_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "OCR_DIGEST is not a sha256 digest: '${OCR_DIGEST}'"
+  ocr_ref="ghcr.io/ncecere/grounded-ocr@${OCR_DIGEST}"
+  echo "$ocr_ref" >"${assets}/grounded-ocr-${TAG}.digest.txt"
+  ocr_files+=("grounded-ocr-${TAG}.digest.txt")
+fi
+
+(cd "$assets" && sha256sum -- "${sbom_files[@]}" "grounded-${TAG}.digest.txt" "${ocr_files[@]}" >checksums.txt)
 
 # ---- notes -------------------------------------------------------------------
 
@@ -82,6 +94,15 @@ notes="${work}/notes.md"
   echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
   echo '```'
   echo
+  if [ -n "$ocr_ref" ]; then
+    echo "The OCR sidecar (optional, \`components/ocr-tesseract\`), signed the same way:"
+    echo
+    echo '```'
+    echo "ghcr.io/ncecere/grounded-ocr:${TAG}"
+    echo "$ocr_ref"
+    echo '```'
+    echo
+  fi
   echo "## Release assets"
   echo
   echo "- \`grounded-${TAG}-<os>-<arch>.sbom.spdx.json\`: the image's SBOM (SPDX JSON) for each platform, as attached to the image."
@@ -107,6 +128,6 @@ if gh release view "$TAG" >/dev/null 2>&1; then
 else
   gh release create "$TAG" "${flags[@]}" || fail "could not create the release ${TAG}"
 fi
-(cd "$assets" && gh release upload "$TAG" --clobber "${sbom_files[@]}" "grounded-${TAG}.digest.txt" checksums.txt) || fail "could not upload the release assets"
+(cd "$assets" && gh release upload "$TAG" --clobber "${sbom_files[@]}" "grounded-${TAG}.digest.txt" "${ocr_files[@]}" checksums.txt) || fail "could not upload the release assets"
 echo "release ${TAG}: ${ref}"
 ls -l "$assets"

@@ -184,6 +184,23 @@ jobs:
             !web/e2e-output/.auth/
           retention-days: 14
 
+  # The OCR sidecar (cmd/grounded-ocr, docs/ocr.md §3) against the real
+  # tesseract program: the test job runs its tests with a fake one, and
+  # this job adds the one that needs Tesseract installed.
+  ocr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Install Tesseract
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+      - name: Sidecar tests (with Tesseract)
+        run: go test -race -count=1 -v -run 'TestRealTesseract|TestServer' ./cmd/grounded-ocr/
+
   # Kubernetes manifests: kustomize build of every overlay and component
   # set, validated with kubeconform -strict (deploy/kubernetes/scripts);
   # then the dashboards and alert rules (promtool, deploy/observability).
@@ -218,11 +235,12 @@ jobs:
       - name: Smoke test on kind
         run: make k8s-smoke
 
-  # Multi-arch image, SBOM, provenance, scan and cosign signature, on pushes
-  # to main and v* tags once tests, the authorization matrix, end-to-end
-  # tests, manifests and the smoke test pass.
+  # Multi-arch images (grounded and grounded-ocr), SBOM, provenance, scan and
+  # cosign signature, on pushes to main and v* tags once tests, the
+  # authorization matrix, end-to-end tests, the OCR sidecar's tests,
+  # manifests and the smoke test pass.
   image:
-    needs: [test, authz, e2e, k8s, k8s-smoke]
+    needs: [test, authz, e2e, ocr, k8s, k8s-smoke]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     permissions:
       contents: read
@@ -278,4 +296,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
           DIGEST: ${{ needs.image.outputs.digest }}
+          OCR_DIGEST: ${{ needs.image.outputs.ocr-digest }}
         run: deploy/release/github-release.sh

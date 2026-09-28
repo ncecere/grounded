@@ -1,0 +1,54 @@
+# syntax=docker/dockerfile:1
+#
+# grounded-ocr: Grounded's Tesseract sidecar (docs/ocr.md §3,
+# docs/operations/ocr.md). A small Go server (cmd/grounded-ocr, no CGO)
+# that runs the tesseract program from Debian's packages. Multi-arch: the
+# binary is cross-compiled on the build platform; the runtime stage installs
+# Tesseract 5 for the target.
+#
+# More languages: derive an image, e.g.
+#   FROM ghcr.io/ncecere/grounded-ocr:v0.2.0
+#   USER root
+#   RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr-ell && rm -rf /var/lib/apt/lists/*
+#   USER 65532:65532
+
+FROM --platform=$BUILDPLATFORM golang:1.26 AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+COPY cmd/grounded-ocr ./cmd/grounded-ocr
+COPY internal/buildinfo ./internal/buildinfo
+ARG TARGETOS
+ARG TARGETARCH
+ARG VERSION=dev
+ARG COMMIT=unknown
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath \
+    -ldflags "-s -w -X github.com/ncecere/grounded/internal/buildinfo.Version=${VERSION} -X github.com/ncecere/grounded/internal/buildinfo.Commit=${COMMIT}" \
+    -o /out/grounded-ocr ./cmd/grounded-ocr
+
+FROM debian:bookworm-slim
+ARG VERSION=dev
+ARG COMMIT=unknown
+LABEL org.opencontainers.image.title="grounded-ocr" \
+      org.opencontainers.image.description="Grounded's OCR sidecar: Tesseract behind a small HTTP API" \
+      org.opencontainers.image.source="https://github.com/ncecere/grounded" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${COMMIT}"
+# Tesseract 5 and common languages (Latin, Cyrillic, Arabic, Devanagari and
+# CJK scripts). osd is orientation detection.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      tesseract-ocr tesseract-ocr-osd tesseract-ocr-eng tesseract-ocr-spa tesseract-ocr-fra tesseract-ocr-deu \
+      tesseract-ocr-ita tesseract-ocr-por tesseract-ocr-nld tesseract-ocr-pol tesseract-ocr-rus tesseract-ocr-ukr \
+      tesseract-ocr-ara tesseract-ocr-hin tesseract-ocr-chi-sim tesseract-ocr-chi-tra tesseract-ocr-jpn \
+      tesseract-ocr-kor tesseract-ocr-vie \
+ && rm -rf /var/lib/apt/lists/*
+COPY --from=build /out/grounded-ocr /usr/local/bin/grounded-ocr
+# Runs as a non-root user with a read-only root filesystem; only /tmp is
+# written (one directory per request, removed afterwards).
+USER 65532:65532
+ENV OCR_ADDR=:8080
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/grounded-ocr"]
