@@ -2,8 +2,10 @@
  * Team settings › Usage & limits (W10, DESIGN §11.1): what the team uses
  * against its limits, in the admin Limits page's four groups (Team resources
  * · Ingestion · Queries & chat · Public agents). Usage meters are sorted by
- * share used and warn at 80 % (critical at 100 %); limits without a usage
- * figure (rates per minute, per-person caps) sit in a disclosure. Public-agent
+ * share used and warn at 80 % (critical at 100 %). Query rates per minute
+ * show this minute's count: the team's, and the busiest API key's and
+ * person's (G5). Limits without a usage figure (the public per-address and
+ * per-visitor rates, per-person caps) sit in a disclosure. Public-agent
  * limits only show when the team has a public agent. Read-only: platform
  * admins set limits.
  */
@@ -27,10 +29,16 @@ type TeamLimit = Schemas["TeamLimit"];
 
 const running = (it: TeamLimit) => it.key.startsWith("concurrent_");
 
+/** Per-minute rates "for each" key or person: the figure is the busiest one's. */
+const busiest: Partial<Record<TeamLimit["key"], string>> = {
+  api_key_queries_per_minute: "This minute, the busiest API key",
+  user_queries_per_minute: "This minute, the busiest person",
+};
+
 /** When the figure applies: "Today (UTC)", "Running now", "This minute". */
-function periodNote(it: TeamLimit) {
+export function periodNote(it: TeamLimit) {
   if (it.period === "day") return "Today; resets at midnight UTC";
-  if (it.period === "minute") return "This minute";
+  if (it.period === "minute") return busiest[it.key] ?? "This minute";
   return running(it) ? "Running now" : undefined;
 }
 
@@ -125,7 +133,7 @@ export function UsageCard({ team }: { team: string }) {
             })}
           </div>
           {staticLimits.length > 0 && (
-            <Disclosure title="Rate limits and per-person caps" summary="Limits without a running total, such as queries per minute.">
+            <Disclosure title="Rate limits and per-person caps" summary="Limits without a running total, such as public questions per minute from one address.">
               <div className={u.groups}>
                 {staticLimits.map((g) => (
                   <section key={g.key} aria-label={`${g.label}: rate limits`} className={u.group}>

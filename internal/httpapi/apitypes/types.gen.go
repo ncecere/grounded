@@ -7004,7 +7004,7 @@ type TeamLimit struct {
 	Period LimitPeriod `json:"period"`
 	Unit   LimitUnit   `json:"unit"`
 
-	// Used Current usage: totals, today's (UTC) count, running now, or this minute for the team query rate; null when not measured
+	// Used Current usage: totals, today's (UTC) count, running now, or this minute for the per-minute query rates (the team's; for each API key and each person, the busiest one's); null when not measured (the public per-address and per-visitor rates)
 	Used *int64 `json:"used"`
 }
 

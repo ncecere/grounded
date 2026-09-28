@@ -318,6 +318,22 @@ describe("team usage card", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("shows this minute's count for every per-minute query rate, the busiest key's and person's too (G5)", async () => {
+    const key = { key: "api_key_queries_per_minute", group: "queries", unit: "count", period: "minute", label: "Queries per minute (each API key)", description: "", max: 300, used: 12, overridden: false };
+    const items = usage().items.map((it) => (it.key === "user_queries_per_minute" ? { ...it, used: 40 } : it));
+    mockApi({ "GET /v1/teams/registrar/limits": () => ({ items: [...items, key] }), "GET /v1/teams/registrar/agents": () => [] });
+    const { container } = renderWith(<UsageCard team="registrar" />, { teamRole: "owner" });
+    const queries = await screen.findByRole("region", { name: "Queries & chat" });
+    const meters = within(queries).getAllByRole("meter");
+    expect(meters.map((m) => m.getAttribute("aria-valuetext"))).toEqual(["40 of 120", "12 of 300", "3 of 600"]);
+    expect(within(queries).getByText("This minute, the busiest person")).toBeInTheDocument();
+    expect(within(queries).getByText("This minute, the busiest API key")).toBeInTheDocument();
+    expect(within(queries).getByText("This minute")).toBeInTheDocument();
+    // Nothing left without a figure: no disclosure.
+    expect(screen.queryByRole("button", { name: /Rate limits and per-person caps/ })).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("shows the public caps only when the team has a public agent", async () => {
     const pub = { key: "public_queries_per_agent_per_day", group: "public", unit: "count", period: "day", label: "Public queries per agent per day", description: "", max: 100, used: 90, overridden: false };
     mockApi({

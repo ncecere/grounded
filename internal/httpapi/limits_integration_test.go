@@ -168,8 +168,8 @@ func TestLimitsAdministration(t *testing.T) {
 	if it := teamLimit(t, user, "registrar", "knowledge_bases"); it.Max == nil || *it.Max != 0 || it.Used == nil || *it.Used != 0 {
 		t.Errorf("kb limit = %+v", it)
 	}
-	if it := teamLimit(t, user, "registrar", "user_queries_per_minute"); it.Used != nil {
-		t.Errorf("per-person rate usage = %+v", it)
+	if it := teamLimit(t, user, "registrar", "public_queries_per_ip_per_minute"); it.Used != nil {
+		t.Errorf("per-address rate usage = %+v", it)
 	}
 	outsider := app.signIn("alex")
 	if code, _ := outsider.call("GET", "/v1/teams/registrar/limits", nil, nil, nil); code != 404 {
@@ -351,6 +351,13 @@ func TestQueryLimits(t *testing.T) {
 	code, raw, _ = rawWithHeaders(t, member, "POST", retrieve, query)
 	if le := decodeLimitError(t, raw); code != 429 || le.Error.Details.Limit != "user_queries_per_minute" {
 		t.Fatalf("person query 2 = %d %s", code, raw)
+	}
+	// Usage & limits shows this minute's count of the busiest key and person
+	// (each counted its refused query too).
+	for _, k := range []string{"api_key_queries_per_minute", "user_queries_per_minute"} {
+		if it := teamLimit(t, owner, env.team, k); it.Used == nil || *it.Used != 2 {
+			t.Errorf("%s used = %+v", k, it.Used)
+		}
 	}
 
 	// Per day, from the usage ledger (4 queries so far today).

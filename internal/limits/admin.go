@@ -344,11 +344,8 @@ func (s *Service) TeamUsage(ctx context.Context, a authz.Actor, teamRef string) 
 		}
 		used[c.key] = n
 	}
-	if s.limiter != nil {
-		// Best effort: the team's queries in the current minute.
-		if n, err := s.limiter.Peek(ctx, "q:team:"+teamID.String(), time.Minute); err == nil {
-			used[QueriesPerMinute] = int64(n)
-		}
+	for k, n := range s.minuteUsage(ctx, teamID) {
+		used[k] = n
 	}
 	out := TeamUsage{Team: acc.Team}
 	for _, d := range registry {
@@ -360,4 +357,38 @@ func (s *Service) TeamUsage(ctx context.Context, a authz.Actor, teamRef string) 
 		out.Items = append(out.Items, item)
 	}
 	return out, nil
+}
+
+// minuteUsage is best effort: the per-minute query counts this minute (the
+// counters CheckQuery keeps) for the team, and for its busiest API key and
+// busiest member. A figure is left out when Valkey or the lookup fails. The
+// public per-address and per-visitor rates are keyed by visitor, so they
+// have no team figure.
+func (s *Service) minuteUsage(ctx context.Context, teamID uuid.UUID) map[Key]int64 {
+	out := map[Key]int64{}
+	if s.limiter == nil {
+		return out
+	}
+	if n, err := s.limiter.Peek(ctx, "q:team:"+teamID.String(), time.Minute); err == nil {
+		out[QueriesPerMinute] = int64(n)
+	}
+	if keys, err := s.q.ListTeamAPIKeys(ctx, dbgen.ListTeamAPIKeysParams{TeamID: teamID}); err == nil {
+		counters := make([]string, len(keys))
+		for i, k := range keys {
+			counters[i] = "q:key:" + k.APIKey.ID.String()
+		}
+		if n, err := s.limiter.PeekMax(ctx, counters, time.Minute); err == nil {
+			out[APIKeyQueriesPerMinute] = int64(n)
+		}
+	}
+	if members, err := s.q.ListMembers(ctx, teamID); err == nil {
+		counters := make([]string, len(members))
+		for i, m := range members {
+			counters[i] = "q:user:" + teamID.String() + ":" + m.User.ID.String()
+		}
+		if n, err := s.limiter.PeekMax(ctx, counters, time.Minute); err == nil {
+			out[UserQueriesPerMinute] = int64(n)
+		}
+	}
+	return out
 }
