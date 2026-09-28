@@ -521,7 +521,7 @@ const getEvaluationSettings = `-- name: GetEvaluationSettings :one
 SELECT singleton, enabled, revision, updated_by, updated_at FROM evaluation_settings
 `
 
-// Evaluation sets, questions, runs and results (migrations/00032_evaluations.sql,
+// Evaluation sets, questions, runs and results (migrations/00034_evaluations.sql,
 // docs/evaluations.md).
 // ---- the platform switch ------------------------------------------------------
 func (q *Queries) GetEvaluationSettings(ctx context.Context) (EvaluationSetting, error) {
