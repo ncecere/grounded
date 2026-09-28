@@ -189,7 +189,7 @@ describe("team pages under break-glass", () => {
     const routes = { ...shellRoutes("platform_admin"), "GET /v1/me": () => admin, "GET /v1/teams/registrar": () => ({ team }), "GET /v1/teams/registrar/sources": () => [] };
     mockApi({ ...routes, "GET /v1/me/break-glass": () => [session({ scopes: ["conversations"] })] });
     const locked = renderApp("/teams/registrar/sources");
-    expect(await screen.findByText("Only team members can see this")).toBeInTheDocument();
+    expect(await screen.findByText("Only team members can see this.")).toBeInTheDocument();
     locked.unmount();
 
     vi.unstubAllGlobals();

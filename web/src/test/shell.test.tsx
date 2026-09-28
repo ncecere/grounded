@@ -191,7 +191,8 @@ describe("app shell", () => {
       "GET /v1/teams/registrar": () => ({ team }),
     });
     const { container } = renderApp("/teams/registrar/sources");
-    expect(await screen.findByText("Only team members can see this")).toBeInTheDocument();
+    expect(await screen.findByText("Only team members can see this.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(team.name);
     expect(screen.getByRole("link", { name: "Open in Admin" })).toHaveAttribute("href", "/admin/teams/registrar");
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getByRole("link", { name: "Overview" })).toBeInTheDocument();

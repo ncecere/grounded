@@ -50,6 +50,11 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are 
 - Record pages show absolute dates: a document's Added and Updated, an admin audit entry's When, and an API key's Created, Last used and Revoked (G13).
 - Group mapping: a duplicate rule is said once, under the group ("This team already has a rule for that group. Change that rule instead."), instead of also as a failed dry run; the dry run's column is "Groups last seen"; deleting a rule that made no memberships says it removes nobody, and otherwise says plainly who is removed and who keeps a role. Auditors see a read-only notice, and the runbook says they run the dry run through the API.
 - Admin → Limits (every tab) shows the read-only notice to auditors, and its Evaluations tab calls the on/off switch "Evaluations feature" so it isn't confused with the limits below it. Admin → Parsing's intro says whether OCR is on, its Test is left out for auditors (who can't run it) and says what to press before the first run, and its "Admin → Limits" link opens the Ingestion tab.
+- On a phone, the admin top bar fits for auditors: the "Read-only" badge shows only its dot there (the word stays for screen readers), so the search button stays on screen.
+- The page platform staff see for a team's private content has a heading (the team's name) and its message ends with a period.
+- The document title no longer reads "… · Team · …" while a team loads.
+- The only owner of a team whose other members are all managed by SSO group mapping is told to add someone as an owner or ask a platform admin, instead of to make someone else an owner (which isn't possible for them).
+- Team settings → Usage & limits keeps its meters in the same order on every team (the limits' order) instead of sorting them by share used.
 
 ## [0.1.0] - 2026-09-28
 

@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { axe } from "vitest-axe";
 import { AddMemberDialog, MemberList } from "../components/members";
+import { soleOwnerHint } from "../components/member-list";
 import { canManage } from "../components/roles";
 import { SignInPage } from "../session";
 
@@ -59,6 +60,13 @@ describe("member management rules", () => {
     const maxRole = screen.getByRole("combobox", { name: "Role for Max Member" });
     expect([...(maxRole as HTMLSelectElement).options].map((o) => o.value)).toEqual(["admin", "editor", "member"]);
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("tells the only owner to ask a platform admin when everyone else is managed by SSO", () => {
+    const owner = member("o1", "Olive Owner", "owner") as Parameters<typeof soleOwnerHint>[1];
+    const managed = { ...member("c1", "Casey", "editor"), managedBy: { ruleId: "r1", group: "advising-staff" } } as Parameters<typeof soleOwnerHint>[1];
+    expect(soleOwnerHint([owner, managed], owner)).toMatch(/managed by SSO group mapping, so add someone as an owner, or ask a platform admin\.$/);
+    expect(soleOwnerHint([owner, managed, member("m1", "Max", "member") as typeof owner], owner)).toBe("The only owner. Make someone else an owner to change this.");
   });
 
   it("puts Leave and Remove in the row menu, and gives the only owner no role select (W6)", async () => {

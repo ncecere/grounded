@@ -5,7 +5,10 @@ import { NotFoundState, isNotFound } from "../../components/not-found";
 import type { ReactNode } from "react";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
+import { Card } from "@/components/ui/card/card";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
+import { Stack } from "@/components/ui/layout/layout";
+import { PageHeader } from "@/components/ui/page-header/page-header";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton/skeleton";
 import s from "../shared.module.css";
 import { liveGrant, useMyBreakGlass } from "../../lib/break-glass";
@@ -37,16 +40,21 @@ export function TeamLayout() {
   // which is private to members. Say so instead of showing a load error.
   if (!view.data.role && !staffPage && !breakGlassPage) {
     return (
-      <EmptyState
-        icon={<Lock />}
-        title="Only team members can see this"
-        description={`${view.data.team.name}'s sources, knowledge bases and keys are private to its members. As platform staff you can ${me.capabilities.platformAdmin ? "manage" : "see"} the team's settings and members.`}
-        action={
-          <Button render={<Link to="/admin/teams/$team" params={{ team }} />} variant="secondary">
-            Open in Admin
-          </Button>
-        }
-      />
+      <Stack gap={6} className={s.page}>
+        <PageHeader title={view.data.team.name} />
+        <Card>
+          <EmptyState
+            icon={<Lock />}
+            title="Only team members can see this."
+            description={`${view.data.team.name}'s sources, knowledge bases and keys are private to its members. As platform staff you can ${me.capabilities.platformAdmin ? "manage" : "see"} the team's settings and members.`}
+            action={
+              <Button render={<Link to="/admin/teams/$team" params={{ team }} />} variant="secondary">
+                Open in Admin
+              </Button>
+            }
+          />
+        </Card>
+      </Stack>
     );
   }
 
