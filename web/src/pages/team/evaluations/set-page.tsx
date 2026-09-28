@@ -9,7 +9,6 @@ import { Link, useParams } from "@tanstack/react-router";
 import { Download, History, ListChecks, Play, Settings2 } from "lucide-react";
 import { useState } from "react";
 import { NotFoundState, isNotFound } from "@/components/not-found";
-import { useUrlTab } from "@/components/page-tabs";
 import { DetailPage } from "@/components/templates/detail-page";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
@@ -47,7 +46,6 @@ function TargetLink({ set }: { set: EvalSet }) {
 
 function SetPage({ set }: { set: EvalSet }) {
   const { slug, archived } = useTeam();
-  const [, setTab] = useUrlTab(evaluationSetTabs);
   const [running, setRunning] = useState(false);
   const last = set.lastRun;
   return (
@@ -82,7 +80,7 @@ function SetPage({ set }: { set: EvalSet }) {
           { value: "settings", label: "Settings", icon: <Settings2 aria-hidden />, hidden: archived, content: <SetSettings set={set} /> },
         ]}
       />
-      {running && <RunDialog set={set} onClose={() => setRunning(false)} onStarted={() => setTab("runs")} />}
+      {running && <RunDialog set={set} onClose={() => setRunning(false)} />}
     </>
   );
 }

@@ -6,7 +6,6 @@ package evals
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"unicode/utf8"
 
@@ -295,12 +294,4 @@ func mergeMeta(a, b map[string]any) map[string]any {
 		a[k] = v
 	}
 	return a
-}
-
-// plural is "1 question" or "3 questions".
-func plural(n int, noun string) string {
-	if n == 1 {
-		return fmt.Sprintf("1 %s", noun)
-	}
-	return fmt.Sprintf("%d %ss", n, noun)
 }

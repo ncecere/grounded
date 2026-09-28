@@ -8,7 +8,7 @@ import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { ApiErrorAlert } from "@/components/errors";
 import { FormDialog } from "@/components/form-dialog";
-import { useRecordParam } from "@/components/templates/record-page";
+import { useNavigate } from "@tanstack/react-router";
 import { Alert } from "@/components/ui/alert/alert";
 import { Field } from "@/components/ui/field/field";
 import { NativeSelect } from "@/components/ui/input/input";
@@ -23,10 +23,11 @@ type Version = "draft" | "published";
 /** "About 40 answers": what a full-answer check asks the agent. */
 export const answerEstimate = (questions: number) => `About ${questions.toLocaleString()} ${questions === 1 ? "answer" : "answers"} from the agent, counted as chat usage.`;
 
-export function RunDialog({ set, onClose, onStarted }: { set: EvalSet; onClose: () => void; onStarted: () => void }) {
+/** Starts a run, then shows it: the Runs tab with the run's record page (one history entry). */
+export function RunDialog({ set, onClose }: { set: EvalSet; onClose: () => void }) {
   const { slug } = useTeam();
   const qc = useQueryClient();
-  const record = useRecordParam();
+  const navigate = useNavigate();
   const agentSet = set.target.type === "agent";
   const [kind, setKind] = useState<Kind>("retrieval");
   const [version, setVersion] = useState<Version>("draft");
@@ -44,8 +45,7 @@ export function RunDialog({ set, onClose, onStarted }: { set: EvalSet; onClose: 
       void qc.invalidateQueries({ queryKey: evalSetsKey(slug) });
       toast.success(kind === "answer" ? "Full-answer check started" : "Retrieval check started");
       onClose();
-      onStarted();
-      record.open(run.id);
+      void navigate({ to: ".", search: ((prev: Record<string, unknown>) => ({ ...prev, tab: "runs", record: run.id, compare: undefined })) as never });
     },
   });
   return (
