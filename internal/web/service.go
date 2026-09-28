@@ -447,6 +447,6 @@ func (s *Service) notifyDecision(ctx context.Context, q *dbgen.Queries, tx pgx.T
 	if err != nil {
 		return err
 	}
-	ev := notify.DomainRequestDecidedEvent(notify.TeamRef{ID: t.ID, Slug: t.Slug, Name: t.Name}, r.RequestedBy.UUID, r.Pattern, decision, r.ReviewNote)
+	ev := notify.DomainRequestDecidedEvent(notify.TeamRef{ID: t.ID, Slug: t.Slug, Name: t.Name}, r.RequestedBy.UUID, r.ID, r.Pattern, decision, r.ReviewNote)
 	return s.Notify.Emit(ctx, tx, ev.By(a.UserID))
 }

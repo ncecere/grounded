@@ -365,9 +365,12 @@ describe("agent editor", () => {
     expect(within(table).getByText("First version")).toBeInTheDocument();
     await userEvent.click(within(table).getByRole("button", { name: "Actions for version 1" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
-    expect(await screen.findByRole("dialog", { name: "Version 1" })).toHaveTextContent("Help students.");
-    await userEvent.keyboard("{Escape}");
+    const page = await screen.findByRole("region", { name: "Version 1" });
+    expect(page).toHaveTextContent("Help students.");
+    expect(v.router.state.location.search).toMatchObject({ record: 1 });
     expect(await axe(v.container)).toHaveNoViolations();
+    await userEvent.click(within(page).getByRole("link", { name: /^Back/ }));
+    expect(await screen.findByRole("table", { name: "Published versions" })).toBeInTheDocument();
     v.unmount();
 
     const a = renderApp("/teams/registrar/agents/ag1?tab=analytics");

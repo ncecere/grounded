@@ -2,8 +2,9 @@
  * FormPage (D4, revised 2026-09-28): a long create or edit form (a source, a
  * model connection, a model, a classification level) opens as a page of its
  * own over its list. Short forms stay in dialogs. The open form is ?form=<value>
- * (useFormParam), so reloading keeps it open and Back closes it. Cancel, the
- * back link and the breadcrumb ask "Leave without saving?" after an edit (m7).
+ * (useFormParam), so reloading keeps it open and Back closes it. After an
+ * edit, leaving any way (Cancel, the back link, the breadcrumb, browser Back,
+ * the sidebar, a link) asks "Leave without saving?" first (m7).
  *
  *   const form = useFormParam();
  *   <Button onClick={() => form.open("new")}>New connection</Button>
@@ -12,7 +13,7 @@
  *
  * Mount it while the form is open; `onClose` after a successful save.
  */
-import { type ReactNode, type Ref, useId } from "react";
+import { type ReactNode, type Ref, useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button/button";
 import { Card, CardBody } from "@/components/ui/card/card";
 import { type DescriptionEntry, DescriptionList } from "@/components/ui/description-list/description-list";
@@ -21,6 +22,7 @@ import { SkeletonText } from "@/components/ui/skeleton/skeleton";
 import { useCloseGuard, useEditTracker } from "./close-guard";
 import { useRecordParam } from "./record-page";
 import { TakeoverPage } from "./takeover";
+import { useUnsavedChangesGuard } from "./unsaved-guard";
 import styles from "./templates.module.css";
 
 /** The open form's value (?form=): `open(value)` adds a history entry, `close()` goes back. */
@@ -68,7 +70,18 @@ export function FormPage({
 }: FormPageProps) {
   const formId = useId();
   const edits = useEditTracker();
-  const guard = useCloseGuard((dirty ?? edits.edited) && !busy, onClose);
+  const unsaved = (dirty ?? edits.edited) && !busy;
+  // Closing on purpose (Cancel, the back link, after "Discard changes") turns
+  // the navigation guard off first, so it doesn't ask a second time.
+  const [leaves, setLeaves] = useState(0);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    if (leaves > 0) onCloseRef.current();
+  }, [leaves]);
+  const guard = useCloseGuard(unsaved, () => setLeaves((n) => n + 1));
+  // Anything else that leaves (browser Back, the sidebar, a link) asks too.
+  const navGuard = useUnsavedChangesGuard(unsaved && leaves === 0, { samePath: true });
   return (
     <TakeoverPage param="form" initialFocus="field" label={label} title={title} description={description} onBack={guard.requestClose}>
       {facts && facts.length > 0 && (
@@ -111,6 +124,7 @@ export function FormPage({
         </Button>
       </div>
       {guard.dialog}
+      {navGuard}
     </TakeoverPage>
   );
 }

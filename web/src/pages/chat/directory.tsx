@@ -94,11 +94,15 @@ const groups: { key: Group; title: string; description: string }[] = [
   { key: "public", title: audienceLabels.public, description: "Agents anyone can use, including visitors who aren't signed in." },
 ];
 
+const audienceOf: Record<Exclude<Group, "team">, Card["audience"]> = { organisation: "all_authenticated", public: "public" };
+
 function DirectoryGroups({ q, team, show }: { q: string; team: string; show?: Group }) {
   const agents = useQuery(agentDirectoryQuery({ q, team }));
   if (agents.isLoading) return loadingTiles;
   if (agents.error) return <ErrorAlert error={agents.error} title="Couldn't load agents" />;
-  const list = (agents.data ?? []).filter((a) => !show || (a.group ?? "team") === show);
+  // "Your teams" is the section; Signed-in users and Public match each agent's
+  // audience (its badge), so a team's own public agent counts as public too.
+  const list = (agents.data ?? []).filter((a) => !show || (show === "team" ? (a.group ?? "team") === "team" : a.audience === audienceOf[show]));
   if (list.length === 0)
     return (
       <EmptyState

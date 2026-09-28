@@ -32,7 +32,6 @@ export function TeamSettingsTab({ team, isAdmin, onArchive, status }: Props) {
       onDiscard={() => setForm(saved)}
       saveDisabled={Boolean(nameError)}
       message={nameError ? "Not saved: fix the highlighted field" : undefined}
-      guard={{ samePath: true }}
     >
       <SettingsSection title="General">
         <Field label="Name" error={nameError}>

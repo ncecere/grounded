@@ -55,7 +55,7 @@ Words come from `src/lib/terms.ts` (D8): "Passages", not chunks; "Signed-in user
 ```
 
 - There is one form and **one** sticky save bar per page. Don't add Save buttons to sections.
-- The unsaved-changes guard is built in. Leaving the page (a link, the sidebar or Back) asks "Leave without saving?", and closing the tab gets the browser prompt. Switching `?tab=` on the same page isn't blocked; pass `guard={{ samePath: true }}` when each tab holds its own form.
+- The unsaved-changes guard is built in. Leaving the page (a link, the sidebar or Back) asks "Leave without saving?", and closing the tab gets the browser prompt. Switching the page's tabs (`?tab=`) asks too, since the settings are one form (pass `guard={{ samePath: false }}` for a form that spans tabs).
 - Danger-zone actions aren't part of the save: each one opens its own confirmation (`AlertDialog` / `ConfirmMutationDialog`). Use `disabledReason` when an action can't run, for example "You're the only owner".
 - Field errors need text, not only a red border (F-05). Pass `error="…"` to `Field` and keep `invalid` in sync.
 

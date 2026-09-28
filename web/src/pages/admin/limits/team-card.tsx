@@ -83,7 +83,6 @@ export function AdminTeamLimitsCard({ team, teamName }: { team: string; teamName
         if (!invalid && changes.length > 0) save.mutate();
       }}
       onDiscard={discard}
-      guard={{ samePath: true }}
     >
       <p className={l.intro}>
         Inherit uses the platform default; Blocked sets 0. A team's value can't exceed the ceiling. Defaults and ceilings are on the{" "}

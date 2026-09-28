@@ -71,7 +71,6 @@ export function PolicyEditor({ policy, providers, isAdmin }: { policy: Policy; p
       message={invalid ? `Not saved: ${Object.values(problems)[0]}` : changes === 1 ? "1 unsaved change" : `${changes} unsaved changes`}
       onSave={onSave}
       onDiscard={() => setForm(policyForm(policy))}
-      guard={{ samePath: true }}
     >
       <p className={md.summary}>{policySummary(form, providers)}</p>
       {isPublic && !policy.modelId && (

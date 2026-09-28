@@ -116,7 +116,7 @@ func TestRecipientsPerEvent(t *testing.T) {
 
 func TestEventConstructors(t *testing.T) {
 	team := TeamRef{ID: uuid.New(), Slug: "registrar", Name: "Office of the Registrar"}
-	src, crawl, inv := uuid.New(), uuid.New(), uuid.New()
+	src, crawl, inv, reqID := uuid.New(), uuid.New(), uuid.New(), uuid.New()
 	now := time.Date(2026, 9, 26, 23, 0, 0, 0, time.UTC)
 	cases := []struct {
 		ev    Event
@@ -127,7 +127,7 @@ func TestEventConstructors(t *testing.T) {
 		{InviteExpiringEvent(team, inv, "new@example.edu", "member", now), "/", "invite_expiring:" + inv.String() + ":26 September 2026"},
 		{MemberAddedEvent(team, uuid.New(), "admin"), "/teams/registrar", ""},
 		{RoleChangedEvent(team, uuid.New(), "member", "owner"), "/teams/registrar", ""},
-		{DomainRequestDecidedEvent(team, uuid.New(), "*.example.edu", "approve", "ok"), "/teams/registrar/domains", ""},
+		{DomainRequestDecidedEvent(team, uuid.New(), reqID, "*.example.edu", "approve", "ok"), "/teams/registrar/settings?tab=crawl-domains&record=" + reqID.String(), ""},
 		{SyncFailedEvent(team, src, "Catalog", crawl, "boom"), "/teams/registrar/sources/" + src.String(), "sync_failed:" + crawl.String()},
 		{ClassificationLoweredEvent(team, src, "Catalog", "Sensitive", "Open", "now public"), "/teams/registrar/sources/" + src.String(), ""},
 		{AgentDisabledEvent(team, src, "Helper", "abuse"), "/teams/registrar/agents/" + src.String(), ""},
@@ -143,7 +143,7 @@ func TestEventConstructors(t *testing.T) {
 			t.Errorf("%s: link %q dedupe %q, want %q %q", c.ev.Type, c.ev.Link, c.ev.DedupeKey, c.link, c.dedup)
 		}
 	}
-	d := DomainRequestDecidedEvent(team, uuid.New(), "*.example.edu", "deny", "Use the catalog instead.")
+	d := DomainRequestDecidedEvent(team, uuid.New(), uuid.New(), "*.example.edu", "deny", "Use the catalog instead.")
 	if d.Title != "Domain request denied: *.example.edu" || !strings.Contains(d.Body, "Note from the reviewer: Use the catalog instead.") {
 		t.Errorf("decided = %q / %q", d.Title, d.Body)
 	}

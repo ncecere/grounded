@@ -8,8 +8,8 @@ import { Field } from "@/components/ui/field/field";
 import { NativeSelect } from "@/components/ui/input/input";
 import { Loading } from "@/components/ui/spinner/spinner";
 import s from "../shared.module.css";
-import { agentKey, useTeam } from "../team/common";
-import { type Agent, type AgentConfig, type AgentVersion, configInput } from "./common";
+import { agentKey, useKBs, useTeam } from "../team/common";
+import { type Agent, type AgentConfig, type AgentVersion, configInput, useChatModels } from "./common";
 import { useSearchParams } from "@/lib/url-search";
 import vs from "./versions.module.css";
 
@@ -18,10 +18,20 @@ type Side = "draft" | number;
 
 const parseSide = (v: string | null, fallback: Side): Side => (v === "draft" ? "draft" : v && /^\d+$/.test(v) ? Number(v) : fallback);
 
-/** The settings compared as JSON: the config without the instructions (shown as text) and with nothing unset. */
-function settings(c: AgentConfig) {
+/**
+ * The settings compared as JSON: the config without the instructions (shown
+ * as text), with nothing unset, and knowledge bases and the chat model by
+ * name rather than id.
+ */
+function settings(c: AgentConfig, names: ReadonlyMap<string, string>) {
   const { instructions: _i, ...rest } = configInput(c);
-  return JSON.parse(JSON.stringify(rest)) as unknown;
+  const named = {
+    ...rest,
+    chatModelId: undefined,
+    chatModel: rest.chatModelId ? (names.get(rest.chatModelId) ?? rest.chatModelId) : undefined,
+    kbs: (rest.kbs ?? []).map((k) => ({ knowledgeBase: names.get(k.kbId) ?? k.kbId, topK: k.topK })),
+  };
+  return JSON.parse(JSON.stringify(named)) as unknown;
 }
 
 function useSide(agent: Agent, side: Side) {
@@ -37,6 +47,10 @@ function useSide(agent: Agent, side: Side) {
 
 export function CompareVersions({ agent, draft, versions }: { agent: Agent; draft: AgentConfig; versions: AgentVersion[] }) {
   const [params, setParams] = useSearchParams();
+  const { slug } = useTeam();
+  const kbs = useKBs(slug);
+  const models = useChatModels();
+  const names = new Map<string, string>([...(kbs.data ?? []).map((k) => [k.id, k.name] as const), ...(models.data ?? []).map((m) => [m.id, m.displayName] as const)]);
   const latest = versions[0]?.version;
   const from = parseSide(params.get("from"), latest ?? "draft");
   const to = parseSide(params.get("to"), "draft");
@@ -83,14 +97,24 @@ export function CompareVersions({ agent, draft, versions }: { agent: Agent; draf
           <ErrorAlert error={a.error ?? b.error} />
         ) : before && after ? (
           <>
-            <DiffViewer
-              label={`Instructions: ${name(from)} and ${name(to)}`}
-              before={before.instructions}
-              after={after.instructions}
-              labels={{ before: `Instructions in ${name(from)}`, after: `Instructions in ${name(to)}` }}
-              maxHeight="20rem"
-            />
-            <DiffViewer label={`Settings: ${name(from)} and ${name(to)}`} format="json" before={settings(before)} after={settings(after)} maxHeight="20rem" showModeToggle={false} />
+            <section className={vs.compareGroup} aria-labelledby="compare-instructions">
+              <h3 id="compare-instructions" className={vs.compareTitle}>
+                Instructions
+              </h3>
+              <DiffViewer
+                label={`Instructions: ${name(from)} and ${name(to)}`}
+                before={before.instructions}
+                after={after.instructions}
+                labels={{ before: `Instructions in ${name(from)}`, after: `Instructions in ${name(to)}` }}
+                maxHeight="20rem"
+              />
+            </section>
+            <section className={vs.compareGroup} aria-labelledby="compare-settings">
+              <h3 id="compare-settings" className={vs.compareTitle}>
+                Settings
+              </h3>
+              <DiffViewer label={`Settings: ${name(from)} and ${name(to)}`} format="json" before={settings(before, names)} after={settings(after, names)} maxHeight="20rem" showModeToggle={false} />
+            </section>
           </>
         ) : null}
       </div>

@@ -82,7 +82,12 @@ describe("directory", () => {
       "GET /v1/agents": (_b, c) =>
         c.search.get("q") === "zzz"
           ? []
-          : [card("a1", "Registrar assistant", "team", "team"), card("a2", "Library helper", "organisation", "all_authenticated"), card("a3", "Campus map", "public", "public")],
+          : [
+              card("a1", "Registrar assistant", "team", "team"),
+              card("a2", "Library helper", "organisation", "all_authenticated"),
+              card("a3", "Campus map", "public", "public"),
+              card("a4", "Parking help", "team", "public"),
+            ],
     });
     const { container, router } = renderApp("/agents");
     const org = await screen.findByRole("region", { name: /Shared with signed-in users/ });
@@ -90,12 +95,15 @@ describe("directory", () => {
     expect(within(org).getByText("Signed-in users")).toBeInTheDocument();
     const mine = screen.getByRole("region", { name: /From your teams/ });
     expect(mine).toHaveTextContent("Registrar assistant");
-    expect(within(mine).getByRole("heading")).toHaveTextContent("From your teams · 1 agent");
+    expect(within(mine).getByRole("heading")).toHaveTextContent("From your teams · 2 agents");
     expect(screen.getByRole("region", { name: /Public/ })).toHaveTextContent("Campus map");
     expect(await axe(container)).toHaveNoViolations();
 
     await userEvent.click(screen.getByRole("button", { name: "Public" }));
-    await waitFor(() => expect(screen.queryByRole("region", { name: /From your teams/ })).toBeNull());
+    // Public matches the audience: the team's own public agent is listed too, not its team-only one.
+    await waitFor(() => expect(screen.queryByText("Registrar assistant")).toBeNull());
+    expect(screen.getByRole("region", { name: /From your teams/ })).toHaveTextContent("Parking help");
+    expect(screen.getByRole("region", { name: /^Public/ })).toHaveTextContent("Campus map");
     expect(router.state.location.search).toMatchObject({ show: "public" });
     await userEvent.click(screen.getByRole("button", { name: "All" }));
 

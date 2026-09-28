@@ -40,7 +40,7 @@ export function useAttention(): AttentionRow[] {
       title: `${plural(src.documents.failed, "document")} failed in ${src.name}`,
       description: "They aren't searchable. Open the documents to see why, then fix or remove them.",
       tone: "danger",
-      link: <Link to="/teams/$team/sources/$sourceId" params={{ team, sourceId: src.id }} search={{ tab: "documents" }} />,
+      link: <Link to="/teams/$team/sources/$sourceId" params={{ team, sourceId: src.id }} search={{ tab: "documents", status: "failed" } as { tab: "documents" }} />,
     });
   }
   const pending = (requests.data ?? []).filter((r) => r.status === "pending");

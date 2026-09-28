@@ -700,7 +700,8 @@ export function DataTable<T>({
   const showCursorNav = Boolean(cursor && (cursor.hasPrevious || cursor.hasNext));
   const summaryText = [
     selectable && `${selectedCount} of ${manual ? total : data.length} selected`,
-    pageSize && `Rows ${firstRow}–${lastRow} of ${total}`,
+    // No "Rows 0–0 of 0" under an empty state.
+    pageSize && total > 0 && `Rows ${firstRow}–${lastRow} of ${total}`,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -857,7 +858,7 @@ export function DataTable<T>({
           </Button>
         </div>
       )}
-      {(selectable || Boolean(pageSize) || cursor) && (
+      {(summaryText || (cursor && (cursor.label || showCursorNav)) || (pageSize !== undefined && pageCount > 1)) && (
         <div ref={footerRef} className={styles.footer}>
           <p className={styles.summary}>
             {summaryText}

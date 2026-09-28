@@ -1,4 +1,5 @@
 /* The Versions tab: published versions, publishing with a note, viewing a version's configuration and reverting the draft to it. */
+import { RecordPage, useRecordParam } from "@/components/templates/record-page";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, History, RotateCcw, Upload } from "lucide-react";
 import { useId, useState } from "react";
@@ -129,16 +130,32 @@ export function PublishDialog({ agent, d, onClose, onProblem }: { agent: Agent; 
   );
 }
 
-function ViewVersion({ agentId, version, onClose }: { agentId: string; version: number; onClose: () => void }) {
+/** A published version as a record page (?record=<version>): its configuration, and Revert. */
+function VersionPage({ agentId, version, onClose, onRevert }: { agentId: string; version: number; onClose: () => void; onRevert: (v: AgentVersion) => void }) {
   const { slug } = useTeam();
   const v = useQuery({
     queryKey: [...versionsKey(slug, agentId), version],
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/agents/{agentId}/versions/{version}", { params: { path: { team: slug, agentId, version } } })),
+    enabled: Number.isInteger(version) && version > 0,
   });
+  const invalid = !Number.isInteger(version) || version <= 0;
   return (
-    <Dialog open size="lg" onOpenChange={(o) => !o && onClose()} title={`Version ${version}`} description={v.data ? `Published ${formatDate(v.data.publishedAt)} by ${v.data.publishedByName || "someone"}.` : undefined} footer={<DialogClose>Close</DialogClose>}>
-      {v.isLoading ? <Loading /> : v.error ? <ErrorAlert error={v.error} /> : v.data && <ConfigSummary config={v.data.config} kbs={v.data.knowledgeBases} modelName={v.data.chatModelName} />}
-    </Dialog>
+    <RecordPage
+      open
+      onClose={onClose}
+      title={`Version ${version}`}
+      description={v.data ? `Published ${formatDate(v.data.publishedAt)} by ${v.data.publishedByName || "someone"}.` : "A published version of this agent."}
+      loading={v.isLoading}
+      error={invalid ? new Error("This version doesn't exist, or the link is wrong.") : v.error}
+      actions={
+        v.data && (
+          <Button variant="secondary" onClick={() => onRevert(v.data!)}>
+            <RotateCcw aria-hidden /> Revert draft…
+          </Button>
+        )
+      }
+      sections={v.data ? [{ title: "Configuration", content: <ConfigSummary config={v.data.config} kbs={v.data.knowledgeBases} modelName={v.data.chatModelName} /> }] : []}
+    />
   );
 }
 
@@ -149,7 +166,8 @@ export function VersionsTab({ agent, d }: { agent: Agent; d: AgentDraft }) {
     queryKey: versionsKey(slug, agent.id),
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/agents/{agentId}/versions", { params: { path: { team: slug, agentId: agent.id } } })),
   });
-  const [viewing, setViewing] = useState<number | null>(null);
+  const record = useRecordParam();
+  const viewing = record.id === undefined ? null : Number(record.id);
   const [reverting, setReverting] = useState<AgentVersion | null>(null);
   const revert = useMutation({
     mutationFn: async (version: number) =>
@@ -219,7 +237,7 @@ export function VersionsTab({ agent, d }: { agent: Agent; d: AgentDraft }) {
                     <ActionMenu
                       label={`Actions for version ${v.version}`}
                       actions={[
-                        { label: "View details", icon: <Eye aria-hidden />, onSelect: () => setViewing(v.version) },
+                        { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(String(v.version)) },
                         { label: "Revert draft…", icon: <RotateCcw aria-hidden />, onSelect: () => setReverting(v) },
                       ]}
                     />
@@ -229,7 +247,7 @@ export function VersionsTab({ agent, d }: { agent: Agent; d: AgentDraft }) {
             ))}
           </Table>
         )}
-        {viewing !== null && <ViewVersion agentId={agent.id} version={viewing} onClose={() => setViewing(null)} />}
+        {viewing !== null && <VersionPage agentId={agent.id} version={viewing} onClose={record.close} onRevert={setReverting} />}
         <AlertDialog
           open={reverting !== null}
           onOpenChange={(o) => {

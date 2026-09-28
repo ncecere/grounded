@@ -1,7 +1,7 @@
 /* ListPage row click (m2), the "Leave without saving?" guard of form pages and dialogs (m7), and plain numeric ids in the address. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, useState } from "react";
 import { axe } from "vitest-axe";
@@ -113,6 +113,19 @@ describe("form pages and dialogs ask before discarding edits", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Discard changes" }));
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("FormPage asks before any other navigation once edited (browser Back, links)", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const { router } = renderAt(() => <KeyForm onClose={onClose} />, "/?form=new");
+    await user.type(await screen.findByRole("textbox", { name: "Name" }), "Main site");
+    act(() => void router.navigate({ to: "/", search: {} as never }));
+    const ask = await screen.findByRole("alertdialog", { name: "Leave without saving?" });
+    await user.click(within(ask).getByRole("button", { name: "Keep editing" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(router.state.location.searchStr).toBe("?form=new");
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Main site");
   });
 
   it("FormPage submits only its own form, and tracks edits by itself", async () => {

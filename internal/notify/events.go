@@ -78,7 +78,7 @@ var decisionWords = map[string]string{"approve": "approved", "deny": "denied", "
 
 // DomainRequestDecidedEvent: a platform admin decided a team's crawl domain
 // request; it reaches the person who asked.
-func DomainRequestDecidedEvent(t TeamRef, requester uuid.UUID, pattern, decision, note string) Event {
+func DomainRequestDecidedEvent(t TeamRef, requester, requestID uuid.UUID, pattern, decision, note string) Event {
 	word := decisionWords[decision]
 	if word == "" {
 		word = decision
@@ -88,9 +88,10 @@ func DomainRequestDecidedEvent(t TeamRef, requester uuid.UUID, pattern, decision
 		body += "\n\nNote from the reviewer: " + note
 	}
 	return Event{
-		Type: DomainRequestDecided, TeamID: t.ID, Users: []uuid.UUID{requester}, Link: t.path("/domains"),
+		// The request's page in Team settings → Crawl domains.
+		Type: DomainRequestDecided, TeamID: t.ID, Users: []uuid.UUID{requester}, Link: t.path("/settings?tab=crawl-domains&record=" + requestID.String()),
 		Title: fmt.Sprintf("Domain request %s: %s", word, pattern), Body: body,
-		Data: map[string]any{"team": t.Slug, "pattern": pattern, "decision": decision},
+		Data: map[string]any{"team": t.Slug, "pattern": pattern, "decision": decision, "requestId": requestID},
 	}
 }
 

@@ -64,7 +64,8 @@ export function SettingsPage({
   className,
 }: SettingsPageProps) {
   const open = canEdit && dirty;
-  const dialog = useUnsavedChangesGuard(open, guard);
+  // A settings page is one form: switching its page's tabs (?tab=) leaves it too.
+  const dialog = useUnsavedChangesGuard(open, { samePath: true, ...guard });
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (open && !saving && !saveDisabled) onSave();

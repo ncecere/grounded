@@ -140,7 +140,7 @@
     "data-table": {
       "files": {
         "src/components/ui/data-table/data-table.module.css": "c1057aebda36fa931606adb1f7f8c0b8d1d0cbd20891b72dcc7e397f74a7bf0c",
-        "src/components/ui/data-table/data-table.tsx": "25b5fe5e3491d2e0f87c1c6349cb0825e6ceb46a5815329be57db4b4fa79e94b"
+        "src/components/ui/data-table/data-table.tsx": "e20dcb2bcb058e53eedae93863fe59e3cbb71f793f3d99a115c108d1a7be2622"
       }
     },
     "date-picker": {

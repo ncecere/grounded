@@ -131,7 +131,7 @@ describe("team overview", () => {
       expect.stringContaining("Documents: 85 % used"),
       expect.stringContaining("Old helper was turned off by a platform admin"),
     ]);
-    expect(links[0]).toHaveAttribute("href", "/teams/registrar/sources/s1?tab=documents");
+    expect(links[0]).toHaveAttribute("href", "/teams/registrar/sources/s1?tab=documents&status=failed");
     expect(links[1]).toHaveAttribute("href", "/teams/registrar/settings?tab=crawl-domains");
     expect(links[2]).toHaveAttribute("href", "/teams/registrar/settings?tab=usage");
     expect(await axe(container)).toHaveNoViolations();
