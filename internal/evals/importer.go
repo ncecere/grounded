@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -40,15 +41,18 @@ type CaseInput struct {
 	Note        string
 }
 
-// Normalize checks a question: 1-4000 characters, expected documents, at
+// Normalize checks a question: 1-4,000 characters, expected documents, at
 // most 20 must-mention phrases and a note of at most 2000 characters.
 func (in CaseInput) Normalize() (CaseInput, error) {
 	out := CaseInput{Question: strings.TrimSpace(in.Question), Note: strings.TrimSpace(in.Note)}
-	if n := utf8.RuneCountInString(out.Question); n == 0 || n > MaxQuestionChars {
-		return out, apperr.Invalid("invalid_question", fmt.Sprintf("The question must be 1-%d characters", MaxQuestionChars))
+	if out.Question == "" {
+		return out, apperr.Invalid("invalid_question", "The question is empty.")
+	}
+	if utf8.RuneCountInString(out.Question) > MaxQuestionChars {
+		return out, apperr.Invalid("invalid_question", fmt.Sprintf("The question must be 1–%s characters.", thousands(MaxQuestionChars)))
 	}
 	if utf8.RuneCountInString(out.Note) > MaxNoteChars {
-		return out, apperr.Invalid("invalid_note", fmt.Sprintf("The note can be at most %d characters", MaxNoteChars))
+		return out, apperr.Invalid("invalid_note", fmt.Sprintf("The note can be at most %s characters.", thousands(MaxNoteChars)))
 	}
 	var err error
 	if out.Expected, err = in.Expected.Normalize(); err != nil {
@@ -93,6 +97,15 @@ func Parse(format, content string) ([]ImportRow, []ImportProblem, error) {
 	return rows, probs, nil
 }
 
+// thousands writes n with a thousands separator: 4000 is "4,000".
+func thousands(n int) string {
+	s := strconv.Itoa(n)
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "," + s[i:]
+	}
+	return s
+}
+
 // problemText is the message of a validation error.
 func problemText(err error) string {
 	if e, ok := apperr.As(err); ok {
@@ -120,7 +133,7 @@ func ParseCSV(content string) ([]ImportRow, []ImportProblem) {
 			if errors.As(err, &pe) {
 				line = pe.StartLine
 			}
-			probs = append(probs, ImportProblem{Line: line, Message: "This line isn't valid CSV, so the rest of the file wasn't read: " + err.Error()})
+			probs = append(probs, ImportProblem{Line: line, Message: "This line isn't valid CSV, so the rest of the file wasn't read: " + err.Error() + "."})
 			break
 		}
 		line, _ := r.FieldPos(0)
@@ -174,7 +187,7 @@ func ParseJSONL(content string) ([]ImportRow, []ImportProblem) {
 		}
 		var q urlQuestion
 		if err := json.Unmarshal(raw, &q); err != nil {
-			probs = append(probs, ImportProblem{Line: line, Message: "This line isn't a JSON object with question and urls"})
+			probs = append(probs, ImportProblem{Line: line, Message: "This line isn't a JSON object with question and urls."})
 			continue
 		}
 		rows, probs = addRow(rows, probs, line, CaseInput{Question: q.Question, Expected: Expected{URLs: q.URLs}})
@@ -204,7 +217,7 @@ func Dedupe(rows []ImportRow, existing []string) ([]ImportRow, []ImportProblem) 
 	for _, r := range rows {
 		k := key(r.Question)
 		if seen[k] {
-			probs = append(probs, ImportProblem{Line: r.Line, Message: "This question is already in the set"})
+			probs = append(probs, ImportProblem{Line: r.Line, Message: "This question is already in the set."})
 			continue
 		}
 		seen[k] = true

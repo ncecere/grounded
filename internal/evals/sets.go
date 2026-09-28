@@ -310,7 +310,7 @@ func (s *Service) checkDocuments(ctx context.Context, sources []uuid.UUID, ids [
 			return err
 		}
 		if !ok {
-			return invalidExpected("The document %s isn't in this set's knowledge base", id)
+			return invalidExpected("The document %s isn't in this set's knowledge base.", id)
 		}
 	}
 	return nil
