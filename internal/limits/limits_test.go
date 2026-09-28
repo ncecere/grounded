@@ -25,7 +25,7 @@ func TestRegistry(t *testing.T) {
 			t.Errorf("%s: built-in default should be a positive number", d.Key)
 		}
 	}
-	if len(seen) != 20 {
+	if len(seen) != 21 {
 		t.Errorf("%d keys", len(seen))
 	}
 	if _, ok := Lookup("nope"); ok {

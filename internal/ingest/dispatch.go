@@ -169,6 +169,12 @@ func (w *DispatchWorker) Work(ctx context.Context, job *river.Job[DispatchArgs])
 		return err
 	}
 	client := river.ClientFromContext[pgx.Tx](ctx)
+	// Documents waiting for the daily OCR page limit whose day has come.
+	if n, err := wakeDue(ctx, dbgen.New(w.Pool)); err != nil {
+		return err
+	} else if n > 0 {
+		w.Log.Info("documents waiting for the daily OCR page limit continue", "count", n)
+	}
 	var queued int
 	err := pgx.BeginFunc(ctx, w.Pool, func(tx pgx.Tx) error {
 		var err error

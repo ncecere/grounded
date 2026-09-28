@@ -33,6 +33,7 @@ import (
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/notify"
+	"github.com/ncecere/grounded/internal/ocr"
 	"github.com/ncecere/grounded/internal/platform"
 	"github.com/ncecere/grounded/internal/retention"
 	"github.com/ncecere/grounded/internal/store"
@@ -55,6 +56,9 @@ type Service struct {
 	Jobs           *river.Client[pgx.Tx]
 	Web            *web.Service
 	MaxUploadBytes int64
+	// OCR says whether a source's image uploads can be read (nil: never;
+	// docs/ocr.md §5a).
+	OCR *ocr.Service
 	// Limits enforces team limits (nil: none). Shared sources count against
 	// no team.
 	Limits *limits.Service
@@ -330,6 +334,8 @@ type CreateInput struct {
 	ProfileID                               *uuid.UUID
 	Web                                     json.RawMessage
 	Boilerplate                             *boilerplate.Settings // overrides; nil = the defaults
+	// OCREnabled turns OCR off for the source (nil: on, docs/ocr.md §5).
+	OCREnabled *bool
 }
 
 func validateText(name, description string) error {
@@ -382,6 +388,7 @@ func sourceSnapshot(src dbgen.DataSource) map[string]any {
 	m := map[string]any{
 		"name": src.Name, "type": src.Type, "classification": src.Classification,
 		"embeddingProfileId": src.EmbeddingProfileID, "status": src.Status, "shared": !src.TeamID.Valid,
+		"ocrEnabled": src.OcrEnabled,
 	}
 	if src.Type == TypeWeb {
 		m["web"] = src.Config
@@ -440,6 +447,12 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, o Owner, in CreateI
 			return sc.nameTakenErr()
 		} else if err != nil {
 			return err
+		}
+		if in.OCREnabled != nil && !*in.OCREnabled {
+			if err := q.SetSourceOCR(ctx, dbgen.SetSourceOCRParams{ID: src.ID, OcrEnabled: false}); err != nil {
+				return err
+			}
+			src.OcrEnabled = false
 		}
 		out.Source = src
 		if src.Type == TypeWeb {

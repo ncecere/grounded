@@ -23,18 +23,24 @@ import (
 	"github.com/ncecere/grounded/internal/breakglass"
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/limits"
+	"github.com/ncecere/grounded/internal/parse"
 	"github.com/ncecere/grounded/internal/retention"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/tags"
 )
 
-// allowedExtensions are the v1 upload formats (DESIGN.md §5.2). Content is
-// verified again by the parser.
+// allowedExtensions are the upload formats (DESIGN.md §5.2): documents,
+// and images read with OCR (docs/ocr.md §5a). Content is verified again by
+// the parser.
 var allowedExtensions = map[string]bool{
 	".pdf": true, ".docx": true, ".pptx": true, ".html": true, ".htm": true,
 	".md": true, ".markdown": true, ".txt": true,
+	".png": true, ".jpg": true, ".jpeg": true, ".tif": true, ".tiff": true,
 }
+
+// unsupportedFormat is the message for a file type that can't be uploaded.
+const unsupportedFormat = "Supported formats are PDF, DOCX, PPTX, HTML, Markdown and plain text, and PNG, JPEG and TIFF images (read with OCR)"
 
 // UploadResult reports what happened to one uploaded file.
 type UploadResult struct {
@@ -52,6 +58,10 @@ type Uploader struct {
 	sc   scope
 	team uuid.NullUUID // invalid for shared sources
 	src  dbgen.DataSource
+	// noOCR is why images can't be uploaded ("" when they can), looked up
+	// on the first image.
+	noOCR      string
+	checkedOCR bool
 }
 
 func (s *Service) BeginUpload(ctx context.Context, a authz.Actor, o Owner, sourceID uuid.UUID) (*Uploader, error) {
@@ -140,6 +150,8 @@ func headMatches(ext string, head []byte) bool {
 		return bytes.Contains(head, []byte("%PDF-"))
 	case ".docx", ".pptx":
 		return bytes.HasPrefix(head, []byte("PK\x03\x04"))
+	case ".png", ".jpg", ".jpeg", ".tif", ".tiff":
+		return parse.IsImage(head)
 	default:
 		if bytes.HasPrefix(head, []byte{0xFF, 0xFE}) || bytes.HasPrefix(head, []byte{0xFE, 0xFF}) {
 			return true
@@ -159,7 +171,10 @@ func (u *Uploader) Upload(ctx context.Context, filename string, body io.Reader, 
 	}
 	ext := strings.ToLower(path.Ext(name))
 	if !allowedExtensions[ext] {
-		return reject(name, "unsupported_format", "Supported formats are PDF, DOCX, PPTX, HTML, Markdown and plain text", http.StatusUnsupportedMediaType), nil
+		return reject(name, "unsupported_format", unsupportedFormat, http.StatusUnsupportedMediaType), nil
+	}
+	if r, ok, err := u.checkImage(ctx, name, ext); err != nil || !ok {
+		return r, err
 	}
 	existing, err := s.q.FindDocumentByExternalID(ctx, dbgen.FindDocumentByExternalIDParams{SourceID: u.src.ID, ExternalID: name})
 	found := err == nil
@@ -367,6 +382,8 @@ type DocumentCursor struct {
 type DocumentFilter struct {
 	Status *string
 	Search *string
+	// ErrorCode narrows to documents with this error code (e.g. needs_ocr).
+	ErrorCode *string
 	// Kind and Tag narrow to one document kind and one (normalised) tag.
 	Kind *string
 	Tag  *string
@@ -404,11 +421,12 @@ func (s *Service) listDocuments(ctx context.Context, sourceID uuid.UUID, f Docum
 	if f.Search != nil {
 		return s.q.SearchDocuments(ctx, dbgen.SearchDocumentsParams{
 			SourceID: sourceID, Search: store.EscapeLike(*f.Search), Status: f.Status, Kind: f.Kind, Tag: f.Tag,
-			BeforeCreated: beforeCreated, BeforeID: beforeID, PageSize: size,
+			ErrorCode: f.ErrorCode, BeforeCreated: beforeCreated, BeforeID: beforeID, PageSize: size,
 		})
 	}
 	return s.q.ListDocuments(ctx, dbgen.ListDocumentsParams{
-		SourceID: sourceID, Status: f.Status, Kind: f.Kind, Tag: f.Tag, BeforeCreated: beforeCreated, BeforeID: beforeID, PageSize: size,
+		SourceID: sourceID, Status: f.Status, Kind: f.Kind, Tag: f.Tag, ErrorCode: f.ErrorCode,
+		BeforeCreated: beforeCreated, BeforeID: beforeID, PageSize: size,
 	})
 }
 

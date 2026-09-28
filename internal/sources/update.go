@@ -33,6 +33,8 @@ type UpdateInput struct {
 	// Boilerplate replaces the source's boilerplate overrides (nil fields
 	// inherit the defaults); nil leaves them unchanged.
 	Boilerplate *boilerplate.Settings
+	// OCREnabled switches OCR for the source (docs/ocr.md §5).
+	OCREnabled *bool
 }
 
 // Impact is a knowledge base that raising a shared source's classification
@@ -196,6 +198,12 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, o Owner, id uuid.UU
 			return sc.nameTakenErr()
 		} else if err != nil {
 			return err
+		}
+		if in.OCREnabled != nil && *in.OCREnabled != cur.OcrEnabled {
+			if err := q.SetSourceOCR(ctx, dbgen.SetSourceOCRParams{ID: out.ID, OcrEnabled: *in.OCREnabled}); err != nil {
+				return err
+			}
+			out.OcrEnabled = *in.OCREnabled
 		}
 		if err := s.afterUpdate(ctx, q, tx, cur, out, scheduleChanged, newConfig); err != nil {
 			return err

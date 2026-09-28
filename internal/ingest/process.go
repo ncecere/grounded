@@ -22,6 +22,7 @@ import (
 	"github.com/ncecere/grounded/internal/chunk"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/observability"
+	"github.com/ncecere/grounded/internal/ocr"
 	"github.com/ncecere/grounded/internal/parse"
 	"github.com/ncecere/grounded/internal/platform"
 	"github.com/ncecere/grounded/internal/store"
@@ -52,7 +53,10 @@ type Processor struct {
 	// Dispatcher, when set, refills a finishing document's slot in its
 	// commit transaction instead of kicking a dispatch job (refill).
 	Dispatcher *DispatchWorker
-	Log        *slog.Logger
+	// OCR reads pages without text and images when it is on (nil: off;
+	// docs/ocr.md).
+	OCR *ocr.Service
+	Log *slog.Logger
 
 	ensured sync.Map // profile ID -> struct{}: vector table exists
 }
@@ -94,6 +98,8 @@ func classify(err error) outcome {
 		return outcome{status: StatusFailed, code: "too_large", message: err.Error()}
 	case errors.Is(err, parse.ErrCorrupt):
 		return outcome{status: StatusFailed, code: "corrupt", message: err.Error()}
+	case errors.Is(err, parse.ErrOCRUnavailable):
+		return outcome{retry: true, code: "ocr_unavailable", message: "The OCR service is unavailable: " + err.Error()}
 	case errors.Is(err, blob.ErrNotFound):
 		return outcome{status: StatusFailed, code: "file_missing", message: "The uploaded file is missing from storage. Upload it again."}
 	case errors.Is(err, catalog.ErrProfileUnusable):
@@ -181,6 +187,13 @@ func (p *Processor) handleFailure(ctx context.Context, q *dbgen.Queries, job *ri
 		observeDocument(IngestSuperseded, 0)
 		return river.JobSnooze(time.Second)
 	}
+	// A document whose OCR would pass the team's daily page limit waits
+	// (pending, not failed) and frees its slot.
+	if w, ok := asOCRWait(err); ok && ctx.Err() == nil {
+		p.Log.InfoContext(ctx, "document waits for the daily OCR page limit", "document", doc.ID, "until", w.Until)
+		observeDocument(IngestWaiting, 0)
+		return p.waitForOCR(ctx, doc, w)
+	}
 	// Backpressure (the gateway's 429, 503 with Retry-After, or the
 	// connection's own request limit) is not a failure: the job is snoozed,
 	// which uses none of its attempts, and the document waits in the queue.
@@ -235,7 +248,7 @@ func backpressure(err error) (time.Duration, bool) {
 // result is the output of the slow, lock-free part of processing.
 type result struct {
 	kind    parse.Kind
-	parsed  parse.Document
+	parsed  parse.Document // parsed.OCR: the pages read with OCR
 	chunks  []chunk.Chunk
 	plan    bpPlan
 	vectors [][]float32
@@ -258,7 +271,8 @@ func (p *Processor) process(ctx context.Context, doc dbgen.Document) (result, er
 	if err != nil {
 		return res, err
 	}
-	if res.parsed, res.kind, err = p.parse(ctx, src, doc, data); err != nil {
+	res.parsed, res.kind, err = p.parse(ctx, src, doc, data)
+	if err != nil {
 		return res, err
 	}
 	if key := parsedKey(doc.BlobKey); key != "" {
@@ -299,14 +313,25 @@ func (p *Processor) parse(ctx context.Context, src dbgen.DataSource, doc dbgen.D
 		if in.Kind, err = parse.Detect("", data); err != nil {
 			return parse.Document{}, "", err
 		}
+		if in.Kind == parse.KindImage { // the crawler ignores images (docs/ocr.md §5a)
+			return parse.Document{}, "", fmt.Errorf("%w: images from websites are not indexed", parse.ErrUnsupported)
+		}
 		in.Kind = webKind(in.Kind, doc.ContentType)
 		in.WebPage, in.BaseURL = true, doc.URL
 	} else if in.Kind, err = parse.Detect(name, data); err != nil {
 		return parse.Document{}, "", err
 	}
+	plan, err := p.ocrPlan(ctx, src, doc, in.Kind)
+	if err != nil {
+		return parse.Document{}, in.Kind, err
+	}
+	in.OCR = plan.Options
 	parseCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 	parsed, err := p.Parser.Parse(parseCtx, in)
+	if uerr := p.recordOCRUsage(ctx, doc, parsed.OCR, plan.ModelID); uerr != nil {
+		return parsed, in.Kind, errors.Join(err, uerr)
+	}
 	return parsed, in.Kind, err
 }
 

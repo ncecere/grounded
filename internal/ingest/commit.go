@@ -98,6 +98,9 @@ func (p *Processor) commit(ctx context.Context, doc dbgen.Document, res result) 
 		if err := recordBlocks(ctx, tx, doc, res.plan); err != nil {
 			return err
 		}
+		if err := setOCRRecord(ctx, q, doc, res.parsed.OCR); err != nil {
+			return err
+		}
 		if err := recordUsage(ctx, q, doc, res, n); err != nil {
 			return err
 		}
@@ -174,6 +177,9 @@ func (p *Processor) finishWithoutChunks(ctx context.Context, doc dbgen.Document,
 			return err
 		}
 		if err := q.DeleteDocumentBlocks(ctx, doc.ID); err != nil {
+			return err
+		}
+		if err := setOCRRecord(ctx, q, doc, nil); err != nil {
 			return err
 		}
 		if err := q.FinishDocument(ctx, dbgen.FinishDocumentParams{

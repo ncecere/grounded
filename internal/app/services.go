@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/moderation"
 	"github.com/ncecere/grounded/internal/notify"
+	"github.com/ncecere/grounded/internal/ocr"
 	"github.com/ncecere/grounded/internal/parse"
 	"github.com/ncecere/grounded/internal/platform"
 	"github.com/ncecere/grounded/internal/profilemig"
@@ -74,6 +76,12 @@ type Services struct {
 
 	// ProfileMigrations moves KBs between embedding profiles (P2).
 	ProfileMigrations *profilemig.Service
+
+	// OCR is Admin -> Parsing and ingestion's OCR (docs/ocr.md).
+	OCR *ocr.Service
+	// jobs enqueues River jobs (may be insert-only).
+	jobs *jobs.Client
+	pool *pgxpool.Pool
 }
 
 // NewBlobStore builds the configured object store.
@@ -145,7 +153,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.Limits = limits.New(pool, s.Teams, kvs, limits.Options{IngestJobsDefault: cfg.IngestMaxInflightTeam})
 	s.Web = web.New(pool, s.Teams, jobsClient, store, NewFetcher(cfg, kvs), cfg.Crawl.MaxPages, cfg.Crawl.MaxBodyBytes, log)
 	s.Web.Limits = s.Limits
-	s.Limits.OnChange = s.Web.LimitsChanged // a raised page limit wakes waiting crawls
+	s.Limits.OnChange = s.limitsChanged // a raised limit wakes waiting crawls and documents
 	s.Web.Maintenance = s.Platform.Gate
 	s.Sources = sources.New(pool, s.Teams, s.Catalog, store, jobsClient, s.Web, cfg.MaxUploadBytes, log)
 	s.Sources.Limits = s.Limits
@@ -184,10 +192,30 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.Retention = retention.New(pool, jobsClient, cfg.Retention, log)
 	s.RetentionMetrics = retention.NewMetrics()
 	s.Parser, s.builtin = NewParser(cfg, log)
+	tika, _ := s.Parser.Tika.(*parse.Tika)
+	s.OCR = ocr.New(pool, s.Catalog, s.Limits, ocr.Config{
+		TesseractURL: cfg.OCR.TesseractURL, Timeout: cfg.OCR.Timeout, Tika: tika,
+		MaxPagesPerDocument: cfg.OCR.MaxPagesPerDocument, Concurrency: cfg.OCR.Concurrency,
+	}, log)
+	s.Sources.OCR = s.OCR
+	s.jobs, s.pool = jobsClient, pool
 	s.ProfileMigrations = profilemig.New(pool, s.Catalog, s.Teams, s.Notify, jobsClient, profilemig.Options{
 		GraceDays: cfg.ProfileMigrationGraceDays, BatchSize: cfg.EmbedBatchSize, BatchTokens: cfg.EmbedBatchTokens,
 	}, log)
 	return s, nil
+}
+
+// limitsChanged is the limits service's OnChange hook: crawls and documents
+// waiting for a daily limit check it again. Failures only delay them (to
+// their next recheck, or the next UTC day).
+func (s *Services) limitsChanged(ctx context.Context, team uuid.NullUUID) {
+	s.Web.LimitsChanged(ctx, team)
+	n, err := ingest.WakeOCRWaiting(context.WithoutCancel(ctx), s.pool, s.jobs, team)
+	if err != nil {
+		slog.WarnContext(ctx, "could not wake documents waiting for the daily OCR page limit", "team", team.UUID, "err", err)
+	} else if n > 0 {
+		slog.InfoContext(ctx, "woke documents waiting for the daily OCR page limit", "team", team.UUID, "documents", n)
+	}
 }
 
 // Close releases the PDF engine.
@@ -207,7 +235,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 	proc := &ingest.Processor{
 		Pool: pool, Blob: s.Blob, Parser: s.Parser, Counter: counter, Catalog: s.Catalog,
 		Vectors: s.Vectors, EmbedBatch: cfg.EmbedBatchSize, MaxBytes: cfg.MaxUploadBytes, Log: log,
-		Boilerplate: cfg.Boilerplate, Maintenance: s.Platform.Gate,
+		Boilerplate: cfg.Boilerplate, Maintenance: s.Platform.Gate, OCR: s.OCR,
 		Batcher: &ingest.Batcher{
 			MaxInputs: cfg.EmbedBatchSize, MaxTokens: cfg.EmbedBatchTokens, Linger: cfg.EmbedBatchWait,
 			Counter: counter, Log: log,
