@@ -56,7 +56,7 @@ Spend = rollup quantities × the price in effect on each (local) day, per unit, 
 
 ## 5. What people see
 
-- **Admin → Costs** (new, under Insights, next to Analytics). Hidden while the mode is Off, except the Settings and Prices tabs.
+- **Admin → Costs** (new, under Monitoring, next to Analytics). Hidden while the mode is Off, except the Settings and Prices tabs.
   - **Overview:** a date range, total spend, a daily chart by kind (chat, embedding, SystemOne, moderation), and top teams, agents and models with spend, tokens and "Unpriced" flags. CSV export.
   - **Budgets:** each team's mode, budget, month-to-date spend, percentage and projected month-end; a team opens its record.
   - **Prices:** every model with its current prices and "Unpriced" where missing; a model opens its record.
