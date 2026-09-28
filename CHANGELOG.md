@@ -35,6 +35,7 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are 
 - Usage & limits shows this minute's count for every per-minute query rate, not only the team-wide one: the busiest API key's and the busiest person's (`GET /v1/teams/{team}/limits` fills `used` for them). The public per-address and per-visitor rates stay without a figure: they're counted per visitor (G5).
 
 ### Changed
+- A knowledge base's page has "Attach source" as its primary header action (like a source's "Upload files" or "Sync now"), and an empty knowledge base's Overview asks for a source with the same button (C13).
 - An agent's results per search from a knowledge base inherit the knowledge base's own top-k until overridden (C14). Build says "Inherited from the knowledge base (N)" or "Overridden", with Override and Inherit buttons; new agents inherit. API: `kbs[].topK` is nullable, and absent or null inherits (it used to default to 6); agents saved before keep their 6. A version's `knowledgeBases[]` has `inherited`, and its `topK` is the value in effect.
 
 ## [0.1.0] - 2026-09-28

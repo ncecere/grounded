@@ -15,7 +15,7 @@ import type { ClassificationImpact } from "../../sources/owner";
 import { type KB, plural, profileName, rankOf, useClassificationLevels, useEmbeddingProfiles, useLevelName, useSharedSources, useSources, useTeam } from "../common";
 import { attachCandidates } from "./attach";
 import k from "./kbs.module.css";
-import type { KBSourceMutations } from "./sources";
+import type { KBSourceMutations } from "./attach-flow";
 
 type Props = {
   kb: KB;

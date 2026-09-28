@@ -408,6 +408,28 @@ describe("knowledge base page", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("has Attach source as its primary action, and asks for a source on an empty Overview (C13)", async () => {
+    const empty = { ...kb, sources: [], effectiveClassification: null };
+    mockApi({ ...common, "GET /v1/teams/registrar/kbs/k1": () => empty, "GET /v1/teams/registrar/sources": () => [source("s1", "Policies")] });
+    const { container } = renderTeam(<KBDetail kbId="k1" />, "editor");
+    const header = (await screen.findByRole("heading", { level: 1, name: "Student handbook" })).closest("header, [class*=header]") as HTMLElement;
+    expect(within(header).getByRole("button", { name: "Attach source" })).toBeInTheDocument();
+    expect(screen.getByText("No data sources attached yet.")).toBeInTheDocument();
+    const buttons = screen.getAllByRole("button", { name: "Attach source" });
+    expect(buttons).toHaveLength(2);
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(buttons[1]!);
+    expect(await screen.findByRole("dialog", { name: /Attach a source/ })).toBeInTheDocument();
+  });
+
+  it("offers no Attach source to members", async () => {
+    mockApi({ ...common, "GET /v1/teams/registrar/kbs/k1": () => ({ ...kb, sources: [] }) });
+    renderTeam(<KBDetail kbId="k1" />, "member");
+    await screen.findByRole("heading", { level: 1, name: "Student handbook" });
+    expect(screen.getByText("No data sources attached yet.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Attach source" })).toBeNull();
+  });
+
   it("renders retrieval hits as plain-text citations with page ranges", async () => {
     const calls = mockApi({
       "POST /v1/teams/registrar/kbs/k1/retrieve": () => ({

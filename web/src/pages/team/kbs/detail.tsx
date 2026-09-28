@@ -1,8 +1,9 @@
 /*
  * A knowledge base's page on the DetailPage template (D3, W4): the facts
  * line (classification, profile, sources, documents, passages per search,
- * used by), a "…" menu with Delete, and pill tabs Overview · Sources ·
- * Try it · Settings. Stat cards live only in Overview.
+ * used by), "Attach source" as the primary action (C13), a "…" menu with
+ * Delete, and pill tabs Overview · Sources · Try it · Settings. Stat cards
+ * live only in Overview, which asks for a source while there is none.
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
@@ -14,6 +15,7 @@ import { passagesCount, terms } from "@/lib/terms";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Card } from "@/components/ui/card/card";
+import { Stack } from "@/components/ui/layout/layout";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { StatCard } from "@/components/ui/stat-card/stat-card";
 import s from "../../shared.module.css";
@@ -24,6 +26,7 @@ import { useIsPlatformAdmin } from "../../admin/hooks";
 import { useDeleteKB } from "./delete";
 import { KBMigrationNotice } from "./migration";
 import { KBSettings } from "./settings";
+import { type AttachFlow, AttachSourceButton, useAttachFlow } from "./attach-flow";
 import { KBSources } from "./sources";
 import { UsedByAgents, useAgentsByKB } from "./used-by";
 
@@ -61,6 +64,7 @@ function KBPage({ kb: k }: { kb: KB }) {
   const uses = useAgentsByKB(slug).of(k.id);
   const del = useDeleteKB(k);
   const isAdmin = useIsPlatformAdmin();
+  const attach = useAttachFlow(k);
 
   return (
     <>
@@ -77,6 +81,7 @@ function KBPage({ kb: k }: { kb: KB }) {
           { id: "topk", label: "Passages per search", value: `${k.topK} passages per search` },
           { id: "used", label: "Used by", value: uses.length ? `used by ${plural(uses.length, "agent")}` : "not used by an agent" },
         ]}
+        primaryAction={canEdit ? <AttachSourceButton flow={attach} /> : undefined}
         menuActions={[
           {
             label: "Change embedding profile…",
@@ -95,13 +100,13 @@ function KBPage({ kb: k }: { kb: KB }) {
         tabIds={kbTabs}
         tabsLabel="Knowledge base sections"
         tabs={[
-          { value: "overview", label: "Overview", icon: <LayoutDashboard aria-hidden />, content: <KBOverview kb={k} counts={counts} /> },
+          { value: "overview", label: "Overview", icon: <LayoutDashboard aria-hidden />, content: <KBOverview kb={k} counts={counts} attach={canEdit ? attach : undefined} /> },
           {
             value: "sources",
             label: "Sources",
             icon: <Database aria-hidden />,
             count: k.sources.length,
-            content: <KBSources kb={k} />,
+            content: <KBSources kb={k} flow={attach} />,
           },
           {
             value: "try",
@@ -121,20 +126,36 @@ function KBPage({ kb: k }: { kb: KB }) {
         ]}
       />
       {del.dialog}
+      {attach.dialogs}
     </>
   );
 }
 
-function KBOverview({ kb, counts }: { kb: KB; counts: { ready: number; chunks: number } | undefined }) {
+function KBOverview({ kb, counts, attach }: { kb: KB; counts: { ready: number; chunks: number } | undefined; attach?: AttachFlow }) {
   const { slug } = useTeam();
   const uses = useAgentsByKB(slug).of(kb.id);
   const value = (n: number | undefined) => (n === undefined ? "…" : n.toLocaleString());
-  return (
+  const stats = (
     <section aria-label="Knowledge base summary" className={s.stats}>
       <StatCard label="Data sources" value={kb.sources.length.toLocaleString()} icon={<Database />} hint={kb.sources.map((src) => src.name).join(", ") || "None attached yet"} />
       <StatCard label="Documents ready" value={value(counts?.ready)} icon={<FileCheck2 />} />
       <StatCard label={terms.Passages} value={value(counts?.chunks)} icon={<Layers />} hint={counts ? `${passagesCount(kb.topK)} per search` : undefined} />
       <StatCard label="Used by" value={plural(uses.length, "agent")} icon={<Bot />} hint={uses.length ? <UsedByAgents uses={uses} team={slug} /> : "No agent answers from it yet"} />
     </section>
+  );
+  if (kb.sources.length > 0) return stats;
+  // An empty knowledge base: what to do first (C13), the same action as the header's.
+  return (
+    <Stack gap={6}>
+      <Card>
+        <EmptyState
+          icon={<Database />}
+          title="No data sources attached yet."
+          description="Attach the sources this knowledge base should search. Agents can't answer from it until then."
+          action={attach ? <AttachSourceButton flow={attach} variant="secondary" /> : undefined}
+        />
+      </Card>
+      {stats}
+    </Stack>
   );
 }
