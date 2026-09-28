@@ -52,9 +52,11 @@ jobs:
             latest=false
           # Tags keep the git tag's "v" (v0.1.0, v0.1, v0.1.0-rc.2), as the docs,
           # overlays and release notes use; metadata-action's semver patterns drop it.
+          # The full tag has the top priority: it is also outputs.version, the
+          # version built into the binary (VERSION below). v0.1.0 shipped as "v0.1".
           tags: |
             type=sha,prefix=sha-,format=short,enable=${{ github.ref_type == 'branch' }}
-            type=raw,value=${{ github.ref_name }},enable=${{ github.ref_type == 'tag' }}
+            type=raw,value=${{ github.ref_name }},priority=1000,enable=${{ github.ref_type == 'tag' }}
             type=match,pattern=^(v\d+\.\d+)\.\d+$,group=1,enable=${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
             type=raw,value=latest-release,enable=${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
           labels: |
