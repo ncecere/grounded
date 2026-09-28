@@ -5,13 +5,14 @@
  * source offers no drop zone, only the reason (F-21).
  */
 import { useQueryClient } from "@tanstack/react-query";
-import { FileText } from "lucide-react";
+import { FileText, Settings2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ApiError, type Schemas } from "@/api/client";
 import { ApiErrorAlert } from "@/components/errors";
 import { useCurrentUser } from "@/session";
 import { Alert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
+import { Button } from "@/components/ui/button/button";
 import { DropZone } from "@/components/ui/drop-zone/drop-zone";
 import { Field } from "@/components/ui/field/field";
 import { Progress } from "@/components/ui/progress/progress";
@@ -22,13 +23,13 @@ import { toast } from "@/components/ui/toast/toast";
 import type { Tone } from "@/lib/bitop-utils";
 import { type DataSource, useSourceOwner } from "../../sources/owner";
 import { plural } from "../common";
+import { type OcrState, imageExtensions, imagesRefused, isImage, ocrFix, ocrStateOf } from "./ocr-state";
 import d from "./upload.module.css";
 
 type UploadResult = Schemas["UploadResult"];
 
 const acceptedExtensions = [".pdf", ".docx", ".pptx", ".html", ".htm", ".md", ".markdown", ".txt"];
-/** Images are one-page documents read with OCR; the server refuses them where OCR is off (docs/ocr.md §5a). */
-const imageExtensions = [".png", ".jpg", ".jpeg", ".tif", ".tiff"];
+const documentTypes = "PDF, Word (.docx), PowerPoint (.pptx), HTML, Markdown and plain text";
 
 /** The server accepts at most this many files per request. */
 const batchSize = 100;
@@ -125,13 +126,15 @@ type UploadAreaProps = {
   disabledReason?: string;
   /** Called after a batch finishes with the number of files stored. */
   onUploaded?: (stored: number) => void;
-  /** The source reads images with OCR (its switch; the platform's is checked on upload). */
-  images?: boolean;
+  /** Whether OCR reads the source's images: images are accepted only when it is "on" (the server checks again). */
+  ocr?: OcrState;
+  /** Opens the source's Settings tab, offered when the source's own OCR switch is what refuses images. */
+  onOpenSettings?: () => void;
   /** Something would be lost by closing: an upload is running, or tags were chosen and nothing uploaded yet. */
   onPendingChange?: (pending: boolean) => void;
 };
 
-export function UploadArea({ sourceId, disabledReason, onUploaded, onPendingChange, images = false }: UploadAreaProps) {
+export function UploadArea({ sourceId, disabledReason, onUploaded, onPendingChange, ocr = "source_off", onOpenSettings }: UploadAreaProps) {
   const owner = useSourceOwner();
   const { csrfToken } = useCurrentUser();
   const qc = useQueryClient();
@@ -139,6 +142,8 @@ export function UploadArea({ sourceId, disabledReason, onUploaded, onPendingChan
   const [results, setResults] = useState<UploadResult[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [tags, setTags] = useState<string[]>([]);
+  // Images refused because OCR doesn't read them here: said once, with the reason (not "isn't an accepted file type" alone).
+  const [refusedImages, setRefusedImages] = useState<string[]>([]);
   const tagInput = useRef<HTMLInputElement>(null);
 
   async function start(list: File[]) {
@@ -151,6 +156,7 @@ export function UploadArea({ sourceId, disabledReason, onUploaded, onPendingChan
     }
     setResults(null);
     setError(null);
+    setRefusedImages([]);
     const total = list.reduce((sum, f) => sum + f.size, 0);
     setProgress({ files: list.length, loaded: 0, total });
     const all: UploadResult[] = [];
@@ -202,16 +208,25 @@ export function UploadArea({ sourceId, disabledReason, onUploaded, onPendingChan
       </Field>
       <DropZone
         onFiles={(files) => void start(files)}
+        onReject={(rejected) => setRefusedImages(ocr === "on" ? [] : rejected.filter((r) => r.reason === "type" && isImage(r.file.name)).map((r) => r.file.name))}
         busy={progress !== null}
         label="Drag and drop files here, or"
         buttonLabel="Choose files to upload"
-        accept={[...acceptedExtensions, ...(images ? imageExtensions : [])].join(",")}
-        description={
-          images
-            ? "PDF, Word (.docx), PowerPoint (.pptx), HTML, Markdown and plain text, and PNG, JPEG or TIFF images when OCR is on."
-            : "PDF, Word (.docx), PowerPoint (.pptx), HTML, Markdown and plain text."
-        }
+        accept={[...acceptedExtensions, ...(ocr === "on" ? imageExtensions : [])].join(",")}
+        description={ocr === "on" ? `${documentTypes}, and PNG, JPEG or TIFF images (read with OCR).` : `${documentTypes}. ${imagesRefused[ocr]}`}
       />
+      {ocr !== "on" && refusedImages.length > 0 && (
+        <Alert tone="warning" title={refusedImages.length === 1 ? `${refusedImages[0]} wasn't uploaded` : `${plural(refusedImages.length, "image")} weren't uploaded`}>
+          {imagesRefused[ocr]} {ocrFix[ocr]}
+          {ocr === "source_off" && onOpenSettings && (
+            <span className={d.alertAction}>
+              <Button size="sm" variant="secondary" onClick={onOpenSettings}>
+                <Settings2 aria-hidden /> Open settings
+              </Button>
+            </span>
+          )}
+        </Alert>
+      )}
       {progress && <Progress label={`Uploading ${plural(progress.files, "file")}`} value={percent} />}
       <p role="status" className={d.uploadStatus}>
         {progress && `Uploading ${plural(progress.files, "file")}… ${Math.floor(percent / 10) * 10}%`}
@@ -229,7 +244,9 @@ export function UploadArea({ sourceId, disabledReason, onUploaded, onPendingChan
 }
 
 /** The header's "Upload files" dialog: tags first, then the drop zone and the results. */
-export function UploadDialog({ source, open, onClose, onUploaded }: { source: DataSource; open: boolean; onClose: () => void; onUploaded?: () => void }) {
+type UploadDialogProps = { source: DataSource; open: boolean; onClose: () => void; onUploaded?: () => void; onOpenSettings?: () => void };
+
+export function UploadDialog({ source, open, onClose, onUploaded, onOpenSettings }: UploadDialogProps) {
   const paused = source.status === "paused";
   const [pending, setPending] = useState(false);
   return (
@@ -244,7 +261,8 @@ export function UploadDialog({ source, open, onClose, onUploaded }: { source: Da
     >
       <UploadArea
         sourceId={source.id}
-        images={source.ocrEnabled}
+        ocr={ocrStateOf(source)}
+        onOpenSettings={onOpenSettings}
         disabledReason={paused ? "This source is paused. Resume it to upload files." : undefined}
         onUploaded={(n) => n > 0 && onUploaded?.()}
         onPendingChange={setPending}

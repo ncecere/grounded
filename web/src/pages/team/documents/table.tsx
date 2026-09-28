@@ -9,7 +9,7 @@
  */
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Eye, FileText, Globe, RotateCcw, Tags, Trash2, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { ListPage, RelativeTime, timeColumn, useListFilters } from "@/components/templates/list-page";
 import { useRecordParam } from "@/components/templates/record-page";
 import { rangeText, useCursorPager } from "@/components/pager";
@@ -23,9 +23,10 @@ import { useDebounced } from "../../admin/hooks";
 import { type DataSource, type DocKind, useSourceOwner } from "../../sources/owner";
 import { type Doc, type DocStatus, formatBytes, plural } from "../common";
 import d from "./documents.module.css";
-import { canRetry, useDocumentMutations } from "./mutations";
+import { type DocumentMutations, canRetry, useDocumentMutations } from "./mutations";
+import { ocrStateOf, retryBlocked } from "./ocr-state";
 import { DocumentRecordPage } from "./record";
-import { DocStatusBadge, docName, docStatusLabels, documentError, isInProgress, isWaiting, kindLabel } from "./status";
+import { DocStatusBadge, docKind, docName, docStatusLabels, documentError, isInProgress, isWaiting, kindLabel } from "./status";
 
 const pageSize = 50;
 const statuses: DocStatus[] = ["ready", "processing", "queued", "failed", "skipped"];
@@ -66,7 +67,7 @@ function columns(web: boolean): DataTableColumn<Doc>[] {
       accessor: (doc) => docName(doc),
       cell: (doc) => <DocumentName doc={doc} web={web} />,
     },
-    { id: "kind", header: "Kind · Size", cell: (doc) => <span className={d.nowrap}>{[doc.kind && kindLabel(doc.kind), formatBytes(doc.sizeBytes)].filter(Boolean).join(" · ")}</span>, muted: true },
+    { id: "kind", header: "Kind · Size", cell: (doc) => <span className={d.nowrap}>{[docKind(doc) && kindLabel(docKind(doc)), formatBytes(doc.sizeBytes)].filter(Boolean).join(" · ")}</span>, muted: true },
     {
       id: "status",
       header: "Status",
@@ -127,6 +128,7 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
   const items = docs.data?.items ?? [];
   const byId = new Map(items.map((doc) => [doc.id, doc]));
   const filtered = Boolean(query.status || query.errorCode || query.kind || query.tag || query.q);
+  const ocr = ocrStateOf(source);
   const total = !filtered ? source.documents.total : query.status && !query.kind && !query.tag && !query.q ? countFor(source, query.status) : undefined;
 
   return (
@@ -172,16 +174,7 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
         tableProps={{
           toolbar:
             query.errorCode && owner.canEdit && items.length > 0 ? (
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={Boolean(maintenance)}
-                loading={mutations.retryNeedsOcr.isPending}
-                title={maintenance ? maintenanceReason(maintenance, "Retrying") : "Read them again, with OCR if it is on for this source"}
-                onClick={() => mutations.retryNeedsOcr.mutate()}
-              >
-                <RotateCcw aria-hidden /> Retry all that need OCR
-              </Button>
+              <RetryNeedsOcr blocked={maintenance ? maintenanceReason(maintenance, "Retrying") : ocr !== "on" ? retryBlocked[ocr] : undefined} mutations={mutations} />
             ) : undefined,
           selectable: owner.canEdit,
           selectedLabel: (n) => `${plural(n, web ? "page" : "document")} selected`,
@@ -233,6 +226,30 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
         onConfirm={() => deleting && mutations.remove.mutate(deleting, { onSuccess: () => setDeleting(null) })}
       />
     </>
+  );
+}
+
+/** "Retry all that need OCR", disabled with its reason shown next to it (a retry while OCR is off would skip them again). */
+function RetryNeedsOcr({ blocked, mutations }: { blocked?: string; mutations: DocumentMutations }) {
+  const reasonId = useId();
+  return (
+    <span className={d.toolbarAction}>
+      <Button
+        size="sm"
+        variant="secondary"
+        disabled={Boolean(blocked)}
+        aria-describedby={blocked ? reasonId : undefined}
+        loading={mutations.retryNeedsOcr.isPending}
+        onClick={() => mutations.retryNeedsOcr.mutate()}
+      >
+        <RotateCcw aria-hidden /> Retry all that need OCR
+      </Button>
+      {blocked && (
+        <span id={reasonId} className={d.toolbarReason}>
+          {blocked}
+        </span>
+      )}
+    </span>
   );
 }
 

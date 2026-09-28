@@ -8,6 +8,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { FileText, History, LayoutDashboard, Network, Settings2, Upload } from "lucide-react";
 import { useId, useState } from "react";
+import { useUrlTab } from "@/components/page-tabs";
 import { DetailPage } from "@/components/templates/detail-page";
 import { NotFoundState, isNotFound } from "@/components/not-found";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
@@ -58,6 +59,7 @@ function SourcePage({ source: src }: { source: DataSource }) {
   const facts = useSourceFacts(src);
   const actions = useSourceActions(src);
   const [uploading, setUploading] = useState(false);
+  const [, setTab] = useUrlTab(sourceTabs);
   const syncReasonId = useId();
   const web = src.type === "web";
   const maintenance = useMaintenance(owner.canEdit);
@@ -143,7 +145,17 @@ function SourcePage({ source: src }: { source: DataSource }) {
         ]}
       />
       {actions.dialog}
-      {!web && owner.canEdit && <UploadDialog source={src} open={uploading} onClose={() => setUploading(false)} />}
+      {!web && owner.canEdit && (
+        <UploadDialog
+          source={src}
+          open={uploading}
+          onClose={() => setUploading(false)}
+          onOpenSettings={() => {
+            setUploading(false);
+            setTab("settings");
+          }}
+        />
+      )}
     </>
   );
 }

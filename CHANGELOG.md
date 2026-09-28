@@ -38,6 +38,10 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are 
 - The model form's "Compatibility" section uses the bitop-ui `Disclosure` instead of a hand-built `<details>` toggle (G8).
 - One date rule: lists show relative times with the full date on hover, record pages show absolute dates. Home's "Continue where you left off", open invites' "Expires", the crawl allowlist, crawl history, version history, moderation decisions and open break-glass sessions now follow it, and Analytics shows days as dates ("Sep 26, 2026") instead of ISO dates (G13).
 - Usage & limits shows this minute's count for every per-minute query rate, not only the team-wide one: the busiest API key's and the busiest person's (`GET /v1/teams/{team}/limits` fills `used` for them). The public per-address and per-visitor rates stay without a figure: they're counted per visitor (G5).
+- Uploading an image to a source whose OCR is off says why: "Images need OCR, which is off for this source" (or for the platform), with an **Open settings** button when the source's own switch is the reason, instead of "isn't an accepted file type". The upload hint lists images only when OCR reads them. `GET /v1/teams/{team}/sources/{id}` (and shared sources) has `ocrState`: `on`, `source_off`, `platform_off` or `not_approved`.
+- **Retry all that need OCR** is disabled, with the reason next to it, while OCR is off for the source or the platform: a retry would only skip the documents again.
+- A PDF indexed with some scanned pages skipped says "1 of 2 pages had no text layer (possibly scanned) and was skipped, because OCR is off for this document", and how to read them (turn OCR on, then delete the document and upload it again: a ready document isn't retried). The source's OCR switch no longer suggests a retry reaches such documents.
+- A document skipped as scanned shows its kind ("PDF · 24 KiB", not "24 KiB"): ingestion keeps the detected kind when it stops before indexing.
 
 ## [0.1.0] - 2026-09-28
 
