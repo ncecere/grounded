@@ -9,8 +9,8 @@ import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { Meter } from "@/components/ui/meter/meter";
 import { TextLink } from "@/components/ui/text-link/text-link";
-import { modeLabels, monthLabel, stateLabels, stateTones } from "@/lib/costs";
-import { formatMoney } from "@/lib/format";
+import { budgetThisMonth, modeLabels, modeSourceLabel, monthLabel, stateLabels, stateTones } from "@/lib/costs";
+import { formatMoney, moneyDecimals } from "@/lib/format";
 import c from "./costs.module.css";
 
 type Item = Schemas["BudgetListItem"];
@@ -49,7 +49,23 @@ export function BudgetMeter({ status, label }: { status: Schemas["TeamBudgetStat
   );
 }
 
-function columns(currency: string): DataTableColumn<Item>[] {
+/** A team's mode and where it comes from, in the same words on the Budgets tab and the team's Budget card. */
+export function ModeText({ mode, override }: { mode: Schemas["CostMode"]; override: Schemas["CostModeOverride"] }) {
+  return (
+    <>
+      {modeLabels[mode]}{" "}
+      <Badge size="sm" variant="outline">
+        {modeSourceLabel(override)}
+      </Badge>
+    </>
+  );
+}
+
+function columns(currency: string, items: Item[]): DataTableColumn<Item>[] {
+  // One count of decimals per money column.
+  const budgetDec = moneyDecimals(...items.map((r) => r.status.limit));
+  const spentDec = moneyDecimals(...items.map((r) => r.status.spent));
+  const projectedDec = moneyDecimals(...items.map((r) => r.projected));
   return [
     {
       id: "team",
@@ -68,24 +84,21 @@ function columns(currency: string): DataTableColumn<Item>[] {
       id: "mode",
       header: "Mode",
       accessor: (r) => r.status.mode,
-      cell: (r) => (
-        <>
-          {modeLabels[r.status.mode]}
-          {r.modeOverride !== "inherit" && (
-            <>
-              {" "}
-              <Badge size="sm" variant="outline">
-                Team setting
-              </Badge>
-            </>
-          )}
-        </>
-      ),
+      cell: (r) => <ModeText mode={r.status.mode} override={r.modeOverride} />,
     },
-    { id: "budget", header: "Budget", accessor: (r) => Number(r.status.limit ?? -1), numeric: true, cell: (r) => (r.status.limit === null ? "—" : formatMoney(r.status.limit, currency)) },
-    { id: "spent", header: "Spent", accessor: (r) => Number(r.status.spent ?? 0), numeric: true, cell: (r) => formatMoney(r.status.spent, currency) },
+    {
+      id: "budget",
+      header: "Budget this month",
+      accessor: (r) => Number(r.status.limit ?? -1),
+      numeric: true,
+      cell: (r) => {
+        const b = budgetThisMonth(r.status, { decimals: budgetDec, platformDefault: !r.ownBudget });
+        return b ? <CellText primary={b.total} secondary={b.parts} /> : "—";
+      },
+    },
+    { id: "spent", header: "Spent", accessor: (r) => Number(r.status.spent ?? 0), numeric: true, cell: (r) => formatMoney(r.status.spent, currency, spentDec) },
     { id: "share", header: "Share", accessor: (r) => r.status.percent ?? -1, cell: (r) => <div className={c.meterCell}><BudgetMeter status={r.status} label={`${r.teamName}: share of budget used`} /></div> },
-    { id: "projected", header: "Projected", accessor: (r) => Number(r.projected ?? 0), numeric: true, cell: (r) => formatMoney(r.projected, currency) },
+    { id: "projected", header: "Projected", accessor: (r) => Number(r.projected ?? 0), numeric: true, cell: (r) => formatMoney(r.projected, currency, projectedDec) },
     { id: "state", header: "State", accessor: (r) => r.status.state, cell: (r) => <StatusBadge tone={stateTones[r.status.state]}>{stateLabels[r.status.state]}</StatusBadge> },
   ];
 }
@@ -97,7 +110,7 @@ export function BudgetsTab() {
     <ListPage<Item>
       id="admin-cost-budgets"
       caption={d ? `Budgets for ${monthLabel(d.month)}` : "Budgets"}
-      columns={columns(d?.currency ?? "USD")}
+      columns={columns(d?.currency ?? "USD", d?.items ?? [])}
       data={d?.items ?? []}
       getRowId={(r) => r.teamId}
       rowLabel={(r) => r.teamName}
