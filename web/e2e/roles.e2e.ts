@@ -60,4 +60,13 @@ test("only platform staff open the admin portal", async ({ as, a11y }) => {
   await auditor.goto("/admin");
   await expect(auditor.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
   await a11y(auditor);
+
+  // On a phone the top bar fits: the Read-only badge keeps its word for screen readers but shows only its dot.
+  await auditor.setViewportSize({ width: 390, height: 844 });
+  await auditor.goto("/admin/limits");
+  await expect(auditor.getByRole("heading", { level: 1, name: "Limits" })).toBeVisible();
+  await expect(auditor.getByText("You can view these settings. Only platform admins can change them.")).toBeVisible();
+  await expect(auditor.getByRole("button", { name: /Search or jump to/ })).toBeInViewport();
+  expect(await auditor.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await a11y(auditor);
 });

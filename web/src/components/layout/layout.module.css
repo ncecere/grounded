@@ -17,6 +17,21 @@
   white-space: nowrap;
 }
 
+@media (max-width: 30rem) {
+  .adminBadge {
+    gap: 0;
+  }
+
+  .adminBadgeText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 .menuTeam {
   display: flex;
   flex-direction: column;
