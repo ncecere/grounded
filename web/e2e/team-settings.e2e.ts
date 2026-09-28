@@ -41,7 +41,7 @@ test("team settings: invite, usage meters, API key shown once and revoked, audit
     await expect(page.getByText("No API keys yet.")).toBeVisible();
     await a11y(page);
 
-    await page.getByRole("button", { name: "New API key" }).click();
+    await page.getByRole("button", { name: "New API key" }).first().click();
     const create = page.getByRole("dialog", { name: "New API key" });
     await create.getByLabel("Name").fill("Course site search");
     await create.getByRole("group", { name: "Scopes" }).getByRole("checkbox").first().check();

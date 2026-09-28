@@ -56,7 +56,7 @@ test("upload source, knowledge base, agent, publish, streamed chat with citation
     await page.getByRole("tab", { name: /^Sources/ }).click();
     await expect(page).toHaveURL(/tab=sources/);
     await a11y(page);
-    await page.getByRole("button", { name: "Attach source" }).click();
+    await page.getByRole("button", { name: "Attach source" }).first().click();
     const attach = page.getByRole("dialog", { name: "Attach a source to Parking KB" });
     await attach.getByRole("radio", { name: /Parking files/ }).check();
     await a11y(page, "attach a source");
