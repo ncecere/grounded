@@ -11029,14 +11029,26 @@ components:
         finishedAt: { type: string, format: date-time, nullable: true }
     EvaluationHit:
       type: object
+      description: >-
+        A document that came back (retrieval: once per document, at its best
+        passage rank) or a citation of the answer (full answers: one per [n]
+        marker number, in the answer's order, with the cited passage).
       required: [rank, documentId, title, expected]
       properties:
-        rank: { type: integer }
+        rank: { type: integer, description: The passage rank (retrieval) or the citation's position (answers) }
         documentId: { type: string, format: uuid }
         title: { type: string }
         url: { type: string }
         filename: { type: string }
         expected: { type: boolean, description: One of the question's expected documents }
+        n: { type: integer, description: "The answer's marker number: [n] cites this entry (full answers)" }
+        snippet: { type: string, description: The cited passage (full answers) }
+        headingPath:
+          type: array
+          description: The cited passage's headings (full answers)
+          items: { type: string }
+        pageStart: { type: integer, description: The cited passage's first page (full answers) }
+        pageEnd: { type: integer, description: The cited passage's last page (full answers) }
     EvaluationMention:
       type: object
       required: [phrase, found]
@@ -11067,7 +11079,7 @@ components:
         rank: { type: integer, nullable: true, description: The rank of the first expected document (retrieval) }
         hits:
           type: array
-          description: What came back (retrieval) or was cited (answers), once per document
+          description: What came back (retrieval), once per document, or what the answer cited (full answers), once per marker number
           items: { $ref: "#/components/schemas/EvaluationHit" }
         answer: { type: string, nullable: true, description: The agent's answer (full-answer checks) }
         scores:

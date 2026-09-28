@@ -141,8 +141,22 @@ func (x *executor) answer(ctx context.Context, cs Case, p *dbgen.InsertEvalResul
 		p.Status = StatusPass
 	}
 	p.Scores, _ = json.Marshal(scores)
-	p.Hits, _ = json.Marshal(hitViews(cited, cs.Want))
+	p.Hits, _ = json.Marshal(citationViews(ans.Citations, cited, cs.Want))
 	return nil
+}
+
+// citationViews lists an answer's citations as it numbers them, one per
+// marker ([1], [2]…, several of the same document included), with the
+// cited passage, marking the expected documents. docs are the cited
+// documents in citation order (citedDocs).
+func citationViews(cites []agents.Citation, docs []Doc, want Expected) []HitView {
+	out := make([]HitView, 0, len(cites))
+	for i, c := range cites {
+		d := docs[i]
+		out = append(out, HitView{Rank: i + 1, N: c.N, DocumentID: d.DocumentID, Title: d.Title, URL: d.URL, Filename: d.Filename,
+			Expected: want.Matches(d), Snippet: c.Snippet, HeadingPath: c.HeadingPath, PageStart: c.PageStart, PageEnd: c.PageEnd})
+	}
+	return out
 }
 
 // citedDocs are the documents an answer cites, in citation order, with

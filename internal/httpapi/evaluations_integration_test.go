@@ -226,6 +226,15 @@ func TestEvaluationAnswerRun(t *testing.T) {
 		len(parking.Scores.Mentions) != 1 || !parking.Scores.Mentions[0].Found {
 		t.Errorf("parking = %+v scores %+v", parking, parking.Scores)
 	}
+	// The answer's citations, one per marker number, with the cited passage.
+	if len(parking.Hits) == 0 {
+		t.Errorf("parking cites nothing")
+	}
+	for i, h := range parking.Hits {
+		if h.N == nil || *h.N < 1 || h.Snippet == nil || *h.Snippet == "" || h.Rank != i+1 {
+			t.Errorf("citation %d = %+v", i, h)
+		}
+	}
 	if housing.Status != "fail" || housing.Scores == nil || housing.Scores.Mentions[0].Found {
 		t.Errorf("housing = %+v", housing)
 	}
