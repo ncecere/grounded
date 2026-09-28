@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,6 +17,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	pgvector "github.com/pgvector/pgvector-go"
+
+	"github.com/ncecere/grounded/internal/agents"
 )
 
 // agentConfig is the part of a published agent version the prompt uses.
@@ -114,32 +115,14 @@ func formatSources(hits []source) string {
 	return b.String()
 }
 
-// markerRE is internal/agents' citation marker pattern ([1], [1, 2], ［1］,
-// 【1】, 【1†L10-L12】).
-var markerRE = regexp.MustCompile(`([\s\p{Z}]*)(?:\[|［|【)(\d{1,3}(?:\s*[,，]\s*\d{1,3})*)(?:†[^】\]］]*)?(?:\]|］|】)`)
-
-func citedNumbers(text string) []int {
-	var out []int
-	for _, m := range markerRE.FindAllStringSubmatch(text, -1) {
-		for _, f := range strings.FieldsFunc(m[2], func(r rune) bool { return r == ',' || r == '，' || r == ' ' }) {
-			if n, err := strconv.Atoi(f); err == nil {
-				out = append(out, n)
-			}
-		}
-	}
-	return out
-}
-
-// isRefusal is internal/agents.isRefusal: the whole answer is the refusal.
-func isRefusal(text, refusal string) bool {
-	norm := func(s string) string {
-		s = markerRE.ReplaceAllString(s, "")
-		s = strings.Join(strings.Fields(s), " ")
-		s = strings.Trim(strings.ToLower(s), `"'“”`)
-		return strings.TrimRight(s, ".!")
-	}
-	return refusal != "" && norm(text) == norm(refusal)
-}
+// Citation markers are read exactly as the product reads them
+// (internal/agents/markers.go): [1], [1, 2], ［1］, 【1】, 【1†L10-L12】, and
+// never inside code or attached to an identifier.
+var (
+	citedNumbers  = agents.CitedNumbers
+	removeMarkers = agents.RemoveMarkers
+	isRefusal     = agents.IsRefusal
+)
 
 // answerRecord is one line of answer's JSONL output.
 type answerRecord struct {

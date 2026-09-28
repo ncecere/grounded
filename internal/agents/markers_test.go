@@ -116,3 +116,18 @@ func TestIsRefusalIgnoresOnlyMarkers(t *testing.T) {
 		t.Error("isRefusal")
 	}
 }
+
+// The exported readers (used by cmd/sparkbench) follow findMarkers: code
+// and array indices are not citations.
+func TestExportedMarkerReaders(t *testing.T) {
+	text := "Fees are due [1, 2]. See `a[3]` and arr[4]; parking【5†L1-L2】."
+	if got, want := CitedNumbers(text), []int{1, 2, 5}; !reflect.DeepEqual(got, want) {
+		t.Errorf("CitedNumbers = %v, want %v", got, want)
+	}
+	if got, want := RemoveMarkers(text), "Fees are due. See `a[3]` and arr[4]; parking."; got != want {
+		t.Errorf("RemoveMarkers = %q, want %q", got, want)
+	}
+	if !IsRefusal("I don't know [1].", "I don't know.") {
+		t.Error("IsRefusal ignores markers")
+	}
+}

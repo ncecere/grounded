@@ -90,6 +90,25 @@ func attached(text string, m citeMarker, lastEnd int) bool {
 
 func isIdentByte(b byte) bool { return isWordByte(b) || b == '_' }
 
+// CitedNumbers returns the source numbers of text's citation markers in
+// order, one per number ([1, 2] gives 1 and 2), by the rules above. For
+// tools outside the package (cmd/sparkbench) that score answers.
+func CitedNumbers(text string) []int {
+	var out []int
+	for _, m := range findMarkers(text) {
+		out = append(out, markerNums(m.Inner)...)
+	}
+	return out
+}
+
+// RemoveMarkers drops every citation marker of text, with the whitespace
+// before it.
+func RemoveMarkers(text string) string { return removeAllMarkers(text) }
+
+// IsRefusal reports whether text is the refusal message and nothing else
+// (markers, surrounding whitespace, case and a trailing period aside).
+func IsRefusal(text, refusal string) bool { return isRefusal(text, refusal) }
+
 // removeAllMarkers drops every marker (and the whitespace before it).
 func removeAllMarkers(text string) string {
 	var b strings.Builder

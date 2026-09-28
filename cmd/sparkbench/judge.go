@@ -162,7 +162,7 @@ func (j *judger) grade(ctx context.Context, ja *judgedAnswer) error {
 		}
 		page = append(page, map[string]string{"url": u, "text": t})
 	}
-	answer := strings.Join(strings.Fields(markerRE.ReplaceAllString(ja.Answer, "")), " ")
+	answer := strings.Join(strings.Fields(removeMarkers(ja.Answer)), " ")
 	state := map[string]any{"question": ja.Question, "answer": answer, "expected_page": page}
 	if len(page) == 1 {
 		state["expected_page"] = page[0]

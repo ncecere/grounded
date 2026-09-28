@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). Release notes will be in `docs/releases/v0.2.0.md`.
 
 ### Changed
+- `cmd/sparkbench` reads citation markers with `internal/agents` (exported `CitedNumbers`, `RemoveMarkers`, `IsRefusal`) instead of its own copy of the old pattern, so benchmark scores count markers exactly as the product does (never inside code or array indices).
 - CI: a tag build fails, before the image is scanned and signed, unless the built image reports exactly its tag (`grounded v0.2.0 (<commit>)`).
 
 ### Fixed
