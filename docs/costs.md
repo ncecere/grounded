@@ -1,6 +1,6 @@
 # Costs and budgets (E2, v0.2)
 
-Status: **agreed** (owner, 2026-09-28), for M3 of [`v0.2.0.md`](v0.2.0.md) §3.3. The owner's decisions are in §9.
+Status: **agreed** (owner, 2026-09-28), for M3 of [`v0.2.0.md`](v0.2.0.md) §3.3. The owner's decisions are in §9. **Implemented** (package `internal/costs`, [DESIGN §11.3](DESIGN.md#113-costs-and-budgets), runbook [`operations/costs.md`](operations/costs.md)); where the implementation settles details this design left open, §10 says so.
 
 Grounded already meters every model call in the usage ledger (`usage_events`, DESIGN §11.2). E2 puts prices on that usage, reports spend, and optionally enforces a monthly budget per team. It is **off by default**: with the mode on *Off*, nothing on screen or in the API changes.
 
@@ -95,3 +95,13 @@ Pricing arithmetic and effective dating (unit), the rollup against `usage_events
 2. ~~Per-agent budgets in v0.2?~~ **No** (owner, 2026-09-28). Reports show spend per agent; per-agent caps can come later.
 3. ~~What is refused at 100%?~~ **Everything that calls a model** (owner, 2026-09-28): chats, retrieval queries (`/retrieve`, the Search tab) and ingestion.
 4. ~~Budget month?~~ **The calendar month in a platform time zone, default UTC** (owner, 2026-09-28). Admins set the zone (an IANA name such as `America/New_York`) in Admin → Costs → Settings; reports' days use it too. Daily limits still reset at midnight UTC.
+
+## 10. Implementation notes
+
+- **Pricing in Go:** SQL sums quantities per local day, unit and model; the price in effect is applied in Go with exact decimals (`math/big`), so the dating and arithmetic are unit-tested. Amounts are rounded to six decimals only when shown.
+- **Price dates** are days in the platform time zone (not UTC), matching the local days usage is priced on.
+- **Budget state for members:** `GET /v1/teams/{team}/budget-status` (every member; amounts only for owners, admins and platform readers) drives the workspace banner and the "Waiting" hint on sources, in addition to §6.
+- **Cache:** besides the 30-second expiry, every change to settings, prices, budgets or extensions bumps `cost_settings.generation`, which drops cached figures in every process at once; and usage a process records is added to its cached figure as it's written, so a team is refused on its next request rather than up to 30 seconds later.
+- **Retention:** the purge adds events of hours the rollup hasn't reached to `usage_rollup` under a share lock on the watermark, so a stopped worker can't lose usage and nothing is counted twice.
+- **Crawls wait** at their next invocation (reason `monthly_budget`, re-checked every 15 minutes and woken on a change); documents already queued finish.
+- **The Budget card** on a team's admin page is hidden while the platform mode is Off and the team inherits (with Off nothing changes on screen); to pilot Enforce on one team, set the platform to Track only first, or set the team's mode through the API.
