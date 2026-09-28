@@ -8,6 +8,7 @@ import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import type { Range } from "@/components/analytics/range-picker";
 import { channelLabels } from "@/components/analytics/format";
+import { RelativeTime } from "@/components/templates/list-page";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Card } from "@/components/ui/card/card";
@@ -15,7 +16,6 @@ import { Disclosure } from "@/components/ui/disclosure/disclosure";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { Table, Td, Tr } from "@/components/ui/table/table";
-import { formatDate } from "@/lib/format";
 import { categoryLabel } from "@/lib/moderation";
 import s from "../../shared.module.css";
 
@@ -43,7 +43,7 @@ export function ModerationEvents({ range, filtered }: { range: Range; filtered?:
             {items.map((e) => (
               <Tr key={`${e.id}-${e.stage}`}>
                 <Td muted nowrap>
-                  {formatDate(e.at)}
+                  <RelativeTime value={e.at} />
                 </Td>
                 <Td>
                   {e.agentName || <span className={s.muted}>Deleted agent</span>}

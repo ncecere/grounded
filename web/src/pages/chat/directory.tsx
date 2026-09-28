@@ -4,7 +4,6 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, Bot, MessagesSquare } from "lucide-react";
 import type { Schemas } from "../../api/client";
 import { agentDirectoryQuery, conversationsQuery } from "../../api/queries";
-import { formatDate } from "../../lib/format";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Card } from "@/components/ui/card/card";
@@ -14,7 +13,7 @@ import { Input } from "@/components/ui/input/input";
 import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { Skeleton } from "@/components/ui/skeleton/skeleton";
-import { useListFilters } from "../../components/templates/list-page";
+import { RelativeTime, useListFilters } from "../../components/templates/list-page";
 import { audienceLabel, audienceLabels, terms } from "../../lib/terms";
 import { useDebounced } from "../admin/hooks";
 import { AgentAvatar } from "./welcome";
@@ -144,14 +143,14 @@ export function RecentConversations({ limit = 8 }: { limit?: number }) {
             <Link to="/conversations/$conversationId" params={{ conversationId: c.id }} className={d.recentRow}>
               <span className={d.recentTitle}>{c.title || "Untitled conversation"}</span>
               <span className={d.recentMeta}>
-                {c.agentName} (deleted) · {formatDate(c.updatedAt)}
+                {c.agentName} (deleted) · <RelativeTime value={c.updatedAt} />
               </span>
             </Link>
           ) : (
             <Link to="/a/$team/$agent" params={{ team: c.teamSlug, agent: c.agentSlug }} search={{ c: c.id }} className={d.recentRow}>
               <span className={d.recentTitle}>{c.title || "Untitled conversation"}</span>
               <span className={d.recentMeta}>
-                {c.agentName} · {formatDate(c.updatedAt)}
+                {c.agentName} · <RelativeTime value={c.updatedAt} />
               </span>
             </Link>
           )}

@@ -3,7 +3,7 @@ import { Activity, Clock, Flag, LifeBuoy, SearchX, ShieldAlert, ShieldOff, Shiel
 import type { Schemas } from "../../../api/client";
 import { ModerationCard, ShareCard, StatGroup } from "@/components/analytics/breakdowns";
 import { CitationsGroup, ScopeGroup } from "@/components/analytics/checks";
-import { audienceLabels, channelLabels, dailySummary, ms, num, pct } from "@/components/analytics/format";
+import { audienceLabels, channelLabels, dailySummary, dayLabel, ms, num, pct } from "@/components/analytics/format";
 import { JudgingGroup } from "@/components/analytics/judging";
 import { Card } from "@/components/ui/card/card";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
@@ -32,7 +32,7 @@ export function UsageView({ a }: { a: Analytics }) {
               { key: "answers", label: "Answers", tone: "info" },
               { key: "conversations", label: "Conversations started", tone: "success" },
             ]}
-            data={a.daily.map((d) => ({ label: d.date, values: { answers: d.answers, conversations: d.conversations } }))}
+            data={a.daily.map((d) => ({ label: dayLabel(d.date), values: { answers: d.answers, conversations: d.conversations } }))}
             dataTable={{ caption: "Answers and conversations per day", labelHeader: "Day" }}
           />
         )}

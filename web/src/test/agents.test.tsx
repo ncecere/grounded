@@ -389,7 +389,7 @@ describe("agent editor", () => {
     expect(kpis).toHaveTextContent(/Satisfaction\s*80%\s*From 10 ratings/);
     expect(within(kpis).getAllByRole("term")).toHaveLength(5);
     expect(screen.getByText("2.4 s")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /Answers per day from 2026-09-25 to 2026-09-26: 14 answers and 5 conversations/ })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Answers per day from Sep 25, 2026 to Sep 26, 2026: 14 answers and 5 conversations/ })).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "Answers per audience" })).toHaveTextContent(/Public\s*18\s*60%/);
     expect(screen.getByRole("table", { name: "Answers per channel" })).toHaveTextContent(/Embedded widget\s*8/);
     expect(await axe(a.container)).toHaveNoViolations();

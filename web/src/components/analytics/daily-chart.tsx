@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Table, Td, Tr } from "@/components/ui/table/table";
-import { dailySummary, num } from "./format";
+import { dailySummary, dayLabel, num } from "./format";
 import an from "./analytics.module.css";
 
 export type DailyRow = { date: string; answers: number; conversations: number };
@@ -36,7 +36,7 @@ export function DailyChart<T extends DailyRow>({ days, description, extra = [], 
       ) : (
         <div className={an.chartBody}>
           <BarChart
-            data={days.map((d) => ({ label: d.date, values: { answers: d.answers, conversations: d.conversations } }))}
+            data={days.map((d) => ({ label: dayLabel(d.date), values: { answers: d.answers, conversations: d.conversations } }))}
             series={[
               { key: "answers", label: "Answers", tone: "info" },
               { key: "conversations", label: "Conversations started" },
@@ -54,7 +54,9 @@ export function DailyChart<T extends DailyRow>({ days, description, extra = [], 
               .filter((d) => d.answers || d.conversations)
               .map((d) => (
                 <Tr key={d.date}>
-                  <Td>{d.date}</Td>
+                  <Td nowrap>
+                    <time dateTime={d.date}>{dayLabel(d.date)}</time>
+                  </Td>
                   <Td numeric>{num(d.answers)}</Td>
                   <Td numeric>{num(d.conversations)}</Td>
                   {extra.map((c) => (

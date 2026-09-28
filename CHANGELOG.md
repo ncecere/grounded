@@ -31,6 +31,7 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are 
 - The widget key form opens with `?form=new` (and `?form=<id>` to edit), like every other form page, instead of `?record=` (G18).
 - Adding an embedding profile for a model with known prefixes fills them in (nomic-embed: `search_document: ` / `search_query: `; Qwen3-Embedding: its query instruction), and warns with a "Use the recommended prefixes" button when they're emptied (G7).
 - The model form's "Compatibility" section and the audit table's row details use the bitop-ui `Disclosure` instead of hand-built toggles (G8).
+- One date rule: lists show relative times with the full date on hover, record pages show absolute dates. Home's "Continue where you left off", open invites' "Expires", the crawl allowlist, crawl history, version history, moderation decisions and open break-glass sessions now follow it, and Analytics shows days as dates ("Sep 26, 2026") instead of ISO dates (G13).
 
 ## [0.1.0] - 2026-09-28
 

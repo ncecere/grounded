@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { api, unwrap, type Schemas } from "../api/client";
-import { formatDate } from "../lib/format";
 import { emailProblem } from "../lib/validation";
 import s from "../pages/shared.module.css";
 import { ConfirmMutationDialog } from "./confirm-dialog";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
+import { RelativeTime } from "@/components/templates/list-page";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
@@ -138,7 +138,7 @@ export function InviteList({ team, myRole }: { team: string; myRole?: TeamRole }
               <Badge>{roleLabels[inv.role]}</Badge>
             </Td>
             <Td muted nowrap>
-              {formatDate(inv.expiresAt)}
+              <RelativeTime value={inv.expiresAt} />
             </Td>
             <Td>
               <TableActions>

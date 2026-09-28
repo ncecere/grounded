@@ -1,5 +1,6 @@
 /* Formatting and labels shared by the analytics pages (team agent Analytics tab and admin Analytics). */
 import type { Schemas } from "@/api/client";
+import { formatDate } from "@/lib/bitop-format";
 
 export type AnalyticsChannel = Schemas["AnalyticsChannel"];
 export type Audience = Schemas["Audience"];
@@ -7,6 +8,9 @@ export type ModerationCount = Schemas["ModerationCount"];
 
 /** A date as YYYY-MM-DD (UTC). */
 export const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+/** A UTC day ("2026-09-26", as the API reports days) for people: "Sep 26, 2026" (G13: no ISO dates on screen). */
+export const dayLabel = (day: string) => formatDate(`${day}T00:00:00Z`, { style: "date", timeZone: "UTC", fallback: day });
 
 /** The UTC date n days before today. */
 export const daysAgo = (n: number, now = new Date()) => {
@@ -36,9 +40,9 @@ export function dailySummary(days: { date: string; answers: number; conversation
   const answers = days.reduce((s, d) => s + d.answers, 0);
   const conversations = days.reduce((s, d) => s + d.conversations, 0);
   const busiest = days.reduce((a, b) => (b.answers > a.answers ? b : a), days[0]!);
-  const range = `${days[0]!.date} to ${days[days.length - 1]!.date}`;
+  const range = `${dayLabel(days[0]!.date)} to ${dayLabel(days[days.length - 1]!.date)}`;
   if (answers === 0) return `Answers per day from ${range}: none.`;
-  return `Answers per day from ${range}: ${num(answers)} answers and ${num(conversations)} conversations in total; the busiest day was ${busiest.date} with ${num(busiest.answers)} answers.`;
+  return `Answers per day from ${range}: ${num(answers)} answers and ${num(conversations)} conversations in total; the busiest day was ${dayLabel(busiest.date)} with ${num(busiest.answers)} answers.`;
 }
 
 /** Moderation counts pivoted by category: questions and answers, blocked and flagged. Provider errors are counted apart. */

@@ -2,14 +2,13 @@
 import { Eye, LockOpen } from "lucide-react";
 import { type DataTableColumn } from "@/components/ui/data-table/data-table";
 import { QueryView } from "@/components/query-view";
-import { ListPage, timeColumn } from "@/components/templates/list-page";
+import { ListPage, RelativeTime, timeColumn } from "@/components/templates/list-page";
 import { StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Table, TableActions, Td, Tr } from "@/components/ui/table/table";
 import { type BreakGlassSession, personName, scopeWords, statusLabels, statusTone, timeLeft, useNow } from "@/lib/break-glass";
-import { formatDate } from "@/lib/format";
 import { useCurrentUser } from "@/session";
 import s from "../../shared.module.css";
 import { useAllSessions, useOpenSessions } from "./queries";
@@ -42,7 +41,15 @@ export function OpenSessionsCard({ onOpen }: { onOpen: (id: string) => void }) {
               <Td>
                 <StatusBadge tone={statusTone[x.status]}>{statusLabels[x.status]}</StatusBadge>
               </Td>
-              <Td>{x.status === "active" && x.expiresAt ? timeLeft(x.expiresAt, now) : `Lapses ${formatDate(x.approvalDeadline)}`}</Td>
+              <Td>
+                {x.status === "active" && x.expiresAt ? (
+                  timeLeft(x.expiresAt, now)
+                ) : (
+                  <>
+                    Lapses <RelativeTime value={x.approvalDeadline} />
+                  </>
+                )}
+              </Td>
               <Td>
                 <TableActions>
                   <Button size="sm" variant="secondary" aria-label={`Open the session on ${x.team.name} by ${personName(x.requestedBy)}`} onClick={() => onOpen(x.id)}>

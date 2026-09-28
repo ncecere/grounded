@@ -103,11 +103,11 @@ describe("admin analytics page", () => {
     for (const group of ["Quality", "Speed", "Moderation"]) expect(screen.getByRole("region", { name: group })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Speed" })).toHaveTextContent(/Latency p95\s*5.4 s/);
 
-    const chart = screen.getByRole("img", { name: /Answers per day from 2026-09-24 to 2026-09-26: 160 answers and 51 conversations.*busiest day was 2026-09-26 with 140/ });
+    const chart = screen.getByRole("img", { name: /Answers per day from Sep 24, 2026 to Sep 26, 2026: 160 answers and 51 conversations.*busiest day was Sep 26, 2026 with 140/ });
     expect(chart).toBeInTheDocument();
     const daily = screen.getByRole("table", { name: "Answers and conversations per day" });
     expect(within(daily).getAllByRole("row")).toHaveLength(3); // header + the two days with activity
-    expect(within(daily).getAllByRole("row")[2]).toHaveTextContent(/2026-09-26\s*140\s*43\s*1\s*0\s*2\s*0/);
+    expect(within(daily).getAllByRole("row")[2]).toHaveTextContent(/Sep 26, 2026\s*140\s*43\s*1\s*0\s*2\s*0/);
     expect(screen.getByRole("link", { name: "Download CSV" })).toHaveAttribute("href", "/v1/admin/analytics/daily.csv?from=2026-09-24&to=2026-09-26");
 
     expect(calls.find((c) => c.url === "/v1/admin/analytics")?.search.get("from")).toBe(daysAgoLocal(29));
@@ -188,9 +188,9 @@ describe("analytics helpers", () => {
 
   it("summarises a daily series", () => {
     expect(dailySummary([])).toBe("No days in this range.");
-    expect(dailySummary([{ date: "2026-09-01", answers: 0, conversations: 0 }])).toBe("Answers per day from 2026-09-01 to 2026-09-01: none.");
+    expect(dailySummary([{ date: "2026-09-01", answers: 0, conversations: 0 }])).toBe("Answers per day from Sep 1, 2026 to Sep 1, 2026: none.");
     expect(dailySummary([{ date: "2026-09-01", answers: 3, conversations: 1 }, { date: "2026-09-02", answers: 1200, conversations: 9 }])).toBe(
-      "Answers per day from 2026-09-01 to 2026-09-02: 1,203 answers and 10 conversations in total; the busiest day was 2026-09-02 with 1,200 answers.",
+      "Answers per day from Sep 1, 2026 to Sep 2, 2026: 1,203 answers and 10 conversations in total; the busiest day was Sep 2, 2026 with 1,200 answers.",
     );
   });
 });

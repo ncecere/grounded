@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Globe, Plus } from "lucide-react";
 import { useId, useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
-import { formatDate } from "@/lib/format";
 import { useIntent } from "@/lib/intents";
+import { RelativeTime } from "@/components/templates/list-page";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
@@ -71,7 +71,7 @@ export function AllowlistCard({ isAdmin }: { isAdmin: boolean }) {
               </Td>
               <Td muted>{e.note || "—"}</Td>
               <Td muted nowrap>
-                {formatDate(e.createdAt)}
+                <RelativeTime value={e.createdAt} />
               </Td>
               <Td>
                 <TableActions>

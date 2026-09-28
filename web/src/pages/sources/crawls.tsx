@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ApiError, errorMessage, limitError, type Schemas } from "../../api/client";
 import { formatDate } from "../../lib/format";
 import { type MaintenanceStatus, maintenanceReason, useMaintenance } from "../../lib/maintenance";
+import { RelativeTime } from "@/components/templates/list-page";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge, StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
@@ -321,7 +322,7 @@ export function CrawlHistory({ source }: { source: DataSource }) {
             </Td>
             <Td muted>{triggerLabels[c.trigger]}</Td>
             <Td muted nowrap>
-              {formatDate(c.startedAt ?? c.createdAt)}
+              <RelativeTime value={c.startedAt ?? c.createdAt} />
             </Td>
             <Td numeric>{formatDuration(c.startedAt, c.finishedAt)}</Td>
             <Td numeric>{c.pagesFetched.toLocaleString()}</Td>

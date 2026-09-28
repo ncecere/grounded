@@ -6,6 +6,7 @@ import { useId, useState } from "react";
 import { ApiError, api, unwrap } from "../../api/client";
 import { formatDate } from "../../lib/format";
 import { ActionMenu } from "@/components/templates/action-menu";
+import { RelativeTime } from "@/components/templates/list-page";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
@@ -222,7 +223,7 @@ export function VersionsTab({ agent, d }: { agent: Agent; d: AgentDraft }) {
                 </Td>
                 <Td>{v.note || <span className={s.muted}>No note</span>}</Td>
                 <Td muted nowrap>
-                  {formatDate(v.publishedAt)}
+                  <RelativeTime value={v.publishedAt} />
                   <span className={s.secondary}>{v.publishedByName || "Unknown"}</span>
                 </Td>
                 <Td>
