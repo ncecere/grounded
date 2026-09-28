@@ -1,8 +1,9 @@
 /*
  * Publishable keys for the widget (team admins and owners, W8): a list whose
- * rows open the key in a RecordPage (?record=<id>, or ?record=new to create
- * one) with its allowed origins, limits, enable/disable and revoke. Origins
- * are shown as they will be saved, and one without a scheme is named (F-08).
+ * rows open the key in a FormPage (?form=<id>, or ?form=new to create one,
+ * like every form page) with its allowed origins, limits, enable/disable and
+ * revoke. Origins are shown as they will be saved, and one without a scheme
+ * is named (F-08).
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Pencil, Plus, Power, Trash2 } from "lucide-react";
@@ -10,8 +11,7 @@ import { useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "../../../api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import { ListPage, RelativeTime, timeColumn } from "@/components/templates/list-page";
-import { FormPage } from "@/components/templates/form-page";
-import { useRecordParam } from "@/components/templates/record-page";
+import { FormPage, useFormParam } from "@/components/templates/form-page";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
@@ -46,7 +46,7 @@ type Props = { team: string; agentId: string; onCreated: (k: Created) => void };
 
 export function KeysList({ team, agentId, onCreated }: Props) {
   const qc = useQueryClient();
-  const record = useRecordParam();
+  const form = useFormParam();
   const keys = useQuery({
     queryKey: keysKey(team, agentId),
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/agents/{agentId}/publishable-keys", { params: { path: { team, agentId } } })),
@@ -67,14 +67,14 @@ export function KeysList({ team, agentId, onCreated }: Props) {
     onSuccess: () => {
       void refresh();
       setRevoking(null);
-      if (record.id) record.close();
+      if (form.id) form.close();
       toast.success("Key revoked");
     },
   });
   const list = keys.data ?? [];
-  const open = record.id === "new" ? null : list.find((k) => k.id === record.id);
+  const open = form.id === "new" ? null : list.find((k) => k.id === form.id);
   const create = (
-    <Button size="sm" variant="secondary" onClick={() => record.open("new")}>
+    <Button size="sm" variant="secondary" onClick={() => form.open("new")}>
       <Plus aria-hidden /> New widget key
     </Button>
   );
@@ -88,9 +88,9 @@ export function KeysList({ team, agentId, onCreated }: Props) {
         data={list}
         getRowId={(k) => k.id}
         rowLabel={(k) => k.name}
-        onRowClick={(k) => record.open(k.id)}
+        onRowClick={(k) => form.open(k.id)}
         rowActions={(k) => [
-          { label: "View and edit", icon: <Pencil aria-hidden />, onSelect: () => record.open(k.id) },
+          { label: "View and edit", icon: <Pencil aria-hidden />, onSelect: () => form.open(k.id) },
           { label: k.enabled ? "Disable" : "Enable", icon: <Power aria-hidden />, onSelect: () => toggle.mutate(k) },
           { label: "Revoke…", icon: <Trash2 aria-hidden />, danger: true, onSelect: () => setRevoking(k) },
         ]}
@@ -100,17 +100,17 @@ export function KeysList({ team, agentId, onCreated }: Props) {
         empty={{ icon: <KeyRound />, title: "No widget keys yet.", description: "A key lets the widget run on the sites you allow.", action: create }}
         tableProps={{ toolbar: list.length > 0 ? create : undefined }}
       />
-      {(record.id === "new" || open) && (
+      {(form.id === "new" || open) && (
         <WidgetKeyForm
-          key={record.id}
+          key={form.id}
           team={team}
           agentId={agentId}
           current={open ?? null}
-          onClose={record.close}
+          onClose={form.close}
           onRevoke={open ? () => setRevoking(open) : undefined}
           onSaved={(k) => {
             void refresh();
-            record.close();
+            form.close();
             if ("key" in k) onCreated(k as Created);
           }}
         />

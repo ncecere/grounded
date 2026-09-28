@@ -331,7 +331,7 @@ describe("agent editor sharing", () => {
           ),
       }),
     );
-    const { container } = renderApp("/teams/registrar/agents/ag1?tab=share");
+    const { container, router } = renderApp("/teams/registrar/agents/ag1?tab=share");
     expect(await screen.findByRole("tab", { name: "Share", selected: true })).toBeInTheDocument();
     expect(await screen.findByText("https://rag.example.edu/a/registrar-help", {}, { timeout: 5000 })).toBeInTheDocument();
     // F-07: the short address comes first; the page says which work signed out.
@@ -347,6 +347,9 @@ describe("agent editor sharing", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "New widget key" }));
     const dialog = await screen.findByRole("region", { name: "New widget key" });
+    // A form page like every other: ?form=new (G18).
+    expect(router.state.location.searchStr).toMatch(/[?&]form=new\b/);
+    expect(router.state.location.searchStr).not.toMatch(/record=/);
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Name" }), "Demo page");
     const origins = within(dialog).getByRole("textbox", { name: /Allowed origins/ });
     // F-08: the sheet asks for a scheme, shows how an origin is saved, and names problems.
