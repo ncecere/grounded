@@ -4162,6 +4162,12 @@ type AuditEntry struct {
 	TargetLabel *string             `json:"targetLabel"`
 	TargetType  string              `json:"targetType"`
 	TeamId      *openapi_types.UUID `json:"teamId,omitempty"`
+
+	// TeamName The team's name for a team's entry (null for platform entries, or when the team was deleted)
+	TeamName *string `json:"teamName,omitempty"`
+
+	// TeamSlug The team's slug, with teamName
+	TeamSlug *string `json:"teamSlug,omitempty"`
 }
 
 // AuditEntryActorKind defines model for AuditEntry.ActorKind.
@@ -8975,7 +8981,7 @@ type AdminListAuditParams struct {
 	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group.
+	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed.
 	Action *AuditActionParam `form:"action,omitempty" json:"action,omitempty"`
 
 	// ExcludeAction An action group (a prefix ending in a dot) to leave out, e.g. auth. to hide sign-ins and sign-outs.
@@ -9406,7 +9412,7 @@ type ListTeamAuditParams struct {
 	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group.
+	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed.
 	Action *AuditActionParam `form:"action,omitempty" json:"action,omitempty"`
 
 	// ExcludeAction An action group (a prefix ending in a dot) to leave out, e.g. auth. to hide sign-ins and sign-outs.

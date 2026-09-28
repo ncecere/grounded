@@ -19,10 +19,13 @@ INSERT INTO audit_log (
 -- belongs to, for linking: a publishable key's agent, a document's source
 -- (parent_label '' when the parent no longer exists).
 -- action_prefix and exclude_prefix are LIKE-escaped by the caller.
+-- group_mapping: the group mapping rules' changes and the memberships they
+-- made (metadata.via = 'sso_group_rule'), across action groups.
 SELECT a.id, a.occurred_at, a.actor_kind, a.actor_user_id, a.team_id, a.action,
        a.target_type, a.target_id, a.before_state, a.after_state, a.metadata,
        a.request_id, a.client_ip,
        COALESCE(u.email::text, '')::text AS actor_email,
+       COALESCE(tm.name, '')::text AS team_name, COALESCE(tm.slug::text, '')::text AS team_slug,
        u.display_name AS actor_display_name,
        k.name AS actor_api_key_name,
        COALESCE(live.label, '')::text AS live_label,
@@ -57,6 +60,7 @@ CROSS JOIN LATERAL (
                                     WHEN 'document' THEN a.metadata->>'sourceId' END AS raw) p
 ) ids
 LEFT JOIN users u ON u.id = a.actor_user_id
+LEFT JOIN teams tm ON tm.id = a.team_id
 LEFT JOIN api_keys k ON a.actor_kind = 'api_key' AND k.id = ids.key_uuid
 CROSS JOIN LATERAL (
     SELECT (CASE a.target_type
@@ -102,6 +106,8 @@ WHERE (sqlc.narg(team_id)::uuid IS NULL OR a.team_id = sqlc.narg(team_id)::uuid)
   AND (sqlc.narg(action)::text IS NULL OR a.action = sqlc.narg(action)::text)
   AND (sqlc.narg(action_prefix)::text IS NULL OR a.action LIKE sqlc.narg(action_prefix)::text || '%' ESCAPE '\')
   AND (sqlc.narg(exclude_prefix)::text IS NULL OR a.action NOT LIKE sqlc.narg(exclude_prefix)::text || '%' ESCAPE '\')
+  AND (NOT COALESCE(sqlc.narg(group_mapping)::boolean, false)
+       OR a.action LIKE 'platform.sso\_rule\_%' ESCAPE '\' OR a.metadata->>'via' = 'sso_group_rule')
   AND (sqlc.narg(actor_user_id)::uuid IS NULL OR a.actor_user_id = sqlc.narg(actor_user_id)::uuid)
   AND (sqlc.narg(target_type)::text IS NULL OR a.target_type = sqlc.narg(target_type)::text)
   AND (sqlc.narg(occurred_from)::timestamptz IS NULL OR a.occurred_at >= sqlc.narg(occurred_from)::timestamptz)

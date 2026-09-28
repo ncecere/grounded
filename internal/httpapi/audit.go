@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
@@ -19,6 +20,10 @@ import (
 // Audit log reads (DESIGN.md §13): the team and platform logs share these
 // filters and the entry format, with the actor and target names resolved at
 // read time.
+
+// groupMappingActions is the action filter for SSO group mapping: the rules'
+// changes and the memberships they made, which span action groups.
+const groupMappingActions = "group_mapping."
 
 var (
 	auditActionRe     = regexp.MustCompile(`^[a-z][a-z_]*\.[a-z_]*$`)
@@ -35,10 +40,13 @@ func auditFilters(w http.ResponseWriter, r *http.Request, p *dbgen.ListAuditPara
 			httpx.Error(w, http.StatusBadRequest, "invalid_action", "action must be an action such as agent.publish, or a group prefix such as agent.")
 			return false
 		}
-		if strings.HasSuffix(v, ".") {
+		switch {
+		case v == groupMappingActions:
+			p.GroupMapping = pgtype.Bool{Bool: true, Valid: true}
+		case strings.HasSuffix(v, "."):
 			prefix := store.EscapeLike(v)
 			p.ActionPrefix = &prefix
-		} else {
+		default:
 			p.Action = &v
 		}
 	}
@@ -138,6 +146,9 @@ func toAPIAudit(e dbgen.ListAuditRow) apitypes.AuditEntry {
 		ActorUserId: nullUUID(e.ActorUserID), TeamId: nullUUID(e.TeamID),
 		TargetExists: e.LiveLabel != "",
 		Metadata:     map[string]any{},
+	}
+	if e.TeamName != "" {
+		out.TeamName, out.TeamSlug = &e.TeamName, &e.TeamSlug
 	}
 	// Names are never empty, so "" means the label is unknown.
 	if e.LiveLabel != "" {

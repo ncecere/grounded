@@ -6295,7 +6295,8 @@ components:
       required: false
       description: >-
         An exact action (agent.publish), or a prefix ending in a dot (agent.)
-        for every action in that group.
+        for every action in that group. group_mapping. is the SSO group mapping
+        rules' changes and the memberships the rules added, changed or removed.
       schema: { type: string, maxLength: 100, pattern: '^[a-z][a-z_]*\.[a-z_]*$', example: agent. }
     AuditExcludeActionParam:
       name: excludeAction
@@ -7612,6 +7613,8 @@ components:
         actorKind: { type: string, enum: [user, api_key, system] }
         actorUserId: { type: string, format: uuid, nullable: true }
         teamId: { type: string, format: uuid, nullable: true }
+        teamName: { type: string, nullable: true, description: "The team's name for a team's entry (null for platform entries, or when the team was deleted)" }
+        teamSlug: { type: string, nullable: true, description: "The team's slug, with teamName" }
         action: { type: string, example: team.member_add }
         actor: { $ref: "#/components/schemas/AuditActor" }
         targetType: { type: string }

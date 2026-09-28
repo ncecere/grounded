@@ -4998,6 +4998,10 @@ export interface components {
             actorUserId?: string | null;
             /** Format: uuid */
             teamId?: string | null;
+            /** @description The team's name for a team's entry (null for platform entries, or when the team was deleted) */
+            teamName?: string | null;
+            /** @description The team's slug, with teamName */
+            teamSlug?: string | null;
             /** @example team.member_add */
             action: string;
             actor: components["schemas"]["AuditActor"];
@@ -8895,7 +8899,7 @@ export interface components {
         DocumentTagParam: string;
         /** @description Case-insensitive substring match on the title, URL or file name */
         DocumentSearchParam: string;
-        /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. */
+        /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. */
         AuditActionParam: string;
         /** @description An action group (a prefix ending in a dot) to leave out, e.g. auth. to hide sign-ins and sign-outs. */
         AuditExcludeActionParam: string;
@@ -9548,7 +9552,7 @@ export interface operations {
                 /** @description nextCursor from the previous page */
                 cursor?: components["parameters"]["CursorParam"];
                 limit?: components["parameters"]["LimitParam"];
-                /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. */
+                /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. */
                 action?: components["parameters"]["AuditActionParam"];
                 /** @description An action group (a prefix ending in a dot) to leave out, e.g. auth. to hide sign-ins and sign-outs. */
                 excludeAction?: components["parameters"]["AuditExcludeActionParam"];
@@ -10273,7 +10277,7 @@ export interface operations {
                 /** @description nextCursor from the previous page */
                 cursor?: components["parameters"]["CursorParam"];
                 limit?: components["parameters"]["LimitParam"];
-                /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. */
+                /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. */
                 action?: components["parameters"]["AuditActionParam"];
                 /** @description An action group (a prefix ending in a dot) to leave out, e.g. auth. to hide sign-ins and sign-outs. */
                 excludeAction?: components["parameters"]["AuditExcludeActionParam"];

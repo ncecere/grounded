@@ -178,6 +178,16 @@ func TestGroupMappingAtSignIn(t *testing.T) {
 	if err != nil || n != 5 { // pat add, quinn add, pat raise, pat lower, pat remove
 		t.Fatalf("audited rule changes = %d (%v), want 5", n, err)
 	}
+	// The log's Group mapping filter finds them and the rules' changes, each named with its team.
+	var page apitypes.AuditPage
+	if code := e.admin.get("/v1/admin/audit?action=group_mapping.", &page); code != 200 || len(page.Items) != 7 {
+		t.Fatalf("group mapping filter = %d, %d entries, want 7 (2 rules, 5 memberships)", code, len(page.Items))
+	}
+	for _, it := range page.Items {
+		if (it.Metadata["via"] != "sso_group_rule" && !strings.HasPrefix(it.Action, "platform.sso_rule_")) || it.TeamSlug == nil || *it.TeamSlug != "registrar" || it.TeamName == nil {
+			t.Errorf("group mapping entry = %s %v team %v", it.Action, it.Metadata, it.TeamSlug)
+		}
+	}
 }
 
 func contains(list []string, s string) bool {
