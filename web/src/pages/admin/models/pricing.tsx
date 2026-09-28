@@ -10,6 +10,7 @@ import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { FormDialog } from "@/components/form-dialog";
 import { ErrorAlert } from "@/components/ui/alert/alert";
+import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { AlertDialog } from "@/components/ui/dialog/dialog";
 import { Field } from "@/components/ui/field/field";
@@ -17,8 +18,8 @@ import { Input } from "@/components/ui/input/input";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { toast } from "@/components/ui/toast/toast";
-import { amountError, localDay, unitLabels, type PriceUnit } from "@/lib/costs";
-import { formatMoney } from "@/lib/format";
+import { amountError, dayIn, unitLabels, useCostSettings, type PriceUnit } from "@/lib/costs";
+import { formatMoney, moneyDecimals } from "@/lib/format";
 import { dayLabel } from "@/components/analytics/format";
 import s from "../../shared.module.css";
 import c from "../costs/costs.module.css";
@@ -35,8 +36,25 @@ export const modelPricesQuery = (modelId: string) => ({
 /** Whether models of a kind are priced (rerank models aren't). */
 export const isPricedKind = (kind: string) => ["chat", "embedding", "systemone", "moderation", "vision"].includes(kind);
 
+/** "the input tokens price of $4.00 from Oct 28, 2026", naming a row in its delete button and confirmation. */
+const rowName = (row: PriceRow, currency: string) =>
+  `the ${unitLabels[row.unit].label.toLowerCase()} price of ${formatMoney(row.price, currency)} from ${dayLabel(row.effectiveFrom)}`;
+
+/** Prices dated after today (in the platform time zone): they apply from their day on. */
+function UpcomingLines({ rows, currency }: { rows: PriceRow[]; currency: string }) {
+  const days = [...new Set(rows.map((r) => r.effectiveFrom))].sort();
+  return days.map((d) => (
+    <div key={d} className={c.priceGroup}>
+      <h3 className={c.priceGroupTitle}>From {dayLabel(d)} (upcoming)</h3>
+      <PriceLines current={rows.filter((r) => r.effectiveFrom === d).map((r) => ({ unit: r.unit, price: r.price, effectiveFrom: r.effectiveFrom }))} currency={currency} />
+    </div>
+  ));
+}
+
 export function ModelPricingSection({ modelId, isAdmin }: { modelId: string; isAdmin: boolean }) {
   const q = useQuery(modelPricesQuery(modelId));
+  const settings = useCostSettings();
+  const today = dayIn(settings.data?.timeZone);
   const [changing, setChanging] = useState(false);
   const [deleting, setDeleting] = useState<PriceRow | null>(null);
   const qc = useQueryClient();
@@ -51,9 +69,15 @@ export function ModelPricingSection({ modelId, isAdmin }: { modelId: string; isA
   if (q.isLoading) return <Loading label="Loading prices…" />;
   if (!q.data) return <ErrorAlert error={q.error} />;
   const p = q.data;
+  const upcoming = p.history.filter((r) => r.effectiveFrom > today);
+  const dec = moneyDecimals(...p.history.map((r) => r.price));
   return (
     <div className={c.cardBody}>
-      <PriceLines current={p.current} currency={p.currency} />
+      <div className={c.priceGroup}>
+        <h3 className={c.priceGroupTitle}>Now</h3>
+        <PriceLines current={p.current} currency={p.currency} />
+      </div>
+      <UpcomingLines rows={upcoming} currency={p.currency} />
       {isAdmin && (
         <div className={c.actions}>
           <Button size="sm" variant="secondary" onClick={() => setChanging(true)}>
@@ -69,15 +93,23 @@ export function ModelPricingSection({ modelId, isAdmin }: { modelId: string; isA
             <Tr key={row.id}>
               <Td>{unitLabels[row.unit].label}</Td>
               <Td numeric>
-                {formatMoney(row.price, p.currency)} <span className={c.per}>{unitLabels[row.unit].per}</span>
+                {formatMoney(row.price, p.currency, dec)} <span className={c.per}>{unitLabels[row.unit].per}</span>
               </Td>
               <Td nowrap>
                 <time dateTime={row.effectiveFrom}>{dayLabel(row.effectiveFrom)}</time>
+                {row.effectiveFrom > today && (
+                  <>
+                    {" "}
+                    <Badge size="sm" tone="info">
+                      Upcoming
+                    </Badge>
+                  </>
+                )}
               </Td>
               <Td muted>{row.createdByName || "—"}</Td>
               {isAdmin && (
                 <Td>
-                  <Button size="sm" variant="ghost" aria-label={`Delete the ${unitLabels[row.unit].label.toLowerCase()} price from ${dayLabel(row.effectiveFrom)}`} onClick={() => setDeleting(row)}>
+                  <Button size="sm" variant="ghost" aria-label={`Delete ${rowName(row, p.currency)}`} onClick={() => setDeleting(row)}>
                     <Trash2 aria-hidden />
                   </Button>
                 </Td>
@@ -86,11 +118,11 @@ export function ModelPricingSection({ modelId, isAdmin }: { modelId: string; isA
           ))}
         </Table>
       )}
-      {changing && <ChangePricesDialog pricing={p} onClose={() => setChanging(false)} />}
+      {changing && <ChangePricesDialog pricing={p} timeZone={settings.data?.timeZone} onClose={() => setChanging(false)} />}
       <AlertDialog
         open={Boolean(deleting)}
         onOpenChange={(o) => !o && setDeleting(null)}
-        title="Delete this price?"
+        title={deleting ? `Delete ${rowName(deleting, p.currency)}?` : "Delete this price?"}
         description="Usage on its days is priced at the row before it again (or counts as unpriced). The deletion is recorded in the audit log."
         confirmLabel="Delete price"
         busy={del.isPending}
@@ -101,9 +133,9 @@ export function ModelPricingSection({ modelId, isAdmin }: { modelId: string; isA
   );
 }
 
-function ChangePricesDialog({ pricing, onClose }: { pricing: Pricing; onClose: () => void }) {
+function ChangePricesDialog({ pricing, timeZone, onClose }: { pricing: Pricing; timeZone?: string; onClose: () => void }) {
   const qc = useQueryClient();
-  const [from, setFrom] = useState(localDay());
+  const [from, setFrom] = useState(dayIn(timeZone));
   const [values, setValues] = useState<Partial<Record<PriceUnit, string>>>({});
   const [submitted, setSubmitted] = useState(false);
   const filled = pricing.units.filter((u) => (values[u] ?? "").trim() !== "");
@@ -127,7 +159,7 @@ function ChangePricesDialog({ pricing, onClose }: { pricing: Pricing; onClose: (
   return (
     <FormDialog
       title={`Change prices of ${pricing.displayName}`}
-      description={`Adds prices from a date, in ${pricing.currency}. Earlier days keep their prices. You may choose a past date to price usage already recorded.`}
+      description={`Adds prices from a date, in ${pricing.currency}${timeZone ? `, with days in ${timeZone}` : ""}. Earlier days keep their prices. You may choose a past date to price usage already recorded.`}
       onClose={onClose}
       submitLabel="Save prices"
       busy={save.isPending}
@@ -138,7 +170,7 @@ function ChangePricesDialog({ pricing, onClose }: { pricing: Pricing; onClose: (
       }}
     >
       <div className={c.formGrid}>
-        <Field label="Effective from" description="The first day, in the platform time zone." error={submitted && !from ? "Choose a date." : undefined}>
+        <Field label="Effective from" description={timeZone ? `The first day, in the platform time zone (${timeZone}).` : "The first day, in the platform time zone."} error={submitted && !from ? "Choose a date." : undefined}>
           <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </Field>
         {pricing.units.map((u) => (
