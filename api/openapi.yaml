@@ -35,6 +35,12 @@ tags:
     description: The agent directory, chat, conversations and feedback
   - name: search
     description: Finding objects by name for the command palette (⌘K)
+  - name: evaluations
+    description: >-
+      Evaluation sets of a knowledge base or an agent, retrieval and
+      full-answer checks, and their runs (docs/evaluations.md). For the
+      team's editors, admins and owners; 404 for everyone else and while the
+      platform switch is off.
   - name: openai
     description: The OpenAI-compatible API for agents
   - name: breakglass
@@ -5676,6 +5682,474 @@ paths:
                 properties:
                   data: { $ref: "#/components/schemas/TeamBudgetBanner" }
         "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-sets:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+    get:
+      tags: [evaluations]
+      operationId: listEvaluationSets
+      summary: The team's evaluation sets, optionally one knowledge base's or agent's (editors, admins and owners)
+      description: >-
+        Evaluation sets are for the team's editors, admins and owners in the
+        app. Members, API keys and platform staff get 404, and so does
+        everyone while evaluations are off (Admin, Limits, Evaluations).
+      parameters:
+        - name: kbId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: agentId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Sets, by name
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/EvaluationSet" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    post:
+      tags: [evaluations]
+      operationId: createEvaluationSet
+      summary: Create a set for a knowledge base or an agent of the team (audited; evaluation_sets limit)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EvaluationSetCreate" }
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/EvaluationSet" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-sets/{setId}:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/EvaluationSetIdParam"
+    get:
+      tags: [evaluations]
+      operationId: getEvaluationSet
+      summary: One set
+      responses:
+        "200":
+          description: The set
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/EvaluationSet" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    patch:
+      tags: [evaluations]
+      operationId: updateEvaluationSet
+      summary: Rename a set, or turn its automatic runs on or off (audited)
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EvaluationSetUpdate" }
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/EvaluationSet" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+    delete:
+      tags: [evaluations]
+      operationId: deleteEvaluationSet
+      summary: Delete a set with its questions and runs (audited)
+      responses:
+        "200": { $ref: "#/components/responses/OkReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-sets/{setId}/questions:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/EvaluationSetIdParam"
+    get:
+      tags: [evaluations]
+      operationId: listEvaluationQuestions
+      summary: A set's questions, oldest first
+      responses:
+        "200":
+          description: Questions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/EvaluationQuestion" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    post:
+      tags: [evaluations]
+      operationId: createEvaluationQuestion
+      summary: Add a question (audited; evaluation_questions_per_set limit)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EvaluationQuestionInput" }
+      responses:
+        "201":
+          description: Added
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/EvaluationQuestion" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-sets/{setId}/questions/import:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/EvaluationSetIdParam"
+    post:
+      tags: [evaluations]
+      operationId: importEvaluationQuestions
+      summary: Preview (dryRun) or add the questions of a CSV or JSONL file (audited when added)
+      description: >-
+        CSV: question,expected,must_mention[,note], an optional header row,
+        and | between several values; expected values are document IDs,
+        http(s) URLs (a trailing * makes a prefix, such as
+        https://example.edu/registrar/transcripts*) or filenames. JSONL:
+        ragbench's URL-judged sets, one {"id","question","urls":[...]} per
+        line. Rows that can't be used (and repeats of a question already in
+        the set) are reported by line and left out. An import that would pass
+        the questions-per-set limit adds nothing (409 limit_reached).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EvaluationImportRequest" }
+      responses:
+        "200":
+          description: What the import found, and added unless dryRun
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/EvaluationImportResult" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-sets/{setId}/questions.csv:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/EvaluationSetIdParam"
+    get:
+      tags: [evaluations]
+      operationId: exportEvaluationQuestions
+      summary: The set's questions as CSV, in the import's format
+      responses:
+        "200":
+          description: An attachment with a header row (question,expected,must_mention,note) and one row per question
+          content:
+            text/csv:
+              schema: { type: string }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-sets/{setId}/questions/{questionId}:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/EvaluationSetIdParam"
+      - name: questionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [evaluations]
+      operationId: getEvaluationQuestion
+      summary: A question with its results in the latest runs (newest first)
+      responses:
+        "200":
+          description: The question
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/EvaluationQuestionDetail" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    patch:
+      tags: [evaluations]
+      operationId: updateEvaluationQuestion
+      summary: Change a question (audited)
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EvaluationQuestionInput" }
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/EvaluationQuestion" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+    delete:
+      tags: [evaluations]
+      operationId: deleteEvaluationQuestion
+      summary: Delete a question; past runs keep its results (audited)
+      responses:
+        "200": { $ref: "#/components/responses/OkReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-sets/{setId}/documents:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/EvaluationSetIdParam"
+    get:
+      tags: [evaluations]
+      operationId: listEvaluationDocuments
+      summary: Documents of the set's knowledge bases by title, filename or URL (the expected-documents picker)
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        "200":
+          description: Documents, by title
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/EvaluationDocument" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-sets/{setId}/runs:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/EvaluationSetIdParam"
+    get:
+      tags: [evaluations]
+      operationId: listEvaluationRuns
+      summary: The set's latest runs, newest first
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: Runs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/EvaluationRun" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    post:
+      tags: [evaluations]
+      operationId: startEvaluationRun
+      summary: Start a retrieval check or a full-answer check (audited; one run of a set at a time)
+      description: >-
+        A River job checks the questions a few at a time under the team's
+        query limits (and chat limits for full answers); usage is recorded as
+        query and chat usage tagged {"source":"evaluation"}. A limit or budget
+        that refuses stops the run (failed, with the reason).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EvaluationRunStart" }
+      responses:
+        "201":
+          description: Queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/EvaluationRun" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-sets/{setId}/runs/compare:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/EvaluationSetIdParam"
+    get:
+      tags: [evaluations]
+      operationId: compareEvaluationRuns
+      summary: How each question changed from run a to run b (better, worse or the same)
+      parameters:
+        - name: a
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: b
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The comparison
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/EvaluationComparison" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-sets/{setId}/runs/{runId}:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/EvaluationSetIdParam"
+      - $ref: "#/components/parameters/EvaluationRunIdParam"
+    get:
+      tags: [evaluations]
+      operationId: getEvaluationRun
+      summary: A run with its results
+      responses:
+        "200":
+          description: The run
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/EvaluationRunDetail" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-sets/{setId}/runs/{runId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/EvaluationSetIdParam"
+      - $ref: "#/components/parameters/EvaluationRunIdParam"
+    post:
+      tags: [evaluations]
+      operationId: cancelEvaluationRun
+      summary: Cancel a queued or running run; its results so far are kept (audited)
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/EvaluationRun" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/settings/evaluations:
+    get:
+      tags: [admin, evaluations]
+      operationId: adminGetEvaluationSettings
+      summary: Whether evaluations are on (platform admins and auditors)
+      responses:
+        "200":
+          description: Settings
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/EvaluationSettings" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [admin, evaluations]
+      operationId: adminPutEvaluationSettings
+      summary: Turn evaluations on or off for the platform (platform admins; audited). Off hides the tabs and answers 404 on the evaluation API.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EvaluationSettingsUpdate" }
+      responses:
+        "200":
+          description: Saved
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/EvaluationSettings" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
 components:
   headers:
     ETag:
@@ -5749,6 +6223,16 @@ components:
       required: true
       description: Team slug or ID
       schema: { type: string }
+    EvaluationSetIdParam:
+      name: setId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    EvaluationRunIdParam:
+      name: runId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     UserIdParam:
       name: userId
       in: path
@@ -6416,7 +6900,7 @@ components:
     RetentionKind:
       type: string
       description: A kind of data with its own retention (docs/operations/retention.md)
-      enum: [conversations, deleted_conversations, access_log, analytics_events, usage_events, audit_log, deleted_files, expired_invites, anonymous_sessions]
+      enum: [conversations, deleted_conversations, access_log, analytics_events, usage_events, audit_log, deleted_files, expired_invites, anonymous_sessions, evaluation_runs]
     RetentionPeriod:
       type: object
       required: [kind, days, source, platformSet, platformDays, environmentDays, minDays, maxDays]
@@ -6665,6 +7149,7 @@ components:
         - breakglass.decided
         - platform.profile_migration
         - kb.profile_changed
+        - evaluation.regression
     Notification:
       type: object
       required: [id, type, title, body, link, read, createdAt]
@@ -6809,6 +7294,9 @@ components:
       properties:
         platformAdmin: { type: boolean }
         platformAuditor: { type: boolean }
+        evaluations:
+          type: boolean
+          description: Evaluations are on for the platform (the tabs show for team editors and above)
     Me:
       type: object
       required: [user, csrfToken, capabilities, teams]
@@ -8533,11 +9021,11 @@ components:
     LimitKey:
       type: string
       description: A team limit. See GET /v1/admin/limits for labels and descriptions.
-      enum: [storage_bytes, documents, data_sources, knowledge_bases, agents, crawl_pages_per_day, concurrent_crawls, concurrent_ingest_jobs, ocr_pages_per_day, queries_per_minute, queries_per_day, api_key_queries_per_minute, user_queries_per_minute, chat_tokens_per_day, concurrent_chats_per_user, public_queries_per_ip_per_minute, public_queries_per_session_per_minute, public_queries_per_agent_per_day, public_tokens_per_agent_per_day, public_concurrent_chats_per_agent, public_message_max_chars]
+      enum: [storage_bytes, documents, data_sources, knowledge_bases, agents, crawl_pages_per_day, concurrent_crawls, concurrent_ingest_jobs, ocr_pages_per_day, queries_per_minute, queries_per_day, api_key_queries_per_minute, user_queries_per_minute, chat_tokens_per_day, concurrent_chats_per_user, public_queries_per_ip_per_minute, public_queries_per_session_per_minute, public_queries_per_agent_per_day, public_tokens_per_agent_per_day, public_concurrent_chats_per_agent, public_message_max_chars, evaluation_sets, evaluation_questions_per_set]
     LimitGroup:
       type: string
-      description: public limits apply per agent to anonymous public-page and widget traffic
-      enum: [resources, ingestion, queries, public]
+      description: public limits apply per agent to anonymous public-page and widget traffic; evaluations are evaluation sets and their questions
+      enum: [resources, ingestion, queries, public, evaluations]
     LimitUnit:
       type: string
       enum: [count, bytes]
@@ -9116,12 +9604,13 @@ components:
         shared sources /admin/shared-sources/{id}; agents the team's agent
         page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug});
         knowledge bases and data sources their team page; conversations the
-        chat with ?c={id}.
+        chat with ?c={id}; evaluation sets /teams/{teamSlug}/evaluations/{id}
+        (kind says whether the set tests a knowledge_base or an agent).
       required: [type, id, label, secondary]
       properties:
         type:
           type: string
-          enum: [team, user, model, connection, embedding_profile, shared_source, agent, knowledge_base, data_source, conversation]
+          enum: [team, user, model, connection, embedding_profile, shared_source, agent, knowledge_base, data_source, conversation, evaluation_set]
         id: { type: string, format: uuid }
         label:
           type: string
@@ -9135,7 +9624,7 @@ components:
             (connections). May be empty.
         kind:
           type: string
-          description: A model's kind (chat, embedding, moderation…) or a data source's type (upload, web)
+          description: A model's kind (chat, embedding, moderation…), a data source's type (upload, web), or what an evaluation set tests (knowledge_base, agent)
         status:
           type: string
           description: >-
@@ -10308,3 +10797,326 @@ components:
           type: array
           description: Extension field; the sources referenced by [n] in content
           items: { $ref: "#/components/schemas/Citation" }
+    EvaluationExpected:
+      type: object
+      description: >-
+        What a good result is: any of these documents. urls are http(s)
+        pages; one ending in * is a prefix (https://example.edu/registrar/transcripts*).
+        filenames match uploaded files' names, case aside.
+      required: [documentIds, urls, filenames]
+      properties:
+        documentIds:
+          type: array
+          items: { type: string, format: uuid }
+        urls:
+          type: array
+          items: { type: string, example: "https://example.edu/registrar/transcripts*" }
+        filenames:
+          type: array
+          items: { type: string, example: student-handbook.pdf }
+    EvaluationSummary:
+      type: object
+      description: >-
+        A run's scores. Questions whose expected documents no longer exist
+        (missing) and questions whose check failed (errors) are counted apart
+        and left out of the rates.
+      required: [k, questions, passed, failed, missing, errors, cited, refused]
+      properties:
+        k: { type: integer, description: Results per search the run checked }
+        questions: { type: integer }
+        passed: { type: integer }
+        failed: { type: integer }
+        missing: { type: integer }
+        errors: { type: integer }
+        recall: { type: number, description: "recall@k, 0-1 (retrieval checks)" }
+        mrr: { type: number, description: "Mean reciprocal rank, 0-1 (retrieval checks)" }
+        passRate: { type: number, description: "Share of answers that passed, 0-1 (full-answer checks)" }
+        cited: { type: integer, description: Answers that cited an expected document }
+        refused: { type: integer, description: Answers that refused }
+        supportedShare: { type: number, description: "Mean share of supported claims, when SystemOne citation checks are on" }
+    EvaluationTarget:
+      type: object
+      required: [type, id, name]
+      properties:
+        type: { type: string, enum: [knowledge_base, agent] }
+        id: { type: string, format: uuid }
+        name: { type: string }
+    EvaluationRunBrief:
+      type: object
+      required: [id, kind, status, summary, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/EvaluationRunKind" }
+        status: { $ref: "#/components/schemas/EvaluationRunStatus" }
+        summary: { $ref: "#/components/schemas/EvaluationSummary" }
+        createdAt: { type: string, format: date-time }
+    EvaluationSet:
+      type: object
+      required: [id, target, name, description, autoRun, questionCount, lastRun, revision, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        target: { $ref: "#/components/schemas/EvaluationTarget" }
+        name: { type: string, example: Transcript questions }
+        description: { type: string }
+        autoRun:
+          type: boolean
+          description: >-
+            Automatic retrieval checks: after the agent is published, after the
+            knowledge base switches embedding profile, and nightly when its
+            documents changed that day. A drop notifies the team's editors.
+        questionCount: { type: integer, format: int64 }
+        lastRun:
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/EvaluationRunBrief" }]
+        revision: { $ref: "#/components/schemas/Revision" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    EvaluationSetCreate:
+      type: object
+      required: [name]
+      properties:
+        kbId: { type: string, format: uuid, description: The knowledge base the set tests (or agentId) }
+        agentId: { type: string, format: uuid, description: The agent the set tests (or kbId) }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        autoRun: { type: boolean }
+    EvaluationSetUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        autoRun: { type: boolean }
+    EvaluationDocument:
+      type: object
+      required: [id, title, filename, url]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        filename: { type: string }
+        url: { type: string }
+        sourceName: { type: string }
+    EvaluationQuestion:
+      type: object
+      required: [id, question, expected, expectedDocuments, mustMention, note, revision, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        question: { type: string, example: "How do I order an official transcript?" }
+        expected: { $ref: "#/components/schemas/EvaluationExpected" }
+        expectedDocuments:
+          type: array
+          description: The picked documents that still exist, with their titles
+          items: { $ref: "#/components/schemas/EvaluationDocument" }
+        mustMention:
+          type: array
+          description: Phrases a good answer contains (full-answer checks), case aside
+          items: { type: string }
+        note: { type: string }
+        revision: { $ref: "#/components/schemas/Revision" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    EvaluationQuestionInput:
+      type: object
+      required: [question, expected]
+      properties:
+        question: { type: string, minLength: 1, maxLength: 4000 }
+        expected: { $ref: "#/components/schemas/EvaluationExpected" }
+        mustMention:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 200 }
+        note: { type: string, maxLength: 2000 }
+    EvaluationQuestionDetail:
+      type: object
+      required: [question, results]
+      properties:
+        question: { $ref: "#/components/schemas/EvaluationQuestion" }
+        results:
+          type: array
+          description: The question's results in the latest runs, newest first
+          items: { $ref: "#/components/schemas/EvaluationQuestionResult" }
+    EvaluationQuestionResult:
+      allOf:
+        - $ref: "#/components/schemas/EvaluationResult"
+        - type: object
+          required: [runId, runKind, runTrigger, runCreatedAt]
+          properties:
+            runId: { type: string, format: uuid }
+            runKind: { $ref: "#/components/schemas/EvaluationRunKind" }
+            runTrigger: { $ref: "#/components/schemas/EvaluationRunTrigger" }
+            runCreatedAt: { type: string, format: date-time }
+    EvaluationImportRequest:
+      type: object
+      required: [format, content]
+      properties:
+        format: { type: string, enum: [csv, jsonl] }
+        content: { type: string, description: "The file's text: at most 2 MiB and 2000 rows" }
+        dryRun: { type: boolean, description: Only preview what would be added }
+    EvaluationImportProblem:
+      type: object
+      required: [line, message]
+      properties:
+        line: { type: integer }
+        message: { type: string }
+    EvaluationImportResult:
+      type: object
+      required: [rows, usable, added, problems, max, current]
+      properties:
+        rows: { type: integer, description: Rows read (blank lines and the header aside) }
+        usable: { type: integer }
+        added: { type: integer, description: Questions added (0 for a dry run) }
+        problems:
+          type: array
+          items: { $ref: "#/components/schemas/EvaluationImportProblem" }
+        max: { type: integer, format: int64, nullable: true, description: The questions-per-set limit (null for none) }
+        current: { type: integer, format: int64, description: The set's questions before the import }
+    EvaluationRunKind:
+      type: string
+      description: retrieval checks retrieval only; answer asks the agent and scores the answer
+      enum: [retrieval, answer]
+    EvaluationRunStatus:
+      type: string
+      enum: [queued, running, completed, failed, cancelled]
+    EvaluationRunTrigger:
+      type: string
+      enum: [manual, agent_published, profile_switched, nightly]
+    EvaluationRunStart:
+      type: object
+      properties:
+        kind: { $ref: "#/components/schemas/EvaluationRunKind" }
+        version:
+          type: string
+          enum: [draft, published]
+          description: The agent version to test (agent sets; default draft)
+    EvaluationRunKB:
+      type: object
+      required: [id, name, profileId, profile, topK]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        profileId: { type: string, format: uuid }
+        profile: { type: string, description: The embedding profile's name }
+        topK: { type: integer, description: Results per search from this knowledge base }
+    EvaluationRunConfig:
+      type: object
+      description: What the run tested, for the markers on the score chart
+      required: [kbs, resultsPerSearch]
+      properties:
+        version: { type: string, enum: [draft, published] }
+        agentVersion: { type: integer, format: int32, description: The published version tested }
+        retrievalMode: { type: string }
+        chatModelId: { type: string, format: uuid }
+        kbs:
+          type: array
+          items: { $ref: "#/components/schemas/EvaluationRunKB" }
+        resultsPerSearch: { type: integer }
+    EvaluationRun:
+      type: object
+      required: [id, setId, kind, trigger, status, startedBy, config, summary, total, done, error, createdAt, startedAt, finishedAt]
+      properties:
+        id: { type: string, format: uuid }
+        setId: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/EvaluationRunKind" }
+        trigger: { $ref: "#/components/schemas/EvaluationRunTrigger" }
+        status: { $ref: "#/components/schemas/EvaluationRunStatus" }
+        startedBy: { type: string, format: uuid, nullable: true, description: Who started it (null for automatic runs) }
+        config: { $ref: "#/components/schemas/EvaluationRunConfig" }
+        summary: { $ref: "#/components/schemas/EvaluationSummary" }
+        total: { type: integer, description: Questions to check }
+        done: { type: integer, description: Questions checked so far }
+        error: { type: string, description: Why a failed run stopped }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        finishedAt: { type: string, format: date-time, nullable: true }
+    EvaluationHit:
+      type: object
+      required: [rank, documentId, title, expected]
+      properties:
+        rank: { type: integer }
+        documentId: { type: string, format: uuid }
+        title: { type: string }
+        url: { type: string }
+        filename: { type: string }
+        expected: { type: boolean, description: One of the question's expected documents }
+    EvaluationMention:
+      type: object
+      required: [phrase, found]
+      properties:
+        phrase: { type: string }
+        found: { type: boolean }
+    EvaluationAnswerScores:
+      type: object
+      required: [cited, mentions, refused]
+      properties:
+        cited: { type: boolean, description: The answer cites an expected document }
+        mentions:
+          type: array
+          items: { $ref: "#/components/schemas/EvaluationMention" }
+        refused: { type: boolean }
+        supportedShare: { type: number, description: "Share of supported claims, 0-1 (SystemOne citation checks)" }
+    EvaluationResult:
+      type: object
+      required: [id, questionId, question, status, rank, hits, answer, scores, error, latencyMs]
+      properties:
+        id: { type: string, format: uuid }
+        questionId: { type: string, format: uuid, nullable: true, description: Null once the question was deleted }
+        question: { type: string }
+        status:
+          type: string
+          description: missing means every expected document was deleted (not a failure); error means the check itself failed
+          enum: [pass, fail, missing, error]
+        rank: { type: integer, nullable: true, description: The rank of the first expected document (retrieval) }
+        hits:
+          type: array
+          description: What came back (retrieval) or was cited (answers), once per document
+          items: { $ref: "#/components/schemas/EvaluationHit" }
+        answer: { type: string, nullable: true, description: The agent's answer (full-answer checks) }
+        scores:
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/EvaluationAnswerScores" }]
+        error: { type: string }
+        latencyMs: { type: integer }
+    EvaluationRunDetail:
+      type: object
+      required: [run, results]
+      properties:
+        run: { $ref: "#/components/schemas/EvaluationRun" }
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/EvaluationResult" }
+    EvaluationComparisonItem:
+      type: object
+      required: [questionId, question, change, a, b]
+      properties:
+        questionId: { type: string, format: uuid, nullable: true }
+        question: { type: string }
+        change: { type: string, enum: [better, worse, same, only_a, only_b] }
+        a:
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/EvaluationResult" }]
+        b:
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/EvaluationResult" }]
+    EvaluationComparison:
+      type: object
+      required: [a, b, better, worse, same, items]
+      properties:
+        a: { $ref: "#/components/schemas/EvaluationRun" }
+        b: { $ref: "#/components/schemas/EvaluationRun" }
+        better: { type: integer }
+        worse: { type: integer }
+        same: { type: integer }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/EvaluationComparisonItem" }
+    EvaluationSettings:
+      type: object
+      required: [enabled, revision, updatedAt]
+      properties:
+        enabled: { type: boolean, description: On by default; off hides the tabs and answers 404 on the evaluation API }
+        revision: { $ref: "#/components/schemas/Revision" }
+        updatedAt: { type: string, format: date-time }
+    EvaluationSettingsUpdate:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }

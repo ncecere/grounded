@@ -39,6 +39,19 @@ WHERE s.team_id = @team_id
   AND (sqlc.narg(agent_id)::uuid IS NULL OR s.agent_id = sqlc.narg(agent_id)::uuid)
 ORDER BY lower(s.name), s.id;
 
+-- name: GetEvalSetView :one
+SELECT sqlc.embed(s), coalesce(kb.name, ag.name, '')::text AS target_name,
+       (SELECT count(*) FROM eval_cases c WHERE c.set_id = s.id)::bigint AS question_count,
+       lr.id AS last_run_id, lr.kind AS last_run_kind, lr.status AS last_run_status, lr.summary AS last_run_summary,
+       lr.created_at AS last_run_at
+FROM eval_sets s
+LEFT JOIN knowledge_bases kb ON kb.id = s.kb_id
+LEFT JOIN agents ag ON ag.id = s.agent_id
+LEFT JOIN eval_runs lr ON lr.id = (
+    SELECT r.id FROM eval_runs r WHERE r.set_id = s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1
+)
+WHERE s.id = @id AND s.team_id = @team_id;
+
 -- name: GetEvalSet :one
 SELECT * FROM eval_sets WHERE id = @id AND team_id = @team_id;
 
@@ -73,29 +86,30 @@ SELECT * FROM eval_sets WHERE agent_id = @agent_id AND auto_run ORDER BY created
 SELECT * FROM eval_sets WHERE kb_id = @kb_id AND auto_run ORDER BY created_at, id;
 
 -- Sets with automatic runs whose knowledge bases (the set's, or the
--- published agent's) had documents added, changed or deleted since @since,
--- and no nightly run since then. Archived teams and deleted agents are left
--- out.
+-- published agent's) had documents added, changed or deleted since
+-- @changed_since, and no nightly run since @ran_since. Archived teams and
+-- deleted agents are left out.
 -- name: NightlyEvalSets :many
 SELECT s.* FROM eval_sets s
 JOIN teams t ON t.id = s.team_id AND t.status = 'active'
 LEFT JOIN agents a ON a.id = s.agent_id
 WHERE s.auto_run
   AND (s.agent_id IS NULL OR a.deleted_at IS NULL)
-  AND NOT EXISTS (SELECT 1 FROM eval_runs r WHERE r.set_id = s.id AND r.trigger = 'nightly' AND r.created_at >= @since::timestamptz)
+  AND NOT EXISTS (SELECT 1 FROM eval_runs r WHERE r.set_id = s.id AND r.trigger = 'nightly' AND r.created_at >= @ran_since::timestamptz)
   AND EXISTS (
       SELECT 1 FROM kb_sources ks
       WHERE (ks.kb_id = s.kb_id
              OR ks.kb_id IN (SELECT vk.kb_id FROM agent_version_kbs vk WHERE vk.version_id = a.published_version_id))
-        AND (EXISTS (SELECT 1 FROM documents d WHERE d.source_id = ks.source_id AND d.updated_at >= @since::timestamptz)
-             OR EXISTS (SELECT 1 FROM deleted_files f WHERE f.source_id = ks.source_id AND f.deleted_at >= @since::timestamptz)))
+        AND (EXISTS (SELECT 1 FROM documents d WHERE d.source_id = ks.source_id AND d.updated_at >= @changed_since::timestamptz)
+             OR EXISTS (SELECT 1 FROM deleted_files f WHERE f.source_id = ks.source_id AND f.deleted_at >= @changed_since::timestamptz)))
 ORDER BY s.created_at, s.id;
 
 -- ---- questions ----------------------------------------------------------------------
 
+-- The clock time keeps an import's questions in file order.
 -- name: InsertEvalCase :one
-INSERT INTO eval_cases (set_id, question, expected, must_mention, note, created_by)
-VALUES (@set_id, @question, @expected, @must_mention, @note, @created_by)
+INSERT INTO eval_cases (set_id, question, expected, must_mention, note, created_by, created_at, updated_at)
+VALUES (@set_id, @question, @expected, @must_mention, @note, @created_by, clock_timestamp(), clock_timestamp())
 RETURNING *;
 
 -- name: ListEvalCases :many
@@ -189,14 +203,19 @@ SELECT * FROM eval_runs WHERE set_id = @set_id AND status IN ('queued', 'running
 -- name: MarkEvalRunRunning :exec
 UPDATE eval_runs SET status = 'running', started_at = coalesce(started_at, now()) WHERE id = @id AND status IN ('queued', 'running');
 
+-- name: SetEvalRunConfig :exec
+UPDATE eval_runs SET config = @config WHERE id = @id;
+
 -- name: SetEvalRunProgress :exec
 UPDATE eval_runs SET done = (SELECT count(*) FROM eval_results r WHERE r.run_id = @id) WHERE id = @id;
 
+-- Ends a queued or running run (a run already ended, for example
+-- cancelled, is left as it is: no row).
 -- name: FinishEvalRun :one
 UPDATE eval_runs
 SET status = @status, summary = @summary, error = @error, finished_at = now(),
     done = (SELECT count(*) FROM eval_results r WHERE r.run_id = @id)
-WHERE id = @id
+WHERE id = @id AND status IN ('queued', 'running')
 RETURNING *;
 
 -- The latest completed run of a kind before @before, for regression checks.

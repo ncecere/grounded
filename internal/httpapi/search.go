@@ -14,6 +14,9 @@ import (
 // keys have their team's lists).
 func (a *api) searchRoutes() []route {
 	svc := objsearch.New(a.q, a.publicSwitch)
+	if a.Evaluations != nil {
+		svc.EvaluationsEnabled = a.Evaluations.Enabled
+	}
 	return []route{
 		{"GET", "/v1/search", a.session(a.searchObjects(svc))},
 	}

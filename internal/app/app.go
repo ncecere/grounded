@@ -99,7 +99,7 @@ func Run(ctx context.Context, mode string, cfg config.Config, log *slog.Logger) 
 		Retention:  svc.Retention,
 		BreakGlass: svc.BreakGlass,
 	}
-	deps.ProfileMigrations = svc.ProfileMigrations
+	deps.ProfileMigrations, deps.Evaluations = svc.ProfileMigrations, svc.Evaluations
 
 	worker, err := startWorker(ctx, mode, cfg, pool, svc, log)
 	if err != nil {

@@ -281,7 +281,7 @@ const finishEvalRun = `-- name: FinishEvalRun :one
 UPDATE eval_runs
 SET status = $1, summary = $2, error = $3, finished_at = now(),
     done = (SELECT count(*) FROM eval_results r WHERE r.run_id = $4)
-WHERE id = $4
+WHERE id = $4 AND status IN ('queued', 'running')
 RETURNING id, set_id, team_id, kind, trigger, status, started_by, config, summary, total, done, error, created_at, started_at, finished_at
 `
 
@@ -292,6 +292,8 @@ type FinishEvalRunParams struct {
 	ID      uuid.UUID
 }
 
+// Ends a queued or running run (a run already ended, for example
+// cancelled, is left as it is: no row).
 func (q *Queries) FinishEvalRun(ctx context.Context, arg FinishEvalRunParams) (EvalRun, error) {
 	row := q.db.QueryRow(ctx, finishEvalRun,
 		arg.Status,
@@ -457,6 +459,62 @@ func (q *Queries) GetEvalSetByID(ctx context.Context, id uuid.UUID) (EvalSet, er
 	return i, err
 }
 
+const getEvalSetView = `-- name: GetEvalSetView :one
+SELECT s.id, s.team_id, s.kb_id, s.agent_id, s.name, s.description, s.auto_run, s.created_by, s.revision, s.created_at, s.updated_at, coalesce(kb.name, ag.name, '')::text AS target_name,
+       (SELECT count(*) FROM eval_cases c WHERE c.set_id = s.id)::bigint AS question_count,
+       lr.id AS last_run_id, lr.kind AS last_run_kind, lr.status AS last_run_status, lr.summary AS last_run_summary,
+       lr.created_at AS last_run_at
+FROM eval_sets s
+LEFT JOIN knowledge_bases kb ON kb.id = s.kb_id
+LEFT JOIN agents ag ON ag.id = s.agent_id
+LEFT JOIN eval_runs lr ON lr.id = (
+    SELECT r.id FROM eval_runs r WHERE r.set_id = s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1
+)
+WHERE s.id = $1 AND s.team_id = $2
+`
+
+type GetEvalSetViewParams struct {
+	ID     uuid.UUID
+	TeamID uuid.UUID
+}
+
+type GetEvalSetViewRow struct {
+	EvalSet        EvalSet
+	TargetName     string
+	QuestionCount  int64
+	LastRunID      uuid.NullUUID
+	LastRunKind    *string
+	LastRunStatus  *string
+	LastRunSummary json.RawMessage
+	LastRunAt      *time.Time
+}
+
+func (q *Queries) GetEvalSetView(ctx context.Context, arg GetEvalSetViewParams) (GetEvalSetViewRow, error) {
+	row := q.db.QueryRow(ctx, getEvalSetView, arg.ID, arg.TeamID)
+	var i GetEvalSetViewRow
+	err := row.Scan(
+		&i.EvalSet.ID,
+		&i.EvalSet.TeamID,
+		&i.EvalSet.KBID,
+		&i.EvalSet.AgentID,
+		&i.EvalSet.Name,
+		&i.EvalSet.Description,
+		&i.EvalSet.AutoRun,
+		&i.EvalSet.CreatedBy,
+		&i.EvalSet.Revision,
+		&i.EvalSet.CreatedAt,
+		&i.EvalSet.UpdatedAt,
+		&i.TargetName,
+		&i.QuestionCount,
+		&i.LastRunID,
+		&i.LastRunKind,
+		&i.LastRunStatus,
+		&i.LastRunSummary,
+		&i.LastRunAt,
+	)
+	return i, err
+}
+
 const getEvaluationSettings = `-- name: GetEvaluationSettings :one
 
 
@@ -481,8 +539,8 @@ func (q *Queries) GetEvaluationSettings(ctx context.Context) (EvaluationSetting,
 
 const insertEvalCase = `-- name: InsertEvalCase :one
 
-INSERT INTO eval_cases (set_id, question, expected, must_mention, note, created_by)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO eval_cases (set_id, question, expected, must_mention, note, created_by, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, clock_timestamp(), clock_timestamp())
 RETURNING id, set_id, question, expected, must_mention, note, created_by, revision, created_at, updated_at
 `
 
@@ -496,6 +554,7 @@ type InsertEvalCaseParams struct {
 }
 
 // ---- questions ----------------------------------------------------------------------
+// The clock time keeps an import's questions in file order.
 func (q *Queries) InsertEvalCase(ctx context.Context, arg InsertEvalCaseParams) (EvalCase, error) {
 	row := q.db.QueryRow(ctx, insertEvalCase,
 		arg.SetID,
@@ -1026,17 +1085,22 @@ WHERE s.auto_run
       SELECT 1 FROM kb_sources ks
       WHERE (ks.kb_id = s.kb_id
              OR ks.kb_id IN (SELECT vk.kb_id FROM agent_version_kbs vk WHERE vk.version_id = a.published_version_id))
-        AND (EXISTS (SELECT 1 FROM documents d WHERE d.source_id = ks.source_id AND d.updated_at >= $1::timestamptz)
-             OR EXISTS (SELECT 1 FROM deleted_files f WHERE f.source_id = ks.source_id AND f.deleted_at >= $1::timestamptz)))
+        AND (EXISTS (SELECT 1 FROM documents d WHERE d.source_id = ks.source_id AND d.updated_at >= $2::timestamptz)
+             OR EXISTS (SELECT 1 FROM deleted_files f WHERE f.source_id = ks.source_id AND f.deleted_at >= $2::timestamptz)))
 ORDER BY s.created_at, s.id
 `
 
+type NightlyEvalSetsParams struct {
+	RanSince     time.Time
+	ChangedSince time.Time
+}
+
 // Sets with automatic runs whose knowledge bases (the set's, or the
-// published agent's) had documents added, changed or deleted since @since,
-// and no nightly run since then. Archived teams and deleted agents are left
-// out.
-func (q *Queries) NightlyEvalSets(ctx context.Context, since time.Time) ([]EvalSet, error) {
-	rows, err := q.db.Query(ctx, nightlyEvalSets, since)
+// published agent's) had documents added, changed or deleted since
+// @changed_since, and no nightly run since @ran_since. Archived teams and
+// deleted agents are left out.
+func (q *Queries) NightlyEvalSets(ctx context.Context, arg NightlyEvalSetsParams) ([]EvalSet, error) {
+	rows, err := q.db.Query(ctx, nightlyEvalSets, arg.RanSince, arg.ChangedSince)
 	if err != nil {
 		return nil, err
 	}
@@ -1273,6 +1337,20 @@ func (q *Queries) SearchEvalSets(ctx context.Context, arg SearchEvalSetsParams) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const setEvalRunConfig = `-- name: SetEvalRunConfig :exec
+UPDATE eval_runs SET config = $1 WHERE id = $2
+`
+
+type SetEvalRunConfigParams struct {
+	Config json.RawMessage
+	ID     uuid.UUID
+}
+
+func (q *Queries) SetEvalRunConfig(ctx context.Context, arg SetEvalRunConfigParams) error {
+	_, err := q.db.Exec(ctx, setEvalRunConfig, arg.Config, arg.ID)
+	return err
 }
 
 const setEvalRunProgress = `-- name: SetEvalRunProgress :exec

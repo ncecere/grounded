@@ -3609,6 +3609,273 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/evaluation-sets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * The team's evaluation sets, optionally one knowledge base's or agent's (editors, admins and owners)
+         * @description Evaluation sets are for the team's editors, admins and owners in the app. Members, API keys and platform staff get 404, and so does everyone while evaluations are off (Admin, Limits, Evaluations).
+         */
+        get: operations["listEvaluationSets"];
+        put?: never;
+        /** Create a set for a knowledge base or an agent of the team (audited; evaluation_sets limit) */
+        post: operations["createEvaluationSet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/evaluation-sets/{setId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        /** One set */
+        get: operations["getEvaluationSet"];
+        put?: never;
+        post?: never;
+        /** Delete a set with its questions and runs (audited) */
+        delete: operations["deleteEvaluationSet"];
+        options?: never;
+        head?: never;
+        /** Rename a set, or turn its automatic runs on or off (audited) */
+        patch: operations["updateEvaluationSet"];
+        trace?: never;
+    };
+    "/v1/teams/{team}/evaluation-sets/{setId}/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        /** A set's questions, oldest first */
+        get: operations["listEvaluationQuestions"];
+        put?: never;
+        /** Add a question (audited; evaluation_questions_per_set limit) */
+        post: operations["createEvaluationQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/evaluation-sets/{setId}/questions/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview (dryRun) or add the questions of a CSV or JSONL file (audited when added)
+         * @description CSV: question,expected,must_mention[,note], an optional header row, and | between several values; expected values are document IDs, http(s) URLs (a trailing * makes a prefix, such as https://example.edu/registrar/transcripts*) or filenames. JSONL: ragbench's URL-judged sets, one {"id","question","urls":[...]} per line. Rows that can't be used (and repeats of a question already in the set) are reported by line and left out. An import that would pass the questions-per-set limit adds nothing (409 limit_reached).
+         */
+        post: operations["importEvaluationQuestions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/evaluation-sets/{setId}/questions.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        /** The set's questions as CSV, in the import's format */
+        get: operations["exportEvaluationQuestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/evaluation-sets/{setId}/questions/{questionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        /** A question with its results in the latest runs (newest first) */
+        get: operations["getEvaluationQuestion"];
+        put?: never;
+        post?: never;
+        /** Delete a question; past runs keep its results (audited) */
+        delete: operations["deleteEvaluationQuestion"];
+        options?: never;
+        head?: never;
+        /** Change a question (audited) */
+        patch: operations["updateEvaluationQuestion"];
+        trace?: never;
+    };
+    "/v1/teams/{team}/evaluation-sets/{setId}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        /** Documents of the set's knowledge bases by title, filename or URL (the expected-documents picker) */
+        get: operations["listEvaluationDocuments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/evaluation-sets/{setId}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        /** The set's latest runs, newest first */
+        get: operations["listEvaluationRuns"];
+        put?: never;
+        /**
+         * Start a retrieval check or a full-answer check (audited; one run of a set at a time)
+         * @description A River job checks the questions a few at a time under the team's query limits (and chat limits for full answers); usage is recorded as query and chat usage tagged {"source":"evaluation"}. A limit or budget that refuses stops the run (failed, with the reason).
+         */
+        post: operations["startEvaluationRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/evaluation-sets/{setId}/runs/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        /** How each question changed from run a to run b (better, worse or the same) */
+        get: operations["compareEvaluationRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/evaluation-sets/{setId}/runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+                runId: components["parameters"]["EvaluationRunIdParam"];
+            };
+            cookie?: never;
+        };
+        /** A run with its results */
+        get: operations["getEvaluationRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/evaluation-sets/{setId}/runs/{runId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+                runId: components["parameters"]["EvaluationRunIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel a queued or running run; its results so far are kept (audited) */
+        post: operations["cancelEvaluationRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/settings/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether evaluations are on (platform admins and auditors) */
+        get: operations["adminGetEvaluationSettings"];
+        /** Turn evaluations on or off for the platform (platform admins; audited). Off hides the tabs and answers 404 on the evaluation API. */
+        put: operations["adminPutEvaluationSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3994,7 +4261,7 @@ export interface components {
          * @description A kind of data with its own retention (docs/operations/retention.md)
          * @enum {string}
          */
-        RetentionKind: "conversations" | "deleted_conversations" | "access_log" | "analytics_events" | "usage_events" | "audit_log" | "deleted_files" | "expired_invites" | "anonymous_sessions";
+        RetentionKind: "conversations" | "deleted_conversations" | "access_log" | "analytics_events" | "usage_events" | "audit_log" | "deleted_files" | "expired_invites" | "anonymous_sessions" | "evaluation_runs";
         RetentionPeriod: {
             kind: components["schemas"]["RetentionKind"];
             /** @description The effective period in days; null keeps the data */
@@ -4245,7 +4512,7 @@ export interface components {
             pendingDomainRequests: number;
         };
         /** @enum {string} */
-        NotificationType: "team.invited" | "team.invite_expiring" | "team.membership" | "web.domain_request" | "web.domain_request_new" | "web.sync_failed" | "source.classification_lowered" | "agent.disabled_by_platform" | "agent.published" | "team.daily_limit" | "team.budget_warning" | "team.budget_exhausted" | "breakglass.started" | "breakglass.ended" | "breakglass.requested" | "breakglass.decided" | "platform.profile_migration" | "kb.profile_changed";
+        NotificationType: "team.invited" | "team.invite_expiring" | "team.membership" | "web.domain_request" | "web.domain_request_new" | "web.sync_failed" | "source.classification_lowered" | "agent.disabled_by_platform" | "agent.published" | "team.daily_limit" | "team.budget_warning" | "team.budget_exhausted" | "breakglass.started" | "breakglass.ended" | "breakglass.requested" | "breakglass.decided" | "platform.profile_migration" | "kb.profile_changed" | "evaluation.regression";
         Notification: {
             /** Format: uuid */
             id: string;
@@ -4387,6 +4654,8 @@ export interface components {
         Capabilities: {
             platformAdmin: boolean;
             platformAuditor: boolean;
+            /** @description Evaluations are on for the platform (the tabs show for team editors and above) */
+            evaluations?: boolean;
         };
         Me: {
             teams: components["schemas"]["MyTeam"][];
@@ -6329,12 +6598,12 @@ export interface components {
          * @description A team limit. See GET /v1/admin/limits for labels and descriptions.
          * @enum {string}
          */
-        LimitKey: "storage_bytes" | "documents" | "data_sources" | "knowledge_bases" | "agents" | "crawl_pages_per_day" | "concurrent_crawls" | "concurrent_ingest_jobs" | "ocr_pages_per_day" | "queries_per_minute" | "queries_per_day" | "api_key_queries_per_minute" | "user_queries_per_minute" | "chat_tokens_per_day" | "concurrent_chats_per_user" | "public_queries_per_ip_per_minute" | "public_queries_per_session_per_minute" | "public_queries_per_agent_per_day" | "public_tokens_per_agent_per_day" | "public_concurrent_chats_per_agent" | "public_message_max_chars";
+        LimitKey: "storage_bytes" | "documents" | "data_sources" | "knowledge_bases" | "agents" | "crawl_pages_per_day" | "concurrent_crawls" | "concurrent_ingest_jobs" | "ocr_pages_per_day" | "queries_per_minute" | "queries_per_day" | "api_key_queries_per_minute" | "user_queries_per_minute" | "chat_tokens_per_day" | "concurrent_chats_per_user" | "public_queries_per_ip_per_minute" | "public_queries_per_session_per_minute" | "public_queries_per_agent_per_day" | "public_tokens_per_agent_per_day" | "public_concurrent_chats_per_agent" | "public_message_max_chars" | "evaluation_sets" | "evaluation_questions_per_set";
         /**
-         * @description public limits apply per agent to anonymous public-page and widget traffic
+         * @description public limits apply per agent to anonymous public-page and widget traffic; evaluations are evaluation sets and their questions
          * @enum {string}
          */
-        LimitGroup: "resources" | "ingestion" | "queries" | "public";
+        LimitGroup: "resources" | "ingestion" | "queries" | "public" | "evaluations";
         /** @enum {string} */
         LimitUnit: "count" | "bytes";
         /**
@@ -6861,17 +7130,17 @@ export interface components {
             status: "active" | "disabled_by_team";
             reason?: string;
         };
-        /** @description One match of GET /v1/search, with what the app needs to link to it: teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models, connections and embedding profiles their admin list with ?record={id}; shared sources /admin/shared-sources/{id}; agents the team's agent page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug}); knowledge bases and data sources their team page; conversations the chat with ?c={id}. */
+        /** @description One match of GET /v1/search, with what the app needs to link to it: teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models, connections and embedding profiles their admin list with ?record={id}; shared sources /admin/shared-sources/{id}; agents the team's agent page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug}); knowledge bases and data sources their team page; conversations the chat with ?c={id}; evaluation sets /teams/{teamSlug}/evaluations/{id} (kind says whether the set tests a knowledge_base or an agent). */
         SearchResult: {
             /** @enum {string} */
-            type: "team" | "user" | "model" | "connection" | "embedding_profile" | "shared_source" | "agent" | "knowledge_base" | "data_source" | "conversation";
+            type: "team" | "user" | "model" | "connection" | "embedding_profile" | "shared_source" | "agent" | "knowledge_base" | "data_source" | "conversation" | "evaluation_set";
             /** Format: uuid */
             id: string;
             /** @description The name (a user's display name, or their email without one; a conversation's title) */
             label: string;
             /** @description A second line: the team's name (agents, knowledge bases, data sources), the agent's name (conversations), the email (users), the slug (teams), the key (models, embedding profiles) or the base URL (connections). May be empty. */
             secondary: string;
-            /** @description A model's kind (chat, embedding, moderation…) or a data source's type (upload, web) */
+            /** @description A model's kind (chat, embedding, moderation…), a data source's type (upload, web), or what an evaluation set tests (knowledge_base, agent) */
             kind?: string;
             /** @description The object's state when it isn't the normal one: archived (teams), suspended (users), disabled (models, connections), retired (embedding profiles), paused (sources), agent_deleted (conversations of a deleted agent) */
             status?: string;
@@ -8090,6 +8359,310 @@ export interface components {
             /** @description Extension field; the sources referenced by [n] in content */
             citations: components["schemas"]["Citation"][];
         };
+        /** @description What a good result is: any of these documents. urls are http(s) pages; one ending in * is a prefix (https://example.edu/registrar/transcripts*). filenames match uploaded files' names, case aside. */
+        EvaluationExpected: {
+            documentIds: string[];
+            urls: string[];
+            filenames: string[];
+        };
+        /** @description A run's scores. Questions whose expected documents no longer exist (missing) and questions whose check failed (errors) are counted apart and left out of the rates. */
+        EvaluationSummary: {
+            /** @description Results per search the run checked */
+            k: number;
+            questions: number;
+            passed: number;
+            failed: number;
+            missing: number;
+            errors: number;
+            /** @description recall@k, 0-1 (retrieval checks) */
+            recall?: number;
+            /** @description Mean reciprocal rank, 0-1 (retrieval checks) */
+            mrr?: number;
+            /** @description Share of answers that passed, 0-1 (full-answer checks) */
+            passRate?: number;
+            /** @description Answers that cited an expected document */
+            cited: number;
+            /** @description Answers that refused */
+            refused: number;
+            /** @description Mean share of supported claims, when SystemOne citation checks are on */
+            supportedShare?: number;
+        };
+        EvaluationTarget: {
+            /** @enum {string} */
+            type: "knowledge_base" | "agent";
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        EvaluationRunBrief: {
+            /** Format: uuid */
+            id: string;
+            kind: components["schemas"]["EvaluationRunKind"];
+            status: components["schemas"]["EvaluationRunStatus"];
+            summary: components["schemas"]["EvaluationSummary"];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        EvaluationSet: {
+            /** Format: uuid */
+            id: string;
+            target: components["schemas"]["EvaluationTarget"];
+            /** @example Transcript questions */
+            name: string;
+            description: string;
+            /** @description Automatic retrieval checks: after the agent is published, after the knowledge base switches embedding profile, and nightly when its documents changed that day. A drop notifies the team's editors. */
+            autoRun: boolean;
+            /** Format: int64 */
+            questionCount: number;
+            lastRun: components["schemas"]["EvaluationRunBrief"] | null;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        EvaluationSetCreate: {
+            /**
+             * Format: uuid
+             * @description The knowledge base the set tests (or agentId)
+             */
+            kbId?: string;
+            /**
+             * Format: uuid
+             * @description The agent the set tests (or kbId)
+             */
+            agentId?: string;
+            name: string;
+            description?: string;
+            autoRun?: boolean;
+        };
+        EvaluationSetUpdate: {
+            name?: string;
+            description?: string;
+            autoRun?: boolean;
+        };
+        EvaluationDocument: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            filename: string;
+            url: string;
+            sourceName?: string;
+        };
+        EvaluationQuestion: {
+            /** Format: uuid */
+            id: string;
+            /** @example How do I order an official transcript? */
+            question: string;
+            expected: components["schemas"]["EvaluationExpected"];
+            /** @description The picked documents that still exist, with their titles */
+            expectedDocuments: components["schemas"]["EvaluationDocument"][];
+            /** @description Phrases a good answer contains (full-answer checks), case aside */
+            mustMention: string[];
+            note: string;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        EvaluationQuestionInput: {
+            question: string;
+            expected: components["schemas"]["EvaluationExpected"];
+            mustMention?: string[];
+            note?: string;
+        };
+        EvaluationQuestionDetail: {
+            question: components["schemas"]["EvaluationQuestion"];
+            /** @description The question's results in the latest runs, newest first */
+            results: components["schemas"]["EvaluationQuestionResult"][];
+        };
+        EvaluationQuestionResult: components["schemas"]["EvaluationResult"] & {
+            /** Format: uuid */
+            runId: string;
+            runKind: components["schemas"]["EvaluationRunKind"];
+            runTrigger: components["schemas"]["EvaluationRunTrigger"];
+            /** Format: date-time */
+            runCreatedAt: string;
+        };
+        EvaluationImportRequest: {
+            /** @enum {string} */
+            format: "csv" | "jsonl";
+            /** @description The file's text: at most 2 MiB and 2000 rows */
+            content: string;
+            /** @description Only preview what would be added */
+            dryRun?: boolean;
+        };
+        EvaluationImportProblem: {
+            line: number;
+            message: string;
+        };
+        EvaluationImportResult: {
+            /** @description Rows read (blank lines and the header aside) */
+            rows: number;
+            usable: number;
+            /** @description Questions added (0 for a dry run) */
+            added: number;
+            problems: components["schemas"]["EvaluationImportProblem"][];
+            /**
+             * Format: int64
+             * @description The questions-per-set limit (null for none)
+             */
+            max: number | null;
+            /**
+             * Format: int64
+             * @description The set's questions before the import
+             */
+            current: number;
+        };
+        /**
+         * @description retrieval checks retrieval only; answer asks the agent and scores the answer
+         * @enum {string}
+         */
+        EvaluationRunKind: "retrieval" | "answer";
+        /** @enum {string} */
+        EvaluationRunStatus: "queued" | "running" | "completed" | "failed" | "cancelled";
+        /** @enum {string} */
+        EvaluationRunTrigger: "manual" | "agent_published" | "profile_switched" | "nightly";
+        EvaluationRunStart: {
+            kind?: components["schemas"]["EvaluationRunKind"];
+            /**
+             * @description The agent version to test (agent sets; default draft)
+             * @enum {string}
+             */
+            version?: "draft" | "published";
+        };
+        EvaluationRunKB: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: uuid */
+            profileId: string;
+            /** @description The embedding profile's name */
+            profile: string;
+            /** @description Results per search from this knowledge base */
+            topK: number;
+        };
+        /** @description What the run tested, for the markers on the score chart */
+        EvaluationRunConfig: {
+            /** @enum {string} */
+            version?: "draft" | "published";
+            /**
+             * Format: int32
+             * @description The published version tested
+             */
+            agentVersion?: number;
+            retrievalMode?: string;
+            /** Format: uuid */
+            chatModelId?: string;
+            kbs: components["schemas"]["EvaluationRunKB"][];
+            resultsPerSearch: number;
+        };
+        EvaluationRun: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            setId: string;
+            kind: components["schemas"]["EvaluationRunKind"];
+            trigger: components["schemas"]["EvaluationRunTrigger"];
+            status: components["schemas"]["EvaluationRunStatus"];
+            /**
+             * Format: uuid
+             * @description Who started it (null for automatic runs)
+             */
+            startedBy: string | null;
+            config: components["schemas"]["EvaluationRunConfig"];
+            summary: components["schemas"]["EvaluationSummary"];
+            /** @description Questions to check */
+            total: number;
+            /** @description Questions checked so far */
+            done: number;
+            /** @description Why a failed run stopped */
+            error: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            startedAt: string | null;
+            /** Format: date-time */
+            finishedAt: string | null;
+        };
+        EvaluationHit: {
+            rank: number;
+            /** Format: uuid */
+            documentId: string;
+            title: string;
+            url?: string;
+            filename?: string;
+            /** @description One of the question's expected documents */
+            expected: boolean;
+        };
+        EvaluationMention: {
+            phrase: string;
+            found: boolean;
+        };
+        EvaluationAnswerScores: {
+            /** @description The answer cites an expected document */
+            cited: boolean;
+            mentions: components["schemas"]["EvaluationMention"][];
+            refused: boolean;
+            /** @description Share of supported claims, 0-1 (SystemOne citation checks) */
+            supportedShare?: number;
+        };
+        EvaluationResult: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: uuid
+             * @description Null once the question was deleted
+             */
+            questionId: string | null;
+            question: string;
+            /**
+             * @description missing means every expected document was deleted (not a failure); error means the check itself failed
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "missing" | "error";
+            /** @description The rank of the first expected document (retrieval) */
+            rank: number | null;
+            /** @description What came back (retrieval) or was cited (answers), once per document */
+            hits: components["schemas"]["EvaluationHit"][];
+            /** @description The agent's answer (full-answer checks) */
+            answer: string | null;
+            scores: components["schemas"]["EvaluationAnswerScores"] | null;
+            error: string;
+            latencyMs: number;
+        };
+        EvaluationRunDetail: {
+            run: components["schemas"]["EvaluationRun"];
+            results: components["schemas"]["EvaluationResult"][];
+        };
+        EvaluationComparisonItem: {
+            /** Format: uuid */
+            questionId: string | null;
+            question: string;
+            /** @enum {string} */
+            change: "better" | "worse" | "same" | "only_a" | "only_b";
+            a: components["schemas"]["EvaluationResult"] | null;
+            b: components["schemas"]["EvaluationResult"] | null;
+        };
+        EvaluationComparison: {
+            a: components["schemas"]["EvaluationRun"];
+            b: components["schemas"]["EvaluationRun"];
+            better: number;
+            worse: number;
+            same: number;
+            items: components["schemas"]["EvaluationComparisonItem"][];
+        };
+        EvaluationSettings: {
+            /** @description On by default; off hides the tabs and answers 404 on the evaluation API */
+            enabled: boolean;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        EvaluationSettingsUpdate: {
+            enabled: boolean;
+        };
     };
     responses: {
         /** @description A crawl run */
@@ -8299,6 +8872,8 @@ export interface components {
         MigrationIdParam: string;
         /** @description Team slug or ID */
         TeamParam: string;
+        EvaluationSetIdParam: string;
+        EvaluationRunIdParam: string;
         UserIdParam: string;
         HoldIdParam: string;
         /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
@@ -15081,6 +15656,598 @@ export interface operations {
                 };
             };
             404: components["responses"]["ErrorReply"];
+        };
+    };
+    listEvaluationSets: {
+        parameters: {
+            query?: {
+                kbId?: string;
+                agentId?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sets, by name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationSet"][];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    createEvaluationSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationSetCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationSet"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    getEvaluationSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The set */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationSet"];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    deleteEvaluationSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    updateEvaluationSet: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationSetUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationSet"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    listEvaluationQuestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Questions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationQuestion"][];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    createEvaluationQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationQuestionInput"];
+            };
+        };
+        responses: {
+            /** @description Added */
+            201: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationQuestion"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    importEvaluationQuestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationImportRequest"];
+            };
+        };
+        responses: {
+            /** @description What the import found, and added unless dryRun */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationImportResult"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    exportEvaluationQuestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description An attachment with a header row (question,expected,must_mention,note) and one row per question */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    getEvaluationQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The question */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationQuestionDetail"];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    deleteEvaluationQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    updateEvaluationQuestion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationQuestionInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationQuestion"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    listEvaluationDocuments: {
+        parameters: {
+            query?: {
+                q?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Documents, by title */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationDocument"][];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    listEvaluationRuns: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Runs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationRun"][];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    startEvaluationRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationRunStart"];
+            };
+        };
+        responses: {
+            /** @description Queued */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationRun"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    compareEvaluationRuns: {
+        parameters: {
+            query: {
+                a: string;
+                b: string;
+            };
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The comparison */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationComparison"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    getEvaluationRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+                runId: components["parameters"]["EvaluationRunIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The run */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationRunDetail"];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    cancelEvaluationRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+                runId: components["parameters"]["EvaluationRunIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationRun"];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetEvaluationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationSettings"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminPutEvaluationSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationSettings"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
         };
     };
 }

@@ -7,7 +7,9 @@
 //     team's agents) and the agents they may chat with (the directory's
 //     rules: all_authenticated, or public while the public switch is on;
 //     published, active agents of active teams), the knowledge bases and
-//     data sources of all their teams, and their own conversations by title.
+//     data sources of all their teams, and their own conversations by title;
+//     the evaluation sets of the teams where they are an editor or above,
+//     while evaluations are on (docs/evaluations.md §5).
 //   - Platform admins and auditors, in addition: teams, users, models,
 //     connections, embedding profiles and shared sources, which they may
 //     read on the admin pages. Never another team's knowledge bases,
@@ -44,6 +46,7 @@ const (
 	TypeKnowledgeBase    = "knowledge_base"
 	TypeDataSource       = "data_source"
 	TypeConversation     = "conversation"
+	TypeEvaluationSet    = "evaluation_set"
 )
 
 // Limits of a search.
@@ -79,6 +82,8 @@ type Service struct {
 	// PublicEnabled reports the platform's public switch (nil: off), for
 	// public agents of other teams.
 	PublicEnabled func(context.Context) (bool, error)
+	// EvaluationsEnabled reports the evaluations switch (nil: off).
+	EvaluationsEnabled func(context.Context) (bool, error)
 }
 
 // New returns a Service.
@@ -114,7 +119,7 @@ func (s *Service) Search(ctx context.Context, a authz.Actor, text string, limit 
 	}
 	esc := store.EscapeLike(text)
 	p := patterns{contains: "%" + esc + "%", prefix: esc + "%", word: `\m` + regexp.QuoteMeta(text), lim: int32(limit), user: a.UserID}
-	finders := []finder{s.agents, s.knowledgeBases, s.dataSources, s.conversations}
+	finders := []finder{s.agents, s.knowledgeBases, s.dataSources, s.evaluationSets, s.conversations}
 	if a.CanReadPlatform() {
 		finders = append([]finder{s.teams, s.users, s.catalog, s.sharedSources}, finders...)
 	}
@@ -266,6 +271,30 @@ func (s *Service) conversations(ctx context.Context, p patterns) ([]Result, erro
 		}
 		out = append(out, Result{Type: TypeConversation, ID: r.ID, Label: r.Title, Secondary: r.AgentName, TeamSlug: r.TeamSlug,
 			AgentSlug: r.AgentSlug, Status: st, rank: int(r.Rank)})
+	}
+	return out, err
+}
+
+// evaluationSets finds the evaluation sets of the teams where the user is an
+// editor or above, while evaluations are on. Secondary names the team;
+// Kind is what the set tests (knowledge_base or agent).
+func (s *Service) evaluationSets(ctx context.Context, p patterns) ([]Result, error) {
+	if s.EvaluationsEnabled == nil {
+		return nil, nil
+	}
+	if on, err := s.EvaluationsEnabled(ctx); err != nil || !on {
+		return nil, err
+	}
+	rows, err := s.q.SearchEvalSets(ctx, dbgen.SearchEvalSetsParams{Contains: p.contains, Prefix: p.prefix, Word: p.word,
+		Lim: p.lim, UserID: p.user})
+	out := make([]Result, 0, len(rows))
+	for _, r := range rows {
+		kind := "knowledge_base"
+		if r.AgentID.Valid {
+			kind = "agent"
+		}
+		out = append(out, Result{Type: TypeEvaluationSet, ID: r.ID, Label: r.Name, Secondary: r.TeamName, TeamSlug: r.TeamSlug,
+			Kind: kind, rank: int(r.Rank)})
 	}
 	return out, err
 }

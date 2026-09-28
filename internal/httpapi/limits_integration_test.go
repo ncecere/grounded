@@ -77,7 +77,7 @@ func TestLimitsAdministration(t *testing.T) {
 
 	// Defaults and ceilings: admins and auditors read, only admins write.
 	var p apitypes.PlatformLimits
-	if code := auditor.get("/v1/admin/limits", &p); code != 200 || len(p.Items) != 21 || p.Revision != 1 {
+	if code := auditor.get("/v1/admin/limits", &p); code != 200 || len(p.Items) != 23 || p.Revision != 1 {
 		t.Fatalf("auditor get = %d %+v", code, p)
 	}
 	byKey := map[string]apitypes.PlatformLimit{}

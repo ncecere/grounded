@@ -48,6 +48,8 @@ type teamFix struct {
 	auditID        string
 	domainRequest  string
 	conv, message  string // the owner's conversation and its answer
+	// An evaluation set on the knowledge base, a question and a run.
+	evalSet, evalQuestion, evalRun string
 	// ids are every object ID of the team, for the leak check.
 	ids []string
 }
@@ -246,6 +248,7 @@ func (e *matrixEnv) seedCommon(t *testing.T, f *teamFix, prefix string) {
 	f.id, f.name = field(team, "id"), field(team, "name")
 	f.ids = append(f.ids, f.id, f.source, f.doc, f.web, f.webDoc, f.crawl, f.kb, f.agent, f.serviceKey, f.pubKey, f.invite,
 		f.domainRequest, f.conv, f.message)
+	e.seedEvaluations(t, f, prefix)
 }
 
 type stringer string

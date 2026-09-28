@@ -21,6 +21,7 @@ import (
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/costs"
+	"github.com/ncecere/grounded/internal/evals"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/kbs"
 	"github.com/ncecere/grounded/internal/kv"
@@ -88,6 +89,8 @@ type Deps struct {
 	// ProfileMigrations moves knowledge bases between embedding profiles
 	// (docs/phase5-deploy.md §5 P2).
 	ProfileMigrations *profilemig.Service
+	// Evaluations runs evaluation sets (docs/evaluations.md).
+	Evaluations *evals.Service
 }
 
 type api struct {
@@ -138,7 +141,7 @@ func apiRoutes(d Deps) []route {
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.analyticsRoutes(),
 		a.publicRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
-		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.costsRoutes(),
+		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.costsRoutes(), a.evaluationRoutes(),
 	} {
 		routes = append(routes, group...)
 	}

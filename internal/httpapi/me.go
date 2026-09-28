@@ -35,7 +35,10 @@ func (a *api) getMe(w http.ResponseWriter, r *http.Request) {
 		Capabilities: apitypes.Capabilities{
 			PlatformAdmin:   id.IsPlatformAdmin(),
 			PlatformAuditor: id.IsPlatformAuditor(),
+			Evaluations:     ptrTo(a.evaluationsOn(r.Context())),
 		},
 		Teams: toAPIMyTeams(myTeams),
 	})
 }
+
+func ptrTo[T any](v T) *T { return &v }

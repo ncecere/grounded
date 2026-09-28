@@ -56,7 +56,7 @@ func TestRetentionAndLegalHolds(t *testing.T) {
 
 	// Who sees retention and holds.
 	var st apitypes.RetentionSettings
-	if code := env.auditor.get("/v1/admin/retention", &st); code != 200 || len(st.Periods) != 7 || len(st.Levels) != 3 {
+	if code := env.auditor.get("/v1/admin/retention", &st); code != 200 || len(st.Periods) != 8 || len(st.Levels) != 3 {
 		t.Fatalf("auditor settings = %d %+v", code, st)
 	}
 	for _, s := range []*session{env.member, env.tadmin, env.owner} {

@@ -1206,6 +1206,222 @@ func (e EmbeddingProfileUpdateStatus) Valid() bool {
 	}
 }
 
+// Defines values for EvaluationComparisonItemChange.
+const (
+	Better EvaluationComparisonItemChange = "better"
+	OnlyA  EvaluationComparisonItemChange = "only_a"
+	OnlyB  EvaluationComparisonItemChange = "only_b"
+	Same   EvaluationComparisonItemChange = "same"
+	Worse  EvaluationComparisonItemChange = "worse"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationComparisonItemChange enum.
+func (e EvaluationComparisonItemChange) Valid() bool {
+	switch e {
+	case Better:
+		return true
+	case OnlyA:
+		return true
+	case OnlyB:
+		return true
+	case Same:
+		return true
+	case Worse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluationImportRequestFormat.
+const (
+	Csv   EvaluationImportRequestFormat = "csv"
+	Jsonl EvaluationImportRequestFormat = "jsonl"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationImportRequestFormat enum.
+func (e EvaluationImportRequestFormat) Valid() bool {
+	switch e {
+	case Csv:
+		return true
+	case Jsonl:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluationQuestionResultStatus.
+const (
+	EvaluationQuestionResultStatusError   EvaluationQuestionResultStatus = "error"
+	EvaluationQuestionResultStatusFail    EvaluationQuestionResultStatus = "fail"
+	EvaluationQuestionResultStatusMissing EvaluationQuestionResultStatus = "missing"
+	EvaluationQuestionResultStatusPass    EvaluationQuestionResultStatus = "pass"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationQuestionResultStatus enum.
+func (e EvaluationQuestionResultStatus) Valid() bool {
+	switch e {
+	case EvaluationQuestionResultStatusError:
+		return true
+	case EvaluationQuestionResultStatusFail:
+		return true
+	case EvaluationQuestionResultStatusMissing:
+		return true
+	case EvaluationQuestionResultStatusPass:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluationResultStatus.
+const (
+	EvaluationResultStatusError   EvaluationResultStatus = "error"
+	EvaluationResultStatusFail    EvaluationResultStatus = "fail"
+	EvaluationResultStatusMissing EvaluationResultStatus = "missing"
+	EvaluationResultStatusPass    EvaluationResultStatus = "pass"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationResultStatus enum.
+func (e EvaluationResultStatus) Valid() bool {
+	switch e {
+	case EvaluationResultStatusError:
+		return true
+	case EvaluationResultStatusFail:
+		return true
+	case EvaluationResultStatusMissing:
+		return true
+	case EvaluationResultStatusPass:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluationRunConfigVersion.
+const (
+	EvaluationRunConfigVersionDraft     EvaluationRunConfigVersion = "draft"
+	EvaluationRunConfigVersionPublished EvaluationRunConfigVersion = "published"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationRunConfigVersion enum.
+func (e EvaluationRunConfigVersion) Valid() bool {
+	switch e {
+	case EvaluationRunConfigVersionDraft:
+		return true
+	case EvaluationRunConfigVersionPublished:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluationRunKind.
+const (
+	Answer    EvaluationRunKind = "answer"
+	Retrieval EvaluationRunKind = "retrieval"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationRunKind enum.
+func (e EvaluationRunKind) Valid() bool {
+	switch e {
+	case Answer:
+		return true
+	case Retrieval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluationRunStartVersion.
+const (
+	EvaluationRunStartVersionDraft     EvaluationRunStartVersion = "draft"
+	EvaluationRunStartVersionPublished EvaluationRunStartVersion = "published"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationRunStartVersion enum.
+func (e EvaluationRunStartVersion) Valid() bool {
+	switch e {
+	case EvaluationRunStartVersionDraft:
+		return true
+	case EvaluationRunStartVersionPublished:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluationRunStatus.
+const (
+	EvaluationRunStatusCancelled EvaluationRunStatus = "cancelled"
+	EvaluationRunStatusCompleted EvaluationRunStatus = "completed"
+	EvaluationRunStatusFailed    EvaluationRunStatus = "failed"
+	EvaluationRunStatusQueued    EvaluationRunStatus = "queued"
+	EvaluationRunStatusRunning   EvaluationRunStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationRunStatus enum.
+func (e EvaluationRunStatus) Valid() bool {
+	switch e {
+	case EvaluationRunStatusCancelled:
+		return true
+	case EvaluationRunStatusCompleted:
+		return true
+	case EvaluationRunStatusFailed:
+		return true
+	case EvaluationRunStatusQueued:
+		return true
+	case EvaluationRunStatusRunning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluationRunTrigger.
+const (
+	EvaluationRunTriggerAgentPublished  EvaluationRunTrigger = "agent_published"
+	EvaluationRunTriggerManual          EvaluationRunTrigger = "manual"
+	EvaluationRunTriggerNightly         EvaluationRunTrigger = "nightly"
+	EvaluationRunTriggerProfileSwitched EvaluationRunTrigger = "profile_switched"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationRunTrigger enum.
+func (e EvaluationRunTrigger) Valid() bool {
+	switch e {
+	case EvaluationRunTriggerAgentPublished:
+		return true
+	case EvaluationRunTriggerManual:
+		return true
+	case EvaluationRunTriggerNightly:
+		return true
+	case EvaluationRunTriggerProfileSwitched:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluationTargetType.
+const (
+	EvaluationTargetTypeAgent         EvaluationTargetType = "agent"
+	EvaluationTargetTypeKnowledgeBase EvaluationTargetType = "knowledge_base"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationTargetType enum.
+func (e EvaluationTargetType) Valid() bool {
+	switch e {
+	case EvaluationTargetTypeAgent:
+		return true
+	case EvaluationTargetTypeKnowledgeBase:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FeedbackRating.
 const (
 	Down FeedbackRating = "down"
@@ -1427,15 +1643,18 @@ func (e LegalHoldScopeType) Valid() bool {
 
 // Defines values for LimitGroup.
 const (
-	LimitGroupIngestion LimitGroup = "ingestion"
-	LimitGroupPublic    LimitGroup = "public"
-	LimitGroupQueries   LimitGroup = "queries"
-	LimitGroupResources LimitGroup = "resources"
+	LimitGroupEvaluations LimitGroup = "evaluations"
+	LimitGroupIngestion   LimitGroup = "ingestion"
+	LimitGroupPublic      LimitGroup = "public"
+	LimitGroupQueries     LimitGroup = "queries"
+	LimitGroupResources   LimitGroup = "resources"
 )
 
 // Valid indicates whether the value is a known member of the LimitGroup enum.
 func (e LimitGroup) Valid() bool {
 	switch e {
+	case LimitGroupEvaluations:
+		return true
 	case LimitGroupIngestion:
 		return true
 	case LimitGroupPublic:
@@ -1460,6 +1679,8 @@ const (
 	LimitKeyCrawlPagesPerDay                 LimitKey = "crawl_pages_per_day"
 	LimitKeyDataSources                      LimitKey = "data_sources"
 	LimitKeyDocuments                        LimitKey = "documents"
+	LimitKeyEvaluationQuestionsPerSet        LimitKey = "evaluation_questions_per_set"
+	LimitKeyEvaluationSets                   LimitKey = "evaluation_sets"
 	LimitKeyKnowledgeBases                   LimitKey = "knowledge_bases"
 	LimitKeyOcrPagesPerDay                   LimitKey = "ocr_pages_per_day"
 	LimitKeyPublicConcurrentChatsPerAgent    LimitKey = "public_concurrent_chats_per_agent"
@@ -1494,6 +1715,10 @@ func (e LimitKey) Valid() bool {
 	case LimitKeyDataSources:
 		return true
 	case LimitKeyDocuments:
+		return true
+	case LimitKeyEvaluationQuestionsPerSet:
+		return true
+	case LimitKeyEvaluationSets:
 		return true
 	case LimitKeyKnowledgeBases:
 		return true
@@ -1931,64 +2156,67 @@ func (e ModerationTestRequestStage) Valid() bool {
 
 // Defines values for NotificationType.
 const (
-	AgentDisabledByPlatform     NotificationType = "agent.disabled_by_platform"
-	AgentPublished              NotificationType = "agent.published"
-	BreakglassDecided           NotificationType = "breakglass.decided"
-	BreakglassEnded             NotificationType = "breakglass.ended"
-	BreakglassRequested         NotificationType = "breakglass.requested"
-	BreakglassStarted           NotificationType = "breakglass.started"
-	KbProfileChanged            NotificationType = "kb.profile_changed"
-	PlatformProfileMigration    NotificationType = "platform.profile_migration"
-	SourceClassificationLowered NotificationType = "source.classification_lowered"
-	TeamBudgetExhausted         NotificationType = "team.budget_exhausted"
-	TeamBudgetWarning           NotificationType = "team.budget_warning"
-	TeamDailyLimit              NotificationType = "team.daily_limit"
-	TeamInviteExpiring          NotificationType = "team.invite_expiring"
-	TeamInvited                 NotificationType = "team.invited"
-	TeamMembership              NotificationType = "team.membership"
-	WebDomainRequest            NotificationType = "web.domain_request"
-	WebDomainRequestNew         NotificationType = "web.domain_request_new"
-	WebSyncFailed               NotificationType = "web.sync_failed"
+	NotificationTypeAgentDisabledByPlatform     NotificationType = "agent.disabled_by_platform"
+	NotificationTypeAgentPublished              NotificationType = "agent.published"
+	NotificationTypeBreakglassDecided           NotificationType = "breakglass.decided"
+	NotificationTypeBreakglassEnded             NotificationType = "breakglass.ended"
+	NotificationTypeBreakglassRequested         NotificationType = "breakglass.requested"
+	NotificationTypeBreakglassStarted           NotificationType = "breakglass.started"
+	NotificationTypeEvaluationRegression        NotificationType = "evaluation.regression"
+	NotificationTypeKbProfileChanged            NotificationType = "kb.profile_changed"
+	NotificationTypePlatformProfileMigration    NotificationType = "platform.profile_migration"
+	NotificationTypeSourceClassificationLowered NotificationType = "source.classification_lowered"
+	NotificationTypeTeamBudgetExhausted         NotificationType = "team.budget_exhausted"
+	NotificationTypeTeamBudgetWarning           NotificationType = "team.budget_warning"
+	NotificationTypeTeamDailyLimit              NotificationType = "team.daily_limit"
+	NotificationTypeTeamInviteExpiring          NotificationType = "team.invite_expiring"
+	NotificationTypeTeamInvited                 NotificationType = "team.invited"
+	NotificationTypeTeamMembership              NotificationType = "team.membership"
+	NotificationTypeWebDomainRequest            NotificationType = "web.domain_request"
+	NotificationTypeWebDomainRequestNew         NotificationType = "web.domain_request_new"
+	NotificationTypeWebSyncFailed               NotificationType = "web.sync_failed"
 )
 
 // Valid indicates whether the value is a known member of the NotificationType enum.
 func (e NotificationType) Valid() bool {
 	switch e {
-	case AgentDisabledByPlatform:
+	case NotificationTypeAgentDisabledByPlatform:
 		return true
-	case AgentPublished:
+	case NotificationTypeAgentPublished:
 		return true
-	case BreakglassDecided:
+	case NotificationTypeBreakglassDecided:
 		return true
-	case BreakglassEnded:
+	case NotificationTypeBreakglassEnded:
 		return true
-	case BreakglassRequested:
+	case NotificationTypeBreakglassRequested:
 		return true
-	case BreakglassStarted:
+	case NotificationTypeBreakglassStarted:
 		return true
-	case KbProfileChanged:
+	case NotificationTypeEvaluationRegression:
 		return true
-	case PlatformProfileMigration:
+	case NotificationTypeKbProfileChanged:
 		return true
-	case SourceClassificationLowered:
+	case NotificationTypePlatformProfileMigration:
 		return true
-	case TeamBudgetExhausted:
+	case NotificationTypeSourceClassificationLowered:
 		return true
-	case TeamBudgetWarning:
+	case NotificationTypeTeamBudgetExhausted:
 		return true
-	case TeamDailyLimit:
+	case NotificationTypeTeamBudgetWarning:
 		return true
-	case TeamInviteExpiring:
+	case NotificationTypeTeamDailyLimit:
 		return true
-	case TeamInvited:
+	case NotificationTypeTeamInviteExpiring:
 		return true
-	case TeamMembership:
+	case NotificationTypeTeamInvited:
 		return true
-	case WebDomainRequest:
+	case NotificationTypeTeamMembership:
 		return true
-	case WebDomainRequestNew:
+	case NotificationTypeWebDomainRequest:
 		return true
-	case WebSyncFailed:
+	case NotificationTypeWebDomainRequestNew:
+		return true
+	case NotificationTypeWebSyncFailed:
 		return true
 	default:
 		return false
@@ -2403,6 +2631,7 @@ const (
 	RetentionKindConversations        RetentionKind = "conversations"
 	RetentionKindDeletedConversations RetentionKind = "deleted_conversations"
 	RetentionKindDeletedFiles         RetentionKind = "deleted_files"
+	RetentionKindEvaluationRuns       RetentionKind = "evaluation_runs"
 	RetentionKindExpiredInvites       RetentionKind = "expired_invites"
 	RetentionKindUsageEvents          RetentionKind = "usage_events"
 )
@@ -2423,6 +2652,8 @@ func (e RetentionKind) Valid() bool {
 	case RetentionKindDeletedConversations:
 		return true
 	case RetentionKindDeletedFiles:
+		return true
+	case RetentionKindEvaluationRuns:
 		return true
 	case RetentionKindExpiredInvites:
 		return true
@@ -2557,6 +2788,7 @@ const (
 	SearchResultTypeConversation     SearchResultType = "conversation"
 	SearchResultTypeDataSource       SearchResultType = "data_source"
 	SearchResultTypeEmbeddingProfile SearchResultType = "embedding_profile"
+	SearchResultTypeEvaluationSet    SearchResultType = "evaluation_set"
 	SearchResultTypeKnowledgeBase    SearchResultType = "knowledge_base"
 	SearchResultTypeModel            SearchResultType = "model"
 	SearchResultTypeSharedSource     SearchResultType = "shared_source"
@@ -2576,6 +2808,8 @@ func (e SearchResultType) Valid() bool {
 	case SearchResultTypeDataSource:
 		return true
 	case SearchResultTypeEmbeddingProfile:
+		return true
+	case SearchResultTypeEvaluationSet:
 		return true
 	case SearchResultTypeKnowledgeBase:
 		return true
@@ -4177,8 +4411,10 @@ type BudgetState string
 
 // Capabilities defines model for Capabilities.
 type Capabilities struct {
-	PlatformAdmin   bool `json:"platformAdmin"`
-	PlatformAuditor bool `json:"platformAuditor"`
+	// Evaluations Evaluations are on for the platform (the tabs show for team editors and above)
+	Evaluations     *bool `json:"evaluations,omitempty"`
+	PlatformAdmin   bool  `json:"platformAdmin"`
+	PlatformAuditor bool  `json:"platformAuditor"`
 }
 
 // CaptchaInfo defines model for CaptchaInfo.
@@ -5227,6 +5463,397 @@ type ErrorResponse struct {
 	} `json:"error"`
 }
 
+// EvaluationAnswerScores defines model for EvaluationAnswerScores.
+type EvaluationAnswerScores struct {
+	// Cited The answer cites an expected document
+	Cited    bool                `json:"cited"`
+	Mentions []EvaluationMention `json:"mentions"`
+	Refused  bool                `json:"refused"`
+
+	// SupportedShare Share of supported claims, 0-1 (SystemOne citation checks)
+	SupportedShare *float32 `json:"supportedShare,omitempty"`
+}
+
+// EvaluationComparison defines model for EvaluationComparison.
+type EvaluationComparison struct {
+	A      EvaluationRun              `json:"a"`
+	B      EvaluationRun              `json:"b"`
+	Better int                        `json:"better"`
+	Items  []EvaluationComparisonItem `json:"items"`
+	Same   int                        `json:"same"`
+	Worse  int                        `json:"worse"`
+}
+
+// EvaluationComparisonItem defines model for EvaluationComparisonItem.
+type EvaluationComparisonItem struct {
+	A          *EvaluationResult              `json:"a"`
+	B          *EvaluationResult              `json:"b"`
+	Change     EvaluationComparisonItemChange `json:"change"`
+	Question   string                         `json:"question"`
+	QuestionId *openapi_types.UUID            `json:"questionId"`
+}
+
+// EvaluationComparisonItemChange defines model for EvaluationComparisonItem.Change.
+type EvaluationComparisonItemChange string
+
+// EvaluationDocument defines model for EvaluationDocument.
+type EvaluationDocument struct {
+	Filename   string             `json:"filename"`
+	Id         openapi_types.UUID `json:"id"`
+	SourceName *string            `json:"sourceName,omitempty"`
+	Title      string             `json:"title"`
+	Url        string             `json:"url"`
+}
+
+// EvaluationExpected What a good result is: any of these documents. urls are http(s) pages; one ending in * is a prefix (https://example.edu/registrar/transcripts*). filenames match uploaded files' names, case aside.
+type EvaluationExpected struct {
+	DocumentIds []openapi_types.UUID `json:"documentIds"`
+	Filenames   []string             `json:"filenames"`
+	Urls        []string             `json:"urls"`
+}
+
+// EvaluationHit defines model for EvaluationHit.
+type EvaluationHit struct {
+	DocumentId openapi_types.UUID `json:"documentId"`
+
+	// Expected One of the question's expected documents
+	Expected bool    `json:"expected"`
+	Filename *string `json:"filename,omitempty"`
+	Rank     int     `json:"rank"`
+	Title    string  `json:"title"`
+	Url      *string `json:"url,omitempty"`
+}
+
+// EvaluationImportProblem defines model for EvaluationImportProblem.
+type EvaluationImportProblem struct {
+	Line    int    `json:"line"`
+	Message string `json:"message"`
+}
+
+// EvaluationImportRequest defines model for EvaluationImportRequest.
+type EvaluationImportRequest struct {
+	// Content The file's text: at most 2 MiB and 2000 rows
+	Content string `json:"content"`
+
+	// DryRun Only preview what would be added
+	DryRun *bool                         `json:"dryRun,omitempty"`
+	Format EvaluationImportRequestFormat `json:"format"`
+}
+
+// EvaluationImportRequestFormat defines model for EvaluationImportRequest.Format.
+type EvaluationImportRequestFormat string
+
+// EvaluationImportResult defines model for EvaluationImportResult.
+type EvaluationImportResult struct {
+	// Added Questions added (0 for a dry run)
+	Added int `json:"added"`
+
+	// Current The set's questions before the import
+	Current int64 `json:"current"`
+
+	// Max The questions-per-set limit (null for none)
+	Max      *int64                    `json:"max"`
+	Problems []EvaluationImportProblem `json:"problems"`
+
+	// Rows Rows read (blank lines and the header aside)
+	Rows   int `json:"rows"`
+	Usable int `json:"usable"`
+}
+
+// EvaluationMention defines model for EvaluationMention.
+type EvaluationMention struct {
+	Found  bool   `json:"found"`
+	Phrase string `json:"phrase"`
+}
+
+// EvaluationQuestion defines model for EvaluationQuestion.
+type EvaluationQuestion struct {
+	CreatedAt time.Time `json:"createdAt"`
+
+	// Expected What a good result is: any of these documents. urls are http(s) pages; one ending in * is a prefix (https://example.edu/registrar/transcripts*). filenames match uploaded files' names, case aside.
+	Expected EvaluationExpected `json:"expected"`
+
+	// ExpectedDocuments The picked documents that still exist, with their titles
+	ExpectedDocuments []EvaluationDocument `json:"expectedDocuments"`
+	Id                openapi_types.UUID   `json:"id"`
+
+	// MustMention Phrases a good answer contains (full-answer checks), case aside
+	MustMention []string `json:"mustMention"`
+	Note        string   `json:"note"`
+
+	// Question Example: How do I order an official transcript?
+	Question string `json:"question"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision  Revision  `json:"revision"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// EvaluationQuestionDetail defines model for EvaluationQuestionDetail.
+type EvaluationQuestionDetail struct {
+	Question EvaluationQuestion `json:"question"`
+
+	// Results The question's results in the latest runs, newest first
+	Results []EvaluationQuestionResult `json:"results"`
+}
+
+// EvaluationQuestionInput defines model for EvaluationQuestionInput.
+type EvaluationQuestionInput struct {
+	// Expected What a good result is: any of these documents. urls are http(s) pages; one ending in * is a prefix (https://example.edu/registrar/transcripts*). filenames match uploaded files' names, case aside.
+	Expected    EvaluationExpected `json:"expected"`
+	MustMention *[]string          `json:"mustMention,omitempty"`
+	Note        *string            `json:"note,omitempty"`
+	Question    string             `json:"question"`
+}
+
+// EvaluationQuestionResult defines model for EvaluationQuestionResult.
+type EvaluationQuestionResult struct {
+	// Answer The agent's answer (full-answer checks)
+	Answer *string `json:"answer"`
+	Error  string  `json:"error"`
+
+	// Hits What came back (retrieval) or was cited (answers), once per document
+	Hits      []EvaluationHit    `json:"hits"`
+	Id        openapi_types.UUID `json:"id"`
+	LatencyMs int                `json:"latencyMs"`
+	Question  string             `json:"question"`
+
+	// QuestionId Null once the question was deleted
+	QuestionId *openapi_types.UUID `json:"questionId"`
+
+	// Rank The rank of the first expected document (retrieval)
+	Rank         *int               `json:"rank"`
+	RunCreatedAt time.Time          `json:"runCreatedAt"`
+	RunId        openapi_types.UUID `json:"runId"`
+
+	// RunKind retrieval checks retrieval only; answer asks the agent and scores the answer
+	RunKind    EvaluationRunKind       `json:"runKind"`
+	RunTrigger EvaluationRunTrigger    `json:"runTrigger"`
+	Scores     *EvaluationAnswerScores `json:"scores"`
+
+	// Status missing means every expected document was deleted (not a failure); error means the check itself failed
+	Status EvaluationQuestionResultStatus `json:"status"`
+}
+
+// EvaluationQuestionResultStatus missing means every expected document was deleted (not a failure); error means the check itself failed
+type EvaluationQuestionResultStatus string
+
+// EvaluationResult defines model for EvaluationResult.
+type EvaluationResult struct {
+	// Answer The agent's answer (full-answer checks)
+	Answer *string `json:"answer"`
+	Error  string  `json:"error"`
+
+	// Hits What came back (retrieval) or was cited (answers), once per document
+	Hits      []EvaluationHit    `json:"hits"`
+	Id        openapi_types.UUID `json:"id"`
+	LatencyMs int                `json:"latencyMs"`
+	Question  string             `json:"question"`
+
+	// QuestionId Null once the question was deleted
+	QuestionId *openapi_types.UUID `json:"questionId"`
+
+	// Rank The rank of the first expected document (retrieval)
+	Rank   *int                    `json:"rank"`
+	Scores *EvaluationAnswerScores `json:"scores"`
+
+	// Status missing means every expected document was deleted (not a failure); error means the check itself failed
+	Status EvaluationResultStatus `json:"status"`
+}
+
+// EvaluationResultStatus missing means every expected document was deleted (not a failure); error means the check itself failed
+type EvaluationResultStatus string
+
+// EvaluationRun defines model for EvaluationRun.
+type EvaluationRun struct {
+	// Config What the run tested, for the markers on the score chart
+	Config    EvaluationRunConfig `json:"config"`
+	CreatedAt time.Time           `json:"createdAt"`
+
+	// Done Questions checked so far
+	Done int `json:"done"`
+
+	// Error Why a failed run stopped
+	Error      string             `json:"error"`
+	FinishedAt *time.Time         `json:"finishedAt"`
+	Id         openapi_types.UUID `json:"id"`
+
+	// Kind retrieval checks retrieval only; answer asks the agent and scores the answer
+	Kind      EvaluationRunKind  `json:"kind"`
+	SetId     openapi_types.UUID `json:"setId"`
+	StartedAt *time.Time         `json:"startedAt"`
+
+	// StartedBy Who started it (null for automatic runs)
+	StartedBy *openapi_types.UUID `json:"startedBy"`
+	Status    EvaluationRunStatus `json:"status"`
+
+	// Summary A run's scores. Questions whose expected documents no longer exist (missing) and questions whose check failed (errors) are counted apart and left out of the rates.
+	Summary EvaluationSummary `json:"summary"`
+
+	// Total Questions to check
+	Total   int                  `json:"total"`
+	Trigger EvaluationRunTrigger `json:"trigger"`
+}
+
+// EvaluationRunBrief defines model for EvaluationRunBrief.
+type EvaluationRunBrief struct {
+	CreatedAt time.Time          `json:"createdAt"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// Kind retrieval checks retrieval only; answer asks the agent and scores the answer
+	Kind   EvaluationRunKind   `json:"kind"`
+	Status EvaluationRunStatus `json:"status"`
+
+	// Summary A run's scores. Questions whose expected documents no longer exist (missing) and questions whose check failed (errors) are counted apart and left out of the rates.
+	Summary EvaluationSummary `json:"summary"`
+}
+
+// EvaluationRunConfig What the run tested, for the markers on the score chart
+type EvaluationRunConfig struct {
+	// AgentVersion The published version tested
+	AgentVersion     *int32                      `json:"agentVersion,omitempty"`
+	ChatModelId      *openapi_types.UUID         `json:"chatModelId,omitempty"`
+	Kbs              []EvaluationRunKB           `json:"kbs"`
+	ResultsPerSearch int                         `json:"resultsPerSearch"`
+	RetrievalMode    *string                     `json:"retrievalMode,omitempty"`
+	Version          *EvaluationRunConfigVersion `json:"version,omitempty"`
+}
+
+// EvaluationRunConfigVersion defines model for EvaluationRunConfig.Version.
+type EvaluationRunConfigVersion string
+
+// EvaluationRunDetail defines model for EvaluationRunDetail.
+type EvaluationRunDetail struct {
+	Results []EvaluationResult `json:"results"`
+	Run     EvaluationRun      `json:"run"`
+}
+
+// EvaluationRunKB defines model for EvaluationRunKB.
+type EvaluationRunKB struct {
+	Id   openapi_types.UUID `json:"id"`
+	Name string             `json:"name"`
+
+	// Profile The embedding profile's name
+	Profile   string             `json:"profile"`
+	ProfileId openapi_types.UUID `json:"profileId"`
+
+	// TopK Results per search from this knowledge base
+	TopK int `json:"topK"`
+}
+
+// EvaluationRunKind retrieval checks retrieval only; answer asks the agent and scores the answer
+type EvaluationRunKind string
+
+// EvaluationRunStart defines model for EvaluationRunStart.
+type EvaluationRunStart struct {
+	// Kind retrieval checks retrieval only; answer asks the agent and scores the answer
+	Kind *EvaluationRunKind `json:"kind,omitempty"`
+
+	// Version The agent version to test (agent sets; default draft)
+	Version *EvaluationRunStartVersion `json:"version,omitempty"`
+}
+
+// EvaluationRunStartVersion The agent version to test (agent sets; default draft)
+type EvaluationRunStartVersion string
+
+// EvaluationRunStatus defines model for EvaluationRunStatus.
+type EvaluationRunStatus string
+
+// EvaluationRunTrigger defines model for EvaluationRunTrigger.
+type EvaluationRunTrigger string
+
+// EvaluationSet defines model for EvaluationSet.
+type EvaluationSet struct {
+	// AutoRun Automatic retrieval checks: after the agent is published, after the knowledge base switches embedding profile, and nightly when its documents changed that day. A drop notifies the team's editors.
+	AutoRun     bool                `json:"autoRun"`
+	CreatedAt   time.Time           `json:"createdAt"`
+	Description string              `json:"description"`
+	Id          openapi_types.UUID  `json:"id"`
+	LastRun     *EvaluationRunBrief `json:"lastRun"`
+
+	// Name Example: Transcript questions
+	Name          string `json:"name"`
+	QuestionCount int64  `json:"questionCount"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision  Revision         `json:"revision"`
+	Target    EvaluationTarget `json:"target"`
+	UpdatedAt time.Time        `json:"updatedAt"`
+}
+
+// EvaluationSetCreate defines model for EvaluationSetCreate.
+type EvaluationSetCreate struct {
+	// AgentId The agent the set tests (or kbId)
+	AgentId     *openapi_types.UUID `json:"agentId,omitempty"`
+	AutoRun     *bool               `json:"autoRun,omitempty"`
+	Description *string             `json:"description,omitempty"`
+
+	// KbId The knowledge base the set tests (or agentId)
+	KbId *openapi_types.UUID `json:"kbId,omitempty"`
+	Name string              `json:"name"`
+}
+
+// EvaluationSetUpdate defines model for EvaluationSetUpdate.
+type EvaluationSetUpdate struct {
+	AutoRun     *bool   `json:"autoRun,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Name        *string `json:"name,omitempty"`
+}
+
+// EvaluationSettings defines model for EvaluationSettings.
+type EvaluationSettings struct {
+	// Enabled On by default; off hides the tabs and answers 404 on the evaluation API
+	Enabled bool `json:"enabled"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision  Revision  `json:"revision"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// EvaluationSettingsUpdate defines model for EvaluationSettingsUpdate.
+type EvaluationSettingsUpdate struct {
+	Enabled bool `json:"enabled"`
+}
+
+// EvaluationSummary A run's scores. Questions whose expected documents no longer exist (missing) and questions whose check failed (errors) are counted apart and left out of the rates.
+type EvaluationSummary struct {
+	// Cited Answers that cited an expected document
+	Cited  int `json:"cited"`
+	Errors int `json:"errors"`
+	Failed int `json:"failed"`
+
+	// K Results per search the run checked
+	K       int `json:"k"`
+	Missing int `json:"missing"`
+
+	// Mrr Mean reciprocal rank, 0-1 (retrieval checks)
+	Mrr *float32 `json:"mrr,omitempty"`
+
+	// PassRate Share of answers that passed, 0-1 (full-answer checks)
+	PassRate  *float32 `json:"passRate,omitempty"`
+	Passed    int      `json:"passed"`
+	Questions int      `json:"questions"`
+
+	// Recall recall@k, 0-1 (retrieval checks)
+	Recall *float32 `json:"recall,omitempty"`
+
+	// Refused Answers that refused
+	Refused int `json:"refused"`
+
+	// SupportedShare Mean share of supported claims, when SystemOne citation checks are on
+	SupportedShare *float32 `json:"supportedShare,omitempty"`
+}
+
+// EvaluationTarget defines model for EvaluationTarget.
+type EvaluationTarget struct {
+	Id   openapi_types.UUID   `json:"id"`
+	Name string               `json:"name"`
+	Type EvaluationTargetType `json:"type"`
+}
+
+// EvaluationTargetType defines model for EvaluationTarget.Type.
+type EvaluationTargetType string
+
 // Feedback defines model for Feedback.
 type Feedback struct {
 	Rating FeedbackRating  `json:"rating"`
@@ -5624,7 +6251,7 @@ type LimitErrorResponse struct {
 	} `json:"error"`
 }
 
-// LimitGroup public limits apply per agent to anonymous public-page and widget traffic
+// LimitGroup public limits apply per agent to anonymous public-page and widget traffic; evaluations are evaluation sets and their questions
 type LimitGroup string
 
 // LimitKey A team limit. See GET /v1/admin/limits for labels and descriptions.
@@ -6722,7 +7349,7 @@ type PlatformLimit struct {
 	Default     *LimitValue `json:"default"`
 	Description string      `json:"description"`
 
-	// Group public limits apply per agent to anonymous public-page and widget traffic
+	// Group public limits apply per agent to anonymous public-page and widget traffic; evaluations are evaluation sets and their questions
 	Group LimitGroup `json:"group"`
 
 	// Key A team limit. See GET /v1/admin/limits for labels and descriptions.
@@ -7373,7 +8000,7 @@ type ScopeTotals struct {
 	SmallTalk int64 `json:"smallTalk"`
 }
 
-// SearchResult One match of GET /v1/search, with what the app needs to link to it: teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models, connections and embedding profiles their admin list with ?record={id}; shared sources /admin/shared-sources/{id}; agents the team's agent page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug}); knowledge bases and data sources their team page; conversations the chat with ?c={id}.
+// SearchResult One match of GET /v1/search, with what the app needs to link to it: teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models, connections and embedding profiles their admin list with ?record={id}; shared sources /admin/shared-sources/{id}; agents the team's agent page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug}); knowledge bases and data sources their team page; conversations the chat with ?c={id}; evaluation sets /teams/{teamSlug}/evaluations/{id} (kind says whether the set tests a knowledge_base or an agent).
 type SearchResult struct {
 	// AgentSlug The agent (agents, conversations)
 	AgentSlug *string `json:"agentSlug,omitempty"`
@@ -7385,7 +8012,7 @@ type SearchResult struct {
 	CanOpen *bool              `json:"canOpen,omitempty"`
 	Id      openapi_types.UUID `json:"id"`
 
-	// Kind A model's kind (chat, embedding, moderation…) or a data source's type (upload, web)
+	// Kind A model's kind (chat, embedding, moderation…), a data source's type (upload, web), or what an evaluation set tests (knowledge_base, agent)
 	Kind *string `json:"kind,omitempty"`
 
 	// Label The name (a user's display name, or their email without one; a conversation's title)
@@ -7756,7 +8383,7 @@ type TeamCreated struct {
 type TeamLimit struct {
 	Description string `json:"description"`
 
-	// Group public limits apply per agent to anonymous public-page and widget traffic
+	// Group public limits apply per agent to anonymous public-page and widget traffic; evaluations are evaluation sets and their questions
 	Group LimitGroup `json:"group"`
 
 	// Key A team limit. See GET /v1/admin/limits for labels and descriptions.
@@ -7786,7 +8413,7 @@ type TeamLimitOverride struct {
 	// Effective override ?? default, capped by the ceiling; null = unlimited
 	Effective *LimitValue `json:"effective"`
 
-	// Group public limits apply per agent to anonymous public-page and widget traffic
+	// Group public limits apply per agent to anonymous public-page and widget traffic; evaluations are evaluation sets and their questions
 	Group LimitGroup `json:"group"`
 
 	// Key A team limit. See GET /v1/admin/limits for labels and descriptions.
@@ -8115,6 +8742,12 @@ type DocumentSearchParam = string
 
 // DocumentTagParam defines model for DocumentTagParam.
 type DocumentTagParam = string
+
+// EvaluationRunIdParam defines model for EvaluationRunIdParam.
+type EvaluationRunIdParam = openapi_types.UUID
+
+// EvaluationSetIdParam defines model for EvaluationSetIdParam.
+type EvaluationSetIdParam = openapi_types.UUID
 
 // HoldIdParam defines model for HoldIdParam.
 type HoldIdParam = openapi_types.UUID
@@ -8504,6 +9137,12 @@ type AdminPutBreakGlassSettingsParams struct {
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
+// AdminPutEvaluationSettingsParams defines parameters for AdminPutEvaluationSettings.
+type AdminPutEvaluationSettingsParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminPutMaintenanceParams defines parameters for AdminPutMaintenance.
 type AdminPutMaintenanceParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
@@ -8763,6 +9402,41 @@ type ListTeamConversationsParams struct {
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// ListEvaluationSetsParams defines parameters for ListEvaluationSets.
+type ListEvaluationSetsParams struct {
+	KbId    *openapi_types.UUID `form:"kbId,omitempty" json:"kbId,omitempty"`
+	AgentId *openapi_types.UUID `form:"agentId,omitempty" json:"agentId,omitempty"`
+}
+
+// UpdateEvaluationSetParams defines parameters for UpdateEvaluationSet.
+type UpdateEvaluationSetParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// ListEvaluationDocumentsParams defines parameters for ListEvaluationDocuments.
+type ListEvaluationDocumentsParams struct {
+	Q     *string `form:"q,omitempty" json:"q,omitempty"`
+	Limit *int    `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// UpdateEvaluationQuestionParams defines parameters for UpdateEvaluationQuestion.
+type UpdateEvaluationQuestionParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// ListEvaluationRunsParams defines parameters for ListEvaluationRuns.
+type ListEvaluationRunsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// CompareEvaluationRunsParams defines parameters for CompareEvaluationRuns.
+type CompareEvaluationRunsParams struct {
+	A openapi_types.UUID `form:"a" json:"a"`
+	B openapi_types.UUID `form:"b" json:"b"`
+}
+
 // UpdateKnowledgeBaseParams defines parameters for UpdateKnowledgeBase.
 type UpdateKnowledgeBaseParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
@@ -8935,6 +9609,9 @@ type AdminStartRetentionRunJSONRequestBody = RetentionRunRequest
 // AdminPutBreakGlassSettingsJSONRequestBody defines body for AdminPutBreakGlassSettings for application/json ContentType.
 type AdminPutBreakGlassSettingsJSONRequestBody = BreakGlassSettingsUpdate
 
+// AdminPutEvaluationSettingsJSONRequestBody defines body for AdminPutEvaluationSettings for application/json ContentType.
+type AdminPutEvaluationSettingsJSONRequestBody = EvaluationSettingsUpdate
+
 // AdminPutMaintenanceJSONRequestBody defines body for AdminPutMaintenance for application/json ContentType.
 type AdminPutMaintenanceJSONRequestBody = MaintenanceUpdate
 
@@ -9039,6 +9716,24 @@ type UpdateAPIKeyContactJSONRequestBody UpdateAPIKeyContactJSONBody
 
 // CreateDomainRequestJSONRequestBody defines body for CreateDomainRequest for application/json ContentType.
 type CreateDomainRequestJSONRequestBody = DomainRequestCreate
+
+// CreateEvaluationSetJSONRequestBody defines body for CreateEvaluationSet for application/json ContentType.
+type CreateEvaluationSetJSONRequestBody = EvaluationSetCreate
+
+// UpdateEvaluationSetJSONRequestBody defines body for UpdateEvaluationSet for application/json ContentType.
+type UpdateEvaluationSetJSONRequestBody = EvaluationSetUpdate
+
+// CreateEvaluationQuestionJSONRequestBody defines body for CreateEvaluationQuestion for application/json ContentType.
+type CreateEvaluationQuestionJSONRequestBody = EvaluationQuestionInput
+
+// ImportEvaluationQuestionsJSONRequestBody defines body for ImportEvaluationQuestions for application/json ContentType.
+type ImportEvaluationQuestionsJSONRequestBody = EvaluationImportRequest
+
+// UpdateEvaluationQuestionJSONRequestBody defines body for UpdateEvaluationQuestion for application/json ContentType.
+type UpdateEvaluationQuestionJSONRequestBody = EvaluationQuestionInput
+
+// StartEvaluationRunJSONRequestBody defines body for StartEvaluationRun for application/json ContentType.
+type StartEvaluationRunJSONRequestBody = EvaluationRunStart
 
 // CreateKnowledgeBaseJSONRequestBody defines body for CreateKnowledgeBase for application/json ContentType.
 type CreateKnowledgeBaseJSONRequestBody = KnowledgeBaseCreate
