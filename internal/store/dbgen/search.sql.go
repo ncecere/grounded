@@ -535,7 +535,7 @@ type SearchTeamsRow struct {
 // Every query takes the same three patterns, built from the caller's text:
 //
 //	@contains  '%text%' (ILIKE, escaped): the filter, served by the trigram
-//	           indexes of 00033
+//	           indexes of 00030
 //	@prefix    'text%'  (ILIKE, escaped): rank 0
 //	@word      '\mtext' (a case-insensitive regex, quoted): rank 1, a word
 //	           of the name starts with the text
