@@ -82,6 +82,7 @@ type Services struct {
 	// jobs enqueues River jobs (may be insert-only).
 	jobs *jobs.Client
 	pool *pgxpool.Pool
+	log  *slog.Logger
 }
 
 // NewBlobStore builds the configured object store.
@@ -198,7 +199,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 		MaxPagesPerDocument: cfg.OCR.MaxPagesPerDocument, Concurrency: cfg.OCR.Concurrency,
 	}, log)
 	s.Sources.OCR = s.OCR
-	s.jobs, s.pool = jobsClient, pool
+	s.jobs, s.pool, s.log = jobsClient, pool, log
 	s.ProfileMigrations = profilemig.New(pool, s.Catalog, s.Teams, s.Notify, jobsClient, profilemig.Options{
 		GraceDays: cfg.ProfileMigrationGraceDays, BatchSize: cfg.EmbedBatchSize, BatchTokens: cfg.EmbedBatchTokens,
 	}, log)
@@ -212,9 +213,9 @@ func (s *Services) limitsChanged(ctx context.Context, team uuid.NullUUID) {
 	s.Web.LimitsChanged(ctx, team)
 	n, err := ingest.WakeOCRWaiting(context.WithoutCancel(ctx), s.pool, s.jobs, team)
 	if err != nil {
-		slog.WarnContext(ctx, "could not wake documents waiting for the daily OCR page limit", "team", team.UUID, "err", err)
+		s.log.WarnContext(ctx, "could not wake documents waiting for the daily OCR page limit", "team", team.UUID, "err", err)
 	} else if n > 0 {
-		slog.InfoContext(ctx, "woke documents waiting for the daily OCR page limit", "team", team.UUID, "documents", n)
+		s.log.InfoContext(ctx, "woke documents waiting for the daily OCR page limit", "team", team.UUID, "documents", n)
 	}
 }
 
