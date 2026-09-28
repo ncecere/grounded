@@ -1,0 +1,30 @@
+# Optional OCR for scanned documents with Tesseract (docs/ocr.md §3,
+# docs/operations/ocr.md): the grounded-ocr sidecar, which only Grounded's
+# api and worker may call, and OCR_TESSERACT_URL in grounded-config. OCR
+# stays off until a platform admin turns it on in Admin -> Parsing.
+#
+# Pin the image in the overlay like Grounded's own (by digest; the image
+# workflow's summary prints it):
+#   images:
+#     - name: ghcr.io/ncecere/grounded-ocr
+#       newTag: v0.2.0
+#       digest: sha256:<digest>
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - ocr.yaml
+  - networkpolicy.yaml
+
+images:
+  - name: ghcr.io/ncecere/grounded-ocr
+    newTag: pin-a-digest-in-your-overlay
+
+patches:
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: grounded-config
+      data:
+        OCR_TESSERACT_URL: http://grounded-ocr:8080

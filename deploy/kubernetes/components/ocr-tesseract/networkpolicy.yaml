@@ -1,0 +1,57 @@
+# api (Admin -> Parsing's Test button) and worker (ingestion) may call the
+# OCR sidecar; the sidecar itself needs no egress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-ocr-ingress
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: ocr
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: grounded
+      app.kubernetes.io/component: ocr
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [grounded]
+              - key: app.kubernetes.io/component
+                operator: In
+                values: [api, worker]
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-app-egress-ocr
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: ocr
+    app.kubernetes.io/part-of: grounded
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [grounded]
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [api, worker]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: grounded
+              app.kubernetes.io/component: ocr
+      ports:
+        - protocol: TCP
+          port: 8080

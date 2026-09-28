@@ -32,6 +32,19 @@ services:
     image: apache/tika:4.0.0-1
     profiles: ["tika"]
     ports: ["127.0.0.1:59998:9998"]
+  # Optional OCR sidecar (docs/ocr.md, docs/operations/ocr.md), built from
+  # Dockerfile.ocr. Start with: docker compose --profile ocr up -d --build ocr
+  # then set OCR_TESSERACT_URL=http://127.0.0.1:58080 and turn OCR on in
+  # Admin -> Parsing.
+  ocr:
+    build:
+      context: .
+      dockerfile: Dockerfile.ocr
+    image: grounded-ocr:dev
+    profiles: ["ocr"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    ports: ["127.0.0.1:58080:8080"]
   # Optional S3-compatible object store for exercising the S3 blob backend
   # (the filesystem backend is the default). Start with:
   #   docker compose --profile s3 up -d minio minio-init

@@ -26,12 +26,13 @@ combinations=(
   "backup-objects"
   "ingress"
   "tika"
+  "ocr-tesseract"
   "monitoring"
   "monitoring-annotations"
   "alerts"
   "dashboards"
   "private-registry"
-  "postgres-single valkey-single backup-pgdump backup-objects ingress tika monitoring alerts dashboards private-registry"
+  "postgres-single valkey-single backup-pgdump backup-objects ingress tika ocr-tesseract monitoring alerts dashboards private-registry"
   "postgres-cnpg valkey-single ingress tika monitoring-annotations private-registry"
 )
 

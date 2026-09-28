@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grounded-ocr
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: ocr
+    app.kubernetes.io/part-of: grounded
+automountServiceAccountToken: false
+---
+# One replica serves a small install: each request is one page, and the
+# sidecar runs one Tesseract process per CPU (OCR_CONCURRENCY here, matching
+# the CPU limit). Grounded's workers read OCR_CONCURRENCY pages each (default
+# 2): scale replicas or CPUs with the workers.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grounded-ocr
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: ocr
+    app.kubernetes.io/part-of: grounded
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grounded
+      app.kubernetes.io/component: ocr
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grounded
+        app.kubernetes.io/component: ocr
+        app.kubernetes.io/part-of: grounded
+    spec:
+      serviceAccountName: grounded-ocr
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ocr
+          image: ghcr.io/ncecere/grounded-ocr
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: OCR_CONCURRENCY
+              value: "2"
+            - name: OCR_TIMEOUT
+              value: 2m
+            - name: OCR_MAX_BYTES
+              value: "33554432"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 500m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grounded-ocr
+  labels:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: ocr
+    app.kubernetes.io/part-of: grounded
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: grounded
+    app.kubernetes.io/component: ocr
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
