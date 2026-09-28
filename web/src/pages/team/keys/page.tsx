@@ -3,7 +3,8 @@
  * and search in the URL), each key in a RecordPage (?record=<id>) with its
  * scopes, restrictions (knowledge bases, agents), owner or responsible
  * contact, expiry and last use, and Revoke. The secret is shown once, when
- * the key is created (create-dialog.tsx).
+ * the key is created (create-dialog.tsx). The list shows active keys; a
+ * revoked key (linked from the audit log) is loaded by its id (G12).
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, KeyRound, Lock, Plus, Trash2 } from "lucide-react";
@@ -27,7 +28,7 @@ import { useAgents } from "../../agents/common";
 import { keysKey, useKBs, useTeam } from "../common";
 import { ArchivedNotice } from "../layout";
 import { CreateKeyDialog } from "./create-dialog";
-import { ExpiryBadge, KeyRecordPage, accessText, kindLabel, personName } from "./key-record";
+import { ExpiryBadge, KeyRecordPage, accessText, kindLabel, personName, useKeyById } from "./key-record";
 import type { APIKey } from "./scopes";
 
 const typeFacet: Facet<APIKey>[] = [
@@ -104,9 +105,12 @@ export function ApiKeysPage({ embedded = false }: { embedded?: boolean }) {
   const kbName = (id: string) => kbs.data?.find((k) => k.id === id)?.name ?? "Deleted knowledge base";
   const agentName = (id: string) => agents.data?.find((a) => a.id === id)?.name ?? "Deleted agent";
   // Archived teams keep revocation: a key can always be switched off.
-  const canRevoke = (k: APIKey) => isManager || (k.kind === "personal" && k.userId === me.user.id);
+  const canRevoke = (k: APIKey) => !k.revokedAt && (isManager || (k.kind === "personal" && k.userId === me.user.id));
   const list = keys.data ?? [];
-  const open = list.find((k) => k.id === record.id);
+  const listed = list.find((k) => k.id === record.id);
+  // Not in the list (revoked, or not loaded yet): by its id.
+  const byId = useKeyById(slug, keys.isSuccess && !listed ? record.id : undefined);
+  const open = listed ?? byId.data;
 
   const columns: DataTableColumn<APIKey>[] = [
     {
@@ -169,7 +173,7 @@ export function ApiKeysPage({ embedded = false }: { embedded?: boolean }) {
       />
       <KeyRecordPage
         k={open}
-        loading={keys.isLoading && !open}
+        loading={!open && (keys.isLoading || byId.isLoading)}
         open={Boolean(record.id)}
         onClose={record.close}
         kbName={kbName}

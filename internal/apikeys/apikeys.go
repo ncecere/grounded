@@ -248,6 +248,31 @@ func (s *Service) List(ctx context.Context, a authz.Actor, teamRef string) ([]Li
 	return s.q.ListTeamAPIKeys(ctx, p)
 }
 
+// Get returns one of the team's keys, including a revoked one (links from
+// the audit log outlive the key). Like List: team admins see every key;
+// others their own personal keys, and any other key is not found.
+func (s *Service) Get(ctx context.Context, a authz.Actor, teamRef string, id uuid.UUID) (Listed, error) {
+	acc, err := s.Teams.Get(ctx, a, teamRef)
+	if err != nil {
+		return Listed{}, err
+	}
+	if acc.Role == "" || a.Key != nil {
+		return Listed{}, apperr.NotFound("team_not_found", "Team not found")
+	}
+	row, err := s.q.GetTeamAPIKey(ctx, dbgen.GetTeamAPIKeyParams{ID: id, TeamID: acc.Team.ID})
+	if errors.Is(store.NotFound(err), store.ErrNotFound) {
+		return Listed{}, apperr.NotFound("key_not_found", "API key not found")
+	} else if err != nil {
+		return Listed{}, err
+	}
+	k := row.APIKey
+	own := k.Kind == KindPersonal && k.UserID.Valid && k.UserID.UUID == a.UserID
+	if !own && !authz.RoleAtLeast(acc.Role, authz.RoleAdmin) {
+		return Listed{}, apperr.NotFound("key_not_found", "API key not found")
+	}
+	return Listed{APIKey: k, UserEmail: row.UserEmail, UserName: row.UserName}, nil
+}
+
 // Revoke disables a key. Owners of personal keys and team admins may revoke.
 func (s *Service) Revoke(ctx context.Context, a authz.Actor, teamRef string, id uuid.UUID) error {
 	acc, err := s.Teams.Get(ctx, a, teamRef)

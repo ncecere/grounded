@@ -178,6 +178,7 @@ func (a *api) teamRoutes() []route {
 		{"GET", "/v1/teams/{team}/limits", a.session(a.getTeamLimits)},
 		{"GET", "/v1/teams/{team}/api-keys", a.session(a.listAPIKeys)},
 		{"POST", "/v1/teams/{team}/api-keys", a.session(a.createAPIKey)},
+		{"GET", "/v1/teams/{team}/api-keys/{keyId}", a.session(a.getAPIKey)},
 		{"PATCH", "/v1/teams/{team}/api-keys/{keyId}", a.session(a.updateAPIKeyContact)},
 		{"DELETE", "/v1/teams/{team}/api-keys/{keyId}", a.session(a.revokeAPIKey)},
 	}

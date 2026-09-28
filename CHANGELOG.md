@@ -13,6 +13,7 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). Release notes will be 
 Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are drafted in [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md).
 
 ### Added
+- `GET /v1/teams/{team}/api-keys/{keyId}` returns one API key, including a revoked one (`revokedAt`), for team admins and the key's owner. An audit-log entry about a key links to its record page (`?tab=api-keys&record=<id>`), which now loads a revoked key by id and shows it read-only; before, the link led to the list, which hides revoked keys.
 - Release assets: each GitHub Release has the image's SPDX SBOM per platform (`grounded-<tag>-linux-amd64.sbom.spdx.json` and `-linux-arm64`), `grounded-<tag>.digest.txt` and a `checksums.txt` (SHA-256), next to the image attestations. The release fails clearly if the image has no SBOM or an upload fails.
 
 ### Changed

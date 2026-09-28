@@ -1765,7 +1765,11 @@ export interface paths {
             };
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One API key, including a revoked one (team admins see every key; others their own personal keys)
+         * @description Unlike the list, which shows active keys only, this returns a revoked key too (with revokedAt), so links to a key (for example from the audit log) keep working after it is revoked.
+         */
+        get: operations["getAPIKey"];
         put?: never;
         post?: never;
         /** Revoke an API key */
@@ -5360,6 +5364,11 @@ export interface components {
             expiresAt?: string | null;
             /** Format: date-time */
             lastUsedAt?: string | null;
+            /**
+             * Format: date-time
+             * @description When the key was revoked; null while it is active (lists show active keys only)
+             */
+            revokedAt?: string | null;
             /** Format: date-time */
             createdAt: string;
         };
@@ -10978,6 +10987,34 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+        };
+    };
+    getAPIKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                keyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["APIKey"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
         };
     };
     revokeAPIKey: {

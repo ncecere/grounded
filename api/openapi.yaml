@@ -2791,6 +2791,26 @@ paths:
         in: path
         required: true
         schema: { type: string, format: uuid }
+    get:
+      tags: [apikeys]
+      operationId: getAPIKey
+      summary: One API key, including a revoked one (team admins see every key; others their own personal keys)
+      description: >-
+        Unlike the list, which shows active keys only, this returns a revoked
+        key too (with revokedAt), so links to a key (for example from the
+        audit log) keep working after it is revoked.
+      responses:
+        "200":
+          description: The key
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/APIKey" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
     patch:
       tags: [apikeys]
       operationId: updateAPIKeyContact
@@ -7369,6 +7389,7 @@ components:
           description: The owner (personal) or responsible contact (service), named in lists; null when that user no longer exists
         expiresAt: { type: string, format: date-time, nullable: true }
         lastUsedAt: { type: string, format: date-time, nullable: true }
+        revokedAt: { type: string, format: date-time, nullable: true, description: "When the key was revoked; null while it is active (lists show active keys only)" }
         createdAt: { type: string, format: date-time }
     APIKeyContact:
       type: object

@@ -85,6 +85,7 @@ Platform
   - Have an expiry date.
   - Format `rag_<12-char id>_<40-char secret>`. The id is stored in clear for lookup; only HMAC-SHA256(`API_KEY_PEPPER`, key) is stored. The secret is shown once.
   - Can never administer the platform.
+  - Revoked keys are kept: the key list shows active keys, and `GET /v1/teams/{team}/api-keys/{keyId}` returns a revoked one too (with `revokedAt`), to the same people who could see it in the list, so audit-log links to it keep working.
 - **Agent publishable keys** can call only one published agent. They are for the embeddable widget and are restricted by allowed origins. Team admins and owners create them, as part of publishing an agent for embedding.
 
 ### 3.4 Platform roles

@@ -27,7 +27,8 @@ function teamLink(team: string, e: AuditEntry): ReactElement | null {
     case "agent":
       return <Link to="/teams/$team/agents/$agentId" params={{ team, agentId: id }} />;
     case "api_key":
-      return <Link to="/teams/$team/settings" params={{ team }} search={{ tab: "api-keys" }} />;
+      // The key's record page, which opens a revoked key too.
+      return <Link to="/teams/$team/settings" params={{ team }} search={{ tab: "api-keys", record: id } as never} />;
     case "publishable_key":
       // A widget key lives on its agent's Share tab.
       return e.parent?.exists ? <Link to="/teams/$team/agents/$agentId" params={{ team, agentId: e.parent.id }} search={{ tab: "share" }} /> : null;

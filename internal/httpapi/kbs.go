@@ -197,7 +197,7 @@ func toAPIKey(k dbgen.APIKey) apitypes.APIKey {
 	out := apitypes.APIKey{
 		Id: k.ID, Name: k.Name, Kind: apitypes.APIKeyKind(k.Kind), Prefix: k.Prefix,
 		Scopes: make([]apitypes.APIKeyScope, len(k.Scopes)), ExpiresAt: k.ExpiresAt, LastUsedAt: k.LastUsedAt,
-		CreatedAt: k.CreatedAt, UserId: nullUUID(k.UserID),
+		CreatedAt: k.CreatedAt, UserId: nullUUID(k.UserID), RevokedAt: k.RevokedAt,
 	}
 	for i, s := range k.Scopes {
 		out.Scopes[i] = apitypes.APIKeyScope(s)
@@ -216,6 +216,18 @@ func toAPIKey(k dbgen.APIKey) apitypes.APIKey {
 func (a *api) listAPIKeys(w http.ResponseWriter, r *http.Request) {
 	keys, err := a.APIKeys.List(r.Context(), a.actor(r), r.PathValue("team"))
 	writeList(w, r, keys, err, toAPIListedKey)
+}
+
+func (a *api) getAPIKey(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r, "keyId")
+	if !ok {
+		return
+	}
+	k, err := a.APIKeys.Get(r.Context(), a.actor(r), r.PathValue("team"), id)
+	if failed(w, r, err) {
+		return
+	}
+	httpx.JSON(w, http.StatusOK, toAPIListedKey(k))
 }
 
 func (a *api) createAPIKey(w http.ResponseWriter, r *http.Request) {

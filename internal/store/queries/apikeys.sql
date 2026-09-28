@@ -37,3 +37,9 @@ SELECT EXISTS (SELECT 1 FROM team_members m JOIN users u ON u.id = m.user_id
 -- name: SetAPIKeyContact :one
 UPDATE api_keys SET user_id = @user_id WHERE id = @id AND kind = 'service' AND revoked_at IS NULL
 RETURNING *;
+
+-- One of a team's keys by ID, revoked or not, named like ListTeamAPIKeys.
+-- name: GetTeamAPIKey :one
+SELECT sqlc.embed(k), coalesce(u.email::text, '')::text AS user_email, coalesce(u.display_name, '')::text AS user_name
+FROM api_keys k LEFT JOIN users u ON u.id = k.user_id
+WHERE k.id = @id AND k.team_id = @team_id;

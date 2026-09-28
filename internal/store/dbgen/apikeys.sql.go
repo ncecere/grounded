@@ -76,6 +76,50 @@ func (q *Queries) GetAPIKeyByPrefix(ctx context.Context, prefix string) (GetAPIK
 	return i, err
 }
 
+const getTeamAPIKey = `-- name: GetTeamAPIKey :one
+SELECT k.id, k.team_id, k.kind, k.user_id, k.name, k.prefix, k.secret_hash, k.scopes, k.kb_ids, k.expires_at, k.last_used_at, k.revoked_at, k.created_by, k.created_at, k.agent_ids, k.pepper_id, coalesce(u.email::text, '')::text AS user_email, coalesce(u.display_name, '')::text AS user_name
+FROM api_keys k LEFT JOIN users u ON u.id = k.user_id
+WHERE k.id = $1 AND k.team_id = $2
+`
+
+type GetTeamAPIKeyParams struct {
+	ID     uuid.UUID
+	TeamID uuid.UUID
+}
+
+type GetTeamAPIKeyRow struct {
+	APIKey    APIKey
+	UserEmail string
+	UserName  string
+}
+
+// One of a team's keys by ID, revoked or not, named like ListTeamAPIKeys.
+func (q *Queries) GetTeamAPIKey(ctx context.Context, arg GetTeamAPIKeyParams) (GetTeamAPIKeyRow, error) {
+	row := q.db.QueryRow(ctx, getTeamAPIKey, arg.ID, arg.TeamID)
+	var i GetTeamAPIKeyRow
+	err := row.Scan(
+		&i.APIKey.ID,
+		&i.APIKey.TeamID,
+		&i.APIKey.Kind,
+		&i.APIKey.UserID,
+		&i.APIKey.Name,
+		&i.APIKey.Prefix,
+		&i.APIKey.SecretHash,
+		&i.APIKey.Scopes,
+		&i.APIKey.KBIDs,
+		&i.APIKey.ExpiresAt,
+		&i.APIKey.LastUsedAt,
+		&i.APIKey.RevokedAt,
+		&i.APIKey.CreatedBy,
+		&i.APIKey.CreatedAt,
+		&i.APIKey.AgentIDs,
+		&i.APIKey.PepperID,
+		&i.UserEmail,
+		&i.UserName,
+	)
+	return i, err
+}
+
 const insertAPIKey = `-- name: InsertAPIKey :one
 INSERT INTO api_keys (team_id, kind, user_id, name, prefix, secret_hash, pepper_id, scopes, kb_ids, agent_ids, expires_at, created_by)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)

@@ -27,6 +27,16 @@ const DAY = 86_400_000;
 
 export const kindLabel = (k: APIKey) => (k.kind === "service" ? "Service" : "Personal");
 
+/** One key by id, including a revoked one (the list shows active keys only); `id` undefined: off. */
+export function useKeyById(team: string, id: string | undefined) {
+  return useQuery({
+    queryKey: [...keysKey(team), id],
+    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/api-keys/{keyId}", { params: { path: { team, keyId: id! } } })),
+    enabled: Boolean(id),
+    retry: false,
+  });
+}
+
 /** The owner (personal) or responsible contact (service), for the list. */
 export function personName(k: APIKey) {
   if (!k.contact) return k.kind === "service" ? "No contact" : undefined;
@@ -89,12 +99,13 @@ export function KeyRecordPage({ k, open, loading, onClose, kbName, agentName, on
       open={open}
       onClose={onClose}
       title={k?.name ?? "API key"}
-      description="An API key of this team. Its secret was shown once, when it was created."
+      description={k?.revokedAt ? "A revoked API key of this team. It no longer works." : "An API key of this team. Its secret was shown once, when it was created."}
       loading={loading}
-      error={!loading && open && !k ? new Error("This key doesn't exist or was revoked.") : undefined}
+      error={!loading && open && !k ? new Error("This key doesn't exist, or you can't see it.") : undefined}
       facts={
         k
           ? [
+              ...(k.revokedAt ? [{ label: "Revoked", value: <RelativeTime value={k.revokedAt} /> }] : []),
               { label: "Type", value: k.kind === "service" ? "Team service key" : "Personal key" },
               { label: "Key", value: <code className={s.mono}>{k.prefix}</code> },
               { label: k.kind === "service" ? "Responsible contact" : "Owner", value: personName(k)?.replace(/^Contact: /, "") ?? "Unknown" },
@@ -119,7 +130,7 @@ export function KeyRecordPage({ k, open, loading, onClose, kbName, agentName, on
                   </ul>
                 ),
               },
-              ...(k.kind === "service" ? [{ title: "Responsible contact", content: <ContactField k={k} /> }] : []),
+              ...(k.kind === "service" && !k.revokedAt ? [{ title: "Responsible contact", content: <ContactField k={k} /> }] : []),
             ]
           : []
       }

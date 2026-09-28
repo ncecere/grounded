@@ -54,6 +54,8 @@ var teamPolicies = map[string]policy{
 	"createAPIKey": {own: members, build: func(c *mctx) request {
 		return post(c.team("/api-keys"), map[string]any{"name": "matrix", "scopes": []string{"query"}})
 	}},
+	// A service key: team admins see it; other members only their own keys.
+	"getAPIKey": {own: admins, build: func(c *mctx) request { return get(c.team("/api-keys/" + c.tf.serviceKey)) }},
 	"updateAPIKeyContact": {own: admins, build: func(c *mctx) request {
 		return patch(c.team("/api-keys/"+c.tf.serviceKey), map[string]any{"responsibleUserId": c.tf.owner.me.User.Id})
 	}},

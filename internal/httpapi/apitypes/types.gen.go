@@ -2869,8 +2869,11 @@ type APIKey struct {
 	Name             string                `json:"name"`
 
 	// Prefix Identifies the key; the secret is never shown again
-	Prefix string        `json:"prefix"`
-	Scopes []APIKeyScope `json:"scopes"`
+	Prefix string `json:"prefix"`
+
+	// RevokedAt When the key was revoked; null while it is active (lists show active keys only)
+	RevokedAt *time.Time    `json:"revokedAt,omitempty"`
+	Scopes    []APIKeyScope `json:"scopes"`
 
 	// UserId Owner (personal) or responsible contact (service)
 	UserId *openapi_types.UUID `json:"userId,omitempty"`
