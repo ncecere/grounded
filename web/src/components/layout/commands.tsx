@@ -152,12 +152,12 @@ function adminGroup(navigate: Navigate, platformAdmin: boolean): CommandGroup {
  * `open`, what is typed is also searched on the server (agents, KBs,
  * sources, conversations and, for platform staff, admin objects).
  */
-export function useCommands(me: Me, active: ActiveTeam, open: boolean): { groups: CommandGroup[]; searching: boolean } {
+export function useCommands(me: Me, active: ActiveTeam, open: boolean, query: string): { groups: CommandGroup[]; searching: boolean } {
   const navigate = useNavigate();
   const { canAdmin } = useCapabilities(me);
   const slug = active.slug;
   const mine = active.membership;
-  const found = useSearchCommands(open);
+  const found = useSearchCommands(open, query);
 
   const groups = useMemo(() => {
     const groups: CommandGroup[] = [pageGroup(navigate, me, slug, mine)];

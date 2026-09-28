@@ -23,27 +23,6 @@ export const MIN_QUERY = 2;
 export const SEARCH_DEBOUNCE_MS = 180;
 const LIMIT = 30;
 
-/**
- * The text typed in the palette. CommandPalette (bitop-ui) doesn't expose
- * its input value, so this listens for input events on its combobox.
- */
-function usePaletteText(open: boolean): string {
-  const [text, setText] = useState("");
-  useEffect(() => {
-    if (!open) return;
-    const onInput = (e: Event) => {
-      const el = e.target;
-      if (el instanceof HTMLInputElement && el.getAttribute("aria-label") === PALETTE_LABEL && el.getAttribute("role") === "combobox") setText(el.value);
-    };
-    document.addEventListener("input", onInput, true);
-    return () => {
-      document.removeEventListener("input", onInput, true);
-      setText("");
-    };
-  }, [open]);
-  return text;
-}
-
 function useDebounced(value: string, ms: number): string {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -188,9 +167,9 @@ export function searchGroups(results: Result[], navigate: Navigate): CommandGrou
 }
 
 /** The palette's server results for what is typed, and whether a search is on its way. */
-export function useSearchCommands(open: boolean): { groups: CommandGroup[]; searching: boolean } {
+export function useSearchCommands(open: boolean, query: string): { groups: CommandGroup[]; searching: boolean } {
   const navigate = useNavigate();
-  const text = usePaletteText(open).trim();
+  const text = query.trim();
   const q = useDebounced(text, SEARCH_DEBOUNCE_MS);
   const enabled = open && q.length >= MIN_QUERY;
   const res = useQuery({

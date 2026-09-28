@@ -60,7 +60,12 @@ export function AppLayout({ children }: { children?: ReactNode }) {
   const pageCrumbs = useCurrentPageCrumbs();
   const under = pageCrumbs.length > 0 ? crumbs[crumbs.length - 1 - pageCrumbs.length]?.label : undefined;
   const backLabel = typeof under === "string" ? under : undefined;
-  const commands = useCommands(me, active, paletteOpen);
+  // The palette's text: the server search follows it, and it clears when the palette closes.
+  const [paletteQuery, setPaletteQuery] = useState("");
+  useEffect(() => {
+    if (!paletteOpen) setPaletteQuery("");
+  }, [paletteOpen]);
+  const commands = useCommands(me, active, paletteOpen, paletteQuery);
   const placeholder = canAdmin ? "Search teams, people, agents, conversations and pages…" : "Search agents, conversations, knowledge bases and pages…";
   // Only admins and auditors get the admin shell (its sidebar queries admin APIs);
   // others see the workspace shell around the no-access page.
@@ -126,6 +131,8 @@ export function AppLayout({ children }: { children?: ReactNode }) {
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
         groups={commands.groups}
+        query={paletteQuery}
+        onQueryChange={setPaletteQuery}
         label={PALETTE_LABEL}
         placeholder={placeholder}
         // The empty state is a polite live region: it says a search is running, then its outcome.

@@ -47,6 +47,13 @@ export type CommandPaletteProps = {
   finalFocus?: BaseDialog.Popup.Props["finalFocus"];
   /** Class for the dialog popup, merged with the built-in styles (e.g. to scope token overrides). */
   className?: string;
+  /**
+   * The typed text, controlled: pass it with `onQueryChange` when results
+   * depend on it (e.g. a server search as you type). Uncontrolled by default.
+   * Reset it to "" when the palette closes.
+   */
+  query?: string;
+  onQueryChange?: (query: string) => void;
 };
 
 type Group = { value: string; items: Command[] };
@@ -67,6 +74,8 @@ export function CommandPalette({
   emptyText = "No results found.",
   finalFocus,
   className,
+  query,
+  onQueryChange,
 }: CommandPaletteProps) {
   const hintId = useId();
   const items: Group[] = groups.filter((g) => g.items.length > 0).map((g) => ({ value: g.label, items: g.items }));
@@ -89,7 +98,9 @@ export function CommandPalette({
               autoHighlight="always"
               keepHighlight
               itemToStringValue={(item: Command) => item.label}
-              filter={(item: Command, query: string) => matches(item, query)}
+              filter={(item: Command, text: string) => matches(item, text)}
+              {...(query !== undefined ? { value: query } : {})}
+              onValueChange={onQueryChange ? (text: string) => onQueryChange(text) : undefined}
             >
               <div className={styles.inputRow}>
                 <Search aria-hidden className={styles.searchIcon} />
