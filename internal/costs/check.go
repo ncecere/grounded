@@ -159,7 +159,7 @@ const ErrCodeExhausted = "budget_exhausted"
 
 // Exhausted is the 429 budget_exhausted refusal of a team's model work.
 func Exhausted(st Status) *apperr.Error {
-	resets := st.ResetsAt.In(st.Location).Format("2 January 2006")
+	resets := st.ResetsAt.In(st.Location).Format("Jan 2, 2006")
 	return &apperr.Error{
 		Status: http.StatusTooManyRequests, Code: ErrCodeExhausted,
 		Message: fmt.Sprintf("Your team's monthly budget is used up. It resets on %s, or a platform admin can raise it or grant an extension.", resets),

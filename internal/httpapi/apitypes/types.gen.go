@@ -4788,7 +4788,7 @@ type CostTotals struct {
 	// Example: 12.500000
 	Spend Money `json:"spend"`
 
-	// Tokens Chat, embedding and SystemOne tokens
+	// Tokens Chat, embedding, SystemOne and OCR (vision) tokens
 	Tokens int64 `json:"tokens"`
 
 	// Unpriced Some usage had no price and counts as zero

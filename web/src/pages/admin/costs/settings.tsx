@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
 import { SettingsPage, SettingsSection } from "@/components/templates/settings-page";
+import { Combobox } from "@/components/ui/combobox/combobox";
 import { Field } from "@/components/ui/field/field";
 import { Input, NativeSelect } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
@@ -111,14 +112,17 @@ export function CostSettingsTab({ settings }: { settings: CostSettings }) {
           <Field label="Currency" description="A three-letter ISO 4217 code." error={shown.currency}>
             <Input value={form.currency} maxLength={3} disabled={!isAdmin} onChange={(e) => set("currency", e.target.value.toUpperCase())} />
           </Field>
-          <Field label="Time zone" error={shown.timeZone}>
-            <NativeSelect value={form.timeZone} disabled={!isAdmin} onChange={(e) => set("timeZone", e.target.value)}>
-              {zones(form.timeZone).map((z) => (
-                <option key={z} value={z}>
-                  {z}
-                </option>
-              ))}
-            </NativeSelect>
+          <Field label="Time zone" description="Type to search, for example New_York or Berlin." error={shown.timeZone}>
+            <Combobox
+              items={zones(form.timeZone).map((z) => ({ value: z, label: z }))}
+              value={form.timeZone}
+              onValueChange={(v) => v && set("timeZone", v)}
+              placeholder="Search time zones"
+              emptyText="No time zone matches."
+              disabled={!isAdmin}
+              autoHighlight
+              limit={50}
+            />
           </Field>
         </div>
       </SettingsSection>

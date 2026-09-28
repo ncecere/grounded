@@ -3730,7 +3730,7 @@ export interface components {
             byKind: components["schemas"]["CostByKind"];
             /**
              * Format: int64
-             * @description Chat, embedding and SystemOne tokens
+             * @description Chat, embedding, SystemOne and OCR (vision) tokens
              */
             tokens: number;
             /**

@@ -74,7 +74,7 @@ export function CostOverviewTab({ settings }: { settings: CostSettings }) {
         <>
           <StatGroup id="cost-totals" title="Totals" columns={4}>
             <StatCard label="Spend" value={formatMoney(d.total.spend, cur)} icon={<CircleDollarSign />} hint={`${dayLabel(d.from)} to ${dayLabel(d.to)}`} />
-            <StatCard label="Tokens" value={num(d.total.tokens)} icon={<Hash />} hint="Chat, embedding and SystemOne" />
+            <StatCard label="Tokens" value={num(d.total.tokens)} icon={<Hash />} hint="Chat, embedding, SystemOne and OCR" />
             <StatCard label="Requests" value={num(d.total.requests)} icon={<Hash />} hint="SystemOne and moderation" />
             <StatCard
               label="Unpriced usage"
