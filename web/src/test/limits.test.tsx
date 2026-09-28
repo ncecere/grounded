@@ -181,7 +181,7 @@ describe("admin limits page", () => {
     const resources = await screen.findByRole("table", { name: "Team resources: defaults and ceilings" });
     // One pill tab per group; only the active group's table is shown.
     const tabs = within(screen.getByRole("tablist", { name: "Limit groups" })).getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Team resources", "Ingestion", "Queries & chat", "Public agents"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["Team resources", "Ingestion", "Queries & chat", "Public agents", "Evaluations"]);
     expect(screen.queryByRole("table", { name: "Queries & chat: defaults and ceilings" })).toBeNull();
     // The sticky save bar only appears with unsaved changes.
     expect(screen.queryByRole("button", { name: "Save limits" })).toBeNull();

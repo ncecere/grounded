@@ -1,6 +1,9 @@
 /* Build's live Test chat: a chat with the saved draft. Nothing is stored; the history is sent with each question. */
 import { Eraser } from "lucide-react";
 import { useRef, useState } from "react";
+import { AddToEvaluationsDialog } from "../../team/evaluations/add-to-evaluations";
+import { useEvaluationsOn } from "../../team/evaluations/queries";
+import { useTeam } from "../../team/common";
 import { Button } from "@/components/ui/button/button";
 import { ChatPanel } from "../../chat/panel";
 import type { useChat } from "../../chat/useChat";
@@ -20,6 +23,10 @@ type Props = {
 
 export function TestPanel({ agent, d, chat, onProblem, heading = true }: Props) {
   const [text, setText] = useState("");
+  const { slug } = useTeam();
+  // "Add to evaluations" on any test question (docs/evaluations.md §1).
+  const evaluationsOn = useEvaluationsOn();
+  const [adding, setAdding] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const p = d.draft.profile;
   const problems = (chat.error?.code === "agent_invalid" ? (chat.error.details?.problems as AgentProblem[] | undefined) : undefined) ?? [];
@@ -65,8 +72,10 @@ export function TestPanel({ agent, d, chat, onProblem, heading = true }: Props) 
           inputRef={inputRef}
           label="Draft test conversation"
           errorExtra={problems.length > 0 ? <ProblemList problems={problems} onSelect={onProblem} /> : undefined}
+          onAddToEvaluations={evaluationsOn ? setAdding : undefined}
         />
       </div>
+      {adding && <AddToEvaluationsDialog team={slug} agentId={agent.id} agentName={agent.name} question={adding} onClose={() => setAdding(null)} />}
     </section>
   );
 }

@@ -9,7 +9,7 @@
  */
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Bot, Cpu, Database, Layers, Library, MessageSquare, MessagesSquare, Plug, Share2, UserRound, UsersRound } from "lucide-react";
+import { Bot, ClipboardCheck, Cpu, Database, Layers, Library, MessageSquare, MessagesSquare, Plug, Share2, UserRound, UsersRound } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
 import { type CommandGroup } from "@/components/ui/command-palette/command-palette";
@@ -49,6 +49,8 @@ const kindLabels: Record<string, string> = {
   vision: "Vision model",
   upload: "Uploads",
   web: "Website",
+  knowledge_base: "Knowledge base set",
+  agent: "Agent set",
 };
 
 /** "Team name · Archived": the secondary line and the state, when not the usual one. */
@@ -139,6 +141,15 @@ const specs: Record<Result["type"], Spec[]> = {
       hint: withState,
       keywords: (r) => ["source", "data source", "documents", r.secondary],
       go: ({ teamSlug: team, id }, nav) => (team ? () => void nav({ to: "/teams/$team/sources/$sourceId", params: { team, sourceId: id } }) : undefined),
+    },
+  ],
+  evaluation_set: [
+    {
+      group: "Evaluation sets",
+      icon: <ClipboardCheck aria-hidden />,
+      hint: (r) => hint(r.secondary, kind(r)),
+      keywords: (r) => ["evaluation", "test questions", "regression", r.secondary],
+      go: ({ teamSlug: team, id }, nav) => (team ? () => void nav({ to: "/teams/$team/evaluations/$setId", params: { team, setId: id } }) : undefined),
     },
   ],
   conversation: [

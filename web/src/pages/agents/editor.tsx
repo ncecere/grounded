@@ -7,7 +7,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
-import { BarChart3, Hammer, History, Palette, Power, Settings2, Share2, Trash2 } from "lucide-react";
+import { BarChart3, ClipboardCheck, Hammer, History, Palette, Power, Settings2, Share2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { NotFoundState, isNotFound } from "@/components/not-found";
 import { DetailPage } from "@/components/templates/detail-page";
@@ -34,6 +34,8 @@ import { ChatButton, EditorAlerts, HeaderActions, SaveIndicator } from "./editor
 import { publishBlocked } from "./publish-state";
 import { AgentSettingsTab } from "./settings";
 import { ShareTab } from "./share/share-tab";
+import { useEvaluationsOn } from "../team/evaluations/queries";
+import { EvaluationsTab } from "../team/evaluations/sets-tab";
 import { ConfigSummary, PublishDialog, VersionsTab } from "./versions";
 import a from "./agents.module.css";
 
@@ -78,6 +80,7 @@ function Editor({ agent }: { agent: Agent }) {
   const [statusOpen, setStatusOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const live = current.status === "active" && Boolean(current.published);
+  const evaluationsOn = useEvaluationsOn();
 
   /** Opens the tab and Build section a problem points to, then focuses its control. */
   const goToField = (field: string) => {
@@ -184,6 +187,13 @@ function Editor({ agent }: { agent: Agent }) {
             icon: <BarChart3 aria-hidden />,
             hidden: !(canEdit || role === "admin" || role === "owner"),
             content: <AnalyticsTab agent={current} />,
+          },
+          {
+            value: "evaluations",
+            label: "Evaluations",
+            icon: <ClipboardCheck aria-hidden />,
+            hidden: !evaluationsOn,
+            content: <EvaluationsTab target={{ agentId: current.id, name: current.name }} />,
           },
           {
             value: "settings",

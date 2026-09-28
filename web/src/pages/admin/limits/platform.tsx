@@ -3,7 +3,7 @@
  * ceilings. Writes send If-Match so two admins can't overwrite each other.
  * One team's overrides are a card on the admin team page (team-card.tsx).
  */
-import { Boxes, Globe, MessagesSquare, Upload } from "lucide-react";
+import { Boxes, ClipboardCheck, Globe, MessagesSquare, Upload } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
@@ -29,6 +29,7 @@ import { AmountInput, LimitName } from "./fields";
 import { inGroup } from "./groups";
 import { type PlatformForm, type PlatformRow, platformChanges, platformErrors, platformForm, platformInvalid, unsaved } from "./form";
 import l from "./limits.module.css";
+import { EvaluationsSwitch } from "./evaluations-switch";
 
 type PlatformLimit = Schemas["PlatformLimit"];
 
@@ -66,7 +67,13 @@ function usePlatformLimitsForm() {
   return { limits, items, form, setForm, submitted, setSubmitted, changes, invalid, save, discard };
 }
 
-const limitGroupIcons = { resources: <Boxes aria-hidden />, ingestion: <Upload aria-hidden />, queries: <MessagesSquare aria-hidden />, public: <Globe aria-hidden /> } as const;
+const limitGroupIcons = {
+  resources: <Boxes aria-hidden />,
+  ingestion: <Upload aria-hidden />,
+  queries: <MessagesSquare aria-hidden />,
+  public: <Globe aria-hidden />,
+  evaluations: <ClipboardCheck aria-hidden />,
+} as const;
 
 export function LimitsPage() {
   const isAdmin = useCurrentUser().capabilities.platformAdmin;
@@ -112,13 +119,16 @@ export function LimitsPage() {
               label: g.label,
               icon: limitGroupIcons[g.key],
               content: (
-                <Card title={g.label} description={g.description} flush>
+                <Stack gap={6}>
+                  {g.key === "evaluations" && <EvaluationsSwitch isAdmin={isAdmin} />}
+                  <Card title={g.label} description={g.description} flush>
                   <Table caption={`${g.label}: defaults and ceilings`} columns={["Limit", { label: "Default", width: "15rem" }, { label: "Ceiling", width: "15rem" }]}>
                     {inGroup(items, g.key).map((it) => (
                       <PlatformLimitRow key={it.key} it={it} f={form[it.key]!} isAdmin={isAdmin} submitted={submitted} onChange={(row) => setForm({ ...form, [it.key]: row })} />
                     ))}
                   </Table>
-                </Card>
+                  </Card>
+                </Stack>
               ),
             }))}
           />

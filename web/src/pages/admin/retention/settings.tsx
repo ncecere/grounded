@@ -30,6 +30,7 @@ const sections: { title: string; description: string; kinds: Kind[] }[] = [
   { title: "Conversations", description: "Transcripts follow their classification level. Deleted conversations disappear for their user at once.", kinds: ["deleted_conversations"] },
   { title: "Logs and events", description: "Metadata only: never questions or answers.", kinds: ["access_log", "analytics_events", "usage_events", "audit_log"] },
   { title: "Deleted content and invites", description: "Deleted documents leave search at once; their stored files wait for this period.", kinds: ["deleted_files", "expired_invites"] },
+  { title: "Evaluations", description: "Runs of teams' evaluation sets, with their results and test answers.", kinds: ["evaluation_runs"] },
 ];
 
 const formsOf = (st: Settings) => Object.fromEntries(st.periods.map((p) => [p.kind, formOf(p)])) as Record<string, PeriodForm>;

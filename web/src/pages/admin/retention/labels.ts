@@ -22,6 +22,7 @@ export const kindLabels: Record<Kind, { label: string; description: string }> = 
   deleted_files: { label: "Files of deleted documents", description: "Stored originals and text of deleted documents and sources. Search stops using them at once." },
   expired_invites: { label: "Expired invites", description: "Invites that expired or were revoked (accepted invites are kept)." },
   anonymous_sessions: { label: "Anonymous sessions", description: "Public visitors' sessions, removed when they expire. They hold no content." },
+  evaluation_runs: { label: "Evaluation runs", description: "Evaluation runs and their results (180 days unless set). Legal holds don't apply: they hold only test questions and answers." },
 };
 
 export const kindLabel = (k: Kind) => kindLabels[k]?.label ?? k;

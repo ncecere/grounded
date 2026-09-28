@@ -34,6 +34,12 @@ function teamLink(team: string, e: AuditEntry): ReactElement | null {
       return e.parent?.exists ? <Link to="/teams/$team/agents/$agentId" params={{ team, agentId: e.parent.id }} search={{ tab: "share" }} /> : null;
     case "crawl_domain_request":
       return <Link to="/teams/$team/settings" params={{ team }} search={{ tab: "crawl-domains" }} />;
+    case "evaluation_set":
+      return <Link to="/teams/$team/evaluations/$setId" params={{ team, setId: id }} />;
+    case "evaluation_run": {
+      const setId = typeof e.metadata.setId === "string" ? e.metadata.setId : undefined;
+      return setId ? <Link to="/teams/$team/evaluations/$setId" params={{ team, setId }} search={{ tab: "runs", record: id } as never} /> : null;
+    }
     default:
       return null;
   }
@@ -88,6 +94,8 @@ function platformLink(e: AuditEntry): ReactElement | null {
       return <Link to="/admin/costs" search={{ tab: "settings" }} />;
     case "sso_group_rule":
       return <Link to="/admin/group-mapping" />;
+    case "evaluation_settings":
+      return <Link to="/admin/limits" search={{ tab: "evaluations" }} />;
     case "moderation_policy":
       return <Link to="/admin/moderation" search={{ tab: id === "team" ? undefined : (id as "public" | "all_authenticated") }} />;
     default:

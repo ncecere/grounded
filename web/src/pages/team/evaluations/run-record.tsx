@@ -1,0 +1,140 @@
+/*
+ * A run as a record page (?record=<run id> on the Runs tab): its scores and
+ * configuration, live progress and Cancel while it runs, the results
+ * (filterable to failures; a question opens its own record page on the
+ * Questions tab), and a comparison with another run (?compare=<run id>).
+ */
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { Ban, Eye } from "lucide-react";
+import { api, unwrap } from "@/api/client";
+import { ApiErrorAlert } from "@/components/errors";
+import { ListPage } from "@/components/templates/list-page";
+import { RecordPage, useRecordParam } from "@/components/templates/record-page";
+import { Alert } from "@/components/ui/alert/alert";
+import { StatusBadge } from "@/components/ui/badge/badge";
+import { Button } from "@/components/ui/button/button";
+import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
+import type { Facet } from "@/components/ui/filter-bar/filter-bar";
+import { Progress } from "@/components/ui/progress/progress";
+import { toast } from "@/components/ui/toast/toast";
+import { useTeam } from "../common";
+import { Comparison } from "./compare";
+import { decimal, kindLabels, missingText, pct, resultStatus, runStatus, triggerLabels } from "./labels";
+import { rankText } from "./result-detail";
+import { type EvalResult, type EvalRun, type EvalSet, active, evalRunsKey, evalSetKey, useEvalRun } from "./queries";
+import e from "./evaluations.module.css";
+
+const statusFacet: Facet<EvalResult>[] = [
+  {
+    id: "result",
+    label: "Result",
+    type: "toggle",
+    allLabel: "All",
+    accessor: (r) => r.status,
+    options: [
+      { value: "fail", label: "Failures" },
+      { value: "pass", label: "Passes" },
+      { value: "missing", label: "Documents deleted" },
+      { value: "error", label: "Check failed" },
+    ],
+  },
+];
+
+function facts(run: EvalRun) {
+  const c = run.config;
+  const s = run.summary;
+  return [
+    { label: "Check", value: `${kindLabels[run.kind]} · ${triggerLabels[run.trigger]}` },
+    { label: "Tested", value: c.version ? (c.version === "published" && c.agentVersion ? `Published version ${c.agentVersion}` : "The draft") : undefined },
+    { label: "Searched", value: c.kbs.map((k) => `${k.name} (${k.profile}, ${k.topK} per search)`).join("; ") || undefined },
+    run.kind === "answer"
+      ? { label: "Pass rate", value: `${pct(s.passRate)} (${s.passed} of ${s.passed + s.failed}); ${s.cited} cited an expected document, ${s.refused} refused` }
+      : { label: `Recall@${s.k}`, value: `${pct(s.recall)} (${s.passed} of ${s.passed + s.failed}) · MRR ${decimal(s.mrr)}` },
+    { label: "Supported claims", value: s.supportedShare !== undefined ? pct(s.supportedShare) : undefined },
+    { label: "Not scored", value: [missingText(s.missing), s.errors ? `${s.errors} checks failed.` : ""].filter(Boolean).join(" ") || undefined },
+  ].filter((f) => f.value !== undefined);
+}
+
+export function RunRecord({ set, runs }: { set: EvalSet; runs: EvalRun[] }) {
+  const { slug, canEdit } = useTeam();
+  const record = useRecordParam();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const d = useEvalRun(slug, set.id, record.id);
+  const run = d.data?.run;
+  const cancel = useMutation({
+    mutationFn: async () =>
+      unwrap(await api.POST("/v1/teams/{team}/evaluation-sets/{setId}/runs/{runId}/cancel", { params: { path: { team: slug, setId: set.id, runId: record.id! } } })),
+    onSuccess: () => toast.success("Run cancelled"),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: evalRunsKey(slug, set.id) });
+      void qc.invalidateQueries({ queryKey: evalSetKey(slug, set.id) });
+    },
+  });
+  const openQuestion = (id?: string | null) =>
+    id && void navigate({ to: ".", search: ((prev: Record<string, unknown>) => ({ ...prev, tab: undefined, record: id, compare: undefined })) as never });
+  const columns: DataTableColumn<EvalResult>[] = [
+    { id: "question", header: "Question", rowHeader: true, accessor: (r) => r.question, cell: (r) => <CellText primary={r.question} secondary={r.error || undefined} /> },
+    { id: "status", header: "Result", accessor: (r) => r.status, cell: (r) => <StatusBadge tone={resultStatus[r.status].tone}>{resultStatus[r.status].label}</StatusBadge> },
+    { id: "rank", header: "Rank", accessor: (r) => r.rank ?? 99, cell: (r) => (r.rank ? String(r.rank) : "—"), sortable: true },
+    {
+      id: "came",
+      header: run?.kind === "answer" ? "Cited" : "What came back",
+      accessor: (r) => r.hits.map((h) => h.title || h.filename || h.url).join(", "),
+      cell: (r) => <span className={e.oneLine} title={r.hits.map((h) => h.title).join(", ")}>{r.hits.map((h) => h.title || h.filename || h.url).join(", ") || rankText(r)}</span>,
+      muted: true,
+    },
+  ];
+  return (
+    <RecordPage
+      open={Boolean(record.id)}
+      onClose={record.close}
+      title={run ? `${kindLabels[run.kind]}, ${new Date(run.createdAt).toLocaleString()}` : "Run"}
+      label="Run"
+      meta={run && <StatusBadge tone={runStatus[run.status].tone} pulse={active(run)}>{runStatus[run.status].label}</StatusBadge>}
+      description={`A run of ${set.name}.`}
+      loading={d.isLoading}
+      error={d.error}
+      actions={
+        run &&
+        active(run) &&
+        canEdit && (
+          <Button variant="danger" loading={cancel.isPending} onClick={() => cancel.mutate()}>
+            <Ban aria-hidden /> Cancel run
+          </Button>
+        )
+      }
+      facts={run ? facts(run) : []}
+      sections={[
+        {
+          title: "Progress",
+          hidden: !run || !active(run),
+          content: run && <Progress className={e.progress} label={`${run.done} of ${run.total} questions checked`} value={run.done} max={Math.max(run.total, 1)} />,
+        },
+        { title: "Why it stopped", hidden: !run?.error, content: <Alert tone="danger">{run?.error}</Alert> },
+        {
+          title: "Results",
+          content: (
+            <>
+              <ApiErrorAlert error={cancel.error} />
+              <ListPage<EvalResult>
+                id="evaluation-results"
+                caption="Results"
+                columns={columns}
+                data={d.data?.results ?? []}
+                getRowId={(r) => r.id}
+                rowLabel={(r) => r.question}
+                facets={statusFacet}
+                onRowClick={(r) => openQuestion(r.questionId)}
+                rowActions={(r) => [{ label: "View details", icon: <Eye aria-hidden />, onSelect: () => openQuestion(r.questionId), hidden: !r.questionId }]}
+                empty={{ title: run && active(run) ? "No results yet." : "No results." }}
+              />
+            </>
+          ),
+        },
+        { title: "Compare", hidden: !run || active(run), content: run && <Comparison set={set} run={run} runs={runs} /> },
+      ]}
+    />
+  );
+}

@@ -11,6 +11,7 @@ import { Conversation, ConversationAnnouncer, ConversationContent, ConversationS
 import { PromptInput, PromptInputSubmit, PromptInputTextarea, PromptInputToolbar, PromptInputTools } from "@/components/ui/prompt-input/prompt-input";
 import { preloadResponse } from "@/components/ui/response/response-lazy";
 import { ChatMessages } from "./thread";
+import type { AssistantItem } from "./stream";
 import type { useChat } from "./useChat";
 import { type AgentLook, ChatWelcome } from "./welcome";
 import c from "./chat.module.css";
@@ -36,9 +37,13 @@ type ChatPanelProps = {
   fullPage?: boolean;
   /** The longest question (public agents may allow less than 8,000 characters). */
   maxLength?: number;
+  /** "Add to evaluations" on answers (see ChatMessages). */
+  onAddToEvaluations?: (question: string) => void;
+  canAdd?: (item: AssistantItem) => boolean;
 };
 
-export function ChatPanel({ chat, agent, text, onTextChange, feedback, disabledReason, errorExtra, loading, inputRef, label = "Conversation", fullPage, maxLength = defaultMaxLength }: ChatPanelProps) {
+export function ChatPanel(props: ChatPanelProps) {
+  const { chat, agent, text, onTextChange, feedback, disabledReason, errorExtra, loading, inputRef, label = "Conversation", fullPage, maxLength = defaultMaxLength } = props;
   const local = useRef<HTMLTextAreaElement | null>(null);
   const ref = inputRef ?? local;
   const over = text.length > maxLength;
@@ -77,7 +82,7 @@ export function ChatPanel({ chat, agent, text, onTextChange, feedback, disabledR
           {chat.items.length === 0 ? (
             (loading ?? <ChatWelcome agent={agent} disabled={Boolean(disabledReason) || chat.streaming} onStarter={(q) => void send(q)} />)
           ) : (
-            <ChatMessages items={chat.items} agent={agent} feedback={feedback} onPatch={chat.patch} />
+            <ChatMessages items={chat.items} agent={agent} feedback={feedback} onPatch={chat.patch} onAddToEvaluations={props.onAddToEvaluations} canAdd={props.canAdd} />
           )}
         </ConversationContent>
         {chat.items.length > 0 && <ConversationScrollButton />}

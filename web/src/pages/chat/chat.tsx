@@ -8,7 +8,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { PanelLeft } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
 import { agentProfileQuery, conversationsKey, conversationsQuery } from "../../api/queries";
 import { NotFoundState } from "../../components/not-found";
@@ -19,7 +19,9 @@ import { Sheet } from "@/components/ui/sheet/sheet";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { AgentInfo } from "./agent-info";
 import { ConversationList, ConversationMenu } from "./conversations";
+import { useCanAddToEvaluations } from "../team/evaluations/queries";
 import { ChatPanel } from "./panel";
+import { needsEvaluation } from "./thread";
 import { itemsFromConversation } from "./stream";
 import { useChat } from "./useChat";
 import { AgentAvatar } from "./welcome";
@@ -27,6 +29,8 @@ import a from "./agent-info.module.css";
 import c from "./chat.module.css";
 
 type Card = Schemas["AgentCard"];
+
+const AddToEvaluationsDialog = lazy(() => import("../team/evaluations/add-to-evaluations").then((m) => ({ default: m.AddToEvaluationsDialog })));
 
 export function ChatPage() {
   const { team, agent } = useParams({ from: "/app/a/$team/$agent" });
@@ -74,6 +78,9 @@ function AgentChat({ card }: { card: Card }) {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [text, setText] = useState("");
   const [sheetOpen, setSheetOpen] = useState(false);
+  // "Add to evaluations" on the person's own answers, for editors of the agent's team (docs/evaluations.md §1).
+  const canAdd = useCanAddToEvaluations(card.teamSlug);
+  const [adding, setAdding] = useState<string | null>(null);
   /** The conversation the next question continues. */
   const current = useRef<string | undefined>(selected);
   /** Conversations created in this page session: their items are already on screen. */
@@ -168,9 +175,16 @@ function AgentChat({ card }: { card: Card }) {
           inputRef={inputRef}
           disabledReason={disabledReason}
           label={`Conversation with ${card.name}`}
+          onAddToEvaluations={canAdd ? setAdding : undefined}
+          canAdd={needsEvaluation}
           loading={selected && !local.current.has(selected) ? detail.error ? <ErrorAlert error={detail.error} title="Couldn't open this conversation" /> : detail.isLoading ? <Loading label="Loading the conversation…" /> : undefined : undefined}
         />
       </section>
+      {adding && (
+        <Suspense>
+          <AddToEvaluationsDialog team={card.teamSlug} agentId={card.id} agentName={card.name} question={adding} onClose={() => setAdding(null)} />
+        </Suspense>
+      )}
     </div>
   );
 }

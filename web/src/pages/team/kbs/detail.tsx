@@ -7,7 +7,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
-import { Bot, Database, FileCheck2, Layers, LayoutDashboard, Search, Settings2, Shuffle, Trash2 } from "lucide-react";
+import { Bot, ClipboardCheck, Database, FileCheck2, Layers, LayoutDashboard, Search, Settings2, Shuffle, Trash2 } from "lucide-react";
 import { DetailPage } from "@/components/templates/detail-page";
 import { NotFoundState, isNotFound } from "@/components/not-found";
 import { kbTabs } from "@/lib/tabs";
@@ -29,6 +29,8 @@ import { KBSettings } from "./settings";
 import { type AttachFlow, AttachSourceButton, useAttachFlow } from "./attach-flow";
 import { KBSources } from "./sources";
 import { UsedByAgents, useAgentsByKB } from "./used-by";
+import { useEvaluationsOn } from "../evaluations/queries";
+import { EvaluationsTab } from "../evaluations/sets-tab";
 
 export function KBDetailPage() {
   const { kbId } = useParams({ from: "/app/teams/$team/kbs/$kbId" });
@@ -65,6 +67,7 @@ function KBPage({ kb: k }: { kb: KB }) {
   const del = useDeleteKB(k);
   const isAdmin = useIsPlatformAdmin();
   const attach = useAttachFlow(k);
+  const evaluationsOn = useEvaluationsOn();
 
   return (
     <>
@@ -121,6 +124,13 @@ function KBPage({ kb: k }: { kb: KB }) {
                 )}
               </Card>
             ),
+          },
+          {
+            value: "evaluations",
+            label: "Evaluations",
+            icon: <ClipboardCheck aria-hidden />,
+            hidden: !canEdit || !evaluationsOn,
+            content: <EvaluationsTab target={{ kbId: k.id, name: k.name }} />,
           },
           { value: "settings", label: "Settings", icon: <Settings2 aria-hidden />, hidden: !canEdit, content: <KBSettings kb={k} onDelete={del.request} /> },
         ]}

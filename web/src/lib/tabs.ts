@@ -3,7 +3,7 @@
  * Kept here so the router can validate ?tab= without loading page chunks.
  */
 /** The agent editor (D2). The old Configure and Test tabs are Build now; the router redirects ?tab=configure|test. Settings (C13) is last. */
-export const editorTabs = ["build", "appearance", "share", "versions", "analytics", "settings"] as const;
+export const editorTabs = ["build", "appearance", "share", "versions", "analytics", "evaluations", "settings"] as const;
 export const oldEditorTabs = ["configure", "test"] as const;
 export type EditorTab = (typeof editorTabs)[number];
 
@@ -12,9 +12,11 @@ export type EditorTab = (typeof editorTabs)[number];
 export const sourceTabs = ["overview", "documents", "crawls", "used-by", "settings"] as const;
 export type SourceTab = (typeof sourceTabs)[number];
 /** Knowledge base detail (D3, W4). */
-export const kbTabs = ["overview", "sources", "try", "settings"] as const;
+export const kbTabs = ["overview", "sources", "try", "evaluations", "settings"] as const;
+/** An evaluation set (docs/evaluations.md §5). */
+export const evaluationSetTabs = ["questions", "runs", "settings"] as const;
 export const adminTeamTabs = ["overview", "members", "group-mapping", "limits", "settings"] as const;
-export const limitTabs = ["resources", "ingestion", "queries", "public"] as const;
+export const limitTabs = ["resources", "ingestion", "queries", "public", "evaluations"] as const;
 export const notificationTabs = ["all", "unread"] as const;
 export const moderationTabs = ["team", "all_authenticated", "public", "providers"] as const;
 

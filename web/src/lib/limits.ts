@@ -13,6 +13,7 @@ export const limitGroups: { key: LimitGroup; label: string; description: string 
   { key: "ingestion", label: "Ingestion", description: "Crawling and document processing." },
   { key: "queries", label: "Queries & chat", description: "Retrieval through the app and API keys, and chat answers." },
   { key: "public", label: "Public agents", description: "Anonymous visitors of public agents and the widget, per agent. Per-minute limits fail closed." },
+  { key: "evaluations", label: "Evaluations", description: "Evaluation sets of knowledge bases and agents, and their questions." },
 ];
 
 export const platformLimitsQuery = () =>

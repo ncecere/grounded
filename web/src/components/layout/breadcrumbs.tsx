@@ -3,6 +3,7 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { Bell, Boxes, Compass, Home, MessagesSquare, Shield } from "lucide-react";
 import { adminTeamQuery, adminUserQuery, agentProfileQuery, sharedSourceQuery } from "../../api/queries";
 import { agentQuery, kbQuery, sourceQuery, teamQuery } from "../../pages/team/common";
+import { type EvalSet, evalSetQuery } from "../../pages/team/evaluations/queries";
 import { terms } from "../../lib/terms";
 import { type BreadcrumbItem } from "@/components/ui/breadcrumbs/breadcrumbs";
 import { isNotFound } from "../not-found";
@@ -57,6 +58,8 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
   const kb = useQuery({ ...kbQuery(slug ?? "", kbId ?? ""), enabled: !!slug && !!kbId });
   const agentId = routeId === "/app/teams/$team/agents/$agentId" ? params.agentId : undefined;
   const agent = useQuery({ ...agentQuery(slug ?? "", agentId ?? ""), enabled: !!slug && !!agentId });
+  const setId = routeId === "/app/teams/$team/evaluations/$setId" ? params.setId : undefined;
+  const evalSet = useQuery({ ...evalSetQuery(slug ?? "", setId ?? ""), enabled: !!slug && !!setId });
   const chatRef =
     routeId === "/app/a/$team/$agent"
       ? { team: params.team ?? "", agent: params.agent ?? "" }
@@ -113,6 +116,7 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
         { label: "Agents", render: <Link to="/teams/$team/agents" params={{ team: slug }} /> },
         ...(isNotFound(agent.error) ? [] : [{ label: agent.data?.name ?? "Agent" }]),
       );
+    else if (sub === "/evaluations/$setId") crumbs.push(...evalSetCrumbs(slug, evalSet.data));
     else if (sub === "/settings") crumbs.push({ label: terms.teamSettings });
     return crumbs;
   }
@@ -147,4 +151,17 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
 export function documentTitle(crumbs: BreadcrumbItem[], instanceName: string) {
   const labels = crumbs.map((c) => (typeof c.label === "string" ? c.label : "")).filter(Boolean);
   return [...labels.slice(-2).reverse(), instanceName].join(" · ");
+}
+
+/** An evaluation set: its knowledge base's or agent's Evaluations tab, then the set. */
+function evalSetCrumbs(slug: string, set: EvalSet | undefined): BreadcrumbItem[] {
+  if (!set) return [{ label: "Evaluation set" }];
+  const t = set.target;
+  const back =
+    t.type === "agent" ? (
+      <Link to="/teams/$team/agents/$agentId" params={{ team: slug, agentId: t.id }} search={{ tab: "evaluations" }} />
+    ) : (
+      <Link to="/teams/$team/kbs/$kbId" params={{ team: slug, kbId: t.id }} search={{ tab: "evaluations" }} />
+    );
+  return [{ label: t.name, render: back }, { label: set.name }];
 }
