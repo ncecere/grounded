@@ -151,12 +151,13 @@ function ConversationLink({ item }: { item: ConversationSummary }) {
       {item.agentDeleted && " (deleted)"} · <Time value={item.updatedAt} format="time" />
     </span>
   );
+  // A deleted agent's conversation opens read-only.
   if (item.agentDeleted) {
     return (
-      <span className={c.link}>
+      <Link to="/conversations/$conversationId" params={{ conversationId: item.id }} className={c.link}>
         <span className={c.title}>{title}</span>
         {meta}
-      </span>
+      </Link>
     );
   }
   return (

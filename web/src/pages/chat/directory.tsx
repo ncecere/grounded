@@ -141,12 +141,12 @@ export function RecentConversations({ limit = 8 }: { limit?: number }) {
       {items.map((c) => (
         <li key={c.id}>
           {c.agentDeleted ? (
-            <span className={d.recentRow}>
+            <Link to="/conversations/$conversationId" params={{ conversationId: c.id }} className={d.recentRow}>
               <span className={d.recentTitle}>{c.title || "Untitled conversation"}</span>
               <span className={d.recentMeta}>
                 {c.agentName} (deleted) · {formatDate(c.updatedAt)}
               </span>
-            </span>
+            </Link>
           ) : (
             <Link to="/a/$team/$agent" params={{ team: c.teamSlug, agent: c.agentSlug }} search={{ c: c.id }} className={d.recentRow}>
               <span className={d.recentTitle}>{c.title || "Untitled conversation"}</span>

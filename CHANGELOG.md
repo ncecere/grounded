@@ -24,6 +24,8 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are 
 - A crawl waiting for the next day's page quota (`crawl_pages_per_day`) resumes as soon as a platform admin raises the limit, through a team override or the platform default, instead of at midnight UTC. A waiting crawl also re-checks its limit every 15 minutes.
 - Removing someone from a team (or leaving it) marks their unread "You were added to ..." and role-change notifications for that team read; they led to a page the person can no longer open.
 - Release images take the full git tag as their version: v0.1.0's binary reported `v0.1`.
+### Fixed
+- A deleted agent's conversations open read-only (`/conversations/<id>`): the transcript with a note that the agent was deleted, and no composer, instead of "Agent not available" (G2).
 
 ## [0.1.0] - 2026-09-28
 

@@ -295,6 +295,52 @@ describe("chat page for an agent you can't use", () => {
   });
 });
 
+describe("a deleted agent's conversation (G2)", () => {
+  const deleted = { id: "c7", agentId: "ag9", agentName: "Old helper", agentSlug: "old-helper", teamSlug: "qa-team", agentDeleted: true, title: "Parking permits", createdAt: "2026-09-20T10:00:00Z", updatedAt: "2026-09-20T10:05:00Z" };
+  const transcript = () => ({
+    conversation: deleted,
+    messages: [
+      { id: "q1", seq: 1, role: "user", text: "Where do I buy a permit?", createdAt: "2026-09-20T10:00:00Z" },
+      { id: "m1", seq: 2, role: "assistant", text: "At the parking office.", citations: [], stopReason: "stop", toolCalls: [], feedback: "up", createdAt: "2026-09-20T10:00:01Z" },
+    ],
+  });
+
+  it("shows the transcript read-only, with a note and no composer or feedback", async () => {
+    mockApi({ ...shellRoutes(), "GET /v1/conversations/c7": transcript });
+    const { container } = renderApp("/conversations/c7");
+    expect(await screen.findByRole("heading", { level: 1, name: "Parking permits" })).toBeInTheDocument();
+    expect(screen.getByText("This agent was deleted")).toBeInTheDocument();
+    expect(await screen.findByText("At the parking office.")).toBeInTheDocument();
+    expect(screen.getByText("Where do I buy a permit?")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Good answer" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Conversation actions" })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("opens from the chat address of the deleted agent", async () => {
+    mockApi({ ...shellRoutes(), "GET /v1/agents/qa-team/old-helper": () => Reply.error(404, "not_found", "Not found."), "GET /v1/conversations/c7": transcript });
+    renderApp("/a/qa-team/old-helper?c=c7");
+    expect(await screen.findByRole("heading", { level: 1, name: "Parking permits" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Agent not available" })).toBeNull();
+    expect(screen.queryByRole("textbox", { name: /Message/ })).toBeNull();
+  });
+
+  it("opens from the conversations list", async () => {
+    mockApi({ ...shellRoutes(), "GET /v1/conversations": () => ({ items: [deleted], nextCursor: null }) });
+    renderApp("/conversations");
+    const link = await screen.findByRole("link", { name: /Parking permits/ });
+    expect(link).toHaveAttribute("href", "/conversations/c7");
+  });
+
+  it("sends a conversation whose agent exists to its chat page", async () => {
+    mockApi(routes({ "GET /v1/conversations/c1": () => ({ conversation: { ...deleted, id: "c1", agentId: "ag1", agentSlug: card.slug, teamSlug: "registrar", agentDeleted: false }, messages: [] }) }));
+    const { router } = renderApp("/conversations/c1");
+    await waitFor(() => expect(router.state.location.pathname).toBe(chatPath));
+    expect(router.state.location.search).toEqual({ c: "c1" });
+  });
+});
+
 describe("chat error text", () => {
   it("tells a busy gateway apart from an outage", () => {
     expect(chatErrorText("model_busy").title).toBe("The AI model is busy");

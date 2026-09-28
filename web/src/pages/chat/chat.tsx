@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
 import { agentProfileQuery, conversationsKey, conversationsQuery } from "../../api/queries";
 import { NotFoundState } from "../../components/not-found";
+import { ConversationTranscript, conversationQuery } from "../conversations/transcript";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { IconButton } from "@/components/ui/button/button";
 import { Sheet } from "@/components/ui/sheet/sheet";
@@ -46,7 +47,16 @@ export function ChatByShortNamePage() {
 }
 
 function ProfileGate({ profile }: { profile: { isLoading: boolean; error: unknown; data?: Card } }) {
-  if (profile.isLoading) return <Loading label="Loading the agent…" />;
+  const search = useSearch({ strict: false }) as { c?: string };
+  // A link to a conversation with a deleted agent: its transcript, read-only (G2).
+  const stored = useQuery({ ...conversationQuery(search.c ?? ""), enabled: Boolean(search.c) && Boolean(profile.error), retry: false });
+  if (profile.error && stored.data?.conversation.agentDeleted)
+    return (
+      <div className={c.unavailable}>
+        <ConversationTranscript id={stored.data.conversation.id} />
+      </div>
+    );
+  if (profile.isLoading || stored.isLoading) return <Loading label="Loading the agent…" />;
   if (profile.error || !profile.data)
     return (
       <div className={c.unavailable}>

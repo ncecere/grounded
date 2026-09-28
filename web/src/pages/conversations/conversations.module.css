@@ -61,3 +61,12 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
+
+/* A deleted agent's conversation, read-only (the chat thread without a composer). */
+.transcript {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 47.5rem;
+  margin-inline: auto;
+}

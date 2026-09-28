@@ -76,6 +76,8 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
   if (routeId === "/app/") return [{ label: "Home", icon: icon(Home) }];
   if (routeId === "/app/agents") return [{ label: terms.discoverAgents, icon: icon(Compass) }];
   if (routeId === "/app/conversations") return [{ label: terms.conversations, icon: icon(MessagesSquare) }];
+  // The page sets the conversation's title as the tail.
+  if (routeId === "/app/conversations/$conversationId") return [{ label: terms.conversations, icon: icon(MessagesSquare), render: <Link to="/conversations" /> }];
   if (routeId === "/app/notifications") return [{ label: "Notifications", icon: icon(Bell) }];
   if (routeId === "/app/settings/notifications")
     return [{ label: "Notifications", icon: icon(Bell), render: <Link to="/notifications" /> }, { label: "Settings" }];

@@ -46,6 +46,7 @@ const pages = {
   teamLayout: () => import("./pages/team/layout"),
   teamSettings: () => import("./pages/team/settings/page"),
   conversations: () => import("./pages/conversations/page"),
+  transcript: () => import("./pages/conversations/transcript"),
   adminOverview: () => import("./pages/admin/overview/page"),
   logs: () => import("./pages/admin/logs/page"),
   sources: () => import("./pages/team/sources"),
@@ -149,6 +150,12 @@ const homeRoute = createRoute({ getParentRoute: () => appRoute, path: "/", compo
 const agentDirectoryRoute = createRoute({ getParentRoute: () => appRoute, path: "agents", component: lazy(pages.directory, "AgentDirectoryPage") });
 /** Search, agent and date filters live in the URL (?q=&agent=&range=). */
 const conversationsRoute = createRoute({ getParentRoute: () => appRoute, path: "conversations", component: lazy(pages.conversations, "ConversationsPage") });
+/** One conversation by ID: read-only when its agent was deleted, otherwise it opens in the chat page. */
+const conversationRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "conversations/$conversationId",
+  component: lazy(pages.transcript, "ConversationTranscriptPage"),
+});
 /** ?c=<conversationId> opens a stored conversation. */
 const chatSearch = (s: Record<string, unknown>): { c?: string } => (typeof s.c === "string" && s.c ? { c: s.c } : {});
 const chatRoute = createRoute({ getParentRoute: () => appRoute, path: "a/$team/$agent", validateSearch: chatSearch, component: lazy(pages.chat, "ChatPage") });
@@ -271,6 +278,7 @@ const appTree = appRoute.addChildren([
     homeRoute,
     agentDirectoryRoute,
     conversationsRoute,
+    conversationRoute,
     notificationsRoute,
     notificationSettingsRoute,
     chatByIdRoute,
