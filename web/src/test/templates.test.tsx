@@ -316,6 +316,21 @@ describe("DateRangeFilter", () => {
     expect(await screen.findByTestId("days")).toHaveTextContent("2026-09-01..2026-09-10");
   });
 
+  it("a custom range takes two clicks: the first sets the start, the second the end", async () => {
+    const user = userEvent.setup();
+    const { router } = renderAt(() => <Range def="30d" />, "/?range=2024-03-01%2F2024-03-10");
+    await user.click(await screen.findByRole("button", { name: /Date range: custom/ }));
+    const dayButton = (d: string) => document.querySelector<HTMLElement>(`[data-day="${d}"]`)!;
+    await waitFor(() => expect(dayButton("2024-03-05")).toBeInTheDocument());
+    await user.click(dayButton("2024-03-05"));
+    // Only the start is picked: nothing is written yet and the picker stays open.
+    expect(search(router).range).toBe("2024-03-01/2024-03-10");
+    expect(screen.getByTestId("days")).toHaveTextContent("2024-03-01..2024-03-10");
+    await user.click(dayButton("2024-03-20"));
+    await waitFor(() => expect(search(router).range).toBe("2024-03-05/2024-03-20"));
+    expect(screen.getByTestId("days")).toHaveTextContent("2024-03-05..2024-03-20");
+  });
+
   it("writes presets to the URL and keeps the default out of it", async () => {
     const user = userEvent.setup();
     const { router, container } = renderAt(() => <Range def="30d" />);

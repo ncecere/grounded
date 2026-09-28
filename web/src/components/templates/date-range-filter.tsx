@@ -84,16 +84,17 @@ export type DateRangeFilterProps = {
 };
 
 export function DateRangeFilter({ range, label = "Date range", max, size = "sm", className }: DateRangeFilterProps) {
-  // "Custom" before both ends are picked has nothing to put in the URL yet.
-  const [pendingCustom, setPendingCustom] = useState(false);
+  // "Custom" before both ends are picked has nothing to put in the URL yet: the
+  // first click only sets the start (kept here), the second the end.
+  const [pending, setPending] = useState<DateRangeSelection | null>(null);
   return (
     <DateRangePresets
       aria-label={label}
       presets={range.presets}
-      value={pendingCustom ? { preset: "custom", range: null } : range.selection}
+      value={pending ?? range.selection}
       onValueChange={(next) => {
-        const incomplete = next?.preset === "custom" && !next.range;
-        setPendingCustom(incomplete);
+        const incomplete = next?.preset === "custom" && !next.range?.to;
+        setPending(incomplete ? next : null);
         if (!incomplete) range.set(next);
       }}
       clearable={!range.hasDefault}
