@@ -52,8 +52,19 @@ type Service struct {
 	// overrides (team set) or the platform settings (team not set), so work
 	// waiting for a daily limit can check it again (web.WakeDailyLimited).
 	OnChange func(ctx context.Context, team uuid.NullUUID)
+	// Budget refuses model work of a team whose enforced monthly budget is
+	// used up (internal/costs; nil: no budgets). CheckQuery, and so
+	// CheckChat, run it first.
+	Budget BudgetChecker
 	// Now is the clock (tests may replace it).
 	Now func() time.Time
+}
+
+// BudgetChecker admits model work for a team: an error (429
+// budget_exhausted) when its enforced monthly budget is used up
+// (docs/costs.md §4).
+type BudgetChecker interface {
+	Check(ctx context.Context, teamID uuid.UUID) error
 }
 
 // New returns a Service. kvs may be nil (no per-minute limits).

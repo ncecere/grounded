@@ -177,4 +177,42 @@ func DailyLimitReachedEvent(t TeamRef, limitKey, noun string, max int64, now tim
 	}
 }
 
+// BudgetNotice is a team reaching the threshold of its monthly budget
+// (Exhausted false) or using it up.
+type BudgetNotice struct {
+	Exhausted bool
+	Month     time.Time // the month's first day
+	// Spent and Limit are decimal amounts with their currency code.
+	Spent, Limit, Currency string
+	Percent                int
+	ResetsAt               time.Time
+	Location               *time.Location
+}
+
+// BudgetEvent: a team reached its budget threshold or used up its budget
+// (once per team, month and level).
+func BudgetEvent(t TeamRef, n BudgetNotice) Event {
+	month := n.Month.Format("2006-01")
+	loc := n.Location
+	if loc == nil {
+		loc = time.UTC
+	}
+	resets := n.ResetsAt.In(loc).Format("2 January 2006")
+	ev := Event{
+		Type: BudgetWarning, TeamID: t.ID, Link: t.path("/settings?tab=usage"),
+		DedupeKey: "budget_warning:" + t.ID.String() + ":" + month,
+		Title:     fmt.Sprintf("%s has used %d%% of its monthly budget", t.Name, n.Percent),
+		Body: fmt.Sprintf("%s has spent %s %s of its %s %s budget for %s. At 100%% its chats, searches and ingestion stop until a platform admin raises the budget or grants an extension, or the month ends on %s.",
+			t.Name, n.Currency, n.Spent, n.Currency, n.Limit, n.Month.Format("January 2006"), resets),
+		Data: map[string]any{"team": t.Slug, "month": month, "spent": n.Spent, "budget": n.Limit, "currency": n.Currency},
+	}
+	if n.Exhausted {
+		ev.Type, ev.DedupeKey = BudgetExhausted, "budget_exhausted:"+t.ID.String()+":"+month
+		ev.Title = fmt.Sprintf("%s has used up its monthly budget", t.Name)
+		ev.Body = fmt.Sprintf("%s has spent %s %s of its %s %s budget for %s. Its chats, searches and ingestion are paused until a platform admin raises the budget or grants an extension, or the month ends on %s. Nothing is deleted.",
+			t.Name, n.Currency, n.Spent, n.Currency, n.Limit, n.Month.Format("January 2006"), resets)
+	}
+	return ev
+}
+
 func day(t time.Time) string { return t.UTC().Format("2 January 2006") }

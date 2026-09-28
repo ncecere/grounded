@@ -162,6 +162,9 @@ func (s *Service) admitRun(ctx context.Context, id uuid.UUID, pageBudget int) (*
 	if err := s.parkIfMaintenance(ctx, id, cr.WaitingReason); err != nil {
 		return nil, 0, err
 	}
+	if err := s.parkIfBudget(ctx, cr, src.TeamID); err != nil {
+		return nil, 0, err
+	}
 	pageBudget, stop, err := s.dailyBudget(ctx, cr, src.TeamID, pageBudget)
 	if stop || err != nil {
 		return nil, 0, err

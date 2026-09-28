@@ -38,6 +38,10 @@ const (
 	AgentDisabled         Type = "agent.disabled_by_platform"
 	AgentPublished        Type = "agent.published"
 	DailyLimitReached     Type = "team.daily_limit"
+	// Monthly budgets (docs/costs.md §4): the threshold and the budget used
+	// up, once per team and month each; they can't be turned off.
+	BudgetWarning   Type = "team.budget_warning"
+	BudgetExhausted Type = "team.budget_exhausted"
 	// Break-glass (ADR-0024): owners are told when a session starts and
 	// what it read when it ends (mandatory, like invites); platform admins
 	// are asked to approve, and the admin who asked hears the decision.
@@ -80,6 +84,8 @@ var catalog = []Def{
 	{Type: AgentDisabled, Label: "Agent disabled by platform", Description: "A platform admin disabled an agent in a team where you're an admin or owner.", Mandatory: true, TeamRole: authz.RoleAdmin},
 	{Type: AgentPublished, Label: "Agent published beyond the team", Description: "An agent in a team you own was published to all signed-in users or the public.", TeamRole: authz.RoleOwner},
 	{Type: DailyLimitReached, Label: "Team daily limit reached", Description: "A team where you're an admin or owner reached a daily limit.", TeamRole: authz.RoleAdmin},
+	{Type: BudgetWarning, Label: "Team budget nearly used", Description: "A team where you're an admin or owner reached the warning threshold of its monthly budget.", Mandatory: true, TeamRole: authz.RoleAdmin},
+	{Type: BudgetExhausted, Label: "Team budget used up", Description: "A team where you're an admin or owner used up its monthly budget, so its chats, searches and ingestion stop.", Mandatory: true, TeamRole: authz.RoleAdmin},
 	{Type: BreakGlassStarted, Label: "Break-glass access started", Description: "A platform admin started reading the content of a team you own, with a reason.", Mandatory: true, TeamRole: authz.RoleOwner},
 	{Type: BreakGlassEnded, Label: "Break-glass access ended", Description: "A platform admin's break-glass session on a team you own ended, with what it read.", Mandatory: true, TeamRole: authz.RoleOwner},
 	{Type: BreakGlassRequested, Label: "Break-glass approval requested", Description: "Another platform admin asked to read a team's content and needs a second admin's approval (platform admins).", PlatformAdmins: true},

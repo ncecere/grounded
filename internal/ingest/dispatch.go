@@ -79,7 +79,15 @@ type DispatchWorker struct {
 	// Maintenance holds pending documents while maintenance mode is on (nil:
 	// never; docs/phase5-deploy.md §5 P5).
 	Maintenance *platform.MaintenanceGate
-	Log         *slog.Logger
+	// Budget lists teams whose enforced monthly budget is used up: their
+	// pending documents wait (internal/costs, docs/costs.md §4; nil: none).
+	Budget BudgetGate
+	Log    *slog.Logger
+}
+
+// BudgetGate lists the teams whose ingestion waits for their budget.
+type BudgetGate interface {
+	BlockedTeams(ctx context.Context) ([]uuid.UUID, error)
 }
 
 // TeamCap is the per-team in-flight cap: concurrent_ingest_jobs' platform
@@ -96,7 +104,8 @@ const unlimitedInflight = int64(1) << 40
 // oldest pending document before any team's second, bounded by each team's
 // free in-flight slots: its concurrent_ingest_jobs override ($4 names the
 // key in team_limits) or the default ($1), capped by the ceiling ($3; LEAST
-// ignores NULL). Documents of platform-shared sources (team_id NULL) form
+// ignores NULL), except teams whose monthly budget is used up ($5).
+// Documents of platform-shared sources (team_id NULL) form
 // one more bucket ("platform") with the default cap. Teams are enumerated
 // with a loose index scan so millions of pending rows are never sorted; the
 // platform bucket reads the same index at its NULL end. Documents waiting
@@ -116,7 +125,7 @@ budget AS (
                                    $1::bigint), $3::bigint)
                     - (SELECT count(*) FROM documents i
                        WHERE i.team_id = tp.team_id AND i.status IN ('queued', 'processing')), 0) AS free
-    FROM teams_pending tp WHERE tp.team_id IS NOT NULL
+    FROM teams_pending tp WHERE tp.team_id IS NOT NULL AND tp.team_id <> ALL($5::uuid[])
 ),
 platform_budget AS (
     SELECT greatest(least($1::bigint, $3::bigint) - (SELECT count(*) FROM documents i
@@ -149,13 +158,17 @@ ORDER BY rn, id
 LIMIT $2`
 
 // PickFair returns up to limit pending documents, round-robin across teams
-// (and the platform bucket), keeping each within its in-flight cap.
-func PickFair(ctx context.Context, tx pgx.Tx, cap TeamCap, limit int) ([]uuid.UUID, error) {
+// (and the platform bucket), keeping each within its in-flight cap and
+// leaving out the skipped teams.
+func PickFair(ctx context.Context, tx pgx.Tx, cap TeamCap, limit int, skip ...uuid.UUID) ([]uuid.UUID, error) {
 	def := unlimitedInflight
 	if cap.Default != nil {
 		def = *cap.Default
 	}
-	rows, err := tx.Query(ctx, pickSQL, def, limit, cap.Ceiling, string(limits.ConcurrentIngestJobs))
+	if skip == nil {
+		skip = []uuid.UUID{}
+	}
+	rows, err := tx.Query(ctx, pickSQL, def, limit, cap.Ceiling, string(limits.ConcurrentIngestJobs), skip)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +227,13 @@ func (w *DispatchWorker) Dispatch(ctx context.Context, tx pgx.Tx, client *river.
 		}
 		cap = TeamCap{Default: st.Default, Ceiling: st.Ceiling}
 	}
-	ids, err := PickFair(ctx, tx, cap, free)
+	var skip []uuid.UUID
+	if w.Budget != nil {
+		if skip, err = w.Budget.BlockedTeams(ctx); err != nil {
+			return 0, err
+		}
+	}
+	ids, err := PickFair(ctx, tx, cap, free, skip...)
 	if err != nil || len(ids) == 0 {
 		return 0, err
 	}

@@ -123,6 +123,15 @@ WHERE status IN ('queued', 'running') AND waiting_reason = 'daily_page_limit'
 ORDER BY created_at, id
 LIMIT 1000;
 
+-- Runs waiting for their team's monthly budget (docs/costs.md §4): one
+-- team's, or every team's (a platform setting changed).
+-- name: BudgetWaitingCrawls :many
+SELECT id FROM web_crawls
+WHERE status IN ('queued', 'running') AND waiting_reason = 'monthly_budget'
+  AND (sqlc.narg(team_id)::uuid IS NULL OR team_id = sqlc.narg(team_id)::uuid)
+ORDER BY created_at, id
+LIMIT 1000;
+
 -- name: TeamsWithWaitingCrawls :many
 SELECT DISTINCT team_id FROM web_crawls
 WHERE status = 'queued' AND waiting_reason = 'concurrent_crawls' AND team_id IS NOT NULL

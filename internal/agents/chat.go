@@ -15,6 +15,7 @@ import (
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/catalog"
+	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/llm"
 	"github.com/ncecere/grounded/internal/moderation"
 	"github.com/ncecere/grounded/internal/store"
@@ -392,14 +393,21 @@ func (ru *run) execute(ctx context.Context, emit func(Event)) (Answer, error) {
 	return ru.finish(ctx, added, runErr, st)
 }
 
-// admit applies the limits (daily chat tokens, query rates, concurrent
-// chats) and writes the access log entry that every use of a Sensitive or
+// errUnavailableNow is what anonymous visitors of a public agent get when
+// its team's budget is used up (docs/costs.md §4).
+var errUnavailableNow = apperr.New(503, "agent_unavailable", "This assistant is unavailable right now. Please try again later.")
+
+// admit applies the limits (monthly budget, daily chat tokens, query rates,
+// concurrent chats) and writes the access log entry that every use of a Sensitive or
 // Restricted agent gets. release frees the concurrent-chat slot.
 func (ru *run) admit(ctx context.Context) (release func(), err error) {
 	s := ru.s
 	release = func() {}
 	if s.Limits != nil {
 		if err := s.Limits.CheckChat(ctx, ru.team.ID, ru.a); err != nil {
+			if ru.anon != nil && costs.IsExhausted(err) {
+				return nil, errUnavailableNow // anonymous visitors don't see the team's budget
+			}
 			return nil, err
 		}
 		principal := ru.a.UserID.String()

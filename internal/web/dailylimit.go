@@ -39,6 +39,11 @@ func (s *Service) WakeDailyLimited(ctx context.Context, team uuid.NullUUID) (int
 	if err != nil || len(ids) == 0 {
 		return 0, err
 	}
+	return s.wake(ctx, ids)
+}
+
+// wake retries the snoozed jobs of parked runs now.
+func (s *Service) wake(ctx context.Context, ids []uuid.UUID) (int, error) {
 	pending := map[string]bool{}
 	for _, id := range ids {
 		pending[id.String()] = true

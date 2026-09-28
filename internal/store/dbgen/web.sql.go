@@ -165,6 +165,36 @@ func (q *Queries) ApprovedTeamPatterns(ctx context.Context, teamID uuid.UUID) ([
 	return items, nil
 }
 
+const budgetWaitingCrawls = `-- name: BudgetWaitingCrawls :many
+SELECT id FROM web_crawls
+WHERE status IN ('queued', 'running') AND waiting_reason = 'monthly_budget'
+  AND ($1::uuid IS NULL OR team_id = $1::uuid)
+ORDER BY created_at, id
+LIMIT 1000
+`
+
+// Runs waiting for their team's monthly budget (docs/costs.md §4): one
+// team's, or every team's (a platform setting changed).
+func (q *Queries) BudgetWaitingCrawls(ctx context.Context, teamID uuid.NullUUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, budgetWaitingCrawls, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countFrontier = `-- name: CountFrontier :one
 SELECT count(*) FROM web_frontier WHERE crawl_id = $1
 `

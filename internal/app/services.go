@@ -19,6 +19,7 @@ import (
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/chunk"
 	"github.com/ncecere/grounded/internal/config"
+	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/crawl"
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/jobs"
@@ -77,6 +78,8 @@ type Services struct {
 	// ProfileMigrations moves KBs between embedding profiles (P2).
 	ProfileMigrations *profilemig.Service
 
+	// Costs prices usage, reports spend and enforces budgets (E2).
+	Costs *costs.Service
 	// OCR is Admin -> Parsing and ingestion's OCR (docs/ocr.md).
 	OCR *ocr.Service
 	// jobs enqueues River jobs (may be insert-only).
@@ -190,6 +193,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	}
 	s.Public = public.New(pool, s.Agents, s.Teams, s.Limits, guard, captcha.New(cfg.Public), pepper, cfg.Public.AnonSessionTTL, log)
 	s.Public.PreviousPepper = peppers.Previous
+	wireCosts(s, pool, jobsClient, log)
 	s.Retention = retention.New(pool, jobsClient, cfg.Retention, log)
 	s.RetentionMetrics = retention.NewMetrics()
 	s.Parser, s.builtin = NewParser(cfg, log)
@@ -242,7 +246,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			Counter: counter, Log: log,
 		},
 	}
-	dispatch := &ingest.DispatchWorker{Pool: pool, Log: log, Team: s.Limits, Maintenance: s.Platform.Gate, Limits: ingest.Limits{
+	dispatch := &ingest.DispatchWorker{Pool: pool, Log: log, Team: s.Limits, Maintenance: s.Platform.Gate, Budget: s.Costs, Limits: ingest.Limits{
 		MaxInflight: cfg.IngestMaxInflight, MaxInflightTeam: cfg.IngestMaxInflightTeam,
 	}}
 	proc.Dispatcher = dispatch
@@ -257,6 +261,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			river.AddWorker(w, &web.ScheduleWorker{S: s.Web})
 			registerNotify(w, cfg, pool, s, s.Mail, log)
 			river.AddWorker(w, &breakglass.SweepWorker{S: s.BreakGlass})
+			river.AddWorker(w, &costs.RollupWorker{S: s.Costs})
 			profilemig.Register(w, s.ProfileMigrations, proc)
 			retention.Register(w, &retention.Runner{
 				Pool: pool, Blob: s.Blob, Env: cfg.Retention, Log: log, Metrics: s.RetentionMetrics,
@@ -283,6 +288,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			notifyPeriodic(),
 			breakglass.Periodic(),
 			retention.Periodic(),
+			costs.RollupPeriodic(),
 		},
 	}, nil
 }

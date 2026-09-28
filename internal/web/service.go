@@ -48,8 +48,11 @@ type Service struct {
 	// Maintenance pauses crawling while maintenance mode is on (nil: never;
 	// maintenance.go).
 	Maintenance *platform.MaintenanceGate
-	Log         *slog.Logger
-	q           *dbgen.Queries
+	// Budget parks runs of teams whose monthly budget is used up (nil:
+	// none; docs/costs.md §4).
+	Budget BudgetGate
+	Log    *slog.Logger
+	q      *dbgen.Queries
 }
 
 // New returns a Service.

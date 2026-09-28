@@ -89,11 +89,17 @@ func (s *Service) UsageToday(ctx context.Context, q *dbgen.Queries, teamID uuid.
 }
 
 // CheckQuery admits one retrieval query for a team, in this order: the
-// daily team cap (from the usage ledger), then the per-minute team, API key
-// and user rates (Valkey). It returns a *Error (429 rate_limited, with
+// team's monthly budget (429 budget_exhausted, when enforced), the daily
+// team cap (from the usage ledger), then the per-minute team, API key and
+// user rates (Valkey). It returns a *Error (429 rate_limited, with
 // Retry-After) when a limit is reached. When Valkey is unavailable the
 // per-minute checks fail open.
 func (s *Service) CheckQuery(ctx context.Context, teamID uuid.UUID, a authz.Actor) error {
+	if s.Budget != nil {
+		if err := s.Budget.Check(ctx, teamID); err != nil {
+			return err
+		}
+	}
 	set, err := s.Effective(ctx, nil, teamID)
 	if err != nil {
 		return err
