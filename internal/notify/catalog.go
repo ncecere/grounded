@@ -52,6 +52,9 @@ const (
 	// Profile migrations (docs/phase5-deploy.md §5 P2).
 	ProfileMigration Type = "platform.profile_migration"
 	KBProfileChanged Type = "kb.profile_changed"
+	// EvaluationRegression: an automatic evaluation run scored worse
+	// (docs/evaluations.md §4).
+	EvaluationRegression Type = "evaluation.regression"
 )
 
 // Def describes an event type.
@@ -92,6 +95,7 @@ var catalog = []Def{
 	{Type: BreakGlassDecided, Label: "Break-glass request decided", Description: "Another platform admin approved or denied your break-glass request, or it lapsed (platform admins).", PlatformAdmins: true},
 	{Type: ProfileMigration, Label: "Profile migration switched or needs attention", Description: "A knowledge base switched to another embedding profile, or documents failed to move (platform admins).", PlatformAdmins: true},
 	{Type: KBProfileChanged, Label: "Knowledge base changed embedding profile", Description: "A knowledge base in a team where you're an admin or owner moved to another embedding profile, or back.", TeamRole: authz.RoleAdmin},
+	{Type: EvaluationRegression, Label: "Evaluation scores dropped", Description: "An automatic evaluation run in a team where you're an editor, admin or owner found questions that newly fail, or recall fell by more than 5 points.", TeamRole: authz.RoleEditor},
 }
 
 // Catalog returns every event type in display order.

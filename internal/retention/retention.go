@@ -46,10 +46,14 @@ const (
 	ExpiredInvites Kind = "expired_invites"
 	// AnonymousSessions end at expiry (not configurable; they hold no content).
 	AnonymousSessions Kind = "anonymous_sessions"
+	// EvaluationRuns are evaluation runs with their results (180 days by
+	// default; docs/evaluations.md §7). Legal holds don't apply.
+	EvaluationRuns Kind = "evaluation_runs"
 )
 
 // Kinds lists every kind in run order.
-var Kinds = []Kind{Conversations, DeletedConversations, AccessLog, AnalyticsEvents, UsageEvents, AuditLog, DeletedFiles, ExpiredInvites, AnonymousSessions}
+var Kinds = []Kind{Conversations, DeletedConversations, AccessLog, AnalyticsEvents, UsageEvents, AuditLog, DeletedFiles, ExpiredInvites,
+	AnonymousSessions, EvaluationRuns}
 
 // Valid reports whether k is a known kind.
 func (k Kind) Valid() bool { return slices.Contains(Kinds, k) }

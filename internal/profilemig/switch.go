@@ -60,6 +60,9 @@ func (s *Service) Advance(ctx context.Context, id uuid.UUID) error {
 		if err := s.notifySwitch(ctx, q, tx, m, kb, false); err != nil {
 			return err
 		}
+		if err := s.switched(ctx, tx, kb.ID); err != nil {
+			return err
+		}
 		if m.GraceDays == 0 {
 			return s.kickCleanup(ctx, tx)
 		}
@@ -144,8 +147,19 @@ func (s *Service) SwitchBack(ctx context.Context, a authz.Actor, id uuid.UUID, r
 		if err := s.notifySwitch(ctx, q, tx, m, kb, true); err != nil {
 			return err
 		}
+		if err := s.switched(ctx, tx, kb.ID); err != nil {
+			return err
+		}
 		return s.kickCleanup(ctx, tx)
 	})
+}
+
+// switched runs the OnSwitched hook.
+func (s *Service) switched(ctx context.Context, tx pgx.Tx, kbID uuid.UUID) error {
+	if s.OnSwitched == nil {
+		return nil
+	}
+	return s.OnSwitched(ctx, tx, kbID)
 }
 
 // notifySwitch tells the team's admins and owners, and (for a switch) the

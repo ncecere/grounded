@@ -17,6 +17,8 @@ import (
 // Need is what a change adds to a team's resources.
 type Need struct {
 	DataSources, KnowledgeBases, Documents, Agents int64
+	// EvalSets are evaluation sets (evaluation_sets).
+	EvalSets int64
 	// Bytes is the storage the change adds; zero or negative (a smaller
 	// replacement) is never refused.
 	Bytes int64
@@ -61,6 +63,9 @@ func (s *Service) CheckResources(ctx context.Context, q *dbgen.Queries, teamID u
 	if err := check(Agents, need.Agents, func() (int64, error) { return q.CountTeamAgents(ctx, teamID) }); err != nil {
 		return err
 	}
+	if err := check(EvaluationSets, need.EvalSets, func() (int64, error) { return q.CountTeamEvalSets(ctx, teamID) }); err != nil {
+		return err
+	}
 	var docs *dbgen.TeamDocumentUsageRow
 	docUsage := func() (dbgen.TeamDocumentUsageRow, error) {
 		if docs == nil {
@@ -76,6 +81,22 @@ func (s *Service) CheckResources(ctx context.Context, q *dbgen.Queries, teamID u
 		return err
 	}
 	return check(StorageBytes, need.Bytes, func() (int64, error) { u, err := docUsage(); return u.StorageBytes, err })
+}
+
+// CheckSetQuestions returns a *Error (409 limit_reached) when adding add
+// questions to an evaluation set holding current would pass
+// evaluation_questions_per_set. Call it under the set's row lock.
+func (s *Service) CheckSetQuestions(ctx context.Context, q *dbgen.Queries, teamID uuid.UUID, current, add int64) error {
+	set, err := s.Effective(ctx, q, teamID)
+	if err != nil {
+		return err
+	}
+	max := set.Get(EvaluationQuestionsPerSet)
+	if max == nil || add <= 0 || current+add <= *max {
+		return nil
+	}
+	d, _ := Lookup(EvaluationQuestionsPerSet)
+	return reached(d, *max, current)
 }
 
 // UsageToday sums a usage kind for a team since UTC midnight.

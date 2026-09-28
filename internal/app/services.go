@@ -21,6 +21,7 @@ import (
 	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/crawl"
+	"github.com/ncecere/grounded/internal/evals"
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/jobs"
 	"github.com/ncecere/grounded/internal/kbs"
@@ -78,6 +79,8 @@ type Services struct {
 	// ProfileMigrations moves KBs between embedding profiles (P2).
 	ProfileMigrations *profilemig.Service
 
+	// Evaluations runs evaluation sets (docs/evaluations.md).
+	Evaluations *evals.Service
 	// Costs prices usage, reports spend and enforces budgets (E2).
 	Costs *costs.Service
 	// OCR is Admin -> Parsing and ingestion's OCR (docs/ocr.md).
@@ -207,6 +210,10 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.ProfileMigrations = profilemig.New(pool, s.Catalog, s.Teams, s.Notify, jobsClient, profilemig.Options{
 		GraceDays: cfg.ProfileMigrationGraceDays, BatchSize: cfg.EmbedBatchSize, BatchTokens: cfg.EmbedBatchTokens,
 	}, log)
+	s.Evaluations = evals.New(pool, s.Teams, s.KBs, s.Agents, s.Limits, s.Notify, jobsClient, log)
+	s.Evaluations.Concurrency = cfg.EvaluationConcurrency
+	// Automatic evaluation runs: after a publish and a profile switch.
+	s.Agents.OnPublished, s.ProfileMigrations.OnSwitched = s.Evaluations.QueueForAgent, s.Evaluations.QueueForKB
 	return s, nil
 }
 
@@ -266,10 +273,12 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			retention.Register(w, &retention.Runner{
 				Pool: pool, Blob: s.Blob, Env: cfg.Retention, Log: log, Metrics: s.RetentionMetrics,
 			})
+			evals.Register(w, s.Evaluations)
 		},
 		Queues: map[string]river.QueueConfig{
 			ingest.Queue: {MaxWorkers: cfg.IngestConcurrency},
 			web.Queue:    {MaxWorkers: cfg.Crawl.Concurrency},
+			evals.Queue:  {MaxWorkers: 2},
 		},
 		Periodic: []*river.PeriodicJob{
 			river.NewPeriodicJob(river.PeriodicInterval(5*time.Second),
@@ -289,6 +298,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			breakglass.Periodic(),
 			retention.Periodic(),
 			costs.RollupPeriodic(),
+			evals.Periodic(),
 		},
 	}, nil
 }

@@ -164,8 +164,7 @@ func (sj *searchJudging) event() *RetrievalJudging {
 func (ru *run) systemOneUsage() []dbgen.InsertUsageParams {
 	var out []dbgen.InsertUsageParams
 	for _, e := range ru.meter.Entries() {
-		meta, _ := json.Marshal(map[string]any{"channel": ru.channel, "agentVersion": ru.versionNum(), "feature": e.Feature})
-		out = append(out, e.UsageParams(meta)...)
+		out = append(out, e.UsageParams(ru.usageMetadata(map[string]any{"feature": e.Feature}))...)
 	}
 	return out
 }

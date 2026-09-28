@@ -161,6 +161,10 @@ type run struct {
 	scopeRec    *ScopeRecord
 
 	anon *AnonCaller // an anonymous visitor (public and widget channels)
+
+	// usageMeta is added to the usage events' metadata (evaluation runs
+	// tag theirs with source: evaluation).
+	usageMeta map[string]any
 }
 
 // Chat answers a question with a published agent. Errors returned before

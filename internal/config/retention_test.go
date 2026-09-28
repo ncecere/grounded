@@ -13,8 +13,12 @@ func TestRetentionEnvironment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Retention.Days) != 0 || c.Retention.BatchSize != 500 || c.Retention.MaxBatches != 100 {
+	// Nothing may be deleted by default, except evaluation runs (no user content).
+	if len(c.Retention.Days) != 1 || c.Retention.Days["evaluation_runs"] != DefaultEvaluationRunDays || c.Retention.BatchSize != 500 || c.Retention.MaxBatches != 100 {
 		t.Fatalf("defaults = %+v (nothing may be deleted by default)", c.Retention)
+	}
+	if c, err := LoadFrom("", env(map[string]string{"RETENTION_EVALUATION_RUNS_DAYS": "keep"})); err != nil || len(c.Retention.Days) != 0 {
+		t.Fatalf("keep evaluation runs = %+v %v", c.Retention, err)
 	}
 	c, err = LoadFrom("", env(map[string]string{
 		"RETENTION_AUDIT_LOG_DAYS": "2555", "RETENTION_ACCESS_LOG_DAYS": "keep", "RETENTION_DELETED_FILES_DAYS": "0",

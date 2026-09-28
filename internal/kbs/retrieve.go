@@ -196,12 +196,6 @@ func (s *Service) Retrieve(ctx context.Context, a authz.Actor, teamRef string, k
 			return Result{}, err
 		}
 	}
-	// Team query limits: per day (usage ledger), per minute (Valkey).
-	if s.Limits != nil {
-		if err := s.Limits.CheckQuery(ctx, kb.TeamID, a); err != nil {
-			return Result{}, err
-		}
-	}
 	k := int(kb.TopK)
 	if in.TopK > 0 {
 		k = min(in.TopK, 50)
@@ -209,14 +203,36 @@ func (s *Service) Retrieve(ctx context.Context, a authz.Actor, teamRef string, k
 	if plan != nil {
 		k = plan.Candidates
 	}
-	res, err := s.Search(ctx, kb, SearchParams{Text: text, TopK: k, Filter: filter, User: "grounded-query:" + kb.TeamID.String()})
+	return s.retrieve(ctx, a, kb, retrieval{text: text, k: k, filter: filter, plan: plan}, start)
+}
+
+// retrieval is one search of a knowledge base: k results (or the judging
+// plan's candidates), with the usage metadata to add.
+type retrieval struct {
+	text   string
+	k      int
+	filter MetadataFilter
+	plan   *systemone.JudgePlan
+	meta   map[string]any
+}
+
+// retrieve applies the team's query limits, searches, judges when asked and
+// records the query's usage.
+func (s *Service) retrieve(ctx context.Context, a authz.Actor, kb KB, r retrieval, start time.Time) (Result, error) {
+	// Team query limits: per day (usage ledger), per minute (Valkey).
+	if s.Limits != nil {
+		if err := s.Limits.CheckQuery(ctx, kb.TeamID, a); err != nil {
+			return Result{}, err
+		}
+	}
+	res, err := s.Search(ctx, kb, SearchParams{Text: r.text, TopK: r.k, Filter: r.filter, User: "grounded-query:" + kb.TeamID.String()})
 	if err != nil {
 		return Result{}, err
 	}
 	out := Result{Hits: res.Hits}
 	meter := &systemone.Meter{}
-	if plan != nil {
-		out.Hits, out.Judging = judgeHits(systemone.WithMeter(ctx, meter), plan, text, res.Hits)
+	if r.plan != nil {
+		out.Hits, out.Judging = judgeHits(systemone.WithMeter(ctx, meter), r.plan, r.text, res.Hits)
 	}
 	// Every retrieve is a query (even on an empty KB): it counts towards the
 	// team's usage and limits.
@@ -228,30 +244,55 @@ func (s *Service) Retrieve(ctx context.Context, a authz.Actor, teamRef string, k
 		})
 	}
 	extra = append(extra, meterUsage(meter)...)
-	if err := s.recordUsage(ctx, a, kb, len(res.Hits), extra); err != nil {
+	if err := s.recordUsage(ctx, a, kb, len(res.Hits), extra, r.meta); err != nil {
 		return Result{}, err
 	}
 	out.Latency = time.Since(start)
 	return out, nil
 }
 
+// RetrieveForEvaluation runs a knowledge base's own retrieval for an
+// evaluation question (docs/evaluations.md §2): the KB's top-k, under the
+// team's query limits, recorded as query usage with meta (source:
+// evaluation). The caller has checked access; kb comes from ResolveKBs.
+func (s *Service) RetrieveForEvaluation(ctx context.Context, a authz.Actor, kb KB, text string, meta map[string]any) (Result, error) {
+	return s.retrieve(ctx, a, kb, retrieval{text: strings.TrimSpace(text), k: int(kb.TopK), meta: meta}, time.Now())
+}
+
 // recordUsage writes the query (and, when embedded, its embedding tokens) to
-// the usage ledger; the daily query limit counts these rows.
-func (s *Service) recordUsage(ctx context.Context, a authz.Actor, kb KB, hits int, extra []dbgen.InsertUsageParams) error {
-	meta, _ := json.Marshal(map[string]any{"hits": hits})
-	usage := append([]dbgen.InsertUsageParams{{Kind: "query", Quantity: 1, Metadata: meta}}, extra...)
+// the usage ledger; the daily query limit counts these rows. meta is added to
+// every event's metadata.
+func (s *Service) recordUsage(ctx context.Context, a authz.Actor, kb KB, hits int, extra []dbgen.InsertUsageParams, meta map[string]any) error {
+	query, _ := json.Marshal(map[string]any{"hits": hits})
+	usage := append([]dbgen.InsertUsageParams{{Kind: "query", Quantity: 1, Metadata: query}}, extra...)
 	for _, u := range usage {
 		u.TeamID, u.KBID = uuid.NullUUID{UUID: kb.TeamID, Valid: true}, uuid.NullUUID{UUID: kb.ID, Valid: true}
 		u.UserID = uuid.NullUUID{UUID: a.UserID, Valid: a.UserID != uuid.Nil}
 		if a.Key != nil {
 			u.APIKeyID = uuid.NullUUID{UUID: a.Key.ID, Valid: true}
 		}
+		u.Metadata = TagMetadata(u.Metadata, meta)
 		if err := s.q.InsertUsage(ctx, u); err != nil {
 			return err
 		}
 	}
 	s.Limits.Recorded(kb.TeamID, usage)
 	return nil
+}
+
+// TagMetadata adds meta to a usage event's JSON metadata (unchanged when
+// meta is empty).
+func TagMetadata(raw json.RawMessage, meta map[string]any) json.RawMessage {
+	if len(meta) == 0 {
+		return raw
+	}
+	m := map[string]any{}
+	_ = json.Unmarshal(raw, &m)
+	for k, v := range meta {
+		m[k] = v
+	}
+	out, _ := json.Marshal(m)
+	return out
 }
 
 // ResolveKBs loads KBs with their sources without permission checks: the

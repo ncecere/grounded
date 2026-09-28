@@ -14,6 +14,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ncecere/grounded/internal/apperr"
@@ -70,6 +71,9 @@ type Service struct {
 	// NewProvider builds the model provider for a connection (default: the
 	// OpenAI-compatible adapter).
 	NewProvider func(*gateway.Client) llm.Provider
+	// OnPublished runs in the publish transaction (internal/evals queues
+	// the agent's automatic evaluation runs; nil: nothing).
+	OnPublished func(ctx context.Context, tx pgx.Tx, agentID uuid.UUID) error
 	q           *dbgen.Queries
 }
 

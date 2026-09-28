@@ -331,6 +331,7 @@ func (s *Service) TeamUsage(ctx context.Context, a authz.Actor, teamRef string) 
 		{DataSources, func() (int64, error) { return s.q.CountTeamSources(ctx, team) }},
 		{KnowledgeBases, func() (int64, error) { return s.q.CountTeamKBs(ctx, teamID) }},
 		{Agents, func() (int64, error) { return s.q.CountTeamAgents(ctx, teamID) }},
+		{EvaluationSets, func() (int64, error) { return s.q.CountTeamEvalSets(ctx, teamID) }},
 		{ChatTokensPerDay, func() (int64, error) { return s.chatTokensToday(ctx, teamID) }},
 		{CrawlPagesPerDay, func() (int64, error) { return s.UsageToday(ctx, s.q, teamID, UsagePageCrawled) }},
 		{OCRPagesPerDay, func() (int64, error) { return s.UsageToday(ctx, s.q, teamID, UsageOCRPages) }},

@@ -6,7 +6,8 @@
 //
 // Every period is empty by default, which keeps the data: nothing is
 // hard-coded to delete, and each install confirms its periods with its
-// records management before setting them (DESIGN.md §8).
+// records management before setting them (DESIGN.md §8). The exception is
+// evaluation runs (180 days), which hold no user content.
 
 package config
 
@@ -40,6 +41,11 @@ var RetentionPeriods = []RetentionPeriod{
 	{Kind: "deleted_files", Env: "RETENTION_DELETED_FILES_DAYS", Min: 0, Max: 36500},
 	// Invites that expired or were revoked (accepted invites are kept).
 	{Kind: "expired_invites", Env: "RETENTION_EXPIRED_INVITES_DAYS", Min: 1, Max: 36500},
+	// Evaluation runs and their results (docs/evaluations.md §7): 180 days
+	// by default (owner decision), the one kind with a built-in period.
+	// They hold no user content, only questions editors wrote and the
+	// agent's test answers, so legal holds don't apply.
+	{Kind: "evaluation_runs", Env: "RETENTION_EVALUATION_RUNS_DAYS", Min: 1, Max: 36500},
 }
 
 // Retention holds the retention environment defaults.
@@ -52,8 +58,14 @@ type Retention struct {
 	BatchSize, MaxBatches int
 }
 
-// RetentionDefaults are the built-in values: keep everything.
-func RetentionDefaults() Retention { return Retention{BatchSize: 500, MaxBatches: 100} }
+// DefaultEvaluationRunDays is the built-in period of evaluation runs.
+const DefaultEvaluationRunDays = 180
+
+// RetentionDefaults are the built-in values: keep everything, except
+// evaluation runs (DefaultEvaluationRunDays).
+func RetentionDefaults() Retention {
+	return Retention{BatchSize: 500, MaxBatches: 100, Days: map[string]int{"evaluation_runs": DefaultEvaluationRunDays}}
+}
 
 // retentionDays parses a period: empty or "keep" keeps the data.
 func retentionDays(p RetentionPeriod) func(*Config, string) error {

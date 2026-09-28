@@ -124,6 +124,7 @@ var settings = []setting{
 	{key: "EMBED_BATCH_TOKENS", apply: integer(func(c *Config) *int { return &c.EmbedBatchTokens }, 0, 10_000_000)},
 	{key: "EMBED_BATCH_WAIT", apply: duration(func(c *Config) *time.Duration { return &c.EmbedBatchWait }, 0, 10*time.Second)},
 	{key: "PROFILE_MIGRATION_GRACE_DAYS", apply: integer(func(c *Config) *int { return &c.ProfileMigrationGraceDays }, 0, 90)},
+	{key: "EVALUATION_CONCURRENCY", apply: integer(func(c *Config) *int { return &c.EvaluationConcurrency }, 1, 8)},
 	{key: "VECTOR_EXACT_THRESHOLD", apply: func(c *Config, v string) error {
 		n, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
 		if err != nil || n < 0 || n > 100_000_000 {

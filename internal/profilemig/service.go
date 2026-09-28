@@ -72,7 +72,11 @@ type Service struct {
 	Jobs *river.Client[pgx.Tx]
 	Opts Options
 	Log  *slog.Logger
-	q    *dbgen.Queries
+	// OnSwitched runs in the transaction that switches a knowledge base's
+	// profile, or switches it back (internal/evals queues the KB's
+	// automatic evaluation runs; nil: nothing).
+	OnSwitched func(ctx context.Context, tx pgx.Tx, kbID uuid.UUID) error
+	q          *dbgen.Queries
 }
 
 // New returns a Service.

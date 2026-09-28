@@ -35,6 +35,7 @@ func Rules() []Rule {
 		{Kind: DeletedFiles, candidates: periodic(DeletedFiles, deletedFilesDue), purge: purgeFiles},
 		{Kind: ExpiredInvites, candidates: periodic(ExpiredInvites, expiredInvitesDue), purge: deleteFrom("team_invites", "id")},
 		{Kind: AnonymousSessions, candidates: func(Periods) (string, bool) { return anonymousSessionsDue, true }, purge: deleteFrom("anon_sessions", "id")},
+		{Kind: EvaluationRuns, candidates: periodic(EvaluationRuns, evaluationRunsDue), purge: deleteFrom("eval_runs", "id")},
 	}
 }
 
@@ -190,3 +191,10 @@ const anonymousSessionsDue = `SELECT s.id AS key, a.team_id, NULL::int AS rank, 
 FROM anon_sessions s
 JOIN agents a ON a.id = s.agent_id
 WHERE s.expires_at < $1::timestamptz`
+
+// Evaluation runs (their results go with them) older than the period, once
+// they have ended. They hold no user content (questions editors wrote and
+// the agent's test answers), so legal holds don't apply.
+const evaluationRunsDue = `SELECT r.id AS key, r.team_id, NULL::int AS rank, ''::text AS audience, 'retention'::text AS reason, false AS held
+FROM eval_runs r
+WHERE r.created_at < $1::timestamptz - make_interval(days => %d) AND r.status NOT IN ('queued', 'running')`

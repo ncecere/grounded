@@ -66,6 +66,11 @@ const (
 	PublicTokensPerAgentPerDay       Key = "public_tokens_per_agent_per_day"
 	PublicConcurrentChatsPerAgent    Key = "public_concurrent_chats_per_agent"
 	PublicMessageMaxChars            Key = "public_message_max_chars"
+
+	// Evaluations (docs/evaluations.md §1): enforced when a set or a
+	// question is created (and before an import is added).
+	EvaluationSets            Key = "evaluation_sets"
+	EvaluationQuestionsPerSet Key = "evaluation_questions_per_set"
 )
 
 // Group is where a limit is shown in the UI.
@@ -76,6 +81,9 @@ const (
 	GroupIngestion Group = "ingestion"
 	GroupQueries   Group = "queries"
 	GroupPublic    Group = "public"
+	// GroupEvaluations: evaluation sets and their questions (Admin → Limits ›
+	// Evaluations, next to the platform switch).
+	GroupEvaluations Group = "evaluations"
 )
 
 // Unit says how a value is measured.
@@ -158,6 +166,10 @@ var registry = []Def{
 		Description: "Anonymous answers streaming at once for each public agent.", Default: ptr(20)},
 	{Key: PublicMessageMaxChars, Group: GroupPublic, Unit: UnitCount, Label: "Public message length", Noun: "characters",
 		Description: "The longest question an anonymous visitor may send, in characters.", Default: ptr(2_000)},
+	{Key: EvaluationSets, Group: GroupEvaluations, Unit: UnitCount, Label: "Evaluation sets", Noun: "evaluation sets",
+		Description: "Evaluation sets across the team's knowledge bases and agents.", Default: ptr(50)},
+	{Key: EvaluationQuestionsPerSet, Group: GroupEvaluations, Unit: UnitCount, Label: "Questions per evaluation set", Noun: "questions in this set",
+		Description: "Test questions in one evaluation set, typed or imported.", Default: ptr(500)},
 }
 
 // Defs returns every limit definition in display order.

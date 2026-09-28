@@ -324,6 +324,10 @@ func (s *Service) Delete(ctx context.Context, a authz.Actor, teamRef string, id 
 		if err := q.SoftDeleteAgent(ctx, id); err != nil {
 			return err
 		}
+		// Its evaluation sets go with it (docs/evaluations.md §7).
+		if err := q.DeleteAgentEvalSets(ctx, uuid.NullUUID{UUID: id, Valid: true}); err != nil {
+			return err
+		}
 		e := a.Audit("agent.delete", "agent", id.String())
 		e.TeamID, e.Before = acc.Team.ID, agentSnapshot(cur)
 		return audit.Record(ctx, q, e)

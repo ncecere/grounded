@@ -132,7 +132,7 @@ func (ru *run) storeAnswer(ctx context.Context, q *dbgen.Queries, ans *Answer, m
 // recordUsage writes the usage ledger: the query, chat tokens, embedding
 // tokens, moderation requests and SystemOne use.
 func (ru *run) recordUsage(ctx context.Context, q *dbgen.Queries, ans *Answer, modelID uuid.NullUUID) error {
-	meta, _ := json.Marshal(map[string]any{"channel": ru.channel, "agentVersion": ru.versionNum()})
+	meta := ru.usageMetadata(nil)
 	team := uuid.NullUUID{UUID: ru.team.ID, Valid: true}
 	agent := uuid.NullUUID{UUID: ru.agent.ID, Valid: true}
 	usage := []dbgen.InsertUsageParams{{Kind: limits.UsageQuery, Quantity: 1}}

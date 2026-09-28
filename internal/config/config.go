@@ -68,6 +68,9 @@ type Config struct {
 	// a profile migration switches, so it can switch back (docs/phase5-deploy.md
 	// §5 P2); each migration may set its own.
 	ProfileMigrationGraceDays int
+	// EvaluationConcurrency is how many questions an evaluation run checks
+	// at once (docs/evaluations.md §4).
+	EvaluationConcurrency int
 
 	// Boilerplate are the platform defaults of repeated-block suppression
 	// (ADR-0021); sources may override them.
@@ -245,6 +248,7 @@ func Defaults() Config {
 		ShutdownTimeout: 60 * time.Second,
 	}
 	c.ProfileMigrationGraceDays = 7
+	c.EvaluationConcurrency = 2
 	return c
 }
 

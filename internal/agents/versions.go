@@ -83,7 +83,13 @@ func (s *Service) Publish(ctx context.Context, a authz.Actor, teamRef string, id
 		if err := audit.Record(ctx, q, e); err != nil {
 			return err
 		}
-		return s.notifyPublished(ctx, tx, a, acc.Team, cur, audience, previous, ver.Version)
+		if err := s.notifyPublished(ctx, tx, a, acc.Team, cur, audience, previous, ver.Version); err != nil {
+			return err
+		}
+		if s.OnPublished != nil {
+			return s.OnPublished(ctx, tx, id)
+		}
+		return nil
 	})
 	if err != nil {
 		return Version{}, err
