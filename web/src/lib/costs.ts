@@ -48,6 +48,8 @@ export const unitLabels: Record<PriceUnit, { label: string; per: string }> = {
   systemone_tokens: { label: "Input tokens", per: "per 1M tokens" },
   systemone_requests: { label: "Requests", per: "per request" },
   moderation_requests: { label: "Requests", per: "per request" },
+  vision_tokens_in: { label: "Input tokens", per: "per 1M tokens" },
+  vision_tokens_out: { label: "Output tokens", per: "per 1M tokens" },
 };
 
 /** Spend categories, in chart order. */
@@ -56,6 +58,7 @@ export const categories = [
   { key: "embedding", label: "Embedding", tone: "success" },
   { key: "systemone", label: "SystemOne", tone: "warning" },
   { key: "moderation", label: "Moderation", tone: "neutral" },
+  { key: "ocr", label: "OCR", tone: "primary" },
 ] as const;
 
 /** A decimal amount a person typed: up to 14 digits and 6 decimals. */

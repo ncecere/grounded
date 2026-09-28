@@ -15,7 +15,7 @@ import (
 // applied here, exactly, per local day.
 
 // Categories of spend, in display order.
-var Categories = []string{"chat", "embedding", "systemone", "moderation"}
+var Categories = []string{"chat", "embedding", "systemone", "moderation", "ocr"}
 
 // Totals are spend and quantities.
 type Totals struct {

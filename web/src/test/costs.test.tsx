@@ -20,7 +20,7 @@ const settings = (mode: Schemas["CostMode"]): Schemas["CostSettings"] => ({
   mode, currency: "USD", timeZone: "America/New_York", warnPercent: 80, defaultBudget: null, revision: 4, updatedAt: "2026-09-20T10:00:00Z",
 });
 
-const byKind = (chat: string) => ({ chat, embedding: "0.000000", systemone: "0.000000", moderation: "0.000000" });
+const byKind = (chat: string) => ({ chat, embedding: "0.000000", systemone: "0.000000", moderation: "0.000000", ocr: "0.000000" });
 
 const row = (key: string, label: string, spend: string, extra: Partial<Schemas["CostReportRow"]> = {}): Schemas["CostReportRow"] => ({
   key, label, deleted: false, spend, byKind: byKind(spend), tokens: 1200, requests: 0, unpriced: false, ...extra,

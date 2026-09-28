@@ -33,7 +33,7 @@ export const modelPricesQuery = (modelId: string) => ({
 });
 
 /** Whether models of a kind are priced (rerank models aren't). */
-export const isPricedKind = (kind: string) => ["chat", "embedding", "systemone", "moderation"].includes(kind);
+export const isPricedKind = (kind: string) => ["chat", "embedding", "systemone", "moderation", "vision"].includes(kind);
 
 export function ModelPricingSection({ modelId, isAdmin }: { modelId: string; isAdmin: boolean }) {
   const q = useQuery(modelPricesQuery(modelId));

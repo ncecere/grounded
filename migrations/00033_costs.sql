@@ -45,7 +45,8 @@ CREATE TABLE model_prices (
     -- The usage ledger kind priced. Tokens are priced per million, requests
     -- per request.
     unit           text          NOT NULL CHECK (unit IN ('chat_tokens_in', 'chat_tokens_out', 'embed_tokens',
-                                                          'systemone_tokens', 'systemone_requests', 'moderation_requests')),
+                                                          'systemone_tokens', 'systemone_requests', 'moderation_requests',
+                                                          'vision_tokens_in', 'vision_tokens_out')),
     price          numeric(20,6) NOT NULL CHECK (price >= 0),
     -- The first local day (platform time zone) the price applies to.
     effective_from date          NOT NULL,

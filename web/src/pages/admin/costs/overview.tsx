@@ -99,7 +99,7 @@ function DailySpend({ report, currency }: { report: Report; currency: string }) 
   return (
     <Card
       title="Spend per day"
-      description="Chat, embedding, SystemOne and moderation spend each day. The table lists the days with spend."
+      description="Chat, embedding, SystemOne, moderation and OCR spend each day. The table lists the days with spend."
       actions={<CsvButton from={report.from} to={report.to} groupBy="day" what="spend per day" />}
     >
       {spent.length === 0 ? (
@@ -108,7 +108,7 @@ function DailySpend({ report, currency }: { report: Report; currency: string }) 
         <div className={c.chartBody}>
           <BarChart
             layout="stack"
-            data={report.rows.map((r) => ({ label: dayLabel(r.key), values: { chat: Number(r.byKind.chat), embedding: Number(r.byKind.embedding), systemone: Number(r.byKind.systemone), moderation: Number(r.byKind.moderation) } }))}
+            data={report.rows.map((r) => ({ label: dayLabel(r.key), values: Object.fromEntries(categories.map((k) => [k.key, Number(r.byKind[k.key])])) as Record<(typeof categories)[number]["key"], number> }))}
             series={categories.map((k) => ({ key: k.key, label: k.label, tone: k.tone }))}
             formatValue={(v) => formatMoney(String(v), currency)}
             summary={summary}

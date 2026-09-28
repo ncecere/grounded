@@ -2228,6 +2228,8 @@ const (
 	ModerationRequests PriceUnit = "moderation_requests"
 	SystemoneRequests  PriceUnit = "systemone_requests"
 	SystemoneTokens    PriceUnit = "systemone_tokens"
+	VisionTokensIn     PriceUnit = "vision_tokens_in"
+	VisionTokensOut    PriceUnit = "vision_tokens_out"
 )
 
 // Valid indicates whether the value is a known member of the PriceUnit enum.
@@ -2244,6 +2246,10 @@ func (e PriceUnit) Valid() bool {
 	case SystemoneRequests:
 		return true
 	case SystemoneTokens:
+		return true
+	case VisionTokensIn:
+		return true
+	case VisionTokensOut:
 		return true
 	default:
 		return false
@@ -4663,6 +4669,11 @@ type CostByKind struct {
 	//
 	// Example: 12.500000
 	Moderation Money `json:"moderation"`
+
+	// Ocr An exact decimal amount in the platform currency (never a float), with six decimals
+	//
+	// Example: 12.500000
+	Ocr Money `json:"ocr"`
 
 	// Systemone An exact decimal amount in the platform currency (never a float), with six decimals
 	//

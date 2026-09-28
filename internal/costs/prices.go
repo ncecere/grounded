@@ -28,16 +28,17 @@ var kindUnits = map[string][]string{
 	"embedding":  {UnitEmbed},
 	"systemone":  {UnitSystemOneTokens, UnitSystemOneRequests},
 	"moderation": {UnitModeration},
+	"vision":     {UnitVisionIn, UnitVisionOut},
 }
 
 // PricedUnits are every priced ledger kind.
-var PricedUnits = []string{UnitChatIn, UnitChatOut, UnitEmbed, UnitSystemOneTokens, UnitSystemOneRequests, UnitModeration}
+var PricedUnits = []string{UnitChatIn, UnitChatOut, UnitEmbed, UnitSystemOneTokens, UnitSystemOneRequests, UnitModeration, UnitVisionIn, UnitVisionOut}
 
 // UnitsFor lists the units a model of this kind is priced in (none for
 // kinds that aren't priced, such as rerank).
 func UnitsFor(kind string) []string { return append([]string(nil), kindUnits[kind]...) }
 
-// Category groups units for reports: chat, embedding, systemone, moderation.
+// Category groups units for reports: chat, embedding, systemone, moderation, ocr.
 func Category(unit string) string {
 	switch unit {
 	case UnitChatIn, UnitChatOut:
@@ -46,6 +47,8 @@ func Category(unit string) string {
 		return "embedding"
 	case UnitSystemOneTokens, UnitSystemOneRequests:
 		return "systemone"
+	case UnitVisionIn, UnitVisionOut:
+		return "ocr"
 	}
 	return "moderation"
 }

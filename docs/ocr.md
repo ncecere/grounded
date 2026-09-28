@@ -36,7 +36,7 @@ Only backends that are configured can be chosen. Admin → **Parsing** (new page
 
 - **Per document:** at most `OCR_MAX_PAGES_PER_DOCUMENT` pages (default 200); pages beyond it are skipped with a warning.
 - **Per team per day:** a new limit `ocr_pages_per_day` (default 1,000; UTC day, like other daily limits). A document that would pass it waits, like a crawl waiting for tomorrow's page quota, and resumes when the limit is raised.
-- **Usage:** a new ledger kind `ocr_pages` (with the backend), and for a vision model its input and output tokens. With E2, OCR is priced: per page for Tesseract and Tika (a price on the backend), per token for a vision model. A budget at 100% pauses OCR with the rest of ingestion.
+- **Usage:** a new ledger kind `ocr_pages` (with the backend), and for a vision model its input and output tokens. With E2, a vision model's OCR is priced per input and output token like any model (spend category "OCR"). Tesseract and Tika pages are counted (`ocr_pages`) but not priced yet: prices belong to catalog models, and those backends aren't models. A budget at 100% pauses OCR with the rest of ingestion.
 - **Concurrency:** OCR runs inside the ingestion job, with at most `OCR_CONCURRENCY` pages at once per worker (default 2), so it can't starve other ingestion.
 
 ## 5. Per source, and retrying old failures

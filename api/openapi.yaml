@@ -6040,7 +6040,7 @@ components:
       description: "none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused"
     PriceUnit:
       type: string
-      enum: [chat_tokens_in, chat_tokens_out, embed_tokens, systemone_tokens, systemone_requests, moderation_requests]
+      enum: [chat_tokens_in, chat_tokens_out, embed_tokens, systemone_tokens, systemone_requests, moderation_requests, vision_tokens_in, vision_tokens_out]
       description: The usage ledger kind priced; tokens per million, requests per request
     CostSettings:
       type: object
@@ -6137,12 +6137,13 @@ components:
           items: { $ref: "#/components/schemas/CostPriceItem" }
     CostByKind:
       type: object
-      required: [chat, embedding, systemone, moderation]
+      required: [chat, embedding, systemone, moderation, ocr]
       properties:
         chat: { $ref: "#/components/schemas/Money" }
         embedding: { $ref: "#/components/schemas/Money" }
         systemone: { $ref: "#/components/schemas/Money" }
         moderation: { $ref: "#/components/schemas/Money" }
+        ocr: { $ref: "#/components/schemas/Money", description: "A vision model reading scanned pages (docs/ocr.md)" }
     CostTotals:
       type: object
       required: [spend, byKind, tokens, requests, unpriced]

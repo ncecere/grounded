@@ -58,6 +58,9 @@ const (
 	UnitSystemOneTokens   = "systemone_tokens"
 	UnitSystemOneRequests = "systemone_requests"
 	UnitModeration        = "moderation_requests"
+	// A vision model reading scanned pages (OCR, docs/ocr.md).
+	UnitVisionIn  = "vision_tokens_in"
+	UnitVisionOut = "vision_tokens_out"
 )
 
 // CacheTTL is how long a team's month-to-date spend is reused by the budget

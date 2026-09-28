@@ -26,6 +26,7 @@ Admins enter a price per model, per unit the ledger records. Prices are **dated*
 | embedding | tokens (or characters, when the gateway counts characters: the ledger keeps whatever the gateway reports) | `embed_tokens` |
 | systemone | input tokens · per request | `systemone_tokens` · **new** `systemone_requests` |
 | moderation | per request | **new** `moderation_requests` |
+| vision (OCR, [`ocr.md`](ocr.md)) | input tokens · output tokens | `vision_tokens_in` · `vision_tokens_out` |
 
 Two ledger kinds are new: SystemOne's meter already counts requests but only its tokens are written, and moderation calls are not in the ledger today. Usage of a model with no price costs $0 and is flagged **Unpriced** in every report, so a missing price is visible rather than silently free.
 

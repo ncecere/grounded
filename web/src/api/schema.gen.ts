@@ -3634,7 +3634,7 @@ export interface components {
          * @description The usage ledger kind priced; tokens per million, requests per request
          * @enum {string}
          */
-        PriceUnit: "chat_tokens_in" | "chat_tokens_out" | "embed_tokens" | "systemone_tokens" | "systemone_requests" | "moderation_requests";
+        PriceUnit: "chat_tokens_in" | "chat_tokens_out" | "embed_tokens" | "systemone_tokens" | "systemone_requests" | "moderation_requests" | "vision_tokens_in" | "vision_tokens_out";
         CostSettings: {
             mode: components["schemas"]["CostMode"];
             /**
@@ -3723,6 +3723,8 @@ export interface components {
             embedding: components["schemas"]["Money"];
             systemone: components["schemas"]["Money"];
             moderation: components["schemas"]["Money"];
+            /** @description A vision model reading scanned pages (docs/ocr.md) */
+            ocr: components["schemas"]["Money"];
         };
         CostTotals: {
             spend: components["schemas"]["Money"];
