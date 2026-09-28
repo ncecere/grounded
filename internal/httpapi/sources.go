@@ -108,6 +108,20 @@ func toAPISource(s sources.Summary) apitypes.DataSource {
 	return out
 }
 
+// withOCRState adds whether OCR reads the source's scans and images now
+// (a single source's responses: the upload dialog and the Needs OCR retry
+// use it). It is left out when it can't be worked out.
+func (a *api) withOCRState(r *http.Request, out apitypes.DataSource, src dbgen.DataSource) apitypes.DataSource {
+	state, err := a.OCR.State(r.Context(), src)
+	if err != nil {
+		a.Log.WarnContext(r.Context(), "could not work out the source's OCR state", "source", src.ID, "err", err)
+		return out
+	}
+	st := apitypes.DataSourceOcrState(state)
+	out.OcrState = &st
+	return out
+}
+
 func toAPIBoilerplate(b sources.BoilerplateSummary) apitypes.SourceBoilerplate {
 	return apitypes.SourceBoilerplate{
 		Enabled: b.Effective.Enabled, MinDocs: b.Effective.MinDocs, Ratio: b.Effective.Ratio,
@@ -243,7 +257,7 @@ func (a *api) createSource(owner ownerFunc) http.HandlerFunc {
 			return
 		}
 		setETag(w, s.Source.Revision)
-		httpx.JSON(w, http.StatusCreated, toAPISource(s))
+		httpx.JSON(w, http.StatusCreated, a.withOCRState(r, toAPISource(s), s.Source))
 	}
 }
 
@@ -257,7 +271,7 @@ func (a *api) getSource(owner ownerFunc) http.HandlerFunc {
 		if failed(w, r, err) {
 			return
 		}
-		writeRevised(w, http.StatusOK, s.Source.Revision, toAPISource(s))
+		writeRevised(w, http.StatusOK, s.Source.Revision, a.withOCRState(r, toAPISource(s), s.Source))
 	}
 }
 
@@ -296,7 +310,7 @@ func (a *api) updateSource(owner ownerFunc) http.HandlerFunc {
 			return
 		}
 		setETag(w, s.Source.Revision)
-		httpx.JSON(w, http.StatusOK, toAPISource(s))
+		httpx.JSON(w, http.StatusOK, a.withOCRState(r, toAPISource(s), s.Source))
 	}
 }
 

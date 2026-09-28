@@ -8382,6 +8382,13 @@ components:
           allOf: [{ $ref: "#/components/schemas/Crawl" }]
         boilerplate: { $ref: "#/components/schemas/SourceBoilerplate" }
         ocrEnabled: { type: boolean, description: "Pages without text are read with OCR, when the platform has OCR on (docs/ocr.md)" }
+        ocrState:
+          type: string
+          enum: ["on", source_off, platform_off, not_approved]
+          description: >-
+            Whether OCR reads this source's scanned pages and images now, in a single source's responses (not in lists):
+            on; source_off (its switch is off); platform_off (off for the platform, or its OCR backend is unusable);
+            not_approved (the vision model isn't approved for the source's classification)
     BoilerplateSettings:
       type: object
       description: >-

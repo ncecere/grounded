@@ -972,6 +972,30 @@ func (e CrawlStatus) Valid() bool {
 	}
 }
 
+// Defines values for DataSourceOcrState.
+const (
+	DataSourceOcrStateNotApproved DataSourceOcrState = "not_approved"
+	DataSourceOcrStateOn          DataSourceOcrState = "on"
+	DataSourceOcrStatePlatformOff DataSourceOcrState = "platform_off"
+	DataSourceOcrStateSourceOff   DataSourceOcrState = "source_off"
+)
+
+// Valid indicates whether the value is a known member of the DataSourceOcrState enum.
+func (e DataSourceOcrState) Valid() bool {
+	switch e {
+	case DataSourceOcrStateNotApproved:
+		return true
+	case DataSourceOcrStateOn:
+		return true
+	case DataSourceOcrStatePlatformOff:
+		return true
+	case DataSourceOcrStateSourceOff:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DataSourceStatus.
 const (
 	DataSourceStatusActive DataSourceStatus = "active"
@@ -5119,6 +5143,9 @@ type DataSource struct {
 	// OcrEnabled Pages without text are read with OCR, when the platform has OCR on (docs/ocr.md)
 	OcrEnabled bool `json:"ocrEnabled"`
 
+	// OcrState Whether OCR reads this source's scanned pages and images now, in a single source's responses (not in lists): on; source_off (its switch is off); platform_off (off for the platform, or its OCR backend is unusable); not_approved (the vision model isn't approved for the source's classification)
+	OcrState *DataSourceOcrState `json:"ocrState,omitempty"`
+
 	// Revision Increases on every change. Send it back in If-Match.
 	Revision  Revision         `json:"revision"`
 	Status    DataSourceStatus `json:"status"`
@@ -5128,6 +5155,9 @@ type DataSource struct {
 	// Web The web configuration (web sources only)
 	Web *WebConfig `json:"web"`
 }
+
+// DataSourceOcrState Whether OCR reads this source's scanned pages and images now, in a single source's responses (not in lists): on; source_off (its switch is off); platform_off (off for the platform, or its OCR backend is unusable); not_approved (the vision model isn't approved for the source's classification)
+type DataSourceOcrState string
 
 // DataSourceStatus defines model for DataSource.Status.
 type DataSourceStatus string
