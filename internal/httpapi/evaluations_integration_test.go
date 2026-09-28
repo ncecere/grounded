@@ -95,6 +95,17 @@ func TestEvaluationRetrievalRun(t *testing.T) {
 	if len(docs) != 1 || docs[0].Filename != "parking.md" {
 		t.Fatalf("documents = %+v", docs)
 	}
+	// And, before a set exists, for the knowledge base itself; by filename too.
+	docs = nil
+	env.editor.get(env.base+"/evaluation-documents?kbId="+kb.Id.String()+"&q=parking.md", &docs)
+	if len(docs) != 1 || docs[0].Filename != "parking.md" {
+		t.Fatalf("target documents = %+v", docs)
+	}
+	code, e = env.editor.call("GET", env.base+"/evaluation-documents?q=park", nil, nil, nil)
+	mustCode(t, "no target", code, e, 400, "invalid_target")
+	if code, _ := env.member.call("GET", env.base+"/evaluation-documents?q=park&kbId="+kb.Id.String(), nil, nil, nil); code != 404 {
+		t.Errorf("a member's target documents = %d", code)
+	}
 
 	d := env.runEval(t, set, map[string]any{"kind": "retrieval"})
 	s := d.Run.Summary
@@ -208,6 +219,12 @@ func TestEvaluationAnswerRun(t *testing.T) {
 	set := env.newEvalSet(t, map[string]any{"agentId": ag.Id, "name": "Answers"})
 	if set.Target.Type != "agent" || set.Target.Name != "Helper" {
 		t.Fatalf("set = %+v", set)
+	}
+	// The picker searches the agent's knowledge bases, with or without a set.
+	var docs []apitypes.EvaluationDocument
+	env.editor.get(env.base+"/evaluation-documents?agentId="+ag.Id.String()+"&q=park", &docs)
+	if len(docs) != 1 || docs[0].Filename != "parking.md" {
+		t.Fatalf("agent documents = %+v", docs)
 	}
 	env.addQuestion(t, set, qParking, map[string]any{"filenames": []string{"parking.md"}}, "parking")
 	env.addQuestion(t, set, qHousing, map[string]any{"filenames": []string{"housing.md"}}, "helicopter")

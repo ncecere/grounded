@@ -9419,6 +9419,14 @@ type ListTeamConversationsParams struct {
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// ListEvaluationTargetDocumentsParams defines parameters for ListEvaluationTargetDocuments.
+type ListEvaluationTargetDocumentsParams struct {
+	KbId    *openapi_types.UUID `form:"kbId,omitempty" json:"kbId,omitempty"`
+	AgentId *openapi_types.UUID `form:"agentId,omitempty" json:"agentId,omitempty"`
+	Q       *string             `form:"q,omitempty" json:"q,omitempty"`
+	Limit   *int                `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // ListEvaluationSetsParams defines parameters for ListEvaluationSets.
 type ListEvaluationSetsParams struct {
 	KbId    *openapi_types.UUID `form:"kbId,omitempty" json:"kbId,omitempty"`

@@ -5982,6 +5982,49 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/EvaluationDocument" }
         "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-documents:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+    get:
+      tags: [evaluations]
+      operationId: listEvaluationTargetDocuments
+      summary: Documents of a knowledge base or an agent's knowledge bases by title, filename or URL, before it has a set (editors, admins and owners)
+      description: >-
+        The expected-documents picker of "Add to evaluations" when the
+        question goes into a new set: the documents the set's questions
+        could expect, the same as the set's own /documents once it exists.
+        Give exactly one of kbId and agentId, of this team.
+      parameters:
+        - name: kbId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: agentId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        "200":
+          description: Documents, by title
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/EvaluationDocument" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/evaluation-sets/{setId}/runs:
     parameters:
       - $ref: "#/components/parameters/TeamParam"

@@ -3768,6 +3768,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/evaluation-documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Documents of a knowledge base or an agent's knowledge bases by title, filename or URL, before it has a set (editors, admins and owners)
+         * @description The expected-documents picker of "Add to evaluations" when the question goes into a new set: the documents the set's questions could expect, the same as the set's own /documents once it exists. Give exactly one of kbId and agentId, of this team.
+         */
+        get: operations["listEvaluationTargetDocuments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}/evaluation-sets/{setId}/runs": {
         parameters: {
             query?: never;
@@ -16051,6 +16074,38 @@ export interface operations {
                     };
                 };
             };
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    listEvaluationTargetDocuments: {
+        parameters: {
+            query?: {
+                kbId?: string;
+                agentId?: string;
+                q?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Documents, by title */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationDocument"][];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
         };
     };
