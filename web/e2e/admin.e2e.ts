@@ -70,6 +70,17 @@ test("limits: save, and the unsaved-changes guard", async ({ as, admin, a11y }) 
   await a11y(page);
 });
 
+test("parsing: OCR is off by default, with each backend's state", async ({ as, a11y }) => {
+  // Read-only here: turning OCR on changes the whole platform.
+  const page = await as("admin");
+  await page.goto("/admin/parsing");
+  await expect(page.getByRole("heading", { level: 1, name: "Parsing" })).toBeVisible();
+  await expect(page.getByRole("switch", { name: /Read scanned pages and images with OCR/ })).not.toBeChecked();
+  await expect(page.getByText("Not configured: set OCR_TESSERACT_URL.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Test" })).toBeVisible();
+  await a11y(page);
+});
+
 test("retention dry run, and a legal hold placed and released", async ({ as, admin, a11y }) => {
   const owner = await Api.signIn("casey");
   const team = await createTeam(admin, owner, { prefix: "hold" });
