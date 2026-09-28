@@ -24,6 +24,7 @@ import { decimal, kindLabels, missingText, pct, resultStatus, runStatus, trigger
 import { rankText } from "./result-detail";
 import { type EvalResult, type EvalRun, type EvalSet, active, evalRunsKey, evalSetKey, useEvalRun } from "./queries";
 import e from "./evaluations.module.css";
+import { formatDate } from "@/lib/format";
 
 const statusFacet: Facet<EvalResult>[] = [
   {
@@ -90,7 +91,7 @@ export function RunRecord({ set, runs }: { set: EvalSet; runs: EvalRun[] }) {
     <RecordPage
       open={Boolean(record.id)}
       onClose={record.close}
-      title={run ? `${kindLabels[run.kind]}, ${new Date(run.createdAt).toLocaleString()}` : "Run"}
+      title={run ? `${kindLabels[run.kind]}, ${formatDate(run.createdAt)}` : "Run"}
       label="Run"
       meta={run && <StatusBadge tone={runStatus[run.status].tone} pulse={active(run)}>{runStatus[run.status].label}</StatusBadge>}
       description={`A run of ${set.name}.`}

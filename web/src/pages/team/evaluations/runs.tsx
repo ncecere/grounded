@@ -17,6 +17,7 @@ import { ScoreChart } from "./chart";
 import { decimal, kindLabels, pct, runStatus, triggerLabels } from "./labels";
 import { type EvalRun, type EvalSet, active, useEvalRuns } from "./queries";
 import { RunRecord } from "./run-record";
+import { formatDate } from "@/lib/format";
 
 const kindFacet: Facet<EvalRun>[] = [
   {
@@ -67,7 +68,7 @@ export function RunsTab({ set, onRun }: { set: EvalSet; onRun: () => void }) {
         columns={columns}
         data={list}
         getRowId={(r) => r.id}
-        rowLabel={(r) => `${kindLabels[r.kind]}, ${new Date(r.createdAt).toLocaleString()}`}
+        rowLabel={(r) => `${kindLabels[r.kind]}, ${formatDate(r.createdAt)}`}
         facets={kindFacet}
         onRowClick={(r) => record.open(r.id)}
         rowActions={(r) => [{ label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(r.id) }]}
