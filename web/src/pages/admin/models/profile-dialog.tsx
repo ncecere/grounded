@@ -1,7 +1,7 @@
 /* Creating an embedding profile, and editing a profile's default fusion weights. */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Cpu } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
 import { FormDialog } from "@/components/form-dialog";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
@@ -20,7 +20,18 @@ import { useLevelName } from "../../team/common";
 import type { FusionForm } from "../../team/kbs/fusion-form";
 import s from "../../shared.module.css";
 import { type Model, type Profile, useModels } from "./common";
-import { initialProfileForm, profileBody, profileErrors, profileFusionForm, profileFusionPatch, type ProfileForm } from "./profile-form";
+import {
+  initialProfileForm,
+  missingPrefixes,
+  prefillPrefixes,
+  type PrefixHint,
+  profileBody,
+  profileErrors,
+  profileFusionForm,
+  profileFusionPatch,
+  type ProfileForm,
+  recommendedPrefixes,
+} from "./profile-form";
 
 type SetField = <K extends keyof ProfileForm>(k: K, v: ProfileForm[K]) => void;
 type Errors = ReturnType<typeof profileErrors>;
@@ -30,10 +41,18 @@ export function ProfileDialog({ onClose }: { onClose: () => void }) {
   const formId = useId();
   const models = useModels();
   const embedding = (models.data ?? []).filter((x) => x.kind === "embedding" && x.enabled);
-  const [form, set] = useFormState(initialProfileForm);
+  const [form, set, setForm] = useFormState(initialProfileForm);
   const [submitted, setSubmitted] = useState(false);
   const modelId = form.modelId || embedding[0]?.id || "";
   const selected = embedding.find((x) => x.id === modelId);
+  // A model with known prefixes (nomic, Qwen3-Embedding) fills them in; ones typed by hand stay (G7).
+  const hint = recommendedPrefixes(selected);
+  const lastHint = useRef<PrefixHint | undefined>(undefined);
+  useEffect(() => {
+    const prev = lastHint.current;
+    lastHint.current = hint;
+    if (prev !== hint) setForm((f) => prefillPrefixes(f, prev, hint));
+  }, [hint, setForm]);
   const errors = profileErrors(form, selected?.dimensions ?? undefined);
   const save = useMutation({
     mutationFn: async () => unwrap(await api.POST("/v1/admin/embedding-profiles", { body: profileBody(form, modelId) })),
@@ -76,6 +95,7 @@ export function ProfileDialog({ onClose }: { onClose: () => void }) {
           }}
         >
           <ProfileFields form={form} set={set} embedding={embedding} selected={selected} errors={submitted ? errors : {}} />
+          <PrefixWarning form={form} hint={hint} onUse={() => setForm((f) => ({ ...f, documentPrefix: hint!.documentPrefix, queryPrefix: hint!.queryPrefix }))} />
           <FusionDefaultsFields value={form.fusion} onChange={(f) => set("fusion", f)} errors={submitted ? errors : {}} />
           <Checkbox label="Make this the default profile" checked={form.isDefault} onCheckedChange={(v) => set("isDefault", v)} />
           <ErrorAlert error={save.error} />
@@ -120,10 +140,10 @@ function ProfileFields({ form, set, embedding, selected, errors }: FieldsProps) 
       >
         <NumberInput maximumFractionDigits={0} value={form.outputDimensions} onValueChange={(v) => set("outputDimensions", v)} />
       </Field>
-      <Field label="Document prefix" description='Some models need one, e.g. "search_document: " for nomic.'>
+      <Field label="Document prefix" description='Some models need one, e.g. "search_document: " for nomic. Filled in for models with known prefixes.'>
         <Input value={form.documentPrefix} onChange={(e) => set("documentPrefix", e.target.value)} />
       </Field>
-      <Field label="Query prefix" description='e.g. "search_query: " for nomic, or "Instruct: <task>\nQuery: " for Qwen3-Embedding.'>
+      <Field label="Query prefix" description='e.g. "search_query: " for nomic, or "Instruct: <task>\nQuery: " for Qwen3-Embedding. Filled in for models with known prefixes.'>
         <Textarea rows={2} value={form.queryPrefix} onChange={(e) => set("queryPrefix", e.target.value)} />
       </Field>
       <Field label="Passage size (tokens)">
@@ -136,6 +156,24 @@ function ProfileFields({ form, set, embedding, selected, errors }: FieldsProps) 
         <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} />
       </Field>
     </div>
+  );
+}
+
+/** Recommended prefixes left empty: retrieval with this model gets worse without them. */
+function PrefixWarning({ form, hint, onUse }: { form: ProfileForm; hint?: PrefixHint; onUse: () => void }) {
+  const missing = missingPrefixes(form, hint);
+  if (!hint || missing.length === 0) return null;
+  const show = (v: string) => JSON.stringify(v);
+  return (
+    <Alert tone="warning" title={`${hint.family} expects ${missing.length === 2 ? "prefixes" : `a ${missing[0]} prefix`}`}>
+      <p>
+        {[hint.documentPrefix && `Documents: ${show(hint.documentPrefix)}`, hint.queryPrefix && `Queries: ${show(hint.queryPrefix)}`].filter(Boolean).join(". ")}. Without
+        them, search results are usually worse. Leave them empty only if your gateway adds them.
+      </p>
+      <Button size="sm" variant="secondary" onClick={onUse}>
+        Use the recommended prefixes
+      </Button>
+    </Alert>
   );
 }
 

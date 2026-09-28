@@ -22,6 +22,47 @@ export type ProfileForm = typeof initialProfileForm;
 
 const storageLimit = { halfvec: 4000, vector: 2000 };
 
+/** The prefixes a model family was trained with (G7). */
+export type PrefixHint = { family: string; documentPrefix: string; queryPrefix: string };
+
+const prefixHints: { match: RegExp; hint: PrefixHint }[] = [
+  { match: /nomic-embed/i, hint: { family: "nomic-embed", documentPrefix: "search_document: ", queryPrefix: "search_query: " } },
+  // Qwen3-Embedding instructs queries only; documents go in as they are.
+  {
+    match: /qwen3?[-_ ]?embed/i,
+    hint: { family: "Qwen3-Embedding", documentPrefix: "", queryPrefix: "Instruct: Given a question, retrieve passages that answer it\nQuery: " },
+  },
+];
+
+/** The recommended prefixes for a model, from its upstream name, key or display name; undefined when none are known. */
+export function recommendedPrefixes(model: { upstreamModel?: string; key?: string; displayName?: string } | undefined): PrefixHint | undefined {
+  if (!model) return undefined;
+  const names = [model.upstreamModel, model.key, model.displayName].filter(Boolean).join(" ");
+  return prefixHints.find((p) => p.match.test(names))?.hint;
+}
+
+/**
+ * The prefixes after choosing a model: a field left empty, or still holding
+ * the previous model's recommendation, takes the new one; typed ones stay.
+ */
+export function prefillPrefixes<F extends Pick<ProfileForm, "documentPrefix" | "queryPrefix">>(form: F, prev: PrefixHint | undefined, next: PrefixHint | undefined): F {
+  const untouched = (v: string, p: string | undefined) => v === "" || v === p;
+  return {
+    ...form,
+    documentPrefix: untouched(form.documentPrefix, prev?.documentPrefix) ? (next?.documentPrefix ?? "") : form.documentPrefix,
+    queryPrefix: untouched(form.queryPrefix, prev?.queryPrefix) ? (next?.queryPrefix ?? "") : form.queryPrefix,
+  };
+}
+
+/** The recommended prefixes the form leaves empty (a warning), or []. */
+export function missingPrefixes(form: Pick<ProfileForm, "documentPrefix" | "queryPrefix">, hint: PrefixHint | undefined): ("document" | "query")[] {
+  if (!hint) return [];
+  const out: ("document" | "query")[] = [];
+  if (hint.documentPrefix && !form.documentPrefix) out.push("document");
+  if (hint.queryPrefix && !form.queryPrefix) out.push("query");
+  return out;
+}
+
 /** Field errors, or {} when the form can be sent. modelDims is the chosen model's dimensions. */
 export function profileErrors(form: ProfileForm, modelDims: number | undefined): { outputDimensions?: string; vector?: string; keyword?: string; fusion?: string } {
   const out: ReturnType<typeof profileErrors> = {};

@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
-import { initialProfileForm, profileBody, profileErrors, profileFusionForm, profileFusionPatch } from "../pages/admin/models/profile-form";
+import { initialProfileForm, missingPrefixes, prefillPrefixes, profileBody, profileErrors, profileFusionForm, profileFusionPatch, recommendedPrefixes } from "../pages/admin/models/profile-form";
 import { TeamContext, teamCtx } from "../pages/team/common";
 import { KBSettings } from "../pages/team/kbs/settings";
 import { mockApi, renderApp, renderBare, shellRoutes, team } from "./harness";
@@ -102,7 +102,13 @@ describe("embedding profile output dimensions and fusion defaults", () => {
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Key" }), "qwen");
     const dims = within(dialog).getByRole("textbox", { name: /Output dimensions/ });
     await userEvent.type(dims, "3000");
-    await userEvent.type(within(dialog).getByRole("textbox", { name: "Query prefix" }), "Instruct: find{Enter}Query: ");
+    // Qwen3-Embedding: its query instruction is filled in (G7); an edit replaces it.
+    const query = within(dialog).getByRole("textbox", { name: "Query prefix" });
+    expect(query).toHaveValue("Instruct: Given a question, retrieve passages that answer it\nQuery: ");
+    await userEvent.clear(query);
+    expect(within(dialog).getByText("Qwen3-Embedding expects a query prefix")).toBeInTheDocument();
+    await userEvent.type(query, "Instruct: find{Enter}Query: ");
+    expect(within(dialog).queryByText(/expects a query prefix/)).toBeNull();
     await userEvent.click(within(dialog).getByRole("switch", { name: /platform fusion weights/ }));
     const keyword = within(dialog).getByRole("textbox", { name: "Default keyword weight" });
     await userEvent.clear(keyword);
@@ -145,6 +151,39 @@ describe("embedding profile output dimensions and fusion defaults", () => {
     const patch = calls.find((c) => c.method === "PATCH")!;
     expect(patch.body).toEqual({ usePlatformFusionWeights: true });
     expect(patch.headers.get("If-Match")).toBe('"3"');
+  });
+
+  it("fills in and warns about known models' prefixes (G7)", async () => {
+    const nomic = { ...embed, id: "m3", key: "nomic", upstreamModel: "nomic-embed-text-v1.5", displayName: "Nomic", dimensions: 768 };
+    mockApi({ ...shellRoutes("platform_admin"), "GET /v1/admin/models": () => [nomic, embed], "GET /v1/admin/embedding-profiles": () => [] });
+    renderApp("/admin/embedding-profiles");
+    await userEvent.click(await screen.findByRole("button", { name: "Add profile" }));
+    const dialog = await screen.findByRole("dialog");
+    const doc = await within(dialog).findByRole("textbox", { name: "Document prefix" });
+    const query = within(dialog).getByRole("textbox", { name: "Query prefix" });
+    await waitFor(() => expect(doc).toHaveValue("search_document: "));
+    expect(query).toHaveValue("search_query: ");
+    // Emptied by hand: a warning with a way back.
+    await userEvent.clear(doc);
+    await userEvent.clear(query);
+    expect(within(dialog).getByText("nomic-embed expects prefixes")).toBeInTheDocument();
+    expect(await axe(dialog)).toHaveNoViolations();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Use the recommended prefixes" }));
+    expect(doc).toHaveValue("search_document: ");
+    // Another model replaces the recommendation it didn't type.
+    await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Embedding model" }), "m2");
+    expect(doc).toHaveValue("");
+    expect(query).toHaveValue("Instruct: Given a question, retrieve passages that answer it\nQuery: ");
+  });
+
+  it("knows the prefixes of nomic and Qwen3 embedding models", () => {
+    const nomic = recommendedPrefixes({ upstreamModel: "nomic-ai/nomic-embed-text-v1.5" })!;
+    expect(nomic).toMatchObject({ documentPrefix: "search_document: ", queryPrefix: "search_query: " });
+    expect(recommendedPrefixes({ upstreamModel: "Qwen/Qwen3-Embedding-8B" })?.documentPrefix).toBe("");
+    expect(recommendedPrefixes({ upstreamModel: "text-embedding-3-large" })).toBeUndefined();
+    expect(prefillPrefixes({ documentPrefix: "mine: ", queryPrefix: "" }, undefined, nomic)).toEqual({ documentPrefix: "mine: ", queryPrefix: "search_query: " });
+    expect(prefillPrefixes({ documentPrefix: "search_document: ", queryPrefix: "search_query: " }, nomic, undefined)).toEqual({ documentPrefix: "", queryPrefix: "" });
+    expect(missingPrefixes({ documentPrefix: "", queryPrefix: "search_query: " }, nomic)).toEqual(["document"]);
   });
 
   it("builds and checks the profile body", () => {
