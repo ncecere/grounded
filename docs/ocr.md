@@ -67,6 +67,7 @@ A fixture PDF with a scanned page and a fully scanned PDF (generated in the test
 1. ~~The Tesseract sidecar?~~ **Our own `grounded-ocr` image** (owner, 2026-09-28), built, signed and released with Grounded (§3).
 2. ~~Image files as documents?~~ **Yes, uploads of PNG, JPEG and single-page TIFF** (owner, 2026-09-28): each is a one-page document read with OCR; refused with a clear message where OCR is off; the crawler still ignores images; multi-page TIFF later.
 3. ~~The vision-model backend?~~ **In v0.2** (owner, 2026-09-28), tested against the fake gateway; the reference install keeps Tesseract until a vision model runs on the Spark.
+4. ~~A price for Tesseract and Tika pages?~~ **No** (owner, 2026-09-28): they run on the operator's own hardware, so their pages are counted (`ocr_pages`) but not priced; a vision model is priced per token like any model.
 
 ## 10. Implementation notes (B4, v0.2)
 
