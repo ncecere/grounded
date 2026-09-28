@@ -48,7 +48,7 @@ export function RecentChanges() {
             <li key={e.id}>
               <Link to="/teams/$team/settings" params={{ team }} search={{ tab: "audit", record: e.id } as { tab: "audit" }} className={o.change}>
                 <span className={o.changeText}>
-                  <span className={o.changeWho}>{actorName(e.actor)}</span>
+                  <span className={o.changeWho}>{actorName(e.actor, e)}</span>
                   <span className={o.changeSep}>·</span>
                   <span>{actionLabel(e.action)}</span>
                   {(e.targetLabel || e.targetType) && (

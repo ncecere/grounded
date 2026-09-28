@@ -43,7 +43,7 @@ export function RecentChanges() {
                   {e.targetLabel ? `: ${e.targetLabel}` : ""}
                 </ItemTitle>
                 <ItemDescription>
-                  {actorName(e.actor)} · {targetTypeLabel(e.targetType)} · <RelativeTime value={e.occurredAt} />
+                  {actorName(e.actor, e)} · {targetTypeLabel(e.targetType)} · <RelativeTime value={e.occurredAt} />
                 </ItemDescription>
               </ItemContent>
             </Item>

@@ -89,6 +89,58 @@ describe("admin logs", () => {
     expect(within(sheet).getByText("req-1")).toBeInTheDocument();
   });
 
+  it("names the team, says which group mapping rule made a change, and dates the entry (G13)", async () => {
+    const sso = entry(514, "team.member_role_change", {
+      actorKind: "system",
+      actor: { kind: "system" },
+      actorUserId: null,
+      teamId: "t9",
+      teamName: "Academic Advising",
+      teamSlug: "advising",
+      targetType: "user",
+      targetId: "u7",
+      targetLabel: "Casey Dev",
+      before: { role: "member" },
+      after: { role: "editor" },
+      metadata: { via: "sso_group_rule", trigger: "sign_in", group: "advising-staff", ruleId: "r1" },
+    });
+    const settingsEntry = entry(533, "costs.settings_update", { targetType: "cost_settings", targetId: "platform", targetLabel: "Cost settings" });
+    mockApi({
+      ...shellRoutes("platform_auditor"),
+      "GET /v1/admin/users": () => users,
+      "GET /v1/admin/costs/settings": () => ({ currency: "USD" }),
+      "GET /v1/admin/audit": () => ({ items: [sso, settingsEntry], nextCursor: null }),
+    });
+    const { container } = renderApp("/admin/logs");
+    const table = await screen.findByRole("table", { name: "Audit log" }, { timeout: 4000 });
+    const row = (await within(table).findByText("Changed member role")).closest("tr")!;
+    expect(row).toHaveTextContent("System (group mapping: advising-staff → Academic Advising)");
+    expect(within(row).getByRole("link", { name: "Academic Advising" })).toHaveAttribute("href", "/admin/teams/advising");
+    // A settings entry names its target once.
+    const settingsRow = within(table).getByText("Changed cost settings").closest("tr")!;
+    expect(within(settingsRow).getAllByText("Cost settings")).toHaveLength(1);
+    await userEvent.click(within(table).getByRole("button", { name: /Actions for Changed member role/ }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
+    const page = await screen.findByRole("region", { name: "Changed member role" });
+    expect(within(page).getByText("Academic Advising")).toBeInTheDocument();
+    expect(within(page).getByText(/Sep 26, 2026/)).toBeInTheDocument();
+    expect(within(page).getByRole("table", { name: "What changed: Changed member role" })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("offers Evaluations and Group mapping in the Action filter", async () => {
+    const calls = mockApi({
+      ...shellRoutes("platform_auditor"),
+      "GET /v1/admin/users": () => users,
+      "GET /v1/admin/audit": () => ({ items: [], nextCursor: null }),
+    });
+    renderApp("/admin/logs?action=group_mapping.");
+    await screen.findByRole("table", { name: "Audit log" });
+    await waitFor(() => expect(calls.find((c) => c.url === "/v1/admin/audit")?.search.get("action")).toBe("group_mapping."));
+    const { actionGroups } = await import("../components/audit/labels");
+    expect(actionGroups.map((g) => g.label)).toEqual(expect.arrayContaining(["Evaluations", "Group mapping"]));
+  });
+
   it("filters the access log by agent and channel", async () => {
     const calls = mockApi({
       ...shellRoutes("platform_auditor"),

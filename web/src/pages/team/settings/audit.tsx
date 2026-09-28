@@ -82,7 +82,7 @@ export function TeamAuditLog() {
 
   const columns: DataTableColumn<Entry>[] = [
     { id: "when", header: "When", accessor: (e) => new Date(e.occurredAt), cell: (e) => <RelativeTime value={e.occurredAt} /> },
-    { id: "who", header: "Who", accessor: (e) => actorName(e.actor), cell: (e) => <CellText primary={actorName(e.actor)} secondary={who(e)} /> },
+    { id: "who", header: "Who", accessor: (e) => actorName(e.actor, e), cell: (e) => <CellText primary={actorName(e.actor, e)} secondary={who(e)} /> },
     { id: "action", header: "Action", accessor: (e) => actionLabel(e.action), rowHeader: true, cell: (e) => <span className={s.primary}>{actionLabel(e.action)}</span> },
     { id: "target", header: "Target", accessor: (e) => e.targetLabel ?? e.targetType, cell: (e) => <AuditTarget entry={e} scope={{ ...scope, member: Boolean(role) }} /> },
   ];
@@ -134,7 +134,7 @@ function AuditEntryPage({ id, loaded, onClose }: { id?: string; loaded?: Entry; 
         e
           ? [
               { label: "When", value: <Time value={e.occurredAt} format="datetime" /> },
-              { label: "Who", value: [actorName(e.actor), who(e)].filter(Boolean).join(" · ") },
+              { label: "Who", value: [actorName(e.actor, e), who(e)].filter(Boolean).join(" · ") },
               { label: "Action", value: <code className={s.mono}>{e.action}</code> },
               { label: "Target", value: <AuditTarget entry={e} scope={{ kind: "team", team, member: Boolean(role) }} /> },
               { label: "Request", value: e.requestId ? <code className={s.mono}>{e.requestId}</code> : undefined },

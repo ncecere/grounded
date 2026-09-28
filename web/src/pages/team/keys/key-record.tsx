@@ -9,7 +9,6 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { membersKey } from "@/components/members";
-import { RelativeTime } from "@/components/templates/list-page";
 import { RecordPage } from "@/components/templates/record-page";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
@@ -105,15 +104,15 @@ export function KeyRecordPage({ k, open, loading, onClose, kbName, agentName, on
       facts={
         k
           ? [
-              ...(k.revokedAt ? [{ label: "Revoked", value: <RelativeTime value={k.revokedAt} /> }] : []),
+              ...(k.revokedAt ? [{ label: "Revoked", value: <Time value={k.revokedAt} format="datetime" /> }] : []),
               { label: "Type", value: k.kind === "service" ? "Team service key" : "Personal key" },
               { label: "Key", value: <code className={s.mono}>{k.prefix}</code> },
               { label: k.kind === "service" ? "Responsible contact" : "Owner", value: personName(k)?.replace(/^Contact: /, "") ?? "Unknown" },
               { label: "Knowledge bases", value: list(k.knowledgeBaseIds, kbName, "Every knowledge base of the team") },
               { label: "Agents", value: list(k.agentIds, agentName, "Every agent of the team") },
               { label: "Expires", value: <ExpiryBadge k={k} /> },
-              { label: "Last used", value: k.lastUsedAt ? <RelativeTime value={k.lastUsedAt} /> : "Never" },
-              { label: "Created", value: <RelativeTime value={k.createdAt} /> },
+              { label: "Last used", value: k.lastUsedAt ? <Time value={k.lastUsedAt} format="datetime" /> : "Never" },
+              { label: "Created", value: <Time value={k.createdAt} format="datetime" /> },
             ]
           : []
       }

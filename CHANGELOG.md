@@ -45,6 +45,9 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are 
 - The agent's Settings tab shows the "Live" badge only for a published agent, and says what that means: these settings aren't part of versions, so saved changes reach people at once. An unpublished agent says nobody can chat with it until it's published (C13).
 - Build → Knowledge: the **Inherit** button shows the knowledge base's value ("Inherit (8)") and its accessible name starts with that text (WCAG 2.5.3), and an out-of-range results per search says "Enter a whole number from 1 to 20." next to the field, linked to it (C14).
 - Changing a page's tab drops what was open on the last one (`?record=`, `?form=`, the agent's `?test=open`).
+- The audit log's Action filter has **Evaluations** and **Group mapping** (the rules' changes and the memberships they made; API `action=group_mapping.`). Team entries name their team, in the platform list and on the entry's page (`teamName`, `teamSlug` in `AuditEntry`), and a change a group mapping rule made says "System (group mapping: advising-staff → Academic Advising)".
+- Audit changes read in words: money in the platform currency, months ("September 2026") and days, price units by name, no internal ids, and "Not set" for every missing value. A revoked API key shows as revoked instead of eight removed fields, and the diff is captioned "What changed: …". A settings entry names its target once, and a group mapping rule's entry opens its team's Group mapping tab.
+- Record pages show absolute dates: a document's Added and Updated, an admin audit entry's When, and an API key's Created, Last used and Revoked (G13).
 
 ## [0.1.0] - 2026-09-28
 
