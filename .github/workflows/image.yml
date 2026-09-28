@@ -81,6 +81,21 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # A release image must call itself by its tag: v0.1.0 shipped reporting
+      # "v0.1". Runs before the scan and signing, so a wrong label never ships.
+      - name: Check the built version (tags)
+        if: github.ref_type == 'tag'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          got=$(docker run --rm "${IMAGE}@${DIGEST}" version)
+          echo "grounded version: ${got}"
+          case "${got}" in
+            "grounded ${TAG} ("*) ;;
+            *) echo "::error::the image reports '${got}', not ${TAG}"; exit 1 ;;
+          esac
+
       - name: Scan image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:

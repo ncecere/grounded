@@ -173,7 +173,7 @@ Phase 5 ended in **v0.1.0**: rc.1 and rc.2 ran on the reference install, a walkt
 
 ## v0.2 scope (owner decisions, 2026-09-28)
 
-The spec is [`v0.2.md`](v0.2.md).
+The spec is [`v0.2.0.md`](v0.2.0.md).
 
 | Item | Decision |
 |---|---|
