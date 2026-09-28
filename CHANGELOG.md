@@ -9,6 +9,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 - The command palette (⌘K) finds objects by name on the server (`GET /v1/search`, E15): the agents, knowledge bases and data sources of all your teams (no longer only the first ten), agents you may chat with, and your own conversations by title; platform admins and auditors also find teams, users, models, connections, embedding profiles and shared sources, which open their admin pages. Results are ranked by how the name matches (prefix, word start, anywhere) and only include what the caller may see. A migration adds trigram indexes for the searched names.
 - SSO group mapping (E1): platform admins map an identity-provider group to a team role under **Admin → Group mapping** (and a team's **Group mapping** tab). At each OIDC sign-in the groups claim (`OIDC_GROUPS_CLAIM`, default `groups`) adds members or raises their role, and lowers or removes the memberships the mapping created; memberships added by hand are never changed, the highest role wins, and a team's last owner is kept. A dry run shows who a rule change affects, from each person's groups at their last sign-in; saving applies it at once. Every change is audited with the system as the actor. Owners see "Managed by SSO group X" and can't remove such members by hand. `DEV_AUTH_GROUPS` gives development personas groups; `grounded doctor` warns when rules exist but no sign-in carries the claim. Runbook: [`docs/operations/sso-groups.md`](docs/operations/sso-groups.md). Migration `00032_sso_group_mapping.sql`.
+Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). Release notes will be in `docs/releases/v0.2.0.md`.
+
+### Changed
+- CI: a tag build fails, before the image is scanned and signed, unless the built image reports exactly its tag (`grounded v0.2.0 (<commit>)`).
+
+### Fixed
+- Release images take the full git tag as their version: v0.1.0's binary reported `v0.1`.
 
 ## [0.1.0] - 2026-09-28
 
@@ -107,4 +114,5 @@ Development before this release happened in a private repository. The public rep
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
 
+[Unreleased]: https://github.com/ncecere/grounded/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/ncecere/grounded/releases/tag/v0.1.0
