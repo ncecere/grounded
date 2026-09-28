@@ -113,9 +113,12 @@ type Config struct {
 	// override them) and the retention job's batch bounds.
 	Retention Retention
 
-	DevAuth    bool
-	OIDC       OIDC
-	SessionTTL time.Duration
+	DevAuth bool
+	// DevAuthGroups gives development personas fake IdP groups, for trying
+	// SSO group mapping without an identity provider (DEV_AUTH_GROUPS).
+	DevAuthGroups map[string][]string
+	OIDC          OIDC
+	SessionTTL    time.Duration
 
 	// TrustedProxies are the ingress CIDRs allowed to set X-Forwarded-For.
 	TrustedProxies []netip.Prefix
@@ -170,11 +173,14 @@ type S3 struct {
 }
 
 type OIDC struct {
-	Issuer                string
-	ClientID              string
-	ClientSecret          string
-	Scopes                []string
-	EmailClaim            string
+	Issuer       string
+	ClientID     string
+	ClientSecret string
+	Scopes       []string
+	EmailClaim   string
+	// GroupsClaim is the claim holding the person's IdP groups, read for
+	// SSO group mapping (a list of strings; a single string is one group).
+	GroupsClaim           string
 	RequireVerifiedEmail  bool
 	AllowedEmailDomains   []string
 	BootstrapAdminSubject string
@@ -198,6 +204,7 @@ func Defaults() Config {
 		OIDC: OIDC{
 			Scopes:               []string{"openid", "profile", "email"},
 			EmailClaim:           "email",
+			GroupsClaim:          "groups",
 			RequireVerifiedEmail: true,
 		},
 		SMTP:                   SMTP{Port: 587, TLS: SMTPStartTLS},

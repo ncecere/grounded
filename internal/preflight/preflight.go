@@ -36,6 +36,7 @@ const (
 	CodePublicWithoutModeration = "public_agents_without_moderation"
 	CodeSMTPNotConfigured       = "smtp_not_configured"
 	CodeOIDCNoDomainRestriction = "oidc_no_domain_restriction"
+	CodeGroupsClaimMissing      = "sso_groups_claim_missing"
 )
 
 // Finding is one warning. Message says what is wrong; Fix says what to do.
@@ -51,6 +52,7 @@ type Queries interface {
 	ListAllowlist(ctx context.Context) ([]dbgen.CrawlAllowlist, error)
 	GetPlatformSettings(ctx context.Context) (dbgen.PlatformSetting, error)
 	GetModerationPolicy(ctx context.Context, audience string) (dbgen.ModerationPolicy, error)
+	SSOGroupStats(ctx context.Context) (dbgen.SSOGroupStatsRow, error)
 }
 
 // Check returns every finding, warnings before information.
@@ -76,6 +78,19 @@ func Check(ctx context.Context, cfg config.Config, q Queries) ([]Finding, error)
 			Code: CodePublicWithoutModeration, Severity: Warning,
 			Message: "Public agents are turned on, but the public audience has no moderation provider.",
 			Fix:     "Choose a provider for the public audience under Administration > Moderation, or turn public agents off.",
+		})
+	}
+	groups, err := q.SSOGroupStats(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("group mapping: %w", err)
+	}
+	if groups.RuleCount > 0 && groups.RecentSignIns > 0 && groups.RecentWithClaim == 0 {
+		out = append(out, Finding{
+			Code: CodeGroupsClaimMissing, Severity: Warning,
+			Message: fmt.Sprintf("SSO group mapping rules exist, but none of the %d people who signed in during the last 30 days had a %q claim, "+
+				"so the rules add nobody and remove the memberships they created.", groups.RecentSignIns, cfg.OIDC.GroupsClaim),
+			Fix: "Make the identity provider send the groups claim (Authentik sends groups with the profile scope), " +
+				"or set OIDC_GROUPS_CLAIM to the claim it uses. See docs/operations/sso-groups.md.",
 		})
 	}
 	return append(out, ConfigFindings(cfg)...), nil

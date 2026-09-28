@@ -14,6 +14,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/ncecere/grounded/internal/httpx"
+	"github.com/ncecere/grounded/internal/ssogroups"
 )
 
 const (
@@ -149,6 +150,7 @@ func (s *Service) Callback(w http.ResponseWriter, r *http.Request) {
 		Issuer: idToken.Issuer, Subject: idToken.Subject, Email: email, Name: name,
 		Claims: boundedClaims(claims), Method: "oidc", EmailVerified: truthy(claims["email_verified"]),
 	}
+	li.Groups.Groups, li.Groups.ClaimPresent = ssogroups.ClaimGroups(claims, s.cfg.OIDC.GroupsClaim)
 	if s.cfg.OIDC.BootstrapAdminSubject != "" && idToken.Subject == s.cfg.OIDC.BootstrapAdminSubject {
 		li.BootstrapRole = RolePlatformAdmin
 	}

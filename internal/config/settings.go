@@ -189,11 +189,13 @@ var settings = []setting{
 	{key: "LOG_FORMAT", apply: str(func(c *Config) *string { return &c.LogFormat })},
 	{key: "TEAM_REQUEST_URL", apply: str(func(c *Config) *string { return &c.TeamRequestURL })},
 	{key: "DEV_AUTH", apply: boolean(func(c *Config) *bool { return &c.DevAuth })},
+	{key: "DEV_AUTH_GROUPS", apply: devGroups},
 	{key: "OIDC_ISSUER", apply: str(func(c *Config) *string { return &c.OIDC.Issuer })},
 	{key: "OIDC_CLIENT_ID", apply: str(func(c *Config) *string { return &c.OIDC.ClientID })},
 	{key: "OIDC_CLIENT_SECRET", secret: true, apply: str(func(c *Config) *string { return &c.OIDC.ClientSecret })},
 	{key: "OIDC_SCOPES", apply: list(func(c *Config) *[]string { return &c.OIDC.Scopes }, false)},
 	{key: "OIDC_EMAIL_CLAIM", apply: str(func(c *Config) *string { return &c.OIDC.EmailClaim })},
+	{key: "OIDC_GROUPS_CLAIM", apply: str(func(c *Config) *string { return &c.OIDC.GroupsClaim })},
 	{key: "OIDC_REQUIRE_VERIFIED_EMAIL", apply: boolean(func(c *Config) *bool { return &c.OIDC.RequireVerifiedEmail })},
 	{key: "OIDC_ALLOWED_EMAIL_DOMAINS", apply: list(func(c *Config) *[]string { return &c.OIDC.AllowedEmailDomains }, true)},
 	{key: "BOOTSTRAP_ADMIN_SUBJECT", apply: str(func(c *Config) *string { return &c.OIDC.BootstrapAdminSubject })},
@@ -219,4 +221,31 @@ var settings = []setting{
 	{key: "WORKER_CONCURRENCY", apply: integer(func(c *Config) *int { return &c.WorkerConcurrency }, 1, 1000)},
 	{key: "SHUTDOWN_DELAY", apply: duration(func(c *Config) *time.Duration { return &c.ShutdownDelay }, 0, 5*time.Minute)},
 	{key: "SHUTDOWN_TIMEOUT", apply: duration(func(c *Config) *time.Duration { return &c.ShutdownTimeout }, time.Second, 30*time.Minute)},
+}
+
+// devGroups parses DEV_AUTH_GROUPS: "alex=registrar-staff,library;blair=library"
+// (persona ID, then its groups; personas separated by semicolons).
+func devGroups(c *Config, v string) error {
+	out := map[string][]string{}
+	for _, entry := range strings.Split(v, ";") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		persona, groups, ok := strings.Cut(entry, "=")
+		persona = strings.ToLower(strings.TrimSpace(persona))
+		if !ok || persona == "" {
+			return fmt.Errorf(`must look like "alex=group-a,group-b;blair=group-c"`)
+		}
+		for _, g := range strings.Split(groups, ",") {
+			if g = strings.TrimSpace(g); g != "" {
+				out[persona] = append(out[persona], g)
+			}
+		}
+		if _, seen := out[persona]; !seen {
+			out[persona] = []string{}
+		}
+	}
+	c.DevAuthGroups = out
+	return nil
 }

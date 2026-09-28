@@ -22,6 +22,11 @@ type fakeQueries struct {
 	provider  *uuid.UUID // nil: no stored policy
 	stored    bool
 	err       error
+	groups    dbgen.SSOGroupStatsRow
+}
+
+func (f fakeQueries) SSOGroupStats(context.Context) (dbgen.SSOGroupStatsRow, error) {
+	return f.groups, nil
 }
 
 func (f fakeQueries) ListAllowlist(context.Context) ([]dbgen.CrawlAllowlist, error) {
@@ -78,6 +83,12 @@ func TestCheck(t *testing.T) {
 		{"no smtp", func() config.Config { c := configured; c.SMTP.Host = ""; return c }, fakeQueries{allowlist: allow}, []string{CodeSMTPNotConfigured}},
 		{"oidc without domains", func() config.Config { c := configured; c.OIDC.AllowedEmailDomains = nil; return c }, fakeQueries{allowlist: allow},
 			[]string{CodeOIDCNoDomainRestriction}},
+		{"group rules, sign-ins without the claim", func() config.Config { return configured },
+			fakeQueries{allowlist: allow, groups: dbgen.SSOGroupStatsRow{RuleCount: 1, RecentSignIns: 3}}, []string{CodeGroupsClaimMissing}},
+		{"group rules, the claim seen", func() config.Config { return configured },
+			fakeQueries{allowlist: allow, groups: dbgen.SSOGroupStatsRow{RuleCount: 1, RecentSignIns: 3, RecentWithClaim: 1}}, nil},
+		{"group rules, no sign-ins yet", func() config.Config { return configured },
+			fakeQueries{allowlist: allow, groups: dbgen.SSOGroupStatsRow{RuleCount: 1}}, nil},
 		{"dev auth only: no oidc finding", func() config.Config { c := configured; c.OIDC = config.OIDC{}; return c }, fakeQueries{allowlist: allow}, nil},
 		{"everything, warnings first", func() config.Config { c := configured; c.SMTP.Host, c.OIDC.AllowedEmailDomains = "", nil; return c },
 			fakeQueries{public: true}, []string{CodeCrawlAllowlistEmpty, CodePublicWithoutModeration, CodeSMTPNotConfigured, CodeOIDCNoDomainRestriction}},

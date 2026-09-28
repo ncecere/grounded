@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ncecere/grounded/internal/httpx"
+	"github.com/ncecere/grounded/internal/ssogroups"
 )
 
 // DevIssuer is the issuer recorded for development-login identities.
@@ -77,8 +78,15 @@ func (s *Service) DevLogin(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "unknown_account", "Unknown development account")
 		return
 	}
-	claims, _ := json.Marshal(map[string]any{"sub": acct.ID, "email": acct.Email, "name": acct.Name, "email_verified": true})
+	// DEV_AUTH_GROUPS gives personas fake IdP groups for trying group mapping.
+	groups, hasGroups := s.cfg.DevAuthGroups[acct.ID]
+	fields := map[string]any{"sub": acct.ID, "email": acct.Email, "name": acct.Name, "email_verified": true}
+	if hasGroups {
+		fields[s.cfg.OIDC.GroupsClaim] = groups
+	}
+	claims, _ := json.Marshal(fields)
 	li := loginIdentity{Issuer: DevIssuer, Subject: acct.ID, Email: acct.Email, Name: acct.Name, Claims: claims, Method: "dev", EmailVerified: true}
+	li.Groups = ssogroups.Seen{Groups: ssogroups.NormalizeGroups(groups), ClaimPresent: hasGroups}
 	if acct.PlatformRole != RoleNone {
 		li.BootstrapRole = acct.PlatformRole
 	}

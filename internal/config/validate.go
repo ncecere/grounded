@@ -203,6 +203,9 @@ func (c Config) validateSignIn() []error {
 		if c.OIDC.EmailClaim == "" {
 			errs = append(errs, errors.New("OIDC_EMAIL_CLAIM must not be empty"))
 		}
+		if c.OIDC.GroupsClaim == "" {
+			errs = append(errs, errors.New("OIDC_GROUPS_CLAIM must not be empty (the default is groups)"))
+		}
 	}
 	return errs
 }

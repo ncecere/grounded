@@ -274,11 +274,20 @@ func (s *Service) AssignOwner(ctx context.Context, a authz.Actor, ref, email str
 			if err == nil {
 				if m.Role != authz.RoleOwner {
 					before := m.Role
+					// The admin's choice outlasts the group mapping: the
+					// membership becomes hand-made.
+					released, err := releaseFromMapping(ctx, q, t.ID, m.UserID)
+					if err != nil {
+						return err
+					}
 					if m, err = q.UpdateMemberRole(ctx, dbgen.UpdateMemberRoleParams{TeamID: t.ID, UserID: m.UserID, Role: authz.RoleOwner}); err != nil {
 						return err
 					}
 					e := a.Audit("team.owner_assign", "user", m.UserID.String())
 					e.TeamID, e.Before, e.After = t.ID, map[string]any{"role": before}, map[string]any{"role": authz.RoleOwner}
+					if released {
+						e.Metadata = map[string]any{"ssoReleased": true}
+					}
 					if err := audit.Record(ctx, q, e); err != nil {
 						return err
 					}

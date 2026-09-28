@@ -11,6 +11,7 @@ import (
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/notify"
+	"github.com/ncecere/grounded/internal/ssogroups"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/teams"
 )
@@ -28,6 +29,8 @@ type loginIdentity struct {
 	// BootstrapRole, when set, is granted once per (issuer, subject). A later
 	// demotion is never undone by signing in again.
 	BootstrapRole string
+	// Groups are the IdP groups for SSO group mapping (internal/ssogroups).
+	Groups ssogroups.Seen
 }
 
 // completeLogin provisions the user, applies one-time bootstrap roles, creates
@@ -86,6 +89,12 @@ func (s *Service) completeLogin(ctx context.Context, w http.ResponseWriter, r *h
 			if err := notify.ClaimForEmail(ctx, q, user.ID, user.Email); err != nil {
 				return err
 			}
+		}
+		// After invites: an invite is a hand-made membership, which a rule never changes.
+		if err := ssogroups.Sync(ctx, q, user.ID, li.Groups, ssogroups.Origin{
+			Trigger: ssogroups.TriggerSignIn, RequestID: reqID, ClientIP: ip,
+		}); err != nil {
+			return err
 		}
 		if secret, err = s.createSession(ctx, r, q, user); err != nil {
 			return err

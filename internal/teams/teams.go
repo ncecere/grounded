@@ -299,6 +299,9 @@ func (s *Service) UpdateMember(ctx context.Context, a authz.Actor, ref string, u
 			return apperr.Stale()
 		}
 		if before := target.Role; before != role {
+			if err := takeOverFromMapping(ctx, q, t.ID, userID, ssoRoleChange); err != nil {
+				return err
+			}
 			if role != authz.RoleOwner {
 				if err := ensureAnotherOwner(ctx, q, t.ID, before); err != nil {
 					return err
@@ -346,6 +349,13 @@ func (s *Service) RemoveMember(ctx context.Context, a authz.Actor, ref string, u
 			}
 		}
 		if err := ensureAnotherOwner(ctx, q, t.ID, target.Role); err != nil {
+			return err
+		}
+		reason := ssoRemove
+		if userID == a.UserID {
+			reason = ssoLeave
+		}
+		if err := takeOverFromMapping(ctx, q, t.ID, userID, reason); err != nil {
 			return err
 		}
 		if err := q.DeleteMember(ctx, dbgen.DeleteMemberParams{TeamID: t.ID, UserID: userID}); err != nil {
