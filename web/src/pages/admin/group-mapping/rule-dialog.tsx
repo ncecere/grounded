@@ -15,7 +15,7 @@ import { Input, NativeSelect } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
 import { useDebounced } from "../hooks";
 import { RulePreview } from "./preview";
-import { groupMappingStatusQuery, groupRulesRoot, type GroupRule, type PreviewRequest } from "./queries";
+import { groupMappingStatusQuery, groupRulesQuery, groupRulesRoot, type GroupRule, type PreviewRequest } from "./queries";
 
 /** Active teams matching the typed text, for a new rule's team. */
 function useTeamOptions(text: string): ComboboxOption[] {
@@ -54,8 +54,17 @@ export function RuleDialog({ rule, team: fixedTeam, onClose }: Props) {
   const [submitted, setSubmitted] = useState(false);
   const teamOptions = useTeamOptions(teamText);
   const seen = useQuery(groupMappingStatusQuery());
+  const teamRules = useQuery({ ...groupRulesQuery(team ?? ""), enabled: Boolean(team) });
   const trimmed = group.trim();
-  const groupError = !trimmed ? "Enter the group's name as the identity provider sends it." : trimmed.length > 256 ? "At most 256 characters." : undefined;
+  // Group names match case-insensitively, so a team has one rule per group: say so under the group, once.
+  const duplicate = (teamRules.data ?? []).some((r) => r.id !== rule?.id && r.group.toLowerCase() === trimmed.toLowerCase());
+  const groupError = !trimmed
+    ? "Enter the group's name as the identity provider sends it."
+    : trimmed.length > 256
+      ? "At most 256 characters."
+      : duplicate
+        ? "This team already has a rule for that group. Change that rule instead."
+        : undefined;
   const teamError = team ? undefined : "Choose a team.";
   const ready = !groupError && !teamError;
 
@@ -103,7 +112,7 @@ export function RuleDialog({ rule, team: fixedTeam, onClose }: Props) {
       busy={save.isPending}
       formProps={{ noValidate: true }}
     >
-      <Field label="IdP group" description="Matching ignores upper and lower case." error={submitted ? groupError : undefined}>
+      <Field label="IdP group" description="Matching ignores upper and lower case." error={submitted || duplicate ? groupError : undefined}>
         <Input aria-required autoComplete="off" spellCheck={false} list={listId} placeholder="registrar-staff" value={group} onChange={(e) => setGroup(e.target.value)} />
       </Field>
       <datalist id={listId}>
@@ -138,6 +147,7 @@ export function RuleDialog({ rule, team: fixedTeam, onClose }: Props) {
         </NativeSelect>
       </Field>
       <RulePreview body={previewBody} enabled={ready} />
+      {/* A duplicate the list didn't know about yet (added elsewhere meanwhile) is refused by the server: said here. */}
       <ErrorAlert error={save.error} />
     </FormDialog>
   );
