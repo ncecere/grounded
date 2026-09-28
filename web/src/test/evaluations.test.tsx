@@ -20,13 +20,23 @@ describe("a knowledge base's Evaluations tab", () => {
     const calls = mockApi(evalRoutes("editor", { "POST /v1/teams/registrar/evaluation-sets": (body) => ({ ...set, id: "set2", ...(body as object) }) }));
     const { container, router } = renderApp("/teams/registrar/kbs/k1?tab=evaluations");
     const table = await screen.findByRole("table", { name: "Evaluation sets" }, T);
-    const row = (await within(table).findByRole("button", { name: "Transcript questions" })).closest("tr")!;
+    // The set's name is a link to its page, like the knowledge base list's names.
+    const link = await within(table).findByRole("link", { name: "Transcript questions" });
+    expect(link).toHaveAttribute("href", "/teams/registrar/evaluations/set1");
+    const row = link.closest("tr")!;
     expect(row).toHaveTextContent("2 questions");
     expect(row).toHaveTextContent("Recall@4 50%");
     expect(screen.getByRole("tab", { name: /Evaluations/, selected: true })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
 
-    await userEvent.click(screen.getByRole("button", { name: "New set" }));
+    // Closing the dialog returns focus to its trigger.
+    const newSet = screen.getByRole("button", { name: "New set" });
+    await userEvent.click(newSet);
+    await screen.findByRole("dialog", { name: "New evaluation set" });
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(newSet).toHaveFocus());
+    await userEvent.click(newSet);
     const dialog = await screen.findByRole("dialog", { name: "New evaluation set" });
     await userEvent.click(within(dialog).getByRole("button", { name: "Create set" }));
     expect(within(dialog).getByText("Enter a name.")).toBeInTheDocument();
@@ -67,6 +77,10 @@ describe("a set's page", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Create question" }));
     expect(within(dialog).getByText("Enter the question.")).toBeInTheDocument();
     expect(within(dialog).getByText("Pick a document or enter a URL or filename.")).toBeInTheDocument();
+    // Matches by filename stay listed (the server matched them; the label carries the filename).
+    await userEvent.type(within(dialog).getByRole("combobox", { name: "Expected documents" }), "transcripts.pdf");
+    expect(await screen.findByRole("option", { name: /Transcript policy · transcripts.pdf/ })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Question" }), "Where is the fee schedule?");
     const urls = within(dialog).getByRole("textbox", { name: /URLs and filenames/ });
     await userEvent.type(urls, "https://example.edu/fees*{Enter}fees.pdf{Enter}");
@@ -118,7 +132,7 @@ describe("a set's page", () => {
     const csv = "question,expected\nOne?,a.pdf\nTwo?,\nThree?,b.pdf\n";
     await userEvent.upload(within(page).getByLabelText("Choose a file"), new File([csv], "questions.csv", { type: "text/csv" }));
     expect(await within(page).findByRole("table", { name: "Rows that can't be used" })).toHaveTextContent("Add at least one expected document");
-    expect(within(page).getByRole("status")).toHaveTextContent("3 rows read: 2 questions can be added, 1 row can't be used.");
+    expect(within(page).getByText("3 rows read: 2 questions can be added, 1 row can't be used.")).toHaveAttribute("role", "status");
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(within(page).getByRole("button", { name: "Add 2 questions" }));
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty("form"));
@@ -147,6 +161,20 @@ describe("a set's page", () => {
     const confirm = await screen.findByRole("alertdialog");
     await userEvent.click(within(confirm).getByRole("button", { name: "Delete set" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/teams/registrar/kbs/k1"));
+  });
+
+  it("explains a Run that can't start, and puts the set under its knowledge base's Evaluations in the breadcrumbs", async () => {
+    mockApi(evalRoutes("editor", { "GET /v1/teams/registrar/evaluation-sets/set1": () => ({ ...set, questionCount: 0 }), "GET /v1/teams/registrar/evaluation-sets/set1/questions": () => [] }));
+    const { container } = renderApp("/teams/registrar/evaluations/set1");
+    // Focusable (aria-disabled, not disabled), with the reason as its description.
+    const run = await screen.findByRole("button", { name: "Run" }, T);
+    expect(run).toHaveAttribute("aria-disabled", "true");
+    expect(run).not.toBeDisabled();
+    expect(run).toHaveAccessibleDescription("Add questions first.");
+    const crumbs = screen.getByRole("navigation", { name: /Breadcrumb/i });
+    expect(within(crumbs).getByRole("link", { name: "Knowledge bases" })).toHaveAttribute("href", "/teams/registrar/kbs");
+    expect(within(crumbs).getByRole("link", { name: "Evaluations" })).toHaveAttribute("href", "/teams/registrar/kbs/k1?tab=evaluations");
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it("is not found for members", async () => {

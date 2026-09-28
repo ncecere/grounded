@@ -31,7 +31,7 @@ export function QuestionRecord({ set, onEdit, onDelete }: Props) {
       onClose={record.close}
       title={question?.question ?? "Question"}
       label="Question"
-      description={`A question of ${set.name}.`}
+      description="A question in this evaluation set."
       loading={q.isLoading}
       error={q.error}
       actions={

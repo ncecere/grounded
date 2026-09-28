@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card/card";
 import { LineChart } from "@/components/ui/line-chart/line-chart";
 import { Time } from "@/components/ui/time/time";
 import { formatDate } from "@/lib/format";
+import { plural } from "../common";
 import { pct, runScore, scoreSeries } from "./labels";
 import type { EvalRun } from "./queries";
 import e from "./evaluations.module.css";
@@ -22,7 +23,7 @@ function Series({ runs, kind, label }: { runs: EvalRun[]; kind: EvalRun["kind"];
   return (
     <div>
       <LineChart
-        summary={`${label} over ${scored.length} runs, from ${pct(first)} to ${pct(last)}.${markers.length ? ` ${markers.length} runs (◆) changed what was tested.` : ""}`}
+        summary={`${label} over ${plural(scored.length, "run")}, from ${pct(first)} to ${pct(last)}.${markers.length ? ` ${plural(markers.length, "run")} (◆) changed what was tested.` : ""}`}
         series={[{ key: "score", label, tone: kind === "answer" ? "info" : "primary" }]}
         data={data}
         formatValue={(v) => `${Math.round(v)}%`}
@@ -45,7 +46,8 @@ function Series({ runs, kind, label }: { runs: EvalRun[]; kind: EvalRun["kind"];
 export function ScoreChart({ runs }: { runs: EvalRun[] }) {
   if (!runs.some((r) => r.status === "completed")) return null;
   return (
-    <Card title="Score over time" description="Each completed run's score. ◆ marks a run whose agent version, embedding profile or results per search differed from the run before.">
+    // A subsection of Runs (its h2).
+    <Card title="Score over time" titleAs="h3" description="Each completed run's score. ◆ marks a run whose agent version, embedding profile or results per search differed from the run before.">
       <Series runs={runs} kind="retrieval" label="Recall@k" />
       <Series runs={runs} kind="answer" label="Full-answer pass rate" />
     </Card>
