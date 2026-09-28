@@ -109,7 +109,7 @@ func (e *pdfEngine) parse(ctx context.Context, in Input, lim Limits) (Document, 
 		return Document{Pages: pages}, ErrNeedsOCR
 	}
 	if in.OCR == nil && len(empty) > 0 {
-		warnings = append(warnings, fmt.Sprintf("%d of %d pages had no extractable text (possibly scanned) and were skipped", len(empty), pages))
+		warnings = append(warnings, scannedPagesWarning(len(empty), pages))
 	}
 
 	md := renderPDF(removeRunningHeaders(lines, pages), pages, ocrTexts)
@@ -118,6 +118,18 @@ func (e *pdfEngine) parse(ctx context.Context, in Input, lim Limits) (Document, 
 	}
 	title := pdfTitle(inst, opened.Document, md, in.Name)
 	return Document{Title: title, Markdown: md, Pages: pages, Parser: parserName("builtin:pdf", info), Warnings: warnings, OCR: info}, nil
+}
+
+// scannedPagesWarning says that n of pages had no text layer and were
+// skipped because OCR is off for the document, and how to read them: a
+// document with text is ready, so it can't be retried; it is uploaded again.
+func scannedPagesWarning(n, pages int) string {
+	if n == 1 {
+		return fmt.Sprintf("1 of %d pages had no text layer (possibly scanned) and was skipped, because OCR is off for this document. "+
+			"To read it, turn OCR on, then delete the document and upload it again.", pages)
+	}
+	return fmt.Sprintf("%d of %d pages had no text layer (possibly scanned) and were skipped, because OCR is off for this document. "+
+		"To read them, turn OCR on, then delete the document and upload it again.", n, pages)
 }
 
 // pdfTitle is the document's Title metadata, unless it is missing or looks

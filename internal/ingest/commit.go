@@ -183,7 +183,7 @@ func (p *Processor) finishWithoutChunks(ctx context.Context, doc dbgen.Document,
 			return err
 		}
 		if err := q.FinishDocument(ctx, dbgen.FinishDocumentParams{
-			ID: doc.ID, Status: o.status, ErrorCode: o.code, ErrorMessage: clip(o.message, 1000), Warnings: json.RawMessage(`[]`),
+			ID: doc.ID, Status: o.status, ErrorCode: o.code, ErrorMessage: clip(o.message, 1000), Kind: string(o.kind), Warnings: json.RawMessage(`[]`),
 		}); err != nil {
 			return err
 		}
