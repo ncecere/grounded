@@ -4244,7 +4244,7 @@ export interface components {
             pendingDomainRequests: number;
         };
         /** @enum {string} */
-        NotificationType: "team.invited" | "team.invite_expiring" | "team.membership" | "web.domain_request" | "web.domain_request_new" | "web.sync_failed" | "source.classification_lowered" | "agent.disabled_by_platform" | "agent.published" | "team.daily_limit" | "breakglass.started" | "breakglass.ended" | "breakglass.requested" | "breakglass.decided" | "platform.profile_migration" | "kb.profile_changed";
+        NotificationType: "team.invited" | "team.invite_expiring" | "team.membership" | "web.domain_request" | "web.domain_request_new" | "web.sync_failed" | "source.classification_lowered" | "agent.disabled_by_platform" | "agent.published" | "team.daily_limit" | "team.budget_warning" | "team.budget_exhausted" | "breakglass.started" | "breakglass.ended" | "breakglass.requested" | "breakglass.decided" | "platform.profile_migration" | "kb.profile_changed";
         Notification: {
             /** Format: uuid */
             id: string;

@@ -6656,6 +6656,8 @@ components:
         - agent.disabled_by_platform
         - agent.published
         - team.daily_limit
+        - team.budget_warning
+        - team.budget_exhausted
         - breakglass.started
         - breakglass.ended
         - breakglass.requested

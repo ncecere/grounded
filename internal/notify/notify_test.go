@@ -27,8 +27,10 @@ func TestCatalog(t *testing.T) {
 		}
 	}
 	// docs/phase4-publishing.md §8: these can't be turned off.
-	// Break-glass start and end reach owners always (ADR-0024).
-	want := map[Type]bool{TeamInvited: true, ClassificationLowered: true, AgentDisabled: true, BreakGlassStarted: true, BreakGlassEnded: true}
+	// Break-glass start and end reach owners always (ADR-0024), and so do
+	// monthly budget notices (docs/costs.md §4).
+	want := map[Type]bool{TeamInvited: true, ClassificationLowered: true, AgentDisabled: true, BreakGlassStarted: true, BreakGlassEnded: true,
+		BudgetWarning: true, BudgetExhausted: true}
 	if len(mandatory) != len(want) {
 		t.Errorf("mandatory = %v, want %v", mandatory, want)
 	}

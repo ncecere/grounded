@@ -10,6 +10,7 @@ package ingest
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -81,8 +82,14 @@ type DispatchWorker struct {
 	Maintenance *platform.MaintenanceGate
 	// Budget lists teams whose enforced monthly budget is used up: their
 	// pending documents wait (internal/costs, docs/costs.md §4; nil: none).
+	// The list is read by each dispatch job, outside any transaction (it
+	// needs connections of its own), and reused by the dispatches that
+	// finishing documents run inside their commit (Processor.Dispatcher).
 	Budget BudgetGate
 	Log    *slog.Logger
+
+	mu      sync.Mutex
+	blocked []uuid.UUID
 }
 
 // BudgetGate lists the teams whose ingestion waits for their budget.
@@ -181,6 +188,15 @@ func (w *DispatchWorker) Work(ctx context.Context, job *river.Job[DispatchArgs])
 	if paused, err := w.Maintenance.Paused(ctx); err != nil || paused {
 		return err
 	}
+	if w.Budget != nil {
+		blocked, err := w.Budget.BlockedTeams(ctx)
+		if err != nil {
+			return err
+		}
+		w.mu.Lock()
+		w.blocked = blocked
+		w.mu.Unlock()
+	}
 	client := river.ClientFromContext[pgx.Tx](ctx)
 	// Documents waiting for the daily OCR page limit whose day has come.
 	if n, err := wakeDue(ctx, dbgen.New(w.Pool)); err != nil {
@@ -227,12 +243,9 @@ func (w *DispatchWorker) Dispatch(ctx context.Context, tx pgx.Tx, client *river.
 		}
 		cap = TeamCap{Default: st.Default, Ceiling: st.Ceiling}
 	}
-	var skip []uuid.UUID
-	if w.Budget != nil {
-		if skip, err = w.Budget.BlockedTeams(ctx); err != nil {
-			return 0, err
-		}
-	}
+	w.mu.Lock()
+	skip := w.blocked
+	w.mu.Unlock()
 	ids, err := PickFair(ctx, tx, cap, free, skip...)
 	if err != nil || len(ids) == 0 {
 		return 0, err

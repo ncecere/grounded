@@ -1940,6 +1940,8 @@ const (
 	KbProfileChanged            NotificationType = "kb.profile_changed"
 	PlatformProfileMigration    NotificationType = "platform.profile_migration"
 	SourceClassificationLowered NotificationType = "source.classification_lowered"
+	TeamBudgetExhausted         NotificationType = "team.budget_exhausted"
+	TeamBudgetWarning           NotificationType = "team.budget_warning"
 	TeamDailyLimit              NotificationType = "team.daily_limit"
 	TeamInviteExpiring          NotificationType = "team.invite_expiring"
 	TeamInvited                 NotificationType = "team.invited"
@@ -1969,6 +1971,10 @@ func (e NotificationType) Valid() bool {
 	case PlatformProfileMigration:
 		return true
 	case SourceClassificationLowered:
+		return true
+	case TeamBudgetExhausted:
+		return true
+	case TeamBudgetWarning:
 		return true
 	case TeamDailyLimit:
 		return true
