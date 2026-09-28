@@ -17,7 +17,7 @@ import { toast } from "@/components/ui/toast/toast";
 import { useDebounced } from "../../admin/hooks";
 import { useTeam } from "../common";
 import { splitExpected } from "./labels";
-import { type EvalQuestion, evalQuestionsKey, evalSetKey, evalSetsKey, useEvalDocuments } from "./queries";
+import { type DocumentScope, type EvalDocument, type EvalQuestion, evalQuestionsKey, evalSetKey, evalSetsKey, useEvalDocuments } from "./queries";
 
 export type QuestionForm = { question: string; documentIds: string[]; others: string[]; mustMention: string[]; note: string };
 
@@ -39,14 +39,26 @@ export function questionErrors(f: QuestionForm): { question?: string; expected?:
   return out;
 }
 
-type FieldsProps = { team: string; setId?: string; form: QuestionForm; onChange: (f: QuestionForm) => void; errors: ReturnType<typeof questionErrors> };
+type FieldsProps = { team: string; scope?: DocumentScope; form: QuestionForm; onChange: (f: QuestionForm) => void; errors: ReturnType<typeof questionErrors> };
 
-/** The fields; `setId` scopes the document picker. */
-export function QuestionFields({ team: slug, setId, form, onChange, errors }: FieldsProps) {
+/**
+ * A document's option: its title, then its filename (or URL) when that's
+ * different. The server matches the typed text on the title, filename and
+ * URL, but the Combobox filters the options again by their label and has no
+ * way to turn that off, so the label carries what the server matched on.
+ */
+export function documentLabel(d: Pick<EvalDocument, "title" | "filename" | "url">) {
+  const other = d.filename || d.url;
+  if (!d.title) return other || "Untitled document";
+  return other && other !== d.title ? `${d.title} · ${other}` : d.title;
+}
+
+/** The fields; `scope` is where the document picker searches. */
+export function QuestionFields({ team: slug, scope, form, onChange, errors }: FieldsProps) {
   const [text, setText] = useState("");
   const [picked, setPicked] = useState<ComboboxOption[]>([]);
-  const docs = useEvalDocuments(slug, setId, useDebounced(text));
-  const options: ComboboxOption[] = (docs.data ?? []).map((d) => ({ value: d.id, label: d.title || d.filename || d.url, hint: d.sourceName }));
+  const docs = useEvalDocuments(slug, scope, useDebounced(text));
+  const options: ComboboxOption[] = (docs.data ?? []).map((d) => ({ value: d.id, label: documentLabel(d), hint: d.sourceName }));
   // Picked documents stay listed (with their names) while the search changes.
   for (const p of picked) if (!options.some((o) => o.value === p.value)) options.push(p);
   return (
@@ -54,7 +66,11 @@ export function QuestionFields({ team: slug, setId, form, onChange, errors }: Fi
       <Field label="Question" error={errors.question}>
         <Textarea aria-required rows={2} maxLength={4000} value={form.question} onChange={(e) => onChange({ ...form, question: e.target.value })} />
       </Field>
-      <Field label="Expected documents" description="Any of them counts as a good result. Pick from the knowledge base…" error={errors.expected}>
+      <Field
+        label="Expected documents"
+        description="Pick documents from the knowledge base, or enter URLs and filenames below: at least one. Any of them counts as a good result."
+        error={errors.expected}
+      >
         <Combobox
           multiple
           items={options}
@@ -66,10 +82,10 @@ export function QuestionFields({ team: slug, setId, form, onChange, errors }: Fi
           }}
           placeholder="Search documents by title, filename or URL"
           chipsLabel="Picked documents"
-          emptyText={setId ? "No matching documents." : "Choose a set first."}
+          emptyText="No matching documents."
         />
       </Field>
-      <Field label="URLs and filenames" labelHint="Optional" description="…or enter pages (end a URL with * for everything under it) and filenames, one at a time.">
+      <Field label="URLs and filenames" description="Pages (end a URL with * for everything under it) and filenames, one at a time.">
         <TagInput value={form.others} onValueChange={(others) => onChange({ ...form, others })} maxTags={20} maxTagLength={2048} normalize={(t) => t.trim()} placeholder="https://example.edu/registrar/transcripts*" />
       </Field>
       <Field label="Must mention" labelHint="Optional" description="Phrases a good answer contains (full-answer checks only; case doesn't matter).">
@@ -136,7 +152,7 @@ export function QuestionDialog({ setId, question, onClose }: { setId: string; qu
       }}
     >
       <ApiErrorAlert error={save.error} />
-      <QuestionFields team={slug} setId={setId} form={form} onChange={setForm} errors={errors} />
+      <QuestionFields team={slug} scope={{ setId }} form={form} onChange={setForm} errors={errors} />
     </FormDialog>
   );
 }

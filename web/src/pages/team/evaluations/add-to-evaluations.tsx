@@ -4,9 +4,12 @@
  * answer, or one without sources) and from the agent editor's Test panel.
  * It opens the question form with the question text only: nothing else of
  * the conversation is copied (ADR-0010). The editor picks one of the agent's
- * sets, or names a new one, and adds what a good result is.
+ * sets, or names a new one, and adds what a good result is: the document
+ * picker searches the agent's knowledge bases, a new set's too. The toast
+ * links to the set.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { ApiErrorAlert } from "@/components/errors";
@@ -23,6 +26,7 @@ type Props = { team: string; agentId: string; agentName: string; question: strin
 
 export function AddToEvaluationsDialog({ team, agentId, agentName, question, onClose }: Props) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const sets = useQuery(evalSetsQuery(team, { agentId }));
   const [choice, setChoice] = useState<string | undefined>(undefined);
   const [newName, setNewName] = useState(`${agentName} questions`);
@@ -33,17 +37,20 @@ export function AddToEvaluationsDialog({ team, agentId, agentName, question, onC
   const nameError = submitted && setId === NEW && !newName.trim() ? "Name the new set." : undefined;
   const add = useMutation({
     mutationFn: async () => {
-      let target = setId;
-      if (target === NEW) {
-        const created = unwrap(await api.POST("/v1/teams/{team}/evaluation-sets", { params: { path: { team } }, body: { agentId, name: newName.trim() } }));
-        target = created.id;
-      }
-      return unwrap(await api.POST("/v1/teams/{team}/evaluation-sets/{setId}/questions", { params: { path: { team, setId: target } }, body: questionBody(form) }));
+      let target = sets.data?.find((x) => x.id === setId);
+      if (!target) target = unwrap(await api.POST("/v1/teams/{team}/evaluation-sets", { params: { path: { team } }, body: { agentId, name: newName.trim() } }));
+      unwrap(await api.POST("/v1/teams/{team}/evaluation-sets/{setId}/questions", { params: { path: { team, setId: target.id } }, body: questionBody(form) }));
+      return target;
     },
-    onSuccess: () => {
+    onSuccess: (target) => {
       void qc.invalidateQueries({ queryKey: evalSetsKey(team) });
       void qc.invalidateQueries({ queryKey: ["team", team, "evaluation-set"] });
-      toast.success("Added to evaluations");
+      toast.add({
+        tone: "success",
+        title: "Added to evaluations",
+        description: `The question is in ${target.name}.`,
+        action: { label: "Open the set", onClick: () => void navigate({ to: "/teams/$team/evaluations/$setId", params: { team, setId: target.id } }) },
+      });
       onClose();
     },
   });
@@ -77,7 +84,7 @@ export function AddToEvaluationsDialog({ team, agentId, agentName, question, onC
           <Input aria-required maxLength={200} value={newName} onChange={(e) => setNewName(e.target.value)} />
         </Field>
       )}
-      <QuestionFields team={team} setId={setId === NEW ? undefined : setId} form={form} onChange={setForm} errors={errors} />
+      <QuestionFields team={team} scope={setId === NEW ? { agentId } : { setId }} form={form} onChange={setForm} errors={errors} />
     </FormDialog>
   );
 }
