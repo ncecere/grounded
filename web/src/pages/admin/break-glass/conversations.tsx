@@ -1,7 +1,7 @@
 /*
  * A team's conversations, read under the viewer's break-glass session with
  * the conversations scope (ADR-0024): the list (no user identity) and each
- * transcript in a sheet, read-only. Every list page and transcript opened is
+ * transcript on a record page, read-only. Every list page and transcript opened is
  * recorded on the server, so these queries don't refetch by themselves.
  */
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -10,7 +10,7 @@ import { MessagesSquare } from "lucide-react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { NotFoundState, isNotFound } from "@/components/not-found";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
-import { RecordSheet, useRecordParam } from "@/components/templates/record-sheet";
+import { RecordPage, useRecordParam } from "@/components/templates/record-page";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
@@ -123,7 +123,7 @@ function Transcript({ id, onClose }: { id: string | undefined; onClose: () => vo
   const c = q.data?.conversation;
   const messages = q.data?.messages ?? [];
   return (
-    <RecordSheet
+    <RecordPage
       open={Boolean(id)}
       onClose={onClose}
       title={c?.title || "Conversation"}
@@ -147,6 +147,6 @@ function Transcript({ id, onClose }: { id: string | undefined; onClose: () => vo
           ))}
         </ol>
       )}
-    </RecordSheet>
+    </RecordPage>
   );
 }

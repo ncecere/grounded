@@ -1,13 +1,13 @@
 /*
  * Shared sources › Used by (A6, DESIGN §4 rule 6): which teams and knowledge
- * bases attach each platform-shared source, as a list column, a sheet and
+ * bases attach each platform-shared source, as a list column, a record page and
  * a "Used by" tab on the source's page, listing each team with its approved
  * classification.
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { api, unwrap, type Schemas } from "@/api/client";
-import { RecordSheet } from "@/components/templates/record-sheet";
+import { RecordPage } from "@/components/templates/record-page";
 import { timeColumn } from "@/components/templates/list-page";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
@@ -99,7 +99,7 @@ export function SharedUsageList({ attachments }: { attachments: Attachment[] }) 
   );
 }
 
-/** A shared source's "Used by" tab (A6): the same list as the sheet, on its detail page. */
+/** A shared source's "Used by" tab (A6): the same list as the record page, on its detail page. */
 export function SharedUsageTab({ sourceId }: { sourceId: string }) {
   const usage = useSharedSourceUsage();
   const attachments = (usage.data ?? []).filter((x) => x.sourceId === sourceId);
@@ -113,9 +113,9 @@ export function SharedUsageTab({ sourceId }: { sourceId: string }) {
   );
 }
 
-export function SharedUsageSheet({ source, open, loading, onClose, attachments }: SheetProps) {
+export function SharedUsagePage({ source, open, loading, onClose, attachments }: SheetProps) {
   return (
-    <RecordSheet
+    <RecordPage
       open={open}
       onClose={onClose}
       title={source ? `Where ${source.name} is used` : "Shared source"}
@@ -123,7 +123,7 @@ export function SharedUsageSheet({ source, open, loading, onClose, attachments }
       loading={loading && !source}
       error={!loading && open && !source ? new Error("This shared source no longer exists.") : undefined}
       sections={source ? [{ title: usageText(attachments) || "Not attached", content: <SharedUsageList attachments={attachments} /> }] : []}
-      footer={
+      actions={
         source && (
           <Button render={<Link to="/admin/shared-sources/$sourceId" params={{ sourceId: source.id }} search={{ tab: "used-by" }} />}>Open the source</Button>
         )

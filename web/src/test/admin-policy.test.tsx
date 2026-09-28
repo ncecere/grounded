@@ -54,7 +54,7 @@ describe("admin classifications", () => {
 
     await userEvent.click(within(row).getByRole("button", { name: "Actions for Restricted" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Edit" }));
-    const sheet = await screen.findByRole("dialog", { name: "Edit Restricted" });
+    const sheet = await screen.findByRole("region", { name: "Edit Restricted" });
     await userEvent.type(within(sheet).getByRole("textbox", { name: /Signed-in conversations/ }), "30");
     await userEvent.click(within(sheet).getByRole("checkbox", { name: "Websites" }));
     await userEvent.click(within(sheet).getByRole("button", { name: "Save level" }));

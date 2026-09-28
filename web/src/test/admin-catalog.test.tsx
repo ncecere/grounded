@@ -62,7 +62,7 @@ describe("admin catalog", () => {
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(within(table).getByRole("button", { name: "Actions for GPT-OSS 120B" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
-    const sheet = await screen.findByRole("dialog", { name: "GPT-OSS 120B" });
+    const sheet = await screen.findByRole("region", { name: "GPT-OSS 120B" });
     expect(within(sheet).getByText("Public moderation")).toBeInTheDocument();
     expect(within(sheet).getByRole("button", { name: /Delete/ })).toBeDisabled();
     await userEvent.click(within(sheet).getByRole("button", { name: "Test model" }));
@@ -79,17 +79,33 @@ describe("admin catalog", () => {
       "POST /v1/admin/connections/c1/test": () => ({ ok: true, latencyMs: 80, models: ["gpt-oss-120b", "openai/qwen3-32b"], timings: { dnsMs: 2, connectMs: 1, tlsMs: 12, firstByteMs: 60, reused: false } }),
     });
     renderApp("/admin/connections?record=c1");
-    const sheet = await screen.findByRole("dialog", { name: "Campus gateway" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Campus gateway" }, { timeout: 4000 });
     expect(within(sheet).getByText("GPT-OSS 120B")).toBeInTheDocument(); // on this connection
     await userEvent.click(within(sheet).getByRole("button", { name: "Test connection" }));
     const offered = await within(sheet).findByRole("list", { name: "Models offered by the proxy" });
     expect(within(sheet).getByText("DNS 2.0 ms · connect 1.0 ms · TLS 12 ms · first byte 60 ms")).toBeInTheDocument();
     expect(within(offered).getByText("In the catalog")).toBeInTheDocument();
     await userEvent.click(within(offered).getByRole("button", { name: "Add openai/qwen3-32b as a model" }));
-    const form = await screen.findByRole("dialog", { name: "Add model" });
+    const form = await screen.findByRole("region", { name: "Add model" });
     expect(within(form).getByRole("combobox", { name: /Upstream model ID/ })).toHaveValue("openai/qwen3-32b");
     expect(within(form).getByRole("textbox", { name: /Key/ })).toHaveValue("qwen3-32b");
     await waitFor(() => expect(within(form).getByRole("group", { name: "Chat settings" })).toBeInTheDocument());
+
+    // Pages stack: the form covers the connection, and the breadcrumbs show the path.
+    expect(sheet).not.toBeVisible();
+    expect(screen.queryByRole("table", { name: "Connections" })).toBeNull();
+    const crumbs = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(within(crumbs).getByRole("link", { name: "Connections" })).toBeInTheDocument();
+    expect(within(crumbs).getByRole("link", { name: "Campus gateway" })).toBeInTheDocument();
+    expect(within(crumbs).getByText("Add model")).toBeInTheDocument();
+    expect(within(form).getByRole("link", { name: "Back to Campus gateway" })).toBeInTheDocument();
+    // Cancel (untouched) returns to the connection's page, then its back link to the list.
+    await userEvent.click(within(form).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Add model" })).toBeNull());
+    const again = await screen.findByRole("region", { name: "Campus gateway" });
+    expect(again).toBeVisible();
+    await userEvent.click(within(again).getByRole("link", { name: "Back to Connections" }));
+    expect(await screen.findByRole("table", { name: "Connections" })).toBeInTheDocument();
   });
 
   it("lists where each shared source is used, by team and knowledge base (A6)", async () => {
@@ -110,7 +126,7 @@ describe("admin catalog", () => {
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(within(table).getByRole("button", { name: "Actions for Academic calendar" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Where it's used" }));
-    const sheet = await screen.findByRole("dialog", { name: "Where Academic calendar is used" });
+    const sheet = await screen.findByRole("region", { name: "Where Academic calendar is used" });
     expect(within(sheet).getByRole("link", { name: "Office of the Registrar" })).toHaveAttribute("href", "/admin/teams/registrar");
     expect(within(sheet).getByText("Handbook")).toBeInTheDocument();
     expect(within(sheet).getAllByText("approved up to Sensitive")).toHaveLength(2);

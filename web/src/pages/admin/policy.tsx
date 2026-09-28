@@ -1,8 +1,9 @@
 /*
  * Admin → Classifications (A8, DESIGN §4): each level with its settings
  * (widest audience, retention, allowed source types, direct /retrieve) and
- * its effect (models allowed, teams approved). Levels are edited in a sheet.
+ * its effect (models allowed, teams approved). Levels are edited on a form page (?form=).
  */
+import { useFormParam } from "@/components/templates/form-page";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Lock, Pencil, Plus, Tags } from "lucide-react";
 import { useState } from "react";
@@ -22,7 +23,7 @@ import s from "../shared.module.css";
 import { useClassifications, useIsPlatformAdmin } from "./hooks";
 import { useModels } from "./models/common";
 import m from "./models/models.module.css";
-import { FormSection, SheetForm } from "./models/sheet-form";
+import { FormPage, FormSection } from "@/components/templates/form-page";
 
 type Classification = Schemas["Classification"];
 type Audience = Schemas["Audience"];
@@ -55,8 +56,11 @@ export function ClassificationsPage() {
     queryKey: ["admin", "teams", "active-all"],
     queryFn: async () => unwrap(await api.GET("/v1/admin/teams", { params: { query: { status: "active", limit: 200 } } })),
   });
-  const [editing, setEditing] = useState<Classification | "new" | null>(null);
+  // ?form=new or ?form=<level key>.
+  const form = useFormParam();
   const list = levels.data ?? [];
+  const editing: Classification | "new" | null = form.id === "new" ? "new" : (list.find((l) => l.key === form.id) ?? null);
+  const setEditing = (l: Classification | "new") => form.open(l === "new" ? "new" : l.key);
   const counts = levelCounts(
     list,
     models.data ?? [],
@@ -120,12 +124,12 @@ export function ClassificationsPage() {
         empty={{ icon: <Tags />, title: "No classification levels yet." }}
         tableProps={{ defaultSort: { columnId: "rank", direction: "ascending" } }}
       />
-      {editing && <ClassificationSheet level={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && <ClassificationForm level={editing === "new" ? null : editing} onClose={form.close} />}
     </>
   );
 }
 
-function ClassificationSheet({ level, onClose }: { level: Classification | null; onClose: () => void }) {
+function ClassificationForm({ level, onClose }: { level: Classification | null; onClose: () => void }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
     key: level?.key ?? "",
@@ -169,7 +173,8 @@ function ClassificationSheet({ level, onClose }: { level: Classification | null;
   });
   const toggleType = (t: SourceType, on: boolean) => set("allowedSourceTypes", on ? [...form.allowedSourceTypes, t] : form.allowedSourceTypes.filter((x) => x !== t));
   return (
-    <SheetForm
+    <FormPage
+      label={level ? `Edit ${level.name}` : "Add classification level"}
       title={level ? `Edit ${level.name}` : "Add classification level"}
       description="What data at this level may do. Changes apply to every team."
       onClose={onClose}
@@ -241,6 +246,6 @@ function ClassificationSheet({ level, onClose }: { level: Classification | null;
         />
       </FormSection>
       <ErrorAlert error={save.error} />
-    </SheetForm>
+    </FormPage>
   );
 }

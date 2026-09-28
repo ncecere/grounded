@@ -1,13 +1,13 @@
 /*
  * Retention → Dry run: what a run would delete now, per data kind, and what
  * legal holds keep. Counts only, computed without writing anything. A kind
- * opens a sheet with its breakdown per team, level, audience and reason.
+ * opens a record page with its breakdown per team, level, audience and reason.
  */
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw, ShieldCheck } from "lucide-react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ListPage } from "@/components/templates/list-page";
-import { RecordSheet, useRecordParam } from "@/components/templates/record-sheet";
+import { RecordPage, useRecordParam } from "@/components/templates/record-page";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
@@ -90,7 +90,7 @@ export function RetentionReportTab({ settings }: { settings?: Settings }) {
           ),
         }}
       />
-      <RecordSheet
+      <RecordPage
         open={Boolean(record.id)}
         onClose={record.close}
         title={open ? kindLabels[open.kind].label : "Retention"}

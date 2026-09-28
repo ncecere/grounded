@@ -8,7 +8,7 @@ import { History, Play } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
-import { RecordSheet, useRecordParam } from "@/components/templates/record-sheet";
+import { RecordPage, useRecordParam } from "@/components/templates/record-page";
 import { StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
@@ -94,7 +94,7 @@ export function RetentionRunsTab({ isAdmin }: { isAdmin: boolean }) {
           ),
         }}
       />
-      <RecordSheet
+      <RecordPage
         open={Boolean(record.id)}
         onClose={record.close}
         title={open ? `Run of ${formatDate(open.createdAt)}` : "Retention run"}

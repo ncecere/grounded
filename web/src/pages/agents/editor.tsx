@@ -46,7 +46,7 @@ export function AgentEditorPage() {
   return <Editor key={agent.data.id} agent={agent.data} />;
 }
 
-/** The Test drawer's state in ?test=open, so Back closes it and "land on Build with Test open" is a link (W9). */
+/** The Test dialog's state in ?test=open, so Back closes it and "land on Build with Test open" is a link (W9). */
 function useTestParam(): [boolean, (open: boolean) => void] {
   const [params, setParams] = useSearchParams();
   const open = params.get("test") === "open";

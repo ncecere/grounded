@@ -46,7 +46,7 @@ describe("admin agents", () => {
     expect(within(table).queryByText("Advising bot")).toBeNull();
     await userEvent.click(within(table).getByRole("button", { name: "Actions for Registrar assistant" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
-    const sheet = await screen.findByRole("dialog", { name: "Registrar assistant" });
+    const sheet = await screen.findByRole("region", { name: "Registrar assistant" });
     expect(router.state.location.search).toMatchObject({ record: "ag1", audience: "team" });
     await userEvent.type(within(sheet).getByRole("textbox", { name: "Short name" }), "reg");
     await userEvent.click(within(sheet).getByRole("button", { name: "Save short name" }));

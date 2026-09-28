@@ -1,7 +1,7 @@
 /*
  * Admin → Connections (A5): OpenAI-compatible proxies as a ListPage with a
  * row menu, the Models count linking to the filtered Models page, and each
- * connection in a RecordSheet (details, test with "Add as model", edit).
+ * connection in a RecordPage (details, test with "Add as model", edit).
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -10,7 +10,8 @@ import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import { ListPage } from "@/components/templates/list-page";
-import { useRecordParam } from "@/components/templates/record-sheet";
+import { useFormParam } from "@/components/templates/form-page";
+import { useRecordParam } from "@/components/templates/record-page";
 import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import { TextLink } from "@/components/ui/text-link/text-link";
@@ -18,7 +19,7 @@ import { toast } from "@/components/ui/toast/toast";
 import s from "../../shared.module.css";
 import { useIsPlatformAdmin } from "../hooks";
 import { type Connection, EnabledBadge, useConnections, useModels } from "./common";
-import { ConnectionForm, ConnectionSheet } from "./connection-sheet";
+import { ConnectionForm, ConnectionRecordPage } from "./connection-record";
 import { ModelDialog, type ModelPreset } from "./model-dialog";
 
 const columns: DataTableColumn<Connection>[] = [
@@ -50,14 +51,20 @@ const columns: DataTableColumn<Connection>[] = [
   { id: "status", header: "Status", accessor: (c) => (c.enabled ? "Enabled" : "Disabled"), sortable: true, cell: (c) => <EnabledBadge enabled={c.enabled} /> },
 ];
 
+/** The model to add, from ?form=model:<connection id>:<upstream model> (the upstream name may contain colons). */
+function presetOf(value: string | undefined): ModelPreset | null {
+  const m = value && /^model:([^:]+):(.+)$/.exec(value);
+  return m ? { connectionId: m[1]!, upstreamModel: m[2]! } : null;
+}
+
 export function ConnectionsPage() {
   const isAdmin = useIsPlatformAdmin();
   const conns = useConnections();
   const models = useModels();
   const record = useRecordParam();
   const qc = useQueryClient();
-  const [editing, setEditing] = useState<Connection | "new" | null>(null);
-  const [adding, setAdding] = useState<ModelPreset | null>(null);
+  // ?form=new, ?form=<connection id>, or ?form=model:<connection id>:<upstream model> (add a model it offers).
+  const form = useFormParam();
   const [deleting, setDeleting] = useState<Connection | null>(null);
   const del = useMutation({
     mutationFn: async (c: Connection) => unwrap(await api.DELETE("/v1/admin/connections/{connectionId}", { params: { path: { connectionId: c.id } } })),
@@ -70,6 +77,10 @@ export function ConnectionsPage() {
   });
   const list = conns.data ?? [];
   const open = list.find((c) => c.id === record.id);
+  const editing: Connection | "new" | null = form.id === "new" ? "new" : (list.find((c) => c.id === form.id) ?? null);
+  const setEditing = (c: Connection | "new") => form.open(c === "new" ? "new" : c.id);
+  const adding = presetOf(form.id);
+  const setAdding = (p: ModelPreset) => form.open(`model:${p.connectionId}:${p.upstreamModel}`);
   const add = isAdmin && (
     <Button onClick={() => setEditing("new")}>
       <Plus aria-hidden /> Add connection
@@ -107,9 +118,9 @@ export function ConnectionsPage() {
         ]}
         empty={{ icon: <Plug />, title: "No connections yet.", description: "Add your model proxy to get started.", action: add || undefined }}
       />
-      <ConnectionSheet
+      <ConnectionRecordPage
         conn={open}
-        open={Boolean(record.id) && !editing && !adding}
+        open={Boolean(record.id)}
         loading={conns.isLoading}
         onClose={record.close}
         models={models.data ?? []}
@@ -118,8 +129,8 @@ export function ConnectionsPage() {
         onDelete={setDeleting}
         onAddModel={setAdding}
       />
-      {editing && <ConnectionForm conn={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
-      {adding && <ModelDialog model={null} connections={list} preset={adding} onClose={() => setAdding(null)} />}
+      {editing && <ConnectionForm conn={editing === "new" ? null : editing} onClose={form.close} />}
+      {adding && <ModelDialog model={null} connections={list} preset={adding} onClose={form.close} />}
       <ConfirmMutationDialog
         target={deleting}
         onClose={() => setDeleting(null)}

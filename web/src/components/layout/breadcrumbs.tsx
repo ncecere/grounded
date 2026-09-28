@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
 import { Bell, Boxes, Compass, Home, MessagesSquare, Shield } from "lucide-react";
 import { adminTeamQuery, adminUserQuery, agentProfileQuery, sharedSourceQuery } from "../../api/queries";
 import { agentQuery, kbQuery, sourceQuery, teamQuery } from "../../pages/team/common";
 import { terms } from "../../lib/terms";
 import { type BreadcrumbItem } from "@/components/ui/breadcrumbs/breadcrumbs";
 import { isNotFound } from "../not-found";
-import { useCurrentCrumbTail } from "./crumb-tail";
+import { type PageCrumb, useCurrentCrumbTail, useCurrentPageCrumbs } from "./crumb-tail";
 import { isAdminRoute, isTeamRoute, type Location } from "./location";
 import { adminNav, icon } from "./nav";
 
@@ -14,11 +14,38 @@ import { adminNav, icon } from "./nav";
 export function useBreadcrumbs(loc: Location, canAdmin: boolean): BreadcrumbItem[] {
   const trail = useTrail(loc, canAdmin);
   const tail = useCurrentCrumbTail();
-  if (!tail) return trail;
-  // The last crumb becomes a link back to the page's first tab.
-  const last = trail[trail.length - 1];
-  const linked = last && !last.render ? { ...last, render: <Link to="." search={{}} /> } : last;
-  return [...trail.slice(0, -1), ...(linked ? [linked] : []), { label: tail }];
+  const pages = useCurrentPageCrumbs();
+  const router = useRouter();
+  let crumbs = trail;
+  if (tail) {
+    // The last crumb becomes a link back to the page's first tab.
+    const last = trail[trail.length - 1];
+    const linked = last && !last.render ? { ...last, render: <Link to="." search={{}} /> } : last;
+    crumbs = [...trail.slice(0, -1), ...(linked ? [linked] : []), { label: tail }];
+  }
+  if (pages.length === 0) return crumbs;
+  // Record and form pages are open on top (bottom first). The crumb under the
+  // top page closes it (Back); lower ones go straight to their page.
+  const top = pages.length - 1;
+  const linkTo = (item: BreadcrumbItem, above: PageCrumb, underTop: boolean): BreadcrumbItem => ({
+    ...item,
+    render: (
+      <a
+        href={above.href}
+        onClick={(e) => {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+          e.preventDefault();
+          if (underTop) above.close();
+          else router.history.push(above.href);
+        }}
+      />
+    ),
+  });
+  const under = crumbs[crumbs.length - 1];
+  const out: BreadcrumbItem[] = crumbs.slice(0, -1);
+  if (under) out.push(linkTo(under, pages[0]!, top === 0));
+  pages.forEach((p, i) => out.push(i < top ? linkTo({ label: p.label }, pages[i + 1]!, i + 1 === top) : { label: p.label }));
+  return out;
 }
 
 function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbItem[] {

@@ -109,7 +109,7 @@ describe("Admin → Profile migrations", () => {
     expect(await axe(container)).toHaveNoViolations();
 
     await userEvent.click(within(table).getByText("Student handbook"));
-    const sheet = await screen.findByRole("dialog", { name: "Student handbook: Nomic 768 → Qwen3 768" });
+    const sheet = await screen.findByRole("region", { name: "Student handbook: Nomic 768 → Qwen3 768" });
     expect(within(sheet).getByRole("meter", { name: /Registrar pages/ })).toHaveAttribute("aria-valuetext", "2 of 30 documents");
     expect(within(sheet).getByText("Tuition schedule")).toBeInTheDocument();
     expect(within(sheet).getByText(/input too long/)).toBeInTheDocument();
@@ -122,7 +122,7 @@ describe("Admin → Profile migrations", () => {
   it("switches back after a confirmation", async () => {
     const calls = mockApi(routes({ "POST /v1/admin/profile-migrations/m2/switch-back": () => ({ ...switched, status: "switched_back", canSwitchBack: false, revision: 6 }) }));
     renderApp("/admin/profile-migrations?record=m2");
-    const sheet = await screen.findByRole("dialog", { name: "Advising: Nomic 768 → Qwen3 768" }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: "Advising: Nomic 768 → Qwen3 768" }, { timeout: 4000 });
     expect(within(sheet).getByRole("button", { name: "Delete old vectors now" })).toBeInTheDocument();
     await userEvent.click(within(sheet).getByRole("button", { name: "Switch back" }));
     const confirm = await screen.findByRole("alertdialog", { name: "Switch Advising back to Nomic 768?" });
@@ -157,13 +157,13 @@ describe("Admin → Profile migrations", () => {
     await waitFor(() => expect(startButton).toBeEnabled());
     await userEvent.click(startButton);
     await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.url === "/v1/admin/profile-migrations")?.body).toEqual({ kbId: "k1", targetProfileId: "p2", graceDays: 7 }));
-    expect(await screen.findByRole("dialog", { name: "Student handbook: Nomic 768 → Qwen3 768" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Student handbook: Nomic 768 → Qwen3 768" })).toBeInTheDocument();
   });
 
   it("is read-only for auditors", async () => {
     mockApi({ ...routes(), ...shellRoutes("platform_auditor"), "GET /v1/admin/profile-migrations/m1": () => running, "GET /v1/admin/profile-migrations": () => [running] });
     renderApp("/admin/profile-migrations?record=m1");
-    const sheet = await screen.findByRole("dialog", { name: /Student handbook/ }, { timeout: 4000 });
+    const sheet = await screen.findByRole("region", { name: /Student handbook/ }, { timeout: 4000 });
     expect(within(sheet).queryByRole("button", { name: "Cancel migration" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Migrate a knowledge base" })).toBeNull();
   });

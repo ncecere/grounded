@@ -2,17 +2,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import { Network, Plus, Share2 } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useMemo } from "react";
 import { useIntent } from "../../lib/intents";
 import { ListPage } from "@/components/templates/list-page";
-import { useRecordParam } from "@/components/templates/record-sheet";
+import { useRecordParam } from "@/components/templates/record-page";
 import { Button } from "@/components/ui/button/button";
-import { CreateSourceDialog } from "../sources/create";
+import { useCreateSource } from "../sources/create";
 import { SourceDetail } from "../sources/detail";
 import { type DataSource, SourceOwnerContext, platformOwner, useSourceOwner } from "../sources/owner";
 import { useClassificationLevels } from "../team/common";
 import { useIsPlatformAdmin } from "./hooks";
-import { groupUsage, sharedColumns, SharedUsageSheet, useSharedSourceUsage } from "./shared-usage";
+import { groupUsage, sharedColumns, SharedUsagePage, useSharedSourceUsage } from "./shared-usage";
 
 /** Provides the platform as the owner of the sources below. */
 export function PlatformSources({ children }: { children: ReactNode }) {
@@ -35,13 +35,13 @@ function SharedSourcesList() {
   const levels = useClassificationLevels();
   const usage = useSharedSourceUsage();
   const record = useRecordParam();
-  const [creating, setCreating] = useState(false);
-  useIntent("new-shared-source", () => owner.canEdit && setCreating(true));
+  const newSource = useCreateSource();
+  useIntent("new-shared-source", () => owner.canEdit && newSource.start());
   const list = sources.data ?? [];
   const bySource = groupUsage(usage.data ?? []);
   const open = list.find((x) => x.id === record.id);
   const create = owner.canEdit && (
-    <Button onClick={() => setCreating(true)}>
+    <Button onClick={() => newSource.start()}>
       <Plus aria-hidden /> New shared source
     </Button>
   );
@@ -68,14 +68,14 @@ function SharedSourcesList() {
         ]}
         empty={{ icon: <Share2 />, title: "No shared sources yet.", description: "Create one for content many teams need, such as the academic calendar.", action: create || undefined }}
       />
-      <SharedUsageSheet
+      <SharedUsagePage
         source={open}
         open={Boolean(record.id)}
         loading={sources.isLoading || usage.isLoading}
         onClose={record.close}
         attachments={open ? (bySource.get(open.id) ?? []) : []}
       />
-      {creating && <CreateSourceDialog onClose={() => setCreating(false)} />}
+      {newSource.element}
     </>
   );
 }

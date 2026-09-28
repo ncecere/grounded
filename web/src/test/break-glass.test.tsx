@@ -81,7 +81,7 @@ describe("Admin → Break-glass", () => {
     expect(await axe(container)).toHaveNoViolations();
 
     await userEvent.click(within(rows[1]!).getByRole("button", { name: /Open the session on Office of the Registrar by Pat Admin/ }));
-    const sheet = await screen.findByRole("dialog", { name: "Break-glass: Office of the Registrar" });
+    const sheet = await screen.findByRole("region", { name: "Break-glass: Office of the Registrar" });
     expect(within(sheet).getByText(reason)).toBeInTheDocument();
     expect(within(sheet).getByText("Nothing was read.")).toBeInTheDocument();
     expect(await axe(container.ownerDocument.body)).toHaveNoViolations();
@@ -97,7 +97,7 @@ describe("Admin → Break-glass", () => {
       "GET /v1/admin/break-glass/bg1/reads": () => ({ items: [], nextCursor: null }),
     });
     renderApp("/admin/break-glass?record=bg1");
-    const sheet = await screen.findByRole("dialog", { name: "Break-glass: Office of the Registrar" });
+    const sheet = await screen.findByRole("region", { name: "Break-glass: Office of the Registrar" });
     expect(await within(sheet).findByRole("button", { name: "Withdraw request" })).toBeInTheDocument();
     expect(within(sheet).queryByRole("button", { name: "Approve" })).toBeNull();
   });
@@ -225,7 +225,7 @@ describe("team pages under break-glass", () => {
     expect(within(crumbs).getByRole("link", { name: "Break-glass" })).toHaveAttribute("href", "/admin/break-glass");
     expect(crumbs).toHaveTextContent("Conversations");
     await userEvent.click(row);
-    const sheet = await screen.findByRole("dialog", { name: "Parking permits" });
+    const sheet = await screen.findByRole("region", { name: "Parking permits" });
     expect(within(sheet).getByText("Where do I buy a permit?")).toBeInTheDocument();
     expect(within(sheet).getByText("Sources: [1] Parking")).toBeInTheDocument();
     expect(await axe(container.ownerDocument.body)).toHaveNoViolations();

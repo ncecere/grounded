@@ -1,7 +1,7 @@
 /*
  * Admin → Models (A5): the catalog as a ListPage (kind and connection facets,
- * search, Used by) with each model in a RecordSheet (?record=<id>): details,
- * test and edit. Adding and editing happen in a sheet.
+ * search, Used by) with each model in a RecordPage (?record=<id>): details,
+ * test and edit. Adding and editing open a form page (?form=new or ?form=<id>).
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Cpu, Eye, FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
@@ -9,7 +9,8 @@ import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import { ListPage } from "@/components/templates/list-page";
-import { useRecordParam } from "@/components/templates/record-sheet";
+import { useFormParam } from "@/components/templates/form-page";
+import { useRecordParam } from "@/components/templates/record-page";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
@@ -21,7 +22,7 @@ import { ClassificationBadge, useClassificationLevels } from "../../team/common"
 import { useIsPlatformAdmin } from "../hooks";
 import { EnabledBadge, kindLabels, type Model, type ModelKind, type ModelUsage, modelUsedBy, useCatalogUsage, useConnections, useModels } from "./common";
 import { ModelDialog } from "./model-dialog";
-import { ModelSheet, useModelTest } from "./model-sheet";
+import { ModelRecordPage, useModelTest } from "./model-record";
 
 function useDeleteModel(onDeleted: () => void) {
   const qc = useQueryClient();
@@ -83,7 +84,7 @@ export function ModelsPage() {
   const usage = useCatalogUsage();
   const record = useRecordParam();
   const test = useModelTest();
-  const [editing, setEditing] = useState<Model | "new" | null>(null);
+  const form = useFormParam();
   const [deleting, setDeleting] = useState<Model | null>(null);
   const del = useDeleteModel(() => {
     setDeleting(null);
@@ -95,6 +96,8 @@ export function ModelsPage() {
   const connName = (id: string) => conns.data?.find((c) => c.id === id)?.name ?? "—";
   const usageById = new Map((usage.data?.models ?? []).map((u) => [u.modelId, u]));
   const open = list.find((x) => x.id === record.id);
+  const editing: Model | "new" | null = form.id === "new" ? "new" : (list.find((x) => x.id === form.id) ?? null);
+  const setEditing = (m: Model | "new") => form.open(m === "new" ? "new" : m.id);
   const noConnections = (conns.data ?? []).length === 0;
   const facets: Facet<Model>[] = [
     {
@@ -154,9 +157,9 @@ export function ModelsPage() {
         ]}
         empty={{ icon: <Cpu />, title: noConnections ? "Add a connection first." : "No models yet.", action: add || undefined }}
       />
-      <ModelSheet
+      <ModelRecordPage
         model={open}
-        open={Boolean(record.id) && !editing}
+        open={Boolean(record.id)}
         loading={models.isLoading}
         onClose={record.close}
         connectionName={open ? connName(open.connectionId) : ""}
@@ -166,7 +169,7 @@ export function ModelsPage() {
         onEdit={setEditing}
         onDelete={setDeleting}
       />
-      {editing && <ModelDialog model={editing === "new" ? null : editing} connections={conns.data ?? []} onClose={() => setEditing(null)} />}
+      {editing && <ModelDialog model={editing === "new" ? null : editing} connections={conns.data ?? []} onClose={form.close} />}
       <ConfirmMutationDialog
         target={deleting}
         onClose={() => setDeleting(null)}

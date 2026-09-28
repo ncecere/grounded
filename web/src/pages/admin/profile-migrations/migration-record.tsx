@@ -1,5 +1,5 @@
 /*
- * One migration in a RecordSheet (?record=<id>): facts, a meter per source
+ * One migration in a RecordPage (?record=<id>): facts, a meter per source
  * while it runs, the documents that failed, and its actions (Retry failed,
  * Cancel, Switch back, Delete old vectors now), each confirmed.
  */
@@ -9,7 +9,7 @@ import { RotateCcw, Undo2, X, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
-import { RecordSheet } from "@/components/templates/record-sheet";
+import { RecordPage } from "@/components/templates/record-page";
 import { RelativeTime } from "@/components/templates/list-page";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { StatusBadge } from "@/components/ui/badge/badge";
@@ -51,14 +51,14 @@ function useAction() {
   });
 }
 
-export function MigrationSheet({ id, onClose, isAdmin }: { id?: string; onClose: () => void; isAdmin: boolean }) {
+export function MigrationPage({ id, onClose, isAdmin }: { id?: string; onClose: () => void; isAdmin: boolean }) {
   const q = useQuery({ ...migrationQuery(id ?? ""), enabled: Boolean(id) });
   const m = q.data;
   const act = useAction();
   const [confirm, setConfirm] = useState<Action | null>(null);
   return (
     <>
-      <RecordSheet
+      <RecordPage
         open={Boolean(id)}
         onClose={onClose}
         title={m ? `${m.kb.name}: ${m.fromProfile.name} → ${m.toProfile.name}` : "Profile migration"}
@@ -67,7 +67,7 @@ export function MigrationSheet({ id, onClose, isAdmin }: { id?: string; onClose:
         error={q.error}
         facts={m ? facts(m) : []}
         sections={m ? sections(m, act.error) : []}
-        footer={m && isAdmin && <Actions m={m} onAction={setConfirm} busy={act.isPending} onRetry={() => act.mutate({ m, action: "retry" })} />}
+        actions={m && isAdmin && <Actions m={m} onAction={setConfirm} busy={act.isPending} onRetry={() => act.mutate({ m, action: "retry" })} />}
       />
       {m && (
         <ConfirmMutationDialog

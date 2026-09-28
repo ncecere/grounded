@@ -60,7 +60,7 @@ test("team settings: invite, usage meters, API key shown once and revoked, audit
     await expect(row).toBeVisible();
     await expect(page.getByText(secret)).toHaveCount(0);
     await row.getByRole("rowheader").click();
-    const sheet = page.getByRole("dialog", { name: "Course site search" });
+    const sheet = page.getByRole("region", { name: "Course site search" });
     await expect(sheet.getByText("Its secret was shown once")).toBeVisible();
     await expect(sheet.getByText(secret)).toHaveCount(0);
     await a11y(page, "API key record");
@@ -70,18 +70,18 @@ test("team settings: invite, usage meters, API key shown once and revoked, audit
     await a11y(page, "revoke confirmation");
     await confirm.getByRole("button", { name: "Revoke key" }).click();
     await expect(confirm).toBeHidden();
-    await page.keyboard.press("Escape");
+    // Revoking closes the key's page and returns to the list.
     await expect(page.getByText("No API keys yet.")).toBeVisible();
   });
 
-  await test.step("the audit log and an entry's record sheet", async () => {
+  await test.step("the audit log and an entry's record page", async () => {
     await tabs.getByRole("tab", { name: "Audit log" }).click();
     await expect(page).toHaveURL(/tab=audit/);
     const entry = page.getByRole("row", { name: /Revoked API key/ });
     await expect(entry).toBeVisible();
     await a11y(page);
     await entry.click();
-    const record = page.getByRole("dialog", { name: "Revoked API key" });
+    const record = page.getByRole("region", { name: "Revoked API key" });
     await expect(record).toBeVisible();
     await expect(page).toHaveURL(/record=/);
     await a11y(page, "audit record");

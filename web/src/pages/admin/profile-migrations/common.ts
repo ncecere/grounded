@@ -1,6 +1,6 @@
 /*
  * Profile migrations (docs/phase5-deploy.md §5 P2): types, queries and the
- * pure helpers the admin page, its sheet and the knowledge base page share.
+ * pure helpers the admin page, its record page and the knowledge base page share.
  */
 import { api, unwrap, type Schemas } from "@/api/client";
 

@@ -2,7 +2,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
-import { CreateSourceDialog } from "../pages/sources/create";
+import { CreateSourcePage, useCreateSource } from "../pages/sources/create";
 import { crawlAnnouncement, formatDuration } from "../pages/sources/crawls";
 import { SourceDetail } from "../pages/sources/detail";
 import { hostFromError } from "../pages/sources/host-errors";
@@ -18,6 +18,19 @@ beforeAll(() => {
 });
 
 /* ---------- helpers ---------- */
+
+/** The sources list's "New data source" button and what it opens. */
+function NewSource() {
+  const create = useCreateSource();
+  return (
+    <>
+      <button type="button" onClick={create.start}>
+        New data source
+      </button>
+      {create.element}
+    </>
+  );
+}
 
 describe("web source helpers", () => {
   it("validates URLs, counts and crawl limits", () => {
@@ -91,12 +104,13 @@ describe("creating a web source", () => {
       }),
       "POST /v1/teams/registrar/sources": (body) => ({ ...webSource(), name: (body as { name: string }).name }),
     });
-    renderWith(<CreateSourceDialog onClose={() => {}} />, { role: "editor" });
-    // Step 1 chooses the type; step 2 is a sheet with Name, Classification and Profile first (W9).
+    renderWith(<NewSource />, { role: "editor" });
+    await userEvent.click(await screen.findByRole("button", { name: "New data source" }));
+    // Step 1 chooses the type in a dialog; step 2 is a form page with Name, Classification and Profile first (W9).
     const chooser = await screen.findByRole("dialog", { name: "New data source" });
     await userEvent.click(within(chooser).getByRole("radio", { name: /Website/ }));
     await userEvent.click(within(chooser).getByRole("button", { name: "Continue" }));
-    const dialog = await screen.findByRole("dialog", { name: "New website source" });
+    const dialog = await screen.findByRole("region", { name: "New website source" });
     const labels = within(dialog).getAllByText(/^(Name|Classification|Embedding profile|Start URLs)$/).map((el) => el.textContent);
     expect(labels.slice(0, 4)).toEqual(["Name", "Classification", "Embedding profile", "Start URLs"]);
     expect(within(dialog).getByRole("radio", { name: /Crawl a site/ })).toBeChecked();
@@ -177,8 +191,8 @@ describe("creating a web source", () => {
           pendingRequest: { id: "r1", pattern: "*.example.org", createdAt: "2026-09-25T10:00:00Z", requesterName: "Una User" },
         }),
     });
-    renderWith(<CreateSourceDialog onClose={() => {}} initialType="web" />, { role: "editor" });
-    const dialog = await screen.findByRole("dialog", { name: "New website source" });
+    renderWith(<CreateSourcePage type="web" onClose={() => {}} />, { role: "editor" });
+    const dialog = await screen.findByRole("region", { name: "New website source" });
     await userEvent.click(await within(dialog).findByRole("radio", { name: /Single page/ }));
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Name" }), "Example");
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Page URL" }), "https://www.example.org/about");
@@ -207,8 +221,8 @@ describe("creating a web source", () => {
         ...(body as object),
       }),
     });
-    renderWith(<CreateSourceDialog onClose={() => {}} initialType="web" />, { role: "editor" });
-    const dialog = await screen.findByRole("dialog", { name: "New website source" });
+    renderWith(<CreateSourcePage type="web" onClose={() => {}} />, { role: "editor" });
+    const dialog = await screen.findByRole("region", { name: "New website source" });
     await userEvent.click(await within(dialog).findByRole("radio", { name: /Single page/ }));
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Name" }), "Example");
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Page URL" }), "https://www.example.org/about");

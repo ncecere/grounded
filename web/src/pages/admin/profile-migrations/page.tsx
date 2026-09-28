@@ -1,7 +1,7 @@
 /*
  * Admin → Profile migrations (docs/phase5-deploy.md §5 P2): every move of a
  * knowledge base to another embedding profile, as a ListPage with a meter
- * for running ones; each opens in a RecordSheet (?record=<id>). Platform
+ * for running ones; each opens in a RecordPage (?record=<id>). Platform
  * admins start one here (?start=<kbId> opens the dialog for that knowledge
  * base, from its page); auditors read.
  */
@@ -10,7 +10,7 @@ import { ArrowRight, Eye, Plus, Shuffle } from "lucide-react";
 import { useState } from "react";
 import { type ActionItem } from "@/components/templates/action-menu";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
-import { useRecordParam } from "@/components/templates/record-sheet";
+import { useRecordParam } from "@/components/templates/record-page";
 import { StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
@@ -19,7 +19,7 @@ import { Meter } from "@/components/ui/meter/meter";
 import { useSearchParams } from "@/lib/url-search";
 import { useIsPlatformAdmin } from "../hooks";
 import { documentsText, graceText, type Migration, type MigrationStatus, migrationsQuery, statusLabels, statusTone } from "./common";
-import { MigrationSheet } from "./migration-sheet";
+import { MigrationPage } from "./migration-record";
 import p from "./profile-migrations.module.css";
 import { StartMigrationDialog } from "./start-dialog";
 
@@ -131,7 +131,7 @@ export function ProfileMigrationsPage() {
           action: start || undefined,
         }}
       />
-      <MigrationSheet id={record.id} onClose={record.close} isAdmin={isAdmin} />
+      <MigrationPage id={record.id} onClose={record.close} isAdmin={isAdmin} />
       {isAdmin && (starting || startFor) && (
         <StartMigrationDialog
           initialKB={startFor}

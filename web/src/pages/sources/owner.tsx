@@ -82,8 +82,8 @@ export type SourceOwner = {
   };
   /** A router link to a source's page, for `render` props. */
   sourceLink: (id: string) => ReactElement;
-  /** Goes to a source's page, or the list when id is omitted. */
-  go: (navigate: Navigate, id?: string) => void;
+  /** Goes to a source's page, or the list when id is omitted. `replace` swaps the current history entry (a finished form page). */
+  go: (navigate: Navigate, id?: string, opts?: { replace?: boolean }) => void;
 };
 
 const enc = encodeURIComponent;
@@ -152,10 +152,10 @@ function teamOwner(ctx: TeamCtx): SourceOwner {
       related: [kbsKey(team), ["team", team, "kb"]],
     },
     sourceLink: (id) => <Link to="/teams/$team/sources/$sourceId" params={{ team, sourceId: id }} />,
-    go: (navigate, id) =>
+    go: (navigate, id, opts) =>
       void (id
-        ? navigate({ to: "/teams/$team/sources/$sourceId", params: { team, sourceId: id } })
-        : navigate({ to: "/teams/$team/sources", params: { team } })),
+        ? navigate({ to: "/teams/$team/sources/$sourceId", params: { team, sourceId: id }, replace: opts?.replace })
+        : navigate({ to: "/teams/$team/sources", params: { team }, replace: opts?.replace })),
   };
 }
 
@@ -214,8 +214,10 @@ export function platformOwner(isAdmin: boolean): SourceOwner {
       related: [["shared-sources"]],
     },
     sourceLink: (id) => <Link to="/admin/shared-sources/$sourceId" params={{ sourceId: id }} />,
-    go: (navigate, id) =>
-      void (id ? navigate({ to: "/admin/shared-sources/$sourceId", params: { sourceId: id } }) : navigate({ to: "/admin/shared-sources" })),
+    go: (navigate, id, opts) =>
+      void (id
+        ? navigate({ to: "/admin/shared-sources/$sourceId", params: { sourceId: id }, replace: opts?.replace })
+        : navigate({ to: "/admin/shared-sources", replace: opts?.replace })),
   };
 }
 

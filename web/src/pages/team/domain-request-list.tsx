@@ -1,12 +1,12 @@
 /*
  * The team's domain requests as a ListPage (status facet and search in the
- * URL) with each request in a RecordSheet (?record=<id>): the reference use
+ * URL) with each request in a RecordPage (?record=<id>): the reference use
  * of both templates (D4, D5).
  */
 import { Eye, Globe, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { ListPage, RelativeTime, timeColumn } from "../../components/templates/list-page";
-import { RecordSheet, useRecordParam } from "../../components/templates/record-sheet";
+import { RecordPage, useRecordParam } from "../../components/templates/record-page";
 import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
@@ -74,7 +74,7 @@ export function DomainRequestList({ list, loading, error, onRetry, requestAction
           ),
         }}
       />
-      <RecordSheet
+      <RecordPage
         open={Boolean(record.id)}
         onClose={record.close}
         title={open?.pattern ?? "Domain request"}

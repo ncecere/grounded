@@ -1,6 +1,6 @@
 /*
  * Uploading files to a source: the XHR upload, the drop zone and the per-file
- * results, in the "Upload files" sheet of the source page (W3). Tags typed
+ * results, in the "Upload files" dialog of the source page (W3). Tags typed
  * but not yet committed with Enter are applied too (F-06), and a paused
  * source offers no drop zone, only the reason (F-21).
  */
@@ -15,8 +15,8 @@ import { Badge } from "@/components/ui/badge/badge";
 import { DropZone } from "@/components/ui/drop-zone/drop-zone";
 import { Field } from "@/components/ui/field/field";
 import { Progress } from "@/components/ui/progress/progress";
-import { GuardedSheet } from "@/components/templates/close-guard";
-import { SheetClose } from "@/components/ui/sheet/sheet";
+import { GuardedDialog } from "@/components/templates/close-guard";
+import { DialogClose } from "@/components/ui/dialog/dialog";
 import { TagInput } from "@/components/ui/tag-input/tag-input";
 import { toast } from "@/components/ui/toast/toast";
 import type { Tone } from "@/lib/bitop-utils";
@@ -220,19 +220,19 @@ export function UploadArea({ sourceId, disabledReason, onUploaded, onPendingChan
   );
 }
 
-/** The header's "Upload files" sheet: tags first, then the drop zone and the results. */
-export function UploadSheet({ source, open, onClose, onUploaded }: { source: DataSource; open: boolean; onClose: () => void; onUploaded?: () => void }) {
+/** The header's "Upload files" dialog: tags first, then the drop zone and the results. */
+export function UploadDialog({ source, open, onClose, onUploaded }: { source: DataSource; open: boolean; onClose: () => void; onUploaded?: () => void }) {
   const paused = source.status === "paused";
   const [pending, setPending] = useState(false);
   return (
-    <GuardedSheet
+    <GuardedDialog
       open={open}
       dirty={pending}
       onClose={onClose}
-      size="md"
+      size="lg"
       title="Upload files"
       description={`Add files to ${source.name}. A file with the same name as an existing document replaces it with a new version.`}
-      footer={<SheetClose>Done</SheetClose>}
+      footer={<DialogClose>Done</DialogClose>}
     >
       <UploadArea
         sourceId={source.id}
@@ -240,7 +240,7 @@ export function UploadSheet({ source, open, onClose, onUploaded }: { source: Dat
         onUploaded={(n) => n > 0 && onUploaded?.()}
         onPendingChange={setPending}
       />
-    </GuardedSheet>
+    </GuardedDialog>
   );
 }
 

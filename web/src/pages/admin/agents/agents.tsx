@@ -1,7 +1,7 @@
 /*
  * Admin → Agents (Q3): every team's agents, metadata only, as a ListPage that
  * fits at 1280 px. The kill switch stays visible as a danger icon button on
- * each row; the rest is in the row menu and the agent's RecordSheet
+ * each row; the rest is in the row menu and the agent's RecordPage
  * (?record=<id>), which also edits the short name.
  */
 import { useQuery } from "@tanstack/react-query";
@@ -11,7 +11,7 @@ import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
 import { ActionMenu } from "@/components/templates/action-menu";
-import { useRecordParam } from "@/components/templates/record-sheet";
+import { useRecordParam } from "@/components/templates/record-page";
 import { StatusBadge } from "@/components/ui/badge/badge";
 import { IconButton } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
@@ -22,7 +22,7 @@ import { audienceLabels } from "@/lib/terms";
 import s from "../../shared.module.css";
 import { ClassificationBadge, useClassificationLevels } from "../../team/common";
 import { useIsPlatformAdmin } from "../hooks";
-import { AgentSheet } from "./agent-sheet";
+import { AgentRecordPage } from "./agent-record";
 import a from "./agents.module.css";
 import { KillSwitchDialog } from "./kill-switch";
 
@@ -202,7 +202,7 @@ export function AdminAgentsPage() {
         onRowClick={(r) => record.open(r.id)}
         tableProps={{ rowActions, defaultSort: { columnId: "status", direction: "ascending" } }}
       />
-      <AgentSheet agent={open} open={Boolean(record.id)} loading={agents.isLoading} onClose={record.close} isAdmin={isAdmin} levels={levels.data} onKillSwitch={setChanging} />
+      <AgentRecordPage agent={open} open={Boolean(record.id)} loading={agents.isLoading} onClose={record.close} isAdmin={isAdmin} levels={levels.data} onKillSwitch={setChanging} />
       {changing && <KillSwitchDialog agent={changing} onClose={() => setChanging(null)} />}
     </>
   );

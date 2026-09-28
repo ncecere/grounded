@@ -51,27 +51,6 @@
   gap: var(--space-6);
 }
 
-.formSection {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  min-width: 0;
-}
-
-.formSectionTitle {
-  padding: 0;
-  margin-bottom: var(--space-3);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-}
-
-.formSectionBody {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-4);
-}
-
 .wide {
   grid-column: 1 / -1;
 }

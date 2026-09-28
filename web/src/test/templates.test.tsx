@@ -1,4 +1,4 @@
-/* The page templates: DetailPage, SettingsPage (+ guard), ListPage, RecordSheet, DateRangeFilter. */
+/* The page templates: DetailPage, SettingsPage (+ guard), ListPage, RecordPage (+ the takeover host), DateRangeFilter. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Link, Outlet, RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
@@ -10,7 +10,8 @@ import { orderActions } from "../components/templates/action-menu";
 import { DateRangeFilter, useDateRangeParam } from "../components/templates/date-range-filter";
 import { DetailPage } from "../components/templates/detail-page";
 import { ListPage } from "../components/templates/list-page";
-import { RecordSheet, useRecordParam } from "../components/templates/record-sheet";
+import { RecordPage, useRecordParam } from "../components/templates/record-page";
+import { TakeoverHost } from "../components/templates/takeover";
 import { DangerAction, DangerZone, SettingsPage, SettingsSection } from "../components/templates/settings-page";
 import { Button } from "@/components/ui/button/button";
 import { Field } from "@/components/ui/field/field";
@@ -249,47 +250,53 @@ describe("ListPage", () => {
   });
 });
 
-describe("RecordSheet", () => {
+describe("RecordPage", () => {
   function Records() {
     const record = useRecordParam();
     const row = rows.find((r) => r.id === record.id);
     return (
-      <>
+      <TakeoverHost backLabel="Documents">
         <Button onClick={() => record.open("2")}>View Catalog</Button>
-        <RecordSheet
+        <RecordPage
           open={Boolean(record.id)}
           onClose={record.close}
           title={row?.name ?? "Document"}
           description="A document in this source."
           facts={[{ label: "Status", value: row?.status }]}
           sections={[{ title: "Passages", content: <p>Three passages</p> }]}
-          footer={<Button variant="danger">Delete</Button>}
+          actions={<Button variant="danger">Delete</Button>}
         />
-      </>
+      </TakeoverHost>
     );
   }
 
-  it("opens from ?record= (linkable) and closing removes it", async () => {
+  it("opens from ?record= (linkable) as a page over the list, and the back link closes it", async () => {
     const user = userEvent.setup();
     const { router, baseElement } = renderAt(Records, "/?record=2");
-    const sheet = await screen.findByRole("dialog", { name: "Catalog" });
-    expect(within(sheet).getByText("failed")).toBeInTheDocument();
-    expect(within(sheet).getByRole("heading", { name: "Passages" })).toBeInTheDocument();
+    const page = await screen.findByRole("region", { name: "Catalog" });
+    expect(within(page).getByRole("heading", { level: 1, name: "Catalog" })).toBeInTheDocument();
+    expect(within(page).getByText("failed")).toBeInTheDocument();
+    expect(within(page).getByRole("heading", { name: "Passages" })).toBeInTheDocument();
+    expect(within(page).getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    // The page underneath is hidden while the record is open.
+    expect(screen.queryByRole("button", { name: "View Catalog" })).toBeNull();
     expect(await axe(baseElement)).toHaveNoViolations();
-    await user.click(within(sheet).getByRole("button", { name: "Close" }));
+    await user.click(within(page).getByRole("link", { name: "Back to Documents" }));
     await waitFor(() => expect(search(router).record).toBeUndefined());
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(await screen.findByRole("button", { name: "View Catalog" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Catalog" })).toBeNull();
   });
 
   it("opening adds a history entry, so Back closes it", async () => {
     const user = userEvent.setup();
     const { router } = renderAt(Records);
     await user.click(await screen.findByRole("button", { name: "View Catalog" }));
-    expect(await screen.findByRole("dialog", { name: "Catalog" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Catalog" })).toBeInTheDocument();
     // A numeric id stays plain in the address (not JSON-quoted as %222%22).
     expect(router.state.location.searchStr).toBe("?record=2");
     act(() => router.history.back());
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Catalog" })).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "View Catalog" })).toBeInTheDocument();
   });
 });
 

@@ -16,7 +16,7 @@ import { connectionTestQuery, kindLabels, type Connection, type Model, type Mode
 import { ChatCompatFields, EmbeddingCompatFields } from "./compat-fields";
 import { initialModelForm, modelSpec, parseExtraBody, type ModelForm } from "./model-form";
 import m from "./models.module.css";
-import { FormSection, SheetForm } from "./sheet-form";
+import { FormPage, FormSection } from "@/components/templates/form-page";
 
 /** Prefills a new model, e.g. from a connection test's "Add as model". */
 export type ModelPreset = { connectionId: string; upstreamModel: string };
@@ -39,7 +39,7 @@ function useSaveModel(model: Model | null, form: ModelForm, onClose: () => void)
   });
 }
 
-/** Add or edit a model in a sheet, the form in sections by kind (A5). */
+/** Add or edit a model on a form page, the form in sections by kind (A5). */
 export function ModelDialog({ model, connections, preset, onClose }: { model: Model | null; connections: Connection[]; preset?: ModelPreset; onClose: () => void }) {
   const listId = useId();
   const [form, set] = useFormState(() => ({
@@ -54,7 +54,8 @@ export function ModelDialog({ model, connections, preset, onClose }: { model: Mo
   const extraBodyError = usesChatCompat ? parseExtraBody(form.extraBody).error : undefined;
 
   return (
-    <SheetForm
+    <FormPage
+      label={model ? `Edit ${model.displayName}` : "Add model"}
       title={model ? `Edit ${model.displayName}` : "Add model"}
       description={model ? "The connection, kind and key are fixed." : "Offer a model from a connection to teams."}
       onClose={onClose}
@@ -99,7 +100,7 @@ export function ModelDialog({ model, connections, preset, onClose }: { model: Mo
       </datalist>
       {usesChatCompat && <ChatCompatFields form={form} set={set} extraBodyError={submitted ? extraBodyError : undefined} />}
       <ErrorAlert error={save.error} />
-    </SheetForm>
+    </FormPage>
   );
 }
 

@@ -1,5 +1,5 @@
 /*
- * One connection in a RecordSheet (A5): its settings, a test that lists the
+ * One connection in a RecordPage (A5): its settings, a test that lists the
  * models the proxy offers with "Add as model" for the ones not in the
  * catalog yet, and the models on it. Editing happens in a SheetForm.
  */
@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
 import { api, ifMatch, unwrap } from "@/api/client";
-import { RecordSheet } from "@/components/templates/record-sheet";
+import { RecordPage } from "@/components/templates/record-page";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { Checkbox } from "@/components/ui/checkbox/checkbox";
@@ -21,7 +21,7 @@ import s from "../../shared.module.css";
 import { connectionTestQuery, type Connection, EnabledBadge, type Model, ProxyErrorText, TimingsText } from "./common";
 import type { ModelPreset } from "./model-dialog";
 import m from "./models.module.css";
-import { FormSection, SheetForm } from "./sheet-form";
+import { FormPage, FormSection } from "@/components/templates/form-page";
 
 type SheetProps = {
   conn?: Connection;
@@ -35,13 +35,13 @@ type SheetProps = {
   onAddModel: (p: ModelPreset) => void;
 };
 
-export function ConnectionSheet({ conn, open, loading, onClose, models, isAdmin, onEdit, onDelete, onAddModel }: SheetProps) {
+export function ConnectionRecordPage({ conn, open, loading, onClose, models, isAdmin, onEdit, onDelete, onAddModel }: SheetProps) {
   const qc = useQueryClient();
   const test = useQuery({ ...connectionTestQuery(conn?.id ?? ""), enabled: false, gcTime: 0 });
   const onThis = models.filter((x) => x.connectionId === conn?.id);
   const known = new Set(onThis.map((x) => x.upstreamModel));
   return (
-    <RecordSheet
+    <RecordPage
       open={open}
       onClose={() => {
         qc.removeQueries({ queryKey: connectionTestQuery(conn?.id ?? "").queryKey });
@@ -128,7 +128,7 @@ export function ConnectionSheet({ conn, open, loading, onClose, models, isAdmin,
             ]
           : []
       }
-      footer={
+      actions={
         conn &&
         isAdmin && (
           <>
@@ -145,7 +145,7 @@ export function ConnectionSheet({ conn, open, loading, onClose, models, isAdmin,
   );
 }
 
-/** Add or edit a connection in a sheet. */
+/** Add or edit a connection on a form page. */
 export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onClose: () => void }) {
   const qc = useQueryClient();
   const [form, set] = useFormState({
@@ -179,7 +179,8 @@ export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onC
     },
   });
   return (
-    <SheetForm
+    <FormPage
+      label={conn ? `Edit ${conn.name}` : "Add connection"}
       title={conn ? `Edit ${conn.name}` : "Add connection"}
       description="API keys are stored encrypted and are never shown again."
       onClose={onClose}
@@ -219,6 +220,6 @@ export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onC
         <Switch label="Enabled" checked={form.enabled} onCheckedChange={(v) => set("enabled", v)} />
       </FormSection>
       <ErrorAlert error={save.error} />
-    </SheetForm>
+    </FormPage>
   );
 }

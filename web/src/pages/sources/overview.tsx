@@ -152,7 +152,7 @@ function UsedByLinks({ kbs, team }: { kbs: KB[]; team: string }) {
 
 /**
  * The Overview tab: the running crawl, the counts, then source-level blocks.
- * `onUpload` opens the upload sheet (editors of upload sources).
+ * `onUpload` opens the upload dialog (editors of upload sources).
  */
 export function SourceOverview({ source, onUpload, extra }: { source: DataSource; onUpload?: () => void; extra?: ReactNode }) {
   const active = isActiveCrawl(source.activeCrawl) ? source.activeCrawl : null;

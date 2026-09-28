@@ -1,33 +1,34 @@
 /*
- * RecordSheet (D4): a leaf record (document, key, domain request, audit
- * entry, crawl run, model, connection, profile) opens in a large side sheet
- * instead of a dialog or a page. The open record is ?record=<id>, so the
- * sheet can be linked to, opening it adds a history entry and Back closes it.
+ * RecordPage (D4, revised 2026-09-28): a leaf record (document, key, domain
+ * request, audit entry, crawl run, model, connection, profile, hold…) opens
+ * as a page of its own over its list, not in a side sheet. The open record
+ * is ?record=<id>, so the page can be linked to, opening it adds a history
+ * entry, and Back (the browser's, the back link or the breadcrumb) closes it.
  *
  *   const record = useRecordParam();
  *   <ListPage … onRowClick={(d) => record.open(d.id)} rowActions={(d) => [{ label: "View details", onSelect: () => record.open(d.id) }]} />
- *   <RecordSheet open={!!record.id} onClose={record.close} title={doc?.title ?? "Document"}
+ *   <RecordPage open={!!record.id} onClose={record.close} title={doc?.title ?? "Document"}
  *     description="A document in this source." facts={[{ label: "Status", value: <DocStatus … /> }]}
  *     sections={[{ title: "Passages", content: <PassageList … /> }]}
- *     footer={<><Button variant="danger">Delete</Button><Button>Re-fetch</Button></>}
+ *     actions={<><Button variant="danger">Delete</Button><Button>Re-fetch</Button></>}
  *     loading={doc.isLoading} error={doc.error} />
  */
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useCallback, type ReactNode } from "react";
 import { ErrorAlert } from "@/components/ui/alert/alert";
+import { Card } from "@/components/ui/card/card";
 import { type DescriptionEntry, DescriptionList } from "@/components/ui/description-list/description-list";
-import { Sheet } from "@/components/ui/sheet/sheet";
 import { SkeletonText } from "@/components/ui/skeleton/skeleton";
 import { useSearchParams } from "@/lib/url-search";
 import { useCloseGuard } from "./close-guard";
-import styles from "./templates.module.css";
+import { TakeoverPage } from "./takeover";
 
 /** The URL parameter of the open record. */
 export const RECORD_PARAM = "record";
 
 /**
  * The open record's id (?record=), `open(id)` (pushes a history entry) and
- * `close()` (goes back when the sheet was opened here, so Back and × agree;
+ * `close()` (goes back when the page was opened here, so Back and × agree;
  * otherwise removes the parameter).
  */
 export function useRecordParam(param = RECORD_PARAM) {
@@ -66,54 +67,63 @@ const openedHere = new Set<string>();
 
 export type RecordSection = { title: ReactNode; content: ReactNode; id?: string };
 
-export type RecordSheetProps = {
+export type RecordPageProps = {
   open: boolean;
   onClose: () => void;
   title: ReactNode;
-  /** What the record is; read after the title (required by Sheet). */
+  /** Plain-text name for the breadcrumb, when `title` isn't a string. */
+  label?: string;
+  /** What the record is, under the title. */
   description: ReactNode;
+  /** Status badges next to the title. */
+  meta?: ReactNode;
   /** Key facts at the top, as a description list. */
   facts?: DescriptionEntry[];
-  /** Titled sections under the facts (Passages, Error, Before/after…). */
+  /** Titled sections under the facts (Passages, Error, Before/after…), each a card. */
   sections?: RecordSection[];
-  /** Actions pinned to the bottom (destructive first on the left, the main action last). */
-  footer?: ReactNode;
+  /** Buttons in the header (destructive first, the main action last). */
+  actions?: ReactNode;
   loading?: boolean;
   error?: unknown;
   /** Extra content after the sections. */
   children?: ReactNode;
-  size?: "md" | "lg" | "xl";
   /**
-   * The sheet holds unsaved edits (a create or edit form): Escape, the
-   * backdrop, × and Cancel ask "Leave without saving?" first (m7).
+   * The page holds unsaved edits: the back link and the breadcrumb ask
+   * "Leave without saving?" first (m7).
    */
   dirty?: boolean;
 };
 
-export function RecordSheet({ open, onClose, title, description, facts, sections, footer, loading, error, children, size = "lg", dirty = false }: RecordSheetProps) {
+export function RecordPage({ open, ...props }: RecordPageProps) {
+  return open ? <OpenRecordPage {...props} /> : null;
+}
+
+function OpenRecordPage({ onClose, title, label, description, meta, facts, sections, actions, loading, error, children, dirty = false }: Omit<RecordPageProps, "open">) {
   const guard = useCloseGuard(dirty, onClose);
+  const name = label ?? (typeof title === "string" ? title : "Details");
   return (
-    <Sheet open={open} onOpenChange={(o) => !o && guard.requestClose()} title={title} description={description} footer={footer} size={size}>
-      <div className={styles.record}>
-        {Boolean(error) && <ErrorAlert error={error} title="Couldn't load this record" />}
-        {loading ? (
-          <div role="status" aria-label="Loading…">
-            <SkeletonText lines={4} />
-          </div>
-        ) : (
-          <>
-            {facts && facts.length > 0 && <DescriptionList items={facts} dividers />}
-            {sections?.map((sec, i) => (
-              <section key={sec.id ?? i} className={styles.recordSection} aria-label={typeof sec.title === "string" ? sec.title : undefined}>
-                <h3 className={styles.recordSectionTitle}>{sec.title}</h3>
-                {sec.content}
-              </section>
-            ))}
-            {children}
-          </>
-        )}
-      </div>
+    <TakeoverPage param="record" label={name} title={title} meta={meta} description={description} actions={loading ? undefined : actions} onBack={guard.requestClose}>
+      {Boolean(error) && <ErrorAlert error={error} title="Couldn't load this record" />}
+      {loading ? (
+        <div role="status" aria-label="Loading…">
+          <SkeletonText lines={4} />
+        </div>
+      ) : (
+        <>
+          {facts && facts.length > 0 && (
+            <Card title="Details" titleAs="h2">
+              <DescriptionList items={facts} dividers />
+            </Card>
+          )}
+          {sections?.map((sec, i) => (
+            <Card key={sec.id ?? i} title={sec.title} titleAs="h2">
+              {sec.content}
+            </Card>
+          ))}
+          {children}
+        </>
+      )}
       {guard.dialog}
-    </Sheet>
+    </TakeoverPage>
   );
 }

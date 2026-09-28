@@ -1,9 +1,9 @@
-/* One model in a RecordSheet (A5): details, a test with its result in place, what uses it, and edit/delete. */
+/* One model in a RecordPage (A5): details, a test with its result in place, what uses it, and edit/delete. */
 import { useMutation } from "@tanstack/react-query";
 import { FlaskConical, Pencil, Trash2 } from "lucide-react";
 import { api, unwrap } from "@/api/client";
 import { RelativeTime } from "@/components/templates/list-page";
-import { RecordSheet } from "@/components/templates/record-sheet";
+import { RecordPage } from "@/components/templates/record-page";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
@@ -20,7 +20,7 @@ export function useModelTest() {
 }
 type ModelTest = ReturnType<typeof useModelTest>;
 
-/** The outcome of a model test, shown in the model's sheet. */
+/** The outcome of a model test, shown on the model's record page. */
 export function ModelTestResult({ test }: { test: ModelTest }) {
   if (test.error) return <ErrorAlert error={test.error} />;
   if (!test.data) return null;
@@ -58,12 +58,12 @@ type Props = {
   onDelete: (m: Model) => void;
 };
 
-export function ModelSheet({ model, open, loading, onClose, connectionName, usage, isAdmin, test, onEdit, onDelete }: Props) {
+export function ModelRecordPage({ model, open, loading, onClose, connectionName, usage, isAdmin, test, onEdit, onDelete }: Props) {
   const levels = useClassificationLevels();
   const usedBy = modelUsedBy(usage);
   const testedThis = test.variables?.id === model?.id;
   return (
-    <RecordSheet
+    <RecordPage
       open={open}
       onClose={onClose}
       title={model?.displayName ?? "Model"}
@@ -120,7 +120,7 @@ export function ModelSheet({ model, open, loading, onClose, connectionName, usag
             ]
           : []
       }
-      footer={
+      actions={
         model &&
         isAdmin && (
           <>

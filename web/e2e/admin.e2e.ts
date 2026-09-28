@@ -28,9 +28,9 @@ test("overview and logs (sign-ins hidden by default)", async ({ as, a11y }) => {
   await expect(hide).not.toBeChecked();
   await expect(log.getByRole("rowheader", { name: /^Signed in/ }).first()).toBeVisible();
 
-  // An entry opens in its record sheet.
+  // An entry opens as its record page.
   await log.getByRole("rowheader", { name: /^Signed in/ }).first().click();
-  await expect(page.getByRole("dialog", { name: /Signed in/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: /Signed in/ })).toBeVisible();
   await expect(page).toHaveURL(/record=/);
   await a11y(page, "audit record");
 });
@@ -101,7 +101,7 @@ test("retention dry run, and a legal hold placed and released", async ({ as, adm
   const row = page.getByRole("row", { name: new RegExp(`E2E ${team}`) });
   await expect(row).toBeVisible();
   await row.getByRole("rowheader").click();
-  const sheet = page.getByRole("dialog", { name: `Hold on E2E ${team}` });
+  const sheet = page.getByRole("region", { name: `Hold on E2E ${team}` });
   await expect(sheet).toBeVisible();
   await a11y(page, "legal hold record");
   await sheet.getByRole("button", { name: "Release hold" }).click();
@@ -111,7 +111,8 @@ test("retention dry run, and a legal hold placed and released", async ({ as, adm
   await release.getByRole("button", { name: "Release hold" }).click();
   await expect(page.getByText("Hold released")).toBeVisible();
 
-  await page.keyboard.press("Escape");
+  // The hold's page: its back link returns to the list.
+  await sheet.getByRole("link", { name: /^Back to/ }).click();
   await page.getByRole("tab", { name: "Released" }).click();
   await expect(page.getByRole("row", { name: new RegExp(`E2E ${team}`) })).toBeVisible();
   await a11y(page);
@@ -138,8 +139,8 @@ test("break-glass: start a documents session, read, end", async ({ as, admin, a1
   await start.getByRole("button", { name: "Start session" }).click();
   await expect(page.getByText("Break-glass session started")).toBeVisible();
 
-  // The session's sheet: read the team's documents under it.
-  const sheet = page.getByRole("dialog", { name: `Break-glass: E2E ${team}` });
+  // The session's page: read the team's documents under it.
+  const sheet = page.getByRole("region", { name: `Break-glass: E2E ${team}` });
   await expect(sheet).toBeVisible();
   await a11y(page, "break-glass session");
   await sheet.getByRole("link", { name: "Read documents" }).click();

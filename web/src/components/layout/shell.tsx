@@ -17,6 +17,8 @@ import styles from "./layout.module.css";
 import { useActiveTeam } from "./active-team";
 import { isAdminRoute, isChatRoute, useCapabilities, useLocationInfo } from "./location";
 import { documentTitle, useBreadcrumbs } from "./breadcrumbs";
+import { useCurrentPageCrumbs } from "./crumb-tail";
+import { TakeoverHost } from "../templates/takeover";
 import { useCommands } from "./commands";
 import { type Mode, useRememberHref } from "./mode-switch";
 import { MaintenanceBanner } from "./maintenance-banner";
@@ -53,6 +55,10 @@ export function AppLayout({ children }: { children?: ReactNode }) {
 
   const active = useActiveTeam(me, loc);
   const crumbs = useBreadcrumbs(loc, canAdmin);
+  // The bottom record or form page's back link names the route's page underneath.
+  const pageCrumbs = useCurrentPageCrumbs();
+  const under = pageCrumbs.length > 0 ? crumbs[crumbs.length - 1 - pageCrumbs.length]?.label : undefined;
+  const backLabel = typeof under === "string" ? under : undefined;
   const commands = useCommands(me, active, paletteOpen);
   // Only admins and auditors get the admin shell (its sidebar queries admin APIs);
   // others see the workspace shell around the no-access page.
@@ -110,7 +116,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
           <Main>
             <BreakGlassBanner me={me} />
             <MaintenanceBanner me={me} />
-            {children ?? <Outlet />}
+            <TakeoverHost backLabel={backLabel}>{children ?? <Outlet />}</TakeoverHost>
           </Main>
         )}
       </AppShell>

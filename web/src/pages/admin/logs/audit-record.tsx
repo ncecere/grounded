@@ -1,10 +1,10 @@
-/* One audit entry in a RecordSheet (A3): who, what, when, the target and a before/after diff (with model, connection and profile ids named). */
+/* One audit entry in a RecordPage (A3): who, what, when, the target and a before/after diff (with model, connection and profile ids named). */
 import { useQuery } from "@tanstack/react-query";
 import type { Schemas } from "@/api/client";
 import { actionLabel, actorName, nameIds } from "@/components/audit/labels";
 import { AuditTarget } from "@/components/audit/target";
 import { RelativeTime } from "@/components/templates/list-page";
-import { RecordSheet, type RecordSection } from "@/components/templates/record-sheet";
+import { RecordPage, type RecordSection } from "@/components/templates/record-page";
 import { CodeBlock } from "@/components/ui/code-block/code-block";
 import { DiffViewer } from "@/components/ui/diff-viewer/diff-viewer";
 import s from "../../shared.module.css";
@@ -49,10 +49,10 @@ export function auditSections(e: Entry, names: ReadonlyMap<string, string> = new
 
 type Props = { entry: Entry | undefined; open: boolean; loading: boolean; onClose: () => void };
 
-export function AuditEntrySheet({ entry, open, loading, onClose }: Props) {
+export function AuditEntryPage({ entry, open, loading, onClose }: Props) {
   const names = useCatalogNames(open);
   return (
-    <RecordSheet
+    <RecordPage
       open={open}
       onClose={onClose}
       title={entry ? actionLabel(entry.action) : "Audit entry"}

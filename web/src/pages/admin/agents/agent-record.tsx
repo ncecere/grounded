@@ -1,9 +1,9 @@
-/* Admin → Agents: one agent in a RecordSheet (metadata, short name, kill switch, access log link). */
+/* Admin → Agents: one agent in a RecordPage (metadata, short name, kill switch, access log link). */
 import { Link } from "@tanstack/react-router";
 import { Power, PowerOff, ScrollText } from "lucide-react";
 import type { Schemas } from "@/api/client";
 import { RelativeTime } from "@/components/templates/list-page";
-import { RecordSheet } from "@/components/templates/record-sheet";
+import { RecordPage } from "@/components/templates/record-page";
 import { StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { TextLink } from "@/components/ui/text-link/text-link";
@@ -25,10 +25,10 @@ type Props = {
   onKillSwitch: (a: AdminAgent) => void;
 };
 
-export function AgentSheet({ agent, open, loading, onClose, isAdmin, levels, onKillSwitch }: Props) {
+export function AgentRecordPage({ agent, open, loading, onClose, isAdmin, levels, onKillSwitch }: Props) {
   const disabled = agent?.status === "disabled_by_platform";
   return (
-    <RecordSheet
+    <RecordPage
       open={open}
       onClose={onClose}
       title={agent?.name ?? "Agent"}
@@ -73,7 +73,7 @@ export function AgentSheet({ agent, open, loading, onClose, isAdmin, levels, onK
             ]
           : []
       }
-      footer={
+      actions={
         agent && (
           <>
             <Button variant="secondary" render={<Link to="/admin/logs" search={{ tab: "access", agent: agent.id } as never} />}>

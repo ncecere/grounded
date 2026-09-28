@@ -1,5 +1,5 @@
 /*
- * One API key in a RecordSheet (D4): what it may do (scopes), what it may
+ * One API key in a RecordPage (D4): what it may do (scopes), what it may
  * reach (knowledge bases and agents, F-25), who owns it or answers for it
  * (a service key's responsible contact, reassignable by admins and owners),
  * expiry and last use. The secret is never shown again.
@@ -10,7 +10,7 @@ import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { membersKey } from "@/components/members";
 import { RelativeTime } from "@/components/templates/list-page";
-import { RecordSheet } from "@/components/templates/record-sheet";
+import { RecordPage } from "@/components/templates/record-page";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
@@ -73,7 +73,7 @@ type Props = {
   onRevoke?: () => void;
 };
 
-export function KeySheet({ k, open, loading, onClose, kbName, agentName, onRevoke }: Props) {
+export function KeyRecordPage({ k, open, loading, onClose, kbName, agentName, onRevoke }: Props) {
   const list = (ids: string[] | null | undefined, name: (id: string) => string, all: string) =>
     ids?.length ? (
       <ul className={ks.list}>
@@ -85,7 +85,7 @@ export function KeySheet({ k, open, loading, onClose, kbName, agentName, onRevok
       all
     );
   return (
-    <RecordSheet
+    <RecordPage
       open={open}
       onClose={onClose}
       title={k?.name ?? "API key"}
@@ -123,7 +123,7 @@ export function KeySheet({ k, open, loading, onClose, kbName, agentName, onRevok
             ]
           : []
       }
-      footer={
+      actions={
         k &&
         onRevoke && (
           <Button variant="danger" onClick={onRevoke}>

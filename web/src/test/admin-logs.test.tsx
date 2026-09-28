@@ -62,7 +62,7 @@ describe("admin logs", () => {
 
     await userEvent.click(within(table).getByRole("button", { name: /Actions for Changed model/ }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
-    const sheet = await screen.findByRole("dialog", { name: "Changed model" });
+    const sheet = await screen.findByRole("region", { name: "Changed model" });
     expect(within(sheet).getByText("Before and after")).toBeInTheDocument();
     expect(within(sheet).getByText("req-1")).toBeInTheDocument();
   });

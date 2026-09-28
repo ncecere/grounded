@@ -1,4 +1,4 @@
-/* ListPage row click (m2), the "Leave without saving?" guard of form sheets and dialogs (m7), and plain numeric ids in the address. */
+/* ListPage row click (m2), the "Leave without saving?" guard of form pages and dialogs (m7), and plain numeric ids in the address. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -6,15 +6,15 @@ import userEvent from "@testing-library/user-event";
 import { type ReactNode, useState } from "react";
 import { axe } from "vitest-axe";
 import { FormDialog } from "../components/form-dialog";
-import { GuardedSheet, useEditTracker } from "../components/templates/close-guard";
+import { GuardedDialog, useEditTracker } from "../components/templates/close-guard";
+import { FormPage } from "../components/templates/form-page";
 import { ListPage } from "../components/templates/list-page";
-import { RecordSheet, useRecordParam } from "../components/templates/record-sheet";
+import { RecordPage, useRecordParam } from "../components/templates/record-page";
 import { fromSearchParams } from "../lib/url-search";
 import { useFormState } from "../lib/use-form-state";
 import { Button } from "@/components/ui/button/button";
 import { Field, Form } from "@/components/ui/field/field";
 import { Input } from "@/components/ui/input/input";
-import { SheetClose } from "@/components/ui/sheet/sheet";
 
 function renderAt(ui: () => ReactNode, path = "/") {
   const root = createRootRoute();
@@ -52,58 +52,60 @@ describe("ListPage onRowClick", () => {
           onRowClick={(r) => record.open(r.id)}
           rowActions={(r) => [{ label: "View details", onSelect: () => record.open(r.id) }]}
         />
-        <RecordSheet open={Boolean(record.id)} onClose={record.close} title={row?.name ?? "Document"} description="A document." />
+        <RecordPage open={Boolean(record.id)} onClose={record.close} title={row?.name ?? "Document"} description="A document." />
       </>
     );
   }
 
-  it("opens the record sheet from a row click or Enter, and the menu still works", async () => {
+  it("opens the record page from a row click or Enter, and the menu still works", async () => {
     const user = userEvent.setup();
     const { router, container } = renderAt(Records);
     await user.click(await screen.findByRole("rowheader", { name: "Catalog" }));
-    expect(await screen.findByRole("dialog", { name: "Catalog" })).toBeInTheDocument();
+    const page = await screen.findByRole("region", { name: "Catalog" });
     expect(router.state.location.searchStr).toBe("?record=8");
-    await user.keyboard("{Escape}");
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await user.click(within(page).getByRole("link", { name: "Back" }));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Catalog" })).toBeNull());
 
     const row = screen.getByRole("rowheader", { name: "Handbook" }).closest("tr")!;
     row.focus();
     await user.keyboard("{Enter}");
-    expect(await screen.findByRole("dialog", { name: "Handbook" })).toBeInTheDocument();
-    await user.keyboard("{Escape}");
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(await screen.findByRole("region", { name: "Handbook" })).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: "Back" }));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Handbook" })).toBeNull());
 
     await user.click(screen.getByRole("button", { name: "Actions for Catalog" }));
     await user.click(await screen.findByRole("menuitem", { name: "View details" }));
-    expect(await screen.findByRole("dialog", { name: "Catalog" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Catalog" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 });
 
-describe("form sheets ask before discarding edits", () => {
+describe("form pages and dialogs ask before discarding edits", () => {
   function KeyForm({ onClose }: { onClose: () => void }) {
     const [form, set, , dirty] = useFormState({ name: "" });
     return (
-      <RecordSheet open onClose={onClose} dirty={dirty} title="Create a key" description="A widget key." footer={<SheetClose>Cancel</SheetClose>}>
+      <FormPage label="Create a key" title="Create a key" description="A widget key." onClose={onClose} onSubmit={() => {}} submitLabel="Create key" dirty={dirty}>
         <Field label="Name">
           <Input value={form.name} onChange={(e) => set("name", e.target.value)} />
         </Field>
-      </RecordSheet>
+      </FormPage>
     );
   }
 
-  it("RecordSheet: closes at once when untouched, asks once edited (Escape and Cancel)", async () => {
+  it("FormPage: closes at once when untouched, asks once edited (Cancel and the back link)", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    renderAt(() => <KeyForm onClose={onClose} />);
-    await screen.findByRole("dialog", { name: "Create a key" });
-    await user.keyboard("{Escape}");
+    const { baseElement } = renderAt(() => <KeyForm onClose={onClose} />);
+    const page = await screen.findByRole("region", { name: "Create a key" });
+    expect(within(page).getByRole("heading", { level: 1, name: "Create a key" })).toBeInTheDocument();
+    await user.click(within(page).getByRole("button", { name: "Cancel" }));
     expect(onClose).toHaveBeenCalledTimes(1);
 
     await user.type(screen.getByRole("textbox", { name: "Name" }), "Main site");
-    await user.keyboard("{Escape}");
+    await user.click(within(page).getByRole("link", { name: "Back" }));
     const ask = await screen.findByRole("alertdialog", { name: "Leave without saving?" });
     expect(onClose).toHaveBeenCalledTimes(1);
+    expect(await axe(baseElement)).toHaveNoViolations();
     await user.click(within(ask).getByRole("button", { name: "Keep editing" }));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Main site");
@@ -113,23 +115,43 @@ describe("form sheets ask before discarding edits", () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it("GuardedSheet with useEditTracker: any typed field makes it ask", async () => {
+  it("FormPage submits only its own form, and tracks edits by itself", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    function NewSource() {
+    const onSubmit = vi.fn();
+    renderAt(() => (
+      <FormPage label="New source" title="New source" onClose={onClose} onSubmit={onSubmit} submitLabel="Create">
+        <Field label="Name">
+          <Input />
+        </Field>
+      </FormPage>
+    ));
+    await user.type(await screen.findByRole("textbox", { name: "Name" }), "Catalog{Enter}");
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: "Create" }));
+    expect(onSubmit).toHaveBeenCalledTimes(2);
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(await screen.findByRole("alertdialog", { name: "Leave without saving?" })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("GuardedDialog with useEditTracker: any typed field makes it ask", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    function Upload() {
       const edits = useEditTracker();
       return (
-        <GuardedSheet dirty={edits.edited} onClose={onClose} title="New website source" description="Index a website.">
+        <GuardedDialog dirty={edits.edited} onClose={onClose} title="Upload files" description="Add files.">
           <Form {...edits.formProps}>
-            <Field label="Name">
+            <Field label="Tags">
               <Input />
             </Field>
           </Form>
-        </GuardedSheet>
+        </GuardedDialog>
       );
     }
-    const { baseElement } = renderAt(() => <NewSource />);
-    await user.type(await screen.findByRole("textbox", { name: "Name" }), "Catalog");
+    const { baseElement } = renderAt(() => <Upload />);
+    await user.type(await screen.findByRole("textbox", { name: "Tags" }), "policy");
     await user.click(screen.getByRole("button", { name: "Close" }));
     const ask = await screen.findByRole("alertdialog", { name: "Leave without saving?" });
     expect(await axe(baseElement)).toHaveNoViolations();

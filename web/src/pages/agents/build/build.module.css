@@ -29,14 +29,11 @@
   gap: var(--space-4);
 }
 
-.testDrawer.testDrawer[data-side="right"] {
-  width: min(40rem, calc(100vw - var(--space-8)));
-}
-
-.drawerBody {
+/* The test chat in a dialog on narrow screens: a fixed height, so the transcript scrolls above the composer. */
+.testDialogBody {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  height: min(70vh, 40rem);
   min-height: 0;
 }
 

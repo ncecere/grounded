@@ -36,7 +36,7 @@ describe("admin model compatibility fields", () => {
     renderApp("/admin/models");
     await userEvent.click(await screen.findByRole("button", { name: "Actions for Qwen" }, { timeout: 4000 }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Edit" }));
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("region", { name: /^Edit Qwen/ });
     await userEvent.click(within(dialog).getByText("Compatibility"));
     await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Honours tool_choice" }), "yes");
     const extra = within(dialog).getByRole("textbox", { name: /Extra request fields/ });
@@ -66,7 +66,7 @@ describe("admin model compatibility fields", () => {
     renderApp("/admin/models");
     await userEvent.click(await screen.findByRole("button", { name: "Actions for Qwen embeddings" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Edit" }));
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("region", { name: /^Edit Qwen/ });
     expect(within(dialog).queryByText("Compatibility")).toBeNull();
     await userEvent.click(within(dialog).getByRole("checkbox", { name: /Server accepts the dimensions parameter/ }));
     expect(await axe(dialog)).toHaveNoViolations();
@@ -122,7 +122,7 @@ describe("embedding profile output dimensions and fusion defaults", () => {
   it("shows a profile's output dimensions and default fusion weights in its sheet (A5)", async () => {
     mockApi({ ...shellRoutes("platform_admin"), "GET /v1/admin/embedding-profiles": () => [profile], "GET /v1/admin/catalog-usage": () => ({ models: [], profiles: [{ profileId: "p1", sources: 2, knowledgeBases: 1 }] }) });
     renderApp("/admin/embedding-profiles?record=p1");
-    const sheet = await screen.findByRole("dialog", { name: "Qwen 768" });
+    const sheet = await screen.findByRole("region", { name: "Qwen 768" });
     expect(within(sheet).getByText("Vector 1 · keyword 0.02")).toBeInTheDocument();
     expect(within(sheet).getByText(/shortened from the model's vectors/)).toBeInTheDocument();
     expect(await within(sheet).findByText("2 data sources")).toBeInTheDocument();

@@ -1,7 +1,7 @@
 /*
  * Admin → Embedding profiles (A5): a ListPage with one-line Vectors and
  * Passages cells, Used by, and a row menu (Make default, Retire, Fusion
- * defaults, Delete last). Each profile opens in a RecordSheet with its fixed
+ * defaults, Delete last). Each profile opens in a RecordPage with its fixed
  * settings, output dimensions and default fusion weights.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +11,7 @@ import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import type { ActionItem } from "@/components/templates/action-menu";
 import { ListPage } from "@/components/templates/list-page";
-import { RecordSheet, useRecordParam } from "@/components/templates/record-sheet";
+import { RecordPage, useRecordParam } from "@/components/templates/record-page";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge, StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
@@ -177,7 +177,7 @@ function ProfileSheet({ profile: p, open, loading, onClose, usage, isAdmin, onFu
   const levelName = useLevelName();
   const usedBy = profileUsedBy(usage);
   return (
-    <RecordSheet
+    <RecordPage
       open={open}
       onClose={onClose}
       title={p?.name ?? "Embedding profile"}
@@ -218,7 +218,7 @@ function ProfileSheet({ profile: p, open, loading, onClose, usage, isAdmin, onFu
             ]
           : []
       }
-      footer={
+      actions={
         p &&
         isAdmin && (
           <Button variant="secondary" onClick={() => onFusion(p)}>

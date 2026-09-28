@@ -8,8 +8,10 @@ Grounded's page shapes from the UI plan (`docs/ui-review/README.md`, D3–D5, Q1
 | `SettingsPage`, `SettingsSection`, `DangerZone`, `DangerAction` | `settings-page.tsx` | A Settings tab or settings page (D3, F-17) |
 | `useUnsavedChangesGuard` | `unsaved-guard.tsx` | Any other page with a `SaveBar` |
 | `ListPage`, `useListFilters`, `timeColumn`, `RelativeTime` | `list-page.tsx` | Every list and log (D5) |
-| `RecordSheet`, `useRecordParam` | `record-sheet.tsx` | Leaf records: documents, keys, requests, audit entries, crawl runs, models… (D4) |
-| `GuardedSheet`, `useCloseGuard`, `useEditTracker` | `close-guard.tsx` | Any other sheet or dialog with a form: "Leave without saving?" on close (m7) |
+| `RecordPage`, `useRecordParam` | `record-page.tsx` | Leaf records: documents, keys, requests, audit entries, crawl runs, models… as a page over their list (D4) |
+| `FormPage`, `FormSection`, `useFormParam` | `form-page.tsx` | Long create and edit forms (a source, a connection, a model, a classification level) as a page (D4) |
+| `TakeoverPage`, `TakeoverHost` | `takeover.tsx` | What RecordPage and FormPage build on; the shell holds the host |
+| `GuardedDialog`, `useCloseGuard`, `useEditTracker` | `close-guard.tsx` | Any other dialog with input: "Leave without saving?" on close (m7) |
 | `DateRangeFilter`, `useDateRangeParam` | `date-range-filter.tsx` | Any date range (Q13) |
 | `ActionMenu`, `orderActions` | `action-menu.tsx` | The "…" menu (used by the above) |
 
@@ -75,28 +77,40 @@ Words come from `src/lib/terms.ts` (D8): "Passages", not chunks; "Signed-in user
 - Filters (`?status=failed`) and search (`?q=`) live in the URL and replace the history entry. Date facets use the same presets as `DateRangeFilter`.
 - Filtering is in memory by default. For server-side lists, read the values with `useListFilters(facets)`, pass them to the query, and set `manual` (plus `tableProps={{ loadMore }}` or `cursor`).
 - Dates use `timeColumn(id, header, get)` or `<RelativeTime value=…/>`, which show relative text with the full date as the title.
-- Rows that open a RecordSheet get `onRowClick={(r) => record.open(r.id)}`: a click anywhere on the row (except its links and buttons) or Enter on the focused row opens it. Keep "View details" in the row menu too.
+- Rows that open a RecordPage get `onRowClick={(r) => record.open(r.id)}`: a click anywhere on the row (except its links and buttons) or Enter on the focused row opens it. Keep "View details" in the row menu too.
 - Fit at 1280 px: the list sits in a 976 px column there. Give long text a one-line `max-width` with an ellipsis (the full text as `title`), keep short cells `nowrap`, and start low-priority columns hidden (`defaultHidden`, still in the Columns menu). A table never widens the page; it scrolls inside its own wrapper only as a last resort.
 - Without `title`, only the table renders (for a list inside a tab or card).
 - `tableProps` passes anything else to `DataTable`: `selectable`, `bulkActions`, `toolbar`, `loadMore`, `cursor`, `defaultSort`, `stickyHeader`.
 
-## RecordSheet
+## Record and form pages (no side sheets)
+
+The rule (owner decision, 2026-09-28): no drawers or side sheets. Short forms and confirmations are **dialogs** (`FormDialog`, `GuardedDialog`, `ConfirmMutationDialog`); records and long forms are **pages**. The only drawer left is the chat page's conversation list on narrow screens.
 
 ```tsx
 const record = useRecordParam();         // ?record=<id>
 …rowActions={(d) => [{ label: "View details", onSelect: () => record.open(d.id) }, …]}
 …onRowClick={(d) => record.open(d.id)}
-<RecordSheet open={Boolean(record.id)} onClose={record.close} title={doc.data?.title ?? "Document"}
+<RecordPage open={Boolean(record.id)} onClose={record.close} title={doc.data?.title ?? "Document"}
   description="A document in this source." loading={doc.isLoading} error={doc.error}
   facts={[{ label: "Status", value: … }, { label: "Size", value: … }]}
   sections={[{ title: "Passages", content: … }, { title: "Tags", content: … }]}
-  footer={<><Button variant="danger">Delete</Button><Button>Re-fetch</Button></>} />
+  actions={<><Button variant="danger">Delete</Button><Button>Re-fetch</Button></>} />
+
+const form = useFormParam();             // ?form=new or ?form=<id>
+<Button onClick={() => form.open("new")}>Add connection</Button>
+{form.id && <FormPage label="Add connection" title="Add connection" description=… onClose={form.close}
+  onSubmit={() => save.mutate()} submitLabel="Add connection" busy={save.isPending}>
+  <FormSection title="Endpoint">…fields…</FormSection>
+</FormPage>}
 ```
 
-- The sheet is large (`lg`) by default and opens from the right.
-- `open(id)` pushes a history entry, so Back closes the sheet, and × goes back too. A pasted link with `?record=` opens the sheet directly.
+- A record or form page replaces the route's page in the main area; the list stays mounted underneath, hidden, so closing returns to the same filters and scroll position. Pages stack: an edit form opened from a record covers it.
+- Each page has a back link ("← Back to Connections"), and its title is the last breadcrumb. The crumb under it closes it.
+- `open(value)` pushes a history entry, so the browser's Back closes the page. A pasted link with `?record=` or `?form=` opens it directly; reloading keeps it open.
 - Fetch the record by id (not from the list's page), so links work for rows that aren't loaded.
-- A sheet holding a form passes `dirty` (e.g. the fourth value of `useFormState`): Escape, the backdrop, × and Cancel then ask "Leave without saving?". Other form sheets use `GuardedSheet` with `useEditTracker()` (any typed or picked field counts); `FormDialog` does this by itself.
+- A record's actions go in the header (`actions`: destructive first, the main action last). A form's buttons go under the form: Cancel, then the submit button; `startActions` holds "Change type" or a destructive action.
+- `FormPage` asks "Leave without saving?" on Cancel, the back link and the breadcrumb once anything was typed or picked; pass `dirty` when the form tracks its own changes. A `RecordPage` with edits passes `dirty` too.
+- After a create that goes to the new object's page, navigate with `replace: true`, so Back from it returns to the list, not to the form.
 
 ## DateRangeFilter
 

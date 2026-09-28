@@ -35,3 +35,47 @@ export function useCrumbTail(label: string | undefined) {
 export function useCurrentCrumbTail() {
   return useSyncExternalStore(subscribe, () => tail);
 }
+
+/* ---------------- record and form pages ---------------- */
+
+/**
+ * The open record and form pages (RecordPage, FormPage), bottom first: each
+ * one's title is a crumb after the route's trail. `href` is the address
+ * underneath it (without its own ?record= or ?form=), and `close` returns
+ * there.
+ */
+export type PageCrumb = {
+  id: string;
+  label: string;
+  close: () => void;
+  href: string;
+};
+
+let pageCrumbs: PageCrumb[] = [];
+const pageListeners = new Set<() => void>();
+
+const subscribePage = (l: () => void) => {
+  pageListeners.add(l);
+  return () => pageListeners.delete(l);
+};
+
+function setPageCrumbs(next: PageCrumb[]) {
+  pageCrumbs = next;
+  for (const l of pageListeners) l();
+}
+
+/** Registers an open page's crumb while mounted; it keeps its place in the stack when it changes. */
+export function usePageCrumb(crumb: PageCrumb | undefined) {
+  useEffect(() => {
+    if (!crumb) return;
+    const i = pageCrumbs.findIndex((c) => c.id === crumb.id);
+    setPageCrumbs(i < 0 ? [...pageCrumbs, crumb] : pageCrumbs.map((c) => (c.id === crumb.id ? crumb : c)));
+  }, [crumb]);
+  const id = crumb?.id;
+  useEffect(() => () => setPageCrumbs(pageCrumbs.filter((c) => c.id !== id)), [id]);
+}
+
+/** The open pages' crumbs, bottom first (the shell's breadcrumbs, the back links). */
+export function useCurrentPageCrumbs() {
+  return useSyncExternalStore(subscribePage, () => pageCrumbs);
+}

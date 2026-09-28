@@ -8,7 +8,7 @@ import { History, LockOpen, Settings2 } from "lucide-react";
 import { useState } from "react";
 import { PageTabs, useUrlTab } from "@/components/page-tabs";
 import { QueryView } from "@/components/query-view";
-import { useRecordParam } from "@/components/templates/record-sheet";
+import { useRecordParam } from "@/components/templates/record-page";
 import { Alert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { Stack } from "@/components/ui/layout/layout";
@@ -17,7 +17,7 @@ import { breakGlassTabs } from "@/lib/tabs";
 import s from "../../shared.module.css";
 import { useIsPlatformAdmin } from "../hooks";
 import { useBreakGlassSettings } from "./queries";
-import { SessionSheet } from "./session-sheet";
+import { SessionPage } from "./session-record";
 import { AllSessionsList, OpenSessionsCard } from "./sessions";
 import { BreakGlassSettingsForm } from "./settings";
 import { StartDialog } from "./start-dialog";
@@ -70,7 +70,7 @@ export function BreakGlassPage() {
           },
         ]}
       />
-      <SessionSheet id={record.id} onClose={record.close} />
+      <SessionPage id={record.id} onClose={record.close} />
       {starting && settings.data && (
         <StartDialog
           settings={settings.data}

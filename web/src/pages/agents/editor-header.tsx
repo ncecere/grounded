@@ -37,7 +37,7 @@ type ActionsProps = {
   /** Why Publish is unavailable (shown under the button and read with it), or undefined. */
   blocked?: string;
   onPublish: () => void;
-  /** Opens the Test drawer (narrow windows on Build). */
+  /** Opens the Test dialog (narrow windows on Build). */
   onTest?: () => void;
 };
 

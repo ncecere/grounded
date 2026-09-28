@@ -7,7 +7,7 @@
  *     caption="Data sources" columns={columns} data={sources} getRowId={(r) => r.id}
  *     rowLabel={(r) => r.name} facets={facets} search={{ label: "Search sources" }}
  *     rowActions={(r) => [{ label: "Open", render: <Link … /> }, { label: "Delete", danger: true, onSelect: … }]}
- *     onRowClick={(r) => record.open(r.id)}   // rows that open a RecordSheet
+ *     onRowClick={(r) => record.open(r.id)}   // rows that open a RecordPage
  *     empty={{ icon: <Database />, title: "No data sources yet.", action: <Button>New source</Button> }} />
  *
  * Without `title` it renders only the list (for a list inside a tab or card).
@@ -88,7 +88,7 @@ export type ListPageProps<T> = {
   rowActions?: (row: T) => ActionItem[];
   /**
    * Clicking a row (or Enter on the focused row) opens it, usually its
-   * RecordSheet: `onRowClick={(r) => record.open(r.id)}`. Keep "View
+   * RecordPage: `onRowClick={(r) => record.open(r.id)}`. Keep "View
    * details" in the row menu too.
    */
   onRowClick?: (row: T) => void;

@@ -1,23 +1,23 @@
 /*
  * Publishable keys for the widget (team admins and owners, W8): a list whose
- * rows open the key in a RecordSheet (?record=<id>, or ?record=new to create
+ * rows open the key in a RecordPage (?record=<id>, or ?record=new to create
  * one) with its allowed origins, limits, enable/disable and revoke. Origins
  * are shown as they will be saved, and one without a scheme is named (F-08).
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Pencil, Plus, Power, Trash2 } from "lucide-react";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "../../../api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import { ListPage, RelativeTime, timeColumn } from "@/components/templates/list-page";
-import { RecordSheet, useRecordParam } from "@/components/templates/record-sheet";
+import { FormPage } from "@/components/templates/form-page";
+import { useRecordParam } from "@/components/templates/record-page";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
-import { Field, Form } from "@/components/ui/field/field";
+import { Field } from "@/components/ui/field/field";
 import { Input } from "@/components/ui/input/input";
-import { SheetClose } from "@/components/ui/sheet/sheet";
 import { TagInput } from "@/components/ui/tag-input/tag-input";
 import { toast } from "@/components/ui/toast/toast";
 import { switchLabel } from "@/lib/terms";
@@ -101,7 +101,7 @@ export function KeysList({ team, agentId, onCreated }: Props) {
         tableProps={{ toolbar: list.length > 0 ? create : undefined }}
       />
       {(record.id === "new" || open) && (
-        <KeySheet
+        <WidgetKeyForm
           key={record.id}
           team={team}
           agentId={agentId}
@@ -140,8 +140,7 @@ type SheetProps = {
 
 const numOrNull = (v: string) => (v.trim() === "" ? null : Number(v));
 
-function KeySheet({ team, agentId, current, onClose, onRevoke, onSaved }: SheetProps) {
-  const formId = useId();
+function WidgetKeyForm({ team, agentId, current, onClose, onRevoke, onSaved }: SheetProps) {
   const [form, set, , dirty] = useFormState({
     name: current?.name ?? "",
     origins: current?.allowedOrigins ?? [],
@@ -173,11 +172,8 @@ function KeySheet({ team, agentId, current, onClose, onRevoke, onSaved }: SheetP
     onSuccess: onSaved,
   });
   return (
-    <RecordSheet
-      open
-      onClose={onClose}
-      dirty={dirty && !save.isPending}
-      size="md"
+    <FormPage
+      label={current ? current.name : "Create a widget key"}
       title={current ? current.name : "Create a widget key"}
       description="Only pages on the allowed origins can show the widget. The key sits in the page, so it isn't secret: origins, rate limits and daily caps protect the agent."
       facts={
@@ -190,51 +186,43 @@ function KeySheet({ team, agentId, current, onClose, onRevoke, onSaved }: SheetP
             ]
           : undefined
       }
-      footer={
-        <>
-          {onRevoke && (
-            <Button variant="danger" onClick={onRevoke}>
-              <Trash2 aria-hidden /> Revoke
-            </Button>
-          )}
-          <SheetClose>Cancel</SheetClose>
-          <Button type="submit" form={formId} loading={save.isPending} disabled={!form.name.trim() || problems.length > 0 || badNumber}>
-            {current ? "Save key" : "Create key"}
+      onClose={onClose}
+      dirty={dirty}
+      onSubmit={() => save.mutate()}
+      submitLabel={current ? "Save key" : "Create key"}
+      busy={save.isPending}
+      submitDisabled={!form.name.trim() || problems.length > 0 || badNumber}
+      startActions={
+        onRevoke && (
+          <Button variant="danger" onClick={onRevoke}>
+            <Trash2 aria-hidden /> Revoke
           </Button>
-        </>
+        )
       }
     >
-      <Form
-        id={formId}
-        onSubmit={(e) => {
-          e.preventDefault();
-          save.mutate();
-        }}
+      <Field label="Name" description="Where it is used, e.g. Main website.">
+        <Input value={form.name} maxLength={100} onChange={(e) => set("name", e.target.value)} />
+      </Field>
+      <Field
+        label="Allowed origins"
+        description={
+          noScheme.length
+            ? `Add the scheme to be sure: ${noScheme.map((c) => `${c.input} will be saved as ${c.origin}`).join("; ")}.`
+            : "Include the scheme, e.g. https://www.example.edu or http://localhost:8095, and press Enter after each. *.example.edu allows every subdomain."
+        }
+        error={problems[0]}
       >
-        <Field label="Name" description="Where it is used, e.g. Main website.">
-          <Input value={form.name} maxLength={100} onChange={(e) => set("name", e.target.value)} />
+        <TagInput value={form.origins} onValueChange={(v) => set("origins", v)} maxTags={20} maxTagLength={253} placeholder="https://www.example.edu" />
+      </Field>
+      <div className={s.grid2}>
+        <Field label="Questions per minute per address" labelHint="Optional" description="Empty: the platform default.">
+          <Input inputMode="numeric" value={form.perIp} onChange={(e) => set("perIp", e.target.value)} />
         </Field>
-        <Field
-          label="Allowed origins"
-          description={
-            noScheme.length
-              ? `Add the scheme to be sure: ${noScheme.map((c) => `${c.input} will be saved as ${c.origin}`).join("; ")}.`
-              : "Include the scheme, e.g. https://www.example.edu or http://localhost:8095, and press Enter after each. *.example.edu allows every subdomain."
-          }
-          error={problems[0]}
-        >
-          <TagInput value={form.origins} onValueChange={(v) => set("origins", v)} maxTags={20} maxTagLength={253} placeholder="https://www.example.edu" />
+        <Field label="Questions per minute per visitor" labelHint="Optional" description="Empty: the platform default.">
+          <Input inputMode="numeric" value={form.perSession} onChange={(e) => set("perSession", e.target.value)} />
         </Field>
-        <div className={s.grid2}>
-          <Field label="Questions per minute per address" labelHint="Optional" description="Empty: the platform default.">
-            <Input inputMode="numeric" value={form.perIp} onChange={(e) => set("perIp", e.target.value)} />
-          </Field>
-          <Field label="Questions per minute per visitor" labelHint="Optional" description="Empty: the platform default.">
-            <Input inputMode="numeric" value={form.perSession} onChange={(e) => set("perSession", e.target.value)} />
-          </Field>
-        </div>
-        <ErrorAlert error={save.error} />
-      </Form>
-    </RecordSheet>
+      </div>
+      <ErrorAlert error={save.error} />
+    </FormPage>
   );
 }

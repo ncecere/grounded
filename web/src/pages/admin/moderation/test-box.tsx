@@ -1,5 +1,5 @@
 /*
- * The moderation test (Q8): a sheet that runs a provider on a text and shows
+ * The moderation test (Q8): a dialog that runs a provider on a text and shows
  * its normalised scores, and what the open tab's policy would do with them.
  * Nothing is stored.
  */
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button/button";
 import { Field, Form } from "@/components/ui/field/field";
 import { NativeSelect, Textarea } from "@/components/ui/input/input";
 import { RadioGroup } from "@/components/ui/radio-group/radio-group";
-import { Sheet } from "@/components/ui/sheet/sheet";
+import { Dialog } from "@/components/ui/dialog/dialog";
 import { audienceTabs, categoryLabel, fullRules, modelProviderName, type ModerationResult } from "@/lib/moderation";
 import { CalibrationBadge, ScoreTable } from "./scores";
 import md from "./moderation.module.css";
@@ -36,7 +36,7 @@ export function policyVerdict(policy: Policy, result: ModerationResult, stage: S
 const verdictText = { allow: "Allowed", flag: "Flagged", support: "Support message", block: "Blocked" } as const;
 const verdictTone = { allow: "success", flag: "warning", support: "info", block: "danger" } as const;
 
-export function TestSheet({ providers, policy, onClose }: { providers: Schemas["Model"][]; policy?: Policy; onClose: () => void }) {
+export function TestDialog({ providers, policy, onClose }: { providers: Schemas["Model"][]; policy?: Policy; onClose: () => void }) {
   const [modelId, setModelId] = useState(policy?.modelId ?? providers[0]?.id ?? "");
   const [stage, setStage] = useState<Stage>("input");
   const [text, setText] = useState("");
@@ -48,7 +48,7 @@ export function TestSheet({ providers, policy, onClose }: { providers: Schemas["
   const verdict = policy && run.data ? policyVerdict(policy, run.data, run.variables ?? stage) : undefined;
 
   return (
-    <Sheet
+    <Dialog
       open
       onOpenChange={(o) => !o && onClose()}
       size="lg"
@@ -115,6 +115,6 @@ export function TestSheet({ providers, policy, onClose }: { providers: Schemas["
           </div>
         )}
       </div>
-    </Sheet>
+    </Dialog>
   );
 }

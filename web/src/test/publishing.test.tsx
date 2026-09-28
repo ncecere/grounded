@@ -311,7 +311,7 @@ describe("agent editor sharing", () => {
     expect(await axe(container, { iframes: false })).toHaveNoViolations();
 
     await userEvent.click(screen.getByRole("button", { name: "Create key" }));
-    const dialog = await screen.findByRole("dialog", { name: "Create a widget key" });
+    const dialog = await screen.findByRole("region", { name: "Create a widget key" });
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Name" }), "Demo page");
     const origins = within(dialog).getByRole("textbox", { name: /Allowed origins/ });
     // F-08: the sheet asks for a scheme, shows how an origin is saved, and names problems.

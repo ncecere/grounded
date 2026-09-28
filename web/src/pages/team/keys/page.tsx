@@ -1,6 +1,6 @@
 /*
  * Team settings › API keys (W6, D4, D5): the keys on a ListPage (type facet
- * and search in the URL), each key in a RecordSheet (?record=<id>) with its
+ * and search in the URL), each key in a RecordPage (?record=<id>) with its
  * scopes, restrictions (knowledge bases, agents), owner or responsible
  * contact, expiry and last use, and Revoke. The secret is shown once, when
  * the key is created (create-dialog.tsx).
@@ -11,7 +11,7 @@ import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
-import { useRecordParam } from "@/components/templates/record-sheet";
+import { useRecordParam } from "@/components/templates/record-page";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
@@ -27,7 +27,7 @@ import { useAgents } from "../../agents/common";
 import { keysKey, useKBs, useTeam } from "../common";
 import { ArchivedNotice } from "../layout";
 import { CreateKeyDialog } from "./create-dialog";
-import { ExpiryBadge, KeySheet, accessText, kindLabel, personName } from "./key-sheet";
+import { ExpiryBadge, KeyRecordPage, accessText, kindLabel, personName } from "./key-record";
 import type { APIKey } from "./scopes";
 
 const typeFacet: Facet<APIKey>[] = [
@@ -167,7 +167,7 @@ export function ApiKeysPage({ embedded = false }: { embedded?: boolean }) {
           ),
         }}
       />
-      <KeySheet
+      <KeyRecordPage
         k={open}
         loading={keys.isLoading && !open}
         open={Boolean(record.id)}

@@ -1,15 +1,15 @@
 /*
- * A document's detail sheet (W3, D4), opened from the documents table with
+ * A document's record page (W3, D4), opened from the documents table with
  * ?record=<documentId>: its facts, status and friendly error (the parser's
  * text on demand, P-06), passage previews, tags, and Retry / Re-fetch
  * (a web page, fetched again now) / Delete. The
- * document is fetched by id, so a pasted link opens the sheet directly.
+ * document is fetched by id, so a pasted link opens the page directly.
  */
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { RelativeTime } from "@/components/templates/list-page";
-import { RecordSheet } from "@/components/templates/record-sheet";
+import { RecordPage } from "@/components/templates/record-page";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { AlertDialog } from "@/components/ui/dialog/dialog";
@@ -31,7 +31,7 @@ const previewSize = 5;
 
 type Props = { sourceId: string; web: boolean; docId: string | undefined; onClose: () => void; mutations: DocumentMutations };
 
-export function DocumentSheet({ sourceId, web, docId, onClose, mutations }: Props) {
+export function DocumentRecordPage({ sourceId, web, docId, onClose, mutations }: Props) {
   const owner = useSourceOwner();
   const key = [...owner.keys.documents(sourceId), "one", docId];
   const doc = useQuery({
@@ -49,7 +49,7 @@ export function DocumentSheet({ sourceId, web, docId, onClose, mutations }: Prop
 
   return (
     <>
-      <RecordSheet
+      <RecordPage
         open={Boolean(docId)}
         onClose={onClose}
         title={d0 ? docName(d0) : web ? "Page" : "Document"}
@@ -66,7 +66,7 @@ export function DocumentSheet({ sourceId, web, docId, onClose, mutations }: Prop
               ]
             : []
         }
-        footer={
+        actions={
           d0 && owner.canEdit ? (
             <>
               <Button variant="danger" onClick={() => setDeleting(true)}>
@@ -91,7 +91,7 @@ export function DocumentSheet({ sourceId, web, docId, onClose, mutations }: Prop
             {maintenanceReason(maintenance, web ? "Re-fetching" : "Retrying")}
           </Alert>
         )}
-      </RecordSheet>
+      </RecordPage>
       <AlertDialog
         open={deleting && Boolean(d0)}
         onOpenChange={(o) => {

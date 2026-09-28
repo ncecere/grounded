@@ -1,7 +1,7 @@
 /*
  * Admin → Moderation (docs/phase4-publishing.md §4 and §10, ADR-0019, Q8):
  * pill tabs at the top, one per audience policy and Providers; the test box
- * is a sheet opened from the header that judges against the current tab's
+ * is a dialog opened from the header that judges against the current tab's
  * policy.
  */
 import { useQueries } from "@tanstack/react-query";
@@ -20,7 +20,7 @@ import { useIsPlatformAdmin } from "../hooks";
 import { useModels } from "../models/common";
 import { PolicyEditor } from "./policy-editor";
 import { ProvidersTab } from "./providers";
-import { TestSheet } from "./test-box";
+import { TestDialog } from "./test-box";
 
 type Audience = Schemas["Audience"];
 type Policy = Schemas["ModerationPolicy"];
@@ -67,7 +67,7 @@ export function ModerationPage() {
           { value: "providers" as const, label: "Providers", content: <ProvidersTab models={models} providers={providers} byAudience={byAudience} /> },
         ]}
       />
-      {testing && <TestSheet providers={providers} policy={current} onClose={() => setTesting(false)} />}
+      {testing && <TestDialog providers={providers} policy={current} onClose={() => setTesting(false)} />}
     </Stack>
   );
 }

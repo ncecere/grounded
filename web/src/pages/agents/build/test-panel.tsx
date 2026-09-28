@@ -11,10 +11,10 @@ import ts from "./test-panel.module.css";
 type Props = {
   agent: Agent;
   d: AgentDraft;
-  /** The chat, kept by Build so it survives closing the drawer. */
+  /** The chat, kept by Build so it survives closing the dialog. */
   chat: ReturnType<typeof useChat>;
   onProblem: (field: string) => void;
-  /** Show the panel's own heading (the drawer has its title instead). */
+  /** Show the panel's own heading (the dialog has its title instead). */
   heading?: boolean;
 };
 

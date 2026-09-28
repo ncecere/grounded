@@ -93,21 +93,76 @@
 }
 
 /* RecordSheet */
-.record {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
+/* ---------------- record and form pages (takeover.tsx) ---------------- */
+
+.takeover {
+  min-width: 0;
 }
 
-.recordSection {
+/* "← Back to Audit log" above the title. */
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  border-radius: var(--radius-control);
+}
+
+.backLink:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+.backLink:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* A form page's buttons, under the form: Cancel, then the main action. */
+.formActions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--space-2);
 }
 
-.recordSectionTitle {
+.formActionsStart {
+  margin-inline-end: auto;
+}
+
+
+.formBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 44rem;
+}
+
+.formSection {
   margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.formSectionTitle {
+  padding: 0;
+  margin-bottom: var(--space-3);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
+}
+
+.formSectionBody {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 40rem) {
+  .formSectionBody {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

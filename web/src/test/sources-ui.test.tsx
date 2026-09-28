@@ -141,7 +141,7 @@ describe("documents table and sheet (Q4, W3)", () => {
     const { container } = renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
     await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
     await userEvent.click(await screen.findByRole("button", { name: "Scanned form" }));
-    const sheet = await screen.findByRole("dialog", { name: "Scanned form" });
+    const sheet = await screen.findByRole("region", { name: "Scanned form" });
     expect(sheet).toHaveTextContent("PDF · 586 KB");
     const previews = await within(sheet).findByRole("list", { name: "Passage previews" });
     expect(previews).toHaveTextContent("Fees › Refunds · p. 1");
@@ -160,7 +160,7 @@ describe("documents table and sheet (Q4, W3)", () => {
     renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
     await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
     await userEvent.click(await screen.findByRole("button", { name: "Scanned form" }));
-    const sheet = await screen.findByRole("dialog", { name: "Scanned form" });
+    const sheet = await screen.findByRole("region", { name: "Scanned form" });
     expect(await within(sheet).findByText("This PDF has no text to read (it may be a scan).")).toBeInTheDocument();
     expect(within(sheet).queryByText("pdf: no text layer on page 1")).toBeNull();
     await userEvent.click(within(sheet).getByRole("button", { name: /Technical details/ }));
@@ -184,7 +184,7 @@ describe("documents table and sheet (Q4, W3)", () => {
     renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
     await userEvent.click(await screen.findByRole("tab", { name: /^Pages/ }));
     await userEvent.click(await screen.findByRole("button", { name: "Fees" }));
-    const sheet = await screen.findByRole("dialog", { name: "Fees" });
+    const sheet = await screen.findByRole("region", { name: "Fees" });
     expect(await within(sheet).findByText("The 2019 fee is in the fee schedule.")).toBeInTheDocument();
     await userEvent.click(within(sheet).getByRole("button", { name: "Re-fetch page" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/d3/refetch"))).toBe(true));

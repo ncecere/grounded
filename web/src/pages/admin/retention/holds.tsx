@@ -3,7 +3,7 @@
  * a user, team, agent or conversation, optionally for a date range. A hold
  * stops every retention deletion of what it covers and never expires; a
  * platform admin releases it with a reason. Only platform admins and
- * auditors see holds. Tabs: Active · Released · All; a hold opens in a sheet.
+ * auditors see holds. Tabs: Active · Released · All; a hold opens as a record page (?record=).
  */
 import { useQuery } from "@tanstack/react-query";
 import { Scale } from "lucide-react";
@@ -11,7 +11,7 @@ import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { PageTabs, useUrlTab } from "@/components/page-tabs";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
-import { RecordSheet, useRecordParam } from "@/components/templates/record-sheet";
+import { RecordPage, useRecordParam } from "@/components/templates/record-page";
 import { Alert } from "@/components/ui/alert/alert";
 import { Badge, StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
@@ -132,7 +132,7 @@ function HoldSheet({ id, onClose, isAdmin, onRelease }: { id?: string; onClose: 
   });
   const h = hold.data;
   return (
-    <RecordSheet
+    <RecordPage
       open={Boolean(id)}
       onClose={onClose}
       title={h ? `Hold on ${scopeName(h)}` : "Legal hold"}
@@ -158,7 +158,7 @@ function HoldSheet({ id, onClose, isAdmin, onRelease }: { id?: string; onClose: 
             ]
           : []
       }
-      footer={
+      actions={
         h && isAdmin && h.status === "active" ? (
           <Button variant="danger" onClick={() => onRelease(h)}>
             Release hold
@@ -173,6 +173,6 @@ function HoldSheet({ id, onClose, isAdmin, onRelease }: { id?: string; onClose: 
             : "Their users deleted these conversations. With the hold released, retention removes them as usual."}
         </Alert>
       )}
-    </RecordSheet>
+    </RecordPage>
   );
 }

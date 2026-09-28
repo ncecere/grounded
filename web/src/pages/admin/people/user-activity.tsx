@@ -9,12 +9,12 @@ import { api, unwrap, type Schemas } from "@/api/client";
 import { actionLabel, targetTypeLabel } from "@/components/audit/labels";
 import { AuditTarget } from "@/components/audit/target";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
-import { useRecordParam } from "@/components/templates/record-sheet";
+import { useRecordParam } from "@/components/templates/record-page";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import { Switch } from "@/components/ui/switch/switch";
 import { useSearchParams } from "@/lib/url-search";
 import s from "../../shared.module.css";
-import { AuditEntrySheet } from "../logs/audit-sheet";
+import { AuditEntryPage } from "../logs/audit-record";
 
 type Entry = Schemas["AuditEntry"];
 const SIGNINS = "signins";
@@ -83,7 +83,7 @@ export function UserActivity({ user }: { user: Schemas["User"] }) {
           ),
         }}
       />
-      <AuditEntrySheet entry={open} open={Boolean(record.id)} loading={log.isLoading} onClose={record.close} />
+      <AuditEntryPage entry={open} open={Boolean(record.id)} loading={log.isLoading} onClose={record.close} />
     </>
   );
 }

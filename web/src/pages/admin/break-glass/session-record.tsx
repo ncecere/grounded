@@ -7,7 +7,7 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { LoadMore } from "@/components/query-view";
-import { RecordSheet } from "@/components/templates/record-sheet";
+import { RecordPage } from "@/components/templates/record-page";
 import { StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { AlertDialog } from "@/components/ui/dialog/dialog";
@@ -26,12 +26,12 @@ import { useReads, useSession, useSessionAction } from "./queries";
 /** Open while waiting or reading: a platform admin may act on it (the footer). */
 const actionable = (v: BreakGlassDetail) => v.status === "pending" || (v.status === "active" && Boolean(v.expiresAt) && new Date(v.expiresAt!).getTime() > Date.now());
 
-export function SessionSheet({ id, onClose }: { id: string | undefined; onClose: () => void }) {
+export function SessionPage({ id, onClose }: { id: string | undefined; onClose: () => void }) {
   const q = useSession(id);
   const v = q.data;
   const isAdmin = useCurrentUser().capabilities.platformAdmin;
   return (
-    <RecordSheet
+    <RecordPage
       open={Boolean(id)}
       onClose={onClose}
       title={v ? `Break-glass: ${v.team.name}` : "Break-glass session"}
@@ -48,7 +48,7 @@ export function SessionSheet({ id, onClose }: { id: string | undefined; onClose:
             ]
           : undefined
       }
-      footer={v && isAdmin && actionable(v) ? <SessionActions session={v} /> : undefined}
+      actions={v && isAdmin && actionable(v) ? <SessionActions session={v} /> : undefined}
     />
   );
 }

@@ -140,7 +140,7 @@ describe("Admin → Retention", () => {
     expect(within(table).getByText("Kept (no period)")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(within(row).getByText("Conversations"));
-    const sheet = await screen.findByRole("dialog", { name: "Conversations" });
+    const sheet = await screen.findByRole("region", { name: "Conversations" });
     const breakdown = within(sheet).getByRole("table", { name: "Breakdown by team, level and audience" });
     expect(within(breakdown).getAllByRole("row")).toHaveLength(3);
     expect(breakdown).toHaveTextContent("Signed-in");
@@ -190,7 +190,7 @@ describe("Admin → Legal holds", () => {
     expect(await within(table).findByText("1 deleted by users")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(within(table).getByText("Sam Student"));
-    const sheet = await screen.findByRole("dialog", { name: "Hold on Sam Student" });
+    const sheet = await screen.findByRole("region", { name: "Hold on Sam Student" });
     expect(await within(sheet).findByText("1 deleted by their users, kept by this hold")).toBeInTheDocument();
     expect(await axe(container.ownerDocument.body)).toHaveNoViolations();
     await userEvent.click(within(sheet).getByRole("button", { name: "Release hold" }));
@@ -226,7 +226,7 @@ describe("Admin → Legal holds", () => {
   it("offers no changes to auditors", async () => {
     mockApi({ ...shellRoutes("platform_auditor"), "GET /v1/admin/legal-holds": () => [hold], "GET /v1/admin/legal-holds/h1": () => hold });
     renderApp("/admin/legal-holds?record=h1");
-    const sheet = await screen.findByRole("dialog", { name: "Hold on Sam Student" });
+    const sheet = await screen.findByRole("region", { name: "Hold on Sam Student" });
     await within(sheet).findByText("Records request 2026-14");
     expect(screen.queryByRole("button", { name: "Place a hold" })).toBeNull();
     expect(within(sheet).queryByRole("button", { name: "Release hold" })).toBeNull();

@@ -24,7 +24,7 @@ test("upload source, knowledge base, agent, publish, streamed chat with citation
     await a11y(page, "new data source: type");
     await choose.getByRole("button", { name: "Continue" }).click();
 
-    const sheet = page.getByRole("dialog", { name: "New upload source" });
+    const sheet = page.getByRole("region", { name: "New upload source" });
     await sheet.getByLabel("Name").fill("Parking files");
     await expect(sheet.getByLabel("Embedding profile")).toHaveValue(/.+/);
     await a11y(page, "new upload source");

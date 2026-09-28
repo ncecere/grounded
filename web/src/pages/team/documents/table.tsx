@@ -5,13 +5,13 @@
  * date and a fixed-width "…" row menu. Status, kind and tag facets and the
  * search text live in the URL and are applied by the server; 50 per page
  * with Previous / Next; bulk Retry and Delete. A row opens the document
- * sheet (?record=).
+ * record page (?record=).
  */
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Eye, FileText, Globe, RotateCcw, Tags, Trash2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ListPage, RelativeTime, timeColumn, useListFilters } from "@/components/templates/list-page";
-import { useRecordParam } from "@/components/templates/record-sheet";
+import { useRecordParam } from "@/components/templates/record-page";
 import { rangeText, useCursorPager } from "@/components/pager";
 import { Button } from "@/components/ui/button/button";
 import type { DataTableColumn } from "@/components/ui/data-table/data-table";
@@ -24,7 +24,7 @@ import { type DataSource, type DocKind, useSourceOwner } from "../../sources/own
 import { type Doc, type DocStatus, formatBytes, plural } from "../common";
 import d from "./documents.module.css";
 import { canRetry, useDocumentMutations } from "./mutations";
-import { DocumentSheet } from "./sheet";
+import { DocumentRecordPage } from "./record";
 import { DocStatusBadge, docName, docStatusLabels, documentError, isInProgress, kindLabel } from "./status";
 
 const pageSize = 50;
@@ -190,7 +190,7 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
           facetCounts: false,
         }}
       />
-      <DocumentSheet sourceId={source.id} web={web} docId={record.id} onClose={record.close} mutations={mutations} />
+      <DocumentRecordPage sourceId={source.id} web={web} docId={record.id} onClose={record.close} mutations={mutations} />
       <AlertDialog
         open={deleting !== null}
         onOpenChange={(o) => {
@@ -221,7 +221,7 @@ function countFor(source: DataSource, status: DocStatus) {
   return c[status];
 }
 
-/** A one-line title (full text as a tooltip) that opens the sheet, and the URL path or file name under it. */
+/** A one-line title (full text as a tooltip) that opens the record page, and the URL path or file name under it. */
 function DocumentName({ doc, web, onOpen }: { doc: Doc; web: boolean; onOpen: () => void }) {
   const name = docName(doc);
   const secondary = web && doc.url ? urlPath(doc.url) : doc.title && doc.filename !== doc.title ? doc.filename : "";

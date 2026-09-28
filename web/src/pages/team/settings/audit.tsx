@@ -2,7 +2,7 @@
  * Team settings › Audit log (D4, D5, Q13): the team's audit log on a
  * ListPage, filtered on the server by action group, person and a date range
  * (all in the URL), with Load more. One line per cell: the action's label
- * (its code is in the sheet). Each entry opens in a RecordSheet
+ * (its code is on the record page). Each entry opens in a RecordPage
  * (?record=<id>, fetched by id so links from the overview work) with the
  * before/after in a diff viewer. Sign-ins aren't team entries, so there is
  * no "Hide sign-ins" here.
@@ -15,7 +15,7 @@ import { actionGroups, actionLabel, actorName } from "../../../components/audit/
 import { AuditTarget } from "../../../components/audit/target";
 import { DateRangeFilter, useDateRangeParam } from "../../../components/templates/date-range-filter";
 import { ListPage, RelativeTime, useListFilters } from "../../../components/templates/list-page";
-import { RecordSheet, useRecordParam } from "../../../components/templates/record-sheet";
+import { RecordPage, useRecordParam } from "../../../components/templates/record-page";
 import { membersKey } from "../../../components/members";
 import { terms } from "../../../lib/terms";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
@@ -110,12 +110,12 @@ export function TeamAuditLog() {
           loadMore: { hasMore: Boolean(log.hasNextPage), loading: log.isFetchingNextPage, onLoadMore: () => void log.fetchNextPage() },
         }}
       />
-      <AuditEntrySheet id={record.id} loaded={items.find((e) => String(e.id) === record.id)} onClose={record.close} />
+      <AuditEntryPage id={record.id} loaded={items.find((e) => String(e.id) === record.id)} onClose={record.close} />
     </>
   );
 }
 
-function AuditEntrySheet({ id, loaded, onClose }: { id?: string; loaded?: Entry; onClose: () => void }) {
+function AuditEntryPage({ id, loaded, onClose }: { id?: string; loaded?: Entry; onClose: () => void }) {
   const { slug: team } = useTeam();
   const entry = useQuery({
     queryKey: [...auditKey({ kind: "team", team }), "entry", id],
@@ -127,7 +127,7 @@ function AuditEntrySheet({ id, loaded, onClose }: { id?: string; loaded?: Entry;
   const changed = e && (e.before != null || e.after != null);
   const metadata = e && Object.keys(e.metadata).length > 0;
   return (
-    <RecordSheet
+    <RecordPage
       open={Boolean(id)}
       onClose={onClose}
       title={e ? actionLabel(e.action) : "Audit entry"}

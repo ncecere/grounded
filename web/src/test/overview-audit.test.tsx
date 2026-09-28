@@ -189,7 +189,7 @@ describe("team overview", () => {
     const changed = entry(9, { action: "kb.update", targetType: "knowledge_base", targetId: "k1", targetLabel: "Handbook", before: { name: "Old" }, after: { name: "New" } });
     mockApi({ ...routes(), "GET /v1/teams/registrar/audit/9": () => changed });
     const { container } = renderApp("/teams/registrar/settings?tab=audit&record=9");
-    const sheet = await screen.findByRole("dialog", { name: "Changed knowledge base" });
+    const sheet = await screen.findByRole("region", { name: "Changed knowledge base" });
     expect(within(sheet).getByText("kb.update")).toBeInTheDocument();
     expect(within(sheet).getByRole("table", { name: /Changes: Changed knowledge base/ })).toBeInTheDocument();
     expect(sheet).toHaveTextContent('"New"');

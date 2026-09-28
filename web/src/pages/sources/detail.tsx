@@ -3,7 +3,7 @@
  * DetailPage template (D3, W3): one contextual primary action (Sync now,
  * Upload files, or Resume when paused), a "…" menu (Pause, Delete last), the
  * facts line, and pill tabs Overview · Documents/Pages · Crawls (web) ·
- * Settings. Documents open in a sheet (?record=).
+ * Settings. Documents open as record pages (?record=).
  */
 import { useQuery } from "@tanstack/react-query";
 import { FileText, History, LayoutDashboard, Network, Settings2, Upload } from "lucide-react";
@@ -17,7 +17,7 @@ import { sourceTabs } from "@/lib/tabs";
 import { SharedUsageTab } from "../admin/shared-usage";
 import { ClassificationBadge, useClassificationLevels } from "../team/common";
 import { DocumentsTable } from "../team/documents/table";
-import { UploadSheet } from "../team/documents/upload";
+import { UploadDialog } from "../team/documents/upload";
 import { PageSkeleton } from "../team/layout";
 import { type SourceActions, useSourceActions } from "./actions";
 import { BoilerplateCard } from "./boilerplate";
@@ -143,7 +143,7 @@ function SourcePage({ source: src }: { source: DataSource }) {
         ]}
       />
       {actions.dialog}
-      {!web && owner.canEdit && <UploadSheet source={src} open={uploading} onClose={() => setUploading(false)} />}
+      {!web && owner.canEdit && <UploadDialog source={src} open={uploading} onClose={() => setUploading(false)} />}
     </>
   );
 }

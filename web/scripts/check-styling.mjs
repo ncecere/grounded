@@ -205,8 +205,14 @@ for (const abs of cssFiles) {
 const HANDROLLED = /role=["'{`]+(dialog|alertdialog|menu|menuitem|menubar|listbox|option|combobox|tooltip|tablist|tab|tabpanel|tree|treeitem)\b|aria-haspopup|createPortal\(/;
 const INTERACTIVE = /\bon(Key(Down|Up|Press))\b|\btabIndex\b|\.focus\(|aria-haspopup|aria-expanded|aria-controls|role=["'{`]+(button|dialog|menu|listbox|option|combobox|tooltip|tab|slider|switch|checkbox|textbox)\b|<(input|select|textarea)\b|createPortal\(/;
 
+// Portals that aren't popups: the record and form page host moves a page into
+// the shell's main area (keeping its context providers). No popup roles, focus
+// traps or dismissal there; the files are otherwise checked as usual.
+const LAYOUT_PORTALS = new Set(["src/components/templates/takeover.tsx"]);
+
 for (const abs of files.filter((f) => /\.tsx?$/.test(f) && !inUi(f))) {
-  const code = stripComments(fs.readFileSync(abs, "utf8"), false);
+  let code = stripComments(fs.readFileSync(abs, "utf8"), false);
+  if (LAYOUT_PORTALS.has(rel(abs))) code = code.replace(/createPortal\(/g, "placeInSlot(");
   const h = code.match(HANDROLLED);
   if (h) fail(`${rel(abs)}:${lineOf(code, h.index)}`, `hand-rolled popup semantics (${h[0]})`, "use a bitop-ui component (Dialog, Menu, Popover, Select, Tabs, Tooltip…) instead");
 }

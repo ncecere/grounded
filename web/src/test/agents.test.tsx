@@ -515,7 +515,7 @@ describe("existing screens", () => {
     // Tags are edited in the document sheet, from the row's "…" menu.
     await userEvent.click(await within(table).findByRole("button", { name: "Actions for Drop/Add" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Edit tags" }));
-    const dialog = await screen.findByRole("dialog", { name: "Drop/Add" });
+    const dialog = await screen.findByRole("region", { name: "Drop/Add" });
     expect(within(dialog).getByText("policy")).toBeInTheDocument();
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Tags" }), "Fees{Enter}");
     await userEvent.click(within(dialog).getByRole("button", { name: "Save tags" }));

@@ -567,7 +567,7 @@ describe("API keys", () => {
     // The key's sheet: restrictions, contact (reassignable) and Revoke.
     await userEvent.click(screen.getByRole("button", { name: "Actions for Site bot" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
-    const sheet = await screen.findByRole("dialog", { name: "Site bot" });
+    const sheet = await screen.findByRole("region", { name: "Site bot" });
     expect(within(sheet).getByText("Team service key")).toBeInTheDocument();
     expect(within(sheet).getByText("Registrar assistant")).toBeInTheDocument();
     expect(within(sheet).getByText("Every knowledge base of the team")).toBeInTheDocument();

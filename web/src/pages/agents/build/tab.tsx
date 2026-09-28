@@ -2,11 +2,11 @@
  * The Build tab (D2 / W2), in the style of a GPT builder: the configuration
  * sections on the left and a live Test chat of the draft on the right, in
  * resizable panes whose sizes are remembered. Below 1100 px the sections
- * fill the width and Test opens as a drawer from the header's Test button
+ * fill the width and Test opens as a dialog from the header's Test button
  * (?test=open, so Back closes it).
  */
 import { Suspense, lazy, useSyncExternalStore } from "react";
-import { Drawer, DrawerBody, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer/drawer";
+import { Dialog } from "@/components/ui/dialog/dialog";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable/resizable";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { historyOf } from "../../chat/stream";
@@ -51,7 +51,7 @@ type Props = {
   sections: BuildSection[];
   onSectionsChange: (open: BuildSection[]) => void;
   onProblem: (field: string) => void;
-  /** The Test drawer (narrow windows only). */
+  /** The Test dialog (narrow windows only). */
   testOpen: boolean;
   onTestOpenChange: (open: boolean) => void;
 };
@@ -59,7 +59,7 @@ type Props = {
 export function BuildTab({ agent, d, sections, onSectionsChange, onProblem, testOpen, onTestOpenChange }: Props) {
   const { slug } = useTeam();
   const wide = useWideBuild();
-  // Kept here, so the conversation survives closing the drawer or resizing the window.
+  // Kept here, so the conversation survives closing the dialog or resizing the window.
   const chat = useChat({
     path: `/v1/teams/${encodeURIComponent(slug)}/agents/${agent.id}/test`,
     body: (message, previous) => ({ message, history: historyOf(previous), stream: true }),
@@ -88,15 +88,15 @@ export function BuildTab({ agent, d, sections, onSectionsChange, onProblem, test
   return (
     <div className={cf.narrow}>
       {config}
-      <Drawer side="right" open={testOpen} onOpenChange={onTestOpenChange}>
-        <DrawerContent className={cf.testDrawer} showClose closeLabel="Close the test chat">
-          <DrawerHeader>
-            <DrawerTitle>Test the draft</DrawerTitle>
-            <DrawerDescription>Chats with the draft as saved. Answers aren't stored.</DrawerDescription>
-          </DrawerHeader>
-          <DrawerBody className={cf.drawerBody}>{test(false)}</DrawerBody>
-        </DrawerContent>
-      </Drawer>
+      <Dialog
+        open={testOpen}
+        onOpenChange={onTestOpenChange}
+        size="lg"
+        title="Test the draft"
+        description="Chats with the draft as saved. Answers aren't stored."
+      >
+        <div className={cf.testDialogBody}>{test(false)}</div>
+      </Dialog>
     </div>
   );
 }

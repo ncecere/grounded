@@ -2,7 +2,7 @@
  * Logs › Audit (A3, Q6): the platform audit log as a ListPage with server
  * filters in the URL (action group, target type, person, date range), sign-ins
  * hidden by default (?signins=show shows them), CSV export, and each entry in
- * a RecordSheet with a before/after diff.
+ * a RecordPage with a before/after diff.
  */
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Eye, FileClock } from "lucide-react";
@@ -10,13 +10,13 @@ import { api, unwrap, type Schemas } from "@/api/client";
 import { actionGroups, actionLabel, actorName, targetTypeLabel, targetTypeLabels } from "@/components/audit/labels";
 import { AuditTarget } from "@/components/audit/target";
 import { ListPage, timeColumn, useListFilters } from "@/components/templates/list-page";
-import { useRecordParam } from "@/components/templates/record-sheet";
+import { useRecordParam } from "@/components/templates/record-page";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { Switch } from "@/components/ui/switch/switch";
 import { useSearchParams } from "@/lib/url-search";
 import s from "../../shared.module.css";
-import { AuditEntrySheet } from "./audit-sheet";
+import { AuditEntryPage } from "./audit-record";
 import { ExportButton, one, rangeWindow, usePeopleOptions } from "./common";
 import l from "./logs.module.css";
 
@@ -160,7 +160,7 @@ export function AuditLogTab() {
           ),
         }}
       />
-      <AuditEntrySheet entry={open} open={Boolean(record.id)} loading={log.isLoading} onClose={record.close} />
+      <AuditEntryPage entry={open} open={Boolean(record.id)} loading={log.isLoading} onClose={record.close} />
     </>
   );
 }

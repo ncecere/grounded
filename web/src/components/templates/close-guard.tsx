@@ -1,20 +1,19 @@
 /*
- * Unsaved input in a sheet or dialog (m7): closing it with Escape, the
+ * Unsaved input in a dialog or a record or form page (m7): closing it with Escape, the
  * backdrop, × or Cancel while it holds edits asks "Leave without saving?",
  * like leaving a page with a save bar does (unsaved-guard.tsx). Submitting
  * closes it through onClose directly, without asking.
  *
  *   <GuardedSheet dirty={edited} onClose={onClose} title=… description=… footer=…>…</GuardedSheet>
- *   <RecordSheet dirty={edited} …/>          // RecordSheet uses the same guard
+ *   <RecordPage dirty={edited} …/>          // RecordPage uses the same guard
  *
  *   const edits = useEditTracker();          // "has anything been typed or picked?"
  *   <Form {...edits.formProps}>…</Form>      // then dirty={edits.edited}
  */
 import { type FormEvent, useCallback, useState } from "react";
-import { AlertDialog } from "@/components/ui/dialog/dialog";
-import { Sheet, type SheetProps } from "@/components/ui/sheet/sheet";
+import { AlertDialog, Dialog, type DialogProps } from "@/components/ui/dialog/dialog";
 
-/** `requestClose` closes at once, or asks first while `dirty`; render `dialog` inside the sheet or dialog (so it nests). */
+/** `requestClose` closes at once, or asks first while `dirty`; render `dialog` inside the page or dialog (so it nests). */
 export function useCloseGuard(dirty: boolean, onClose: () => void) {
   const [asking, setAsking] = useState(false);
   const requestClose = useCallback(() => (dirty ? setAsking(true) : onClose()), [dirty, onClose]);
@@ -50,21 +49,21 @@ export function useEditTracker() {
   return { edited, setEdited, formProps: { onInput: mark, onChange: mark } };
 }
 
-export type GuardedSheetProps = Omit<SheetProps, "open" | "defaultOpen" | "onOpenChange"> & {
-  /** Default true: the sheet is open while mounted. */
+export type GuardedDialogProps = Omit<DialogProps, "open" | "defaultOpen" | "onOpenChange"> & {
+  /** Default true: the dialog is open while mounted. */
   open?: boolean;
   /** Ask before closing (there are unsaved edits). */
   dirty: boolean;
   onClose: () => void;
 };
 
-/** A Sheet whose Escape, backdrop, × and Cancel ask first while it holds unsaved edits. */
-export function GuardedSheet({ open = true, dirty, onClose, children, ...props }: GuardedSheetProps) {
+/** A Dialog whose Escape, backdrop, × and Cancel ask first while it holds unsaved edits. */
+export function GuardedDialog({ open = true, dirty, onClose, children, ...props }: GuardedDialogProps) {
   const guard = useCloseGuard(dirty, onClose);
   return (
-    <Sheet {...props} open={open} onOpenChange={(o) => !o && guard.requestClose()}>
+    <Dialog {...props} open={open} onOpenChange={(o) => !o && guard.requestClose()}>
       {children}
       {guard.dialog}
-    </Sheet>
+    </Dialog>
   );
 }
