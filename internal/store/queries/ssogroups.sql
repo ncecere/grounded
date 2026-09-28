@@ -1,4 +1,4 @@
--- SSO group mapping (migrations/00032_sso_group_mapping.sql).
+-- SSO group mapping (migrations/00031_sso_group_mapping.sql).
 
 -- name: InsertSSORule :one
 INSERT INTO sso_group_rules (group_name, team_id, role, created_by)

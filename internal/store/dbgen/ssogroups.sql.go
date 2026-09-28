@@ -141,7 +141,7 @@ type InsertSSORuleParams struct {
 	CreatedBy uuid.NullUUID
 }
 
-// SSO group mapping (migrations/00032_sso_group_mapping.sql).
+// SSO group mapping (migrations/00031_sso_group_mapping.sql).
 func (q *Queries) InsertSSORule(ctx context.Context, arg InsertSSORuleParams) (SsoGroupRule, error) {
 	row := q.db.QueryRow(ctx, insertSSORule,
 		arg.GroupName,
