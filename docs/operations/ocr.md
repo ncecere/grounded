@@ -90,7 +90,9 @@ Give it more memory (the `-full` image is larger). Grounded sends each page imag
 
 ## Retrying scanned documents
 
-Documents uploaded before OCR was on were skipped as "Needs OCR" (error code `needs_ocr`). Admin → Parsing shows how many each team has. A team retries them from the source's **Documents** tab: filter **Needs OCR**, then **Retry all that need OCR** (API: `POST /v1/teams/{team}/sources/{id}/documents/retry` with `{"errorCode": "needs_ocr"}`; shared sources under `/v1/admin/shared-sources/{id}/documents/retry`). The retry is audited (`document.retry_bulk`).
+Documents uploaded before OCR was on were skipped as "Needs OCR" (error code `needs_ocr`). Admin → Parsing shows how many each team has. A team retries them from the source's **Documents** tab: filter **Needs OCR**, then **Retry all that need OCR** (API: `POST /v1/teams/{team}/sources/{id}/documents/retry` with `{"errorCode": "needs_ocr"}`; shared sources under `/v1/admin/shared-sources/{id}/documents/retry`). The retry is audited (`document.retry_bulk`). The button is disabled, with the reason next to it, while OCR is off for the source or the platform (a source's `ocrState` in `GET …/sources/{id}` says which), since a retry would only skip them again.
+
+A PDF with only some pages lacking a text layer is indexed (ready) with a warning such as "1 of 2 pages had no text layer (possibly scanned) and was skipped, because OCR is off for this document". It isn't "Needs OCR" and isn't retried with them: once OCR is on, delete the document and upload it again to read those pages (uploading the same file over it changes nothing, as its content is unchanged).
 
 ## Bounds and costs
 
