@@ -8044,6 +8044,9 @@ type SearchResult struct {
 	// TeamSlug The team (teams, agents, knowledge bases, data sources, conversations)
 	TeamSlug *string          `json:"teamSlug,omitempty"`
 	Type     SearchResultType `json:"type"`
+
+	// UpdatedAt Conversations only. When it last changed, so the palette can tell conversations with the same title apart.
+	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
 }
 
 // SearchResultType defines model for SearchResult.Type.

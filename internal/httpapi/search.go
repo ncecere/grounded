@@ -59,5 +59,8 @@ func toAPISearchResult(r objsearch.Result) apitypes.SearchResult {
 	if r.Type == objsearch.TypeAgent {
 		out.CanOpen, out.CanChat = &r.CanOpen, &r.CanChat
 	}
+	if !r.UpdatedAt.IsZero() {
+		out.UpdatedAt = &r.UpdatedAt
+	}
 	return out
 }

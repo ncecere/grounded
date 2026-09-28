@@ -7,6 +7,7 @@ package dbgen
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -146,7 +147,7 @@ func (q *Queries) SearchConnections(ctx context.Context, arg SearchConnectionsPa
 }
 
 const searchConversations = `-- name: SearchConversations :many
-SELECT c.id, c.title, a.name AS agent_name, a.slug AS agent_slug, t.slug AS team_slug,
+SELECT c.id, c.title, c.updated_at, a.name AS agent_name, a.slug AS agent_slug, t.slug AS team_slug,
        (a.deleted_at IS NOT NULL)::bool AS agent_deleted,
        (CASE WHEN c.title ILIKE $1::text THEN 0 WHEN c.title ~* $2::text THEN 1 ELSE 2 END)::int AS rank
 FROM conversations c
@@ -168,6 +169,7 @@ type SearchConversationsParams struct {
 type SearchConversationsRow struct {
 	ID           uuid.UUID
 	Title        string
+	UpdatedAt    time.Time
 	AgentName    string
 	AgentSlug    string
 	TeamSlug     string
@@ -195,6 +197,7 @@ func (q *Queries) SearchConversations(ctx context.Context, arg SearchConversatio
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
+			&i.UpdatedAt,
 			&i.AgentName,
 			&i.AgentSlug,
 			&i.TeamSlug,

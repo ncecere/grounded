@@ -21,7 +21,11 @@ const memberHits = [
   hit("agent", "a2", "Registrar campus guide", "Campus Services", { teamSlug: "campus", agentSlug: "guide", canOpen: false, canChat: true }),
   hit("knowledge_base", "k1", "Registrar handbook", "Office of the Registrar", { teamSlug: "registrar" }),
   hit("data_source", "s1", "Registrar website", "Office of the Registrar", { teamSlug: "registrar", kind: "web", status: "paused" }),
-  hit("conversation", "c1", "Registrar deadlines", "Registrar assistant", { teamSlug: "registrar", agentSlug: "registrar-assistant" }),
+  hit("conversation", "c1", "Registrar deadlines", "Registrar assistant", {
+    teamSlug: "registrar",
+    agentSlug: "registrar-assistant",
+    updatedAt: new Date(Date.now() - 3 * 86_400_000).toISOString(),
+  }),
 ];
 
 const staffHits = [
@@ -64,7 +68,8 @@ describe("command palette search (E15)", () => {
     ]);
     expect(within(group("Agents")).getAllByRole("option")).toHaveLength(1);
     expect(within(group("Data sources")).getByRole("option")).toHaveTextContent("Office of the Registrar · Paused");
-    expect(within(group("Conversations")).getByRole("option")).toHaveTextContent("Registrar deadlines");
+    // Conversations often share a title: the date tells them apart.
+    expect(within(group("Conversations")).getByRole("option")).toHaveTextContent("Registrar deadlinesRegistrar assistant · 3 days ago");
     expect(within(listbox).queryByRole("group", { name: "Users" })).toBeNull();
     // Debounced: one request, for the whole word (a member never gets a request per keystroke).
     expect(searches(calls).map((c) => c.search.get("q"))).toEqual(["registrar"]);

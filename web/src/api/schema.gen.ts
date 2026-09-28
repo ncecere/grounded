@@ -7175,6 +7175,11 @@ export interface components {
             canOpen?: boolean;
             /** @description Agents only. The agent is published and active and the caller may chat with it. */
             canChat?: boolean;
+            /**
+             * Format: date-time
+             * @description Conversations only. When it last changed, so the palette can tell conversations with the same title apart.
+             */
+            updatedAt?: string;
         };
         /** @description A published agent's public profile */
         AgentCard: {

@@ -13,6 +13,7 @@ import { Bot, ClipboardCheck, Cpu, Database, Layers, Library, MessageSquare, Mes
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
 import { type CommandGroup } from "@/components/ui/command-palette/command-palette";
+import { formatRelativeTime } from "@/lib/bitop-format";
 
 type Result = Schemas["SearchResult"];
 type Navigate = ReturnType<typeof useNavigate>;
@@ -156,7 +157,8 @@ const specs: Record<Result["type"], Spec[]> = {
     {
       group: "Conversations",
       icon: <MessagesSquare aria-hidden />,
-      hint: withState,
+      // Conversations often share a title: "Helper · 3 days ago" tells them apart.
+      hint: (r) => hint(r.secondary, formatRelativeTime(r.updatedAt) || undefined, state(r)),
       keywords: (r) => ["conversation", "chat", "history", r.secondary],
       go: ({ teamSlug: team, agentSlug: agent, id }, nav) => (team && agent ? () => void nav({ to: "/a/$team/$agent", params: { team, agent }, search: { c: id } }) : undefined),
     },
