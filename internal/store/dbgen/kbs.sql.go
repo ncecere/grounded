@@ -206,7 +206,7 @@ func (q *Queries) KBSourceRows(ctx context.Context, kbIds []uuid.UUID) ([]KBSour
 }
 
 const kBSources = `-- name: KBSources :many
-SELECT s.id, s.team_id, s.name, s.description, s.type, s.config, s.classification, s.embedding_profile_id, s.status, s.revision, s.created_by, s.created_at, s.updated_at, s.last_sync_at, s.next_sync_at FROM kb_sources ks JOIN data_sources s ON s.id = ks.source_id
+SELECT s.id, s.team_id, s.name, s.description, s.type, s.config, s.classification, s.embedding_profile_id, s.status, s.revision, s.created_by, s.created_at, s.updated_at, s.last_sync_at, s.next_sync_at, s.ocr_enabled FROM kb_sources ks JOIN data_sources s ON s.id = ks.source_id
 WHERE ks.kb_id = $1 ORDER BY lower(s.name)
 `
 
@@ -235,6 +235,7 @@ func (q *Queries) KBSources(ctx context.Context, kbID uuid.UUID) ([]DataSource, 
 			&i.UpdatedAt,
 			&i.LastSyncAt,
 			&i.NextSyncAt,
+			&i.OcrEnabled,
 		); err != nil {
 			return nil, err
 		}

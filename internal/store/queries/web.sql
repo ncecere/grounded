@@ -177,7 +177,7 @@ SET url = EXCLUDED.url, tags = EXCLUDED.tags, content_type = EXCLUDED.content_ty
     sha256 = EXCLUDED.sha256, blob_key = EXCLUDED.blob_key, http_etag = EXCLUDED.http_etag,
     http_last_modified = EXCLUDED.http_last_modified, last_seen_crawl_id = EXCLUDED.last_seen_crawl_id,
     version = documents.version + 1, status = 'pending', error_code = '', error_message = '',
-    attempts = 0, updated_at = now()
+    attempts = 0, waiting_until = NULL, updated_at = now()
 RETURNING *;
 
 -- name: MarkDocumentSeen :exec

@@ -36,7 +36,8 @@ SET rev = @rev, documents = @documents, threshold = @threshold, refreshed_at = @
 WHERE source_id = @source_id;
 
 -- name: CountSourceInflight :one
-SELECT count(*) FROM documents WHERE source_id = $1 AND status IN ('pending', 'queued', 'processing');
+-- Documents waiting for the daily OCR page limit don't hold the refresh up.
+SELECT count(*) FROM documents WHERE source_id = $1 AND status IN ('pending', 'queued', 'processing') AND waiting_until IS NULL;
 
 -- ---- classification ---------------------------------------------------------------
 

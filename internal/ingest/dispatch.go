@@ -99,13 +99,15 @@ const unlimitedInflight = int64(1) << 40
 // ignores NULL). Documents of platform-shared sources (team_id NULL) form
 // one more bucket ("platform") with the default cap. Teams are enumerated
 // with a loose index scan so millions of pending rows are never sorted; the
-// platform bucket reads the same index at its NULL end.
+// platform bucket reads the same index at its NULL end. Documents waiting
+// for the daily OCR page limit (waiting_until) are left out, through the
+// partial index documents_pending_ready_idx, so they cost nothing.
 const pickSQL = `
 WITH RECURSIVE teams_pending AS (
-    (SELECT team_id FROM documents WHERE status = 'pending' AND team_id IS NOT NULL ORDER BY team_id LIMIT 1)
+    (SELECT team_id FROM documents WHERE status = 'pending' AND waiting_until IS NULL AND team_id IS NOT NULL ORDER BY team_id LIMIT 1)
     UNION ALL
     SELECT (SELECT d.team_id FROM documents d
-            WHERE d.status = 'pending' AND d.team_id > tp.team_id ORDER BY d.team_id LIMIT 1)
+            WHERE d.status = 'pending' AND d.waiting_until IS NULL AND d.team_id > tp.team_id ORDER BY d.team_id LIMIT 1)
     FROM teams_pending tp WHERE tp.team_id IS NOT NULL
 ),
 budget AS (
@@ -119,14 +121,14 @@ budget AS (
 platform_budget AS (
     SELECT greatest(least($1::bigint, $3::bigint) - (SELECT count(*) FROM documents i
                                WHERE i.team_id IS NULL AND i.status IN ('queued', 'processing')), 0) AS free
-    WHERE EXISTS (SELECT 1 FROM documents WHERE team_id IS NULL AND status = 'pending')
+    WHERE EXISTS (SELECT 1 FROM documents WHERE team_id IS NULL AND status = 'pending' AND waiting_until IS NULL)
 ),
 picks AS (
     SELECT p.id, p.rn FROM budget b
     CROSS JOIN LATERAL (
         SELECT d.id, row_number() OVER (ORDER BY d.updated_at, d.id) AS rn
         FROM documents d
-        WHERE d.team_id = b.team_id AND d.status = 'pending'
+        WHERE d.team_id = b.team_id AND d.status = 'pending' AND d.waiting_until IS NULL
           AND NOT EXISTS (SELECT 1 FROM data_sources s WHERE s.id = d.source_id AND s.status = 'paused')
         ORDER BY d.updated_at, d.id
         LIMIT b.free
@@ -136,7 +138,7 @@ picks AS (
     CROSS JOIN LATERAL (
         SELECT d.id, row_number() OVER (ORDER BY d.updated_at, d.id) AS rn
         FROM documents d
-        WHERE d.team_id IS NULL AND d.status = 'pending'
+        WHERE d.team_id IS NULL AND d.status = 'pending' AND d.waiting_until IS NULL
           AND NOT EXISTS (SELECT 1 FROM data_sources s WHERE s.id = d.source_id AND s.status = 'paused')
         ORDER BY d.updated_at, d.id
         LIMIT pb.free

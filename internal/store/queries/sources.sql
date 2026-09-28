@@ -70,7 +70,7 @@ ON CONFLICT (source_id, external_id) DO UPDATE
 SET filename = EXCLUDED.filename, content_type = EXCLUDED.content_type, size_bytes = EXCLUDED.size_bytes,
     sha256 = EXCLUDED.sha256, blob_key = EXCLUDED.blob_key, uploaded_by = EXCLUDED.uploaded_by,
     version = documents.version + 1, status = 'pending', error_code = '', error_message = '',
-    attempts = 0, updated_at = now()
+    attempts = 0, waiting_until = NULL, updated_at = now()
 RETURNING *, (xmax = 0) AS inserted;
 
 -- name: SetDocumentTags :one
@@ -94,6 +94,7 @@ WHERE source_id = @source_id
   AND (sqlc.narg(status)::text IS NULL OR status = sqlc.narg(status)::text)
   AND (sqlc.narg(kind)::text IS NULL OR kind = sqlc.narg(kind)::text)
   AND (sqlc.narg(tag)::text IS NULL OR tags @> ARRAY[lower(sqlc.narg(tag)::text)])
+  AND (sqlc.narg(error_code)::text IS NULL OR error_code = sqlc.narg(error_code)::text)
   AND (sqlc.narg(before_created)::timestamptz IS NULL
        OR (created_at, id) < (sqlc.narg(before_created)::timestamptz, sqlc.narg(before_id)::uuid))
 ORDER BY created_at DESC, id DESC
@@ -109,6 +110,7 @@ WHERE source_id = @source_id
   AND (sqlc.narg(status)::text IS NULL OR status = sqlc.narg(status)::text)
   AND (sqlc.narg(kind)::text IS NULL OR kind = sqlc.narg(kind)::text)
   AND (sqlc.narg(tag)::text IS NULL OR tags @> ARRAY[lower(sqlc.narg(tag)::text)])
+  AND (sqlc.narg(error_code)::text IS NULL OR error_code = sqlc.narg(error_code)::text)
   AND (sqlc.narg(before_created)::timestamptz IS NULL
        OR (created_at, id) < (sqlc.narg(before_created)::timestamptz, sqlc.narg(before_id)::uuid))
 ORDER BY created_at DESC, id DESC
@@ -118,7 +120,7 @@ LIMIT @page_size;
 DELETE FROM documents WHERE id = $1 RETURNING *;
 
 -- name: RetryDocument :one
-UPDATE documents SET status = 'pending', error_code = '', error_message = '', attempts = 0, updated_at = now()
+UPDATE documents SET status = 'pending', error_code = '', error_message = '', attempts = 0, waiting_until = NULL, updated_at = now()
 WHERE id = $1 AND status IN ('failed', 'skipped')
 RETURNING *;
 
@@ -134,7 +136,7 @@ SELECT count(*) FROM documents WHERE status IN ('queued', 'processing');
 
 -- name: MarkQueued :many
 UPDATE documents SET status = 'queued', updated_at = now()
-WHERE id = ANY(@ids::uuid[]) AND status = 'pending'
+WHERE id = ANY(@ids::uuid[]) AND status = 'pending' AND waiting_until IS NULL
 RETURNING id;
 
 -- name: StartProcessing :one

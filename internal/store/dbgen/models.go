@@ -241,6 +241,7 @@ type DataSource struct {
 	UpdatedAt          time.Time
 	LastSyncAt         *time.Time
 	NextSyncAt         *time.Time
+	OcrEnabled         bool
 }
 
 type DeletedFile struct {
@@ -286,6 +287,7 @@ type Document struct {
 	HttpEtag         string
 	HttpLastModified string
 	LastSeenCrawlID  uuid.NullUUID
+	WaitingUntil     *time.Time
 }
 
 type DocumentBlock struct {
@@ -525,6 +527,17 @@ type NotificationSetting struct {
 	InApp     bool
 	Email     bool
 	UpdatedAt time.Time
+}
+
+type ParsingSetting struct {
+	Singleton     bool
+	OcrEnabled    bool
+	OcrBackend    string
+	VisionModelID uuid.NullUUID
+	Languages     string
+	Revision      int64
+	UpdatedBy     uuid.NullUUID
+	UpdatedAt     time.Time
 }
 
 type PlatformBootstrap struct {

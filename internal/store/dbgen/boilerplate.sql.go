@@ -171,9 +171,10 @@ func (q *Queries) CountSourceBlockDocuments(ctx context.Context, sourceID uuid.U
 }
 
 const countSourceInflight = `-- name: CountSourceInflight :one
-SELECT count(*) FROM documents WHERE source_id = $1 AND status IN ('pending', 'queued', 'processing')
+SELECT count(*) FROM documents WHERE source_id = $1 AND status IN ('pending', 'queued', 'processing') AND waiting_until IS NULL
 `
 
+// Documents waiting for the daily OCR page limit don't hold the refresh up.
 func (q *Queries) CountSourceInflight(ctx context.Context, sourceID uuid.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, countSourceInflight, sourceID)
 	var count int64

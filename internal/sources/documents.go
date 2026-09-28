@@ -345,7 +345,8 @@ func documentFromUpsert(r dbgen.UpsertUploadedDocumentRow) dbgen.Document {
 		ErrorMessage: r.ErrorMessage, Parser: r.Parser, Pages: r.Pages, Warnings: r.Warnings,
 		ChunkCount: r.ChunkCount, TokenCount: r.TokenCount, Metadata: r.Metadata, Tags: r.Tags, Acl: r.Acl,
 		Attempts: r.Attempts, UploadedBy: r.UploadedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
-		ProcessedAt: r.ProcessedAt,
+		ProcessedAt: r.ProcessedAt, HttpEtag: r.HttpEtag, HttpLastModified: r.HttpLastModified, LastSeenCrawlID: r.LastSeenCrawlID,
+		WaitingUntil: r.WaitingUntil,
 	}
 }
 
