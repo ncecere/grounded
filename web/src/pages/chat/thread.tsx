@@ -132,7 +132,13 @@ function Feedback({ item, onChange }: { item: AssistantItem; onChange: (f: Assis
   const reason = feedbackReasons.find((r) => r.value === item.feedback?.reason)?.label;
   return (
     <>
-      <MessageAction label="Good answer" pressed={rating === "up"} disabled={send.isPending} onClick={() => rating !== "up" && send.mutate({ rating: "up" })}>
+      <MessageAction
+        label="Good answer"
+        pressed={rating === "up"}
+        disabled={send.isPending}
+        className={c.feedbackAction}
+        onClick={() => rating !== "up" && send.mutate({ rating: "up" })}
+      >
         <ThumbsUp aria-hidden />
       </MessageAction>
       <Menu

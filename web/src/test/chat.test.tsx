@@ -261,6 +261,13 @@ describe("chat page", () => {
     await userEvent.click(await screen.findByRole("menuitem", { name: "Outdated" }));
     await waitFor(() => expect(calls.find((c) => c.url === "/v1/messages/m1/feedback")?.body).toEqual({ rating: "down", reason: "outdated" }));
     expect(await screen.findByRole("button", { name: "Bad answer: Outdated" })).toHaveAttribute("aria-pressed", "true");
+    // Both thumbs are toggle buttons (G16): exactly one is pressed.
+    const good = screen.getByRole("button", { name: "Good answer" });
+    expect(good).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(good);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Good answer" })).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.getByRole("button", { name: "Bad answer" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Good answer" })).toHaveAttribute("data-pressed");
   });
 
   it("the delete confirmation is honest about retention", async () => {

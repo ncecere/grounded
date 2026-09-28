@@ -26,6 +26,7 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are 
 - Release images take the full git tag as their version: v0.1.0's binary reported `v0.1`.
 ### Fixed
 - A deleted agent's conversations open read-only (`/conversations/<id>`): the transcript with a note that the agent was deleted, and no composer, instead of "Agent not available" (G2).
+- The answer feedback thumbs show which one you chose: both are toggle buttons (`aria-pressed`), and the chosen one has a primary tint and a filled icon (G16).
 
 ## [0.1.0] - 2026-09-28
 

@@ -15,9 +15,14 @@
   white-space: pre-wrap;
 }
 
-.feedbackAction[data-pressed] {
-  background-color: var(--color-surface-active);
-  color: var(--color-text);
+/* The chosen thumb (G16): a primary tint and a filled icon, not only a faint fill. */
+.feedbackAction[aria-pressed="true"][data-pressed] {
+  background-color: var(--color-primary-subtle);
+  color: var(--color-primary-subtle-text);
+
+  & svg {
+    fill: currentColor;
+  }
 }
 
 .waiting {
