@@ -2820,6 +2820,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Objects the caller may see whose name matches, for the command palette
+         * @description Signed-in users only (API keys get 401). Everyone finds the agents they may open (every agent of their teams) or chat with (as the agent directory lists them), the knowledge bases and data sources of all their teams, and their own conversations by title (never anyone else's; deleted ones are gone). Platform admins and auditors also find teams, users, models, connections, embedding profiles and shared sources (metadata they may read; never another team's content). Matching is case-insensitive on the name (users: display name or email; models and profiles: name or key); results are ranked by how the name matches (prefix, then the start of a word, then anywhere), then by type, and cut to `limit`.
+         */
+        get: operations["searchObjects"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}/break-glass": {
         parameters: {
             query?: never;
@@ -5879,6 +5899,29 @@ export interface components {
             /** @enum {string} */
             status: "active" | "disabled_by_team";
             reason?: string;
+        };
+        /** @description One match of GET /v1/search, with what the app needs to link to it: teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models, connections and embedding profiles their admin list with ?record={id}; shared sources /admin/shared-sources/{id}; agents the team's agent page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug}); knowledge bases and data sources their team page; conversations the chat with ?c={id}. */
+        SearchResult: {
+            /** @enum {string} */
+            type: "team" | "user" | "model" | "connection" | "embedding_profile" | "shared_source" | "agent" | "knowledge_base" | "data_source" | "conversation";
+            /** Format: uuid */
+            id: string;
+            /** @description The name (a user's display name, or their email without one; a conversation's title) */
+            label: string;
+            /** @description A second line: the team's name (agents, knowledge bases, data sources), the agent's name (conversations), the email (users), the slug (teams), the key (models, embedding profiles) or the base URL (connections). May be empty. */
+            secondary: string;
+            /** @description A model's kind (chat, embedding, moderation…) or a data source's type (upload, web) */
+            kind?: string;
+            /** @description The object's state when it isn't the normal one: archived (teams), suspended (users), disabled (models, connections), retired (embedding profiles), paused (sources), agent_deleted (conversations of a deleted agent) */
+            status?: string;
+            /** @description The team (teams, agents, knowledge bases, data sources, conversations) */
+            teamSlug?: string;
+            /** @description The agent (agents, conversations) */
+            agentSlug?: string;
+            /** @description Agents only. The caller is a member of the agent's team and may open its page. */
+            canOpen?: boolean;
+            /** @description Agents only. The agent is published and active and the caller may chat with it. */
+            canChat?: boolean;
         };
         /** @description A published agent's public profile */
         AgentCard: {
@@ -12621,6 +12664,35 @@ export interface operations {
                     };
                 };
             };
+            401: components["responses"]["ErrorReply"];
+        };
+    };
+    searchObjects: {
+        parameters: {
+            query: {
+                /** @description The text to find, at least 2 characters (trimmed) */
+                q: string;
+                /** @description At most this many results (default 20, at most 50) */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matches, best first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SearchResult"][];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
             401: components["responses"]["ErrorReply"];
         };
     };

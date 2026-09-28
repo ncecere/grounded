@@ -31,6 +31,8 @@ tags:
     description: Team agents, drafts, versions and analytics
   - name: chat
     description: The agent directory, chat, conversations and feedback
+  - name: search
+    description: Finding objects by name for the command palette (⌘K)
   - name: openai
     description: The OpenAI-compatible API for agents
   - name: breakglass
@@ -4358,6 +4360,48 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/BreakGlassSession" }
         "401": { $ref: "#/components/responses/ErrorReply" }
+  /v1/search:
+    get:
+      tags: [search]
+      operationId: searchObjects
+      summary: Objects the caller may see whose name matches, for the command palette
+      description: >-
+        Signed-in users only (API keys get 401). Everyone finds the agents they
+        may open (every agent of their teams) or chat with (as the agent
+        directory lists them), the knowledge bases and data sources of all
+        their teams, and their own conversations by title (never anyone
+        else's; deleted ones are gone). Platform admins and auditors also find
+        teams, users, models, connections, embedding profiles and shared
+        sources (metadata they may read; never another team's content).
+        Matching is case-insensitive on the name (users: display name or
+        email; models and profiles: name or key); results are ranked by how
+        the name matches (prefix, then the start of a word, then anywhere),
+        then by type, and cut to `limit`.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: The text to find, at least 2 characters (trimmed)
+          schema: { type: string, minLength: 2, maxLength: 200 }
+        - name: limit
+          in: query
+          required: false
+          description: At most this many results (default 20, at most 50)
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        "200":
+          description: Matches, best first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/SearchResult" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "401": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/break-glass:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -7858,6 +7902,54 @@ components:
       properties:
         status: { type: string, enum: [active, disabled_by_team] }
         reason: { type: string, maxLength: 500 }
+    SearchResult:
+      type: object
+      description: >-
+        One match of GET /v1/search, with what the app needs to link to it:
+        teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models,
+        connections and embedding profiles their admin list with ?record={id};
+        shared sources /admin/shared-sources/{id}; agents the team's agent
+        page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug});
+        knowledge bases and data sources their team page; conversations the
+        chat with ?c={id}.
+      required: [type, id, label, secondary]
+      properties:
+        type:
+          type: string
+          enum: [team, user, model, connection, embedding_profile, shared_source, agent, knowledge_base, data_source, conversation]
+        id: { type: string, format: uuid }
+        label:
+          type: string
+          description: The name (a user's display name, or their email without one; a conversation's title)
+        secondary:
+          type: string
+          description: >-
+            A second line: the team's name (agents, knowledge bases, data
+            sources), the agent's name (conversations), the email (users), the
+            slug (teams), the key (models, embedding profiles) or the base URL
+            (connections). May be empty.
+        kind:
+          type: string
+          description: A model's kind (chat, embedding, moderation…) or a data source's type (upload, web)
+        status:
+          type: string
+          description: >-
+            The object's state when it isn't the normal one: archived (teams),
+            suspended (users), disabled (models, connections), retired
+            (embedding profiles), paused (sources), agent_deleted
+            (conversations of a deleted agent)
+        teamSlug:
+          type: string
+          description: The team (teams, agents, knowledge bases, data sources, conversations)
+        agentSlug:
+          type: string
+          description: The agent (agents, conversations)
+        canOpen:
+          type: boolean
+          description: Agents only. The caller is a member of the agent's team and may open its page.
+        canChat:
+          type: boolean
+          description: Agents only. The agent is published and active and the caller may chat with it.
     AgentCard:
       type: object
       description: A published agent's public profile

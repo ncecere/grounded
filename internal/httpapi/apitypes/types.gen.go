@@ -2322,6 +2322,48 @@ func (e RetrieveJudgingMode) Valid() bool {
 	}
 }
 
+// Defines values for SearchResultType.
+const (
+	SearchResultTypeAgent            SearchResultType = "agent"
+	SearchResultTypeConnection       SearchResultType = "connection"
+	SearchResultTypeConversation     SearchResultType = "conversation"
+	SearchResultTypeDataSource       SearchResultType = "data_source"
+	SearchResultTypeEmbeddingProfile SearchResultType = "embedding_profile"
+	SearchResultTypeKnowledgeBase    SearchResultType = "knowledge_base"
+	SearchResultTypeModel            SearchResultType = "model"
+	SearchResultTypeSharedSource     SearchResultType = "shared_source"
+	SearchResultTypeTeam             SearchResultType = "team"
+	SearchResultTypeUser             SearchResultType = "user"
+)
+
+// Valid indicates whether the value is a known member of the SearchResultType enum.
+func (e SearchResultType) Valid() bool {
+	switch e {
+	case SearchResultTypeAgent:
+		return true
+	case SearchResultTypeConnection:
+		return true
+	case SearchResultTypeConversation:
+		return true
+	case SearchResultTypeDataSource:
+		return true
+	case SearchResultTypeEmbeddingProfile:
+		return true
+	case SearchResultTypeKnowledgeBase:
+		return true
+	case SearchResultTypeModel:
+		return true
+	case SearchResultTypeSharedSource:
+		return true
+	case SearchResultTypeTeam:
+		return true
+	case SearchResultTypeUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SharedSourceStatus.
 const (
 	SharedSourceStatusActive SharedSourceStatus = "active"
@@ -6491,6 +6533,38 @@ type ScopeTotals struct {
 	SmallTalk int64 `json:"smallTalk"`
 }
 
+// SearchResult One match of GET /v1/search, with what the app needs to link to it: teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models, connections and embedding profiles their admin list with ?record={id}; shared sources /admin/shared-sources/{id}; agents the team's agent page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug}); knowledge bases and data sources their team page; conversations the chat with ?c={id}.
+type SearchResult struct {
+	// AgentSlug The agent (agents, conversations)
+	AgentSlug *string `json:"agentSlug,omitempty"`
+
+	// CanChat Agents only. The agent is published and active and the caller may chat with it.
+	CanChat *bool `json:"canChat,omitempty"`
+
+	// CanOpen Agents only. The caller is a member of the agent's team and may open its page.
+	CanOpen *bool              `json:"canOpen,omitempty"`
+	Id      openapi_types.UUID `json:"id"`
+
+	// Kind A model's kind (chat, embedding, moderation…) or a data source's type (upload, web)
+	Kind *string `json:"kind,omitempty"`
+
+	// Label The name (a user's display name, or their email without one; a conversation's title)
+	Label string `json:"label"`
+
+	// Secondary A second line: the team's name (agents, knowledge bases, data sources), the agent's name (conversations), the email (users), the slug (teams), the key (models, embedding profiles) or the base URL (connections). May be empty.
+	Secondary string `json:"secondary"`
+
+	// Status The object's state when it isn't the normal one: archived (teams), suspended (users), disabled (models, connections), retired (embedding profiles), paused (sources), agent_deleted (conversations of a deleted agent)
+	Status *string `json:"status,omitempty"`
+
+	// TeamSlug The team (teams, agents, knowledge bases, data sources, conversations)
+	TeamSlug *string          `json:"teamSlug,omitempty"`
+	Type     SearchResultType `json:"type"`
+}
+
+// SearchResultType defines model for SearchResult.Type.
+type SearchResultType string
+
 // SharedSource A platform-shared source as teams see it (no documents)
 type SharedSource struct {
 	Classification     string             `json:"classification"`
@@ -7596,6 +7670,15 @@ type WidgetCheckParams struct {
 // GetPublicSessionParams defines parameters for GetPublicSession.
 type GetPublicSessionParams struct {
 	AgentId openapi_types.UUID `form:"agentId" json:"agentId"`
+}
+
+// SearchObjectsParams defines parameters for SearchObjects.
+type SearchObjectsParams struct {
+	// Q The text to find, at least 2 characters (trimmed)
+	Q string `form:"q" json:"q"`
+
+	// Limit At most this many results (default 20, at most 50)
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // UpdateAgentParams defines parameters for UpdateAgent.

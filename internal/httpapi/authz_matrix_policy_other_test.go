@@ -1,6 +1,9 @@
 package httpapi_test
 
-import "net/url"
+import (
+	"net/url"
+	"strings"
+)
 
 // Classification of everything that is neither a team route nor platform
 // administration: operations endpoints, sign-in, the caller's own account
@@ -81,6 +84,13 @@ var globalPolicies = map[string]policy{
 	"listAgentDirectory": {own: signedIn.and(allKeys), build: func(*mctx) request { return get("/v1/agents") }},
 	"listConversations":  {own: signedIn.and(allKeys), build: func(*mctx) request { return get("/v1/conversations") }},
 	"openaiListModels":   {own: signedIn.and(allKeys), build: func(*mctx) request { return get("/v1/models") }},
+
+	// Object search ("xyzzy" matches every team A object, its owner's
+	// conversation title included): session only, so keys get 401. Team B's
+	// people find none of team A's objects (the leak check); platform
+	// readers find team A itself (metadata) but never its conversation,
+	// whose title carries the content marker.
+	"searchObjects": {own: signedIn, build: func(*mctx) request { return get("/v1/search?q=" + strings.ToLower(nameMarker)) }},
 }
 
 // A conversation is its user's alone; a personal key reaches it with the
