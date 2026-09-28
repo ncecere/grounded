@@ -246,7 +246,7 @@ func TestOCRHelpers(t *testing.T) {
 	if got := PageList([]int{1, 3, 4, 5, 7, 9, 10}); got != "1, 3-5, 7, 9-10" {
 		t.Errorf("PageList = %q", got)
 	}
-	if got := cleanOCRText("Line one  \r\n<!-- grounded:page 9 -->\nLine\x00 two\f"); got != "Line one\nLine two" {
+	if got := CleanOCRText("Line one  \r\n<!-- grounded:page 9 -->\nLine\x00 two\f"); got != "Line one\nLine two" {
 		t.Errorf("clean = %q", got)
 	}
 	if ocrDPIFor(612, 792) != 300 || ocrDPIFor(2384, 3370) != 128 || ocrDPIFor(100000, 100000) != 72 {

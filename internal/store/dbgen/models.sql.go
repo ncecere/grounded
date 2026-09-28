@@ -719,6 +719,57 @@ func (q *Queries) ListUsableSystemOneModels(ctx context.Context) ([]Model, error
 	return items, nil
 }
 
+const listUsableVisionModels = `-- name: ListUsableVisionModels :many
+SELECT m.id, m.connection_id, m.key, m.upstream_model, m.display_name, m.description, m.kind, m.max_classification, m.enabled, m.context_window, m.max_output_tokens, m.supports_tools, m.supports_vision, m.dimensions, m.max_input_tokens, m.compat, m.revision, m.created_by, m.created_at, m.updated_at, m.moderation_provider, m.moderation_family, m.moderation_timeout_seconds FROM models m
+JOIN model_connections c ON c.id = m.connection_id
+WHERE m.kind = 'vision' AND m.enabled AND c.enabled
+ORDER BY m.display_name, m.key
+`
+
+func (q *Queries) ListUsableVisionModels(ctx context.Context) ([]Model, error) {
+	rows, err := q.db.Query(ctx, listUsableVisionModels)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Model{}
+	for rows.Next() {
+		var i Model
+		if err := rows.Scan(
+			&i.ID,
+			&i.ConnectionID,
+			&i.Key,
+			&i.UpstreamModel,
+			&i.DisplayName,
+			&i.Description,
+			&i.Kind,
+			&i.MaxClassification,
+			&i.Enabled,
+			&i.ContextWindow,
+			&i.MaxOutputTokens,
+			&i.SupportsTools,
+			&i.SupportsVision,
+			&i.Dimensions,
+			&i.MaxInputTokens,
+			&i.Compat,
+			&i.Revision,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ModerationProvider,
+			&i.ModerationFamily,
+			&i.ModerationTimeoutSeconds,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockConnection = `-- name: LockConnection :one
 SELECT id, name, description, base_url, api_key_ciphertext, api_key_hint, timeout_seconds, enabled, revision, created_by, created_at, updated_at, requests_per_minute, max_concurrent_requests FROM model_connections WHERE id = $1 FOR UPDATE
 `

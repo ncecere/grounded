@@ -20,6 +20,11 @@ const (
 	UsagePageCrawled = "page_crawled"
 	UsageChatIn      = "chat_tokens_in"
 	UsageChatOut     = "chat_tokens_out"
+	// UsageOCRPages are pages read with OCR (metadata: backend); a vision
+	// backend also records UsageVisionIn and UsageVisionOut with its model.
+	UsageOCRPages  = "ocr_pages"
+	UsageVisionIn  = "vision_tokens_in"
+	UsageVisionOut = "vision_tokens_out"
 )
 
 // Options adjust built-in defaults from configuration.

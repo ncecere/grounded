@@ -89,6 +89,10 @@ type Config struct {
 	TikaPreferKinds []string // kinds sent to Tika first, e.g. "pdf"
 	PDFWorkers      int      // concurrent PDFium instances per process
 
+	// OCR (docs/ocr.md): the backends Admin -> Parsing may choose. OCR is
+	// off until an admin turns it on there.
+	OCR OCR
+
 	// Web crawling (ADR-0008, DESIGN.md §5.3).
 	Crawl Crawl
 
@@ -232,6 +236,7 @@ func Defaults() Config {
 		RetrievalKeywordWeight: 0.1,
 		ModerationTimeout:      10 * time.Second,
 		PDFWorkers:             2,
+		OCR:                    OCR{Timeout: 2 * time.Minute, MaxPagesPerDocument: 200, Concurrency: 2},
 		Crawl: Crawl{
 			MaxPages: 10000, OriginInterval: time.Second, Timeout: 30 * time.Second,
 			MaxBodyBytes: 20 << 20, Concurrency: 4,
@@ -265,4 +270,19 @@ func (c Config) CrawlUserAgent() string {
 		return "grounded/1.0 (+" + c.AppURL + "/bot)"
 	}
 	return "grounded/1.0"
+}
+
+// OCR configures OCR for scanned pages (docs/ocr.md §2, §4).
+type OCR struct {
+	// TesseractURL is the grounded-ocr sidecar (OCR_TESSERACT_URL); empty:
+	// the Tesseract backend can't be chosen. Tika's URL is TIKA_URL.
+	TesseractURL string
+	// Timeout bounds one page's OCR request (OCR_TIMEOUT).
+	Timeout time.Duration
+	// MaxPagesPerDocument caps the pages read per document
+	// (OCR_MAX_PAGES_PER_DOCUMENT); pages beyond it are skipped with a warning.
+	MaxPagesPerDocument int
+	// Concurrency bounds the pages read at once per worker process
+	// (OCR_CONCURRENCY), so OCR can't starve other ingestion.
+	Concurrency int
 }

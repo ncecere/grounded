@@ -49,6 +49,7 @@ const (
 	CrawlPagesPerDay       Key = "crawl_pages_per_day"
 	ConcurrentCrawls       Key = "concurrent_crawls"
 	ConcurrentIngestJobs   Key = "concurrent_ingest_jobs"
+	OCRPagesPerDay         Key = "ocr_pages_per_day"
 	QueriesPerMinute       Key = "queries_per_minute"
 	QueriesPerDay          Key = "queries_per_day"
 	APIKeyQueriesPerMinute Key = "api_key_queries_per_minute"
@@ -131,6 +132,8 @@ var registry = []Def{
 		Description: "Web source syncs running at once. Further syncs wait in the queue.", Default: ptr(2)},
 	{Key: ConcurrentIngestJobs, Group: GroupIngestion, Unit: UnitCount, Label: "Concurrent ingestion jobs", Noun: "concurrent ingestion jobs",
 		Description: "Documents parsed and embedded at once (fair sharing between teams).", Default: ptr(8)},
+	{Key: OCRPagesPerDay, Group: GroupIngestion, Unit: UnitCount, Period: PeriodDay, Label: "OCR pages per day", Noun: "OCR pages per day",
+		Description: "Scanned pages read with OCR per UTC day. Documents that would pass it wait until the next day.", Default: ptr(1_000)},
 	{Key: QueriesPerMinute, Group: GroupQueries, Unit: UnitCount, Period: PeriodMinute, Label: "Queries per minute (team)", Noun: "queries per minute",
 		Description: "Retrieval queries per minute across the whole team.", Default: ptr(600)},
 	{Key: QueriesPerDay, Group: GroupQueries, Unit: UnitCount, Period: PeriodDay, Label: "Queries per day (team)", Noun: "queries per day",

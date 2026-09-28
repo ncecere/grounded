@@ -62,7 +62,7 @@ func parseImage(ctx context.Context, in Input) (Document, error) {
 		return Document{}, fmt.Errorf("%w: OCR could not read the image: %v", ErrCorrupt, err)
 	}
 	info := &OCRInfo{Backend: o.Backend, Pages: []int{1}, TokensIn: res.TokensIn, TokensOut: res.TokensOut}
-	text := cleanOCRText(res.Text)
+	text := CleanOCRText(res.Text)
 	title := titleFromName(in.Name)
 	md := cleanMarkdown(PageMarker(1) + "\n\n" + text)
 	if h := firstHeading(md); h != "" {

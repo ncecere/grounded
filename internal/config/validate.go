@@ -92,6 +92,11 @@ func (c Config) validateIngest() []error {
 			errs = append(errs, errors.New("TIKA_URL must be an http(s) URL such as http://tika:9998"))
 		}
 	}
+	if c.OCR.TesseractURL != "" {
+		if u, err := url.Parse(c.OCR.TesseractURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			errs = append(errs, errors.New("OCR_TESSERACT_URL must be an http(s) URL such as http://grounded-ocr:8080"))
+		}
+	}
 	for _, k := range c.TikaPreferKinds {
 		if !slices.Contains([]string{"pdf", "docx", "pptx", "html"}, k) {
 			errs = append(errs, fmt.Errorf("TIKA_PREFER_KINDS: unknown kind %q (use pdf, docx, pptx, html)", k))

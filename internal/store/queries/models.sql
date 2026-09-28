@@ -134,3 +134,9 @@ SELECT m.* FROM models m
 JOIN model_connections c ON c.id = m.connection_id
 WHERE m.kind = 'systemone' AND m.enabled AND c.enabled
 ORDER BY m.display_name, m.key;
+
+-- name: ListUsableVisionModels :many
+SELECT m.* FROM models m
+JOIN model_connections c ON c.id = m.connection_id
+WHERE m.kind = 'vision' AND m.enabled AND c.enabled
+ORDER BY m.display_name, m.key;

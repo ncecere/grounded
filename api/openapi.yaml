@@ -7636,7 +7636,7 @@ components:
     LimitKey:
       type: string
       description: A team limit. See GET /v1/admin/limits for labels and descriptions.
-      enum: [storage_bytes, documents, data_sources, knowledge_bases, agents, crawl_pages_per_day, concurrent_crawls, concurrent_ingest_jobs, queries_per_minute, queries_per_day, api_key_queries_per_minute, user_queries_per_minute, chat_tokens_per_day, concurrent_chats_per_user, public_queries_per_ip_per_minute, public_queries_per_session_per_minute, public_queries_per_agent_per_day, public_tokens_per_agent_per_day, public_concurrent_chats_per_agent, public_message_max_chars]
+      enum: [storage_bytes, documents, data_sources, knowledge_bases, agents, crawl_pages_per_day, concurrent_crawls, concurrent_ingest_jobs, ocr_pages_per_day, queries_per_minute, queries_per_day, api_key_queries_per_minute, user_queries_per_minute, chat_tokens_per_day, concurrent_chats_per_user, public_queries_per_ip_per_minute, public_queries_per_session_per_minute, public_queries_per_agent_per_day, public_tokens_per_agent_per_day, public_concurrent_chats_per_agent, public_message_max_chars]
     LimitGroup:
       type: string
       description: public limits apply per agent to anonymous public-page and widget traffic

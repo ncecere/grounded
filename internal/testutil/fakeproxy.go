@@ -50,6 +50,8 @@ import (
 // fake-shieldgemma) and requests whose system prompt contains
 // "grounded-moderation-classifier" get moderation answers instead, and POST
 // /v1/moderations and /v1/systemone are served too (fakemoderation.go).
+// Vision models (fake-vision; AddVisionModel) transcribe an image part
+// (fakevision.go).
 //
 // Usage is included in the final chunk when stream_options.include_usage is
 // set (and always in non-streamed responses): prompt tokens are the word
@@ -91,6 +93,11 @@ type FakeProxy struct {
 	judgeDelay time.Duration
 	judgeCalls int
 
+	// Vision models (fakevision.go).
+	vision      map[string]bool
+	visionFail  int
+	visionCalls int
+
 	// Citation and scope checks (fakesystemone.go).
 	citeCalls  int
 	citeDelay  time.Duration
@@ -112,6 +119,7 @@ func NewFakeProxyHandler(apiKey string) (*FakeProxy, http.Handler) {
 		chat:       map[string]bool{"test-chat": true},
 		embedding:  map[string]int{"test-embed": 8},
 		matryoshka: map[string]bool{},
+		vision:     map[string]bool{FakeVisionModel: true},
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/models", p.models)
@@ -332,6 +340,9 @@ func (p *FakeProxy) models(w http.ResponseWriter, r *http.Request) {
 		data = append(data, map[string]string{"id": id, "object": "model"})
 	}
 	for id := range p.embedding {
+		data = append(data, map[string]string{"id": id, "object": "model"})
+	}
+	for id := range p.vision {
 		data = append(data, map[string]string{"id": id, "object": "model"})
 	}
 	for id := range fakeGuardModels {

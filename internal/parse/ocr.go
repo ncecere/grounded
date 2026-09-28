@@ -161,7 +161,7 @@ func recognizeAll(ctx context.Context, stop context.CancelFunc, o *OCROptions, i
 				t := pageText{err: img.err}
 				if img.err == nil && ctx.Err() == nil {
 					t.res, t.err = o.Engine.Recognize(ctx, img.png, o.Languages)
-					t.text = cleanOCRText(t.res.Text)
+					t.text = CleanOCRText(t.res.Text)
 				}
 				mu.Lock()
 				out[img.page] = t
@@ -250,11 +250,11 @@ func PageList(pages []int) string {
 	return b.String()
 }
 
-// cleanOCRText normalises recognised text: line endings, control
+// CleanOCRText normalises recognised text: line endings, control
 // characters (Tesseract ends pages with a form feed), trailing spaces and
 // lines that would read as page markers (a page must not be able to
 // renumber the document).
-func cleanOCRText(s string) string {
+func CleanOCRText(s string) string {
 	s = strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\n"), "\r", "\n")
 	s = strings.Map(func(r rune) rune {
 		if r < 0x20 && r != '\n' && r != '\t' {

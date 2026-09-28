@@ -333,6 +333,7 @@ func (s *Service) TeamUsage(ctx context.Context, a authz.Actor, teamRef string) 
 		{Agents, func() (int64, error) { return s.q.CountTeamAgents(ctx, teamID) }},
 		{ChatTokensPerDay, func() (int64, error) { return s.chatTokensToday(ctx, teamID) }},
 		{CrawlPagesPerDay, func() (int64, error) { return s.UsageToday(ctx, s.q, teamID, UsagePageCrawled) }},
+		{OCRPagesPerDay, func() (int64, error) { return s.UsageToday(ctx, s.q, teamID, UsageOCRPages) }},
 		{QueriesPerDay, func() (int64, error) { return s.UsageToday(ctx, s.q, teamID, UsageQuery) }},
 		{ConcurrentCrawls, func() (int64, error) { return s.q.CountCrawlSlots(ctx, team) }},
 		{ConcurrentIngestJobs, func() (int64, error) { return s.q.CountTeamInflight(ctx, team) }},

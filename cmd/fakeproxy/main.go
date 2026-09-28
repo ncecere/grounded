@@ -26,6 +26,9 @@
 // truncated by Grounded) and fake-matryoshka-2560 (2560; accepts "dimensions",
 // for models with supportsDimensionsParam).
 //
+// Vision model: fake-vision transcribes a page image (an image_url part) as
+// "# Transcribed page" and the image's size, for the OCR vision backend.
+//
 // -embed-rpm and -embed-latency simulate a rate-limited gateway (429 with
 // Retry-After beyond the limit, e.g. a gateway allowing 120 requests per minute).
 package main

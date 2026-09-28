@@ -29,11 +29,14 @@ const (
 	// KindSystemOne is a SystemOne judgment model (ADR-0020): typed
 	// questions over POST /v1/systemone.
 	KindSystemOne = "systemone"
+	// KindVision is a model that reads images over /chat/completions: the
+	// OCR backend "vision" transcribes page images with it (docs/ocr.md §2).
+	KindVision = "vision"
 )
 
 var (
 	keyRE      = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,62}$`)
-	validKinds = map[string]bool{KindChat: true, KindEmbedding: true, KindRerank: true, KindModeration: true, KindSystemOne: true}
+	validKinds = map[string]bool{KindChat: true, KindEmbedding: true, KindRerank: true, KindModeration: true, KindSystemOne: true, KindVision: true}
 	errNoModel = apperr.NotFound("model_not_found", "Model not found")
 )
 
@@ -193,11 +196,15 @@ func normalizeSpec(ctx context.Context, q *dbgen.Queries, kind string, s *ModelS
 // to kind.
 func clearKindFlags(kind string, s *ModelSpec) {
 	if kind != KindChat {
-		s.ContextWindow, s.MaxOutputTokens, s.SupportsTools, s.SupportsVision = nil, nil, false, false
+		s.ContextWindow, s.SupportsTools, s.SupportsVision = nil, false, false
+		if kind != KindVision { // a vision model's transcription length
+			s.MaxOutputTokens = nil
+		}
 	}
-	// Only chat completions take extraBody (chat models, and moderation
-	// models called over /chat/completions); only embeddings take dimensions.
-	if kind != KindChat && kind != KindModeration {
+	// Only chat completions take extraBody (chat and vision models, and
+	// moderation models called over /chat/completions); only embeddings
+	// take dimensions.
+	if kind != KindChat && kind != KindModeration && kind != KindVision {
 		s.Compat.ExtraBody = nil
 	}
 	if kind != KindEmbedding {
@@ -250,7 +257,7 @@ func (s *Service) CreateModel(ctx context.Context, a authz.Actor, in ModelInput)
 		return dbgen.Model{}, apperr.Invalid("invalid_key", "Key must be 1-63 lowercase letters, digits, dots, dashes or underscores")
 	}
 	if !validKinds[in.Kind] {
-		return dbgen.Model{}, apperr.Invalid("invalid_kind", "Kind must be chat, embedding, rerank, moderation or systemone")
+		return dbgen.Model{}, apperr.Invalid("invalid_kind", "Kind must be chat, embedding, rerank, moderation, systemone or vision")
 	}
 	var out dbgen.Model
 	err := store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {

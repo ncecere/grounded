@@ -341,10 +341,13 @@ func (c *Client) Embed(ctx context.Context, r EmbedRequest) (EmbedResult, error)
 }
 
 // ChatMessage is a plain-text chat message (the pi-style content model
-// arrives with streaming in Phase 3).
+// arrives with streaming in Phase 3), optionally with one PNG image for a
+// vision model (sent as OpenAI content parts; vision.go).
 type ChatMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
+	// ImagePNG is sent after the text as an image_url content part.
+	ImagePNG []byte `json:"-"`
 }
 
 // CompleteRequest is a non-streaming chat completion.
