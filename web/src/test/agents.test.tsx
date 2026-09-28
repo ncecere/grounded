@@ -312,10 +312,20 @@ describe("agent editor", () => {
     await waitFor(() => expect(screen.getByRole("checkbox", { name: /Registrar help/ })).toHaveFocus());
   });
 
+  it("the default accent follows the installed theme's primary colour (G17)", async () => {
+    const { DEFAULT_ACCENT, themeAccent } = await import("../pages/agents/accents.colors");
+    expect(themeAccent()).toBe(DEFAULT_ACCENT);
+    document.documentElement.style.setProperty("--color-primary", "#1B5E20");
+    expect(themeAccent()).toBe("#1b5e20");
+    document.documentElement.style.removeProperty("--color-primary");
+  });
+
   it("appearance: live contrast check holds back a failing colour; the tab has no axe violations", async () => {
     const calls = mockApi(agentRoutes({ "PATCH /v1/teams/registrar/agents/ag1": () => agent({ revision: 3 }) }));
     const { container } = renderApp("/teams/registrar/agents/ag1?tab=appearance");
     const hex = await screen.findByRole("textbox", { name: "Accent colour" });
+    // The default is the theme's primary, as the preview draws it (G17).
+    expect(screen.getByText(/Leave it empty for the theme's colour, #4b4fd6\./)).toBeInTheDocument();
     await userEvent.type(hex, "#fa4616");
     expect(await screen.findAllByText(/below 4.5:1/)).not.toHaveLength(0);
     await new Promise((r) => setTimeout(r, 1000));

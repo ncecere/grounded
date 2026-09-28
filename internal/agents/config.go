@@ -341,7 +341,7 @@ func NormalizeAccent(c string) (string, error) {
 		return "", nil
 	}
 	if !hexColor.MatchString(c) {
-		return "", apperr.Invalid("invalid_accent_color", "Accent colour must be a hex colour such as #0021a5")
+		return "", apperr.Invalid("invalid_accent_color", "Accent colour must be a hex colour such as #4b4fd6")
 	}
 	c = strings.ToLower(c)
 	if r := ContrastWithWhite(c); r < MinContrast {

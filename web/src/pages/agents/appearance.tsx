@@ -8,7 +8,7 @@ import { Field } from "@/components/ui/field/field";
 import { Input, Textarea } from "@/components/ui/input/input";
 import { ChatWelcome } from "../chat/welcome";
 import { useTeam } from "../team/common";
-import { ACCENT_PRESETS, ACCENT_TEXT, DEFAULT_ACCENT } from "./accents.colors";
+import { ACCENT_PRESETS, ACCENT_TEXT, themeAccent } from "./accents.colors";
 import { type AgentDraft, profileErrors } from "./draft";
 import a from "./agents.module.css";
 import ap from "./appearance.module.css";
@@ -20,6 +20,8 @@ export function AppearanceTab({ d }: { d: AgentDraft }) {
   const errors = profileErrors(p);
   const starters = p.starterQuestions;
   const setStarter = (i: number, v: string) => set({ starterQuestions: starters.map((q, j) => (j === i ? v : q)) });
+  // No accent: the theme's primary, as in the preview and the chat (G17).
+  const defaultAccent = themeAccent();
 
   return (
     <div className={ap.appearance}>
@@ -44,13 +46,13 @@ export function AppearanceTab({ d }: { d: AgentDraft }) {
           <div className={a.stack}>
             <Field
               label="Accent colour"
-              description={`Used for the agent's avatar and highlights, always with white text. Leave it empty for the default, ${DEFAULT_ACCENT}.`}
+              description={`Used for the agent's avatar and highlights, always with white text. Leave it empty for the theme's colour, ${defaultAccent}.`}
               error={errors.accentColor}
             >
               <ColorField
                 value={p.accentColor}
                 onValueChange={(accentColor) => set({ accentColor })}
-                defaultColor={DEFAULT_ACCENT}
+                defaultColor={defaultAccent}
                 contrastWith={ACCENT_TEXT}
                 contrastLabel="white text"
                 presets={ACCENT_PRESETS}

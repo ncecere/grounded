@@ -21,7 +21,8 @@
 
 type Profile = { name: string; accentColor: string };
 
-const DEFAULT_ACCENT = "#1f4fd1";
+/** An agent without an accent: the theme's primary, as in the app (web/src/pages/agents/accents.colors.ts). */
+const DEFAULT_ACCENT = "#4b4fd6";
 const HEX = /^#[0-9a-f]{6}$/i;
 
 /** The launcher and panel styles, scoped to the shadow root. */
