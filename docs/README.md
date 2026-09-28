@@ -81,7 +81,7 @@ People who deploy, upgrade and monitor an install:
 | [`operations/monitoring.md`](operations/monitoring.md) | Metrics, dashboards, alerts and SLOs |
 | [`operations/alerts.md`](operations/alerts.md) | A runbook for each alert |
 | [`../deploy/observability/README.md`](../deploy/observability/README.md) | The dashboards and alert rules |
-| [`operations/retention.md`](operations/retention.md), [`operations/break-glass.md`](operations/break-glass.md), [`operations/profile-migration.md`](operations/profile-migration.md), [`operations/sso-groups.md`](operations/sso-groups.md), [`operations/ocr.md`](operations/ocr.md), [`operations/costs.md`](operations/costs.md) | Runbooks shared with platform admins |
+| [`operations/retention.md`](operations/retention.md), [`operations/break-glass.md`](operations/break-glass.md), [`operations/profile-migration.md`](operations/profile-migration.md), [`operations/sso-groups.md`](operations/sso-groups.md), [`operations/ocr.md`](operations/ocr.md), [`operations/costs.md`](operations/costs.md), [`operations/evaluations.md`](operations/evaluations.md) | Runbooks shared with platform admins |
 | [DESIGN §15](DESIGN.md#15-architecture-deployment-and-operations-adr-0001-adr-0013-adr-0014) | Architecture, availability target, backups and delivery |
 
 ## Security reviewers
