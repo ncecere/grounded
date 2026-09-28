@@ -14,9 +14,9 @@ import (
 	"image/png"
 	"strings"
 
-	_ "image/jpeg" // registers the JPEG decoder
 	xdraw "golang.org/x/image/draw"
 	_ "golang.org/x/image/tiff" // registers the TIFF decoder (first page only)
+	_ "image/jpeg"              // registers the JPEG decoder
 )
 
 // maxImagePixels bounds a decoded image (a decompression bomb is refused
