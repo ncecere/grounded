@@ -52,10 +52,10 @@ While the platform mode is Off, the Budget card only shows for teams that have t
 
 ## 3. Reading spend
 
-- **Overview:** total spend over a date range, a daily chart by kind (chat, embedding, SystemOne, moderation), and the top teams, agents and models, each with a CSV download (`GET /v1/admin/costs/report.csv`).
+- **Overview:** total spend over a date range, a daily chart by kind (chat, embedding, SystemOne, moderation), and the top teams, agents and models, each with a CSV download (`GET /v1/admin/costs/report.csv`). The first columns name the row and depend on the grouping (`team_id,team_slug,team_name`; `agent_id,agent_name,team_slug,team_name`; `model_id,model_name,model_kind`; or `day`), followed by `currency,spend`, the spend per kind, `tokens,requests,unpriced`.
 - **Budgets:** every active team's mode, budget (plus this month's extensions), month-to-date spend, share and projected month-end. Open a team to change its budget.
 - **Team settings → Usage & limits → Spend this month:** a team's owners and admins see their spend, the budget meter when enforced, and spend by agent and model. Editors and members see no money.
-- Spend for usage outside agents (searches through `/retrieve`, ingestion) is listed as "Outside agents".
+- Spend for usage outside agents (searches through `/retrieve`, ingestion) is listed as "Not from an agent".
 
 Figures come from an hourly rollup of the ledger plus the last hour or so read live. Budgets are checked against a figure cached for up to 30 seconds per server, so a busy team can go slightly over its budget.
 

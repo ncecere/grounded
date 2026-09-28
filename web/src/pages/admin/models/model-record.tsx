@@ -57,9 +57,11 @@ type Props = {
   test: ModelTest;
   onEdit: (m: Model) => void;
   onDelete: (m: Model) => void;
+  /** The back link's target when the record was opened from another page (Costs). */
+  back?: { label: string; href: string };
 };
 
-export function ModelRecordPage({ model, open, loading, onClose, connectionName, usage, isAdmin, test, onEdit, onDelete }: Props) {
+export function ModelRecordPage({ model, open, loading, onClose, connectionName, usage, isAdmin, test, onEdit, onDelete, back }: Props) {
   const levels = useClassificationLevels();
   const usedBy = modelUsedBy(usage);
   const testedThis = test.variables?.id === model?.id;
@@ -67,6 +69,7 @@ export function ModelRecordPage({ model, open, loading, onClose, connectionName,
     <RecordPage
       open={open}
       onClose={onClose}
+      back={back}
       title={model?.displayName ?? "Model"}
       description="A model offered to teams through a connection."
       loading={loading && !model}

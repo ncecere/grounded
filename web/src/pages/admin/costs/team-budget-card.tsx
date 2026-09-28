@@ -20,11 +20,11 @@ import { Input, NativeSelect } from "@/components/ui/input/input";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { toast } from "@/components/ui/toast/toast";
-import { amountError, modeLabels, monthLabel, overrideLabels, stateLabels, stateTones, useCostSettings } from "@/lib/costs";
-import { formatMoney } from "@/lib/format";
+import { amountError, budgetThisMonth, monthLabel, overrideLabels, stateLabels, stateTones, useCostSettings } from "@/lib/costs";
+import { formatMoney, moneyDecimals } from "@/lib/format";
 import { useCurrentUser } from "@/session";
 import s from "../../shared.module.css";
-import { BudgetMeter } from "./budgets";
+import { BudgetMeter, ModeText } from "./budgets";
 import c from "./costs.module.css";
 
 type TeamBudget = Schemas["TeamBudget"];
@@ -48,6 +48,11 @@ export function AdminTeamBudgetCard({ team }: { team: string }) {
   const st = b.status;
   const cur = st.currency;
   const enforced = st.mode === "enforce";
+  // Extensions count only while a budget is enforced; otherwise they're history.
+  const inForce = enforced && st.limit !== null;
+  const thisMonth = budgetThisMonth(st, { platformDefault: !b.amount });
+  const own = b.amount ? formatMoney(b.amount, cur) : b.defaultBudget ? `${formatMoney(b.defaultBudget, cur)} (platform default)` : "None";
+  const extDec = moneyDecimals(...b.extensions.map((e) => e.amount));
   return (
     <Card
       title="Budget"
@@ -70,20 +75,22 @@ export function AdminTeamBudgetCard({ team }: { team: string }) {
       <div className={c.cardBody}>
         <DescriptionList
           items={[
-            { label: "Mode", value: `${modeLabels[st.mode]}${b.modeOverride === "inherit" ? " (platform setting)" : " (set for this team)"}` },
-            { label: "Monthly budget", value: b.amount ? formatMoney(b.amount, cur) : b.defaultBudget ? `${formatMoney(b.defaultBudget, cur)} (platform default)` : "None" },
+            { label: "Mode", value: <ModeText mode={st.mode} override={b.modeOverride} /> },
+            thisMonth
+              ? { label: "Budget this month", value: thisMonth.parts ? `${thisMonth.total} (${thisMonth.parts})` : thisMonth.total }
+              : { label: "Monthly budget", value: own },
             { label: "Warning at", value: `${st.warnPercent}%${b.warnPercent === null ? " (platform setting)" : ""}` },
-            { label: "Spent this month", value: formatMoney(st.spent, cur) },
+            { label: "Spent this month", value: formatMoney(st.spent, cur, moneyDecimals(st.spent, st.limit)) },
             { label: "State", value: <StatusBadge tone={stateTones[st.state]}>{stateLabels[st.state]}</StatusBadge> },
           ]}
         />
-        {enforced && st.limit !== null && <BudgetMeter status={st} label={`${b.teamName}: share of this month's budget used`} />}
+        {inForce && <BudgetMeter status={st} label={`${b.teamName}: share of this month's budget used`} />}
         {b.extensions.length > 0 && (
-          <Table caption="Extensions this month" showCaption columns={["Added", { label: "Amount", numeric: true }, "Reason", "By"]} density="compact">
+          <Table caption={inForce ? "Extensions this month" : "Extensions granted this month (not counted: no budget is enforced)"} showCaption columns={["Added", { label: "Amount", numeric: true }, "Reason", "By"]} density="compact">
             {b.extensions.map((e) => (
               <Tr key={e.id}>
                 <Td nowrap>{dayLabel(e.createdAt.slice(0, 10))}</Td>
-                <Td numeric>{formatMoney(e.amount, cur)}</Td>
+                <Td numeric>{formatMoney(e.amount, cur, extDec)}</Td>
                 <Td>{e.reason}</Td>
                 <Td muted>{e.createdByName || "—"}</Td>
               </Tr>

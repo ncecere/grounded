@@ -2,6 +2,7 @@ package costs
 
 import (
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 
@@ -225,5 +226,42 @@ func TestStatesAndProjection(t *testing.T) {
 	}
 	if UnitsFor("rerank") != nil || len(UnitsFor("systemone")) != 2 {
 		t.Error("UnitsFor")
+	}
+}
+
+func TestCSVColumnsAreUnique(t *testing.T) {
+	team := ReportRow{Key: uuid.NewString(), Label: "QA Team", TeamSlug: "qa-team", TeamName: "QA Team", Totals: NewTotals()}
+	agent := ReportRow{Key: uuid.NewString(), Label: "Helper", TeamSlug: "qa-team", TeamName: "QA Team", Totals: NewTotals()}
+	model := ReportRow{Key: uuid.NewString(), Label: "Chat", ModelKind: "chat", Totals: NewTotals()}
+	daily := ReportRow{Key: "2026-09-01", Label: "2026-09-01", Totals: NewTotals()}
+	for _, c := range []struct {
+		groupBy string
+		row     ReportRow
+		head    string
+		first   string
+	}{
+		{ByTeam, team, "team_id,team_slug,team_name,currency,spend,", team.Key + ",qa-team,QA Team,USD,0.000000,"},
+		{ByAgent, agent, "agent_id,agent_name,team_slug,team_name,currency,spend,", agent.Key + ",Helper,qa-team,QA Team,USD,"},
+		{ByModel, model, "model_id,model_name,model_kind,currency,spend,", model.Key + ",Chat,chat,USD,"},
+		{ByDay, daily, "day,currency,spend,chat,embedding,systemone,moderation,ocr,tokens,requests,unpriced", "2026-09-01,USD,0.000000,"},
+	} {
+		var b strings.Builder
+		if err := WriteCSV(&b, Report{GroupBy: c.groupBy, Currency: "USD", Rows: []ReportRow{c.row}}); err != nil {
+			t.Fatal(err)
+		}
+		lines := strings.Split(strings.TrimSpace(b.String()), "\n")
+		if len(lines) != 2 || !strings.HasPrefix(lines[0], c.head) || !strings.HasPrefix(lines[1], c.first) {
+			t.Errorf("%s: %q", c.groupBy, lines)
+		}
+		seen := map[string]bool{}
+		for _, h := range strings.Split(lines[0], ",") {
+			if seen[h] {
+				t.Errorf("%s: column %q twice", c.groupBy, h)
+			}
+			seen[h] = true
+		}
+		if n := len(strings.Split(lines[0], ",")); n != len(strings.Split(lines[1], ",")) {
+			t.Errorf("%s: %d columns, row has %d", c.groupBy, n, len(strings.Split(lines[1], ",")))
+		}
 	}
 }

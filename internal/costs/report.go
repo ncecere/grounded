@@ -64,10 +64,10 @@ func checkRange(f ReportFilter) error {
 		return apperr.Invalid("invalid_group", "groupBy must be team, agent, model or day")
 	}
 	if f.To.Before(f.From) {
-		return apperr.Invalid("invalid_range", "The range must end on or after its first day")
+		return apperr.Invalid("invalid_range", "The range must end on or after its first day.")
 	}
 	if f.To.Sub(f.From) >= MaxReportDays*24*time.Hour {
-		return apperr.Invalid("invalid_range", "A report covers at most 366 days")
+		return apperr.Invalid("invalid_range", "A report covers at most 366 days.")
 	}
 	return nil
 }
@@ -158,7 +158,7 @@ func sortRows(groupBy string, rows []ReportRow) {
 // Names of rows without a key.
 const (
 	labelNoTeam  = "Shared sources (no team)"
-	labelNoAgent = "Outside agents (search, ingestion)"
+	labelNoAgent = "Not from an agent (search, ingestion)"
 	labelNoModel = "Unknown model"
 )
 
@@ -237,18 +237,34 @@ func (s *Service) names(ctx context.Context, query string, rows []ReportRow, id 
 	return out, res.Err()
 }
 
+// csvColumns are the columns naming a report's row, which depend on the
+// grouping: every name is unique, and a day has no empty name or team.
+func csvColumns(groupBy string) ([]string, func(ReportRow) []string) {
+	switch groupBy {
+	case ByTeam:
+		return []string{"team_id", "team_slug", "team_name"}, func(r ReportRow) []string { return []string{r.Key, r.TeamSlug, r.Label} }
+	case ByAgent:
+		return []string{"agent_id", "agent_name", "team_slug", "team_name"}, func(r ReportRow) []string { return []string{r.Key, r.Label, r.TeamSlug, r.TeamName} }
+	case ByModel:
+		return []string{"model_id", "model_name", "model_kind"}, func(r ReportRow) []string { return []string{r.Key, r.Label, r.ModelKind} }
+	}
+	return []string{"day"}, func(r ReportRow) []string { return []string{r.Key} }
+}
+
 // WriteCSV writes a report as CSV: one row per group, amounts as decimal
-// strings.
+// strings. The first columns name the row (csvColumns); the rest are the
+// same for every grouping.
 func WriteCSV(w io.Writer, r Report) error {
 	cw := csv.NewWriter(w)
-	head := []string{r.GroupBy, "name", "team", "currency", "spend"}
+	head, naming := csvColumns(r.GroupBy)
+	head = append(head, "currency", "spend")
 	head = append(head, Categories...)
 	head = append(head, "tokens", "requests", "unpriced")
 	if err := cw.Write(head); err != nil {
 		return err
 	}
 	for _, row := range r.Rows {
-		rec := []string{row.Key, row.Label, row.TeamSlug, r.Currency, Format(row.Spend)}
+		rec := append(naming(row), r.Currency, Format(row.Spend))
 		for _, c := range Categories {
 			rec = append(rec, Format(row.ByCategory[c]))
 		}

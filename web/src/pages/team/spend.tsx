@@ -12,8 +12,8 @@ import { Badge, StatusBadge } from "@/components/ui/badge/badge";
 import { Card } from "@/components/ui/card/card";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { Table, Td, Tr } from "@/components/ui/table/table";
-import { monthLabel, stateLabels, stateTones } from "@/lib/costs";
-import { formatMoney } from "@/lib/format";
+import { monthLabel, requestsColumn, requestsHint, stateLabels, stateTones } from "@/lib/costs";
+import { formatMoney, moneyDecimals } from "@/lib/format";
 import { BudgetMeter } from "../admin/costs/budgets";
 import s from "../shared.module.css";
 import u from "./usage.module.css";
@@ -28,8 +28,9 @@ export const teamSpendQuery = (team: string) => ({
 
 function SpendTable({ caption, first, rows, currency }: { caption: string; first: string; rows: Row[]; currency: string }) {
   if (rows.length === 0) return null;
+  const dec = moneyDecimals(...rows.map((r) => r.spend));
   return (
-    <Table caption={caption} showCaption columns={[first, { label: "Spend", numeric: true }, { label: "Tokens", numeric: true }, { label: "Requests", numeric: true }]} density="compact">
+    <Table caption={caption} showCaption columns={[first, { label: "Spend", numeric: true }, { label: "Tokens", numeric: true }, { label: requestsColumn, numeric: true }]} density="compact">
       {rows.map((r) => (
         <Tr key={r.key || "none"}>
           <Td>
@@ -40,7 +41,7 @@ function SpendTable({ caption, first, rows, currency }: { caption: string; first
               </Badge>
             )}
           </Td>
-          <Td numeric>{formatMoney(r.spend, currency)}</Td>
+          <Td numeric>{formatMoney(r.spend, currency, dec)}</Td>
           <Td numeric>{num(r.tokens)}</Td>
           <Td numeric>{num(r.requests)}</Td>
         </Tr>
@@ -81,6 +82,7 @@ export function TeamSpendCard({ team }: { team: string }) {
         {d.total.unpriced && <p className={s.muted}>Some usage has no price yet, so it counts as zero.</p>}
         <SpendTable caption="By agent" first="Agent" rows={d.agents} currency={cur} />
         <SpendTable caption="By model" first="Model" rows={d.models} currency={cur} />
+        {(d.agents.length > 0 || d.models.length > 0) && <p className={s.muted}>{requestsHint}</p>}
       </div>
     </Card>
   );

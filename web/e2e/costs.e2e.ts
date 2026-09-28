@@ -30,6 +30,8 @@ test("price a model, enforce a tiny budget, get refused, grant an extension", as
     await a11y(adminPage);
     await adminPage.getByRole("link", { name: "E2E chat" }).click();
     await expect(adminPage.getByRole("heading", { name: "Pricing" })).toBeVisible();
+    // Opened from Costs, the model's page leads back there.
+    await expect(adminPage.getByRole("link", { name: "Back to Costs" })).toBeVisible();
     await a11y(adminPage);
     await adminPage.getByRole("button", { name: "Change prices" }).click();
     const dialog = adminPage.getByRole("dialog", { name: "Change prices of E2E chat" });
@@ -40,6 +42,8 @@ test("price a model, enforce a tiny budget, get refused, grant an extension", as
     await dialog.getByRole("button", { name: "Save prices" }).click();
     await expect(dialog).toBeHidden();
     await expect(adminPage.getByRole("table", { name: "Price history" })).toContainText("Input tokens");
+    await adminPage.getByRole("link", { name: "Back to Costs" }).click();
+    await expect(adminPage.getByRole("tab", { name: "Prices", selected: true })).toBeVisible();
   });
 
   await test.step("give the team a tiny budget in Enforce", async () => {
@@ -53,7 +57,8 @@ test("price a model, enforce a tiny budget, get refused, grant an extension", as
     await a11y(adminPage, "change budget");
     await dialog.getByRole("button", { name: "Save budget" }).click();
     await expect(dialog).toBeHidden();
-    await expect(adminPage.getByText("Enforce (set for this team)")).toBeVisible();
+    await expect(adminPage.getByText("Team setting", { exact: true })).toBeVisible();
+    await expect(adminPage.getByText("Budget this month")).toBeVisible();
   });
 
   const page = await as("alex");
@@ -88,6 +93,8 @@ test("price a model, enforce a tiny budget, get refused, grant an extension", as
     await dialog.getByRole("button", { name: "Grant extension" }).click();
     await expect(dialog).toBeHidden();
     await expect(adminPage.getByRole("table", { name: "Extensions this month" })).toContainText("Exam period");
+    // The budget in force counts the extension, as the Budgets tab does.
+    await expect(adminPage.getByText(/of extensions\)$/)).toBeVisible();
     await a11y(adminPage, "after the extension");
   });
 

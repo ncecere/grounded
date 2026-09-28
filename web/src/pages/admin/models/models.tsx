@@ -5,6 +5,7 @@
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Cpu, Eye, FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
@@ -17,6 +18,7 @@ import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { toast } from "@/components/ui/toast/toast";
 import { providerName } from "@/lib/moderation";
+import { useSearchParams } from "@/lib/url-search";
 import s from "../../shared.module.css";
 import { ClassificationBadge, useClassificationLevels } from "../../team/common";
 import { useIsPlatformAdmin } from "../hooks";
@@ -34,6 +36,23 @@ function useDeleteModel(onDeleted: () => void) {
       void qc.invalidateQueries({ queryKey: ["admin"] });
     },
   });
+}
+
+/** Pages that open a model's record with ?from=, and where its back link returns (Costs → Overview or Prices). */
+const openedFrom: Record<string, { label: string; href: string }> = {
+  costs: { label: "Costs", href: "/admin/costs" },
+  "costs-prices": { label: "Costs", href: "/admin/costs?tab=prices" },
+};
+
+/** The record's back link and close: to the page that linked here (?from=), or the list. */
+function useRecordBack(close: () => void) {
+  const [params] = useSearchParams();
+  const router = useRouter();
+  const navigate = useNavigate();
+  const back = openedFrom[params.get("from") ?? ""];
+  if (!back) return { back: undefined, close };
+  // Back to where the link was (its range or tab), or to the page itself when opened directly.
+  return { back, close: () => (router.history.canGoBack() ? router.history.back() : void navigate({ href: back.href })) };
 }
 
 function kindDetail(x: Model) {
@@ -83,6 +102,7 @@ export function ModelsPage() {
   const levels = useClassificationLevels();
   const usage = useCatalogUsage();
   const record = useRecordParam();
+  const recordBack = useRecordBack(record.close);
   const test = useModelTest();
   const form = useFormParam();
   const [deleting, setDeleting] = useState<Model | null>(null);
@@ -161,7 +181,8 @@ export function ModelsPage() {
         model={open}
         open={Boolean(record.id)}
         loading={models.isLoading}
-        onClose={record.close}
+        onClose={recordBack.close}
+        back={recordBack.back}
         connectionName={open ? connName(open.connectionId) : ""}
         usage={open && usageById.get(open.id)}
         isAdmin={isAdmin}

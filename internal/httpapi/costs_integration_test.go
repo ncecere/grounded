@@ -203,7 +203,7 @@ func TestBudgetEnforcement(t *testing.T) {
 	if res.StatusCode != 200 || res.Header.Get("Content-Type") != "text/csv; charset=utf-8" {
 		t.Fatalf("csv = %d %s", res.StatusCode, res.Header.Get("Content-Type"))
 	}
-	if body, _ := io.ReadAll(res.Body); !strings.HasPrefix(string(body), "model,name,team,currency,spend") || !strings.Contains(string(body), "Chat Tools") {
+	if body, _ := io.ReadAll(res.Body); !strings.HasPrefix(string(body), "model_id,model_name,model_kind,currency,spend") || !strings.Contains(string(body), "Chat Tools") {
 		t.Fatalf("csv = %s", body)
 	}
 	if code, e := env.auditor.call("POST", "/v1/admin/teams/"+env.team+"/budget/extensions", map[string]any{"amount": "1", "reason": "x"}, nil, nil); code != 403 {
