@@ -162,6 +162,23 @@ type BreakGlassSetting struct {
 	UpdatedAt              time.Time
 }
 
+type BudgetExtension struct {
+	ID        uuid.UUID
+	TeamID    uuid.UUID
+	Month     pgtype.Date
+	Amount    pgtype.Numeric
+	Reason    string
+	CreatedBy uuid.NullUUID
+	CreatedAt time.Time
+}
+
+type BudgetNotice struct {
+	TeamID    uuid.UUID
+	Month     pgtype.Date
+	Level     string
+	CreatedAt time.Time
+}
+
 type Chunk struct {
 	ID          uuid.UUID
 	DocumentID  uuid.UUID
@@ -202,6 +219,19 @@ type Conversation struct {
 	DeletedAt     *time.Time
 	Anonymous     bool
 	AnonSessionID uuid.NullUUID
+}
+
+type CostSetting struct {
+	Singleton     bool
+	Mode          string
+	Currency      string
+	TimeZone      string
+	WarnPercent   int32
+	DefaultBudget pgtype.Numeric
+	Generation    int64
+	Revision      int64
+	UpdatedBy     uuid.NullUUID
+	UpdatedAt     time.Time
 }
 
 type CrawlAllowlist struct {
@@ -477,6 +507,16 @@ type ModelConnection struct {
 	MaxConcurrentRequests int32
 }
 
+type ModelPrice struct {
+	ID            uuid.UUID
+	ModelID       uuid.UUID
+	Unit          string
+	Price         pgtype.Numeric
+	EffectiveFrom pgtype.Date
+	CreatedBy     uuid.NullUUID
+	CreatedAt     time.Time
+}
+
 type ModerationPolicy struct {
 	Audience  string
 	ModelID   uuid.NullUUID
@@ -712,6 +752,16 @@ type Team struct {
 	ArchivedAt        *time.Time
 }
 
+type TeamBudget struct {
+	TeamID      uuid.UUID
+	Mode        string
+	Amount      pgtype.Numeric
+	WarnPercent *int32
+	Revision    int64
+	UpdatedBy   uuid.NullUUID
+	UpdatedAt   time.Time
+}
+
 type TeamInvite struct {
 	ID             uuid.UUID
 	TeamID         uuid.UUID
@@ -768,6 +818,23 @@ type UsageEvent struct {
 	ModelID    uuid.NullUUID
 	Metadata   json.RawMessage
 	AgentID    uuid.NullUUID
+}
+
+type UsageRollup struct {
+	Hour     time.Time
+	Kind     string
+	TeamID   uuid.NullUUID
+	AgentID  uuid.NullUUID
+	ModelID  uuid.NullUUID
+	Channel  string
+	Quantity int64
+	Events   int64
+}
+
+type UsageRollupState struct {
+	Singleton   bool
+	RolledUntil *time.Time
+	UpdatedAt   time.Time
 }
 
 type User struct {
