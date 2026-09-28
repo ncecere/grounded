@@ -14,6 +14,7 @@ import (
 
 	"github.com/klippa-app/go-pdfium"
 	pdfiumerrors "github.com/klippa-app/go-pdfium/errors"
+	"github.com/klippa-app/go-pdfium/references"
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/klippa-app/go-pdfium/responses"
 	"github.com/klippa-app/go-pdfium/webassembly"
@@ -85,28 +86,11 @@ func (e *pdfEngine) parse(ctx context.Context, in Input, lim Limits) (Document, 
 		pages = lim.MaxPages
 	}
 
-	var lines []pdfLine
-	var empty []int // pages without text (1-based)
-	for i := 0; i < pages; i++ {
-		if err := ctx.Err(); err != nil {
-			return Document{}, err
-		}
-		st, err := inst.GetPageTextStructured(&requests.GetPageTextStructured{
-			Page:                   requests.Page{ByIndex: &requests.PageByIndex{Document: opened.Document, Index: i}},
-			Mode:                   requests.GetPageTextStructuredModeRects,
-			CollectFontInformation: true,
-		})
-		if err != nil {
-			warnings = append(warnings, fmt.Sprintf("page %d could not be read", i+1))
-			empty = append(empty, i+1)
-			continue
-		}
-		pageLines := linesFromRects(i+1, st.Rects)
-		if len(pageLines) == 0 {
-			empty = append(empty, i+1)
-		}
-		lines = append(lines, pageLines...)
+	lines, empty, unread, err := readPages(ctx, inst, opened.Document, pages)
+	if err != nil {
+		return Document{}, err
 	}
+	warnings = append(warnings, unread...)
 	// Pages without a text layer are read with OCR when it is on
 	// (docs/ocr.md); pages with text never are.
 	var ocrTexts map[int]string
@@ -128,22 +112,57 @@ func (e *pdfEngine) parse(ctx context.Context, in Input, lim Limits) (Document, 
 		warnings = append(warnings, fmt.Sprintf("%d of %d pages had no extractable text (possibly scanned) and were skipped", len(empty), pages))
 	}
 
-	title := ""
-	if meta, err := inst.FPDF_GetMetaText(&requests.FPDF_GetMetaText{Document: opened.Document, Tag: "Title"}); err == nil {
-		title = strings.TrimSpace(meta.Value)
-	}
 	md := renderPDF(removeRunningHeaders(lines, pages), pages, ocrTexts)
 	if len(md) > lim.MaxMarkdownBytes {
 		return Document{}, fmt.Errorf("%w: converted text exceeds the limit", ErrTooLarge)
 	}
-	if title == "" || looksLikeFilename(title) {
-		if h := firstHeading(md); h != "" {
-			title = h
-		} else {
-			title = titleFromName(in.Name)
-		}
-	}
+	title := pdfTitle(inst, opened.Document, md, in.Name)
 	return Document{Title: title, Markdown: md, Pages: pages, Parser: parserName("builtin:pdf", info), Warnings: warnings, OCR: info}, nil
+}
+
+// pdfTitle is the document's Title metadata, unless it is missing or looks
+// like a file name: then the first heading, or the file name.
+func pdfTitle(inst pdfium.Pdfium, doc references.FPDF_DOCUMENT, md, name string) string {
+	title := ""
+	if meta, err := inst.FPDF_GetMetaText(&requests.FPDF_GetMetaText{Document: doc, Tag: "Title"}); err == nil {
+		title = strings.TrimSpace(meta.Value)
+	}
+	if title != "" && !looksLikeFilename(title) {
+		return title
+	}
+	if h := firstHeading(md); h != "" {
+		return h
+	}
+	return titleFromName(name)
+}
+
+// readPages reads the text lines of the first pages, and lists the pages
+// without text (1-based; unreadable ones too, with a warning).
+func readPages(ctx context.Context, inst pdfium.Pdfium, doc references.FPDF_DOCUMENT, pages int) ([]pdfLine, []int, []string, error) {
+	var lines []pdfLine
+	var empty []int
+	var warnings []string
+	for i := 0; i < pages; i++ {
+		if err := ctx.Err(); err != nil {
+			return nil, nil, nil, err
+		}
+		st, err := inst.GetPageTextStructured(&requests.GetPageTextStructured{
+			Page:                   requests.Page{ByIndex: &requests.PageByIndex{Document: doc, Index: i}},
+			Mode:                   requests.GetPageTextStructuredModeRects,
+			CollectFontInformation: true,
+		})
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("page %d could not be read", i+1))
+			empty = append(empty, i+1)
+			continue
+		}
+		pageLines := linesFromRects(i+1, st.Rects)
+		if len(pageLines) == 0 {
+			empty = append(empty, i+1)
+		}
+		lines = append(lines, pageLines...)
+	}
+	return lines, empty, warnings, nil
 }
 
 var fileNameRE = regexp.MustCompile(`(?i)\.[a-z0-9]{2,5}$`)

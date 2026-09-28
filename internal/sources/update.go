@@ -199,16 +199,10 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, o Owner, id uuid.UU
 		} else if err != nil {
 			return err
 		}
-		if in.OCREnabled != nil && *in.OCREnabled != cur.OcrEnabled {
-			if err := q.SetSourceOCR(ctx, dbgen.SetSourceOCRParams{ID: out.ID, OcrEnabled: *in.OCREnabled}); err != nil {
-				return err
-			}
-			out.OcrEnabled = *in.OCREnabled
-		}
 		if err := s.afterUpdate(ctx, q, tx, cur, out, scheduleChanged, newConfig); err != nil {
 			return err
 		}
-		if err := s.setBoilerplate(ctx, q, tx, a, sc, out, in.Boilerplate); err != nil {
+		if err := s.setSwitches(ctx, q, tx, a, sc, cur, &out, in); err != nil {
 			return err
 		}
 		return s.recordUpdate(ctx, q, tx, a, sc, cur, out, meta)
@@ -392,4 +386,16 @@ func (s *Service) notifyLowered(ctx context.Context, q *dbgen.Queries, tx pgx.Tx
 	reason, _ := meta["reason"].(string)
 	t := notify.TeamRef{ID: sc.team.ID, Slug: sc.team.Slug, Name: sc.team.Name}
 	return s.Notify.Emit(ctx, tx, notify.ClassificationLoweredEvent(t, out.ID, out.Name, from.Name, to.Name, reason).By(a.UserID))
+}
+
+// setSwitches applies the boilerplate overrides and the OCR switch of an
+// update (out reflects the OCR switch for the audit entry).
+func (s *Service) setSwitches(ctx context.Context, q *dbgen.Queries, tx pgx.Tx, a authz.Actor, sc scope, cur dbgen.DataSource, out *dbgen.DataSource, in UpdateInput) error {
+	if in.OCREnabled != nil && *in.OCREnabled != cur.OcrEnabled {
+		if err := q.SetSourceOCR(ctx, dbgen.SetSourceOCRParams{ID: out.ID, OcrEnabled: *in.OCREnabled}); err != nil {
+			return err
+		}
+		out.OcrEnabled = *in.OCREnabled
+	}
+	return s.setBoilerplate(ctx, q, tx, a, sc, *out, in.Boilerplate)
 }

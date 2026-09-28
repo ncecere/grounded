@@ -23,11 +23,14 @@ import (
 
 var imageExtensions = map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".tif": true, ".tiff": true}
 
-// checkImage refuses an image upload when OCR can't read the source's
-// images (off for the platform or the source, or the vision model is above
-// the source's classification), before the file is streamed. ok is false
-// with the rejection.
-func (u *Uploader) checkImage(ctx context.Context, name, ext string) (UploadResult, bool, error) {
+// checkType refuses, before the file is streamed, a file type that can't
+// be uploaded, and an image when OCR can't read the source's images (off
+// for the platform or the source, or the vision model is above the source's
+// classification). ok is false with the rejection (or an error).
+func (u *Uploader) checkType(ctx context.Context, name, ext string) (UploadResult, bool, error) {
+	if !allowedExtensions[ext] {
+		return reject(name, "unsupported_format", unsupportedFormat, http.StatusUnsupportedMediaType), false, nil
+	}
 	if !imageExtensions[ext] {
 		return UploadResult{}, true, nil
 	}

@@ -170,10 +170,7 @@ func (u *Uploader) Upload(ctx context.Context, filename string, body io.Reader, 
 		return reject(filename, "invalid_filename", "The file needs a name", http.StatusBadRequest), nil
 	}
 	ext := strings.ToLower(path.Ext(name))
-	if !allowedExtensions[ext] {
-		return reject(name, "unsupported_format", unsupportedFormat, http.StatusUnsupportedMediaType), nil
-	}
-	if r, ok, err := u.checkImage(ctx, name, ext); err != nil || !ok {
+	if r, ok, err := u.checkType(ctx, name, ext); !ok {
 		return r, err
 	}
 	existing, err := s.q.FindDocumentByExternalID(ctx, dbgen.FindDocumentByExternalIDParams{SourceID: u.src.ID, ExternalID: name})
