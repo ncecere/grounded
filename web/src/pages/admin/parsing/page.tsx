@@ -110,7 +110,7 @@ function ParsingEditor({ saved, visionModels, isAdmin }: { saved: ParsingSetting
               label: "Pages per day",
               value: (
                 <>
-                  The team limit “OCR pages per day” (<TextLink render={<Link to="/admin/limits" />}>Admin → Limits</TextLink>). A document that would pass it waits until the next day.
+                  The team limit “OCR pages per day” (<TextLink render={<Link to="/admin/limits" search={{ tab: "ingestion" }} />}>Admin → Limits → Ingestion</TextLink>). A document that would pass it waits until the next day.
                 </>
               ),
             },
