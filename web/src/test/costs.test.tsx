@@ -34,7 +34,7 @@ const report = (groupBy: Schemas["CostReport"]["groupBy"], rows: Schemas["CostRe
 const reports: Record<string, Schemas["CostReport"]> = {
   day: report("day", [row("2026-09-01", "2026-09-01", "12.500000"), row("2026-09-02", "2026-09-02", "0.000000")]),
   team: report("team", [row("t1", "Office of the Registrar", "12.500000", { teamSlug: "registrar", teamName: "Office of the Registrar" })]),
-  agent: report("agent", [row("a1", "Registrar help", "12.000000", { teamName: "Office of the Registrar" }), row("", "Outside agents (search, ingestion)", "0.500000")]),
+  agent: report("agent", [row("a1", "Registrar help", "12.000000", { teamName: "Office of the Registrar" }), row("", "Not from an agent (search, ingestion)", "0.500000")]),
   model: report("model", [row("m1", "Chat large", "12.500000", { modelKind: "chat" }), row("m2", "Embed", "0.000000", { unpriced: true })]),
 };
 
@@ -89,7 +89,7 @@ describe("Admin → Costs", () => {
     expect(screen.getByRole("link", { name: "Download spend per day as CSV" }).getAttribute("href")).toMatch(/^\/v1\/admin\/costs\/report\.csv\?from=.*groupBy=day$/);
     const models = await screen.findByRole("table", { name: "Top models" });
     expect(within(models).getAllByText("Unpriced")).toHaveLength(1);
-    expect(await screen.findByRole("table", { name: "Top agents" })).toHaveTextContent("Outside agents (search, ingestion)");
+    expect(await screen.findByRole("table", { name: "Top agents" })).toHaveTextContent("Not from an agent (search, ingestion)");
     expect(await axe(container)).toHaveNoViolations();
   });
 
