@@ -121,6 +121,9 @@ export function RequestDomainDialog({
         noValidate
         onSubmit={(e) => {
           e.preventDefault();
+          // This dialog also opens from the new-source form's error alert. React
+          // bubbles submit through the portal, which would resubmit that form.
+          e.stopPropagation();
           setSubmitted(true);
           if (!patternError && !reasonError) create.mutate();
         }}

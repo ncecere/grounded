@@ -200,7 +200,7 @@
     },
     "filter-bar": {
       "files": {
-        "src/components/ui/filter-bar/filter-bar.module.css": "ddfbe2460f11112567f3ebcf89a1c7aab90ea6260410db699ee4063da38c6f7f",
+        "src/components/ui/filter-bar/filter-bar.module.css": "6b1510fbfb5aa473e06975ebfe8b6edcab1975c2ebc64107cb3c76bf241d45b7",
         "src/components/ui/filter-bar/filter-bar.tsx": "a0fe4d12ee6f12834380f381d9892bed202ee9b965c646725d6b511ee2c68187"
       }
     },

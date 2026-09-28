@@ -224,10 +224,16 @@ describe("creating a web source", () => {
     await userEvent.click(within(request).getByRole("button", { name: "Send request" }));
     expect(within(request).getByRole("textbox", { name: "Reason" })).toHaveAccessibleDescription(/at least 10 characters/);
     expect(calls.some((c) => c.url.endsWith("/domain-requests"))).toBe(false);
+    // The request dialog's form must not submit the source form it opened from
+    // (React bubbles submit through the portal): only the first create POST.
+    const sourcePosts = () => calls.filter((c) => c.method === "POST" && c.url === "/v1/teams/registrar/sources").length;
+    expect(sourcePosts()).toBe(1);
+    expect(screen.getByRole("dialog", { name: "Request a domain" })).toBeInTheDocument();
 
     await userEvent.type(within(request).getByRole("textbox", { name: "Reason" }), "Our partner site hosts shared policies.");
     await userEvent.click(within(request).getByRole("button", { name: "Send request" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url === "/v1/teams/registrar/domain-requests")).toBe(true));
+    expect(sourcePosts()).toBe(1);
     expect(calls.find((c) => c.url === "/v1/teams/registrar/domain-requests")?.body).toEqual({
       pattern: "www.example.org",
       reason: "Our partner site hosts shared policies.",

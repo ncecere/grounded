@@ -5,10 +5,12 @@
   min-width: 0;
 }
 
+/* Controls line up on their bottom edge, so an unlabelled slot (the search
+   box in `start`, buttons in `end`) sits level with the labelled facets. */
 .controls {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: var(--space-3) var(--space-4);
 }
 
