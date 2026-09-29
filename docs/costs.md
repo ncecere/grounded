@@ -99,7 +99,7 @@ Pricing arithmetic and effective dating (unit), the rollup against `usage_events
 
 ## 10. Implementation notes
 
-- **Pricing in Go:** SQL sums quantities per local day, unit and model; the price in effect is applied in Go with exact decimals (`math/big`), so the dating and arithmetic are unit-tested. Amounts are rounded to six decimals only when shown.
+- **Pricing in Go:** SQL sums quantities per local day, unit and model; the price in effect is applied in Go with exact decimals (`math/big`), so the dating and arithmetic are unit-tested. The API and the CSV exports carry amounts exact to six decimals; the UI rounds them only when it shows them, to cents ("$0.14"; an amount under a cent reads "< $0.01", zero "$0.00"), with the exact amount on hover, so a table's total is always the sum of its exact rows. Prices, which are rates of a fraction of a cent, are shown exactly.
 - **Price dates** are days in the platform time zone (not UTC), matching the local days usage is priced on.
 - **Budget state for members:** `GET /v1/teams/{team}/budget-status` (every member; amounts only for owners, admins and platform readers) drives the workspace banner and the "Waiting" hint on sources, in addition to §6.
 - **Cache:** besides the 30-second expiry, every change to settings, prices, budgets or extensions bumps `cost_settings.generation`, which drops cached figures in every process at once; and usage a process records is added to its cached figure as it's written, so a team is refused on its next request rather than up to 30 seconds later.

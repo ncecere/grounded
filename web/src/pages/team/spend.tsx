@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/card/card";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { monthLabel, requestsColumn, requestsHint, stateLabels, stateTones } from "@/lib/costs";
-import { formatMoney, moneyDecimals } from "@/lib/format";
+import { Money } from "@/components/money";
 import { BudgetMeter } from "../admin/costs/budgets";
 import s from "../shared.module.css";
 import u from "./usage.module.css";
@@ -28,7 +28,6 @@ export const teamSpendQuery = (team: string) => ({
 
 function SpendTable({ caption, first, rows, currency }: { caption: string; first: string; rows: Row[]; currency: string }) {
   if (rows.length === 0) return null;
-  const dec = moneyDecimals(...rows.map((r) => r.spend));
   return (
     <Table caption={caption} showCaption columns={[first, { label: "Spend", numeric: true }, { label: "Tokens", numeric: true }, { label: requestsColumn, numeric: true }]} density="compact">
       {rows.map((r) => (
@@ -41,7 +40,9 @@ function SpendTable({ caption, first, rows, currency }: { caption: string; first
               </Badge>
             )}
           </Td>
-          <Td numeric>{formatMoney(r.spend, currency, dec)}</Td>
+          <Td numeric>
+            <Money amount={r.spend} currency={currency} />
+          </Td>
           <Td numeric>{num(r.tokens)}</Td>
           <Td numeric>{num(r.requests)}</Td>
         </Tr>
@@ -69,13 +70,21 @@ export function TeamSpendCard({ team }: { team: string }) {
           <BudgetMeter status={st} label="Share of this month's budget used" />
         ) : (
           <p>
-            <strong>{formatMoney(st.spent, cur)}</strong> <span className={s.muted}>so far this month</span>
+            <strong>
+              <Money amount={st.spent} currency={cur} />
+            </strong> <span className={s.muted}>so far this month</span>
           </p>
         )}
         {st.mode === "enforce" && st.limit !== null && (
           <p className={s.muted}>
-            {formatMoney(st.spent, cur)} of {formatMoney(st.limit, cur)}
-            {st.extensions && Number(st.extensions) > 0 ? ` (including ${formatMoney(st.extensions, cur)} of extensions)` : ""}. At 100% the team's chats, searches and ingestion stop until
+            <Money amount={st.spent} currency={cur} /> of <Money amount={st.limit} currency={cur} />
+            {st.extensions && Number(st.extensions) > 0 && (
+              <>
+                {" "}
+                (including <Money amount={st.extensions} currency={cur} /> of extensions)
+              </>
+            )}
+            . At 100% the team's chats, searches and ingestion stop until
             the month ends or a platform admin raises the budget.
           </p>
         )}

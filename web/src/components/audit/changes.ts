@@ -7,26 +7,24 @@
  */
 import type { Schemas } from "@/api/client";
 import { modeLabels, monthLabel, overrideLabels, unitLabels } from "@/lib/costs";
+import { formatMoney, formatMoneyExact } from "@/lib/format";
 
 type AuditEntry = Schemas["AuditEntry"];
 type Format = (value: unknown) => unknown;
 /** A field's label and formatting; null leaves the field out. */
 type Fields = Record<string, [label: string, format?: Format] | null>;
 
-/** An exact amount ("0.000150") as money: "$0.00015"; without a known currency, the number ("0.00015"). */
-export function auditMoney(value: unknown, currency?: string): unknown {
+/**
+ * An amount as money in cents, like everywhere else ("$5.00", "< $0.01");
+ * `exact` keeps every decimal, for prices ("0.000150" as "$0.00015").
+ * Without a known currency, the number ("5.00").
+ */
+export function auditMoney(value: unknown, currency?: string, exact = false): unknown {
   if (typeof value !== "string" || value.trim() === "" || !Number.isFinite(Number(value))) return value;
+  if (currency) return exact ? formatMoneyExact(value, currency) : formatMoney(value, currency);
   const n = Number(value);
-  const opts = { minimumFractionDigits: 2, maximumFractionDigits: 6 };
-  if (currency) {
-    try {
-      return new Intl.NumberFormat(undefined, { ...opts, style: "currency", currency }).format(n);
-    } catch {
-      // An unknown currency code: the number and the code.
-      return `${new Intl.NumberFormat(undefined, opts).format(n)} ${currency}`;
-    }
-  }
-  return new Intl.NumberFormat(undefined, opts).format(n);
+  if (!exact && n > 0 && n < 0.01) return "< 0.01";
+  return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: exact ? 6 : 2 }).format(n);
 }
 
 /** "2026-10-28" as "Oct 28, 2026"; "2026-09" as "September 2026". */
@@ -50,6 +48,7 @@ const unitText = (unit: string) => {
 
 function fieldsFor(action: string, currency?: string): Fields | undefined {
   const money: Format = (v) => auditMoney(v, currency);
+  const price: Format = (v) => auditMoney(v, currency, true);
   switch (action) {
     case "costs.budget_update":
       return { mode: ["Mode", label(overrideLabels)], amount: ["Monthly budget", money], warnPercent: ["Warn at", percent] };
@@ -64,7 +63,7 @@ function fieldsFor(action: string, currency?: string): Fields | undefined {
         defaultBudget: ["Default monthly budget", money],
       };
     case "costs.price_delete":
-      return { priceId: null, unit: ["Unit", (v) => (typeof v === "string" ? unitText(v) : v)], price: ["Price", money], effectiveFrom: ["Effective from", dateText] };
+      return { priceId: null, unit: ["Unit", (v) => (typeof v === "string" ? unitText(v) : v)], price: ["Price", price], effectiveFrom: ["Effective from", dateText] };
     default:
       return undefined;
   }
@@ -89,7 +88,7 @@ function pricesAdded(after: unknown, currency?: string): Record<string, unknown>
   const out: Record<string, unknown> = {};
   if (a.model) out.Model = a.model;
   if (a.effectiveFrom) out["Effective from"] = dateText(a.effectiveFrom);
-  for (const [unit, price] of Object.entries(a.prices ?? {})) out[unitText(unit)] = auditMoney(price, currency);
+  for (const [unit, price] of Object.entries(a.prices ?? {})) out[unitText(unit)] = auditMoney(price, currency, true);
   return out;
 }
 

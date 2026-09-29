@@ -21,7 +21,7 @@ import { Loading } from "@/components/ui/spinner/spinner";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { toast } from "@/components/ui/toast/toast";
 import { amountError, budgetThisMonth, monthLabel, overrideLabels, stateLabels, stateTones, useCostSettings } from "@/lib/costs";
-import { formatMoney, moneyDecimals } from "@/lib/format";
+import { Money } from "@/components/money";
 import { useCurrentUser } from "@/session";
 import s from "../../shared.module.css";
 import { BudgetMeter, ModeText } from "./budgets";
@@ -51,8 +51,7 @@ export function AdminTeamBudgetCard({ team }: { team: string }) {
   // Extensions count only while a budget is enforced; otherwise they're history.
   const inForce = enforced && st.limit !== null;
   const thisMonth = budgetThisMonth(st, { platformDefault: !b.amount });
-  const own = b.amount ? formatMoney(b.amount, cur) : b.defaultBudget ? `${formatMoney(b.defaultBudget, cur)} (platform default)` : "None";
-  const extDec = moneyDecimals(...b.extensions.map((e) => e.amount));
+  const own = b.amount ? <Money amount={b.amount} currency={cur} /> : b.defaultBudget ? <><Money amount={b.defaultBudget} currency={cur} /> (platform default)</> : "None";
   return (
     <Card
       title="Budget"
@@ -77,10 +76,10 @@ export function AdminTeamBudgetCard({ team }: { team: string }) {
           items={[
             { label: "Mode", value: <ModeText mode={st.mode} override={b.modeOverride} /> },
             thisMonth
-              ? { label: "Budget this month", value: thisMonth.parts ? `${thisMonth.total} (${thisMonth.parts})` : thisMonth.total }
+              ? { label: "Budget this month", value: <span title={thisMonth.exact}>{thisMonth.parts ? `${thisMonth.total} (${thisMonth.parts})` : thisMonth.total}</span> }
               : { label: "Monthly budget", value: own },
             { label: "Warning at", value: `${st.warnPercent}%${b.warnPercent === null ? " (platform setting)" : ""}` },
-            { label: "Spent this month", value: formatMoney(st.spent, cur, moneyDecimals(st.spent, st.limit)) },
+            { label: "Spent this month", value: <Money amount={st.spent} currency={cur} /> },
             { label: "State", value: <StatusBadge tone={stateTones[st.state]}>{stateLabels[st.state]}</StatusBadge> },
           ]}
         />
@@ -90,7 +89,9 @@ export function AdminTeamBudgetCard({ team }: { team: string }) {
             {b.extensions.map((e) => (
               <Tr key={e.id}>
                 <Td nowrap>{dayLabel(e.createdAt.slice(0, 10))}</Td>
-                <Td numeric>{formatMoney(e.amount, cur, extDec)}</Td>
+                <Td numeric>
+                  <Money amount={e.amount} currency={cur} />
+                </Td>
                 <Td>{e.reason}</Td>
                 <Td muted>{e.createdByName || "—"}</Td>
               </Tr>

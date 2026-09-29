@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { dayLabel } from "@/components/analytics/format";
-import { formatMoney, moneyDecimals } from "./format";
+import { formatMoney, formatMoneyExact } from "./format";
 
 export type CostSettings = Schemas["CostSettings"];
 export type CostMode = Schemas["CostMode"];
@@ -86,19 +86,18 @@ export function dayRangeLabel(from: string, to: string) {
 
 /**
  * A month's budget as the Budget card and the Budgets tab both say it: the
- * total (budget plus this month's extensions), and where it comes from:
- * "$0.20 + $1.00 of extensions", "platform default", or "$0.20 platform
- * default + $1.00 of extensions". Null without a budget in force (the mode
- * isn't Enforce, or no budget is set). `decimals` lines the total up with a
- * column.
+ * total (budget plus this month's extensions) in cents, the exact total for
+ * hover text, and where it comes from: "$0.20 + $1.00 of extensions",
+ * "platform default", or "$0.20 platform default + $1.00 of extensions".
+ * Null without a budget (the mode is Off, or no budget is set).
  */
-export function budgetThisMonth(st: TeamBudgetState, opts: { decimals?: number; platformDefault?: boolean } = {}): { total: string; parts?: string } | null {
+export function budgetThisMonth(st: TeamBudgetState, opts: { platformDefault?: boolean } = {}): { total: string; exact: string; parts?: string } | null {
   if (st.limit === null) return null;
-  const total = formatMoney(st.limit, st.currency, opts.decimals ?? moneyDecimals(st.limit, st.budget, st.extensions));
+  const total = formatMoney(st.limit, st.currency);
+  const exact = formatMoneyExact(st.limit, st.currency);
   const base = opts.platformDefault ? " platform default" : "";
-  if (!st.extensions || !(Number(st.extensions) > 0)) return { total, parts: opts.platformDefault ? "platform default" : undefined };
-  const d = moneyDecimals(st.budget, st.extensions);
-  return { total, parts: `${formatMoney(st.budget ?? "0", st.currency, d)}${base} + ${formatMoney(st.extensions, st.currency, d)} of extensions` };
+  if (!st.extensions || !(Number(st.extensions) > 0)) return { total, exact, parts: opts.platformDefault ? "platform default" : undefined };
+  return { total, exact, parts: `${formatMoney(st.budget ?? "0", st.currency)}${base} + ${formatMoney(st.extensions, st.currency)} of extensions` };
 }
 
 /** Whether a team's mode is its own or the platform's, in the same words everywhere. */

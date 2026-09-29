@@ -4,7 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { AuditTarget } from "../components/audit/target";
-import { formatMoney, moneyDecimals } from "../lib/format";
+import { Money } from "../components/money";
+import { formatMoney, formatMoneyExact } from "../lib/format";
 import { ModelPricingSection } from "../pages/admin/models/pricing";
 import { AdminTeamBudgetCard } from "../pages/admin/costs/team-budget-card";
 import { chatErrorText } from "../pages/chat/stream";
@@ -95,9 +96,9 @@ describe("Admin → Costs", () => {
     // An agent opens its admin page; usage without one isn't a link.
     expect(within(agents).getByRole("link", { name: "Registrar help" })).toHaveAttribute("href", "/admin/agents?record=a1");
     expect(within(agents).getAllByRole("link")).toHaveLength(1);
-    // One count of decimals per column: $12.00 next to $0.50, never $12 next to $0.5.
-    expect(agents).toHaveTextContent(formatMoney("12", "USD", 2));
-    expect(agents).toHaveTextContent(formatMoney("0.5", "USD", 2));
+    // Cents everywhere: $12.00 next to $0.50, never $12 next to $0.5.
+    expect(agents).toHaveTextContent(formatMoney("12", "USD"));
+    expect(agents).toHaveTextContent(formatMoney("0.5", "USD"));
     expect(within(models).getByRole("columnheader", { name: "Per-request checks" })).toBeInTheDocument();
     expect(within(models).getByRole("link", { name: "Chat large" })).toHaveAttribute("href", "/admin/models?record=m1&from=costs");
     expect(await axe(container)).toHaveNoViolations();
@@ -264,7 +265,7 @@ describe("the team's spend and banner", () => {
     expect(await screen.findByRole("table", { name: "By agent" })).toHaveTextContent("Registrar help");
     expect(screen.getByRole("table", { name: "By model" })).toHaveTextContent("Unpriced");
     expect(screen.getByText("Near budget")).toBeInTheDocument();
-    expect(screen.getByRole("table", { name: "By agent" })).toHaveTextContent(formatMoney("0.5", "USD", 2));
+    expect(screen.getByRole("table", { name: "By agent" })).toHaveTextContent(formatMoney("0.5", "USD"));
     expect(screen.getAllByRole("columnheader", { name: "Per-request checks" })).toHaveLength(2);
     expect(screen.getByText(/count SystemOne and moderation requests/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
@@ -302,20 +303,29 @@ describe("budget errors and money", () => {
     expect(chatErrorText("agent_unavailable").title).toBe("This assistant is unavailable right now");
   });
 
-  it("formats exact decimal strings in the currency", () => {
-    expect(formatMoney("12.500000", "USD")).toBe(new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(12.5));
-    expect(formatMoney("0.000123", "USD")).toContain("0.000123");
-    expect(formatMoney("0.010000", "USD", 4)).toContain("0.0100");
+  it("shows money in cents, under a cent as < $0.01, with the exact amount kept for hover", () => {
+    const usd = (n: number, d = 2) => new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", minimumFractionDigits: d, maximumFractionDigits: d }).format(n);
+    expect(formatMoney("12.500000", "USD")).toBe(usd(12.5));
+    expect(formatMoney("0.140000", "USD")).toBe(usd(0.14));
+    expect(formatMoney("0.027129", "USD")).toBe(usd(0.03));
+    expect(formatMoney("0.000123", "USD")).toBe(`< ${usd(0.01)}`);
+    expect(formatMoney("0.009999", "USD")).toBe(`< ${usd(0.01)}`);
+    expect(formatMoney("0.000000", "USD")).toBe(usd(0));
     expect(formatMoney(null, "USD")).toBe("—");
     expect(formatMoney("5", "XYZ")).toMatch(/5/);
+    expect(formatMoneyExact("0.027129", "USD")).toBe(usd(0.027129, 6));
+    expect(formatMoneyExact("5.000000", "USD")).toBe(usd(5));
+    expect(formatMoneyExact("0.000150", "USD")).toBe(usd(0.00015, 5));
   });
 
-  it("picks the fewest decimals (2 to 6) that show a whole column exactly", () => {
-    expect(moneyDecimals("0.140000", "0.010000")).toBe(2);
-    expect(moneyDecimals("0.140000", "0.004200", "0.221000")).toBe(4);
-    expect(moneyDecimals("0.000001", null, undefined, "")).toBe(6);
-    expect(moneyDecimals(0.1 + 0.2)).toBe(2);
-    expect(moneyDecimals()).toBe(2);
+  it("puts the exact amount on hover when cents round it", async () => {
+    const { container } = renderBare(
+      <p>
+        <Money amount="0.027129" currency="USD" /> and <Money amount="5.000000" currency="USD" />
+      </p>,
+    );
+    expect(await screen.findByTitle(formatMoneyExact("0.027129", "USD"))).toHaveTextContent(formatMoney("0.03", "USD"));
+    expect(container.querySelectorAll("[title]")).toHaveLength(1);
   });
 
   it("links budget changes and extensions to the team's Limits tab", () => {
