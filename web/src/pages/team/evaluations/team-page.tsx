@@ -1,27 +1,29 @@
 /*
  * The team's Evaluations page (I3, docs/v0.2.1.md): every evaluation set of
  * the team, with what it tests, its latest score (the Evaluations tabs'
- * Score), the trend against the run before and when it last ran, and a
- * Regressions filter (?trend=down). The parent of every set's address, the
- * target of the team sidebar's Evaluations item, of ⌘K "evaluations" and of
- * the Overview's "All evaluations". Sets are created on a knowledge base's
+ * Score, with when it last ran), the trend against the latest earlier
+ * scored run, and a Regressions filter (?trend=down). Its columns are the
+ * Evaluations tabs' (set-columns.tsx), plus the knowledge base or agent,
+ * and the set's name is its only link (no row menu repeating it). The
+ * parent of every set's address, the target of the team sidebar's
+ * Evaluations item, of ⌘K "evaluations" and of the Overview's "All
+ * evaluations". Sets are created on a knowledge base's
  * or an agent's Evaluations tab, which is where they belong. Editors and
  * above while evaluations are on; others get the not-found page, as on a set.
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ClipboardCheck, FolderOpen } from "lucide-react";
+import { ClipboardCheck, TrendingDown } from "lucide-react";
 import { NotFoundState } from "@/components/not-found";
-import { ListPage, RelativeTime } from "@/components/templates/list-page";
+import { ListPage, useListFilters } from "@/components/templates/list-page";
 import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
+import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { TextLink } from "@/components/ui/text-link/text-link";
-import s from "../../shared.module.css";
-import { plural, useTeam } from "../common";
-import { runScore } from "./labels";
+import { useTeam } from "../common";
 import { type EvalSet, evalSetsQuery, useEvaluationsOn } from "./queries";
-import { LastScore, TrendValue } from "./score";
+import { setColumns } from "./set-columns";
 import { setTrend } from "./trend";
 
 /** What a set tests, as a link to that knowledge base's or agent's Evaluations tab. */
@@ -49,46 +51,26 @@ export function TeamEvaluationsPage() {
   const { slug, team, canEdit } = useTeam();
   const on = useEvaluationsOn();
   const sets = useQuery({ ...evalSetsQuery(slug), enabled: on && canEdit });
+  const filters = useListFilters(trendFacet);
   if (!on || !canEdit) return <NotFoundState />;
 
-  const setLink = (x: EvalSet) => <Link to="/teams/$team/evaluations/$setId" params={{ team: slug, setId: x.id }} />;
+  const c = setColumns(slug);
   const columns: DataTableColumn<EvalSet>[] = [
-    {
-      id: "name",
-      header: "Set",
-      rowHeader: true,
-      sortable: true,
-      accessor: (x) => x.name,
-      cell: (x) => (
-        <CellText
-          primary={
-            <TextLink render={setLink(x)} className={s.primary}>
-              {x.name}
-            </TextLink>
-          }
-          secondary={plural(x.questionCount, "question")}
-        />
-      ),
-    },
+    c.name,
     {
       id: "target",
-      header: "Tests",
+      header: "Knowledge base or agent",
       sortable: true,
       defaultHiddenNarrow: true,
       accessor: (x) => x.target.name,
       cell: (x) => <CellText primary={<TargetLink set={x} slug={slug} />} secondary={x.target.type === "agent" ? "Agent" : "Knowledge base"} />,
     },
-    { id: "score", header: "Latest score", sortable: true, accessor: (x) => (x.lastRun ? (runScore(x.lastRun) ?? -1) : -2), cell: (x) => <LastScore set={x} /> },
-    { id: "trend", header: "Trend", sortable: true, accessor: (x) => setTrend(x).points ?? 0, cell: (x) => <TrendValue set={x} /> },
-    {
-      id: "lastRun",
-      header: "Last run",
-      sortable: true,
-      defaultHiddenNarrow: true,
-      accessor: (x) => x.lastRun?.createdAt ?? "",
-      cell: (x) => (x.lastRun ? <RelativeTime value={x.lastRun.createdAt} /> : <span className={s.muted}>Never</span>),
-    },
+    c.questions,
+    c.score,
+    c.trend,
   ];
+  // Regressions alone matching nothing is good news, said as such.
+  const regressionsOnly = (filters.values.trend as string[] | undefined)?.includes("down") && !filters.query;
 
   return (
     <ListPage<EvalSet>
@@ -102,7 +84,6 @@ export function TeamEvaluationsPage() {
       rowLabel={(x) => x.name}
       facets={trendFacet}
       search={{ label: "Search evaluation sets" }}
-      rowActions={(x) => [{ label: "Open", icon: <FolderOpen aria-hidden />, render: setLink(x) }]}
       empty={{
         icon: <ClipboardCheck />,
         title: "No evaluation sets yet.",
@@ -112,6 +93,17 @@ export function TeamEvaluationsPage() {
             Go to knowledge bases
           </Button>
         ),
+      }}
+      tableProps={{
+        columnsMenu: false,
+        noResults: regressionsOnly ? (
+          <EmptyState
+            size="compact"
+            icon={<TrendingDown />}
+            title="No set got worse since its previous run."
+            description="The latest run of every set scored the same as the run before it, or better."
+          />
+        ) : undefined,
       }}
       loading={sets.isLoading}
       error={sets.error}

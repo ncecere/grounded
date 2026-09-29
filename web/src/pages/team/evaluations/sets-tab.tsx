@@ -1,34 +1,33 @@
 /*
  * The Evaluations tab of a knowledge base and of an agent (docs/evaluations.md
- * §5): the sets that test it, each opening as its own page, with their
- * latest Score (recall@k or pass rate, named in its tooltip), and "New set":
+ * §5): the sets that test it, each opening as its own page, with the team
+ * Evaluations page's columns (set-columns.tsx: the latest Score, recall@k or
+ * pass rate named in its tooltip, and its Trend), and "New set":
  * the knowledge base's header primary on this tab (NewSetButton), or the
  * tab's own secondary button on an agent's page, whose header has its own.
  * Editors and above only; the tab is left out while evaluations are off.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { ClipboardCheck, FolderOpen, Plus } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { ClipboardCheck, Plus } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { ApiErrorAlert } from "@/components/errors";
 import { FormDialog } from "@/components/form-dialog";
-import { ListPage, RelativeTime } from "@/components/templates/list-page";
+import { ListPage } from "@/components/templates/list-page";
 import { StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
-import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
+import { type DataTableColumn } from "@/components/ui/data-table/data-table";
 import { Field } from "@/components/ui/field/field";
 import { Input, Textarea } from "@/components/ui/input/input";
 import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { Switch } from "@/components/ui/switch/switch";
-import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
-import s from "../../shared.module.css";
-import { plural, useTeam } from "../common";
-import { autoRunNotice, runScore } from "./labels";
+import { useTeam } from "../common";
+import { autoRunNotice } from "./labels";
 import { type EvalSet, evalSetsKey, evalSetsQuery } from "./queries";
-import { LastScore } from "./score";
+import { setColumns } from "./set-columns";
 
 export type EvalTarget = { kbId: string; agentId?: undefined; name: string } | { agentId: string; kbId?: undefined; name: string };
 
@@ -61,32 +60,12 @@ export function EvaluationsTab({ target, newSetInHeader = false }: { target: Eva
   // Secondary: the agent's page has its own primary action (one per view).
   const newSet = canEdit && !newSetInHeader ? <NewSetButton target={target} variant="secondary" /> : undefined;
 
+  const c = setColumns(slug);
   const columns: DataTableColumn<EvalSet>[] = [
-    {
-      id: "name",
-      header: "Set",
-      rowHeader: true,
-      sortable: true,
-      accessor: (x) => x.name,
-      // A link, like the knowledge base and agent lists: it can be opened in a new tab or copied.
-      cell: (x) => (
-        <CellText
-          primary={
-            <TextLink render={<Link to="/teams/$team/evaluations/$setId" params={{ team: slug, setId: x.id }} />} className={s.primary}>
-              {x.name}
-            </TextLink>
-          }
-          secondary={x.description || undefined}
-        />
-      ),
-    },
-    { id: "questions", header: "Questions", sortable: true, defaultHiddenNarrow: true, accessor: (x) => x.questionCount, cell: (x) => plural(x.questionCount, "question") },
-    {
-      id: "score",
-      header: "Score",
-      accessor: (x) => (x.lastRun ? (runScore(x.lastRun) ?? -1) : -2),
-      cell: (x) => <CellText primary={<LastScore set={x} />} secondary={x.lastRun ? <RelativeTime value={x.lastRun.createdAt} /> : undefined} />,
-    },
+    c.name,
+    c.questions,
+    c.score,
+    c.trend,
     {
       id: "auto",
       header: "Automatic runs",
@@ -111,7 +90,6 @@ export function EvaluationsTab({ target, newSetInHeader = false }: { target: Eva
         data={sets.data ?? []}
         getRowId={(x) => x.id}
         rowLabel={(x) => x.name}
-        rowActions={(x) => [{ label: "Open", icon: <FolderOpen aria-hidden />, render: <Link to="/teams/$team/evaluations/$setId" params={{ team: slug, setId: x.id }} /> }]}
         empty={{
           icon: <ClipboardCheck />,
           title: "No evaluation sets yet.",
