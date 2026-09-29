@@ -142,6 +142,7 @@ describe("a set's runs", () => {
     const failed = result("res1", "How do I order a transcript?", "fail", {
       answer: "**Order online** [1]. Diplomas are mailed [2], and fees apply [3].",
       hits: [cite(1, "Transcripts"), cite(2, "Diplomas"), cite(3, "Transcripts", { documentId: "d1", expected: true, headingPath: ["Fees"], pageStart: 2 })],
+      expectedItems: [{ kind: "filename", value: "transcripts.pdf", title: "Transcripts", state: "indexed" }],
       scores: { cited: true, refused: false, mentions: [{ phrase: "transcript", found: true }, { phrase: "Parchment", found: false }] },
     });
     mockApi(
@@ -154,6 +155,8 @@ describe("a set's runs", () => {
     const res = await screen.findByRole("region", { name: "Result" }, T);
     // Rendered Markdown, not raw asterisks.
     expect(await within(res).findByText("Order online", { selector: "strong" }, T)).toBeInTheDocument();
+    // The expected documents are a card of their own, before the answer's, not part of it.
+    expect(within(res).getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Expected documents", "Answer"]);
     // The sources start collapsed, as in chat.
     await userEvent.click(within(res).getByRole("button", { name: "Used 3 sources" }));
     const sources = within(res).getByRole("list", { name: "Sources for this answer" });

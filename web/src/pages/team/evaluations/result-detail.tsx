@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge/badge";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import s from "../../shared.module.css";
 import { EvalAnswer, plainSnippet, webUrl } from "./answer";
-import { citedOnly, pct } from "./labels";
+import { citedOnly, legacyShare, legacyShareLabel, pct } from "./labels";
 import type { EvalExpectedItem, EvalResult } from "./queries";
 import e from "./evaluations.module.css";
 
@@ -93,10 +93,11 @@ function ExpectedItem({ it, result }: { it: EvalExpectedItem; result: EvalResult
   );
 }
 
-function Expected({ result: r }: { result: EvalResult }) {
+/** The expected documents; `heading`: under an "Expected" heading of their own (beside What came back), not a card's title. */
+export function Expected({ result: r, heading = true }: { result: EvalResult; heading?: boolean }) {
   return (
     <div>
-      <h3 className={e.columnTitle}>Expected</h3>
+      {heading && <h3 className={e.columnTitle}>Expected</h3>}
       {r.expectedItems.length === 0 ? (
         <p className={s.muted}>This run didn't record the expected documents.</p>
       ) : (
@@ -163,15 +164,20 @@ function Scores({ result: r }: { result: EvalResult }) {
       ))}
       {citedOnly(r) && <Badge tone="info">Content not checked: no must-mention phrases</Badge>}
       {scores.refused && <Badge tone="warning">Refused</Badge>}
-      {scores.supportedShare !== undefined && <Badge tone="info">{pct(scores.supportedShare)} of claims supported</Badge>}
+      {scores.supportedShare !== undefined && (
+        <Badge tone="info">
+          {legacyShare(scores) ? `${legacyShareLabel}: ${pct(scores.supportedShare)} of citations` : `${pct(scores.supportedShare)} of claims supported`}
+        </Badge>
+      )}
     </div>
   );
 }
 
+/** Expected beside What came back (retrieval), or the answer with its scores (full answers; the result page shows Expected in a card of its own). */
 export function ResultDetail({ result: r }: { result: EvalResult }) {
   const answer = r.answer !== null && r.answer !== undefined;
-  // Results stored before citations were kept per marker list the cited documents only.
-  const legacy = answer && r.hits.length > 0 && r.hits.every((h) => h.n === undefined);
+  // Citations without a marker number (results stored by v0.2.0 beyond the answer's markers) are listed apart.
+  const unnumbered = answer ? r.hits.filter((h) => h.n === undefined) : [];
   if (!answer)
     return (
       <div className={e.sideBySide}>
@@ -181,14 +187,13 @@ export function ResultDetail({ result: r }: { result: EvalResult }) {
     );
   return (
     <div>
-      {r.expectedItems.length > 0 && <Expected result={r} />}
       {r.scores && <Scores result={r} />}
       <EvalAnswer result={r} />
-      {legacy && (
+      {unnumbered.length > 0 && (
         <>
           <p className={s.muted}>Cited documents:</p>
           <ul className={e.hits}>
-            {r.hits.map((h) => (
+            {unnumbered.map((h) => (
               <li key={h.documentId}>
                 <HitName hit={h} duplicate={false} />
               </li>
