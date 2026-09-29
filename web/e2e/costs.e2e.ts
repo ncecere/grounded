@@ -47,7 +47,8 @@ test("price a model, enforce a tiny budget, get refused, grant an extension", as
   });
 
   await test.step("give the team a tiny budget in Enforce", async () => {
-    await adminPage.goto(`/admin/teams/${team}?tab=limits`);
+    // The Budget card is on the team's Overview (v0.2.1 I7).
+    await adminPage.goto(`/admin/teams/${team}`);
     await expect(adminPage.getByRole("button", { name: "Change budget" })).toBeVisible();
     await a11y(adminPage);
     await adminPage.getByRole("button", { name: "Change budget" }).click();

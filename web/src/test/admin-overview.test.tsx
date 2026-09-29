@@ -118,6 +118,16 @@ describe("admin overview", () => {
     await waitFor(() => expect(calls.find((c) => c.url === "/v1/admin/audit")?.search.get("limit")).toBe("5"));
   });
 
+  it("links a team near its budget to the team's Overview, where the Budget card is (I7)", async () => {
+    const near = { teamSlug: "registrar", teamName: "Office of the Registrar", state: "warning" as const, percent: 85, spent: "85.000000", limit: "100.000000", currency: "USD" };
+    mockApi(routes({ "GET /v1/admin/overview": () => ({ ...overview, teamsNearBudget: [near] }) }));
+    renderApp("/admin");
+    const queue = (await screen.findByText("Needs attention")).closest("section")!;
+    expect(await within(queue).findByText("Office of the Registrar is at 85% of its monthly budget")).toBeInTheDocument();
+    expect(within(queue).getByRole("link", { name: /Team budget/ })).toHaveAttribute("href", "/admin/teams/registrar");
+    expect(within(queue).getByRole("link", { name: /Team limits/ })).toHaveAttribute("href", "/admin/teams/registrar?tab=limits");
+  });
+
   it("lists the optional features with their state and where each is set up", async () => {
     mockApi(routes());
     const { container } = renderApp("/admin");

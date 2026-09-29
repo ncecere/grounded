@@ -1,4 +1,4 @@
-/* Admin users and teams (A4, A7, Q6, Q12): server facets, counts, the team detail page and the user page's sections. */
+/* Admin users and teams (A4, A7, Q6, Q12, v0.2.1 I7): server facets, counts, the team detail page (the Budget card on its Overview) and the user page's sections. */
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
@@ -47,6 +47,32 @@ const limit = (key: Schemas["LimitKey"], used: number | null, max: number | null
   overridden: false,
 });
 
+const budget: Schemas["TeamBudget"] = {
+  teamId: "t1",
+  teamSlug: "registrar",
+  teamName: "Office of the Registrar",
+  modeOverride: "inherit",
+  amount: "100.000000",
+  warnPercent: null,
+  defaultBudget: null,
+  revision: 2,
+  extensions: [],
+  status: {
+    mode: "enforce",
+    state: "warning",
+    enforced: true,
+    currency: "USD",
+    month: "2026-09-01",
+    resetsAt: "2026-10-01T00:00:00Z",
+    budget: "100.000000",
+    extensions: "0.000000",
+    limit: "100.000000",
+    spent: "85.000000",
+    percent: 85,
+    warnPercent: 80,
+  },
+};
+
 const routes = (role: "platform_admin" | "platform_auditor" = "platform_admin", extra: Record<string, Handler> = {}): Record<string, Handler> => ({
   ...shellRoutes(role),
   "GET /v1/admin/users": () => ({ items: [user("u2", { platformRole: "platform_admin" })], nextCursor: null }),
@@ -56,6 +82,9 @@ const routes = (role: "platform_admin" | "platform_auditor" = "platform_admin", 
   "GET /v1/admin/domain-requests": () => [],
   "GET /v1/teams/registrar/audit": () => ({ items: [], nextCursor: null }),
   "GET /v1/teams/registrar/members": () => [{ user: user("u3"), role: "owner", joinedAt: "" }],
+  "GET /v1/admin/costs/settings": () => ({ mode: "enforce", currency: "USD", timeZone: "UTC", warnPercent: 80, defaultBudget: null, revision: 1, updatedAt: "" }),
+  "GET /v1/admin/teams/registrar/budget": () => budget,
+  "GET /v1/admin/teams/registrar/limits": () => ({ items: [], revision: 1 }),
   ...extra,
 });
 
@@ -91,6 +120,24 @@ describe("admin users and teams", () => {
     const dialog = await screen.findByRole("alertdialog", { name: "Archive Office of the Registrar?" });
     await userEvent.click(within(dialog).getByRole("button", { name: "Archive team" }));
     await waitFor(() => expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({ status: "archived" }));
+  });
+
+  it("shows the team's cost tracking and budget on its Overview, and only limits on Limits (I7)", async () => {
+    const user = userEvent.setup();
+    mockApi(routes());
+    const { container } = renderApp("/admin/teams/registrar");
+    const card = (await screen.findByRole("heading", { level: 2, name: "Budget" })).closest("section")!;
+    expect(within(card).getByText("Cost tracking")).toBeInTheDocument();
+    expect(within(card).getByRole("meter")).toBeInTheDocument();
+    await user.click(within(card).getByRole("button", { name: /Change budget/ }));
+    expect(await screen.findByRole("dialog", { name: "Budget of Office of the Registrar" })).toBeInTheDocument();
+    expect(await axe(container.ownerDocument.body)).toHaveNoViolations();
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByRole("tab", { name: "Limits" }));
+    expect(screen.getByRole("tab", { name: "Limits", selected: true })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("heading", { level: 2, name: "Budget" })).toBeNull());
+    expect(screen.queryByRole("tab", { name: /Budget/ })).toBeNull();
   });
 
   it("puts Archive in the Settings danger zone", async () => {

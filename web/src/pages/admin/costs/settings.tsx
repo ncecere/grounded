@@ -103,7 +103,7 @@ export function CostSettingsTab({ settings }: { settings: CostSettings }) {
         description={
           <>
             A team's own cost tracking, set on its page under{" "}
-            <TextLink render={<Link to="/admin/teams" />}>Admin → Teams</TextLink> (Budget & limits), overrides this.
+            <TextLink render={<Link to="/admin/teams" />}>Admin → Teams</TextLink> (its Budget card), overrides this.
           </>
         }
       >

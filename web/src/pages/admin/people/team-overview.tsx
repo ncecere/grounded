@@ -1,6 +1,7 @@
 /*
- * Admin team › Overview (A4): what the team holds, its usage against its
- * limits (fullest first), pending domain requests and recent changes.
+ * Admin team › Overview (A4): what the team holds, its cost tracking and
+ * budget (the Budget card, E2; on the Limits tab until v0.2.1, I7), its usage
+ * against its limits (fullest first), pending domain requests and recent changes.
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -16,6 +17,7 @@ import { SkeletonText } from "@/components/ui/skeleton/skeleton";
 import { StatCard } from "@/components/ui/stat-card/stat-card";
 import { formatStorage as formatBytes } from "@/lib/format";
 import { formatAmount, teamLimitsQuery } from "@/lib/limits";
+import { AdminTeamBudgetCard } from "../costs/team-budget-card";
 import { pendingDomainRequestsQuery } from "../crawling/requests";
 import { usedShare } from "../limits/groups";
 import t from "./people.module.css";
@@ -49,6 +51,7 @@ export function TeamOverviewTab({ summary }: { summary: Summary }) {
         <StatCard label="Knowledge bases" value={summary.kbCount.toLocaleString()} icon={<Library />} />
         <StatCard label="Documents" value={summary.documentCount.toLocaleString()} icon={<FileText />} hint={formatBytes(summary.storageBytes)} />
       </div>
+      <AdminTeamBudgetCard team={slug} />
       <div className={t.columns}>
         <Card
           title="Usage against limits"

@@ -1,5 +1,5 @@
 /*
- * A team's Budget card on its admin page (Budget & limits tab; docs/costs.md
+ * A team's Budget card on its admin page (Overview tab, v0.2.1 I7; docs/costs.md
  * §5): mode override, monthly budget, this month's spend and extensions, and
  * a Track-only budget's progress ("Tracking: 12% of $5.00 · not enforced"). Platform
  * admins change the budget (If-Match) and grant extensions; auditors read.

@@ -45,15 +45,12 @@ function teamLink(team: string, e: AuditEntry): ReactElement | null {
   }
 }
 
-/** Cost actions whose target is a team: they open its Limits tab, where the Budget card is. */
-const budgetActions = new Set(["costs.budget_update", "costs.extension_grant"]);
-
 function platformLink(e: AuditEntry): ReactElement | null {
   const id = e.targetId;
   switch (e.targetType) {
     case "team":
-      // A budget or an extension is on the team's Limits tab (its Budget card).
-      return <Link to="/admin/teams/$team" params={{ team: id }} search={budgetActions.has(e.action) ? { tab: "limits" } : undefined} />;
+      // A budget or an extension too: the Budget card is on the team's Overview (v0.2.1 I7).
+      return <Link to="/admin/teams/$team" params={{ team: id }} />;
     case "user":
       return <Link to="/admin/users/$userId" params={{ userId: id }} />;
     case "data_source":
