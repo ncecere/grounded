@@ -1329,6 +1329,48 @@ func (e EvaluationComparisonItemChange) Valid() bool {
 	}
 }
 
+// Defines values for EvaluationExpectedItemKind.
+const (
+	EvaluationExpectedItemKindDocument EvaluationExpectedItemKind = "document"
+	EvaluationExpectedItemKindFilename EvaluationExpectedItemKind = "filename"
+	EvaluationExpectedItemKindUrl      EvaluationExpectedItemKind = "url"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationExpectedItemKind enum.
+func (e EvaluationExpectedItemKind) Valid() bool {
+	switch e {
+	case EvaluationExpectedItemKindDocument:
+		return true
+	case EvaluationExpectedItemKindFilename:
+		return true
+	case EvaluationExpectedItemKindUrl:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluationExpectedItemState.
+const (
+	EvaluationExpectedItemStateDeleted    EvaluationExpectedItemState = "deleted"
+	EvaluationExpectedItemStateIndexed    EvaluationExpectedItemState = "indexed"
+	EvaluationExpectedItemStateNotIndexed EvaluationExpectedItemState = "not_indexed"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationExpectedItemState enum.
+func (e EvaluationExpectedItemState) Valid() bool {
+	switch e {
+	case EvaluationExpectedItemStateDeleted:
+		return true
+	case EvaluationExpectedItemStateIndexed:
+		return true
+	case EvaluationExpectedItemStateNotIndexed:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EvaluationImportRequestFormat.
 const (
 	Csv   EvaluationImportRequestFormat = "csv"
@@ -1341,6 +1383,24 @@ func (e EvaluationImportRequestFormat) Valid() bool {
 	case Csv:
 		return true
 	case Jsonl:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluationQuestionResultMissingReason.
+const (
+	EvaluationQuestionResultMissingReasonDeleted    EvaluationQuestionResultMissingReason = "deleted"
+	EvaluationQuestionResultMissingReasonNotIndexed EvaluationQuestionResultMissingReason = "not_indexed"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationQuestionResultMissingReason enum.
+func (e EvaluationQuestionResultMissingReason) Valid() bool {
+	switch e {
+	case EvaluationQuestionResultMissingReasonDeleted:
+		return true
+	case EvaluationQuestionResultMissingReasonNotIndexed:
 		return true
 	default:
 		return false
@@ -1365,6 +1425,24 @@ func (e EvaluationQuestionResultStatus) Valid() bool {
 	case EvaluationQuestionResultStatusMissing:
 		return true
 	case EvaluationQuestionResultStatusPass:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvaluationResultMissingReason.
+const (
+	EvaluationResultMissingReasonDeleted    EvaluationResultMissingReason = "deleted"
+	EvaluationResultMissingReasonNotIndexed EvaluationResultMissingReason = "not_indexed"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationResultMissingReason enum.
+func (e EvaluationResultMissingReason) Valid() bool {
+	switch e {
+	case EvaluationResultMissingReasonDeleted:
+		return true
+	case EvaluationResultMissingReasonNotIndexed:
 		return true
 	default:
 		return false
@@ -5753,7 +5831,33 @@ type EvaluationExpected struct {
 	Urls        []string             `json:"urls"`
 }
 
-// EvaluationHit A document that came back (retrieval: once per document, at its best passage rank) or a citation of the answer (full answers: one per [n] marker number, in the answer's order, with the cited passage).
+// EvaluationExpectedItem One expected document of a question and whether the knowledge base holds it: indexed (a document matches it), not_indexed (none does, and none did in the question's earlier runs: a typo, or a document not added yet), or deleted (a picked document, or one an earlier run found, that's gone).
+type EvaluationExpectedItem struct {
+	// DocumentId A document that matches it (indexed)
+	DocumentId *openapi_types.UUID        `json:"documentId,omitempty"`
+	Kind       EvaluationExpectedItemKind `json:"kind"`
+
+	// Rank Retrieval runs: the passage rank at which a document matching it first came back. Beyond the run's k when only the deeper search for ranks found it (the result's searchDepth); absent when it didn't come back.
+	Rank *int `json:"rank,omitempty"`
+
+	// SourceId That document's data source
+	SourceId *openapi_types.UUID         `json:"sourceId,omitempty"`
+	State    EvaluationExpectedItemState `json:"state"`
+
+	// Title The title of the document that matches it (or matched it, when deleted), when known
+	Title *string `json:"title,omitempty"`
+
+	// Value The document's ID, the URL (ending in * for a prefix) or the filename
+	Value string `json:"value"`
+}
+
+// EvaluationExpectedItemKind defines model for EvaluationExpectedItem.Kind.
+type EvaluationExpectedItemKind string
+
+// EvaluationExpectedItemState defines model for EvaluationExpectedItem.State.
+type EvaluationExpectedItemState string
+
+// EvaluationHit A document that came back (retrieval: once per document, at its best passage rank, with the start of that passage) or a citation of the answer (full answers: one per [n] marker number, in the answer's order, with the cited passage).
 type EvaluationHit struct {
 	DocumentId openapi_types.UUID `json:"documentId"`
 
@@ -5773,10 +5877,10 @@ type EvaluationHit struct {
 	// PageStart The cited passage's first page (full answers)
 	PageStart *int `json:"pageStart,omitempty"`
 
-	// Rank The passage rank (retrieval) or the citation's position (answers)
+	// Rank The best passage's rank (retrieval) or the citation's position (answers)
 	Rank int `json:"rank"`
 
-	// Snippet The cited passage (full answers)
+	// Snippet The cited passage (full answers), or the start of the best passage (retrieval, at most 300 characters)
 	Snippet *string `json:"snippet,omitempty"`
 	Title   string  `json:"title"`
 	Url     *string `json:"url,omitempty"`
@@ -5816,6 +5920,9 @@ type EvaluationImportResult struct {
 	// Rows Rows read (blank lines and the header aside)
 	Rows   int `json:"rows"`
 	Usable int `json:"usable"`
+
+	// Warnings Usable rows (added unless dryRun) whose expected documents match no document of the knowledge bases yet: they count once one is added
+	Warnings []EvaluationImportProblem `json:"warnings"`
 }
 
 // EvaluationMention defines model for EvaluationMention.
@@ -5847,6 +5954,28 @@ type EvaluationQuestion struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// EvaluationQuestionCheck defines model for EvaluationQuestionCheck.
+type EvaluationQuestionCheck struct {
+	// Expected The expected documents, document IDs first, then URLs, then filenames
+	Expected []EvaluationExpectedItem `json:"expected"`
+
+	// MustMention The phrases; found: its words appear in a passage of the knowledge bases
+	MustMention []EvaluationMention `json:"mustMention"`
+}
+
+// EvaluationQuestionCheckRequest defines model for EvaluationQuestionCheckRequest.
+type EvaluationQuestionCheckRequest struct {
+	AgentId *openapi_types.UUID `json:"agentId,omitempty"`
+
+	// Expected What a good result is: any of these documents. urls are http(s) pages; one ending in * is a prefix (https://example.edu/registrar/transcripts*). filenames match uploaded files' names, case aside.
+	Expected    EvaluationExpected  `json:"expected"`
+	KbId        *openapi_types.UUID `json:"kbId,omitempty"`
+	MustMention *[]string           `json:"mustMention,omitempty"`
+
+	// SetId The set the question is in (or kbId or agentId before the set exists)
+	SetId *openapi_types.UUID `json:"setId,omitempty"`
+}
+
 // EvaluationQuestionDetail defines model for EvaluationQuestionDetail.
 type EvaluationQuestionDetail struct {
 	Question EvaluationQuestion `json:"question"`
@@ -5870,16 +5999,25 @@ type EvaluationQuestionResult struct {
 	Answer *string `json:"answer"`
 	Error  string  `json:"error"`
 
-	// Hits What came back (retrieval), once per document, or what the answer cited (full answers), once per marker number
-	Hits      []EvaluationHit    `json:"hits"`
-	Id        openapi_types.UUID `json:"id"`
-	LatencyMs int                `json:"latencyMs"`
-	Question  string             `json:"question"`
+	// ExpectedItems The question's expected documents as the run found them (empty for results recorded before v0.2.0-rc.1)
+	ExpectedItems []EvaluationExpectedItem `json:"expectedItems"`
+
+	// Hits What came back (retrieval, and missing questions of either kind), once per document, or what the answer cited (full answers), once per marker number
+	Hits []EvaluationHit    `json:"hits"`
+	Id   openapi_types.UUID `json:"id"`
+
+	// K Results per search the run scored (retrieval)
+	K         *int `json:"k,omitempty"`
+	LatencyMs int  `json:"latencyMs"`
+
+	// MissingReason Why a missing question wasn't scored: not_indexed (no document ever matched: not in this knowledge base) or deleted (it was in the knowledge base, since deleted). Null otherwise, and for results recorded before v0.2.0-rc.1.
+	MissingReason *EvaluationQuestionResultMissingReason `json:"missingReason"`
+	Question      string                                 `json:"question"`
 
 	// QuestionId Null once the question was deleted
 	QuestionId *openapi_types.UUID `json:"questionId"`
 
-	// Rank The rank of the first expected document (retrieval)
+	// Rank The rank of the first expected document in the top k (retrieval)
 	Rank         *int               `json:"rank"`
 	RunCreatedAt time.Time          `json:"runCreatedAt"`
 	RunId        openapi_types.UUID `json:"runId"`
@@ -5889,11 +6027,17 @@ type EvaluationQuestionResult struct {
 	RunTrigger EvaluationRunTrigger    `json:"runTrigger"`
 	Scores     *EvaluationAnswerScores `json:"scores"`
 
-	// Status missing means every expected document was deleted (not a failure); error means the check itself failed
+	// SearchDepth When the expected document wasn't in the top k, how many results a second search looked through for its rank (retrieval; the ranks beyond k are in expectedItems)
+	SearchDepth *int `json:"searchDepth,omitempty"`
+
+	// Status missing means no expected document is in the knowledge base (see missingReason; not a failure, and nothing is scored); error means the check itself failed
 	Status EvaluationQuestionResultStatus `json:"status"`
 }
 
-// EvaluationQuestionResultStatus missing means every expected document was deleted (not a failure); error means the check itself failed
+// EvaluationQuestionResultMissingReason Why a missing question wasn't scored: not_indexed (no document ever matched: not in this knowledge base) or deleted (it was in the knowledge base, since deleted). Null otherwise, and for results recorded before v0.2.0-rc.1.
+type EvaluationQuestionResultMissingReason string
+
+// EvaluationQuestionResultStatus missing means no expected document is in the knowledge base (see missingReason; not a failure, and nothing is scored); error means the check itself failed
 type EvaluationQuestionResultStatus string
 
 // EvaluationResult defines model for EvaluationResult.
@@ -5902,24 +6046,39 @@ type EvaluationResult struct {
 	Answer *string `json:"answer"`
 	Error  string  `json:"error"`
 
-	// Hits What came back (retrieval), once per document, or what the answer cited (full answers), once per marker number
-	Hits      []EvaluationHit    `json:"hits"`
-	Id        openapi_types.UUID `json:"id"`
-	LatencyMs int                `json:"latencyMs"`
-	Question  string             `json:"question"`
+	// ExpectedItems The question's expected documents as the run found them (empty for results recorded before v0.2.0-rc.1)
+	ExpectedItems []EvaluationExpectedItem `json:"expectedItems"`
+
+	// Hits What came back (retrieval, and missing questions of either kind), once per document, or what the answer cited (full answers), once per marker number
+	Hits []EvaluationHit    `json:"hits"`
+	Id   openapi_types.UUID `json:"id"`
+
+	// K Results per search the run scored (retrieval)
+	K         *int `json:"k,omitempty"`
+	LatencyMs int  `json:"latencyMs"`
+
+	// MissingReason Why a missing question wasn't scored: not_indexed (no document ever matched: not in this knowledge base) or deleted (it was in the knowledge base, since deleted). Null otherwise, and for results recorded before v0.2.0-rc.1.
+	MissingReason *EvaluationResultMissingReason `json:"missingReason"`
+	Question      string                         `json:"question"`
 
 	// QuestionId Null once the question was deleted
 	QuestionId *openapi_types.UUID `json:"questionId"`
 
-	// Rank The rank of the first expected document (retrieval)
+	// Rank The rank of the first expected document in the top k (retrieval)
 	Rank   *int                    `json:"rank"`
 	Scores *EvaluationAnswerScores `json:"scores"`
 
-	// Status missing means every expected document was deleted (not a failure); error means the check itself failed
+	// SearchDepth When the expected document wasn't in the top k, how many results a second search looked through for its rank (retrieval; the ranks beyond k are in expectedItems)
+	SearchDepth *int `json:"searchDepth,omitempty"`
+
+	// Status missing means no expected document is in the knowledge base (see missingReason; not a failure, and nothing is scored); error means the check itself failed
 	Status EvaluationResultStatus `json:"status"`
 }
 
-// EvaluationResultStatus missing means every expected document was deleted (not a failure); error means the check itself failed
+// EvaluationResultMissingReason Why a missing question wasn't scored: not_indexed (no document ever matched: not in this knowledge base) or deleted (it was in the knowledge base, since deleted). Null otherwise, and for results recorded before v0.2.0-rc.1.
+type EvaluationResultMissingReason string
+
+// EvaluationResultStatus missing means no expected document is in the knowledge base (see missingReason; not a failure, and nothing is scored); error means the check itself failed
 type EvaluationResultStatus string
 
 // EvaluationRun defines model for EvaluationRun.
@@ -5945,7 +6104,7 @@ type EvaluationRun struct {
 	StartedBy *openapi_types.UUID `json:"startedBy"`
 	Status    EvaluationRunStatus `json:"status"`
 
-	// Summary A run's scores. Questions whose expected documents no longer exist (missing) and questions whose check failed (errors) are counted apart and left out of the rates.
+	// Summary A run's scores. Questions none of whose expected documents is in the knowledge base (missing: never added, or deleted since) and questions whose check failed (errors) are counted apart and left out of the rates.
 	Summary EvaluationSummary `json:"summary"`
 
 	// Total Questions to check
@@ -5962,7 +6121,7 @@ type EvaluationRunBrief struct {
 	Kind   EvaluationRunKind   `json:"kind"`
 	Status EvaluationRunStatus `json:"status"`
 
-	// Summary A run's scores. Questions whose expected documents no longer exist (missing) and questions whose check failed (errors) are counted apart and left out of the rates.
+	// Summary A run's scores. Questions none of whose expected documents is in the knowledge base (missing: never added, or deleted since) and questions whose check failed (errors) are counted apart and left out of the rates.
 	Summary EvaluationSummary `json:"summary"`
 }
 
@@ -6073,19 +6232,27 @@ type EvaluationSettingsUpdate struct {
 	Enabled bool `json:"enabled"`
 }
 
-// EvaluationSummary A run's scores. Questions whose expected documents no longer exist (missing) and questions whose check failed (errors) are counted apart and left out of the rates.
+// EvaluationSummary A run's scores. Questions none of whose expected documents is in the knowledge base (missing: never added, or deleted since) and questions whose check failed (errors) are counted apart and left out of the rates.
 type EvaluationSummary struct {
 	// Cited Answers that cited an expected document
-	Cited  int `json:"cited"`
-	Errors int `json:"errors"`
-	Failed int `json:"failed"`
+	Cited int `json:"cited"`
+
+	// CitedOnly Full-answer passes of questions without must-mention phrases: the answer cited an expected document, but its content wasn't checked ("Cited the right source (content not checked)")
+	CitedOnly int `json:"citedOnly"`
+	Errors    int `json:"errors"`
+	Failed    int `json:"failed"`
 
 	// K Results per search the run checked
-	K       int `json:"k"`
+	K int `json:"k"`
+
+	// Missing Questions none of whose expected documents is in the knowledge base (notIndexed of them never were)
 	Missing int `json:"missing"`
 
 	// Mrr Mean reciprocal rank, 0-1 (retrieval checks)
 	Mrr *float32 `json:"mrr,omitempty"`
+
+	// NotIndexed Missing questions whose expected documents were never in the knowledge base (a typo, or not added yet), as opposed to deleted since
+	NotIndexed int `json:"notIndexed"`
 
 	// PassRate Share of answers that passed, 0-1 (full-answer checks)
 	PassRate  *float32 `json:"passRate,omitempty"`
@@ -10018,6 +10185,9 @@ type UpdateAPIKeyContactJSONRequestBody UpdateAPIKeyContactJSONBody
 
 // CreateDomainRequestJSONRequestBody defines body for CreateDomainRequest for application/json ContentType.
 type CreateDomainRequestJSONRequestBody = DomainRequestCreate
+
+// CheckEvaluationQuestionJSONRequestBody defines body for CheckEvaluationQuestion for application/json ContentType.
+type CheckEvaluationQuestionJSONRequestBody = EvaluationQuestionCheckRequest
 
 // CreateEvaluationSetJSONRequestBody defines body for CreateEvaluationSet for application/json ContentType.
 type CreateEvaluationSetJSONRequestBody = EvaluationSetCreate

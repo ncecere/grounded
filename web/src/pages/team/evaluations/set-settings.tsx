@@ -11,6 +11,7 @@ import { Input, Textarea } from "@/components/ui/input/input";
 import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
 import { useTeam } from "../common";
+import { autoRunNotice } from "./labels";
 import { type EvalSet, evalSetKey, evalSetsKey } from "./queries";
 
 const formOf = (x: EvalSet) => ({ name: x.name, description: x.description, autoRun: x.autoRun });
@@ -70,10 +71,10 @@ export function SetSettings({ set }: { set: EvalSet }) {
           <Textarea maxLength={2000} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </Field>
       </SettingsSection>
-      <SettingsSection title="Automatic runs" description="Retrieval checks only; full-answer checks are always started by hand.">
+      <SettingsSection title="Automatic runs" description="Retrieval runs only; full-answer runs are always started by hand.">
         <Switch
           label="Run automatically"
-          description="After the agent is published, after the knowledge base switches embedding profile, and nightly when its documents changed. A drop of more than 5 points in recall, or a question that newly fails, notifies the team's editors."
+          description={`A retrieval run after the agent is published, after the knowledge base switches embedding profile, and nightly when its documents changed. ${autoRunNotice}`}
           checked={form.autoRun}
           onCheckedChange={(autoRun) => setForm({ ...form, autoRun })}
         />

@@ -21,7 +21,7 @@ export const kb: Schemas["KnowledgeBase"] = {
 };
 
 const summary = (extra: Partial<Schemas["EvaluationSummary"]> = {}): Schemas["EvaluationSummary"] => ({
-  k: 4, questions: 3, passed: 1, failed: 1, missing: 1, errors: 0, recall: 0.5, mrr: 0.5, cited: 0, refused: 0, ...extra,
+  k: 4, questions: 3, passed: 1, failed: 1, missing: 1, notIndexed: 1, errors: 0, recall: 0.5, mrr: 0.5, cited: 0, citedOnly: 0, refused: 0, ...extra,
 });
 
 export const set: Schemas["EvaluationSet"] = {
@@ -97,12 +97,31 @@ export const result = (id: string, question: string, status: Schemas["Evaluation
   status,
   rank: status === "pass" ? 1 : null,
   hits: [{ rank: 1, documentId: "d9", title: "Registration calendar", url: "https://example.edu/calendar", expected: status === "pass" }],
+  expectedItems: [],
+  missingReason: null,
   answer: null,
   scores: null,
   error: "",
   latencyMs: 12,
   ...extra,
 });
+
+type CheckBody = { expected: Schemas["EvaluationExpected"]; mustMention?: string[] };
+
+/**
+ * The question form's check: everything is in the knowledge base except
+ * what `missing` names (expected values and phrases).
+ */
+export const checkReply =
+  (missing: string[] = []): Handler =>
+  (b) => {
+    const { expected, mustMention = [] } = b as CheckBody;
+    const item = (kind: "document" | "url" | "filename", value: string) => ({ kind, value, state: missing.includes(value) ? "not_indexed" : "indexed" });
+    return {
+      expected: [...expected.documentIds.map((v) => item("document", v)), ...expected.urls.map((v) => item("url", v)), ...expected.filenames.map((v) => item("filename", v))],
+      mustMention: mustMention.map((phrase) => ({ phrase, found: !missing.includes(phrase) })),
+    };
+  };
 
 export const evalRoutes = (teamRole = "editor", extra: Record<string, Handler> = {}): Record<string, Handler> => ({
   ...shellRoutes("none", teamRole),
@@ -117,5 +136,6 @@ export const evalRoutes = (teamRole = "editor", extra: Record<string, Handler> =
   "GET /v1/teams/registrar/evaluation-sets/set1/questions": () => questions,
   "GET /v1/teams/registrar/evaluation-sets/set1/documents": () => [{ id: "d1", title: "Transcript policy", filename: "transcripts.pdf", url: "", sourceName: "Policies" }],
   "GET /v1/teams/registrar/evaluation-sets/set1/runs": () => runs,
+  "POST /v1/teams/registrar/evaluation-question-check": checkReply(),
   ...extra,
 });

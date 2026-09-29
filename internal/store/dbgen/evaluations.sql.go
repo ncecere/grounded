@@ -1074,6 +1074,68 @@ func (q *Queries) MarkEvalRunRunning(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const matchExpectedDocument = `-- name: MatchExpectedDocument :many
+SELECT d.id, d.source_id, d.title, d.filename, d.url FROM documents d
+WHERE d.source_id = ANY($1::uuid[])
+  AND (d.id = ANY($2::uuid[])
+       OR (d.url <> '' AND rtrim(d.url, '/') = ANY($3::text[]))
+       OR (d.url <> '' AND EXISTS (SELECT 1 FROM unnest($4::text[]) p WHERE starts_with(d.url, p)))
+       OR (d.filename <> '' AND lower(d.filename) = ANY($5::text[])))
+ORDER BY d.created_at, d.id
+LIMIT 1
+`
+
+type MatchExpectedDocumentParams struct {
+	SourceIds   []uuid.UUID
+	DocumentIds []uuid.UUID
+	Urls        []string
+	UrlPrefixes []string
+	Filenames   []string
+}
+
+type MatchExpectedDocumentRow struct {
+	ID       uuid.UUID
+	SourceID uuid.UUID
+	Title    string
+	Filename string
+	URL      string
+}
+
+// The first document of the sources that matches expected documents (the
+// conditions of ExpectedDocumentExists), for a question's diagnosis: one
+// row or none.
+func (q *Queries) MatchExpectedDocument(ctx context.Context, arg MatchExpectedDocumentParams) ([]MatchExpectedDocumentRow, error) {
+	rows, err := q.db.Query(ctx, matchExpectedDocument,
+		arg.SourceIds,
+		arg.DocumentIds,
+		arg.Urls,
+		arg.UrlPrefixes,
+		arg.Filenames,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MatchExpectedDocumentRow{}
+	for rows.Next() {
+		var i MatchExpectedDocumentRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.Title,
+			&i.Filename,
+			&i.URL,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const nightlyEvalSets = `-- name: NightlyEvalSets :many
 SELECT s.id, s.team_id, s.kb_id, s.agent_id, s.name, s.description, s.auto_run, s.created_by, s.revision, s.created_at, s.updated_at FROM eval_sets s
 JOIN teams t ON t.id = s.team_id AND t.status = 'active'
@@ -1182,6 +1244,30 @@ func (q *Queries) PendingEvalCases(ctx context.Context, arg PendingEvalCasesPara
 		return nil, err
 	}
 	return items, nil
+}
+
+const phraseInSources = `-- name: PhraseInSources :one
+WITH q AS (SELECT phraseto_tsquery('english', $2::text) AS query)
+SELECT (numnode(q.query) = 0 OR EXISTS (
+    SELECT 1 FROM chunks c WHERE c.source_id = ANY($1::uuid[]) AND c.content_tsv @@ q.query
+))::boolean AS found
+FROM q
+`
+
+type PhraseInSourcesParams struct {
+	SourceIds []uuid.UUID
+	Phrase    string
+}
+
+// Whether a must-mention phrase's words (stemmed, in order, as
+// phraseto_tsquery reads them) appear in a passage of the sources, for the
+// question form's warning. A phrase of stopwords only has no words to look
+// for and counts as found.
+func (q *Queries) PhraseInSources(ctx context.Context, arg PhraseInSourcesParams) (bool, error) {
+	row := q.db.QueryRow(ctx, phraseInSources, arg.SourceIds, arg.Phrase)
+	var found bool
+	err := row.Scan(&found)
+	return found, err
 }
 
 const previousCompletedRun = `-- name: PreviousCompletedRun :one

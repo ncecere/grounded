@@ -228,6 +228,9 @@ type ImportResult struct {
 	Usable   int
 	Added    int
 	Problems []ImportProblem
+	// Warnings are usable rows whose expected documents match nothing in
+	// the knowledge bases yet (they count once one is added).
+	Warnings []ImportProblem
 	// Max and Current are the questions-per-set limit (nil: none) and the
 	// set's questions before the import.
 	Max     *int64
@@ -258,6 +261,9 @@ func (s *Service) Import(ctx context.Context, a authz.Actor, teamRef string, set
 			return err
 		}
 		res = ImportResult{Rows: len(rows) + len(probs), Usable: len(usable), Problems: sortProblems(append(probs, more...))}
+		if res.Warnings, err = s.importWarnings(ctx, set, usable); err != nil {
+			return err
+		}
 		if res.Current, err = q.CountEvalCases(ctx, setID); err != nil {
 			return err
 		}

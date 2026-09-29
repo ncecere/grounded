@@ -1,12 +1,17 @@
 /*
  * A knowledge base's page on the DetailPage template (D3, W4): the facts
  * line (classification, profile, sources, documents, passages per search,
- * used by), "Attach source" as the primary action (C13), a "…" menu with
- * Delete, and pill tabs Overview · Sources · Try it · Settings. Stat cards
- * live only in Overview, which asks for a source while there is none.
+ * used by), a "…" menu with Delete, and pill tabs Overview · Sources · Try
+ * it · Evaluations · Settings. The header's primary action follows the tab
+ * (S4): "Attach source" on Sources, and on Overview while the knowledge
+ * base has no source (C13); "New set" on Evaluations; none on Try it and
+ * Settings. Stat cards live only in Overview, which asks for a source while
+ * there is none. Try it takes a question from ?q= ("Try this search" on an
+ * evaluation result).
  */
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "@tanstack/react-router";
+import { Link, useParams, useSearch } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { Bot, ClipboardCheck, Database, FileCheck2, Layers, LayoutDashboard, Search, Settings2, Shuffle, Trash2 } from "lucide-react";
 import { DetailPage } from "@/components/templates/detail-page";
 import { NotFoundState, isNotFound } from "@/components/not-found";
@@ -30,7 +35,7 @@ import { type AttachFlow, AttachSourceButton, useAttachFlow } from "./attach-flo
 import { KBSources } from "./sources";
 import { UsedByAgents, useAgentsByKB } from "./used-by";
 import { useEvaluationsOn } from "../evaluations/queries";
-import { EvaluationsTab } from "../evaluations/sets-tab";
+import { EvaluationsTab, NewSetButton } from "../evaluations/sets-tab";
 
 export function KBDetailPage() {
   const { kbId } = useParams({ from: "/app/teams/$team/kbs/$kbId" });
@@ -68,6 +73,12 @@ function KBPage({ kb: k }: { kb: KB }) {
   const isAdmin = useIsPlatformAdmin();
   const attach = useAttachFlow(k);
   const evaluationsOn = useEvaluationsOn();
+  const search = useSearch({ strict: false }) as { tab?: string; q?: string };
+  const primary: Partial<Record<string, ReactNode>> = {
+    overview: k.sources.length === 0 ? <AttachSourceButton flow={attach} /> : undefined,
+    sources: <AttachSourceButton flow={attach} />,
+    evaluations: evaluationsOn ? <NewSetButton target={{ kbId: k.id, name: k.name }} /> : undefined,
+  };
 
   return (
     <>
@@ -84,7 +95,7 @@ function KBPage({ kb: k }: { kb: KB }) {
           { id: "topk", label: "Passages per search", value: `${k.topK} passages per search` },
           { id: "used", label: "Used by", value: uses.length ? `used by ${plural(uses.length, "agent")}` : "not used by an agent" },
         ]}
-        primaryAction={canEdit ? <AttachSourceButton flow={attach} /> : undefined}
+        primaryAction={canEdit ? primary[search.tab ?? "overview"] : undefined}
         menuActions={[
           {
             label: "Change embedding profile…",
@@ -120,7 +131,7 @@ function KBPage({ kb: k }: { kb: KB }) {
                 {k.sources.length === 0 ? (
                   <EmptyState size="compact" icon={<Database />} title="Attach a data source to search this knowledge base." />
                 ) : (
-                  <RetrievePlayground kbId={k.id} defaultTopK={k.topK} sources={k.sources} />
+                  <RetrievePlayground kbId={k.id} defaultTopK={k.topK} sources={k.sources} initialQuery={search.q} />
                 )}
               </Card>
             ),
@@ -130,7 +141,7 @@ function KBPage({ kb: k }: { kb: KB }) {
             label: "Evaluations",
             icon: <ClipboardCheck aria-hidden />,
             hidden: !canEdit || !evaluationsOn,
-            content: <EvaluationsTab target={{ kbId: k.id, name: k.name }} />,
+            content: <EvaluationsTab target={{ kbId: k.id, name: k.name }} newSetInHeader />,
           },
           { value: "settings", label: "Settings", icon: <Settings2 aria-hidden />, hidden: !canEdit, content: <KBSettings kb={k} onDelete={del.request} /> },
         ]}

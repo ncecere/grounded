@@ -49,7 +49,7 @@ func EvaluationRegressionEvent(t TeamRef, r Regression) Event {
 		Type: EvaluationRegression, TeamID: t.ID, Link: t.path("/evaluations/" + r.SetID.String() + "?tab=runs&record=" + r.RunID.String()),
 		DedupeKey: "evaluation_regression:" + r.RunID.String(),
 		Title:     fmt.Sprintf("Evaluation scores dropped: %s (%s)", r.SetName, t.Name),
-		Body: fmt.Sprintf("The retrieval check of %s (%s) ran %s: %s. Compare it with the previous run to see which questions got worse.",
+		Body: fmt.Sprintf("The retrieval run of %s (%s) ran %s: %s. Compare it with the previous run to see which questions got worse.",
 			r.SetName, r.Target, when, strings.Join(what, ", and ")),
 		Data: map[string]any{"team": t.Slug, "setId": r.SetID, "runId": r.RunID, "recall": r.Recall, "previousRecall": r.PrevRecall,
 			"newlyFailing": r.NewlyFailing},

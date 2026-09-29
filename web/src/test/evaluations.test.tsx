@@ -25,7 +25,8 @@ describe("a knowledge base's Evaluations tab", () => {
     expect(link).toHaveAttribute("href", "/teams/registrar/evaluations/set1");
     const row = link.closest("tr")!;
     expect(row).toHaveTextContent("2 questions");
-    expect(row).toHaveTextContent("Recall@4 50%");
+    // One Score column, with the metric in the score's tooltip and accessible name.
+    expect(within(row).getByRole("button", { name: /^50%\. Recall@4/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Evaluations/, selected: true })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
 
@@ -68,8 +69,11 @@ describe("a set's page", () => {
     const table = await screen.findByRole("table", { name: "Questions" });
     const row = within(table).getByText("How do I order a transcript?").closest("tr")!;
     expect(row).toHaveTextContent("Transcript policy, https://example.edu/registrar/transcripts*");
-    expect(row).toHaveTextContent("fee");
+    // A knowledge base's set runs retrieval only: no must-mention phrases.
+    expect(within(table).queryByRole("columnheader", { name: /Must mention/ })).toBeNull();
     expect(screen.getByText(/Latest score/)).toBeInTheDocument();
+    // Run is the primary; New question is secondary.
+    expect(screen.getByRole("button", { name: "New question" })).toHaveAttribute("data-variant", "secondary");
     expect(await axe(container)).toHaveNoViolations();
 
     await userEvent.click(screen.getByRole("button", { name: "New question" }));
@@ -84,15 +88,14 @@ describe("a set's page", () => {
     await userEvent.type(within(dialog).getByRole("textbox", { name: "Question" }), "Where is the fee schedule?");
     const urls = within(dialog).getByRole("textbox", { name: /URLs and filenames/ });
     await userEvent.type(urls, "https://example.edu/fees*{Enter}fees.pdf{Enter}");
-    const phrases = within(dialog).getByRole("textbox", { name: /Must mention/ });
-    await userEvent.type(phrases, "tuition{Enter}");
+    expect(within(dialog).queryByRole("textbox", { name: /Must mention/ })).toBeNull();
     expect(await axe(dialog)).toHaveNoViolations();
     await userEvent.click(within(dialog).getByRole("button", { name: "Create question" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
     expect(calls.find((c) => c.method === "POST")!.body).toEqual({
       question: "Where is the fee schedule?",
       expected: { documentIds: [], urls: ["https://example.edu/fees*"], filenames: ["fees.pdf"] },
-      mustMention: ["tuition"],
+      mustMention: [],
       note: "",
     });
   });
@@ -113,15 +116,20 @@ describe("a set's page", () => {
     const page = await screen.findByRole("region", { name: "Question" }, T);
     expect(await within(page).findByRole("heading", { level: 1, name: "When does registration open?" })).toBeInTheDocument();
     expect(within(page).getByText("calendar.pdf")).toBeInTheDocument();
-    expect(within(page).getByText("No expected document in the top results.")).toBeInTheDocument();
     expect(within(page).getByText(/Nightly/)).toBeInTheDocument();
     expect(within(page).getAllByRole("link", { name: "Registration calendar" })).toHaveLength(2);
     expect(within(page).getByRole("button", { name: /Edit question/ })).toBeInTheDocument();
+    // Delete isn't a header button: it's in the "…" menu.
+    expect(within(page).queryByRole("button", { name: /^Delete/ })).toBeNull();
+    await userEvent.click(within(page).getByRole("button", { name: "More actions" }));
+    expect(await screen.findByRole("menuitem", { name: /Delete question/ })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
     expect(await axe(container)).toHaveNoViolations();
   });
 
   it("imports a CSV: previews the rows it can't use, then adds the rest", async () => {
-    const preview = { rows: 3, usable: 2, added: 0, problems: [{ line: 3, message: "Add at least one expected document" }], max: 500, current: 2 };
+    const warning = { line: 4, message: "No document in Student handbook matches b.pdf yet. It'll count once one is added." };
+    const preview = { rows: 3, usable: 2, added: 0, problems: [{ line: 3, message: "Add at least one expected document" }], warnings: [warning], max: 500, current: 2 };
     const calls = mockApi(
       evalRoutes("editor", {
         "POST /v1/teams/registrar/evaluation-sets/set1/questions/import": (b) => ((b as { dryRun: boolean }).dryRun ? preview : { ...preview, added: 2 }),
@@ -132,7 +140,10 @@ describe("a set's page", () => {
     const csv = "question,expected\nOne?,a.pdf\nTwo?,\nThree?,b.pdf\n";
     await userEvent.upload(within(page).getByLabelText("Choose a file"), new File([csv], "questions.csv", { type: "text/csv" }));
     expect(await within(page).findByRole("table", { name: "Rows that can't be used" })).toHaveTextContent("Add at least one expected document");
-    expect(within(page).getByText("3 rows read: 2 questions can be added, 1 row can't be used.")).toHaveAttribute("role", "status");
+    expect(
+      within(page).getByText("3 rows read: 2 questions can be added, 1 row can't be used, 1 question expect documents that aren't in the knowledge base yet."),
+    ).toHaveAttribute("role", "status");
+    expect(within(page).getByRole("table", { name: "Added, but nothing matches yet" })).toHaveTextContent("matches b.pdf yet");
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(within(page).getByRole("button", { name: "Add 2 questions" }));
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty("form"));
@@ -163,7 +174,7 @@ describe("a set's page", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/teams/registrar/kbs/k1"));
   });
 
-  it("explains a Run that can't start, and puts the set under its knowledge base's Evaluations in the breadcrumbs", async () => {
+  it("explains a Run that can't start, and collapses the breadcrumb to Team › … › Set", async () => {
     mockApi(evalRoutes("editor", { "GET /v1/teams/registrar/evaluation-sets/set1": () => ({ ...set, questionCount: 0 }), "GET /v1/teams/registrar/evaluation-sets/set1/questions": () => [] }));
     const { container } = renderApp("/teams/registrar/evaluations/set1");
     // Focusable (aria-disabled, not disabled), with the reason as its description.
@@ -172,8 +183,12 @@ describe("a set's page", () => {
     expect(run).not.toBeDisabled();
     expect(run).toHaveAccessibleDescription("Add questions first.");
     const crumbs = screen.getByRole("navigation", { name: /Breadcrumb/i });
-    expect(within(crumbs).getByRole("link", { name: "Knowledge bases" })).toHaveAttribute("href", "/teams/registrar/kbs");
-    expect(within(crumbs).getByRole("link", { name: "Evaluations" })).toHaveAttribute("href", "/teams/registrar/kbs/k1?tab=evaluations");
+    // "…" stands for Knowledge bases › Student handbook › Evaluations and opens that tab.
+    const more = within(crumbs).getByRole("link", { name: "Student handbook, Evaluations" });
+    expect(more).toHaveAttribute("href", "/teams/registrar/kbs/k1?tab=evaluations");
+    expect(more).toHaveAttribute("title", "Knowledge bases › Student handbook › Evaluations");
+    expect(within(crumbs).queryByRole("link", { name: "Knowledge bases" })).toBeNull();
+    expect(within(crumbs).getAllByRole("listitem")).toHaveLength(3);
     expect(await axe(container)).toHaveNoViolations();
   });
 

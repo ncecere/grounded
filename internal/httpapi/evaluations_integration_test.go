@@ -125,12 +125,33 @@ func TestEvaluationRetrievalRun(t *testing.T) {
 	if housing.Status != "fail" || housing.Rank != nil || len(housing.Hits) != 1 || (housing.Hits[0].Filename == nil || *housing.Hits[0].Filename != "housing.md") || housing.Hits[0].Expected {
 		t.Errorf("housing = %+v", housing)
 	}
-	if gone.Status != "missing" || len(gone.Hits) != 0 {
+	// What came back has the passage's start; the expected document is in
+	// the knowledge base, and a deeper search found its rank beyond k.
+	if h := housing.Hits[0]; h.Snippet == nil || !strings.Contains(*h.Snippet, "Residence halls open") {
+		t.Errorf("housing hit = %+v", h)
+	}
+	if it := housing.ExpectedItems; len(it) != 1 || it[0].Kind != "filename" || it[0].Value != "library.txt" || it[0].State != "indexed" ||
+		it[0].Rank == nil || *it[0].Rank < 2 || housing.SearchDepth == nil || *housing.SearchDepth != 50 || housing.K == nil || *housing.K != 1 ||
+		housing.MissingReason != nil {
+		t.Errorf("housing expected = %+v depth %v k %v", it, housing.SearchDepth, housing.K)
+	}
+	if it := parking.ExpectedItems; len(it) != 1 || it[0].State != "indexed" || it[0].Rank == nil || *it[0].Rank != 1 || parking.SearchDepth != nil ||
+		it[0].DocumentId == nil || it[0].SourceId == nil || *it[0].SourceId != env.upload.Id || it[0].Title == nil || *it[0].Title == "" {
+		t.Errorf("parking expected = %+v", it)
+	}
+	// A URL nothing ever matched: not in this knowledge base (not "deleted"),
+	// not scored, and what came back is still listed.
+	if gone.Status != "missing" || gone.MissingReason == nil || *gone.MissingReason != "not_indexed" || len(gone.Hits) != 1 ||
+		len(gone.ExpectedItems) != 1 || gone.ExpectedItems[0].State != "not_indexed" {
 		t.Errorf("gone = %+v", gone)
 	}
-	// Two queries (the missing question isn't asked), tagged as evaluation usage.
+	if s.NotIndexed != 1 {
+		t.Errorf("not indexed = %d", s.NotIndexed)
+	}
+	// Four queries (the missing question's search, and the housing
+	// question's deeper search for its rank), tagged as evaluation usage.
 	if n := env.scalar(t, `SELECT count(*) FROM usage_events WHERE kind = 'query' AND metadata->>'source' = 'evaluation'
-		AND metadata->>'evaluationRunId' = $1 AND kb_id = $2`, d.Run.Id.String(), kb.Id); n != 2 {
+		AND metadata->>'evaluationRunId' = $1 AND kb_id = $2`, d.Run.Id.String(), kb.Id); n != 4 {
 		t.Errorf("evaluation queries = %d", n)
 	}
 
@@ -163,6 +184,80 @@ func TestEvaluationRetrievalRun(t *testing.T) {
 		if n := env.scalar(t, `SELECT count(*) FROM audit_log WHERE action = $1`, action); n == 0 {
 			t.Errorf("no %s audit entry", action)
 		}
+	}
+	// A document the earlier runs found is deleted: the question isn't
+	// scored, and the reason is "deleted", not "not in the knowledge base".
+	env.deleteDocument(t, "library.txt")
+	d3 := env.runEval(t, set, map[string]any{})
+	if h := resultFor(d3, qHousing); h.Status != "missing" || h.MissingReason == nil || *h.MissingReason != "deleted" ||
+		h.ExpectedItems[0].State != "deleted" || h.ExpectedItems[0].Title == nil || h.ExpectedItems[0].DocumentId != nil || len(h.Hits) == 0 {
+		t.Errorf("deleted = %+v", h)
+	}
+	if s := d3.Run.Summary; s.Missing != 2 || s.NotIndexed != 1 {
+		t.Errorf("third run = %+v", s)
+	}
+}
+
+// deleteDocument deletes a document of the upload source by filename.
+func (env *agentEnv) deleteDocument(t *testing.T, filename string) {
+	t.Helper()
+	var page apitypes.DocumentPage
+	docs := env.base + "/sources/" + env.upload.Id.String() + "/documents"
+	env.owner.get(docs, &page)
+	for _, d := range page.Items {
+		if d.Filename == filename {
+			code, e := env.owner.call("DELETE", docs+"/"+d.Id.String(), nil, nil, nil)
+			mustCode(t, "delete document", code, e, 200, "")
+			return
+		}
+	}
+	t.Fatalf("no document %s", filename)
+}
+
+func TestEvaluationQuestionCheck(t *testing.T) {
+	env := newAgentEnv(t)
+	check := func(body map[string]any) apitypes.EvaluationQuestionCheck {
+		t.Helper()
+		var out apitypes.EvaluationQuestionCheck
+		code, e := env.editor.call("POST", env.base+"/evaluation-question-check", body, &out, nil)
+		mustCode(t, "check", code, e, 200, "")
+		return out
+	}
+	expected := map[string]any{"documentIds": []string{}, "urls": []string{"https://example.edu/fees*"}, "filenames": []string{"parking.md", "grad-housing.pdf"}}
+	got := check(map[string]any{"kbId": env.kb.Id, "expected": expected, "mustMention": []string{"parking permits", "Parchment", "the"}})
+	states := []string{}
+	for _, it := range got.Expected {
+		states = append(states, it.Value+"="+string(it.State))
+	}
+	if strings.Join(states, ",") != "https://example.edu/fees*=not_indexed,parking.md=indexed,grad-housing.pdf=not_indexed" {
+		t.Errorf("expected = %v", states)
+	}
+	// Stemmed words in order; a phrase of stopwords only has nothing to look for.
+	if m := got.MustMention; len(m) != 3 || !m[0].Found || m[1].Found || !m[2].Found {
+		t.Errorf("must mention = %+v", m)
+	}
+	// A set's knowledge bases, and an agent's before it has a set.
+	set := env.newEvalSet(t, map[string]any{"kbId": env.kb.Id, "name": "Checked"})
+	if got := check(map[string]any{"setId": set.Id, "expected": expected}); len(got.Expected) != 3 || got.Expected[1].State != "indexed" {
+		t.Errorf("set check = %+v", got)
+	}
+	ag := env.publishAgent(t, "Checker", env.agentConfig(env.kb.Id.String()))
+	if got := check(map[string]any{"agentId": ag.Id, "expected": expected, "mustMention": []string{"Parchment"}}); got.MustMention[0].Found {
+		t.Errorf("agent check = %+v", got)
+	}
+	code, e := env.editor.call("POST", env.base+"/evaluation-question-check", map[string]any{"setId": set.Id, "kbId": env.kb.Id, "expected": expected}, nil, nil)
+	mustCode(t, "two targets", code, e, 400, "invalid_target")
+	if code, _ := env.member.call("POST", env.base+"/evaluation-question-check", map[string]any{"kbId": env.kb.Id, "expected": expected}, nil, nil); code != 404 {
+		t.Errorf("a member's check = %d", code)
+	}
+	// An import says which usable rows match nothing yet.
+	var preview apitypes.EvaluationImportResult
+	csv := "question,expected\n" + qParking + ",parking.md\n" + qHousing + ",grad-housing.pdf\n"
+	code, e = env.editor.call("POST", env.evalBase()+"/"+set.Id.String()+"/questions/import", map[string]any{"format": "csv", "content": csv, "dryRun": true}, &preview, nil)
+	mustCode(t, "import preview", code, e, 200, "")
+	if preview.Usable != 2 || len(preview.Warnings) != 1 || preview.Warnings[0].Line != 3 ||
+		preview.Warnings[0].Message != "No document in "+env.kb.Name+" matches grad-housing.pdf yet. It'll count once one is added." {
+		t.Errorf("import warnings = %+v", preview.Warnings)
 	}
 }
 

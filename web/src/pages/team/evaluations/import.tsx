@@ -123,7 +123,8 @@ function PreviewSection({ preview, over }: { preview: Preview; over: boolean }) 
     <FormSection title="Preview">
       <p role="status">
         {plural(preview.rows, "row")} read: {plural(preview.usable, "question")} can be added
-        {preview.problems.length > 0 ? `, ${plural(preview.problems.length, "row")} can't be used` : ""}.
+        {preview.problems.length > 0 ? `, ${plural(preview.problems.length, "row")} can't be used` : ""}
+        {preview.warnings.length > 0 ? `, ${plural(preview.warnings.length, "question")} expect documents that aren't in the knowledge base yet` : ""}.
       </p>
       {over && (
         <Alert tone="warning" title="Too many questions">
@@ -133,6 +134,17 @@ function PreviewSection({ preview, over }: { preview: Preview; over: boolean }) 
       {preview.problems.length > 0 && (
         <Table caption="Rows that can't be used" columns={[{ label: "Line", width: "6rem" }, "Why"]}>
           {preview.problems.map((p) => (
+            <Tr key={`${p.line}-${p.message}`}>
+              <Td>{p.line}</Td>
+              <Td>{p.message}</Td>
+            </Tr>
+          ))}
+        </Table>
+      )}
+      {preview.warnings.length > 0 && (
+        // Added anyway: they count once a matching document is added.
+        <Table caption="Added, but nothing matches yet" columns={[{ label: "Line", width: "6rem" }, "Warning"]}>
+          {preview.warnings.map((p) => (
             <Tr key={`${p.line}-${p.message}`}>
               <Td>{p.line}</Td>
               <Td>{p.message}</Td>

@@ -42,8 +42,9 @@ type ChatPanelProps = {
   /** The longest question (public agents may allow less than 8,000 characters). */
   maxLength?: number;
   /** "Add to evaluations" on answers (see ChatMessages). */
-  onAddToEvaluations?: (question: string) => void;
+  onAddToEvaluations?: (question: string, item: AssistantItem) => void;
   canAdd?: (item: AssistantItem) => boolean;
+  added?: (item: AssistantItem) => boolean;
   /** Let the reader open the model's thinking (editors testing a draft); others see "Thinking…" only. */
   showThinking?: boolean;
 };
@@ -116,6 +117,7 @@ export function ChatPanel(props: ChatPanelProps) {
               onPatch={chat.patch}
               onAddToEvaluations={props.onAddToEvaluations}
               canAdd={props.canAdd}
+              added={props.added}
               onRetry={(q) => void ask(q)}
               onStarter={disabledReason ? undefined : (q) => void ask(q)}
             />

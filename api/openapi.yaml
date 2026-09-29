@@ -6113,6 +6113,40 @@ paths:
                     items: { $ref: "#/components/schemas/EvaluationDocument" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-question-check:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+    post:
+      tags: [evaluations]
+      operationId: checkEvaluationQuestion
+      summary: Whether the knowledge bases hold a question's expected documents and must-mention phrases, before it's saved (editors, admins and owners; changes nothing)
+      description: >-
+        The question form's warnings (docs/evaluations.md §1). Each expected
+        document, URL, URL prefix or filename is indexed when a document of
+        the set's knowledge base (or the agent's knowledge bases) matches it,
+        not_indexed when none does yet (a typo, or a document not added
+        yet: it counts once one is added), or deleted for a picked document
+        that's gone. A must-mention phrase is found when its words (stemmed,
+        in order) appear in a passage of those knowledge bases. Give exactly
+        one of setId, kbId and agentId, of this team. Nothing is saved or
+        audited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EvaluationQuestionCheckRequest" }
+      responses:
+        "200":
+          description: Each expected document and phrase, in the order given
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/EvaluationQuestionCheck" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/evaluation-sets/{setId}/runs:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -11081,17 +11115,25 @@ components:
     EvaluationSummary:
       type: object
       description: >-
-        A run's scores. Questions whose expected documents no longer exist
-        (missing) and questions whose check failed (errors) are counted apart
-        and left out of the rates.
-      required: [k, questions, passed, failed, missing, errors, cited, refused]
+        A run's scores. Questions none of whose expected documents is in the
+        knowledge base (missing: never added, or deleted since) and questions
+        whose check failed (errors) are counted apart and left out of the
+        rates.
+      required: [k, questions, passed, failed, missing, notIndexed, errors, cited, citedOnly, refused]
       properties:
         k: { type: integer, description: Results per search the run checked }
         questions: { type: integer }
         passed: { type: integer }
         failed: { type: integer }
-        missing: { type: integer }
+        missing: { type: integer, description: "Questions none of whose expected documents is in the knowledge base (notIndexed of them never were)" }
+        notIndexed: { type: integer, description: "Missing questions whose expected documents were never in the knowledge base (a typo, or not added yet), as opposed to deleted since" }
         errors: { type: integer }
+        citedOnly:
+          type: integer
+          description: >-
+            Full-answer passes of questions without must-mention phrases: the
+            answer cited an expected document, but its content wasn't checked
+            ("Cited the right source (content not checked)")
         recall: { type: number, description: "recall@k, 0-1 (retrieval checks)" }
         mrr: { type: number, description: "Mean reciprocal rank, 0-1 (retrieval checks)" }
         passRate: { type: number, description: "Share of answers that passed, 0-1 (full-answer checks)" }
@@ -11223,7 +11265,7 @@ components:
         message: { type: string }
     EvaluationImportResult:
       type: object
-      required: [rows, usable, added, problems, max, current]
+      required: [rows, usable, added, problems, warnings, max, current]
       properties:
         rows: { type: integer, description: Rows read (blank lines and the header aside) }
         usable: { type: integer }
@@ -11233,6 +11275,60 @@ components:
           items: { $ref: "#/components/schemas/EvaluationImportProblem" }
         max: { type: integer, format: int64, nullable: true, description: The questions-per-set limit (null for none) }
         current: { type: integer, format: int64, description: The set's questions before the import }
+        warnings:
+          type: array
+          description: >-
+            Usable rows (added unless dryRun) whose expected documents match
+            no document of the knowledge bases yet: they count once one is
+            added
+          items: { $ref: "#/components/schemas/EvaluationImportProblem" }
+    EvaluationExpectedItem:
+      type: object
+      description: >-
+        One expected document of a question and whether the knowledge base
+        holds it: indexed (a document matches it), not_indexed (none does,
+        and none did in the question's earlier runs: a typo, or a document
+        not added yet), or deleted (a picked document, or one an earlier run
+        found, that's gone).
+      required: [kind, value, state]
+      properties:
+        kind: { type: string, enum: [document, url, filename] }
+        value: { type: string, description: "The document's ID, the URL (ending in * for a prefix) or the filename" }
+        title: { type: string, description: "The title of the document that matches it (or matched it, when deleted), when known" }
+        state: { type: string, enum: [indexed, not_indexed, deleted] }
+        documentId: { type: string, format: uuid, description: A document that matches it (indexed) }
+        sourceId: { type: string, format: uuid, description: That document's data source }
+        rank:
+          type: integer
+          description: >-
+            Retrieval runs: the passage rank at which a document matching it
+            first came back. Beyond the run's k when only the deeper search
+            for ranks found it (the result's searchDepth); absent when it
+            didn't come back.
+    EvaluationQuestionCheckRequest:
+      type: object
+      required: [expected]
+      properties:
+        setId: { type: string, format: uuid, description: The set the question is in (or kbId or agentId before the set exists) }
+        kbId: { type: string, format: uuid }
+        agentId: { type: string, format: uuid }
+        expected: { $ref: "#/components/schemas/EvaluationExpected" }
+        mustMention:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 200 }
+    EvaluationQuestionCheck:
+      type: object
+      required: [expected, mustMention]
+      properties:
+        expected:
+          type: array
+          description: The expected documents, document IDs first, then URLs, then filenames
+          items: { $ref: "#/components/schemas/EvaluationExpectedItem" }
+        mustMention:
+          type: array
+          description: "The phrases; found: its words appear in a passage of the knowledge bases"
+          items: { $ref: "#/components/schemas/EvaluationMention" }
     EvaluationRunKind:
       type: string
       description: retrieval checks retrieval only; answer asks the agent and scores the answer
@@ -11295,18 +11391,19 @@ components:
       type: object
       description: >-
         A document that came back (retrieval: once per document, at its best
-        passage rank) or a citation of the answer (full answers: one per [n]
-        marker number, in the answer's order, with the cited passage).
+        passage rank, with the start of that passage) or a citation of the
+        answer (full answers: one per [n] marker number, in the answer's
+        order, with the cited passage).
       required: [rank, documentId, title, expected]
       properties:
-        rank: { type: integer, description: The passage rank (retrieval) or the citation's position (answers) }
+        rank: { type: integer, description: The best passage's rank (retrieval) or the citation's position (answers) }
         documentId: { type: string, format: uuid }
         title: { type: string }
         url: { type: string }
         filename: { type: string }
         expected: { type: boolean, description: One of the question's expected documents }
         n: { type: integer, description: "The answer's marker number: [n] cites this entry (full answers)" }
-        snippet: { type: string, description: The cited passage (full answers) }
+        snippet: { type: string, description: "The cited passage (full answers), or the start of the best passage (retrieval, at most 300 characters)" }
         headingPath:
           type: array
           description: The cited passage's headings (full answers)
@@ -11337,20 +11434,46 @@ components:
         uncited: { type: integer, description: "Factual sentences without a citation (SystemOne citation checks), counted as unsupported" }
     EvaluationResult:
       type: object
-      required: [id, questionId, question, status, rank, hits, answer, scores, error, latencyMs]
+      required: [id, questionId, question, status, rank, hits, expectedItems, missingReason, answer, scores, error, latencyMs]
       properties:
         id: { type: string, format: uuid }
         questionId: { type: string, format: uuid, nullable: true, description: Null once the question was deleted }
         question: { type: string }
         status:
           type: string
-          description: missing means every expected document was deleted (not a failure); error means the check itself failed
+          description: >-
+            missing means no expected document is in the knowledge base (see
+            missingReason; not a failure, and nothing is scored); error means
+            the check itself failed
           enum: [pass, fail, missing, error]
-        rank: { type: integer, nullable: true, description: The rank of the first expected document (retrieval) }
+        rank: { type: integer, nullable: true, description: The rank of the first expected document in the top k (retrieval) }
         hits:
           type: array
-          description: What came back (retrieval), once per document, or what the answer cited (full answers), once per marker number
+          description: >-
+            What came back (retrieval, and missing questions of either kind),
+            once per document, or what the answer cited (full answers), once
+            per marker number
           items: { $ref: "#/components/schemas/EvaluationHit" }
+        expectedItems:
+          type: array
+          description: The question's expected documents as the run found them (empty for results recorded before v0.2.0-rc.1)
+          items: { $ref: "#/components/schemas/EvaluationExpectedItem" }
+        missingReason:
+          type: string
+          nullable: true
+          description: >-
+            Why a missing question wasn't scored: not_indexed (no document
+            ever matched: not in this knowledge base) or deleted (it was in
+            the knowledge base, since deleted). Null otherwise, and for
+            results recorded before v0.2.0-rc.1.
+          enum: [not_indexed, deleted]
+        k: { type: integer, description: Results per search the run scored (retrieval) }
+        searchDepth:
+          type: integer
+          description: >-
+            When the expected document wasn't in the top k, how many results a
+            second search looked through for its rank (retrieval; the ranks
+            beyond k are in expectedItems)
         answer: { type: string, nullable: true, description: The agent's answer (full-answer checks) }
         scores:
           nullable: true

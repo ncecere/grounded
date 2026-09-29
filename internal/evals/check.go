@@ -1,6 +1,6 @@
 // Checking one question (docs/evaluations.md §2-§3): whether its expected
-// documents still exist, then the retrieval check or the full answer, with
-// waits for per-minute limits.
+// documents are in the knowledge base (diagnosis.go), then the retrieval
+// check or the full answer, with waits for per-minute limits.
 
 package evals
 
@@ -24,26 +24,29 @@ const maxShownHits = 20
 
 // check checks one question. A returned error stops the run (a limit or
 // budget refused it, the agent can't answer at all); a question whose
-// check failed otherwise gets the error status.
+// check failed otherwise gets the error status. A question none of whose
+// expected documents is in the knowledge base isn't scored (missing, with
+// the reason), but what the search returns is still recorded.
 func (x *executor) check(ctx context.Context, c dbgen.EvalCase) (dbgen.InsertEvalResultParams, error) {
 	cs := DecodeCase(c)
 	p := dbgen.InsertEvalResultParams{RunID: x.run.ID, CaseID: uuid.NullUUID{UUID: c.ID, Valid: true}, Question: c.Question,
 		Hits: json.RawMessage(`[]`), Scores: json.RawMessage(`{}`)}
 	start := time.Now()
-	docs, urls, prefixes, names := cs.Want.existence()
-	exists, err := x.s.q.ExpectedDocumentExists(ctx, dbgen.ExpectedDocumentExistsParams{SourceIds: x.sources, DocumentIds: docs,
-		Urls: urls, UrlPrefixes: prefixes, Filenames: names})
+	diag, err := x.diagnose(ctx, cs)
 	if err != nil {
 		return p, err
 	}
-	if !exists {
+	var sc *AnswerScores
+	switch {
+	case diag.Missing != "":
 		p.Status = StatusMissing
-		return finished(p, start), nil
-	}
-	if x.run.Kind == KindAnswer {
-		err = x.answer(ctx, cs, &p)
-	} else {
-		err = x.retrieval(ctx, cs, &p)
+		if err = x.retrieval(ctx, cs, &p, &diag); err != nil && !stopsRun(err) {
+			err = nil // what came back stays empty
+		}
+	case x.run.Kind == KindAnswer:
+		sc, err = x.answer(ctx, cs, &p)
+	default:
+		err = x.retrieval(ctx, cs, &p, &diag)
 	}
 	if err != nil && stopsRun(err) {
 		return p, err
@@ -51,6 +54,7 @@ func (x *executor) check(ctx context.Context, c dbgen.EvalCase) (dbgen.InsertEva
 	if err != nil {
 		p.Status, p.Error = StatusError, errorText(err)
 	}
+	p.Scores = encodeScores(sc, diag)
 	return finished(p, start), nil
 }
 
@@ -59,39 +63,70 @@ func finished(p dbgen.InsertEvalResultParams, start time.Time) dbgen.InsertEvalR
 	return p
 }
 
-// retrieval runs the knowledge base's or agent's retrieval and ranks the
-// expected documents in the top k.
-func (x *executor) retrieval(ctx context.Context, cs Case, p *dbgen.InsertEvalResultParams) error {
+// retrieval runs the knowledge base's or agent's retrieval, records what
+// came back and ranks the expected documents in the top k. When none is
+// there, a deeper search finds their rank beyond k.
+func (x *executor) retrieval(ctx context.Context, cs Case, p *dbgen.InsertEvalResultParams, d *Diagnosis) error {
+	docs, err := x.search(ctx, cs.Question, 0)
+	if err != nil {
+		return err
+	}
+	if d.K > 0 && len(docs) > d.K {
+		docs = docs[:d.K]
+	}
+	rankItems(d.Expected, docs)
+	p.Hits, _ = json.Marshal(hitViews(docs, cs.Want))
+	if d.Missing != "" {
+		return nil
+	}
+	p.Status = StatusFail
+	if rank := cs.Want.Rank(docs); rank > 0 {
+		r := int32(rank)
+		p.Status, p.Rank = StatusPass, &r
+		return nil
+	}
+	return x.rankDeeper(ctx, cs, d)
+}
+
+// rankDeeper searches for DeepSearch results, only for the ranks of the
+// expected documents beyond k ("found at #11"). When that search fails,
+// the ranks are left out, unless the failure stops the run.
+func (x *executor) rankDeeper(ctx context.Context, cs Case, d *Diagnosis) error {
+	if d.K >= DeepSearch {
+		return nil
+	}
+	docs, err := x.search(ctx, cs.Question, DeepSearch)
+	if err != nil {
+		if stopsRun(err) {
+			return err
+		}
+		return nil
+	}
+	rankItems(d.Expected, docs)
+	d.Depth = DeepSearch
+	return nil
+}
+
+// search runs the knowledge base's or agent's retrieval for a question:
+// with its own results per search (depth 0) or for depth results.
+func (x *executor) search(ctx context.Context, question string, depth int) ([]Doc, error) {
 	var hits []kbs.Hit
 	err := x.retry(ctx, func() error {
 		var err error
 		if x.t.kb != nil {
 			var res kbs.Result
-			res, err = x.s.KBs.RetrieveForEvaluation(ctx, x.actor, *x.t.kb, cs.Question, x.meta)
+			res, err = x.s.KBs.RetrieveForEvaluation(ctx, x.actor, *x.t.kb, question, depth, x.meta)
 			hits = res.Hits
 		} else {
-			hits, err = x.s.Agents.EvalRetrieve(ctx, x.actor, *x.t.agent, cs.Question, x.meta)
+			hits, err = x.s.Agents.EvalRetrieve(ctx, x.actor, *x.t.agent, question, depth, x.meta)
 		}
 		return err
 	})
-	if err != nil {
-		return err
-	}
 	docs := make([]Doc, 0, len(hits))
 	for _, h := range hits {
-		docs = append(docs, Doc{DocumentID: h.DocumentID, Title: h.Title, URL: h.URL, Filename: h.Filename})
+		docs = append(docs, Doc{DocumentID: h.DocumentID, Title: h.Title, URL: h.URL, Filename: h.Filename, Snippet: shortSnippet(h.Content)})
 	}
-	if k := x.t.cfg.ResultsPerSearch; k > 0 && len(docs) > k {
-		docs = docs[:k]
-	}
-	rank := cs.Want.Rank(docs)
-	p.Status = StatusFail
-	if rank > 0 {
-		r := int32(rank)
-		p.Status, p.Rank = StatusPass, &r
-	}
-	p.Hits, _ = json.Marshal(hitViews(docs, cs.Want))
-	return nil
+	return docs, err
 }
 
 // hitViews lists the documents that came back once each, at their best
@@ -105,7 +140,7 @@ func hitViews(docs []Doc, want Expected) []HitView {
 		}
 		seen[d.DocumentID] = true
 		out = append(out, HitView{Rank: i + 1, DocumentID: d.DocumentID, Title: d.Title, URL: d.URL, Filename: d.Filename,
-			Expected: want.Matches(d)})
+			Expected: want.Matches(d), Snippet: d.Snippet})
 		if len(out) == maxShownHits {
 			break
 		}
@@ -114,7 +149,7 @@ func hitViews(docs []Doc, want Expected) []HitView {
 }
 
 // answer asks the agent and scores the answer.
-func (x *executor) answer(ctx context.Context, cs Case, p *dbgen.InsertEvalResultParams) error {
+func (x *executor) answer(ctx context.Context, cs Case, p *dbgen.InsertEvalResultParams) (*AnswerScores, error) {
 	var ans agents.Answer
 	var checks *agents.CitationsRecord
 	err := x.retry(ctx, func() error {
@@ -123,16 +158,16 @@ func (x *executor) answer(ctx context.Context, cs Case, p *dbgen.InsertEvalResul
 		return err
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	text := ans.Text
 	p.Answer = &text
 	if ans.ErrorCode != "" {
-		return apperr.New(http.StatusServiceUnavailable, ans.ErrorCode, ans.ErrorMessage)
+		return nil, apperr.New(http.StatusServiceUnavailable, ans.ErrorCode, ans.ErrorMessage)
 	}
 	cited, err := x.citedDocs(ctx, ans.Citations)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	refused := ans.Refused || agents.IsRefusal(ans.Text, x.t.agent.Config.RefusalMessage)
 	scores, pass := ScoreAnswer(cs.Want, cs.MustMention, ans.Text, cited, refused, checks)
@@ -140,9 +175,8 @@ func (x *executor) answer(ctx context.Context, cs Case, p *dbgen.InsertEvalResul
 	if pass {
 		p.Status = StatusPass
 	}
-	p.Scores, _ = json.Marshal(scores)
 	p.Hits, _ = json.Marshal(citationViews(ans.Citations, cited, cs.Want))
-	return nil
+	return &scores, nil
 }
 
 // citationViews lists an answer's citations as it numbers them, one per

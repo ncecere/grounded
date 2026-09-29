@@ -1,6 +1,6 @@
 /*
- * Run a set (docs/evaluations.md §2-§4): a retrieval check (the default,
- * no model calls) or, for an agent's set, a full-answer check of its draft
+ * Run a set (docs/evaluations.md §2-§4): a retrieval run (the default, no
+ * model calls) or, for an agent's set, a full-answer run of its draft
  * or published version, with the number of answers it asks for and, when
  * the team's budget is enforced, that they count against it.
  */
@@ -52,7 +52,7 @@ export function RunDialog({ set, onClose }: { set: EvalSet; onClose: () => void 
       void qc.invalidateQueries({ queryKey: evalRunsKey(slug, set.id) });
       void qc.invalidateQueries({ queryKey: evalSetKey(slug, set.id) });
       void qc.invalidateQueries({ queryKey: evalSetsKey(slug) });
-      toast.success(kind === "answer" ? "Full-answer check started" : "Retrieval check started");
+      toast.success(kind === "answer" ? "Full-answer run started" : "Retrieval run started");
       onClose();
       void navigate({ to: ".", search: ((prev: Record<string, unknown>) => ({ ...prev, tab: "runs", record: run.id, compare: undefined })) as never });
     },
@@ -62,16 +62,20 @@ export function RunDialog({ set, onClose }: { set: EvalSet; onClose: () => void 
       <ApiErrorAlert error={start.error} />
       {agentSet ? (
         <RadioGroup<Kind>
-          legend="Check"
+          legend="Kind"
           value={kind}
           onValueChange={setKind}
           options={[
-            { value: "retrieval", label: "Retrieval check", description: "Runs the agent's search for each question: did the expected document come back? No model calls." },
-            { value: "answer", label: "Full-answer check", description: "Asks the agent each question and scores the answer: cites an expected document and mentions the phrases." },
+            { value: "retrieval", label: "Retrieval", description: "Runs the agent's search for each question: did the expected document come back? No model calls." },
+            {
+              value: "answer",
+              label: "Full answer",
+              description: "Asks the agent each question and scores the answer: cites an expected document and mentions the must-mention phrases.",
+            },
           ]}
         />
       ) : (
-        <p>A retrieval check runs this knowledge base's search for each question and reports whether the expected document came back, at what rank. No model calls except embedding the questions.</p>
+        <p>A retrieval run does this knowledge base's search for each question and reports whether the expected document came back, at what rank. No model calls except embedding the questions.</p>
       )}
       {agentSet && (
         <Field label="Version" description="The draft as saved, or the version people chat with.">

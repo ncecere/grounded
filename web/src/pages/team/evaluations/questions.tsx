@@ -45,11 +45,14 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
       void qc.invalidateQueries({ queryKey: evalSetsKey(slug) });
     },
   });
+  // Secondary: Run is the set page's primary action.
   const newQuestion = canEdit ? (
-    <Button onClick={() => setEditing("new")}>
+    <Button variant="secondary" onClick={() => setEditing("new")}>
       <Plus aria-hidden /> New question
     </Button>
   ) : undefined;
+  // Must-mention phrases are checked in full-answer runs, which only an agent's sets have.
+  const answers = set.target.type === "agent";
 
   const columns: DataTableColumn<EvalQuestion>[] = [
     {
@@ -61,7 +64,7 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
       cell: (q) => <CellText primary={<RecordLink id={q.id}>{q.question}</RecordLink>} secondary={q.note || undefined} />,
     },
     { id: "expected", header: "Expected", accessor: (q) => expectedList(q).join(", "), muted: true },
-    { id: "mention", header: "Must mention", accessor: (q) => q.mustMention.join(", ") || "—", muted: true },
+    ...(answers ? [{ id: "mention", header: "Must mention", accessor: (q: EvalQuestion) => q.mustMention.join(", ") || "—", muted: true }] : []),
   ];
 
   return (
@@ -69,7 +72,11 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
       <PageHeader
         title="Questions"
         titleAs="h2"
-        description="Each question names the documents a good result finds; must-mention phrases are checked in full-answer runs."
+        description={
+          answers
+            ? "Each question names the documents a good result finds; must-mention phrases are checked in full-answer runs."
+            : "Each question names the documents a good result finds."
+        }
         actions={
           canEdit && (
             <>
@@ -94,14 +101,15 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
           { label: "Edit question", icon: <Pencil aria-hidden />, onSelect: () => setEditing(q), hidden: !canEdit },
           { label: "Delete question", icon: <Trash2 aria-hidden />, danger: true, onSelect: () => setDeleting(q), hidden: !canEdit },
         ]}
-        empty={{ icon: <ListChecks />, title: "No questions yet.", description: "Type questions in or import a CSV or JSONL file.", action: newQuestion }}
+        empty={{ icon: <ListChecks />, title: "No questions yet.", description: "Add one with New question, or import a CSV or JSONL file." }}
+        tableProps={{ columnsMenu: false }}
         loading={questions.isLoading}
         error={questions.error}
         onRetry={() => void questions.refetch()}
       />
       <QuestionRecord set={set} onEdit={setEditing} onDelete={setDeleting} />
       {form.id === "import" && <ImportPage set={set} onClose={form.close} />}
-      {editing && <QuestionDialog setId={set.id} question={editing === "new" ? undefined : editing} onClose={() => setEditing(null)} />}
+      {editing && <QuestionDialog set={set} question={editing === "new" ? undefined : editing} onClose={() => setEditing(null)} />}
       <ConfirmMutationDialog
         target={deleting}
         onClose={() => setDeleting(null)}

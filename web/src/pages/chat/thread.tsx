@@ -8,9 +8,11 @@
  * The model's thinking is shown to editors testing a draft (showThinking);
  * everyone else sees "Thinking…" while the model thinks, never its reasoning.
  */
-import { ClipboardPlus } from "lucide-react";
+import { Check, ClipboardPlus } from "lucide-react";
 import { useCallback, useState } from "react";
-import { Message, MessageAction, MessageActions, MessageContent, MessageCopyAction } from "@/components/ui/message/message";
+import { Badge } from "@/components/ui/badge/badge";
+import { Button } from "@/components/ui/button/button";
+import { Message, MessageActions, MessageContent, MessageCopyAction } from "@/components/ui/message/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ui/reasoning/reasoning";
 import { LazyResponse } from "@/components/ui/response/response-lazy";
 import { Shimmer } from "@/components/ui/shimmer/shimmer";
@@ -55,11 +57,12 @@ type AssistantProps = {
   showThinking: boolean;
   onPatch?: ChatMessagesProps["onPatch"];
   onAdd?: () => void;
+  added?: boolean;
   onRetry?: () => void;
   onStarter?: (q: string) => void;
 };
 
-function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd, onRetry, onStarter }: AssistantProps) {
+function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd, added = false, onRetry, onStarter }: AssistantProps) {
   const [sourcesOpen, setSourcesOpen] = useState(true);
   const streaming = item.status === "streaming";
 
@@ -142,11 +145,17 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
         <MessageActions label="Answer actions">
           <MessageCopyAction value={normalizePunctuation(item.text)} label="Copy answer" />
           {feedback && item.id && <Feedback item={item} onChange={(f) => onPatch?.(item.key, (a) => ({ ...a, feedback: f }))} />}
-          {onAdd && (
-            <MessageAction label="Add to evaluations" onClick={onAdd}>
-              <ClipboardPlus aria-hidden />
-            </MessageAction>
-          )}
+          {/* A labelled button, and "Added" once added (remembered across reloads; docs/evaluations.md §1). */}
+          {onAdd &&
+            (added ? (
+              <Badge tone="success">
+                <Check aria-hidden /> Added to evaluations
+              </Badge>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={onAdd}>
+                <ClipboardPlus aria-hidden /> Add to evaluations
+              </Button>
+            ))}
         </MessageActions>
       )}
     </Message>
@@ -162,11 +171,14 @@ type ChatMessagesProps = {
   showThinking?: boolean;
   onPatch?: (key: string, fn: (a: AssistantItem) => AssistantItem) => void;
   /**
-   * "Add to evaluations" with the question an answer replied to (only the
-   * question text), on the answers `canAdd` accepts (docs/evaluations.md §1).
+   * "Add to evaluations" with the question an answer replied to and the
+   * answer (for its citations and rating), on the answers `canAdd` accepts
+   * (docs/evaluations.md §1).
    */
-  onAddToEvaluations?: (question: string) => void;
+  onAddToEvaluations?: (question: string, item: AssistantItem) => void;
   canAdd?: (item: AssistantItem) => boolean;
+  /** Answers already added: "Added to evaluations". */
+  added?: (item: AssistantItem) => boolean;
   /** Ask a question again (the last answer, when the connection was lost mid-answer). */
   onRetry?: (question: string) => void;
   /** Ask one of the agent's starter questions (offered under the last answer when it's a refusal). */
@@ -177,7 +189,7 @@ type ChatMessagesProps = {
 export const needsEvaluation = (item: AssistantItem) => item.feedback?.rating === "down" || item.noContext === true || item.citations.length === 0;
 
 /** The messages of a chat; put them in <ConversationContent>. */
-export function ChatMessages({ items, agent, feedback = false, showThinking = false, onPatch, onAddToEvaluations, canAdd, onRetry, onStarter }: ChatMessagesProps) {
+export function ChatMessages({ items, agent, feedback = false, showThinking = false, onPatch, onAddToEvaluations, canAdd, added, onRetry, onStarter }: ChatMessagesProps) {
   // The question each answer replied to: the user message before it.
   const asked = new Map<string, string>();
   let last = "";
@@ -187,7 +199,7 @@ export function ChatMessages({ items, agent, feedback = false, showThinking = fa
   }
   const addFor = (item: AssistantItem) => {
     const q = asked.get(item.key);
-    return onAddToEvaluations && q && (!canAdd || canAdd(item)) ? () => onAddToEvaluations(q) : undefined;
+    return onAddToEvaluations && q && (!canAdd || canAdd(item)) ? () => onAddToEvaluations(q, item) : undefined;
   };
   const lastKey = items[items.length - 1]?.key;
   return (
@@ -204,6 +216,7 @@ export function ChatMessages({ items, agent, feedback = false, showThinking = fa
             showThinking={showThinking}
             onPatch={onPatch}
             onAdd={addFor(item)}
+            added={added?.(item)}
             onRetry={item.key === lastKey && onRetry && asked.get(item.key) ? () => onRetry(asked.get(item.key)!) : undefined}
             onStarter={item.key === lastKey ? onStarter : undefined}
           />

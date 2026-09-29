@@ -253,6 +253,9 @@ type Result struct {
 	dbgen.EvalResult
 	Hits   []HitView
 	Scores *AnswerScores
+	// Diagnosis is what the run found about the expected documents (empty
+	// for results recorded before it was kept).
+	Diagnosis Diagnosis
 }
 
 // HitView is a document that came back, or a citation of an answer, for
@@ -267,7 +270,8 @@ type HitView struct {
 	// Expected: the document is one of the question's expected documents.
 	Expected bool `json:"expected"`
 	// N is the answer's marker number ([n]) and the rest the cited passage
-	// (full answers only).
+	// (full answers only; a retrieval keeps the start of its best passage
+	// in Snippet).
 	N           int      `json:"n,omitempty"`
 	Snippet     string   `json:"snippet,omitempty"`
 	HeadingPath []string `json:"headingPath,omitempty"`
@@ -279,12 +283,7 @@ type HitView struct {
 func DecodeResult(r dbgen.EvalResult) Result {
 	out := Result{EvalResult: r, Hits: []HitView{}}
 	_ = json.Unmarshal(r.Hits, &out.Hits)
-	if len(r.Scores) > 2 {
-		var sc AnswerScores
-		if json.Unmarshal(r.Scores, &sc) == nil {
-			out.Scores = &sc
-		}
-	}
+	out.Scores, out.Diagnosis = decodeScores(r.Scores)
 	return out
 }
 
@@ -356,7 +355,7 @@ func summarize(ctx context.Context, q *dbgen.Queries, run dbgen.EvalRun) (Summar
 	scored := make([]Scored, len(rows))
 	for i, r := range rows {
 		d := DecodeResult(r)
-		scored[i] = Scored{Status: r.Status, Answer: d.Scores}
+		scored[i] = Scored{Status: r.Status, Answer: d.Scores, Missing: d.Diagnosis.Missing}
 		if r.Rank != nil {
 			scored[i].Rank = int(*r.Rank)
 		}
