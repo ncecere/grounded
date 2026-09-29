@@ -213,19 +213,16 @@ func (s *Service) Blocked(ctx context.Context, teamID uuid.UUID) (bool, time.Tim
 	return false, time.Time{}, err
 }
 
-// pendingTeamsSQL lists teams with pending documents (a loose index scan,
-// as in the ingestion dispatcher).
-const pendingTeamsSQL = `
-WITH RECURSIVE t AS (
-    (SELECT team_id FROM documents WHERE status = 'pending' AND team_id IS NOT NULL ORDER BY team_id LIMIT 1)
-    UNION ALL
-    SELECT (SELECT d.team_id FROM documents d WHERE d.status = 'pending' AND d.team_id > t.team_id ORDER BY d.team_id LIMIT 1)
-    FROM t WHERE t.team_id IS NOT NULL
-)
-SELECT team_id FROM t WHERE team_id IS NOT NULL`
+// activeTeamsSQL lists the active teams (the candidates when the platform
+// mode is Enforce).
+const activeTeamsSQL = `SELECT id FROM teams WHERE status = 'active' ORDER BY id`
 
-// BlockedTeams lists the teams with pending documents whose enforced budget
-// is used up: the ingestion dispatcher skips them.
+// BlockedTeams lists the teams whose enforced budget is used up, for the
+// ingestion dispatcher. It checks every team that can be enforced (every
+// active team when the platform mode is Enforce, else the teams set to
+// Enforce), not only those with pending documents: the dispatcher reuses the
+// list between dispatch jobs, and a blocked team's next upload must already
+// be on it. Check caches each team's spend (CacheTTL).
 func (s *Service) BlockedTeams(ctx context.Context) ([]uuid.UUID, error) {
 	if s == nil {
 		return nil, nil
@@ -234,20 +231,21 @@ func (s *Service) BlockedTeams(ctx context.Context) ([]uuid.UUID, error) {
 	if err != nil {
 		return nil, err
 	}
-	enforced, err := s.q.EnforcedTeamOverrides(ctx)
-	if err != nil || (st.Mode != ModeEnforce && len(enforced) == 0) {
-		return nil, err
-	}
-	rows, err := s.pool.Query(ctx, pendingTeamsSQL)
+	candidates, err := s.q.EnforcedTeamOverrides(ctx)
 	if err != nil {
 		return nil, err
 	}
-	pending, err := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
-	if err != nil {
-		return nil, err
+	if st.Mode == ModeEnforce {
+		rows, err := s.pool.Query(ctx, activeTeamsSQL)
+		if err != nil {
+			return nil, err
+		}
+		if candidates, err = pgx.CollectRows(rows, pgx.RowTo[uuid.UUID]); err != nil {
+			return nil, err
+		}
 	}
 	var out []uuid.UUID
-	for _, t := range pending {
+	for _, t := range candidates {
 		if err := s.Check(ctx, t); IsExhausted(err) {
 			out = append(out, t)
 		} else if err != nil {
