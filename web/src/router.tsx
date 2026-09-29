@@ -19,6 +19,7 @@ import {
   logTabs,
   moderationTabs,
   movedLegalHoldSearch,
+  renamedTabHref,
   notificationTabs,
   retentionTabs,
   sourceTabs,
@@ -287,9 +288,12 @@ const adminMoved = <P extends string>(
       throw redirect({ href: rest ? `${to}?${rest}` : to, replace: true });
     },
   });
-/** An admin page with tabs; list filters, ?q= and ?record= pass through (ListPage, RecordSheet). */
-const adminTabs = <P extends string, T extends string>(path: P, tabs: readonly T[], component: Page, opts?: { passthrough?: boolean }) =>
-  createRoute({ getParentRoute: () => adminRoute, path, validateSearch: tabSearch(tabs, { passthrough: true, ...opts }), component });
+/** An admin page with tabs; list filters, ?q= and ?record= pass through (ListPage, RecordSheet). `renamed` redirects old ?tab= values. */
+const adminTabs = <P extends string, T extends string>(path: P, tabs: readonly T[], component: Page, opts?: { passthrough?: boolean; renamed?: Record<string, T> }) =>
+  createRoute({ getParentRoute: () => adminRoute, path, validateSearch: tabSearch(tabs, { passthrough: true, ...opts }), component, beforeLoad: ({ location }) => {
+    const href = opts?.renamed && renamedTabHref(location.pathname, location.searchStr, opts.renamed);
+    if (href) throw redirect({ href, replace: true });
+  } });
 
 /** Admin → Agents keeps its list filters (?team=, ?audience=, ?status=, ?q=) and ?record= in the URL. */
 const adminAgentsRoute = createRoute({
@@ -370,7 +374,7 @@ const appTree = appRoute.addChildren([
       adminTabs("moderation", moderationTabs, lazy(pages.moderation, "ModerationPage")),
       admin("public-access", lazy(pages.publicAccess, "PublicAccessPage")),
       admin("maintenance", lazy(pages.maintenance, "MaintenancePage")),
-      adminTabs("retention", retentionTabs, lazy(pages.retention, "RetentionPage")),
+      adminTabs("retention", retentionTabs, lazy(pages.retention, "RetentionPage"), { renamed: { report: "dry-run" } }),
       adminMoved("legal-holds", "/admin/retention", "holds", movedLegalHoldSearch),
       adminTabs("break-glass", breakGlassTabs, lazy(pages.breakGlass, "BreakGlassPage")),
       breakGlassConversationsRoute,

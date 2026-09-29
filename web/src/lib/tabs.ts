@@ -37,6 +37,15 @@ export function tabSearch<T extends string>(tabs: readonly T[], opts: { passthro
     return { ...rest, ...tab };
   };
 }
+/** The address with a renamed ?tab= value replaced (the rest kept), or undefined when the tab wasn't renamed. */
+export function renamedTabHref(pathname: string, searchStr: string, renamed: Record<string, string>) {
+  const q = new URLSearchParams(searchStr);
+  const tab = q.get("tab") ?? "";
+  if (!Object.hasOwn(renamed, tab)) return undefined;
+  const next = renamed[tab]!;
+  q.set("tab", next);
+  return `${pathname}?${q.toString()}`;
+}
 export const crawlDomainTabs = ["requests", "allowlist"] as const;
 /** Team settings (D1). Crawl domains moved to the Data sources page in v0.2.1 (I4); the router redirects ?tab=crawl-domains. */
 export const teamSettingsTabs = ["members", "usage", "api-keys", "audit", "general"] as const;
@@ -48,8 +57,11 @@ export const logTabs = ["audit", "access"] as const;
 export const analyticsTabs = ["overview", "breakdown", "models", "top", "checks"] as const;
 /** Admin → Costs (E2). Overview and Budgets are hidden while the mode is Off. */
 export const costTabs = ["overview", "budgets", "prices", "settings"] as const;
-/** Admin → Retention: Periods · Dry run · Runs · Legal holds (Admin → Legal holds until v0.2.1, I1). */
-export const retentionTabs = ["settings", "report", "runs", "holds"] as const;
+/**
+ * Admin → Retention: Periods · Dry run · Runs · Legal holds (Admin → Legal holds until v0.2.1, I1). The Dry run was
+ * ?tab=report until v0.2.1; the router redirects it.
+ */
+export const retentionTabs = ["settings", "dry-run", "runs", "holds"] as const;
 /** Admin → Embedding profiles: Profiles · Migrations (Admin → Profile migrations until v0.2.1, I1). */
 export const embeddingProfileTabs = ["profiles", "migrations"] as const;
 /** Admin → Break-glass (ADR-0024). */
@@ -57,9 +69,10 @@ export const breakGlassTabs = ["sessions", "settings"] as const;
 
 /**
  * /admin/legal-holds?tab= (until v0.2.1): its Active · Released · All tabs are
- * the Legal holds tab's Status filter (?status=); Active was the default.
+ * the Legal holds tab's Status filter (?status=). The old page's default
+ * (Active) isn't kept: the tab shows every hold, however it's reached.
  */
 export function movedLegalHoldSearch(q: URLSearchParams) {
   const old = q.get("tab");
-  if (old !== "all") q.set("status", old === "released" ? "released" : "active");
+  if (old === "active" || old === "released") q.set("status", old);
 }

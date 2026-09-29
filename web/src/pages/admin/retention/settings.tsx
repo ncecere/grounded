@@ -158,7 +158,8 @@ function LevelsTable({ levels }: { levels: Schemas["RetentionLevel"][] }) {
         ))}
       </Table>
       <p className={s.settingDescription}>
-        <TextLink render={<Link to="/admin/classifications" />}>Change them on Classifications</TextLink>.
+        {/* Neutral: auditors read this too. */}
+        They&apos;re set on <TextLink render={<Link to="/admin/classifications" />}>Classifications</TextLink>.
       </p>
     </>
   );

@@ -88,7 +88,7 @@ export const scopeTypeLabels: Record<Schemas["LegalHoldScopeType"], string> = {
 
 export const scopeHelp: Record<Schemas["LegalHoldScopeType"], { label: string; placeholder: string }> = {
   user: { label: "Email or user ID", placeholder: "sam@example.edu" },
-  team: { label: "Team slug or ID", placeholder: "registrar" },
+  team: { label: "Team", placeholder: "Search teams" },
   agent: { label: "Team slug/agent slug, or agent ID", placeholder: "registrar/advisor" },
   conversation: { label: "Conversation ID", placeholder: "3f2b…" },
 };
