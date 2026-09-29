@@ -143,9 +143,10 @@ describe("chat page", () => {
     // ConversationAnnouncer (a polite status) says how the answer ended.
     await waitFor(() => expect(screen.getAllByRole("status").some((el) => el.textContent?.trim() === "Answer ready")).toBe(true));
 
-    // The marker is a keyboard-reachable button that moves focus to the source card.
+    // The marker is a keyboard-reachable button whose card leads to the source card and focuses it.
     const marker = await screen.findByRole("button", { name: "Source 1: Drop/Add" });
     await userEvent.click(marker);
+    await userEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Show source 1 below" }));
     const cardEl = screen.getByRole("listitem", { name: "Source 1: Drop/Add" });
     await waitFor(() => expect(cardEl).toHaveFocus());
     expect(within(cardEl).getByRole("link", { name: /Drop\/Add/ })).toHaveAttribute("href", citation.url);
