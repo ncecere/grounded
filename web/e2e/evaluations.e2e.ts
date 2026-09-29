@@ -76,6 +76,7 @@ test("evaluation set: create, import a CSV, run, see a failure, fix, run again, 
     await expect(dialog.getByRole("textbox", { name: /Must mention/ })).toHaveCount(0);
     await a11y(page, "question warnings");
     await dialog.getByRole("button", { name: "Cancel" }).click();
+    await page.getByRole("alertdialog", { name: "Leave without saving?" }).getByRole("button", { name: "Discard changes" }).click();
     await expect(dialog).toBeHidden();
   });
 
@@ -96,7 +97,7 @@ test("evaluation set: create, import a CSV, run, see a failure, fix, run again, 
     const result = page.getByRole("region", { name: "Result" });
     await expect(result.getByText("No expected document in the top 1: the first came back at #2.")).toBeVisible();
     await expect(result.getByText("Found at #2, beyond the top 1")).toBeVisible();
-    await expect(result.getByRole("heading", { name: "What came back" })).toBeVisible();
+    await expect(result.getByRole("heading", { name: "What came back", exact: true })).toBeVisible();
     await expect(result.getByText("housing-guide.md").or(result.getByText(/Residence halls open/)).first()).toBeVisible();
     await expect(result.getByRole("link", { name: /Try this search/ })).toBeVisible();
     await a11y(page, "result page");
