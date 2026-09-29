@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-29
+
+Navigation and clarity: the admin sidebar regrouped, a Features card, quality and spend on the team Overview, a team Evaluations page, spend apart from limits, a six-tab agent editor, and per-claim verification. The plan is [`docs/v0.2.1.md`](docs/v0.2.1.md) and the release notes are [`docs/releases/v0.2.1.md`](docs/releases/v0.2.1.md). v0.2.1-rc.1 ran on the reference install first.
+
 ### Changed
 - Per-claim verification (I9, [`docs/systemone.md`](docs/systemone.md#citation-checks-as-built-3)): with SystemOne citation checks on, each factual sentence of an answer is a **claim** with one verdict: supported (by which sources), not supported, or uncited (unchecked when a check failed). A sentence citing several sources is supported if any of them supports it; the outcome of each source is kept too. Cited sentences that aren't factual (headings, questions, greetings, "the sources don't mention…") are no longer checked. In chat each citation chip shows its claim's verdict, its card shows the claim above the passage, and the answer has a one-line summary above its sources ("9 of 10 claims supported · 1 uncited"); answers checked by v0.2.0 show their per-marker verdicts as before. An evaluation's **supported claims** share is now supported claims over all claims (uncited counting as not supported), the units chat shows, and the result page renders the answer with the same chips and summary. API (additive): `claims[]` on chat answers, `message_end` and `citations_checked`, conversation messages, evaluation results and the OpenAI-compatible response (next to `citations`, also in the final stream chunk); evaluation scores gain `supportedClaims` and `claimsScored`. Claims are kept without their text (code point offsets) in the answer's citation check record, with per-verdict counts. No migration.
 - Chat answers' sources start collapsed; a citation chip still opens them (also in the Build tab's Try it panel, the public page and widget, transcripts and evaluation results).
@@ -252,6 +256,7 @@ Development before this release happened in a private repository. The public rep
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
 
-[Unreleased]: https://github.com/ncecere/grounded/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/ncecere/grounded/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/ncecere/grounded/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/ncecere/grounded/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ncecere/grounded/releases/tag/v0.1.0

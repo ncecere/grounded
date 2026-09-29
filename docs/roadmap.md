@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-09-29. **v0.2.0 is released** (2026-09-29) and runs on the reference install. The owner has scheduled **v0.2.1** (navigation and clarity, [§ I](#i-v021-navigation-and-clarity)); nothing else below is scheduled until the owner picks it.
+Status: refreshed 2026-09-29. **v0.2.1 is released** (2026-09-29) and runs on the reference install. Nothing below is scheduled until the owner picks it.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -189,7 +189,7 @@ All of G1–G18 are **Done** in v0.2.0.
 | G17 **Done** | Agent Appearance says the default accent is `#0021a5`, but the preview uses the theme's indigo: a leftover from the removed institution theme. | S |
 | G18 **Done** | The widget key form opens with `?record=new`; every other form page uses `?form=`. | S |
 | G19 **New** | bitop-ui follow-ups asked for in the v0.2 fixes: a collapsed breadcrumb item with a menu of the hidden crumbs; Combobox blocking a dialog's submit on Enter when its list is closed (Grounded has a wrapper); an accessible tooltip on plain text; a fixed axis range for LineChart (the evaluation score chart should be 0–100%); DataTable hiding the Columns button on small tables; column hiding on the team spend tables. | S |
-| G20 **New** | Evaluation run links read "Retrieval , Sep 28…" (a stray space before the comma). | S |
+| G20 **Done** | Evaluation run links read "Retrieval , Sep 28…" (a stray space before the comma). | S |
 
 ## H. Next release housekeeping
 
@@ -200,21 +200,21 @@ All of G1–G18 are **Done** in v0.2.0.
 
 ---
 
-## I. v0.2.1: navigation and clarity
+## I. v0.2.1: navigation and clarity — **Done** (v0.2.1, [`releases/v0.2.1.md`](releases/v0.2.1.md))
 
 **Scheduled** by the owner (2026-09-28; design agreed 2026-09-29 in [`v0.2.1.md`](v0.2.1.md)): the structural clean-up the review before rc.1 proposed ([`ui-review/v0.2-review.md`](ui-review/v0.2-review.md), "Structural changes"), deferred so it gets its own walkthrough.
 
 | ID | Item | Size |
 |---|---|---|
-| I1 | **Admin navigation regroup:** 8 groups and about 21 items (Profile migrations a tab of Embedding profiles, Legal holds a tab of Retention, Break-glass under Records, Limits next to Costs). | M |
-| I2 | **Admin Overview "Features" card:** what's on and off (Evaluations, Cost tracking, OCR, SSO groups, SystemOne, Public access, Maintenance), with the evaluations switch moved there; the stats strip first. | S |
-| I3 | **Team Overview "Quality & spend":** latest evaluation scores and regressions; spend and the budget bar for owners; a team index of evaluation sets at `/teams/:team/evaluations`. | M |
-| I4 | **Usage & spend:** a one-line budget strip with the breakdown in a disclosure, per-agent spend in agent Analytics; Crawl domains moves to Data sources. | S–M |
-| I5 | **Costs Overview consolidated:** KPIs, the chart with "Show data", one "Top spenders" card (Teams / Agents / Models). | S |
-| I6 | **Agent editor to 6 tabs:** Versions into the header's version menu; Build · Evaluations · Appearance · Share · Analytics · Settings. | S–M |
-| I7 | **Admin team page:** cost tracking and budget as a card on Overview; the Limits tab holds only limits. | S |
-| I8 | **Analytics:** the SystemOne cards in a "Checks" tab. | S |
-| I9 | **Per-claim verification (A13, second step):** the claim text in the citation popover and one unit shared by chat and evaluations. | M |
+| I1 **Done** | **Admin navigation regroup:** 8 groups and about 21 items (Profile migrations a tab of Embedding profiles, Legal holds a tab of Retention, Break-glass under Records, Limits next to Costs). | M |
+| I2 **Done** | **Admin Overview "Features" card:** what's on and off (Evaluations, Cost tracking, OCR, SSO groups, SystemOne, Public access, Maintenance), with the evaluations switch moved there; the stats strip first. | S |
+| I3 **Done** | **Team Overview "Quality & spend":** latest evaluation scores and regressions; spend and the budget bar for owners; a team index of evaluation sets at `/teams/:team/evaluations`. | M |
+| I4 **Done** | **Usage & spend:** a one-line budget strip with the breakdown in a disclosure, per-agent spend in agent Analytics; Crawl domains moves to Data sources. | S–M |
+| I5 **Done** | **Costs Overview consolidated:** KPIs, the chart with "Show data", one "Top spenders" card (Teams / Agents / Models). | S |
+| I6 **Done** | **Agent editor to 6 tabs:** Versions into the header's version menu; Build · Evaluations · Appearance · Share · Analytics · Settings. | S–M |
+| I7 **Done** | **Admin team page:** cost tracking and budget as a card on Overview; the Limits tab holds only limits. | S |
+| I8 **Done** | **Analytics:** the SystemOne cards in a "Checks" tab. | S |
+| I9 **Done** | **Per-claim verification (A13, second step):** the claim text in the citation popover and one unit shared by chat and evaluations. | M |
 
 ---
 
