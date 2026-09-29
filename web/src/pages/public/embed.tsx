@@ -4,12 +4,15 @@
  * key's allowed origins, and marks failures with <meta name="grounded-embed-error">.
  * Esc anywhere in the frame asks the loader to close the panel (the loader
  * returns focus to its launcher). ?preview=1&team= is the agent editor's
- * preview: the draft, as the signed-in member, nothing stored.
+ * preview: the draft, as the signed-in member, nothing stored. The route is
+ * outside the app's session gate, so the preview loads the session itself:
+ * its CSRF token must be set before the first question is posted.
  */
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useSearch } from "@tanstack/react-router";
 import { Bot } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useMe } from "../../session";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { ChatPanel } from "../chat/panel";
@@ -72,15 +75,20 @@ function EmbedChat({ agentId, widgetKey, input }: { agentId: string; widgetKey: 
 
 /** The editor's preview: the draft through the test endpoint (nothing stored). */
 function EmbedPreview({ team, agentId, input }: { team: string; agentId: string; input: React.RefObject<HTMLTextAreaElement | null> }) {
-  const agent = useQuery(agentQuery(team, agentId));
+  // GET /v1/me sets the session's CSRF token (the test endpoint is a POST); wait for it before chatting.
+  const me = useMe();
+  const agent = useQuery({ ...agentQuery(team, agentId), enabled: Boolean(me.data) });
   // The real public message limit, so the preview composer matches the widget (P-14).
-  const sharing = useQuery(sharingQuery(team, agentId));
+  const sharing = useQuery({ ...sharingQuery(team, agentId), enabled: Boolean(me.data) });
   const [text, setText] = useState("");
   const chat = useChat({
     path: `/v1/teams/${encodeURIComponent(team)}/agents/${agentId}/test`,
     body: (message, previous) => ({ message, history: historyOf(previous), stream: true }),
   });
-  if (agent.isLoading) return <Loading label="Loading the preview…" />;
+  if (me.isLoading || agent.isLoading) return <Loading label="Loading the preview…" />;
+  if (!me.data) {
+    return <EmptyState className={p.unavailable} icon={<Bot />} title="Sign in to preview this agent" description="The preview answers as you, with the draft. Sign in, then reload this page." />;
+  }
   if (!agent.data) return <EmbedError code="agent_not_found" />;
   const a = agent.data;
   return (

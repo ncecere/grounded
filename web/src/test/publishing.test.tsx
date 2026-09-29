@@ -2,7 +2,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
-import type { Schemas } from "../api/client";
+import { type Schemas, setCsrfToken } from "../api/client";
 import { embedSnippet, originProblem } from "../pages/agents/share/snippet";
 import { publicRef } from "../pages/public/session";
 import { type Handler, Reply, mockApi, renderApp, shellRoutes, sse } from "./harness";
@@ -277,6 +277,25 @@ describe("widget preview", () => {
     mockApi(editorRoutes());
     renderApp("/embed/ag1?preview=1&team=registrar");
     expect(await screen.findByText("0 / 2,000")).toBeInTheDocument();
+  });
+
+  it("loads the session outside the app's gate, so the test request carries the CSRF token (M1)", async () => {
+    setCsrfToken(""); // a fresh frame: nothing has fetched /v1/me yet
+    const calls = mockApi(editorRoutes({ "POST /v1/teams/registrar/agents/ag1/test": () => sse(answer()) }));
+    const { container } = renderApp("/embed/ag1?preview=1&team=registrar");
+    const box = await screen.findByRole("textbox", { name: "Message Registrar help" });
+    await userEvent.type(box, "How do I order a transcript?{Enter}");
+    expect(await screen.findByText(/Order it online/)).toBeInTheDocument();
+    const post = calls.find((c) => c.method === "POST" && c.url.endsWith("/test"))!;
+    expect(post.headers.get("X-CSRF-Token")).toBe("csrf-123");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("asks a signed-out visitor to sign in instead of failing on send", async () => {
+    mockApi({ ...editorRoutes(), "GET /v1/me": () => null });
+    renderApp("/embed/ag1?preview=1&team=registrar");
+    expect(await screen.findByText("Sign in to preview this agent")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 });
 
