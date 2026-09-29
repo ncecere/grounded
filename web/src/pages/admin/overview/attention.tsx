@@ -102,9 +102,9 @@ function useRows(): { rows: Row[]; loading: boolean } {
       id: `failed-${f.teamSlug ?? "shared"}`,
       icon: <FileWarning />,
       title: `${plural(f.failed, "document", "documents")} failed to index in ${f.teamName ?? "shared sources"}`,
-      description: f.teamSlug ? "The team's owners see the reasons on each source's Documents tab." : "See each shared source's Documents tab.",
-      action: f.teamSlug ? "Open team" : "Shared sources",
-      link: f.teamSlug ? <Link to="/admin/teams/$team" params={{ team: f.teamSlug }} /> : <Link to="/admin/shared-sources" />,
+      description: "See them by source and reason on Parsing & OCR, retry them or notify the team's owners.",
+      action: "Failed documents",
+      link: <Link to="/admin/parsing" hash="document-problems" />,
     });
   }
   for (const n of overview.data?.teamsNearLimits ?? []) {

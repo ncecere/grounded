@@ -28,9 +28,10 @@ func TestCatalog(t *testing.T) {
 	}
 	// docs/phase4-publishing.md §8: these can't be turned off.
 	// Break-glass start and end reach owners always (ADR-0024), and so do
-	// monthly budget notices (docs/costs.md §4).
+	// monthly budget notices (docs/costs.md §4), and a platform admin's
+	// Notify owners about failed documents (docs/v0.2.0.md §7).
 	want := map[Type]bool{TeamInvited: true, ClassificationLowered: true, AgentDisabled: true, BreakGlassStarted: true, BreakGlassEnded: true,
-		BudgetWarning: true, BudgetExhausted: true}
+		BudgetWarning: true, BudgetExhausted: true, DocumentsAttention: true}
 	if len(mandatory) != len(want) {
 		t.Errorf("mandatory = %v, want %v", mandatory, want)
 	}
@@ -234,5 +235,23 @@ func TestSMTPSenderDeliversToSink(t *testing.T) {
 	s.Config.TLS = "starttls"
 	if err := s.Send(context.Background(), Message{From: "rag@example.edu", To: "new@example.edu", Rendered: r}); err == nil || !strings.Contains(err.Error(), "STARTTLS") {
 		t.Fatalf("starttls against a plain relay = %v", err)
+	}
+}
+
+// A platform admin's Notify owners: counts, the source and a link to its
+// documents filtered to Needs OCR or Failed; never a document's name.
+func TestDocumentsAttentionEvent(t *testing.T) {
+	team := TeamRef{ID: uuid.New(), Slug: "registrar", Name: "Registrar"}
+	src := uuid.New()
+	oldest := time.Date(2026, 8, 3, 10, 0, 0, 0, time.UTC)
+	ev := DocumentsAttentionEvent(team, DocumentProblems{SourceID: src, SourceName: "Scans", Reason: "needs_ocr", Documents: 12, Oldest: oldest})
+	if ev.Type != DocumentsAttention || ev.Title != "12 documents in Scans need attention (Registrar)" ||
+		ev.Link != "/teams/registrar/sources/"+src.String()+"?status=needs_ocr&tab=documents" ||
+		!strings.Contains(ev.Body, "12 documents in the data source Scans that have no text to read and need OCR, the oldest since 3 August 2026") {
+		t.Fatalf("event = %+v", ev)
+	}
+	one := DocumentsAttentionEvent(team, DocumentProblems{SourceID: src, SourceName: "Scans", Reason: "damaged", Documents: 1, Oldest: oldest})
+	if one.Title != "1 document in Scans needs attention (Registrar)" || !strings.HasSuffix(one.Link, "?status=failed&tab=documents") {
+		t.Fatalf("one damaged = %+v", one)
 	}
 }

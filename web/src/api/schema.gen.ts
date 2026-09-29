@@ -3318,6 +3318,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/parsing/document-problems": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Documents that failed or need OCR, by team, source and reason, without names or text (platform admins and auditors)
+         * @description Admin, Parsing & OCR (owner decision 3 of docs/v0.2.0.md section 7). Counts per team, source and reason class with the oldest date: no document file names, titles, URLs or text. A document that failed or was skipped as scanned (needs_ocr) is counted; documents that are waiting or were skipped as empty are not.
+         */
+        get: operations["adminListDocumentProblems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/parsing/document-problems/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue one source's documents of one reason again (platform admins)
+         * @description "Retry these" on Admin, Parsing & OCR. Needs OCR and OCR errors are retried only while OCR can read the source (409 ocr_off otherwise, with the reason: off for the platform, off for the source, or the vision model not approved). Refused during maintenance (503). Audited as platform.documents_retry with the count, never document names.
+         */
+        post: operations["adminRetryDocumentProblems"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/parsing/document-problems/notify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tell a source's team owners about its documents of one reason (platform admins)
+         * @description "Notify owners" on Admin, Parsing & OCR: the team's owners get the notification source.documents_attention (in the app and by email; it can't be turned off) with the count, the oldest date and a link to the source's documents filtered to Failed or Needs OCR. No document names. 409 no_team for a shared source, 409 no_documents when there is nothing to report. Audited as platform.document_owners_notify.
+         */
+        post: operations["adminNotifyDocumentProblems"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/systemone/status": {
         parameters: {
             query?: never;
@@ -4539,7 +4599,7 @@ export interface components {
             pendingDomainRequests: number;
         };
         /** @enum {string} */
-        NotificationType: "team.invited" | "team.invite_expiring" | "team.membership" | "web.domain_request" | "web.domain_request_new" | "web.sync_failed" | "source.classification_lowered" | "agent.disabled_by_platform" | "agent.published" | "team.daily_limit" | "team.budget_warning" | "team.budget_exhausted" | "breakglass.started" | "breakglass.ended" | "breakglass.requested" | "breakglass.decided" | "platform.profile_migration" | "kb.profile_changed" | "evaluation.regression";
+        NotificationType: "team.invited" | "team.invite_expiring" | "team.membership" | "web.domain_request" | "web.domain_request_new" | "web.sync_failed" | "source.classification_lowered" | "source.documents_attention" | "agent.disabled_by_platform" | "agent.published" | "team.daily_limit" | "team.budget_warning" | "team.budget_exhausted" | "breakglass.started" | "breakglass.ended" | "breakglass.requested" | "breakglass.decided" | "platform.profile_migration" | "kb.profile_changed" | "evaluation.regression";
         Notification: {
             /** Format: uuid */
             id: string;
@@ -6144,6 +6204,53 @@ export interface components {
             configured: boolean;
             /** @description What configures it: OCR_TESSERACT_URL, TIKA_URL or a vision model */
             configuredBy: string;
+        };
+        /**
+         * @description needs_ocr: skipped as scanned with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
+         * @enum {string}
+         */
+        DocumentProblemReason: "needs_ocr" | "ocr_error" | "damaged" | "other";
+        DocumentProblemGroup: {
+            /**
+             * Format: uuid
+             * @description null: a platform-shared source
+             */
+            teamId: string | null;
+            teamSlug: string;
+            teamName: string;
+            /** Format: uuid */
+            sourceId: string;
+            sourceName: string;
+            reason: components["schemas"]["DocumentProblemReason"];
+            /** Format: int64 */
+            documents: number;
+            /**
+             * Format: date-time
+             * @description When the oldest of these documents last changed (failed or was skipped)
+             */
+            oldestAt: string;
+            /**
+             * @description Whether OCR can read the source now, as a source's ocrState; retrying needs_ocr and ocr_error needs on
+             * @enum {string}
+             */
+            ocrState: "on" | "source_off" | "platform_off" | "not_approved";
+        };
+        DocumentProblemList: {
+            items: components["schemas"]["DocumentProblemGroup"][];
+        };
+        DocumentProblemAction: {
+            /** Format: uuid */
+            sourceId: string;
+            reason: components["schemas"]["DocumentProblemReason"];
+        };
+        DocumentProblemNotifyResult: {
+            /** @description How many owners were told */
+            owners: number;
+            /**
+             * Format: int64
+             * @description The count they were told about
+             */
+            documents: number;
         };
         NeedsOcrCount: {
             /** Format: uuid */
@@ -15187,6 +15294,90 @@ export interface operations {
             };
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminListDocumentProblems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The groups, largest teams' sources first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocumentProblemList"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminRetryDocumentProblems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentProblemAction"];
+            };
+        };
+        responses: {
+            /** @description How many documents were queued */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocumentRetryResult"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            503: components["responses"]["ErrorReply"];
+        };
+    };
+    adminNotifyDocumentProblems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentProblemAction"];
+            };
+        };
+        responses: {
+            /** @description Who was told */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocumentProblemNotifyResult"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
         };
     };
     getSystemOneStatus: {

@@ -82,6 +82,8 @@ const actionLabels: Record<string, string> = {
   "platform.secrets_reencrypt": "Re-encrypted stored secrets",
   "platform.systemone_settings_update": "Changed SystemOne settings",
   "platform.parsing_settings_update": "Changed parsing settings",
+  "platform.documents_retry": "Retried failed documents (admin)",
+  "platform.document_owners_notify": "Told owners about failed documents",
   "platform.embedding_profile_create": "Added embedding profile",
   "platform.embedding_profile_update": "Changed embedding profile",
   "platform.embedding_profile_delete": "Deleted embedding profile",

@@ -5242,6 +5242,90 @@ paths:
                   data: { $ref: "#/components/schemas/ParsingTestResult" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/parsing/document-problems:
+    get:
+      tags: [admin]
+      operationId: adminListDocumentProblems
+      summary: Documents that failed or need OCR, by team, source and reason, without names or text (platform admins and auditors)
+      description: >-
+        Admin, Parsing & OCR (owner decision 3 of docs/v0.2.0.md section 7). Counts
+        per team, source and reason class with the oldest date: no document
+        file names, titles, URLs or text. A document that failed or was
+        skipped as scanned (needs_ocr) is counted; documents that are waiting
+        or were skipped as empty are not.
+      responses:
+        "200":
+          description: The groups, largest teams' sources first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/DocumentProblemList" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/parsing/document-problems/retry:
+    post:
+      tags: [admin]
+      operationId: adminRetryDocumentProblems
+      summary: Queue one source's documents of one reason again (platform admins)
+      description: >-
+        "Retry these" on Admin, Parsing & OCR. Needs OCR and OCR errors are
+        retried only while OCR can read the source (409 ocr_off otherwise,
+        with the reason: off for the platform, off for the source, or the
+        vision model not approved). Refused during maintenance (503). Audited
+        as platform.documents_retry with the count, never document names.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentProblemAction" }
+      responses:
+        "200":
+          description: How many documents were queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/DocumentRetryResult" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "503": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/parsing/document-problems/notify:
+    post:
+      tags: [admin]
+      operationId: adminNotifyDocumentProblems
+      summary: Tell a source's team owners about its documents of one reason (platform admins)
+      description: >-
+        "Notify owners" on Admin, Parsing & OCR: the team's owners get the
+        notification source.documents_attention (in the app and by email; it
+        can't be turned off) with the count, the oldest date and a link to
+        the source's documents filtered to Failed or Needs OCR. No document
+        names. 409 no_team for a shared source, 409 no_documents when there
+        is nothing to report. Audited as platform.document_owners_notify.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentProblemAction" }
+      responses:
+        "200":
+          description: Who was told
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/DocumentProblemNotifyResult" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
   /v1/systemone/status:
     get:
       tags: [agents]
@@ -7192,6 +7276,7 @@ components:
         - web.domain_request_new
         - web.sync_failed
         - source.classification_lowered
+        - source.documents_attention
         - agent.disabled_by_platform
         - agent.published
         - team.daily_limit
@@ -8590,6 +8675,47 @@ components:
         backend: { $ref: "#/components/schemas/OcrBackend" }
         configured: { type: boolean, description: Whether it can be chosen }
         configuredBy: { type: string, description: "What configures it: OCR_TESSERACT_URL, TIKA_URL or a vision model" }
+    DocumentProblemReason:
+      type: string
+      enum: [needs_ocr, ocr_error, damaged, other]
+      description: >-
+        needs_ocr: skipped as scanned with OCR off; ocr_error: OCR failed (for example the OCR service stayed
+        unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
+    DocumentProblemGroup:
+      type: object
+      required: [teamId, teamSlug, teamName, sourceId, sourceName, reason, documents, oldestAt, ocrState]
+      properties:
+        teamId: { type: string, format: uuid, nullable: true, description: "null: a platform-shared source" }
+        teamSlug: { type: string }
+        teamName: { type: string }
+        sourceId: { type: string, format: uuid }
+        sourceName: { type: string }
+        reason: { $ref: "#/components/schemas/DocumentProblemReason" }
+        documents: { type: integer, format: int64 }
+        oldestAt: { type: string, format: date-time, description: "When the oldest of these documents last changed (failed or was skipped)" }
+        ocrState:
+          type: string
+          enum: ["on", source_off, platform_off, not_approved]
+          description: Whether OCR can read the source now, as a source's ocrState; retrying needs_ocr and ocr_error needs on
+    DocumentProblemList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/DocumentProblemGroup" }
+    DocumentProblemAction:
+      type: object
+      required: [sourceId, reason]
+      properties:
+        sourceId: { type: string, format: uuid }
+        reason: { $ref: "#/components/schemas/DocumentProblemReason" }
+    DocumentProblemNotifyResult:
+      type: object
+      required: [owners, documents]
+      properties:
+        owners: { type: integer, description: "How many owners were told" }
+        documents: { type: integer, format: int64, description: "The count they were told about" }
     NeedsOcrCount:
       type: object
       required: [teamId, teamSlug, teamName, documents]

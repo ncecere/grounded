@@ -50,7 +50,7 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
       { to: "/admin/shared-sources", label: "Shared sources", icon: icon(Share2) },
       { to: "/admin/agents", label: "Agents", icon: icon(Bot) },
       { to: "/admin/crawl-domains", label: terms.crawlDomains, icon: icon(Globe) },
-      { to: "/admin/parsing", label: "Parsing", icon: icon(ScanText) },
+      { to: "/admin/parsing", label: "Parsing & OCR", icon: icon(ScanText) },
       { to: "/admin/break-glass", label: "Break-glass", icon: icon(LockOpen) },
     ],
   },

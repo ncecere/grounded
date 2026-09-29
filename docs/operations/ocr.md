@@ -17,7 +17,7 @@ Grounded reads PDF, Word, PowerPoint, HTML, Markdown and text itself. **OCR** re
 | **Apache Tika** | the existing `tika` component with the `-full` image | installs that already run Tika | CPU; the `-full` image is large |
 | **Vision model** | a model of kind **Vision (OCR)** in Admin → Models, on a gateway that serves a vision model | forms, tables and handwriting-like layouts; returns Markdown | tokens per page (recorded in the usage ledger) |
 
-Only configured backends can be chosen in Admin → Parsing: Tesseract needs `OCR_TESSERACT_URL`, Tika needs `TIKA_URL`, and the vision backend needs a vision model.
+Only configured backends can be chosen in Admin → Parsing & OCR: Tesseract needs `OCR_TESSERACT_URL`, Tika needs `TIKA_URL`, and the vision backend needs a vision model.
 
 A vision model is subject to its **maximum classification** like any model: sources classified above it get no OCR (their scanned pages stay "Needs OCR", and images can't be uploaded to them). Choose a model approved for the data you scan, or use Tesseract, which runs inside your cluster.
 
@@ -56,7 +56,7 @@ Verify: `kubectl exec deploy/grounded-ocr -- grounded-ocr version` prints the si
 
 ## Languages
 
-Admin → Parsing's **Languages** are Tesseract codes joined with `+`, e.g. `eng` or `eng+spa`. More languages are slower and can be less exact; list only the ones your documents use. They apply to Tesseract and Tika; a vision model reads any language.
+Admin → Parsing & OCR's **Languages** are Tesseract codes joined with `+`, e.g. `eng` or `eng+spa`. More languages are slower and can be less exact; list only the ones your documents use. They apply to Tesseract and Tika; a vision model reads any language.
 
 The `grounded-ocr` image ships: `eng`, `spa`, `fra`, `deu`, `ita`, `por`, `nld`, `pol`, `rus`, `ukr`, `ara`, `hin`, `chi_sim`, `chi_tra`, `jpn`, `kor`, `vie` (and `osd`). For another language, derive an image:
 
@@ -84,13 +84,19 @@ Give it more memory (the `-full` image is larger). Grounded sends each page imag
 
 ## Turning OCR on, and the Test button
 
-1. Admin → **Parsing**: turn on **Read scanned pages and images with OCR**, choose the backend, the languages (or the vision model), and save. Changes are audited (`platform.parsing_settings_update`).
+1. Admin → **Parsing & OCR**: turn on **Read scanned pages and images with OCR**, choose the backend, the languages (or the vision model), and save. Changes are audited (`platform.parsing_settings_update`).
 2. **Test** reads a built-in sample page ("Grounded OCR test page …") with the backend on the form, saved or not, and shows the text, the time and the confidence (a vision model: its tokens). A failure shows the backend's error.
 3. Each source has its own **OCR** switch (Settings tab), on by default: turn it off where scanned pages are noise. With it off, scanned pages are skipped and images can't be uploaded to the source.
 
 ## Retrying scanned documents
 
-Documents uploaded before OCR was on were skipped as "Needs OCR" (error code `needs_ocr`). Admin → Parsing shows how many each team has. A team retries them from the source's **Documents** tab: filter **Needs OCR**, then **Retry all that need OCR** (API: `POST /v1/teams/{team}/sources/{id}/documents/retry` with `{"errorCode": "needs_ocr"}`; shared sources under `/v1/admin/shared-sources/{id}/documents/retry`). The retry is audited (`document.retry_bulk`). The button is disabled, with the reason next to it, while OCR is off for the source or the platform (a source's `ocrState` in `GET …/sources/{id}` says which), since a retry would only skip them again.
+Documents uploaded before OCR was on were skipped as "Needs OCR" (error code `needs_ocr`). A team retries them from the source's **Documents** tab: filter **Needs OCR**, then **Retry all that need OCR** (API: `POST /v1/teams/{team}/sources/{id}/documents/retry` with `{"errorCode": "needs_ocr"}`; shared sources under `/v1/admin/shared-sources/{id}/documents/retry`). The retry is audited (`document.retry_bulk`). The button is disabled, with the reason next to it, while OCR is off for the source or the platform (a source's `ocrState` in `GET …/sources/{id}` says which), since a retry would only skip them again.
+
+**As a platform admin**, Admin → **Parsing & OCR** → **Documents that failed or need OCR** lists them, with every failed document, by team and source: the count, the reason (needs OCR, OCR error, damaged or unsupported file, other failure) and the oldest date, but no file names or text. Each group's menu has:
+- **Retry these:** queues them again (`POST /v1/admin/parsing/document-problems/retry` with `{"sourceId", "reason"}`, audited `platform.documents_retry` with the count). Needs OCR and OCR errors are refused with the reason while OCR is off for the platform or the source, or the vision model isn't approved for the source's classification. Damaged files usually fail again: the team has to fix and upload them.
+- **Notify owners:** the team's owners get **Documents need attention** in the app and by email (`source.documents_attention`, can't be turned off) with the count and a link to the source's Documents filtered to Failed or Needs OCR (`POST …/notify`, audited `platform.document_owners_notify`). Shared sources have no owners to notify.
+
+Auditors see the list but not the actions.
 
 A PDF with only some pages lacking a text layer is indexed (ready) with a warning such as "1 of 2 pages had no text layer (possibly scanned) and was skipped, because OCR is off for this document". It isn't "Needs OCR" and isn't retried with them: once OCR is on, delete the document and upload it again to read those pages (uploading the same file over it changes nothing, as its content is unchanged).
 

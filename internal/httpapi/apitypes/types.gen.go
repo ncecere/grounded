@@ -1068,15 +1068,63 @@ func (e DataSourceUpdateStatus) Valid() bool {
 	}
 }
 
+// Defines values for DocumentProblemGroupOcrState.
+const (
+	DocumentProblemGroupOcrStateNotApproved DocumentProblemGroupOcrState = "not_approved"
+	DocumentProblemGroupOcrStateOn          DocumentProblemGroupOcrState = "on"
+	DocumentProblemGroupOcrStatePlatformOff DocumentProblemGroupOcrState = "platform_off"
+	DocumentProblemGroupOcrStateSourceOff   DocumentProblemGroupOcrState = "source_off"
+)
+
+// Valid indicates whether the value is a known member of the DocumentProblemGroupOcrState enum.
+func (e DocumentProblemGroupOcrState) Valid() bool {
+	switch e {
+	case DocumentProblemGroupOcrStateNotApproved:
+		return true
+	case DocumentProblemGroupOcrStateOn:
+		return true
+	case DocumentProblemGroupOcrStatePlatformOff:
+		return true
+	case DocumentProblemGroupOcrStateSourceOff:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DocumentProblemReason.
+const (
+	DocumentProblemReasonDamaged  DocumentProblemReason = "damaged"
+	DocumentProblemReasonNeedsOcr DocumentProblemReason = "needs_ocr"
+	DocumentProblemReasonOcrError DocumentProblemReason = "ocr_error"
+	DocumentProblemReasonOther    DocumentProblemReason = "other"
+)
+
+// Valid indicates whether the value is a known member of the DocumentProblemReason enum.
+func (e DocumentProblemReason) Valid() bool {
+	switch e {
+	case DocumentProblemReasonDamaged:
+		return true
+	case DocumentProblemReasonNeedsOcr:
+		return true
+	case DocumentProblemReasonOcrError:
+		return true
+	case DocumentProblemReasonOther:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DocumentRetryInputErrorCode.
 const (
-	NeedsOcr DocumentRetryInputErrorCode = "needs_ocr"
+	DocumentRetryInputErrorCodeNeedsOcr DocumentRetryInputErrorCode = "needs_ocr"
 )
 
 // Valid indicates whether the value is a known member of the DocumentRetryInputErrorCode enum.
 func (e DocumentRetryInputErrorCode) Valid() bool {
 	switch e {
-	case NeedsOcr:
+	case DocumentRetryInputErrorCodeNeedsOcr:
 		return true
 	default:
 		return false
@@ -1466,31 +1514,31 @@ func (e FeedbackRating) Valid() bool {
 
 // Defines values for FeedbackReason.
 const (
-	HarmfulOrUnsafe FeedbackReason = "harmful_or_unsafe"
-	Incorrect       FeedbackReason = "incorrect"
-	MissingSources  FeedbackReason = "missing_sources"
-	NotHelpful      FeedbackReason = "not_helpful"
-	Other           FeedbackReason = "other"
-	Outdated        FeedbackReason = "outdated"
-	WrongSources    FeedbackReason = "wrong_sources"
+	FeedbackReasonHarmfulOrUnsafe FeedbackReason = "harmful_or_unsafe"
+	FeedbackReasonIncorrect       FeedbackReason = "incorrect"
+	FeedbackReasonMissingSources  FeedbackReason = "missing_sources"
+	FeedbackReasonNotHelpful      FeedbackReason = "not_helpful"
+	FeedbackReasonOther           FeedbackReason = "other"
+	FeedbackReasonOutdated        FeedbackReason = "outdated"
+	FeedbackReasonWrongSources    FeedbackReason = "wrong_sources"
 )
 
 // Valid indicates whether the value is a known member of the FeedbackReason enum.
 func (e FeedbackReason) Valid() bool {
 	switch e {
-	case HarmfulOrUnsafe:
+	case FeedbackReasonHarmfulOrUnsafe:
 		return true
-	case Incorrect:
+	case FeedbackReasonIncorrect:
 		return true
-	case MissingSources:
+	case FeedbackReasonMissingSources:
 		return true
-	case NotHelpful:
+	case FeedbackReasonNotHelpful:
 		return true
-	case Other:
+	case FeedbackReasonOther:
 		return true
-	case Outdated:
+	case FeedbackReasonOutdated:
 		return true
-	case WrongSources:
+	case FeedbackReasonWrongSources:
 		return true
 	default:
 		return false
@@ -2190,6 +2238,7 @@ const (
 	NotificationTypeKbProfileChanged            NotificationType = "kb.profile_changed"
 	NotificationTypePlatformProfileMigration    NotificationType = "platform.profile_migration"
 	NotificationTypeSourceClassificationLowered NotificationType = "source.classification_lowered"
+	NotificationTypeSourceDocumentsAttention    NotificationType = "source.documents_attention"
 	NotificationTypeTeamBudgetExhausted         NotificationType = "team.budget_exhausted"
 	NotificationTypeTeamBudgetWarning           NotificationType = "team.budget_warning"
 	NotificationTypeTeamDailyLimit              NotificationType = "team.daily_limit"
@@ -2223,6 +2272,8 @@ func (e NotificationType) Valid() bool {
 	case NotificationTypePlatformProfileMigration:
 		return true
 	case NotificationTypeSourceClassificationLowered:
+		return true
+	case NotificationTypeSourceDocumentsAttention:
 		return true
 	case NotificationTypeTeamBudgetExhausted:
 		return true
@@ -5320,6 +5371,54 @@ type DocumentPassagePage struct {
 	// Total All passages of the document
 	Total int32 `json:"total"`
 }
+
+// DocumentProblemAction defines model for DocumentProblemAction.
+type DocumentProblemAction struct {
+	// Reason needs_ocr: skipped as scanned with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
+	Reason   DocumentProblemReason `json:"reason"`
+	SourceId openapi_types.UUID    `json:"sourceId"`
+}
+
+// DocumentProblemGroup defines model for DocumentProblemGroup.
+type DocumentProblemGroup struct {
+	Documents int64 `json:"documents"`
+
+	// OcrState Whether OCR can read the source now, as a source's ocrState; retrying needs_ocr and ocr_error needs on
+	OcrState DocumentProblemGroupOcrState `json:"ocrState"`
+
+	// OldestAt When the oldest of these documents last changed (failed or was skipped)
+	OldestAt time.Time `json:"oldestAt"`
+
+	// Reason needs_ocr: skipped as scanned with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
+	Reason     DocumentProblemReason `json:"reason"`
+	SourceId   openapi_types.UUID    `json:"sourceId"`
+	SourceName string                `json:"sourceName"`
+
+	// TeamId null: a platform-shared source
+	TeamId   *openapi_types.UUID `json:"teamId"`
+	TeamName string              `json:"teamName"`
+	TeamSlug string              `json:"teamSlug"`
+}
+
+// DocumentProblemGroupOcrState Whether OCR can read the source now, as a source's ocrState; retrying needs_ocr and ocr_error needs on
+type DocumentProblemGroupOcrState string
+
+// DocumentProblemList defines model for DocumentProblemList.
+type DocumentProblemList struct {
+	Items []DocumentProblemGroup `json:"items"`
+}
+
+// DocumentProblemNotifyResult defines model for DocumentProblemNotifyResult.
+type DocumentProblemNotifyResult struct {
+	// Documents The count they were told about
+	Documents int64 `json:"documents"`
+
+	// Owners How many owners were told
+	Owners int `json:"owners"`
+}
+
+// DocumentProblemReason needs_ocr: skipped as scanned with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
+type DocumentProblemReason string
 
 // DocumentRetryInput defines model for DocumentRetryInput.
 type DocumentRetryInput struct {
@@ -9660,6 +9759,12 @@ type AdminTestModerationJSONRequestBody = ModerationTestRequest
 
 // AdminPutParsingJSONRequestBody defines body for AdminPutParsing for application/json ContentType.
 type AdminPutParsingJSONRequestBody = ParsingSettingsInput
+
+// AdminNotifyDocumentProblemsJSONRequestBody defines body for AdminNotifyDocumentProblems for application/json ContentType.
+type AdminNotifyDocumentProblemsJSONRequestBody = DocumentProblemAction
+
+// AdminRetryDocumentProblemsJSONRequestBody defines body for AdminRetryDocumentProblems for application/json ContentType.
+type AdminRetryDocumentProblemsJSONRequestBody = DocumentProblemAction
 
 // AdminTestParsingJSONRequestBody defines body for AdminTestParsing for application/json ContentType.
 type AdminTestParsingJSONRequestBody = ParsingTestInput

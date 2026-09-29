@@ -141,6 +141,7 @@ Out:
   | Domain request decided | requester | on | yes |
   | Web source sync failed | source's team editors+ | on | yes |
   | Source classification lowered | team owners | on | **no** |
+  | Documents need attention (v0.2: a platform admin's **Notify owners** on Admin → Parsing & OCR, `source.documents_attention`) | team owners | on | **no** |
   | Agent disabled by platform | team admins/owners | on | **no** |
   | Agent published to authenticated/public | team owners | on | yes |
   | Daily limit reached (team) | team admins/owners | on | yes |
