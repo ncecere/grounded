@@ -1,5 +1,5 @@
 /*
- * Admin → Group mapping (E1): rules that give people in an identity-provider
+ * Admin → SSO groups (E1; route /admin/group-mapping): rules that give people in an identity-provider
  * group a role in a team, applied at every sign-in. Above the list, what the
  * sign-ins carry: the claim read and how many people had it, with a warning
  * when rules exist but no sign-in carries the claim.

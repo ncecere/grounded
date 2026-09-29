@@ -128,7 +128,7 @@ describe("admin logs", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("offers Evaluations and Group mapping in the Area filter", async () => {
+  it("offers Evaluations and SSO groups in the Area filter", async () => {
     const calls = mockApi({
       ...shellRoutes("platform_auditor"),
       "GET /v1/admin/users": () => users,
@@ -138,7 +138,7 @@ describe("admin logs", () => {
     await screen.findByRole("table", { name: "Audit log" });
     await waitFor(() => expect(calls.find((c) => c.url === "/v1/admin/audit")?.search.get("action")).toBe("group_mapping."));
     const { actionGroups } = await import("../components/audit/labels");
-    expect(actionGroups.map((g) => g.label)).toEqual(expect.arrayContaining(["Evaluations", "Group mapping"]));
+    expect(actionGroups.map((g) => g.label)).toEqual(expect.arrayContaining(["Evaluations", "SSO groups"]));
   });
 
   it("finds actions by label in the Area filter, filters by System (group mapping), and sums up simple changes", async () => {

@@ -34,8 +34,8 @@ export const terms = {
   dangerZone: "Danger zone",
   readOnly: "Read-only",
   systemOneModel: "SystemOne model",
-  /** Admin → Group mapping: IdP group → team role rules (SSO). */
-  groupMapping: "Group mapping",
+  /** Admin → SSO groups (route /admin/group-mapping): IdP group → team role rules. */
+  groupMapping: "SSO groups",
 } as const;
 
 /** On a member whose membership an SSO group mapping rule manages. */

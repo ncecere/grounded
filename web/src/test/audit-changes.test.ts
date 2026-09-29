@@ -60,7 +60,7 @@ describe("audit filters", () => {
     const options = areaOptions(true);
     expect(options.find((o) => o.value === "costs.")).toMatchObject({ label: "Costs (all)", group: "Areas" });
     expect(options.find((o) => o.label.toLowerCase().includes("budget") && o.value === "costs.budget_update")).toMatchObject({ label: "Changed a team budget", group: "Costs" });
-    expect(options.find((o) => o.value === "platform.sso_rule_create")?.group).toBe("Group mapping");
+    expect(options.find((o) => o.value === "platform.sso_rule_create")?.group).toBe("SSO groups");
     // A team's log offers no platform-only areas or their actions.
     expect(areaOptions(false).some((o) => o.value === "auth." || o.value === "auth.login")).toBe(false);
   });

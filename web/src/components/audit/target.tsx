@@ -97,7 +97,7 @@ function platformLink(e: AuditEntry): ReactElement | null {
     case "cost_settings":
       return <Link to="/admin/costs" search={{ tab: "settings" }} />;
     case "sso_group_rule": {
-      // Rules have no page of their own: the team's Group mapping tab lists its rules.
+      // Rules have no page of their own: the team's SSO groups tab lists its rules.
       const team = e.teamSlug ?? e.teamId;
       return team ? <Link to="/admin/teams/$team" params={{ team }} search={{ tab: "group-mapping" }} /> : <Link to="/admin/group-mapping" />;
     }

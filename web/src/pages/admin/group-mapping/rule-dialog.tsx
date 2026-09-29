@@ -99,7 +99,7 @@ export function RuleDialog({ rule, team: fixedTeam, onClose }: Props) {
 
   return (
     <FormDialog
-      title={rule ? "Change group mapping rule" : "Add group mapping rule"}
+      title={rule ? "Change SSO group rule" : "Add SSO group rule"}
       description="People in the identity-provider group get this role in the team when they sign in. Members added by hand are never changed."
       size="lg"
       onClose={onClose}

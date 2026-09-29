@@ -1,4 +1,4 @@
-/* SSO group mapping (E1): the admin page, a team's Group mapping tab with the dry run, and managed members in Team settings. */
+/* SSO group mapping (E1): the admin page, a team's SSO groups tab with the dry run, and managed members in Team settings. */
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
@@ -58,11 +58,11 @@ function routes(role: "platform_admin" | "platform_auditor" = "platform_admin", 
   };
 }
 
-describe("Admin → Group mapping", () => {
+describe("Admin → SSO groups", () => {
   it("lists the rules with what sign-ins carry (auditors read only)", async () => {
     mockApi(routes("platform_auditor"));
     const { container } = renderApp("/admin/group-mapping");
-    const table = await screen.findByRole("table", { name: "Group mapping rules" });
+    const table = await screen.findByRole("table", { name: "SSO group rules" });
     const row = (await within(table).findByText("registrar-staff")).closest("tr")!;
     expect(row).toHaveTextContent("Office of the Registrar");
     expect(row).toHaveTextContent("Editor");
@@ -81,7 +81,7 @@ describe("Admin → Group mapping", () => {
   it("deletes a rule after showing its dry run", async () => {
     const calls = mockApi(routes("platform_admin", { "DELETE /v1/admin/group-mapping/rules/r1": () => ({ ok: true }) }));
     renderApp("/admin/group-mapping");
-    await screen.findByRole("table", { name: "Group mapping rules" });
+    await screen.findByRole("table", { name: "SSO group rules" });
     await userEvent.click(await screen.findByRole("button", { name: /Actions for registrar-staff/ }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Delete rule…" }));
     const dialog = await screen.findByRole("alertdialog", { name: /Delete the rule for registrar-staff/ });
@@ -93,14 +93,14 @@ describe("Admin → Group mapping", () => {
   });
 });
 
-describe("a team's Group mapping tab", () => {
+describe("a team's SSO groups tab", () => {
   it("adds a rule for the team after a dry run", async () => {
     const calls = mockApi(routes("platform_admin", { "POST /v1/admin/group-mapping/rules": (body) => ({ ...rule, ...(body as object), team: rule.team }) }));
     const { container } = renderApp("/admin/teams/registrar?tab=group-mapping");
-    await screen.findByRole("table", { name: "Group mapping rules for Office of the Registrar" });
+    await screen.findByRole("table", { name: "SSO group rules for Office of the Registrar" });
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(screen.getAllByRole("button", { name: /Add rule/ })[0]!);
-    const dialog = await screen.findByRole("dialog", { name: "Add group mapping rule" });
+    const dialog = await screen.findByRole("dialog", { name: "Add SSO group rule" });
     await userEvent.type(within(dialog).getByRole("combobox", { name: /IdP group/ }), "Registrar-Helpers");
     await userEvent.tab(); // leave the group field (its suggestions close)
     await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Role" }), "editor");
@@ -118,9 +118,9 @@ describe("a team's Group mapping tab", () => {
   it("says once, under the group, that the team already has a rule for it (no failed dry run)", async () => {
     const calls = mockApi(routes());
     renderApp("/admin/teams/registrar?tab=group-mapping");
-    await screen.findByRole("table", { name: "Group mapping rules for Office of the Registrar" });
+    await screen.findByRole("table", { name: "SSO group rules for Office of the Registrar" });
     await userEvent.click(screen.getAllByRole("button", { name: /Add rule/ })[0]!);
-    const dialog = await screen.findByRole("dialog", { name: "Add group mapping rule" });
+    const dialog = await screen.findByRole("dialog", { name: "Add SSO group rule" });
     await userEvent.type(within(dialog).getByRole("combobox", { name: /IdP group/ }), "Registrar-Staff");
     await userEvent.tab(); // leave the group field (its suggestions close)
     expect(await within(dialog).findAllByText("This team already has a rule for that group. Change that rule instead.")).toHaveLength(1);
@@ -133,9 +133,9 @@ describe("a team's Group mapping tab", () => {
   it("asks for a group before saving", async () => {
     const calls = mockApi(routes());
     renderApp("/admin/teams/registrar?tab=group-mapping");
-    await screen.findByRole("table", { name: "Group mapping rules for Office of the Registrar" });
+    await screen.findByRole("table", { name: "SSO group rules for Office of the Registrar" });
     await userEvent.click(screen.getAllByRole("button", { name: /Add rule/ })[0]!);
-    const dialog = await screen.findByRole("dialog", { name: "Add group mapping rule" });
+    const dialog = await screen.findByRole("dialog", { name: "Add SSO group rule" });
     await userEvent.click(within(dialog).getByRole("button", { name: "Add rule" }));
     expect(await within(dialog).findByText(/Enter the group's name/)).toBeInTheDocument();
     expect(calls.some((c) => c.method === "POST" && c.url === "/v1/admin/group-mapping/rules")).toBe(false);

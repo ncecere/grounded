@@ -1,4 +1,4 @@
-/* Queries and labels for SSO group mapping (Admin → Group mapping, and a team's Group mapping tab). */
+/* Queries and labels for SSO group mapping (Admin → SSO groups, and a team's SSO groups tab). */
 import { queryOptions } from "@tanstack/react-query";
 import { api, unwrap, type Schemas } from "@/api/client";
 

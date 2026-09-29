@@ -25,7 +25,7 @@ const warningRows: Record<string, Pick<Row, "icon" | "action" | "link">> = {
   public_agents_without_moderation: { icon: <ShieldAlert />, action: "Set up moderation", link: <Link to="/admin/moderation" search={{ tab: "public" }} /> },
   smtp_not_configured: { icon: <Mail /> },
   oidc_no_domain_restriction: { icon: <LogIn /> },
-  sso_groups_claim_missing: { icon: <LogIn />, action: "Group mapping", link: <Link to="/admin/group-mapping" /> },
+  sso_groups_claim_missing: { icon: <LogIn />, action: "SSO groups", link: <Link to="/admin/group-mapping" /> },
 };
 
 function warningRow(w: Schemas["AdminWarning"]): Row {

@@ -59,7 +59,7 @@ export function TeamMembersTab({ team, isAdmin }: { team: string; isAdmin: boole
   return (
     <Card
       title="Members"
-      description="Owners manage their team's members. Platform admins assign owners, and map SSO groups to roles in the Group mapping tab."
+      description="Owners manage their team's members. Platform admins assign owners, and map SSO groups to roles in the SSO groups tab."
       actions={
         isAdmin && (
           <Button size="sm" variant="secondary" onClick={() => setAssigning(true)}>

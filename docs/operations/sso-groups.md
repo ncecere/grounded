@@ -2,7 +2,7 @@
 
 Platform admins can map a group from the identity provider (IdP) to a role in a team: *people in `registrar-staff` are editors of the Registrar team*. Grounded applies the rules each time someone signs in with OIDC, adding and removing members as their groups change. Members added by hand are never touched. The spec is [v0.2.0 §3.2 (E1)](../v0.2.0.md); the owner decision on hand-added members is §6, decision 2.
 
-Group mapping is off until a rule exists. Without rules, sign-in only records each person's groups (for the dry run below).
+SSO group mapping is off until a rule exists. Without rules, sign-in only records each person's groups (for the dry run below).
 
 ## Configuration
 
@@ -22,7 +22,7 @@ Matching ignores upper and lower case, and surrounding spaces. Up to 1,000 group
 
 ## Rules
 
-**Admin → Group mapping** lists every rule: the IdP group, the team, the role (owner, admin, editor or member) and how many memberships the rule grants now. A team's own rules are also on **Admin → Teams → the team → Group mapping**. Platform admins add, change and delete rules. Platform auditors see the rules (with a read-only notice) and can run the dry run through the API (`POST /v1/admin/group-mapping/preview`, below); the app shows the dry run only in the admins' rule form and delete confirmation.
+**Admin → SSO groups** (the page's route and API keep the name `group-mapping`) lists every rule: the IdP group, the team, the role (owner, admin, editor or member) and how many memberships the rule grants now. A team's own rules are also on **Admin → Teams → the team → SSO groups**. Platform admins add, change and delete rules. Platform auditors see the rules (with a read-only notice) and can run the dry run through the API (`POST /v1/admin/group-mapping/preview`, below); the app shows the dry run only in the admins' rule form and delete confirmation.
 
 - One rule per group and team. A rule's team can't change: map the group to another team with a new rule.
 - Rules for an archived team are ignored, and no rule can be added to an archived team.
@@ -68,4 +68,4 @@ If the rule itself was deleted, such a kept membership has no rule. It no longer
 
 ## Trying it locally
 
-With `DEV_AUTH=true`, set for example `DEV_AUTH_GROUPS=alex=registrar-staff` and restart. Add a rule for `registrar-staff` in Admin → Group mapping, then sign in as Alex Dev: Alex joins the team. Remove the persona from `DEV_AUTH_GROUPS`, restart and sign in again: Alex is removed. The integration tests (`internal/httpapi/groupmapping_integration_test.go`) use the test OIDC provider in `internal/testutil/oidcprovider.go`.
+With `DEV_AUTH=true`, set for example `DEV_AUTH_GROUPS=alex=registrar-staff` and restart. Add a rule for `registrar-staff` in Admin → SSO groups, then sign in as Alex Dev: Alex joins the team. Remove the persona from `DEV_AUTH_GROUPS`, restart and sign in again: Alex is removed. The integration tests (`internal/httpapi/groupmapping_integration_test.go`) use the test OIDC provider in `internal/testutil/oidcprovider.go`.
