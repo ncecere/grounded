@@ -88,6 +88,12 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
 
 export const adminNav = adminSections.flatMap((section) => section.items);
 
+/** The label of the admin group holding the page at `pathname` (Overview has none). */
+export function activeAdminGroup(pathname: string): string | undefined {
+  const inside = (to: string, exact?: boolean) => pathname === to || (!exact && pathname.startsWith(to + "/"));
+  return adminSections.find((s) => s.items.some((i) => inside(i.to, i.exact)))?.label;
+}
+
 /** Extra command-palette search words for admin pages. */
 export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
   "/admin": ["overview", "dashboard", "attention", "home"],
