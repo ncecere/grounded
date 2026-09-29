@@ -108,6 +108,9 @@ test("upload source, knowledge base, agent, publish, streamed chat with citation
     const source = answer.getByRole("list", { name: "Sources for this answer" }).getByRole("listitem", { name: /^Source 1: / });
     await expect(source).toBeFocused();
     await expect(source).toContainText(handbook.answer);
+    // The pointer still rests on the chip, whose preview (and Base UI's focus guards) stays open while hovered.
+    await page.mouse.move(0, 0);
+    await expect(page.locator("[data-base-ui-focus-guard]")).toHaveCount(0);
     await a11y(page, "answer with sources");
 
     await answer.getByRole("button", { name: "Good answer" }).click();
