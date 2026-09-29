@@ -99,6 +99,14 @@ export function amountError(value: string, what = "amount", required = true): st
   return undefined;
 }
 
+/**
+ * The one time-zone note of a page with money and limits: "Budget months and report days follow America/New_York; daily
+ * limits reset at midnight UTC." (docs/costs.md §9 decision 4). Without a zone (spend not shown), only the limits' part.
+ */
+export function timeZoneNote(timeZone?: string) {
+  return timeZone ? `Budget months and report days follow ${timeZone}; daily limits reset at midnight UTC.` : "Daily limits reset at midnight UTC.";
+}
+
 /** "October 2026" for a month's first day (a date string). */
 export function monthLabel(day: string) {
   const [y, m] = day.split("-").map(Number);
@@ -130,8 +138,8 @@ export function budgetThisMonth(st: TeamBudgetState, opts: { platformDefault?: b
 export const modeSourceLabel = (override: Schemas["CostModeOverride"]) => (override === "inherit" ? "Platform setting" : "Team setting");
 
 /** Names the per-request column: SystemOne and moderation are priced per request, not per token. */
-export const requestsColumn = "Per-request checks";
-export const requestsHint = "Per-request checks count SystemOne and moderation requests, which are priced per request. Chats are counted in tokens.";
+export const requestsColumn = "Requests";
+export const requestsHint = "SystemOne and moderation calls, priced per request.";
 
 /** Today (YYYY-MM-DD) in a time zone such as the platform's, or the browser's day without one. */
 export function dayIn(timeZone?: string) {

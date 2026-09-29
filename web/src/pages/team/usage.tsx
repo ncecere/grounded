@@ -11,6 +11,9 @@
  * admins set limits.
  */
 import { useQuery } from "@tanstack/react-query";
+import { Stack } from "@/components/ui/layout/layout";
+import { timeZoneNote } from "@/lib/costs";
+import { TeamSpendCard, teamSpendQuery } from "./spend";
 import type { Schemas } from "../../api/client";
 import { formatAmount, formatLimit, limitGroups, teamLimitsQuery } from "../../lib/limits";
 import { useAuthConfig, useInstance } from "../../session";
@@ -38,7 +41,7 @@ const busiest: Partial<Record<TeamLimit["key"], string>> = {
 
 /** When the figure applies: "Today (UTC)", "Running now", "This minute". */
 export function periodNote(it: TeamLimit) {
-  if (it.period === "day") return "Today; resets at midnight UTC";
+  if (it.period === "day") return "Today";
   if (it.period === "minute") return busiest[it.key] ?? "This minute";
   return running(it) ? "Running now" : undefined;
 }
@@ -77,7 +80,22 @@ function useRequestMoreHref() {
   return instance.supportUrl ?? config.data?.teamRequestUrl ?? undefined;
 }
 
-/** "Usage and limits": meters against the team's effective limits. */
+/**
+ * Team settings › Usage & limits: the page's one time-zone note (the budget month's zone, when the spend shows, and
+ * the daily limits' midnight UTC), the spend for owners and admins, and the usage meters.
+ */
+export function UsageTab({ team, showSpend }: { team: string; showSpend: boolean }) {
+  const spend = useQuery({ ...teamSpendQuery(team), enabled: showSpend });
+  return (
+    <Stack gap={6}>
+      <p className={s.note}>{timeZoneNote(spend.data?.timeZone)}</p>
+      {showSpend && <TeamSpendCard team={team} />}
+      <UsageCard team={team} />
+    </Stack>
+  );
+}
+
+/** "Usage & limits": meters against the team's effective limits. */
 export function UsageCard({ team }: { team: string }) {
   const limits = useQuery({ ...teamLimitsQuery(team), refetchInterval: 30_000 });
   const agents = useAgents(team);
@@ -88,7 +106,7 @@ export function UsageCard({ team }: { team: string }) {
   const staticLimits = groups.map((g) => ({ ...g, items: items.filter((it) => it.group === g.key && it.used === null) })).filter((g) => g.items.length > 0);
   return (
     <Card
-      title="Usage and limits"
+      title="Usage & limits"
       description={
         <>
           Your team's usage against its limits. Platform admins set the limits.{" "}

@@ -17,10 +17,9 @@ import { Loading } from "@/components/ui/spinner/spinner";
 import { StatCard } from "@/components/ui/stat-card/stat-card";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { TextLink } from "@/components/ui/text-link/text-link";
-import { categories, type CostSettings, dayRangeLabel, requestsColumn } from "@/lib/costs";
+import { categories, type CostSettings, dayRangeLabel, requestsColumn, requestsHint } from "@/lib/costs";
 import { Money } from "@/components/money";
 import { formatMoney } from "@/lib/format";
-import s from "../../shared.module.css";
 import c from "./costs.module.css";
 
 type Report = Schemas["CostReport"];
@@ -65,7 +64,6 @@ export function CostOverviewTab({ settings }: { settings: CostSettings }) {
     <Stack gap={6}>
       <div className={c.rangeRow}>
         <DateRangeFilter range={dates} label="Costs date range" />
-        <span className={s.note}>Days in {settings.timeZone}.</span>
       </div>
       {days.isLoading ? (
         <Loading label="Loading spend…" />
@@ -76,7 +74,7 @@ export function CostOverviewTab({ settings }: { settings: CostSettings }) {
           <StatGroup id="cost-totals" title="Totals" columns={4}>
             <StatCard label="Spend" value={<Money amount={d.total.spend} currency={cur} />} icon={<CircleDollarSign />} hint={dayRangeLabel(d.from, d.to)} />
             <StatCard label="Tokens" value={num(d.total.tokens)} icon={<Hash />} hint="Chat, embedding, SystemOne and OCR" />
-            <StatCard label={requestsColumn} value={num(d.total.requests)} icon={<Hash />} hint="SystemOne and moderation requests" />
+            <StatCard label={requestsColumn} value={num(d.total.requests)} icon={<Hash />} hint={requestsHint} />
             <StatCard
               label="Unpriced usage"
               value={d.total.unpriced ? "Yes" : "None"}

@@ -101,7 +101,9 @@ describe("Admin → Costs", () => {
     // Cents everywhere: $12.00 next to $0.50, never $12 next to $0.5.
     expect(agents).toHaveTextContent(formatMoney("12", "USD"));
     expect(agents).toHaveTextContent(formatMoney("0.5", "USD"));
-    expect(within(models).getByRole("columnheader", { name: "Per-request checks" })).toBeInTheDocument();
+    expect(within(models).getByRole("columnheader", { name: "Requests" })).toBeInTheDocument();
+    // One time-zone note on the page, in the header.
+    expect(screen.getAllByText(/Budget months and report days follow America\/New_York; daily limits reset at midnight UTC\./)).toHaveLength(1);
     expect(within(models).getByRole("link", { name: "Chat large" })).toHaveAttribute("href", "/admin/models?record=m1&from=costs");
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -124,6 +126,32 @@ describe("Admin → Costs", () => {
     await waitFor(() => expect(within(table).queryByRole("row", { name: /Library/ })).toBeNull());
     expect(within(table).getByRole("row", { name: /Archives/ })).toBeInTheDocument();
     expect(within(table).getByRole("row", { name: /Office of the Registrar/ })).toBeInTheDocument();
+  });
+
+  it("changes a team's budget in place from its row, showing the platform default", async () => {
+    const calls = mockApi({
+      ...costRoutes("enforce"),
+      "GET /v1/admin/teams/registrar/budget": () => ({ ...teamBudget(status("warning")), amount: null, defaultBudget: "50.000000" }),
+      "PUT /v1/admin/teams/registrar/budget": () => teamBudget(status("ok")),
+    });
+    const { container } = renderApp("/admin/costs?tab=budgets");
+    const table = await screen.findByRole("table", { name: /Budgets for September 2026/ });
+    await userEvent.click(within(table).getByRole("button", { name: "Actions for Office of the Registrar" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Change budget…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Budget of Office of the Registrar" });
+    expect(within(dialog).getByText(`Leave empty to use the platform default budget, ${formatMoney("50", "USD")} a month.`)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.type(within(dialog).getByRole("textbox", { name: /Monthly budget/ }), "75");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save budget" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ mode: "enforce", amount: "75", warnPercent: null }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByRole("table", { name: /Budgets for September 2026/ })).toBeInTheDocument();
+  });
+
+  it("links a team's own cost tracking to Admin → Teams", async () => {
+    mockApi(costRoutes("track"));
+    renderApp("/admin/costs?tab=settings");
+    expect(await screen.findByRole("link", { name: "Admin → Teams" })).toHaveAttribute("href", "/admin/teams");
   });
 
   it("saves the settings with If-Match", async () => {
@@ -218,8 +246,15 @@ describe("a team's Budget card", () => {
     expect(screen.getByRole("table", { name: "Extensions this month" })).toHaveTextContent("Exam period");
     expect(await axe(container)).toHaveNoViolations();
 
-    await userEvent.click(screen.getByRole("button", { name: "Change budget" }));
+    await userEvent.click(screen.getByRole("button", { name: "Change budget…" }));
     const dialog = await screen.findByRole("dialog", { name: "Budget of Office of the Registrar" });
+    // The dialog says what it's for, what each choice does, and the platform default budget (none here).
+    expect(dialog).toHaveAccessibleDescription("Set how much Office of the Registrar can spend each month and what happens at the limit.");
+    const choices = within(dialog).getByRole("list", { name: "What each choice does" });
+    expect(choices).toHaveTextContent("Track only: progress against the budget, never blocks.");
+    expect(choices).toHaveTextContent("Enforce: chats, searches and ingestion stop at 100%");
+    expect(within(dialog).getByRole("combobox", { name: "Cost tracking" })).toHaveValue("enforce");
+    expect(within(dialog).getByText("Leave empty for no budget: the platform has no default budget.")).toBeInTheDocument();
     const amount = within(dialog).getByRole("textbox", { name: /Monthly budget/ });
     await userEvent.clear(amount);
     await userEvent.type(amount, "150");
@@ -276,8 +311,8 @@ describe("the team's spend and banner", () => {
     expect(screen.getByRole("table", { name: "By model" })).toHaveTextContent("Unpriced");
     expect(screen.getByText("Near budget")).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "By agent" })).toHaveTextContent(formatMoney("0.5", "USD"));
-    expect(screen.getAllByRole("columnheader", { name: "Per-request checks" })).toHaveLength(2);
-    expect(screen.getByText(/count SystemOne and moderation requests/)).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader", { name: "Requests" })).toHaveLength(2);
+    expect(screen.getByText(/SystemOne and moderation calls, priced per request/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 

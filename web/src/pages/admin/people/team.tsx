@@ -91,7 +91,7 @@ export function AdminTeamPage() {
           },
           {
             value: "limits",
-            label: "Limits",
+            label: "Budget & limits",
             icon: <Gauge aria-hidden />,
             content: (
               <Stack gap={6}>

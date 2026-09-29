@@ -15,7 +15,7 @@ import { Loading } from "@/components/ui/spinner/spinner";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { monthLabel, requestsColumn, requestsHint, trackingText } from "@/lib/costs";
 import { Money } from "@/components/money";
-import { BudgetMeter, BudgetStateBadge } from "../admin/costs/budgets";
+import { BudgetMeter, BudgetStateBadge } from "../admin/costs/budget-parts";
 import s from "../shared.module.css";
 import u from "./usage.module.css";
 
@@ -30,7 +30,12 @@ export const teamSpendQuery = (team: string) => ({
 function SpendTable({ caption, first, rows, currency }: { caption: string; first: string; rows: Row[]; currency: string }) {
   if (rows.length === 0) return null;
   return (
-    <Table caption={caption} showCaption columns={[first, { label: "Spend", numeric: true }, { label: "Tokens", numeric: true }, { label: requestsColumn, numeric: true }]} density="compact">
+    <Table
+      caption={caption}
+      showCaption
+      columns={[first, { label: "Spend", numeric: true }, { label: "Tokens", numeric: true }, { label: requestsColumn, numeric: true }]}
+      density="compact"
+    >
       {rows.map((r) => (
         <Tr key={r.key || "none"}>
           <Td>
@@ -64,7 +69,7 @@ export function TeamSpendCard({ team }: { team: string }) {
   return (
     <Card
       title="Spend this month"
-      description={`${monthLabel(st.month)}, in ${d.timeZone} days. Platform admins set prices and budgets.`}
+      description={`${monthLabel(st.month)}. Platform admins set prices and budgets.`}
       actions={st.state !== "none" && <BudgetStateBadge status={st} />}
     >
       <div className={u.body}>
@@ -74,7 +79,8 @@ export function TeamSpendCard({ team }: { team: string }) {
           <p>
             <strong>
               <Money amount={st.spent} currency={cur} />
-            </strong> <span className={s.muted}>so far this month</span>
+            </strong>{" "}
+            <span className={s.muted}>so far this month</span>
           </p>
         )}
         {!st.enforced && tracking && <p className={s.muted}>{tracking}. Nothing stops at 100%: Track only shows progress against the budget.</p>}
@@ -87,14 +93,13 @@ export function TeamSpendCard({ team }: { team: string }) {
                 (including <Money amount={st.extensions} currency={cur} /> of extensions)
               </>
             )}
-            . At 100% the team's chats, searches and ingestion stop until
-            the month ends or a platform admin raises the budget.
+            . At 100% the team's chats, searches and ingestion stop until the month ends or a platform admin raises the budget.
           </p>
         )}
         {d.total.unpriced && <p className={s.muted}>Some usage has no price yet, so it counts as zero.</p>}
         <SpendTable caption="By agent" first="Agent" rows={d.agents} currency={cur} />
         <SpendTable caption="By model" first="Model" rows={d.models} currency={cur} />
-        {(d.agents.length > 0 || d.models.length > 0) && <p className={s.muted}>{requestsHint}</p>}
+        {(d.agents.length > 0 || d.models.length > 0) && <p className={s.muted}>Requests: {requestsHint}</p>}
       </div>
     </Card>
   );

@@ -63,7 +63,12 @@ function fieldsFor(action: string, currency?: string): Fields | undefined {
         defaultBudget: ["Default monthly budget", money],
       };
     case "costs.price_delete":
-      return { priceId: null, unit: ["Unit", (v) => (typeof v === "string" ? unitText(v) : v)], price: ["Price", price], effectiveFrom: ["Effective from", dateText] };
+      return {
+        priceId: null,
+        unit: ["Unit", (v) => (typeof v === "string" ? unitText(v) : v)],
+        price: ["Price", price],
+        effectiveFrom: ["Effective from", dateText],
+      };
     default:
       return undefined;
   }
