@@ -9649,14 +9649,27 @@ components:
         timeoutMs: { type: integer, minimum: 500, maximum: 60000, description: On timeout the message is answered normally }
     SystemOneSettings:
       type: object
-      required: [modelId, judging, citations, scope, revision, updatedAt]
+      required: [modelId, judging, citations, scope, agents, revision, updatedAt]
       properties:
         modelId: { type: string, format: uuid, nullable: true, description: The SystemOne model the features use }
         judging: { $ref: "#/components/schemas/SystemOneJudging" }
         citations: { $ref: "#/components/schemas/SystemOneCitations" }
         scope: { $ref: "#/components/schemas/SystemOneScope" }
+        agents: { $ref: "#/components/schemas/SystemOneAgentUse" }
         revision: { $ref: "#/components/schemas/Revision" }
         updatedAt: { type: string, format: date-time, nullable: true }
+    SystemOneAgentUse:
+      type: object
+      description: >-
+        How many published agents (active, in active teams) each check is on
+        for: by the agent's own "SystemOne checks" setting, else by the
+        platform default. All zero without a SystemOne model.
+      required: [judging, citations, scope, any]
+      properties:
+        judging: { type: integer, format: int32 }
+        citations: { type: integer, format: int32 }
+        scope: { type: integer, format: int32 }
+        any: { type: integer, format: int32, description: Agents with at least one check on }
     SystemOneSettingsInput:
       type: object
       required: [modelId, judging]
@@ -10856,8 +10869,9 @@ components:
         latencyP95Ms: { type: number, format: double, nullable: true }
     CitationTotals:
       type: object
-      description: SystemOne citation checks over the range, from the content-free records; counts are claim–source pairs (all zero when nothing was checked)
-      required: [answers, pairs, verified, unsupported, contradicted, unchecked, lowConfidence, removed, refused, supportRate, latencyP50Ms, latencyP95Ms]
+      description: "SystemOne citation checks over the range, from the content-free records: answers and check times are of answers with cited sources, the pair counts of claim–source pairs, and the *Claims counts of claims, the units of the chat's summary (all zero when nothing was checked)"
+      required: [answers, pairs, verified, unsupported, contradicted, unchecked, lowConfidence, removed, refused, supportRate, latencyP50Ms, latencyP95Ms,
+        supportedClaims, notSupportedClaims, uncitedClaims, claimSupportRate]
       properties:
         answers: { type: integer, format: int64, description: Answers whose citations were checked }
         pairs: { type: integer, format: int64, description: Claim–source pairs asked }
@@ -10871,6 +10885,10 @@ components:
         supportRate: { type: number, format: double, nullable: true, description: "verified / (verified + unsupported + contradicted)" }
         latencyP50Ms: { type: number, format: double, nullable: true, description: Time the check took per answer }
         latencyP95Ms: { type: number, format: double, nullable: true }
+        supportedClaims: { type: integer, format: int64, description: "Claims (factual sentences) a cited source supports, as the chat's summary counts them; answers recorded before v0.2.1 have no claims" }
+        notSupportedClaims: { type: integer, format: int64, description: Claims that cite sources none of which supports them }
+        uncitedClaims: { type: integer, format: int64, description: Claims that cite no source (counted as not supported) }
+        claimSupportRate: { type: number, format: double, nullable: true, description: "supportedClaims / (supportedClaims + notSupportedClaims + uncitedClaims); null without claims" }
     ScopeTotals:
       type: object
       description: SystemOne scope checks over the range, from the content-free records (all zero when nothing was checked)

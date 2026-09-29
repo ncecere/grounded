@@ -19,11 +19,8 @@ export function LogsPage() {
     <Stack gap={6} className={s.page}>
       <PageHeader
         title={terms.logs}
-        description={
-          tab === "access"
-            ? "Every use of a Sensitive or Restricted agent: who, which agent and version, and the channel. Never questions or answers."
-            : "Every administrative and membership change on the platform, newest first."
-        }
+        // One description for both tabs, so the tabs don't move.
+        description="Every administrative and membership change on the platform, and every use of a Sensitive or Restricted agent: who, which agent and version, and the channel. Never questions or answers."
       />
       <PageTabs
         label="Log sections"

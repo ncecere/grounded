@@ -3,6 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
+import { costFeature, names, systemOneFeature } from "../pages/admin/overview/feature-text";
 import { weekDelta } from "../pages/admin/overview/glance";
 import { setupSteps } from "../pages/admin/overview/setup";
 import { type Handler, meFor, mockApi, renderApp, shellRoutes } from "./harness";
@@ -66,8 +67,18 @@ const routes = (extra: Record<string, Handler> = {}): Record<string, Handler> =>
     judging: { enabled: true },
     citations: { enabled: true },
     scope: { enabled: false },
+    agents: { judging: 1, citations: 2, scope: 0, any: 2 },
     revision: 1,
     updatedAt: null,
+  }),
+  // One team enforces its budget while the platform only tracks (a team setting).
+  "GET /v1/admin/costs/budgets": () => ({
+    month: "2026-09-01",
+    currency: "USD",
+    items: [
+      { teamId: "t1", teamSlug: "registrar", teamName: "Office of the Registrar", modeOverride: "enforce", ownBudget: true, status: { mode: "enforce" }, projected: null },
+      { teamId: "t2", teamSlug: "qa", teamName: "QA Team", modeOverride: "inherit", ownBudget: false, status: { mode: "track" }, projected: null },
+    ],
   }),
   "GET /v1/admin/settings/maintenance": () => ({ enabled: false, reason: "", plannedEndAt: null, startedAt: null, startedBy: null, updatedBy: null, updatedAt: "", revision: 1 }),
   ...extra,
@@ -132,7 +143,10 @@ describe("admin overview", () => {
     mockApi(routes());
     const { container } = renderApp("/admin");
     const costs = await featureRow("Cost tracking");
-    expect(await within(costs).findByText("Track only")).toBeInTheDocument();
+    // The teams that enforce anyway, by name: "Nothing is refused" would be wrong.
+    expect(await within(costs).findByText("Track only · 1 team enforced")).toBeInTheDocument();
+    expect(within(costs).getByText(/^Enforced for Office of the Registrar \(a team setting\)/)).toBeInTheDocument();
+    expect(within(costs).queryByText(/Nothing is refused/)).toBeNull();
     expect(within(costs).getByRole("link", { name: /Cost settings/ })).toHaveAttribute("href", "/admin/costs?tab=settings");
     const ocr = await featureRow("OCR");
     expect(await within(ocr).findByText("On · Tesseract")).toBeInTheDocument();
@@ -141,8 +155,9 @@ describe("admin overview", () => {
     expect(await within(sso).findByText("3 rules")).toBeInTheDocument();
     expect(within(sso).getByRole("link", { name: /SSO groups/ })).toHaveAttribute("href", "/admin/group-mapping");
     const systemOne = await featureRow("SystemOne");
-    expect(await within(systemOne).findByText("Configured")).toBeInTheDocument();
-    expect(within(systemOne).getByText("On: passage judging, citation checks.")).toBeInTheDocument();
+    // What agents use, not only the platform defaults.
+    expect(await within(systemOne).findByText("Configured · checks on 2 agents")).toBeInTheDocument();
+    expect(within(systemOne).getByText("Published agents use citation checks on 2 agents and passage judging on 1 agent, by their own setting or the platform default.")).toBeInTheDocument();
     expect(within(systemOne).getByRole("link", { name: /SystemOne/ })).toHaveAttribute("href", "/admin/systemone");
     const pub = await featureRow("Public access");
     expect(await within(pub).findByText("On")).toBeInTheDocument();
@@ -150,6 +165,13 @@ describe("admin overview", () => {
     const maintenance = await featureRow("Maintenance");
     expect(await within(maintenance).findByText("Off")).toBeInTheDocument();
     expect(within(maintenance).getByRole("link", { name: /Maintenance/ })).toHaveAttribute("href", "/admin/maintenance");
+    // Evaluations: a state badge, the switch and a link to its limits; its whole description, not clamped.
+    const evals = await featureRow("Evaluations");
+    expect(await within(evals).findByText("On")).toBeInTheDocument();
+    expect(within(evals).getByRole("link", { name: /Evaluation limits/ })).toHaveAttribute("href", "/admin/limits?tab=evaluations");
+    expect(within(evals).getByText(/Members never see them\.$/).className).toMatch(/fullText/);
+    // The #features link lands below the sticky top bar.
+    expect(screen.getByRole("heading", { level: 2, name: "Features" }).closest("section")!.className).toMatch(/features/);
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -160,20 +182,49 @@ describe("admin overview", () => {
     const toggle = await within(row).findByRole("switch", { name: "Allow evaluations" });
     expect(toggle).toBeChecked();
     await userEvent.click(toggle);
+    // A confirmation first, saying what disappears; nothing is saved until it's confirmed.
+    const confirm = await screen.findByRole("alertdialog", { name: "Turn evaluations off for every team?" });
+    expect(within(confirm).getByText(/Evaluations tabs and pages disappear/)).toBeInTheDocument();
+    expect(await axe(confirm)).toHaveNoViolations();
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+    await userEvent.click(within(confirm).getByRole("button", { name: "Turn evaluations off" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     const put = calls.find((c) => c.method === "PUT")!;
     expect(put.body).toEqual({ enabled: false });
     expect(put.headers.get("If-Match")).toBe('"2"');
-    expect(await within(row).findByText(/Existing sets and runs are kept/)).toBeInTheDocument();
+    expect(await within(row).findByText(/Sets and runs are kept/)).toBeInTheDocument();
+    expect(await within(row).findByText("Off")).toBeInTheDocument();
   });
 
-  it("shows auditors each feature's state without the switch", async () => {
+  it("shows auditors each feature's state, and the switch disabled with the reason", async () => {
     mockApi(routes({ "GET /v1/me": () => meFor("platform_auditor"), "GET /v1/admin/costs/settings": () => ({ mode: "off", currency: "USD", timeZone: "UTC", warnPercent: 80, defaultBudget: null, revision: 1, updatedAt: "" }) }));
     renderApp("/admin");
     const row = await featureRow("Evaluations");
     expect(await within(row).findByText("On")).toBeInTheDocument();
-    expect(within(row).queryByRole("switch")).toBeNull();
-    expect(await within(await featureRow("Cost tracking")).findByText("Off")).toBeInTheDocument();
+    const toggle = within(row).getByRole("switch", { name: "Allow evaluations" });
+    expect(toggle).toHaveAttribute("aria-disabled", "true");
+    expect(toggle).toHaveAccessibleDescription("Only platform admins can turn this on or off.");
+    // Read-only staff open the requests; they don't review them.
+    const queue = (await screen.findByText("Needs attention")).closest("section")!;
+    expect(await within(queue).findByRole("link", { name: /View requests/ })).toBeInTheDocument();
+    expect(await within(await featureRow("Cost tracking")).findByText("Off · 1 team enforced")).toBeInTheDocument();
+  });
+
+  it("says which teams override the platform's cost mode, and which checks agents use", () => {
+    expect(names(["A"])).toBe("A");
+    expect(names(["A", "B"])).toBe("A and B");
+    expect(names(["A", "B", "C"])).toBe("A, B and C");
+    expect(names(["A", "B", "C", "D", "E"])).toBe("A, B, C and 2 more");
+    const team = (teamName: string, mode: "off" | "track" | "enforce") => ({ teamName, status: { mode } as Schemas["TeamBudgetState"] });
+    expect(costFeature("track", [team("A", "track")]).state.label).toBe("Track only");
+    expect(costFeature("enforce", [team("A", "enforce"), team("B", "track")])).toMatchObject({
+      state: { label: "Enforce · 1 team not enforced" },
+      description: expect.stringContaining("Not enforced for B (a team setting)."),
+    });
+    expect(costFeature("track", [team("A", "enforce"), team("B", "enforce")]).state.label).toBe("Track only · 2 teams enforced");
+    expect(systemOneFeature({ modelId: null, agents: { judging: 0, citations: 0, scope: 0, any: 0 } }).state.label).toBe("Not configured");
+    expect(systemOneFeature({ modelId: "m", agents: { judging: 0, citations: 0, scope: 0, any: 0 } }).description).toMatch(/no published agent uses/);
+    expect(systemOneFeature({ modelId: "m", agents: { judging: 0, citations: 0, scope: 1, any: 1 } }).state.label).toBe("Configured · checks on 1 agent");
   });
 
   it("computes the setup steps and the weekly change", () => {

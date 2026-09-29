@@ -1,6 +1,6 @@
 /* Audit diffs in words (components/audit/changes.ts): money, months, days, price units, no raw ids, one word for no value, a revoked key. */
 import { auditChange, auditMoney, changedRows, changeSummary, plainKey, valueText } from "../components/audit/changes";
-import { areaOptions, personFilter } from "../components/audit/labels";
+import { actionLabel, areaOptions, entryTitle, personFilter } from "../components/audit/labels";
 
 describe("audit changes", () => {
   it("shows a budget change in money and words, with no value left out (the diff says Not set)", () => {
@@ -52,6 +52,30 @@ describe("audit changes", () => {
     expect(valueText(undefined)).toBe("Not set");
     expect(valueText(["a", "b"])).toBe("a, b");
     expect(valueText({ x: 1 })).toBe('{"x":1}');
+  });
+});
+
+describe("switches and holds in words", () => {
+  it("says which way the evaluations switch went, in On and Off", () => {
+    const off = { action: "platform.evaluations", before: { enabled: true }, after: { enabled: false }, targetLabel: "Evaluations" };
+    expect(actionLabel(off.action, off)).toBe("Turned evaluations off");
+    expect(actionLabel(off.action, { after: { enabled: true } })).toBe("Turned evaluations on");
+    // Without the entry (the Area filter), the action's name.
+    expect(actionLabel(off.action)).toBe("Turned evaluations on or off");
+    expect(changeSummary(off)).toBe("Evaluations On → Off");
+    // A target the action already names isn't repeated.
+    expect(entryTitle(off)).toBe("Turned evaluations off");
+    expect(entryTitle({ action: "platform.model_update", after: null, targetLabel: "GPT" })).toBe("Changed model: GPT");
+    expect(valueText(true)).toBe("On");
+  });
+
+  it("shows a released hold's status as Active → Released", () => {
+    const hold = { scopeType: "team", scopeId: "t1", scopeName: "QA Team", reason: "Matter 14", coversFrom: null, coversTo: null };
+    const c = auditChange({ action: "legal_hold.release", before: { ...hold, active: true }, after: { ...hold, active: false, releaseReason: "Done" } });
+    expect(changedRows(c)).toEqual([
+      { field: "Status", before: "Active", after: "Released" },
+      { field: "Release reason", before: undefined, after: "Done" },
+    ]);
   });
 });
 

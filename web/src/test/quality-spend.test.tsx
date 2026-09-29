@@ -121,7 +121,7 @@ describe("the Overview's Quality & spend (I3)", () => {
     expect(within(row).getByText("1 set scored lower than the run before.")).toBeInTheDocument();
     expect(within(row).getByRole("link", { name: "All evaluations" })).toHaveAttribute("href", "/teams/registrar/evaluations");
     const strip = await within(row).findByText(/^of .* this month$/);
-    expect(strip.closest("p")).toHaveTextContent("$0.24 of $1.20 this month · 19% · Within budget · resets Oct 1");
+    expect(strip.closest("p")).toHaveTextContent("$0.24 of $1.20 this month · Within budget · resets Oct 1");
     expect(within(row).getByRole("meter", { name: "Share of this month's budget used" })).toBeInTheDocument();
     expect(within(row).getByRole("link", { name: "Spend breakdown" })).toHaveAttribute("href", "/teams/registrar/settings?tab=usage");
     expect(await axe(container)).toHaveNoViolations();

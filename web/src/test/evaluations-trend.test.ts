@@ -54,8 +54,8 @@ describe("the spend strip", () => {
   });
 
   it("says the share, the state and the reset day; Track only adds not enforced", () => {
-    expect(stripParts(st())).toEqual(["19%", "Within budget", "resets Oct 1"]);
-    expect(stripParts(st({ enforced: false, mode: "track", state: "exhausted", percent: 120 }))).toEqual(["120%", "Over budget", "not enforced", "resets Oct 1"]);
+    expect(stripParts(st())).toEqual(["Within budget", "resets Oct 1"]);
+    expect(stripParts(st({ enforced: false, mode: "track", state: "exhausted", percent: 120 }))).toEqual(["Over budget", "not enforced", "resets Oct 1"]);
     expect(stripParts(st({ limit: null, budget: null, state: "none", percent: null }))).toEqual(["resets Oct 1"]);
   });
 

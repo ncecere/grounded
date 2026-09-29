@@ -144,7 +144,9 @@ func moderationTotals(m analytics.ModerationTotals) apitypes.ModerationTotals {
 func citationTotals(c analytics.CitationTotals) apitypes.CitationTotals {
 	return apitypes.CitationTotals{Answers: c.Answers, Pairs: c.Pairs, Verified: c.Verified, Unsupported: c.Unsupported,
 		Contradicted: c.Contradicted, Unchecked: c.Unchecked, LowConfidence: c.LowConfidence, Removed: c.Removed,
-		Refused: c.Refused, SupportRate: c.SupportRate, LatencyP50Ms: c.LatencyP50Ms, LatencyP95Ms: c.LatencyP95Ms}
+		Refused: c.Refused, SupportRate: c.SupportRate, LatencyP50Ms: c.LatencyP50Ms, LatencyP95Ms: c.LatencyP95Ms,
+		SupportedClaims: c.SupportedClaims, NotSupportedClaims: c.NotSupportedClaims, UncitedClaims: c.UncitedClaims,
+		ClaimSupportRate: c.ClaimSupportRate}
 }
 
 // scopeTotals converts the SystemOne scope-check totals.

@@ -2,8 +2,8 @@
  * Admin → Retention (docs/phase5-deploy.md §5 P3, docs/operations/retention.md):
  * the periods per kind of data and classification level, the dry run of what
  * would be deleted now, the runs and the legal holds, as pill tabs
- * (?tab=settings|report|runs|holds; Legal holds was a page of its own until
- * v0.2.1, I1). Platform admins change periods, run retention and place holds
+ * (?tab=settings|dry-run|runs|holds; Legal holds was a page of its own until
+ * v0.2.1, I1, and ?tab=report, the Dry run's old address, redirects). Platform admins change periods, run retention and place holds
  * ("Place a hold", the header's primary on Legal holds); auditors read everything.
  */
 import { useQuery } from "@tanstack/react-query";
@@ -34,17 +34,14 @@ export function RetentionPage() {
   const onHolds = tab === "holds";
   return (
     <Stack gap={6} className={s.page}>
+      {/* One description for every tab, so the tabs don't move; the primary follows the tab (Place a hold on Legal holds). */}
       <PageHeader
         title="Retention"
         description={
-          onHolds ? (
-            "A legal hold stops every retention deletion of what it covers, including conversations their users delete, until you release it. Holds never expire. Only platform admins and auditors see them."
-          ) : (
-            <>
-              How long each kind of data is kept before it's deleted for good. Nothing is deleted until you set a period, and{" "}
-              <TextLink render={<Link to="/admin/retention" search={{ tab: "holds" }} />}>legal holds</TextLink> keep what they cover.
-            </>
-          )
+          <>
+            How long each kind of data is kept before it&apos;s deleted for good. Nothing is deleted until a period is set, and{" "}
+            <TextLink render={<Link to="/admin/retention" search={{ tab: "holds" }} />}>legal holds</TextLink> keep what they cover.
+          </>
         }
         actions={onHolds && isAdmin && <Button onClick={() => setPlacing(true)}>Place a hold</Button>}
       />
@@ -63,9 +60,9 @@ export function RetentionPage() {
               </QueryView>
             ),
           },
-          { value: "report", label: "Dry run", icon: <ListChecks aria-hidden />, content: <RetentionReportTab settings={settings.data} /> },
+          { value: "dry-run", label: "Dry run", icon: <ListChecks aria-hidden />, content: <RetentionReportTab settings={settings.data} /> },
           { value: "runs", label: "Runs", icon: <History aria-hidden />, content: <RetentionRunsTab isAdmin={isAdmin} /> },
-          { value: "holds", label: "Legal holds", icon: <Scale aria-hidden />, content: <LegalHoldsTab isAdmin={isAdmin} onPlace={() => setPlacing(true)} /> },
+          { value: "holds", label: "Legal holds", icon: <Scale aria-hidden />, content: <LegalHoldsTab isAdmin={isAdmin} /> },
         ]}
       />
       {placing && <PlaceHoldDialog onClose={() => setPlacing(false)} />}

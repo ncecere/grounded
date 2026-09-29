@@ -50,7 +50,7 @@ export function RecentChanges() {
                 <span className={o.changeText}>
                   <span className={o.changeWho}>{actorName(e.actor, e)}</span>
                   <span className={o.changeSep}>·</span>
-                  <span>{actionLabel(e.action)}</span>
+                  <span>{actionLabel(e.action, e)}</span>
                   {(e.targetLabel || e.targetType) && (
                     <>
                       <span className={o.changeSep}>·</span>

@@ -39,27 +39,33 @@ export function SystemOneChecks({ judging, citations, scope }: Checked) {
   );
 }
 
+/**
+ * Citation checks. The first card counts claims (factual sentences) as the chat's summary does ("3 of 6 claims
+ * supported · 3 uncited"); the second counts each cited source's verdict, which is what enforce mode acts on.
+ */
 export function CitationsGroup({ c }: { c?: Schemas["CitationTotals"] }) {
-  if (!c || c.answers === 0) return null;
+  if (!c || (c.answers === 0 && c.supportedClaims + c.notSupportedClaims + c.uncitedClaims === 0)) return null;
+  const claims = c.supportedClaims + c.notSupportedClaims + c.uncitedClaims;
+  const checked = c.verified + c.unsupported + c.contradicted;
   return (
     <StatGroup id="totals-citations" title="Citation checks (SystemOne)" columns={4}>
       <StatCard
-        label="Citation support rate"
-        value={pct(c.supportRate)}
+        label="Claims supported"
+        value={pct(c.claimSupportRate)}
         icon={<BadgeCheck />}
-        hint={`${num(c.verified)} of ${num(c.verified + c.unsupported + c.contradicted)} claims supported by their source`}
+        hint={claims ? `${num(c.supportedClaims)} of ${num(claims)} claims supported · ${num(c.uncitedClaims)} uncited` : "Answers from before v0.2.1 have no claim counts"}
       />
       <StatCard
-        label="Unsupported or contradicted"
-        value={num(c.unsupported + c.contradicted)}
+        label="Cited sources that support their claim"
+        value={pct(c.supportRate)}
         icon={<TriangleAlert />}
-        hint={`${num(c.unsupported)} unsupported · ${num(c.contradicted)} contradicted · ${num(c.lowConfidence)} low confidence (review)`}
+        hint={`${num(c.verified)} of ${num(checked)} · ${num(c.unsupported)} not supported · ${num(c.contradicted)} contradicted · ${num(c.lowConfidence)} low confidence (review)`}
       />
       <StatCard
         label="Answers checked"
         value={num(c.answers)}
         icon={<ShieldQuestion />}
-        hint={`${num(c.pairs)} claims · ${num(c.unchecked)} not checked · ${num(c.removed)} citations removed · ${num(c.refused)} refused`}
+        hint={`${num(c.pairs)} cited sources · ${num(c.unchecked)} not checked · ${num(c.removed)} citations removed · ${num(c.refused)} refused`}
       />
       <StatCard label="Check time p50" value={ms(c.latencyP50Ms)} icon={<MessageCircle />} hint={`p95 ${ms(c.latencyP95Ms)} per answer`} />
     </StatGroup>

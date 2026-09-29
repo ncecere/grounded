@@ -119,15 +119,20 @@ describe("team overview", () => {
     mockApi({
       ...routes({ agents: [off] }),
       "GET /v1/teams/registrar/limits": () => limits,
-      "GET /v1/teams/registrar/domain-requests": () => [{ id: "d1", pattern: "*.example.org", status: "pending" }],
+      "GET /v1/teams/registrar/domain-requests": () => [
+        { id: "d1", pattern: "*.example.org", status: "pending" },
+        { id: "d2", pattern: "*.example.net", status: "pending" },
+      ],
     });
     const { container } = renderApp("/teams/registrar");
     const list = await screen.findByRole("list", { name: "Needs attention" });
     await within(list).findByText("Documents: 85 % used");
+    // The count adds up what the rows say: 1 document, 2 requests, 1 limit, 1 agent.
+    expect(list.closest("section")!.querySelector("header, [class*=header]")).toHaveTextContent("5");
     const links = within(list).getAllByRole("link");
     expect(links.map((l) => l.textContent)).toEqual([
       expect.stringContaining("1 document failed in Policies"),
-      expect.stringContaining("1 domain request waiting for review"),
+      expect.stringContaining("2 domain requests waiting for review"),
       expect.stringContaining("Documents: 85 % used"),
       expect.stringContaining("Old helper was turned off by a platform admin"),
     ]);

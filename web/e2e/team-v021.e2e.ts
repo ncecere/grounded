@@ -25,7 +25,7 @@ test("quality and spend, crawl domains on Data sources, and the agent's version 
     await page.goto(`/teams/${team}`);
     const row = page.getByRole("region", { name: "Quality & spend" });
     await expect(row.getByRole("table", { name: "Latest evaluation scores" }).getByRole("link", { name: "Parking questions" })).toBeVisible();
-    await expect(row.getByText(/this month · \d+% · Within budget · not enforced · resets/)).toBeVisible();
+    await expect(row.getByText(/this month · Within budget · not enforced · resets/)).toBeVisible();
     await a11y(page);
     await row.getByRole("link", { name: "All evaluations" }).click();
     await expect(page).toHaveURL(`/teams/${team}/evaluations`);

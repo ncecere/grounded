@@ -108,6 +108,18 @@ describe("admin users and teams", () => {
     expect(row).toHaveTextContent("1.9 MiB");
   });
 
+  it("sums up budget changes in Recent changes, like the audit log", async () => {
+    const change = {
+      id: 9, occurredAt: "2026-09-26T10:00:00Z", actorKind: "user", actor: { kind: "user", displayName: "Dev Admin" }, action: "costs.budget_update",
+      targetType: "team", targetId: team.id, targetLabel: "Office of the Registrar", targetExists: true, metadata: {}, requestId: "r",
+      before: { mode: "inherit", amount: "5.000000", warnPercent: null }, after: { mode: "inherit", amount: null, warnPercent: null },
+    };
+    mockApi(routes("platform_admin", { "GET /v1/teams/registrar/audit": () => ({ items: [change], nextCursor: null }) }));
+    renderApp("/admin/teams/registrar");
+    const card = (await screen.findByRole("heading", { level: 2, name: "Recent changes" })).closest("section")!;
+    expect(await within(card).findByText("Changed a team budget: Monthly budget $5.00 → none")).toBeInTheDocument();
+  });
+
   it("opens a team on its Overview with usage, and archives from the menu (Q12)", async () => {
     const calls = mockApi(routes("platform_admin", { "PATCH /v1/admin/teams/registrar": () => ({ ...summary, team: { ...team, status: "archived" } }) }));
     const { container } = renderApp("/admin/teams/registrar");

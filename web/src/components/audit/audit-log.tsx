@@ -92,7 +92,7 @@ function AuditRow({ entry, scope }: { entry: AuditEntry; scope: AuditScope }) {
         <Who entry={entry} />
       </Td>
       <Td>
-        <span className={a.action}>{actionLabel(entry.action)}</span>
+        <span className={a.action}>{actionLabel(entry.action, entry)}</span>
         <span className={`${s.secondary} ${s.mono}`}>{entry.action}</span>
       </Td>
       <Td className={a.target}>
@@ -104,7 +104,7 @@ function AuditRow({ entry, scope }: { entry: AuditEntry; scope: AuditScope }) {
             className={a.details}
             title={
               <>
-                Details<VisuallyHidden> of {actionLabel(entry.action)}</VisuallyHidden>
+                Details<VisuallyHidden> of {actionLabel(entry.action, entry)}</VisuallyHidden>
               </>
             }
           >

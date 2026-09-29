@@ -16,13 +16,15 @@ type Props = {
   disabled: boolean;
   /** "Adds 180 ms (median, last 14 days)", from analytics. */
   latency?: string;
+  /** Published agents it's on for (saved settings). */
+  agents?: number;
 };
 
 const citationModes = [
   {
     value: "annotate" as const,
     label: "Annotate",
-    description: "Recommended. Citations get a check when the source supports the claim and a warning when it doesn't. The answer is not changed.",
+    description: "Recommended. Each claim shows whether it's supported; the answer is not changed.",
   },
   {
     value: "enforce" as const,
@@ -31,14 +33,14 @@ const citationModes = [
   },
 ];
 
-export function CitationsCard({ form, set, problems, disabled, latency }: Props) {
+export function CitationsCard({ form, set, problems, disabled, latency, agents }: Props) {
   const c = form.citations;
   const patch = (p: Partial<SettingsForm["citations"]>) => set({ citations: { ...c, ...p } });
   return (
     <SettingsSection
       title="Citation checks"
-      description="After an answer, the model reads each cited source and says whether it supports, contradicts or says nothing about the sentence citing it. Streamed chats show the marks a moment later; buffered and API answers wait for the check."
-      actions={<FeatureState on={c.enabled} latency={latency} />}
+      description="After an answer, each claim (a factual sentence) is checked against the sources it cites: supported, not supported, or uncited when it cites none. Streamed chats show the verdicts a moment later; buffered and API answers wait for the check."
+      actions={<FeatureState on={c.enabled} latency={latency} agents={agents} />}
     >
       <div className={so.judging}>
         <Switch
@@ -70,14 +72,14 @@ export function CitationsCard({ form, set, problems, disabled, latency }: Props)
   );
 }
 
-export function ScopeCard({ form, set, problems, disabled, latency }: Props) {
+export function ScopeCard({ form, set, problems, disabled, latency, agents }: Props) {
   const c = form.scope;
   const patch = (p: Partial<SettingsForm["scope"]>) => set({ scope: { ...c, ...p } });
   return (
     <SettingsSection
       title="Scope check"
       description="Before searching, the model says whether the message is small talk and whether it's about the agent's subject. Small talk gets a short reply without a search; a strictly grounded agent refuses an out-of-scope question without a search."
-      actions={<FeatureState on={c.enabled} latency={latency} />}
+      actions={<FeatureState on={c.enabled} latency={latency} agents={agents} />}
     >
       <div className={so.judging}>
         <Switch

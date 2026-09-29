@@ -88,9 +88,9 @@ export function TeamAuditLog() {
     {
       id: "action",
       header: "Action",
-      accessor: (e) => actionLabel(e.action),
+      accessor: (e) => actionLabel(e.action, e),
       rowHeader: true,
-      cell: (e) => <CellText primary={actionLabel(e.action)} secondary={changeSummary(e) ?? undefined} />,
+      cell: (e) => <CellText primary={actionLabel(e.action, e)} secondary={changeSummary(e) ?? undefined} />,
     },
     { id: "target", header: "Target", accessor: (e) => e.targetLabel ?? e.targetType, cell: (e) => <AuditTarget entry={e} scope={{ ...scope, member: Boolean(role) }} /> },
   ];
@@ -103,7 +103,7 @@ export function TeamAuditLog() {
         columns={columns}
         data={items}
         getRowId={(e) => String(e.id)}
-        rowLabel={(e) => `${actionLabel(e.action)}, ${new Date(e.occurredAt).toLocaleString()}`}
+        rowLabel={(e) => `${actionLabel(e.action, e)}, ${new Date(e.occurredAt).toLocaleString()}`}
         facets={facets}
         manual
         onRowClick={(e) => record.open(String(e.id))}
@@ -134,7 +134,7 @@ function AuditEntryPage({ id, loaded, onClose }: { id?: string; loaded?: Entry; 
     <RecordPage
       open={Boolean(id)}
       onClose={onClose}
-      title={e ? actionLabel(e.action) : "Audit entry"}
+      title={e ? actionLabel(e.action, e) : "Audit entry"}
       description="An entry of this team's audit log."
       loading={entry.isLoading}
       error={entry.error}

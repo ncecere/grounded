@@ -7,6 +7,7 @@ import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Field } from "@/components/ui/field/field";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
+import { TeamPicker } from "../team-picker";
 import { retentionKey } from "./settings";
 import { scopeHelp, scopeTypeLabels } from "./labels";
 import r from "./retention.module.css";
@@ -22,7 +23,7 @@ type Form = { scopeType: ScopeType; scope: string; reason: string; from: string;
 /** Field errors of the place-a-hold form. */
 export function holdProblems(f: Form): Partial<Record<keyof Form, string>> {
   const out: Partial<Record<keyof Form, string>> = {};
-  if (!f.scope.trim()) out.scope = "Say what the hold covers.";
+  if (!f.scope.trim()) out.scope = f.scopeType === "team" ? "Choose a team." : "Say what the hold covers.";
   if (!f.reason.trim()) out.reason = "Give the reason for the hold, such as the matter or request it's for.";
   if (f.from && f.to && f.to < f.from) out.to = "The last day must be on or after the first.";
   return out;
@@ -52,7 +53,7 @@ export function PlaceHoldDialog({ onClose }: { onClose: () => void }) {
   return (
     <FormDialog
       title="Place a legal hold"
-      description="Retention stops deleting what the hold covers until you release it."
+      description="Retention stops deleting what the hold covers until a platform admin releases it."
       onClose={onClose}
       submitLabel="Place hold"
       busy={place.isPending}
@@ -63,7 +64,7 @@ export function PlaceHoldDialog({ onClose }: { onClose: () => void }) {
       }}
     >
       <Field label="Covers">
-        <NativeSelect value={form.scopeType} onChange={(e) => set({ scopeType: e.target.value as ScopeType })}>
+        <NativeSelect value={form.scopeType} onChange={(e) => set({ scopeType: e.target.value as ScopeType, scope: "" })}>
           {(Object.keys(scopeTypeLabels) as ScopeType[]).map((t) => (
             <option key={t} value={t}>
               {scopeTypeLabels[t]}
@@ -72,7 +73,11 @@ export function PlaceHoldDialog({ onClose }: { onClose: () => void }) {
         </NativeSelect>
       </Field>
       <Field label={help.label} error={problems.scope}>
-        <Input aria-required autoComplete="off" spellCheck={false} placeholder={help.placeholder} value={form.scope} onChange={(e) => set({ scope: e.target.value })} />
+        {form.scopeType === "team" ? (
+          <TeamPicker value={form.scope} onChange={(scope) => set({ scope })} />
+        ) : (
+          <Input aria-required autoComplete="off" spellCheck={false} placeholder={help.placeholder} value={form.scope} onChange={(e) => set({ scope: e.target.value })} />
+        )}
       </Field>
       <Field label="Reason" description={`Required. Recorded in the audit log. Up to ${maxReason} characters.`} error={problems.reason}>
         <Textarea aria-required rows={3} maxLength={maxReason} value={form.reason} onChange={(e) => set({ reason: e.target.value })} />

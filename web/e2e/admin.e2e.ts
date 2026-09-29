@@ -17,6 +17,14 @@ test("overview and logs (sign-ins hidden by default)", async ({ as, a11y }) => {
   const features = page.getByRole("region", { name: "Features" });
   await expect(features.getByRole("switch", { name: "Allow evaluations" })).toBeVisible();
   await expect(features.getByRole("link", { name: /Cost settings/ })).toBeVisible();
+  await expect(features.getByRole("link", { name: /Evaluation limits/ })).toHaveAttribute("href", "/admin/limits?tab=evaluations");
+  // Turning evaluations off asks first; cancelled here, since the switch is platform-wide.
+  await features.getByRole("switch", { name: "Allow evaluations" }).click();
+  const confirm = page.getByRole("alertdialog", { name: "Turn evaluations off for every team?" });
+  await expect(confirm).toBeVisible();
+  await a11y(page, "turn evaluations off?");
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(features.getByRole("switch", { name: "Allow evaluations" })).toBeChecked();
   // The sidebar's groups (v0.2.1 I1).
   const nav = page.getByRole("navigation", { name: "Main" });
   for (const group of ["People", "Content", "Models", "Usage & spend", "Safety", "Records", "Operations"]) await expect(nav.getByRole("button", { name: group })).toBeVisible();
@@ -116,7 +124,7 @@ test("retention dry run, and a legal hold placed and released", async ({ as, adm
   await expect(page.getByRole("heading", { level: 1, name: "Retention" })).toBeVisible();
   await a11y(page);
   await page.getByRole("tab", { name: "Dry run" }).click();
-  await expect(page).toHaveURL(/tab=report/);
+  await expect(page).toHaveURL(/tab=dry-run/);
   const report = page.getByRole("table", { name: "What retention would delete now" });
   await expect(report.getByRole("row").nth(1)).toBeVisible();
   await expect(page.getByText("Nothing is deleted by viewing this.")).toBeVisible();
@@ -127,10 +135,14 @@ test("retention dry run, and a legal hold placed and released", async ({ as, adm
   await expect(page).toHaveURL(/tab=holds/);
   await expect(page.getByRole("table", { name: "Legal holds" })).toBeVisible();
   await a11y(page);
-  await page.getByRole("button", { name: "Place a hold" }).first().click();
+  // One primary: the header's (an empty list doesn't repeat it).
+  await expect(page.getByRole("button", { name: "Place a hold" })).toHaveCount(1);
+  await page.getByRole("button", { name: "Place a hold" }).click();
   const place = page.getByRole("dialog", { name: "Place a legal hold" });
   await place.getByLabel("Covers").selectOption({ label: "Team" });
-  await place.getByRole("textbox").first().fill(team);
+  // A team picker, not a slug to type.
+  await place.getByRole("combobox", { name: "Team" }).fill(`E2E ${team}`);
+  await page.getByRole("option", { name: new RegExp(`E2E ${team}`) }).click();
   await place.getByLabel("Reason").fill("E2E: litigation hold on this team's records");
   await a11y(page, "place a legal hold");
   await place.getByRole("button", { name: "Place hold" }).click();
@@ -139,7 +151,8 @@ test("retention dry run, and a legal hold placed and released", async ({ as, adm
   const row = page.getByRole("row", { name: new RegExp(`E2E ${team}`) });
   await expect(row).toBeVisible();
   await row.getByRole("rowheader").click();
-  const sheet = page.getByRole("region", { name: `Hold on E2E ${team}` });
+  // Named by the team and the day it was placed.
+  const sheet = page.getByRole("region", { name: new RegExp(`^Hold on E2E ${team}, placed `) });
   await expect(sheet).toBeVisible();
   await a11y(page, "legal hold record");
   await sheet.getByRole("button", { name: "Release hold" }).click();
@@ -148,6 +161,8 @@ test("retention dry run, and a legal hold placed and released", async ({ as, adm
   await a11y(page, "release a legal hold");
   await release.getByRole("button", { name: "Release hold" }).click();
   await expect(page.getByText("Hold released")).toBeVisible();
+  // The Release button is gone: focus is on the record's heading.
+  await expect(sheet.getByRole("heading", { level: 1 })).toBeFocused();
 
   // The hold's page: its back link returns to the list.
   await sheet.getByRole("link", { name: /^Back to/ }).click();
@@ -156,7 +171,12 @@ test("retention dry run, and a legal hold placed and released", async ({ as, adm
   await expect(page.getByRole("row", { name: new RegExp(`E2E ${team}`) })).toBeVisible();
   await a11y(page);
 
-  // The old address redirects to the tab, its Released tab to the Status filter.
+  // The old address redirects to the tab, its Released tab to the Status filter; without a tab, every hold (the tab's default).
+  await page.goto("/admin/legal-holds");
+  await expect(page).toHaveURL(/\/admin\/retention\?tab=holds$/);
+  // The Dry run's old address redirects to its own.
+  await page.goto("/admin/retention?tab=report");
+  await expect(page).toHaveURL(/\/admin\/retention\?tab=dry-run$/);
   await page.goto("/admin/legal-holds?tab=released");
   await expect(page).toHaveURL(/\/admin\/retention\?tab=holds&status=released$/);
   await expect(page.getByRole("tab", { name: "Legal holds", selected: true })).toBeVisible();

@@ -3,28 +3,29 @@
  * of its own until v0.2.1, I1): every move of a knowledge base to another
  * embedding profile, as a list with a meter for running ones; each opens in a
  * RecordPage (?record=<id>). Platform admins start one with the page header's
- * "Migrate a knowledge base" (?start=<kbId> opens the dialog for that
- * knowledge base, from its page); auditors read.
+ * "Migrate a knowledge base", the view's one primary (?start=<kbId> opens the
+ * dialog for that knowledge base, from its page); auditors read.
  */
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Eye, Shuffle } from "lucide-react";
-import type { ReactNode } from "react";
 import { type ActionItem } from "@/components/templates/action-menu";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
 import { useRecordParam } from "@/components/templates/record-page";
 import { StatusBadge } from "@/components/ui/badge/badge";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
+import { Stack } from "@/components/ui/layout/layout";
 import { Meter } from "@/components/ui/meter/meter";
 import { useSearchParams } from "@/lib/url-search";
 import { documentsText, graceText, type Migration, type MigrationStatus, migrationsQuery, statusLabels, statusTone } from "./common";
 import { MigrationPage } from "./migration-record";
+import s from "../../shared.module.css";
 import p from "./profile-migrations.module.css";
 import { StartMigrationDialog } from "./start-dialog";
 
-/** The header's description while the Migrations tab is open. */
-export const migrationsDescription =
-  "Move a knowledge base to another embedding profile without downtime: its sources are re-embedded in the background, then it switches in one step. The old vectors are kept for a grace period, so it can switch back.";
+/** What a migration is, above the list. */
+const intro =
+  "A migration moves a knowledge base to another embedding profile without downtime: its sources are re-embedded in the background, then it switches in one step. The old vectors are kept for a grace period, so it can switch back.";
 
 function progressCell(m: Migration) {
   if (m.status === "running") {
@@ -89,11 +90,9 @@ type TabProps = {
   /** The header's "Migrate a knowledge base" was pressed. */
   starting: boolean;
   onStartClosed: () => void;
-  /** The start button for the empty state (platform admins). */
-  start?: ReactNode;
 };
 
-export function ProfileMigrationsTab({ isAdmin, starting, onStartClosed, start }: TabProps) {
+export function ProfileMigrationsTab({ isAdmin, starting, onStartClosed }: TabProps) {
   const migrations = useQuery(migrationsQuery());
   const record = useRecordParam();
   const [params, setParams] = useSearchParams();
@@ -111,8 +110,10 @@ export function ProfileMigrationsTab({ isAdmin, starting, onStartClosed, start }
     );
   };
   const actions = (m: Migration): ActionItem[] => [{ label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(m.id) }];
+  const none = migrations.data?.length === 0;
   return (
-    <>
+    <Stack gap={4}>
+      <p className={s.settingDescription}>{intro}</p>
       <ListPage<Migration>
         id="admin-profile-migrations"
         caption="Profile migrations"
@@ -120,17 +121,18 @@ export function ProfileMigrationsTab({ isAdmin, starting, onStartClosed, start }
         data={migrations.data ?? []}
         getRowId={(m) => m.id}
         rowLabel={(m) => `${m.kb.name}: ${m.fromProfile.name} to ${m.toProfile.name}`}
-        facets={facets}
+        // Six filters all at 0 say nothing before the first migration.
+        facets={none ? undefined : facets}
         loading={migrations.isLoading}
         error={migrations.error}
         onRetry={() => void migrations.refetch()}
         onRowClick={(m) => record.open(m.id)}
         rowActions={actions}
+        // No action: the header's "Migrate a knowledge base" is the view's one primary.
         empty={{
           icon: <Shuffle />,
           title: "No profile migrations yet.",
-          description: "Create the new embedding profile first, then migrate each knowledge base to it.",
-          action: start || undefined,
+          description: "A knowledge base can move to any other embedding profile once that profile exists.",
         }}
       />
       <MigrationPage id={record.id} onClose={record.close} isAdmin={isAdmin} />
@@ -144,6 +146,6 @@ export function ProfileMigrationsTab({ isAdmin, starting, onStartClosed, start }
           }}
         />
       )}
-    </>
+    </Stack>
   );
 }

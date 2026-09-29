@@ -185,6 +185,17 @@ describe("Admin → Embedding profiles › Migrations", () => {
     expect(screen.queryByRole("button", { name: "Add profile" })).toBeNull();
   });
 
+  it("keeps one primary on an empty Migrations tab: the empty state and filters don't repeat the header", async () => {
+    mockApi(routes({ "GET /v1/admin/profile-migrations": () => [] }));
+    const { container } = renderApp("/admin/embedding-profiles?tab=migrations");
+    expect(await screen.findByText("No profile migrations yet.", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Migrate a knowledge base" })).toHaveLength(1);
+    expect(screen.queryByRole("group", { name: "Status" })).toBeNull();
+    // One description for both tabs, so the tab strip doesn't move.
+    expect(screen.getByText(/How documents are split into passages and embedded/)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("is read-only for auditors", async () => {
     mockApi({ ...routes(), ...shellRoutes("platform_auditor"), "GET /v1/admin/profile-migrations/m1": () => running, "GET /v1/admin/profile-migrations": () => [running] });
     renderApp("/admin/embedding-profiles?tab=migrations&record=m1");

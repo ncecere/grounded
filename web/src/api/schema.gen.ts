@@ -7132,9 +7132,24 @@ export interface components {
             judging: components["schemas"]["SystemOneJudging"];
             citations: components["schemas"]["SystemOneCitations"];
             scope: components["schemas"]["SystemOneScope"];
+            agents: components["schemas"]["SystemOneAgentUse"];
             revision: components["schemas"]["Revision"];
             /** Format: date-time */
             updatedAt: string | null;
+        };
+        /** @description How many published agents (active, in active teams) each check is on for: by the agent's own "SystemOne checks" setting, else by the platform default. All zero without a SystemOne model. */
+        SystemOneAgentUse: {
+            /** Format: int32 */
+            judging: number;
+            /** Format: int32 */
+            citations: number;
+            /** Format: int32 */
+            scope: number;
+            /**
+             * Format: int32
+             * @description Agents with at least one check on
+             */
+            any: number;
         };
         SystemOneSettingsInput: {
             /** Format: uuid */
@@ -8196,7 +8211,7 @@ export interface components {
             /** Format: double */
             latencyP95Ms: number | null;
         };
-        /** @description SystemOne citation checks over the range, from the content-free records; counts are claim–source pairs (all zero when nothing was checked) */
+        /** @description SystemOne citation checks over the range, from the content-free records: answers and check times are of answers with cited sources, the pair counts of claim–source pairs, and the *Claims counts of claims, the units of the chat's summary (all zero when nothing was checked) */
         CitationTotals: {
             /**
              * Format: int64
@@ -8246,6 +8261,26 @@ export interface components {
             latencyP50Ms: number | null;
             /** Format: double */
             latencyP95Ms: number | null;
+            /**
+             * Format: int64
+             * @description Claims (factual sentences) a cited source supports, as the chat's summary counts them; answers recorded before v0.2.1 have no claims
+             */
+            supportedClaims: number;
+            /**
+             * Format: int64
+             * @description Claims that cite sources none of which supports them
+             */
+            notSupportedClaims: number;
+            /**
+             * Format: int64
+             * @description Claims that cite no source (counted as not supported)
+             */
+            uncitedClaims: number;
+            /**
+             * Format: double
+             * @description supportedClaims / (supportedClaims + notSupportedClaims + uncitedClaims); null without claims
+             */
+            claimSupportRate: number | null;
         };
         /** @description SystemOne scope checks over the range, from the content-free records (all zero when nothing was checked) */
         ScopeTotals: {

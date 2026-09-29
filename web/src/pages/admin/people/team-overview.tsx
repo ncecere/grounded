@@ -7,7 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Bot, Database, FileText, Library, UsersRound } from "lucide-react";
 import { api, unwrap, type Schemas } from "@/api/client";
-import { actionLabel, actorName } from "@/components/audit/labels";
+import { changeSummary } from "@/components/audit/changes";
+import { actionLabel, actorName, entryTitle } from "@/components/audit/labels";
 import { RelativeTime } from "@/components/templates/list-page";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
@@ -16,6 +17,7 @@ import { Meter } from "@/components/ui/meter/meter";
 import { SkeletonText } from "@/components/ui/skeleton/skeleton";
 import { StatCard } from "@/components/ui/stat-card/stat-card";
 import { formatStorage as formatBytes } from "@/lib/format";
+import { useCostSettings } from "@/lib/costs";
 import { formatAmount, teamLimitsQuery } from "@/lib/limits";
 import { AdminTeamBudgetCard } from "../costs/team-budget-card";
 import { pendingDomainRequestsQuery } from "../crawling/requests";
@@ -40,6 +42,12 @@ export function TeamOverviewTab({ summary }: { summary: Summary }) {
     queryKey: ["team", slug, "audit", "recent"],
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/audit", { params: { path: { team: slug }, query: { limit: 5 } } })),
   });
+  const currency = useCostSettings().data?.currency;
+  const changeTitle = (e: Schemas["AuditEntry"]) => {
+    const change = changeSummary(e, currency);
+    const title = e.targetId === summary.team.id ? actionLabel(e.action, e) : entryTitle(e);
+    return change ? `${title}: ${change}` : title;
+  };
   const pending = (requests.data ?? []).filter((r) => r.teamSlug === slug);
   const usage = usageRows(limits.data?.items ?? []);
   return (
@@ -110,10 +118,8 @@ export function TeamOverviewTab({ summary }: { summary: Summary }) {
             {audit.data!.items.map((e) => (
               <Item key={e.id} size="xs" className={t.row}>
                 <ItemContent>
-                  <ItemTitle>
-                    {actionLabel(e.action)}
-                    {e.targetLabel ? `: ${e.targetLabel}` : ""}
-                  </ItemTitle>
+                  {/* A simple change in one line, like the audit log ("Monthly budget $5.00 → none"); the team is this page's. */}
+                  <ItemTitle>{changeTitle(e)}</ItemTitle>
                   <ItemDescription>
                     {actorName(e.actor, e)} · <RelativeTime value={e.occurredAt} />
                   </ItemDescription>
