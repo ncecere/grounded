@@ -4,6 +4,8 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -20,13 +22,20 @@ func toAPIEvaluationSet(v evals.SetView) apitypes.EvaluationSet {
 	}
 	out := apitypes.EvaluationSet{Id: s.ID, Target: target, Name: s.Name, Description: s.Description, AutoRun: s.AutoRun,
 		QuestionCount: v.QuestionCount, Revision: s.Revision, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt}
-	if v.LastRunID.Valid && v.LastRunKind != nil && v.LastRunStatus != nil && v.LastRunAt != nil {
-		var sum evals.Summary
-		convertJSON(&sum, v.LastRunSummary)
-		out.LastRun = &apitypes.EvaluationRunBrief{Id: v.LastRunID.UUID, Kind: apitypes.EvaluationRunKind(*v.LastRunKind),
-			Status: apitypes.EvaluationRunStatus(*v.LastRunStatus), Summary: viaJSON[apitypes.EvaluationSummary](sum), CreatedAt: *v.LastRunAt}
-	}
+	out.LastRun = runBrief(v.LastRunID, v.LastRunKind, v.LastRunStatus, v.LastRunSummary, v.LastRunAt)
+	out.PreviousRun = runBrief(v.PrevRunID, v.PrevRunKind, v.PrevRunStatus, v.PrevRunSummary, v.PrevRunAt)
 	return out
+}
+
+// runBrief is a set's latest or previous run from its view's columns (nil without one).
+func runBrief(id uuid.NullUUID, kind, status *string, summary json.RawMessage, at *time.Time) *apitypes.EvaluationRunBrief {
+	if !id.Valid || kind == nil || status == nil || at == nil {
+		return nil
+	}
+	var sum evals.Summary
+	_ = json.Unmarshal(summary, &sum)
+	return &apitypes.EvaluationRunBrief{Id: id.UUID, Kind: apitypes.EvaluationRunKind(*kind), Status: apitypes.EvaluationRunStatus(*status),
+		Summary: viaJSON[apitypes.EvaluationSummary](sum), CreatedAt: *at}
 }
 
 // expectedDocuments looks up the picked documents of questions.

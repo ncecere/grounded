@@ -463,12 +463,19 @@ const getEvalSetView = `-- name: GetEvalSetView :one
 SELECT s.id, s.team_id, s.kb_id, s.agent_id, s.name, s.description, s.auto_run, s.created_by, s.revision, s.created_at, s.updated_at, coalesce(kb.name, ag.name, '')::text AS target_name,
        (SELECT count(*) FROM eval_cases c WHERE c.set_id = s.id)::bigint AS question_count,
        lr.id AS last_run_id, lr.kind AS last_run_kind, lr.status AS last_run_status, lr.summary AS last_run_summary,
-       lr.created_at AS last_run_at
+       lr.created_at AS last_run_at,
+       pr.id AS prev_run_id, pr.kind AS prev_run_kind, pr.status AS prev_run_status, pr.summary AS prev_run_summary,
+       pr.created_at AS prev_run_at
 FROM eval_sets s
 LEFT JOIN knowledge_bases kb ON kb.id = s.kb_id
 LEFT JOIN agents ag ON ag.id = s.agent_id
 LEFT JOIN eval_runs lr ON lr.id = (
     SELECT r.id FROM eval_runs r WHERE r.set_id = s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1
+)
+LEFT JOIN eval_runs pr ON pr.id = (
+    SELECT r.id FROM eval_runs r
+    WHERE r.set_id = s.id AND r.kind = lr.kind AND r.status = 'completed' AND (r.created_at, r.id) < (lr.created_at, lr.id)
+    ORDER BY r.created_at DESC, r.id DESC LIMIT 1
 )
 WHERE s.id = $1 AND s.team_id = $2
 `
@@ -487,6 +494,11 @@ type GetEvalSetViewRow struct {
 	LastRunStatus  *string
 	LastRunSummary json.RawMessage
 	LastRunAt      *time.Time
+	PrevRunID      uuid.NullUUID
+	PrevRunKind    *string
+	PrevRunStatus  *string
+	PrevRunSummary json.RawMessage
+	PrevRunAt      *time.Time
 }
 
 func (q *Queries) GetEvalSetView(ctx context.Context, arg GetEvalSetViewParams) (GetEvalSetViewRow, error) {
@@ -511,6 +523,11 @@ func (q *Queries) GetEvalSetView(ctx context.Context, arg GetEvalSetViewParams) 
 		&i.LastRunStatus,
 		&i.LastRunSummary,
 		&i.LastRunAt,
+		&i.PrevRunID,
+		&i.PrevRunKind,
+		&i.PrevRunStatus,
+		&i.PrevRunSummary,
+		&i.PrevRunAt,
 	)
 	return i, err
 }
@@ -895,12 +912,19 @@ const listEvalSetViews = `-- name: ListEvalSetViews :many
 SELECT s.id, s.team_id, s.kb_id, s.agent_id, s.name, s.description, s.auto_run, s.created_by, s.revision, s.created_at, s.updated_at, coalesce(kb.name, ag.name, '')::text AS target_name,
        (SELECT count(*) FROM eval_cases c WHERE c.set_id = s.id)::bigint AS question_count,
        lr.id AS last_run_id, lr.kind AS last_run_kind, lr.status AS last_run_status, lr.summary AS last_run_summary,
-       lr.created_at AS last_run_at
+       lr.created_at AS last_run_at,
+       pr.id AS prev_run_id, pr.kind AS prev_run_kind, pr.status AS prev_run_status, pr.summary AS prev_run_summary,
+       pr.created_at AS prev_run_at
 FROM eval_sets s
 LEFT JOIN knowledge_bases kb ON kb.id = s.kb_id
 LEFT JOIN agents ag ON ag.id = s.agent_id
 LEFT JOIN eval_runs lr ON lr.id = (
     SELECT r.id FROM eval_runs r WHERE r.set_id = s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1
+)
+LEFT JOIN eval_runs pr ON pr.id = (
+    SELECT r.id FROM eval_runs r
+    WHERE r.set_id = s.id AND r.kind = lr.kind AND r.status = 'completed' AND (r.created_at, r.id) < (lr.created_at, lr.id)
+    ORDER BY r.created_at DESC, r.id DESC LIMIT 1
 )
 WHERE s.team_id = $1
   AND ($2::uuid IS NULL OR s.kb_id = $2::uuid)
@@ -923,10 +947,16 @@ type ListEvalSetViewsRow struct {
 	LastRunStatus  *string
 	LastRunSummary json.RawMessage
 	LastRunAt      *time.Time
+	PrevRunID      uuid.NullUUID
+	PrevRunKind    *string
+	PrevRunStatus  *string
+	PrevRunSummary json.RawMessage
+	PrevRunAt      *time.Time
 }
 
-// A team's sets with their target's name, question count and latest
-// finished run (optionally one knowledge base's or agent's).
+// A team's sets with their target's name, question count, latest run and
+// the completed run of the same kind before it (its trend's baseline;
+// optionally one knowledge base's or agent's).
 func (q *Queries) ListEvalSetViews(ctx context.Context, arg ListEvalSetViewsParams) ([]ListEvalSetViewsRow, error) {
 	rows, err := q.db.Query(ctx, listEvalSetViews, arg.TeamID, arg.KBID, arg.AgentID)
 	if err != nil {
@@ -955,6 +985,11 @@ func (q *Queries) ListEvalSetViews(ctx context.Context, arg ListEvalSetViewsPara
 			&i.LastRunStatus,
 			&i.LastRunSummary,
 			&i.LastRunAt,
+			&i.PrevRunID,
+			&i.PrevRunKind,
+			&i.PrevRunStatus,
+			&i.PrevRunSummary,
+			&i.PrevRunAt,
 		); err != nil {
 			return nil, err
 		}
