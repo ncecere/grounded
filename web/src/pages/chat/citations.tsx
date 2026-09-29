@@ -15,10 +15,22 @@
  * Answers checked by v0.2.1 or later have claims (claims.tsx): a chip then
  * shows the verdict of its claim, found by the marker's occurrence, and its
  * card the claim's text above the passage.
+ *
+ * A chip opens its card on hover, click, Enter or Space (focus moves into the
+ * card, Escape returns it to the chip), so keyboard and screen-reader users
+ * get the claim too: it is the card's description. The card's "Show source n
+ * below" opens the sources under the answer and focuses that one.
+ *
+ * Sources are shown numbered 1..n in the order of their numbers, whatever the
+ * numbers the model cited ([1], [4], [5] read 1, 2, 3); the stored numbers
+ * don't change (displayNumbers). A chip keeps the punctuation right after it
+ * on its line (remarkChipPunctuation).
  */
+import { Popover } from "@base-ui/react/popover";
 import type { ComponentPropsWithRef, ReactNode } from "react";
 import { useMemo } from "react";
 import type { Components, ExtraProps } from "react-markdown";
+import { Button } from "@/components/ui/button/button";
 import { InlineCitation } from "@/components/ui/inline-citation/inline-citation";
 import { verificationLabel, worstVerification } from "@/lib/systemone";
 import { type Claim, ClaimQuote, claimChipVerification, claimLabel, claimOfMarker } from "./claims";
@@ -73,6 +85,41 @@ export function remarkUncitedMarks() {
     });
 }
 
+/** Punctuation that belongs with the chip before it ("…refunded [3]." never leaves the "." alone on a line). */
+const TRAIL = /^[.,;:!?)\]\u201d\u2019"']+/;
+
+/** Wraps markers and the punctuation right after them in a span that doesn't break (data-chip-tail). */
+export function remarkChipPunctuation() {
+  return (tree: MdNode) =>
+    walk(tree, (n) => {
+      if (n.type === "chipTail" || !n.children?.some((c) => c.type === "citationMarker")) return;
+      const out: MdNode[] = [];
+      const kids = n.children;
+      for (let i = 0; i < kids.length; i++) {
+        const c = kids[i]!;
+        const next = kids[i + 1];
+        const m = c.type === "citationMarker" && next?.type === "text" ? TRAIL.exec(next.value ?? "") : null;
+        if (!m || !next) {
+          out.push(c);
+          continue;
+        }
+        // A group [1][2] stays together with it.
+        const group: MdNode[] = [c];
+        while (out[out.length - 1]?.type === "citationMarker") group.unshift(out.pop()!);
+        out.push({ type: "chipTail", data: { hName: "span", hProperties: { dataChipTail: "" } }, children: [...group, { type: "text", value: m[0] }] });
+        next.value = next.value!.slice(m[0].length);
+        if (!next.value) i++;
+      }
+      n.children = out;
+    });
+}
+
+/** The number each source is shown with: 1..n in the order of the cited numbers ([1], [4], [5] read 1, 2, 3). */
+export function displayNumbers(citations: { n: number }[]): (n: number) => number {
+  const ranks = new Map([...new Set(citations.map((c) => c.n))].sort((x, y) => x - y).map((n, i) => [n, i + 1]));
+  return (n) => ranks.get(n) ?? n;
+}
+
 /**
  * The text with a sentinel after each uncited sentence (after a space, so a URL
  * ending the sentence doesn't swallow it). Offsets are code points.
@@ -106,10 +153,36 @@ function markerVerdict(s: Citation, k: number | undefined) {
 }
 
 type ChipSource = Parameters<typeof InlineCitation>[0]["sources"][number];
-type ChipProps = { byN: Map<number, Citation>; onActivate: (n: number) => void; sourceProps: (s: Citation) => ChipSource; claims?: Claim[] };
+type ChipProps = {
+  byN: Map<number, Citation>;
+  onActivate: (n: number) => void;
+  sourceProps: (s: Citation) => ChipSource;
+  claims?: Claim[];
+  num: (n: number) => number;
+};
+
+/** The card's way to the source's card under the answer, after the passage (or the snippet). */
+function withJump(src: ChipSource, n: number, { onActivate, num }: ChipProps): ChipSource {
+  const jump = (
+    <span className={a.jump}>
+      {/* It closes the card, which it sits in, as it goes (Base UI's Close: the chip's popover is Base UI's Popover). */}
+      <Popover.Close render={<Button variant="link" size="sm" />} onClick={() => onActivate(n)}>
+        Show source {num(n)} below
+      </Popover.Close>
+    </span>
+  );
+  const add = (node: ReactNode) => (
+    <>
+      {node}
+      {jump}
+    </>
+  );
+  return src.quote !== undefined ? { ...src, quote: add(src.quote) } : { ...src, description: add(src.description) };
+}
 
 /** A chip whose markers' claims carry the verdicts: the worst of a group's, explained for the deciding source. */
-function claimChip({ onActivate, sourceProps, claims }: ChipProps, indices: number[], occurrences: number[], cited: Citation[]): ReactNode {
+function claimChip(props: ChipProps, indices: number[], occurrences: number[], cited: Citation[]): ReactNode {
+  const { sourceProps, claims, num } = props;
   const found = indices.map((n, i) => claimOfMarker(claims, n, occurrences[i]));
   const marks = found.map((c, i) => (c ? claimChipVerification(c, indices[i]!) : undefined));
   const verification = worstVerification(marks);
@@ -117,23 +190,22 @@ function claimChip({ onActivate, sourceProps, claims }: ChipProps, indices: numb
   const sources = cited.map((s, i): ChipSource => {
     const base = sourceProps(s);
     const claim = found[i];
-    return claim ? { ...base, description: <ClaimQuote claim={claim} />, quote: base.description } : base;
+    return withJump(claim ? { ...base, description: <ClaimQuote claim={claim} />, quote: base.description } : base, s.n, props);
   });
   return (
     <InlineCitation
-      index={indices}
+      index={indices.map(num)}
       className={a.chip}
       verification={verification}
-      verificationLabel={verification && at >= 0 ? claimLabel(found[at]!, indices[at]!) : undefined}
+      verificationLabel={verification && at >= 0 ? claimLabel(found[at]!, indices[at]!, num) : undefined}
       sources={sources}
-      onActivate={() => onActivate(indices[0]!)}
     />
   );
 }
 
 /** A chip for a marker's numbers and their occurrences; undefined when a number has no source (it stays text). */
 function chip(props: ChipProps, indices: number[], occurrences: number[]): ReactNode {
-  const { byN, onActivate, sourceProps } = props;
+  const { byN, sourceProps, num } = props;
   const cited = indices.map((n) => byN.get(n));
   if (cited.some((s) => !s)) return undefined;
   if (props.claims) return claimChip(props, indices, occurrences, cited as Citation[]);
@@ -143,27 +215,26 @@ function chip(props: ChipProps, indices: number[], occurrences: number[]): React
   const deciding = verdicts.find((v) => v.verification === verification);
   return (
     <InlineCitation
-      index={indices}
+      index={indices.map(num)}
       className={a.chip}
       verification={verification}
       verificationLabel={verification ? verificationLabel(verification, deciding?.confidence) : undefined}
-      sources={cited.map((s) => sourceProps(s!))}
-      onActivate={() => onActivate(indices[0]!)}
+      sources={cited.map((s) => withJump(sourceProps(s!), s!.n, props))}
     />
   );
 }
 
 type SupProps = ComponentPropsWithRef<"sup"> & ExtraProps;
 type SpanProps = ComponentPropsWithRef<"span"> & ExtraProps;
-const plugins = [remarkMarkerOccurrences, remarkUncitedMarks];
+const plugins = [remarkMarkerOccurrences, remarkUncitedMarks, remarkChipPunctuation];
 
 /**
  * Response props for an answer: marker chips with the verdicts of their claims (or, for answers without claims,
- * per-marker verdicts), and "Uncited" marks.
+ * per-marker verdicts), and "Uncited" marks. `onActivate(n)` is the card's "Show source n below".
  */
 export function useAnswerMarkers(citations: Citation[], onActivate: (n: number) => void, sourceProps: ChipProps["sourceProps"], claims?: Claim[]) {
   return useMemo(() => {
-    const props: ChipProps = { byN: new Map(citations.map((s) => [s.n, s])), onActivate, sourceProps, claims };
+    const props: ChipProps = { byN: new Map(citations.map((s) => [s.n, s])), onActivate, sourceProps, claims, num: displayNumbers(citations) };
     const components: Components = {
       sup({ node: _node, children, ...rest }: SupProps) {
         const data = rest as Record<string, unknown>;
@@ -173,7 +244,8 @@ export function useAnswerMarkers(citations: Citation[], onActivate: (n: number) 
         return <>{chip(props, indices, occurrences as number[]) ?? children}</>;
       },
       span({ node: _node, ...rest }: SpanProps) {
-        return "data-uncited" in rest ? <UncitedMark /> : <span {...rest} />;
+        if ("data-uncited" in rest) return <UncitedMark />;
+        return "data-chip-tail" in rest ? <span className={a.chipTail}>{rest.children}</span> : <span {...rest} />;
       },
     };
     // renderCitation turns marker parsing on; the sup renderer above draws the chips.

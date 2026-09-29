@@ -31,18 +31,35 @@ export function claimChipVerification(claim: Claim, n: number): Exclude<Citation
 const conf = (c?: number | null) => (c == null ? "" : ` (${pct(c)} confidence)`);
 const sourceList = (ns: number[]) => (ns.length === 1 ? `source ${ns[0]}` : `sources ${ns.slice(0, -1).join(", ")} and ${ns[ns.length - 1]}`);
 
-/** What a chip's card and accessible name say about its claim and this source ("Claim supported by this source (95% confidence)"). */
-export function claimLabel(claim: Claim, n: number) {
+/** Below this confidence a supporting verdict reads "with low confidence" rather than a plain "supported (43% confidence)". */
+export const LOW_CONFIDENCE = 0.5;
+
+/**
+ * What a chip's card and accessible name say about its claim and this source, the claim's verdict first ("Claim
+ * supported by source 1. This source doesn't support it"). `num` gives the numbers sources are shown with.
+ */
+export function claimLabel(claim: Claim, n: number, num: (n: number) => number = (x) => x) {
   const own = claim.checks?.find((k) => k.n === n);
+  const says = own?.verification === "contradicted" ? "This source contradicts it" : "This source doesn't support it";
   if (claim.verdict === "supported") {
-    if (claim.sources.includes(n)) return `Claim supported by this source${conf(own?.confidence)}`;
-    return `Claim supported by ${sourceList(claim.sources)}; ${own?.verification === "contradicted" ? "this source contradicts it" : "not by this source"}`;
+    if (!claim.sources.includes(n)) return `Claim supported by ${sourceList(claim.sources.map(num))}. ${says}`;
+    const c = own?.confidence;
+    return c != null && c < LOW_CONFIDENCE ? `Claim supported by this source, with low confidence (${pct(c)})` : `Claim supported by this source${conf(c)}`;
   }
-  if (claim.verdict === "not_supported") {
-    const how = own?.verification === "contradicted" ? "this source contradicts it" : "this source doesn't support it";
-    return `Claim not supported: ${how}${conf(own?.confidence)}`;
-  }
+  if (claim.verdict === "not_supported") return `Claim not supported. ${says}${conf(own?.confidence)}`;
   return undefined;
+}
+
+/**
+ * A source card's line about the claims citing that source ("Supports 2 of 3 claims that cite it"), so it doesn't
+ * contradict a chip whose claim another source supports; undefined when none of them was checked against it.
+ */
+export function sourceClaimsText(claims: Claim[], n: number) {
+  const checks = claims.flatMap((c) => c.checks?.filter((k) => k.n === n && k.verification !== "unchecked") ?? []);
+  if (checks.length === 0) return undefined;
+  const yes = checks.filter((k) => k.verification === "verified").length;
+  if (checks.length === 1) return yes ? "Supports the claim that cites it" : "Doesn't support the claim that cites it";
+  return `Supports ${yes} of ${checks.length} claims that cite it`;
 }
 
 /** The uncited claims as sentences for the "Uncited" marks. */
