@@ -9,7 +9,7 @@
  */
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Eye, History, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { api, unwrap } from "../../api/client";
 import { formatDate } from "../../lib/format";
 import { ActionMenu } from "@/components/templates/action-menu";
@@ -23,12 +23,15 @@ import { AlertDialog } from "@/components/ui/dialog/dialog";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Table, TableActions, Td, Tr } from "@/components/ui/table/table";
 import { toast } from "@/components/ui/toast/toast";
+import { Tooltip } from "@/components/ui/tooltip/tooltip";
+import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import s from "../shared.module.css";
 import { ClassificationBadge, useClassificationLevels, useTeam } from "../team/common";
 import type { Agent, AgentVersion } from "./common";
 import type { AgentDraft } from "./draft";
 import { ConfigSummary, versionsKey } from "./versions";
 import { CompareVersions } from "./versions-compare";
+import { revertReason } from "./version-menu";
 import vs from "./versions.module.css";
 
 /** The history's URL parameter and its views. */
@@ -85,9 +88,33 @@ export function useRevertDraft(agent: Agent, d: AgentDraft) {
   return { ask: (version: number) => setReverting(version), dialog };
 }
 
+/** "Revert draft to v3…"; while the draft already matches the version, focusable but disabled, with the reason (P-04). */
+function RevertButton({ version, reason, onRevert }: { version: number; reason?: string; onRevert: (v: number) => void }) {
+  const reasonId = useId();
+  const label = `Revert draft to v${version}…`;
+  if (!reason)
+    return (
+      <Button variant="secondary" onClick={() => onRevert(version)}>
+        <RotateCcw aria-hidden /> {label}
+      </Button>
+    );
+  return (
+    <>
+      <Tooltip content={reason}>
+        {/* A non-native button: aria-disabled and focusable, activation cancelled. */}
+        <Button variant="secondary" disabled render={<button type="button" />} aria-describedby={reasonId}>
+          <RotateCcw aria-hidden /> {label}
+        </Button>
+      </Tooltip>
+      <VisuallyHidden id={reasonId}>{reason}</VisuallyHidden>
+    </>
+  );
+}
+
 /** A published version as a record page over the history (?version=<n>): its configuration, and Revert. */
-function VersionRecord({ agentId, version, onClose, onRevert }: { agentId: string; version: number; onClose: () => void; onRevert: (v: number) => void }) {
+function VersionRecord({ agent, version, onClose, onRevert }: { agent: Agent; version: number; onClose: () => void; onRevert: (v: number) => void }) {
   const { slug } = useTeam();
+  const agentId = agent.id;
   const invalid = !Number.isInteger(version) || version <= 0;
   const v = useQuery({
     queryKey: [...versionsKey(slug, agentId), version],
@@ -103,13 +130,7 @@ function VersionRecord({ agentId, version, onClose, onRevert }: { agentId: strin
       description={v.data ? `Published ${formatDate(v.data.publishedAt)} by ${v.data.publishedByName || "someone"}.` : "A published version of this agent."}
       loading={v.isLoading}
       error={invalid ? new Error("This version doesn't exist, or the link is wrong.") : v.error}
-      actions={
-        v.data && (
-          <Button variant="secondary" onClick={() => onRevert(v.data!.version)}>
-            <RotateCcw aria-hidden /> Revert draft…
-          </Button>
-        )
-      }
+      actions={v.data && <RevertButton version={v.data.version} reason={revertReason(agent, v.data.version)} onRevert={onRevert} />}
       sections={v.data ? [{ title: "Configuration", content: <ConfigSummary config={v.data.config} kbs={v.data.knowledgeBases} modelName={v.data.chatModelName} /> }] : []}
     />
   );
@@ -149,7 +170,13 @@ function VersionsTable({ agent, list, onView, onRevert }: { agent: Agent; list: 
                 label={`Actions for version ${v.version}`}
                 actions={[
                   { label: "View details", icon: <Eye aria-hidden />, onSelect: () => onView(v.version) },
-                  { label: "Revert draft…", icon: <RotateCcw aria-hidden />, onSelect: () => onRevert(v.version) },
+                  {
+                    label: `Revert draft to v${v.version}…`,
+                    icon: <RotateCcw aria-hidden />,
+                    onSelect: () => onRevert(v.version),
+                    disabled: Boolean(revertReason(agent, v.version)),
+                    disabledReason: revertReason(agent, v.version),
+                  },
                 ]}
               />
             </TableActions>
@@ -197,13 +224,13 @@ export function VersionHistory({ agent, d, view, onClose, onRevert }: { agent: A
         )}
         {list.length > 0 ? (
           <div className={vs.tab}>
-            <CompareVersions agent={agent} draft={d.draft.config} versions={list} />
+            <CompareVersions agent={agent} draft={d.draft.config} versions={list} describe={!compare} />
           </div>
         ) : (
           compare && <EmptyState size="compact" icon={<History />} title="Nothing to compare yet." description="Publish the draft to create version 1." />
         )}
       </RecordPage>
-      {viewing !== null && <VersionRecord agentId={agent.id} version={viewing} onClose={record.close} onRevert={onRevert} />}
+      {viewing !== null && <VersionRecord agent={agent} version={viewing} onClose={record.close} onRevert={onRevert} />}
     </>
   );
 }

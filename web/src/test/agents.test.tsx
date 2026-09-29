@@ -369,7 +369,7 @@ describe("agent editor", () => {
     renderApp("/teams/registrar/agents/ag1?tab=versions");
     const table = await screen.findByRole("table", { name: "Published versions" });
     await userEvent.click(within(table).getByRole("button", { name: "Actions for version 1" }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "Revert draft…" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Revert draft to v1…" }));
     await userEvent.click(await screen.findByRole("button", { name: "Revert draft" }));
     expect(await screen.findByText(/This is the live version: there are no unpublished changes/)).toBeInTheDocument();
     expect(screen.queryByText("Test it, then publish to make it live.")).toBeNull();

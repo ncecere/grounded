@@ -118,11 +118,13 @@ describe("Build", () => {
   }, 10_000);
 
   it("editors can't start a publish to Public and are told why (P-03)", async () => {
-    mockApi(routes(agent({ hasUnpublishedChanges: true, draft: { ...config, audience: "public" } }), {}, "editor"));
+    mockApi(routes(agent({ audience: "public", hasUnpublishedChanges: true, draft: { ...config, audience: "public" } }), {}, "editor"));
     renderApp("/teams/registrar/agents/ag1");
     const publish = await screen.findByRole("button", { name: "Publish" }, { timeout: 5000 });
     expect(publish).toBeDisabled();
     expect(publish).toHaveAccessibleDescription(/Only team admins and owners can publish to Public/);
+    // Said once: no second notice about the audience under the header.
+    expect(screen.queryByText(/can change this agent's audience or publish it beyond the team/)).toBeNull();
   });
 
   it("the publish dialog names the audience (F-15)", async () => {

@@ -1,8 +1,8 @@
 /*
- * The agent editor (D2, D3): a DetailPage with the status, the version menu
- * ("v4 live" or "Draft": Version history, Compare, Revert; I6), the save
- * state and Chat · Try it · Publish in the header, one facts line, and the
- * pill tabs Build · Evaluations · Appearance · Share · Analytics · Settings.
+ * The agent editor (D2, D3): a DetailPage with the version menu ("v4 live"
+ * or "Draft": Version history, Compare, Revert; I6; a status badge only
+ * when the agent isn't live), the save state and Chat · Try it · Publish
+ * in the header, one facts line, and the pill tabs Build · Evaluations · Appearance · Share · Analytics · Settings.
  * Build is the configuration beside a live Try it chat; the version history
  * opens as a record page (?history=); Settings has the name, address and the
  * Danger zone, like a source's and a knowledge base's (C13).
@@ -125,7 +125,8 @@ function Editor({ agent }: { agent: Agent }) {
         description={current.description || undefined}
         meta={
           <>
-            <AgentStatusBadge agent={current} />
+            {/* "v4 live" says it's live: the status badge only shows otherwise (Disabled, Not published). */}
+            {!live && <AgentStatusBadge agent={current} />}
             <VersionMenu agent={current} onOpen={(view) => history.open(view)} onRevert={revert.ask} />
             {current.published && current.hasUnpublishedChanges && <Badge tone="info">Unpublished changes</Badge>}
             <SaveIndicator d={d} />
@@ -152,7 +153,8 @@ function Editor({ agent }: { agent: Agent }) {
         ]}
         notices={
           <>
-            {!isManager && current.published && current.audience !== "team" && (
+            {/* Said once: while the draft's audience is beyond the team, the reason under Publish says it. */}
+            {!isManager && current.published && current.audience !== "team" && c.audience === "team" && (
               <Alert tone="info">Only team admins and owners can change this agent's audience or publish it beyond the team.</Alert>
             )}
             <EditorAlerts current={current} d={d} onProblem={goToField} />
