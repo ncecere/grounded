@@ -1,8 +1,8 @@
 /*
  * The Build tab (D2 / W2), in the style of a GPT builder: the configuration
- * sections on the left and a live Test chat of the draft on the right, in
+ * sections on the left and a live Try it chat of the draft on the right, in
  * resizable panes whose sizes are remembered. Below 1100 px the sections
- * fill the width and Test opens as a dialog from the header's Test button
+ * fill the width and Try it opens as a dialog from the header's Try it button
  * (?test=open, so Back closes it).
  */
 import { Suspense, lazy, useSyncExternalStore } from "react";
@@ -92,7 +92,7 @@ export function BuildTab({ agent, d, sections, onSectionsChange, onProblem, test
         open={testOpen}
         onOpenChange={onTestOpenChange}
         size="lg"
-        title="Test the draft"
+        title="Try the draft"
         description="Chats with the draft as saved. Answers aren't stored."
       >
         <div className={cf.testDialogBody}>{test(false)}</div>

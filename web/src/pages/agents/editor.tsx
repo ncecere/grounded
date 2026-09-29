@@ -1,8 +1,8 @@
 /*
  * The agent editor (D2, D3): a DetailPage with the status, save state and
- * Chat · Test · Publish in the header, one facts line, and the pill tabs
+ * Chat · Try it · Publish in the header, one facts line, and the pill tabs
  * Build · Appearance · Share · Versions · Analytics · Settings. Build is the
- * configuration beside a live Test chat; Settings has the name, address and
+ * configuration beside a live Try it chat; Settings has the name, address and
  * the Danger zone, like a source's and a knowledge base's (C13).
  */
 import { useQuery } from "@tanstack/react-query";
@@ -50,7 +50,7 @@ export function AgentEditorPage() {
   return <Editor key={agent.data.id} agent={agent.data} />;
 }
 
-/** The Test dialog's state in ?test=open, so Back closes it and "land on Build with Test open" is a link (W9). */
+/** The Try it dialog's state in ?test=open, so Back closes it and "land on Build with Try it open" is a link (W9). */
 function useTestParam(): [boolean, (open: boolean) => void] {
   const [params, setParams] = useSearchParams();
   const open = params.get("test") === "open";

@@ -1,8 +1,9 @@
-/* The agent editor's header pieces (save state, Chat · Test · Publish) and the alerts under it, including a save conflict (F-04). */
+/* The agent editor's header pieces (save state, Chat · Try it · Publish) and the alerts under it, including a save conflict (F-04). */
 import { Link } from "@tanstack/react-router";
 import { CheckCircle2, Circle, CircleAlert, FlaskConical, Loader2, MessageSquare, Upload } from "lucide-react";
 import { useId } from "react";
 import { errorMessage } from "../../api/client";
+import { terms } from "../../lib/terms";
 import { Alert } from "@/components/ui/alert/alert";
 import { DiffViewer } from "@/components/ui/diff-viewer/diff-viewer";
 import { Button } from "@/components/ui/button/button";
@@ -37,11 +38,11 @@ type ActionsProps = {
   /** Why Publish is unavailable (shown under the button and read with it), or undefined. */
   blocked?: string;
   onPublish: () => void;
-  /** Opens the Test dialog (narrow windows on Build). */
+  /** Opens the Try it dialog (narrow windows on Build). */
   onTest?: () => void;
 };
 
-/** Chat · Test (narrow Build only) · Publish, with the reason when Publish is disabled. */
+/** Chat · Try it (narrow Build only) · Publish, with the reason when Publish is disabled. */
 export function HeaderActions({ current, live, blocked, onPublish, onTest }: ActionsProps) {
   const reasonId = useId();
   return (
@@ -50,7 +51,7 @@ export function HeaderActions({ current, live, blocked, onPublish, onTest }: Act
         {live && <ChatButton agent={current} />}
         {onTest && (
           <Button variant="secondary" onClick={onTest}>
-            <FlaskConical aria-hidden /> Test
+            <FlaskConical aria-hidden /> {terms.tryIt}
           </Button>
         )}
         <Button onClick={onPublish} disabled={Boolean(blocked)} aria-describedby={blocked ? reasonId : undefined}>

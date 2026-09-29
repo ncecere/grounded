@@ -1,4 +1,4 @@
-/* The "New agent" dialog (W9): name, then knowledge bases (an agent without one can't answer), the chat model by display name, address and description. Lands on Build with Test open. */
+/* The "New agent" dialog (W9): name, then knowledge bases (an agent without one can't answer), the chat model by display name, address and description. Lands on Build with Try it open. */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -76,7 +76,7 @@ export function CreateAgentDialog({ onClose }: { onClose: () => void }) {
     onSuccess: (agent) => {
       qc.setQueryData(agentKey(team, agent.id), agent);
       qc.invalidateQueries({ queryKey: agentsKey(team) });
-      toast.success("Agent created", "Write its instructions and try it in Test, then publish.");
+      toast.success("Agent created", "Write its instructions, try it, then publish.");
       onClose();
       // Build with the Test chat open, so the builder sees the agent answer at once.
       void navigate({ to: "/teams/$team/agents/$agentId", params: { team, agentId: agent.id }, search: { test: "open" } as never });

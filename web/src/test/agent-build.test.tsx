@@ -92,7 +92,7 @@ describe("Build", () => {
     const { container } = renderApp("/teams/registrar/agents/ag1");
     expect(await screen.findByRole("tab", { name: "Build", selected: true }, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Build", "Appearance", "Share", "Versions", "Analytics", "Settings"]);
-    expect(await screen.findByRole("region", { name: "Test" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Try it" })).toBeInTheDocument();
     expect(screen.getByRole("separator", { name: "Resize the test chat" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: /^Model/ })).toHaveTextContent("GPT-OSS 120B (Campus gateway)"));
     expect(screen.getByRole("button", { name: /^Knowledge/ })).toHaveTextContent("Registrar help");
@@ -137,10 +137,10 @@ describe("Build", () => {
     mockApi(routes(agent()));
     const { router } = renderApp("/teams/registrar/agents/ag1");
     await screen.findByRole("button", { name: /^Instructions/ }, { timeout: 5000 });
-    expect(screen.queryByRole("region", { name: "Test" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Test" }));
+    expect(screen.queryByRole("region", { name: "Try it" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Try it" }));
     await waitFor(() => expect(router.state.location.search).toEqual({ test: "open" }));
-    const drawer = await screen.findByRole("dialog", { name: "Test the draft" });
+    const drawer = await screen.findByRole("dialog", { name: "Try the draft" });
     expect(await within(drawer).findByRole("textbox", { name: "Message Helper" })).toBeInTheDocument();
   });
 

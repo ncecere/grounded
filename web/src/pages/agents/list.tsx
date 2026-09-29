@@ -1,7 +1,7 @@
 /*
  * Team → Agents (W6) on the ListPage template: status facet and search in
  * the URL, an Audience column, an "unpublished changes" dot, the model's
- * display name (Q11), and a row menu (Chat, Test, Share).
+ * display name (Q11), and a row menu (Chat, Try it, Share).
  */
 import { Link } from "@tanstack/react-router";
 import { Bot, FlaskConical, MessageSquare, Pencil, Plus, Share2 } from "lucide-react";
@@ -15,7 +15,7 @@ import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
-import { audienceLabel } from "@/lib/terms";
+import { audienceLabel, terms } from "@/lib/terms";
 import s from "../shared.module.css";
 import { ArchivedNotice } from "../team/layout";
 import { useTeam } from "../team/common";
@@ -134,7 +134,7 @@ export function AgentsPage() {
         rowActions={(ag) => [
           { label: `Chat with ${ag.name}`, icon: <MessageSquare aria-hidden />, render: <Link to="/a/$team/$agent" params={{ team: slug, agent: ag.slug }} />, hidden: !(ag.status === "active" && ag.published) },
           { label: "Edit", icon: <Pencil aria-hidden />, render: editor(ag), hidden: !canEdit },
-          { label: "Test", icon: <FlaskConical aria-hidden />, render: editor(ag, { test: "open" }), hidden: !canEdit },
+          { label: terms.tryIt, icon: <FlaskConical aria-hidden />, render: editor(ag, { test: "open" }), hidden: !canEdit },
           { label: "Share", icon: <Share2 aria-hidden />, render: editor(ag, { tab: "share" }), hidden: !canEdit },
         ]}
         loading={agents.isLoading}

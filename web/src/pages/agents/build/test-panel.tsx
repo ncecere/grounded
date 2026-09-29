@@ -1,6 +1,7 @@
-/* Build's live Test chat: a chat with the saved draft. Nothing is stored; the history is sent with each question. */
+/* Build's live Try it chat: a chat with the saved draft. Nothing is stored; the history is sent with each question. */
 import { Eraser } from "lucide-react";
 import { useRef, useState } from "react";
+import { terms } from "../../../lib/terms";
 import { AddToEvaluationsDialog } from "../../team/evaluations/add-to-evaluations";
 import { useEvaluationsOn } from "../../team/evaluations/queries";
 import { useTeam } from "../../team/common";
@@ -32,12 +33,12 @@ export function TestPanel({ agent, d, chat, onProblem, heading = true }: Props) 
   const problems = (chat.error?.code === "agent_invalid" ? (chat.error.details?.problems as AgentProblem[] | undefined) : undefined) ?? [];
 
   return (
-    <section aria-labelledby={heading ? "test-heading" : undefined} aria-label={heading ? undefined : "Test the draft"} className={ts.test}>
+    <section aria-labelledby={heading ? "test-heading" : undefined} aria-label={heading ? undefined : "Try the draft"} className={ts.test}>
       <div className={ts.testHead}>
         {heading ? (
           <>
             <h2 id="test-heading" className={ts.testTitle}>
-              Test
+              {terms.tryIt}
             </h2>
             <p className={ts.testNote}>Chats with the draft as saved. Answers aren't stored.</p>
           </>
