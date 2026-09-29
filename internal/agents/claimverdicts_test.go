@@ -197,6 +197,18 @@ func TestClaimsOfListsAndTables(t *testing.T) {
 	}
 }
 
+// Terms in a bulleted list are treated alike (the v0.2.1 walkthrough): none
+// is an uncited claim, and a cited one is checked with the list's lead-in.
+func TestClaimsOfListFragments(t *testing.T) {
+	text := "3. **Follow the prompts**, where you confirm:\n   - Recipient (yourself)\n   - \u201cProcess As Is\u201d option\n" +
+		"   - Purpose (e.g., certification/licensure)\n   - Delivery method (e.g., mail) [2]."
+	claims := claimsOfText(text, byNumber(map[int]systemone.Verdict{2: verdict(systemone.Verified, 0.9)}))
+	want := []claimSummary{{ClaimSupported, "Delivery method (e.g., mail).", []int{2}}}
+	if got := summarize(claims); !reflect.DeepEqual(got, want) {
+		t.Errorf("claims = %+v", got)
+	}
+}
+
 func mustJSON(v any) string {
 	b, _ := json.Marshal(v)
 	return string(b)

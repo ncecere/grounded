@@ -11,6 +11,7 @@ package agents
 import (
 	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/ncecere/grounded/internal/systemone"
@@ -73,8 +74,12 @@ func uncitedSpans(text string) []span { return readAnswer(text).uncited }
 //   - isn't a heading, a short bold line standing in for one, a list's
 //     lead-in ending with ":", or code;
 //   - isn't a question (to the user), a greeting or closing ("Hope this
-//     helps", "Let me know if…"), or a sentence saying what the sources
-//     don't cover (a refusal).
+//     helps", "Let me know if…"), a sentence saying what the sources
+//     don't cover (a refusal), or a hedged suggestion to ask someone ("If
+//     it's urgent, you may need to contact the office directly");
+//   - isn't a term in a bulleted list (listFragment): uncited, a short item
+//     such as "Recipient (yourself)" belongs to the sentence introducing
+//     the list.
 func UncitedSentences(text string) []UncitedSentence {
 	spans := uncitedSpans(text)
 	if len(spans) == 0 {
@@ -99,7 +104,39 @@ var (
 		`\b(?:isn't|is not|aren't|are not|wasn't|was not|not)\s+(?:covered|mentioned|specified|stated|addressed|included|listed)\s+` +
 		`(?:in|by)\s+(?:the |my |these |those )?(?:sources?|documents?|documentation|knowledge base|materials?|pages?)\b|` +
 		`\b(?:couldn't|could not|can't|cannot) find\b|\bi (?:don't|do not) (?:have|know)\b|\bno information (?:about|on|in|regarding)\b)`)
+	// referralRE is a hedged suggestion to ask someone, usually after a
+	// sentence saying what the sources don't cover: "If you need it urgently,
+	// you may need to contact the office directly", "Consider calling the
+	// help desk". It says what the reader could do, not what a source says;
+	// one with a number or an address in it is still a claim (factual).
+	referralRE = regexp.MustCompile(`(?i)^(?:[^,]{1,120},\s*)?(?:you\s+(?:may|might|could)\s+(?:also\s+)?(?:(?:need|want|wish|have)\s+to\s+)?|` +
+		`(?:consider|try)\s+)(?:contact(?:ing)?|reach(?:ing)?\s+out|call(?:ing)?|e-?mail(?:ing)?|ask(?:ing)?|check(?:ing)?\s+with|` +
+		`inquir(?:e|ing)|get(?:ting)?\s+in\s+touch)\b`)
 )
+
+// listFragment reports a bulleted list item that is a term rather than a
+// sentence: at most four words, no digit, and no sentence punctuation at the
+// end ("Recipient (yourself)", "“Process As Is” option", "Purpose (e.g.,
+// certification/licensure)"). A number ("$10 per copy") makes it a claim.
+func listFragment(sentence string) bool {
+	s := strings.TrimSpace(sentence)
+	if strings.HasSuffix(s, ".") || strings.HasSuffix(s, "!") || strings.IndexFunc(s, unicode.IsDigit) >= 0 {
+		return false
+	}
+	words := 0
+	for _, f := range strings.Fields(s) {
+		if hasWord(f) {
+			words++
+		}
+	}
+	return words <= 4
+}
+
+// referral reports a hedged suggestion to ask someone (referralRE) that
+// names no number or address.
+func referral(s string) bool {
+	return referralRE.MatchString(s) && strings.IndexFunc(s, unicode.IsDigit) < 0 && !strings.Contains(s, "@")
+}
 
 // factual reports whether a sentence (Markdown stripped, without its list
 // lead-in) states something a source should back. unit is the paragraph or
@@ -109,7 +146,7 @@ func factual(sentence, unit string) bool {
 	switch {
 	case !checkable(s), strings.HasSuffix(s, "?"), strings.HasSuffix(s, ":"):
 		return false
-	case greetingRE.MatchString(s), notCoveredRE.MatchString(s):
+	case greetingRE.MatchString(s), notCoveredRE.MatchString(s), referral(s):
 		return false
 	}
 	u := strings.TrimSpace(unit)

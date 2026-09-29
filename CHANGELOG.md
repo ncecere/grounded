@@ -22,6 +22,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Evaluations: the score-over-time chart has a fixed 0–100% scale, and a set's breadcrumb (Team › … › Set › Run › Result) turns "…" into a menu of the hidden crumbs (its knowledge base or agent, and that page's Evaluations tab) (G19). bitop-ui's `line-chart` and `bar-chart` gained `domain`, and `breadcrumbs` a collapsed item (`collapsed: […]`).
 - An evaluation run's link reads "Retrieval, Sep 28, 2026…" to screen readers, not "Retrieval , Sep 28…" (G20).
 
+### Fixed
+- Claims: short terms in a bulleted list ("Recipient (yourself)", "Purpose (e.g., certification)" under "where you confirm:") are treated alike, as part of the sentence introducing the list: none is marked **Uncited** any more, and one that cites a source is still checked. A hedged suggestion to ask someone ("If it's urgent, you may need to contact the office directly"), which usually follows "The sources don't say…", isn't a claim either ([`docs/systemone.md`](docs/systemone.md#citation-checks-as-built-3)).
+
 ## [0.2.0] - 2026-09-29
 
 Evaluations, SSO groups, costs and budgets, OCR and ⌘K search, plus the fixes from a walkthrough by role and a UX and answer review. The plan is [`docs/v0.2.0.md`](docs/v0.2.0.md) and the release notes are [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md). v0.2.0-rc.1 ran on the reference install first; since then only the release job and documentation changed.
