@@ -21,8 +21,8 @@ function pageKey(url: string): string | undefined {
  * final state of every page is checked when the test ends. A test fails on
  * any axe violation, when it visited a page it never checked, or when a page
  * threw an uncaught error. An address the app replaces before it renders (a
- * redirect from an old address, `history.replaceState`) doesn't need a check:
- * it was never shown.
+ * redirect from an old address or an old tab, `history.replaceState`) doesn't
+ * need a check: it was never shown.
  */
 class A11y {
   private visited = new Map<Page, Set<string>>();
@@ -42,7 +42,10 @@ class A11y {
       history.replaceState = (data, unused, url) => {
         const from = location.href;
         replace(data, unused, url);
-        if (location.pathname !== new URL(from).pathname) void (window as unknown as { __a11yReplaced?: (u: string) => void }).__a11yReplaced?.(from);
+        // A new page, or a renamed tab of the same page (?tab=report → ?tab=dry-run).
+        const was = new URL(from);
+        const tab = (u: URL | Location) => new URLSearchParams(u.search).get("tab");
+        if (location.pathname !== was.pathname || tab(location) !== tab(was)) void (window as unknown as { __a11yReplaced?: (u: string) => void }).__a11yReplaced?.(from);
       };
     });
     page.on("pageerror", (err) => this.errors.push(`${page.url()}: ${err.stack ?? err.message}`));
