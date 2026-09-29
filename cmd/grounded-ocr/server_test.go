@@ -54,7 +54,7 @@ func fakeTesseract(args []string) int {
 			return 1
 		}
 		if strings.Contains(args[3], "slow") {
-			time.Sleep(400 * time.Millisecond)
+			time.Sleep(2 * time.Second)
 		}
 		if os.Getenv("OMP_THREAD_LIMIT") != "1" {
 			return 3
@@ -139,10 +139,13 @@ func TestServer(t *testing.T) {
 }
 
 func TestServerBoundsConcurrencyAndTime(t *testing.T) {
-	hs, _ := fakeServer(t, Options{Concurrency: 1, MaxBytes: 1024, Timeout: 1500 * time.Millisecond})
+	// One slot; each request takes at least 2 s (the fake's "slow" plus starting
+	// it, which is slow under -race and coverage); a 5 s budget fits one but not
+	// six in a row, whatever the machine's speed.
+	hs, _ := fakeServer(t, Options{Concurrency: 1, MaxBytes: 1024, Timeout: 5 * time.Second})
 	var ok, busy atomic.Int32
 	var wg sync.WaitGroup
-	for range 6 { // one slot, at least 400 ms each, a 1.5 s budget: some finish, some don't
+	for range 6 { // some finish, some don't
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
