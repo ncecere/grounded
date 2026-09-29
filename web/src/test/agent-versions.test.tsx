@@ -8,6 +8,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
+import { configInput } from "../pages/agents/common";
 import { type Handler, meFor, mockApi, renderApp, shellRoutes } from "./harness";
 
 beforeAll(() => {
@@ -165,5 +166,14 @@ describe("the old Versions tab's addresses (I6)", () => {
     const { router } = renderApp("/teams/registrar/agents/ag1?tab=versions&record=1&from=1&to=draft");
     expect(await screen.findByRole("region", { name: "Version 1" }, T)).toBeInTheDocument();
     expect(router.state.location.search).toEqual({ history: "versions", version: 1, from: 1, to: "draft" });
+  });
+});
+
+describe("a draft's configuration as saved", () => {
+  it("keeps any SystemOne override, citation checks or the scope check alone too, and leaves out an empty one", () => {
+    expect(configInput({ ...config, systemOne: { citations: "on" } }).systemOne).toEqual({ citations: "on" });
+    expect(configInput({ ...config, systemOne: { scope: "off" } }).systemOne).toEqual({ scope: "off" });
+    expect(configInput({ ...config, systemOne: { judging: "" } }).systemOne).toBeUndefined();
+    expect(configInput(config).systemOne).toBeUndefined();
   });
 });

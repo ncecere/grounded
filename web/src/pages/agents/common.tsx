@@ -118,8 +118,9 @@ export function configInput(c: AgentConfig): AgentConfigInput {
     queryRewrite: c.queryRewrite,
     moderation: c.moderation,
     audience: c.audience,
-    // Omitted (not null) when unset: agents without SystemOne checks keep the exact config they had.
-    systemOne: c.systemOne && (c.systemOne.judging || c.systemOne.candidates) ? c.systemOne : undefined,
+    // Omitted (not null) when unset: agents without SystemOne checks keep the exact config they had. Any override
+    // counts (citation checks or the scope check alone too), or saving and Compare versions would drop it.
+    systemOne: c.systemOne && Object.values(c.systemOne).some((v) => v !== undefined && v !== "") ? c.systemOne : undefined,
   };
 }
 
