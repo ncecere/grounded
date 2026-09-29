@@ -87,7 +87,7 @@ minSimilarity        0–1, optional (0 = off). Hits whose best vector similarit
 strictlyGrounded     bool (default true)
 refusalMessage       string ≤ 500 (default "I couldn't find an answer to that in the sources I have.")
 citationMode         none | snippet | snippet_link (default snippet_link)
-queryRewrite         bool (default true): with history, rewrite the question as a standalone query with the chat model (non-streaming, ≤ 200 tokens) before retrieval
+queryRewrite         bool (default true): with history, rewrite the question as a standalone query with the chat model (non-streaming, low reasoning effort, ≤ 1,024 output tokens) before retrieval; a follow-up that comes back empty or unchanged is searched with the previous question
 moderation           off (reserved; Phase 4)
 ```
 

@@ -75,7 +75,10 @@ func systemPromptJudged(agentName, teamName, orgName string, c Config, judging b
 // search query that makes sense without the conversation.
 const rewritePrompt = "You rewrite the user's latest message as a standalone search query for a document search engine. " +
 	"Use the conversation to resolve pronouns and references (\"it\", \"that office\", \"the second one\"). " +
-	"Keep the user's language and important terms. Reply with the query only: no quotes, no explanation. " +
+	"A short message, or one that starts with \"and\", \"or\", \"what about\" or a pronoun, continues the conversation: " +
+	"always rewrite it into a complete question that names its subject (\"And for a second copy?\" after a question about " +
+	"transcript fees becomes \"How much does a second transcript cost?\"). " +
+	"Keep the user's language and important terms. Reply with the query only, on one line: no quotes, no explanation. " +
 	"If the latest message is already clear on its own, repeat it unchanged."
 
 // noSourcesNote is sent (non-strict, always mode) when retrieval found

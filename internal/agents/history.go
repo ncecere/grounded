@@ -1,5 +1,5 @@
-// Conversation history: loading, storing the question, trimming it to the
-// context window and rewriting the question into a search query.
+// Conversation history: loading, storing the question and trimming it to the
+// context window (rewrite.go turns a follow-up into a search query).
 
 package agents
 
@@ -7,8 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
-	"time"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -187,25 +185,4 @@ func (ru *run) trimHistory() {
 	for len(ru.history) > 0 && ru.history[0].MessageRole() != llm.RoleUser {
 		ru.history = ru.history[1:]
 	}
-}
-
-// rewrite turns the question into a search query that stands on its own
-// (non-streaming, at most 200 tokens). On failure the question is used.
-func (ru *run) rewrite(ctx context.Context) string {
-	msgs := append([]llm.Message(nil), ru.history[max(0, len(ru.history)-6):]...)
-	msgs = append(msgs, llm.UserMessage{Content: ru.question})
-	rctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	msg, err := llm.Complete(rctx, ru.s.NewProvider(ru.target.Client), ru.model,
-		llm.Context{SystemPrompt: rewritePrompt, Messages: msgs},
-		llm.Options{MaxTokens: 200, User: ru.userTag()})
-	addUsage(&ru.extraUsage, msg.Usage)
-	q := strings.TrimSpace(strings.Trim(strings.TrimSpace(msg.Text()), `"`))
-	if err != nil || q == "" || utf8.RuneCountInString(q) > 1000 {
-		if err != nil && ctx.Err() == nil {
-			ru.s.Log.Warn("query rewrite failed; using the question", "err", err, "agent", ru.agent.ID)
-		}
-		return ru.question
-	}
-	return q
 }
