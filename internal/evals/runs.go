@@ -284,6 +284,9 @@ func DecodeResult(r dbgen.EvalResult) Result {
 	out := Result{EvalResult: r, Hits: []HitView{}}
 	_ = json.Unmarshal(r.Hits, &out.Hits)
 	out.Scores, out.Diagnosis = decodeScores(r.Scores)
+	if out.Scores != nil && r.Answer != nil {
+		out.Scores.Claims = agents.FillClaimText(*r.Answer, out.Scores.Claims)
+	}
 	return out
 }
 

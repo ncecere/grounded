@@ -47,17 +47,29 @@ func TestSummarizeAnswers(t *testing.T) {
 	}
 }
 
+// claimsWith are n claims of each verdict, in that order.
+func claimsWith(supported, notSupported, uncited, unchecked int) []agents.Claim {
+	var out []agents.Claim
+	for v, n := range map[string]int{agents.ClaimSupported: supported, agents.ClaimNotSupported: notSupported,
+		agents.ClaimUncited: uncited, agents.ClaimUnchecked: unchecked} {
+		for range n {
+			out = append(out, agents.Claim{Index: len(out), Verdict: v, Sources: []int{}})
+		}
+	}
+	return out
+}
+
 func TestScoreAnswer(t *testing.T) {
 	id := uuid.New()
 	e := Expected{DocumentIDs: []uuid.UUID{id}}
 	text := "Transcripts cost $10 [1]. Order them at the\n Registrar's   Office [1]."
 	sc, pass := ScoreAnswer(e, []string{"registrar's office", "$10"}, text, []Doc{{DocumentID: uuid.New()}, {DocumentID: id}}, false,
-		&agents.CitationsRecord{Checked: 4, Verified: 3})
+		&agents.CitationsRecord{Checked: 4, Verified: 3, ClaimList: claimsWith(3, 1, 0, 0)})
 	if !pass || !sc.Cited || len(sc.Mentions) != 2 || !sc.Mentions[0].Found || !sc.Mentions[1].Found {
 		t.Errorf("scores = %+v pass %v", sc, pass)
 	}
-	if sc.SupportedShare == nil || !near(*sc.SupportedShare, 0.75) {
-		t.Errorf("supported share = %v", sc.SupportedShare)
+	if sc.SupportedShare == nil || !near(*sc.SupportedShare, 0.75) || sc.SupportedClaims != 3 || sc.ClaimsScored != 4 || len(sc.Claims) != 4 {
+		t.Errorf("supported share = %v (%+v)", sc.SupportedShare, sc)
 	}
 	if sc, pass := ScoreAnswer(e, []string{"notary"}, text, []Doc{{DocumentID: id}}, false, nil); pass || sc.Mentions[0].Found || sc.SupportedShare != nil {
 		t.Errorf("missing phrase: %+v %v", sc, pass)
@@ -67,22 +79,28 @@ func TestScoreAnswer(t *testing.T) {
 	}
 }
 
-// Factual sentences without a citation count as unsupported claims
-// (docs/v0.2.0.md "Verification"): an answer with every cited claim verified
-// but invented, uncited steps no longer scores 100%.
-func TestScoreAnswerCountsUncited(t *testing.T) {
+// The share of supported claims counts claims, the units the chat's summary
+// shows (v0.2.1, I9): a claim citing two sources counts once, uncited claims
+// count as not supported, and claims whose check failed are left out.
+func TestScoreAnswerCountsClaims(t *testing.T) {
 	e := Expected{DocumentIDs: []uuid.UUID{uuid.New()}}
-	sc, _ := ScoreAnswer(e, nil, "x", nil, false, &agents.CitationsRecord{Checked: 3, Verified: 3, Uncited: 1})
+	// Pairs don't matter any more: 5 verified pairs, but 3 of 4 claims supported.
+	sc, _ := ScoreAnswer(e, nil, "x", nil, false, &agents.CitationsRecord{Checked: 6, Verified: 5, Uncited: 1, ClaimList: claimsWith(3, 0, 1, 0)})
 	if sc.SupportedShare == nil || !near(*sc.SupportedShare, 0.75) || sc.Uncited != 1 {
 		t.Errorf("with an uncited sentence: %+v", sc)
 	}
 	// No citation at all: nothing is supported.
-	sc, _ = ScoreAnswer(e, nil, "x", nil, false, &agents.CitationsRecord{Uncited: 2})
+	sc, _ = ScoreAnswer(e, nil, "x", nil, false, &agents.CitationsRecord{Uncited: 2, ClaimList: claimsWith(0, 0, 2, 0)})
 	if sc.SupportedShare == nil || *sc.SupportedShare != 0 || sc.Uncited != 2 {
 		t.Errorf("without citations: %+v", sc)
 	}
-	// Nothing checked and nothing uncited: no share.
-	if sc, _ = ScoreAnswer(e, nil, "x", nil, false, &agents.CitationsRecord{Unchecked: 2}); sc.SupportedShare != nil {
+	// Unchecked claims are left out: 1 of 2.
+	sc, _ = ScoreAnswer(e, nil, "x", nil, false, &agents.CitationsRecord{ClaimList: claimsWith(1, 1, 0, 3)})
+	if sc.SupportedShare == nil || !near(*sc.SupportedShare, 0.5) || sc.ClaimsScored != 2 {
+		t.Errorf("with unchecked claims: %+v", sc)
+	}
+	// Nothing but unchecked claims: no share.
+	if sc, _ = ScoreAnswer(e, nil, "x", nil, false, &agents.CitationsRecord{Unchecked: 2, ClaimList: claimsWith(0, 0, 0, 2)}); sc.SupportedShare != nil {
 		t.Errorf("nothing checked: %+v", sc)
 	}
 }

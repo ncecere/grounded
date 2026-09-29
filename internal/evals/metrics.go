@@ -136,12 +136,20 @@ type AnswerScores struct {
 	// Refused: the answer was a refusal ("I don't know").
 	Refused bool `json:"refused"`
 	// SupportedShare is the share of supported claims, when SystemOne
-	// citation checks are on for the agent: verified claim–source pairs
-	// over the checked pairs plus the factual sentences without a citation,
-	// which count as unsupported (docs/systemone.md §3).
+	// citation checks are on for the agent: supported claims over all the
+	// answer's claims (its factual sentences), uncited ones counting as not
+	// supported and unchecked ones (a failed check) left out. These are the
+	// claims the chat's summary counts (docs/systemone.md §3).
 	SupportedShare *float64 `json:"supportedShare,omitempty"`
 	// Uncited counts the factual sentences without a citation.
 	Uncited int `json:"uncited,omitempty"`
+	// SupportedClaims and ClaimsScored are the share's numerator and
+	// denominator.
+	SupportedClaims int `json:"supportedClaims,omitempty"`
+	ClaimsScored    int `json:"claimsScored,omitempty"`
+	// Claims are the answer's claims with their verdicts, without their
+	// text (DecodeResult reads it from the stored answer).
+	Claims []agents.Claim `json:"claims,omitempty"`
 }
 
 // ScoreAnswer scores an answer: whether it cites an expected document and
@@ -162,9 +170,12 @@ func ScoreAnswer(e Expected, phrases []string, text string, cited []Doc, refused
 		all = all && found
 		sc.Mentions = append(sc.Mentions, Mention{Phrase: p, Found: found})
 	}
-	if checks != nil && checks.Checked+checks.Uncited > 0 {
-		v := float64(checks.Verified) / float64(checks.Checked+checks.Uncited)
-		sc.SupportedShare, sc.Uncited = &v, checks.Uncited
+	if checks != nil {
+		sc.Claims = checks.ClaimList
+		if n := agents.CountClaims(checks.ClaimList); n.Scored() > 0 {
+			v := float64(n.Supported) / float64(n.Scored())
+			sc.SupportedShare, sc.Uncited, sc.SupportedClaims, sc.ClaimsScored = &v, n.Uncited, n.Supported, n.Scored()
+		}
 	}
 	return sc, sc.Cited && all
 }
