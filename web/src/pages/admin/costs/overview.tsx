@@ -1,7 +1,13 @@
-/* Costs › Overview: spend over a date range (?range=), a daily chart by kind, and the top teams, agents and models, each with its CSV. */
+/*
+ * Costs › Overview (I5, docs/v0.2.1.md): spend over a date range (?range=) as
+ * KPI cards, the daily chart by kind with its day table behind "Show data",
+ * and one Top spenders card: Teams · Agents · Models (?top=), with one CSV
+ * button that downloads the grouping shown.
+ */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Bot, CircleDollarSign, Cpu, Download, Hash, TriangleAlert, UsersRound } from "lucide-react";
+import type { ReactNode } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { StatGroup } from "@/components/analytics/breakdowns";
 import { dayLabel, num } from "@/components/analytics/format";
@@ -11,15 +17,18 @@ import { Badge } from "@/components/ui/badge/badge";
 import { BarChart } from "@/components/ui/bar-chart/bar-chart";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
+import { Disclosure } from "@/components/ui/disclosure/disclosure";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Stack } from "@/components/ui/layout/layout";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { StatCard } from "@/components/ui/stat-card/stat-card";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { TextLink } from "@/components/ui/text-link/text-link";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group/toggle-group";
 import { categories, type CostSettings, dayRangeLabel, requestsColumn, requestsHint } from "@/lib/costs";
 import { Money } from "@/components/money";
 import { formatMoney } from "@/lib/format";
+import { useSearchParams } from "@/lib/url-search";
 import c from "./costs.module.css";
 
 type Report = Schemas["CostReport"];
@@ -55,9 +64,6 @@ export function CostOverviewTab({ settings }: { settings: CostSettings }) {
   const to = dates.toDay ?? "";
   const enabled = Boolean(from && to);
   const days = useQuery({ ...reportQuery(from, to, "day"), enabled });
-  const teams = useQuery({ ...reportQuery(from, to, "team"), enabled });
-  const agents = useQuery({ ...reportQuery(from, to, "agent"), enabled });
-  const models = useQuery({ ...reportQuery(from, to, "model"), enabled });
   const cur = settings.currency;
   const d = days.data;
   return (
@@ -83,9 +89,7 @@ export function CostOverviewTab({ settings }: { settings: CostSettings }) {
             />
           </StatGroup>
           <DailySpend report={d} currency={cur} />
-          <TopCard title="Top teams" icon={<UsersRound />} what="teams" q={teams} currency={cur} groupBy="team" from={from} to={to} />
-          <TopCard title="Top agents" icon={<Bot />} what="agents" q={agents} currency={cur} groupBy="agent" from={from} to={to} />
-          <TopCard title="Top models" icon={<Cpu />} what="models" q={models} currency={cur} groupBy="model" from={from} to={to} />
+          <TopSpenders currency={cur} from={from} to={to} />
         </>
       )}
     </Stack>
@@ -98,7 +102,7 @@ function DailySpend({ report, currency }: { report: Report; currency: string }) 
   return (
     <Card
       title="Spend per day"
-      description="Chat, embedding, SystemOne, moderation and OCR spend each day. The table lists the days with spend."
+      description="Chat, embedding, SystemOne, moderation and OCR spend each day. Show data lists the days with spend."
       actions={<CsvButton from={report.from} to={report.to} groupBy="day" what="spend per day" />}
     >
       {spent.length === 0 ? (
@@ -112,39 +116,54 @@ function DailySpend({ report, currency }: { report: Report; currency: string }) 
             formatValue={(v) => formatMoney(String(v), currency)}
             summary={summary}
           />
-          <Table caption="Spend per day" columns={["Day", ...categories.map((k) => ({ label: k.label, numeric: true })), { label: "Total", numeric: true }]} maxHeight="16rem" stickyHeader density="compact">
-            {spent.map((r) => (
-              <Tr key={r.key}>
-                <Td nowrap>
-                  <time dateTime={r.key}>{dayLabel(r.key)}</time>
-                </Td>
-                {categories.map((k) => (
-                  <Td key={k.key} numeric>
-                    <Money amount={r.byKind[k.key]} currency={currency} />
+          <Disclosure title="Show data" summary={`${spent.length} ${spent.length === 1 ? "day" : "days"} with spend`}>
+            <Table caption="Spend per day" columns={["Day", ...categories.map((k) => ({ label: k.label, numeric: true })), { label: "Total", numeric: true }]} maxHeight="16rem" stickyHeader density="compact">
+              {spent.map((r) => (
+                <Tr key={r.key}>
+                  <Td nowrap>
+                    <time dateTime={r.key}>{dayLabel(r.key)}</time>
                   </Td>
-                ))}
-                <Td numeric>
-                  <Money amount={r.spend} currency={currency} />
-                </Td>
-              </Tr>
-            ))}
-          </Table>
+                  {categories.map((k) => (
+                    <Td key={k.key} numeric>
+                      <Money amount={r.byKind[k.key]} currency={currency} />
+                    </Td>
+                  ))}
+                  <Td numeric>
+                    <Money amount={r.spend} currency={currency} />
+                  </Td>
+                </Tr>
+              ))}
+            </Table>
+          </Disclosure>
         </div>
       )}
     </Card>
   );
 }
 
-type TopProps = {
-  title: string;
-  icon: React.ReactNode;
-  what: string;
-  q: { data?: Report; error: unknown; isLoading: boolean };
-  currency: string;
-  groupBy: GroupBy;
-  from: string;
-  to: string;
-};
+/** Top spenders' groupings, in ?top= (Teams by default, kept out of the URL). */
+const groupings = [
+  { value: "teams", label: "Teams", groupBy: "team", icon: <UsersRound aria-hidden /> },
+  { value: "agents", label: "Agents", groupBy: "agent", icon: <Bot aria-hidden /> },
+  { value: "models", label: "Models", groupBy: "model", icon: <Cpu aria-hidden /> },
+] as const satisfies readonly { value: string; label: string; groupBy: GroupBy; icon: ReactNode }[];
+type Grouping = (typeof groupings)[number];
+
+function useGrouping(): [Grouping, (value: Grouping["value"]) => void] {
+  const [params, setParams] = useSearchParams();
+  const current = groupings.find((g) => g.value === params.get("top")) ?? groupings[0];
+  const set = (value: Grouping["value"]) =>
+    setParams(
+      (p) => {
+        const out = new URLSearchParams(p);
+        if (value === "teams") out.delete("top");
+        else out.set("top", value);
+        return out;
+      },
+      { replace: true },
+    );
+  return [current, set];
+}
 
 function RowLabel({ r, groupBy }: { r: Row; groupBy: GroupBy }) {
   if (groupBy === "team" && r.teamSlug && !r.deleted) return <TextLink render={<Link to="/admin/teams/$team" params={{ team: r.teamSlug }} />}>{r.label}</TextLink>;
@@ -153,24 +172,49 @@ function RowLabel({ r, groupBy }: { r: Row; groupBy: GroupBy }) {
   return <>{r.deleted ? `${r.label || "Deleted"} (deleted)` : r.label}</>;
 }
 
-function TopCard({ title, icon, what, q, currency, groupBy, from, to }: TopProps) {
+/** One card for the top teams, agents or models (the 10 biggest), with one CSV button for the grouping shown. */
+function TopSpenders({ currency, from, to }: { currency: string; from: string; to: string }) {
+  const [g, setGrouping] = useGrouping();
+  const q = useQuery({ ...reportQuery(from, to, g.groupBy), enabled: Boolean(from && to) });
   const rows = (q.data?.rows ?? []).slice(0, 10);
+  const what = g.label.toLowerCase();
+  const first = g.groupBy === "agent" ? "Agent" : g.groupBy === "model" ? "Model" : "Team";
   return (
-    <Card title={title} actions={<CsvButton from={from} to={to} groupBy={groupBy} what={what} />} flush>
+    <Card
+      title="Top spenders"
+      description="The 10 biggest in this range. The CSV has them all."
+      actions={
+        <div className={c.actions}>
+          <ToggleGroup aria-label="Top spenders by" variant="outline" size="sm" joined value={[g.value]} onValueChange={(v) => v[0] && setGrouping(v[0] as Grouping["value"])}>
+            {groupings.map((x) => (
+              <ToggleGroupItem key={x.value} value={x.value}>
+                {x.icon}
+                {x.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <CsvButton from={from} to={to} groupBy={g.groupBy} what={`top ${what}`} />
+        </div>
+      }
+      flush
+    >
       {q.isLoading ? (
         <Loading label={`Loading ${what}…`} />
       ) : q.error ? (
         <ErrorAlert error={q.error} />
       ) : rows.length === 0 ? (
-        <EmptyState size="compact" icon={icon} title={`No ${what} with usage in this range.`} />
+        <EmptyState size="compact" icon={g.icon} title={`No ${what} with usage in this range.`} />
       ) : (
-        <Table caption={title} columns={[groupBy === "agent" ? "Agent" : groupBy === "model" ? "Model" : "Team", ...(groupBy === "agent" ? ["Team"] : []), { label: "Spend", numeric: true }, { label: "Tokens", numeric: true }, { label: requestsColumn, numeric: true }]}>
+        <Table
+          caption={`Top ${what}`}
+          columns={[first, ...(g.groupBy === "agent" ? ["Team"] : []), { label: "Spend", numeric: true }, { label: "Tokens", numeric: true }, { label: requestsColumn, numeric: true }]}
+        >
           {rows.map((r) => (
             <Tr key={r.key || "none"}>
               <Td>
-                <RowLabel r={r} groupBy={groupBy} /> {r.unpriced && <UnpricedBadge />}
+                <RowLabel r={r} groupBy={g.groupBy} /> {r.unpriced && <UnpricedBadge />}
               </Td>
-              {groupBy === "agent" && <Td muted>{r.teamName ?? "—"}</Td>}
+              {g.groupBy === "agent" && <Td muted>{r.teamName ?? "—"}</Td>}
               <Td numeric>
                 <Money amount={r.spend} currency={currency} />
               </Td>
