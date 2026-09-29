@@ -34,8 +34,8 @@ export function teamAccess(me: Me, mine: Membership | undefined): Access {
   };
 }
 
-/** Team settings' tabs, with the words people use for them. */
-function settingsItems(navigate: Navigate, slug: string, a: Access): Item[] {
+/** Team settings' tabs, with the words people use for them; `spendOn`: the usage tab is "Usage & spend" (cost tracking is on). */
+function settingsItems(navigate: Navigate, slug: string, a: Access, spendOn: boolean): Item[] {
   const hint = terms.teamSettings;
   const go = (tab: TeamSettingsTab) => () =>
     void navigate({ to: "/teams/$team/settings", params: { team: slug }, search: { tab: tab === "members" ? undefined : tab } as never });
@@ -54,7 +54,8 @@ function settingsItems(navigate: Navigate, slug: string, a: Access): Item[] {
     },
     {
       id: "team-tab:usage",
-      label: terms.usageAndLimits,
+      // Named like the tab it opens (I4): owners and admins see spend there while cost tracking is on.
+      label: a.isManager && spendOn ? terms.usageAndSpend : terms.usageAndLimits,
       icon: <Gauge aria-hidden />,
       keywords: [...usageWords, ...moneyWords],
       show: a.canEdit,
@@ -144,11 +145,18 @@ function objectItems(navigate: Navigate, loc: Location, slug: string, a: Access)
 }
 
 /** Places in the current team: its settings tabs, and the page's own tabs. */
-export function teamPlacesGroup(navigate: Navigate, loc: Location, me: Me, slug: string, teamName: string, mine: Membership | undefined): CommandGroup {
+export function teamPlacesGroup(
+  navigate: Navigate,
+  loc: Location,
+  me: Me,
+  team: { slug: string; name: string; spendOn: boolean },
+  mine: Membership | undefined,
+): CommandGroup {
+  const slug = team.slug;
   const a = teamAccess(me, mine);
   const onTeamPage = loc.routeId.startsWith("/app/teams/$team") && loc.params.team === slug;
   return {
-    label: teamName,
-    items: [...(onTeamPage ? objectItems(navigate, loc, slug, a) : []), ...settingsItems(navigate, slug, a), ...crawlDomainsItem(navigate, slug, a)],
+    label: team.name,
+    items: [...(onTeamPage ? objectItems(navigate, loc, slug, a) : []), ...settingsItems(navigate, slug, a, team.spendOn), ...crawlDomainsItem(navigate, slug, a)],
   };
 }

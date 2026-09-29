@@ -8,7 +8,8 @@
  * see no money.
  */
 import { useQuery } from "@tanstack/react-query";
-import { ApiError, api, unwrap, type Schemas } from "@/api/client";
+import { ApiError, type Schemas } from "@/api/client";
+import { teamSpendQuery } from "@/api/queries";
 import { num } from "@/components/analytics/format";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
@@ -24,11 +25,7 @@ import u from "./usage.module.css";
 
 type Row = Schemas["CostReportRow"];
 
-export const teamSpendQuery = (team: string) => ({
-  queryKey: ["team", team, "spend"],
-  queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/spend", { params: { path: { team } } })),
-  retry: false,
-});
+export { teamSpendQuery };
 
 /** The team's spend this month; `off` while its cost mode is Off (the API's 404). Only owners, admins and platform staff may ask. */
 export function useTeamSpend(team: string, enabled = true) {
