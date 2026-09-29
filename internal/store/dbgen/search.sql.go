@@ -17,12 +17,12 @@ const searchAgents = `-- name: SearchAgents :many
 SELECT a.id, a.name, a.slug, t.slug AS team_slug, t.name AS team_name,
        (tm.user_id IS NOT NULL)::bool AS member,
        (a.published_version_id IS NOT NULL AND a.status = 'active' AND t.status = 'active')::bool AS chat,
-       (CASE WHEN a.name ILIKE $1::text THEN 0 WHEN a.name ~* $2::text THEN 1 ELSE 2 END)::int AS rank
+       (CASE WHEN a.name ILIKE $1::text THEN 0 WHEN a.name ~* $2::text THEN 1 WHEN a.name ILIKE $3::text THEN 2 ELSE 3 END)::int AS rank
 FROM agents a
 JOIN teams t ON t.id = a.team_id
-LEFT JOIN team_members tm ON tm.team_id = a.team_id AND tm.user_id = $3::uuid
+LEFT JOIN team_members tm ON tm.team_id = a.team_id AND tm.user_id = $4::uuid
 LEFT JOIN agent_audience_grants g ON g.agent_id = a.id
-WHERE a.deleted_at IS NULL AND a.name ILIKE $4::text
+WHERE a.deleted_at IS NULL AND (a.name ILIKE $3::text OR a.description ILIKE $3::text)
   AND (tm.user_id IS NOT NULL
        OR (a.published_version_id IS NOT NULL AND a.status = 'active' AND t.status = 'active'
            AND (g.principal_type = 'all_authenticated' OR (g.principal_type = 'public' AND $5::bool))))
@@ -33,8 +33,8 @@ LIMIT $6
 type SearchAgentsParams struct {
 	Prefix        string
 	Word          string
-	UserID        uuid.UUID
 	Contains      string
+	UserID        uuid.UUID
 	PublicEnabled bool
 	Lim           int32
 }
@@ -54,13 +54,17 @@ type SearchAgentsRow struct {
 // Agents the user may open or chat with: every agent of the user's teams
 // (members see their team's agents), and the published, active agents of
 // active teams they may chat with as the directory lists them
-// (all_authenticated, or public while the public switch is on).
+// (all_authenticated, or public while the public switch is on). The name or
+// the description matches; a match in the description only ranks 3, after
+// every name match. The description has no trigram index: agents are few
+// (one row per configured agent, not per user or document), so the scan is
+// cheap, and the name index can't serve an OR with it anyway.
 func (q *Queries) SearchAgents(ctx context.Context, arg SearchAgentsParams) ([]SearchAgentsRow, error) {
 	rows, err := q.db.Query(ctx, searchAgents,
 		arg.Prefix,
 		arg.Word,
-		arg.UserID,
 		arg.Contains,
+		arg.UserID,
 		arg.PublicEnabled,
 		arg.Lim,
 	)
@@ -543,8 +547,9 @@ type SearchTeamsRow struct {
 //	@word      '\mtext' (a case-insensitive regex, quoted): rank 1, a word
 //	           of the name starts with the text
 //
-// anything else that contains the text ranks 2. Each query returns its best
-// @lim rows; the service merges them.
+// anything else that contains the text ranks 2 (an agent whose description
+// alone matches ranks 3). Each query returns its best @lim rows; the service
+// merges them.
 // ---- platform staff (admins and auditors) --------------------------------------
 func (q *Queries) SearchTeams(ctx context.Context, arg SearchTeamsParams) ([]SearchTeamsRow, error) {
 	rows, err := q.db.Query(ctx, searchTeams,

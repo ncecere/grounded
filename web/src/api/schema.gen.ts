@@ -2976,7 +2976,7 @@ export interface paths {
         };
         /**
          * Objects the caller may see whose name matches, for the command palette
-         * @description Signed-in users only (API keys get 401). Everyone finds the agents they may open (every agent of their teams) or chat with (as the agent directory lists them), the knowledge bases and data sources of all their teams, and their own conversations by title (never anyone else's; deleted ones are gone). Platform admins and auditors also find teams, users, models, connections, embedding profiles and shared sources (metadata they may read; never another team's content). Matching is case-insensitive on the name (users: display name or email; models and profiles: name or key); results are ranked by how the name matches (prefix, then the start of a word, then anywhere), then by type, and cut to `limit`.
+         * @description Signed-in users only (API keys get 401). Everyone finds the agents they may open (every agent of their teams) or chat with (as the agent directory lists them), the knowledge bases and data sources of all their teams, and their own conversations by title (never anyone else's; deleted ones are gone). Platform admins and auditors also find teams, users, models, connections, embedding profiles and shared sources (metadata they may read; never another team's content). Matching is case-insensitive on the name (users: display name or email; models and profiles: name or key; agents: name or description); results are ranked by how the name matches (prefix, then the start of a word, then anywhere, then an agent whose description alone matches), then by type, and cut to `limit`.
          */
         get: operations["searchObjects"];
         put?: never;
