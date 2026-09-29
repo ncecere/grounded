@@ -262,6 +262,7 @@ With `stream = false`, the endpoint returns the final message as JSON.
 - `tools` and `n > 1` return 400.
 - `stream: true` returns `chat.completion.chunk`s with `delta.content`, `delta.reasoning_content` and a final chunk with `finish_reason`, plus `usage` when `stream_options.include_usage` is set.
 - Citations appear in an extra top-level `citations` field on the final chunk and the non-stream response.
+- With SystemOne citation checks on for the agent (v0.2.1), a top-level `claims` field sits next to `citations` in the same places: the answer's factual sentences, each `{index, start, end, text, verdict, sources, confidence?, checks?}` with `verdict` `supported`, `not_supported`, `uncited` or `unchecked`, `start`/`end` code point offsets in the content, and `sources` the supporting source numbers ([`systemone.md` §3](systemone.md#citation-checks-as-built-3)). Streamed text can't change, so a stream's claims are annotate-only, like its citations.
 - Transcripts are never stored (stateless). Analytics use channel `openai`.
 - Errors use the OpenAI error shape `{error: {message, type, code}}`.
 

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+- Per-claim verification (I9, [`docs/systemone.md`](docs/systemone.md#citation-checks-as-built-3)): with SystemOne citation checks on, each factual sentence of an answer is a **claim** with one verdict: supported (by which sources), not supported, or uncited (unchecked when a check failed). A sentence citing several sources is supported if any of them supports it; the outcome of each source is kept too. Cited sentences that aren't factual (headings, questions, greetings, "the sources don't mention…") are no longer checked. In chat each citation chip shows its claim's verdict, its card shows the claim above the passage, and the answer has a one-line summary above its sources ("9 of 10 claims supported · 1 uncited"); answers checked by v0.2.0 show their per-marker verdicts as before. An evaluation's **supported claims** share is now supported claims over all claims (uncited counting as not supported), the units chat shows, and the result page renders the answer with the same chips and summary. API (additive): `claims[]` on chat answers, `message_end` and `citations_checked`, conversation messages, evaluation results and the OpenAI-compatible response (next to `citations`, also in the final stream chunk); evaluation scores gain `supportedClaims` and `claimsScored`. Claims are kept without their text (code point offsets) in the answer's citation check record, with per-verdict counts. No migration.
+- Chat answers' sources start collapsed; a citation chip still opens them (also in the Build tab's Try it panel, the public page and widget, transcripts and evaluation results).
+
 ## [0.2.0] - 2026-09-29
 
 Evaluations, SSO groups, costs and budgets, OCR and ⌘K search, plus the fixes from a walkthrough by role and a UX and answer review. The plan is [`docs/v0.2.0.md`](docs/v0.2.0.md) and the release notes are [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md). v0.2.0-rc.1 ran on the reference install first; since then only the release job and documentation changed.
