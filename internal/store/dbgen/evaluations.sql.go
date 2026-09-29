@@ -475,6 +475,7 @@ LEFT JOIN eval_runs lr ON lr.id = (
 LEFT JOIN eval_runs pr ON pr.id = (
     SELECT r.id FROM eval_runs r
     WHERE r.set_id = s.id AND r.kind = lr.kind AND r.status = 'completed' AND (r.created_at, r.id) < (lr.created_at, lr.id)
+      AND coalesce(r.summary->>'recall', r.summary->>'passRate') IS NOT NULL
     ORDER BY r.created_at DESC, r.id DESC LIMIT 1
 )
 WHERE s.id = $1 AND s.team_id = $2
@@ -924,6 +925,7 @@ LEFT JOIN eval_runs lr ON lr.id = (
 LEFT JOIN eval_runs pr ON pr.id = (
     SELECT r.id FROM eval_runs r
     WHERE r.set_id = s.id AND r.kind = lr.kind AND r.status = 'completed' AND (r.created_at, r.id) < (lr.created_at, lr.id)
+      AND coalesce(r.summary->>'recall', r.summary->>'passRate') IS NOT NULL
     ORDER BY r.created_at DESC, r.id DESC LIMIT 1
 )
 WHERE s.team_id = $1
@@ -955,8 +957,9 @@ type ListEvalSetViewsRow struct {
 }
 
 // A team's sets with their target's name, question count, latest run and
-// the completed run of the same kind before it (its trend's baseline;
-// optionally one knowledge base's or agent's).
+// the latest completed run of the same kind before it that has a score (its
+// trend's baseline: a run whose every check failed has none, and would hide
+// the change; optionally one knowledge base's or agent's).
 func (q *Queries) ListEvalSetViews(ctx context.Context, arg ListEvalSetViewsParams) ([]ListEvalSetViewsRow, error) {
 	rows, err := q.db.Query(ctx, listEvalSetViews, arg.TeamID, arg.KBID, arg.AgentID)
 	if err != nil {
@@ -1308,6 +1311,7 @@ func (q *Queries) PhraseInSources(ctx context.Context, arg PhraseInSourcesParams
 const previousCompletedRun = `-- name: PreviousCompletedRun :one
 SELECT id, set_id, team_id, kind, trigger, status, started_by, config, summary, total, done, error, created_at, started_at, finished_at FROM eval_runs
 WHERE set_id = $1 AND kind = $2 AND status = 'completed' AND created_at < $3::timestamptz
+  AND coalesce(summary->>'recall', summary->>'passRate') IS NOT NULL
 ORDER BY created_at DESC, id DESC
 LIMIT 1
 `
@@ -1318,7 +1322,8 @@ type PreviousCompletedRunParams struct {
 	Before time.Time
 }
 
-// The latest completed run of a kind before @before, for regression checks.
+// The latest completed run of a kind before @before that has a score, for
+// regression checks (a run whose every check failed can't be compared with).
 func (q *Queries) PreviousCompletedRun(ctx context.Context, arg PreviousCompletedRunParams) (EvalRun, error) {
 	row := q.db.QueryRow(ctx, previousCompletedRun, arg.SetID, arg.Kind, arg.Before)
 	var i EvalRun

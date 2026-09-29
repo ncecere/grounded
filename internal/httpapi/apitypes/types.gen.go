@@ -6298,7 +6298,7 @@ type EvaluationSet struct {
 	// Name Example: Transcript questions
 	Name string `json:"name"`
 
-	// PreviousRun The completed run of the same kind before lastRun, the baseline of its trend (null without one).
+	// PreviousRun The latest completed run of the same kind before lastRun that has a score (recall or passRate), the baseline of its trend (null without one). Runs in which no question could be scored (every check failed) are skipped.
 	PreviousRun   *EvaluationRunBrief `json:"previousRun"`
 	QuestionCount int64               `json:"questionCount"`
 

@@ -8655,7 +8655,7 @@ export interface components {
             /** Format: int64 */
             questionCount: number;
             lastRun: components["schemas"]["EvaluationRunBrief"] | null;
-            /** @description The completed run of the same kind before lastRun, the baseline of its trend (null without one). */
+            /** @description The latest completed run of the same kind before lastRun that has a score (recall or passRate), the baseline of its trend (null without one). Runs in which no question could be scored (every check failed) are skipped. */
             previousRun: components["schemas"]["EvaluationRunBrief"] | null;
             revision: components["schemas"]["Revision"];
             /** Format: date-time */

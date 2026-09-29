@@ -11263,8 +11263,10 @@ components:
         previousRun:
           nullable: true
           description: >-
-            The completed run of the same kind before lastRun, the baseline of
-            its trend (null without one).
+            The latest completed run of the same kind before lastRun that has
+            a score (recall or passRate), the baseline of its trend (null
+            without one). Runs in which no question could be scored (every
+            check failed) are skipped.
           allOf: [{ $ref: "#/components/schemas/EvaluationRunBrief" }]
         revision: { $ref: "#/components/schemas/Revision" }
         createdAt: { type: string, format: date-time }
