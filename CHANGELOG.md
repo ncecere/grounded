@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are drafted in [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md).
+## [0.2.0] - 2026-09-29
+
+Evaluations, SSO groups, costs and budgets, OCR and ⌘K search, plus the fixes from a walkthrough by role and a UX and answer review. The plan is [`docs/v0.2.0.md`](docs/v0.2.0.md) and the release notes are [`docs/releases/v0.2.0.md`](docs/releases/v0.2.0.md). v0.2.0-rc.1 ran on the reference install first; since then only the release job and documentation changed.
 
 ### Added
 - OCR for scanned documents (B4, [`docs/ocr.md`](docs/ocr.md)), off by default; with it off, parsing is as before. Platform admins turn it on under **Admin → Parsing** (`GET/PUT /v1/admin/parsing`, If-Match, audited as `platform.parsing_settings_update`) and choose one configured backend: **Tesseract** through the new sidecar image `ghcr.io/ncecere/grounded-ocr` (`cmd/grounded-ocr`, `Dockerfile.ocr`; multi-arch, signed, SBOM and scan like the main image; Kustomize component `components/ocr-tesseract`; compose profile `ocr`; `OCR_TESSERACT_URL`), **Apache Tika** with its `-full` image (`TIKA_URL`), or a **vision model** (a new model kind `vision`, called through the gateway page by page, subject to its classification ceiling). The built-in PDF parser renders only the pages without a text layer (PDFium, 300 DPI greyscale) and puts their text under the page's marker; the document records the pages and backend (`parser` `builtin:pdf+ocr:tesseract`, `Document.ocr`) and its page says "Pages 3–7 were read with OCR (Tesseract)". A **Test** button reads a built-in sample page (`POST /v1/admin/parsing/test`); a vision model's Test in Admin → Models does the same. Bounds: `OCR_MAX_PAGES_PER_DOCUMENT` (200), `OCR_CONCURRENCY` pages at once per worker (2), and a new team limit `ocr_pages_per_day` (1,000, UTC day): a document that would pass it waits (pending, "Waiting for the team's daily OCR page limit") and continues the next day or as soon as the limit is raised. New usage ledger kinds `ocr_pages` (with the backend) and `vision_tokens_in` / `vision_tokens_out` (with the model). Each source has an OCR switch (`ocrEnabled`, on by default). PNG, JPEG and single-page TIFF uploads become one-page documents read with OCR (kind `image`), and are refused at once where OCR is off ("Images need OCR, which is off for this source"). Documents skipped as scanned (`needs_ocr`) are found with the documents list's **Needs OCR** filter (`?errorCode=needs_ocr`) and retried together (`POST …/documents/retry`, audited `document.retry_bulk`); Admin → Parsing counts them per team. Runbook: [`docs/operations/ocr.md`](docs/operations/ocr.md). Migration `00032_ocr.sql`.
@@ -53,6 +55,7 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are 
 - Someone signed in without a team is told how to get onto one on Home and in the workspace switcher: the team request form (`TEAM_REQUEST_URL`) or the help link (`SUPPORT_URL`) when set, otherwise to ask a platform admin.
 
 ### Fixed
+- The release job attaches its assets (SBOMs, digests, `checksums.txt`) again: it names the repository for `gh`, which can't infer it outside a git checkout. v0.2.0-rc.1's assets were attached by hand.
 - Web pages whose character set is declared only in the HTTP header, and whose first non-ASCII text comes after 1,024 bytes, were read as windows-1252, so curly quotes and dashes were garbled ("’" as "â€™"). A document that is valid UTF-8 is now read as UTF-8 unless it declares another charset. Pages stored by the old parser (`builtin:html`) are fetched and parsed again on their source's next sync (`builtin:html@2`), which re-embeds them once.
 - The ingestion dispatcher's list of teams whose enforced budget is used up covers every enforced team, not only teams that already had pending documents, so a blocked team's next upload waits instead of slipping into a free slot.
 - ⌘K under quick open → type → Escape cycles (M5): closing the palette cancels a search on its way and drops a late answer, and reopening it no longer searches for the previous text (every quick reopen fired a stale request). A reviewer's renderer froze once in such cycles; that freeze could not be reproduced (300 cycles in Chromium with slow searches), so this removes the work that piled up behind it.
@@ -196,5 +199,6 @@ Development before this release happened in a private repository. The public rep
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
 
-[Unreleased]: https://github.com/ncecere/grounded/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ncecere/grounded/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ncecere/grounded/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ncecere/grounded/releases/tag/v0.1.0

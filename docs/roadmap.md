@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-09-29. **v0.2.0-rc.1 is released** and runs on the reference install; v0.2.0 follows once the owner has used it (branch `release/v0.2.0`). The owner has scheduled **v0.2.1** (navigation and clarity, [§ I](#i-v021-navigation-and-clarity)); nothing else below is scheduled until the owner picks it.
+Status: refreshed 2026-09-29. **v0.2.0 is released** (2026-09-29) and runs on the reference install. The owner has scheduled **v0.2.1** (navigation and clarity, [§ I](#i-v021-navigation-and-clarity)); nothing else below is scheduled until the owner picks it.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -43,7 +43,7 @@ Phase 5 ended in **v0.1.0**: rc.1 and rc.2 ran on the reference install, a walkt
 
 ---
 
-## Done in v0.2.0 (rc.1 released 2026-09-29)
+## Done in v0.2.0 (released 2026-09-29)
 
 The plan and the owner's decisions are in [`v0.2.0.md`](v0.2.0.md); the release notes are [`releases/v0.2.0.md`](releases/v0.2.0.md).
 
@@ -220,7 +220,7 @@ All of G1–G18 are **Done** in v0.2.0.
 
 ## v0.2.0 scope (owner decisions, 2026-09-28)
 
-The spec is [`v0.2.0.md`](v0.2.0.md). Everything below shipped in v0.2.0-rc.1 except what is marked later.
+The spec is [`v0.2.0.md`](v0.2.0.md). Everything below shipped in v0.2.0 except what is marked later.
 
 | Item | Decision |
 |---|---|
