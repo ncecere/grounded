@@ -83,7 +83,7 @@ function ExpectedItem({ it, result }: { it: EvalExpectedItem; result: EvalResult
   const look = stateLook[it.state];
   const ranked = result.answer === null || result.answer === undefined;
   let where = "";
-  if (ranked && it.state === "indexed" && result.status !== "missing")
+  if (ranked && it.state === "indexed" && (result.status === "pass" || result.status === "fail"))
     where = it.rank === undefined ? `Not in the top ${result.searchDepth ?? result.k ?? "results"}` : result.k && it.rank > result.k ? `Found at #${it.rank}, beyond the top ${result.k}` : `Came back at #${it.rank}`;
   return (
     <li>
