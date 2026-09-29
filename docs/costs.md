@@ -11,7 +11,7 @@ A platform setting with per-team overrides:
 | Mode | What happens |
 |---|---|
 | **Off** (default) | Nothing. Prices can still be entered, ready for later. |
-| **Track only** | Spend is reported to platform admins, auditors and the team's owners and admins. No budgets, no warnings, nothing refused. |
+| **Track only** | Spend is reported to platform admins, auditors and the team's owners and admins. A team with a budget (its own or the platform default) shows progress against it, "Tracking: 12% of $5.00 · not enforced", but nothing is ever refused, and there are no warnings, notifications or banners (owner decision 2 of [`v0.2.0.md`](v0.2.0.md) §7). |
 | **Enforce** | Track only, plus monthly budgets: a warning at the threshold (default 80%) and, at 100%, the team's model work is refused until an admin raises the budget, grants an extension, or the month ends. |
 
 A team's override is *Inherit* (default), *Off*, *Track only* or *Enforce*, so one team can be enforced as a pilot while the rest are only tracked.
@@ -44,7 +44,8 @@ Spend = rollup quantities × the price in effect on each (local) day, per unit, 
 
 ## 4. Budgets and enforcement
 
-- **A team's budget** is a monthly amount (the calendar month in the platform time zone, default UTC) with a warning threshold (default 80%, platform setting). A platform **default budget** (optional) applies to enforced teams without their own.
+- **A team's budget** is a monthly amount (the calendar month in the platform time zone, default UTC) with a warning threshold (default 80%, platform setting). A platform **default budget** (optional) applies to teams without their own, in Track only (as progress) and in Enforce.
+- **Track only with a budget** computes the same state (within, near, over) and percentage, and the API says so with `enforced: false` next to it (`TeamBudgetState`, `TeamBudgetBanner`). The check, the dispatcher and the notices only act on enforced budgets, so a tracked team is never refused, never waits and is never notified; the workspace shows no banner and the admin Overview doesn't list it. Costs → Budgets labels it "Not enforced" and lists it under Near budget from the threshold on (an over-budget tracked team reads "Over budget", not "Budget used up").
 - **Extensions:** an admin adds an amount to the current month only, with a reason. It lapses when the month ends. Audited.
 - **The check** runs where `chat_tokens_per_day` is checked (`limits.CheckChat`), plus the retrieval path (`CheckQuery`) and the ingestion dispatcher. Month-to-date spend is the rollup's closed days plus the live open days, cached per team for 30 seconds, so a team can overshoot by at most about 30 seconds of use.
 - **At 100%:**
@@ -62,8 +63,8 @@ Spend = rollup quantities × the price in effect on each (local) day, per unit, 
   - **Prices:** every model with its current prices and "Unpriced" where missing; a model opens its record.
   - **Settings:** mode, currency, time zone, warning threshold, default budget.
 - **A model's record page:** a **Pricing** section with the current prices and their history, and "Change prices".
-- **Admin → Teams → a team:** a **Budget** card: mode override, monthly budget, extensions this month.
-- **Team settings → Usage** (owners and admins): "Spend this month" with the budget meter when enforced, and spend by agent and model. Editors and members see no money.
+- **Admin → Teams → a team → Budget & limits:** a **Budget** card: mode override, monthly budget, extensions this month, and the budget meter (enforced or tracked).
+- **Team settings → Usage** (owners and admins): "Spend this month" with the budget meter (with "not enforced" in Track only), and spend by agent and model. Editors and members see no money.
 - **A banner** in the team's workspace at the threshold and when blocked, for everyone in the team (members need to know why chat stopped), without amounts for members.
 
 ## 6. API (OpenAPI first)

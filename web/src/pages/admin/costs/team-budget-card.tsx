@@ -1,6 +1,7 @@
 /*
- * A team's Budget card on its admin page (Limits tab; docs/costs.md §5):
- * mode override, monthly budget, this month's spend and extensions. Platform
+ * A team's Budget card on its admin page (Budget & limits tab; docs/costs.md
+ * §5): mode override, monthly budget, this month's spend and extensions, and
+ * a Track-only budget's progress ("Tracking: 12% of $5.00 · not enforced"). Platform
  * admins change the budget (If-Match) and grant extensions; auditors read.
  * Hidden while costs are off for the whole platform and the team inherits.
  */
@@ -11,7 +12,6 @@ import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
 import { dayLabel } from "@/components/analytics/format";
 import { FormDialog } from "@/components/form-dialog";
 import { ErrorAlert } from "@/components/ui/alert/alert";
-import { StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { DescriptionList } from "@/components/ui/description-list/description-list";
@@ -20,11 +20,11 @@ import { Input, NativeSelect } from "@/components/ui/input/input";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { toast } from "@/components/ui/toast/toast";
-import { amountError, budgetThisMonth, monthLabel, overrideLabels, stateLabels, stateTones, useCostSettings } from "@/lib/costs";
+import { amountError, budgetThisMonth, monthLabel, overrideLabels, trackingText, useCostSettings } from "@/lib/costs";
 import { Money } from "@/components/money";
 import { useCurrentUser } from "@/session";
 import s from "../../shared.module.css";
-import { BudgetMeter, ModeText } from "./budgets";
+import { BudgetMeter, BudgetStateBadge, ModeText } from "./budgets";
 import c from "./costs.module.css";
 
 type TeamBudget = Schemas["TeamBudget"];
@@ -47,9 +47,10 @@ export function AdminTeamBudgetCard({ team }: { team: string }) {
   if (settings.data?.mode === "off" && b.modeOverride === "inherit") return null;
   const st = b.status;
   const cur = st.currency;
-  const enforced = st.mode === "enforce";
-  // Extensions count only while a budget is enforced; otherwise they're history.
-  const inForce = enforced && st.limit !== null;
+  const enforced = st.enforced;
+  // A budget in force is enforced or tracked (progress only); with costs off, extensions are history.
+  const inForce = st.limit !== null;
+  const tracking = trackingText(st);
   const thisMonth = budgetThisMonth(st, { platformDefault: !b.amount });
   const own = b.amount ? <Money amount={b.amount} currency={cur} /> : b.defaultBudget ? <><Money amount={b.defaultBudget} currency={cur} /> (platform default)</> : "None";
   return (
@@ -80,12 +81,13 @@ export function AdminTeamBudgetCard({ team }: { team: string }) {
               : { label: "Monthly budget", value: own },
             { label: "Warning at", value: `${st.warnPercent}%${b.warnPercent === null ? " (platform setting)" : ""}` },
             { label: "Spent this month", value: <Money amount={st.spent} currency={cur} /> },
-            { label: "State", value: <StatusBadge tone={stateTones[st.state]}>{stateLabels[st.state]}</StatusBadge> },
+            { label: "State", value: <BudgetStateBadge status={st} /> },
           ]}
         />
         {inForce && <BudgetMeter status={st} label={`${b.teamName}: share of this month's budget used`} />}
+        {tracking && <p className={s.muted}>{tracking}: Track only shows progress against the budget and never blocks or notifies anyone.</p>}
         {b.extensions.length > 0 && (
-          <Table caption={inForce ? "Extensions this month" : "Extensions granted this month (not counted: no budget is enforced)"} showCaption columns={["Added", { label: "Amount", numeric: true }, "Reason", "By"]} density="compact">
+          <Table caption={inForce ? "Extensions this month" : "Extensions granted this month (not counted: no budget is in force)"} showCaption columns={["Added", { label: "Amount", numeric: true }, "Reason", "By"]} density="compact">
             {b.extensions.map((e) => (
               <Tr key={e.id}>
                 <Td nowrap>{dayLabel(e.createdAt.slice(0, 10))}</Td>
@@ -98,7 +100,7 @@ export function AdminTeamBudgetCard({ team }: { team: string }) {
             ))}
           </Table>
         )}
-        {!enforced && <p className={s.muted}>Budgets apply only when the mode is Enforce.</p>}
+        {st.mode === "off" && <p className={s.muted}>Cost tracking is off for this team: budgets apply in Track only (progress) and Enforce.</p>}
       </div>
       {editing && <BudgetDialog team={team} budget={b} onClose={() => setEditing(false)} />}
       {extending && <ExtensionDialog team={team} budget={b} onClose={() => setExtending(false)} />}

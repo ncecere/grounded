@@ -41,7 +41,7 @@ const reports: Record<string, Schemas["CostReport"]> = {
 };
 
 const status = (state: Schemas["BudgetState"], extra: Partial<Schemas["TeamBudgetState"]> = {}): Schemas["TeamBudgetState"] => ({
-  mode: "enforce", state, currency: "USD", month: "2026-09-01", resetsAt: "2026-10-01T04:00:00Z", budget: "100.000000", extensions: "0.000000",
+  mode: "enforce", state, enforced: extra.mode === undefined || extra.mode === "enforce", currency: "USD", month: "2026-09-01", resetsAt: "2026-10-01T04:00:00Z", budget: "100.000000", extensions: "0.000000",
   limit: "100.000000", spent: "85.000000", percent: 85, warnPercent: 80, ...extra,
 });
 
@@ -50,6 +50,8 @@ const budgets: Schemas["BudgetList"] = {
   items: [
     { teamId: "t1", teamSlug: "registrar", teamName: "Office of the Registrar", modeOverride: "inherit", ownBudget: true, status: status("warning"), projected: "110.000000" },
     { teamId: "t2", teamSlug: "library", teamName: "Library", modeOverride: "track", ownBudget: false, status: status("none", { mode: "track", budget: null, limit: null, percent: null, extensions: null, spent: "3.000000" }), projected: null },
+    { teamId: "t3", teamSlug: "archives", teamName: "Archives", modeOverride: "track", ownBudget: true,
+      status: status("exhausted", { mode: "track", budget: "5.000000", limit: "5.000000", spent: "6.000000", percent: 120 }), projected: "9.000000" },
   ],
 };
 
@@ -113,7 +115,15 @@ describe("Admin → Costs", () => {
     expect(table).toHaveTextContent("Platform setting");
     expect(within(table).getByRole("columnheader", { name: /Budget this month/ })).toBeInTheDocument();
     expect(within(table).getByRole("link", { name: "Office of the Registrar" })).toHaveAttribute("href", "/admin/teams/registrar?tab=limits");
+    // A Track-only team over its budget: progress only, labelled, and listed with the teams near budget.
+    const archives = within(table).getByRole("row", { name: /Archives/ });
+    expect(archives).toHaveTextContent("Over budget");
+    expect(archives).toHaveTextContent("Not enforced");
     expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(screen.getByRole("button", { name: /^Near budget/ }));
+    await waitFor(() => expect(within(table).queryByRole("row", { name: /Library/ })).toBeNull());
+    expect(within(table).getByRole("row", { name: /Archives/ })).toBeInTheDocument();
+    expect(within(table).getByRole("row", { name: /Office of the Registrar/ })).toBeInTheDocument();
   });
 
   it("saves the settings with If-Match", async () => {
@@ -227,7 +237,7 @@ describe("a team's Budget card", () => {
     await waitFor(() => expect(calls.find((c) => c.method === "POST")?.body).toEqual({ amount: "50", reason: "Admissions week" }));
   });
 
-  it("labels extensions as history when no budget is enforced", async () => {
+  it("labels extensions as history when no budget is in force", async () => {
     mockApi({
       "GET /v1/admin/costs/settings": () => settings("track"),
       "GET /v1/admin/teams/registrar/budget": () => ({
@@ -235,7 +245,7 @@ describe("a team's Budget card", () => {
       }),
     });
     const { container } = renderBare(<AdminTeamBudgetCard team="registrar" />, meFor("platform_auditor"));
-    expect(await screen.findByRole("table", { name: /Extensions granted this month \(not counted: no budget is enforced\)/ })).toHaveTextContent("Exam period");
+    expect(await screen.findByRole("table", { name: /Extensions granted this month \(not counted: no budget is in force\)/ })).toHaveTextContent("Exam period");
     expect(screen.getByText("Monthly budget")).toBeInTheDocument();
     expect(screen.getByText("Platform setting")).toBeInTheDocument();
     expect(screen.queryByRole("meter")).toBeNull();
@@ -279,7 +289,7 @@ describe("the team's spend and banner", () => {
   });
 
   it("tells members the budget is used up, without amounts", async () => {
-    mockApi({ "GET /v1/teams/registrar/budget-status": () => ({ state: "exhausted", resetsAt: "2026-10-01T04:00:00Z", amounts: null }) });
+    mockApi({ "GET /v1/teams/registrar/budget-status": () => ({ state: "exhausted", enforced: true, resetsAt: "2026-10-01T04:00:00Z", amounts: null }) });
     const { container } = renderBare(<BudgetBanner team="registrar" manager={false} />, meFor("none", "member"));
     const alert = await screen.findByText("This team's monthly budget is used up");
     expect(alert.closest('[role="status"]')).toHaveTextContent(/Chats, searches and ingestion are paused/);
@@ -289,11 +299,46 @@ describe("the team's spend and banner", () => {
   });
 
   it("shows owners the amounts near the threshold", async () => {
-    mockApi({ "GET /v1/teams/registrar/budget-status": () => ({ state: "warning", resetsAt: "2026-10-01T04:00:00Z", amounts: { spent: "85.000000", limit: "100.000000", currency: "USD", percent: 85 } }) });
+    mockApi({ "GET /v1/teams/registrar/budget-status": () => ({ state: "warning", enforced: true, resetsAt: "2026-10-01T04:00:00Z", amounts: { spent: "85.000000", limit: "100.000000", currency: "USD", percent: 85 } }) });
     renderBare(<BudgetBanner team="registrar" manager />);
     expect(await screen.findByText("This team is near its monthly budget")).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`${formatMoney("85", "USD").replace("$", "\\$")} of`))).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See spend" })).toHaveAttribute("href", "/teams/registrar/settings?tab=usage");
+  });
+});
+
+describe("a Track-only budget (progress, never enforced)", () => {
+  const tracked = status("ok", { mode: "track", budget: "5.000000", limit: "5.000000", spent: "0.600000", percent: 12 });
+
+  it("shows owners progress against the budget on Usage & limits, not enforced", async () => {
+    mockApi({
+      "GET /v1/teams/registrar/spend": () => ({ status: tracked, timeZone: "UTC", from: "2026-09-01", to: "2026-09-02", total: reports.agent!.total, agents: [], models: [] }),
+    });
+    const { container } = renderBare(<TeamSpendCard team="registrar" />);
+    expect(await screen.findByText(/Tracking: 12% of \$5\.00 · not enforced/)).toBeInTheDocument();
+    expect(screen.getByRole("meter", { name: "Share of this month's budget used" })).toBeInTheDocument();
+    expect(screen.getByText("Not enforced")).toBeInTheDocument();
+    expect(container).not.toHaveTextContent(/At 100% the team's chats/);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("shows no banner, even past 100%", async () => {
+    const calls = mockApi({ "GET /v1/teams/registrar/budget-status": () => ({ state: "exhausted", enforced: false, resetsAt: "2026-10-01T04:00:00Z", amounts: null }) });
+    const { container } = renderBare(<BudgetBanner team="registrar" manager />);
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("shows the admin Budget card's meter and says it isn't enforced", async () => {
+    mockApi({
+      "GET /v1/admin/costs/settings": () => settings("track"),
+      "GET /v1/admin/teams/registrar/budget": () => ({ ...teamBudget(tracked), modeOverride: "inherit" }),
+    });
+    const { container } = renderBare(<AdminTeamBudgetCard team="registrar" />, meFor("platform_admin"));
+    expect(await screen.findByText(/Tracking: 12% of \$5\.00 · not enforced/)).toBeInTheDocument();
+    expect(screen.getByRole("meter")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Grant extension" })).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
 

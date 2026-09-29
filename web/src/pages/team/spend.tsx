@@ -1,20 +1,21 @@
 /*
  * Team settings › Usage & limits › Spend this month (E2, docs/costs.md §5):
  * for the team's owners and admins (and platform staff) while its cost mode
- * isn't Off: month-to-date spend with the budget meter when enforced, and
+ * isn't Off: month-to-date spend with the budget meter (enforced, or tracked:
+ * progress only, "Tracking: 12% of $5.00 · not enforced"), and
  * spend by agent and model. Editors and members see no money.
  */
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, api, unwrap, type Schemas } from "@/api/client";
 import { num } from "@/components/analytics/format";
 import { ErrorAlert } from "@/components/ui/alert/alert";
-import { Badge, StatusBadge } from "@/components/ui/badge/badge";
+import { Badge } from "@/components/ui/badge/badge";
 import { Card } from "@/components/ui/card/card";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { Table, Td, Tr } from "@/components/ui/table/table";
-import { monthLabel, requestsColumn, requestsHint, stateLabels, stateTones } from "@/lib/costs";
+import { monthLabel, requestsColumn, requestsHint, trackingText } from "@/lib/costs";
 import { Money } from "@/components/money";
-import { BudgetMeter } from "../admin/costs/budgets";
+import { BudgetMeter, BudgetStateBadge } from "../admin/costs/budgets";
 import s from "../shared.module.css";
 import u from "./usage.module.css";
 
@@ -59,14 +60,15 @@ export function TeamSpendCard({ team }: { team: string }) {
   const d = q.data;
   const st = d.status;
   const cur = st.currency;
+  const tracking = trackingText(st);
   return (
     <Card
       title="Spend this month"
       description={`${monthLabel(st.month)}, in ${d.timeZone} days. Platform admins set prices and budgets.`}
-      actions={st.state !== "none" && <StatusBadge tone={stateTones[st.state]}>{stateLabels[st.state]}</StatusBadge>}
+      actions={st.state !== "none" && <BudgetStateBadge status={st} />}
     >
       <div className={u.body}>
-        {st.mode === "enforce" && st.limit !== null ? (
+        {st.limit !== null ? (
           <BudgetMeter status={st} label="Share of this month's budget used" />
         ) : (
           <p>
@@ -75,7 +77,8 @@ export function TeamSpendCard({ team }: { team: string }) {
             </strong> <span className={s.muted}>so far this month</span>
           </p>
         )}
-        {st.mode === "enforce" && st.limit !== null && (
+        {!st.enforced && tracking && <p className={s.muted}>{tracking}. Nothing stops at 100%: Track only shows progress against the budget.</p>}
+        {st.enforced && st.limit !== null && (
           <p className={s.muted}>
             <Money amount={st.spent} currency={cur} /> of <Money amount={st.limit} currency={cur} />
             {st.extensions && Number(st.extensions) > 0 && (

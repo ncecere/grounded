@@ -343,8 +343,9 @@ type BudgetStatus struct {
 }
 
 // TeamBudgetStatus returns a team's budget state for its workspace banner
-// (members, platform admins and auditors). Teams that aren't enforced are
-// StateNone.
+// (members, platform admins and auditors). Teams without a budget, or with
+// costs off, are StateNone; a Track-only budget has a state too, with
+// Status.Enforced false.
 func (s *Service) TeamBudgetStatus(ctx context.Context, a authz.Actor, teamRef string) (BudgetStatus, error) {
 	acc, err := s.teams.Get(ctx, a, teamRef)
 	if err != nil {

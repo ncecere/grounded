@@ -93,9 +93,6 @@ func offlineStatus(st Settings, t dbgen.ListTeamBudgetsRow, start, end time.Time
 	if spend != nil {
 		out.Spent = spend.Spend
 	}
-	if out.Mode != ModeEnforce {
-		return out
-	}
 	out.Budget, out.Extensions = optRat(t.Amount), new(big.Rat)
 	if out.Budget == nil && st.DefaultBudget != nil {
 		out.Budget = new(big.Rat).Set(st.DefaultBudget)

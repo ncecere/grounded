@@ -26,9 +26,19 @@ export const budgetStatusQuery = (team: string) => ({
   refetchInterval: 60_000,
 });
 
-/** The team's budget state for the workspace banner (every member). */
+type Banner = Schemas["TeamBudgetBanner"];
+
+/**
+ * The team's enforced budget state, for what it pauses: the workspace banner, the "Waiting" hint on sources and the
+ * evaluation run dialog (every member). A Track-only budget never pauses anything or warns anyone, so it reads "none"
+ * here; its progress is on Usage & limits and Costs → Budgets (owner decision 2, docs/v0.2.0.md §7).
+ */
 export function useBudgetStatus(team: string | undefined) {
-  return useQuery({ ...budgetStatusQuery(team ?? ""), enabled: Boolean(team) });
+  return useQuery({
+    ...budgetStatusQuery(team ?? ""),
+    enabled: Boolean(team),
+    select: (b: Banner): Banner => (b.enforced ? b : { ...b, state: "none" }),
+  });
 }
 
 export const modeLabels: Record<CostMode, string> = { off: "Off", track: "Track only", enforce: "Enforce" };
@@ -41,6 +51,22 @@ export const modeDescriptions: Record<CostMode, string> = {
 
 export const stateLabels: Record<BudgetState, string> = { none: "No budget", ok: "Within budget", warning: "Near budget", exhausted: "Budget used up" };
 export const stateTones = { none: "neutral", ok: "success", warning: "warning", exhausted: "danger" } as const;
+
+/** A team's state in words: a Track-only budget past 100% is "Over budget" (nothing stops), not "used up". */
+export function budgetStateLabel(st: Pick<TeamBudgetState, "state" | "enforced">) {
+  return !st.enforced && st.state === "exhausted" ? "Over budget" : stateLabels[st.state];
+}
+
+/** The badge tone of a state: a Track-only budget is never danger, since nothing is refused. */
+export function budgetStateTone(st: Pick<TeamBudgetState, "state" | "enforced">) {
+  return !st.enforced && st.state === "exhausted" ? "warning" : stateTones[st.state];
+}
+
+/** "Tracking: 12% of $5.00 · not enforced" for a Track-only budget; null otherwise. */
+export function trackingText(st: TeamBudgetState): string | null {
+  if (st.enforced || st.limit === null || st.state === "none") return null;
+  return `Tracking: ${st.percent ?? 0}% of ${formatMoney(st.limit, st.currency)} · not enforced`;
+}
 
 /** Units as people say them, with what one price covers. */
 export const unitLabels: Record<PriceUnit, { label: string; per: string }> = {

@@ -218,6 +218,41 @@ func TestBudgetEnforcement(t *testing.T) {
 	if code := admin.get("/v1/admin/overview", &ov); code != 200 || ov.TeamsNearBudget == nil {
 		t.Fatalf("overview = %d %+v", code, ov)
 	}
+	trackOnlyBudget(t, env, chatPath)
+}
+
+// Track only with a budget (owner decision 2 of docs/v0.2.0.md §7): the
+// state shows progress against the budget and this month's extension, not
+// enforced; chats go on; nobody is notified; the admin Overview doesn't list
+// the team. (internal/costs tests a Track-only budget past 100%.)
+func trackOnlyBudget(t *testing.T, env *publishEnv, chatPath string) {
+	t.Helper()
+	events := env.scalar(t, `SELECT count(*) FROM notification_events WHERE type LIKE 'team.budget%'`)
+	tb := setTeamBudget(t, env.admin, env.team, "track", "0.000001")
+	if tb.Status.Enforced || tb.Status.State == "none" || tb.Status.Limit == nil || tb.Status.Percent == nil {
+		t.Fatalf("track-only status = %+v", tb.Status)
+	}
+	for range 2 {
+		if code, raw := chatOnce(t, env.member, chatPath); code != 200 {
+			t.Fatalf("chat past a track-only budget = %d %s", code, raw)
+		}
+	}
+	var banner apitypes.TeamBudgetBanner
+	if code := env.owner.get(env.base+"/budget-status", &banner); code != 200 || banner.Enforced || banner.State == "none" || banner.Amounts == nil {
+		t.Fatalf("track-only banner = %d %+v", code, banner)
+	}
+	if n := env.scalar(t, `SELECT count(*) FROM notification_events WHERE type LIKE 'team.budget%'`); n != events {
+		t.Fatalf("a track-only budget notified: %d events, want %d", n, events)
+	}
+	var ov apitypes.AdminOverview
+	if code := env.admin.get("/v1/admin/overview", &ov); code != 200 || ov.TeamsNearBudget == nil {
+		t.Fatalf("overview = %d %+v", code, ov)
+	}
+	for _, n := range *ov.TeamsNearBudget {
+		if n.TeamSlug == env.team {
+			t.Fatalf("the overview lists a track-only team: %+v", n)
+		}
+	}
 }
 
 func getRaw(t *testing.T, s *session, path string) *http.Response {

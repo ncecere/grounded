@@ -1,4 +1,4 @@
-/* Costs › Budgets: every active team's mode, budget, month-to-date spend, share and projection; a team opens its page (Limits tab, with the Budget card). */
+/* Costs › Budgets: every active team's mode, budget (enforced, or tracked: progress only), month-to-date spend, share and projection; a team opens its page (Budget & limits tab). */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { UsersRound, Wallet } from "lucide-react";
@@ -9,7 +9,7 @@ import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { Meter } from "@/components/ui/meter/meter";
 import { TextLink } from "@/components/ui/text-link/text-link";
-import { budgetThisMonth, modeLabels, modeSourceLabel, monthLabel, stateLabels, stateTones } from "@/lib/costs";
+import { budgetStateLabel, budgetStateTone, budgetThisMonth, modeLabels, modeSourceLabel, monthLabel, stateLabels } from "@/lib/costs";
 import { Money } from "@/components/money";
 import { formatMoney } from "@/lib/format";
 import c from "./costs.module.css";
@@ -27,7 +27,8 @@ const facets: Facet<Item>[] = [
     label: "State",
     type: "toggle",
     allLabel: "All",
-    accessor: (r) => r.status.state,
+    // A Track-only team over its budget is near budget here: nothing of it is paused.
+    accessor: (r) => (!r.status.enforced && r.status.state === "exhausted" ? "warning" : r.status.state),
     options: (["exhausted", "warning", "ok", "none"] as const).map((v) => ({ value: v, label: stateLabels[v] })),
   },
 ];
@@ -47,6 +48,20 @@ export function BudgetMeter({ status, label }: { status: Schemas["TeamBudgetStat
       valueText={`${status.percent ?? 0}%`}
       formatValue={(v) => formatMoney(String(v), status.currency)}
     />
+  );
+}
+
+/** The state, and "Not enforced" beside a Track-only budget's (progress only: it never blocks or notifies). */
+export function BudgetStateBadge({ status }: { status: Schemas["TeamBudgetState"] }) {
+  return (
+    <span className={c.stateBadges}>
+      <StatusBadge tone={budgetStateTone(status)}>{budgetStateLabel(status)}</StatusBadge>
+      {!status.enforced && status.state !== "none" && (
+        <Badge size="sm" variant="outline">
+          Not enforced
+        </Badge>
+      )}
+    </span>
   );
 }
 
@@ -96,7 +111,7 @@ function columns(currency: string): DataTableColumn<Item>[] {
     { id: "spent", header: "Spent", accessor: (r) => Number(r.status.spent ?? 0), numeric: true, cell: (r) => <Money amount={r.status.spent} currency={currency} /> },
     { id: "share", header: "Share", accessor: (r) => r.status.percent ?? -1, cell: (r) => <div className={c.meterCell}><BudgetMeter status={r.status} label={`${r.teamName}: share of budget used`} /></div> },
     { id: "projected", header: "Projected", accessor: (r) => Number(r.projected ?? 0), numeric: true, cell: (r) => <Money amount={r.projected} currency={currency} /> },
-    { id: "state", header: "State", accessor: (r) => r.status.state, cell: (r) => <StatusBadge tone={stateTones[r.status.state]}>{stateLabels[r.status.state]}</StatusBadge> },
+    { id: "state", header: "State", accessor: (r) => r.status.state, cell: (r) => <BudgetStateBadge status={r.status} /> },
   ];
 }
 

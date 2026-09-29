@@ -3598,7 +3598,7 @@ export interface paths {
         };
         /**
          * Whether the team is near or over its monthly budget, for the workspace banner (team members; platform admins and auditors)
-         * @description Every member sees the state (none unless the budget is enforced); only owners, admins and platform readers get the amounts.
+         * @description Every member sees the state (none without a budget) and whether it is enforced (a Track-only budget has a state but never blocks); only owners, admins and platform readers get the amounts.
          */
         get: operations["getTeamBudgetStatus"];
         put?: never;
@@ -3916,7 +3916,7 @@ export interface components {
         /** @enum {string} */
         CostModeOverride: "inherit" | "off" | "track" | "enforce";
         /**
-         * @description none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused
+         * @description none: costs are off or there is no budget; ok: under the warning threshold; warning: at or above the threshold; exhausted: at or above 100%. Only an enforced budget (enforced: true) refuses model work or notifies anyone; a Track-only budget shows the same states as progress and nothing else.
          * @enum {string}
          */
         BudgetState: "none" | "ok" | "warning" | "exhausted";
@@ -3938,7 +3938,7 @@ export interface components {
              */
             timeZone: string;
             warnPercent: number;
-            /** @description The monthly budget of enforced teams without their own (null: none) */
+            /** @description The monthly budget of teams without their own, in Track only (progress only) and Enforce (null: none) */
             defaultBudget: components["schemas"]["Money"] | null;
             /** Format: int64 */
             revision: number;
@@ -4063,6 +4063,8 @@ export interface components {
         TeamBudgetState: {
             mode: components["schemas"]["CostMode"];
             state: components["schemas"]["BudgetState"];
+            /** @description true in Enforce: at 100% model work is refused. false: the state is progress only (Track only), never refused or notified */
+            enforced: boolean;
             currency: string;
             /**
              * Format: date
@@ -4074,7 +4076,7 @@ export interface components {
              * @description When the budget month ends
              */
             resetsAt: string;
-            /** @description The monthly budget: the team's own or the platform default (null: none, or not enforced) */
+            /** @description The monthly budget: the team's own or the platform default (null: none, or costs are off) */
             budget: components["schemas"]["Money"] | null;
             /** @description This month's extensions */
             extensions: components["schemas"]["Money"] | null;
@@ -4159,6 +4161,8 @@ export interface components {
         };
         TeamBudgetBanner: {
             state: components["schemas"]["BudgetState"];
+            /** @description false: a Track-only budget, whose state is progress only; the workspace shows no banner and nothing waits */
+            enforced: boolean;
             /** Format: date-time */
             resetsAt?: string | null;
             /** @description For the team's owners and admins, and platform readers */

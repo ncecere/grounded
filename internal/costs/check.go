@@ -35,8 +35,15 @@ type Status struct {
 	Budget, Extensions, Limit *big.Rat
 	Spent                     *big.Rat // month to date (nil when the mode is off)
 	WarnPercent               int
-	State                     string
+	// State is spent against the limit. With Track only it is computed the
+	// same way (owner decision 2 of docs/v0.2.0.md §7), but only Enforced
+	// refuses work or notifies anyone.
+	State string
 }
+
+// Enforced reports whether the budget can refuse work and notify: only in
+// Enforce. A Track-only budget shows progress and nothing else.
+func (st Status) Enforced() bool { return st.Mode == ModeEnforce }
 
 type cached struct {
 	generation int64
@@ -96,9 +103,6 @@ func (s *Service) status(ctx context.Context, teamID uuid.UUID, fresh bool) (Sta
 		return Status{}, err
 	}
 	st.Spent = spent
-	if st.Mode != ModeEnforce {
-		return st, nil
-	}
 	st.Budget = optRat(cfg.Amount)
 	if st.Budget == nil {
 		st.Budget = optRat(cfg.DefaultBudget)
@@ -178,13 +182,14 @@ func IsExhausted(err error) bool {
 // Check admits model work for a team: a *apperr.Error (429
 // budget_exhausted) when the team's enforced budget is used up. Reaching
 // the threshold or the budget notifies the team's owners and admins, once
-// per month and level. nil receivers admit everything.
+// per month and level. A Track-only budget never refuses or notifies. nil
+// receivers admit everything.
 func (s *Service) Check(ctx context.Context, teamID uuid.UUID) error {
 	if s == nil {
 		return nil
 	}
 	st, err := s.status(ctx, teamID, false)
-	if err != nil {
+	if err != nil || !st.Enforced() {
 		return err
 	}
 	switch st.State {

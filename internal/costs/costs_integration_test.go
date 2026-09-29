@@ -349,3 +349,67 @@ func TestBudgetCheckAndNotices(t *testing.T) {
 		t.Fatalf("off = %+v", st)
 	}
 }
+
+// Track only with a budget (docs/v0.2.0.md §7, owner decision 2): the
+// status shows progress against the budget (or the platform default), but
+// the check never refuses, the dispatcher never skips the team, and nobody
+// is notified, even past 100%.
+func TestTrackOnlyBudgetShowsProgressOnly(t *testing.T) {
+	f := newFixture(t)
+	f.settings(ModeTrack, "UTC")
+	if _, err := f.svc.AddPrices(f.ctx, f.admin, f.chat, day("2026-01-01"), []PriceInput{{Unit: UnitChatIn, Price: "1"}}); err != nil {
+		t.Fatal(err)
+	}
+	amount := "5"
+	if _, err := f.svc.UpdateTeamBudget(f.ctx, f.admin, "registrar", TeamBudgetInput{Mode: ModeInherit, Amount: &amount}, 1); err != nil {
+		t.Fatal(err)
+	}
+	f.event(UnitChatIn, 600_000, f.chat, "2026-09-28T09:00:00Z")
+	st, err := f.svc.status(f.ctx, f.team, true)
+	if err != nil || st.Enforced() || st.State != StateOK || Format(st.Limit) != "5.000000" || Format(st.Spent) != "0.600000" {
+		t.Fatalf("12%% tracked = %+v %v", st, err)
+	}
+	f.event(UnitChatIn, 6_000_000, f.chat, "2026-09-28T09:10:00Z")
+	prof := f.id(`INSERT INTO embedding_profiles (key, name, model_id, dimensions, storage_type, chunk_size, chunk_overlap)
+		VALUES ('p', 'P', $1, 768, 'halfvec', 512, 0) RETURNING id`, f.embed)
+	f.exec(`WITH s AS (INSERT INTO data_sources (team_id, name, type, classification, embedding_profile_id) VALUES ($1, 'Uploads', 'upload', 'open', $2) RETURNING id)
+		INSERT INTO documents (source_id, team_id, external_id, status) SELECT s.id, $1, 'waiting.pdf', 'pending' FROM s`, f.team, prof)
+	f.setClock("2026-09-28T10:07:00Z")
+	for range 2 {
+		if err := f.svc.Check(f.ctx, f.team); err != nil {
+			t.Fatalf("a Track-only budget refused at 132%%: %v", err)
+		}
+	}
+	if blocked, _, err := f.svc.Blocked(f.ctx, f.team); blocked || err != nil {
+		t.Fatalf("Blocked = %v %v", blocked, err)
+	}
+	f.settings(ModeTrack, "UTC")
+	if teams, err := f.svc.BlockedTeams(f.ctx); err != nil || len(teams) != 0 {
+		t.Fatalf("BlockedTeams = %v %v", teams, err)
+	}
+	var notices int
+	_ = f.pool.QueryRow(f.ctx, `SELECT count(*) FROM budget_notices`).Scan(&notices)
+	if len(f.notices) != 0 || notices != 0 {
+		t.Fatalf("a Track-only budget notified: %+v (%d rows)", f.notices, notices)
+	}
+	list, err := f.svc.Budgets(f.ctx, f.admin)
+	if err != nil || len(list.Items) != 1 || list.Items[0].Status.State != StateExhausted || list.Items[0].Status.Enforced() {
+		t.Fatalf("budgets = %+v %v", list.Items, err)
+	}
+
+	// Without its own budget the platform default applies, as in Enforce.
+	cur, _ := f.svc.Settings(f.ctx, f.admin)
+	def := "20"
+	if _, err := f.svc.UpdateSettings(f.ctx, f.admin, SettingsInput{Mode: ModeTrack, Currency: "USD", TimeZone: "UTC", WarnPercent: 80, DefaultBudget: &def},
+		cur.Revision); err != nil {
+		t.Fatal(err)
+	}
+	tb, _ := f.svc.TeamBudget(f.ctx, f.admin, "registrar")
+	if _, err := f.svc.UpdateTeamBudget(f.ctx, f.admin, "registrar", TeamBudgetInput{Mode: ModeInherit}, tb.Revision); err != nil {
+		t.Fatal(err)
+	}
+	st, err = f.svc.status(f.ctx, f.team, true)
+	if err != nil || st.State != StateOK || Format(st.Limit) != "20.000000" {
+		t.Fatalf("default budget = %+v %v", st, err)
+	}
+}

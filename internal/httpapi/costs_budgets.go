@@ -10,7 +10,7 @@ import (
 )
 
 func budgetState(st costs.Status) apitypes.TeamBudgetState {
-	return apitypes.TeamBudgetState{Mode: apitypes.CostMode(st.Mode), State: apitypes.BudgetState(st.State), Currency: st.Currency,
+	return apitypes.TeamBudgetState{Mode: apitypes.CostMode(st.Mode), State: apitypes.BudgetState(st.State), Enforced: st.Enforced(), Currency: st.Currency,
 		Month: date(st.Month), ResetsAt: st.ResetsAt, Budget: optMoney(st.Budget), Extensions: optMoney(st.Extensions), Limit: optMoney(st.Limit),
 		Spent: optMoney(st.Spent), Percent: percent(st), WarnPercent: st.WarnPercent}
 }
@@ -108,7 +108,7 @@ func (a *api) getTeamBudgetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	st := bs.Status
-	out := apitypes.TeamBudgetBanner{State: apitypes.BudgetState(st.State)}
+	out := apitypes.TeamBudgetBanner{State: apitypes.BudgetState(st.State), Enforced: st.Enforced()}
 	if st.State == costs.StateNone {
 		httpx.JSON(w, http.StatusOK, out)
 		return
@@ -126,7 +126,8 @@ func (a *api) getTeamBudgetStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 // nearBudget lists enforced teams at or above their warning threshold,
-// fullest first, for the admin Overview.
+// fullest first, for the admin Overview. Track-only budgets never need
+// attention: they show progress on the Budgets tab and nothing else.
 func (a *api) nearBudget(r *http.Request) ([]apitypes.AdminNearBudget, error) {
 	out := []apitypes.AdminNearBudget{}
 	if a.Costs == nil {
@@ -138,7 +139,7 @@ func (a *api) nearBudget(r *http.Request) ([]apitypes.AdminNearBudget, error) {
 	}
 	for _, it := range list.Items {
 		st := it.Status
-		if st.State != costs.StateWarning && st.State != costs.StateExhausted {
+		if !st.Enforced() || (st.State != costs.StateWarning && st.State != costs.StateExhausted) {
 			continue
 		}
 		out = append(out, apitypes.AdminNearBudget{TeamSlug: it.TeamSlug, TeamName: it.TeamName, State: apitypes.AdminNearBudgetState(st.State),

@@ -34,17 +34,17 @@ In **Admin → Costs → Settings**:
 
 | Setting | Default | Meaning |
 |---|---|---|
-| Cost tracking | Off | **Off**: nothing is tracked or refused. **Track only**: spend is reported to platform admins, auditors and each team's owners and admins. **Enforce**: Track only, plus monthly budgets. |
+| Cost tracking | Off | **Off**: nothing is tracked or refused. **Track only**: spend is reported to platform admins, auditors and each team's owners and admins; a team with a budget shows progress against it ("not enforced"), and nothing is refused or notified. **Enforce**: Track only, plus enforced monthly budgets. |
 | Currency | `USD` | The ISO 4217 code amounts are shown in. |
 | Time zone | `UTC` | The budget month and report days follow this zone (an IANA name such as `America/New_York`). Changing it needs no rebuild. Daily limits still reset at midnight UTC. |
 | Warning threshold | 80% | Owners and admins are notified once a month when spend reaches this share of the budget. |
-| Default monthly budget | none | The budget of enforced teams without their own. Without one, such teams are tracked but never refused. |
+| Default monthly budget | none | The budget of teams without their own: enforced in Enforce, progress only in Track only. Without one, such teams are tracked but never refused. |
 
 Saving is audited (`costs.settings_update`) and takes a revision check, so two admins can't overwrite each other.
 
-**A team's own mode** (on its page, **Admin → Teams → the team → Limits → Budget → Change budget**) overrides the platform's: *Inherit*, *Off*, *Track only* or *Enforce*. A common rollout:
+**A team's own mode** (on its page, **Admin → Teams → the team → Budget & limits → Budget → Change budget**, or **Change budget…** in a row's menu on Costs → Budgets) overrides the platform's: *Inherit*, *Off*, *Track only* or *Enforce*. A common rollout:
 
-1. Enter prices; set the platform to **Track only** for a month and compare the Overview with your gateway's bill.
+1. Enter prices; set the platform to **Track only** for a month and compare the Overview with your gateway's bill. Budgets set now show each team's progress without stopping anything.
 2. Give a pilot team a budget and the mode **Enforce**.
 3. Set the platform to **Enforce** with a default budget, and give larger teams their own.
 
@@ -53,14 +53,15 @@ While the platform mode is Off, the Budget card only shows for teams that have t
 ## 3. Reading spend
 
 - **Overview:** total spend over a date range, a daily chart by kind (chat, embedding, SystemOne, moderation), and the top teams, agents and models, each with a CSV download (`GET /v1/admin/costs/report.csv`). The first columns name the row and depend on the grouping (`team_id,team_slug,team_name`; `agent_id,agent_name,team_slug,team_name`; `model_id,model_name,model_kind`; or `day`), followed by `currency,spend`, the spend per kind, `tokens,requests,unpriced`.
-- **Budgets:** every active team's mode, budget (plus this month's extensions), month-to-date spend, share and projected month-end. Open a team to change its budget.
-- **Team settings → Usage & limits → Spend this month:** a team's owners and admins see their spend, the budget meter when enforced, and spend by agent and model. Editors and members see no money.
+- **Budgets:** every active team's mode, budget (plus this month's extensions), month-to-date spend, share and projected month-end; a Track-only budget is labelled "Not enforced". **Change budget…** in a row's menu changes it in place; **Open** goes to the team.
+- **Team settings → Usage & limits → Spend this month:** a team's owners and admins see their spend, the budget meter (in Track only, "Tracking: 12% of $5.00 · not enforced"), and spend by agent and model. Editors and members see no money.
 - Spend for usage outside agents (searches through `/retrieve`, ingestion) is listed as "Not from an agent".
 
 Figures come from an hourly rollup of the ledger plus the last hour or so read live. Budgets are checked against a figure cached for up to 30 seconds per server, so a busy team can go slightly over its budget.
 
 ## 4. What happens at the threshold and at 100%
 
+- **In Track only** nothing below happens: a tracked budget shows progress and never warns, notifies, pauses or refuses.
 - **At the threshold:** the team's owners and admins get a notification (in the app and by email; it can't be turned off), once a month. Everyone in the team sees a banner; only owners and admins see amounts.
 - **At 100% (Enforce only):** everything that calls a model stops for the team:
   - chats in every channel (the app, the API, the OpenAI-compatible API, the widget and public pages) are refused with 429 `budget_exhausted` (`details: {budget, spent, currency, resetsAt}`); anonymous visitors of public agents see only "This assistant is unavailable right now";

@@ -4436,7 +4436,7 @@ type BudgetListItem struct {
 	TeamSlug  string             `json:"teamSlug"`
 }
 
-// BudgetState none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused
+// BudgetState none: costs are off or there is no budget; ok: under the warning threshold; warning: at or above the threshold; exhausted: at or above 100%. Only an enforced budget (enforced: true) refuses model work or notifies anyone; a Track-only budget shows the same states as progress and nothing else.
 type BudgetState string
 
 // Capabilities defines model for Capabilities.
@@ -5016,7 +5016,7 @@ type CostSettings struct {
 	// Example: USD
 	Currency string `json:"currency"`
 
-	// DefaultBudget The monthly budget of enforced teams without their own (null: none)
+	// DefaultBudget The monthly budget of teams without their own, in Track only (progress only) and Enforce (null: none)
 	DefaultBudget *Money `json:"defaultBudget"`
 
 	// Mode off: nothing is tracked or refused; track: spend is reported; enforce: track, plus monthly budgets
@@ -8344,17 +8344,23 @@ type TeamBudgetBanner struct {
 		// Example: 12.500000
 		Spent Money `json:"spent"`
 	} `json:"amounts,omitempty"`
+
+	// Enforced false: a Track-only budget, whose state is progress only; the workspace shows no banner and nothing waits
+	Enforced bool       `json:"enforced"`
 	ResetsAt *time.Time `json:"resetsAt,omitempty"`
 
-	// State none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused
+	// State none: costs are off or there is no budget; ok: under the warning threshold; warning: at or above the threshold; exhausted: at or above 100%. Only an enforced budget (enforced: true) refuses model work or notifies anyone; a Track-only budget shows the same states as progress and nothing else.
 	State BudgetState `json:"state"`
 }
 
 // TeamBudgetState defines model for TeamBudgetState.
 type TeamBudgetState struct {
-	// Budget The monthly budget: the team's own or the platform default (null: none, or not enforced)
+	// Budget The monthly budget: the team's own or the platform default (null: none, or costs are off)
 	Budget   *Money `json:"budget"`
 	Currency string `json:"currency"`
+
+	// Enforced true in Enforce: at 100% model work is refused. false: the state is progress only (Track only), never refused or notified
+	Enforced bool `json:"enforced"`
 
 	// Extensions This month's extensions
 	Extensions *Money `json:"extensions"`
@@ -8377,7 +8383,7 @@ type TeamBudgetState struct {
 	// Spent Month to date (null while the mode is off)
 	Spent *Money `json:"spent"`
 
-	// State none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused
+	// State none: costs are off or there is no budget; ok: under the warning threshold; warning: at or above the threshold; exhausted: at or above 100%. Only an enforced budget (enforced: true) refuses model work or notifies anyone; a Track-only budget shows the same states as progress and nothing else.
 	State       BudgetState `json:"state"`
 	WarnPercent int         `json:"warnPercent"`
 }

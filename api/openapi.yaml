@@ -5669,8 +5669,9 @@ paths:
       operationId: getTeamBudgetStatus
       summary: Whether the team is near or over its monthly budget, for the workspace banner (team members; platform admins and auditors)
       description: >-
-        Every member sees the state (none unless the budget is enforced);
-        only owners, admins and platform readers get the amounts.
+        Every member sees the state (none without a budget) and whether it
+        is enforced (a Track-only budget has a state but never blocks); only
+        owners, admins and platform readers get the amounts.
       responses:
         "200":
           description: The budget state
@@ -6565,7 +6566,10 @@ components:
     BudgetState:
       type: string
       enum: [none, ok, warning, exhausted]
-      description: "none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused"
+      description: >-
+        none: costs are off or there is no budget; ok: under the warning threshold; warning: at or above
+        the threshold; exhausted: at or above 100%. Only an enforced budget (enforced: true) refuses model work
+        or notifies anyone; a Track-only budget shows the same states as progress and nothing else.
     PriceUnit:
       type: string
       enum: [chat_tokens_in, chat_tokens_out, embed_tokens, systemone_tokens, systemone_requests, moderation_requests, vision_tokens_in, vision_tokens_out]
@@ -6578,7 +6582,7 @@ components:
         currency: { type: string, description: "ISO 4217 code, for display only (no conversion)", example: USD }
         timeZone: { type: string, description: "IANA name of the budget month's and report days' time zone", example: America/New_York }
         warnPercent: { type: integer, minimum: 1, maximum: 100 }
-        defaultBudget: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "The monthly budget of enforced teams without their own (null: none)" }
+        defaultBudget: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "The monthly budget of teams without their own, in Track only (progress only) and Enforce (null: none)" }
         revision: { type: integer, format: int64 }
         updatedAt: { type: string, format: date-time }
     CostSettingsUpdate:
@@ -6711,14 +6715,17 @@ components:
           items: { $ref: "#/components/schemas/CostReportRow" }
     TeamBudgetState:
       type: object
-      required: [mode, state, currency, month, resetsAt, budget, extensions, limit, spent, percent, warnPercent]
+      required: [mode, state, enforced, currency, month, resetsAt, budget, extensions, limit, spent, percent, warnPercent]
       properties:
         mode: { $ref: "#/components/schemas/CostMode" }
         state: { $ref: "#/components/schemas/BudgetState" }
+        enforced:
+          type: boolean
+          description: "true in Enforce: at 100% model work is refused. false: the state is progress only (Track only), never refused or notified"
         currency: { type: string }
         month: { type: string, format: date, description: "The first day of the budget month" }
         resetsAt: { type: string, format: date-time, description: "When the budget month ends" }
-        budget: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "The monthly budget: the team's own or the platform default (null: none, or not enforced)" }
+        budget: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "The monthly budget: the team's own or the platform default (null: none, or costs are off)" }
         extensions: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "This month's extensions" }
         limit: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "Budget plus extensions" }
         spent: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "Month to date (null while the mode is off)" }
@@ -6804,9 +6811,12 @@ components:
           items: { $ref: "#/components/schemas/CostReportRow" }
     TeamBudgetBanner:
       type: object
-      required: [state]
+      required: [state, enforced]
       properties:
         state: { $ref: "#/components/schemas/BudgetState" }
+        enforced:
+          type: boolean
+          description: "false: a Track-only budget, whose state is progress only; the workspace shows no banner and nothing waits"
         resetsAt: { type: string, format: date-time, nullable: true }
         amounts:
           type: object
