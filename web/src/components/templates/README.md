@@ -14,6 +14,7 @@ Grounded's page shapes from the UI plan (`docs/ui-review/README.md`, D3–D5, Q1
 | `GuardedDialog`, `useCloseGuard`, `useEditTracker` | `close-guard.tsx` | Any other dialog with input: "Leave without saving?" on close (m7) |
 | `DateRangeFilter`, `useDateRangeParam` | `date-range-filter.tsx` | Any date range (Q13) |
 | `ActionMenu`, `orderActions` | `action-menu.tsx` | The "…" menu (used by the above) |
+| `PageActions` | `page-actions.tsx` | A header's secondary buttons, primary and "…" menu for a page on `PageHeader` (DetailPage uses it) |
 
 Words come from `src/lib/terms.ts` (D8): "Passages", not chunks; "Signed-in users"; "Danger zone"; Enabled/Disabled for switchable objects and Active/Retired/Archived/Suspended for lifecycle states.
 
@@ -25,6 +26,7 @@ Words come from `src/lib/terms.ts` (D8): "Passages", not chunks; "Signed-in user
   meta={<StatusBadge …/>}
   facts={[{ label: "Type", value: "Web" }, { label: "Documents", value: plural(n, "document") }, { label: "Last sync", value: <RelativeTime value={…} /> }]}
   primaryAction={<Button>Sync now</Button>}
+  secondaryActions={[{ label: "Chat", icon: <MessageSquare />, render: <Link to="…" /> }]}   // rare: buttons before the primary
   menuActions={[{ label: "Pause", icon: <Pause />, onSelect: pause }, { label: "Delete source", danger: true, onSelect: () => setDeleting(true) }]}
   notices={<ArchivedNotice />}
   tabIds={sourceTabs}                // from lib/tabs.ts, validated by the route with tabSearch()
@@ -34,6 +36,7 @@ Words come from `src/lib/terms.ts` (D8): "Passages", not chunks; "Signed-in user
 ```
 
 - One primary action at most. Everything else goes in the "…" menu, and destructive actions are always placed last. Give a disabled action a `disabledReason` (P-04).
+- `secondaryActions` are buttons before the primary on wider windows; on a phone (below 600px) they move to the top of the "…" menu, so the header keeps one row. A page built on `PageHeader` gets the same with `<PageActions primary={…} secondary={[…]} menu={[…]} />`.
 - Facts with an empty value are dropped. Keep them short: the line wraps.
 - The tab lives in `?tab=`, and `"settings"` is always moved to the end. Stat cards belong in the Overview tab only.
 - The breadcrumb follows the tab automatically (PageTabs sets the crumb tail; see `components/layout/crumb-tail.ts`). For a nested `PageTabs` inside a tab, pass `crumb="none"`.
@@ -78,7 +81,7 @@ Words come from `src/lib/terms.ts` (D8): "Passages", not chunks; "Signed-in user
 - Filtering is in memory by default. For server-side lists, read the values with `useListFilters(facets)`, pass them to the query, and set `manual` (plus `tableProps={{ loadMore }}` or `cursor`).
 - Dates use `timeColumn(id, header, get)` or `<RelativeTime value=…/>`, which show relative text with the full date as the title.
 - Rows that open a RecordPage get `onRowClick={(r) => record.open(r.id)}`: a click anywhere on the row (except its links and buttons) or Enter on the focused row opens it. Keep "View details" in the row menu too. Where people will want to open records in a new tab or copy their links, render the row header's name as `<RecordLink id={r.id}>` instead (a real link that opens in place on a plain click, like the knowledge base list's names) and leave `onRowClick` out: a link can't sit inside the row's open button.
-- Fit at 1280 px: the list sits in a 976 px column there. Give long text a one-line `max-width` with an ellipsis (the full text as `title`), keep short cells `nowrap`, and start low-priority columns hidden (`defaultHidden`, still in the Columns menu). A table never widens the page; it scrolls inside its own wrapper only as a last resort.
+- Fit at 1280 px: the list sits in a 976 px column there. Give long text a one-line `max-width` with an ellipsis (the full text as `title`), keep short cells `nowrap`, and start low-priority columns hidden (`defaultHidden`, still in the Columns menu). On a phone (below 600px) `defaultHiddenNarrow` columns start hidden too. A table never widens the page; it scrolls inside its own wrapper only as a last resort.
 - Without `title`, only the table renders (for a list inside a tab or card).
 - `tableProps` passes anything else to `DataTable`: `selectable`, `bulkActions`, `toolbar`, `loadMore`, `cursor`, `defaultSort`, `stickyHeader`.
 

@@ -157,7 +157,7 @@ export function AttentionQueue() {
                 <ItemDescription>{r.description}</ItemDescription>
               </ItemContent>
               {r.link && (
-                <ItemActions>
+                <ItemActions className={o.rowActions}>
                   <Button size="sm" variant="secondary" render={r.link}>
                     {r.action} <ArrowRight aria-hidden />
                   </Button>

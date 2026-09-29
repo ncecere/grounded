@@ -69,11 +69,12 @@ export function EvaluationsTab({ target }: { target: EvalTarget }) {
         />
       ),
     },
-    { id: "questions", header: "Questions", sortable: true, accessor: (x) => x.questionCount, cell: (x) => plural(x.questionCount, "question") },
+    { id: "questions", header: "Questions", sortable: true, defaultHiddenNarrow: true, accessor: (x) => x.questionCount, cell: (x) => plural(x.questionCount, "question") },
     { id: "last", header: "Latest run", accessor: lastRunText, cell: (x) => <CellText primary={lastRunText(x)} secondary={x.lastRun ? <RelativeTime value={x.lastRun.createdAt} /> : undefined} /> },
     {
       id: "auto",
       header: "Automatic runs",
+      defaultHiddenNarrow: true,
       accessor: (x) => (x.autoRun ? "On" : "Off"),
       cell: (x) => <StatusBadge tone={x.autoRun ? "success" : "neutral"}>{x.autoRun ? "On" : "Off"}</StatusBadge>,
     },

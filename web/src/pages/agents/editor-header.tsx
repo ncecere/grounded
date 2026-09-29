@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { CheckCircle2, Circle, CircleAlert, FlaskConical, Loader2, MessageSquare, Upload } from "lucide-react";
 import { useId } from "react";
 import { errorMessage } from "../../api/client";
+import { type ActionItem } from "../../components/templates/action-menu";
 import { terms } from "../../lib/terms";
 import { Alert } from "@/components/ui/alert/alert";
 import { DiffViewer } from "@/components/ui/diff-viewer/diff-viewer";
@@ -32,32 +33,22 @@ export function ChatButton({ agent }: { agent: Agent }) {
   );
 }
 
-type ActionsProps = {
-  current: Agent;
-  live: boolean;
-  /** Why Publish is unavailable (shown under the button and read with it), or undefined. */
-  blocked?: string;
-  onPublish: () => void;
-  /** Opens the Try it dialog (narrow windows on Build). */
-  onTest?: () => void;
-};
+/** Chat (once live) and Try it (narrow Build only): secondary header actions, in the "…" menu on a phone. */
+export function secondaryActions(agent: Agent, live: boolean, onTest?: () => void): ActionItem[] {
+  return [
+    { label: "Chat", icon: <MessageSquare aria-hidden />, render: <Link to="/a/$team/$agent" params={{ team: agent.teamSlug, agent: agent.slug }} />, hidden: !live },
+    { label: terms.tryIt, icon: <FlaskConical aria-hidden />, onSelect: onTest, hidden: !onTest },
+  ];
+}
 
-/** Chat · Try it (narrow Build only) · Publish, with the reason when Publish is disabled. */
-export function HeaderActions({ current, live, blocked, onPublish, onTest }: ActionsProps) {
+/** Publish, with the reason when it is disabled (shown under the button and read with it). */
+export function PublishAction({ blocked, onPublish }: { blocked?: string; onPublish: () => void }) {
   const reasonId = useId();
   return (
     <div className={a.headerActions}>
-      <div className={a.headerButtons}>
-        {live && <ChatButton agent={current} />}
-        {onTest && (
-          <Button variant="secondary" onClick={onTest}>
-            <FlaskConical aria-hidden /> {terms.tryIt}
-          </Button>
-        )}
-        <Button onClick={onPublish} disabled={Boolean(blocked)} aria-describedby={blocked ? reasonId : undefined}>
-          <Upload aria-hidden /> Publish
-        </Button>
-      </div>
+      <Button onClick={onPublish} disabled={Boolean(blocked)} aria-describedby={blocked ? reasonId : undefined}>
+        <Upload aria-hidden /> Publish
+      </Button>
       {blocked && (
         <p id={reasonId} className={a.publishReason}>
           {blocked}

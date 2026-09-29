@@ -30,7 +30,7 @@ import { BuildTab, useWideBuild } from "./build/tab";
 import { type Agent, AgentStatusBadge, ProblemList, focusField, problemTarget, useChatModels } from "./common";
 import { useAgentDraft } from "./draft";
 import { DeleteAgent, StatusDialog } from "./editor-dialogs";
-import { ChatButton, EditorAlerts, HeaderActions, SaveIndicator } from "./editor-header";
+import { ChatButton, EditorAlerts, PublishAction, SaveIndicator, secondaryActions } from "./editor-header";
 import { publishBlocked } from "./publish-state";
 import { AgentSettingsTab } from "./settings";
 import { ShareTab } from "./share/share-tab";
@@ -131,15 +131,8 @@ function Editor({ agent }: { agent: Agent }) {
           { label: "Knowledge", value: `${c.kbs.length} knowledge base${c.kbs.length === 1 ? "" : "s"}` },
           { label: "Updated", value: <>Updated <RelativeTime value={current.updatedAt} /></> },
         ]}
-        primaryAction={
-          <HeaderActions
-            current={current}
-            live={live}
-            blocked={blocked}
-            onPublish={() => setPublishing(true)}
-            onTest={tab === "build" && !wide ? () => setTestOpen(true) : undefined}
-          />
-        }
+        secondaryActions={secondaryActions(current, live, tab === "build" && !wide ? () => setTestOpen(true) : undefined)}
+        primaryAction={<PublishAction blocked={blocked} onPublish={() => setPublishing(true)} />}
         menuActions={[
           {
             label: current.status === "active" ? "Disable agent" : "Enable agent",

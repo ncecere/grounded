@@ -83,6 +83,8 @@ function columns(currency: string, items: Item[]): DataTableColumn<Item>[] {
     {
       id: "mode",
       header: "Mode",
+      // Low priority on a phone (under 600px): the Columns menu brings it back.
+      defaultHiddenNarrow: true,
       accessor: (r) => r.status.mode,
       cell: (r) => <ModeText mode={r.status.mode} override={r.modeOverride} />,
     },
@@ -97,8 +99,8 @@ function columns(currency: string, items: Item[]): DataTableColumn<Item>[] {
       },
     },
     { id: "spent", header: "Spent", accessor: (r) => Number(r.status.spent ?? 0), numeric: true, cell: (r) => formatMoney(r.status.spent, currency, spentDec) },
-    { id: "share", header: "Share", accessor: (r) => r.status.percent ?? -1, cell: (r) => <div className={c.meterCell}><BudgetMeter status={r.status} label={`${r.teamName}: share of budget used`} /></div> },
-    { id: "projected", header: "Projected", accessor: (r) => Number(r.projected ?? 0), numeric: true, cell: (r) => formatMoney(r.projected, currency, projectedDec) },
+    { id: "share", header: "Share", defaultHiddenNarrow: true, accessor: (r) => r.status.percent ?? -1, cell: (r) => <div className={c.meterCell}><BudgetMeter status={r.status} label={`${r.teamName}: share of budget used`} /></div> },
+    { id: "projected", header: "Projected", defaultHiddenNarrow: true, accessor: (r) => Number(r.projected ?? 0), numeric: true, cell: (r) => formatMoney(r.projected, currency, projectedDec) },
     { id: "state", header: "State", accessor: (r) => r.status.state, cell: (r) => <StatusBadge tone={stateTones[r.status.state]}>{stateLabels[r.status.state]}</StatusBadge> },
   ];
 }

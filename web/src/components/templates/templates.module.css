@@ -1,8 +1,11 @@
 /* Page templates (DetailPage, SettingsPage, ListPage, RecordSheet). Semantic tokens only. */
 
+/* Secondary buttons, the primary and "…"; the top edges line up when the primary has a note under it (Publish). */
 .headerActions {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-end;
   gap: var(--space-2);
 }
 

@@ -103,19 +103,12 @@
   }
 }
 
-/* Chat · Test · Publish, and why Publish is disabled (Q5), right-aligned under them. */
+/* Publish, and why it is disabled (Q5), right-aligned under it. */
 .headerActions {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: var(--space-1);
-}
-
-.headerButtons {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-2);
 }
 
 .publishReason {
@@ -124,6 +117,17 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   text-align: end;
+}
+
+/* On a phone the header's actions sit under the title, at the start. */
+@media (max-width: 37.5rem) {
+  .headerActions {
+    align-items: flex-start;
+  }
+
+  .publishReason {
+    text-align: start;
+  }
 }
 
 .problemList {

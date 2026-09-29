@@ -11,6 +11,7 @@ import { Bot, Plus, Settings } from "lucide-react";
 import { roleLabels } from "../../../components/roles";
 import { requestIntent } from "../../../lib/intents";
 import { terms } from "../../../lib/terms";
+import { PageActions } from "../../../components/templates/page-actions";
 import { Alert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
@@ -42,12 +43,10 @@ export function TeamOverviewPage() {
           </>
         }
         actions={
-          <>
-            <Button variant="secondary" render={<Link to="/teams/$team/settings" params={{ team: slug }} />}>
-              <Settings aria-hidden /> {terms.teamSettings}
-            </Button>
-            <PrimaryAction />
-          </>
+          <PageActions
+            secondary={[{ label: terms.teamSettings, icon: <Settings aria-hidden />, render: <Link to="/teams/$team/settings" params={{ team: slug }} /> }]}
+            primary={<PrimaryAction />}
+          />
         }
       />
       <ArchivedNotice />
