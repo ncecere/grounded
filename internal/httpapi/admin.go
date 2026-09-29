@@ -273,7 +273,7 @@ func (a *api) adminUpdateClassification(w http.ResponseWriter, r *http.Request) 
 }
 
 func (a *api) adminListAudit(w http.ResponseWriter, r *http.Request) {
-	a.writeAuditPage(w, r, uuid.NullUUID{})
+	a.writeAuditPage(w, r, dbgen.ListAuditParams{})
 }
 
 // adminGetAuditEntry returns one entry by id, so a link to any entry opens

@@ -108,8 +108,9 @@ func auditRange(w http.ResponseWriter, r *http.Request, p *dbgen.ListAuditParams
 	return true
 }
 
-// writeAuditPage serves one page of audit entries, newest first.
-func (a *api) writeAuditPage(w http.ResponseWriter, r *http.Request, teamID uuid.NullUUID) {
+// writeAuditPage serves one page of audit entries, newest first, within
+// scope (a team, and whether its cost entries are left out).
+func (a *api) writeAuditPage(w http.ResponseWriter, r *http.Request, scope dbgen.ListAuditParams) {
 	limit, ok := pageLimit(w, r)
 	if !ok {
 		return
@@ -118,7 +119,7 @@ func (a *api) writeAuditPage(w http.ResponseWriter, r *http.Request, teamID uuid
 	if !ok {
 		return
 	}
-	p := dbgen.ListAuditParams{TeamID: teamID, PageSize: limit + 1}
+	p := dbgen.ListAuditParams{TeamID: scope.TeamID, HideSpend: scope.HideSpend, PageSize: limit + 1}
 	if keys != nil {
 		before, err := strconv.ParseInt(keys[0], 10, 64)
 		if err != nil {

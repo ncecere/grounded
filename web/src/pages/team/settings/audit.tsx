@@ -6,7 +6,8 @@
  * none"); its code is on the record page. Each entry opens in a RecordPage
  * (?record=<id>, fetched by id so links from the overview work) with the
  * before/after field by field. Sign-ins aren't team entries, so there is
- * no "Hide sign-ins" here.
+ * no "Hide sign-ins" here. Editors' log has no cost entries (budgets and
+ * extensions; the API leaves them out), so their Area filter has no Costs.
  */
 import { auditSections } from "../../admin/logs/audit-record";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -38,7 +39,7 @@ function who(e: Entry) {
 /** A select facet's value (one option). */
 const first = (v: FilterValue | undefined) => (Array.isArray(v) ? v[0] : undefined);
 
-function useFacets(team: string): Facet<Entry>[] {
+function useFacets(team: string, hideCosts: boolean): Facet<Entry>[] {
   const members = useQuery({
     queryKey: membersKey(team),
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/members", { params: { path: { team } } })),
@@ -49,7 +50,7 @@ function useFacets(team: string): Facet<Entry>[] {
       label: "Area",
       type: "select",
       placeholder: "All areas, or type an action",
-      options: areaOptions(false),
+      options: areaOptions(false, { hideCosts }),
     },
     {
       id: "person",
@@ -65,7 +66,8 @@ function useFacets(team: string): Facet<Entry>[] {
 export function TeamAuditLog() {
   const { slug: team, role } = useTeam();
   const scope = { kind: "team" as const, team };
-  const facets = useFacets(team);
+  // Editors don't see the team's spend, so their log has no cost entries (docs/costs.md §5).
+  const facets = useFacets(team, role === "editor");
   const filters = useListFilters(facets);
   const record = useRecordParam();
   const query = {

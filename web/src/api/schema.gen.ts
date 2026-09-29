@@ -431,7 +431,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** The team's audit log (owners, admins and editors) */
+        /**
+         * The team's audit log (owners, admins and editors)
+         * @description Editors don't see the team's cost entries (`costs.*`: its budget, enforcement mode and budget extensions with their reasons), as they can't see its spend (`GET /v1/teams/{team}/spend`); owners, admins and platform staff do.
+         */
         get: operations["listTeamAudit"];
         put?: never;
         post?: never;
@@ -452,7 +455,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** One entry of the team's audit log, for a linked entry (owners, admins and editors) */
+        /**
+         * One entry of the team's audit log, for a linked entry (owners, admins and editors)
+         * @description A cost entry (`costs.*`) is not found for an editor, as in the list.
+         */
         get: operations["getTeamAuditEntry"];
         put?: never;
         post?: never;

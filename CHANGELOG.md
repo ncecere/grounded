@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - An evaluation run's link reads "Retrieval, Sep 28, 2026…" to screen readers, not "Retrieval , Sep 28…" (G20).
 
 ### Fixed
+- Editors no longer see the team's budget in its audit log: cost entries (the budget amount, the enforcement mode, and budget extensions with their reasons) are left out of `GET /v1/teams/{team}/audit` for editors, and `GET …/audit/{entryId}` answers 404 for them, the same rule as the team's spend (owners, admins and platform staff; [`docs/costs.md`](docs/costs.md) §5). Their Area filter has no Costs.
 - Claims: short terms in a bulleted list ("Recipient (yourself)", "Purpose (e.g., certification)" under "where you confirm:") are treated alike, as part of the sentence introducing the list: none is marked **Uncited** any more, and one that cites a source is still checked. A hedged suggestion to ask someone ("If it's urgent, you may need to contact the office directly"), which usually follows "The sources don't say…", isn't a claim either ([`docs/systemone.md`](docs/systemone.md#citation-checks-as-built-3)).
 
 ## [0.2.0] - 2026-09-29

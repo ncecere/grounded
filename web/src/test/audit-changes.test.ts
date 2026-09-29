@@ -63,6 +63,9 @@ describe("audit filters", () => {
     expect(options.find((o) => o.value === "platform.sso_rule_create")?.group).toBe("SSO groups");
     // A team's log offers no platform-only areas or their actions.
     expect(areaOptions(false).some((o) => o.value === "auth." || o.value === "auth.login")).toBe(false);
+    // An editor's log has no cost entries (they don't see the team's spend): no Costs area or its actions.
+    expect(areaOptions(false).some((o) => o.value === "costs.budget_update")).toBe(true);
+    expect(areaOptions(false, { hideCosts: true }).some((o) => o.value.startsWith("costs."))).toBe(false);
   });
 
   it("maps System (group mapping) to the API's actorKind", () => {
