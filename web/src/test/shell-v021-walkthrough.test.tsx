@@ -195,7 +195,7 @@ describe("Team settings addresses and titles", () => {
     expect(screen.queryByRole("tab", { name: /Usage/ })).toBeNull();
     expect(screen.getByText(/Its usage, spend and limits are on its/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "admin page" })).toHaveAttribute("href", "/admin/teams/registrar");
-    expect(screen.getByText(`The members, audit log and details of ${team.name}.`)).toBeInTheDocument();
+    expect(screen.getByText(`The members, audit log and general details of ${team.name}.`)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 });
