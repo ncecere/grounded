@@ -1,6 +1,9 @@
 /*
  * The Evaluations tab of a knowledge base and of an agent (docs/evaluations.md
- * §5): the sets that test it, each opening as its own page, and "New set".
+ * §5): the sets that test it, each opening as its own page, with their
+ * latest Score (recall@k or pass rate, named in its tooltip), and "New set":
+ * the knowledge base's header primary on this tab (NewSetButton), or the
+ * tab's own secondary button on an agent's page, whose header has its own.
  * Editors and above only; the tab is left out while evaluations are off.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,32 +26,48 @@ import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
 import s from "../../shared.module.css";
 import { plural, useTeam } from "../common";
-import { pct, runStatus } from "./labels";
+import { autoRunNotice, runScore, runStatus } from "./labels";
 import { type EvalSet, evalSetsKey, evalSetsQuery } from "./queries";
+import { ScoreValue } from "./score";
 
 export type EvalTarget = { kbId: string; agentId?: undefined; name: string } | { agentId: string; kbId?: undefined; name: string };
 
-/** "Recall@4 83%" or "Pass rate 50%" of the latest run, or its status while it isn't done. */
-function lastRunText(set: EvalSet) {
+/** The latest run's score (with its metric in the tooltip), or its status while it isn't done. */
+function LastScore({ set }: { set: EvalSet }) {
   const r = set.lastRun;
-  if (!r) return "Not run yet";
-  if (r.status !== "completed") return runStatus[r.status].label;
-  return r.kind === "answer" ? `Pass rate ${pct(r.summary.passRate)}` : `Recall@${r.summary.k} ${pct(r.summary.recall)}`;
+  if (!r) return <>Not run yet</>;
+  if (r.status !== "completed" || runScore(r) === undefined) return <>{runStatus[r.status].label}</>;
+  return <ScoreValue run={r} />;
 }
 
-export function EvaluationsTab({ target }: { target: EvalTarget }) {
-  const { slug, canEdit } = useTeam();
+/** "New set" and its dialog, which opens the new set. */
+export function NewSetButton({ target, variant = "primary" }: { target: EvalTarget; variant?: "primary" | "secondary" }) {
+  const { slug } = useTeam();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
+  return (
+    <>
+      <Button variant={variant} onClick={() => setCreating(true)}>
+        <Plus aria-hidden /> New set
+      </Button>
+      {creating && (
+        <CreateSetDialog
+          target={target}
+          onClose={() => setCreating(false)}
+          onCreated={(id) => void navigate({ to: "/teams/$team/evaluations/$setId", params: { team: slug, setId: id } })}
+        />
+      )}
+    </>
+  );
+}
+
+/** The tab; `newSetInHeader`: the page's header has "New set" (the knowledge base's), so the tab and its empty state don't repeat it. */
+export function EvaluationsTab({ target, newSetInHeader = false }: { target: EvalTarget; newSetInHeader?: boolean }) {
+  const { slug, canEdit } = useTeam();
   const filter = target.kbId ? { kbId: target.kbId } : { agentId: target.agentId! };
   const sets = useQuery(evalSetsQuery(slug, filter));
-  const open = (id: string) => void navigate({ to: "/teams/$team/evaluations/$setId", params: { team: slug, setId: id } });
-  // Secondary: the knowledge base's or agent's page has its own primary action (one per view).
-  const newSet = canEdit ? (
-    <Button variant="secondary" onClick={() => setCreating(true)}>
-      <Plus aria-hidden /> New set
-    </Button>
-  ) : undefined;
+  // Secondary: the agent's page has its own primary action (one per view).
+  const newSet = canEdit && !newSetInHeader ? <NewSetButton target={target} variant="secondary" /> : undefined;
 
   const columns: DataTableColumn<EvalSet>[] = [
     {
@@ -70,7 +89,12 @@ export function EvaluationsTab({ target }: { target: EvalTarget }) {
       ),
     },
     { id: "questions", header: "Questions", sortable: true, accessor: (x) => x.questionCount, cell: (x) => plural(x.questionCount, "question") },
-    { id: "last", header: "Latest run", accessor: lastRunText, cell: (x) => <CellText primary={lastRunText(x)} secondary={x.lastRun ? <RelativeTime value={x.lastRun.createdAt} /> : undefined} /> },
+    {
+      id: "score",
+      header: "Score",
+      accessor: (x) => (x.lastRun ? (runScore(x.lastRun) ?? -1) : -2),
+      cell: (x) => <CellText primary={<LastScore set={x} />} secondary={x.lastRun ? <RelativeTime value={x.lastRun.createdAt} /> : undefined} />,
+    },
     {
       id: "auto",
       header: "Automatic runs",
@@ -95,12 +119,17 @@ export function EvaluationsTab({ target }: { target: EvalTarget }) {
         getRowId={(x) => x.id}
         rowLabel={(x) => x.name}
         rowActions={(x) => [{ label: "Open", icon: <FolderOpen aria-hidden />, render: <Link to="/teams/$team/evaluations/$setId" params={{ team: slug, setId: x.id }} /> }]}
-        empty={{ icon: <ClipboardCheck />, title: "No evaluation sets yet.", description: "A set is a list of questions with the documents that should answer them.", action: newSet }}
+        empty={{
+          icon: <ClipboardCheck />,
+          title: "No evaluation sets yet.",
+          description: `A set is a list of questions with the documents that should answer them.${newSetInHeader && canEdit ? " Create one with New set above." : ""}`,
+          action: newSet,
+        }}
+        tableProps={{ columnsMenu: false }}
         loading={sets.isLoading}
         error={sets.error}
         onRetry={() => void sets.refetch()}
       />
-      {creating && <CreateSetDialog target={target} onClose={() => setCreating(false)} onCreated={open} />}
     </Stack>
   );
 }
@@ -153,7 +182,7 @@ export function CreateSetDialog({ target, onClose, onCreated }: { target: EvalTa
       </Field>
       <Switch
         label="Run automatically"
-        description="Retrieval checks after a publish or an embedding profile switch, and nightly when documents change. Editors hear about drops."
+        description={`Retrieval runs after a publish or an embedding profile switch, and nightly when documents change. ${autoRunNotice}`}
         checked={autoRun}
         onCheckedChange={setAutoRun}
       />

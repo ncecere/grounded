@@ -2,11 +2,15 @@
  * "Add to evaluations" (docs/evaluations.md §1, owner decision 2): from the
  * editor's own conversation with one of the team's agents (a thumbs-down
  * answer, or one without sources) and from the agent editor's Test panel.
- * It opens the question form with the question text only: nothing else of
- * the conversation is copied (ADR-0010). The editor picks one of the agent's
- * sets, or names a new one, and adds what a good result is: the document
- * picker searches the agent's knowledge bases, a new set's too. The toast
- * links to the set.
+ * It opens the question form with the question text, and the documents the
+ * answer cited as its expected documents ("The answer used X. Is that the
+ * right source?"); nothing else of the conversation is copied (ADR-0010).
+ * After a Not helpful or Incorrect rating it asks first what a good answer
+ * should say (must-mention phrases), since a full-answer run without them
+ * only checks the citation. The editor picks one of the agent's sets, or
+ * names a new one; the document picker searches the agent's knowledge
+ * bases, a new set's too. The toast links to the set, and the answer's
+ * button then reads "Added to evaluations" (added.ts).
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -17,20 +21,23 @@ import { FormDialog } from "@/components/form-dialog";
 import { Field } from "@/components/ui/field/field";
 import { Input, NativeSelect } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
-import { QuestionFields, emptyQuestion, questionBody, questionErrors } from "./question-form";
+import { markAdded } from "./added";
+import { type AnswerToAdd, asksContent, usedNote } from "./answer-to-add";
+import { QuestionFields } from "./question-fields";
+import { emptyQuestion, questionBody, questionErrors } from "./question-form";
 import { evalSetsKey, evalSetsQuery } from "./queries";
 
 const NEW = "new";
 
-type Props = { team: string; agentId: string; agentName: string; question: string; onClose: () => void };
+type Props = { team: string; agentId: string; agentName: string; answer: AnswerToAdd; onClose: () => void };
 
-export function AddToEvaluationsDialog({ team, agentId, agentName, question, onClose }: Props) {
+export function AddToEvaluationsDialog({ team, agentId, agentName, answer, onClose }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const sets = useQuery(evalSetsQuery(team, { agentId }));
   const [choice, setChoice] = useState<string | undefined>(undefined);
   const [newName, setNewName] = useState(`${agentName} questions`);
-  const [form, setForm] = useState(() => emptyQuestion(question));
+  const [form, setForm] = useState(() => ({ ...emptyQuestion(answer.question), documentIds: answer.cited.map((d) => d.id) }));
   const [submitted, setSubmitted] = useState(false);
   const setId = choice ?? sets.data?.[0]?.id ?? NEW;
   const errors = submitted ? questionErrors(form) : {};
@@ -43,6 +50,7 @@ export function AddToEvaluationsDialog({ team, agentId, agentName, question, onC
       return target;
     },
     onSuccess: (target) => {
+      markAdded(answer.key);
       void qc.invalidateQueries({ queryKey: evalSetsKey(team) });
       void qc.invalidateQueries({ queryKey: ["team", team, "evaluation-set"] });
       toast.add({
@@ -57,7 +65,7 @@ export function AddToEvaluationsDialog({ team, agentId, agentName, question, onC
   return (
     <FormDialog
       title="Add to evaluations"
-      description="Only the question is copied. Say which documents a good answer should come from."
+      description="Only the question and the documents it cited are copied. Say which documents a good answer comes from, and what it says."
       size="lg"
       onClose={onClose}
       submitLabel="Add question"
@@ -84,7 +92,18 @@ export function AddToEvaluationsDialog({ team, agentId, agentName, question, onC
           <Input aria-required maxLength={200} value={newName} onChange={(e) => setNewName(e.target.value)} />
         </Field>
       )}
-      <QuestionFields team={team} scope={setId === NEW ? { agentId } : { setId }} form={form} onChange={setForm} errors={errors} />
+      <QuestionFields
+        team={team}
+        scope={setId === NEW ? { agentId } : { setId }}
+        form={form}
+        onChange={setForm}
+        errors={errors}
+        answers
+        where={`${agentName}'s knowledge bases`}
+        initialPicked={answer.cited.map((d) => ({ value: d.id, label: d.title || "Untitled document" }))}
+        expectedNote={usedNote(answer.cited)}
+        askContent={asksContent(answer.reason)}
+      />
     </FormDialog>
   );
 }

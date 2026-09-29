@@ -106,6 +106,23 @@ export const result = (id: string, question: string, status: Schemas["Evaluation
   ...extra,
 });
 
+type CheckBody = { expected: Schemas["EvaluationExpected"]; mustMention?: string[] };
+
+/**
+ * The question form's check: everything is in the knowledge base except
+ * what `missing` names (expected values and phrases).
+ */
+export const checkReply =
+  (missing: string[] = []): Handler =>
+  (b) => {
+    const { expected, mustMention = [] } = b as CheckBody;
+    const item = (kind: "document" | "url" | "filename", value: string) => ({ kind, value, state: missing.includes(value) ? "not_indexed" : "indexed" });
+    return {
+      expected: [...expected.documentIds.map((v) => item("document", v)), ...expected.urls.map((v) => item("url", v)), ...expected.filenames.map((v) => item("filename", v))],
+      mustMention: mustMention.map((phrase) => ({ phrase, found: !missing.includes(phrase) })),
+    };
+  };
+
 export const evalRoutes = (teamRole = "editor", extra: Record<string, Handler> = {}): Record<string, Handler> => ({
   ...shellRoutes("none", teamRole),
   "GET /v1/me": () => meWithEvals(teamRole),
@@ -119,5 +136,6 @@ export const evalRoutes = (teamRole = "editor", extra: Record<string, Handler> =
   "GET /v1/teams/registrar/evaluation-sets/set1/questions": () => questions,
   "GET /v1/teams/registrar/evaluation-sets/set1/documents": () => [{ id: "d1", title: "Transcript policy", filename: "transcripts.pdf", url: "", sourceName: "Policies" }],
   "GET /v1/teams/registrar/evaluation-sets/set1/runs": () => runs,
+  "POST /v1/teams/registrar/evaluation-question-check": checkReply(),
   ...extra,
 });

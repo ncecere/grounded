@@ -1,5 +1,7 @@
 /* Evaluation words and pure helpers: scores, statuses, triggers, and what changed between runs (the chart's markers). Tested in src/test/evaluations-labels.test.ts. */
-import type { EvalExpected, EvalQuestion, EvalResult, EvalRun } from "./queries";
+import { formatDate } from "@/lib/format";
+import { plural } from "../common";
+import type { EvalExpected, EvalQuestion, EvalResult, EvalRun, EvalSummary } from "./queries";
 
 /** 0.834 → "83%"; undefined → "—". */
 export const pct = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${Math.round(v * 100)}%`);
@@ -7,7 +9,11 @@ export const pct = (v: number | null | undefined) => (v === null || v === undefi
 /** MRR with two decimals. */
 export const decimal = (v: number | null | undefined) => (v === null || v === undefined ? "—" : v.toFixed(2));
 
-export const kindLabels: Record<EvalRun["kind"], string> = { retrieval: "Retrieval check", answer: "Full-answer check" };
+/** Run kinds (no "check": that word is SystemOne's per-answer checks). */
+export const kindLabels: Record<EvalRun["kind"], string> = { retrieval: "Retrieval", answer: "Full answer" };
+
+/** "Retrieval run · Sep 28, 2026, 7:20 PM". */
+export const runTitle = (r: Pick<EvalRun, "kind" | "createdAt">) => `${kindLabels[r.kind]} run · ${formatDate(r.createdAt)}`;
 
 export const triggerLabels: Record<EvalRun["trigger"], string> = {
   manual: "Started by hand",
@@ -29,22 +35,66 @@ export const runStatus: Record<EvalRun["status"], { label: string; tone: Tone }>
 export const resultStatus: Record<EvalResult["status"], { label: string; tone: Tone }> = {
   pass: { label: "Pass", tone: "success" },
   fail: { label: "Fail", tone: "danger" },
-  missing: { label: "Document deleted", tone: "warning" },
+  missing: { label: "Not scored", tone: "warning" },
   error: { label: "Check failed", tone: "neutral" },
 };
+
+/** A full answer that passed on its citation alone: the question has no must-mention phrases. */
+export const citedOnly = (r: Pick<EvalResult, "status" | "scores">) => r.status === "pass" && r.scores !== null && r.scores !== undefined && r.scores.mentions.length === 0;
+
+/**
+ * A result's label: a pass that only cited the right source says so, and a
+ * question that wasn't scored says why (not in this knowledge base, or
+ * deleted since; older results only knew it was missing).
+ */
+export function resultLabel(r: Pick<EvalResult, "status" | "scores" | "missingReason">): { label: string; tone: Tone } {
+  if (citedOnly(r)) return { label: "Cited the right source (content not checked)", tone: "info" };
+  if (r.status === "missing") {
+    if (r.missingReason === "not_indexed") return { label: "Not in this knowledge base", tone: "warning" };
+    if (r.missingReason === "deleted") return { label: "Document deleted", tone: "warning" };
+    return { label: "Expected document missing", tone: "warning" };
+  }
+  return resultStatus[r.status];
+}
 
 /** The run's headline score: recall@k (retrieval) or the pass rate (full answers). */
 export const runScore = (r: Pick<EvalRun, "kind" | "summary">) => (r.kind === "answer" ? r.summary.passRate : r.summary.recall);
 
-/** "Recall@4 83%" or "Pass rate 50%". */
-export function scoreText(r: Pick<EvalRun, "kind" | "summary">) {
-  return r.kind === "answer" ? `Pass rate ${pct(r.summary.passRate)}` : `Recall@${r.summary.k} ${pct(r.summary.recall)}`;
+/** The score's metric in words, for its tooltip. */
+export function scoreHelp(r: Pick<EvalRun, "kind" | "summary">) {
+  return r.kind === "answer"
+    ? "Pass rate: the share of answers that cited an expected document and mentioned every must-mention phrase."
+    : `Recall@${r.summary.k}: the share of questions whose expected document came back in the top ${r.summary.k} results.`;
 }
 
-/** "3 questions point at documents that were deleted", or "". */
-export function missingText(missing: number) {
-  if (missing === 0) return "";
-  return missing === 1 ? "1 question points at a document that was deleted." : `${missing} questions point at documents that were deleted.`;
+/** "83% (recall@4)" or "50% (pass rate)", where the metric has to be in the text. */
+export function scoreText(r: Pick<EvalRun, "kind" | "summary">) {
+  return r.kind === "answer" ? `${pct(r.summary.passRate)} (pass rate)` : `${pct(r.summary.recall)} (recall@${r.summary.k})`;
+}
+
+/** What MRR means, where it's shown. */
+export const mrrHelp = "Mean reciprocal rank: how high the first expected document comes back, on average (1 = always first, 0.5 = second).";
+
+/** Why questions weren't scored: "1 question expects a document that isn't in the knowledge base. 1 points at a deleted document.", or "". */
+export function missingText(s: Pick<EvalSummary, "missing" | "notIndexed">) {
+  const never = Math.min(s.notIndexed ?? 0, s.missing);
+  const gone = s.missing - never;
+  const parts: string[] = [];
+  if (never > 0) parts.push(never === 1 ? "1 question expects a document that isn't in the knowledge base." : `${never} questions expect documents that aren't in the knowledge base.`);
+  if (gone > 0) parts.push(gone === 1 ? "1 question points at a document that was deleted." : `${gone} questions point at documents that were deleted.`);
+  return parts.join(" ");
+}
+
+/** The run's result in one sentence: "1 of 2 questions found the right page." or "1 of 2 answers passed." */
+export function outcomeText(r: Pick<EvalRun, "kind" | "summary" | "status" | "done" | "total">) {
+  if (r.status === "queued") return "Waiting to start.";
+  if (r.status === "running") return `Checking the questions: ${r.done} of ${r.total} done.`;
+  const s = r.summary;
+  const scored = s.passed + s.failed;
+  if (scored === 0) return r.status === "completed" ? "No question could be scored." : "No question was scored.";
+  if (r.kind === "retrieval") return `${s.passed} of ${plural(scored, "question")} found the right page.`;
+  const only = s.citedOnly ? ` ${s.citedOnly} of them only cited the right source: add must-mention phrases to check what they say.` : "";
+  return `${s.passed} of ${plural(scored, "answer")} passed.${only}`;
 }
 
 /** What a run tested, for the chart markers: the version, the profiles and the results per search. */
@@ -100,3 +150,7 @@ export function splitExpected(values: string[], documentIds: string[]): EvalExpe
 
 /** The format of an import file, from its name. */
 export const importFormat = (name: string): "csv" | "jsonl" => (/\.(jsonl|ndjson)$/i.test(name) ? "jsonl" : "csv");
+
+/** Who hears about a drop, and how (the "Run automatically" switch; notify catalog evaluation.regression). */
+export const autoRunNotice =
+  "If recall drops by more than 5 points or a question that passed now fails, the team's editors, admins and owners get an “Evaluation scores dropped” notification in the app, and by email where the platform sends email. Each person can turn it off in their notification settings.";

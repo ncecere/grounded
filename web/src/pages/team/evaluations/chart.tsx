@@ -2,7 +2,8 @@
  * Score over time (docs/evaluations.md §4): recall@k of the retrieval checks
  * and the pass rate of the full-answer checks across runs, with markers for
  * what changed between them (agent version, embedding profile, results per
- * search), from each run's configuration.
+ * search), from each run's configuration. A trend needs a few points: the
+ * chart shows from three completed runs of a kind, compact, under the runs.
  */
 import { Card } from "@/components/ui/card/card";
 import { LineChart } from "@/components/ui/line-chart/line-chart";
@@ -13,9 +14,14 @@ import { pct, runScore, scoreSeries } from "./labels";
 import type { EvalRun } from "./queries";
 import e from "./evaluations.module.css";
 
+/** Completed runs of a kind before the chart shows them. */
+export const minChartRuns = 3;
+
+const charted = (runs: EvalRun[], kind: EvalRun["kind"]) => scoreSeries(runs, kind).runs.length >= minChartRuns;
+
 function Series({ runs, kind, label }: { runs: EvalRun[]; kind: EvalRun["kind"]; label: string }) {
   const { runs: scored, markers } = scoreSeries(runs, kind);
-  if (scored.length === 0) return null;
+  if (scored.length < minChartRuns) return null;
   const changed = new Set(markers.map((m) => m.runId));
   const data = scored.map((r) => ({ label: `${formatDate(r.createdAt)}${changed.has(r.id) ? " ◆" : ""}`, values: { score: (runScore(r) ?? 0) * 100 } }));
   const first = runScore(scored[0]!);
@@ -26,6 +32,7 @@ function Series({ runs, kind, label }: { runs: EvalRun[]; kind: EvalRun["kind"];
         summary={`${label} over ${plural(scored.length, "run")}, from ${pct(first)} to ${pct(last)}.${markers.length ? ` ${plural(markers.length, "run")} (◆) changed what was tested.` : ""}`}
         series={[{ key: "score", label, tone: kind === "answer" ? "info" : "primary" }]}
         data={data}
+        size="sm"
         formatValue={(v) => `${Math.round(v)}%`}
         points
         dataTable={{ caption: `${label} by run`, labelHeader: "Run" }}
@@ -44,7 +51,7 @@ function Series({ runs, kind, label }: { runs: EvalRun[]; kind: EvalRun["kind"];
 }
 
 export function ScoreChart({ runs }: { runs: EvalRun[] }) {
-  if (!runs.some((r) => r.status === "completed")) return null;
+  if (!charted(runs, "retrieval") && !charted(runs, "answer")) return null;
   return (
     // A subsection of Runs (its h2).
     <Card title="Score over time" titleAs="h3" description="Each completed run's score. ◆ marks a run whose agent version, embedding profile or results per search differed from the run before.">

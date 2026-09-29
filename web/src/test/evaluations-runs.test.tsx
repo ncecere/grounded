@@ -24,8 +24,8 @@ describe("pure helpers", () => {
   it("formats scores and says what changed between runs", () => {
     expect(pct(0.834)).toBe("83%");
     expect(pct(undefined)).toBe("—");
-    expect(missingText(0)).toBe("");
-    expect(missingText(3)).toBe("3 questions point at documents that were deleted.");
+    expect(missingText({ missing: 0, notIndexed: 0 })).toBe("");
+    expect(missingText({ missing: 3, notIndexed: 1 })).toBe("1 question expects a document that isn't in the knowledge base. 2 questions point at documents that were deleted.");
     expect(configChanges(runs[1]!, runs[0]!)).toEqual(["results per search 4 → 1"]);
     const v2 = run("a", "2026-09-01T00:00:00Z", { config: { ...runs[0]!.config, version: "published", agentVersion: 2 } });
     const v3 = run("b", "2026-09-02T00:00:00Z", { config: { ...runs[0]!.config, version: "published", agentVersion: 3, kbs: [{ ...runs[0]!.config.kbs[0]!, profile: "Qwen 1024" }] } });
@@ -47,14 +47,30 @@ describe("pure helpers", () => {
 });
 
 describe("a set's runs", () => {
-  it("charts the score with markers and lists the runs", async () => {
-    mockApi(evalRoutes());
+  it("lists the runs first, with one Score column, and charts the score from three runs, with markers", async () => {
+    const third = run("r0", "2026-09-25T10:00:00Z", { summary: { ...runs[1]!.summary, recall: 0.75 } });
+    mockApi(evalRoutes("editor", { "GET /v1/teams/registrar/evaluation-sets/set1/runs": () => [...runs, third] }));
     const { container } = renderApp("/teams/registrar/evaluations/set1?tab=runs");
-    expect(await screen.findByRole("img", { name: /Recall@k over 2 runs, from 100% to 50%/ }, T)).toBeInTheDocument();
+    const table = await screen.findByRole("table", { name: "Runs" }, T);
+    const chart = await screen.findByRole("img", { name: /Recall@k over 3 runs, from 75% to 50%/ });
+    // The table comes before the chart.
+    expect(table.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("list", { name: "What changed between retrieval runs" })).toHaveTextContent("results per search 4 → 1");
-    const table = screen.getByRole("table", { name: "Runs" });
-    expect(await within(table).findAllByText("Recall@1 50% · MRR 0.50")).toHaveLength(1);
+    // The score names its metric (in its tooltip and accessible name); runs are "Retrieval", not "Retrieval check".
+    expect(within(table).getByRole("columnheader", { name: /Kind/ })).toBeInTheDocument();
+    expect(within(table).getByRole("button", { name: /^50%\. Recall@1: the share of questions/ })).toBeInTheDocument();
+    expect(within(table).getAllByRole("link", { name: /^Retrieval, Sep/ })).toHaveLength(3);
+    // A knowledge base's set has only retrieval runs: no kind filter, and no Columns menu on a short table.
+    expect(screen.queryByRole("button", { name: /^Full answer/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Columns/ })).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("has no chart before three completed runs", async () => {
+    mockApi(evalRoutes());
+    renderApp("/teams/registrar/evaluations/set1?tab=runs");
+    expect(await screen.findByRole("table", { name: "Runs" }, T)).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /Recall@k over/ })).toBeNull();
   });
 
   it("opens a run with its results, filters them to failures and compares with the previous run", async () => {
@@ -82,8 +98,12 @@ describe("a set's runs", () => {
     );
     const { container, router } = renderApp("/teams/registrar/evaluations/set1?tab=runs&record=r2");
     const page = await screen.findByRole("region", { name: "Run" }, T);
-    expect(await within(page).findByText(/1 question points at a document that was deleted/)).toBeInTheDocument();
-    expect(within(page).getByText(/50% \(1 of 2\) · MRR 0.50/)).toBeInTheDocument();
+    expect(await within(page).findByText(/1 question expects a document that isn't in the knowledge base/)).toBeInTheDocument();
+    // The title names the kind without "check"; the subtitle states the result; MRR is explained where it's shown.
+    expect(within(page).getByRole("heading", { level: 1, name: /^Retrieval run · / })).toBeInTheDocument();
+    expect(within(page).getByText("1 of 2 questions found the right page.")).toBeInTheDocument();
+    expect(within(page).getByText(/\(1 of 2\)/)).toBeInTheDocument();
+    expect(within(page).getByText(/0\.50\. Mean reciprocal rank/)).toBeInTheDocument();
     const results = within(page).getByRole("table", { name: "Results" });
     expect(within(results).getAllByRole("row")).toHaveLength(4);
     await userEvent.click(within(page).getByRole("button", { name: /^Failures/ }));
@@ -103,8 +123,9 @@ describe("a set's runs", () => {
     expect(within(res).getByRole("heading", { level: 1, name: "When does registration open?" })).toBeInTheDocument();
     expect(within(res).getAllByText("No expected document in the top results.").length).toBeGreaterThan(0);
     expect(await axe(container)).toHaveNoViolations();
-    // "Open the question" goes to the question's own page.
-    await userEvent.click(within(res).getByRole("link", { name: /Open the question/ }));
+    // "Open the question" (in the "…" menu) goes to the question's own page.
+    await userEvent.click(within(res).getByRole("button", { name: "More actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: /Open the question/ }));
     await waitFor(() => expect(router.state.location.search).toEqual({ record: "q2" }));
   });
 
@@ -161,7 +182,7 @@ describe("a set's runs", () => {
     await waitFor(() => expect(calls.some((c) => c.url.endsWith("/cancel"))).toBe(true));
   });
 
-  it("starts a full-answer check of an agent's set, with an estimate", async () => {
+  it("starts a full-answer run of an agent's set, with an estimate", async () => {
     const agentSet: Schemas["EvaluationSet"] = { ...set, target: { type: "agent", id: "ag1", name: "Helper" }, questionCount: 40 };
     const calls = mockApi(
       evalRoutes("editor", {
@@ -173,7 +194,7 @@ describe("a set's runs", () => {
     renderApp("/teams/registrar/evaluations/set1");
     await userEvent.click(await screen.findByRole("button", { name: "Run" }, T));
     const dialog = await screen.findByRole("dialog", { name: "Run Transcript questions" });
-    await userEvent.click(within(dialog).getByRole("radio", { name: /Full-answer check/ }));
+    await userEvent.click(within(dialog).getByRole("radio", { name: /Full answer/ }));
     expect(within(dialog).getByText("40 answers from the agent, counted as chat usage.")).toBeInTheDocument();
     await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Version" }), "published");
     expect(await axe(dialog)).toHaveNoViolations();
@@ -204,7 +225,7 @@ describe("Add to evaluations", () => {
     const buttons = await screen.findAllByRole("button", { name: "Add to evaluations" });
     expect(buttons).toHaveLength(2);
     await userEvent.click(buttons[1]!);
-    expect(add).toHaveBeenCalledWith("Parking?");
+    expect(add).toHaveBeenCalledWith("Parking?", expect.objectContaining({ key: "a3" }));
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -218,7 +239,8 @@ describe("Add to evaluations", () => {
       "POST /v1/teams/registrar/evaluation-sets/set7/questions": () => questions[1],
     });
     const { AddToEvaluationsDialog } = await import("../pages/team/evaluations/add-to-evaluations");
-    renderBare(<AddToEvaluationsDialog team="registrar" agentId="ag1" agentName="Helper" question="Where is the bursar?" onClose={() => {}} />, meWithEvals("editor"));
+    const answer = { question: "Where is the bursar?", key: "session:a1", cited: [] };
+    renderBare(<AddToEvaluationsDialog team="registrar" agentId="ag1" agentName="Helper" answer={answer} onClose={() => {}} />, meWithEvals("editor"));
     const dialog = await screen.findByRole("dialog", { name: "Add to evaluations" });
     expect(within(dialog).getByRole("textbox", { name: "Question" })).toHaveValue("Where is the bursar?");
     expect(await within(dialog).findByRole("textbox", { name: "New set's name" })).toHaveValue("Helper questions");

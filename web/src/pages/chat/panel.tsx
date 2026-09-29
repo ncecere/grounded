@@ -38,8 +38,9 @@ type ChatPanelProps = {
   /** The longest question (public agents may allow less than 8,000 characters). */
   maxLength?: number;
   /** "Add to evaluations" on answers (see ChatMessages). */
-  onAddToEvaluations?: (question: string) => void;
+  onAddToEvaluations?: (question: string, item: AssistantItem) => void;
   canAdd?: (item: AssistantItem) => boolean;
+  added?: (item: AssistantItem) => boolean;
 };
 
 export function ChatPanel(props: ChatPanelProps) {
@@ -82,7 +83,7 @@ export function ChatPanel(props: ChatPanelProps) {
           {chat.items.length === 0 ? (
             (loading ?? <ChatWelcome agent={agent} disabled={Boolean(disabledReason) || chat.streaming} onStarter={(q) => void send(q)} />)
           ) : (
-            <ChatMessages items={chat.items} agent={agent} feedback={feedback} onPatch={chat.patch} onAddToEvaluations={props.onAddToEvaluations} canAdd={props.canAdd} />
+            <ChatMessages items={chat.items} agent={agent} feedback={feedback} onPatch={chat.patch} onAddToEvaluations={props.onAddToEvaluations} canAdd={props.canAdd} added={props.added} />
           )}
         </ConversationContent>
         {chat.items.length > 0 && <ConversationScrollButton />}

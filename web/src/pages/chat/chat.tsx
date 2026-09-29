@@ -20,6 +20,8 @@ import { Loading } from "@/components/ui/spinner/spinner";
 import { AgentInfo } from "./agent-info";
 import { ConversationList, ConversationMenu } from "./conversations";
 import { useCanAddToEvaluations } from "../team/evaluations/queries";
+import { type AnswerToAdd, answerToAdd } from "../team/evaluations/answer-to-add";
+import { answerKey, useAddedAnswers } from "../team/evaluations/added";
 import { ChatPanel } from "./panel";
 import { needsEvaluation } from "./thread";
 import { itemsFromConversation } from "./stream";
@@ -80,7 +82,8 @@ function AgentChat({ card }: { card: Card }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   // "Add to evaluations" on the person's own answers, for editors of the agent's team (docs/evaluations.md §1).
   const canAdd = useCanAddToEvaluations(card.teamSlug);
-  const [adding, setAdding] = useState<string | null>(null);
+  const [adding, setAdding] = useState<AnswerToAdd | null>(null);
+  const isAdded = useAddedAnswers();
   /** The conversation the next question continues. */
   const current = useRef<string | undefined>(selected);
   /** Conversations created in this page session: their items are already on screen. */
@@ -175,14 +178,15 @@ function AgentChat({ card }: { card: Card }) {
           inputRef={inputRef}
           disabledReason={disabledReason}
           label={`Conversation with ${card.name}`}
-          onAddToEvaluations={canAdd ? setAdding : undefined}
+          onAddToEvaluations={canAdd ? (question, item) => setAdding(answerToAdd(question, item)) : undefined}
           canAdd={needsEvaluation}
+          added={(item) => isAdded(answerKey(item))}
           loading={selected && !local.current.has(selected) ? detail.error ? <ErrorAlert error={detail.error} title="Couldn't open this conversation" /> : detail.isLoading ? <Loading label="Loading the conversation…" /> : undefined : undefined}
         />
       </section>
       {adding && (
         <Suspense>
-          <AddToEvaluationsDialog team={card.teamSlug} agentId={card.id} agentName={card.name} question={adding} onClose={() => setAdding(null)} />
+          <AddToEvaluationsDialog team={card.teamSlug} agentId={card.id} agentName={card.name} answer={adding} onClose={() => setAdding(null)} />
         </Suspense>
       )}
     </div>

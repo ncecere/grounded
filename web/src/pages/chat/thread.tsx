@@ -5,11 +5,12 @@
  * feedback through the API, status notes and friendly errors.
  */
 import { useMutation } from "@tanstack/react-query";
-import { Ban, CircleStop, ClipboardPlus, Search, ThumbsDown, ThumbsUp, TriangleAlert } from "lucide-react";
+import { Ban, Check, CircleStop, ClipboardPlus, Search, ThumbsDown, ThumbsUp, TriangleAlert } from "lucide-react";
 import { useCallback, useState } from "react";
 import { api, unwrap } from "../../api/client";
 import { Alert } from "@/components/ui/alert/alert";
-import { IconButton } from "@/components/ui/button/button";
+import { Badge } from "@/components/ui/badge/badge";
+import { Button, IconButton } from "@/components/ui/button/button";
 import { InlineCitation } from "@/components/ui/inline-citation/inline-citation";
 import { Menu, MenuGroup, MenuItem } from "@/components/ui/menu/menu";
 import { Message, MessageAction, MessageActions, MessageContent, MessageCopyAction } from "@/components/ui/message/message";
@@ -168,9 +169,9 @@ function Feedback({ item, onChange }: { item: AssistantItem; onChange: (f: Assis
   );
 }
 
-type AssistantProps = { item: AssistantItem; agent: AgentLook; feedback: boolean; onPatch?: ChatMessagesProps["onPatch"]; onAdd?: () => void };
+type AssistantProps = { item: AssistantItem; agent: AgentLook; feedback: boolean; onPatch?: ChatMessagesProps["onPatch"]; onAdd?: () => void; added?: boolean };
 
-function AssistantMessage({ item, agent, feedback, onPatch, onAdd }: AssistantProps) {
+function AssistantMessage({ item, agent, feedback, onPatch, onAdd, added = false }: AssistantProps) {
   const [sourcesOpen, setSourcesOpen] = useState(true);
   const streaming = item.status === "streaming";
   const byN = new Map(item.citations.map((s) => [s.n, s]));
@@ -274,11 +275,17 @@ function AssistantMessage({ item, agent, feedback, onPatch, onAdd }: AssistantPr
         <MessageActions label="Answer actions">
           <MessageCopyAction value={item.text} label="Copy answer" />
           {feedback && item.id && <Feedback item={item} onChange={(f) => onPatch?.(item.key, (a) => ({ ...a, feedback: f }))} />}
-          {onAdd && (
-            <MessageAction label="Add to evaluations" onClick={onAdd}>
-              <ClipboardPlus aria-hidden />
-            </MessageAction>
-          )}
+          {/* A labelled button, and "Added" once added (remembered across reloads; docs/evaluations.md §1). */}
+          {onAdd &&
+            (added ? (
+              <Badge tone="success">
+                <Check aria-hidden /> Added to evaluations
+              </Badge>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={onAdd}>
+                <ClipboardPlus aria-hidden /> Add to evaluations
+              </Button>
+            ))}
         </MessageActions>
       )}
     </Message>
@@ -292,11 +299,14 @@ type ChatMessagesProps = {
   feedback?: boolean;
   onPatch?: (key: string, fn: (a: AssistantItem) => AssistantItem) => void;
   /**
-   * "Add to evaluations" with the question an answer replied to (only the
-   * question text), on the answers `canAdd` accepts (docs/evaluations.md §1).
+   * "Add to evaluations" with the question an answer replied to and the
+   * answer (for its citations and rating), on the answers `canAdd` accepts
+   * (docs/evaluations.md §1).
    */
-  onAddToEvaluations?: (question: string) => void;
+  onAddToEvaluations?: (question: string, item: AssistantItem) => void;
   canAdd?: (item: AssistantItem) => boolean;
+  /** Answers already added: "Added to evaluations". */
+  added?: (item: AssistantItem) => boolean;
 };
 
 /** An answer worth testing: rated down, or answered without sources (the chat page's rule). */
@@ -317,7 +327,7 @@ export function normalizeMarkers(text: string) {
     return `${space}[${nums.replace(/，/g, ",")}]`;
   });
 }
-export function ChatMessages({ items, agent, feedback = false, onPatch, onAddToEvaluations, canAdd }: ChatMessagesProps) {
+export function ChatMessages({ items, agent, feedback = false, onPatch, onAddToEvaluations, canAdd, added }: ChatMessagesProps) {
   // The question each answer replied to: the user message before it.
   const asked = new Map<string, string>();
   let last = "";
@@ -327,7 +337,7 @@ export function ChatMessages({ items, agent, feedback = false, onPatch, onAddToE
   }
   const addFor = (item: AssistantItem) => {
     const q = asked.get(item.key);
-    return onAddToEvaluations && q && (!canAdd || canAdd(item)) ? () => onAddToEvaluations(q) : undefined;
+    return onAddToEvaluations && q && (!canAdd || canAdd(item)) ? () => onAddToEvaluations(q, item) : undefined;
   };
   return (
     <>
@@ -337,7 +347,7 @@ export function ChatMessages({ items, agent, feedback = false, onPatch, onAddToE
             <MessageContent className={c.userText}>{item.text}</MessageContent>
           </Message>
         ) : (
-          <AssistantMessage key={item.key} item={item} agent={agent} feedback={feedback} onPatch={onPatch} onAdd={addFor(item)} />
+          <AssistantMessage key={item.key} item={item} agent={agent} feedback={feedback} onPatch={onPatch} onAdd={addFor(item)} added={added?.(item)} />
         ),
       )}
     </>

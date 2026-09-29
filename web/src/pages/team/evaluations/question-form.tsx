@@ -1,23 +1,18 @@
 /*
- * The question form (docs/evaluations.md §1): the question, its expected
- * documents (picked from the knowledge base, or URLs, URL prefixes ending
- * in * and filenames), must-mention phrases and a note. Used to add and
- * change a question, and by "Add to evaluations".
+ * The question form (docs/evaluations.md §1): its state, checks and request
+ * body, and the "New question" and "Edit question" dialog. The fields are
+ * question-fields.tsx, shared with "Add to evaluations".
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
 import { ApiErrorAlert } from "@/components/errors";
 import { FormDialog } from "@/components/form-dialog";
-import { Combobox, type ComboboxOption } from "@/components/ui/combobox/combobox";
-import { Field } from "@/components/ui/field/field";
-import { Textarea } from "@/components/ui/input/input";
-import { TagInput } from "@/components/ui/tag-input/tag-input";
 import { toast } from "@/components/ui/toast/toast";
-import { useDebounced } from "../../admin/hooks";
 import { useTeam } from "../common";
 import { splitExpected } from "./labels";
-import { type DocumentScope, type EvalDocument, type EvalQuestion, evalQuestionsKey, evalSetKey, evalSetsKey, useEvalDocuments } from "./queries";
+import { type EvalQuestion, type EvalSet, evalQuestionsKey, evalSetKey, evalSetsKey } from "./queries";
+import { QuestionFields } from "./question-fields";
 
 export type QuestionForm = { question: string; documentIds: string[]; others: string[]; mustMention: string[]; note: string };
 
@@ -37,66 +32,6 @@ export function questionErrors(f: QuestionForm): { question?: string; expected?:
   if (!f.question.trim()) out.question = "Enter the question.";
   if (f.documentIds.length + f.others.length === 0) out.expected = "Pick a document or enter a URL or filename.";
   return out;
-}
-
-type FieldsProps = { team: string; scope?: DocumentScope; form: QuestionForm; onChange: (f: QuestionForm) => void; errors: ReturnType<typeof questionErrors> };
-
-/**
- * A document's option: its title, then its filename (or URL) when that's
- * different. The server matches the typed text on the title, filename and
- * URL (the picker doesn't filter again: filter={null}), and the label shows
- * which one it was.
- */
-export function documentLabel(d: Pick<EvalDocument, "title" | "filename" | "url">) {
-  const other = d.filename || d.url;
-  if (!d.title) return other || "Untitled document";
-  return other && other !== d.title ? `${d.title} · ${other}` : d.title;
-}
-
-/** The fields; `scope` is where the document picker searches. */
-export function QuestionFields({ team: slug, scope, form, onChange, errors }: FieldsProps) {
-  const [text, setText] = useState("");
-  const [picked, setPicked] = useState<ComboboxOption[]>([]);
-  const docs = useEvalDocuments(slug, scope, useDebounced(text));
-  const options: ComboboxOption[] = (docs.data ?? []).map((d) => ({ value: d.id, label: documentLabel(d), hint: d.sourceName }));
-  // Picked documents stay listed (with their names) while the search changes.
-  for (const p of picked) if (!options.some((o) => o.value === p.value)) options.push(p);
-  return (
-    <>
-      <Field label="Question" error={errors.question}>
-        <Textarea aria-required rows={2} maxLength={4000} value={form.question} onChange={(e) => onChange({ ...form, question: e.target.value })} />
-      </Field>
-      <Field
-        label="Expected documents"
-        description="Pick documents from the knowledge base, or enter URLs and filenames below: at least one. Any of them counts as a good result."
-        error={errors.expected}
-      >
-        <Combobox
-          multiple
-          filter={null}
-          items={options}
-          value={form.documentIds}
-          onInputValueChange={setText}
-          onValueChange={(ids, opts) => {
-            setPicked(opts);
-            onChange({ ...form, documentIds: ids });
-          }}
-          placeholder="Search documents by title, filename or URL"
-          chipsLabel="Picked documents"
-          emptyText="No matching documents."
-        />
-      </Field>
-      <Field label="URLs and filenames" description="Pages (end a URL with * for everything under it) and filenames, one at a time.">
-        <TagInput value={form.others} onValueChange={(others) => onChange({ ...form, others })} maxTags={20} maxTagLength={2048} normalize={(t) => t.trim()} placeholder="https://example.edu/registrar/transcripts*" />
-      </Field>
-      <Field label="Must mention" labelHint="Optional" description="Phrases a good answer contains (full-answer checks only; case doesn't matter).">
-        <TagInput value={form.mustMention} onValueChange={(mustMention) => onChange({ ...form, mustMention })} maxTags={20} maxTagLength={200} normalize={(t) => t.trim()} placeholder="Add a phrase…" />
-      </Field>
-      <Field label="Note" labelHint="Optional">
-        <Textarea rows={2} maxLength={2000} value={form.note} onChange={(e) => onChange({ ...form, note: e.target.value })} />
-      </Field>
-    </>
-  );
 }
 
 /** The request body of a question. */
@@ -126,8 +61,12 @@ export function useSaveQuestion(slug: string, setId: string, question?: EvalQues
   });
 }
 
-/** "New question" and "Edit question". */
-export function QuestionDialog({ setId, question, onClose }: { setId: string; question?: EvalQuestion; onClose: () => void }) {
+/** Where a set's documents are, for the form's warnings: "Student handbook" or "Helper's knowledge bases". */
+export const setWhere = (set: Pick<EvalSet, "target">) => (set.target.type === "agent" ? `${set.target.name}'s knowledge bases` : set.target.name);
+
+/** "New question" and "Edit question". Must-mention phrases only on an agent's sets (the only ones with full-answer runs). */
+export function QuestionDialog({ set, question, onClose }: { set: EvalSet; question?: EvalQuestion; onClose: () => void }) {
+  const setId = set.id;
   const [form, setForm] = useState<QuestionForm>(() => (question ? questionFormOf(question) : emptyQuestion()));
   const [submitted, setSubmitted] = useState(false);
   const { slug } = useTeam();
@@ -153,7 +92,7 @@ export function QuestionDialog({ setId, question, onClose }: { setId: string; qu
       }}
     >
       <ApiErrorAlert error={save.error} />
-      <QuestionFields team={slug} scope={{ setId }} form={form} onChange={setForm} errors={errors} />
+      <QuestionFields team={slug} scope={{ setId }} form={form} onChange={setForm} errors={errors} answers={set.target.type === "agent"} where={setWhere(set)} />
     </FormDialog>
   );
 }

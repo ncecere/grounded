@@ -2,6 +2,8 @@
 import { Eraser } from "lucide-react";
 import { useRef, useState } from "react";
 import { AddToEvaluationsDialog } from "../../team/evaluations/add-to-evaluations";
+import { answerKey, useAddedAnswers } from "../../team/evaluations/added";
+import { type AnswerToAdd, answerToAdd } from "../../team/evaluations/answer-to-add";
 import { useEvaluationsOn } from "../../team/evaluations/queries";
 import { useTeam } from "../../team/common";
 import { Button } from "@/components/ui/button/button";
@@ -26,7 +28,8 @@ export function TestPanel({ agent, d, chat, onProblem, heading = true }: Props) 
   const { slug } = useTeam();
   // "Add to evaluations" on any test question (docs/evaluations.md §1).
   const evaluationsOn = useEvaluationsOn();
-  const [adding, setAdding] = useState<string | null>(null);
+  const [adding, setAdding] = useState<AnswerToAdd | null>(null);
+  const isAdded = useAddedAnswers();
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const p = d.draft.profile;
   const problems = (chat.error?.code === "agent_invalid" ? (chat.error.details?.problems as AgentProblem[] | undefined) : undefined) ?? [];
@@ -72,10 +75,11 @@ export function TestPanel({ agent, d, chat, onProblem, heading = true }: Props) 
           inputRef={inputRef}
           label="Draft test conversation"
           errorExtra={problems.length > 0 ? <ProblemList problems={problems} onSelect={onProblem} /> : undefined}
-          onAddToEvaluations={evaluationsOn ? setAdding : undefined}
+          onAddToEvaluations={evaluationsOn ? (question, item) => setAdding(answerToAdd(question, item)) : undefined}
+          added={(item) => isAdded(answerKey(item))}
         />
       </div>
-      {adding && <AddToEvaluationsDialog team={slug} agentId={agent.id} agentName={agent.name} question={adding} onClose={() => setAdding(null)} />}
+      {adding && <AddToEvaluationsDialog team={slug} agentId={agent.id} agentName={agent.name} answer={adding} onClose={() => setAdding(null)} />}
     </section>
   );
 }

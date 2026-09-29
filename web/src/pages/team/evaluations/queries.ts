@@ -10,6 +10,8 @@ export type EvalResult = Schemas["EvaluationResult"];
 export type EvalSummary = Schemas["EvaluationSummary"];
 export type EvalDocument = Schemas["EvaluationDocument"];
 export type EvalExpected = Schemas["EvaluationExpected"];
+export type EvalExpectedItem = Schemas["EvaluationExpectedItem"];
+export type EvalQuestionCheck = Schemas["EvaluationQuestionCheck"];
 
 export const evalSetsKey = (team: string) => ["team", team, "evaluation-sets"];
 export const evalSetKey = (team: string, setId: string) => ["team", team, "evaluation-set", setId];
@@ -47,12 +49,17 @@ export const evalQuestionsQuery = (team: string, setId: string) =>
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/evaluation-sets/{setId}/questions", { params: { path: { team, setId } } })),
   });
 
-/** The runs; refetched every 2 seconds while one is queued or running (live progress). */
+/**
+ * The runs; refetched every 2 seconds while one is queued or running (live
+ * progress), also while the tab is in the background, so a finished run
+ * shows as Completed without a reload.
+ */
 export function useEvalRuns(team: string, setId: string) {
   return useQuery({
     queryKey: evalRunsKey(team, setId),
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/evaluation-sets/{setId}/runs", { params: { path: { team, setId } } })),
     refetchInterval: (q) => (q.state.data?.some((r) => active(r)) ? 2000 : false),
+    refetchIntervalInBackground: true,
   });
 }
 
@@ -64,6 +71,7 @@ export function useEvalRun(team: string, setId: string, runId: string | undefine
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/evaluation-sets/{setId}/runs/{runId}", { params: { path: { team, setId, runId: runId! } } })),
     enabled: Boolean(runId),
     refetchInterval: (q) => (q.state.data && active(q.state.data.run) ? 2000 : false),
+    refetchIntervalInBackground: true,
   });
 }
 
@@ -100,5 +108,25 @@ export function useEvalDocuments(team: string, scope: DocumentScope | undefined,
     },
     enabled: Boolean(scope),
     placeholderData: (prev) => prev,
+  });
+}
+
+/** What the question form checks: where the question's set searches, and what it expects. */
+export type QuestionCheckInput = { expected: EvalExpected; mustMention: string[] };
+
+/**
+ * Whether the knowledge bases hold a question's expected documents and
+ * must-mention phrases (the form's warnings; nothing is saved). Only asked
+ * once there's something to check.
+ */
+export function useQuestionCheck(team: string, scope: DocumentScope | undefined, input: QuestionCheckInput) {
+  const count = input.expected.documentIds.length + input.expected.urls.length + input.expected.filenames.length + input.mustMention.length;
+  return useQuery({
+    queryKey: ["team", team, "evaluation-question-check", scope, input],
+    queryFn: async () => unwrap(await api.POST("/v1/teams/{team}/evaluation-question-check", { params: { path: { team } }, body: { ...scope, ...input } })),
+    enabled: Boolean(scope) && count > 0,
+    placeholderData: (prev) => prev,
+    retry: false,
+    staleTime: 30_000,
   });
 }

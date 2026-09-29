@@ -21,7 +21,7 @@ const pages = (start?: number, end?: number) => (!start ? "" : !end || end === s
 /** Where in the document: "Fees › Online · p. 3". */
 const where = (h: Hit) => [(h.headingPath ?? []).join(" › "), pages(h.pageStart, h.pageEnd)].filter(Boolean).join(" · ");
 /** Snippets are raw passage text: drop Markdown heading and emphasis marks for display (as chat does). */
-const plainSnippet = (t = "") => t.replace(/^#{1,6}\s+/gm, "").replace(/(\*\*|__)(.*?)\1/g, "$2").replace(/\s+/g, " ").trim();
+export const plainSnippet = (t = "") => t.replace(/^#{1,6}\s+/gm, "").replace(/(\*\*|__)(.*?)\1/g, "$2").replace(/\s+/g, " ").trim();
 const titleOf = (h: Hit) => h.title || h.filename || "Untitled document";
 
 export function EvalAnswer({ result }: { result: EvalResult }) {
