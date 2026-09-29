@@ -232,8 +232,10 @@ const teamTabs = <P extends string, T extends string>(path: P, tabs: readonly T[
 
 /**
  * The agent editor: ?tab= plus its tabs' own parameters (?test=, ?record=,
- * ?range=, ?view=). Old links to Configure or Test open Build; ?tab=test also
- * opens the Test panel.
+ * ?range=, ?view=) and the version history (?history=, ?version=). Old links
+ * to Configure or Test open Build; ?tab=test also opens the Test panel. The
+ * old Versions tab (I6) opens the version history: ?tab=versions →
+ * ?history=versions, and its version records ?record=<n> → ?version=<n>.
  */
 const agentEditorRoute = createRoute({
   getParentRoute: () => teamRoute,
@@ -245,6 +247,12 @@ const agentEditorRoute = createRoute({
     if (!oldEditorTabs.includes(tab as (typeof oldEditorTabs)[number])) return;
     q.delete("tab");
     if (tab === "test") q.set("test", "open");
+    if (tab === "versions") {
+      q.set("history", "versions");
+      const record = q.get("record");
+      q.delete("record");
+      if (record) q.set("version", record);
+    }
     const rest = q.toString();
     throw redirect({ href: `${location.pathname}${rest ? `?${rest}` : ""}`, replace: true });
   },

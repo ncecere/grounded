@@ -2,9 +2,13 @@
  * The tabs of each page with sections, in order (the first is the default).
  * Kept here so the router can validate ?tab= without loading page chunks.
  */
-/** The agent editor (D2). The old Configure and Test tabs are Build now; the router redirects ?tab=configure|test. Settings (C13) is last. */
-export const editorTabs = ["build", "appearance", "share", "versions", "analytics", "evaluations", "settings"] as const;
-export const oldEditorTabs = ["configure", "test"] as const;
+/**
+ * The agent editor (D2, I6): 6 tabs. The old Configure and Test tabs are Build now; the router redirects
+ * ?tab=configure|test. Versions moved into the header's version menu (?history=versions); the router redirects
+ * ?tab=versions. Settings (C13) is last.
+ */
+export const editorTabs = ["build", "evaluations", "appearance", "share", "analytics", "settings"] as const;
+export const oldEditorTabs = ["configure", "test", "versions"] as const;
 export type EditorTab = (typeof editorTabs)[number];
 
 /** Source detail (D3): Crawls only shows for web sources. */

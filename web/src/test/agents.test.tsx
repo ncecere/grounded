@@ -375,7 +375,7 @@ describe("agent editor", () => {
     expect(screen.queryByText("Test it, then publish to make it live.")).toBeNull();
   });
 
-  it("versions and analytics tabs render with no axe violations", async () => {
+  it("the version history (the old Versions tab's address redirects there) and the analytics tab render with no axe violations", async () => {
     mockApi(agentRoutes({ "GET /v1/teams/registrar/agents/ag1/analytics": () => analytics }));
     const v = renderApp("/teams/registrar/agents/ag1?tab=versions");
     const table = await screen.findByRole("table", { name: "Published versions" });
@@ -384,7 +384,7 @@ describe("agent editor", () => {
     await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
     const page = await screen.findByRole("region", { name: "Version 1" });
     expect(page).toHaveTextContent("Help students.");
-    expect(v.router.state.location.search).toMatchObject({ record: 1 });
+    expect(v.router.state.location.search).toMatchObject({ history: "versions", version: 1 });
     expect(await axe(v.container)).toHaveNoViolations();
     await userEvent.click(within(page).getByRole("link", { name: /^Back/ }));
     expect(await screen.findByRole("table", { name: "Published versions" })).toBeInTheDocument();

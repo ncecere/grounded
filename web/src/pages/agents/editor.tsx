@@ -1,13 +1,15 @@
 /*
- * The agent editor (D2, D3): a DetailPage with the status, save state and
- * Chat · Try it · Publish in the header, one facts line, and the pill tabs
- * Build · Appearance · Share · Versions · Analytics · Settings. Build is the
- * configuration beside a live Try it chat; Settings has the name, address and
- * the Danger zone, like a source's and a knowledge base's (C13).
+ * The agent editor (D2, D3): a DetailPage with the status, the version menu
+ * ("v4 live" or "Draft": Version history, Compare, Revert; I6), the save
+ * state and Chat · Try it · Publish in the header, one facts line, and the
+ * pill tabs Build · Evaluations · Appearance · Share · Analytics · Settings.
+ * Build is the configuration beside a live Try it chat; the version history
+ * opens as a record page (?history=); Settings has the name, address and the
+ * Danger zone, like a source's and a knowledge base's (C13).
  */
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
-import { BarChart3, ClipboardCheck, Hammer, History, Palette, Power, Settings2, Share2, Trash2 } from "lucide-react";
+import { BarChart3, ClipboardCheck, Hammer, Palette, Power, Settings2, Share2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { NotFoundState, isNotFound } from "@/components/not-found";
 import { DetailPage } from "@/components/templates/detail-page";
@@ -36,7 +38,9 @@ import { AgentSettingsTab } from "./settings";
 import { ShareTab } from "./share/share-tab";
 import { useEvaluationsOn } from "../team/evaluations/queries";
 import { EvaluationsTab } from "../team/evaluations/sets-tab";
-import { ConfigSummary, PublishDialog, VersionsTab } from "./versions";
+import { type HistoryView, VersionHistory, useHistoryParam, useRevertDraft } from "./version-history";
+import { VersionMenu } from "./version-menu";
+import { ConfigSummary, PublishDialog } from "./versions";
 import a from "./agents.module.css";
 
 export function AgentEditorPage() {
@@ -81,6 +85,8 @@ function Editor({ agent }: { agent: Agent }) {
   const [deleting, setDeleting] = useState(false);
   const live = current.status === "active" && Boolean(current.published);
   const evaluationsOn = useEvaluationsOn();
+  const history = useHistoryParam();
+  const revert = useRevertDraft(current, d);
 
   /** Opens the tab and Build section a problem points to, then focuses its control. */
   const goToField = (field: string) => {
@@ -120,7 +126,7 @@ function Editor({ agent }: { agent: Agent }) {
         meta={
           <>
             <AgentStatusBadge agent={current} />
-            {current.published && <Badge variant="outline">v{current.published.version} live</Badge>}
+            <VersionMenu agent={current} onOpen={(view) => history.open(view)} onRevert={revert.ask} />
             {current.published && current.hasUnpublishedChanges && <Badge tone="info">Unpublished changes</Badge>}
             <SaveIndicator d={d} />
           </>
@@ -171,22 +177,21 @@ function Editor({ agent }: { agent: Agent }) {
               </div>
             ),
           },
-          { value: "appearance", label: "Appearance", icon: <Palette aria-hidden />, content: <AppearanceTab key={d.epoch} d={d} /> },
-          { value: "share", label: "Share", icon: <Share2 aria-hidden />, content: <ShareTab key={d.epoch} agent={current} d={d} /> },
-          { value: "versions", label: "Versions", icon: <History aria-hidden />, content: <VersionsTab agent={current} d={d} /> },
-          {
-            value: "analytics",
-            label: "Analytics",
-            icon: <BarChart3 aria-hidden />,
-            hidden: !(canEdit || role === "admin" || role === "owner"),
-            content: <AnalyticsTab agent={current} />,
-          },
           {
             value: "evaluations",
             label: "Evaluations",
             icon: <ClipboardCheck aria-hidden />,
             hidden: !evaluationsOn,
             content: <EvaluationsTab target={{ agentId: current.id, name: current.name }} />,
+          },
+          { value: "appearance", label: "Appearance", icon: <Palette aria-hidden />, content: <AppearanceTab key={d.epoch} d={d} /> },
+          { value: "share", label: "Share", icon: <Share2 aria-hidden />, content: <ShareTab key={d.epoch} agent={current} d={d} /> },
+          {
+            value: "analytics",
+            label: "Analytics",
+            icon: <BarChart3 aria-hidden />,
+            hidden: !(canEdit || role === "admin" || role === "owner"),
+            content: <AnalyticsTab agent={current} />,
           },
           {
             value: "settings",
@@ -196,6 +201,10 @@ function Editor({ agent }: { agent: Agent }) {
           },
         ]}
       />
+      {history.id && (
+        <VersionHistory agent={current} d={d} view={(history.id === "compare" ? "compare" : "versions") satisfies HistoryView} onClose={history.close} onRevert={revert.ask} />
+      )}
+      {revert.dialog}
       {publishing && <PublishDialog agent={current} d={d} onClose={() => setPublishing(false)} onProblem={goToField} />}
       {statusOpen && <StatusDialog agent={current} d={d} onClose={() => setStatusOpen(false)} />}
       <DeleteAgent agent={current} open={deleting} onOpenChange={setDeleting} />

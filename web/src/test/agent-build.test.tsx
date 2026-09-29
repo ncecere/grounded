@@ -91,7 +91,8 @@ describe("Build", () => {
     mockApi(routes(agent()));
     const { container } = renderApp("/teams/registrar/agents/ag1");
     expect(await screen.findByRole("tab", { name: "Build", selected: true }, { timeout: 5000 })).toBeInTheDocument();
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Build", "Appearance", "Share", "Versions", "Analytics", "Settings"]);
+    // Versions is in the header's version menu (I6); Evaluations shows while evaluations are on (not here).
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Build", "Appearance", "Share", "Analytics", "Settings"]);
     expect(await screen.findByRole("region", { name: "Try it" })).toBeInTheDocument();
     expect(screen.getByRole("separator", { name: "Resize the test chat" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: /^Model/ })).toHaveTextContent("GPT-OSS 120B (Campus gateway)"));
@@ -218,15 +219,16 @@ describe("Build", () => {
     expect(router.state.location.search).toEqual({});
   });
 
-  it("Versions compares a version with the draft (diff-viewer) and has no second Publish", async () => {
+  it("the version history compares a version with the draft (diff-viewer) and has no second Publish", async () => {
     mockApi(
       routes(agent({ hasUnpublishedChanges: true, draft: { ...config, instructions: "Help students briefly.", temperature: 0.2 } }), {
         "GET /v1/teams/registrar/agents/ag1/versions/3": () => version,
       }),
     );
-    const { container } = renderApp("/teams/registrar/agents/ag1?tab=versions");
+    const { container } = renderApp("/teams/registrar/agents/ag1?history=versions");
     await screen.findByRole("table", { name: "Published versions" }, { timeout: 5000 });
-    expect(screen.getAllByRole("button", { name: /Publish/ })).toHaveLength(1);
+    // A record page over the editor: Publish stays the editor's, not repeated here.
+    expect(screen.queryAllByRole("button", { name: /Publish/ })).toHaveLength(0);
     const text = await screen.findByRole("table", { name: "Instructions: version 3 and the draft" });
     expect(text).toHaveTextContent("Help students with registration.");
     expect(text).toHaveTextContent("Help students briefly.");
