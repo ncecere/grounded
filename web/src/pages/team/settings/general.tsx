@@ -13,7 +13,7 @@ import { useState } from "react";
 import { api, ifMatch, unwrap } from "../../../api/client";
 import { ConfirmMutationDialog } from "../../../components/confirm-dialog";
 import { leaveBlockedReason, membersKey } from "../../../components/members";
-import { roleLabels } from "../../../components/roles";
+import { RoleBadge } from "../../../components/role-badge";
 import { DangerAction, DangerZone, SettingsPage, SettingsSection } from "../../../components/templates/settings-page";
 import { lifecycleLabels } from "../../../lib/terms";
 import { useCurrentUser } from "../../../session";
@@ -98,7 +98,7 @@ export function GeneralTab() {
           items={[
             { label: "Approved up to", value: levelName(team.maxClassification) },
             { label: "Status", value: archived ? `${lifecycleLabels.archived}: read-only` : lifecycleLabels.active },
-            { label: "Your role", value: role ? roleLabels[role] : "Not a member (platform staff)" },
+            { label: "Your role", value: role ? <RoleBadge role={role} /> : "Not a member (platform staff)" },
             { label: "Created", value: <Time value={team.createdAt} format="date" /> },
           ]}
         />
