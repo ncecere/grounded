@@ -85,5 +85,7 @@ test("on a 390px phone the sidebar is a drawer and a page header keeps only its 
   await expect(page).toHaveURL(`/teams/${team}/kbs`);
   await expect(drawer).toBeHidden();
   await expect(page.getByRole("heading", { level: 1, name: "Knowledge bases" })).toBeVisible();
+  // Focus goes to the new page's content, not back to "Open navigation".
+  await expect(page.getByRole("main")).toBeFocused();
   await a11y(page);
 });

@@ -59,12 +59,14 @@
     }
   }
 
+  /* Wide enough to fade part of an item's text even when the edge falls
+     between two items, where a narrow fade only softens a border. */
   &[data-overflow-start] {
-    --toggle-group-fade-start: var(--space-8);
+    --toggle-group-fade-start: var(--space-10);
   }
 
   &[data-overflow-end] {
-    --toggle-group-fade-end: var(--space-8);
+    --toggle-group-fade-end: var(--space-10);
   }
 
   & > .item {
