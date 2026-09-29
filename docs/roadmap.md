@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-09-28 for **v0.2** planning (branch `v0.2`). Phases 0–5 are done and **v0.1.0 is released** (the reference install runs it). Nothing below is scheduled until the owner picks it; the proposed v0.2 short list is at the end.
+Status: refreshed 2026-09-28 for **v0.2.0** planning (branch `release/v0.2.0`). Phases 0–5 are done and **v0.1.0 is released** (the reference install runs it). Nothing below is scheduled until the owner picks it; the proposed v0.2 short list is at the end.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
