@@ -20,16 +20,31 @@ function pageKey(url: string): string | undefined {
  * navigation) must be checked with `a11y(page)` once it has rendered, and the
  * final state of every page is checked when the test ends. A test fails on
  * any axe violation, when it visited a page it never checked, or when a page
- * threw an uncaught error.
+ * threw an uncaught error. An address the app replaces before it renders (a
+ * redirect from an old address, `history.replaceState`) doesn't need a check:
+ * it was never shown.
  */
 class A11y {
   private visited = new Map<Page, Set<string>>();
   private checked = new Set<string>();
   private errors: string[] = [];
 
-  track(page: Page) {
+  async track(page: Page) {
     const seen = new Set<string>();
     this.visited.set(page, seen);
+    // Redirects replace the address before anything renders; forget the replaced one.
+    await page.exposeFunction("__a11yReplaced", (from: string) => {
+      const key = pageKey(from);
+      if (key) seen.delete(key);
+    });
+    await page.addInitScript(() => {
+      const replace = history.replaceState.bind(history);
+      history.replaceState = (data, unused, url) => {
+        const from = location.href;
+        replace(data, unused, url);
+        if (location.pathname !== new URL(from).pathname) void (window as unknown as { __a11yReplaced?: (u: string) => void }).__a11yReplaced?.(from);
+      };
+    });
     page.on("pageerror", (err) => this.errors.push(`${page.url()}: ${err.stack ?? err.message}`));
     page.on("framenavigated", (frame) => {
       if (frame !== page.mainFrame()) return;
@@ -83,7 +98,7 @@ export const test = base.extend<Fixtures>({
     await use(new A11y());
   },
   page: async ({ page, a11yTracker }, use, testInfo) => {
-    a11yTracker.track(page);
+    await a11yTracker.track(page);
     await use(page);
     // Only a passing test's pages are checked at the end: a failure already says what went wrong.
     if (testInfo.status === testInfo.expectedStatus) await a11yTracker.finish([page]);
@@ -95,7 +110,7 @@ export const test = base.extend<Fixtures>({
     const pages: Page[] = [];
     await use(async (persona) => {
       const page = await openAs(browser, persona, baseURL);
-      a11yTracker.track(page);
+      await a11yTracker.track(page);
       pages.push(page);
       return page;
     });
