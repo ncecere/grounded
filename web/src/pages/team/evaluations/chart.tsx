@@ -64,7 +64,11 @@ export function ScoreChart({ runs }: { runs: EvalRun[] }) {
   if (!charted(runs, "retrieval") && !charted(runs, "answer")) return null;
   return (
     // A subsection of Runs (its h2).
-    <Card title="Score over time" titleAs="h3" description="Each completed run's score, on a 0–100% scale. ◆ marks a run whose agent version, embedding profile or results per search differed from the run before.">
+    <Card
+      title="Score over time"
+      titleAs="h3"
+      description="Each completed run's score, on a 0–100% scale. ◆ marks a run whose agent version, embedding profile or results per search differed from the run before."
+    >
       <Series runs={runs} kind="retrieval" label={recallLabel(runs)} />
       <Series runs={runs} kind="answer" label="Full-answer pass rate" />
     </Card>

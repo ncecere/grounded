@@ -178,7 +178,8 @@ describe("a set's runs", () => {
   });
 
   it("marks a run in which every check failed apart from one that completed with a score", async () => {
-    const errored = run("r9", "2026-09-29T10:00:00Z", { summary: { ...runs[0]!.summary, passed: 0, failed: 0, missing: 0, notIndexed: 0, errors: 3, recall: undefined, mrr: undefined } });
+    const none = { passed: 0, failed: 0, missing: 0, notIndexed: 0, errors: 3, recall: undefined, mrr: undefined };
+    const errored = run("r9", "2026-09-29T10:00:00Z", { summary: { ...runs[0]!.summary, ...none } });
     const failures = ["a", "b", "c"].map((x) => result(`res-${x}`, `Question ${x}?`, "error", { error: "The embedding model is unavailable" }));
     mockApi(
       evalRoutes("editor", {

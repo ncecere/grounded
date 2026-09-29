@@ -76,7 +76,7 @@ function facts(run: EvalRun, legacy: boolean) {
     {
       label: "Score",
       value: active(run) ? undefined : unscored(run) ? (
-        "No score: no question could be scored"
+        "No score"
       ) : (
         <>
           <ScoreValue run={run} /> {scored}
@@ -89,7 +89,10 @@ function facts(run: EvalRun, legacy: boolean) {
     legacy
       ? {
           label: legacyShareLabel,
-          value: s.supportedShare !== undefined ? `${pct(s.supportedShare)} of citations supported. Newer runs count claims, with uncited sentences as not supported.` : undefined,
+          value:
+            s.supportedShare !== undefined
+              ? `${pct(s.supportedShare)} of citations supported. Newer runs count claims, with uncited sentences as not supported.`
+              : undefined,
         }
       : { label: "Supported claims", value: s.supportedShare !== undefined ? pct(s.supportedShare) : undefined },
     { label: "Not scored", value: missingText(s) || undefined },

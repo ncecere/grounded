@@ -81,7 +81,16 @@ export function RunsTab({ set }: { set: EvalSet }) {
         />
       ),
     },
-    { id: "status", header: "Status", accessor: (r) => r.status, cell: (r) => <StatusBadge tone={runStatusLook(r).tone} pulse={active(r)}>{runStatusLook(r).label}</StatusBadge> },
+    {
+      id: "status",
+      header: "Status",
+      accessor: (r) => r.status,
+      cell: (r) => (
+        <StatusBadge tone={runStatusLook(r).tone} pulse={active(r)}>
+          {runStatusLook(r).label}
+        </StatusBadge>
+      ),
+    },
     { id: "score", header: "Score", accessor: (r) => r.summary.recall ?? r.summary.passRate ?? -1, cell: (r) => <ScoreCell run={r} /> },
     { id: "counts", header: "Questions", accessor: countsText, muted: true },
   ];
