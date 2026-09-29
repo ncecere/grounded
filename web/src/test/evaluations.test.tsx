@@ -183,13 +183,16 @@ describe("a set's page", () => {
     expect(run).not.toBeDisabled();
     expect(run).toHaveAccessibleDescription("Add questions first.");
     const crumbs = screen.getByRole("navigation", { name: /Breadcrumb/i });
-    // "…" stands for Knowledge bases › Student handbook › Evaluations and opens that tab.
-    const more = within(crumbs).getByRole("link", { name: "Student handbook, Evaluations" });
-    expect(more).toHaveAttribute("href", "/teams/registrar/kbs/k1?tab=evaluations");
+    // "…" is a menu of the hidden crumbs: Knowledge bases › Student handbook › Evaluations.
+    const more = within(crumbs).getByRole("button", { name: "Knowledge bases, Student handbook, Evaluations" });
     expect(more).toHaveAttribute("title", "Knowledge bases › Student handbook › Evaluations");
     expect(within(crumbs).queryByRole("link", { name: "Knowledge bases" })).toBeNull();
     expect(within(crumbs).getAllByRole("listitem")).toHaveLength(3);
     expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(more);
+    const menu = await screen.findByRole("menu", {}, T);
+    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Knowledge bases", "Student handbook", "Evaluations"]);
+    expect(within(menu).getByRole("menuitem", { name: "Evaluations" })).toHaveAttribute("href", "/teams/registrar/kbs/k1?tab=evaluations");
   });
 
   it("is not found for members", async () => {

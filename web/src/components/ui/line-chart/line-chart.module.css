@@ -43,6 +43,16 @@
   min-height: 0;
 }
 
+/* A domain's minimum other than 0, at the bottom of the scale. */
+.floor {
+  position: absolute;
+  bottom: var(--space-1);
+  left: 0;
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
 .svg {
   position: absolute;
   inset: 0;

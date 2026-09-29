@@ -75,6 +75,11 @@
   background-color: var(--chart-color-soft, var(--color-chart-primary-soft));
 }
 
+/* A stack taller than a fixed domain's top is cut there. */
+.bars[data-layout="stack"] > .slot {
+  overflow: hidden;
+}
+
 /* Stacked series grow upwards; only the top one is rounded. */
 .bars[data-layout="stack"] .bar:not(:last-child) {
   border-radius: 0;

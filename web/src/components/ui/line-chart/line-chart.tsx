@@ -37,11 +37,20 @@ import styles from "./line-chart.module.css";
  * line. Negative values are drawn at 0 (clamped). NaN and ±Infinity are "no
  * data": left out of the scale, with a gap in the line (a lone point between
  * gaps gets a dot). Titles and the data table show the real values.
+ *
+ * `domain` fixes the scale instead of fitting it to the data, so charts of
+ * a bounded measure stay comparable: `domain={{ min: 0, max: 100 }}` for a
+ * percentage keeps 50% half way up whatever the values are. The top line
+ * shows `max`; a `min` other than 0 is labelled at the bottom. Values
+ * outside the domain are drawn at its edge (their titles keep the value).
  */
 
 export type LineChartTone = ChartTone;
 export type LineChartSeries<K extends string = string> = ChartSeries<K>;
 export type LineChartPoint<K extends string = string> = ChartPoint<K>;
+
+/** A fixed scale: either end left out fits the data (min 0, max the largest value). */
+export type LineChartDomain = { min?: number; max?: number };
 
 export type LineChartProps<K extends string = string> = {
   data: LineChartPoint<K>[];
@@ -59,6 +68,8 @@ export type LineChartProps<K extends string = string> = {
   axis?: boolean;
   /** Mark every point with a dot (default: only when there is a single point). */
   points?: boolean;
+  /** Fix the scale, e.g. `{ min: 0, max: 100 }` for a percentage (default: 0 to the largest value). */
+  domain?: LineChartDomain;
   /** Adds a "Show data" disclosure with the numbers in a table. */
   dataTable?: ChartDataOptions;
   className?: string;
@@ -67,6 +78,13 @@ export type LineChartProps<K extends string = string> = {
 // The plot's coordinate system; the SVG stretches to its box (strokes don't scale).
 const W = 1000;
 const H = 100;
+
+/** The scale's ends: the domain's, or 0 to the largest finite value. */
+function scale(values: (number | null)[][], domain: LineChartDomain | undefined) {
+  const floor = domain?.min ?? 0;
+  const peak = domain?.max ?? Math.max(floor, 0, ...values.flatMap((vs) => vs.map((v) => v ?? 0)));
+  return { floor, peak };
+}
 
 /** A line or area chart with a legend; role="img" with a text summary and an optional data table. */
 export function LineChart<K extends string>({
@@ -79,15 +97,16 @@ export function LineChart<K extends string>({
   legend = true,
   axis = true,
   points,
+  domain,
   dataTable,
   className,
 }: LineChartProps<K>) {
   // Non-finite values (null here) are left out of the scale and drawn as gaps.
   const values = series.map((s) => data.map((p) => chartValue(p, s.key)));
-  const peak = Math.max(0, ...values.flatMap((vs) => vs.map((v) => v ?? 0)));
+  const { floor, peak } = scale(values, domain);
   const n = data.length;
   const x = (i: number) => (n <= 1 ? W / 2 : (i / (n - 1)) * W);
-  const y = (v: number) => (peak > 0 ? H - (Math.max(0, v) / peak) * H : H);
+  const y = (v: number) => (peak > floor ? H - ((Math.min(peak, Math.max(floor, v)) - floor) / (peak - floor)) * H : H);
   const xy = (i: number, v: number) => `${x(i).toFixed(2)},${y(v).toFixed(2)}`;
   const showPoints = points ?? n === 1;
   const runs = values.map((vs) => chartRuns(vs));
@@ -99,6 +118,7 @@ export function LineChart<K extends string>({
       <div className={styles.plot} role="img" aria-label={summary}>
         {axis && <span className={styles.peak}>{formatValue(peak)}</span>}
         <div className={styles.area}>
+          {axis && floor !== 0 && <span className={styles.floor}>{formatValue(floor)}</span>}
           <svg aria-hidden focusable="false" className={styles.svg} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
             {n > 1 &&
               series.map((s, i) => {
