@@ -203,40 +203,7 @@ func messageViews(rows []dbgen.ListMessagesRow) []MessageView {
 			out = append(out, MessageView{ID: r.ID, Seq: r.Seq, Role: "user", Text: c.Text, CreatedAt: r.CreatedAt})
 			last = nil
 		case "assistant":
-			m := MessageView{ID: r.ID, Seq: r.Seq, Role: "assistant", StopReason: r.StopReason, ErrorCode: r.ErrorCode,
-				LatencyMs: r.LatencyMs, Feedback: r.Feedback, FeedbackReason: r.FeedbackReason, CreatedAt: r.CreatedAt,
-				Citations: []Citation{}}
-			blocks, _ := llm.UnmarshalBlocks(r.Content)
-			var think []string
-			for _, b := range blocks {
-				switch v := b.(type) {
-				case llm.Text:
-					m.Text += v.Text
-				case llm.Thinking:
-					think = append(think, v.Text)
-				case llm.ToolCall:
-					args := v.Arguments
-					if len(args) == 0 {
-						args = json.RawMessage("null")
-					}
-					m.ToolCalls = append(m.ToolCalls, ToolCallView{ID: v.ID, Name: v.Name, Arguments: args})
-				}
-			}
-			m.Thinking = strings.Join(think, "\n\n")
-			if len(r.Citations) > 0 {
-				_ = json.Unmarshal(r.Citations, &m.Citations)
-			}
-			// Uncited sentences are found again in the stored text, for answers whose citations were checked.
-			if len(r.CitationCheck) > 0 && !r.AnswerRefused && !r.AnswerNoContext && r.ErrorCode == "" {
-				m.Uncited = UncitedSentences(m.Text)
-			}
-			if len(r.Usage) > 0 {
-				var u llm.Usage
-				if json.Unmarshal(r.Usage, &u) == nil {
-					m.Usage = &u
-				}
-			}
-			out = append(out, m)
+			out = append(out, assistantView(r))
 			last = &out[len(out)-1]
 		case "tool_result":
 			if last == nil {
@@ -259,6 +226,46 @@ func messageViews(rows []dbgen.ListMessagesRow) []MessageView {
 		}
 	}
 	return out
+}
+
+// assistantView is a stored answer: its text, thinking, tool calls,
+// citations, usage and, when its citations were checked, its uncited
+// sentences (found again in the text).
+func assistantView(r dbgen.ListMessagesRow) MessageView {
+	m := MessageView{ID: r.ID, Seq: r.Seq, Role: "assistant", StopReason: r.StopReason, ErrorCode: r.ErrorCode,
+		LatencyMs: r.LatencyMs, Feedback: r.Feedback, FeedbackReason: r.FeedbackReason, CreatedAt: r.CreatedAt,
+		Citations: []Citation{}}
+	blocks, _ := llm.UnmarshalBlocks(r.Content)
+	var think []string
+	for _, b := range blocks {
+		switch v := b.(type) {
+		case llm.Text:
+			m.Text += v.Text
+		case llm.Thinking:
+			think = append(think, v.Text)
+		case llm.ToolCall:
+			args := v.Arguments
+			if len(args) == 0 {
+				args = json.RawMessage("null")
+			}
+			m.ToolCalls = append(m.ToolCalls, ToolCallView{ID: v.ID, Name: v.Name, Arguments: args})
+		}
+	}
+	m.Thinking = strings.Join(think, "\n\n")
+	if len(r.Citations) > 0 {
+		_ = json.Unmarshal(r.Citations, &m.Citations)
+	}
+	// Uncited sentences are found again in the stored text, for answers whose citations were checked.
+	if len(r.CitationCheck) > 0 && !r.AnswerRefused && !r.AnswerNoContext && r.ErrorCode == "" {
+		m.Uncited = UncitedSentences(m.Text)
+	}
+	if len(r.Usage) > 0 {
+		var u llm.Usage
+		if json.Unmarshal(r.Usage, &u) == nil {
+			m.Usage = &u
+		}
+	}
+	return m
 }
 
 // RenameConversation changes the title of the actor's conversation.
