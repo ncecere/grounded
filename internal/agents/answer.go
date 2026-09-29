@@ -72,16 +72,22 @@ func (ru *run) baseAnswer() Answer {
 }
 
 // refuseWithoutModel answers with the refusal message: strict grounding and
-// nothing retrieved, or everything dropped by judging (always mode).
+// nothing retrieved, or everything dropped by judging (always mode). A
+// question the scope check found outside the agent's subject gets its own
+// wording, since nothing was searched (refusal says "couldn't find").
 func (ru *run) refuseWithoutModel(ctx context.Context) (Answer, error) {
+	text := ru.cfg.RefusalMessage
+	if ru.noContextReason == NoContextOutOfScope {
+		text = OutOfScopeMessage(ru.agent.Name)
+	}
 	st := &loopState{}
 	ru.startAnswer(st)
 	ru.markFirstToken()
-	ru.out.send(Event{"text_delta", DeltaEvent{Delta: ru.cfg.RefusalMessage}})
+	ru.out.send(Event{"text_delta", DeltaEvent{Delta: text}})
 	ans := ru.baseAnswer()
-	ans.Text, ans.StopReason, ans.Refused, ans.NoContext = ru.cfg.RefusalMessage, string(llm.StopReasonStop), true, true
+	ans.Text, ans.StopReason, ans.Refused, ans.NoContext = text, string(llm.StopReasonStop), true, true
 	ans.noContextReason = ru.noContextReason
-	msg := llm.AssistantMessage{Content: []llm.Block{llm.Text{Text: ru.cfg.RefusalMessage}}, StopReason: llm.StopReasonStop}
+	msg := llm.AssistantMessage{Content: []llm.Block{llm.Text{Text: text}}, StopReason: llm.StopReasonStop}
 	ru.record(ctx, &ans, &msg, nil)
 	ru.sendEnd(ans)
 	return ans, nil

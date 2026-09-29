@@ -98,7 +98,14 @@ func (ru *run) awaitScope(ch <-chan systemone.ScopeResult) string {
 	return res.Decision
 }
 
-// refuseOutOfScope answers an out-of-scope question with the refusal,
+// OutOfScopeMessage is the answer to a question outside a strict agent's
+// subject (the scope check): not the refusal message, which says the
+// sources had nothing, since nothing was searched.
+func OutOfScopeMessage(agentName string) string {
+	return "This is outside what " + agentName + " covers."
+}
+
+// refuseOutOfScope answers an out-of-scope question with OutOfScopeMessage,
 // without retrieval or a chat-model call.
 func (ru *run) refuseOutOfScope(ctx context.Context) (Answer, error) {
 	ru.noContextReason = NoContextOutOfScope

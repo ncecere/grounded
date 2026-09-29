@@ -425,12 +425,12 @@ func TestScopeCheck(t *testing.T) {
 		t.Errorf("small-talk record = %s", raw)
 	}
 
-	// Out of scope, strict: the refusal, without retrieval or a chat call.
+	// Out of scope, strict: refused in its own words (nothing was searched), without retrieval or a chat call.
 	chats = len(env.proxy.ChatRequests())
 	code, evs, e = env.member.stream(env.chatPath("help"), map[string]any{"message": "OFFTOPIC Which car should I buy?"})
 	mustCode(t, "out of scope", code, e, 200, "")
 	evs.one(t, "message_end", &end)
-	if end.Text != agents.DefaultRefusal || !end.Refused || end.NoContextReason == nil || *end.NoContextReason != "out_of_scope" ||
+	if end.Text != "This is outside what Help covers." || !end.Refused || end.NoContextReason == nil || *end.NoContextReason != "out_of_scope" ||
 		len(evs.all("retrieval")) != 0 || len(env.proxy.ChatRequests()) != chats {
 		t.Fatalf("out of scope = %v %+v", evs.names(), end)
 	}
