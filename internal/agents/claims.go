@@ -8,6 +8,7 @@ package agents
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -57,6 +58,11 @@ type claimReader struct {
 	last      string
 	lastClaim int
 	lastOK    bool
+	// uncited are the factual sentences without a marker (verdicts.go);
+	// lastUncited is the last sentence's entry (-1: none), dropped when
+	// markers standing on their own follow it.
+	uncited     []span
+	lastUncited int
 }
 
 // extractClaims returns the claims of the markers in text, in order.
@@ -65,12 +71,17 @@ type claimReader struct {
 // under "Sources:") or of claims too short to check ("Deadlines [1]"),
 // have no claim: they are not checked, and their citations stay.
 func extractClaims(text string) []claim {
-	r := &claimReader{text: text, lastClaim: -1, markers: extractMarkers(text)}
-	if len(r.markers) == 0 {
+	if len(extractMarkers(text)) == 0 {
 		return nil
 	}
+	return readAnswer(text).claims
+}
+
+// readAnswer reads the claims and the uncited factual sentences of text.
+func readAnswer(text string) *claimReader {
+	r := &claimReader{text: text, lastClaim: -1, lastUncited: -1, markers: extractMarkers(text)}
 	r.read()
-	return r.claims
+	return r
 }
 
 // line is one line of the text: its span without the newline.
@@ -157,7 +168,7 @@ func (r *claimReader) readUnit(u unit) {
 	// Markers standing on their own belong to a sentence before them in
 	// the same paragraph or item; a paragraph of markers alone is a
 	// citation list.
-	r.last, r.lastClaim, r.lastOK = "", -1, false
+	r.last, r.lastClaim, r.lastOK, r.lastUncited = "", -1, false, -1
 	list := citationLabelOnly(u.leadIn) // the items of a "Sources:" list
 	for _, s := range r.sentences(u.start, u.end) {
 		text := cleanClaim(r.stripMarkers(s.start, s.end))
@@ -166,15 +177,32 @@ func (r *claimReader) readUnit(u unit) {
 			r.attach(ms)
 			continue
 		}
+		sentence := text
 		if u.leadIn != "" {
 			text = u.leadIn + " " + text
 		}
-		r.last, r.lastClaim, r.lastOK = text, -1, !list && checkable(text)
-		if len(ms) > 0 && r.lastOK {
+		r.last, r.lastClaim, r.lastOK, r.lastUncited = text, -1, !list && checkable(text), -1
+		switch {
+		case len(ms) > 0 && r.lastOK:
 			r.claims = append(r.claims, claim{Text: text, Markers: ms})
 			r.lastClaim = len(r.claims) - 1
+		case len(ms) == 0 && !list && u.kind != unitHeading && factual(sentence, r.text[u.start:u.end]):
+			r.addUncited(s.start, s.end)
 		}
 	}
+}
+
+// addUncited records a factual sentence without a marker (its span without
+// the surrounding whitespace).
+func (r *claimReader) addUncited(start, end int) {
+	for start < end && unicode.IsSpace(rune(r.text[start])) {
+		start++
+	}
+	for end > start && unicode.IsSpace(rune(r.text[end-1])) {
+		end--
+	}
+	r.uncited = append(r.uncited, span{start, end})
+	r.lastUncited = len(r.uncited) - 1
 }
 
 // citationLabelRE is a leading citation-list label: "Citations:",
@@ -217,6 +245,10 @@ func (r *claimReader) attach(ms []claimMarker) {
 	if len(ms) == 0 || r.last == "" || !r.lastOK {
 		return
 	}
+	if r.lastUncited >= 0 { // the markers cite it after all
+		r.uncited = slices.Delete(r.uncited, r.lastUncited, r.lastUncited+1)
+		r.lastUncited = -1
+	}
 	if r.lastClaim < 0 {
 		r.claims = append(r.claims, claim{Text: r.last})
 		r.lastClaim = len(r.claims) - 1
@@ -246,10 +278,15 @@ func (r *claimReader) readRow(ln line, header []string) []string {
 	}
 	text := strings.Join(parts, "; ")
 	if hasWord(text) {
-		r.last, r.lastClaim, r.lastOK = text, -1, checkable(text)
-		if len(ms) > 0 && r.lastOK {
+		r.last, r.lastClaim, r.lastOK, r.lastUncited = text, -1, checkable(text), -1
+		switch {
+		case len(ms) > 0 && r.lastOK:
 			r.claims = append(r.claims, claim{Text: text, Markers: ms})
 			r.lastClaim = len(r.claims) - 1
+		case len(ms) == 0 && header != nil && factual(strings.Join(dataCells(cells), " "), ""):
+			// A data row (not the header) without a citation: its span ends
+			// inside the last cell, before the closing pipe.
+			r.addUncited(ln.start, rowEnd(r.text, ln))
 		}
 	}
 	if header == nil {

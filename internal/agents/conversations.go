@@ -126,7 +126,9 @@ type MessageView struct {
 	LatencyMs      *int32         `json:"latencyMs,omitempty"`
 	Feedback       *string        `json:"feedback,omitempty"`
 	FeedbackReason *string        `json:"feedbackReason,omitempty"`
-	CreatedAt      time.Time      `json:"createdAt"`
+	// Uncited: the answer's citations were checked (verdicts.go).
+	Uncited   []UncitedSentence `json:"uncited,omitempty"`
+	CreatedAt time.Time         `json:"createdAt"`
 }
 
 // ConversationView is a conversation with its transcript.
@@ -223,6 +225,10 @@ func messageViews(rows []dbgen.ListMessagesRow) []MessageView {
 			m.Thinking = strings.Join(think, "\n\n")
 			if len(r.Citations) > 0 {
 				_ = json.Unmarshal(r.Citations, &m.Citations)
+			}
+			// Uncited sentences are found again in the stored text, for answers whose citations were checked.
+			if len(r.CitationCheck) > 0 && !r.AnswerRefused && !r.AnswerNoContext && r.ErrorCode == "" {
+				m.Uncited = UncitedSentences(m.Text)
 			}
 			if len(r.Usage) > 0 {
 				var u llm.Usage

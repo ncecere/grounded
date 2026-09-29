@@ -10143,8 +10143,40 @@ components:
           description: >-
             Set by SystemOne citation checks: whether the source supports the
             claims citing it (the worst verdict of those claims wins);
-            unchecked when the check failed or timed out.
+            unchecked when the check failed or timed out. markers has the
+            verdict of each [n] marker.
         confidence: { type: number, format: double, minimum: 0, maximum: 1, description: The model's confidence in the verification }
+        markers:
+          type: array
+          description: >-
+            Set by SystemOne citation checks: one entry per [n] marker of this
+            source in the answer text, in order of appearance (the answer's
+            markers carry one number each). Each is the verdict on the claim
+            that marker sits in (its sentence, list item or table row), so the
+            same source can be verified in one sentence and unsupported in
+            another. Markers outside a checked claim (a citation list, a
+            claim of fewer than three words) are unchecked.
+          items: { $ref: "#/components/schemas/CitationMarker" }
+    CitationMarker:
+      type: object
+      description: The citation check of one [n] marker.
+      required: [verification]
+      properties:
+        verification:
+          type: string
+          enum: [verified, unsupported, contradicted, unchecked]
+        confidence: { type: number, format: double, minimum: 0, maximum: 1, description: The model's confidence in the verification }
+    UncitedSentence:
+      type: object
+      description: >-
+        A factual sentence of the answer without a citation (SystemOne
+        citation checks), counted as unsupported. start and end are offsets
+        in the answer text in Unicode code points: end is where the sentence
+        ends (after its punctuation), start where it begins.
+      required: [start, end]
+      properties:
+        start: { type: integer, minimum: 0 }
+        end: { type: integer, minimum: 0 }
     ChatUsage:
       type: object
       required: [input, output, reasoning, cacheRead, cacheWrite, total]
@@ -10194,6 +10226,13 @@ components:
         noContext: { type: boolean }
         latencyMs: { type: integer, format: int64 }
         moderation: { $ref: "#/components/schemas/ChatEventModeration" }
+        uncited:
+          type: array
+          description: >-
+            Set by SystemOne citation checks: the answer's factual sentences
+            without a citation (docs/systemone.md §3). Not set for refusals or
+            answers without sources.
+          items: { $ref: "#/components/schemas/UncitedSentence" }
     ChatEventConversation:
       type: object
       description: "SSE event conversation"
@@ -10290,6 +10329,13 @@ components:
             out_of_scope: the scope check found the question outside the
             agent's subject, and a strictly grounded agent refused without
             retrieval or a chat-model call.
+        uncited:
+          type: array
+          description: >-
+            Set when citations were checked before the answer was released (buffered and JSON answers): the answer's factual sentences
+            without a citation (docs/systemone.md §3). Not set for refusals or
+            answers without sources.
+          items: { $ref: "#/components/schemas/UncitedSentence" }
     ChatEventCitationsChecked:
       type: object
       description: >-
@@ -10308,6 +10354,13 @@ components:
         verified: { type: integer, description: Claim–source pairs verified }
         unsupported: { type: integer, description: Pairs unsupported or contradicted }
         unchecked: { type: integer, description: Pairs not checked (error or timeout) }
+        uncited:
+          type: array
+          description: >-
+            Set by SystemOne citation checks: the answer's factual sentences
+            without a citation (docs/systemone.md §3). Not set for refusals or
+            answers without sources.
+          items: { $ref: "#/components/schemas/UncitedSentence" }
     ChatEventError:
       type: object
       description: "SSE event error (for example model_unavailable, model_busy or incomplete_answer)"
@@ -10373,6 +10426,13 @@ components:
         latencyMs: { type: integer, format: int32 }
         feedback: { $ref: "#/components/schemas/FeedbackRating" }
         feedbackReason: { $ref: "#/components/schemas/FeedbackReason" }
+        uncited:
+          type: array
+          description: >-
+            Set by SystemOne citation checks: the answer's factual sentences
+            without a citation (docs/systemone.md §3). Not set for refusals or
+            answers without sources.
+          items: { $ref: "#/components/schemas/UncitedSentence" }
         createdAt: { type: string, format: date-time }
     ConversationDetail:
       type: object
@@ -10890,7 +10950,7 @@ components:
         passRate: { type: number, description: "Share of answers that passed, 0-1 (full-answer checks)" }
         cited: { type: integer, description: Answers that cited an expected document }
         refused: { type: integer, description: Answers that refused }
-        supportedShare: { type: number, description: "Mean share of supported claims, when SystemOne citation checks are on" }
+        supportedShare: { type: number, description: "Mean share of supported claims, when SystemOne citation checks are on (factual sentences without a citation count as unsupported)" }
     EvaluationTarget:
       type: object
       required: [type, id, name]
@@ -11121,7 +11181,13 @@ components:
           type: array
           items: { $ref: "#/components/schemas/EvaluationMention" }
         refused: { type: boolean }
-        supportedShare: { type: number, description: "Share of supported claims, 0-1 (SystemOne citation checks)" }
+        supportedShare:
+          type: number
+          description: >-
+            Share of supported claims, 0-1 (SystemOne citation checks): verified
+            claim–source pairs over checked pairs plus factual sentences without
+            a citation, which count as unsupported.
+        uncited: { type: integer, description: "Factual sentences without a citation (SystemOne citation checks), counted as unsupported" }
     EvaluationResult:
       type: object
       required: [id, questionId, question, status, rank, hits, answer, scores, error, latencyMs]

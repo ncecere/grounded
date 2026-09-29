@@ -7596,7 +7596,7 @@ export interface components {
             pageEnd?: number;
             url?: string;
             /**
-             * @description Set by SystemOne citation checks: whether the source supports the claims citing it (the worst verdict of those claims wins); unchecked when the check failed or timed out.
+             * @description Set by SystemOne citation checks: whether the source supports the claims citing it (the worst verdict of those claims wins); unchecked when the check failed or timed out. markers has the verdict of each [n] marker.
              * @enum {string}
              */
             verification?: "verified" | "unsupported" | "contradicted" | "unchecked";
@@ -7605,6 +7605,23 @@ export interface components {
              * @description The model's confidence in the verification
              */
             confidence?: number;
+            /** @description Set by SystemOne citation checks: one entry per [n] marker of this source in the answer text, in order of appearance (the answer's markers carry one number each). Each is the verdict on the claim that marker sits in (its sentence, list item or table row), so the same source can be verified in one sentence and unsupported in another. Markers outside a checked claim (a citation list, a claim of fewer than three words) are unchecked. */
+            markers?: components["schemas"]["CitationMarker"][];
+        };
+        /** @description The citation check of one [n] marker. */
+        CitationMarker: {
+            /** @enum {string} */
+            verification: "verified" | "unsupported" | "contradicted" | "unchecked";
+            /**
+             * Format: double
+             * @description The model's confidence in the verification
+             */
+            confidence?: number;
+        };
+        /** @description A factual sentence of the answer without a citation (SystemOne citation checks), counted as unsupported. start and end are offsets in the answer text in Unicode code points: end is where the sentence ends (after its punctuation), start where it begins. */
+        UncitedSentence: {
+            start: number;
+            end: number;
         };
         ChatUsage: {
             input: number;
@@ -7652,6 +7669,8 @@ export interface components {
             /** Format: int64 */
             latencyMs: number;
             moderation?: components["schemas"]["ChatEventModeration"];
+            /** @description Set by SystemOne citation checks: the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources. */
+            uncited?: components["schemas"]["UncitedSentence"][];
         };
         /** @description SSE event conversation */
         ChatEventConversation: {
@@ -7724,6 +7743,8 @@ export interface components {
              * @enum {string}
              */
             noContextReason?: "judged_out" | "small_talk" | "out_of_scope";
+            /** @description Set when citations were checked before the answer was released (buffered and JSON answers): the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources. */
+            uncited?: components["schemas"]["UncitedSentence"][];
         };
         /** @description SSE event citations_checked (SystemOne citation checks, streaming modes): follows message_end. citations replace the answer's; text is the final text (changed in enforce mode, where unsupported markers are removed or, with refused, the answer is replaced by the refusal). */
         ChatEventCitationsChecked: {
@@ -7738,6 +7759,8 @@ export interface components {
             unsupported: number;
             /** @description Pairs not checked (error or timeout) */
             unchecked: number;
+            /** @description Set by SystemOne citation checks: the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources. */
+            uncited?: components["schemas"]["UncitedSentence"][];
         };
         /** @description SSE event error (for example model_unavailable, model_busy or incomplete_answer) */
         ChatEventError: {
@@ -7796,6 +7819,8 @@ export interface components {
             latencyMs?: number;
             feedback?: components["schemas"]["FeedbackRating"];
             feedbackReason?: components["schemas"]["FeedbackReason"];
+            /** @description Set by SystemOne citation checks: the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources. */
+            uncited?: components["schemas"]["UncitedSentence"][];
             /** Format: date-time */
             createdAt: string;
         };
@@ -8421,7 +8446,7 @@ export interface components {
             cited: number;
             /** @description Answers that refused */
             refused: number;
-            /** @description Mean share of supported claims, when SystemOne citation checks are on */
+            /** @description Mean share of supported claims, when SystemOne citation checks are on (factual sentences without a citation count as unsupported) */
             supportedShare?: number;
         };
         EvaluationTarget: {
@@ -8654,8 +8679,10 @@ export interface components {
             cited: boolean;
             mentions: components["schemas"]["EvaluationMention"][];
             refused: boolean;
-            /** @description Share of supported claims, 0-1 (SystemOne citation checks) */
+            /** @description Share of supported claims, 0-1 (SystemOne citation checks): verified claim–source pairs over checked pairs plus factual sentences without a citation, which count as unsupported. */
             supportedShare?: number;
+            /** @description Factual sentences without a citation (SystemOne citation checks), counted as unsupported */
+            uncited?: number;
         };
         EvaluationResult: {
             /** Format: uuid */

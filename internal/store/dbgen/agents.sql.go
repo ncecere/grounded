@@ -1290,30 +1290,36 @@ func (q *Queries) ListConversations(ctx context.Context, arg ListConversationsPa
 }
 
 const listMessages = `-- name: ListMessages :many
-SELECT m.id, m.conversation_id, m.seq, m.role, m.content, m.citations, m.agent_version_id, m.model_id, m.usage, m.stop_reason, m.error_code, m.latency_ms, m.created_at, e.feedback, e.feedback_reason
+SELECT m.id, m.conversation_id, m.seq, m.role, m.content, m.citations, m.agent_version_id, m.model_id, m.usage, m.stop_reason, m.error_code, m.latency_ms, m.created_at, e.feedback, e.feedback_reason, e.citations AS citation_check,
+       coalesce(e.refused, false)::bool AS answer_refused, coalesce(e.no_context, false)::bool AS answer_no_context
 FROM messages m LEFT JOIN message_events e ON e.message_id = m.id
 WHERE m.conversation_id = $1
 ORDER BY m.seq
 `
 
 type ListMessagesRow struct {
-	ID             uuid.UUID
-	ConversationID uuid.UUID
-	Seq            int32
-	Role           string
-	Content        json.RawMessage
-	Citations      json.RawMessage
-	AgentVersionID uuid.NullUUID
-	ModelID        uuid.NullUUID
-	Usage          json.RawMessage
-	StopReason     string
-	ErrorCode      string
-	LatencyMs      *int32
-	CreatedAt      time.Time
-	Feedback       *string
-	FeedbackReason *string
+	ID              uuid.UUID
+	ConversationID  uuid.UUID
+	Seq             int32
+	Role            string
+	Content         json.RawMessage
+	Citations       json.RawMessage
+	AgentVersionID  uuid.NullUUID
+	ModelID         uuid.NullUUID
+	Usage           json.RawMessage
+	StopReason      string
+	ErrorCode       string
+	LatencyMs       *int32
+	CreatedAt       time.Time
+	Feedback        *string
+	FeedbackReason  *string
+	CitationCheck   json.RawMessage
+	AnswerRefused   bool
+	AnswerNoContext bool
 }
 
+// citation_check is the answer's content-free citation check record (NULL:
+// not checked), and answer_refused and answer_no_context its analytics flags.
 func (q *Queries) ListMessages(ctx context.Context, conversationID uuid.UUID) ([]ListMessagesRow, error) {
 	rows, err := q.db.Query(ctx, listMessages, conversationID)
 	if err != nil {
@@ -1339,6 +1345,9 @@ func (q *Queries) ListMessages(ctx context.Context, conversationID uuid.UUID) ([
 			&i.CreatedAt,
 			&i.Feedback,
 			&i.FeedbackReason,
+			&i.CitationCheck,
+			&i.AnswerRefused,
+			&i.AnswerNoContext,
 		); err != nil {
 			return nil, err
 		}

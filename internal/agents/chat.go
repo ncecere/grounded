@@ -87,10 +87,13 @@ type Answer struct {
 	Persisted    bool
 	AgentVersion *int32
 	// Model is the upstream model ID.
-	Model      string
-	Text       string
-	Thinking   string
-	Citations  []Citation
+	Model     string
+	Text      string
+	Thinking  string
+	Citations []Citation
+	// Uncited are the factual sentences without a citation, when citations
+	// were checked (verdicts.go); not for answers without sources.
+	Uncited    []UncitedSentence
 	Sources    []RetrievalHit
 	Usage      llm.Usage
 	StopReason string

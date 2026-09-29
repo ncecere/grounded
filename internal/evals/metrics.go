@@ -120,9 +120,13 @@ type AnswerScores struct {
 	Mentions []Mention `json:"mentions"`
 	// Refused: the answer was a refusal ("I don't know").
 	Refused bool `json:"refused"`
-	// SupportedShare is verified / checked citation pairs, when SystemOne
-	// citation checks are on for the agent.
+	// SupportedShare is the share of supported claims, when SystemOne
+	// citation checks are on for the agent: verified claim–source pairs
+	// over the checked pairs plus the factual sentences without a citation,
+	// which count as unsupported (docs/systemone.md §3).
 	SupportedShare *float64 `json:"supportedShare,omitempty"`
+	// Uncited counts the factual sentences without a citation.
+	Uncited int `json:"uncited,omitempty"`
 }
 
 // ScoreAnswer scores an answer: whether it cites an expected document and
@@ -143,9 +147,9 @@ func ScoreAnswer(e Expected, phrases []string, text string, cited []Doc, refused
 		all = all && found
 		sc.Mentions = append(sc.Mentions, Mention{Phrase: p, Found: found})
 	}
-	if checks != nil && checks.Checked > 0 {
-		v := float64(checks.Verified) / float64(checks.Checked)
-		sc.SupportedShare = &v
+	if checks != nil && checks.Checked+checks.Uncited > 0 {
+		v := float64(checks.Verified) / float64(checks.Checked+checks.Uncited)
+		sc.SupportedShare, sc.Uncited = &v, checks.Uncited
 	}
 	return sc, sc.Cited && all
 }

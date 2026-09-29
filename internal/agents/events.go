@@ -96,6 +96,8 @@ type (
 		// out_of_scope when a strict agent refused a question outside its
 		// subject (no retrieval, no chat-model call).
 		NoContextReason string `json:"noContextReason,omitempty"`
+		// Uncited: citations were checked before release (buffer, JSON).
+		Uncited []UncitedSentence `json:"uncited,omitempty"`
 	}
 	ErrorEvent struct {
 		Code    string `json:"code"`
@@ -216,5 +218,5 @@ func (ru *run) onEvent(ev agentloop.Event, st *loopState) {
 func (ru *run) sendEnd(ans Answer) {
 	ru.out.send(Event{"message_end", MessageEndEvent{MessageID: ans.MessageID, StopReason: ans.StopReason, Text: ans.Text,
 		Citations: ans.Citations, Usage: ans.Usage, Refused: ans.Refused, NoContext: ans.NoContext,
-		NoContextReason: ans.noContextReason}})
+		NoContextReason: ans.noContextReason, Uncited: ans.Uncited}})
 }

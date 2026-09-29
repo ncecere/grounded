@@ -27,6 +27,9 @@ type Citation struct {
 	// unchecked, with the model's confidence.
 	Verification string   `json:"verification,omitempty"`
 	Confidence   *float64 `json:"confidence,omitempty"`
+	// Markers has the check of each [n] of this source in the answer text,
+	// in order (verdicts.go): the verdict on that marker's own claim.
+	Markers []MarkerVerdict `json:"markers,omitempty"`
 }
 
 // markerRE matches [1], [1, 2] and [1,2,3]; [1][2] is two matches. Only

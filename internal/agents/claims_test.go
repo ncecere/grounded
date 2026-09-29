@@ -208,8 +208,12 @@ func TestCitationTiming(t *testing.T) {
 	if got := ru.citationTiming(ok, false); got != checkBefore {
 		t.Errorf("json: %d", got)
 	}
+	// An answer without citations is checked too: its factual sentences are uncited.
+	if got := ru.citationTiming(&Answer{StopReason: "stop"}, false); got != checkBefore {
+		t.Errorf("no citations: %d", got)
+	}
 	for _, a := range []*Answer{
-		{StopReason: "stop"}, // no citations
+		{StopReason: "stop", noContextReason: NoContextSmallTalk},
 		{Citations: ok.Citations, Refused: true},
 		{Citations: ok.Citations, ErrorCode: ErrCodeModelUnavailable},
 		{Citations: ok.Citations, StopReason: string(llm.StopReasonAborted)},
@@ -220,6 +224,10 @@ func TestCitationTiming(t *testing.T) {
 	}
 	if ru.citationTiming(ok, true) != checkNone || (&run{}).citationTiming(ok, false) != checkNone {
 		t.Error("withheld or off")
+	}
+	ru.cfg.CitationMode = CitationNone
+	if ru.citationTiming(&Answer{StopReason: "stop"}, false) != checkNone {
+		t.Error("an agent that doesn't cite is not checked")
 	}
 }
 

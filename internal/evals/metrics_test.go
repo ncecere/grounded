@@ -67,6 +67,26 @@ func TestScoreAnswer(t *testing.T) {
 	}
 }
 
+// Factual sentences without a citation count as unsupported claims
+// (docs/v0.2.0.md "Verification"): an answer with every cited claim verified
+// but invented, uncited steps no longer scores 100%.
+func TestScoreAnswerCountsUncited(t *testing.T) {
+	e := Expected{DocumentIDs: []uuid.UUID{uuid.New()}}
+	sc, _ := ScoreAnswer(e, nil, "x", nil, false, &agents.CitationsRecord{Checked: 3, Verified: 3, Uncited: 1})
+	if sc.SupportedShare == nil || !near(*sc.SupportedShare, 0.75) || sc.Uncited != 1 {
+		t.Errorf("with an uncited sentence: %+v", sc)
+	}
+	// No citation at all: nothing is supported.
+	sc, _ = ScoreAnswer(e, nil, "x", nil, false, &agents.CitationsRecord{Uncited: 2})
+	if sc.SupportedShare == nil || *sc.SupportedShare != 0 || sc.Uncited != 2 {
+		t.Errorf("without citations: %+v", sc)
+	}
+	// Nothing checked and nothing uncited: no share.
+	if sc, _ = ScoreAnswer(e, nil, "x", nil, false, &agents.CitationsRecord{Unchecked: 2}); sc.SupportedShare != nil {
+		t.Errorf("nothing checked: %+v", sc)
+	}
+}
+
 func TestDetectDrop(t *testing.T) {
 	r := func(v float64) Summary { return Summary{Recall: &v} }
 	a, b, c := uuid.New(), uuid.New(), uuid.New()

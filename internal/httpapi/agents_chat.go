@@ -53,7 +53,7 @@ func toAPIAnswer(ans agents.Answer) apitypes.ChatAnswer {
 		AgentVersion: ans.AgentVersion, Text: ans.Text, Thinking: ans.Thinking, Citations: toAPICitations(ans.Citations),
 		Sources: viaJSON[[]apitypes.RetrievalHit](ans.Sources), Usage: viaJSON[apitypes.ChatUsage](ans.Usage),
 		StopReason: apitypes.StopReason(ans.StopReason), Refused: ans.Refused, NoContext: ans.NoContext,
-		LatencyMs: ans.Latency.Milliseconds(),
+		LatencyMs: ans.Latency.Milliseconds(), Uncited: viaJSON[*[]apitypes.UncitedSentence](ans.Uncited),
 	}
 	if out.Sources == nil {
 		out.Sources = []apitypes.RetrievalHit{}

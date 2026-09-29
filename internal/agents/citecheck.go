@@ -39,8 +39,11 @@ type CitationsRecord struct {
 	LowConfidence int `json:"lowConfidence"`
 	// Removed markers (enforce); Refused: enforce replaced the answer with
 	// the refusal because no claim was supported.
-	Removed   int   `json:"removed"`
-	Refused   bool  `json:"refused,omitempty"`
+	Removed int  `json:"removed"`
+	Refused bool `json:"refused,omitempty"`
+	// Uncited counts the answer's factual sentences without a citation (as
+	// the model wrote it, before enforce): unsupported in evaluation scores.
+	Uncited   int   `json:"uncited"`
 	Requests  int   `json:"requests"`
 	LatencyMs int64 `json:"latencyMs"`
 }
@@ -57,6 +60,8 @@ type CitationsCheckedEvent struct {
 	// Unsupported counts unsupported and contradicted pairs.
 	Unsupported int `json:"unsupported"`
 	Unchecked   int `json:"unchecked"`
+	// Uncited are the factual sentences without a citation.
+	Uncited []UncitedSentence `json:"uncited,omitempty"`
 }
 
 // When citations are checked.
@@ -67,11 +72,13 @@ const (
 )
 
 // citationTiming decides whether and when this answer's citations are
-// checked: only complete answers with citations.
+// checked: complete answers of an agent that cites, small talk aside. An
+// answer without citations is checked too: its factual sentences are
+// uncited (verdicts.go).
 func (ru *run) citationTiming(ans *Answer, withheld bool) int {
 	switch {
-	case ru.cite == nil, withheld, ans.Moderation != nil, ans.ErrorCode != "", ans.Refused, len(ans.Citations) == 0,
-		ans.StopReason == string(llm.StopReasonAborted):
+	case ru.cite == nil, withheld, ans.Moderation != nil, ans.ErrorCode != "", ans.Refused, ru.cfg.CitationMode == CitationNone,
+		ans.StopReason == string(llm.StopReasonAborted), ans.noContextReason == NoContextSmallTalk:
 		return checkNone
 	case ru.out.emit != nil && !ru.mod.Buffered():
 		return checkAfter
@@ -104,6 +111,39 @@ func (ru *run) checkCitations(ctx context.Context, ans *Answer, sources []number
 		byN[h.N] = h
 	}
 	claims := extractClaims(ans.Text)
+	uncited := len(uncitedSpans(ans.Text)) // as the model wrote it: enforce's removals are counted as unsupported
+	index, pairs := claimPairs(claims, byN)
+	if len(pairs) == 0 {
+		if uncited > 0 { // nothing to ask, but sentences without a citation
+			ru.citeRec = &CitationsRecord{Mode: mode, Claims: len(claims), Uncited: uncited}
+			ans.Uncited = shownUncited(ans)
+		}
+		return
+	}
+	cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), plan.Settings.Timeout())
+	defer cancel()
+	verdicts, st := plan.Client.CheckClaims(cctx, pairs, plan.Settings.Timeout())
+	rec := citationsRecord(mode, len(claims), verdicts, plan.Settings.AutoAccept)
+	if rec.Unchecked > 0 {
+		ru.s.Log.Warn("citation check requests failed; those citations stay unchecked", "agent", ru.agent.ID,
+			"failed", rec.Unchecked, "of", len(pairs), "err", firstErr(verdicts))
+	}
+	rec.Requests, rec.LatencyMs, rec.Uncited = st.Requests, st.Latency.Milliseconds(), uncited
+	v := verdictLookup{index: index, verdicts: verdicts}
+	if mode == systemone.CitationEnforce {
+		ru.enforceCitations(ans, claims, v, &rec)
+	}
+	if !rec.Refused {
+		final := extractClaims(ans.Text)
+		ans.Citations = markerVerdicts(annotateCitations(ans.Citations, final, v), ans.Text, final, v)
+		ans.Uncited = shownUncited(ans)
+	}
+	ru.citeRec = &rec
+}
+
+// claimPairs are the distinct claim–source pairs to ask about (at most
+// maxClaimPairs), with each pair's index.
+func claimPairs(claims []claim, byN map[int]numberedHit) (map[pairKey]int, []systemone.ClaimPair) {
 	index := map[pairKey]int{}
 	var pairs []systemone.ClaimPair
 	for _, c := range claims {
@@ -117,26 +157,16 @@ func (ru *run) checkCitations(ctx context.Context, ans *Answer, sources []number
 			pairs = append(pairs, systemone.ClaimPair{Claim: c.Text, Source: sourceText(h)})
 		}
 	}
-	if len(pairs) == 0 {
-		return
+	return index, pairs
+}
+
+// shownUncited are the uncited sentences the chat marks: none for an answer
+// without sources (the chat already says it isn't based on them).
+func shownUncited(ans *Answer) []UncitedSentence {
+	if ans.NoContext {
+		return nil
 	}
-	cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), plan.Settings.Timeout())
-	defer cancel()
-	verdicts, st := plan.Client.CheckClaims(cctx, pairs, plan.Settings.Timeout())
-	rec := citationsRecord(mode, len(claims), verdicts, plan.Settings.AutoAccept)
-	if rec.Unchecked > 0 {
-		ru.s.Log.Warn("citation check requests failed; those citations stay unchecked", "agent", ru.agent.ID,
-			"failed", rec.Unchecked, "of", len(pairs), "err", firstErr(verdicts))
-	}
-	rec.Requests, rec.LatencyMs = st.Requests, st.Latency.Milliseconds()
-	v := verdictLookup{index: index, verdicts: verdicts}
-	if mode == systemone.CitationEnforce {
-		ru.enforceCitations(ans, claims, v, &rec)
-	}
-	if !rec.Refused {
-		ans.Citations = annotateCitations(ans.Citations, extractClaims(ans.Text), v)
-	}
-	ru.citeRec = &rec
+	return UncitedSentences(ans.Text)
 }
 
 func firstErr(vs []systemone.Verdict) error {
@@ -354,7 +384,8 @@ func (ru *run) citationsJSON() json.RawMessage {
 
 // citationsChecked is the SSE event for a checked answer.
 func (ru *run) citationsChecked(ans Answer) Event {
-	ev := CitationsCheckedEvent{MessageID: ans.MessageID.String(), Text: ans.Text, Citations: ans.Citations, Refused: ans.Refused}
+	ev := CitationsCheckedEvent{MessageID: ans.MessageID.String(), Text: ans.Text, Citations: ans.Citations, Refused: ans.Refused,
+		Uncited: ans.Uncited}
 	if r := ru.citeRec; r != nil {
 		ev.Verified, ev.Unsupported, ev.Unchecked = r.Verified, r.Unsupported+r.Contradicted, r.Unchecked
 	}

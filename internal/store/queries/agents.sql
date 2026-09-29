@@ -222,7 +222,10 @@ VALUES (@id, @conversation_id, @seq, @role, @content, @citations, @agent_version
 RETURNING *;
 
 -- name: ListMessages :many
-SELECT m.*, e.feedback, e.feedback_reason
+-- citation_check is the answer's content-free citation check record (NULL:
+-- not checked), and answer_refused and answer_no_context its analytics flags.
+SELECT m.*, e.feedback, e.feedback_reason, e.citations AS citation_check,
+       coalesce(e.refused, false)::bool AS answer_refused, coalesce(e.no_context, false)::bool AS answer_no_context
 FROM messages m LEFT JOIN message_events e ON e.message_id = m.id
 WHERE m.conversation_id = $1
 ORDER BY m.seq;

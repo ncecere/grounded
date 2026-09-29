@@ -1,14 +1,15 @@
 package httpapi_test
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 )
 
-// Answer behaviour found in the v0.2 review: model punctuation (M2) and
-// follow-ups searched on their own (M3).
+// Answer behaviour found in the v0.2 review: model punctuation (M2),
+// follow-ups searched on their own (M3) and verification per marker.
 
 // TestAnswerPunctuationNormalised: the final text of an answer has plain
 // hyphens and spaces (stored and in message_end), whatever the model wrote.
@@ -78,4 +79,100 @@ func TestFollowUpsAreSearchedInContext(t *testing.T) {
 			t.Errorf("rewrite request = %s", body)
 		}
 	}
+}
+
+// markerVerifications lists each citation's per-marker verifications.
+func markerVerifications(cites []apitypes.Citation) map[int][]string {
+	out := map[int][]string{}
+	for _, c := range cites {
+		if c.Markers == nil {
+			continue
+		}
+		for _, m := range *c.Markers {
+			out[c.N] = append(out[c.N], string(m.Verification))
+		}
+	}
+	return out
+}
+
+// uncitedText is the text of each uncited sentence.
+func uncitedText(text string, spans *[]apitypes.UncitedSentence) []string {
+	if spans == nil {
+		return nil
+	}
+	runes := []rune(text)
+	var out []string
+	for _, s := range *spans {
+		out = append(out, string(runes[s.Start:s.End]))
+	}
+	return out
+}
+
+// TestVerificationPerMarker: with citation checks on, each [n] marker gets
+// the verdict of its own sentence (streamed, stored and over the
+// OpenAI-compatible endpoint), and a factual sentence without a citation
+// is listed as uncited and counted in the record.
+func TestVerificationPerMarker(t *testing.T) {
+	env := newSystemOneEnv(t)
+	env.putChecks(t, nil, nil)
+	kb := env.checksKB(t, "Fees", mixedCiteDocs)
+	ag := env.publishAgent(t, "Fees", env.agentConfig(kb.Id.String()))
+	env.proxy.SetAnswer("Official transcripts cost ten dollars per copy [1]. Rush orders UNSUPPORTED arrive the same day [1]. " +
+		"Pick them up at the front desk.")
+	t.Cleanup(func() { env.proxy.SetAnswer("") })
+	wantMarkers := map[int][]string{1: {"verified", "unsupported"}}
+	wantUncited := []string{"Pick them up at the front desk."}
+
+	code, evs, e := env.member.stream(env.chatPath("fees"), map[string]any{"message": "What does a transcript cost?"})
+	mustCode(t, "chat", code, e, 200, "")
+	var checked apitypes.ChatEventCitationsChecked
+	evs.one(t, "citations_checked", &checked)
+	if got := markerVerifications(checked.Citations); !equalMarkers(got, wantMarkers) || string(*checked.Citations[0].Verification) != "unsupported" {
+		t.Fatalf("checked markers = %v (%+v)", got, checked.Citations)
+	}
+	if got := uncitedText(checked.Text, checked.Uncited); !slicesEqual(got, wantUncited) {
+		t.Errorf("uncited = %q", got)
+	}
+	if rec := citationsRecord(t, env.agentEnv, ag.Id.String()); rec.Uncited != 1 || rec.Verified != 1 || rec.Unsupported != 1 {
+		t.Errorf("record = %+v", rec)
+	}
+	// Stored: the markers' verdicts and the uncited sentence after a reload.
+	var conv apitypes.ChatEventConversation
+	evs.one(t, "conversation", &conv)
+	var detail apitypes.ConversationDetail
+	env.member.get("/v1/conversations/"+conv.ConversationId.String(), &detail)
+	stored := detail.Messages[len(detail.Messages)-1]
+	if got := markerVerifications(*stored.Citations); !equalMarkers(got, wantMarkers) || !slicesEqual(uncitedText(stored.Text, stored.Uncited), wantUncited) {
+		t.Errorf("stored = %v %+v", got, stored.Uncited)
+	}
+
+	// The OpenAI-compatible endpoint: citations[].markers per marker.
+	var k apitypes.APIKeyCreated
+	code, e = env.member.call("POST", env.base+"/api-keys", map[string]any{"name": "sdk", "scopes": []string{"query"}}, &k, nil)
+	mustCode(t, "key", code, e, 201, "")
+	code, raw, _ := openaiCall(t, env.app.URL, k.Secret, map[string]any{"model": "agent:" + env.team + "/" + ag.Slug,
+		"messages": []map[string]any{{"role": "user", "content": "What does a transcript cost?"}}})
+	var comp struct{ Citations []apitypes.Citation }
+	if code != 200 || json.Unmarshal(raw, &comp) != nil {
+		t.Fatalf("completion = %d %s", code, raw)
+	}
+	if got := markerVerifications(comp.Citations); !equalMarkers(got, wantMarkers) {
+		t.Errorf("openai markers = %v (%s)", got, raw)
+	}
+}
+
+func equalMarkers(a, b map[int][]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if !slicesEqual(v, b[k]) {
+			return false
+		}
+	}
+	return true
+}
+
+func slicesEqual(a, b []string) bool {
+	return strings.Join(a, "\x00") == strings.Join(b, "\x00") && len(a) == len(b)
 }

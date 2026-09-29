@@ -710,22 +710,46 @@ func (e ChatHistoryMessageRole) Valid() bool {
 
 // Defines values for CitationVerification.
 const (
-	Contradicted CitationVerification = "contradicted"
-	Unchecked    CitationVerification = "unchecked"
-	Unsupported  CitationVerification = "unsupported"
-	Verified     CitationVerification = "verified"
+	CitationVerificationContradicted CitationVerification = "contradicted"
+	CitationVerificationUnchecked    CitationVerification = "unchecked"
+	CitationVerificationUnsupported  CitationVerification = "unsupported"
+	CitationVerificationVerified     CitationVerification = "verified"
 )
 
 // Valid indicates whether the value is a known member of the CitationVerification enum.
 func (e CitationVerification) Valid() bool {
 	switch e {
-	case Contradicted:
+	case CitationVerificationContradicted:
 		return true
-	case Unchecked:
+	case CitationVerificationUnchecked:
 		return true
-	case Unsupported:
+	case CitationVerificationUnsupported:
 		return true
-	case Verified:
+	case CitationVerificationVerified:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CitationMarkerVerification.
+const (
+	CitationMarkerVerificationContradicted CitationMarkerVerification = "contradicted"
+	CitationMarkerVerificationUnchecked    CitationMarkerVerification = "unchecked"
+	CitationMarkerVerificationUnsupported  CitationMarkerVerification = "unsupported"
+	CitationMarkerVerificationVerified     CitationMarkerVerification = "verified"
+)
+
+// Valid indicates whether the value is a known member of the CitationMarkerVerification enum.
+func (e CitationMarkerVerification) Valid() bool {
+	switch e {
+	case CitationMarkerVerificationContradicted:
+		return true
+	case CitationMarkerVerificationUnchecked:
+		return true
+	case CitationMarkerVerificationUnsupported:
+		return true
+	case CitationMarkerVerificationVerified:
 		return true
 	default:
 		return false
@@ -4485,10 +4509,13 @@ type ChatAnswer struct {
 	Refused   bool `json:"refused"`
 
 	// Sources Every source given to the model
-	Sources       []RetrievalHit      `json:"sources"`
-	StopReason    StopReason          `json:"stopReason"`
-	Text          string              `json:"text"`
-	Thinking      string              `json:"thinking"`
+	Sources    []RetrievalHit `json:"sources"`
+	StopReason StopReason     `json:"stopReason"`
+	Text       string         `json:"text"`
+	Thinking   string         `json:"thinking"`
+
+	// Uncited Set by SystemOne citation checks: the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources.
+	Uncited       *[]UncitedSentence  `json:"uncited,omitempty"`
 	Usage         ChatUsage           `json:"usage"`
 	UserMessageId *openapi_types.UUID `json:"userMessageId"`
 }
@@ -4502,6 +4529,9 @@ type ChatEventCitationsChecked struct {
 
 	// Unchecked Pairs not checked (error or timeout)
 	Unchecked int `json:"unchecked"`
+
+	// Uncited Set by SystemOne citation checks: the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources.
+	Uncited *[]UncitedSentence `json:"uncited,omitempty"`
 
 	// Unsupported Pairs unsupported or contradicted
 	Unsupported int `json:"unsupported"`
@@ -4539,7 +4569,10 @@ type ChatEventMessageEnd struct {
 	Refused         bool                                `json:"refused"`
 	StopReason      StopReason                          `json:"stopReason"`
 	Text            string                              `json:"text"`
-	Usage           ChatUsage                           `json:"usage"`
+
+	// Uncited Set when citations were checked before the answer was released (buffered and JSON answers): the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources.
+	Uncited *[]UncitedSentence `json:"uncited,omitempty"`
+	Usage   ChatUsage          `json:"usage"`
 }
 
 // ChatEventMessageEndNoContextReason judged_out: SystemOne judging dropped every candidate, so a strictly grounded agent refused without calling the chat model. small_talk: the scope check found small talk, answered without retrieval. out_of_scope: the scope check found the question outside the agent's subject, and a strictly grounded agent refused without retrieval or a chat-model call.
@@ -4650,20 +4683,33 @@ type Citation struct {
 	Confidence  *float64           `json:"confidence,omitempty"`
 	DocumentId  openapi_types.UUID `json:"documentId"`
 	HeadingPath []string           `json:"headingPath"`
-	N           int                `json:"n"`
-	PageEnd     *int32             `json:"pageEnd,omitempty"`
-	PageStart   *int32             `json:"pageStart,omitempty"`
-	Snippet     string             `json:"snippet"`
-	SourceId    openapi_types.UUID `json:"sourceId"`
-	Title       string             `json:"title"`
-	Url         *string            `json:"url,omitempty"`
 
-	// Verification Set by SystemOne citation checks: whether the source supports the claims citing it (the worst verdict of those claims wins); unchecked when the check failed or timed out.
+	// Markers Set by SystemOne citation checks: one entry per [n] marker of this source in the answer text, in order of appearance (the answer's markers carry one number each). Each is the verdict on the claim that marker sits in (its sentence, list item or table row), so the same source can be verified in one sentence and unsupported in another. Markers outside a checked claim (a citation list, a claim of fewer than three words) are unchecked.
+	Markers   *[]CitationMarker  `json:"markers,omitempty"`
+	N         int                `json:"n"`
+	PageEnd   *int32             `json:"pageEnd,omitempty"`
+	PageStart *int32             `json:"pageStart,omitempty"`
+	Snippet   string             `json:"snippet"`
+	SourceId  openapi_types.UUID `json:"sourceId"`
+	Title     string             `json:"title"`
+	Url       *string            `json:"url,omitempty"`
+
+	// Verification Set by SystemOne citation checks: whether the source supports the claims citing it (the worst verdict of those claims wins); unchecked when the check failed or timed out. markers has the verdict of each [n] marker.
 	Verification *CitationVerification `json:"verification,omitempty"`
 }
 
-// CitationVerification Set by SystemOne citation checks: whether the source supports the claims citing it (the worst verdict of those claims wins); unchecked when the check failed or timed out.
+// CitationVerification Set by SystemOne citation checks: whether the source supports the claims citing it (the worst verdict of those claims wins); unchecked when the check failed or timed out. markers has the verdict of each [n] marker.
 type CitationVerification string
+
+// CitationMarker The citation check of one [n] marker.
+type CitationMarker struct {
+	// Confidence The model's confidence in the verification
+	Confidence   *float64                   `json:"confidence,omitempty"`
+	Verification CitationMarkerVerification `json:"verification"`
+}
+
+// CitationMarkerVerification defines model for CitationMarker.Verification.
+type CitationMarkerVerification string
 
 // CitationMode none: no citations; snippet: title and snippet; snippet_link: also the URL of web pages
 type CitationMode string
@@ -4891,7 +4937,10 @@ type ConversationMessage struct {
 	Text           string                  `json:"text"`
 	Thinking       *string                 `json:"thinking,omitempty"`
 	ToolCalls      *[]ConversationToolCall `json:"toolCalls,omitempty"`
-	Usage          *ChatUsage              `json:"usage,omitempty"`
+
+	// Uncited Set by SystemOne citation checks: the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources.
+	Uncited *[]UncitedSentence `json:"uncited,omitempty"`
+	Usage   *ChatUsage         `json:"usage,omitempty"`
 }
 
 // ConversationMessageRole defines model for ConversationMessage.Role.
@@ -5506,8 +5555,11 @@ type EvaluationAnswerScores struct {
 	Mentions []EvaluationMention `json:"mentions"`
 	Refused  bool                `json:"refused"`
 
-	// SupportedShare Share of supported claims, 0-1 (SystemOne citation checks)
+	// SupportedShare Share of supported claims, 0-1 (SystemOne citation checks): verified claim–source pairs over checked pairs plus factual sentences without a citation, which count as unsupported.
 	SupportedShare *float32 `json:"supportedShare,omitempty"`
+
+	// Uncited Factual sentences without a citation (SystemOne citation checks), counted as unsupported
+	Uncited *int `json:"uncited,omitempty"`
 }
 
 // EvaluationComparison defines model for EvaluationComparison.
@@ -5893,7 +5945,7 @@ type EvaluationSummary struct {
 	// Refused Answers that refused
 	Refused int `json:"refused"`
 
-	// SupportedShare Mean share of supported claims, when SystemOne citation checks are on
+	// SupportedShare Mean share of supported claims, when SystemOne citation checks are on (factual sentences without a citation count as unsupported)
 	SupportedShare *float32 `json:"supportedShare,omitempty"`
 }
 
@@ -8583,6 +8635,12 @@ type TokenUsage struct {
 	CompletionTokens int `json:"completionTokens"`
 	PromptTokens     int `json:"promptTokens"`
 	TotalTokens      int `json:"totalTokens"`
+}
+
+// UncitedSentence A factual sentence of the answer without a citation (SystemOne citation checks), counted as unsupported. start and end are offsets in the answer text in Unicode code points: end is where the sentence ends (after its punctuation), start where it begins.
+type UncitedSentence struct {
+	End   int `json:"end"`
+	Start int `json:"start"`
 }
 
 // UnitPrice defines model for UnitPrice.
