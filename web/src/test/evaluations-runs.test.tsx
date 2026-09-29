@@ -59,7 +59,14 @@ describe("a set's runs", () => {
     // The score names its metric (in its tooltip and accessible name); runs are "Retrieval", not "Retrieval check".
     expect(within(table).getByRole("columnheader", { name: /Kind/ })).toBeInTheDocument();
     expect(within(table).getByRole("button", { name: /^50%\. Recall@1: the share of questions/ })).toBeInTheDocument();
-    expect(within(table).getAllByRole("link", { name: /^Retrieval, Sep/ })).toHaveLength(3);
+    const links = within(table).getAllByRole("link", { name: /^Retrieval, Sep/ });
+    expect(links).toHaveLength(3);
+    // G20: the name is one text, not "Retrieval" + ", Sep 28" (browsers join those with a space: "Retrieval , Sep 28").
+    expect([...links[0]!.childNodes].filter((n) => !(n instanceof Element && n.getAttribute("aria-hidden"))).map((n) => n.textContent)).toEqual([
+      expect.stringMatching(/^Retrieval, Sep \d+, 2026/),
+    ]);
+    // The chart's scale is fixed at 0–100% (G19): its top line reads 100%, whatever the scores.
+    expect(within(chart).getByText("100%")).toBeInTheDocument();
     // A knowledge base's set has only retrieval runs: no kind filter, and no Columns menu on a short table.
     expect(screen.queryByRole("button", { name: /^Full answer/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Columns/ })).toBeNull();
