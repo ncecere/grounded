@@ -50,8 +50,19 @@ export function AppLayout({ children }: { children?: ReactNode }) {
   // only there (two columns, not three; W11). Expanding it lasts for the
   // session and doesn't change the saved choice for other pages.
   const [chatExpanded, setChatExpanded] = useState(false);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const togglePalette = useCallback(() => setPaletteOpen((o) => !o), []);
+  // The palette's text: the server search follows it. It clears as the palette
+  // closes, in the same update (not in an effect after it), so a closing
+  // palette never renders or searches the old text again (M5).
+  const [paletteOpen, setPaletteOpenState] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState("");
+  const setPaletteOpen = useCallback((open: boolean) => {
+    setPaletteOpenState(open);
+    if (!open) setPaletteQuery("");
+  }, []);
+  const togglePalette = useCallback(() => {
+    setPaletteOpenState((o) => !o);
+    setPaletteQuery("");
+  }, []);
   useCommandPaletteShortcut(togglePalette);
 
   const active = useActiveTeam(me, loc);
@@ -60,11 +71,6 @@ export function AppLayout({ children }: { children?: ReactNode }) {
   const pageCrumbs = useCurrentPageCrumbs();
   const under = pageCrumbs.length > 0 ? crumbs[crumbs.length - 1 - pageCrumbs.length]?.label : undefined;
   const backLabel = typeof under === "string" ? under : undefined;
-  // The palette's text: the server search follows it, and it clears when the palette closes.
-  const [paletteQuery, setPaletteQuery] = useState("");
-  useEffect(() => {
-    if (!paletteOpen) setPaletteQuery("");
-  }, [paletteOpen]);
   const commands = useCommands(me, active, paletteOpen, paletteQuery);
   const placeholder = canAdmin ? "Search teams, people, agents, conversations and pages…" : "Search agents, conversations, knowledge bases and pages…";
   // Only admins and auditors get the admin shell (its sidebar queries admin APIs);

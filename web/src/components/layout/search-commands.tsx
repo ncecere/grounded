@@ -5,15 +5,21 @@
  * models, connections, embedding profiles and shared sources. The palette's
  * own lists (pages, actions, teams, admin pages) stay local and instant;
  * these results arrive as you type (debounced; a newer query cancels the
- * older request) and are filtered locally as you keep typing.
+ * older request) and are filtered locally as you keep typing. The text that
+ * found a result is one of its keywords, so a match the palette can't see
+ * (an agent's description) stays listed.
+ *
+ * Closing the palette cancels a search on its way and drops its results, and
+ * reopening it never searches for the text of the last time (docs/v0.2.0.md
+ * §7, M5). Conversations are capped at three, with "More conversations…".
  */
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Bot, ClipboardCheck, Cpu, Database, Layers, Library, MessageSquare, MessagesSquare, Plug, Share2, UserRound, UsersRound } from "lucide-react";
+import { Bot, ClipboardCheck, Cpu, Database, Layers, Library, MessageSquare, MessagesSquare, Plug, Search, Share2, UserRound, UsersRound } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
 import { type CommandGroup } from "@/components/ui/command-palette/command-palette";
-import { formatRelativeTime } from "@/lib/bitop-format";
+import { formatDate, formatRelativeTime } from "@/lib/bitop-format";
 
 type Result = Schemas["SearchResult"];
 type Navigate = ReturnType<typeof useNavigate>;
@@ -23,14 +29,21 @@ export const PALETTE_LABEL = "Command palette";
 export const MIN_QUERY = 2;
 export const SEARCH_DEBOUNCE_MS = 180;
 const LIMIT = 30;
+/** Conversations shown before "More conversations…" (they often outnumber everything else). */
+export const CONVERSATION_HITS = 3;
+const searchKey = ["search"] as const;
 
+/** `value` after it stopped changing for `ms`; clearing it is immediate, so a reopened palette never searches for the old text. */
 function useDebounced(value: string, ms: number): string {
   const [v, setV] = useState(value);
+  // Cleared: forget the old text now (a state update during render), or the
+  // first key typed after reopening would search for it.
+  if (value === "" && v !== "") setV("");
   useEffect(() => {
     const t = setTimeout(() => setV(value), ms);
     return () => clearTimeout(t);
   }, [value, ms]);
-  return v;
+  return value === "" ? "" : v;
 }
 
 const statusLabels: Record<string, string> = {
@@ -165,37 +178,81 @@ const specs: Record<Result["type"], Spec[]> = {
   ],
 };
 
-/** Groups results by type, in the order their best match came (the server ranks them). */
-export function searchGroups(results: Result[], navigate: Navigate): CommandGroup[] {
+/**
+ * The first CONVERSATION_HITS conversations, then "More conversations…"
+ * (the Conversations page searching for the same text). Conversations with
+ * the same title show their agent and exact date instead of a relative one.
+ */
+function capConversations(results: Result[], text: string, navigate: Navigate): { shown: Result[]; more?: CommandGroup["items"][number] } {
+  const conversations = results.filter((r) => r.type === "conversation");
+  const kept = new Set(conversations.slice(0, CONVERSATION_HITS));
+  const shown = results.filter((r) => r.type !== "conversation" || kept.has(r));
+  if (conversations.length <= CONVERSATION_HITS) return { shown };
+  return {
+    shown,
+    more: {
+      id: "s:Conversations:more",
+      label: "More conversations…",
+      icon: <Search aria-hidden />,
+      hint: "Conversations page",
+      keywords: [text, "conversation", "history"],
+      onSelect: () => void navigate({ to: "/conversations", search: { q: text } as never }),
+    },
+  };
+}
+
+const sameTitle = (rs: Result[]) => {
+  const seen = new Map<string, number>();
+  for (const r of rs) if (r.type === "conversation") seen.set(r.label.toLowerCase(), (seen.get(r.label.toLowerCase()) ?? 0) + 1);
+  return (r: Result) => (seen.get(r.label.toLowerCase()) ?? 0) > 1;
+};
+
+/**
+ * Groups results by type, in the order their best match came (the server
+ * ranks them). `text` is what found them: it is kept as a keyword, and
+ * "More conversations…" searches for it.
+ */
+export function searchGroups(results: Result[], navigate: Navigate, text = ""): CommandGroup[] {
+  const { shown, more } = capConversations(results, text, navigate);
+  const duplicate = sameTitle(shown);
   const groups = new Map<string, CommandGroup>();
-  for (const r of results) {
+  for (const r of shown) {
     for (const spec of specs[r.type] ?? []) {
       const onSelect = spec.go(r, navigate);
       if (!onSelect) continue;
       const g = groups.get(spec.group) ?? { label: spec.group, items: [] };
-      g.items.push({ id: `s:${spec.group}:${r.id}`, label: r.label, icon: spec.icon, hint: spec.hint(r), keywords: spec.keywords(r), onSelect });
+      const itemHint = r.type === "conversation" && duplicate(r) ? hint(r.secondary, formatDate(r.updatedAt) || undefined, state(r)) : spec.hint(r);
+      const keywords = text ? [...spec.keywords(r), text] : spec.keywords(r);
+      g.items.push({ id: `s:${spec.group}:${r.id}`, label: r.label, icon: spec.icon, hint: itemHint, keywords, onSelect });
       groups.set(spec.group, g);
     }
   }
+  if (more) groups.get("Conversations")?.items.push(more);
   return [...groups.values()];
 }
 
 /** The palette's server results for what is typed, and whether a search is on its way. */
 export function useSearchCommands(open: boolean, query: string): { groups: CommandGroup[]; searching: boolean } {
   const navigate = useNavigate();
-  const text = query.trim();
+  const client = useQueryClient();
+  const text = open ? query.trim() : "";
   const q = useDebounced(text, SEARCH_DEBOUNCE_MS);
   const enabled = open && q.length >= MIN_QUERY;
   const res = useQuery({
-    queryKey: ["search", q],
+    queryKey: [...searchKey, q],
     // The signal cancels a request whose query is no longer wanted.
-    queryFn: async ({ signal }) => unwrap(await api.GET("/v1/search", { params: { query: { q, limit: LIMIT } }, signal })),
+    // The results remember the text that found them (a placeholder shows the last text's results).
+    queryFn: async ({ signal }) => ({ q, results: unwrap(await api.GET("/v1/search", { params: { query: { q, limit: LIMIT } }, signal })) }),
     enabled,
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
+  // Closing the palette cancels a search on its way: nothing arrives for a closed palette.
+  useEffect(() => {
+    if (!open) void client.cancelQueries({ queryKey: searchKey });
+  }, [open, client]);
   const data = enabled && text.length >= MIN_QUERY ? res.data : undefined;
-  const groups = useMemo(() => searchGroups(data ?? [], navigate), [data, navigate]);
+  const groups = useMemo(() => searchGroups(data?.results ?? [], navigate, data?.q), [data, navigate]);
   const searching = open && text.length >= MIN_QUERY && (text !== q || res.isFetching);
   return { groups, searching };
 }
