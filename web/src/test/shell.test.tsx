@@ -148,6 +148,14 @@ describe("app shell", () => {
     await waitFor(() => expect(within(portal).getByRole("link", { name: "Admin" })).toHaveAttribute("aria-current", "page"));
     // Admin mode: grouped platform pages, no team switcher or team pages.
     expect(await within(nav).findByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
+    // Groups other than the current page's start collapsed to their headers.
+    expect(within(nav).queryByRole("link", { name: "Logs" })).toBeNull();
+    for (const group of ["People", "Content", "Policy", "Monitoring"]) {
+      const header = within(nav).getByRole("button", { name: group });
+      expect(header).toHaveAttribute("aria-expanded", "false");
+      await user.click(header);
+      expect(header).toHaveAttribute("aria-expanded", "true");
+    }
     expect(within(nav).getByRole("link", { name: "Logs" })).toBeInTheDocument();
     // SystemOne is listed only once a SystemOne model exists.
     expect(within(nav).queryByRole("link", { name: "SystemOne" })).toBeNull();
@@ -166,6 +174,25 @@ describe("app shell", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/teams/registrar/sources"));
     await user.click(within(portal).getByRole("link", { name: "Admin" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/teams"));
+
+    // The groups stay as they were left (the admin sidebar was mounted again); arriving on a page of a closed group opens it.
+    const adminNav = await screen.findByRole("navigation", { name: "Main" });
+    await user.click(await within(adminNav).findByRole("button", { name: "Monitoring" }));
+    expect(within(adminNav).getByRole("button", { name: "Monitoring" })).toHaveAttribute("aria-expanded", "false");
+    expect(within(adminNav).getByRole("button", { name: "Policy" })).toHaveAttribute("aria-expanded", "true");
+    await router.navigate({ to: "/admin/logs" });
+    await waitFor(() => expect(within(adminNav).getByRole("button", { name: "Monitoring" })).toHaveAttribute("aria-expanded", "true"));
+    expect(JSON.parse(localStorage.getItem("grounded.adminNavOpen") ?? "[]")).toEqual(expect.arrayContaining(["People", "Policy", "Monitoring"]));
+  });
+
+  it("opens Admin on Overview for someone who hasn't used it in this session, even after another admin did", async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem("grounded.lastHref.someone-else.admin", "/admin/group-mapping");
+    mockApi({ ...teamRoutes, "GET /v1/me": () => me("platform_admin"), "GET /v1/admin/models": () => [], "GET /v1/admin/attention": () => ({ pendingDomainRequests: 0 }) });
+    const { router } = renderApp("/teams/registrar/sources");
+    const portal = await screen.findByRole("navigation", { name: "Portal" });
+    await user.click(within(portal).getByRole("link", { name: "Admin" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin"));
   });
 
   it("shows team pages, the team breadcrumb and a read-only admin badge for auditors", async () => {

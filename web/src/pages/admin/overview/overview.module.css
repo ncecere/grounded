@@ -27,6 +27,14 @@
   padding-inline: var(--space-5);
 }
 
+/* On a phone the button goes under the text (aligned with it), so the title isn't squeezed to a word per line. */
+@media (max-width: 37.5rem) {
+  .rowActions {
+    flex-basis: 100%;
+    padding-inline-start: calc(var(--control-height-md) + var(--item-gap));
+  }
+}
+
 .row[data-tone="danger"] svg {
   color: var(--color-danger-text);
 }

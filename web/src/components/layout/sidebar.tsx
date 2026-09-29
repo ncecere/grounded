@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Bell, Compass, Home, LifeBuoy, LogOut, MessageSquare, MessagesSquare } from "lucide-react";
 import { api, unwrap } from "../../api/client";
 import { conversationsQuery } from "../../api/queries";
@@ -15,7 +15,8 @@ import { type ActiveTeam } from "./active-team";
 import { useCapabilities } from "./location";
 import { AdminHeader, ModeSwitch, type Mode } from "./mode-switch";
 import { TeamSwitcher } from "./team-switcher";
-import { adminSections, icon, teamNavFor } from "./nav";
+import { activeAdminGroup, adminSections, icon, teamNavFor } from "./nav";
+import { useAdminGroups } from "./admin-groups";
 
 export function AppSidebar({ me, mode, active }: { me: Me; mode: Mode; active: ActiveTeam }) {
   const signOut = useSignOut();
@@ -72,6 +73,8 @@ function RecentConversationsNav() {
           key={c.id}
           icon={icon(MessageSquare)}
           label={c.title || c.agentName}
+          // Titles repeat ("How do I request a transcript?"): the agent tells them apart.
+          description={c.title ? c.agentName : undefined}
           render={<Link to="/a/$team/$agent" params={{ team: c.teamSlug, agent: c.agentSlug }} search={{ c: c.id }} activeOptions={{ includeSearch: true }} />}
         />
       ))}
@@ -108,12 +111,20 @@ function WorkspaceNav({ me, active }: { me: Me; active: ActiveTeam }) {
   );
 }
 
-/** Admin groups (D6); SystemOne only once a SystemOne model exists. */
+/** Admin groups (D6); SystemOne only once a SystemOne model exists. Groups collapse (useAdminGroups). */
 function AdminNav() {
   const models = useQuery({ queryKey: ["admin", "models"], queryFn: async () => unwrap(await api.GET("/v1/admin/models")) });
   const hasSystemOne = (models.data ?? []).some((m) => m.kind === "systemone");
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const groups = useAdminGroups(activeAdminGroup(pathname));
   return adminSections.map((section, i) => (
-    <SidebarSection key={section.label ?? i} label={section.label}>
+    <SidebarSection
+      key={section.label ?? i}
+      label={section.label}
+      collapsible={Boolean(section.label)}
+      open={section.label ? groups.isOpen(section.label) : undefined}
+      onOpenChange={section.label ? (o) => groups.setOpen(section.label!, o) : undefined}
+    >
       {section.items
         .filter((item) => !item.systemOne || hasSystemOne)
         .map((item) => (

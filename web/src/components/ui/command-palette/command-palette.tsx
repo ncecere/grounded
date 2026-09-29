@@ -3,7 +3,7 @@
 import { Autocomplete } from "@base-ui/react/autocomplete";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { Search } from "lucide-react";
-import { type ReactNode, useEffect, useId } from "react";
+import { type ReactNode, useEffect, useId, useMemo } from "react";
 import { KbdShortcut } from "@/components/ui/kbd/kbd";
 import { cx } from "@/lib/bitop-utils";
 import styles from "./command-palette.module.css";
@@ -58,11 +58,26 @@ export type CommandPaletteProps = {
 
 type Group = { value: string; items: Command[] };
 
-function matches(item: Command, query: string): boolean {
+/** A typed word and its singular forms: "members" also looks for "member", "policies" for "policy", "searches" for "search". */
+function wordForms(word: string): string[] {
+  const forms = [word];
+  if (word.length > 4 && word.endsWith("ies")) forms.push(word.slice(0, -3) + "y");
+  if (word.length > 4 && word.endsWith("es")) forms.push(word.slice(0, -2));
+  if (word.length > 3 && word.endsWith("s") && !word.endsWith("ss")) forms.push(word.slice(0, -1));
+  return forms;
+}
+
+/**
+ * Whether a command matches what was typed: every word of the query appears
+ * in its label or keywords (case-insensitive), as a whole word, the start of
+ * one ("memb") or anywhere inside, in the singular or the plural ("members"
+ * finds "Add member").
+ */
+export function commandMatches(item: Pick<Command, "label" | "keywords">, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   const haystack = [item.label, ...(item.keywords ?? [])].join(" ").toLowerCase();
-  return q.split(/\s+/).every((word) => haystack.includes(word));
+  return q.split(/\s+/).every((word) => wordForms(word).some((form) => haystack.includes(form)));
 }
 
 export function CommandPalette({
@@ -78,7 +93,9 @@ export function CommandPalette({
   onQueryChange,
 }: CommandPaletteProps) {
   const hintId = useId();
-  const items: Group[] = groups.filter((g) => g.items.length > 0).map((g) => ({ value: g.label, items: g.items }));
+  // A stable list while the groups don't change, so typing or a parent's
+  // re-render doesn't hand Autocomplete a new collection to re-index.
+  const items: Group[] = useMemo(() => groups.filter((g) => g.items.length > 0).map((g) => ({ value: g.label, items: g.items })), [groups]);
 
   function run(cmd: Command) {
     onOpenChange(false);
@@ -98,7 +115,7 @@ export function CommandPalette({
               autoHighlight="always"
               keepHighlight
               itemToStringValue={(item: Command) => item.label}
-              filter={(item: Command, text: string) => matches(item, text)}
+              filter={(item: Command, text: string) => commandMatches(item, text)}
               {...(query !== undefined ? { value: query } : {})}
               onValueChange={onQueryChange ? (text: string) => onQueryChange(text) : undefined}
             >

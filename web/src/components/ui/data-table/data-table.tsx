@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/pagination/pagination";
 import { Skeleton } from "@/components/ui/skeleton/skeleton";
 import { Table, TableActions, Td, Th, Tr, type TableColumn, type TableProps } from "@/components/ui/table/table";
-import { cx, dataFlag } from "@/lib/bitop-utils";
+import { cx, dataFlag, NARROW_QUERY } from "@/lib/bitop-utils";
 import styles from "./data-table.module.css";
 
 /*
@@ -86,8 +86,9 @@ import styles from "./data-table.module.css";
  * Extras for list pages:
  *   - `columnsMenu`: a "Columns" menu of checkbox items to show and hide
  *     columns (`hideable: false` keeps one fixed; `defaultHidden` starts it
- *     hidden). Control it with `hiddenColumns` / `onHiddenColumnsChange`, or
- *     let `columnsStorageKey` persist the choice in localStorage.
+ *     hidden, `defaultHiddenNarrow` only below 600px). Control it with
+ *     `hiddenColumns` / `onHiddenColumnsChange`, or let `columnsStorageKey`
+ *     persist the choice in localStorage.
  *   - `facets`: a FilterBar (toggle / select / date-range facets with
  *     counts, active-filter chips and "Clear all") under the toolbar. Rows
  *     are filtered in memory with each facet's accessor unless `manual`.
@@ -140,6 +141,8 @@ export type DataTableColumn<T> = {
   hideable?: boolean;
   /** Start hidden (uncontrolled column visibility). */
   defaultHidden?: boolean;
+  /** Start hidden on a narrow window (below 600px, NARROW_QUERY): a low-priority column; the Columns menu still offers it. */
+  defaultHiddenNarrow?: boolean;
   /** Name in the Columns menu when `header` isn't plain text (default: header text, else id). */
   label?: string;
 };
@@ -435,8 +438,13 @@ export function DataTable<T>({
   const [filter, setFilterValue] = useControllable<string>(filterProp, defaultFilter, onFilterChange);
   const [page, setPage] = useControllable<number>(pageProp, defaultPage, onPageChange);
   const [facetValues, setFacetValuesState] = useControllable<FilterValues>(facetValuesProp, defaultFacetValues, onFacetValuesChange);
-  // Uncontrolled visibility starts from defaultHiddenColumns, then `defaultHidden` columns.
-  const [innerHidden, setInnerHidden] = useState<string[]>(() => defaultHiddenColumns ?? columns.filter((c) => c.defaultHidden).map((c) => c.id));
+  // Uncontrolled visibility starts from defaultHiddenColumns, then `defaultHidden`
+  // columns (plus `defaultHiddenNarrow` ones on a narrow window).
+  const [innerHidden, setInnerHidden] = useState<string[]>(() => {
+    if (defaultHiddenColumns) return defaultHiddenColumns;
+    const narrow = typeof window !== "undefined" && (window.matchMedia?.(NARROW_QUERY).matches ?? false);
+    return columns.filter((c) => c.defaultHidden || (narrow && c.defaultHiddenNarrow)).map((c) => c.id);
+  });
   // The saved choice is read after mount, so the server render and the first
   // client render match (no hydration mismatch); a layout effect applies it
   // before the browser paints.

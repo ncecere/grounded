@@ -5,17 +5,22 @@ import { type ComponentPropsWithoutRef, useEffect } from "react";
 import { SidebarModeSwitch, useAppShell } from "@/components/ui/app-shell/app-shell";
 import styles from "./layout.module.css";
 
-/* Workspace / admin portal switch; each mode remembers the last page visited in it. */
+/*
+ * Workspace / admin portal switch; each mode remembers the last page the
+ * signed-in person visited in it during this browser session. The memory is
+ * per person: after someone else signs in in the same tab, Admin opens on
+ * Overview, not on the page the previous person left.
+ */
 
 export type Mode = "workspace" | "admin";
 
-const lastHrefKey = (mode: Mode) => `grounded.lastHref.${mode}`;
+const lastHrefKey = (userId: string, mode: Mode) => `grounded.lastHref.${userId}.${mode}`;
 
 const defaultHref: Record<Mode, string> = { workspace: "/", admin: "/admin" };
 
-function readLastHref(mode: Mode) {
+function readLastHref(userId: string, mode: Mode) {
   try {
-    return globalThis.sessionStorage?.getItem(lastHrefKey(mode)) ?? defaultHref[mode];
+    return globalThis.sessionStorage?.getItem(lastHrefKey(userId, mode)) ?? defaultHref[mode];
   } catch {
     return defaultHref[mode];
   }
@@ -28,16 +33,17 @@ const modeOfPath = (pathname: string): Mode => (pathname === "/admin" || pathnam
  * before the matched routes, so a route-derived mode could file a page under
  * the wrong mode. */
 export function useRememberHref() {
+  const userId = useCurrentUser().user.id;
   const href = useRouterState({ select: (st) => st.location.href });
   const pathname = useRouterState({ select: (st) => st.location.pathname });
   useEffect(() => {
     const mode = modeOfPath(pathname);
     try {
-      globalThis.sessionStorage?.setItem(lastHrefKey(mode), href);
+      globalThis.sessionStorage?.setItem(lastHrefKey(userId, mode), href);
     } catch {
       // Ignore storage errors.
     }
-  }, [pathname, href]);
+  }, [userId, pathname, href]);
 }
 
 /** An in-app link to a stored href (not a typed route). Modified clicks open normally. */
@@ -58,6 +64,7 @@ function HrefLink({ href, ...props }: ComponentPropsWithoutRef<"a"> & { href: st
 }
 
 export function ModeSwitch({ mode }: { mode: Mode }) {
+  const userId = useCurrentUser().user.id;
   return (
     <SidebarModeSwitch
       label="Portal"
@@ -66,13 +73,13 @@ export function ModeSwitch({ mode }: { mode: Mode }) {
           label: "Workspace",
           icon: <LayoutDashboard aria-hidden />,
           current: mode === "workspace",
-          render: <HrefLink href={mode === "workspace" ? "/" : readLastHref("workspace")} />,
+          render: <HrefLink href={mode === "workspace" ? "/" : readLastHref(userId, "workspace")} />,
         },
         {
           label: "Admin",
           icon: <Shield aria-hidden />,
           current: mode === "admin",
-          render: <HrefLink href={mode === "admin" ? defaultHref.admin : readLastHref("admin")} />,
+          render: <HrefLink href={mode === "admin" ? defaultHref.admin : readLastHref(userId, "admin")} />,
         },
       ]}
     />

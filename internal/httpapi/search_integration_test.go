@@ -199,6 +199,14 @@ func TestSearchRankingAndValidation(t *testing.T) {
 	code, e = env.member.call("GET", "/v1/search?q=zep&limit=2", nil, &two, nil)
 	mustCode(t, "limit", code, e, 200, "")
 	wantHits(t, "limit 2", two, "knowledge_base:Zephyr", "data_source:Zeppelin files")
+	// An agent's description matches too, after every name match.
+	code, e = env.owner.call("POST", env.base+"/agents", map[string]any{"name": "Records helper",
+		"description": "Answers questions about transcripts and diplomas"}, nil, nil)
+	mustCode(t, "agent", code, e, 201, "")
+	code, e = env.owner.call("POST", env.base+"/kbs", map[string]any{"name": "Old transcript notes"}, nil, nil)
+	mustCode(t, "kb transcript", code, e, 201, "")
+	wantHits(t, "description", searchAs(t, env.member, "TRANSCRIPT"), "knowledge_base:Old transcript notes", "agent:Records helper")
+
 	// LIKE wildcards are literal.
 	if rs := searchAs(t, env.member, "%_"); len(rs) != 0 {
 		t.Errorf("wildcards matched %q", hits(rs))

@@ -6,7 +6,8 @@
 //   - Everyone signed in: the agents of their teams (members see their
 //     team's agents) and the agents they may chat with (the directory's
 //     rules: all_authenticated, or public while the public switch is on;
-//     published, active agents of active teams), the knowledge bases and
+//     published, active agents of active teams), found by name or
+//     description, the knowledge bases and
 //     data sources of all their teams, and their own conversations by title;
 //     the evaluation sets of the teams where they are an editor or above,
 //     while evaluations are on (docs/evaluations.md §5).

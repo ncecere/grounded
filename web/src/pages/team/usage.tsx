@@ -13,6 +13,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Schemas } from "../../api/client";
 import { formatAmount, formatLimit, limitGroups, teamLimitsQuery } from "../../lib/limits";
+import { terms } from "../../lib/terms";
 import { useAuthConfig, useInstance } from "../../session";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
@@ -77,7 +78,7 @@ function useRequestMoreHref() {
   return instance.supportUrl ?? config.data?.teamRequestUrl ?? undefined;
 }
 
-/** "Usage and limits": meters against the team's effective limits. */
+/** "Usage & limits": meters against the team's effective limits. */
 export function UsageCard({ team }: { team: string }) {
   const limits = useQuery({ ...teamLimitsQuery(team), refetchInterval: 30_000 });
   const agents = useAgents(team);
@@ -88,7 +89,7 @@ export function UsageCard({ team }: { team: string }) {
   const staticLimits = groups.map((g) => ({ ...g, items: items.filter((it) => it.group === g.key && it.used === null) })).filter((g) => g.items.length > 0);
   return (
     <Card
-      title="Usage and limits"
+      title={terms.usageAndLimits}
       description={
         <>
           Your team's usage against its limits. Platform admins set the limits.{" "}

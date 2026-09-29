@@ -4662,9 +4662,10 @@ paths:
         teams, users, models, connections, embedding profiles and shared
         sources (metadata they may read; never another team's content).
         Matching is case-insensitive on the name (users: display name or
-        email; models and profiles: name or key); results are ranked by how
-        the name matches (prefix, then the start of a word, then anywhere),
-        then by type, and cut to `limit`.
+        email; models and profiles: name or key; agents: name or
+        description); results are ranked by how the name matches (prefix,
+        then the start of a word, then anywhere, then an agent whose
+        description alone matches), then by type, and cut to `limit`.
       parameters:
         - name: q
           in: query

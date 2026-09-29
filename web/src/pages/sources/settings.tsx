@@ -155,6 +155,7 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
           )}
         </SettingsSection>
         <SettingsSection
+          id="ocr"
           title="OCR"
           description={
             source.ocrState === "platform_off"

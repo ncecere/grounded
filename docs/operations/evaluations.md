@@ -34,7 +34,7 @@ Questions can also be:
 **Run** on the set's page starts a run; one run of a set at a time.
 
 - **Retrieval check** (the default): for each question, the same retrieval the knowledge base or agent uses, with k = its results per search. A question passes when an expected document comes back in the top k. The run reports **recall@k** (the share of questions that passed) and **MRR** (the mean of 1/rank of the first expected document). No model calls except embedding the questions.
-- **Full-answer check** (agent sets): asks the agent each question the way the Test panel does, from the draft (default) or the published version, without writing a conversation. A question passes when the answer cites an expected document and mentions every must-mention phrase. Results also say whether the answer refused, and the share of supported claims when SystemOne citation checks are on for the agent. The run form shows how many answers it asks for; the answers are stored with the results.
+- **Full-answer check** (agent sets): asks the agent each question the way the Build tab's Try it panel does, from the draft (default) or the published version, without writing a conversation. A question passes when the answer cites an expected document and mentions every must-mention phrase. Results also say whether the answer refused, and the share of supported claims when SystemOne citation checks are on for the agent. The run form shows how many answers it asks for; the answers are stored with the results.
 
 Questions whose expected documents no longer exist are reported apart ("3 questions point at documents that were deleted") and don't count as failures; neither do checks that failed (for example, the model was unavailable).
 

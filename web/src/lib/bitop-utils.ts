@@ -106,6 +106,29 @@ export function useScrollEdges<T extends HTMLElement>(): [RefCallback<T>, Scroll
   return [setNode, edges];
 }
 
+/** A phone-width window (below 600px): the app shell's drawer, columns hidden on narrow windows. */
+export const NARROW_QUERY = "(max-width: 37.5rem)";
+
+/**
+ * Whether a media query matches, kept up to date as the window changes:
+ *
+ *   const narrow = useMediaQuery("(max-width: 37.5rem)");
+ *
+ * Without `matchMedia` (tests, server rendering) it returns `fallback`.
+ */
+export function useMediaQuery(query: string, fallback = false): boolean {
+  const [matches, setMatches] = useState(() => globalThis.matchMedia?.(query).matches ?? fallback);
+  useEffect(() => {
+    const mq = globalThis.matchMedia?.(query);
+    if (!mq) return;
+    const update = () => setMatches(mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    return () => mq.removeEventListener?.("change", update);
+  }, [query]);
+  return matches;
+}
+
 /** Data attributes for useScrollEdges: data-overflowing, data-overflow-start, data-overflow-end. */
 export function scrollEdgeAttrs(edges: ScrollEdges) {
   return {

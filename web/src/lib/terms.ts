@@ -34,6 +34,10 @@ export const terms = {
   dangerZone: "Danger zone",
   readOnly: "Read-only",
   systemOneModel: "SystemOne model",
+  /** Trying a knowledge base or an agent by hand (KB tab, agent Build panel, row menus). "Test" is only for infrastructure: connections, models, OCR backends, moderation providers. */
+  tryIt: "Try it",
+  /** Team settings → Usage & limits (the tab and its card). */
+  usageAndLimits: "Usage & limits",
   /** Admin → Group mapping: IdP group → team role rules (SSO). */
   groupMapping: "Group mapping",
 } as const;

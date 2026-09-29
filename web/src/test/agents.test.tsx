@@ -139,6 +139,11 @@ describe("team agents list", () => {
     expect(draft).toHaveTextContent("Public (draft)");
     expect(draft).toHaveTextContent("Small model");
     expect(await axe(container)).toHaveNoViolations();
+    // Trying an agent by hand is "Try it", as on a knowledge base ("Test" is for infrastructure).
+    await userEvent.click(within(live).getByRole("button", { name: /^Actions for/ }));
+    expect(await screen.findByRole("menuitem", { name: "Try it" })).toHaveAttribute("href", expect.stringContaining("test=open"));
+    expect(screen.queryByRole("menuitem", { name: "Test" })).toBeNull();
+    await userEvent.keyboard("{Escape}");
     await userEvent.click(screen.getByRole("button", { name: /^Not published, / }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ status: "draft" }));
     expect(within(table).queryByText("Registrar assistant")).toBeNull();
@@ -458,7 +463,7 @@ describe("agent editor", () => {
     const box = await screen.findByRole("textbox", { name: "Message Registrar assistant" }, { timeout: 5000 });
     expect(router.state.location.search).toEqual({ test: "open" });
     expect(screen.getByRole("tab", { name: "Build", selected: true })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Test" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Try it" })).toBeInTheDocument();
     await userEvent.type(box, "Hi{Enter}");
     expect(await screen.findByText("The draft can't be tested yet")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Chat model" })).toBeInTheDocument();

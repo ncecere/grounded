@@ -2,7 +2,8 @@
  * DetailPage (D3): the one layout for a container's page (source, KB,
  * agent, team, user).
  *
- *   header   title · meta badges · one primary action · "…" menu
+ *   header   title · meta badges · secondary buttons · one primary action · "…" menu
+ *            (on a phone the secondary buttons join the "…" menu: PageActions)
  *   facts    one FactsLine ("Web · 42 documents · Synced 3 h ago")
  *   notices  alerts about the object (archived, paused, errors)
  *   tabs     pill tabs in ?tab=: Overview · content · type-specific · Settings
@@ -16,8 +17,8 @@ import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { type PageTab, PageTabs, useUrlTab } from "../page-tabs";
 import s from "../../pages/shared.module.css";
-import { ActionMenu, type ActionItem } from "./action-menu";
-import styles from "./templates.module.css";
+import { type ActionItem } from "./action-menu";
+import { PageActions } from "./page-actions";
 
 export type DetailPageProps<T extends string> = {
   title: ReactNode;
@@ -28,6 +29,8 @@ export type DetailPageProps<T extends string> = {
   facts?: Fact[];
   /** The one contextual primary action, e.g. <Button>Sync now</Button>. */
   primaryAction?: ReactNode;
+  /** Secondary buttons before the primary (Chat, Try it); on a phone they move into the "…" menu. */
+  secondaryActions?: ActionItem[];
   /** Secondary actions in the "…" menu (Pause, Duplicate, Delete…); destructive ones last. */
   menuActions?: ActionItem[];
   /** Name of the "…" button (default "More actions"). */
@@ -57,6 +60,7 @@ export function DetailPage<T extends string>({
   description,
   facts,
   primaryAction,
+  secondaryActions,
   menuActions = [],
   menuLabel = "More actions",
   notices,
@@ -67,7 +71,6 @@ export function DetailPage<T extends string>({
 }: DetailPageProps<T>) {
   const [tab, setTab] = useUrlTab(tabIds);
   const shownFacts = (facts ?? []).filter(hasValue);
-  const menu = <ActionMenu actions={menuActions} label={menuLabel} size="md" />;
   return (
     <Stack gap={6} className={s.page}>
       <PageHeader
@@ -76,11 +79,8 @@ export function DetailPage<T extends string>({
         description={description}
         facts={shownFacts.length > 0 ? <FactsLine items={shownFacts} /> : undefined}
         actions={
-          primaryAction || menuActions.some((a) => !a.hidden) ? (
-            <div className={styles.headerActions}>
-              {primaryAction}
-              {menu}
-            </div>
+          primaryAction || [...(secondaryActions ?? []), ...menuActions].some((a) => !a.hidden) ? (
+            <PageActions primary={primaryAction} secondary={secondaryActions} menu={menuActions} menuLabel={menuLabel} />
           ) : undefined
         }
       />
