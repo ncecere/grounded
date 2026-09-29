@@ -5628,13 +5628,18 @@ type EvaluationExpected struct {
 
 // EvaluationExpectedItem One expected document of a question and whether the knowledge base holds it: indexed (a document matches it), not_indexed (none does, and none did in the question's earlier runs: a typo, or a document not added yet), or deleted (a picked document, or one an earlier run found, that's gone).
 type EvaluationExpectedItem struct {
-	Kind EvaluationExpectedItemKind `json:"kind"`
+	// DocumentId A document that matches it (indexed)
+	DocumentId *openapi_types.UUID        `json:"documentId,omitempty"`
+	Kind       EvaluationExpectedItemKind `json:"kind"`
 
 	// Rank Retrieval runs: the passage rank at which a document matching it first came back. Beyond the run's k when only the deeper search for ranks found it (the result's searchDepth); absent when it didn't come back.
-	Rank  *int                        `json:"rank,omitempty"`
-	State EvaluationExpectedItemState `json:"state"`
+	Rank *int `json:"rank,omitempty"`
 
-	// Title A document's title
+	// SourceId That document's data source
+	SourceId *openapi_types.UUID         `json:"sourceId,omitempty"`
+	State    EvaluationExpectedItemState `json:"state"`
+
+	// Title The title of the document that matches it (or matched it, when deleted), when known
 	Title *string `json:"title,omitempty"`
 
 	// Value The document's ID, the URL (ending in * for a prefix) or the filename

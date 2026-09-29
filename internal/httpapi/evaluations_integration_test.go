@@ -135,7 +135,8 @@ func TestEvaluationRetrievalRun(t *testing.T) {
 		housing.MissingReason != nil {
 		t.Errorf("housing expected = %+v depth %v k %v", it, housing.SearchDepth, housing.K)
 	}
-	if it := parking.ExpectedItems; len(it) != 1 || it[0].State != "indexed" || it[0].Rank == nil || *it[0].Rank != 1 || parking.SearchDepth != nil {
+	if it := parking.ExpectedItems; len(it) != 1 || it[0].State != "indexed" || it[0].Rank == nil || *it[0].Rank != 1 || parking.SearchDepth != nil ||
+		it[0].DocumentId == nil || it[0].SourceId == nil || *it[0].SourceId != env.upload.Id || it[0].Title == nil || *it[0].Title == "" {
 		t.Errorf("parking expected = %+v", it)
 	}
 	// A URL nothing ever matched: not in this knowledge base (not "deleted"),
@@ -189,7 +190,7 @@ func TestEvaluationRetrievalRun(t *testing.T) {
 	env.deleteDocument(t, "library.txt")
 	d3 := env.runEval(t, set, map[string]any{})
 	if h := resultFor(d3, qHousing); h.Status != "missing" || h.MissingReason == nil || *h.MissingReason != "deleted" ||
-		h.ExpectedItems[0].State != "deleted" || len(h.Hits) == 0 {
+		h.ExpectedItems[0].State != "deleted" || h.ExpectedItems[0].Title == nil || h.ExpectedItems[0].DocumentId != nil || len(h.Hits) == 0 {
 		t.Errorf("deleted = %+v", h)
 	}
 	if s := d3.Run.Summary; s.Missing != 2 || s.NotIndexed != 1 {

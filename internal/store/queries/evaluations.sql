@@ -164,6 +164,19 @@ SELECT EXISTS (
            OR (d.filename <> '' AND lower(d.filename) = ANY(@filenames::text[])))
 )::boolean;
 
+-- The first document of the sources that matches expected documents (the
+-- conditions of ExpectedDocumentExists), for a question's diagnosis: one
+-- row or none.
+-- name: MatchExpectedDocument :many
+SELECT d.id, d.source_id, d.title, d.filename, d.url FROM documents d
+WHERE d.source_id = ANY(@source_ids::uuid[])
+  AND (d.id = ANY(@document_ids::uuid[])
+       OR (d.url <> '' AND rtrim(d.url, '/') = ANY(@urls::text[]))
+       OR (d.url <> '' AND EXISTS (SELECT 1 FROM unnest(@url_prefixes::text[]) p WHERE starts_with(d.url, p)))
+       OR (d.filename <> '' AND lower(d.filename) = ANY(@filenames::text[])))
+ORDER BY d.created_at, d.id
+LIMIT 1;
+
 -- Whether a must-mention phrase's words (stemmed, in order, as
 -- phraseto_tsquery reads them) appear in a passage of the sources, for the
 -- question form's warning. A phrase of stopwords only has no words to look

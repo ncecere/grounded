@@ -8588,10 +8588,20 @@ export interface components {
             kind: "document" | "url" | "filename";
             /** @description The document's ID, the URL (ending in * for a prefix) or the filename */
             value: string;
-            /** @description A document's title */
+            /** @description The title of the document that matches it (or matched it, when deleted), when known */
             title?: string;
             /** @enum {string} */
             state: "indexed" | "not_indexed" | "deleted";
+            /**
+             * Format: uuid
+             * @description A document that matches it (indexed)
+             */
+            documentId?: string;
+            /**
+             * Format: uuid
+             * @description That document's data source
+             */
+            sourceId?: string;
             /** @description Retrieval runs: the passage rank at which a document matching it first came back. Beyond the run's k when only the deeper search for ranks found it (the result's searchDepth); absent when it didn't come back. */
             rank?: number;
         };

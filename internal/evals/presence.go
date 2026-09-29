@@ -91,11 +91,11 @@ func (s *Service) checkScope(ctx context.Context, teamID uuid.UUID, in CheckInpu
 	return s.kbIDs(ctx, set)
 }
 
-// stateItems marks each item indexed or not, a picked document that's gone
-// as deleted (the form only offers the knowledge base's documents), and
-// titles the picked documents.
+// stateItems marks each item indexed (with the matching document) or not,
+// and a picked document that's gone as deleted (the form only offers the
+// knowledge base's documents).
 func (s *Service) stateItems(ctx context.Context, sources []uuid.UUID, items []ExpectedItem) error {
-	found, err := s.indexed(ctx, sources, items)
+	found, err := s.match(ctx, sources, items)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (s *Service) stateItems(ctx context.Context, sources []uuid.UUID, items []E
 			items[i].State = StateNotIndexed
 		}
 	}
-	return s.titleItems(ctx, items)
+	return nil
 }
 
 // importWarnings are the usable rows none of whose expected documents is
@@ -129,7 +129,7 @@ func (s *Service) importWarnings(ctx context.Context, set dbgen.EvalSet, rows []
 	}
 	for _, r := range rows {
 		items := r.Expected.Items()
-		found, err := s.indexed(ctx, sources, items)
+		found, err := s.match(ctx, sources, items)
 		if err != nil {
 			return nil, err
 		}

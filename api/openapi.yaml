@@ -11087,8 +11087,10 @@ components:
       properties:
         kind: { type: string, enum: [document, url, filename] }
         value: { type: string, description: "The document's ID, the URL (ending in * for a prefix) or the filename" }
-        title: { type: string, description: A document's title, when known }
+        title: { type: string, description: "The title of the document that matches it (or matched it, when deleted), when known" }
         state: { type: string, enum: [indexed, not_indexed, deleted] }
+        documentId: { type: string, format: uuid, description: A document that matches it (indexed) }
+        sourceId: { type: string, format: uuid, description: That document's data source }
         rank:
           type: integer
           description: >-

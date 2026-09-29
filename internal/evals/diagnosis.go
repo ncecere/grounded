@@ -47,6 +47,9 @@ type ExpectedItem struct {
 	Value string `json:"value"`
 	Title string `json:"title,omitempty"`
 	State string `json:"state"`
+	// DocumentID and SourceID are a document that matches it (indexed).
+	DocumentID *uuid.UUID `json:"documentId,omitempty"`
+	SourceID   *uuid.UUID `json:"sourceId,omitempty"`
 	// Rank is the passage rank a matching document first came back at
 	// (retrieval), beyond k when Diagnosis.Depth is set.
 	Rank *int `json:"rank,omitempty"`
@@ -161,45 +164,24 @@ func rankItems(items []ExpectedItem, docs []Doc) {
 	}
 }
 
-// indexed reports, for each item, whether a document of the sources
-// matches it.
-func (s *Service) indexed(ctx context.Context, sources []uuid.UUID, items []ExpectedItem) ([]bool, error) {
-	out := make([]bool, len(items))
-	for i, it := range items {
-		docs, urls, prefixes, names := it.want().existence()
-		ok, err := s.q.ExpectedDocumentExists(ctx, dbgen.ExpectedDocumentExistsParams{SourceIds: sources, DocumentIds: docs,
+// match finds a document of the sources matching each item: found[i]
+// says whether one does, and the item gets its ID, source and title.
+func (s *Service) match(ctx context.Context, sources []uuid.UUID, items []ExpectedItem) ([]bool, error) {
+	found := make([]bool, len(items))
+	for i := range items {
+		docs, urls, prefixes, names := items[i].want().existence()
+		rows, err := s.q.MatchExpectedDocument(ctx, dbgen.MatchExpectedDocumentParams{SourceIds: sources, DocumentIds: docs,
 			Urls: urls, UrlPrefixes: prefixes, Filenames: names})
 		if err != nil {
 			return nil, err
 		}
-		out[i] = ok
-	}
-	return out, nil
-}
-
-// titleItems gives picked documents that still exist their titles.
-func (s *Service) titleItems(ctx context.Context, items []ExpectedItem) error {
-	var ids []uuid.UUID
-	for _, it := range items {
-		if id, err := uuid.Parse(it.Value); err == nil && it.Kind == ItemDocument {
-			ids = append(ids, id)
+		if len(rows) > 0 {
+			r := rows[0]
+			found[i] = true
+			items[i].DocumentID, items[i].SourceID, items[i].Title = &r.ID, &r.SourceID, firstOf(r.Title, r.Filename, r.URL)
 		}
 	}
-	if len(ids) == 0 {
-		return nil
-	}
-	rows, err := s.q.EvalDocumentsByID(ctx, ids)
-	if err != nil {
-		return err
-	}
-	for _, r := range rows {
-		for i := range items {
-			if items[i].Kind == ItemDocument && items[i].Value == r.ID.String() {
-				items[i].Title = firstOf(r.Title, r.Filename, r.URL)
-			}
-		}
-	}
-	return nil
+	return found, nil
 }
 
 // seenBefore are the items the question's earlier results found in the
@@ -226,15 +208,12 @@ func (s *Service) seenBefore(ctx context.Context, caseID uuid.UUID) (map[string]
 // the form checks, or found by an earlier run) or never indexed.
 func (x *executor) diagnose(ctx context.Context, cs Case) (Diagnosis, error) {
 	d := Diagnosis{Expected: cs.Want.Items(), K: x.t.cfg.ResultsPerSearch}
-	found, err := x.s.indexed(ctx, x.sources, d.Expected)
+	found, err := x.s.match(ctx, x.sources, d.Expected)
 	if err != nil {
 		return d, err
 	}
 	before, err := x.s.seenBefore(ctx, cs.ID)
 	if err != nil {
-		return d, err
-	}
-	if err := x.s.titleItems(ctx, d.Expected); err != nil {
 		return d, err
 	}
 	for i := range d.Expected {
