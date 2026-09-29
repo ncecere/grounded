@@ -14,7 +14,6 @@ export type AdminPath =
   | "/admin/connections"
   | "/admin/models"
   | "/admin/embedding-profiles"
-  | "/admin/profile-migrations"
   | "/admin/systemone"
   | "/admin/shared-sources"
   | "/admin/crawl-domains"
@@ -27,13 +26,16 @@ export type AdminPath =
   | "/admin/public-access"
   | "/admin/maintenance"
   | "/admin/retention"
-  | "/admin/legal-holds"
   | "/admin/break-glass"
   | "/admin/logs";
 
 export type AdminNavItem = { to: AdminPath; label: string; icon: ReactNode; exact?: boolean; /** Only when a SystemOne model exists. */ systemOne?: boolean };
 
-/** Admin sidebar groups (D6). */
+/**
+ * Admin sidebar groups (D6; regrouped in v0.2.1, I1): Overview and 7 groups, 21 items.
+ * Profile migrations is a tab of Embedding profiles and Legal holds a tab of
+ * Retention (adminTabCommands keeps both in ⌘K).
+ */
 export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
   { items: [{ to: "/admin", label: terms.adminOverview, icon: icon(LayoutDashboard), exact: true }] },
   {
@@ -51,7 +53,6 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
       { to: "/admin/agents", label: "Agents", icon: icon(Bot) },
       { to: "/admin/crawl-domains", label: terms.crawlDomains, icon: icon(Globe) },
       { to: "/admin/parsing", label: "Parsing & OCR", icon: icon(ScanText) },
-      { to: "/admin/break-glass", label: "Break-glass", icon: icon(LockOpen) },
     ],
   },
   {
@@ -60,29 +61,56 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
       { to: "/admin/connections", label: "Connections", icon: icon(Plug) },
       { to: "/admin/models", label: "Models", icon: icon(Cpu) },
       { to: "/admin/embedding-profiles", label: "Embedding profiles", icon: icon(Layers) },
-      { to: "/admin/profile-migrations", label: "Profile migrations", icon: icon(Shuffle) },
       { to: "/admin/systemone", label: "SystemOne", icon: icon(Sparkles), systemOne: true },
     ],
   },
   {
-    label: "Policy",
-    items: [
-      { to: "/admin/classifications", label: "Classifications", icon: icon(Tags) },
-      { to: "/admin/limits", label: "Limits", icon: icon(Gauge) },
-      { to: "/admin/moderation", label: "Moderation", icon: icon(ShieldCheck) },
-      { to: "/admin/public-access", label: "Public access", icon: icon(Earth) },
-      { to: "/admin/maintenance", label: "Maintenance", icon: icon(Wrench) },
-      { to: "/admin/retention", label: "Retention", icon: icon(Archive) },
-      { to: "/admin/legal-holds", label: "Legal holds", icon: icon(Scale) },
-    ],
-  },
-  {
-    label: "Monitoring",
+    label: "Usage & spend",
     items: [
       { to: "/admin/analytics", label: "Analytics", icon: icon(BarChart3) },
       { to: "/admin/costs", label: "Costs", icon: icon(CircleDollarSign) },
-      { to: "/admin/logs", label: terms.logs, icon: icon(ScrollText) },
+      { to: "/admin/limits", label: "Limits", icon: icon(Gauge) },
     ],
+  },
+  {
+    label: "Safety",
+    items: [
+      { to: "/admin/classifications", label: "Classifications", icon: icon(Tags) },
+      { to: "/admin/moderation", label: "Moderation", icon: icon(ShieldCheck) },
+      { to: "/admin/public-access", label: "Public access", icon: icon(Earth) },
+    ],
+  },
+  {
+    label: "Records",
+    items: [
+      { to: "/admin/logs", label: terms.logs, icon: icon(ScrollText) },
+      { to: "/admin/retention", label: "Retention", icon: icon(Archive) },
+      { to: "/admin/break-glass", label: "Break-glass", icon: icon(LockOpen) },
+    ],
+  },
+  { label: "Operations", items: [{ to: "/admin/maintenance", label: "Maintenance", icon: icon(Wrench) }] },
+];
+
+/** Admin group labels before v0.2.1 and the group each one's pages mostly went to (remembered open groups, admin-groups.ts). */
+export const oldAdminGroups: Record<string, string[]> = { Policy: ["Safety"], Monitoring: ["Usage & spend", "Records"] };
+
+/** Admin places that are a tab of a sidebar page, for ⌘K (their old pages redirect there, router.tsx). */
+export const adminTabCommands: { id: string; label: string; to: AdminPath; tab: string; icon: ReactNode; keywords: string[] }[] = [
+  {
+    id: "profile-migrations",
+    label: "Profile migrations",
+    to: "/admin/embedding-profiles",
+    tab: "migrations",
+    icon: icon(Shuffle),
+    keywords: ["profile migration", "embedding migration", "migrate", "re-embed", "switch model", "switch back", "embedding profiles"],
+  },
+  {
+    id: "legal-holds",
+    label: "Legal holds",
+    to: "/admin/retention",
+    tab: "holds",
+    icon: icon(Scale),
+    keywords: ["legal hold", "litigation", "records request", "preserve", "keep", "hold", "retention"],
   },
 ];
 
@@ -96,11 +124,11 @@ export function activeAdminGroup(pathname: string): string | undefined {
 
 /** Extra command-palette search words for admin pages. */
 export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
-  "/admin": ["overview", "dashboard", "attention", "home"],
+  "/admin": ["overview", "dashboard", "attention", "home", "features", "feature switches", "evaluations", "evaluation switch", "turn on", "turn off"],
   "/admin/group-mapping": ["sso", "groups", "identity provider", "idp", "oidc", "membership rules", "access"],
   "/admin/crawl-domains": ["allowlist", "domain requests", "web", "crawling"],
   "/admin/parsing": ["ocr", "scanned", "scan", "tesseract", "tika", "vision", "images", "pdf", "languages"],
-  "/admin/limits": ["quota", "usage", "rate limit", "storage", "defaults", "ceilings", "evaluations", "evaluation switch"],
+  "/admin/limits": ["quota", "usage", "rate limit", "storage", "defaults", "ceilings", "evaluation limits", "questions per set"],
   "/admin/agents": ["kill switch", "disable", "chat", "assistant"],
   "/admin/analytics": ["usage", "dashboard", "answers", "statistics", "report", "csv", "tokens"],
   "/admin/costs": ["spend", "budget", "prices", "pricing", "money", "billing", "currency", "extension", "tokens"],
@@ -108,10 +136,9 @@ export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
   "/admin/moderation": ["guardrail", "safety", "policy", "block", "public", "classifier"],
   "/admin/public-access": ["public", "anonymous", "widget", "embed", "captcha", "turnstile", "switch"],
   "/admin/maintenance": ["maintenance mode", "pause", "ingestion", "downtime", "upgrade", "freeze"],
-  "/admin/retention": ["records", "delete", "purge", "keep", "dry run", "transcripts", "period"],
-  "/admin/legal-holds": ["litigation", "records request", "preserve", "keep", "hold"],
+  "/admin/retention": ["records", "delete", "purge", "keep", "dry run", "transcripts", "period", "legal holds"],
   "/admin/break-glass": ["emergency access", "read team content", "transcripts", "approval", "investigate"],
-  "/admin/profile-migrations": ["embedding migration", "re-embed", "switch model", "switch back", "profile"],
+  "/admin/embedding-profiles": ["embedding", "vectors", "chunking", "passages", "dimensions", "migrations"],
   "/admin/systemone": ["judging", "passages", "rerank", "re-rank", "injection", "judgment", "jev", "typesafe"],
 };
 
