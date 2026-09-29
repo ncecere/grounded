@@ -163,7 +163,7 @@ describe("a set's page", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/teams/registrar/kbs/k1"));
   });
 
-  it("explains a Run that can't start, and puts the set under its knowledge base's Evaluations in the breadcrumbs", async () => {
+  it("explains a Run that can't start, and collapses the breadcrumb to Team › … › Set", async () => {
     mockApi(evalRoutes("editor", { "GET /v1/teams/registrar/evaluation-sets/set1": () => ({ ...set, questionCount: 0 }), "GET /v1/teams/registrar/evaluation-sets/set1/questions": () => [] }));
     const { container } = renderApp("/teams/registrar/evaluations/set1");
     // Focusable (aria-disabled, not disabled), with the reason as its description.
@@ -172,8 +172,12 @@ describe("a set's page", () => {
     expect(run).not.toBeDisabled();
     expect(run).toHaveAccessibleDescription("Add questions first.");
     const crumbs = screen.getByRole("navigation", { name: /Breadcrumb/i });
-    expect(within(crumbs).getByRole("link", { name: "Knowledge bases" })).toHaveAttribute("href", "/teams/registrar/kbs");
-    expect(within(crumbs).getByRole("link", { name: "Evaluations" })).toHaveAttribute("href", "/teams/registrar/kbs/k1?tab=evaluations");
+    // "…" stands for Knowledge bases › Student handbook › Evaluations and opens that tab.
+    const more = within(crumbs).getByRole("link", { name: "Student handbook, Evaluations" });
+    expect(more).toHaveAttribute("href", "/teams/registrar/kbs/k1?tab=evaluations");
+    expect(more).toHaveAttribute("title", "Knowledge bases › Student handbook › Evaluations");
+    expect(within(crumbs).queryByRole("link", { name: "Knowledge bases" })).toBeNull();
+    expect(within(crumbs).getAllByRole("listitem")).toHaveLength(3);
     expect(await axe(container)).toHaveNoViolations();
   });
 

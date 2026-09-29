@@ -19,7 +19,9 @@ export function useBreadcrumbs(loc: Location, canAdmin: boolean): BreadcrumbItem
   const pages = useCurrentPageCrumbs();
   const router = useRouter();
   let crumbs = trail;
-  if (tail) {
+  // An evaluation set's tab crumb ("Runs") goes while a run or result is open over it: the back link covers it (S6).
+  const tabCrumb = tail && !(pages.length > 0 && loc.routeId === "/app/teams/$team/evaluations/$setId");
+  if (tabCrumb) {
     // The last crumb becomes a link back to the page's first tab.
     const last = trail[trail.length - 1];
     const linked = last && !last.render ? { ...last, render: <Link to="." search={{}} /> } : last;
@@ -155,23 +157,28 @@ export function documentTitle(crumbs: BreadcrumbItem[], instanceName: string) {
   return [...labels.slice(-2).reverse(), instanceName].join(" · ");
 }
 
-/** An evaluation set, where its knowledge base's or agent's page puts it: Knowledge bases › Student help › Evaluations › the set. */
+/**
+ * An evaluation set, where its knowledge base's or agent's page puts it,
+ * with the middle collapsed (S6): Team › … › the set, where "…" (named
+ * "Student help, Evaluations" for screen readers, the full path as its
+ * title) opens that page's Evaluations tab. bitop-ui's Breadcrumbs has no
+ * collapsed item of its own yet.
+ */
 function evalSetCrumbs(slug: string, set: EvalSet | undefined): BreadcrumbItem[] {
   if (!set) return [{ label: "Evaluation set" }];
   const t = set.target;
   const agent = t.type === "agent";
-  const page = (search?: { tab: "evaluations" }) =>
-    agent ? (
-      <Link to="/teams/$team/agents/$agentId" params={{ team: slug, agentId: t.id }} search={search} />
-    ) : (
-      <Link to="/teams/$team/kbs/$kbId" params={{ team: slug, kbId: t.id }} search={search} />
-    );
-  return [
-    agent
-      ? { label: "Agents", render: <Link to="/teams/$team/agents" params={{ team: slug }} /> }
-      : { label: "Knowledge bases", render: <Link to="/teams/$team/kbs" params={{ team: slug }} /> },
-    { label: t.name, render: page() },
-    { label: "Evaluations", render: page({ tab: "evaluations" }) },
-    { label: set.name },
-  ];
+  const path = `${agent ? "Agents" : "Knowledge bases"} › ${t.name} › Evaluations`;
+  const render = agent ? (
+    <Link to="/teams/$team/agents/$agentId" params={{ team: slug, agentId: t.id }} search={{ tab: "evaluations" }} title={path} />
+  ) : (
+    <Link to="/teams/$team/kbs/$kbId" params={{ team: slug, kbId: t.id }} search={{ tab: "evaluations" }} title={path} />
+  );
+  const label = (
+    <>
+      <span aria-hidden="true">…</span>
+      <VisuallyHidden>{`${t.name}, Evaluations`}</VisuallyHidden>
+    </>
+  );
+  return [{ label, render }, { label: set.name }];
 }
