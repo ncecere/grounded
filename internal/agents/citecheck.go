@@ -23,7 +23,9 @@ import (
 const maxClaimPairs = 30
 
 // CitationsRecord is the content-free record of an answer's citation check
-// (message_events.citations). Counts are of claim–source pairs.
+// (message_events.citations). Claims counts the cited claims as the model
+// wrote the answer; the other counts are of claim–source pairs, except the
+// per-claim counts (Supported…, from ClaimList) and Uncited.
 type CitationsRecord struct {
 	Mode   string `json:"mode"`
 	Claims int    `json:"claims"`
@@ -46,6 +48,23 @@ type CitationsRecord struct {
 	Uncited   int   `json:"uncited"`
 	Requests  int   `json:"requests"`
 	LatencyMs int64 `json:"latencyMs"`
+	// The final answer's claims by verdict (v0.2.1): what the chat's
+	// summary and an evaluation's share of supported claims count.
+	SupportedClaims    int `json:"supportedClaims"`
+	NotSupportedClaims int `json:"notSupportedClaims"`
+	UncitedClaims      int `json:"uncitedClaims"`
+	UncheckedClaims    int `json:"uncheckedClaims"`
+	// ClaimList is the final answer's claims without their text (offsets
+	// into the stored answer): how a stored message shows its verdicts.
+	// Records written before v0.2.1 have none.
+	ClaimList []Claim `json:"claimList,omitempty"`
+}
+
+// setClaims records the answer's claims (without text) and their counts.
+func (r *CitationsRecord) setClaims(claims []Claim) {
+	n := CountClaims(claims)
+	r.SupportedClaims, r.NotSupportedClaims, r.UncitedClaims, r.UncheckedClaims = n.Supported, n.NotSupported, n.Uncited, n.Unchecked
+	r.ClaimList = storedClaims(claims)
 }
 
 // CitationsCheckedEvent is the SSE citations_checked event: sent after
@@ -62,6 +81,8 @@ type CitationsCheckedEvent struct {
 	Unchecked   int `json:"unchecked"`
 	// Uncited are the factual sentences without a citation.
 	Uncited []UncitedSentence `json:"uncited,omitempty"`
+	// Claims are the answer's factual sentences with their verdicts.
+	Claims []Claim `json:"claims,omitempty"`
 }
 
 // When citations are checked.
@@ -115,7 +136,10 @@ func (ru *run) checkCitations(ctx context.Context, ans *Answer, sources []number
 	index, pairs := claimPairs(claims, byN)
 	if len(pairs) == 0 {
 		if uncited > 0 { // nothing to ask, but sentences without a citation
-			ru.citeRec = &CitationsRecord{Mode: mode, Claims: len(claims), Uncited: uncited}
+			rec := CitationsRecord{Mode: mode, Claims: len(claims), Uncited: uncited}
+			ans.Claims = buildClaims(ans.Text, claims, verdictLookup{})
+			rec.setClaims(ans.Claims)
+			ru.citeRec = &rec
 			ans.Uncited = shownUncited(ans)
 		}
 		return
@@ -137,6 +161,8 @@ func (ru *run) checkCitations(ctx context.Context, ans *Answer, sources []number
 		final := extractClaims(ans.Text)
 		ans.Citations = markerVerdicts(annotateCitations(ans.Citations, final, v), ans.Text, final, v)
 		ans.Uncited = shownUncited(ans)
+		ans.Claims = buildClaims(ans.Text, claims, v)
+		rec.setClaims(ans.Claims)
 	}
 	ru.citeRec = &rec
 }
@@ -385,7 +411,7 @@ func (ru *run) citationsJSON() json.RawMessage {
 // citationsChecked is the SSE event for a checked answer.
 func (ru *run) citationsChecked(ans Answer) Event {
 	ev := CitationsCheckedEvent{MessageID: ans.MessageID.String(), Text: ans.Text, Citations: ans.Citations, Refused: ans.Refused,
-		Uncited: ans.Uncited}
+		Uncited: ans.Uncited, Claims: ans.Claims}
 	if r := ru.citeRec; r != nil {
 		ev.Verified, ev.Unsupported, ev.Unchecked = r.Verified, r.Unsupported+r.Contradicted, r.Unchecked
 	}

@@ -93,7 +93,10 @@ type Answer struct {
 	Citations []Citation
 	// Uncited are the factual sentences without a citation, when citations
 	// were checked (verdicts.go); not for answers without sources.
-	Uncited    []UncitedSentence
+	Uncited []UncitedSentence
+	// Claims are the answer's factual sentences with their verdicts, when
+	// citations were checked (claimverdicts.go).
+	Claims     []Claim
 	Sources    []RetrievalHit
 	Usage      llm.Usage
 	StopReason string

@@ -21,10 +21,13 @@ type claimMarker struct {
 	At         int // where its bracket starts
 }
 
-// claim is one sentence (list item, table row) and the markers citing it.
+// claim is one factual sentence (list item, table row) and the markers
+// citing it; Start and End are its byte span in the text, without the
+// whitespace around it.
 type claim struct {
-	Text    string
-	Markers []claimMarker
+	Text       string
+	Markers    []claimMarker
+	Start, End int
 }
 
 var (
@@ -56,20 +59,24 @@ type claimReader struct {
 	// none), for markers standing on their own after it; lastOK: it can
 	// be checked.
 	last      string
+	lastSpan  span
 	lastClaim int
 	lastOK    bool
 	// uncited are the factual sentences without a marker (verdicts.go);
 	// lastUncited is the last sentence's entry (-1: none), dropped when
 	// markers standing on their own follow it.
 	uncited     []span
+	uncitedText []string // their text, as a claim reads (lead-in, plain text)
 	lastUncited int
 }
 
-// extractClaims returns the claims of the markers in text, in order.
-// Brackets in code are not markers (markers.go). Markers with nothing
-// before them, and those of citation lists ("Citations: [1], [2]", a list
-// under "Sources:") or of claims too short to check ("Deadlines [1]"),
-// have no claim: they are not checked, and their citations stay.
+// extractClaims returns the claims of the markers in text, in order: the
+// cited factual sentences (verdicts.go). Brackets in code are not markers
+// (markers.go). Markers with nothing before them, and those of citation
+// lists ("Citations: [1], [2]", a list under "Sources:"), of claims too
+// short to check ("Deadlines [1]") and of sentences that aren't factual (a
+// heading, a question, a greeting, a sentence saying what the sources don't
+// cover) have no claim: they are not checked, and their citations stay.
 func extractClaims(text string) []claim {
 	if len(extractMarkers(text)) == 0 {
 		return nil
@@ -181,27 +188,35 @@ func (r *claimReader) readUnit(u unit) {
 		if u.leadIn != "" {
 			text = u.leadIn + " " + text
 		}
-		r.last, r.lastClaim, r.lastOK, r.lastUncited = text, -1, !list && checkable(text), -1
+		// A claim is a factual sentence, cited or not (v0.2.1, I9).
+		isFactual := !list && u.kind != unitHeading && checkable(text) && factual(sentence, r.text[u.start:u.end])
+		r.last, r.lastSpan, r.lastClaim, r.lastOK, r.lastUncited = text, r.trim(s.start, s.end), -1, isFactual, -1
 		switch {
-		case len(ms) > 0 && r.lastOK:
-			r.claims = append(r.claims, claim{Text: text, Markers: ms})
+		case len(ms) > 0 && isFactual:
+			r.claims = append(r.claims, claim{Text: text, Markers: ms, Start: r.lastSpan.start, End: r.lastSpan.end})
 			r.lastClaim = len(r.claims) - 1
-		case len(ms) == 0 && !list && u.kind != unitHeading && factual(sentence, r.text[u.start:u.end]):
-			r.addUncited(s.start, s.end)
+		case len(ms) == 0 && isFactual:
+			r.addUncited(s.start, s.end, text)
 		}
 	}
 }
 
-// addUncited records a factual sentence without a marker (its span without
-// the surrounding whitespace).
-func (r *claimReader) addUncited(start, end int) {
+// trim is text[start:end]'s span without the whitespace around it.
+func (r *claimReader) trim(start, end int) span {
 	for start < end && unicode.IsSpace(rune(r.text[start])) {
 		start++
 	}
 	for end > start && unicode.IsSpace(rune(r.text[end-1])) {
 		end--
 	}
-	r.uncited = append(r.uncited, span{start, end})
+	return span{start, end}
+}
+
+// addUncited records a factual sentence without a marker (its span without
+// the surrounding whitespace).
+func (r *claimReader) addUncited(start, end int, text string) {
+	r.uncited = append(r.uncited, r.trim(start, end))
+	r.uncitedText = append(r.uncitedText, text)
 	r.lastUncited = len(r.uncited) - 1
 }
 
@@ -247,10 +262,11 @@ func (r *claimReader) attach(ms []claimMarker) {
 	}
 	if r.lastUncited >= 0 { // the markers cite it after all
 		r.uncited = slices.Delete(r.uncited, r.lastUncited, r.lastUncited+1)
+		r.uncitedText = slices.Delete(r.uncitedText, r.lastUncited, r.lastUncited+1)
 		r.lastUncited = -1
 	}
 	if r.lastClaim < 0 {
-		r.claims = append(r.claims, claim{Text: r.last})
+		r.claims = append(r.claims, claim{Text: r.last, Start: r.lastSpan.start, End: r.lastSpan.end})
 		r.lastClaim = len(r.claims) - 1
 	}
 	r.claims[r.lastClaim].Markers = append(r.claims[r.lastClaim].Markers, ms...)
@@ -278,15 +294,16 @@ func (r *claimReader) readRow(ln line, header []string) []string {
 	}
 	text := strings.Join(parts, "; ")
 	if hasWord(text) {
-		r.last, r.lastClaim, r.lastOK, r.lastUncited = text, -1, checkable(text), -1
+		// A data row (not the header) is a claim; its span ends inside the
+		// last cell, before the closing pipe.
+		isFactual := header != nil && checkable(text) && factual(strings.Join(dataCells(cells), " "), "")
+		r.last, r.lastSpan, r.lastClaim, r.lastOK, r.lastUncited = text, r.trim(ln.start, rowEnd(r.text, ln)), -1, isFactual, -1
 		switch {
-		case len(ms) > 0 && r.lastOK:
-			r.claims = append(r.claims, claim{Text: text, Markers: ms})
+		case len(ms) > 0 && isFactual:
+			r.claims = append(r.claims, claim{Text: text, Markers: ms, Start: r.lastSpan.start, End: r.lastSpan.end})
 			r.lastClaim = len(r.claims) - 1
-		case len(ms) == 0 && header != nil && factual(strings.Join(dataCells(cells), " "), ""):
-			// A data row (not the header) without a citation: its span ends
-			// inside the last cell, before the closing pipe.
-			r.addUncited(ln.start, rowEnd(r.text, ln))
+		case len(ms) == 0 && isFactual:
+			r.addUncited(ln.start, rowEnd(r.text, ln), text)
 		}
 	}
 	if header == nil {

@@ -127,8 +127,11 @@ type MessageView struct {
 	Feedback       *string        `json:"feedback,omitempty"`
 	FeedbackReason *string        `json:"feedbackReason,omitempty"`
 	// Uncited: the answer's citations were checked (verdicts.go).
-	Uncited   []UncitedSentence `json:"uncited,omitempty"`
-	CreatedAt time.Time         `json:"createdAt"`
+	Uncited []UncitedSentence `json:"uncited,omitempty"`
+	// Claims: the answer's citations were checked by v0.2.1 or later
+	// (claimverdicts.go); answers checked before have per-marker verdicts only.
+	Claims    []Claim   `json:"claims,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 // ConversationView is a conversation with its transcript.
@@ -258,6 +261,12 @@ func assistantView(r dbgen.ListMessagesRow) MessageView {
 	// Uncited sentences are found again in the stored text, for answers whose citations were checked.
 	if len(r.CitationCheck) > 0 && !r.AnswerRefused && !r.AnswerNoContext && r.ErrorCode == "" {
 		m.Uncited = UncitedSentences(m.Text)
+	}
+	if len(r.CitationCheck) > 0 && !r.AnswerRefused && r.ErrorCode == "" {
+		var rec CitationsRecord
+		if json.Unmarshal(r.CitationCheck, &rec) == nil {
+			m.Claims = FillClaimText(m.Text, rec.ClaimList)
+		}
 	}
 	if len(r.Usage) > 0 {
 		var u llm.Usage

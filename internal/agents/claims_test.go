@@ -188,7 +188,7 @@ func TestCitationsRecordCounts(t *testing.T) {
 		verdict(systemone.Unchecked, 0)}, 0.8)
 	want := CitationsRecord{Mode: "annotate", Claims: 3, Pairs: 4, Checked: 3, Verified: 1, Unsupported: 1, Contradicted: 1,
 		Unchecked: 1, LowConfidence: 1}
-	if rec != want {
+	if !reflect.DeepEqual(rec, want) {
 		t.Errorf("record %+v", rec)
 	}
 }
