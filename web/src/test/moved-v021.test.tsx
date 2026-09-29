@@ -45,6 +45,7 @@ describe("crawl domains on Data sources (I4)", () => {
     const tabs = within(screen.getByRole("tablist", { name: "Data source sections" })).getAllByRole("tab");
     expect(tabs.map((t) => t.textContent)).toEqual(["Sources", "Crawl domains"]);
     expect(screen.getByRole("button", { name: "New data source" })).toBeInTheDocument();
+    expect(screen.getByText(/^Uploaded files or pages from a website/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
 
     await userEvent.click(screen.getByRole("tab", { name: "Crawl domains" }));
@@ -52,6 +53,9 @@ describe("crawl domains on Data sources (I4)", () => {
     expect(await screen.findByRole("table", { name: "Domain requests" })).toHaveTextContent("*.example.org");
     expect(screen.queryByRole("button", { name: "New data source" })).toBeNull();
     expect(screen.getByRole("button", { name: "Request a domain" })).toBeInTheDocument();
+    // The header describes the tab, once: not the Sources text above the Crawl domains text.
+    expect(screen.queryByText(/^Uploaded files or pages from a website/)).toBeNull();
+    expect(screen.getAllByText(/^Web sources can crawl hosts on the platform allowlist/)).toHaveLength(1);
     expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(/Data sources.*Crawl domains/);
     expect(await axe(container)).toHaveNoViolations();
   });

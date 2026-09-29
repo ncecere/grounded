@@ -101,7 +101,8 @@ export function TeamEvaluationsPage() {
       getRowId={(x) => x.id}
       rowLabel={(x) => x.name}
       facets={trendFacet}
-      search={{ label: "Search evaluation sets" }}
+      // Its label is for screen readers (bitop-ui's DataTable hides it); the placeholder says what it searches.
+      search={{ label: "Search evaluation sets", placeholder: "Set, knowledge base or agent" }}
       rowActions={(x) => [{ label: "Open", icon: <FolderOpen aria-hidden />, render: setLink(x) }]}
       empty={{
         icon: <ClipboardCheck />,
