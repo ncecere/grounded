@@ -21,7 +21,7 @@ export const kb: Schemas["KnowledgeBase"] = {
 };
 
 const summary = (extra: Partial<Schemas["EvaluationSummary"]> = {}): Schemas["EvaluationSummary"] => ({
-  k: 4, questions: 3, passed: 1, failed: 1, missing: 1, errors: 0, recall: 0.5, mrr: 0.5, cited: 0, refused: 0, ...extra,
+  k: 4, questions: 3, passed: 1, failed: 1, missing: 1, notIndexed: 1, errors: 0, recall: 0.5, mrr: 0.5, cited: 0, citedOnly: 0, refused: 0, ...extra,
 });
 
 export const set: Schemas["EvaluationSet"] = {
@@ -97,6 +97,8 @@ export const result = (id: string, question: string, status: Schemas["Evaluation
   status,
   rank: status === "pass" ? 1 : null,
   hits: [{ rank: 1, documentId: "d9", title: "Registration calendar", url: "https://example.edu/calendar", expected: status === "pass" }],
+  expectedItems: [],
+  missingReason: null,
   answer: null,
   scores: null,
   error: "",

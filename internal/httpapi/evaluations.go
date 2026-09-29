@@ -24,6 +24,7 @@ func (a *api) evaluationRoutes() []route {
 		{"GET", "/v1/teams/{team}/evaluation-sets", a.session(a.listEvaluationSets)},
 		{"POST", "/v1/teams/{team}/evaluation-sets", a.session(a.createEvaluationSet)},
 		{"GET", "/v1/teams/{team}/evaluation-documents", a.session(a.listEvaluationTargetDocuments)},
+		{"POST", "/v1/teams/{team}/evaluation-question-check", a.session(a.checkEvaluationQuestion)},
 		{"GET", set, a.session(a.getEvaluationSet)},
 		{"PATCH", set, a.session(a.updateEvaluationSet)},
 		{"DELETE", set, a.session(a.deleteEvaluationSet)},
@@ -181,6 +182,26 @@ func (a *api) listEvaluationTargetDocuments(w http.ResponseWriter, r *http.Reque
 	writeList(w, r, docs, err, toAPIEvaluationDocument)
 }
 
+// checkEvaluationQuestion is the question form's warnings: expected
+// documents and must-mention phrases the knowledge bases don't hold yet.
+func (a *api) checkEvaluationQuestion(w http.ResponseWriter, r *http.Request) {
+	var in apitypes.EvaluationQuestionCheckRequest
+	if !httpx.Decode(w, r, &in) {
+		return
+	}
+	check := evals.CheckInput{SetID: in.SetId, KBID: in.KbId, AgentID: in.AgentId,
+		Expected: evals.Expected{DocumentIDs: in.Expected.DocumentIds, URLs: in.Expected.Urls, Filenames: in.Expected.Filenames}}
+	if in.MustMention != nil {
+		check.MustMention = *in.MustMention
+	}
+	res, err := a.Evaluations.CheckQuestion(r.Context(), a.actor(r), r.PathValue("team"), check)
+	if failed(w, r, err) {
+		return
+	}
+	httpx.JSON(w, http.StatusOK, apitypes.EvaluationQuestionCheck{Expected: nonNil(viaJSON[[]apitypes.EvaluationExpectedItem](res.Expected)),
+		MustMention: nonNil(viaJSON[[]apitypes.EvaluationMention](res.Mentions))})
+}
+
 func toAPIEvaluationDocument(d evals.Document) apitypes.EvaluationDocument {
 	name := d.SourceName
 	return apitypes.EvaluationDocument{Id: d.ID, Title: d.Title, Filename: d.Filename, Url: d.URL, SourceName: &name}
@@ -302,7 +323,8 @@ func (a *api) importEvaluationQuestions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	httpx.JSON(w, http.StatusOK, apitypes.EvaluationImportResult{Rows: res.Rows, Usable: res.Usable, Added: res.Added,
-		Problems: viaJSON[[]apitypes.EvaluationImportProblem](res.Problems), Max: res.Max, Current: res.Current})
+		Problems: viaJSON[[]apitypes.EvaluationImportProblem](res.Problems), Warnings: nonNil(viaJSON[[]apitypes.EvaluationImportProblem](res.Warnings)),
+		Max: res.Max, Current: res.Current})
 }
 
 var unsafeFilename = regexp.MustCompile(`[^A-Za-z0-9._-]+`)

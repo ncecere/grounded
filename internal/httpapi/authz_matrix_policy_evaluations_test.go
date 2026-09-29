@@ -70,6 +70,11 @@ var evaluationPolicies = map[string]policy{
 	"listEvaluationTargetDocuments": {own: editors, build: func(c *mctx) request {
 		return get(c.team("/evaluation-documents?q=a&kbId=" + c.tf.kb))
 	}},
+	// Read-only despite the POST: the question form's warnings.
+	"checkEvaluationQuestion": {own: editors, build: func(c *mctx) request {
+		return post(c.team("/evaluation-question-check"), map[string]any{"kbId": c.tf.kb, "mustMention": []string{"permit"},
+			"expected": map[string]any{"documentIds": []string{}, "urls": []string{}, "filenames": []string{"parking.md"}}})
+	}},
 	"listEvaluationRuns": {own: editors, build: func(c *mctx) request { return get(c.evalSet("/runs")) }},
 	"startEvaluationRun": {own: editors, build: func(c *mctx) request {
 		set := c.pick(c.tf.evalSet, c.e.freshEvalSet)

@@ -164,6 +164,17 @@ SELECT EXISTS (
            OR (d.filename <> '' AND lower(d.filename) = ANY(@filenames::text[])))
 )::boolean;
 
+-- Whether a must-mention phrase's words (stemmed, in order, as
+-- phraseto_tsquery reads them) appear in a passage of the sources, for the
+-- question form's warning. A phrase of stopwords only has no words to look
+-- for and counts as found.
+-- name: PhraseInSources :one
+WITH q AS (SELECT phraseto_tsquery('english', @phrase::text) AS query)
+SELECT (numnode(q.query) = 0 OR EXISTS (
+    SELECT 1 FROM chunks c WHERE c.source_id = ANY(@source_ids::uuid[]) AND c.content_tsv @@ q.query
+))::boolean AS found
+FROM q;
+
 -- Documents of the sources whose title, filename or URL matches, for the
 -- expected-documents picker.
 -- name: SearchEvalDocuments :many

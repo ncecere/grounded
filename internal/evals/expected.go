@@ -148,6 +148,8 @@ type Doc struct {
 	Title      string
 	URL        string
 	Filename   string
+	// Snippet is the start of the retrieved passage (retrieval).
+	Snippet string
 }
 
 // normURL is a URL for comparison: without surrounding space and trailing

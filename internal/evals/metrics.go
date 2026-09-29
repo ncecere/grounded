@@ -19,13 +19,13 @@ const (
 
 	StatusPass    = "pass"
 	StatusFail    = "fail"
-	StatusMissing = "missing" // every expected document was deleted: not a failure
+	StatusMissing = "missing" // no expected document is in the knowledge base: not a failure
 	StatusError   = "error"   // the check itself failed (the model was unavailable, ...)
 )
 
-// Summary is a run's scores. Questions whose expected documents no longer
-// exist, and questions whose check failed, are counted apart and left out
-// of the rates.
+// Summary is a run's scores. Questions none of whose expected documents is
+// in the knowledge base, and questions whose check failed, are counted
+// apart and left out of the rates.
 type Summary struct {
 	// K is the results per search the run checked (retrieval).
 	K         int `json:"k"`
@@ -33,7 +33,10 @@ type Summary struct {
 	Passed    int `json:"passed"`
 	Failed    int `json:"failed"`
 	Missing   int `json:"missing"`
-	Errors    int `json:"errors"`
+	// NotIndexed counts the missing questions whose expected documents
+	// never were in the knowledge base (the rest were deleted since).
+	NotIndexed int `json:"notIndexed"`
+	Errors     int `json:"errors"`
 	// Recall is recall@k: the share of scored questions whose expected
 	// document came back in the top k (retrieval runs).
 	Recall *float64 `json:"recall,omitempty"`
@@ -46,6 +49,10 @@ type Summary struct {
 	// answers that refused.
 	Cited   int `json:"cited"`
 	Refused int `json:"refused"`
+	// CitedOnly counts passes of questions without must-mention phrases:
+	// the answer cited an expected document, but nothing checked what it
+	// said ("Cited the right source (content not checked)").
+	CitedOnly int `json:"citedOnly"`
 	// SupportedShare is the mean share of supported claims over the answers
 	// SystemOne checked (nil: none were checked).
 	SupportedShare *float64 `json:"supportedShare,omitempty"`
@@ -56,6 +63,8 @@ type Scored struct {
 	Status string
 	Rank   int
 	Answer *AnswerScores
+	// Missing is why a missing question wasn't scored (Diagnosis.Missing).
+	Missing string
 }
 
 // Summarize computes a run's summary from its results.
@@ -71,6 +80,9 @@ func Summarize(kind string, k int, rs []Scored) Summary {
 			s.Failed++
 		case StatusMissing:
 			s.Missing++
+			if r.Missing == MissingNotIndexed {
+				s.NotIndexed++
+			}
 		default:
 			s.Errors++
 		}
@@ -80,6 +92,9 @@ func Summarize(kind string, k int, rs []Scored) Summary {
 		if a := r.Answer; a != nil {
 			if a.Cited {
 				s.Cited++
+			}
+			if r.Status == StatusPass && len(a.Mentions) == 0 {
+				s.CitedOnly++
 			}
 			if a.Refused {
 				s.Refused++

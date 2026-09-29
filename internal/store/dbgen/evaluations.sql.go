@@ -1184,6 +1184,30 @@ func (q *Queries) PendingEvalCases(ctx context.Context, arg PendingEvalCasesPara
 	return items, nil
 }
 
+const phraseInSources = `-- name: PhraseInSources :one
+WITH q AS (SELECT phraseto_tsquery('english', $2::text) AS query)
+SELECT (numnode(q.query) = 0 OR EXISTS (
+    SELECT 1 FROM chunks c WHERE c.source_id = ANY($1::uuid[]) AND c.content_tsv @@ q.query
+))::boolean AS found
+FROM q
+`
+
+type PhraseInSourcesParams struct {
+	SourceIds []uuid.UUID
+	Phrase    string
+}
+
+// Whether a must-mention phrase's words (stemmed, in order, as
+// phraseto_tsquery reads them) appear in a passage of the sources, for the
+// question form's warning. A phrase of stopwords only has no words to look
+// for and counts as found.
+func (q *Queries) PhraseInSources(ctx context.Context, arg PhraseInSourcesParams) (bool, error) {
+	row := q.db.QueryRow(ctx, phraseInSources, arg.SourceIds, arg.Phrase)
+	var found bool
+	err := row.Scan(&found)
+	return found, err
+}
+
 const previousCompletedRun = `-- name: PreviousCompletedRun :one
 SELECT id, set_id, team_id, kind, trigger, status, started_by, config, summary, total, done, error, created_at, started_at, finished_at FROM eval_runs
 WHERE set_id = $1 AND kind = $2 AND status = 'completed' AND created_at < $3::timestamptz

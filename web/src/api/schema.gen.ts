@@ -3791,6 +3791,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/evaluation-question-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Whether the knowledge bases hold a question's expected documents and must-mention phrases, before it's saved (editors, admins and owners; changes nothing)
+         * @description The question form's warnings (docs/evaluations.md §1). Each expected document, URL, URL prefix or filename is indexed when a document of the set's knowledge base (or the agent's knowledge bases) matches it, not_indexed when none does yet (a typo, or a document not added yet: it counts once one is added), or deleted for a picked document that's gone. A must-mention phrase is found when its words (stemmed, in order) appear in a passage of those knowledge bases. Give exactly one of setId, kbId and agentId, of this team. Nothing is saved or audited.
+         */
+        post: operations["checkEvaluationQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}/evaluation-sets/{setId}/runs": {
         parameters: {
             query?: never;
@@ -8402,15 +8425,20 @@ export interface components {
             urls: string[];
             filenames: string[];
         };
-        /** @description A run's scores. Questions whose expected documents no longer exist (missing) and questions whose check failed (errors) are counted apart and left out of the rates. */
+        /** @description A run's scores. Questions none of whose expected documents is in the knowledge base (missing: never added, or deleted since) and questions whose check failed (errors) are counted apart and left out of the rates. */
         EvaluationSummary: {
             /** @description Results per search the run checked */
             k: number;
             questions: number;
             passed: number;
             failed: number;
+            /** @description Questions none of whose expected documents is in the knowledge base (notIndexed of them never were) */
             missing: number;
+            /** @description Missing questions whose expected documents were never in the knowledge base (a typo, or not added yet), as opposed to deleted since */
+            notIndexed: number;
             errors: number;
+            /** @description Full-answer passes of questions without must-mention phrases: the answer cited an expected document, but its content wasn't checked ("Cited the right source (content not checked)") */
+            citedOnly: number;
             /** @description recall@k, 0-1 (retrieval checks) */
             recall?: number;
             /** @description Mean reciprocal rank, 0-1 (retrieval checks) */
@@ -8551,6 +8579,40 @@ export interface components {
              * @description The set's questions before the import
              */
             current: number;
+            /** @description Usable rows (added unless dryRun) whose expected documents match no document of the knowledge bases yet: they count once one is added */
+            warnings: components["schemas"]["EvaluationImportProblem"][];
+        };
+        /** @description One expected document of a question and whether the knowledge base holds it: indexed (a document matches it), not_indexed (none does, and none did in the question's earlier runs: a typo, or a document not added yet), or deleted (a picked document, or one an earlier run found, that's gone). */
+        EvaluationExpectedItem: {
+            /** @enum {string} */
+            kind: "document" | "url" | "filename";
+            /** @description The document's ID, the URL (ending in * for a prefix) or the filename */
+            value: string;
+            /** @description A document's title */
+            title?: string;
+            /** @enum {string} */
+            state: "indexed" | "not_indexed" | "deleted";
+            /** @description Retrieval runs: the passage rank at which a document matching it first came back. Beyond the run's k when only the deeper search for ranks found it (the result's searchDepth); absent when it didn't come back. */
+            rank?: number;
+        };
+        EvaluationQuestionCheckRequest: {
+            /**
+             * Format: uuid
+             * @description The set the question is in (or kbId or agentId before the set exists)
+             */
+            setId?: string;
+            /** Format: uuid */
+            kbId?: string;
+            /** Format: uuid */
+            agentId?: string;
+            expected: components["schemas"]["EvaluationExpected"];
+            mustMention?: string[];
+        };
+        EvaluationQuestionCheck: {
+            /** @description The expected documents, document IDs first, then URLs, then filenames */
+            expected: components["schemas"]["EvaluationExpectedItem"][];
+            /** @description The phrases; found: its words appear in a passage of the knowledge bases */
+            mustMention: components["schemas"]["EvaluationMention"][];
         };
         /**
          * @description retrieval checks retrieval only; answer asks the agent and scores the answer
@@ -8623,9 +8685,9 @@ export interface components {
             /** Format: date-time */
             finishedAt: string | null;
         };
-        /** @description A document that came back (retrieval: once per document, at its best passage rank) or a citation of the answer (full answers: one per [n] marker number, in the answer's order, with the cited passage). */
+        /** @description A document that came back (retrieval: once per document, at its best passage rank, with the start of that passage) or a citation of the answer (full answers: one per [n] marker number, in the answer's order, with the cited passage). */
         EvaluationHit: {
-            /** @description The passage rank (retrieval) or the citation's position (answers) */
+            /** @description The best passage's rank (retrieval) or the citation's position (answers) */
             rank: number;
             /** Format: uuid */
             documentId: string;
@@ -8636,7 +8698,7 @@ export interface components {
             expected: boolean;
             /** @description The answer's marker number: [n] cites this entry (full answers) */
             n?: number;
-            /** @description The cited passage (full answers) */
+            /** @description The cited passage (full answers), or the start of the best passage (retrieval, at most 300 characters) */
             snippet?: string;
             /** @description The cited passage's headings (full answers) */
             headingPath?: string[];
@@ -8667,14 +8729,25 @@ export interface components {
             questionId: string | null;
             question: string;
             /**
-             * @description missing means every expected document was deleted (not a failure); error means the check itself failed
+             * @description missing means no expected document is in the knowledge base (see missingReason; not a failure, and nothing is scored); error means the check itself failed
              * @enum {string}
              */
             status: "pass" | "fail" | "missing" | "error";
-            /** @description The rank of the first expected document (retrieval) */
+            /** @description The rank of the first expected document in the top k (retrieval) */
             rank: number | null;
-            /** @description What came back (retrieval), once per document, or what the answer cited (full answers), once per marker number */
+            /** @description What came back (retrieval, and missing questions of either kind), once per document, or what the answer cited (full answers), once per marker number */
             hits: components["schemas"]["EvaluationHit"][];
+            /** @description The question's expected documents as the run found them (empty for results recorded before v0.2.0-rc.1) */
+            expectedItems: components["schemas"]["EvaluationExpectedItem"][];
+            /**
+             * @description Why a missing question wasn't scored: not_indexed (no document ever matched: not in this knowledge base) or deleted (it was in the knowledge base, since deleted). Null otherwise, and for results recorded before v0.2.0-rc.1.
+             * @enum {string|null}
+             */
+            missingReason: "not_indexed" | "deleted" | null;
+            /** @description Results per search the run scored (retrieval) */
+            k?: number;
+            /** @description When the expected document wasn't in the top k, how many results a second search looked through for its rank (retrieval; the ranks beyond k are in expectedItems) */
+            searchDepth?: number;
             /** @description The agent's answer (full-answer checks) */
             answer: string | null;
             scores: components["schemas"]["EvaluationAnswerScores"] | null;
@@ -16116,6 +16189,37 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["EvaluationDocument"][];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    checkEvaluationQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationQuestionCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description Each expected document and phrase, in the order given */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationQuestionCheck"];
                     };
                 };
             };

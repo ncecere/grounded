@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 
 	"github.com/google/uuid"
 
@@ -78,9 +79,12 @@ func (s *Service) LoadEvalTarget(ctx context.Context, agentID uuid.UUID, publish
 // EvalRetrieve searches the agent's knowledge bases for a question as its
 // search does (each KB with the agent's results per search, its filters and
 // minimum similarity, fused and trimmed to its context budget), without
-// judging. It counts as one query under the team's query limits and is
-// recorded as query usage with meta (source: evaluation).
-func (s *Service) EvalRetrieve(ctx context.Context, a authz.Actor, t EvalTarget, question string, meta map[string]any) ([]kbs.Hit, error) {
+// judging. With depth > 0 each KB returns depth results and the fused list
+// is cut at depth, without the budget: an evaluation's search for an
+// expected document's rank beyond the agent's k. It counts as one query
+// under the team's query limits and is recorded as query usage with meta
+// (source: evaluation).
+func (s *Service) EvalRetrieve(ctx context.Context, a authz.Actor, t EvalTarget, question string, depth int, meta map[string]any) ([]kbs.Hit, error) {
 	if s.Limits != nil {
 		if err := s.Limits.CheckQuery(ctx, t.Team.ID, a); err != nil {
 			return nil, err
@@ -90,8 +94,17 @@ func (s *Service) EvalRetrieve(ctx context.Context, a authz.Actor, t EvalTarget,
 	if err != nil {
 		return nil, err
 	}
-	r := newRetriever(s.KBs, resolved, t.Config, llm.UserTag(t.Team.Slug, t.Agent.Slug))
-	found, _, err := r.search(ctx, question, 0)
+	cfg := t.Config
+	if depth > 0 {
+		cfg.KBs = make([]KBRef, len(t.Config.KBs))
+		for i, ref := range t.Config.KBs {
+			ref.TopK = &depth
+			cfg.KBs[i] = ref
+		}
+		cfg.ContextTokenBudget = math.MaxInt32
+	}
+	r := newRetriever(s.KBs, resolved, cfg, llm.UserTag(t.Team.Slug, t.Agent.Slug))
+	found, _, err := r.search(ctx, question, depth)
 	if err != nil {
 		return nil, err
 	}

@@ -252,11 +252,16 @@ func (s *Service) retrieve(ctx context.Context, a authz.Actor, kb KB, r retrieva
 }
 
 // RetrieveForEvaluation runs a knowledge base's own retrieval for an
-// evaluation question (docs/evaluations.md §2): the KB's top-k, under the
-// team's query limits, recorded as query usage with meta (source:
-// evaluation). The caller has checked access; kb comes from ResolveKBs.
-func (s *Service) RetrieveForEvaluation(ctx context.Context, a authz.Actor, kb KB, text string, meta map[string]any) (Result, error) {
-	return s.retrieve(ctx, a, kb, retrieval{text: strings.TrimSpace(text), k: int(kb.TopK), meta: meta}, time.Now())
+// evaluation question (docs/evaluations.md §2): the KB's top-k (k 0), or k
+// results (at most 50) when the check looks for an expected document's
+// rank beyond it, under the team's query limits, recorded as query usage
+// with meta (source: evaluation). The caller has checked access; kb comes
+// from ResolveKBs.
+func (s *Service) RetrieveForEvaluation(ctx context.Context, a authz.Actor, kb KB, text string, k int, meta map[string]any) (Result, error) {
+	if k <= 0 {
+		k = int(kb.TopK)
+	}
+	return s.retrieve(ctx, a, kb, retrieval{text: strings.TrimSpace(text), k: min(k, 50), meta: meta}, time.Now())
 }
 
 // recordUsage writes the query (and, when embedded, its embedding tokens) to

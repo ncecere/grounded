@@ -92,6 +92,18 @@ func toAPIResult(r evals.Result) apitypes.EvaluationResult {
 	if out.Hits == nil {
 		out.Hits = []apitypes.EvaluationHit{}
 	}
+	d := r.Diagnosis
+	out.ExpectedItems = nonNil(viaJSON[[]apitypes.EvaluationExpectedItem](d.Expected))
+	if d.Missing != "" && r.Status == evals.StatusMissing {
+		reason := apitypes.EvaluationResultMissingReason(d.Missing)
+		out.MissingReason = &reason
+	}
+	if d.K > 0 {
+		out.K = &d.K
+	}
+	if d.Depth > 0 {
+		out.SearchDepth = &d.Depth
+	}
 	if r.CaseID.Valid {
 		id := r.CaseID.UUID
 		out.QuestionId = &id
