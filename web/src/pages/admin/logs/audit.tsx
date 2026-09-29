@@ -49,7 +49,7 @@ function useFacets(): Facet<Entry>[] {
 /** The action, and a simple change in one line under it ("Monthly budget $5.00 → none"), else its code. */
 export function ActionCell({ entry, currency }: { entry: Entry; currency?: string }) {
   const summary = changeSummary(entry, currency);
-  return <CellText primary={actionLabel(entry.action)} secondary={summary ?? <span className={s.mono}>{entry.action}</span>} />;
+  return <CellText primary={actionLabel(entry.action, entry)} secondary={summary ?? <span className={s.mono}>{entry.action}</span>} />;
 }
 
 const columns = (currency?: string): DataTableColumn<Entry>[] => [
@@ -68,7 +68,7 @@ const columns = (currency?: string): DataTableColumn<Entry>[] => [
   {
     id: "action",
     header: "Action",
-    accessor: (e) => actionLabel(e.action),
+    accessor: (e) => actionLabel(e.action, e),
     rowHeader: true,
     cell: (e) => <ActionCell entry={e} currency={currency} />,
   },
@@ -138,7 +138,7 @@ export function AuditLogTab() {
         columns={columns(currency)}
         data={items}
         getRowId={(e) => String(e.id)}
-        rowLabel={(e) => `${actionLabel(e.action)} ${e.targetLabel ?? ""}`.trim()}
+        rowLabel={(e) => `${actionLabel(e.action, e)} ${e.targetLabel ?? ""}`.trim()}
         facets={facets}
         manual
         loading={log.isLoading}

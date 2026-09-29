@@ -50,8 +50,8 @@ function platformLink(e: AuditEntry): ReactElement | null {
   const id = e.targetId;
   switch (e.targetType) {
     case "team":
-      // A budget or an extension too: the Budget card is on the team's Overview (v0.2.1 I7).
-      return <Link to="/admin/teams/$team" params={{ team: id }} />;
+      // A budget or an extension too: the Budget card is on the team's Overview (v0.2.1 I7). By its slug, like every other link to it.
+      return <Link to="/admin/teams/$team" params={{ team: e.teamId === id && e.teamSlug ? e.teamSlug : id }} />;
     case "user":
       return <Link to="/admin/users/$userId" params={{ userId: id }} />;
     case "data_source":
@@ -101,7 +101,8 @@ function platformLink(e: AuditEntry): ReactElement | null {
       return team ? <Link to="/admin/teams/$team" params={{ team }} search={{ tab: "group-mapping" }} /> : <Link to="/admin/group-mapping" />;
     }
     case "evaluation_settings":
-      return <Link to="/admin/limits" search={{ tab: "evaluations" }} />;
+      // The switch is on the Overview's Features card (v0.2.1 I2).
+      return <Link to="/admin" hash="features" />;
     case "moderation_policy":
       return <Link to="/admin/moderation" search={{ tab: id === "team" ? undefined : (id as "public" | "all_authenticated") }} />;
     default:

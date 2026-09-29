@@ -130,8 +130,19 @@ const actionLabels: Record<string, string> = {
   "team.invite_accept": "Accepted invite",
 };
 
-/** "Published agent" for agent.publish; unknown actions are spelled out ("foo.bar_baz" → "Foo: bar baz"). */
-export function actionLabel(action: string) {
+/** Actions whose entry says which way they went ("Turned evaluations off"), by their recorded after. */
+const directedLabels: Record<string, (after: Record<string, unknown>) => string | undefined> = {
+  "platform.evaluations": (a) => (typeof a.enabled === "boolean" ? `Turned evaluations ${a.enabled ? "on" : "off"}` : undefined),
+};
+
+/**
+ * "Published agent" for agent.publish; unknown actions are spelled out ("foo.bar_baz" → "Foo: bar baz"). With the
+ * entry, a switch says which way it went: "Turned evaluations off", not "…on or off".
+ */
+export function actionLabel(action: string, entry?: Pick<AuditEntry, "after">) {
+  const after = entry?.after;
+  const directed = after && typeof after === "object" && !Array.isArray(after) ? directedLabels[action]?.(after as Record<string, unknown>) : undefined;
+  if (directed) return directed;
   const known = actionLabels[action];
   if (known) return known;
   const [group = "", rest = ""] = action.split(".");
@@ -243,6 +254,15 @@ export const targetTypeLabels: Record<string, string> = {
   team_invite: "Invite",
   user: "User",
 };
+
+/**
+ * An entry's action and target in one line for a short list ("Changed a team budget: QA Team"), leaving out a target
+ * the action already names ("Turned evaluations off", not "…: Evaluations").
+ */
+export function entryTitle(e: Pick<AuditEntry, "action" | "after" | "targetLabel">) {
+  const action = actionLabel(e.action, e);
+  return e.targetLabel && !action.toLowerCase().includes(e.targetLabel.toLowerCase()) ? `${action}: ${e.targetLabel}` : action;
+}
 
 export const targetTypeLabel = (type: string) => targetTypeLabels[type] ?? type.replace(/_/g, " ");
 

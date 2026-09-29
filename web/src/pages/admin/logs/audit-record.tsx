@@ -43,7 +43,7 @@ export function auditSections(e: Entry, names: ReadonlyMap<string, string> = new
     out.push({
       title: "Changes",
       content: (
-        <AuditChangesTable label={`What changed: ${actionLabel(e.action)}`} before={nameIds(change.before, names) as object} after={nameIds(change.after, names) as object} />
+        <AuditChangesTable label={`What changed: ${actionLabel(e.action, e)}`} before={nameIds(change.before, names) as object} after={nameIds(change.after, names) as object} />
       ),
     });
   }
@@ -72,7 +72,7 @@ export function AuditEntryPage({ id, listed, onClose }: Props) {
     <RecordPage
       open={open}
       onClose={onClose}
-      title={entry ? actionLabel(entry.action) : "Audit entry"}
+      title={entry ? actionLabel(entry.action, entry) : "Audit entry"}
       description="One entry of the platform audit log."
       loading={!entry && !missing}
       error={missing ? new Error("This audit entry doesn't exist, or the link is wrong.") : undefined}

@@ -105,11 +105,18 @@ describe("admin logs", () => {
       metadata: { via: "sso_group_rule", trigger: "sign_in", group: "advising-staff", ruleId: "r1" },
     });
     const settingsEntry = entry(533, "costs.settings_update", { targetType: "cost_settings", targetId: "platform", targetLabel: "Cost settings" });
+    const evals = entry(719, "platform.evaluations", {
+      targetType: "evaluation_settings", targetId: "enabled", targetLabel: "Evaluations", before: { enabled: true }, after: { enabled: false },
+    });
+    const budget = entry(540, "costs.budget_update", {
+      teamId: "t9", teamName: "Academic Advising", teamSlug: "advising", targetType: "team", targetId: "t9", targetLabel: "Academic Advising",
+      before: { mode: "track", amount: null, warnPercent: null }, after: { mode: "track", amount: "5.000000", warnPercent: null },
+    });
     mockApi({
       ...shellRoutes("platform_auditor"),
       "GET /v1/admin/users": () => users,
       "GET /v1/admin/costs/settings": () => ({ currency: "USD" }),
-      "GET /v1/admin/audit": () => ({ items: [sso, settingsEntry], nextCursor: null }),
+      "GET /v1/admin/audit": () => ({ items: [sso, settingsEntry, evals, budget], nextCursor: null }),
     });
     const { container } = renderApp("/admin/logs");
     const table = await screen.findByRole("table", { name: "Audit log" }, { timeout: 4000 });
@@ -117,6 +124,13 @@ describe("admin logs", () => {
     expect(row).toHaveTextContent("System (group mapping: advising-staff → Academic Advising)");
     expect(within(row).getByRole("link", { name: "Academic Advising" })).toHaveAttribute("href", "/admin/teams/advising");
     // A settings entry names its target once.
+    // The evaluations switch: which way it went, in words, and its place now (Overview → Features).
+    const evalsRow = within(table).getByText("Turned evaluations off").closest("tr")!;
+    expect(evalsRow).toHaveTextContent("Evaluations On → Off");
+    expect(within(evalsRow).getByRole("link", { name: "Evaluations" })).toHaveAttribute("href", "/admin#features");
+    // A budget's target is the team, by its slug like every other link to it.
+    const budgetRow = within(table).getByText("Changed a team budget").closest("tr")!;
+    for (const link of within(budgetRow).getAllByRole("link", { name: "Academic Advising" })) expect(link).toHaveAttribute("href", "/admin/teams/advising");
     const settingsRow = within(table).getByText("Changed cost settings").closest("tr")!;
     expect(within(settingsRow).getAllByText("Cost settings")).toHaveLength(1);
     await userEvent.click(within(table).getByRole("button", { name: /Actions for Changed member role/ }));

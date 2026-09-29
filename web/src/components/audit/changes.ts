@@ -37,6 +37,8 @@ function dateText(value: unknown): unknown {
 }
 
 const percent: Format = (v) => (typeof v === "number" ? `${v}%` : v);
+/** A switch's value in words: "On", "Off". */
+export const onOff = (v: unknown) => (typeof v === "boolean" ? (v ? "On" : "Off") : v);
 const label =
   (labels: Record<string, string>): Format =>
   (v) =>
@@ -61,6 +63,19 @@ function fieldsFor(action: string, currency?: string): Fields | undefined {
         timeZone: ["Time zone"],
         warnPercent: ["Warn at", percent],
         defaultBudget: ["Default monthly budget", money],
+      };
+    case "platform.evaluations":
+      return { enabled: ["Evaluations", onOff] };
+    case "legal_hold.create":
+    case "legal_hold.release":
+      return {
+        scopeId: null,
+        active: ["Status", (v) => (typeof v === "boolean" ? (v ? "Active" : "Released") : v)],
+        scopeType: ["Covers"],
+        scopeName: ["Name"],
+        coversFrom: ["Data from", dateText],
+        coversTo: ["Data until", dateText],
+        releaseReason: ["Release reason"],
       };
     case "costs.price_delete":
       return {
@@ -134,11 +149,12 @@ export function changedRows(change: { before: object; after: object }): ChangeRo
   return keys.filter((k) => JSON.stringify(b[k]) !== JSON.stringify(a[k])).map((k) => ({ field: k, before: b[k], after: a[k] }));
 }
 
-/** A value for people: text as is, a list of words joined, anything else as compact JSON; "Not set" without one. */
+/** A value for people: text as is, true and false as On and Off, a list of words joined, anything else as compact JSON; "Not set" without one. */
 export function valueText(v: unknown, none = "Not set"): string {
   if (v === undefined || v === null || v === "") return none;
   if (typeof v === "string") return v;
-  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (typeof v === "boolean") return v ? "On" : "Off";
+  if (typeof v === "number") return String(v);
   if (Array.isArray(v) && v.every((x) => typeof x === "string" || typeof x === "number")) return v.length ? v.join(", ") : none;
   return JSON.stringify(v);
 }

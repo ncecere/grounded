@@ -24,9 +24,9 @@ const columns: DataTableColumn<Entry>[] = [
   {
     id: "action",
     header: "Action",
-    accessor: (e) => actionLabel(e.action),
+    accessor: (e) => actionLabel(e.action, e),
     rowHeader: true,
-    cell: (e) => <CellText primary={actionLabel(e.action)} secondary={<span className={s.mono}>{e.action}</span>} />,
+    cell: (e) => <CellText primary={actionLabel(e.action, e)} secondary={<span className={s.mono}>{e.action}</span>} />,
   },
   {
     id: "target",
@@ -57,7 +57,7 @@ export function UserActivity({ user }: { user: Schemas["User"] }) {
         columns={columns}
         data={items}
         getRowId={(e) => String(e.id)}
-        rowLabel={(e) => actionLabel(e.action)}
+        rowLabel={(e) => actionLabel(e.action, e)}
         manual
         loading={log.isLoading}
         error={log.error}
