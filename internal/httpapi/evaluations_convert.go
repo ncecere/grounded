@@ -115,6 +115,7 @@ func toAPIResult(r evals.Result) apitypes.EvaluationResult {
 	if r.Scores != nil {
 		sc := viaJSON[apitypes.EvaluationAnswerScores](*r.Scores)
 		out.Scores = &sc
+		out.Claims = viaJSON[*[]apitypes.Claim](r.Scores.Claims)
 	}
 	return out
 }

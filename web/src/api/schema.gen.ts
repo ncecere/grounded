@@ -2821,7 +2821,7 @@ export interface paths {
         put?: never;
         /**
          * OpenAI-compatible chat completions for agents (stateless; transcripts are never stored)
-         * @description model must be agent:{team}/{slug}. Client system messages are dropped (the agent's instructions win); the other messages are the history and the last user message is the question. tools and n > 1 are rejected (400). With stream true the reply is chat.completion.chunk SSE with delta.content and delta.reasoning_content, a final chunk with finish_reason and citations, a usage chunk when stream_options.include_usage is set, then data [DONE]. Errors use the OpenAI shape. When a fail-closed moderation check can't run, the reply is 503 moderation_unavailable ("The safety check is unavailable right now. Please try again."), or an error chunk with that code when streaming.
+         * @description model must be agent:{team}/{slug}. Client system messages are dropped (the agent's instructions win); the other messages are the history and the last user message is the question. tools and n > 1 are rejected (400). With stream true the reply is chat.completion.chunk SSE with delta.content and delta.reasoning_content, a final chunk with finish_reason and citations (and claims when SystemOne citation checks are on for the agent), a usage chunk when stream_options.include_usage is set, then data [DONE]. Errors use the OpenAI shape. When a fail-closed moderation check can't run, the reply is 503 moderation_unavailable ("The safety check is unavailable right now. Please try again."), or an error chunk with that code when streaming.
          */
         post: operations["openaiChatCompletions"];
         delete?: never;
@@ -7757,6 +7757,35 @@ export interface components {
             start: number;
             end: number;
         };
+        /** @description One claim of the answer: a factual sentence (a list item or a table data row counts as one), with one verdict (SystemOne citation checks, docs/systemone.md §3). supported - a source it cites supports it (sources lists which); not_supported - it cites sources and none supports it; uncited - it cites no source (counted as not supported); unchecked - no cited source supports it and at least one check failed or timed out (left out of the counts). start and end are offsets in the answer text in Unicode code points. */
+        Claim: {
+            /** @description The claim's position in the answer */
+            index: number;
+            start: number;
+            end: number;
+            /** @description The sentence as plain text (markers and Markdown removed) */
+            text: string;
+            /** @enum {string} */
+            verdict: "supported" | "not_supported" | "uncited" | "unchecked";
+            /** @description The numbers ([n]) of the cited sources that support the claim; empty unless supported */
+            sources: number[];
+            /**
+             * Format: double
+             * @description The most confident supporting verdict (supported), or the least confident negative one (not_supported)
+             */
+            confidence?: number;
+            /** @description The outcome of each source the claim cites (absent for uncited claims) */
+            checks?: components["schemas"]["ClaimCheck"][];
+        };
+        /** @description How one cited source relates to a claim. occurrence says which [n] marker of that source in the answer text cites it (0 for the first [n]); it is absent when enforce removed the marker. */
+        ClaimCheck: {
+            n: number;
+            occurrence?: number;
+            /** @enum {string} */
+            verification: "verified" | "unsupported" | "contradicted" | "unchecked";
+            /** Format: double */
+            confidence?: number;
+        };
         ChatUsage: {
             input: number;
             output: number;
@@ -7805,6 +7834,8 @@ export interface components {
             moderation?: components["schemas"]["ChatEventModeration"];
             /** @description Set by SystemOne citation checks: the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources. */
             uncited?: components["schemas"]["UncitedSentence"][];
+            /** @description Set by SystemOne citation checks (v0.2.1 and later): the answer's claims, its factual sentences, each with one verdict (docs/systemone.md §3). Not set for refusals or when citations weren't checked. */
+            claims?: components["schemas"]["Claim"][];
         };
         /** @description SSE event conversation */
         ChatEventConversation: {
@@ -7879,6 +7910,8 @@ export interface components {
             noContextReason?: "judged_out" | "small_talk" | "out_of_scope";
             /** @description Set when citations were checked before the answer was released (buffered and JSON answers): the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources. */
             uncited?: components["schemas"]["UncitedSentence"][];
+            /** @description Set when citations were checked before the answer was released (buffered and JSON answers): the answer's claims with their verdicts (docs/systemone.md §3). */
+            claims?: components["schemas"]["Claim"][];
         };
         /** @description SSE event citations_checked (SystemOne citation checks, streaming modes): follows message_end. citations replace the answer's; text is the final text (changed in enforce mode, where unsupported markers are removed or, with refused, the answer is replaced by the refusal). */
         ChatEventCitationsChecked: {
@@ -7895,6 +7928,8 @@ export interface components {
             unchecked: number;
             /** @description Set by SystemOne citation checks: the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources. */
             uncited?: components["schemas"]["UncitedSentence"][];
+            /** @description The answer's claims with their verdicts (docs/systemone.md §3): what the answer's summary counts ("9 of 10 claims supported"). */
+            claims?: components["schemas"]["Claim"][];
         };
         /** @description SSE event error (for example model_unavailable, model_busy or incomplete_answer) */
         ChatEventError: {
@@ -7955,6 +7990,8 @@ export interface components {
             feedbackReason?: components["schemas"]["FeedbackReason"];
             /** @description Set by SystemOne citation checks: the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources. */
             uncited?: components["schemas"]["UncitedSentence"][];
+            /** @description Set for answers whose citations were checked by v0.2.1 or later: the answer's claims with their verdicts (docs/systemone.md §3). Answers checked before have per-marker verdicts (citations[].markers) only. */
+            claims?: components["schemas"]["Claim"][];
             /** Format: date-time */
             createdAt: string;
         };
@@ -8554,6 +8591,8 @@ export interface components {
             usage: components["schemas"]["OpenAIUsage"];
             /** @description Extension field; the sources referenced by [n] in content */
             citations: components["schemas"]["Citation"][];
+            /** @description Extension field, set when SystemOne citation checks are on for the agent: content's claims (factual sentences) with their verdicts; start and end are code point offsets in content. */
+            claims?: components["schemas"]["Claim"][];
         };
         /** @description What a good result is: any of these documents. urls are http(s) pages; one ending in * is a prefix (https://example.edu/registrar/transcripts*). filenames match uploaded files' names, case aside. */
         EvaluationExpected: {
@@ -8862,10 +8901,14 @@ export interface components {
             cited: boolean;
             mentions: components["schemas"]["EvaluationMention"][];
             refused: boolean;
-            /** @description Share of supported claims, 0-1 (SystemOne citation checks): verified claim–source pairs over checked pairs plus factual sentences without a citation, which count as unsupported. */
+            /** @description Share of supported claims, 0-1 (SystemOne citation checks): supported claims over all the answer's claims (factual sentences), uncited ones counting as not supported and unchecked ones left out; the same claims the chat's summary counts. Results recorded before v0.2.1 used claim–source pairs. */
             supportedShare?: number;
             /** @description Factual sentences without a citation (SystemOne citation checks), counted as unsupported */
             uncited?: number;
+            /** @description Supported claims: supportedShare's numerator (v0.2.1 and later) */
+            supportedClaims?: number;
+            /** @description Claims counted: supportedShare's denominator (v0.2.1 and later) */
+            claimsScored?: number;
         };
         EvaluationResult: {
             /** Format: uuid */
@@ -8899,6 +8942,8 @@ export interface components {
             /** @description The agent's answer (full-answer checks) */
             answer: string | null;
             scores: components["schemas"]["EvaluationAnswerScores"] | null;
+            /** @description Full-answer checks with SystemOne citation checks (v0.2.1 and later): the answer's claims with their verdicts, as chat shows them. */
+            claims?: components["schemas"]["Claim"][];
             error: string;
             latencyMs: number;
         };

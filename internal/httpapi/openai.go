@@ -11,6 +11,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/agents"
 	"github.com/ncecere/grounded/internal/apperr"
+	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/llm"
 )
@@ -243,13 +244,18 @@ func (a *api) openaiComplete(w http.ResponseWriter, r *http.Request, req agents.
 	if ans.Thinking != "" {
 		msg["reasoning_content"] = ans.Thinking
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	out := map[string]any{
 		"id": "chatcmpl-" + ans.MessageID.String(), "object": "chat.completion", "created": created, "model": model,
 		"choices": []map[string]any{{"index": 0, "message": msg, "finish_reason": finishReason(ans.StopReason)}},
 		"usage":   openaiUsage(ans.Usage), "citations": toAPICitations(ans.Citations),
-	})
+	}
+	// claims: an extension next to citations, when citations were checked (docs/systemone.md §3).
+	if len(ans.Claims) > 0 {
+		out["claims"] = viaJSON[[]apitypes.Claim](ans.Claims)
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(out)
 }
 
 // openaiStream answers with chat.completion.chunk server-sent events,
@@ -335,7 +341,7 @@ func (c *openaiChunks) emit(ev agents.Event) {
 		c.ended, c.end = true, &d
 	case agents.CitationsCheckedEvent:
 		if c.end != nil {
-			c.end.Citations = d.Citations
+			c.end.Citations, c.end.Claims = d.Citations, d.Claims
 		}
 	}
 }
@@ -354,6 +360,9 @@ func (c *openaiChunks) flush() {
 	}
 	last := c.chunk(map[string]any{}, finish)
 	last["citations"] = toAPICitations(d.Citations)
+	if len(d.Claims) > 0 {
+		last["claims"] = viaJSON[[]apitypes.Claim](d.Claims)
+	}
 	c.sse.data(last)
 	if c.includeUsage {
 		c.sse.data(map[string]any{"id": c.id, "object": "chat.completion.chunk", "created": c.created, "model": c.model,

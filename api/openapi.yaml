@@ -4393,7 +4393,8 @@ paths:
         the last user message is the question. tools and n > 1 are rejected
         (400). With stream true the reply is chat.completion.chunk SSE with
         delta.content and delta.reasoning_content, a final chunk with
-        finish_reason and citations, a usage chunk when
+        finish_reason and citations (and claims when SystemOne citation
+        checks are on for the agent), a usage chunk when
         stream_options.include_usage is set, then data [DONE]. Errors use the
         OpenAI shape. When a fail-closed moderation check can't run, the
         reply is 503 moderation_unavailable ("The safety check is
@@ -10358,6 +10359,54 @@ components:
       properties:
         start: { type: integer, minimum: 0 }
         end: { type: integer, minimum: 0 }
+    Claim:
+      type: object
+      description: >-
+        One claim of the answer: a factual sentence (a list item or a table
+        data row counts as one), with one verdict (SystemOne citation checks,
+        docs/systemone.md §3). supported - a source it cites supports it
+        (sources lists which); not_supported - it cites sources and none
+        supports it; uncited - it cites no source (counted as not supported);
+        unchecked - no cited source supports it and at least one check failed
+        or timed out (left out of the counts). start and end are offsets in
+        the answer text in Unicode code points.
+      required: [index, start, end, text, verdict, sources]
+      properties:
+        index: { type: integer, minimum: 0, description: The claim's position in the answer, from 0 }
+        start: { type: integer, minimum: 0 }
+        end: { type: integer, minimum: 0 }
+        text: { type: string, description: "The sentence as plain text (markers and Markdown removed)" }
+        verdict:
+          type: string
+          enum: [supported, not_supported, uncited, unchecked]
+        sources:
+          type: array
+          description: The numbers ([n]) of the cited sources that support the claim; empty unless supported
+          items: { type: integer }
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: The most confident supporting verdict (supported), or the least confident negative one (not_supported)
+        checks:
+          type: array
+          description: The outcome of each source the claim cites (absent for uncited claims)
+          items: { $ref: "#/components/schemas/ClaimCheck" }
+    ClaimCheck:
+      type: object
+      description: >-
+        How one cited source relates to a claim. occurrence says which [n]
+        marker of that source in the answer text cites it (0 for the first
+        [n]); it is absent when enforce removed the marker.
+      required: [n, verification]
+      properties:
+        n: { type: integer }
+        occurrence: { type: integer, minimum: 0 }
+        verification:
+          type: string
+          enum: [verified, unsupported, contradicted, unchecked]
+        confidence: { type: number, format: double, minimum: 0, maximum: 1 }
     ChatUsage:
       type: object
       required: [input, output, reasoning, cacheRead, cacheWrite, total]
@@ -10414,6 +10463,14 @@ components:
             without a citation (docs/systemone.md §3). Not set for refusals or
             answers without sources.
           items: { $ref: "#/components/schemas/UncitedSentence" }
+        claims:
+          type: array
+          description: >-
+            Set by SystemOne citation checks (v0.2.1 and later): the answer's
+            claims, its factual sentences, each with one verdict
+            (docs/systemone.md §3). Not set for refusals or when citations
+            weren't checked.
+          items: { $ref: "#/components/schemas/Claim" }
     ChatEventConversation:
       type: object
       description: "SSE event conversation"
@@ -10517,6 +10574,13 @@ components:
             without a citation (docs/systemone.md §3). Not set for refusals or
             answers without sources.
           items: { $ref: "#/components/schemas/UncitedSentence" }
+        claims:
+          type: array
+          description: >-
+            Set when citations were checked before the answer was released
+            (buffered and JSON answers): the answer's claims with their
+            verdicts (docs/systemone.md §3).
+          items: { $ref: "#/components/schemas/Claim" }
     ChatEventCitationsChecked:
       type: object
       description: >-
@@ -10542,6 +10606,12 @@ components:
             without a citation (docs/systemone.md §3). Not set for refusals or
             answers without sources.
           items: { $ref: "#/components/schemas/UncitedSentence" }
+        claims:
+          type: array
+          description: >-
+            The answer's claims with their verdicts (docs/systemone.md §3):
+            what the answer's summary counts ("9 of 10 claims supported").
+          items: { $ref: "#/components/schemas/Claim" }
     ChatEventError:
       type: object
       description: "SSE event error (for example model_unavailable, model_busy or incomplete_answer)"
@@ -10614,6 +10684,14 @@ components:
             without a citation (docs/systemone.md §3). Not set for refusals or
             answers without sources.
           items: { $ref: "#/components/schemas/UncitedSentence" }
+        claims:
+          type: array
+          description: >-
+            Set for answers whose citations were checked by v0.2.1 or later:
+            the answer's claims with their verdicts (docs/systemone.md §3).
+            Answers checked before have per-marker verdicts
+            (citations[].markers) only.
+          items: { $ref: "#/components/schemas/Claim" }
         createdAt: { type: string, format: date-time }
     ConversationDetail:
       type: object
@@ -11095,6 +11173,13 @@ components:
           type: array
           description: Extension field; the sources referenced by [n] in content
           items: { $ref: "#/components/schemas/Citation" }
+        claims:
+          type: array
+          description: >-
+            Extension field, set when SystemOne citation checks are on for the
+            agent: content's claims (factual sentences) with their verdicts;
+            start and end are code point offsets in content.
+          items: { $ref: "#/components/schemas/Claim" }
     EvaluationExpected:
       type: object
       description: >-
@@ -11428,10 +11513,14 @@ components:
         supportedShare:
           type: number
           description: >-
-            Share of supported claims, 0-1 (SystemOne citation checks): verified
-            claim–source pairs over checked pairs plus factual sentences without
-            a citation, which count as unsupported.
+            Share of supported claims, 0-1 (SystemOne citation checks):
+            supported claims over all the answer's claims (factual sentences),
+            uncited ones counting as not supported and unchecked ones left
+            out; the same claims the chat's summary counts. Results recorded
+            before v0.2.1 used claim–source pairs.
         uncited: { type: integer, description: "Factual sentences without a citation (SystemOne citation checks), counted as unsupported" }
+        supportedClaims: { type: integer, description: "Supported claims: supportedShare's numerator (v0.2.1 and later)" }
+        claimsScored: { type: integer, description: "Claims counted: supportedShare's denominator (v0.2.1 and later)" }
     EvaluationResult:
       type: object
       required: [id, questionId, question, status, rank, hits, expectedItems, missingReason, answer, scores, error, latencyMs]
@@ -11478,6 +11567,12 @@ components:
         scores:
           nullable: true
           allOf: [{ $ref: "#/components/schemas/EvaluationAnswerScores" }]
+        claims:
+          type: array
+          description: >-
+            Full-answer checks with SystemOne citation checks (v0.2.1 and
+            later): the answer's claims with their verdicts, as chat shows them.
+          items: { $ref: "#/components/schemas/Claim" }
         error: { type: string }
         latencyMs: { type: integer }
     EvaluationRunDetail:

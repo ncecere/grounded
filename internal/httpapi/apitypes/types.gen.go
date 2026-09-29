@@ -777,6 +777,54 @@ func (e CitationMode) Valid() bool {
 	}
 }
 
+// Defines values for ClaimVerdict.
+const (
+	ClaimVerdictNotSupported ClaimVerdict = "not_supported"
+	ClaimVerdictSupported    ClaimVerdict = "supported"
+	ClaimVerdictUnchecked    ClaimVerdict = "unchecked"
+	ClaimVerdictUncited      ClaimVerdict = "uncited"
+)
+
+// Valid indicates whether the value is a known member of the ClaimVerdict enum.
+func (e ClaimVerdict) Valid() bool {
+	switch e {
+	case ClaimVerdictNotSupported:
+		return true
+	case ClaimVerdictSupported:
+		return true
+	case ClaimVerdictUnchecked:
+		return true
+	case ClaimVerdictUncited:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ClaimCheckVerification.
+const (
+	ClaimCheckVerificationContradicted ClaimCheckVerification = "contradicted"
+	ClaimCheckVerificationUnchecked    ClaimCheckVerification = "unchecked"
+	ClaimCheckVerificationUnsupported  ClaimCheckVerification = "unsupported"
+	ClaimCheckVerificationVerified     ClaimCheckVerification = "verified"
+)
+
+// Valid indicates whether the value is a known member of the ClaimCheckVerification enum.
+func (e ClaimCheckVerification) Valid() bool {
+	switch e {
+	case ClaimCheckVerificationContradicted:
+		return true
+	case ClaimCheckVerificationUnchecked:
+		return true
+	case ClaimCheckVerificationUnsupported:
+		return true
+	case ClaimCheckVerificationVerified:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ClassificationAllowedSourceTypes.
 const (
 	ClassificationAllowedSourceTypesUpload ClassificationAllowedSourceTypes = "upload"
@@ -4673,8 +4721,11 @@ type CatalogUsage struct {
 
 // ChatAnswer The reply to a chat with stream false
 type ChatAnswer struct {
-	AgentVersion   *int32              `json:"agentVersion"`
-	Citations      []Citation          `json:"citations"`
+	AgentVersion *int32     `json:"agentVersion"`
+	Citations    []Citation `json:"citations"`
+
+	// Claims Set by SystemOne citation checks (v0.2.1 and later): the answer's claims, its factual sentences, each with one verdict (docs/systemone.md §3). Not set for refusals or when citations weren't checked.
+	Claims         *[]Claim            `json:"claims,omitempty"`
 	ConversationId *openapi_types.UUID `json:"conversationId"`
 
 	// ErrorCode model_unavailable, model_busy (gateway rate limit or overload) or incomplete_answer when the answer failed
@@ -4705,7 +4756,10 @@ type ChatAnswer struct {
 
 // ChatEventCitationsChecked SSE event citations_checked (SystemOne citation checks, streaming modes): follows message_end. citations replace the answer's; text is the final text (changed in enforce mode, where unsupported markers are removed or, with refused, the answer is replaced by the refusal).
 type ChatEventCitationsChecked struct {
-	Citations []Citation         `json:"citations"`
+	Citations []Citation `json:"citations"`
+
+	// Claims The answer's claims with their verdicts (docs/systemone.md §3): what the answer's summary counts ("9 of 10 claims supported").
+	Claims    *[]Claim           `json:"claims,omitempty"`
 	MessageId openapi_types.UUID `json:"messageId"`
 	Refused   bool               `json:"refused"`
 	Text      string             `json:"text"`
@@ -4743,7 +4797,10 @@ type ChatEventError struct {
 
 // ChatEventMessageEnd SSE event message_end. text is the final answer text; it replaces the streamed deltas.
 type ChatEventMessageEnd struct {
-	Citations []Citation         `json:"citations"`
+	Citations []Citation `json:"citations"`
+
+	// Claims Set when citations were checked before the answer was released (buffered and JSON answers): the answer's claims with their verdicts (docs/systemone.md §3).
+	Claims    *[]Claim           `json:"claims,omitempty"`
 	MessageId openapi_types.UUID `json:"messageId"`
 	NoContext bool               `json:"noContext"`
 
@@ -4928,6 +4985,41 @@ type CitationTotals struct {
 	Verified    int64 `json:"verified"`
 }
 
+// Claim One claim of the answer: a factual sentence (a list item or a table data row counts as one), with one verdict (SystemOne citation checks, docs/systemone.md §3). supported - a source it cites supports it (sources lists which); not_supported - it cites sources and none supports it; uncited - it cites no source (counted as not supported); unchecked - no cited source supports it and at least one check failed or timed out (left out of the counts). start and end are offsets in the answer text in Unicode code points.
+type Claim struct {
+	// Checks The outcome of each source the claim cites (absent for uncited claims)
+	Checks *[]ClaimCheck `json:"checks,omitempty"`
+
+	// Confidence The most confident supporting verdict (supported), or the least confident negative one (not_supported)
+	Confidence *float64 `json:"confidence,omitempty"`
+	End        int      `json:"end"`
+
+	// Index The claim's position in the answer
+	Index int `json:"index"`
+
+	// Sources The numbers ([n]) of the cited sources that support the claim; empty unless supported
+	Sources []int `json:"sources"`
+	Start   int   `json:"start"`
+
+	// Text The sentence as plain text (markers and Markdown removed)
+	Text    string       `json:"text"`
+	Verdict ClaimVerdict `json:"verdict"`
+}
+
+// ClaimVerdict defines model for Claim.Verdict.
+type ClaimVerdict string
+
+// ClaimCheck How one cited source relates to a claim. occurrence says which [n] marker of that source in the answer text cites it (0 for the first [n]); it is absent when enforce removed the marker.
+type ClaimCheck struct {
+	Confidence   *float64               `json:"confidence,omitempty"`
+	N            int                    `json:"n"`
+	Occurrence   *int                   `json:"occurrence,omitempty"`
+	Verification ClaimCheckVerification `json:"verification"`
+}
+
+// ClaimCheckVerification defines model for ClaimCheck.Verification.
+type ClaimCheckVerification string
+
 // Classification defines model for Classification.
 type Classification struct {
 	// AllowedSourceTypes The data source types that may hold data at this level
@@ -5106,7 +5198,10 @@ type ConversationDetail struct {
 // ConversationMessage defines model for ConversationMessage.
 type ConversationMessage struct {
 	Citations *[]Citation `json:"citations,omitempty"`
-	CreatedAt time.Time   `json:"createdAt"`
+
+	// Claims Set for answers whose citations were checked by v0.2.1 or later: the answer's claims with their verdicts (docs/systemone.md §3). Answers checked before have per-marker verdicts (citations[].markers) only.
+	Claims    *[]Claim  `json:"claims,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
 
 	// ErrorCode moderation_blocked, moderation_withheld, moderation_support or moderation_unavailable (the safety check could not run; try again) when text is a moderation notice
 	ErrorCode      *string                 `json:"errorCode,omitempty"`
@@ -5782,11 +5877,17 @@ type ErrorResponse struct {
 // EvaluationAnswerScores defines model for EvaluationAnswerScores.
 type EvaluationAnswerScores struct {
 	// Cited The answer cites an expected document
-	Cited    bool                `json:"cited"`
-	Mentions []EvaluationMention `json:"mentions"`
-	Refused  bool                `json:"refused"`
+	Cited bool `json:"cited"`
 
-	// SupportedShare Share of supported claims, 0-1 (SystemOne citation checks): verified claim–source pairs over checked pairs plus factual sentences without a citation, which count as unsupported.
+	// ClaimsScored Claims counted: supportedShare's denominator (v0.2.1 and later)
+	ClaimsScored *int                `json:"claimsScored,omitempty"`
+	Mentions     []EvaluationMention `json:"mentions"`
+	Refused      bool                `json:"refused"`
+
+	// SupportedClaims Supported claims: supportedShare's numerator (v0.2.1 and later)
+	SupportedClaims *int `json:"supportedClaims,omitempty"`
+
+	// SupportedShare Share of supported claims, 0-1 (SystemOne citation checks): supported claims over all the answer's claims (factual sentences), uncited ones counting as not supported and unchecked ones left out; the same claims the chat's summary counts. Results recorded before v0.2.1 used claim–source pairs.
 	SupportedShare *float32 `json:"supportedShare,omitempty"`
 
 	// Uncited Factual sentences without a citation (SystemOne citation checks), counted as unsupported
@@ -5997,7 +6098,10 @@ type EvaluationQuestionInput struct {
 type EvaluationQuestionResult struct {
 	// Answer The agent's answer (full-answer checks)
 	Answer *string `json:"answer"`
-	Error  string  `json:"error"`
+
+	// Claims Full-answer checks with SystemOne citation checks (v0.2.1 and later): the answer's claims with their verdicts, as chat shows them.
+	Claims *[]Claim `json:"claims,omitempty"`
+	Error  string   `json:"error"`
 
 	// ExpectedItems The question's expected documents as the run found them (empty for results recorded before v0.2.0-rc.1)
 	ExpectedItems []EvaluationExpectedItem `json:"expectedItems"`
@@ -6044,7 +6148,10 @@ type EvaluationQuestionResultStatus string
 type EvaluationResult struct {
 	// Answer The agent's answer (full-answer checks)
 	Answer *string `json:"answer"`
-	Error  string  `json:"error"`
+
+	// Claims Full-answer checks with SystemOne citation checks (v0.2.1 and later): the answer's claims with their verdicts, as chat shows them.
+	Claims *[]Claim `json:"claims,omitempty"`
+	Error  string   `json:"error"`
 
 	// ExpectedItems The question's expected documents as the run found them (empty for results recorded before v0.2.0-rc.1)
 	ExpectedItems []EvaluationExpectedItem `json:"expectedItems"`
@@ -7417,12 +7524,15 @@ type OpenAIChatCompletion struct {
 	} `json:"choices"`
 
 	// Citations Extension field; the sources referenced by [n] in content
-	Citations []Citation                 `json:"citations"`
-	Created   int64                      `json:"created"`
-	Id        string                     `json:"id"`
-	Model     string                     `json:"model"`
-	Object    OpenAIChatCompletionObject `json:"object"`
-	Usage     OpenAIUsage                `json:"usage"`
+	Citations []Citation `json:"citations"`
+
+	// Claims Extension field, set when SystemOne citation checks are on for the agent: content's claims (factual sentences) with their verdicts; start and end are code point offsets in content.
+	Claims  *[]Claim                   `json:"claims,omitempty"`
+	Created int64                      `json:"created"`
+	Id      string                     `json:"id"`
+	Model   string                     `json:"model"`
+	Object  OpenAIChatCompletionObject `json:"object"`
+	Usage   OpenAIUsage                `json:"usage"`
 }
 
 // OpenAIChatCompletionChoicesFinishReason defines model for OpenAIChatCompletion.Choices.FinishReason.
