@@ -158,14 +158,17 @@ describe("analytics judging", () => {
     };
     mockApi({
       ...shellRoutes("platform_auditor"),
+      "GET /v1/systemone/status": () => ({ available: true, judging: { enabled: true, candidates: 20 }, citations: { enabled: false, mode: "annotate" }, scope: { enabled: false } }),
       "GET /v1/admin/analytics": () => ({ from: "2026-09-24", to: "2026-09-26", totals, audiences: [], channels: [], moderation: [], models: [], topAgents: [], topTeams: [], daily: [] }),
     });
     const { container } = renderApp("/admin/analytics");
+    expect(await screen.findByRole("region", { name: "Moderation" })).toHaveTextContent("Support messages");
+    // The SystemOne cards are on the Checks tab (v0.2.1 I8).
+    await userEvent.click(await screen.findByRole("tab", { name: "Checks" }));
     const group = await screen.findByRole("region", { name: "Passage judging (SystemOne)" });
     expect(group).toHaveTextContent("160");
     expect(group).toHaveTextContent("1 injection · 110 not relevant · 17 nothing usable · 1 refused without a model call");
     expect(group).toHaveTextContent("6.1 s");
-    expect(screen.getByRole("region", { name: "Moderation" })).toHaveTextContent("Support messages");
     expect(await axe(container)).toHaveNoViolations();
   });
 });

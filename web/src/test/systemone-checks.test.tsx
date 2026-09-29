@@ -138,9 +138,11 @@ describe("analytics citation checks and scope", () => {
     };
     mockApi({
       ...shellRoutes("platform_auditor"),
+      "GET /v1/systemone/status": () => ({ available: true, judging: { enabled: false, candidates: 10 }, citations: { enabled: true, mode: "annotate" }, scope: { enabled: true } }),
       "GET /v1/admin/analytics": () => ({ from: "2026-09-24", to: "2026-09-26", totals, audiences: [], channels: [], moderation: [], models: [], topAgents: [], topTeams: [], daily: [] }),
     });
-    const { container } = renderApp("/admin/analytics");
+    // On the Checks tab (v0.2.1 I8).
+    const { container } = renderApp("/admin/analytics?tab=checks");
     const cites = await screen.findByRole("region", { name: "Citation checks (SystemOne)" });
     expect(cites).toHaveTextContent("82.8%");
     expect(cites).toHaveTextContent("4 unsupported · 1 contradicted · 2 low confidence (review)");

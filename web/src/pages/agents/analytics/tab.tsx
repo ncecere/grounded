@@ -1,6 +1,8 @@
 /*
  * The Analytics tab (W7): a date range in the URL (?range=), a strip of five
- * KPIs, then one of Usage · Quality · Moderation · Content (?view=). Charts
+ * KPIs, then one of Usage · Quality · Moderation · Content · Checks (?view=;
+ * Checks holds the SystemOne cards, only while a SystemOne model is
+ * configured, v0.2.1 I8). Charts
  * are bitop-ui charts with "Show data". No message content or identities.
  */
 import { useQuery } from "@tanstack/react-query";
@@ -16,7 +18,7 @@ import { useSystemOneStatus } from "@/lib/systemone";
 import { useSearchParams } from "@/lib/url-search";
 import { agentKey, useTeam } from "../../team/common";
 import type { Agent } from "../common";
-import { ContentView, ModerationView, QualityView, UsageView, type Analytics } from "./views";
+import { ChecksView, ContentView, ModerationView, QualityView, UsageView, type Analytics } from "./views";
 import an from "./analytics.module.css";
 
 const views = [
@@ -24,14 +26,16 @@ const views = [
   { value: "quality", label: "Quality" },
   { value: "moderation", label: "Moderation" },
   { value: "content", label: "Content" },
+  { value: "checks", label: "Checks" },
 ] as const;
 type View = (typeof views)[number]["value"];
 
-/** The section in ?view= (Usage by default, kept out of the URL). */
-function useView(): [View, (v: View) => void] {
+/** The section in ?view= (Usage by default, kept out of the URL); Checks only with SystemOne. */
+function useView(systemOne: boolean): [View, (v: View) => void, (typeof views)[number][]] {
   const [params, setParams] = useSearchParams();
   const raw = params.get("view");
-  const view = views.some((v) => v.value === raw) ? (raw as View) : "usage";
+  const shown = views.filter((v) => systemOne || v.value !== "checks");
+  const view = shown.some((v) => v.value === raw) ? (raw as View) : "usage";
   const set = (v: View) =>
     setParams((p) => {
       const out = new URLSearchParams(p);
@@ -39,7 +43,7 @@ function useView(): [View, (v: View) => void] {
       else out.set("view", v);
       return out;
     });
-  return [view, set];
+  return [view, set, shown];
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${num(n)} ${n === 1 ? one : many}`;
@@ -47,7 +51,8 @@ const plural = (n: number, one: string, many = `${one}s`) => `${num(n)} ${n === 
 export function AnalyticsTab({ agent }: { agent: Agent }) {
   const { slug } = useTeam();
   const range = useDateRangeParam({ defaultPreset: "30d" });
-  const [view, setView] = useView();
+  const systemOne = useSystemOneStatus();
+  const [view, setView, shown] = useView(Boolean(systemOne.data?.available));
   const from = range.fromDay ?? "";
   const to = range.toDay ?? "";
   const data = useQuery({
@@ -60,7 +65,7 @@ export function AnalyticsTab({ agent }: { agent: Agent }) {
     <div className={an.analytics}>
       <div className={an.toolbar}>
         <ToggleGroup aria-label="Analytics section" variant="outline" size="sm" value={[view]} onValueChange={(v) => v[0] && setView(v[0] as View)}>
-          {views.map((v) => (
+          {shown.map((v) => (
             <ToggleGroupItem key={v.value} value={v.value}>
               {v.label}
             </ToggleGroupItem>
@@ -79,6 +84,7 @@ export function AnalyticsTab({ agent }: { agent: Agent }) {
           {view === "quality" && <QualityView a={data.data} />}
           {view === "moderation" && <ModerationView a={data.data} />}
           {view === "content" && <ContentView a={data.data} />}
+          {view === "checks" && <ChecksView a={data.data} />}
         </>
       )}
     </div>

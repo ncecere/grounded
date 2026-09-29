@@ -37,7 +37,8 @@ export const crawlDomainTabs = ["requests", "allowlist"] as const;
 export const teamSettingsTabs = ["members", "usage", "api-keys", "crawl-domains", "audit", "general"] as const;
 export type TeamSettingsTab = (typeof teamSettingsTabs)[number];
 export const logTabs = ["audit", "access"] as const;
-export const analyticsTabs = ["overview", "breakdown", "models", "top"] as const;
+/** Admin → Analytics; Checks (the SystemOne cards) shows only while a SystemOne model is configured (v0.2.1 I8). */
+export const analyticsTabs = ["overview", "breakdown", "models", "top", "checks"] as const;
 /** Admin → Costs (E2). Overview and Budgets are hidden while the mode is Off. */
 export const costTabs = ["overview", "budgets", "prices", "settings"] as const;
 /** Admin → Retention: Periods · Dry run · Runs · Legal holds (Admin → Legal holds until v0.2.1, I1). */

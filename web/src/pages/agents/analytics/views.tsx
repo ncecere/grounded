@@ -1,10 +1,9 @@
-/* The Analytics tab's sections: Usage, Quality, Moderation and Content (W7). */
+/* The Analytics tab's sections: Usage, Quality, Moderation, Content (W7) and Checks (the SystemOne cards, v0.2.1 I8). */
 import { Activity, Clock, Flag, LifeBuoy, SearchX, ShieldAlert, ShieldOff, ShieldX, Timer, Zap } from "lucide-react";
 import type { Schemas } from "../../../api/client";
 import { ModerationCard, ShareCard, StatGroup } from "@/components/analytics/breakdowns";
-import { CitationsGroup, ScopeGroup } from "@/components/analytics/checks";
+import { SystemOneChecks } from "@/components/analytics/checks";
 import { audienceLabels, channelLabels, dailySummary, dayLabel, ms, num, pct } from "@/components/analytics/format";
-import { JudgingGroup } from "@/components/analytics/judging";
 import { Card } from "@/components/ui/card/card";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { LineChart } from "@/components/ui/line-chart/line-chart";
@@ -81,9 +80,16 @@ export function QualityView({ a }: { a: Analytics }) {
         <StatCard label="Refusals" value={pct(t.refusalRate)} icon={<ShieldOff />} hint="Of answers" />
         <StatCard label="Errors" value={pct(t.errorRate)} icon={<Activity />} hint="Of answers" />
       </StatGroup>
-      <JudgingGroup j={t.judging} />
-      <CitationsGroup c={t.citations} />
-      <ScopeGroup s={t.scope} />
+    </div>
+  );
+}
+
+/** Passage judging, citation checks and the scope check (only while a SystemOne model is configured). */
+export function ChecksView({ a }: { a: Analytics }) {
+  const t = a.totals;
+  return (
+    <div className={an.view}>
+      <SystemOneChecks judging={t.judging} citations={t.citations} scope={t.scope} />
     </div>
   );
 }
