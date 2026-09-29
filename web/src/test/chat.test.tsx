@@ -215,6 +215,35 @@ describe("chat page", () => {
     expect(screen.getByRole("button", { name: "Send message" })).toBeInTheDocument();
   });
 
+  it("a stopped answer shows its markers as chips and its sources right away (M4)", async () => {
+    const hits = [{ n: 1, title: "Drop/Add", snippet: "Drop in the portal.", url: citation.url }, { n: 2, title: "Fees", snippet: "Refund rules." }];
+    mockApi(
+      routes({
+        "POST /v1/agents/registrar/registrar-assistant/chat": (_b, call) =>
+          openSSE(
+            [
+              ["conversation", { conversationId: "c2", userMessageId: "u", agentVersion: 1 }],
+              ["retrieval", { query: "drop", hits }],
+              ["message_start", { messageId: "m2" }],
+              ["text_delta", { delta: "Drop it in the portal\u202f【1】 before the deadline【9】. Refunds vary【2†L3-L4】" }],
+            ],
+            call.signal,
+          ),
+      }),
+    );
+    const { container } = renderApp(chatPath);
+    await userEvent.type(await screen.findByRole("textbox", { name: "Message Registrar assistant" }), "How do I drop?{Enter}");
+    await screen.findByText(/Drop it in the portal/);
+    await userEvent.click(screen.getByRole("button", { name: "Stop generating" }));
+    expect(await screen.findByText("Stopped. This is a partial answer.")).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/[【】]|\[9\]/);
+    expect(screen.getByRole("button", { name: "Source 1: Drop/Add" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Source 2: Fees" })).toBeInTheDocument();
+    const list = screen.getByRole("list", { name: "Sources for this answer" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("explains errors that stop a question before streaming and gives the question back", async () => {
     mockApi(routes({ "POST /v1/agents/registrar/registrar-assistant/chat": () => Reply.error(429, "rate_limited", "Your team has reached its limit of 60 queries per minute.", undefined, { "Retry-After": "12" }) }));
     renderApp(chatPath);

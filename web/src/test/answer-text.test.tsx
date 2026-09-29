@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { axe } from "vitest-axe";
-import { displayText, normalizeMarkers, normalizePunctuation } from "../pages/chat/answer-text";
+import { displayText, normalizeMarkers, normalizePunctuation, settlePartial } from "../pages/chat/answer-text";
 import { type AssistantItem, type ChatItem, pendingAssistant } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
 import { renderBare } from "./harness";
@@ -21,6 +21,26 @@ describe("normalizePunctuation", () => {
     expect(displayText("Fee\u202f【1】.", true)).toBe("Fee [1].");
     expect(displayText("Fee\u202f[1].", false)).toBe("Fee [1].");
     expect(normalizeMarkers("online【2】.")).toBe("online [2].");
+  });
+});
+
+describe("settlePartial (M4)", () => {
+  const sources = [
+    { n: 1, title: "Fees", snippet: "Ten dollars.", url: "https://registrar.example.edu/fees" },
+    { n: 3, title: "Hours", snippet: "Open 9-5." },
+  ];
+  it("normalises markers, keeps known sources as citations and drops unknown numbers", () => {
+    const a = settlePartial({ ...pendingAssistant(), status: "aborted", sources, text: "Ten dollars\u202f\u30101, 3\u3011 [7]; arr[1] and m[i][3] stay; [1][3] twice" });
+    expect(a.text).toBe("Ten dollars [1][3]; arr[1] and m[i][3] stay; [1][3] twice");
+    expect(a.citations.map((c) => [c.n, c.title, c.url])).toEqual([
+      [1, "Fees", "https://registrar.example.edu/fees"],
+      [3, "Hours", undefined],
+    ]);
+  });
+  it("keeps citations that already arrived", () => {
+    const cited = { n: 1, documentId: "d", sourceId: "s", title: "Fees", snippet: "", headingPath: [] };
+    const a = settlePartial({ ...pendingAssistant(), sources, citations: [cited], text: "Fee [1]." });
+    expect(a.citations).toEqual([cited]);
   });
 });
 

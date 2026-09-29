@@ -3,6 +3,7 @@
  * is the model's raw output; the server's finished text (message_end) is
  * normalised the same way (internal/agents/punctuation.go, citations.go).
  */
+import type { AssistantItem, Citation } from "./stream";
 
 /**
  * Typographic look-alikes some models write (gpt-oss among them): non-breaking
@@ -39,4 +40,36 @@ export function normalizeMarkers(text: string) {
 export function displayText(text: string, streaming: boolean) {
   const plain = normalizePunctuation(text);
   return streaming ? normalizeMarkers(plain) : plain;
+}
+
+/** An ASCII [n] or [n, m] marker with the spaces before it (after normalizeMarkers). */
+const MARKER = /(\s*)\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\](?![\w(])/g;
+
+/**
+ * A partial answer (stopped, or cut off by a lost connection) never gets the
+ * server's message_end, so its markers and citations are settled here as the
+ * server settles the stored text (internal/agents/citations.go): markers
+ * normalised and one per number, numbers of sources the model was given become
+ * citations, other numbers are dropped with the space before them.
+ */
+export function settlePartial(item: AssistantItem): AssistantItem {
+  if (item.citations.length > 0 || item.moderation) return { ...item, text: normalizePunctuation(item.text) };
+  const byN = new Map(item.sources.map((s) => [s.n, s]));
+  const cited = new Set<number>();
+  let lastEnd = -1; // the end of the last marker, so [1][2] is two markers but m[i][2] none
+  const text = normalizeMarkers(normalizePunctuation(item.text)).replace(MARKER, (m, lead: string, nums: string, at: number, all: string) => {
+    const before = at > 0 && lead === "" ? all[at - 1]! : "";
+    if (/\w/.test(before) || (before === "]" && lastEnd !== at)) return m; // a[3], m[i][2]: not a marker
+    lastEnd = at + m.length;
+    const kept = nums.split(/\s*,\s*/).map(Number).filter((n) => byN.has(n));
+    kept.forEach((n) => cited.add(n));
+    return kept.length ? `${lead}${kept.map((n) => `[${n}]`).join("")}` : "";
+  });
+  const citations: Citation[] = [...cited]
+    .sort((a, b) => a - b)
+    .map((n) => {
+      const s = byN.get(n)!;
+      return { n, documentId: "", sourceId: "", title: s.title, snippet: s.snippet, headingPath: [], ...(s.url ? { url: s.url } : {}) };
+    });
+  return { ...item, text: text.trimEnd(), citations };
 }

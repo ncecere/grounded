@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/client";
+import { settlePartial } from "./answer-text";
 import {
   type AssistantItem,
   type ChatItem,
@@ -96,7 +97,8 @@ export function useChat({ path, body, onConversation, onSettled }: UseChatOption
       return true;
     } catch (err) {
       if (isAbort(err)) {
-        set({ ...local, status: "aborted", stopReason: "aborted" });
+        // No message_end after Stop: settle the partial answer's markers and citations here (M4).
+        set(settlePartial({ ...local, status: "aborted", stopReason: "aborted" }));
         announce("Stopped. The partial answer is kept.");
         return true;
       }
