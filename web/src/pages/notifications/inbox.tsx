@@ -26,7 +26,8 @@ const anyType = "any";
 type TypeFilter = NotificationType | typeof anyType;
 
 export function NotificationsPage() {
-  const [tab, setTab] = useUrlTab(notificationTabs);
+  // The type filter sits above the tabs: it stays when the tab changes.
+  const [tab, setTab] = useUrlTab(notificationTabs, { keep: ["type"] });
   const [params, setParams] = useSearchParams();
   const type = (params.get("type") as TypeFilter | null) ?? anyType;
   const setType = (next: TypeFilter) =>
