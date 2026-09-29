@@ -50,6 +50,15 @@
   color: var(--color-text-muted);
 }
 
+/* Without a team: how to get onto one, wrapped to the menu's width. */
+.menuNoTeam {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 16rem;
+  white-space: normal;
+}
+
 /* Admin mode: static context block where the team switcher sits in workspace mode. */
 .adminHeader {
   display: flex;

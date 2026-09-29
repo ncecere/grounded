@@ -1,17 +1,18 @@
 import { Link } from "@tanstack/react-router";
-import { Home, Plus } from "lucide-react";
-import { useAuthConfig, type Me } from "../../session";
+import { Home, LifeBuoy, Plus } from "lucide-react";
+import { type Me } from "../../session";
 import { WorkspaceSwitcher } from "@/components/ui/app-shell/app-shell";
 import { Avatar } from "@/components/ui/avatar/avatar";
 import { MenuGroup, MenuHeader, MenuLinkItem, MenuSeparator } from "@/components/ui/menu/menu";
 import { roleLabels } from "../roles";
 import { type ActiveTeam } from "./active-team";
+import { useJoinTeamHelp } from "./join-team";
 import styles from "./layout.module.css";
 
 /* The sidebar's team switcher (workspace mode): shows the active team (the page's, else the last used). */
 
 export function TeamSwitcher({ me, active }: { me: Me; active: ActiveTeam }) {
-  const config = useAuthConfig();
+  const help = useJoinTeamHelp();
   const staff = me.capabilities.platformAdmin || me.capabilities.platformAuditor;
   // Without a team the switcher shows the person (their initials, not "NY" for "No team yet"; P-08).
   const noTeam = !active.slug;
@@ -38,11 +39,15 @@ export function TeamSwitcher({ me, active }: { me: Me; active: ActiveTeam }) {
           ))}
         </MenuGroup>
       ) : (
-        <MenuHeader>You aren't on a team yet.</MenuHeader>
+        <MenuHeader>
+          <span className={styles.menuNoTeam}>
+            You aren't on a team yet. <span className={styles.menuTeamRole}>{help.text}</span>
+          </span>
+        </MenuHeader>
       )}
-      {me.teams.length === 0 && config.data?.teamRequestUrl && (
-        <MenuLinkItem href={config.data.teamRequestUrl} target="_blank" rel="noreferrer" icon={<Plus aria-hidden />}>
-          Request a new team
+      {me.teams.length === 0 && help.link && (
+        <MenuLinkItem href={help.link.href} target="_blank" rel="noreferrer" icon={help.link.label === "Get help" ? <LifeBuoy aria-hidden /> : <Plus aria-hidden />}>
+          {help.link.label}
         </MenuLinkItem>
       )}
       <MenuSeparator />

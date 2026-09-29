@@ -9,7 +9,8 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, Users } from "lucide-react";
 import { roleLabels } from "../components/roles";
 import { terms } from "../lib/terms";
-import { type Me, useAuthConfig, useCurrentUser } from "../session";
+import { useJoinTeamHelp } from "../components/layout/join-team";
+import { type Me, useCurrentUser } from "../session";
 import { Avatar } from "@/components/ui/avatar/avatar";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
@@ -67,9 +68,8 @@ export function HomePage() {
 }
 
 function YourTeams({ me }: { me: Me }) {
-  const config = useAuthConfig();
+  const help = useJoinTeamHelp();
   const levelName = useLevelName();
-  const requestUrl = config.data?.teamRequestUrl;
   if (me.teams.length === 0) {
     return (
       <Card title="Your teams">
@@ -77,15 +77,11 @@ function YourTeams({ me }: { me: Me }) {
           size="compact"
           icon={<Users />}
           title="You aren't on a team yet."
-          description={
-            requestUrl
-              ? "Teams build data sources, knowledge bases and agents. Ask a team owner to add you, or request a new team."
-              : "Teams build data sources, knowledge bases and agents. Ask a team owner to add you."
-          }
+          description={`Teams build data sources, knowledge bases and agents. ${help.text}`}
           action={
-            requestUrl ? (
-              <Button variant="secondary" render={<a href={requestUrl} target="_blank" rel="noreferrer" />}>
-                Request a new team
+            help.link ? (
+              <Button variant="secondary" render={<a href={help.link.href} target="_blank" rel="noreferrer" />}>
+                {help.link.label}
               </Button>
             ) : undefined
           }
