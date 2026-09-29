@@ -528,4 +528,16 @@ func TestSystemOneChecksSettings(t *testing.T) {
 		lastRecord(t, env.agentEnv, "scope", ag.Id.String()) != "" {
 		t.Error("checks ran while off")
 	}
+
+	// Agent use: by the platform defaults (judging on, the checks off), else by an agent's own setting.
+	var use apitypes.SystemOneSettings
+	if env.auditor.get("/v1/admin/systemone", &use); use.Agents != (apitypes.SystemOneAgentUse{Judging: 1, Any: 1}) {
+		t.Errorf("agent use, platform defaults = %+v", use.Agents)
+	}
+	cfg := env.agentConfig(kb.Id.String())
+	cfg["systemOne"] = map[string]any{"judging": "off", "scope": "on", "citations": "off"}
+	env.publishAgent(t, "Scoped", cfg)
+	if env.auditor.get("/v1/admin/systemone", &use); use.Agents != (apitypes.SystemOneAgentUse{Judging: 1, Scope: 1, Any: 2}) {
+		t.Errorf("agent use, one override = %+v", use.Agents)
+	}
 }

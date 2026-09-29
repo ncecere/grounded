@@ -12,6 +12,51 @@ import (
 	"github.com/google/uuid"
 )
 
+const countSystemOneAgents = `-- name: CountSystemOneAgents :one
+WITH checks AS (
+    SELECT coalesce(nullif(v.config->'systemOne'->>'judging', ''), CASE WHEN $1::bool THEN 'on' ELSE 'off' END) = 'on' AS judging,
+           coalesce(nullif(v.config->'systemOne'->>'citations', ''), CASE WHEN $2::bool THEN 'on' ELSE 'off' END) = 'on' AS citations,
+           coalesce(nullif(v.config->'systemOne'->>'scope', ''), CASE WHEN $3::bool THEN 'on' ELSE 'off' END) = 'on' AS scope
+    FROM agents a
+    JOIN teams t ON t.id = a.team_id
+    JOIN agent_versions v ON v.id = a.published_version_id
+    WHERE a.deleted_at IS NULL AND a.status = 'active' AND t.status = 'active'
+)
+SELECT count(*) FILTER (WHERE judging)::int AS judging,
+       count(*) FILTER (WHERE citations)::int AS citations,
+       count(*) FILTER (WHERE scope)::int AS scope,
+       count(*) FILTER (WHERE judging OR citations OR scope)::int AS any_check
+FROM checks
+`
+
+type CountSystemOneAgentsParams struct {
+	Judging   bool
+	Citations bool
+	Scope     bool
+}
+
+type CountSystemOneAgentsRow struct {
+	Judging   int32
+	Citations int32
+	Scope     int32
+	AnyCheck  int32
+}
+
+// Published, active agents in active teams each SystemOne check is on for:
+// the published version's "SystemOne checks" setting (on or off), else the
+// platform default (docs/systemone.md §2; the admin Overview's Features card).
+func (q *Queries) CountSystemOneAgents(ctx context.Context, arg CountSystemOneAgentsParams) (CountSystemOneAgentsRow, error) {
+	row := q.db.QueryRow(ctx, countSystemOneAgents, arg.Judging, arg.Citations, arg.Scope)
+	var i CountSystemOneAgentsRow
+	err := row.Scan(
+		&i.Judging,
+		&i.Citations,
+		&i.Scope,
+		&i.AnyCheck,
+	)
+	return i, err
+}
+
 const getSystemOneSettings = `-- name: GetSystemOneSettings :one
 SELECT singleton, model_id, settings, revision, updated_by, updated_at FROM systemone_settings WHERE singleton
 `

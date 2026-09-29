@@ -4000,7 +4000,7 @@ type AgentAnalyticsModel struct {
 type AgentAnalyticsTotals struct {
 	Answers int64 `json:"answers"`
 
-	// Citations SystemOne citation checks over the range, from the content-free records; counts are claim–source pairs (all zero when nothing was checked)
+	// Citations SystemOne citation checks over the range, from the content-free records: answers and check times are of answers with cited sources, the pair counts of claim–source pairs, and the *Claims counts of claims, the units of the chat's summary (all zero when nothing was checked)
 	Citations CitationTotals `json:"citations"`
 
 	// Conversations Stored conversations started
@@ -4954,11 +4954,14 @@ type CitationMarkerVerification string
 // CitationMode none: no citations; snippet: title and snippet; snippet_link: also the URL of web pages
 type CitationMode string
 
-// CitationTotals SystemOne citation checks over the range, from the content-free records; counts are claim–source pairs (all zero when nothing was checked)
+// CitationTotals SystemOne citation checks over the range, from the content-free records: answers and check times are of answers with cited sources, the pair counts of claim–source pairs, and the *Claims counts of claims, the units of the chat's summary (all zero when nothing was checked)
 type CitationTotals struct {
 	// Answers Answers whose citations were checked
-	Answers      int64 `json:"answers"`
-	Contradicted int64 `json:"contradicted"`
+	Answers int64 `json:"answers"`
+
+	// ClaimSupportRate supportedClaims / (supportedClaims + notSupportedClaims + uncitedClaims); null without claims
+	ClaimSupportRate *float64 `json:"claimSupportRate"`
+	Contradicted     int64    `json:"contradicted"`
 
 	// LatencyP50Ms Time the check took per answer
 	LatencyP50Ms *float64 `json:"latencyP50Ms"`
@@ -4966,6 +4969,9 @@ type CitationTotals struct {
 
 	// LowConfidence Verdicts below the auto-accept confidence (for review)
 	LowConfidence int64 `json:"lowConfidence"`
+
+	// NotSupportedClaims Claims that cite sources none of which supports them
+	NotSupportedClaims int64 `json:"notSupportedClaims"`
 
 	// Pairs Claim–source pairs asked
 	Pairs int64 `json:"pairs"`
@@ -4979,10 +4985,16 @@ type CitationTotals struct {
 	// SupportRate verified / (verified + unsupported + contradicted)
 	SupportRate *float64 `json:"supportRate"`
 
+	// SupportedClaims Claims (factual sentences) a cited source supports, as the chat's summary counts them; answers recorded before v0.2.1 have no claims
+	SupportedClaims int64 `json:"supportedClaims"`
+
 	// Unchecked Pairs whose request failed or timed out
-	Unchecked   int64 `json:"unchecked"`
-	Unsupported int64 `json:"unsupported"`
-	Verified    int64 `json:"verified"`
+	Unchecked int64 `json:"unchecked"`
+
+	// UncitedClaims Claims that cite no source (counted as not supported)
+	UncitedClaims int64 `json:"uncitedClaims"`
+	Unsupported   int64 `json:"unsupported"`
+	Verified      int64 `json:"verified"`
 }
 
 // Claim One claim of the answer: a factual sentence (a list item or a table data row counts as one), with one verdict (SystemOne citation checks, docs/systemone.md §3). supported - a source it cites supports it (sources lists which); not_supported - it cites sources and none supports it; uncited - it cites no source (counted as not supported); unchecked - no cited source supports it and at least one check failed or timed out (left out of the counts). start and end are offsets in the answer text in Unicode code points.
@@ -7842,7 +7854,7 @@ type PlatformAnalyticsTeam struct {
 type PlatformAnalyticsTotals struct {
 	Answers int64 `json:"answers"`
 
-	// Citations SystemOne citation checks over the range, from the content-free records; counts are claim–source pairs (all zero when nothing was checked)
+	// Citations SystemOne citation checks over the range, from the content-free records: answers and check times are of answers with cited sources, the pair counts of claim–source pairs, and the *Claims counts of claims, the units of the chat's summary (all zero when nothing was checked)
 	Citations CitationTotals `json:"citations"`
 
 	// Conversations Stored conversations started
@@ -8650,6 +8662,15 @@ type SourceBoilerplate struct {
 // StopReason defines model for StopReason.
 type StopReason string
 
+// SystemOneAgentUse How many published agents (active, in active teams) each check is on for: by the agent's own "SystemOne checks" setting, else by the platform default. All zero without a SystemOne model.
+type SystemOneAgentUse struct {
+	// Any Agents with at least one check on
+	Any       int32 `json:"any"`
+	Citations int32 `json:"citations"`
+	Judging   int32 `json:"judging"`
+	Scope     int32 `json:"scope"`
+}
+
 // SystemOneCitations Citation checks: after the answer, each claim and the source it cites get one question (supports, contradicts or says nothing).
 type SystemOneCitations struct {
 	// AutoAccept Confidence at or above which a verdict stands on its own: enforce acts only on these; lower ones are counted for review
@@ -8719,6 +8740,9 @@ type SystemOneScope struct {
 
 // SystemOneSettings defines model for SystemOneSettings.
 type SystemOneSettings struct {
+	// Agents How many published agents (active, in active teams) each check is on for: by the agent's own "SystemOne checks" setting, else by the platform default. All zero without a SystemOne model.
+	Agents SystemOneAgentUse `json:"agents"`
+
 	// Citations Citation checks: after the answer, each claim and the source it cites get one question (supports, contradicts or says nothing).
 	Citations SystemOneCitations `json:"citations"`
 	Judging   SystemOneJudging   `json:"judging"`

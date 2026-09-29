@@ -24,10 +24,20 @@ func (a *api) systemOneRoutes() []route {
 	}
 }
 
-func toAPISystemOne(st systemone.Stored) apitypes.SystemOneSettings {
+func toAPISystemOne(st systemone.Stored, use systemone.AgentUse) apitypes.SystemOneSettings {
 	return apitypes.SystemOneSettings{ModelId: st.ModelID, Judging: viaJSON[apitypes.SystemOneJudging](st.Settings.Judging),
 		Citations: viaJSON[apitypes.SystemOneCitations](st.Settings.Citations), Scope: viaJSON[apitypes.SystemOneScope](st.Settings.Scope),
+		Agents:   apitypes.SystemOneAgentUse{Judging: use.Judging, Citations: use.Citations, Scope: use.Scope, Any: use.Any},
 		Revision: st.Revision, UpdatedAt: st.UpdatedAt}
+}
+
+// writeSystemOne writes the settings with how many agents use each check.
+func (a *api) writeSystemOne(w http.ResponseWriter, r *http.Request, st systemone.Stored) {
+	use, err := a.SystemOne.AgentUse(r.Context(), st)
+	if failed(w, r, err) {
+		return
+	}
+	writeRevised(w, http.StatusOK, st.Revision, toAPISystemOne(st, use))
 }
 
 func (a *api) adminGetSystemOne(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +45,7 @@ func (a *api) adminGetSystemOne(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
-	writeRevised(w, http.StatusOK, st.Revision, toAPISystemOne(st))
+	a.writeSystemOne(w, r, st)
 }
 
 func (a *api) adminPutSystemOne(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +65,7 @@ func (a *api) adminPutSystemOne(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
-	writeRevised(w, http.StatusOK, st.Revision, toAPISystemOne(st))
+	a.writeSystemOne(w, r, st)
 }
 
 func (a *api) getSystemOneStatus(w http.ResponseWriter, r *http.Request) {

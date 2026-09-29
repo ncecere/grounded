@@ -98,6 +98,19 @@ func TestClaimsInChat(t *testing.T) {
 	if rec.SupportedClaims != 1 || rec.NotSupportedClaims != 1 || rec.UncitedClaims != 1 || len(rec.ClaimList) != 3 || rec.ClaimList[0].Text != "" {
 		t.Errorf("record = %+v", rec)
 	}
+	// Analytics count the same claims as the chat's summary (1 of 3 supported · 1 uncited), next to the pairs.
+	var an apitypes.AgentAnalytics
+	env.editor.get(env.base+"/agents/"+ag.Id.String()+"/analytics", &an)
+	if c := an.Totals.Citations; c.SupportedClaims != 1 || c.NotSupportedClaims != 1 || c.UncitedClaims != 1 || c.ClaimSupportRate == nil ||
+		*c.ClaimSupportRate > 0.34 || *c.ClaimSupportRate < 0.33 || c.Pairs != 3 {
+		t.Errorf("citation totals = %+v", c)
+	}
+	// The settings say how many published agents the checks are on for (citations: by the platform default).
+	var st apitypes.SystemOneSettings
+	env.auditor.get("/v1/admin/systemone", &st)
+	if st.Agents.Citations < 1 || st.Agents.Any < st.Agents.Citations || st.Agents.Scope != 0 {
+		t.Errorf("agent use = %+v", st.Agents)
+	}
 
 	var conv apitypes.ChatEventConversation
 	evs.one(t, "conversation", &conv)
