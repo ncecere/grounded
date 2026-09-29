@@ -8,7 +8,7 @@
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { Link } from "@tanstack/react-router";
 import { Bot, Plus, Settings } from "lucide-react";
-import { roleLabels } from "../../../components/roles";
+import { RoleBadge } from "../../../components/role-badge";
 import { requestIntent } from "../../../lib/intents";
 import { terms } from "../../../lib/terms";
 import { PageActions } from "../../../components/templates/page-actions";
@@ -37,7 +37,7 @@ export function TeamOverviewPage() {
         description={team.description || undefined}
         meta={
           <>
-            {role && <Badge tone="info">Your role: {roleLabels[role]}</Badge>}
+            {role && <RoleBadge role={role} prefix="Your role: " tone="info" />}
             <Badge variant="outline">Approved up to {levelName(team.maxClassification)}</Badge>
             {archived && <Badge tone="warning">Archived (read-only)</Badge>}
           </>

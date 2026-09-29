@@ -1,6 +1,6 @@
 /*
  * Admin → Teams › one team (A4, D3): a DetailPage with Overview · Members ·
- * Group mapping (the team's SSO group rules, E1) · Limits (with the Budget
+ * SSO groups (the team's SSO group rules, E1) · Limits (with the Budget
  * card, E2) · Settings. Archive is a menu action and a Danger zone entry (Q12),
  * never a solid red header button.
  */
@@ -22,6 +22,7 @@ import { ClassificationBadge, useClassificationLevels } from "../../team/common"
 import { useIsPlatformAdmin } from "../hooks";
 import { RuleList } from "../group-mapping/rules";
 import { AdminTeamBudgetCard } from "../costs/team-budget-card";
+import { terms } from "@/lib/terms";
 import { AdminTeamLimitsCard } from "../limits/team-card";
 import { TeamStatusBadge } from "./common";
 import { TeamMembersTab } from "./team-members";
@@ -79,7 +80,7 @@ export function AdminTeamPage() {
           { value: "members", label: "Members", icon: <UsersRound aria-hidden />, count: sum.memberCount, content: <TeamMembersTab team={team} isAdmin={isAdmin} /> },
           {
             value: "group-mapping",
-            label: "Group mapping",
+            label: terms.groupMapping,
             icon: <Network aria-hidden />,
             content: (
               <RuleList
@@ -91,7 +92,7 @@ export function AdminTeamPage() {
           },
           {
             value: "limits",
-            label: "Limits",
+            label: "Budget & limits",
             icon: <Gauge aria-hidden />,
             content: (
               <Stack gap={6}>

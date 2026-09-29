@@ -128,7 +128,7 @@ describe("admin logs", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("offers Evaluations and Group mapping in the Action filter", async () => {
+  it("offers Evaluations and SSO groups in the Area filter", async () => {
     const calls = mockApi({
       ...shellRoutes("platform_auditor"),
       "GET /v1/admin/users": () => users,
@@ -138,7 +138,33 @@ describe("admin logs", () => {
     await screen.findByRole("table", { name: "Audit log" });
     await waitFor(() => expect(calls.find((c) => c.url === "/v1/admin/audit")?.search.get("action")).toBe("group_mapping."));
     const { actionGroups } = await import("../components/audit/labels");
-    expect(actionGroups.map((g) => g.label)).toEqual(expect.arrayContaining(["Evaluations", "Group mapping"]));
+    expect(actionGroups.map((g) => g.label)).toEqual(expect.arrayContaining(["Evaluations", "SSO groups"]));
+  });
+
+  it("finds actions by label in the Area filter, filters by System (group mapping), and sums up simple changes", async () => {
+    const budget = entry(7, "costs.budget_update", {
+      targetType: "team", targetId: "t1", targetLabel: "QA Team",
+      before: { mode: "track", amount: "5.000000", warnPercent: null }, after: { mode: "track", amount: null, warnPercent: null },
+    });
+    const calls = mockApi({
+      ...shellRoutes("platform_auditor"),
+      "GET /v1/admin/users": () => users,
+      "GET /v1/admin/costs/settings": () => ({ currency: "USD" }),
+      "GET /v1/admin/audit": () => ({ items: [budget], nextCursor: null }),
+    });
+    const { container } = renderApp("/admin/logs");
+    const table = await screen.findByRole("table", { name: "Audit log" }, { timeout: 4000 });
+    const row = (await within(table).findByText("Changed a team budget")).closest("tr")!;
+    await waitFor(() => expect(row).toHaveTextContent(/Monthly budget \$5\.00 → none/));
+    const audit = () => calls.filter((c) => c.url === "/v1/admin/audit");
+    await userEvent.type(screen.getByRole("combobox", { name: "Area" }), "budget");
+    await userEvent.click(await screen.findByRole("option", { name: "Changed a team budget" }));
+    await waitFor(() => expect(audit().at(-1)!.search.get("action")).toBe("costs.budget_update"));
+    await userEvent.click(screen.getByRole("combobox", { name: "Person" }));
+    await userEvent.click(await screen.findByRole("option", { name: "System (group mapping)" }));
+    await waitFor(() => expect(audit().at(-1)!.search.get("actorKind")).toBe("group_mapping"));
+    expect(audit().at(-1)!.search.get("actorUserId")).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it("filters the access log by agent and channel", async () => {

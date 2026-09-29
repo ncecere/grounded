@@ -56,7 +56,7 @@ describe("on a phone", () => {
 
   it("starts the Budgets table without its low-priority columns (the Columns menu brings them back)", async () => {
     const status: Schemas["TeamBudgetState"] = {
-      mode: "enforce", state: "warning", currency: "USD", month: "2026-09-01", resetsAt: "2026-10-01T04:00:00Z", budget: "100.000000",
+      mode: "enforce", state: "warning", enforced: true, currency: "USD", month: "2026-09-01", resetsAt: "2026-10-01T04:00:00Z", budget: "100.000000",
       extensions: "0.000000", limit: "100.000000", spent: "85.000000", percent: 85, warnPercent: 80,
     };
     const budgets: Schemas["BudgetList"] = {

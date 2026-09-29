@@ -227,6 +227,17 @@ var adminPolicies = map[string]policy{
 	"adminTestParsing": {own: padmin, also: []string{"400 backend_not_configured"}, build: func(c *mctx) request {
 		return post("/v1/admin/parsing/test", map[string]any{"backend": "tesseract", "languages": "eng"})
 	}},
+	// Documents that failed or need OCR (docs/v0.2.0.md §7 decision 3):
+	// auditors read the counts; platform admins retry and notify. Team B's
+	// upload source has no damaged documents: a retry queues none and a
+	// notification finds nothing to report, which count as allowed.
+	"adminListDocumentProblems": adminRead("/v1/admin/parsing/document-problems"),
+	"adminRetryDocumentProblems": {own: padmin, build: func(c *mctx) request {
+		return post("/v1/admin/parsing/document-problems/retry", map[string]any{"sourceId": c.e.b.source, "reason": "damaged"})
+	}},
+	"adminNotifyDocumentProblems": {own: padmin, also: []string{"409 no_documents"}, build: func(c *mctx) request {
+		return post("/v1/admin/parsing/document-problems/notify", map[string]any{"sourceId": c.e.b.source, "reason": "damaged"})
+	}},
 
 	// Profile migrations (P2).
 	"adminListKnowledgeBases":    adminRead("/v1/admin/knowledge-bases"),

@@ -68,6 +68,8 @@ describe("admin overview", () => {
     expect(await within(queue).findByText("1 agent is disabled by the platform")).toBeInTheDocument();
     expect(within(queue).getByText("The public audience has no moderation provider")).toBeInTheDocument();
     expect(within(queue).getByText("2 documents failed to index in Office of the Registrar")).toBeInTheDocument();
+    // Failed documents lead to Parsing & OCR, where admins retry them or notify the owners (not to the team's page).
+    expect(within(queue).getByRole("link", { name: /Failed documents/ })).toHaveAttribute("href", "/admin/parsing#document-problems");
     expect(within(queue).getByText("Office of the Registrar is at 90% of its knowledge bases limit")).toBeInTheDocument();
     // Production-readiness warnings (E7): a link where the fix is in the UI, none for environment settings.
     expect(within(queue).getByText("The crawl allowlist is empty, so no web source can be crawled.")).toBeInTheDocument();

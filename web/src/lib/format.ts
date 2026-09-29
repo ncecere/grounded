@@ -16,41 +16,41 @@ export function formatStorage(bytes: number): string {
 }
 
 /** Amounts are exact to six decimals (docs/costs.md). */
-const maxMoneyDecimals = 6;
+const exactDecimals = 6;
 
-/**
- * The fewest decimals, from 2 to 6, that show every amount exactly: use one
- * count for a whole table column (and its total) so the decimals line up and
- * "$0.01" is never a rounded "$0.0100".
- */
-export function moneyDecimals(...amounts: (string | number | null | undefined)[]): number {
-  let most = 2;
-  for (const a of amounts) {
-    if (a == null || a === "") continue;
-    let fraction: string;
-    if (typeof a === "string" && /^-?\d*(\.\d*)?$/.test(a.trim())) fraction = a.trim().split(".")[1] ?? "";
-    else if (Number.isFinite(Number(a))) fraction = Number(a).toFixed(maxMoneyDecimals).split(".")[1] ?? "";
-    else continue;
-    most = Math.max(most, Math.min(maxMoneyDecimals, fraction.replace(/0+$/, "").length));
+function currencyFormat(n: number, currency: string, min: number, max: number): string {
+  try {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency, minimumFractionDigits: min, maximumFractionDigits: max }).format(n);
+  } catch {
+    // An unknown currency code: the number and the code.
+    return `${new Intl.NumberFormat(undefined, { minimumFractionDigits: min, maximumFractionDigits: max }).format(n)} ${currency}`;
   }
-  return most;
 }
 
 /**
- * An amount of money in the platform currency ("$1,234.50", "€0.0042"), for
- * display only: amounts travel as exact decimal strings (docs/costs.md), and
- * the currency is an ISO code with no conversion. It shows `decimals`
- * decimals, with trailing zeros; by default as many as the amount needs
- * (2 to 6), so a few tokens don't read as zero. Pass moneyDecimals(column)
- * for amounts in a table column.
+ * An amount of money for people, in cents ("$1,234.50", "$0.14"): amounts
+ * travel as exact decimal strings (docs/costs.md) and are rounded only here,
+ * so totals stay the sums of their rows. An amount under a cent reads
+ * "< $0.01" (never a misleading "$0.00"), zero reads "$0.00", and no amount
+ * "—". The currency is an ISO code, with no conversion. Show the exact
+ * amount on hover with <Money> (components/money.tsx) or formatMoneyExact.
  */
-export function formatMoney(amount: string | number | null | undefined, currency: string, decimals = moneyDecimals(amount)): string {
+export function formatMoney(amount: string | number | null | undefined, currency: string): string {
   if (amount == null || amount === "") return "—";
   const n = Number(amount);
   if (!Number.isFinite(n)) return String(amount);
-  try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(n);
-  } catch {
-    return `${n.toFixed(decimals)} ${currency}`;
-  }
+  if (n > 0 && n < 0.01) return `< ${currencyFormat(0.01, currency, 2, 2)}`;
+  return currencyFormat(n, currency, 2, 2);
+}
+
+/**
+ * The exact amount ("$0.027129", "$5.00"): two decimals at least and as many
+ * as the stored value has, up to six. For hover text, and for prices, which
+ * are rates set to a fraction of a cent.
+ */
+export function formatMoneyExact(amount: string | number | null | undefined, currency: string): string {
+  if (amount == null || amount === "") return "—";
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return String(amount);
+  return currencyFormat(n, currency, 2, exactDecimals);
 }

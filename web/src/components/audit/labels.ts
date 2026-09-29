@@ -1,5 +1,6 @@
-/* Human-readable audit actions, action groups and actors. */
+/* Human-readable audit actions, action groups (areas) and actors. */
 import type { Schemas } from "../../api/client";
+import type { FacetOption } from "@/components/ui/filter-bar/filter-bar";
 
 type AuditEntry = Schemas["AuditEntry"];
 
@@ -82,6 +83,8 @@ const actionLabels: Record<string, string> = {
   "platform.secrets_reencrypt": "Re-encrypted stored secrets",
   "platform.systemone_settings_update": "Changed SystemOne settings",
   "platform.parsing_settings_update": "Changed parsing settings",
+  "platform.documents_retry": "Retried failed documents (admin)",
+  "platform.document_owners_notify": "Told owners about failed documents",
   "platform.embedding_profile_create": "Added embedding profile",
   "platform.embedding_profile_update": "Changed embedding profile",
   "platform.embedding_profile_delete": "Deleted embedding profile",
@@ -109,9 +112,9 @@ const actionLabels: Record<string, string> = {
   "team.member_role_change": "Changed member role",
   "team.owner_assign": "Assigned owner",
   "team.sso_last_owner_kept": "Kept last owner (SSO group mapping)",
-  "platform.sso_rule_create": "Added group mapping rule",
-  "platform.sso_rule_update": "Changed group mapping rule",
-  "platform.sso_rule_delete": "Deleted group mapping rule",
+  "platform.sso_rule_create": "Added SSO group rule",
+  "platform.sso_rule_update": "Changed SSO group rule",
+  "platform.sso_rule_delete": "Deleted SSO group rule",
   "platform.evaluations": "Turned evaluations on or off",
   "evaluation.set_create": "Created evaluation set",
   "evaluation.set_update": "Changed evaluation set",
@@ -152,13 +155,43 @@ export const actionGroups: { prefix: string; label: string; platform?: boolean }
   { prefix: "limits.", label: "Limits" },
   { prefix: "costs.", label: "Costs" },
   { prefix: "evaluation.", label: "Evaluations" },
-  { prefix: "group_mapping.", label: "Group mapping" },
+  { prefix: "group_mapping.", label: "SSO groups" },
   { prefix: "breakglass.", label: "Break-glass" },
   { prefix: "platform.", label: "Platform settings", platform: true },
   { prefix: "auth.", label: "Sign-in", platform: true },
   { prefix: "legal_hold.", label: "Legal holds", platform: true },
   { prefix: "retention.", label: "Retention", platform: true },
 ];
+
+/** The area an action belongs to, by its code's group (the SSO rules' own changes are under SSO groups). */
+function areaOf(action: string): string | undefined {
+  if (action.startsWith("platform.sso_rule_")) return actionGroups.find((g) => g.prefix === "group_mapping.")?.label;
+  return actionGroups.find((g) => g.prefix !== "group_mapping." && action.startsWith(g.prefix))?.label;
+}
+
+/**
+ * The audit log's Area filter: every area, then every known action under its area, so typing "budget" finds "Changed
+ * a team budget". An area's value is its prefix ("costs."), an action's its code; the API takes both.
+ */
+export function areaOptions(platform: boolean): FacetOption[] {
+  const areas = actionGroups.filter((g) => platform || !g.platform);
+  const shown = new Set(areas.map((g) => g.label));
+  const actions = Object.entries(actionLabels)
+    .map(([value, label]) => ({ value, label, group: areaOf(value) }))
+    .filter((o): o is FacetOption & { group: string } => Boolean(o.group && shown.has(o.group)))
+    .sort((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label));
+  return [...areas.map((g) => ({ value: g.prefix, label: `${g.label} (all)`, group: "Areas" })), ...actions];
+}
+
+/** The Person filter's entry for the memberships SSO group mapping rules made at sign-in (the API's actorKind). */
+export const groupMappingPerson = "system:group_mapping";
+export const groupMappingPersonOption: FacetOption = { value: groupMappingPerson, label: "System (group mapping)" };
+
+/** The Person filter's value as API filters: a person's ID, or the group mapping rules as the actor. */
+export function personFilter(value: string | undefined): { actorUserId?: string; actorKind?: "group_mapping" } {
+  if (!value) return {};
+  return value === groupMappingPerson ? { actorKind: "group_mapping" } : { actorUserId: value };
+}
 
 /**
  * Who did it: a person's name, the API key, or "System". With the entry, a
@@ -201,7 +234,7 @@ export const targetTypeLabels: Record<string, string> = {
   publishable_key: "Widget key",
   retention: "Retention run",
   retention_settings: "Retention settings",
-  sso_group_rule: "Group mapping rule",
+  sso_group_rule: "SSO group rule",
   evaluation_run: "Evaluation run",
   evaluation_set: "Evaluation set",
   evaluation_settings: "Evaluations setting",

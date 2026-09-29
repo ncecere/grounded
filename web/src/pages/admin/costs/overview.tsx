@@ -17,9 +17,9 @@ import { Loading } from "@/components/ui/spinner/spinner";
 import { StatCard } from "@/components/ui/stat-card/stat-card";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { TextLink } from "@/components/ui/text-link/text-link";
-import { categories, type CostSettings, dayRangeLabel, requestsColumn } from "@/lib/costs";
-import { formatMoney, moneyDecimals } from "@/lib/format";
-import s from "../../shared.module.css";
+import { categories, type CostSettings, dayRangeLabel, requestsColumn, requestsHint } from "@/lib/costs";
+import { Money } from "@/components/money";
+import { formatMoney } from "@/lib/format";
 import c from "./costs.module.css";
 
 type Report = Schemas["CostReport"];
@@ -64,7 +64,6 @@ export function CostOverviewTab({ settings }: { settings: CostSettings }) {
     <Stack gap={6}>
       <div className={c.rangeRow}>
         <DateRangeFilter range={dates} label="Costs date range" />
-        <span className={s.note}>Days in {settings.timeZone}.</span>
       </div>
       {days.isLoading ? (
         <Loading label="Loading spend…" />
@@ -73,9 +72,9 @@ export function CostOverviewTab({ settings }: { settings: CostSettings }) {
       ) : (
         <>
           <StatGroup id="cost-totals" title="Totals" columns={4}>
-            <StatCard label="Spend" value={formatMoney(d.total.spend, cur, moneyDecimals(d.total.spend, ...d.rows.map((r) => r.spend)))} icon={<CircleDollarSign />} hint={dayRangeLabel(d.from, d.to)} />
+            <StatCard label="Spend" value={<Money amount={d.total.spend} currency={cur} />} icon={<CircleDollarSign />} hint={dayRangeLabel(d.from, d.to)} />
             <StatCard label="Tokens" value={num(d.total.tokens)} icon={<Hash />} hint="Chat, embedding, SystemOne and OCR" />
-            <StatCard label={requestsColumn} value={num(d.total.requests)} icon={<Hash />} hint="SystemOne and moderation requests" />
+            <StatCard label={requestsColumn} value={num(d.total.requests)} icon={<Hash />} hint={requestsHint} />
             <StatCard
               label="Unpriced usage"
               value={d.total.unpriced ? "Yes" : "None"}
@@ -95,10 +94,7 @@ export function CostOverviewTab({ settings }: { settings: CostSettings }) {
 
 function DailySpend({ report, currency }: { report: Report; currency: string }) {
   const spent = report.rows.filter((r) => Number(r.spend) > 0);
-  const summary = `Spend per day by kind, ${dayRangeLabel(report.from, report.to)}: ${formatMoney(report.total.spend, currency, moneyDecimals(report.total.spend, ...report.rows.map((r) => r.spend)))} in total.`;
-  // One count of decimals per column, enough to show each amount exactly.
-  const dec = Object.fromEntries(categories.map((k) => [k.key, moneyDecimals(...spent.map((r) => r.byKind[k.key]))]));
-  const totalDec = moneyDecimals(...spent.map((r) => r.spend));
+  const summary = `Spend per day by kind, ${dayRangeLabel(report.from, report.to)}: ${formatMoney(report.total.spend, currency)} in total.`;
   return (
     <Card
       title="Spend per day"
@@ -124,10 +120,12 @@ function DailySpend({ report, currency }: { report: Report; currency: string }) 
                 </Td>
                 {categories.map((k) => (
                   <Td key={k.key} numeric>
-                    {formatMoney(r.byKind[k.key], currency, dec[k.key])}
+                    <Money amount={r.byKind[k.key]} currency={currency} />
                   </Td>
                 ))}
-                <Td numeric>{formatMoney(r.spend, currency, totalDec)}</Td>
+                <Td numeric>
+                  <Money amount={r.spend} currency={currency} />
+                </Td>
               </Tr>
             ))}
           </Table>
@@ -157,7 +155,6 @@ function RowLabel({ r, groupBy }: { r: Row; groupBy: GroupBy }) {
 
 function TopCard({ title, icon, what, q, currency, groupBy, from, to }: TopProps) {
   const rows = (q.data?.rows ?? []).slice(0, 10);
-  const dec = moneyDecimals(...rows.map((r) => r.spend));
   return (
     <Card title={title} actions={<CsvButton from={from} to={to} groupBy={groupBy} what={what} />} flush>
       {q.isLoading ? (
@@ -174,7 +171,9 @@ function TopCard({ title, icon, what, q, currency, groupBy, from, to }: TopProps
                 <RowLabel r={r} groupBy={groupBy} /> {r.unpriced && <UnpricedBadge />}
               </Td>
               {groupBy === "agent" && <Td muted>{r.teamName ?? "—"}</Td>}
-              <Td numeric>{formatMoney(r.spend, currency, dec)}</Td>
+              <Td numeric>
+                <Money amount={r.spend} currency={currency} />
+              </Td>
               <Td numeric>{num(r.tokens)}</Td>
               <Td numeric>{num(r.requests)}</Td>
             </Tr>

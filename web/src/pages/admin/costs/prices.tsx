@@ -9,7 +9,7 @@ import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { unitLabels } from "@/lib/costs";
-import { formatMoney } from "@/lib/format";
+import { formatMoneyExact } from "@/lib/format";
 import { kindLabels } from "../models/common";
 import c from "./costs.module.css";
 import { UnpricedBadge } from "./overview";
@@ -42,7 +42,7 @@ export function PriceLines({ current, currency }: { current: Schemas["UnitPrice"
       {current.map((p) => (
         <li key={p.unit} className={c.priceLine}>
           <span>{unitLabels[p.unit].label}:</span>
-          {p.price === null ? <UnpricedBadge /> : <strong>{formatMoney(p.price, currency)}</strong>}
+          {p.price === null ? <UnpricedBadge /> : <strong>{formatMoneyExact(p.price, currency)}</strong>}
           <span className={c.per}>{unitLabels[p.unit].per}</span>
         </li>
       ))}

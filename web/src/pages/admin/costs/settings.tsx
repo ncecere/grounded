@@ -3,7 +3,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
 import { SettingsPage, SettingsSection } from "@/components/templates/settings-page";
+import { Link } from "@tanstack/react-router";
 import { Combobox } from "@/components/ui/combobox/combobox";
+import { TextLink } from "@/components/ui/text-link/text-link";
 import { Field } from "@/components/ui/field/field";
 import { Input, NativeSelect } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
@@ -96,7 +98,15 @@ export function CostSettingsTab({ settings }: { settings: CostSettings }) {
         save.reset();
       }}
     >
-      <SettingsSection title="Mode" description="A team's own mode, set on its page under Teams, overrides this.">
+      <SettingsSection
+        title="Mode"
+        description={
+          <>
+            A team's own cost tracking, set on its page under{" "}
+            <TextLink render={<Link to="/admin/teams" />}>Admin → Teams</TextLink> (Budget & limits), overrides this.
+          </>
+        }
+      >
         <Field label="Cost tracking" description={modeDescriptions[form.mode]}>
           <NativeSelect value={form.mode} disabled={!isAdmin} onChange={(e) => set("mode", e.target.value as CostMode)}>
             {(["off", "track", "enforce"] as const).map((m) => (
@@ -107,7 +117,7 @@ export function CostSettingsTab({ settings }: { settings: CostSettings }) {
           </NativeSelect>
         </Field>
       </SettingsSection>
-      <SettingsSection title="Money and time" description="The currency is for display only; nothing is converted. Budget months and report days follow the time zone. Daily limits still reset at midnight UTC.">
+      <SettingsSection title="Money and time" description="The currency is for display only; nothing is converted.">
         <div className={c.formGrid}>
           <Field label="Currency" description="A three-letter ISO 4217 code." error={shown.currency}>
             <Input value={form.currency} maxLength={3} disabled={!isAdmin} onChange={(e) => set("currency", e.target.value.toUpperCase())} />
@@ -126,14 +136,14 @@ export function CostSettingsTab({ settings }: { settings: CostSettings }) {
           </Field>
         </div>
       </SettingsSection>
-      <SettingsSection title="Budgets" description="Used by teams whose mode is Enforce. A team's own budget or threshold, set on its page, replaces these.">
+      <SettingsSection title="Budgets" description="Enforced in Enforce, and shown as progress (never enforced) in Track only. A team's own budget or threshold, set on its page, replaces these.">
         <div className={c.formGrid}>
-          <Field label="Warning threshold (%)" description="Owners and admins are notified once a month when spend reaches this share of the budget." error={shown.warnPercent}>
+          <Field label="Warning threshold (%)" description="In Enforce, owners and admins are notified once a month when spend reaches this share of the budget." error={shown.warnPercent}>
             <Input type="number" min={1} max={100} value={form.warnPercent} disabled={!isAdmin} onChange={(e) => set("warnPercent", e.target.value)} />
           </Field>
           <Field
             label={`Default monthly budget (${form.currency || "currency"})`}
-            description="For enforced teams without their own budget. Leave empty for none: such teams are tracked but never refused."
+            description="For teams without their own budget. Leave empty for none: such teams are tracked but never refused."
             error={shown.defaultBudget}
           >
             <Input inputMode="decimal" value={form.defaultBudget} disabled={!isAdmin} onChange={(e) => set("defaultBudget", e.target.value)} />

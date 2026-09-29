@@ -549,6 +549,7 @@ paths:
         - $ref: "#/components/parameters/AuditActionParam"
         - $ref: "#/components/parameters/AuditExcludeActionParam"
         - $ref: "#/components/parameters/AuditActorParam"
+        - $ref: "#/components/parameters/AuditActorKindParam"
         - $ref: "#/components/parameters/AuditTargetTypeParam"
         - $ref: "#/components/parameters/AuditFromParam"
         - $ref: "#/components/parameters/AuditToParam"
@@ -1137,6 +1138,7 @@ paths:
         - $ref: "#/components/parameters/AuditActionParam"
         - $ref: "#/components/parameters/AuditExcludeActionParam"
         - $ref: "#/components/parameters/AuditActorParam"
+        - $ref: "#/components/parameters/AuditActorKindParam"
         - $ref: "#/components/parameters/AuditTargetTypeParam"
         - $ref: "#/components/parameters/AuditFromParam"
         - $ref: "#/components/parameters/AuditToParam"
@@ -5243,6 +5245,90 @@ paths:
                   data: { $ref: "#/components/schemas/ParsingTestResult" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/parsing/document-problems:
+    get:
+      tags: [admin]
+      operationId: adminListDocumentProblems
+      summary: Documents that failed or need OCR, by team, source and reason, without names or text (platform admins and auditors)
+      description: >-
+        Admin, Parsing & OCR (owner decision 3 of docs/v0.2.0.md section 7). Counts
+        per team, source and reason class with the oldest date: no document
+        file names, titles, URLs or text. A document that failed or was
+        skipped as scanned (needs_ocr) is counted; documents that are waiting
+        or were skipped as empty are not.
+      responses:
+        "200":
+          description: The groups, largest teams' sources first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/DocumentProblemList" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/parsing/document-problems/retry:
+    post:
+      tags: [admin]
+      operationId: adminRetryDocumentProblems
+      summary: Queue one source's documents of one reason again (platform admins)
+      description: >-
+        "Retry these" on Admin, Parsing & OCR. Needs OCR and OCR errors are
+        retried only while OCR can read the source (409 ocr_off otherwise,
+        with the reason: off for the platform, off for the source, or the
+        vision model not approved). Refused during maintenance (503). Audited
+        as platform.documents_retry with the count, never document names.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentProblemAction" }
+      responses:
+        "200":
+          description: How many documents were queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/DocumentRetryResult" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "503": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/parsing/document-problems/notify:
+    post:
+      tags: [admin]
+      operationId: adminNotifyDocumentProblems
+      summary: Tell a source's team owners about its documents of one reason (platform admins)
+      description: >-
+        "Notify owners" on Admin, Parsing & OCR: the team's owners get the
+        notification source.documents_attention (in the app and by email; it
+        can't be turned off) with the count, the oldest date and a link to
+        the source's documents filtered to Failed or Needs OCR. No document
+        names. 409 no_team for a shared source, 409 no_documents when there
+        is nothing to report. Audited as platform.document_owners_notify.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentProblemAction" }
+      responses:
+        "200":
+          description: Who was told
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/DocumentProblemNotifyResult" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
   /v1/systemone/status:
     get:
       tags: [agents]
@@ -5670,8 +5756,9 @@ paths:
       operationId: getTeamBudgetStatus
       summary: Whether the team is near or over its monthly budget, for the workspace banner (team members; platform admins and auditors)
       description: >-
-        Every member sees the state (none unless the budget is enforced);
-        only owners, admins and platform readers get the amounts.
+        Every member sees the state (none without a budget) and whether it
+        is enforced (a Track-only budget has a state but never blocks); only
+        owners, admins and platform readers get the amounts.
       responses:
         "200":
           description: The budget state
@@ -6354,6 +6441,14 @@ components:
       required: false
       description: Only entries by this person (including their API keys)
       schema: { type: string, format: uuid }
+    AuditActorKindParam:
+      name: actorKind
+      in: query
+      required: false
+      description: >-
+        Only entries by the system (system), or only the memberships SSO group mapping rules made at sign-in
+        (group_mapping: "System (group mapping)" in the Person filter)
+      schema: { type: string, enum: [system, group_mapping] }
     AuditTargetTypeParam:
       name: targetType
       in: query
@@ -6566,7 +6661,10 @@ components:
     BudgetState:
       type: string
       enum: [none, ok, warning, exhausted]
-      description: "none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused"
+      description: >-
+        none: costs are off or there is no budget; ok: under the warning threshold; warning: at or above
+        the threshold; exhausted: at or above 100%. Only an enforced budget (enforced: true) refuses model work
+        or notifies anyone; a Track-only budget shows the same states as progress and nothing else.
     PriceUnit:
       type: string
       enum: [chat_tokens_in, chat_tokens_out, embed_tokens, systemone_tokens, systemone_requests, moderation_requests, vision_tokens_in, vision_tokens_out]
@@ -6579,7 +6677,7 @@ components:
         currency: { type: string, description: "ISO 4217 code, for display only (no conversion)", example: USD }
         timeZone: { type: string, description: "IANA name of the budget month's and report days' time zone", example: America/New_York }
         warnPercent: { type: integer, minimum: 1, maximum: 100 }
-        defaultBudget: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "The monthly budget of enforced teams without their own (null: none)" }
+        defaultBudget: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "The monthly budget of teams without their own, in Track only (progress only) and Enforce (null: none)" }
         revision: { type: integer, format: int64 }
         updatedAt: { type: string, format: date-time }
     CostSettingsUpdate:
@@ -6712,14 +6810,17 @@ components:
           items: { $ref: "#/components/schemas/CostReportRow" }
     TeamBudgetState:
       type: object
-      required: [mode, state, currency, month, resetsAt, budget, extensions, limit, spent, percent, warnPercent]
+      required: [mode, state, enforced, currency, month, resetsAt, budget, extensions, limit, spent, percent, warnPercent]
       properties:
         mode: { $ref: "#/components/schemas/CostMode" }
         state: { $ref: "#/components/schemas/BudgetState" }
+        enforced:
+          type: boolean
+          description: "true in Enforce: at 100% model work is refused. false: the state is progress only (Track only), never refused or notified"
         currency: { type: string }
         month: { type: string, format: date, description: "The first day of the budget month" }
         resetsAt: { type: string, format: date-time, description: "When the budget month ends" }
-        budget: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "The monthly budget: the team's own or the platform default (null: none, or not enforced)" }
+        budget: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "The monthly budget: the team's own or the platform default (null: none, or costs are off)" }
         extensions: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "This month's extensions" }
         limit: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "Budget plus extensions" }
         spent: { allOf: [{ $ref: "#/components/schemas/Money" }], nullable: true, description: "Month to date (null while the mode is off)" }
@@ -6805,9 +6906,12 @@ components:
           items: { $ref: "#/components/schemas/CostReportRow" }
     TeamBudgetBanner:
       type: object
-      required: [state]
+      required: [state, enforced]
       properties:
         state: { $ref: "#/components/schemas/BudgetState" }
+        enforced:
+          type: boolean
+          description: "false: a Track-only budget, whose state is progress only; the workspace shows no banner and nothing waits"
         resetsAt: { type: string, format: date-time, nullable: true }
         amounts:
           type: object
@@ -7183,6 +7287,7 @@ components:
         - web.domain_request_new
         - web.sync_failed
         - source.classification_lowered
+        - source.documents_attention
         - agent.disabled_by_platform
         - agent.published
         - team.daily_limit
@@ -8581,6 +8686,47 @@ components:
         backend: { $ref: "#/components/schemas/OcrBackend" }
         configured: { type: boolean, description: Whether it can be chosen }
         configuredBy: { type: string, description: "What configures it: OCR_TESSERACT_URL, TIKA_URL or a vision model" }
+    DocumentProblemReason:
+      type: string
+      enum: [needs_ocr, ocr_error, damaged, other]
+      description: >-
+        needs_ocr: skipped as scanned with OCR off; ocr_error: OCR failed (for example the OCR service stayed
+        unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
+    DocumentProblemGroup:
+      type: object
+      required: [teamId, teamSlug, teamName, sourceId, sourceName, reason, documents, oldestAt, ocrState]
+      properties:
+        teamId: { type: string, format: uuid, nullable: true, description: "null: a platform-shared source" }
+        teamSlug: { type: string }
+        teamName: { type: string }
+        sourceId: { type: string, format: uuid }
+        sourceName: { type: string }
+        reason: { $ref: "#/components/schemas/DocumentProblemReason" }
+        documents: { type: integer, format: int64 }
+        oldestAt: { type: string, format: date-time, description: "When the oldest of these documents last changed (failed or was skipped)" }
+        ocrState:
+          type: string
+          enum: ["on", source_off, platform_off, not_approved]
+          description: Whether OCR can read the source now, as a source's ocrState; retrying needs_ocr and ocr_error needs on
+    DocumentProblemList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/DocumentProblemGroup" }
+    DocumentProblemAction:
+      type: object
+      required: [sourceId, reason]
+      properties:
+        sourceId: { type: string, format: uuid }
+        reason: { $ref: "#/components/schemas/DocumentProblemReason" }
+    DocumentProblemNotifyResult:
+      type: object
+      required: [owners, documents]
+      properties:
+        owners: { type: integer, description: "How many owners were told" }
+        documents: { type: integer, format: int64, description: "The count they were told about" }
     NeedsOcrCount:
       type: object
       required: [teamId, teamSlug, teamName, documents]

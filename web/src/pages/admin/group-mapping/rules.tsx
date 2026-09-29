@@ -119,7 +119,7 @@ export function RuleList({ team, isAdmin, title, description, notices }: Props) 
         )
       }
       primaryAction={addButton}
-      caption={team ? `Group mapping rules for ${team.name}` : "Group mapping rules"}
+      caption={team ? `SSO group rules for ${team.name}` : "SSO group rules"}
       columns={columns(!team)}
       data={rules.data ?? []}
       getRowId={(r) => r.id}
@@ -147,8 +147,8 @@ export function RuleList({ team, isAdmin, title, description, notices }: Props) 
       }
       empty={{
         icon: <Network />,
-        title: "No group mapping rules.",
-        description: "Group mapping is off until a rule exists. Members are added by hand or by invite.",
+        title: "No SSO group rules.",
+        description: "SSO groups give no roles until a rule exists. Members are added by hand or by invite.",
         action: addButton,
       }}
     />
@@ -156,7 +156,7 @@ export function RuleList({ team, isAdmin, title, description, notices }: Props) 
   return (
     <>
       {title === undefined ? (
-        <Card title="Group mapping rules" description={description} actions={addButton} flush>
+        <Card title="SSO group rules" description={description} actions={addButton} flush>
           {list}
         </Card>
       ) : (

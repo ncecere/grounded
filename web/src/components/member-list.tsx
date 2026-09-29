@@ -13,6 +13,7 @@ import { api, ifMatch, unwrap, type Schemas } from "../api/client";
 import s from "../pages/shared.module.css";
 import { ConfirmMutationDialog } from "./confirm-dialog";
 import { leaveBlockedReason, membersKey } from "./members";
+import { RoleBadge } from "./role-badge";
 import { canManage, roleLabels, teamRoles, type TeamRole } from "./roles";
 import { ActionMenu } from "./templates/action-menu";
 import { RelativeTime } from "./templates/list-page";
@@ -93,7 +94,7 @@ export function MemberList({ team, myRole, myUserId }: { team: string; myRole?: 
     if (soleOwner || group !== undefined || !canManage(myRole, m.role)) {
       return (
         <span>
-          <Badge tone={m.role === "owner" ? "info" : "neutral"}>{roleLabels[m.role]}</Badge>
+          <RoleBadge role={m.role} />
           {group !== undefined && <span className={s.secondary}>{managedBySso(group)}</span>}
           {group === undefined && soleOwner && canManage(myRole, m.role) && <span className={s.secondary}>{soleOwnerHint(list, m)}</span>}
         </span>

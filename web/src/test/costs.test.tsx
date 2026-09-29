@@ -4,7 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { AuditTarget } from "../components/audit/target";
-import { formatMoney, moneyDecimals } from "../lib/format";
+import { Money } from "../components/money";
+import { formatMoney, formatMoneyExact } from "../lib/format";
 import { ModelPricingSection } from "../pages/admin/models/pricing";
 import { AdminTeamBudgetCard } from "../pages/admin/costs/team-budget-card";
 import { chatErrorText } from "../pages/chat/stream";
@@ -40,7 +41,7 @@ const reports: Record<string, Schemas["CostReport"]> = {
 };
 
 const status = (state: Schemas["BudgetState"], extra: Partial<Schemas["TeamBudgetState"]> = {}): Schemas["TeamBudgetState"] => ({
-  mode: "enforce", state, currency: "USD", month: "2026-09-01", resetsAt: "2026-10-01T04:00:00Z", budget: "100.000000", extensions: "0.000000",
+  mode: "enforce", state, enforced: extra.mode === undefined || extra.mode === "enforce", currency: "USD", month: "2026-09-01", resetsAt: "2026-10-01T04:00:00Z", budget: "100.000000", extensions: "0.000000",
   limit: "100.000000", spent: "85.000000", percent: 85, warnPercent: 80, ...extra,
 });
 
@@ -49,6 +50,8 @@ const budgets: Schemas["BudgetList"] = {
   items: [
     { teamId: "t1", teamSlug: "registrar", teamName: "Office of the Registrar", modeOverride: "inherit", ownBudget: true, status: status("warning"), projected: "110.000000" },
     { teamId: "t2", teamSlug: "library", teamName: "Library", modeOverride: "track", ownBudget: false, status: status("none", { mode: "track", budget: null, limit: null, percent: null, extensions: null, spent: "3.000000" }), projected: null },
+    { teamId: "t3", teamSlug: "archives", teamName: "Archives", modeOverride: "track", ownBudget: true,
+      status: status("exhausted", { mode: "track", budget: "5.000000", limit: "5.000000", spent: "6.000000", percent: 120 }), projected: "9.000000" },
   ],
 };
 
@@ -95,10 +98,12 @@ describe("Admin → Costs", () => {
     // An agent opens its admin page; usage without one isn't a link.
     expect(within(agents).getByRole("link", { name: "Registrar help" })).toHaveAttribute("href", "/admin/agents?record=a1");
     expect(within(agents).getAllByRole("link")).toHaveLength(1);
-    // One count of decimals per column: $12.00 next to $0.50, never $12 next to $0.5.
-    expect(agents).toHaveTextContent(formatMoney("12", "USD", 2));
-    expect(agents).toHaveTextContent(formatMoney("0.5", "USD", 2));
-    expect(within(models).getByRole("columnheader", { name: "Per-request checks" })).toBeInTheDocument();
+    // Cents everywhere: $12.00 next to $0.50, never $12 next to $0.5.
+    expect(agents).toHaveTextContent(formatMoney("12", "USD"));
+    expect(agents).toHaveTextContent(formatMoney("0.5", "USD"));
+    expect(within(models).getByRole("columnheader", { name: "Requests" })).toBeInTheDocument();
+    // One time-zone note on the page, in the header.
+    expect(screen.getAllByText(/Budget months and report days follow America\/New_York; daily limits reset at midnight UTC\./)).toHaveLength(1);
     expect(within(models).getByRole("link", { name: "Chat large" })).toHaveAttribute("href", "/admin/models?record=m1&from=costs");
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -112,7 +117,41 @@ describe("Admin → Costs", () => {
     expect(table).toHaveTextContent("Platform setting");
     expect(within(table).getByRole("columnheader", { name: /Budget this month/ })).toBeInTheDocument();
     expect(within(table).getByRole("link", { name: "Office of the Registrar" })).toHaveAttribute("href", "/admin/teams/registrar?tab=limits");
+    // A Track-only team over its budget: progress only, labelled, and listed with the teams near budget.
+    const archives = within(table).getByRole("row", { name: /Archives/ });
+    expect(archives).toHaveTextContent("Over budget");
+    expect(archives).toHaveTextContent("Not enforced");
     expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(screen.getByRole("button", { name: /^Near budget/ }));
+    await waitFor(() => expect(within(table).queryByRole("row", { name: /Library/ })).toBeNull());
+    expect(within(table).getByRole("row", { name: /Archives/ })).toBeInTheDocument();
+    expect(within(table).getByRole("row", { name: /Office of the Registrar/ })).toBeInTheDocument();
+  });
+
+  it("changes a team's budget in place from its row, showing the platform default", async () => {
+    const calls = mockApi({
+      ...costRoutes("enforce"),
+      "GET /v1/admin/teams/registrar/budget": () => ({ ...teamBudget(status("warning")), amount: null, defaultBudget: "50.000000" }),
+      "PUT /v1/admin/teams/registrar/budget": () => teamBudget(status("ok")),
+    });
+    const { container } = renderApp("/admin/costs?tab=budgets");
+    const table = await screen.findByRole("table", { name: /Budgets for September 2026/ });
+    await userEvent.click(within(table).getByRole("button", { name: "Actions for Office of the Registrar" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Change budget…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Budget of Office of the Registrar" });
+    expect(within(dialog).getByText(`Leave empty to use the platform default budget, ${formatMoney("50", "USD")} a month.`)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.type(within(dialog).getByRole("textbox", { name: /Monthly budget/ }), "75");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save budget" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ mode: "enforce", amount: "75", warnPercent: null }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByRole("table", { name: /Budgets for September 2026/ })).toBeInTheDocument();
+  });
+
+  it("links a team's own cost tracking to Admin → Teams", async () => {
+    mockApi(costRoutes("track"));
+    renderApp("/admin/costs?tab=settings");
+    expect(await screen.findByRole("link", { name: "Admin → Teams" })).toHaveAttribute("href", "/admin/teams");
   });
 
   it("saves the settings with If-Match", async () => {
@@ -207,8 +246,15 @@ describe("a team's Budget card", () => {
     expect(screen.getByRole("table", { name: "Extensions this month" })).toHaveTextContent("Exam period");
     expect(await axe(container)).toHaveNoViolations();
 
-    await userEvent.click(screen.getByRole("button", { name: "Change budget" }));
+    await userEvent.click(screen.getByRole("button", { name: "Change budget…" }));
     const dialog = await screen.findByRole("dialog", { name: "Budget of Office of the Registrar" });
+    // The dialog says what it's for, what each choice does, and the platform default budget (none here).
+    expect(dialog).toHaveAccessibleDescription("Set how much Office of the Registrar can spend each month and what happens at the limit.");
+    const choices = within(dialog).getByRole("list", { name: "What each choice does" });
+    expect(choices).toHaveTextContent("Track only: progress against the budget, never blocks.");
+    expect(choices).toHaveTextContent("Enforce: chats, searches and ingestion stop at 100%");
+    expect(within(dialog).getByRole("combobox", { name: "Cost tracking" })).toHaveValue("enforce");
+    expect(within(dialog).getByText("Leave empty for no budget: the platform has no default budget.")).toBeInTheDocument();
     const amount = within(dialog).getByRole("textbox", { name: /Monthly budget/ });
     await userEvent.clear(amount);
     await userEvent.type(amount, "150");
@@ -226,7 +272,7 @@ describe("a team's Budget card", () => {
     await waitFor(() => expect(calls.find((c) => c.method === "POST")?.body).toEqual({ amount: "50", reason: "Admissions week" }));
   });
 
-  it("labels extensions as history when no budget is enforced", async () => {
+  it("labels extensions as history when no budget is in force", async () => {
     mockApi({
       "GET /v1/admin/costs/settings": () => settings("track"),
       "GET /v1/admin/teams/registrar/budget": () => ({
@@ -234,7 +280,7 @@ describe("a team's Budget card", () => {
       }),
     });
     const { container } = renderBare(<AdminTeamBudgetCard team="registrar" />, meFor("platform_auditor"));
-    expect(await screen.findByRole("table", { name: /Extensions granted this month \(not counted: no budget is enforced\)/ })).toHaveTextContent("Exam period");
+    expect(await screen.findByRole("table", { name: /Extensions granted this month \(not counted: no budget is in force\)/ })).toHaveTextContent("Exam period");
     expect(screen.getByText("Monthly budget")).toBeInTheDocument();
     expect(screen.getByText("Platform setting")).toBeInTheDocument();
     expect(screen.queryByRole("meter")).toBeNull();
@@ -264,9 +310,9 @@ describe("the team's spend and banner", () => {
     expect(await screen.findByRole("table", { name: "By agent" })).toHaveTextContent("Registrar help");
     expect(screen.getByRole("table", { name: "By model" })).toHaveTextContent("Unpriced");
     expect(screen.getByText("Near budget")).toBeInTheDocument();
-    expect(screen.getByRole("table", { name: "By agent" })).toHaveTextContent(formatMoney("0.5", "USD", 2));
-    expect(screen.getAllByRole("columnheader", { name: "Per-request checks" })).toHaveLength(2);
-    expect(screen.getByText(/count SystemOne and moderation requests/)).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "By agent" })).toHaveTextContent(formatMoney("0.5", "USD"));
+    expect(screen.getAllByRole("columnheader", { name: "Requests" })).toHaveLength(2);
+    expect(screen.getByText(/SystemOne and moderation calls, priced per request/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -278,7 +324,7 @@ describe("the team's spend and banner", () => {
   });
 
   it("tells members the budget is used up, without amounts", async () => {
-    mockApi({ "GET /v1/teams/registrar/budget-status": () => ({ state: "exhausted", resetsAt: "2026-10-01T04:00:00Z", amounts: null }) });
+    mockApi({ "GET /v1/teams/registrar/budget-status": () => ({ state: "exhausted", enforced: true, resetsAt: "2026-10-01T04:00:00Z", amounts: null }) });
     const { container } = renderBare(<BudgetBanner team="registrar" manager={false} />, meFor("none", "member"));
     const alert = await screen.findByText("This team's monthly budget is used up");
     expect(alert.closest('[role="status"]')).toHaveTextContent(/Chats, searches and ingestion are paused/);
@@ -288,11 +334,46 @@ describe("the team's spend and banner", () => {
   });
 
   it("shows owners the amounts near the threshold", async () => {
-    mockApi({ "GET /v1/teams/registrar/budget-status": () => ({ state: "warning", resetsAt: "2026-10-01T04:00:00Z", amounts: { spent: "85.000000", limit: "100.000000", currency: "USD", percent: 85 } }) });
+    mockApi({ "GET /v1/teams/registrar/budget-status": () => ({ state: "warning", enforced: true, resetsAt: "2026-10-01T04:00:00Z", amounts: { spent: "85.000000", limit: "100.000000", currency: "USD", percent: 85 } }) });
     renderBare(<BudgetBanner team="registrar" manager />);
     expect(await screen.findByText("This team is near its monthly budget")).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`${formatMoney("85", "USD").replace("$", "\\$")} of`))).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See spend" })).toHaveAttribute("href", "/teams/registrar/settings?tab=usage");
+  });
+});
+
+describe("a Track-only budget (progress, never enforced)", () => {
+  const tracked = status("ok", { mode: "track", budget: "5.000000", limit: "5.000000", spent: "0.600000", percent: 12 });
+
+  it("shows owners progress against the budget on Usage & limits, not enforced", async () => {
+    mockApi({
+      "GET /v1/teams/registrar/spend": () => ({ status: tracked, timeZone: "UTC", from: "2026-09-01", to: "2026-09-02", total: reports.agent!.total, agents: [], models: [] }),
+    });
+    const { container } = renderBare(<TeamSpendCard team="registrar" />);
+    expect(await screen.findByText(/Tracking: 12% of \$5\.00 · not enforced/)).toBeInTheDocument();
+    expect(screen.getByRole("meter", { name: "Share of this month's budget used" })).toBeInTheDocument();
+    expect(screen.getByText("Not enforced")).toBeInTheDocument();
+    expect(container).not.toHaveTextContent(/At 100% the team's chats/);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("shows no banner, even past 100%", async () => {
+    const calls = mockApi({ "GET /v1/teams/registrar/budget-status": () => ({ state: "exhausted", enforced: false, resetsAt: "2026-10-01T04:00:00Z", amounts: null }) });
+    const { container } = renderBare(<BudgetBanner team="registrar" manager />);
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("shows the admin Budget card's meter and says it isn't enforced", async () => {
+    mockApi({
+      "GET /v1/admin/costs/settings": () => settings("track"),
+      "GET /v1/admin/teams/registrar/budget": () => ({ ...teamBudget(tracked), modeOverride: "inherit" }),
+    });
+    const { container } = renderBare(<AdminTeamBudgetCard team="registrar" />, meFor("platform_admin"));
+    expect(await screen.findByText(/Tracking: 12% of \$5\.00 · not enforced/)).toBeInTheDocument();
+    expect(screen.getByRole("meter")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Grant extension" })).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
 
@@ -302,20 +383,29 @@ describe("budget errors and money", () => {
     expect(chatErrorText("agent_unavailable").title).toBe("This assistant is unavailable right now");
   });
 
-  it("formats exact decimal strings in the currency", () => {
-    expect(formatMoney("12.500000", "USD")).toBe(new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(12.5));
-    expect(formatMoney("0.000123", "USD")).toContain("0.000123");
-    expect(formatMoney("0.010000", "USD", 4)).toContain("0.0100");
+  it("shows money in cents, under a cent as < $0.01, with the exact amount kept for hover", () => {
+    const usd = (n: number, d = 2) => new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", minimumFractionDigits: d, maximumFractionDigits: d }).format(n);
+    expect(formatMoney("12.500000", "USD")).toBe(usd(12.5));
+    expect(formatMoney("0.140000", "USD")).toBe(usd(0.14));
+    expect(formatMoney("0.027129", "USD")).toBe(usd(0.03));
+    expect(formatMoney("0.000123", "USD")).toBe(`< ${usd(0.01)}`);
+    expect(formatMoney("0.009999", "USD")).toBe(`< ${usd(0.01)}`);
+    expect(formatMoney("0.000000", "USD")).toBe(usd(0));
     expect(formatMoney(null, "USD")).toBe("—");
     expect(formatMoney("5", "XYZ")).toMatch(/5/);
+    expect(formatMoneyExact("0.027129", "USD")).toBe(usd(0.027129, 6));
+    expect(formatMoneyExact("5.000000", "USD")).toBe(usd(5));
+    expect(formatMoneyExact("0.000150", "USD")).toBe(usd(0.00015, 5));
   });
 
-  it("picks the fewest decimals (2 to 6) that show a whole column exactly", () => {
-    expect(moneyDecimals("0.140000", "0.010000")).toBe(2);
-    expect(moneyDecimals("0.140000", "0.004200", "0.221000")).toBe(4);
-    expect(moneyDecimals("0.000001", null, undefined, "")).toBe(6);
-    expect(moneyDecimals(0.1 + 0.2)).toBe(2);
-    expect(moneyDecimals()).toBe(2);
+  it("puts the exact amount on hover when cents round it", async () => {
+    const { container } = renderBare(
+      <p>
+        <Money amount="0.027129" currency="USD" /> and <Money amount="5.000000" currency="USD" />
+      </p>,
+    );
+    expect(await screen.findByTitle(formatMoneyExact("0.027129", "USD"))).toHaveTextContent(formatMoney("0.03", "USD"));
+    expect(container.querySelectorAll("[title]")).toHaveLength(1);
   });
 
   it("links budget changes and extensions to the team's Limits tab", () => {

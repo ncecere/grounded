@@ -52,7 +52,7 @@ test("price a model, enforce a tiny budget, get refused, grant an extension", as
     await a11y(adminPage);
     await adminPage.getByRole("button", { name: "Change budget" }).click();
     const dialog = adminPage.getByRole("dialog", { name: /^Budget of / });
-    await dialog.getByLabel("Mode").selectOption("enforce");
+    await dialog.getByLabel("Cost tracking").selectOption("enforce");
     await dialog.getByLabel(/^Monthly budget/).fill("1");
     await a11y(adminPage, "change budget");
     await dialog.getByRole("button", { name: "Save budget" }).click();

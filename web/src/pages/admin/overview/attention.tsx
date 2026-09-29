@@ -25,7 +25,7 @@ const warningRows: Record<string, Pick<Row, "icon" | "action" | "link">> = {
   public_agents_without_moderation: { icon: <ShieldAlert />, action: "Set up moderation", link: <Link to="/admin/moderation" search={{ tab: "public" }} /> },
   smtp_not_configured: { icon: <Mail /> },
   oidc_no_domain_restriction: { icon: <LogIn /> },
-  sso_groups_claim_missing: { icon: <LogIn />, action: "Group mapping", link: <Link to="/admin/group-mapping" /> },
+  sso_groups_claim_missing: { icon: <LogIn />, action: "SSO groups", link: <Link to="/admin/group-mapping" /> },
 };
 
 function warningRow(w: Schemas["AdminWarning"]): Row {
@@ -102,9 +102,9 @@ function useRows(): { rows: Row[]; loading: boolean } {
       id: `failed-${f.teamSlug ?? "shared"}`,
       icon: <FileWarning />,
       title: `${plural(f.failed, "document", "documents")} failed to index in ${f.teamName ?? "shared sources"}`,
-      description: f.teamSlug ? "The team's owners see the reasons on each source's Documents tab." : "See each shared source's Documents tab.",
-      action: f.teamSlug ? "Open team" : "Shared sources",
-      link: f.teamSlug ? <Link to="/admin/teams/$team" params={{ team: f.teamSlug }} /> : <Link to="/admin/shared-sources" />,
+      description: "See them by source and reason on Parsing & OCR, retry them or notify the team's owners.",
+      action: "Failed documents",
+      link: <Link to="/admin/parsing" hash="document-problems" />,
     });
   }
   for (const n of overview.data?.teamsNearLimits ?? []) {

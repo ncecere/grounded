@@ -30,7 +30,7 @@ var (
 	auditTargetTypeRe = regexp.MustCompile(`^[a-z_]{1,64}$`)
 )
 
-// auditFilters reads ?action=, ?excludeAction=, ?actorUserId=, ?targetType=,
+// auditFilters reads ?action=, ?excludeAction=, ?actorUserId=, ?actorKind=, ?targetType=,
 // ?from= and ?to= into p. An action ending in "." matches every action in
 // that group; excludeAction is always a group ("auth." hides sign-ins).
 func auditFilters(w http.ResponseWriter, r *http.Request, p *dbgen.ListAuditParams) bool {
@@ -65,6 +65,14 @@ func auditFilters(w http.ResponseWriter, r *http.Request, p *dbgen.ListAuditPara
 			return false
 		}
 		p.ActorUserID = uuid.NullUUID{UUID: id, Valid: true}
+	}
+	switch v := q.Get("actorKind"); v {
+	case "":
+	case "system", "group_mapping":
+		p.ActorKind = &v
+	default:
+		httpx.Error(w, http.StatusBadRequest, "invalid_actor_kind", "actorKind must be system or group_mapping")
+		return false
 	}
 	if v := q.Get("targetType"); v != "" {
 		if !auditTargetTypeRe.MatchString(v) {

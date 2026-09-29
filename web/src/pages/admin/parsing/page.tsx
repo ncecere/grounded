@@ -1,9 +1,11 @@
 /*
- * Admin → Parsing (docs/ocr.md §2, §6): OCR for scanned documents on the
- * settings template. OCR on/off, the backend (only configured ones can be
- * chosen), the vision model or the languages, the per-document cap, a Test
- * button that reads a built-in sample page, and how many documents each
- * team could retry with OCR. OCR is off by default.
+ * Admin → Parsing & OCR (docs/ocr.md §2, §5, §6; route /admin/parsing):
+ * OCR for scanned documents on the settings template. OCR on/off, the
+ * backend (only configured ones can be chosen), the vision model or the
+ * languages, the per-document cap, a Test button that reads a built-in
+ * sample page; then, outside the form, the documents that failed or need
+ * OCR by team and source, with Retry these and Notify owners. OCR is off by
+ * default.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -27,7 +29,7 @@ import { adminOnly } from "@/lib/terms";
 import s from "../../shared.module.css";
 import { useIsPlatformAdmin } from "../hooks";
 import { useModels, type Model } from "../models/common";
-import { NeedsOcrSection } from "./needs-ocr";
+import { DocumentProblemsSection } from "./document-problems";
 import { TestSection } from "./test-section";
 
 export const parsingKey = ["admin", "parsing"];
@@ -40,7 +42,7 @@ export function ParsingPage() {
   return (
     <Stack gap={6} className={s.page}>
       <PageHeader
-        title="Parsing"
+        title="Parsing & OCR"
         description={`Grounded reads PDF, Word, PowerPoint, HTML, Markdown and text itself. OCR reads what has no text: scanned PDF pages and image uploads. ${
           settings.data?.ocrEnabled ? "It is on for the platform; each source can turn it off." : "It is off until a platform admin turns it on."
         }`}
@@ -48,6 +50,7 @@ export function ParsingPage() {
       <QueryView query={settings} loadingLabel="Loading parsing settings…">
         {settings.data && <ParsingEditor key={settings.data.revision} saved={settings.data} visionModels={vision} isAdmin={isAdmin} />}
       </QueryView>
+      <DocumentProblemsSection isAdmin={isAdmin} />
     </Stack>
   );
 }
@@ -121,7 +124,6 @@ function ParsingEditor({ saved, visionModels, isAdmin }: { saved: ParsingSetting
       </SettingsSection>
       {/* Auditors can't run the Test (it reads with the platform's backend): it's left out rather than shown disabled. */}
       {isAdmin && <TestSection form={form} disabled={Object.keys(problems).length > 0} />}
-      <NeedsOcrSection counts={saved.needsOcr} ocrOn={saved.ocrEnabled} />
     </SettingsPage>
   );
 }

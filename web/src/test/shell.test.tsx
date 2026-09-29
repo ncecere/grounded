@@ -105,6 +105,8 @@ describe("app shell", () => {
     expect(screen.getByText(/To build your own, join a team/)).toBeInTheDocument();
     expect(screen.queryByText(/your teams have published/)).toBeNull();
     expect(screen.getByText("You aren't on a team yet.")).toBeInTheDocument();
+    // Without a request form or help link: ask a platform admin.
+    expect(screen.getByText(/To join a team, ask one of its owners to add you\. Not sure who\? Ask a platform admin\./)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Request a new team" })).toBeNull();
     const switcher = screen.getByRole("button", { name: /Current workspace:\s*Casey Dev/ });
     expect(switcher).toHaveTextContent("CD");
@@ -115,6 +117,24 @@ describe("app shell", () => {
     mockApi({ ...teamRoutes, "GET /v1/me": () => noTeam, "GET /v1/agents": () => [], "GET /v1/auth/config": () => ({ ...authConfig, teamRequestUrl: "https://help.example.edu/new-team" }) });
     renderApp("/");
     expect(await screen.findByRole("link", { name: "Request a new team" })).toHaveAttribute("href", "https://help.example.edu/new-team");
+  });
+
+  it("says how to get onto a team in the workspace switcher, with the platform's help link", async () => {
+    const noTeam = { ...me(), user: { ...me().user, displayName: "Casey Dev" }, teams: [] };
+    mockApi({
+      ...teamRoutes,
+      "GET /v1/me": () => noTeam,
+      "GET /v1/agents": () => [],
+      "GET /v1/auth/config": () => ({ ...authConfig, instance: { name: "Grounded", orgName: "", theme: "neutral", logoUrl: null, supportUrl: "https://help.example.edu/ai" } }),
+    });
+    const { container } = renderApp("/");
+    const help = await screen.findByRole("link", { name: "Get help" });
+    expect(help).toHaveAttribute("href", "https://help.example.edu/ai");
+    await userEvent.click(screen.getByRole("button", { name: /Current workspace:\s*Casey Dev/ }));
+    const menu = await screen.findByRole("menu");
+    expect(menu).toHaveTextContent(/You aren't on a team yet\. To join a team, ask one of its owners to add you, or ask for help getting onto one\./);
+    expect(within(menu).getByRole("menuitem", { name: "Get help" })).toHaveAttribute("href", "https://help.example.edu/ai");
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it("hides the portal switch and admin pages from people without a platform role", async () => {

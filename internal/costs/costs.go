@@ -38,10 +38,10 @@ const (
 
 // Budget states of a team this month.
 const (
-	StateNone      = "none"      // not enforced, or no budget
+	StateNone      = "none"      // costs are off, or no budget
 	StateOK        = "ok"        // under the threshold
 	StateWarning   = "warning"   // at or above the threshold
-	StateExhausted = "exhausted" // at or above 100%: model work is refused
+	StateExhausted = "exhausted" // at or above 100%: model work is refused when enforced
 )
 
 // Notice levels (budget_notices.level).

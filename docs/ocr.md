@@ -42,7 +42,8 @@ Only backends that are configured can be chosen. Admin → **Parsing** (new page
 ## 5. Per source, and retrying old failures
 
 - Each source has an **OCR** switch, on by default once the platform has OCR, so a team can keep OCR off for a source where scanned pages are noise.
-- Documents that failed as "may be scanned" before OCR was on can be retried in bulk: a source's documents list filters "Needs OCR", and **Retry** reprocesses them. Admin → Parsing shows how many such documents each team has.
+- Documents that failed as "may be scanned" before OCR was on can be retried in bulk: a source's documents list filters "Needs OCR", and **Retry** reprocesses them.
+- **Admins and failed documents** (owner decision 3 of [`v0.2.0.md`](v0.2.0.md) §7): Admin → **Parsing & OCR** lists the documents that failed or need OCR by team and source, with the count, the reason class (needs OCR, OCR error, damaged or unsupported file, other failure) and the oldest date, and never a file name, title, URL or text (admins can't read a team's documents). Per group, **Retry these** queues them again (for needs OCR and OCR errors only while OCR can read the source; otherwise it says why), and **Notify owners** sends the team's owners the notification `source.documents_attention` (in the app and by email; it can't be turned off, like other platform actions on a team's content) with the count and a link to the source's Documents filtered to Failed or Needs OCR. Both are audited as platform actions with the count (`platform.documents_retry`, `platform.document_owners_notify`). The Admin Overview's "failed to index" item links there. API: `GET /v1/admin/parsing/document-problems` (platform admins and auditors), `POST …/document-problems/retry` and `…/notify` (platform admins).
 
 ## 5a. Image uploads
 

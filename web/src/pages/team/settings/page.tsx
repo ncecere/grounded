@@ -17,8 +17,7 @@ import { useTeam } from "../common";
 import { DomainRequestsPage } from "../domains";
 import { ApiKeysPage } from "../keys/page";
 import { ArchivedNotice } from "../layout";
-import { TeamSpendCard } from "../spend";
-import { UsageCard } from "../usage";
+import { UsageTab } from "../usage";
 import { TeamAuditLog } from "./audit";
 import { GeneralTab } from "./general";
 import { MembersTab } from "./members";
@@ -53,12 +52,7 @@ export function TeamSettingsPage() {
             label: "Usage & limits",
             icon: <Gauge aria-hidden />,
             hidden: !canSeeUsage,
-            content: (
-              <Stack gap={6}>
-                {isManager && <TeamSpendCard team={slug} />}
-                <UsageCard team={slug} />
-              </Stack>
-            ),
+            content: <UsageTab team={slug} showSpend={isManager} />,
           },
           { value: "api-keys", label: "API keys", icon: <KeyRound aria-hidden />, hidden: !role, content: <ApiKeysPage embedded /> },
           { value: "crawl-domains", label: terms.crawlDomains, icon: <Globe aria-hidden />, hidden: !role, content: <DomainRequestsPage embedded /> },

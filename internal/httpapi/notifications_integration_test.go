@@ -147,7 +147,7 @@ func notificationSettings(t *testing.T, app *testApp, owner *session) {
 		t.Fatalf("settings = %d %+v", code, st)
 	}
 	mandatory := map[apitypes.NotificationType]bool{"team.invited": true, "source.classification_lowered": true, "agent.disabled_by_platform": true,
-		"breakglass.started": true, "breakglass.ended": true, "team.budget_warning": true, "team.budget_exhausted": true}
+		"breakglass.started": true, "breakglass.ended": true, "team.budget_warning": true, "team.budget_exhausted": true, "source.documents_attention": true}
 	for _, it := range st.Items {
 		if !it.InApp || !it.Email || it.Mandatory != mandatory[it.Type] {
 			t.Errorf("default setting %+v", it)

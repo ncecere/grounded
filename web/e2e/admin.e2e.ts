@@ -74,10 +74,12 @@ test("parsing: OCR is off by default, with each backend's state", async ({ as, a
   // Read-only here: turning OCR on changes the whole platform.
   const page = await as("admin");
   await page.goto("/admin/parsing");
-  await expect(page.getByRole("heading", { level: 1, name: "Parsing" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Parsing & OCR" })).toBeVisible();
   await expect(page.getByRole("switch", { name: /Read scanned pages and images with OCR/ })).not.toBeChecked();
   await expect(page.getByText("Not configured: set OCR_TESSERACT_URL.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Test" })).toBeVisible();
+  // Failed and needs-OCR documents by team and source (other specs' documents may be listed, or none).
+  await expect(page.getByRole("heading", { name: "Documents that failed or need OCR" })).toBeVisible();
   await a11y(page);
 });
 

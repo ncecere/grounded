@@ -188,6 +188,19 @@ func TestGroupMappingAtSignIn(t *testing.T) {
 			t.Errorf("group mapping entry = %s %v team %v", it.Action, it.Metadata, it.TeamSlug)
 		}
 	}
+	// The Person filter's "System (group mapping)": only the memberships the rules made, also in a team's log and with an area.
+	if code := e.admin.get("/v1/admin/audit?actorKind=group_mapping", &page); code != 200 || len(page.Items) != 5 {
+		t.Fatalf("actorKind=group_mapping = %d, %d entries, want 5", code, len(page.Items))
+	}
+	if code := e.admin.get("/v1/admin/audit?actorKind=group_mapping&action=team.member_remove", &page); code != 200 || len(page.Items) != 1 {
+		t.Fatalf("removed by group mapping = %d, %d entries, want 1", code, len(page.Items))
+	}
+	if code := e.admin.get("/v1/teams/registrar/audit?actorKind=group_mapping", &page); code != 200 || len(page.Items) != 5 {
+		t.Fatalf("the team's group mapping entries = %d, %d", code, len(page.Items))
+	}
+	if code := e.admin.get("/v1/admin/audit?actorKind=robot", nil); code != 400 {
+		t.Fatalf("an unknown actorKind = %d", code)
+	}
 }
 
 func contains(list []string, s string) bool {

@@ -37,7 +37,7 @@ const visionModel = {
   revision: 1, createdAt: "2026-09-26T10:00:00Z", updatedAt: "2026-09-26T10:00:00Z",
 };
 
-describe("Admin → Parsing", () => {
+describe("Admin → Parsing & OCR", () => {
   it("turns OCR on with Tesseract and two languages, tests it, and saves with the revision", async () => {
     let saved = settings();
     const calls = mockShell({
@@ -53,7 +53,6 @@ describe("Admin → Parsing", () => {
     const toggle = await screen.findByRole("switch", { name: /Read scanned pages and images with OCR/ });
     expect(screen.getByRole("radio", { name: /Apache Tika/ })).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByText("Not configured: set TIKA_URL.")).toBeInTheDocument();
-    expect(screen.getByRole("table", { name: /Documents that need OCR, by team \(14 documents\)/ })).toHaveTextContent("Registrar");
     expect(screen.getByText(/At most 200; pages beyond it are skipped/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
 
@@ -82,12 +81,13 @@ describe("Admin → Parsing", () => {
       ...shellRoutes("platform_admin"),
       "GET /v1/admin/models": () => [visionModel],
       "GET /v1/admin/parsing": () => settings({ needsOcr: [] }),
+      "GET /v1/admin/parsing/document-problems": () => ({ items: [] }),
       "POST /v1/admin/parsing/test": () => ({
         ok: false, backend: "vision", text: "", expected: "x", confidence: 0, latencyMs: 30, tokensIn: 0, tokensOut: 0, error: "the proxy is unavailable",
       }),
     });
     const { container } = renderApp("/admin/parsing");
-    expect(await screen.findByText("No documents need OCR.")).toBeInTheDocument();
+    expect(await screen.findByText("No documents failed or need OCR.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("switch", { name: /Read scanned pages/ }));
     await userEvent.click(screen.getByRole("radio", { name: /Vision model/ }));
     expect(screen.queryByRole("textbox", { name: "Languages" })).toBeNull();

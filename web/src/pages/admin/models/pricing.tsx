@@ -19,7 +19,7 @@ import { Loading } from "@/components/ui/spinner/spinner";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { toast } from "@/components/ui/toast/toast";
 import { amountError, dayIn, unitLabels, useCostSettings, type PriceUnit } from "@/lib/costs";
-import { formatMoney, moneyDecimals } from "@/lib/format";
+import { formatMoneyExact } from "@/lib/format";
 import { dayLabel } from "@/components/analytics/format";
 import s from "../../shared.module.css";
 import c from "../costs/costs.module.css";
@@ -38,7 +38,7 @@ export const isPricedKind = (kind: string) => ["chat", "embedding", "systemone",
 
 /** "the input tokens price of $4.00 from Oct 28, 2026", naming a row in its delete button and confirmation. */
 const rowName = (row: PriceRow, currency: string) =>
-  `the ${unitLabels[row.unit].label.toLowerCase()} price of ${formatMoney(row.price, currency)} from ${dayLabel(row.effectiveFrom)}`;
+  `the ${unitLabels[row.unit].label.toLowerCase()} price of ${formatMoneyExact(row.price, currency)} from ${dayLabel(row.effectiveFrom)}`;
 
 /** Prices dated after today (in the platform time zone): they apply from their day on. */
 function UpcomingLines({ rows, currency }: { rows: PriceRow[]; currency: string }) {
@@ -70,7 +70,6 @@ export function ModelPricingSection({ modelId, isAdmin }: { modelId: string; isA
   if (!q.data) return <ErrorAlert error={q.error} />;
   const p = q.data;
   const upcoming = p.history.filter((r) => r.effectiveFrom > today);
-  const dec = moneyDecimals(...p.history.map((r) => r.price));
   return (
     <div className={c.cardBody}>
       <div className={c.priceGroup}>
@@ -93,7 +92,7 @@ export function ModelPricingSection({ modelId, isAdmin }: { modelId: string; isA
             <Tr key={row.id}>
               <Td>{unitLabels[row.unit].label}</Td>
               <Td numeric>
-                {formatMoney(row.price, p.currency, dec)} <span className={c.per}>{unitLabels[row.unit].per}</span>
+                {formatMoneyExact(row.price, p.currency)} <span className={c.per}>{unitLabels[row.unit].per}</span>
               </Td>
               <Td nowrap>
                 <time dateTime={row.effectiveFrom}>{dayLabel(row.effectiveFrom)}</time>

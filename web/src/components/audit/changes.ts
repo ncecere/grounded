@@ -7,26 +7,24 @@
  */
 import type { Schemas } from "@/api/client";
 import { modeLabels, monthLabel, overrideLabels, unitLabels } from "@/lib/costs";
+import { formatMoney, formatMoneyExact } from "@/lib/format";
 
 type AuditEntry = Schemas["AuditEntry"];
 type Format = (value: unknown) => unknown;
 /** A field's label and formatting; null leaves the field out. */
 type Fields = Record<string, [label: string, format?: Format] | null>;
 
-/** An exact amount ("0.000150") as money: "$0.00015"; without a known currency, the number ("0.00015"). */
-export function auditMoney(value: unknown, currency?: string): unknown {
+/**
+ * An amount as money in cents, like everywhere else ("$5.00", "< $0.01");
+ * `exact` keeps every decimal, for prices ("0.000150" as "$0.00015").
+ * Without a known currency, the number ("5.00").
+ */
+export function auditMoney(value: unknown, currency?: string, exact = false): unknown {
   if (typeof value !== "string" || value.trim() === "" || !Number.isFinite(Number(value))) return value;
+  if (currency) return exact ? formatMoneyExact(value, currency) : formatMoney(value, currency);
   const n = Number(value);
-  const opts = { minimumFractionDigits: 2, maximumFractionDigits: 6 };
-  if (currency) {
-    try {
-      return new Intl.NumberFormat(undefined, { ...opts, style: "currency", currency }).format(n);
-    } catch {
-      // An unknown currency code: the number and the code.
-      return `${new Intl.NumberFormat(undefined, opts).format(n)} ${currency}`;
-    }
-  }
-  return new Intl.NumberFormat(undefined, opts).format(n);
+  if (!exact && n > 0 && n < 0.01) return "< 0.01";
+  return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: exact ? 6 : 2 }).format(n);
 }
 
 /** "2026-10-28" as "Oct 28, 2026"; "2026-09" as "September 2026". */
@@ -50,6 +48,7 @@ const unitText = (unit: string) => {
 
 function fieldsFor(action: string, currency?: string): Fields | undefined {
   const money: Format = (v) => auditMoney(v, currency);
+  const price: Format = (v) => auditMoney(v, currency, true);
   switch (action) {
     case "costs.budget_update":
       return { mode: ["Mode", label(overrideLabels)], amount: ["Monthly budget", money], warnPercent: ["Warn at", percent] };
@@ -64,10 +63,28 @@ function fieldsFor(action: string, currency?: string): Fields | undefined {
         defaultBudget: ["Default monthly budget", money],
       };
     case "costs.price_delete":
-      return { priceId: null, unit: ["Unit", (v) => (typeof v === "string" ? unitText(v) : v)], price: ["Price", money], effectiveFrom: ["Effective from", dateText] };
+      return {
+        priceId: null,
+        unit: ["Unit", (v) => (typeof v === "string" ? unitText(v) : v)],
+        price: ["Price", price],
+        effectiveFrom: ["Effective from", dateText],
+      };
     default:
       return undefined;
   }
+}
+
+const acronyms: Record<string, string> = { id: "ID", ids: "IDs", url: "URL", urls: "URLs", api: "API", kb: "KB", kbs: "KBs", sso: "SSO", ocr: "OCR", oidc: "OIDC" };
+
+/** A recorded key in plain words: "maxClassification" → "Max classification", "kbIds" → "KB IDs", "warn_percent" → "Warn percent". */
+export function plainKey(key: string): string {
+  const words = key
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .split(/[\s_]+/)
+    .filter(Boolean)
+    .map((w) => acronyms[w.toLowerCase()] ?? w.toLowerCase());
+  const [first = "", ...rest] = words;
+  return [first.charAt(0).toUpperCase() + first.slice(1), ...rest].join(" ");
 }
 
 /** One side of a change, with known fields relabelled and formatted, and empty values left out. */
@@ -78,7 +95,7 @@ function readable(side: unknown, fields: Fields): Record<string, unknown> {
     if (value === null || value === undefined) continue;
     const field = fields[key];
     if (field === null) continue;
-    out[field?.[0] ?? key] = field?.[1] ? field[1](value) : value;
+    out[field?.[0] ?? plainKey(key)] = field?.[1] ? field[1](value) : value;
   }
   return out;
 }
@@ -89,7 +106,7 @@ function pricesAdded(after: unknown, currency?: string): Record<string, unknown>
   const out: Record<string, unknown> = {};
   if (a.model) out.Model = a.model;
   if (a.effectiveFrom) out["Effective from"] = dateText(a.effectiveFrom);
-  for (const [unit, price] of Object.entries(a.prices ?? {})) out[unitText(unit)] = auditMoney(price, currency);
+  for (const [unit, price] of Object.entries(a.prices ?? {})) out[unitText(unit)] = auditMoney(price, currency, true);
   return out;
 }
 
@@ -99,9 +116,42 @@ export function auditChange(e: Pick<AuditEntry, "action" | "before" | "after">, 
   if (e.action === "apikey.revoke") {
     // The key isn't changed but revoked: the same key, with its status.
     const key = readable(e.before, {});
-    return { before: { status: "Active", ...key }, after: { status: "Revoked", ...key } };
+    return { before: { Status: "Active", ...key }, after: { Status: "Revoked", ...key } };
   }
   const fields = fieldsFor(e.action, currency) ?? {};
   const side = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? readable(v, fields) : (v ?? {}));
   return { before: side(e.before) as object, after: side(e.after) as object };
+}
+
+/** One changed field of an entry: its plain name, and its value before and after (undefined: not set). */
+export type ChangeRow = { field: string; before?: unknown; after?: unknown };
+
+/** The fields that differ between the two sides, in order (the before's fields first). */
+export function changedRows(change: { before: object; after: object }): ChangeRow[] {
+  const b = change.before as Record<string, unknown>;
+  const a = change.after as Record<string, unknown>;
+  const keys = [...Object.keys(b), ...Object.keys(a).filter((k) => !(k in b))];
+  return keys.filter((k) => JSON.stringify(b[k]) !== JSON.stringify(a[k])).map((k) => ({ field: k, before: b[k], after: a[k] }));
+}
+
+/** A value for people: text as is, a list of words joined, anything else as compact JSON; "Not set" without one. */
+export function valueText(v: unknown, none = "Not set"): string {
+  if (v === undefined || v === null || v === "") return none;
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (Array.isArray(v) && v.every((x) => typeof x === "string" || typeof x === "number")) return v.length ? v.join(", ") : none;
+  return JSON.stringify(v);
+}
+
+const simple = (v: unknown) => v === undefined || ((typeof v === "string" || typeof v === "number" || typeof v === "boolean") && String(v).length <= 40);
+
+/**
+ * A change in one line for the list, when it's simple: one or two fields with short values, such as "Monthly budget
+ * $5.00 → none". Null for creations, deletions and larger changes (the record page has them).
+ */
+export function changeSummary(e: Pick<AuditEntry, "action" | "before" | "after">, currency?: string): string | null {
+  if (e.before == null || e.after == null) return null;
+  const rows = changedRows(auditChange(e, currency));
+  if (rows.length === 0 || rows.length > 2 || !rows.every((r) => simple(r.before) && simple(r.after))) return null;
+  return rows.map((r) => `${r.field} ${valueText(r.before, "none")} → ${valueText(r.after, "none")}`).join("; ");
 }

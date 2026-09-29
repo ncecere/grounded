@@ -308,7 +308,9 @@ describe("team usage card", () => {
     expect(within(resources).getByText("Blocked for your team")).toBeInTheDocument();
     const ingestion = screen.getByRole("region", { name: "Ingestion" });
     expect(within(ingestion).getAllByRole("meter").map((m) => m.getAttribute("aria-valuetext"))).toEqual(["120 of 5,000", "1 of 2"]);
-    expect(within(ingestion).getByText(/resets at midnight UTC/)).toBeInTheDocument();
+    // The midnight UTC reset is said once per page (UsageTab), not under every meter.
+    expect(within(ingestion).getAllByText("Today").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/midnight UTC/)).toBeNull();
     expect(screen.getAllByText("Set for your team")).toHaveLength(2);
     // Limits without a running total are in the disclosure; no public caps without a public agent.
     expect(screen.queryByText("Up to 120 per minute")).toBeNull();

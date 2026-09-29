@@ -10,7 +10,7 @@ import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { Loading } from "@/components/ui/spinner/spinner";
-import { useCostSettings } from "@/lib/costs";
+import { timeZoneNote, useCostSettings } from "@/lib/costs";
 import { costTabs } from "@/lib/tabs";
 import s from "../../shared.module.css";
 import { BudgetsTab } from "./budgets";
@@ -27,7 +27,7 @@ export function CostsPage() {
     <Stack gap={6} className={s.page}>
       <PageHeader
         title="Costs"
-        description="What model use costs, from the prices you enter, and each team's monthly budget. Amounts are shown in the platform currency; days follow the platform time zone."
+        description={`What model use costs, from the prices you enter, and each team's monthly budget, in the platform currency. ${timeZoneNote(st?.timeZone)}`}
       />
       {settings.isLoading ? (
         <Loading label="Loading costs…" />

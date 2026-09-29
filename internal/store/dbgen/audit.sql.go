@@ -144,11 +144,13 @@ WHERE ($1::uuid IS NULL OR a.team_id = $1::uuid)
   AND (NOT COALESCE($6::boolean, false)
        OR a.action LIKE 'platform.sso\_rule\_%' ESCAPE '\' OR a.metadata->>'via' = 'sso_group_rule')
   AND ($7::uuid IS NULL OR a.actor_user_id = $7::uuid)
-  AND ($8::text IS NULL OR a.target_type = $8::text)
-  AND ($9::timestamptz IS NULL OR a.occurred_at >= $9::timestamptz)
-  AND ($10::timestamptz IS NULL OR a.occurred_at < $10::timestamptz)
+  AND ($8::text IS NULL
+       OR (a.actor_kind = 'system' AND ($8::text = 'system' OR a.metadata->>'via' = 'sso_group_rule')))
+  AND ($9::text IS NULL OR a.target_type = $9::text)
+  AND ($10::timestamptz IS NULL OR a.occurred_at >= $10::timestamptz)
+  AND ($11::timestamptz IS NULL OR a.occurred_at < $11::timestamptz)
 ORDER BY a.id DESC
-LIMIT $11
+LIMIT $12
 `
 
 type ListAuditParams struct {
@@ -159,6 +161,7 @@ type ListAuditParams struct {
 	ExcludePrefix *string
 	GroupMapping  pgtype.Bool
 	ActorUserID   uuid.NullUUID
+	ActorKind     *string
 	TargetType    *string
 	OccurredFrom  *time.Time
 	OccurredTo    *time.Time
@@ -204,6 +207,8 @@ type ListAuditRow struct {
 // action_prefix and exclude_prefix are LIKE-escaped by the caller.
 // group_mapping: the group mapping rules' changes and the memberships they
 // made (metadata.via = 'sso_group_rule'), across action groups.
+// actor_kind: 'system' for the system's entries, 'group_mapping' for the
+// memberships group mapping rules made (the system as the rule).
 func (q *Queries) ListAudit(ctx context.Context, arg ListAuditParams) ([]ListAuditRow, error) {
 	rows, err := q.db.Query(ctx, listAudit,
 		arg.TeamID,
@@ -213,6 +218,7 @@ func (q *Queries) ListAudit(ctx context.Context, arg ListAuditParams) ([]ListAud
 		arg.ExcludePrefix,
 		arg.GroupMapping,
 		arg.ActorUserID,
+		arg.ActorKind,
 		arg.TargetType,
 		arg.OccurredFrom,
 		arg.OccurredTo,

@@ -1092,15 +1092,63 @@ func (e DataSourceUpdateStatus) Valid() bool {
 	}
 }
 
+// Defines values for DocumentProblemGroupOcrState.
+const (
+	DocumentProblemGroupOcrStateNotApproved DocumentProblemGroupOcrState = "not_approved"
+	DocumentProblemGroupOcrStateOn          DocumentProblemGroupOcrState = "on"
+	DocumentProblemGroupOcrStatePlatformOff DocumentProblemGroupOcrState = "platform_off"
+	DocumentProblemGroupOcrStateSourceOff   DocumentProblemGroupOcrState = "source_off"
+)
+
+// Valid indicates whether the value is a known member of the DocumentProblemGroupOcrState enum.
+func (e DocumentProblemGroupOcrState) Valid() bool {
+	switch e {
+	case DocumentProblemGroupOcrStateNotApproved:
+		return true
+	case DocumentProblemGroupOcrStateOn:
+		return true
+	case DocumentProblemGroupOcrStatePlatformOff:
+		return true
+	case DocumentProblemGroupOcrStateSourceOff:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DocumentProblemReason.
+const (
+	DocumentProblemReasonDamaged  DocumentProblemReason = "damaged"
+	DocumentProblemReasonNeedsOcr DocumentProblemReason = "needs_ocr"
+	DocumentProblemReasonOcrError DocumentProblemReason = "ocr_error"
+	DocumentProblemReasonOther    DocumentProblemReason = "other"
+)
+
+// Valid indicates whether the value is a known member of the DocumentProblemReason enum.
+func (e DocumentProblemReason) Valid() bool {
+	switch e {
+	case DocumentProblemReasonDamaged:
+		return true
+	case DocumentProblemReasonNeedsOcr:
+		return true
+	case DocumentProblemReasonOcrError:
+		return true
+	case DocumentProblemReasonOther:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DocumentRetryInputErrorCode.
 const (
-	NeedsOcr DocumentRetryInputErrorCode = "needs_ocr"
+	DocumentRetryInputErrorCodeNeedsOcr DocumentRetryInputErrorCode = "needs_ocr"
 )
 
 // Valid indicates whether the value is a known member of the DocumentRetryInputErrorCode enum.
 func (e DocumentRetryInputErrorCode) Valid() bool {
 	switch e {
-	case NeedsOcr:
+	case DocumentRetryInputErrorCodeNeedsOcr:
 		return true
 	default:
 		return false
@@ -1490,31 +1538,31 @@ func (e FeedbackRating) Valid() bool {
 
 // Defines values for FeedbackReason.
 const (
-	HarmfulOrUnsafe FeedbackReason = "harmful_or_unsafe"
-	Incorrect       FeedbackReason = "incorrect"
-	MissingSources  FeedbackReason = "missing_sources"
-	NotHelpful      FeedbackReason = "not_helpful"
-	Other           FeedbackReason = "other"
-	Outdated        FeedbackReason = "outdated"
-	WrongSources    FeedbackReason = "wrong_sources"
+	FeedbackReasonHarmfulOrUnsafe FeedbackReason = "harmful_or_unsafe"
+	FeedbackReasonIncorrect       FeedbackReason = "incorrect"
+	FeedbackReasonMissingSources  FeedbackReason = "missing_sources"
+	FeedbackReasonNotHelpful      FeedbackReason = "not_helpful"
+	FeedbackReasonOther           FeedbackReason = "other"
+	FeedbackReasonOutdated        FeedbackReason = "outdated"
+	FeedbackReasonWrongSources    FeedbackReason = "wrong_sources"
 )
 
 // Valid indicates whether the value is a known member of the FeedbackReason enum.
 func (e FeedbackReason) Valid() bool {
 	switch e {
-	case HarmfulOrUnsafe:
+	case FeedbackReasonHarmfulOrUnsafe:
 		return true
-	case Incorrect:
+	case FeedbackReasonIncorrect:
 		return true
-	case MissingSources:
+	case FeedbackReasonMissingSources:
 		return true
-	case NotHelpful:
+	case FeedbackReasonNotHelpful:
 		return true
-	case Other:
+	case FeedbackReasonOther:
 		return true
-	case Outdated:
+	case FeedbackReasonOutdated:
 		return true
-	case WrongSources:
+	case FeedbackReasonWrongSources:
 		return true
 	default:
 		return false
@@ -2214,6 +2262,7 @@ const (
 	NotificationTypeKbProfileChanged            NotificationType = "kb.profile_changed"
 	NotificationTypePlatformProfileMigration    NotificationType = "platform.profile_migration"
 	NotificationTypeSourceClassificationLowered NotificationType = "source.classification_lowered"
+	NotificationTypeSourceDocumentsAttention    NotificationType = "source.documents_attention"
 	NotificationTypeTeamBudgetExhausted         NotificationType = "team.budget_exhausted"
 	NotificationTypeTeamBudgetWarning           NotificationType = "team.budget_warning"
 	NotificationTypeTeamDailyLimit              NotificationType = "team.daily_limit"
@@ -2247,6 +2296,8 @@ func (e NotificationType) Valid() bool {
 	case NotificationTypePlatformProfileMigration:
 		return true
 	case NotificationTypeSourceClassificationLowered:
+		return true
+	case NotificationTypeSourceDocumentsAttention:
 		return true
 	case NotificationTypeTeamBudgetExhausted:
 		return true
@@ -3117,6 +3168,24 @@ func (e WebSchedule) Valid() bool {
 	}
 }
 
+// Defines values for AuditActorKindParam.
+const (
+	AuditActorKindParamGroupMapping AuditActorKindParam = "group_mapping"
+	AuditActorKindParamSystem       AuditActorKindParam = "system"
+)
+
+// Valid indicates whether the value is a known member of the AuditActorKindParam enum.
+func (e AuditActorKindParam) Valid() bool {
+	switch e {
+	case AuditActorKindParamGroupMapping:
+		return true
+	case AuditActorKindParamSystem:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CostGroupByParam.
 const (
 	CostGroupByParamAgent CostGroupByParam = "agent"
@@ -3237,6 +3306,24 @@ func (e AdminListModerationEventsParamsDecision) Valid() bool {
 	case AdminListModerationEventsParamsDecisionFlag:
 		return true
 	case AdminListModerationEventsParamsDecisionSupport:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminListAuditParamsActorKind.
+const (
+	AdminListAuditParamsActorKindGroupMapping AdminListAuditParamsActorKind = "group_mapping"
+	AdminListAuditParamsActorKindSystem       AdminListAuditParamsActorKind = "system"
+)
+
+// Valid indicates whether the value is a known member of the AdminListAuditParamsActorKind enum.
+func (e AdminListAuditParamsActorKind) Valid() bool {
+	switch e {
+	case AdminListAuditParamsActorKindGroupMapping:
+		return true
+	case AdminListAuditParamsActorKindSystem:
 		return true
 	default:
 		return false
@@ -3375,6 +3462,24 @@ func (e ExportConversationParamsFormat) Valid() bool {
 	case ExportConversationParamsFormatJson:
 		return true
 	case ExportConversationParamsFormatMarkdown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTeamAuditParamsActorKind.
+const (
+	ListTeamAuditParamsActorKindGroupMapping ListTeamAuditParamsActorKind = "group_mapping"
+	ListTeamAuditParamsActorKindSystem       ListTeamAuditParamsActorKind = "system"
+)
+
+// Valid indicates whether the value is a known member of the ListTeamAuditParamsActorKind enum.
+func (e ListTeamAuditParamsActorKind) Valid() bool {
+	switch e {
+	case ListTeamAuditParamsActorKindGroupMapping:
+		return true
+	case ListTeamAuditParamsActorKindSystem:
 		return true
 	default:
 		return false
@@ -4460,7 +4565,7 @@ type BudgetListItem struct {
 	TeamSlug  string             `json:"teamSlug"`
 }
 
-// BudgetState none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused
+// BudgetState none: costs are off or there is no budget; ok: under the warning threshold; warning: at or above the threshold; exhausted: at or above 100%. Only an enforced budget (enforced: true) refuses model work or notifies anyone; a Track-only budget shows the same states as progress and nothing else.
 type BudgetState string
 
 // Capabilities defines model for Capabilities.
@@ -5065,7 +5170,7 @@ type CostSettings struct {
 	// Example: USD
 	Currency string `json:"currency"`
 
-	// DefaultBudget The monthly budget of enforced teams without their own (null: none)
+	// DefaultBudget The monthly budget of teams without their own, in Track only (progress only) and Enforce (null: none)
 	DefaultBudget *Money `json:"defaultBudget"`
 
 	// Mode off: nothing is tracked or refused; track: spend is reported; enforce: track, plus monthly budgets
@@ -5369,6 +5474,54 @@ type DocumentPassagePage struct {
 	// Total All passages of the document
 	Total int32 `json:"total"`
 }
+
+// DocumentProblemAction defines model for DocumentProblemAction.
+type DocumentProblemAction struct {
+	// Reason needs_ocr: skipped as scanned with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
+	Reason   DocumentProblemReason `json:"reason"`
+	SourceId openapi_types.UUID    `json:"sourceId"`
+}
+
+// DocumentProblemGroup defines model for DocumentProblemGroup.
+type DocumentProblemGroup struct {
+	Documents int64 `json:"documents"`
+
+	// OcrState Whether OCR can read the source now, as a source's ocrState; retrying needs_ocr and ocr_error needs on
+	OcrState DocumentProblemGroupOcrState `json:"ocrState"`
+
+	// OldestAt When the oldest of these documents last changed (failed or was skipped)
+	OldestAt time.Time `json:"oldestAt"`
+
+	// Reason needs_ocr: skipped as scanned with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
+	Reason     DocumentProblemReason `json:"reason"`
+	SourceId   openapi_types.UUID    `json:"sourceId"`
+	SourceName string                `json:"sourceName"`
+
+	// TeamId null: a platform-shared source
+	TeamId   *openapi_types.UUID `json:"teamId"`
+	TeamName string              `json:"teamName"`
+	TeamSlug string              `json:"teamSlug"`
+}
+
+// DocumentProblemGroupOcrState Whether OCR can read the source now, as a source's ocrState; retrying needs_ocr and ocr_error needs on
+type DocumentProblemGroupOcrState string
+
+// DocumentProblemList defines model for DocumentProblemList.
+type DocumentProblemList struct {
+	Items []DocumentProblemGroup `json:"items"`
+}
+
+// DocumentProblemNotifyResult defines model for DocumentProblemNotifyResult.
+type DocumentProblemNotifyResult struct {
+	// Documents The count they were told about
+	Documents int64 `json:"documents"`
+
+	// Owners How many owners were told
+	Owners int `json:"owners"`
+}
+
+// DocumentProblemReason needs_ocr: skipped as scanned with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
+type DocumentProblemReason string
 
 // DocumentRetryInput defines model for DocumentRetryInput.
 type DocumentRetryInput struct {
@@ -8396,17 +8549,23 @@ type TeamBudgetBanner struct {
 		// Example: 12.500000
 		Spent Money `json:"spent"`
 	} `json:"amounts,omitempty"`
+
+	// Enforced false: a Track-only budget, whose state is progress only; the workspace shows no banner and nothing waits
+	Enforced bool       `json:"enforced"`
 	ResetsAt *time.Time `json:"resetsAt,omitempty"`
 
-	// State none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused
+	// State none: costs are off or there is no budget; ok: under the warning threshold; warning: at or above the threshold; exhausted: at or above 100%. Only an enforced budget (enforced: true) refuses model work or notifies anyone; a Track-only budget shows the same states as progress and nothing else.
 	State BudgetState `json:"state"`
 }
 
 // TeamBudgetState defines model for TeamBudgetState.
 type TeamBudgetState struct {
-	// Budget The monthly budget: the team's own or the platform default (null: none, or not enforced)
+	// Budget The monthly budget: the team's own or the platform default (null: none, or costs are off)
 	Budget   *Money `json:"budget"`
 	Currency string `json:"currency"`
+
+	// Enforced true in Enforce: at 100% model work is refused. false: the state is progress only (Track only), never refused or notified
+	Enforced bool `json:"enforced"`
 
 	// Extensions This month's extensions
 	Extensions *Money `json:"extensions"`
@@ -8429,7 +8588,7 @@ type TeamBudgetState struct {
 	// Spent Month to date (null while the mode is off)
 	Spent *Money `json:"spent"`
 
-	// State none: not enforced or no budget; warning: at or above the threshold; exhausted: model work is refused
+	// State none: costs are off or there is no budget; ok: under the warning threshold; warning: at or above the threshold; exhausted: at or above 100%. Only an enforced budget (enforced: true) refuses model work or notifies anyone; a Track-only budget shows the same states as progress and nothing else.
 	State       BudgetState `json:"state"`
 	WarnPercent int         `json:"warnPercent"`
 }
@@ -8803,6 +8962,9 @@ type AnalyticsToParam = openapi_types.Date
 // AuditActionParam Example: agent.
 type AuditActionParam = string
 
+// AuditActorKindParam defines model for AuditActorKindParam.
+type AuditActorKindParam string
+
 // AuditActorParam defines model for AuditActorParam.
 type AuditActorParam = openapi_types.UUID
 
@@ -9066,8 +9228,11 @@ type AdminListAuditParams struct {
 	ExcludeAction *AuditExcludeActionParam `form:"excludeAction,omitempty" json:"excludeAction,omitempty"`
 
 	// ActorUserId Only entries by this person (including their API keys)
-	ActorUserId *AuditActorParam      `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
-	TargetType  *AuditTargetTypeParam `form:"targetType,omitempty" json:"targetType,omitempty"`
+	ActorUserId *AuditActorParam `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
+
+	// ActorKind Only entries by the system (system), or only the memberships SSO group mapping rules made at sign-in (group_mapping: "System (group mapping)" in the Person filter)
+	ActorKind  *AdminListAuditParamsActorKind `form:"actorKind,omitempty" json:"actorKind,omitempty"`
+	TargetType *AuditTargetTypeParam          `form:"targetType,omitempty" json:"targetType,omitempty"`
 
 	// From Entries at or after this time
 	From *AuditFromParam `form:"from,omitempty" json:"from,omitempty"`
@@ -9075,6 +9240,9 @@ type AdminListAuditParams struct {
 	// To Entries before this time (exclusive)
 	To *AuditToParam `form:"to,omitempty" json:"to,omitempty"`
 }
+
+// AdminListAuditParamsActorKind defines parameters for AdminListAudit.
+type AdminListAuditParamsActorKind string
 
 // AdminListBreakGlassSessionsParams defines parameters for AdminListBreakGlassSessions.
 type AdminListBreakGlassSessionsParams struct {
@@ -9497,8 +9665,11 @@ type ListTeamAuditParams struct {
 	ExcludeAction *AuditExcludeActionParam `form:"excludeAction,omitempty" json:"excludeAction,omitempty"`
 
 	// ActorUserId Only entries by this person (including their API keys)
-	ActorUserId *AuditActorParam      `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
-	TargetType  *AuditTargetTypeParam `form:"targetType,omitempty" json:"targetType,omitempty"`
+	ActorUserId *AuditActorParam `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
+
+	// ActorKind Only entries by the system (system), or only the memberships SSO group mapping rules made at sign-in (group_mapping: "System (group mapping)" in the Person filter)
+	ActorKind  *ListTeamAuditParamsActorKind `form:"actorKind,omitempty" json:"actorKind,omitempty"`
+	TargetType *AuditTargetTypeParam         `form:"targetType,omitempty" json:"targetType,omitempty"`
 
 	// From Entries at or after this time
 	From *AuditFromParam `form:"from,omitempty" json:"from,omitempty"`
@@ -9506,6 +9677,9 @@ type ListTeamAuditParams struct {
 	// To Entries before this time (exclusive)
 	To *AuditToParam `form:"to,omitempty" json:"to,omitempty"`
 }
+
+// ListTeamAuditParamsActorKind defines parameters for ListTeamAudit.
+type ListTeamAuditParamsActorKind string
 
 // ListTeamConversationsParams defines parameters for ListTeamConversations.
 type ListTeamConversationsParams struct {
@@ -9712,6 +9886,12 @@ type AdminTestModerationJSONRequestBody = ModerationTestRequest
 
 // AdminPutParsingJSONRequestBody defines body for AdminPutParsing for application/json ContentType.
 type AdminPutParsingJSONRequestBody = ParsingSettingsInput
+
+// AdminNotifyDocumentProblemsJSONRequestBody defines body for AdminNotifyDocumentProblems for application/json ContentType.
+type AdminNotifyDocumentProblemsJSONRequestBody = DocumentProblemAction
+
+// AdminRetryDocumentProblemsJSONRequestBody defines body for AdminRetryDocumentProblems for application/json ContentType.
+type AdminRetryDocumentProblemsJSONRequestBody = DocumentProblemAction
 
 // AdminTestParsingJSONRequestBody defines body for AdminTestParsing for application/json ContentType.
 type AdminTestParsingJSONRequestBody = ParsingTestInput

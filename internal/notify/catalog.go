@@ -35,9 +35,12 @@ const (
 	DomainRequestNew      Type = "web.domain_request_new"
 	SyncFailed            Type = "web.sync_failed"
 	ClassificationLowered Type = "source.classification_lowered"
-	AgentDisabled         Type = "agent.disabled_by_platform"
-	AgentPublished        Type = "agent.published"
-	DailyLimitReached     Type = "team.daily_limit"
+	// DocumentsAttention: a platform admin asked a team's owners to look at
+	// a source's failed or needs-OCR documents (docs/v0.2.0.md §7).
+	DocumentsAttention Type = "source.documents_attention"
+	AgentDisabled      Type = "agent.disabled_by_platform"
+	AgentPublished     Type = "agent.published"
+	DailyLimitReached  Type = "team.daily_limit"
 	// Monthly budgets (docs/costs.md §4): the threshold and the budget used
 	// up, once per team and month each; they can't be turned off.
 	BudgetWarning   Type = "team.budget_warning"
@@ -84,6 +87,7 @@ var catalog = []Def{
 	{Type: DomainRequestNew, Label: "New domain request", Description: "A team asked to crawl a domain that isn't on the allowlist (platform admins).", PlatformAdmins: true},
 	{Type: SyncFailed, Label: "Web source sync failed", Description: "A web source sync failed in a team where you're an editor, admin or owner.", TeamRole: authz.RoleEditor},
 	{Type: ClassificationLowered, Label: "Source classification lowered", Description: "A data source's classification was lowered in a team you own.", Mandatory: true, TeamRole: authz.RoleOwner},
+	{Type: DocumentsAttention, Label: "Documents need attention", Description: "A platform admin asked you to look at documents that failed or need OCR in a data source of a team you own.", Mandatory: true, TeamRole: authz.RoleOwner},
 	{Type: AgentDisabled, Label: "Agent disabled by platform", Description: "A platform admin disabled an agent in a team where you're an admin or owner.", Mandatory: true, TeamRole: authz.RoleAdmin},
 	{Type: AgentPublished, Label: "Agent published beyond the team", Description: "An agent in a team you own was published to all signed-in users or the public.", TeamRole: authz.RoleOwner},
 	{Type: DailyLimitReached, Label: "Team daily limit reached", Description: "A team where you're an admin or owner reached a daily limit.", TeamRole: authz.RoleAdmin},

@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { dayLabel } from "@/components/analytics/format";
-import { formatMoney, moneyDecimals } from "./format";
+import { formatMoney, formatMoneyExact } from "./format";
 
 export type CostSettings = Schemas["CostSettings"];
 export type CostMode = Schemas["CostMode"];
@@ -26,9 +26,19 @@ export const budgetStatusQuery = (team: string) => ({
   refetchInterval: 60_000,
 });
 
-/** The team's budget state for the workspace banner (every member). */
+type Banner = Schemas["TeamBudgetBanner"];
+
+/**
+ * The team's enforced budget state, for what it pauses: the workspace banner, the "Waiting" hint on sources and the
+ * evaluation run dialog (every member). A Track-only budget never pauses anything or warns anyone, so it reads "none"
+ * here; its progress is on Usage & limits and Costs → Budgets (owner decision 2, docs/v0.2.0.md §7).
+ */
 export function useBudgetStatus(team: string | undefined) {
-  return useQuery({ ...budgetStatusQuery(team ?? ""), enabled: Boolean(team) });
+  return useQuery({
+    ...budgetStatusQuery(team ?? ""),
+    enabled: Boolean(team),
+    select: (b: Banner): Banner => (b.enforced ? b : { ...b, state: "none" }),
+  });
 }
 
 export const modeLabels: Record<CostMode, string> = { off: "Off", track: "Track only", enforce: "Enforce" };
@@ -41,6 +51,22 @@ export const modeDescriptions: Record<CostMode, string> = {
 
 export const stateLabels: Record<BudgetState, string> = { none: "No budget", ok: "Within budget", warning: "Near budget", exhausted: "Budget used up" };
 export const stateTones = { none: "neutral", ok: "success", warning: "warning", exhausted: "danger" } as const;
+
+/** A team's state in words: a Track-only budget past 100% is "Over budget" (nothing stops), not "used up". */
+export function budgetStateLabel(st: Pick<TeamBudgetState, "state" | "enforced">) {
+  return !st.enforced && st.state === "exhausted" ? "Over budget" : stateLabels[st.state];
+}
+
+/** The badge tone of a state: a Track-only budget is never danger, since nothing is refused. */
+export function budgetStateTone(st: Pick<TeamBudgetState, "state" | "enforced">) {
+  return !st.enforced && st.state === "exhausted" ? "warning" : stateTones[st.state];
+}
+
+/** "Tracking: 12% of $5.00 · not enforced" for a Track-only budget; null otherwise. */
+export function trackingText(st: TeamBudgetState): string | null {
+  if (st.enforced || st.limit === null || st.state === "none") return null;
+  return `Tracking: ${st.percent ?? 0}% of ${formatMoney(st.limit, st.currency)} · not enforced`;
+}
 
 /** Units as people say them, with what one price covers. */
 export const unitLabels: Record<PriceUnit, { label: string; per: string }> = {
@@ -73,6 +99,14 @@ export function amountError(value: string, what = "amount", required = true): st
   return undefined;
 }
 
+/**
+ * The one time-zone note of a page with money and limits: "Budget months and report days follow America/New_York; daily
+ * limits reset at midnight UTC." (docs/costs.md §9 decision 4). Without a zone (spend not shown), only the limits' part.
+ */
+export function timeZoneNote(timeZone?: string) {
+  return timeZone ? `Budget months and report days follow ${timeZone}; daily limits reset at midnight UTC.` : "Daily limits reset at midnight UTC.";
+}
+
 /** "October 2026" for a month's first day (a date string). */
 export function monthLabel(day: string) {
   const [y, m] = day.split("-").map(Number);
@@ -86,27 +120,26 @@ export function dayRangeLabel(from: string, to: string) {
 
 /**
  * A month's budget as the Budget card and the Budgets tab both say it: the
- * total (budget plus this month's extensions), and where it comes from:
- * "$0.20 + $1.00 of extensions", "platform default", or "$0.20 platform
- * default + $1.00 of extensions". Null without a budget in force (the mode
- * isn't Enforce, or no budget is set). `decimals` lines the total up with a
- * column.
+ * total (budget plus this month's extensions) in cents, the exact total for
+ * hover text, and where it comes from: "$0.20 + $1.00 of extensions",
+ * "platform default", or "$0.20 platform default + $1.00 of extensions".
+ * Null without a budget (the mode is Off, or no budget is set).
  */
-export function budgetThisMonth(st: TeamBudgetState, opts: { decimals?: number; platformDefault?: boolean } = {}): { total: string; parts?: string } | null {
+export function budgetThisMonth(st: TeamBudgetState, opts: { platformDefault?: boolean } = {}): { total: string; exact: string; parts?: string } | null {
   if (st.limit === null) return null;
-  const total = formatMoney(st.limit, st.currency, opts.decimals ?? moneyDecimals(st.limit, st.budget, st.extensions));
+  const total = formatMoney(st.limit, st.currency);
+  const exact = formatMoneyExact(st.limit, st.currency);
   const base = opts.platformDefault ? " platform default" : "";
-  if (!st.extensions || !(Number(st.extensions) > 0)) return { total, parts: opts.platformDefault ? "platform default" : undefined };
-  const d = moneyDecimals(st.budget, st.extensions);
-  return { total, parts: `${formatMoney(st.budget ?? "0", st.currency, d)}${base} + ${formatMoney(st.extensions, st.currency, d)} of extensions` };
+  if (!st.extensions || !(Number(st.extensions) > 0)) return { total, exact, parts: opts.platformDefault ? "platform default" : undefined };
+  return { total, exact, parts: `${formatMoney(st.budget ?? "0", st.currency)}${base} + ${formatMoney(st.extensions, st.currency)} of extensions` };
 }
 
 /** Whether a team's mode is its own or the platform's, in the same words everywhere. */
 export const modeSourceLabel = (override: Schemas["CostModeOverride"]) => (override === "inherit" ? "Platform setting" : "Team setting");
 
 /** Names the per-request column: SystemOne and moderation are priced per request, not per token. */
-export const requestsColumn = "Per-request checks";
-export const requestsHint = "Per-request checks count SystemOne and moderation requests, which are priced per request. Chats are counted in tokens.";
+export const requestsColumn = "Requests";
+export const requestsHint = "SystemOne and moderation calls, priced per request.";
 
 /** Today (YYYY-MM-DD) in a time zone such as the platform's, or the browser's day without one. */
 export function dayIn(timeZone?: string) {
