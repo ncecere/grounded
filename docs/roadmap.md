@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-09-28 for **v0.2.0** planning (branch `release/v0.2.0`). Phases 0–5 are done and **v0.1.0 is released** (the reference install runs it). Nothing below is scheduled until the owner picks it; the proposed v0.2 short list is at the end.
+Status: refreshed 2026-09-29. **v0.2.0-rc.1 is released** and runs on the reference install; v0.2.0 follows once the owner has used it (branch `release/v0.2.0`). The owner has scheduled **v0.2.1** (navigation and clarity, [§ I](#i-v021-navigation-and-clarity)); nothing else below is scheduled until the owner picks it.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -8,7 +8,7 @@ Status: refreshed 2026-09-28 for **v0.2.0** planning (branch `release/v0.2.0`). 
 - **Value** is my estimate of impact for teams and admins.
 - **Depends on** lists what must exist first.
 - ★ marks the items I'd recommend first in each section.
-- **New** marks items added in this refresh: from the v0.1.0 walkthrough of every page by role (four personas, 138 findings; the rest were fixed before release) and from running the release.
+- **New** marks items added in the 2026-09-29 refresh: from the v0.2 walkthrough by role, the UX and answer review before rc.1 ([`ui-review/v0.2-review.md`](ui-review/v0.2-review.md)) and running the release.
 
 ---
 
@@ -43,12 +43,31 @@ Phase 5 ended in **v0.1.0**: rc.1 and rc.2 ran on the reference install, a walkt
 
 ---
 
+## Done in v0.2.0 (rc.1 released 2026-09-29)
+
+The plan and the owner's decisions are in [`v0.2.0.md`](v0.2.0.md); the release notes are [`releases/v0.2.0.md`](releases/v0.2.0.md).
+
+| ID | Item | Where |
+|---|---|---|
+| A2 | **Evaluations:** sets of questions per KB or agent; retrieval runs (recall@k, MRR, the expected document's real rank) and full-answer runs (cites, must-mention, refusals, supported claims); import from CSV or ragbench JSONL; "Add to evaluations" from your own conversations and the Try it panel; compare runs; opt-in automatic runs with drop notifications. | [`evaluations.md`](evaluations.md), [`operations/evaluations.md`](operations/evaluations.md) |
+| E1 | **SSO groups:** IdP group → team role rules applied at sign-in, with a dry run; memberships made by hand are never changed. | [`operations/sso-groups.md`](operations/sso-groups.md) |
+| E2 | **Costs and budgets:** dated prices per model and unit; Off / Track only / Enforce with per-team overrides; monthly budgets in the platform time zone with extensions; Track only shows progress, Enforce pauses chats, searches and ingestion at 100%. | [`costs.md`](costs.md), [`operations/costs.md`](operations/costs.md) |
+| B4 | **OCR:** pages without a text layer and PNG/JPEG/TIFF uploads, read by the new `grounded-ocr` Tesseract sidecar, Tika or a vision model; per-source switch, daily page limit; admins see failed and needs-OCR documents by team without file names, and retry them or notify owners. | [`ocr.md`](ocr.md), [`operations/ocr.md`](operations/ocr.md) |
+| E15 | **⌘K finds objects** through `GET /v1/search`, with team-side words (spend, members, evaluations…) and agent descriptions. | — |
+| C13, C14, G1, G2, G4, G5, G7–G18 | The small-fixes batch: agent Settings tab, KB top-k inherited, table `<br>`, deleted agents' conversations, crawls woken by a raised limit, one date rule, clickable-row semantics, toasts as status messages, and the rest. | CHANGELOG |
+| F8, F9, F10, F12 | Operations: the authorization matrix in its own CI job; SBOMs, digests and checksums on each release; the reference install on the remote Kustomize base; the Dependabot triage policy. | CONTRIBUTING, `deploy/release/` |
+| H1, H2 | The image reports exactly its tag (`grounded v0.2.0-rc.1 (…)`), checked on every tag build; `[Unreleased]` in the CHANGELOG and notes per release. | `.github/workflows/image.yml` |
+| — | **From the review before rc.1:** a verdict per citation marker and uncited factual sentences flagged (in chat and evaluation scores); follow-up rewriting across turns; model punctuation normalised (broken email links); stopped answers settle their citations; the widget preview's 403; clearer refusals with starter questions; money in cents; evaluation results that show expected vs what came back; collapsible admin groups; phone layouts (drawer, one header button); "Try it", "SSO groups", "Parsing & OCR". | [`ui-review/v0.2-review.md`](ui-review/v0.2-review.md) |
+| — | **Found while releasing:** UTF-8 web pages without a charset declaration were stored garbled as windows-1252 (pages re-read on their next sync); a blocked team's upload could slip into a free ingestion slot; the release job's asset upload. | CHANGELOG |
+
+---
+
 ## A. Answer quality
 
 | ID | Item | What and why | Size | Value | Depends on |
 |---|---|---|---|---|---|
 | A1b | **Cross-encoder reranking** | Rerank the fused top 30–50 with a `/rerank` model (the kind already exists in the catalog). It's much faster than per-passage SystemOne judging on one GPU. | S–M | High | a rerank model |
-| A2 ★ | **Evaluation sets and regression runs** | Teams keep sets of questions with the expected page or answer, per KB or agent. One click runs them and shows recall and nDCG plus citation support over time, so every change to settings, chunking or models gets a score. This generalises `ragbench`'s URL-judged sets. | M | High | — |
+| A2 **Done** (v0.2.0) | **Evaluation sets and regression runs** | Teams keep sets of questions with the expected page or answer, per KB or agent. One click runs them and shows recall and nDCG plus citation support over time, so every change to settings, chunking or models gets a score. This generalises `ragbench`'s URL-judged sets. | M | High | — |
 | A4 | **Contextual chunks** | At ingest, prepend a short model-written summary of the document and section to each chunk before embedding. | M | Medium–High | budget for ingest-time LLM calls |
 | A5 | **Parent/child retrieval** | Search small chunks, but give the model their larger parent section. | M | Medium | — |
 | A6 | **Query decomposition** | Split multi-part questions into sub-queries, retrieve for each, then merge. | S | Medium | — |
@@ -56,9 +75,11 @@ Phase 5 ended in **v0.1.0**: rc.1 and rc.2 ran on the reference install, a walkt
 | A8 | **Answer cache** | Cache answers per agent version for identical or near-identical questions, invalidated on publish or re-index. | M | Medium (High for public) | — |
 | A9 | **Semantic chunking per profile** | Heading- and sentence-aware splitting tuned per source type. | M | Medium | P2 |
 | A10 | **Tables and figures** | Keep tables structured, and describe figures with a vision model at ingest. | M | Medium | a vision model |
-| A11 **New** | **Near-duplicate boilerplate** | Boilerplate matching today is exact-hash, so a menu with one highlighted item isn't caught. Add fuzzy matching (shingles or MinHash) per source. | S | Medium | — |
-| A12 **New** | **SystemOne capacity** | Batch judging was slower and worse on one GPU. Queue per GPU with priorities (interactive before ingest), and show the added latency per feature in the agent editor. | S | Medium | — |
-| A13 **New** ★ | **Citation marks per claim** | A citation takes the worst verdict of every sentence that cites it, so one unsupported sentence marks a source that correctly supports the others as unsupported. Mark each claim instead, and show a source as "supported here, not there". | M | High | — |
+| A11None | **Near-duplicate boilerplate** | Boilerplate matching today is exact-hash, so a menu with one highlighted item isn't caught. Add fuzzy matching (shingles or MinHash) per source. | S | Medium | — |
+| A12None | **SystemOne capacity** | Batch judging was slower and worse on one GPU. Queue per GPU with priorities (interactive before ingest), and show the added latency per feature in the agent editor. | S | Medium | — |
+| A13 ★ | **Citation marks per claim** | A citation takes the worst verdict of every sentence that cites it, so one unsupported sentence marks a source that correctly supports the others as unsupported. Mark each claim instead, and show a source as "supported here, not there". | M | High | — |
+| A14 **New** | **Warn about expectations the KB can't meet** | An evaluation question can expect a phrase or document that isn't in the knowledge base (v0.2.0 warns while typing); add a set-level check that lists them, and flag questions whose expected document keeps ranking beyond the top 50. | S | Medium | A2 |
+| A15 **New** | **Share a failed question on a thumbs-down** | Let the person rating an answer opt in to sharing just the question with the team's editors, for evaluations. Changes ADR-0010, so it needs an ADR update, retention and a per-agent switch (deferred by the owner, 2026-09-28). | M | Medium–High | A2, an ADR |
 
 ## B. Content and sources
 
@@ -67,14 +88,15 @@ Phase 5 ended in **v0.1.0**: rc.1 and rc.2 ran on the reference install, a walkt
 | B1 ★ | **Microsoft 365 connector** (SharePoint and OneDrive) | Graph API, delta sync, and permissions mapped to the reserved ACL hook. | L | High | B6 for private sites |
 | B2 | **Google Drive connector** | The same for Google Workspace. | L | Medium–High | B6 |
 | B3 | **Confluence, Canvas LMS, Box, GitHub and S3 connectors** | Built on the source plugin interface (ADR-0008). | M each | Varies | — |
-| B4 ★ | **OCR for scanned PDFs** | Scanned PDFs are skipped today. Use Tesseract, or a vision model through the gateway. | M | High | — |
+| B4 **Done** (v0.2.0) | **OCR for scanned PDFs** | Scanned PDFs are skipped today. Use Tesseract, or a vision model through the gateway. | M | High | — |
 | B5 | **Crawling sites behind a login** | Cookie or token injection, or service accounts. | L | Medium | security review |
 | B6 | **Document ACLs** | Honour source permissions at query time (the schema reserves a field for this). | L | High (for B1/B2) | — |
 | B7 | **PII scanning at ingest** | Patterns (national ID numbers, institutional ID formats, card numbers), then model-based detection; block or flag documents. | M | High for compliance | — |
 | B8 | **Content health report** | Stale pages, broken links, duplicates across sources, pages never cited, parse failures. | M | Medium | — |
 | B9 | **Duplicate detection across teams** | Suggest shared sources when several teams crawl the same site. | S | Medium | — |
 | B10 | **Document viewer with highlights** | A citation opens the page or PDF at the cited passage. | M | Medium–High | viewer permissions |
-| B11 **New** | **Crawl preview matches the crawl** | The preview lists pages in a different order from the crawl (QA F-14; the wording is fixed, the behaviour isn't). Share the frontier logic. | S | Medium | — |
+| B11None | **Crawl preview matches the crawl** | The preview lists pages in a different order from the crawl (QA F-14; the wording is fixed, the behaviour isn't). Share the frontier logic. | S | Medium | — |
+| B12 **New** | **OCR follow-ups** | Multi-page TIFF (only the first page is read); partly scanned PDFs uploaded while OCR was off joining the "Needs OCR" retry (today: delete and re-upload); the OCR sidecar in the kind smoke test. | S | Medium | B4 |
 
 ## C. Agents and chat
 
@@ -92,8 +114,9 @@ Phase 5 ended in **v0.1.0**: rc.1 and rc.2 ran on the reference install, a walkt
 | C10 | **Structured outputs and forms** | Agents return checklists, forms or JSON. | M | Medium | — |
 | C11 | **Version A/B tests** | Split traffic between two published versions. | M | Medium | — |
 | C12 | **Conversation sharing** | A read-only, revocable snapshot of your own conversation. | S | Medium | — |
-| C13 **New** | **Agent Settings tab, KB primary action** | Sources and KBs have a Settings tab with a Danger zone; agents keep name and address in Appearance and Disable/Delete in the "…" menu. A new, empty KB has no "Attach source" in its header. Make the three detail pages match. | S | Medium | — |
-| C14 **New** | **KB results per search vs the agent's** | A KB's Retrieval settings say agents use the same settings, but a new agent shows its own "results per search" (6) and records it in the version. Say which wins, or make the agent inherit until overridden. | S | Medium | — |
+| C13 **Done** (v0.2.0) | **Agent Settings tab, KB primary action** | Sources and KBs have a Settings tab with a Danger zone; agents keep name and address in Appearance and Disable/Delete in the "…" menu. A new, empty KB has no "Attach source" in its header. Make the three detail pages match. | S | Medium | — |
+| C14 **Done** (v0.2.0) | **KB results per search vs the agent's** | A KB's Retrieval settings say agents use the same settings, but a new agent shows its own "results per search" (6) and records it in the version. Say which wins, or make the agent inherit until overridden. | S | Medium | — |
+| C15 **New** | **Content that mixes procedures** | Reviews found transcript answers mixing in the apostille procedure, because one crawled chunk combines both. Detect and split mixed sections at chunking, or let an agent's instructions rank special-case procedures lower. | M | Medium | — |
 
 ## D. Channels and integrations
 
@@ -108,8 +131,8 @@ Phase 5 ended in **v0.1.0**: rc.1 and rc.2 ran on the reference install, a walkt
 
 | ID | Item | What and why | Size | Value | Depends on |
 |---|---|---|---|---|---|
-| E1 ★ | **SSO group → team mapping** | Team membership and roles from IdP groups (OIDC claims or SCIM). | M | High | — |
-| E2 ★ | **Cost reporting and chargeback** | Tokens and requests per team, agent and model, priced from admin-entered prices, with budgets and alerts. Prices must be configurable per unit, because some gateways report embedding tokens as characters. | M | High | — |
+| E1 **Done** (v0.2.0) | **SSO group → team mapping** | Team membership and roles from IdP groups (OIDC claims or SCIM). | M | High | — |
+| E2 **Done** (v0.2.0) | **Cost reporting and chargeback** | Tokens and requests per team, agent and model, priced from admin-entered prices, with budgets and alerts. Prices must be configurable per unit, because some gateways report embedding tokens as characters. | M | High | — |
 | E3 | **In-app team requests** | A form with admin review, replacing the external link. | S | Medium | — |
 | E4 | **SCIM provisioning** | Create users from the IdP, and suspend them when they leave. | M | Medium–High | E1 |
 | E5 | **Audit export and SIEM streaming** | Splunk, Elastic, syslog; signed daily exports. | S | Medium | — |
@@ -117,12 +140,13 @@ Phase 5 ended in **v0.1.0**: rc.1 and rc.2 ran on the reference install, a walkt
 | E8 | **Accessibility statement and model cards** | "About this assistant" cards. | S | Medium | — |
 | E9 | **i18n** | Translated UI, answers in the user's language. | M | Medium | — |
 | E10 **Done** | **Key rotation** | `grounded rotate-keys`: re-encrypt stored secrets under a new `ENCRYPTION_KEY`, and rotate `API_KEY_PEPPER` with a grace period. Today there is no way to move off a leaked or example key without re-entering every connection key. | S | High | — |
-| E11 **New** | **Stored model health** | Keep the last test result per model and connection, re-test on a schedule, and flag failures on the admin Overview and in the catalog. | S | Medium | — |
+| E11None | **Stored model health** | Keep the last test result per model and connection, re-test on a schedule, and flag failures on the admin Overview and in the catalog. | S | Medium | — |
 | E12 **Done** | **Clearer connection errors** | TLS, proxy and certificate failures all show as "request failed". Name the cause, e.g. "certificate not trusted", "TLS handshake failed", "proxy refused". **Done** (Phase 5 M2), with DNS, connect, TLS and first-byte timings in model tests and `grounded doctor`. | S | Medium | — |
-| E13 **New** | **Audience in the usage ledger** | Record the audience on usage events, so analytics can split token use by audience as well as by team. | S | Low–Medium | — |
-| E14 **New** | **Profile migration for team owners** | Only platform admins start profile migrations today, because the embedding load is platform-wide. Let owners request one for their KB, with admin approval or a budget. | S | Medium | P2 |
-| E15 **New** ★ | **Command palette finds objects** | ⌘K finds pages and actions, not teams, users, agents, sources, KBs or models by name (admin and workspace walkthroughs both asked for it). | S–M | Medium–High | — |
-| E16 **New** | **Admin team settings as read-only facts** | Admin → Team → Settings shows auditors disabled inputs; the workspace shows the same data as a read-only list. Use the read-only pattern for auditors. | S | Low–Medium | — |
+| E13None | **Audience in the usage ledger** | Record the audience on usage events, so analytics can split token use by audience as well as by team. | S | Low–Medium | — |
+| E14None | **Profile migration for team owners** | Only platform admins start profile migrations today, because the embedding load is platform-wide. Let owners request one for their KB, with admin approval or a budget. | S | Medium | P2 |
+| E15 **Done** (v0.2.0) | **Command palette finds objects** | ⌘K finds pages and actions, not teams, users, agents, sources, KBs or models by name (admin and workspace walkthroughs both asked for it). | S–M | Medium–High | — |
+| E16None | **Admin team settings as read-only facts** | Admin → Team → Settings shows auditors disabled inputs; the workspace shows the same data as a read-only list. Use the read-only pattern for auditors. | S | Low–Medium | — |
+| E17 **New** | **Budget follow-ups** | Per-agent budgets (not in v0.2.0); re-embedding during a profile migration checked against the budget; documents already queued when a budget runs out (they finish today); a shorter cache than 30 s for teams close to 100%. | S–M | Medium | E2 |
 
 ## F. Platform and operations
 
@@ -135,56 +159,79 @@ Phase 5 ended in **v0.1.0**: rc.1 and rc.2 ran on the reference install, a walkt
 | F5 | **Helm chart** | Alongside Kustomize. | S | Medium (adoption) | P1 |
 | F6 **Done** | **Demo mode and seed data** | `grounded demo` seeds a neutral sample team, sources, a KB and agents over a public documentation site. Useful for evaluations, screenshots and the public README, and it replaces the dev instance's hand-built data. | S | Medium–High (adoption) | — |
 | F7 **Done** | **Flaky crawl timing test** | `TestFetcherPacesEveryRequest` fails under machine load. Make it tolerant, or use a fake clock. | S | Low (CI noise) | — |
-| F8 **New** | **Faster authorization matrix** | About 3,300 calls under `-race` take over 7 minutes on a 2-vCPU CI runner. Run the calls in parallel per team fixture, or give the matrix its own CI job. | S | Medium (CI time) | — |
-| F9 **New** | **Release assets** | Attach an SBOM file and a checksums file to each GitHub Release; today they exist only as attestations on the image. | S | Medium (adoption, compliance) | — |
-| F10 **New** ★ | **Remote Kustomize base for the reference install** | The repository is public, so the homelab overlay can reference `github.com/ncecere/grounded//deploy/kubernetes?ref=v0.1.0` and drop its vendored copy (`docs/deployments/kubernetes.md`, "Consuming the base"). Upgrades become a one-line ref and digest change. | S | Medium | — |
-| F11 **New** | **bitop-ui docs site and npm** | bitop-ui is public, but its docs site isn't published (`DEPLOY_PAGES` is off) and the CLI installs from a checkout. Publish the site, and consider a registry URL so Grounded (and others) install without a local clone. | S | Medium (adoption) | — |
-| F12 **New** | **Dependabot triage** | Weekly grouped update PRs now arrive for Go, npm, Actions and Docker. Decide who merges them and how (CI green → merge), so they don't pile up. | S (ongoing) | Medium | — |
+| F8 **Done** (v0.2.0) | **Faster authorization matrix** | About 3,300 calls under `-race` take over 7 minutes on a 2-vCPU CI runner. Run the calls in parallel per team fixture, or give the matrix its own CI job. | S | Medium (CI time) | — |
+| F9 **Done** (v0.2.0) | **Release assets** | Attach an SBOM file and a checksums file to each GitHub Release; today they exist only as attestations on the image. | S | Medium (adoption, compliance) | — |
+| F10 **Done** (v0.2.0) | **Remote Kustomize base for the reference install** | The repository is public, so the homelab overlay can reference `github.com/ncecere/grounded//deploy/kubernetes?ref=v0.1.0` and drop its vendored copy (`docs/deployments/kubernetes.md`, "Consuming the base"). Upgrades become a one-line ref and digest change. | S | Medium | — |
+| F11None | **bitop-ui docs site and npm** | bitop-ui is public, but its docs site isn't published (`DEPLOY_PAGES` is off) and the CLI installs from a checkout. Publish the site, and consider a registry URL so Grounded (and others) install without a local clone. | S | Medium (adoption) | — |
+| F12 **Done** (v0.2.0) | **Dependabot triage** | Weekly grouped update PRs now arrive for Go, npm, Actions and Docker. Decide who merges them and how (CI green → merge), so they don't pile up. | S (ongoing) | Medium | — |
+| F13 **New** | **Local dev resilience** | The dev fake model proxy and the OCR sidecar don't come back after Docker restarts; `make deps-up` should start (or `make dev` should supervise) everything a local build expects. | S | Low (developers) | — |
 
 ## G. Small fixes and polish
 
+All of G1–G18 are **Done** in v0.2.0.
+
 | ID | Item | Size |
 |---|---|---|
-| G1 | `<br>` inside model-written tables shows literally; render it as a line break in bitop-ui `response` (table cells only). | S |
-| G2 | A deleted agent's conversations: show the transcript read-only instead of "not available". | S |
-| G4 | A crawl waiting for tomorrow's page quota doesn't resume when the limit is raised. | S |
-| G5 | Per-minute usage is shown only for the team-wide query rate. | S |
-| G7 | When an admin creates a profile for a model with known prefixes (nomic, Qwen3), fill the recommended prefixes in, or warn when they're empty. The help text mentions them today. | S |
-| G8 | Hand-built show/hide toggles → bitop-ui `Disclosure`. | S |
-| G9 **New** | Pick up bitop-ui's review follow-ups as they land, above all M1 (clickable table rows add a tab stop per row and aren't announced as clickable) and M2 (a chart series below 3:1 contrast). | S |
-| G10 **New** | bitop-ui `Avatar` builds initials from punctuation: "Go docs (signed-in)" shows "G(". It should skip non-letters. | S |
-| G11 **New** | `cmd/sparkbench` still has its own copy of the old citation-marker regex; switch it to the `internal/agents` markers. | S |
-| G12 **New** | A revoked API key's audit-log link lands on the API keys list, which hides revoked keys. Let the API return a revoked key by id so its record page opens. | S |
-| G13 **New** | Dates: lists use relative times, but Home's "Continue where you left off", open invites and a few admin tables show absolute dates, and Analytics shows ISO dates. One rule: relative in lists (absolute on hover), absolute on record pages. | S |
-| G14 **New** | A "You were added to <team>" notification stays after the person is removed and leads to a no-access page. Resolve it on removal. | S |
-| G15 **New** | Toasts are exposed to screen readers as dialogs (Base UI's toast); they should be status messages. A bitop-ui change. | S |
-| G16 **New** | The answer feedback buttons have no pressed state (`aria-pressed`), and the selected thumb is only a faint fill. | S |
-| G17 **New** | Agent Appearance says the default accent is `#0021a5`, but the preview uses the theme's indigo: a leftover from the removed institution theme. | S |
-| G18 **New** | The widget key form opens with `?record=new`; every other form page uses `?form=`. | S |
+| G1 **Done** | `<br>` inside model-written tables shows literally; render it as a line break in bitop-ui `response` (table cells only). | S |
+| G2 **Done** | A deleted agent's conversations: show the transcript read-only instead of "not available". | S |
+| G4 **Done** | A crawl waiting for tomorrow's page quota doesn't resume when the limit is raised. | S |
+| G5 **Done** | Per-minute usage is shown only for the team-wide query rate. | S |
+| G7 **Done** | When an admin creates a profile for a model with known prefixes (nomic, Qwen3), fill the recommended prefixes in, or warn when they're empty. The help text mentions them today. | S |
+| G8 **Done** | Hand-built show/hide toggles → bitop-ui `Disclosure`. | S |
+| G9 **Done** | Pick up bitop-ui's review follow-ups as they land, above all M1 (clickable table rows add a tab stop per row and aren't announced as clickable) and M2 (a chart series below 3:1 contrast). | S |
+| G10 **Done** | bitop-ui `Avatar` builds initials from punctuation: "Go docs (signed-in)" shows "G(". It should skip non-letters. | S |
+| G11 **Done** | `cmd/sparkbench` still has its own copy of the old citation-marker regex; switch it to the `internal/agents` markers. | S |
+| G12 **Done** | A revoked API key's audit-log link lands on the API keys list, which hides revoked keys. Let the API return a revoked key by id so its record page opens. | S |
+| G13 **Done** | Dates: lists use relative times, but Home's "Continue where you left off", open invites and a few admin tables show absolute dates, and Analytics shows ISO dates. One rule: relative in lists (absolute on hover), absolute on record pages. | S |
+| G14 **Done** | A "You were added to <team>" notification stays after the person is removed and leads to a no-access page. Resolve it on removal. | S |
+| G15 **Done** | Toasts are exposed to screen readers as dialogs (Base UI's toast); they should be status messages. A bitop-ui change. | S |
+| G16 **Done** | The answer feedback buttons have no pressed state (`aria-pressed`), and the selected thumb is only a faint fill. | S |
+| G17 **Done** | Agent Appearance says the default accent is `#0021a5`, but the preview uses the theme's indigo: a leftover from the removed institution theme. | S |
+| G18 **Done** | The widget key form opens with `?record=new`; every other form page uses `?form=`. | S |
+| G19 **New** | bitop-ui follow-ups asked for in the v0.2 fixes: a collapsed breadcrumb item with a menu of the hidden crumbs; Combobox blocking a dialog's submit on Enter when its list is closed (Grounded has a wrapper); an accessible tooltip on plain text; a fixed axis range for LineChart (the evaluation score chart should be 0–100%); DataTable hiding the Columns button on small tables; column hiding on the team spend tables. | S |
+| G20 **New** | Evaluation run links read "Retrieval , Sep 28…" (a stray space before the comma). | S |
 
 ## H. Next release housekeeping
 
 | ID | Item | Size |
 |---|---|---|
-| H1 **New** | The v0.1.0 binary reports its version as `v0.1` (the image workflow passed the `vX.Y` tag as the version). Fixed in `.github/workflows/image.yml`; ships with the next release. | Done in CI |
-| H2 **New** | CHANGELOG: open an `[Unreleased]` section for v0.2, and keep release notes per version under `docs/releases/`. | S |
+| H1 **Done** (v0.2.0) | The v0.1.0 binary reports its version as `v0.1` (the image workflow passed the `vX.Y` tag as the version). Fixed in `.github/workflows/image.yml`; ships with the next release. | Done in CI |
+| H2 **Done** (v0.2.0) | CHANGELOG: open an `[Unreleased]` section for v0.2, and keep release notes per version under `docs/releases/`. | S |
 
 ---
 
-## v0.2 scope (owner decisions, 2026-09-28)
+## I. v0.2.1: navigation and clarity
 
-The spec is [`v0.2.0.md`](v0.2.0.md).
+**Scheduled** by the owner (2026-09-28): the structural clean-up the review before rc.1 proposed ([`ui-review/v0.2-review.md`](ui-review/v0.2-review.md), "Structural changes"), deferred so it gets its own walkthrough.
+
+| ID | Item | Size |
+|---|---|---|
+| I1 | **Admin navigation regroup:** 8 groups and about 21 items (Profile migrations a tab of Embedding profiles, Legal holds a tab of Retention, Break-glass under Records, Limits next to Costs). | M |
+| I2 | **Admin Overview "Features" card:** what's on and off (Evaluations, Cost tracking, OCR, SSO groups, SystemOne, Public access, Maintenance), with the evaluations switch moved there; the stats strip first. | S |
+| I3 | **Team Overview "Quality & spend":** latest evaluation scores and regressions; spend and the budget bar for owners; a team index of evaluation sets at `/teams/:team/evaluations`. | M |
+| I4 | **Usage & spend:** a one-line budget strip with the breakdown in a disclosure, per-agent spend in agent Analytics; Crawl domains moves to Data sources. | S–M |
+| I5 | **Costs Overview consolidated:** KPIs, the chart with "Show data", one "Top spenders" card (Teams / Agents / Models). | S |
+| I6 | **Agent editor to 6 tabs:** Versions into the header's version menu; Build · Evaluations · Appearance · Share · Analytics · Settings. | S–M |
+| I7 | **Admin team page:** cost tracking and budget as a card on Overview; the Limits tab holds only limits. | S |
+| I8 | **Analytics:** the SystemOne cards in a "Checks" tab. | S |
+| I9 | **Per-claim verification (A13, second step):** the claim text in the citation popover and one unit shared by chat and evaluations. | M |
+
+---
+
+## v0.2.0 scope (owner decisions, 2026-09-28)
+
+The spec is [`v0.2.0.md`](v0.2.0.md). Everything below shipped in v0.2.0-rc.1 except what is marked later.
 
 | Item | Decision |
 |---|---|
-| **A2** evaluation sets | In: retrieval check, then the full-answer check if time allows. Optional: editors only, and a platform switch. |
-| **A13** citation marks per claim | Later: a refinement of the citation checks already in chat. |
+| **A2** evaluation sets | In, with the full-answer check; on for editors, a platform switch turns it off. **Done.** |
+| **A13** citation marks per claim | A first step shipped (a verdict per marker, uncited sentences flagged); the rest is I9 in v0.2.1. |
 | **A1b** cross-encoder reranking | Parked until a rerank model is available to test with. |
-| **E1** SSO group → team mapping | In. |
-| **E2** cost reporting | In, with modes: Off, **Track only**, Enforce (budgets). |
-| **B4** OCR | In, optional and pluggable: Tesseract, Apache Tika, or a vision model. |
-| **E15** command palette finds objects | In. |
-| Small fixes: G1, G2, G4, G5, G7–G18, C13, C14 | In. |
-| Operations: F8, F9, F10, F12 | In. |
+| **E1** SSO group → team mapping | In. **Done.** |
+| **E2** cost reporting | In, with Off, Track only and Enforce. **Done.** |
+| **B4** OCR | In: Tesseract sidecar (the reference install), Tika or a vision model. **Done.** |
+| **E15** command palette finds objects | In. **Done.** |
+| Small fixes: G1, G2, G4, G5, G7–G18, C13, C14 | In. **Done.** |
+| Operations: F8, F9, F10, F12 | In. **Done.** |
 
-Next in line for v0.3: **C1** MCP, **D1** Teams/Slack bots, **B1** Microsoft 365 connector (with **B6** ACLs), **C2** unanswered-questions report, **E11** stored model health, **F1** tracing, **A13**, **A1b** once there's a model.
+Next in line after v0.2.1, for v0.3: **C1** MCP, **D1** Teams/Slack bots, **B1** Microsoft 365 connector (with **B6** ACLs), **C2** unanswered-questions report, **E11** stored model health, **F1** tracing, **A1b** once there's a model.
