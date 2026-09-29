@@ -22,7 +22,9 @@ type CitationTotals struct {
 const SupportRateSQL = `sum((citations->>'verified')::bigint)::float8 / nullif(sum((citations->>'checked')::bigint), 0)`
 
 // QueryCitations sums the citation records of the message_events rows
-// matching where (with its arguments).
+// matching where (with its arguments). Records without claim–source pairs
+// (an answer that cited nothing, recorded only for its uncited sentences)
+// are left out, so answers and check times are of answers that were checked.
 func QueryCitations(ctx context.Context, pool *pgxpool.Pool, where string, args ...any) (CitationTotals, error) {
 	var t CitationTotals
 	var lat []float64
@@ -34,7 +36,7 @@ func QueryCitations(ctx context.Context, pool *pgxpool.Pool, where string, args 
 			count(*) FILTER (WHERE (citations->>'refused')::boolean),
 			`+SupportRateSQL+`,
 			percentile_cont(ARRAY[0.5, 0.95]) WITHIN GROUP (ORDER BY (citations->>'latencyMs')::bigint)
-		FROM message_events WHERE citations IS NOT NULL AND `+where, args...).Scan(
+		FROM message_events WHERE citations IS NOT NULL AND (citations->>'pairs')::bigint > 0 AND `+where, args...).Scan(
 		&t.Answers, &t.Pairs, &t.Verified, &t.Unsupported, &t.Contradicted, &t.Unchecked, &t.LowConfidence,
 		&t.Removed, &t.Refused, &t.SupportRate, &lat)
 	if len(lat) == 2 {
