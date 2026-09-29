@@ -56,6 +56,10 @@ test("the public page: a signed-out visitor chats with a public agent", async ({
   await composer.press("Enter");
   const answer = page.getByRole("article", { name: "Public parking said" });
   await expect(answer).toContainText(handbook.answer);
+  // The sources start collapsed.
+  const sources = answer.getByRole("button", { name: "Used 1 source" });
+  await expect(sources).toHaveAttribute("aria-expanded", "false");
+  await sources.click();
   await expect(answer.getByRole("list", { name: "Sources for this answer" }).getByRole("listitem")).toHaveCount(1);
   await a11y(page, "public answer");
 });

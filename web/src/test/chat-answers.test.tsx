@@ -33,7 +33,8 @@ describe("a verdict per citation marker", () => {
     expect(chips[0]).toHaveAccessibleName("Source 2: Page 2. Verified: the source supports this (97% confidence)");
     expect(chips[2]).toHaveAccessibleName("Source 2: Page 2. Not supported by this source (96% confidence)");
     expect(screen.getByRole("button", { name: /^Source 1: Page 1/ })).toHaveAttribute("data-verification", "verified");
-    // The source card still says how the source fared overall.
+    // The source card still says how the source fared overall (the list starts collapsed).
+    await userEvent.click(screen.getByRole("button", { name: "Used 2 sources" }));
     expect(within(screen.getByRole("list", { name: "Sources for this answer" })).getByText(/Not supported by this source \(96% confidence\)/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });

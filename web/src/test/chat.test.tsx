@@ -239,6 +239,7 @@ describe("chat page", () => {
     expect(container.textContent).not.toMatch(/[【】]|\[9\]/);
     expect(screen.getByRole("button", { name: "Source 1: Drop/Add" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Source 2: Fees" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Used 2 sources" }));
     const list = screen.getByRole("list", { name: "Sources for this answer" });
     expect(within(list).getAllByRole("listitem")).toHaveLength(2);
     expect(await axe(container)).toHaveNoViolations();

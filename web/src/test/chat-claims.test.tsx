@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
@@ -112,5 +112,19 @@ describe("claims", () => {
     await screen.findByText(/Log in first/);
     expect(screen.queryByTestId("claim-summary")).toBeNull();
     expect(screen.queryByText("Uncited")).toBeNull();
+  });
+});
+
+describe("the sources under an answer", () => {
+  it("start collapsed; a citation chip opens them and focuses its source", async () => {
+    const { container } = renderBare(<ChatMessages items={thread(checkedAnswer(claims))} agent={{ name: "Helper" }} />);
+    const trigger = await screen.findByRole("button", { name: "Used 2 sources" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("list", { name: "Sources for this answer" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /^Source 1: Page 1/ }));
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    const card = await screen.findByRole("listitem", { name: "Source 1: Page 1" });
+    await waitFor(() => expect(card).toHaveFocus());
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

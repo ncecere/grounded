@@ -82,6 +82,7 @@ describe("chat citation checks", () => {
     const warn = screen.getByRole("button", { name: "Source 2: Page 2. Not supported by this source (92% confidence)" });
     expect(ok).toHaveAttribute("data-verification", "verified");
     expect(warn).toHaveAttribute("data-verification", "unsupported");
+    await userEvent.click(screen.getByRole("button", { name: "Used 2 sources" }));
     expect(within(screen.getByRole("list", { name: "Sources for this answer" })).getByText(/Not supported by this source \(92% confidence\)/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });

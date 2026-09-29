@@ -1,4 +1,5 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { EvalAnswer } from "../pages/team/evaluations/answer";
@@ -34,6 +35,16 @@ describe("an evaluation result's answer", () => {
     expect(screen.getByTestId("claim-summary")).toHaveTextContent("1 of 3 claims supported · 1 uncited");
     expect(screen.getByText("Uncited").closest("p")).toHaveTextContent(/front desk\. Uncited/);
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("starts with its sources collapsed; a chip opens them and focuses the source", async () => {
+    const r = result("res1", "What does a transcript cost?", "pass", { answer, hits: [hit(1, "Fees"), hit(2, "Rush")], claims, scores });
+    renderBare(<EvalAnswer result={r} />);
+    const trigger = await screen.findByRole("button", { name: "Used 2 sources" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(screen.getByRole("button", { name: /^Source 2: Rush/ }));
+    const list = await screen.findByRole("list", { name: "Sources for this answer" });
+    await waitFor(() => expect(within(list).getByRole("listitem", { name: "Source 2: Rush" })).toHaveFocus());
   });
 
   it("renders a result recorded before claims with plain chips and no summary", async () => {

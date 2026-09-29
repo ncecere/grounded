@@ -102,13 +102,13 @@ test("upload source, knowledge base, agent, publish, streamed chat with citation
     const answer = page.getByRole("article", { name: "Parking helper said" });
     await expect(answer).toContainText(handbook.answer);
     await expect(answer.getByRole("button", { name: "Good answer" })).toBeVisible();
+    // The sources start collapsed; the citation mark in the text opens them and jumps to its source card.
+    await expect(answer.getByRole("button", { name: "Used 1 source" })).toHaveAttribute("aria-expanded", "false");
+    await answer.getByRole("button", { name: /^Source 1: / }).click();
     const source = answer.getByRole("list", { name: "Sources for this answer" }).getByRole("listitem", { name: /^Source 1: / });
+    await expect(source).toBeFocused();
     await expect(source).toContainText(handbook.answer);
     await a11y(page, "answer with sources");
-
-    // The citation mark in the text jumps to its source card.
-    await answer.getByRole("button", { name: /^Source 1: / }).click();
-    await expect(source).toBeFocused();
 
     await answer.getByRole("button", { name: "Good answer" }).click();
     await expect(page.getByText("Thanks for the feedback")).toBeVisible();

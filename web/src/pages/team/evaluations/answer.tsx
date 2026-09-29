@@ -6,7 +6,7 @@
  * with SystemOne citation checks each chip shows its claim's verdict, its
  * card the claim, and the answer the same claims summary as in chat
  * ("2 of 3 claims supported · 1 uncited"). A chip previews its source and
- * moves focus to it.
+ * moves focus to it; the sources start collapsed, as in chat.
  */
 import { useCallback, useId, useMemo, useState } from "react";
 import { LazyResponse } from "@/components/ui/response/response-lazy";
@@ -48,7 +48,7 @@ const chipSource = (c: Citation) => ({ title: c.title, href: c.url, siteName: wh
 
 export function EvalAnswer({ result }: { result: EvalResult }) {
   const id = useId();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   // Results stored before citations were kept per marker have no numbers: their markers stay text.
   const cites = useMemo(() => result.hits.filter((h) => h.n !== undefined), [result.hits]);
   const citations = useMemo(() => cites.map(asCitation), [cites]);

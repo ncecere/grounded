@@ -4,7 +4,7 @@
  * and adds Grounded behaviour: citation markers with their claim's verdict
  * that focus the source card, "Uncited" marks (citations.tsx), the claims'
  * summary (claims.tsx), feedback through the API, status notes and friendly
- * errors (notes.tsx).
+ * errors (notes.tsx). The sources start collapsed; a chip opens them.
  *
  * The model's thinking is shown to editors testing a draft (showThinking);
  * everyone else sees "Thinking…" while the model thinks, never its reasoning.
@@ -65,7 +65,7 @@ type AssistantProps = {
 };
 
 function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd, added = false, onRetry, onStarter }: AssistantProps) {
-  const [sourcesOpen, setSourcesOpen] = useState(true);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const streaming = item.status === "streaming";
 
   /** Opens the source list, then scrolls to and focuses the card. */

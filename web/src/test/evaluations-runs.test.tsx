@@ -147,6 +147,8 @@ describe("a set's runs", () => {
     const res = await screen.findByRole("region", { name: "Result" }, T);
     // Rendered Markdown, not raw asterisks.
     expect(await within(res).findByText("Order online", { selector: "strong" }, T)).toBeInTheDocument();
+    // The sources start collapsed, as in chat.
+    await userEvent.click(within(res).getByRole("button", { name: "Used 3 sources" }));
     const sources = within(res).getByRole("list", { name: "Sources for this answer" });
     expect(within(sources).getAllByRole("listitem").map((li) => li.getAttribute("aria-label"))).toEqual([
       "Source 1: Transcripts (an expected document)",
