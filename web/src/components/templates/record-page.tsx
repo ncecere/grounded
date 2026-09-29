@@ -136,7 +136,7 @@ function OpenRecordPage(props: Omit<RecordPageProps, "open">) {
     <TakeoverPage param={param} label={name} title={title} meta={meta} description={description} actions={loading ? undefined : actions} onBack={guard.requestClose} back={back}>
       {Boolean(error) &&
         (isNotFound(error) ? (
-          <Alert tone="warning" title="Not found">
+          <Alert tone="warning" title="Not found.">
             It may have been deleted, or the link is wrong.
           </Alert>
         ) : (
