@@ -1,4 +1,9 @@
-/* Versions → Compare: any two published versions, or a version and the draft, as a diff of the instructions and of the other settings. */
+/*
+ * Compare versions: any two published versions, or a version and the draft.
+ * The instructions as a text diff, then the other settings that changed, by
+ * the names the Build tab uses and with knowledge bases and the model by
+ * name (config-rows.ts), SystemOne checks and Safety included.
+ */
 import { useQuery } from "@tanstack/react-query";
 import { api, unwrap } from "../../api/client";
 import { ErrorAlert } from "@/components/ui/alert/alert";
@@ -7,9 +12,11 @@ import { DiffViewer } from "@/components/ui/diff-viewer/diff-viewer";
 import { Field } from "@/components/ui/field/field";
 import { NativeSelect } from "@/components/ui/input/input";
 import { Loading } from "@/components/ui/spinner/spinner";
+import { Table, Td, Tr } from "@/components/ui/table/table";
 import s from "../shared.module.css";
 import { agentKey, useKBs, useTeam } from "../team/common";
-import { type Agent, type AgentConfig, type AgentVersion, configInput, useChatModels } from "./common";
+import { type Agent, type AgentConfig, type AgentVersion, useChatModels } from "./common";
+import { type ConfigNames, changedRows } from "./config-rows";
 import { useSearchParams } from "@/lib/url-search";
 import vs from "./versions.module.css";
 
@@ -18,22 +25,6 @@ type Side = "draft" | number;
 
 const parseSide = (v: string | null, fallback: Side): Side => (v === "draft" ? "draft" : v && /^\d+$/.test(v) ? Number(v) : fallback);
 
-/**
- * The settings compared as JSON: the config without the instructions (shown
- * as text), with nothing unset, and knowledge bases and the chat model by
- * name rather than id.
- */
-function settings(c: AgentConfig, names: ReadonlyMap<string, string>) {
-  const { instructions: _i, ...rest } = configInput(c);
-  const named = {
-    ...rest,
-    chatModelId: undefined,
-    chatModel: rest.chatModelId ? (names.get(rest.chatModelId) ?? rest.chatModelId) : undefined,
-    kbs: (rest.kbs ?? []).map((k) => ({ knowledgeBase: names.get(k.kbId) ?? k.kbId, topK: k.topK ?? "inherited" })),
-  };
-  return JSON.parse(JSON.stringify(named)) as unknown;
-}
-
 function useSide(agent: Agent, side: Side) {
   const { slug } = useTeam();
   return useQuery({
@@ -41,21 +32,42 @@ function useSide(agent: Agent, side: Side) {
     queryFn: async () =>
       unwrap(await api.GET("/v1/teams/{team}/agents/{agentId}/versions/{version}", { params: { path: { team: slug, agentId: agent.id, version: side as number } } })),
     enabled: side !== "draft",
-    select: (v: AgentVersion) => v.config,
   });
 }
 
-export function CompareVersions({ agent, draft, versions }: { agent: Agent; draft: AgentConfig; versions: AgentVersion[] }) {
-  const [params, setParams] = useSearchParams();
+/**
+ * Names for both sides alike: the team's knowledge bases and the chat
+ * models, then those the versions recorded (deleted since). Results per
+ * search come from each configuration, so an inherited value reads the same
+ * on both sides.
+ */
+function useNames(versions: (AgentVersion | undefined)[]): ConfigNames {
   const { slug } = useTeam();
   const kbs = useKBs(slug);
   const models = useChatModels();
-  const names = new Map<string, string>([...(kbs.data ?? []).map((k) => [k.id, k.name] as const), ...(models.data ?? []).map((m) => [m.id, m.displayName] as const)]);
+  const names = new Map<string, string>();
+  for (const v of versions) {
+    if (!v) continue;
+    for (const k of v.knowledgeBases) if (k.name) names.set(k.id, k.name);
+    names.set(v.chatModelId, v.chatModelName);
+  }
+  for (const k of kbs.data ?? []) names.set(k.id, k.name);
+  for (const m of models.data ?? []) names.set(m.id, m.displayName);
+  return {
+    model: (id) => (id ? (names.get(id) ?? "A model that no longer exists") : "No model"),
+    kb: (k) => `${names.get(k.kbId) ?? "Deleted knowledge base"} (${k.topK ? `${k.topK} results` : "the knowledge base's results per search"})`,
+  };
+}
+
+/** `describe`: say what the card is for (not when the page's own description already does). */
+export function CompareVersions({ agent, draft, versions, describe = true }: { agent: Agent; draft: AgentConfig; versions: AgentVersion[]; describe?: boolean }) {
+  const [params, setParams] = useSearchParams();
   const latest = versions[0]?.version;
   const from = parseSide(params.get("from"), latest ?? "draft");
   const to = parseSide(params.get("to"), "draft");
   const a = useSide(agent, from);
   const b = useSide(agent, to);
+  const names = useNames([a.data, b.data]);
   const set = (key: "from" | "to", v: string) =>
     setParams((p) => {
       const out = new URLSearchParams(p);
@@ -63,8 +75,9 @@ export function CompareVersions({ agent, draft, versions }: { agent: Agent; draf
       return out;
     });
   const name = (v: Side) => (v === "draft" ? "the draft" : `version ${v}`);
-  const before = from === "draft" ? draft : a.data;
-  const after = to === "draft" ? draft : b.data;
+  const heading = (v: Side) => (v === "draft" ? "Draft" : `Version ${v}${agent.published?.version === v ? " (live)" : ""}`);
+  const before = from === "draft" ? draft : a.data?.config;
+  const after = to === "draft" ? draft : b.data?.config;
   const options = (
     <>
       <option value="draft">Draft</option>
@@ -76,8 +89,9 @@ export function CompareVersions({ agent, draft, versions }: { agent: Agent; draf
       ))}
     </>
   );
+  const changed = before && after ? changedRows(before, after, names) : [];
   return (
-    <Card title="Compare" description="What changed between two versions, or between a version and the draft.">
+    <Card title="Compare" description={describe ? "What changed between two versions, or between a version and the draft." : undefined}>
       <div className={vs.compare}>
         <div className={s.grid2}>
           <Field label="From">
@@ -113,7 +127,19 @@ export function CompareVersions({ agent, draft, versions }: { agent: Agent; draf
               <h3 id="compare-settings" className={vs.compareTitle}>
                 Settings
               </h3>
-              <DiffViewer label={`Settings: ${name(from)} and ${name(to)}`} format="json" before={settings(before, names)} after={settings(after, names)} maxHeight="20rem" showModeToggle={false} />
+              {changed.length === 0 ? (
+                <p className={s.muted}>No setting changed.</p>
+              ) : (
+                <Table caption={`Settings that changed from ${name(from)} to ${name(to)}`} columns={["Setting", heading(from), heading(to)]} density="compact">
+                  {changed.map((r) => (
+                    <Tr key={r.label}>
+                      <Td>{r.label}</Td>
+                      <Td>{r.before}</Td>
+                      <Td>{r.after}</Td>
+                    </Tr>
+                  ))}
+                </Table>
+              )}
             </section>
           </>
         ) : null}
