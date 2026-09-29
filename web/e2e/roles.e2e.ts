@@ -24,6 +24,8 @@ test("a team member doesn't see Usage or the audit log in Team settings", async 
   for (const tab of ["usage", "audit"]) {
     await member.goto(`/teams/${team}/settings?tab=${tab}`);
     await expect(tabs.getByRole("tab", { name: "Members" })).toHaveAttribute("aria-selected", "true");
+    // The address is rewritten to the tab shown.
+    await expect(member).toHaveURL(`/teams/${team}/settings`);
     await expect(member.getByRole("meter")).toHaveCount(0);
     await expect(member.getByRole("table", { name: /audit/i })).toHaveCount(0);
     await a11y(member);
