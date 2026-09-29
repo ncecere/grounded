@@ -27,7 +27,7 @@ export function CostsPage() {
     <Stack gap={6} className={s.page}>
       <PageHeader
         title="Costs"
-        description={`What model use costs, from the prices you enter, and each team's monthly budget, in the platform currency. ${timeZoneNote(st?.timeZone)}`}
+        description={`What model use costs, from the prices entered here, and each team's monthly budget, in the platform currency. ${timeZoneNote(st?.timeZone)} Analytics counts UTC days.`}
       />
       {settings.isLoading ? (
         <Loading label="Loading costs…" />

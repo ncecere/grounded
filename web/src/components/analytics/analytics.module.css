@@ -37,13 +37,13 @@
   gap: var(--space-3);
 }
 
+/* Sentence case, like the card titles beside it ("Spend per day"). */
 .groupTitle {
   margin: 0;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-caps);
-  text-transform: uppercase;
-  color: var(--color-text-muted);
+  letter-spacing: var(--letter-spacing-snug);
+  color: var(--color-text);
 }
 
 .chartBody {
