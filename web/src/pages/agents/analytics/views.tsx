@@ -1,5 +1,6 @@
 /* The Analytics tab's sections: Usage, Quality, Moderation and Content (W7). */
 import { Activity, Clock, Flag, LifeBuoy, SearchX, ShieldAlert, ShieldOff, ShieldX, Timer, Zap } from "lucide-react";
+import type { ReactNode } from "react";
 import type { Schemas } from "../../../api/client";
 import { ModerationCard, ShareCard, StatGroup } from "@/components/analytics/breakdowns";
 import { CitationsGroup, ScopeGroup } from "@/components/analytics/checks";
@@ -16,7 +17,8 @@ import an from "./analytics.module.css";
 
 export type Analytics = Schemas["AgentAnalytics"];
 
-export function UsageView({ a }: { a: Analytics }) {
+/** `spend`: the agent's spend this month (owners and admins, cost tracking on), beside Tokens by model. */
+export function UsageView({ a, spend }: { a: Analytics; spend?: ReactNode }) {
   const t = a.totals;
   const empty = a.daily.every((d) => !d.answers && !d.conversations);
   return (
@@ -68,6 +70,7 @@ export function UsageView({ a }: { a: Analytics }) {
           </Table>
         )}
       </Card>
+      {spend}
     </div>
   );
 }

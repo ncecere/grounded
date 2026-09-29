@@ -32,6 +32,7 @@ export const set: Schemas["EvaluationSet"] = {
   autoRun: false,
   questionCount: 2,
   lastRun: { id: "r2", kind: "retrieval", status: "completed", summary: summary(), createdAt: "2026-09-27T10:00:00Z" },
+  previousRun: null,
   revision: 3,
   createdAt: "2026-09-20T10:00:00Z",
   updatedAt: "2026-09-20T10:00:00Z",

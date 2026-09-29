@@ -38,6 +38,8 @@ export const terms = {
   tryIt: "Try it",
   /** Team settings → Usage & limits (the tab and its card). */
   usageAndLimits: "Usage & limits",
+  /** Team settings' usage tab while the spend shows (I4). */
+  usageAndSpend: "Usage & spend",
   /** Admin → SSO groups (route /admin/group-mapping): IdP group → team role rules. */
   groupMapping: "SSO groups",
 } as const;

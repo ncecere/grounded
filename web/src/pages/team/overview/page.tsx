@@ -1,6 +1,8 @@
 /*
  * The team overview as a dashboard (W5, Q10): getting started for a new team,
- * the counts (each a link), what needs attention and the recent changes.
+ * the counts (each a link), quality and spend (evaluation scores; this
+ * month's spend for owners and admins, I3), what needs attention and the
+ * recent changes.
  * Members get what they can use instead (W13). Members, usage, keys, crawl
  * domains and the audit log are in Team settings (D1); old ?tab= links
  * redirect there (router.tsx).
@@ -23,6 +25,7 @@ import { ArchivedNotice } from "../layout";
 import { NeedsAttention } from "./attention";
 import { GettingStarted } from "./getting-started";
 import { MemberOverview } from "./member";
+import { QualityAndSpend } from "./quality";
 import { RecentChanges } from "./recent";
 import { QuickCounts } from "./stats";
 
@@ -83,6 +86,7 @@ function Dashboard() {
     <>
       <GettingStarted />
       <QuickCounts />
+      <QualityAndSpend />
       <NeedsAttention />
       <RecentChanges />
     </>

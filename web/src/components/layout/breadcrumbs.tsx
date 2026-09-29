@@ -123,6 +123,7 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
         { label: "Agents", render: <Link to="/teams/$team/agents" params={{ team: slug }} /> },
         ...(isNotFound(agent.error) ? [] : [{ label: agent.data?.name ?? "Agent" }]),
       );
+    else if (sub === "/evaluations") crumbs.push({ label: "Evaluations" });
     else if (sub === "/evaluations/$setId") crumbs.push(...evalSetCrumbs(slug, evalSet.data));
     else if (sub === "/settings") crumbs.push({ label: terms.teamSettings });
     return crumbs;

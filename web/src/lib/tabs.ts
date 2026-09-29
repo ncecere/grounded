@@ -34,7 +34,10 @@ export function tabSearch<T extends string>(tabs: readonly T[], opts: { passthro
   };
 }
 export const crawlDomainTabs = ["requests", "allowlist"] as const;
-export const teamSettingsTabs = ["members", "usage", "api-keys", "crawl-domains", "audit", "general"] as const;
+/** Team settings (D1). Crawl domains moved to the Data sources page in v0.2.1 (I4); the router redirects ?tab=crawl-domains. */
+export const teamSettingsTabs = ["members", "usage", "api-keys", "audit", "general"] as const;
+/** The team's Data sources page (I4): the sources, and the team's crawl domain requests. */
+export const dataSourceTabs = ["sources", "crawl-domains"] as const;
 export type TeamSettingsTab = (typeof teamSettingsTabs)[number];
 export const logTabs = ["audit", "access"] as const;
 export const analyticsTabs = ["overview", "breakdown", "models", "top"] as const;

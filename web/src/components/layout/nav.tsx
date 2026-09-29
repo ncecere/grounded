@@ -1,4 +1,4 @@
-import { Archive, BarChart3, Bot, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign } from "lucide-react";
+import { Archive, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign } from "lucide-react";
 import { type ReactNode } from "react";
 import { terms } from "../../lib/terms";
 import { type Me } from "../../session";
@@ -115,23 +115,52 @@ export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
   "/admin/systemone": ["judging", "passages", "rerank", "re-rank", "injection", "judgment", "jev", "typesafe"],
 };
 
-export type TeamPath = "/teams/$team" | "/teams/$team/sources" | "/teams/$team/kbs" | "/teams/$team/agents" | "/teams/$team/settings";
+export type TeamPath =
+  | "/teams/$team"
+  | "/teams/$team/sources"
+  | "/teams/$team/kbs"
+  | "/teams/$team/agents"
+  | "/teams/$team/evaluations"
+  | "/teams/$team/settings";
 
-export type TeamNavItem = { to: TeamPath; label: string; icon: ReactNode; exact?: boolean; /** Platform staff who aren't members see it too. */ staff?: boolean };
+export type TeamNavItem = {
+  to: TeamPath;
+  label: string;
+  icon: ReactNode;
+  exact?: boolean;
+  /** Platform staff who aren't members see it too. */
+  staff?: boolean;
+  /** Only the team's editors, admins and owners, while evaluations are on. */
+  editors?: boolean;
+  /** Extra command-palette search words. */
+  keywords?: string[];
+};
 
 const teamNav: TeamNavItem[] = [
   { to: "/teams/$team", label: "Overview", icon: icon(LayoutDashboard), exact: true, staff: true },
   { to: "/teams/$team/sources", label: "Data sources", icon: icon(Database) },
   { to: "/teams/$team/kbs", label: "Knowledge bases", icon: icon(Library) },
   { to: "/teams/$team/agents", label: "Agents", icon: icon(Bot) },
+  {
+    to: "/teams/$team/evaluations",
+    label: "Evaluations",
+    icon: icon(ClipboardCheck),
+    editors: true,
+    keywords: ["evaluation", "eval", "evals", "test questions", "regression", "score", "quality", "recall"],
+  },
   { to: "/teams/$team/settings", label: terms.teamSettings, icon: icon(Settings), staff: true },
 ];
 
-/** Team pages the user can open: members see all; platform staff who aren't
+/** Team pages the user can open: members see all but the editors' pages (Evaluations: editors and above,
+ * while evaluations are on, docs/v0.2.1.md §6.2); platform staff who aren't
  * members see the overview and team settings (members), not the content,
  * plus the data sources under a break-glass session with the documents
  * scope (`breakGlassDocuments`, ADR-0024). */
 export function teamNavFor(me: Me, slug: string, breakGlassDocuments = false) {
-  if (me.teams.some((t) => t.slug === slug)) return teamNav;
+  const mine = me.teams.find((t) => t.slug === slug);
+  if (mine) {
+    const editor = mine.status === "active" && (mine.role === "owner" || mine.role === "admin" || mine.role === "editor");
+    return teamNav.filter((item) => !item.editors || (editor && me.capabilities.evaluations === true));
+  }
   return teamNav.filter((item) => item.staff || (breakGlassDocuments && item.to === "/teams/$team/sources"));
 }

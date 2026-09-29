@@ -51,7 +51,7 @@ export function useAttention(): AttentionRow[] {
       title: `${plural(pending.length, "domain request")} waiting for review`,
       description: pending.map((r) => r.pattern).join(", "),
       tone: "warning",
-      link: <Link to="/teams/$team/settings" params={{ team }} search={{ tab: "crawl-domains" }} />,
+      link: <Link to="/teams/$team/sources" params={{ team }} search={{ tab: "crawl-domains" }} />,
     });
   }
   const near = (limits.data?.items ?? []).filter((it) => (usedRatio(it) ?? 0) >= 0.8).sort((a, b) => (usedRatio(b) ?? 0) - (usedRatio(a) ?? 0));

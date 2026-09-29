@@ -230,7 +230,7 @@ describe("creating a web source", () => {
 
     const alert = await within(dialog).findByRole("alert");
     expect(alert).toHaveTextContent("www.example.org isn't on the crawl allowlist");
-    expect(within(alert).getByRole("link", { name: "View your team's domain requests" })).toHaveAttribute("href", "/teams/registrar/settings?tab=crawl-domains");
+    expect(within(alert).getByRole("link", { name: "View your team's domain requests" })).toHaveAttribute("href", "/teams/registrar/sources?tab=crawl-domains");
     await userEvent.click(within(alert).getByRole("button", { name: "Request this domain" }));
 
     const request = await screen.findByRole("dialog", { name: "Request a domain" });

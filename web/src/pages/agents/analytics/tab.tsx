@@ -16,6 +16,7 @@ import { useSystemOneStatus } from "@/lib/systemone";
 import { useSearchParams } from "@/lib/url-search";
 import { agentKey, useTeam } from "../../team/common";
 import type { Agent } from "../common";
+import { AgentSpendCard } from "./spend";
 import { ContentView, ModerationView, QualityView, UsageView, type Analytics } from "./views";
 import an from "./analytics.module.css";
 
@@ -75,7 +76,7 @@ export function AnalyticsTab({ agent }: { agent: Agent }) {
       ) : !data.data?.totals ? null : (
         <>
           <Kpis a={data.data} />
-          {view === "usage" && <UsageView a={data.data} />}
+          {view === "usage" && <UsageView a={data.data} spend={<AgentSpendCard agent={agent} />} />}
           {view === "quality" && <QualityView a={data.data} />}
           {view === "moderation" && <ModerationView a={data.data} />}
           {view === "content" && <ContentView a={data.data} />}

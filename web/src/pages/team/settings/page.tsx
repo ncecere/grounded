@@ -1,10 +1,13 @@
 /*
- * Team settings (D1): Members · Usage & limits · API keys · Crawl domains ·
- * Audit log · General, as pill tabs (?tab=). The first five host the pages
- * that used to be team tabs or sidebar entries; General holds the team's
- * details and the Danger zone (leave the team).
+ * Team settings (D1): Members · Usage & spend · API keys · Audit log ·
+ * General, as pill tabs (?tab=). The first four host the pages that used to
+ * be team tabs or sidebar entries; General holds the team's details and the
+ * Danger zone (leave the team). The usage tab (?tab=usage) is "Usage &
+ * spend" for those who see the spend (owners and admins while cost tracking
+ * is on), "Usage & limits" otherwise (I4). Crawl domains moved to the Data
+ * sources page in v0.2.1; the router redirects ?tab=crawl-domains there.
  */
-import { FileClock, Gauge, Globe, KeyRound, Settings, Users } from "lucide-react";
+import { FileClock, Gauge, KeyRound, Settings, Users } from "lucide-react";
 import { PageTabs, useUrlTab } from "../../../components/page-tabs";
 import { teamSettingsTabs } from "../../../lib/tabs";
 import { terms } from "../../../lib/terms";
@@ -14,9 +17,9 @@ import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import s from "../../shared.module.css";
 import { useTeam } from "../common";
-import { DomainRequestsPage } from "../domains";
 import { ApiKeysPage } from "../keys/page";
 import { ArchivedNotice } from "../layout";
+import { useTeamSpend } from "../spend";
 import { UsageTab } from "../usage";
 import { TeamAuditLog } from "./audit";
 import { GeneralTab } from "./general";
@@ -30,10 +33,13 @@ export function TeamSettingsPage() {
   // DESIGN §3.5: members see no usage or audit; editors read them.
   const canAudit = isManager || role === "editor" || (!role && staff);
   const canSeeUsage = isManager || role === "editor";
+  // The spend shows while the team's cost mode isn't Off (the spend API answers 404 while it is).
+  const spend = useTeamSpend(slug, isManager);
+  const usageLabel = isManager && spend.data ? terms.usageAndSpend : terms.usageAndLimits;
 
   return (
     <Stack gap={6} className={s.page}>
-      <PageHeader title={terms.teamSettings} description={role === "member" ? `The members, API keys and crawl domains of ${team.name}.` : `Members, usage, keys, crawl domains and the audit log of ${team.name}.`} />
+      <PageHeader title={terms.teamSettings} description={role === "member" ? `The members and API keys of ${team.name}.` : `Members, usage, keys and the audit log of ${team.name}.`} />
       <ArchivedNotice />
       {!role && (
         <Alert tone="info" title="You're viewing this team as platform staff">
@@ -49,13 +55,12 @@ export function TeamSettingsPage() {
           { value: "members", label: "Members", icon: <Users aria-hidden />, content: <MembersTab /> },
           {
             value: "usage",
-            label: "Usage & limits",
+            label: usageLabel,
             icon: <Gauge aria-hidden />,
             hidden: !canSeeUsage,
             content: <UsageTab team={slug} showSpend={isManager} />,
           },
           { value: "api-keys", label: "API keys", icon: <KeyRound aria-hidden />, hidden: !role, content: <ApiKeysPage embedded /> },
-          { value: "crawl-domains", label: terms.crawlDomains, icon: <Globe aria-hidden />, hidden: !role, content: <DomainRequestsPage embedded /> },
           {
             value: "audit",
             label: terms.auditLog,

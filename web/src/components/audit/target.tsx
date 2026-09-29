@@ -33,7 +33,8 @@ function teamLink(team: string, e: AuditEntry): ReactElement | null {
       // A widget key lives on its agent's Share tab.
       return e.parent?.exists ? <Link to="/teams/$team/agents/$agentId" params={{ team, agentId: e.parent.id }} search={{ tab: "share" }} /> : null;
     case "crawl_domain_request":
-      return <Link to="/teams/$team/settings" params={{ team }} search={{ tab: "crawl-domains" }} />;
+      // Data sources › Crawl domains (moved from Team settings in v0.2.1), opening the request.
+      return <Link to="/teams/$team/sources" params={{ team }} search={{ tab: "crawl-domains", record: id } as never} />;
     case "evaluation_set":
       return <Link to="/teams/$team/evaluations/$setId" params={{ team, setId: id }} />;
     case "evaluation_run": {

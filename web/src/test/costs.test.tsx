@@ -307,9 +307,15 @@ describe("the team's spend and banner", () => {
       }),
     });
     const { container } = renderBare(<TeamSpendCard team="registrar" />);
+    // One strip (I4): the amounts, the share, the state and the reset day, with the meter.
+    const strip = (await screen.findByText(/^of .* this month$/)).closest("p")!;
+    expect(strip).toHaveTextContent(`${formatMoney("85", "USD")} of ${formatMoney("100", "USD")} this month · 85% · Near budget · resets Oct 1`);
+    expect(screen.getByRole("meter", { name: "Share of this month's budget used" })).toBeInTheDocument();
+    // The breakdown is behind a disclosure.
+    expect(screen.queryByRole("table")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /Spend breakdown/ }));
     expect(await screen.findByRole("table", { name: "By agent" })).toHaveTextContent("Registrar help");
     expect(screen.getByRole("table", { name: "By model" })).toHaveTextContent("Unpriced");
-    expect(screen.getByText("Near budget")).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "By agent" })).toHaveTextContent(formatMoney("0.5", "USD"));
     expect(screen.getAllByRole("columnheader", { name: "Requests" })).toHaveLength(2);
     expect(screen.getByText(/SystemOne and moderation calls, priced per request/)).toBeInTheDocument();
@@ -345,15 +351,17 @@ describe("the team's spend and banner", () => {
 describe("a Track-only budget (progress, never enforced)", () => {
   const tracked = status("ok", { mode: "track", budget: "5.000000", limit: "5.000000", spent: "0.600000", percent: 12 });
 
-  it("shows owners progress against the budget on Usage & limits, not enforced", async () => {
+  it("shows owners progress against the budget on Usage & spend, not enforced", async () => {
     mockApi({
       "GET /v1/teams/registrar/spend": () => ({ status: tracked, timeZone: "UTC", from: "2026-09-01", to: "2026-09-02", total: reports.agent!.total, agents: [], models: [] }),
     });
     const { container } = renderBare(<TeamSpendCard team="registrar" />);
-    expect(await screen.findByText(/Tracking: 12% of \$5\.00 · not enforced/)).toBeInTheDocument();
+    const strip = (await screen.findByText(/^of .* this month$/)).closest("p")!;
+    expect(strip).toHaveTextContent("$0.60 of $5.00 this month · 12% · Within budget · not enforced · resets Oct 1");
     expect(screen.getByRole("meter", { name: "Share of this month's budget used" })).toBeInTheDocument();
-    expect(screen.getByText("Not enforced")).toBeInTheDocument();
     expect(container).not.toHaveTextContent(/At 100% the team's chats/);
+    // Nothing to break down: no disclosure.
+    expect(screen.queryByRole("button", { name: /Spend breakdown/ })).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
   });
 
