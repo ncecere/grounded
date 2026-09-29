@@ -167,7 +167,10 @@ func TestSystemPrompt(t *testing.T) {
 	for _, want := range []string{"You are Helper, an assistant provided by Registrar. Today is",
 		`Refusal message: "` + DefaultRefusal + `"`, "<sources>", "untrusted", "Answer in Spanish.", "Saturday, September 26, 2026",
 		// Strict grounding: partial answers and small talk don't get the refusal.
-		"answer that part with citations", "Only when the sources contain nothing relevant", "Greetings, thanks and similar small talk",
+		"If the sources cover part of the question, answer that part with citations and say what isn't covered",
+		"omit steps or details that are not in the sources", "Only when the sources contain nothing relevant", "Greetings, thanks and similar small talk",
+		// Every factual sentence carries a citation (uncited ones count as unsupported).
+		"Every sentence that states a fact from the sources ends with its citation.",
 		// Citations go right after the claim, with no citation list (which
 		// would be read as a claim of its own).
 		"right after the statement it supports", "Do not add a separate list of citations or sources."} {

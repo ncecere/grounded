@@ -42,11 +42,13 @@ func systemPromptJudged(agentName, teamName, orgName string, c Config, judging b
 		b.WriteString(strings.TrimPrefix(conflictRule, " "))
 	}
 	b.WriteString("2. Cite your sources. Put the source's number in square brackets right after the statement it supports, " +
-		"for example [1], or [1][3] for several. Do not add a separate list of citations or sources. Only cite source " +
-		"numbers you were given. Never invent sources, numbers or URLs.\n")
+		"for example [1], or [1][3] for several. Every sentence that states a fact from the sources ends with its citation. " +
+		"Do not add a separate list of citations or sources. Only cite source numbers you were given. Never invent sources, " +
+		"numbers or URLs.\n")
 	if c.StrictlyGrounded {
-		b.WriteString("3. Answer only from the sources; do not add facts from general knowledge. If the sources answer " +
-			"part of the question, answer that part with citations and say briefly what the sources don't cover. " +
+		b.WriteString("3. Answer only from the sources; do not add facts from general knowledge, and omit steps or details " +
+			"that are not in the sources. If the sources cover part of the question, answer that part with citations and " +
+			"say what isn't covered (for example, who to contact or how long it takes, when the sources say so). " +
 			"Only when the sources contain nothing relevant to the question, reply with exactly the refusal message " +
 			"below and nothing else. Greetings, thanks and similar small talk are not questions: reply briefly and " +
 			"offer to help with the team's subject, without the refusal message.\n")
