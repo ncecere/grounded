@@ -97,14 +97,33 @@ describe("chat citation checks", () => {
     expect(verificationLabel("contradicted", 0.5)).toBe("Contradicted by this source (50% confidence)");
   });
 
-  it("says why a question was refused as out of scope, and adds no warning to small talk", async () => {
-    const end = (reason: string, refused: boolean) =>
-      applyChatEvent(applyChatEvent(pendingAssistant(), "message_end", { messageId: "m", stopReason: "stop", text: refused ? "No answer." : "Hello!", citations: [], refused, noContext: true, noContextReason: reason }), "done", {});
-    const items: ChatItem[] = [{ role: "user", key: "u1", text: "Hi" }, end("small_talk", false), { role: "user", key: "u2", text: "Pizza?" }, end("out_of_scope", true)];
-    const { container } = renderBare(<ChatMessages items={items} agent={{ name: "Helper" }} />);
-    expect(await screen.findByText("This question is outside what this agent covers, so it didn't search.")).toBeInTheDocument();
+  it("an out-of-scope refusal says so in its text, adds no warning to small talk, and offers the starter questions", async () => {
+    const end = (reason: string, refused: boolean, text: string) =>
+      applyChatEvent(applyChatEvent(pendingAssistant(), "message_end", { messageId: "m", stopReason: "stop", text, citations: [], refused, noContext: true, noContextReason: reason }), "done", {});
+    const items: ChatItem[] = [
+      { role: "user", key: "u1", text: "Hi" },
+      end("small_talk", false, "Hello!"),
+      { role: "user", key: "u2", text: "Pizza?" },
+      end("out_of_scope", true, "This is outside what Helper covers."),
+    ];
+    const asked: string[] = [];
+    const { container } = renderBare(<ChatMessages items={items} agent={{ name: "Helper", starterQuestions: ["How much is a transcript?"] }} onStarter={(q) => asked.push(q)} />);
+    expect(await screen.findByText("This is outside what Helper covers.")).toBeInTheDocument();
+    // The text says it: no note that contradicts it, and nothing about searching.
+    expect(screen.queryByText(/searched its sources/)).toBeNull();
     expect(screen.queryByText(/No matching sources were found/)).toBeNull();
+    const offer = screen.getByRole("group", { name: "You can ask" });
+    await userEvent.click(within(offer).getByRole("button", { name: "How much is a transcript?" }));
+    expect(asked).toEqual(["How much is a transcript?"]);
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("a refusal after a search says it searched, then offers the starter questions (last answer only)", async () => {
+    const refusal = () => applyChatEvent(applyChatEvent(pendingAssistant(), "message_end", { messageId: "m", stopReason: "stop", text: "I couldn't find that.", citations: [], refused: true, noContext: true }), "done", {});
+    const items: ChatItem[] = [{ role: "user", key: "u1", text: "Fee?" }, refusal(), { role: "user", key: "u2", text: "Fee again?" }, refusal()];
+    renderBare(<ChatMessages items={items} agent={{ name: "Helper", starterQuestions: ["How much is a transcript?"] }} onStarter={() => {}} />);
+    expect(await screen.findAllByText("The agent searched its sources and found nothing that answers this.")).toHaveLength(2);
+    expect(screen.getAllByRole("group", { name: "You can ask" })).toHaveLength(1);
   });
 });
 

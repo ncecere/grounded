@@ -18,6 +18,8 @@ import {
   streamChat,
 } from "./stream";
 
+const lostMessage = "The connection was lost before the answer finished. Retry to ask again.";
+
 type ChatError = { code: string; title: string; message: string; details?: Record<string, unknown> };
 
 type UseChatOptions = {
@@ -66,6 +68,7 @@ export function useChat({ path, body, onConversation, onSettled }: UseChatOption
     setItems([...previous, user, pending]);
     setStreaming(true);
     let sawEnd = false;
+    let received = false; // any event: the question reached the server
     const started = Date.now();
     // A local mirror of the streamed message, so the outcome is known without waiting for a render.
     let local: AssistantItem = pending;
@@ -77,6 +80,7 @@ export function useChat({ path, body, onConversation, onSettled }: UseChatOption
       await streamChat(opts.current.path, opts.current.body(text, previous), {
         signal: ctrl.signal,
         onEvent: (event, data) => {
+          received = true;
           if (event === "conversation") {
             const id = (data as { conversationId?: string | null })?.conversationId;
             if (id) opts.current.onConversation?.(id);
@@ -89,7 +93,7 @@ export function useChat({ path, body, onConversation, onSettled }: UseChatOption
       const timed = { ...local, latencyMs: Date.now() - started };
       if (timed.status !== "streaming") set(timed);
       else if (sawEnd) set({ ...timed, status: "done" });
-      else set({ ...timed, status: "error", error: { code: "network_error", message: "The connection closed before the answer finished." } });
+      else set(settlePartial({ ...timed, status: "error", error: { code: "network_error", message: lostMessage } }));
       // Errors and moderation notices aren't answers: say so (F-10).
       if (local.moderation) announce(`Not answered. ${local.moderation.notice}`);
       else if (local.status === "error" && local.error) announce(`Error: ${chatErrorText(local.error.code, local.error.message).title}`);
@@ -117,8 +121,16 @@ export function useChat({ path, body, onConversation, onSettled }: UseChatOption
         announce(`Error: ${friendly.title}. ${friendly.message}`);
         return false;
       }
-      set({ ...local, status: "error", error: { code: "network_error", message: "The connection was lost before the answer finished." } });
-      announce("Error: connection lost");
+      if (!received) {
+        // Nothing arrived: the question wasn't sent (offline). It goes back in the composer, with Retry.
+        const friendly = chatErrorText("send_failed");
+        setItems(previous);
+        setError({ code: "send_failed", ...friendly });
+        announce(`Error: ${friendly.title}. ${friendly.message}`);
+        return false;
+      }
+      set(settlePartial({ ...local, status: "error", error: { code: "network_error", message: lostMessage } }));
+      announce("Error: the connection was lost mid-answer");
       return true;
     } finally {
       controller.current = null;

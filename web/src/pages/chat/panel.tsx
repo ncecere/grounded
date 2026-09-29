@@ -5,15 +5,19 @@
  * return it there. The message log stays silent while tokens stream; a
  * ConversationAnnouncer (polite status) says how each answer ended.
  */
+import { RotateCcw } from "lucide-react";
 import { type ReactNode, type RefObject, useEffect, useRef } from "react";
 import { Alert } from "@/components/ui/alert/alert";
-import { Conversation, ConversationAnnouncer, ConversationContent, ConversationScrollButton } from "@/components/ui/conversation/conversation";
+import { Button } from "@/components/ui/button/button";
+import { Conversation, ConversationAnnouncer, ConversationContent, ConversationScrollButton, useConversation } from "@/components/ui/conversation/conversation";
 import { PromptInput, PromptInputSubmit, PromptInputTextarea, PromptInputToolbar, PromptInputTools } from "@/components/ui/prompt-input/prompt-input";
 import { preloadResponse } from "@/components/ui/response/response-lazy";
+import { cx } from "@/lib/bitop-utils";
 import { ChatMessages } from "./thread";
 import type { AssistantItem } from "./stream";
 import type { useChat } from "./useChat";
 import { type AgentLook, ChatWelcome } from "./welcome";
+import a from "./answer.module.css";
 import c from "./chat.module.css";
 
 const defaultMaxLength = 8000;
@@ -40,7 +44,23 @@ type ChatPanelProps = {
   /** "Add to evaluations" on answers (see ChatMessages). */
   onAddToEvaluations?: (question: string) => void;
   canAdd?: (item: AssistantItem) => boolean;
+  /** Let the reader open the model's thinking (editors testing a draft); others see "Thinking…" only. */
+  showThinking?: boolean;
 };
+
+/** Sending scrolls to your new message (and follows the answer), even after you scrolled up to read. */
+function ScrollOnSend({ questions }: { questions: number }) {
+  const { scrollToBottom } = useConversation();
+  const seen = useRef(questions);
+  useEffect(() => {
+    if (questions > seen.current) scrollToBottom("smooth");
+    seen.current = questions;
+  }, [questions, scrollToBottom]);
+  return null;
+}
+
+/** Errors worth a Retry: the question never left (offline). */
+const retriable = new Set(["send_failed"]);
 
 export function ChatPanel(props: ChatPanelProps) {
   const { chat, agent, text, onTextChange, feedback, disabledReason, errorExtra, loading, inputRef, label = "Conversation", fullPage, maxLength = defaultMaxLength } = props;
@@ -68,6 +88,12 @@ export function ChatPanel(props: ChatPanelProps) {
     // Refused before it started: give the question back.
     if (!started) onTextChange(message);
   };
+  /** Asks without touching what's being typed (Retry after a lost answer, a starter under a refusal). */
+  const ask = async (question: string) => {
+    if (!question.trim() || chat.streaming || disabledReason) return;
+    const started = await chat.send(question);
+    if (!started && !ref.current?.value.trim()) onTextChange(question);
+  };
 
   return (
     <div className={fullPage ? c.pagePanel : c.panel}>
@@ -82,9 +108,20 @@ export function ChatPanel(props: ChatPanelProps) {
           {chat.items.length === 0 ? (
             (loading ?? <ChatWelcome agent={agent} disabled={Boolean(disabledReason) || chat.streaming} onStarter={(q) => void send(q)} />)
           ) : (
-            <ChatMessages items={chat.items} agent={agent} feedback={feedback} onPatch={chat.patch} onAddToEvaluations={props.onAddToEvaluations} canAdd={props.canAdd} />
+            <ChatMessages
+              items={chat.items}
+              agent={agent}
+              feedback={feedback}
+              showThinking={props.showThinking}
+              onPatch={chat.patch}
+              onAddToEvaluations={props.onAddToEvaluations}
+              canAdd={props.canAdd}
+              onRetry={(q) => void ask(q)}
+              onStarter={disabledReason ? undefined : (q) => void ask(q)}
+            />
           )}
         </ConversationContent>
+        <ScrollOnSend questions={chat.items.filter((i) => i.role === "user").length} />
         {chat.items.length > 0 && <ConversationScrollButton />}
       </Conversation>
       {disabledReason && (
@@ -93,7 +130,19 @@ export function ChatPanel(props: ChatPanelProps) {
         </Alert>
       )}
       {chat.error && (
-        <Alert tone={chat.error.code === "rate_limited" || chat.error.code === "quota_exceeded" || chat.error.code === "budget_exhausted" ? "warning" : "danger"} title={chat.error.title} onDismiss={() => chat.setError(null)} className={c.errorBox}>
+        <Alert
+          tone={chat.error.code === "rate_limited" || chat.error.code === "quota_exceeded" || chat.error.code === "budget_exhausted" ? "warning" : "danger"}
+          title={chat.error.title}
+          onDismiss={() => chat.setError(null)}
+          className={c.errorBox}
+          actions={
+            retriable.has(chat.error.code) && text.trim() ? (
+              <Button size="sm" variant="secondary" disabled={chat.streaming} onClick={() => void send(text)}>
+                <RotateCcw aria-hidden /> Retry
+              </Button>
+            ) : undefined
+          }
+        >
           {chat.error.message}
           {errorExtra}
         </Alert>
@@ -124,7 +173,10 @@ export function ChatPanel(props: ChatPanelProps) {
         />
         <PromptInputToolbar>
           <PromptInputTools className={c.tools}>
-            <span className={c.hint}>{chat.streaming ? "Answering… You can type your next question meanwhile." : "Enter to send, Shift+Enter for a new line."}</span>
+            {/* The keyboard hint means nothing on a touch screen: hidden there (answer.module.css). */}
+            <span className={cx(c.hint, !chat.streaming && a.keyHint)}>
+              {chat.streaming ? "Answering… You can type your next question meanwhile." : "Enter to send, Shift+Enter for a new line."}
+            </span>
             <span id="composer-count" className={c.count} data-over={over ? "" : undefined}>
               {text.length.toLocaleString()} / {maxLength.toLocaleString()}
               {over && " (too long)"}

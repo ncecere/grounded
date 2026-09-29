@@ -1,0 +1,72 @@
+/* An answer's citation chips and marks (citations.tsx). */
+
+/*
+ * The chip stays small in the text, but its hit area is at least 24 x 24 px
+ * (WCAG 2.5.8): a transparent box around it takes the taps.
+ */
+.chip {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -0.1875rem -0.125rem;
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+  }
+}
+
+/* After a factual sentence that cites nothing (SystemOne citation checks): subtle, never alarming. */
+.uncited {
+  display: inline-block;
+  padding-inline: 0.25rem;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  font-size: 0.6875rem;
+  font-weight: var(--font-weight-medium);
+  line-height: 1.4;
+  vertical-align: 0.125em;
+  white-space: nowrap;
+}
+
+/* A long message of the user's, collapsed to its first lines until "Show more". */
+.collapsed {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+  line-clamp: 8;
+}
+
+.showMore {
+  margin-block-start: var(--space-1);
+  margin-inline-start: calc(-1 * var(--space-2));
+}
+
+/* Under a refusal: what else the agent can answer (its starter questions). */
+.offer {
+  align-items: center;
+}
+
+.offerLabel {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* A search step's title wraps on narrow screens instead of being cut off. */
+.step {
+  flex-wrap: wrap;
+
+  & > span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* The composer's keyboard hint, on devices without a keyboard. */
+@media (hover: none) and (pointer: coarse) {
+  .keyHint {
+    display: none;
+  }
+}

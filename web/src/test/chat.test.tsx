@@ -1,5 +1,5 @@
 /* The chat page: streaming, final-text replacement, citations, Stop, errors before the stream, feedback, stored conversations, axe. */
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import { applyChatEvent, chatErrorText, pendingAssistant } from "../pages/chat/stream";
@@ -242,6 +242,71 @@ describe("chat page", () => {
     const list = screen.getByRole("list", { name: "Sources for this answer" });
     expect(within(list).getAllByRole("listitem")).toHaveLength(2);
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("sending scrolls to your new message, even after you scrolled up to read", async () => {
+    mockApi(routes({ "POST /v1/agents/registrar/registrar-assistant/chat": () => sse(answerEvents()) }));
+    renderApp(chatPath);
+    const box = await screen.findByRole("textbox", { name: "Message Registrar assistant" });
+    await userEvent.type(box, "First{Enter}");
+    await screen.findByText(/You can drop a class/);
+    // A tall log, scrolled up by the reader (jsdom has no layout: fake the metrics).
+    const log = screen.getByRole("log");
+    let top = 0;
+    Object.defineProperty(log, "scrollHeight", { configurable: true, get: () => 5000 });
+    Object.defineProperty(log, "clientHeight", { configurable: true, get: () => 500 });
+    Object.defineProperty(log, "scrollTop", { configurable: true, get: () => top, set: (v: number) => (top = v) });
+    top = 4500;
+    fireEvent.scroll(log);
+    fireEvent.wheel(log, { deltaY: -100 });
+    top = 1000;
+    fireEvent.scroll(log);
+    await userEvent.type(box, "Second{Enter}");
+    await waitFor(() => expect(top).toBe(5000));
+  });
+
+  it("a question that couldn't be sent (offline) stays in the composer, with Retry", async () => {
+    let n = 0;
+    const calls = mockApi(
+      routes({
+        "POST /v1/agents/registrar/registrar-assistant/chat": () => {
+          if (n++ === 0) throw new TypeError("Failed to fetch");
+          return sse(answerEvents("Use the portal [1]."));
+        },
+      }),
+    );
+    const { container } = renderApp(chatPath);
+    const box = await screen.findByRole("textbox", { name: "Message Registrar assistant" });
+    await userEvent.type(box, "How do I drop a class?{Enter}");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Couldn't send your question");
+    expect(alert).not.toHaveTextContent(/before the answer finished/);
+    expect(box).toHaveValue("How do I drop a class?");
+    expect(screen.queryByRole("article", { name: "You said" })).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(within(alert).getByRole("button", { name: "Retry" }));
+    expect(await screen.findByText(/Use the portal/)).toBeInTheDocument();
+    expect(box).toHaveValue("");
+    expect(calls.filter((c) => c.method === "POST")).toHaveLength(2);
+  });
+
+  it("an answer lost mid-way says so and offers Retry", async () => {
+    let n = 0;
+    mockApi(
+      routes({
+        "POST /v1/agents/registrar/registrar-assistant/chat": () =>
+          n++ === 0
+            ? sse([["conversation", { conversationId: "c1", userMessageId: "u", agentVersion: 1 }], ["message_start", { messageId: "m1" }], ["text_delta", { delta: "You can " }]])
+            : sse(answerEvents("Use the portal [1].")),
+      }),
+    );
+    renderApp(chatPath);
+    await userEvent.type(await screen.findByRole("textbox", { name: "Message Registrar assistant" }), "How do I drop a class?{Enter}");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Connection lost mid-answer");
+    await userEvent.click(within(alert).getByRole("button", { name: "Retry" }));
+    expect(await screen.findByText(/Use the portal/)).toBeInTheDocument();
+    expect(screen.getAllByRole("article", { name: "You said" })).toHaveLength(2);
   });
 
   it("explains errors that stop a question before streaming and gives the question back", async () => {

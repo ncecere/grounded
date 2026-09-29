@@ -71,6 +71,8 @@ export function TestPanel({ agent, d, chat, onProblem, heading = true }: Props) 
           onTextChange={setText}
           inputRef={inputRef}
           label="Draft test conversation"
+          // Editors may open the model's thinking; the chat's readers only see "Thinking…".
+          showThinking
           errorExtra={problems.length > 0 ? <ProblemList problems={problems} onSelect={onProblem} /> : undefined}
           onAddToEvaluations={evaluationsOn ? setAdding : undefined}
         />
