@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-09-29. **v0.2.1 is released** (2026-09-29) and runs on the reference install. Nothing below is scheduled until the owner picks it.
+Status: refreshed 2026-09-30. **v0.2.1 is released** (2026-09-29) and runs on the reference install; the project now has a website ([`ncecere/grounded-website`](https://github.com/ncecere/grounded-website)) and a documentation site ([`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs)). **v0.2.2** collects small fixes (§ J); nothing else below is scheduled until the owner picks it.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -62,6 +62,27 @@ The plan and the owner's decisions are in [`v0.2.0.md`](v0.2.0.md); the release 
 
 ---
 
+## Done in v0.2.1 (released 2026-09-29)
+
+The plan is [`v0.2.1.md`](v0.2.1.md); the release notes are [`releases/v0.2.1.md`](releases/v0.2.1.md).
+
+| ID | Item | Where |
+|---|---|---|
+| I1–I8 | **Navigation and clarity:** the admin sidebar in eight collapsible groups (Legal holds a tab of Retention, Profile migrations a tab of Embedding profiles); the admin Overview's Features card with the evaluations switch; quality and spend on the team Overview; a team Evaluations page and sidebar item; Usage & spend with spend in one line; Crawl domains on Data sources; a shorter Costs Overview; a six-tab agent editor with versions in the header; the admin team's budget card on its Overview; Analytics' Checks tab. Old addresses redirect. | § I below |
+| I9 | **Per-claim verification:** each factual sentence is a claim with one verdict, shown with its text; chat and evaluations count the same claims; `claims[]` in the API. | [`systemone.md`](systemone.md) |
+| G19 (part), G20 | A fixed 0–100% score chart and a collapsible breadcrumb (bitop-ui); the "Retrieval , Sep 28" link text. | CHANGELOG |
+| — | **From the v0.2.1 walkthrough:** editors no longer see budget entries in the team audit log; evaluation trends skip unscored runs; Compare versions includes SystemOne settings; the claim card opens from the keyboard (a chip now opens it, with "Show source"); sources start collapsed; the first Tab reaches "Skip to content"; ⌘K opens moved tabs directly; and many smaller copy, keyboard and phone fixes. | CHANGELOG |
+
+## Done around v0.2.1: the project's public sites
+
+| Item | Where |
+|---|---|
+| **Project website:** a landing page for Grounded as open source (what it does, screenshots of a fictional "Example University" instance, run it yourself, project status), Next.js static export served by nginx. | [`ncecere/grounded-website`](https://github.com/ncecere/grounded-website) |
+| **Documentation site:** guides for people chatting, editors, team owners and platform admins; self-hosting (install, configuration, OIDC, models, OCR, observability, backups, upgrades, security); the API with a reference generated from `api/openapi.yaml`; release notes. Fumadocs with static search. | [`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs) |
+| **Screenshot set:** a clean instance seeded with fictional data and generic model names, so public screenshots show nothing from a real install. | — |
+
+---
+
 ## A. Answer quality
 
 | ID | Item | What and why | Size | Value | Depends on |
@@ -75,8 +96,8 @@ The plan and the owner's decisions are in [`v0.2.0.md`](v0.2.0.md); the release 
 | A8 | **Answer cache** | Cache answers per agent version for identical or near-identical questions, invalidated on publish or re-index. | M | Medium (High for public) | — |
 | A9 | **Semantic chunking per profile** | Heading- and sentence-aware splitting tuned per source type. | M | Medium | P2 |
 | A10 | **Tables and figures** | Keep tables structured, and describe figures with a vision model at ingest. | M | Medium | a vision model |
-| A11None | **Near-duplicate boilerplate** | Boilerplate matching today is exact-hash, so a menu with one highlighted item isn't caught. Add fuzzy matching (shingles or MinHash) per source. | S | Medium | — |
-| A12None | **SystemOne capacity** | Batch judging was slower and worse on one GPU. Queue per GPU with priorities (interactive before ingest), and show the added latency per feature in the agent editor. | S | Medium | — |
+| A11 | **Near-duplicate boilerplate** | Boilerplate matching today is exact-hash, so a menu with one highlighted item isn't caught. Add fuzzy matching (shingles or MinHash) per source. | S | Medium | — |
+| A12 | **SystemOne capacity** | Batch judging was slower and worse on one GPU. Queue per GPU with priorities (interactive before ingest), and show the added latency per feature in the agent editor. | S | Medium | — |
 | A13 ★ | **Citation marks per claim** | A citation takes the worst verdict of every sentence that cites it, so one unsupported sentence marks a source that correctly supports the others as unsupported. Mark each claim instead, and show a source as "supported here, not there". | M | High | — |
 | A14 **New** | **Warn about expectations the KB can't meet** | An evaluation question can expect a phrase or document that isn't in the knowledge base (v0.2.0 warns while typing); add a set-level check that lists them, and flag questions whose expected document keeps ranking beyond the top 50. | S | Medium | A2 |
 | A15 **New** | **Share a failed question on a thumbs-down** | Let the person rating an answer opt in to sharing just the question with the team's editors, for evaluations. Changes ADR-0010, so it needs an ADR update, retention and a per-agent switch (deferred by the owner, 2026-09-28). | M | Medium–High | A2, an ADR |
@@ -95,7 +116,7 @@ The plan and the owner's decisions are in [`v0.2.0.md`](v0.2.0.md); the release 
 | B8 | **Content health report** | Stale pages, broken links, duplicates across sources, pages never cited, parse failures. | M | Medium | — |
 | B9 | **Duplicate detection across teams** | Suggest shared sources when several teams crawl the same site. | S | Medium | — |
 | B10 | **Document viewer with highlights** | A citation opens the page or PDF at the cited passage. | M | Medium–High | viewer permissions |
-| B11None | **Crawl preview matches the crawl** | The preview lists pages in a different order from the crawl (QA F-14; the wording is fixed, the behaviour isn't). Share the frontier logic. | S | Medium | — |
+| B11 | **Crawl preview matches the crawl** | The preview lists pages in a different order from the crawl (QA F-14; the wording is fixed, the behaviour isn't). Share the frontier logic. | S | Medium | — |
 | B12 **New** | **OCR follow-ups** | Multi-page TIFF (only the first page is read); partly scanned PDFs uploaded while OCR was off joining the "Needs OCR" retry (today: delete and re-upload); the OCR sidecar in the kind smoke test. | S | Medium | B4 |
 
 ## C. Agents and chat
@@ -140,12 +161,12 @@ The plan and the owner's decisions are in [`v0.2.0.md`](v0.2.0.md); the release 
 | E8 | **Accessibility statement and model cards** | "About this assistant" cards. | S | Medium | — |
 | E9 | **i18n** | Translated UI, answers in the user's language. | M | Medium | — |
 | E10 **Done** | **Key rotation** | `grounded rotate-keys`: re-encrypt stored secrets under a new `ENCRYPTION_KEY`, and rotate `API_KEY_PEPPER` with a grace period. Today there is no way to move off a leaked or example key without re-entering every connection key. | S | High | — |
-| E11None | **Stored model health** | Keep the last test result per model and connection, re-test on a schedule, and flag failures on the admin Overview and in the catalog. | S | Medium | — |
+| E11 | **Stored model health** | Keep the last test result per model and connection, re-test on a schedule, and flag failures on the admin Overview and in the catalog. | S | Medium | — |
 | E12 **Done** | **Clearer connection errors** | TLS, proxy and certificate failures all show as "request failed". Name the cause, e.g. "certificate not trusted", "TLS handshake failed", "proxy refused". **Done** (Phase 5 M2), with DNS, connect, TLS and first-byte timings in model tests and `grounded doctor`. | S | Medium | — |
-| E13None | **Audience in the usage ledger** | Record the audience on usage events, so analytics can split token use by audience as well as by team. | S | Low–Medium | — |
-| E14None | **Profile migration for team owners** | Only platform admins start profile migrations today, because the embedding load is platform-wide. Let owners request one for their KB, with admin approval or a budget. | S | Medium | P2 |
+| E13 | **Audience in the usage ledger** | Record the audience on usage events, so analytics can split token use by audience as well as by team. | S | Low–Medium | — |
+| E14 | **Profile migration for team owners** | Only platform admins start profile migrations today, because the embedding load is platform-wide. Let owners request one for their KB, with admin approval or a budget. | S | Medium | P2 |
 | E15 **Done** (v0.2.0) | **Command palette finds objects** | ⌘K finds pages and actions, not teams, users, agents, sources, KBs or models by name (admin and workspace walkthroughs both asked for it). | S–M | Medium–High | — |
-| E16None | **Admin team settings as read-only facts** | Admin → Team → Settings shows auditors disabled inputs; the workspace shows the same data as a read-only list. Use the read-only pattern for auditors. | S | Low–Medium | — |
+| E16 | **Admin team settings as read-only facts** | Admin → Team → Settings shows auditors disabled inputs; the workspace shows the same data as a read-only list. Use the read-only pattern for auditors. | S | Low–Medium | — |
 | E17 **New** | **Budget follow-ups** | Per-agent budgets (not in v0.2.0); re-embedding during a profile migration checked against the budget; documents already queued when a budget runs out (they finish today); a shorter cache than 30 s for teams close to 100%. | S–M | Medium | E2 |
 
 ## F. Platform and operations
@@ -162,7 +183,7 @@ The plan and the owner's decisions are in [`v0.2.0.md`](v0.2.0.md); the release 
 | F8 **Done** (v0.2.0) | **Faster authorization matrix** | About 3,300 calls under `-race` take over 7 minutes on a 2-vCPU CI runner. Run the calls in parallel per team fixture, or give the matrix its own CI job. | S | Medium (CI time) | — |
 | F9 **Done** (v0.2.0) | **Release assets** | Attach an SBOM file and a checksums file to each GitHub Release; today they exist only as attestations on the image. | S | Medium (adoption, compliance) | — |
 | F10 **Done** (v0.2.0) | **Remote Kustomize base for the reference install** | The repository is public, so the homelab overlay can reference `github.com/ncecere/grounded//deploy/kubernetes?ref=v0.1.0` and drop its vendored copy (`docs/deployments/kubernetes.md`, "Consuming the base"). Upgrades become a one-line ref and digest change. | S | Medium | — |
-| F11None | **bitop-ui docs site and npm** | bitop-ui is public, but its docs site isn't published (`DEPLOY_PAGES` is off) and the CLI installs from a checkout. Publish the site, and consider a registry URL so Grounded (and others) install without a local clone. | S | Medium (adoption) | — |
+| F11 | **bitop-ui docs site and npm** | bitop-ui is public, but its docs site isn't published (`DEPLOY_PAGES` is off) and the CLI installs from a checkout. Publish the site, and consider a registry URL so Grounded (and others) install without a local clone. | S | Medium (adoption) | — |
 | F12 **Done** (v0.2.0) | **Dependabot triage** | Weekly grouped update PRs now arrive for Go, npm, Actions and Docker. Decide who merges them and how (CI green → merge), so they don't pile up. | S (ongoing) | Medium | — |
 | F13 **New** | **Local dev resilience** | The dev fake model proxy and the OCR sidecar don't come back after Docker restarts; `make deps-up` should start (or `make dev` should supervise) everything a local build expects. | S | Low (developers) | — |
 
@@ -188,7 +209,7 @@ All of G1–G18 are **Done** in v0.2.0.
 | G16 **Done** | The answer feedback buttons have no pressed state (`aria-pressed`), and the selected thumb is only a faint fill. | S |
 | G17 **Done** | Agent Appearance says the default accent is `#0021a5`, but the preview uses the theme's indigo: a leftover from the removed institution theme. | S |
 | G18 **Done** | The widget key form opens with `?record=new`; every other form page uses `?form=`. | S |
-| G19 **New** | bitop-ui follow-ups asked for in the v0.2 fixes: a collapsed breadcrumb item with a menu of the hidden crumbs; Combobox blocking a dialog's submit on Enter when its list is closed (Grounded has a wrapper); an accessible tooltip on plain text; a fixed axis range for LineChart (the evaluation score chart should be 0–100%); DataTable hiding the Columns button on small tables; column hiding on the team spend tables. | S |
+| G19 | bitop-ui follow-ups. **Done in v0.2.1:** the collapsed breadcrumb item and LineChart's fixed range (0–100% score chart). **Open:** Combobox blocking a dialog's submit on Enter when its list is closed (Grounded has a wrapper); an accessible tooltip on plain text; LineChart axis ticks (0% and 50% labels); DataTable hiding the Columns button on small tables and showing its search label; FilterBar chips for single-choice filters; Menu and Popover popups inside a landmark (axe `region`); InlineCitation with a built-in "go to source" action; column hiding on the team spend tables. | S |
 | G20 **Done** | Evaluation run links read "Retrieval , Sep 28…" (a stray space before the comma). | S |
 
 ## H. Next release housekeeping
@@ -218,6 +239,21 @@ All of G1–G18 are **Done** in v0.2.0.
 
 ---
 
+## J. v0.2.2: small fixes
+
+On branch `release/v0.2.2`; found while preparing the public sites' screenshots and in the v0.2.1 walkthrough.
+
+| ID | Item | Size |
+|---|---|---|
+| J1 **Done** | The admin Overview's Features card squeezed the Evaluations description into a one-word column beside its switch: a row with a control now puts its actions under its text. | S |
+| J2 **New** | A connection test fails with 404 for a working SystemOne connection (the test asks `/models`, which a SystemOne service doesn't serve). Test SystemOne connections with a SystemOne request. | S |
+| J3 **New** | Team avatar initials: "IT Help Desk" shows "ID"; initials should come from the first two words ("IH") or skip all-caps acronyms sensibly. | S |
+| J4 **New** | Editors can't withdraw their own pending domain request (there's no API for it). | S |
+| J5 **New** | The G19 bitop-ui items above, as they land. | S |
+| J6 **New** | F13 local dev resilience: the fake model proxy and OCR sidecar come back after a Docker restart. | S |
+
+---
+
 ## v0.2.0 scope (owner decisions, 2026-09-28)
 
 The spec is [`v0.2.0.md`](v0.2.0.md). Everything below shipped in v0.2.0 except what is marked later.
@@ -234,4 +270,4 @@ The spec is [`v0.2.0.md`](v0.2.0.md). Everything below shipped in v0.2.0 except 
 | Small fixes: G1, G2, G4, G5, G7–G18, C13, C14 | In. **Done.** |
 | Operations: F8, F9, F10, F12 | In. **Done.** |
 
-Next in line after v0.2.1, for v0.3: **C1** MCP, **D1** Teams/Slack bots, **B1** Microsoft 365 connector (with **B6** ACLs), **C2** unanswered-questions report, **E11** stored model health, **F1** tracing, **A1b** once there's a model.
+Next in line after v0.2.2, for v0.3: **C1** MCP, **D1** Teams/Slack bots, **B1** Microsoft 365 connector (with **B6** ACLs), **C2** unanswered-questions report, **E11** stored model health, **F1** tracing, **A1b** once there's a model.
