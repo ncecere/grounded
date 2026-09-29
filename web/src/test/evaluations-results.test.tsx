@@ -5,7 +5,7 @@
  * picker, "Add to evaluations" from an answer, a run that finishes without
  * a reload, and the knowledge base's header action per tab.
  */
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
@@ -92,6 +92,22 @@ describe("a result's page", () => {
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(within(res).getByRole("button", { name: /Edit question/ }));
     expect(await screen.findByRole("dialog", { name: "Edit question" })).toBeInTheDocument();
+  });
+
+  it("comes back over its run after the browser's Back, with the trail Team \u203a Evaluations \u203a Set \u203a Run \u203a Result", async () => {
+    mockApi(routes());
+    const { router } = renderApp("/teams/registrar/evaluations/set1?tab=runs&record=r2&result=res2");
+    await screen.findByRole("region", { name: "Result" }, T);
+    // Leave for another page (Open expected document, Try this search), then Back: the run and the result mount together.
+    act(() => void router.history.push("/teams/registrar/evaluations"));
+    await screen.findByRole("table", { name: "Evaluation sets" }, T);
+    act(() => router.history.back());
+    const res = await screen.findByRole("region", { name: "Result" }, T);
+    expect(within(res).getByRole("link", { name: "Back to Run" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Run" })).toBeNull();
+    const trail = within(screen.getByRole("navigation", { name: "Breadcrumb" })).getAllByRole("listitem");
+    expect(trail.map((li) => li.textContent)).toEqual(["Office of the Registrar", "Evaluations", set.name, "Run", "Result"]);
+    expect(within(trail[1]!).getByRole("link", { name: "Evaluations" })).toHaveAttribute("href", "/teams/registrar/evaluations");
   });
 
   it("says a question wasn't scored because nothing in the knowledge base matches, and still lists what came back", async () => {

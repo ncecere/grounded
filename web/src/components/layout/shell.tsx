@@ -13,10 +13,11 @@ import { Badge } from "@/components/ui/badge/badge";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs/breadcrumbs";
 import { CommandPalette, CommandPaletteTrigger, useCommandPaletteShortcut } from "@/components/ui/command-palette/command-palette";
 import { TooltipProvider } from "@/components/ui/tooltip/tooltip";
+import { useMediaQuery } from "@/lib/bitop-utils";
 import styles from "./layout.module.css";
 import { useActiveTeam } from "./active-team";
 import { isAdminRoute, isChatRoute, useCapabilities, useLocationInfo } from "./location";
-import { documentTitle, useBreadcrumbs } from "./breadcrumbs";
+import { documentTitle, fitCrumbs, useBreadcrumbs } from "./breadcrumbs";
 import { useCurrentPageCrumbs } from "./crumb-tail";
 import { TakeoverHost } from "../templates/takeover";
 import { useCommands } from "./commands";
@@ -67,6 +68,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
 
   const active = useActiveTeam(me, loc);
   const crumbs = useBreadcrumbs(loc, canAdmin);
+  const narrow = useMediaQuery("(max-width: 37.5rem)");
   // The bottom record or form page's back link names the route's page underneath.
   const pageCrumbs = useCurrentPageCrumbs();
   const under = pageCrumbs.length > 0 ? crumbs[crumbs.length - 1 - pageCrumbs.length]?.label : undefined;
@@ -106,7 +108,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
         sidebar={<AppSidebar me={me} mode={mode} active={active} />}
         topbar={
           <TopBar
-            start={<Breadcrumbs items={crumbs} className={styles.crumbs} />}
+            start={<Breadcrumbs items={fitCrumbs(crumbs, narrow)} className={styles.crumbs} />}
             end={
               <>
                 {inAdmin && readOnlyAdmin && (

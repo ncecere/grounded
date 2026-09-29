@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import { Reply, mockApi, renderApp } from "./harness";
 import { evalRoutes, meWithEvals, questions, result, set } from "./evaluations-fixtures";
+import { fitCrumbs } from "../components/layout/breadcrumbs";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -174,7 +175,7 @@ describe("a set's page", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/teams/registrar/kbs/k1"));
   });
 
-  it("explains a Run that can't start, and collapses the breadcrumb to Team › … › Set", async () => {
+  it("explains a Run that can't start, and puts the set under the team's Evaluations page in the breadcrumb", async () => {
     mockApi(evalRoutes("editor", { "GET /v1/teams/registrar/evaluation-sets/set1": () => ({ ...set, questionCount: 0 }), "GET /v1/teams/registrar/evaluation-sets/set1/questions": () => [] }));
     const { container } = renderApp("/teams/registrar/evaluations/set1");
     // Focusable (aria-disabled, not disabled), with the reason as its description.
@@ -182,22 +183,28 @@ describe("a set's page", () => {
     expect(run).toHaveAttribute("aria-disabled", "true");
     expect(run).not.toBeDisabled();
     expect(run).toHaveAccessibleDescription("Add questions first.");
+    // Team › Evaluations › Set, nothing collapsed on a wide screen; the knowledge base is a fact on the page.
     const crumbs = screen.getByRole("navigation", { name: /Breadcrumb/i });
-    // "…" is a menu of the hidden crumbs: Knowledge bases › Student handbook › Evaluations.
-    const more = within(crumbs).getByRole("button", { name: "Knowledge bases, Student handbook, Evaluations" });
-    expect(more).toHaveAttribute("title", "Knowledge bases › Student handbook › Evaluations");
-    expect(within(crumbs).queryByRole("link", { name: "Knowledge bases" })).toBeNull();
-    expect(within(crumbs).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(crumbs).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Office of the Registrar", "Evaluations", set.name]);
+    expect(within(crumbs).getByRole("link", { name: "Evaluations" })).toHaveAttribute("href", "/teams/registrar/evaluations");
+    expect(within(crumbs).queryByRole("button")).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
-    await userEvent.click(more);
-    const menu = await screen.findByRole("menu", {}, T);
-    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Knowledge bases", "Student handbook", "Evaluations"]);
-    expect(within(menu).getByRole("menuitem", { name: "Evaluations" })).toHaveAttribute("href", "/teams/registrar/kbs/k1?tab=evaluations");
   });
 
   it("is not found for members", async () => {
     mockApi(evalRoutes("member", { "GET /v1/teams/registrar/evaluation-sets/set1": () => Reply.error(404, "not_found") }));
     renderApp("/teams/registrar/evaluations/set1");
     expect(await screen.findByRole("heading", { level: 1, name: /Not found|couldn't be found|not found/i }, T)).toBeInTheDocument();
+  });
+});
+
+describe("the breadcrumb on a phone", () => {
+  const trail = ["Team", "Evaluations", "Set", "Run", "Result"].map((label) => ({ label }));
+  it("keeps the first and last crumbs and collapses the rest into a menu, only when narrow", () => {
+    expect(fitCrumbs(trail, false)).toBe(trail);
+    const fitted = fitCrumbs(trail, true);
+    expect(fitted.map((c) => c.label)).toEqual(["Team", "Evaluations, Set, Run", "Result"]);
+    expect(fitted[1]!.collapsed?.map((c) => c.label)).toEqual(["Evaluations", "Set", "Run"]);
+    expect(fitCrumbs(trail.slice(0, 3), true)).toHaveLength(3);
   });
 });

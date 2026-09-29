@@ -19,30 +19,34 @@ import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { cx } from "@/lib/bitop-utils";
 import s from "../../pages/shared.module.css";
-import { useCurrentPageCrumbs, usePageCrumb } from "../layout/crumb-tail";
+import { insertByDepth, useCurrentPageCrumbs, usePageCrumb } from "../layout/crumb-tail";
 import styles from "./templates.module.css";
 
 type Host = {
   slot: HTMLElement | null;
   stack: string[];
-  push: (id: string) => void;
+  push: (id: string, depth: number) => void;
   remove: (id: string) => void;
   backLabel?: ReactNode;
 };
 
 const HostContext = createContext<Host | null>(null);
 
+/** How many pages the current one is nested in (0 outside any): a page opened from another's content stacks over it. */
+const DepthContext = createContext(0);
+
 /** The shell's main area: the route's page, hidden while a record or form page is open. */
 export function TakeoverHost({ children, backLabel }: { children: ReactNode; backLabel?: ReactNode }) {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
-  const [stack, setStack] = useState<string[]>([]);
+  const [entries, setEntries] = useState<{ id: string; depth: number }[]>([]);
   // Stable, so a page's register effect runs once, not on every stack change.
-  const push = useCallback((id: string) => setStack((st) => (st.includes(id) ? st : [...st, id])), []);
-  const remove = useCallback((id: string) => setStack((st) => st.filter((x) => x !== id)), []);
+  const push = useCallback((id: string, depth: number) => setEntries((st) => (st.some((x) => x.id === id) ? st : insertByDepth(st, { id, depth }))), []);
+  const remove = useCallback((id: string) => setEntries((st) => st.filter((x) => x.id !== id)), []);
+  const stack = useMemo(() => entries.map((x) => x.id), [entries]);
   const value = useMemo<Host>(() => ({ slot, stack, backLabel, push, remove }), [slot, stack, backLabel, push, remove]);
   return (
     <HostContext.Provider value={value}>
-      <div hidden={stack.length > 0}>{children}</div>
+      <div hidden={entries.length > 0}>{children}</div>
       <div ref={setSlot} />
     </HostContext.Provider>
   );
@@ -76,6 +80,7 @@ function currentHrefWithout(param: string) {
 
 export function TakeoverPage({ label, title, description, meta, actions, onBack, param, initialFocus = "heading", back: backTo, children }: TakeoverPageProps) {
   const host = useContext(HostContext);
+  const depth = useContext(DepthContext) + 1;
   const id = useId();
   const ref = useRef<HTMLElement>(null);
   const isTop = !host || host.stack[host.stack.length - 1] === id;
@@ -87,7 +92,7 @@ export function TakeoverPage({ label, title, description, meta, actions, onBack,
   useLayoutEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     const scrollY = globalThis.scrollY ?? 0;
-    push?.(id);
+    push?.(id, depth);
     return () => {
       remove?.(id);
       requestAnimationFrame(() => {
@@ -95,7 +100,7 @@ export function TakeoverPage({ label, title, description, meta, actions, onBack,
         if (opener?.isConnected && opener.offsetParent !== null) opener.focus({ preventScroll: true });
       });
     };
-  }, [id, push, remove]);
+  }, [id, depth, push, remove]);
 
   // On becoming the top page: start at the top, focus the heading.
   useEffect(() => {
@@ -115,7 +120,7 @@ export function TakeoverPage({ label, title, description, meta, actions, onBack,
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
   const href = currentHrefWithout(param);
-  const crumb = useMemo(() => (hasHost ? { id, label, close: () => onBackRef.current(), href } : undefined), [hasHost, id, label, href]);
+  const crumb = useMemo(() => (hasHost ? { id, label, close: () => onBackRef.current(), href, depth } : undefined), [hasHost, id, label, href, depth]);
   usePageCrumb(crumb);
 
   // The back link names what's underneath: the page below in the stack, or the route's page.
@@ -145,7 +150,7 @@ export function TakeoverPage({ label, title, description, meta, actions, onBack,
             </a>
           }
         />
-        {children}
+        <DepthContext.Provider value={depth}>{children}</DepthContext.Provider>
       </Stack>
     </section>
   );
