@@ -82,7 +82,8 @@ function platformLink(e: AuditEntry): ReactElement | null {
     case "maintenance_mode":
       return <Link to="/admin/maintenance" />;
     case "legal_hold":
-      return <Link to="/admin/legal-holds" search={{ tab: "all", record: id } as never} />;
+      // Legal holds are a tab of Retention (v0.2.1 I1).
+      return <Link to="/admin/retention" search={{ tab: "holds", record: id } as never} />;
     case "retention":
       // A retention run.
       return /^\d+$/.test(id) ? <Link to="/admin/retention" search={{ tab: "runs", record: Number(id) } as never} /> : <Link to="/admin/retention" search={{ tab: "runs" }} />;

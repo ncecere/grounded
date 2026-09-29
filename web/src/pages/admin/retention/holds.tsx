@@ -1,28 +1,27 @@
 /*
- * Admin → Legal holds (DESIGN.md §8, docs/operations/retention.md): holds on
- * a user, team, agent or conversation, optionally for a date range. A hold
- * stops every retention deletion of what it covers and never expires; a
- * platform admin releases it with a reason. Only platform admins and
- * auditors see holds. Tabs: Active · Released · All; a hold opens as a record page (?record=).
+ * Admin → Retention › Legal holds (DESIGN.md §8, docs/operations/retention.md;
+ * a page of its own until v0.2.1, I1): holds on a user, team, agent or
+ * conversation, optionally for a date range. A hold stops every retention
+ * deletion of what it covers and never expires; a platform admin releases it
+ * with a reason. Only platform admins and auditors see holds. A Status filter
+ * (?status=active|released) replaces the old page's Active · Released · All
+ * tabs; a hold opens as a record page (?record=). "Place a hold" is the
+ * Retention header's primary on this tab.
  */
 import { useQuery } from "@tanstack/react-query";
-import { Eye, List, Lock, LockOpen, Scale } from "lucide-react";
+import { Eye, Lock, LockOpen, Scale } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
-import { PageTabs, useUrlTab } from "@/components/page-tabs";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
 import { RecordPage, useRecordParam } from "@/components/templates/record-page";
 import { Alert } from "@/components/ui/alert/alert";
 import { Badge, StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
-import { Stack } from "@/components/ui/layout/layout";
-import { PageHeader } from "@/components/ui/page-header/page-header";
+import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { formatDate } from "@/lib/format";
-import { legalHoldTabs } from "@/lib/tabs";
 import s from "../../shared.module.css";
-import { useIsPlatformAdmin } from "../hooks";
-import { PlaceHoldDialog, ReleaseHoldDialog, holdsKey } from "./hold-dialogs";
+import { ReleaseHoldDialog, holdsKey } from "./hold-dialogs";
 import { rangeText, scopeTypeLabels } from "./labels";
 import r from "./retention.module.css";
 
@@ -59,7 +58,7 @@ const columns: DataTableColumn<Hold>[] = [
     numeric: true,
     cell: (h) => <CellText primary={h.conversations.toLocaleString()} secondary={h.deletedConversations ? `${h.deletedConversations.toLocaleString()} deleted by users` : undefined} />,
   },
-  { id: "status", header: "Status", accessor: "status", cell: (h) => <HoldStatus hold={h} /> },
+  { id: "status", header: "Status", accessor: "status", sortable: true, cell: (h) => <HoldStatus hold={h} /> },
   { ...timeColumn<Hold>("createdAt", "Placed", (h) => h.createdAt), defaultHidden: false },
 ];
 
@@ -67,33 +66,24 @@ function HoldStatus({ hold }: { hold: Hold }) {
   return hold.status === "active" ? <StatusBadge tone="warning">Active</StatusBadge> : <StatusBadge tone="neutral">Released</StatusBadge>;
 }
 
-const holdTabIcons = { active: <Lock aria-hidden />, released: <LockOpen aria-hidden />, all: <List aria-hidden /> } as const;
+const facets: Facet<Hold>[] = [
+  {
+    id: "status",
+    label: "Status",
+    type: "toggle",
+    allLabel: "All",
+    accessor: (h) => h.status,
+    options: [
+      { value: "active", label: "Active", icon: <Lock aria-hidden /> },
+      { value: "released", label: "Released", icon: <LockOpen aria-hidden /> },
+    ],
+  },
+];
 
-export function LegalHoldsPage() {
-  const isAdmin = useIsPlatformAdmin();
-  const [tab, setTab] = useUrlTab(legalHoldTabs);
-  const [placing, setPlacing] = useState(false);
-  return (
-    <Stack gap={6} className={s.page}>
-      <PageHeader
-        title="Legal holds"
-        description="A hold stops every retention deletion of what it covers, including conversations their users delete, until you release it. Holds never expire. Only platform admins and auditors see them."
-        actions={isAdmin && <Button onClick={() => setPlacing(true)}>Place a hold</Button>}
-      />
-      <PageTabs
-        label="Legal hold status"
-        value={tab}
-        onValueChange={setTab}
-        tabs={legalHoldTabs.map((t) => ({ value: t, label: { active: "Active", released: "Released", all: "All" }[t], icon: holdTabIcons[t], content: <HoldList status={t} isAdmin={isAdmin} onPlace={() => setPlacing(true)} /> }))}
-      />
-      {placing && <PlaceHoldDialog onClose={() => setPlacing(false)} />}
-    </Stack>
-  );
-}
-
-function HoldList({ status, isAdmin, onPlace }: { status: (typeof legalHoldTabs)[number]; isAdmin: boolean; onPlace: () => void }) {
+/** Every hold, active ones first, filtered by status in the list; `onPlace` opens the Retention page's "Place a hold". */
+export function LegalHoldsTab({ isAdmin, onPlace }: { isAdmin: boolean; onPlace: () => void }) {
   const record = useRecordParam();
-  const holds = useQuery({ queryKey: [...holdsKey, status], queryFn: async () => unwrap(await api.GET("/v1/admin/legal-holds", { params: { query: { status } } })) });
+  const holds = useQuery({ queryKey: [...holdsKey, "all"], queryFn: async () => unwrap(await api.GET("/v1/admin/legal-holds", { params: { query: { status: "all" } } })) });
   const [releasing, setReleasing] = useState<Hold | null>(null);
   return (
     <>
@@ -104,6 +94,7 @@ function HoldList({ status, isAdmin, onPlace }: { status: (typeof legalHoldTabs)
         data={holds.data ?? []}
         getRowId={(h) => h.id}
         rowLabel={(h) => `Hold on ${scopeName(h)}`}
+        facets={facets}
         search={{ label: "Search holds", placeholder: "Name or reason" }}
         loading={holds.isLoading}
         error={holds.error}
@@ -115,10 +106,15 @@ function HoldList({ status, isAdmin, onPlace }: { status: (typeof legalHoldTabs)
         ]}
         empty={{
           icon: <Scale />,
-          title: status === "released" ? "No released holds." : "No legal holds.",
-          description: status === "released" ? undefined : "Retention deletes what's past its period as set.",
-          action: isAdmin && status !== "released" ? <Button variant="secondary" onClick={onPlace}>Place a hold</Button> : undefined,
+          title: "No legal holds.",
+          description: "Retention deletes what's past its period as set.",
+          action: isAdmin ? (
+            <Button variant="secondary" onClick={onPlace}>
+              Place a hold
+            </Button>
+          ) : undefined,
         }}
+        tableProps={{ defaultSort: { columnId: "status", direction: "ascending" } }}
       />
       <HoldSheet id={record.id} onClose={record.close} isAdmin={isAdmin} onRelease={setReleasing} />
       {releasing && <ReleaseHoldDialog hold={releasing} onClose={() => setReleasing(null)} />}

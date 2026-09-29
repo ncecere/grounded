@@ -11,7 +11,11 @@ import (
 	"github.com/google/uuid"
 )
 
-func migrationLink(id uuid.UUID) string { return "/admin/profile-migrations?record=" + id.String() }
+// Migrations are a tab of Admin → Embedding profiles (v0.2.1 I1); the old
+// /admin/profile-migrations links of stored notifications redirect there.
+func migrationLink(id uuid.UUID) string {
+	return "/admin/embedding-profiles?tab=migrations&record=" + id.String()
+}
 
 // ProfileSwitchedEvent: a migration switched its knowledge base.
 func ProfileSwitchedEvent(admins []uuid.UUID, t TeamRef, migrationID uuid.UUID, kbName, from, to string, until time.Time) Event {

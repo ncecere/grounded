@@ -1,12 +1,13 @@
 /*
- * Admin → Embedding profiles (A5): a ListPage with one-line Vectors and
- * Passages cells, Used by, and a row menu (Make default, Retire, Fusion
+ * Admin → Embedding profiles › Profiles (A5): a list with one-line Vectors
+ * and Passages cells, Used by, and a row menu (Make default, Retire, Fusion
  * defaults, Delete last). Each profile opens in a RecordPage with its fixed
- * settings, output dimensions and default fusion weights.
+ * settings, output dimensions and default fusion weights. The page and its
+ * header ("Add profile") are in profiles-page.tsx.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, ArchiveRestore, Eye, Layers, Plus, SlidersHorizontal, Star, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Archive, ArchiveRestore, Eye, Layers, SlidersHorizontal, Star, Trash2 } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import type { ActionItem } from "@/components/templates/action-menu";
@@ -20,9 +21,8 @@ import { toast } from "@/components/ui/toast/toast";
 import { useLevelName } from "../../team/common";
 import { describeWeights } from "../../team/kbs/fusion-form";
 import s from "../../shared.module.css";
-import { useIsPlatformAdmin } from "../hooks";
 import { type Profile, type ProfileUsage, profileUsedBy, useCatalogUsage } from "./common";
-import { ProfileDialog, ProfileFusionDialog } from "./profile-dialog";
+import { ProfileFusionDialog } from "./profile-dialog";
 import m from "./models.module.css";
 
 type ProfileUpdate = { p: Profile; body: Schemas["EmbeddingProfileUpdate"] };
@@ -54,13 +54,12 @@ function ProfileStatus({ p }: { p: Profile }) {
   return p.status === "active" ? <StatusBadge tone="success">Active</StatusBadge> : <StatusBadge tone="neutral">Retired</StatusBadge>;
 }
 
-export function EmbeddingProfilesPage() {
-  const isAdmin = useIsPlatformAdmin();
+/** The profiles list; `add` is the "Add profile" button for the empty state (platform admins). */
+export function ProfilesTab({ isAdmin, add }: { isAdmin: boolean; add?: ReactNode }) {
   const levelName = useLevelName();
   const profiles = useQuery({ queryKey: ["admin", "profiles"], queryFn: async () => unwrap(await api.GET("/v1/admin/embedding-profiles")) });
   const usage = useCatalogUsage();
   const record = useRecordParam();
-  const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<Profile | null>(null);
   const [fusion, setFusion] = useState<Profile | null>(null);
   const { update, del } = useProfileMutations(() => {
@@ -122,19 +121,11 @@ export function EmbeddingProfilesPage() {
     { id: "fusion", header: "Fusion default", accessor: (p) => (p.defaultFusionWeights ? describeWeights(p.defaultFusionWeights) : "Platform default"), muted: true, defaultHidden: true },
     { id: "status", header: "Status", accessor: (p) => (p.isDefault ? "Default" : p.status), sortable: true, cell: (p) => <ProfileStatus p={p} /> },
   ];
-  const add = isAdmin && (
-    <Button onClick={() => setCreating(true)}>
-      <Plus aria-hidden /> Add profile
-    </Button>
-  );
   return (
     <>
+      <ErrorAlert error={update.error} />
       <ListPage<Profile>
         id="admin-profiles"
-        title="Embedding profiles"
-        description="How documents are split into passages and embedded. Sources choose a profile; every source in a knowledge base shares one. Vector settings are fixed once created."
-        primaryAction={add}
-        notices={<ErrorAlert error={update.error} />}
         caption="Embedding profiles"
         columns={columns}
         data={list}
@@ -156,7 +147,6 @@ export function EmbeddingProfilesPage() {
         isAdmin={isAdmin}
         onFusion={setFusion}
       />
-      {creating && <ProfileDialog onClose={() => setCreating(false)} />}
       {fusion && <ProfileFusionDialog profile={fusion} onClose={() => setFusion(null)} />}
       <ConfirmMutationDialog
         target={deleting}

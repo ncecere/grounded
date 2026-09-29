@@ -1,3 +1,2 @@
-/* Admin → Retention and Admin → Legal holds share one lazy chunk. */
-export { LegalHoldsPage } from "./holds";
+/* Admin → Retention (with its Legal holds tab) as one lazy chunk. */
 export { RetentionPage } from "./page";
