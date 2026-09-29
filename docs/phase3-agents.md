@@ -300,7 +300,7 @@ With `stream = false`, the endpoint returns the final message as JSON.
 - **Message list:**
   - Markdown via `react-markdown` + `remark-gfm`, with raw HTML disabled.
   - `[n]` markers render as superscript buttons that focus the matching source card.
-  - A collapsed "Reasoning" disclosure for thinking.
+  - Thinking: readers see "Thinking…" while the model thinks, never its reasoning; editors testing a draft (the Test panel) can open a collapsed "Reasoning" disclosure.
   - Source cards: title, heading path or page, snippet, external link for web pages.
   - Feedback (thumbs plus a reason menu), copy.
 - **Composer:** Enter sends, Shift+Enter adds a newline, a Stop button while streaming, a character limit.

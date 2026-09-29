@@ -29,7 +29,7 @@ No model calls except embedding the question, so it's fast and nearly free.
 ## 3. Full-answer check
 
 - Asks the agent each question the way a chat would, from its **published** version or its **draft** (the run form picks; draft by default in the editor), without writing a conversation (the Test panel's mode).
-- Scores per question: did the answer **cite** an expected document; does it **mention** each must-mention phrase; did it **refuse** ("I don't know") when it shouldn't; and, when SystemOne citation checks are on for the agent, the share of **supported claims**.
+- Scores per question: did the answer **cite** an expected document; does it **mention** each must-mention phrase; did it **refuse** ("I don't know") when it shouldn't; and, when SystemOne citation checks are on for the agent, the share of **supported claims**: verified claim–source pairs over the checked pairs plus the answer's factual sentences without a citation, which count as unsupported ([`systemone.md` §3](systemone.md#citation-checks-as-built-3)).
 - A question passes when it cites an expected document and mentions every phrase. The answer text is stored with the result so editors can read it (it's the team's own test output, not a user conversation), with its citations one per marker number (`[1]`, `[2]`…) and the cited passage, so the result page shows the answer formatted as in chat, with citation chips that match its markers.
 - Tokens are metered as chat usage tagged as evaluation, priced by E2, refused when a budget is used up. The run form says how many answers it asks for ("40 answers") and, when the team's budget is enforced, that they count against it.
 
