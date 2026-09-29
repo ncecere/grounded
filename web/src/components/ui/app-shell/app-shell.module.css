@@ -162,6 +162,11 @@
   list-style: none;
 }
 
+/* A closed collapsible section (display: flex above would override the hidden attribute). */
+.items[hidden] {
+  display: none;
+}
+
 .itemRow {
   display: flex;
 }
@@ -322,8 +327,10 @@
     transform: translateX(100%);
   }
 
+  /* A flex item with a z-index stacks even when static: drop the rail's, so the close button shows. */
   & .sidebar {
     position: static;
+    z-index: auto;
     flex: 1;
     width: auto;
     min-width: 0;
@@ -332,6 +339,7 @@
 
 .drawerClose {
   position: absolute;
+  z-index: 1;
   top: var(--space-3);
   inset-inline-end: var(--space-2);
   display: inline-flex;

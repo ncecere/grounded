@@ -233,9 +233,11 @@ export function SidebarNav({ children, className, ...props }: SidebarNavProps) {
 /** The drawer that holds the sidebar on a narrow window. */
 function SidebarDrawer({ open, onOpenChange, label, children }: { open: boolean; onOpenChange: (open: boolean) => void; label: string; children: ReactNode }) {
   // Following a link (a page in the sidebar, or a link in one of its menus) closes the drawer.
+  // Router links cancel the browser's navigation (defaultPrevented) to do their own, so that isn't checked;
+  // a modified click opens a new tab and leaves the drawer open.
   const onClick = (e: MouseEvent) => {
     const link = (e.target as Element).closest?.("a[href]");
-    if (link && !e.defaultPrevented && !e.metaKey && !e.ctrlKey && !e.shiftKey) onOpenChange(false);
+    if (link && !e.metaKey && !e.ctrlKey && !e.shiftKey) onOpenChange(false);
   };
   return (
     <BaseDialog.Root open={open} onOpenChange={(o) => onOpenChange(o)}>

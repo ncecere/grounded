@@ -16,8 +16,8 @@
     },
     "app-shell": {
       "files": {
-        "src/components/ui/app-shell/app-shell.module.css": "4da583d6a94992b47f99e19bc30e9a510adb1b698ffd60516d4115cfe7fa5042",
-        "src/components/ui/app-shell/app-shell.tsx": "4e8edb18ab5f45412d49152df0099e9798db830ec011714d729b3cb6b38c316f"
+        "src/components/ui/app-shell/app-shell.module.css": "99dc9b22cc27d5fb5b728fda06e43cc7a42ec812882859d70bd5ae3afb07c91a",
+        "src/components/ui/app-shell/app-shell.tsx": "d9586f43e850dafe777c0ae4ed4b7b8677fd83b2aa893c05eb3991349fd75c8c"
       }
     },
     "attachments": {
@@ -106,7 +106,7 @@
     },
     "command-palette": {
       "files": {
-        "src/components/ui/command-palette/command-palette.module.css": "c614f81a2939583cd3d593563526bbfd98873a38e664ddf877006c6f4b59bcfa",
+        "src/components/ui/command-palette/command-palette.module.css": "54068eb1309bc1a07806acab8414cc66619c170aceab97267e91611897337f57",
         "src/components/ui/command-palette/command-palette.tsx": "30db7cfa6ee8094e2e40c6b654592b2c180d0df257573cba417d655ed96924d1"
       }
     },
