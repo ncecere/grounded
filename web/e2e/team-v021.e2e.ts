@@ -25,7 +25,8 @@ test("quality and spend, crawl domains on Data sources, and the agent's version 
     await page.goto(`/teams/${team}`);
     const row = page.getByRole("region", { name: "Quality & spend" });
     await expect(row.getByRole("table", { name: "Latest evaluation scores" }).getByRole("link", { name: "Parking questions" })).toBeVisible();
-    await expect(row.getByText(/this month · \d+% · Within budget · not enforced · resets/)).toBeVisible();
+    // The share shows once, on the meter.
+    await expect(row.getByText(/this month · Within budget · not enforced · resets/)).toBeVisible();
     await a11y(page);
     await row.getByRole("link", { name: "All evaluations" }).click();
     await expect(page).toHaveURL(`/teams/${team}/evaluations`);
@@ -47,8 +48,11 @@ test("quality and spend, crawl domains on Data sources, and the agent's version 
     await page.keyboard.press("Escape");
   });
 
-  await test.step("Usage & spend in Team settings", async () => {
-    await page.goto(`/teams/${team}/settings?tab=usage`);
+  await test.step("Usage & spend in Team settings, from the Overview's Spend breakdown", async () => {
+    await page.goto(`/teams/${team}`);
+    await page.getByRole("region", { name: "Quality & spend" }).getByRole("link", { name: "Spend breakdown" }).click();
+    await expect(page).toHaveURL(`/teams/${team}/settings?tab=usage#spend-breakdown`);
+    await expect(page.getByRole("button", { name: /Spend breakdown/ })).toHaveAttribute("aria-expanded", "true");
     await expect(page.getByRole("tab", { name: "Usage & spend", selected: true })).toBeVisible();
     const tabs = page.getByRole("tablist", { name: "Team settings sections" }).getByRole("tab");
     await expect(tabs).toHaveText(["Members", "Usage & spend", "API keys", "Audit log", "General"]);
@@ -63,6 +67,9 @@ test("quality and spend, crawl domains on Data sources, and the agent's version 
     await page.getByRole("tab", { name: "Crawl domains" }).click();
     await expect(page).toHaveURL(`/teams/${team}/sources?tab=crawl-domains`);
     await expect(page.getByRole("button", { name: "Request a domain" })).toBeVisible();
+    // The header describes the tab it shows.
+    await expect(page.getByText(/^Web sources can crawl hosts on the platform allowlist/)).toBeVisible();
+    await expect(page.getByText(/^Uploaded files or pages from a website/)).toBeHidden();
     await a11y(page);
   });
 
