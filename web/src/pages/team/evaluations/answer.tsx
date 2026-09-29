@@ -5,14 +5,17 @@
  * documents marked. It uses chat's marker renderer (chat/citations.tsx), so
  * with SystemOne citation checks each chip shows its claim's verdict, its
  * card the claim, and the answer the same claims summary as in chat
- * ("2 of 3 claims supported · 1 uncited"). A chip previews its source and
- * moves focus to it; the sources start collapsed, as in chat.
+ * ("2 of 3 claims supported · 1 uncited"). A chip's card (hover, click,
+ * Enter) shows the claim and leads to its source; the sources start
+ * collapsed and are numbered 1..n, as in chat.
  */
 import { useCallback, useId, useMemo, useState } from "react";
 import { LazyResponse } from "@/components/ui/response/response-lazy";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ui/sources/sources";
-import { useAnswerMarkers, withUncited } from "../../chat/citations";
+import { displayNumbers, useAnswerMarkers, withUncited } from "../../chat/citations";
 import { ClaimSummary, uncitedOfClaims } from "../../chat/claims";
+import { revealSource } from "../../chat/reveal";
+import a from "../../chat/answer.module.css";
 import type { Citation } from "../../chat/stream";
 import s from "../../shared.module.css";
 import type { EvalResult } from "./queries";
@@ -56,11 +59,13 @@ export function EvalAnswer({ result }: { result: EvalResult }) {
   const goTo = useCallback(
     (n: number) => {
       setOpen(true);
-      setTimeout(() => document.getElementById(sourceId(n))?.focus(), 30);
+      void revealSource(sourceId(n));
     },
     [sourceId],
   );
   const markers = useAnswerMarkers(citations, goTo, chipSource, result.claims);
+  // Shown 1..n, as the chips number them (the stored numbers can skip).
+  const num = useMemo(() => displayNumbers(citations), [citations]);
   const text = result.answer ? withUncited(result.answer, result.claims ? uncitedOfClaims(result.claims) : undefined) : "";
   return (
     <div className={e.answer}>
@@ -82,8 +87,9 @@ export function EvalAnswer({ result }: { result: EvalResult }) {
                 key={h.n}
                 id={sourceId(h.n!)}
                 tabIndex={-1}
-                aria-label={`Source ${h.n}: ${titleOf(h)}${h.expected ? " (an expected document)" : ""}`}
-                index={h.n}
+                className={a.sourceCard}
+                aria-label={`Source ${num(h.n!)}: ${titleOf(h)}${h.expected ? " (an expected document)" : ""}`}
+                index={num(h.n!)}
                 title={titleOf(h)}
                 href={webUrl(h.url)}
                 meta={[where(h), h.expected ? "Expected document" : ""].filter(Boolean).join(" · ") || undefined}

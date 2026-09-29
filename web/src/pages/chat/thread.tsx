@@ -2,7 +2,7 @@
  * The Grounded chat thread: maps streamed/stored chat items onto bitop-ui's AI
  * elements (Message, Response, Reasoning, Tool, Sources, InlineCitation)
  * and adds Grounded behaviour: citation markers with their claim's verdict
- * that focus the source card, "Uncited" marks (citations.tsx), the claims'
+ * whose card leads to the source card (sources numbered 1..n), "Uncited" marks (citations.tsx), the claims'
  * summary (claims.tsx), feedback through the API, status notes and friendly
  * errors (notes.tsx). The sources start collapsed; a chip opens them.
  *
@@ -10,7 +10,7 @@
  * everyone else sees "Thinking…" while the model thinks, never its reasoning.
  */
 import { Check, ClipboardPlus } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { Message, MessageActions, MessageContent, MessageCopyAction } from "@/components/ui/message/message";
@@ -20,12 +20,14 @@ import { Shimmer } from "@/components/ui/shimmer/shimmer";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ui/sources/sources";
 import { verificationLabel } from "@/lib/systemone";
 import { displayText, normalizePunctuation } from "./answer-text";
-import { useAnswerMarkers, withUncited } from "./citations";
-import { ClaimSummary, uncitedOfClaims } from "./claims";
+import { displayNumbers, useAnswerMarkers, withUncited } from "./citations";
+import { type Claim, ClaimSummary, sourceClaimsText, uncitedOfClaims } from "./claims";
 import { Feedback, Notes, Steps, isAnswer } from "./notes";
+import { revealSource } from "./reveal";
 import type { AssistantItem, ChatItem, Citation } from "./stream";
 import { UserMessage } from "./user-message";
 import { AgentAvatar, type AgentLook } from "./welcome";
+import a from "./answer.module.css";
 import c from "./chat.module.css";
 
 export { normalizeMarkers } from "./answer-text";
@@ -42,9 +44,14 @@ const where = (s: Citation) => [s.headingPath.join(" › "), pages(s.pageStart, 
 /** Snippets are raw chunk text: drop Markdown heading and emphasis marks for display. */
 const plainSnippet = (t: string) => t.replace(/^#{1,6}\s+/gm, "").replace(/(\*\*|__)(.*?)\1/g, "$2").replace(/\s+/g, " ").trim();
 const webUrl = (s: Citation) => (s.url && /^https?:\/\//.test(s.url) ? s.url : undefined);
-/** The source card's meta line, with the SystemOne citation check when there is one. */
-const sourceMeta = (s: Citation) =>
-  [where(s), s.verification && s.verification !== "unchecked" ? verificationLabel(s.verification, s.confidence) : ""].filter(Boolean).join(" · ") || undefined;
+/**
+ * The source card's meta line, with the SystemOne citation check when there is one: with claims, how many of the
+ * claims citing it it supports (a chip's claim may be supported by another source); before claims, its own verdict.
+ */
+const sourceMeta = (s: Citation, claims?: Claim[]) => {
+  const check = claims ? sourceClaimsText(claims, s.n) : s.verification && s.verification !== "unchecked" ? verificationLabel(s.verification, s.confidence) : "";
+  return [where(s), check].filter(Boolean).join(" · ") || undefined;
+};
 /** What a citation chip's card shows about its source. */
 const chipSource = (s: Citation) => ({ title: s.title || "Untitled document", href: webUrl(s), siteName: where(s) || undefined, description: plainSnippet(s.snippet) });
 
@@ -68,24 +75,17 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const streaming = item.status === "streaming";
 
-  /** Opens the source list, then scrolls to and focuses the card. */
+  /** Opens the source list, then focuses the card and scrolls it into view (clear of the composer). */
   const goToSource = useCallback(
     (n: number) => {
       setSourcesOpen(true);
-      setTimeout(() => {
-        const el = document.getElementById(sourceElementId(item.key, n));
-        if (!el) return;
-        const reduce = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-        el.scrollIntoView?.({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
-        el.focus({ preventScroll: true });
-        el.setAttribute("data-highlighted", "");
-        setTimeout(() => el.removeAttribute("data-highlighted"), 1500);
-      }, 30);
+      void revealSource(sourceElementId(item.key, n));
     },
     [item.key],
   );
-  // [n] markers: chips that preview on hover and jump to the source card on press; unknown numbers stay text.
+  // [n] markers: chips whose card (hover, click, Enter) shows the claim and offers the source card; unknown numbers stay text.
   const markers = useAnswerMarkers(item.citations, goToSource, chipSource, item.claims);
+  const num = useMemo(() => displayNumbers(item.citations), [item.citations]);
   const thinking = Boolean(item.thinking) && !item.moderation;
   // Answers without sources already say so: no "Uncited" marks or claim summary for them.
   const uncited = item.noContext ? undefined : item.claims ? uncitedOfClaims(item.claims) : item.uncited;
@@ -134,11 +134,12 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
                   key={s.n}
                   id={sourceElementId(item.key, s.n)}
                   tabIndex={-1}
-                  aria-label={`Source ${s.n}: ${s.title || "Untitled document"}`}
-                  index={s.n}
+                  className={a.sourceCard}
+                  aria-label={`Source ${num(s.n)}: ${s.title || "Untitled document"}`}
+                  index={num(s.n)}
                   title={s.title || "Untitled document"}
                   href={webUrl(s)}
-                  meta={sourceMeta(s)}
+                  meta={sourceMeta(s, item.claims)}
                   description={plainSnippet(s.snippet)}
                 />
               ))}

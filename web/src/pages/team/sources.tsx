@@ -4,7 +4,7 @@
  * Sources, and Crawl domains, the team's requests to crawl hosts outside the
  * allowlist (moved from Team settings in v0.2.1, I4). "New data source" is
  * the header's primary on Sources; Crawl domains has its own "Request a
- * domain".
+ * domain". The header's description follows the tab.
  */
 import { useParams } from "@tanstack/react-router";
 import { Database, Globe, Plus } from "lucide-react";
@@ -21,7 +21,7 @@ import { SourceDetail } from "../sources/detail";
 import { SourcesTable } from "../sources/list";
 import { useSourceOwner } from "../sources/owner";
 import { useClassificationLevels, useEmbeddingProfiles, useKBs, useSources, useTeam } from "./common";
-import { DomainRequestsPage } from "./domains";
+import { crawlDomainsDescription, DomainRequestsPage } from "./domains";
 import { ArchivedNotice } from "./layout";
 
 export { documentSummary, SourceStatusBadge } from "../sources/list";
@@ -48,7 +48,12 @@ export function SourcesPage() {
     <Stack gap={6} className={s.page}>
       <PageHeader
         title="Data sources"
-        description="Uploaded files or pages from a website, for your knowledge bases. Each source has one classification and one embedding profile."
+        // Each tab's own description (the walkthrough found Sources' above Crawl domains).
+        description={
+          tab === "crawl-domains" && role
+            ? crawlDomainsDescription
+            : "Uploaded files or pages from a website, for your knowledge bases. Each source has one classification and one embedding profile."
+        }
         actions={create}
       />
       {tab === "sources" || !role ? owner.readOnlyNote : <ArchivedNotice>Its domain requests are read-only.</ArchivedNotice>}

@@ -102,13 +102,25 @@ test("upload source, knowledge base, agent, publish, streamed chat with citation
     const answer = page.getByRole("article", { name: "Parking helper said" });
     await expect(answer).toContainText(handbook.answer);
     await expect(answer.getByRole("button", { name: "Good answer" })).toBeVisible();
-    // The sources start collapsed; the citation mark in the text opens them and jumps to its source card.
+    // The sources start collapsed. The citation chip's card opens from the keyboard (Escape returns to the chip),
+    // and its "Show source 1 below" opens the sources and focuses that card, in view above the composer.
     await expect(answer.getByRole("button", { name: "Used 1 source" })).toHaveAttribute("aria-expanded", "false");
-    await answer.getByRole("button", { name: /^Source 1: / }).click();
+    const chip = answer.getByRole("button", { name: /^Source 1: / });
+    await chip.focus();
+    await page.keyboard.press("Enter");
+    const card = page.getByRole("dialog");
+    await expect(card).toBeVisible();
+    await a11y(page, "citation card");
+    await page.keyboard.press("Escape");
+    await expect(card).toBeHidden();
+    await expect(chip).toBeFocused();
+    await page.keyboard.press("Enter");
+    await card.getByRole("button", { name: "Show source 1 below" }).click();
     const source = answer.getByRole("list", { name: "Sources for this answer" }).getByRole("listitem", { name: /^Source 1: / });
     await expect(source).toBeFocused();
     await expect(source).toContainText(handbook.answer);
-    // The pointer still rests on the chip, whose preview (and Base UI's focus guards) stays open while hovered.
+    await expect(source).toBeInViewport();
+    await expect(card).toBeHidden();
     await page.mouse.move(0, 0);
     await expect(page.locator("[data-base-ui-focus-guard]")).toHaveCount(0);
     await a11y(page, "answer with sources");

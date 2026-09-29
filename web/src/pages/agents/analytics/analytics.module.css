@@ -32,3 +32,20 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Tokens by model and, for owners and admins, the agent's spend this month beside it; they stack on narrow screens. */
+.tokensAndSpend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--space-5);
+
+  & > * {
+    flex: 1 1 18rem;
+    min-width: 0;
+  }
+
+  & > :first-child {
+    flex: 2 1 30rem;
+  }
+}

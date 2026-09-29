@@ -151,7 +151,11 @@ export function RequestDomainDialog({
   );
 }
 
-/** The team's domain requests; `embedded` renders it as a Team settings tab. */
+/** What domain requests are for: the page's description, or the Data sources page's on its Crawl domains tab. */
+export const crawlDomainsDescription =
+  "Web sources can crawl hosts on the platform allowlist, such as *.example.edu. To crawl another site, request its domain. A platform admin reviews each request.";
+
+/** The team's domain requests; `embedded` renders it as the Data sources page's Crawl domains tab. */
 export function DomainRequestsPage({ embedded = false }: { embedded?: boolean }) {
   const { slug, canEdit, role } = useTeam();
   const requests = useDomainRequests(slug);
@@ -164,7 +168,8 @@ export function DomainRequestsPage({ embedded = false }: { embedded?: boolean })
       <PageHeader
         title={embedded ? terms.crawlDomains : terms.domainRequests}
         titleAs={embedded ? "h2" : "h1"}
-        description="Web sources can crawl hosts on the platform allowlist, such as *.example.edu. To crawl another site, request its domain. A platform admin reviews each request."
+        // Embedded, the Data sources page's header says it (crawlDomainsDescription).
+        description={embedded ? undefined : crawlDomainsDescription}
         actions={
           canEdit && (
             <Button onClick={() => setRequesting(true)}>

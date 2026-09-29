@@ -147,10 +147,11 @@ WHERE ($1::uuid IS NULL OR a.team_id = $1::uuid)
   AND ($8::text IS NULL
        OR (a.actor_kind = 'system' AND ($8::text = 'system' OR a.metadata->>'via' = 'sso_group_rule')))
   AND ($9::text IS NULL OR a.target_type = $9::text)
-  AND ($10::timestamptz IS NULL OR a.occurred_at >= $10::timestamptz)
-  AND ($11::timestamptz IS NULL OR a.occurred_at < $11::timestamptz)
+  AND (NOT COALESCE($10::boolean, false) OR a.action NOT LIKE 'costs.%')
+  AND ($11::timestamptz IS NULL OR a.occurred_at >= $11::timestamptz)
+  AND ($12::timestamptz IS NULL OR a.occurred_at < $12::timestamptz)
 ORDER BY a.id DESC
-LIMIT $12
+LIMIT $13
 `
 
 type ListAuditParams struct {
@@ -163,6 +164,7 @@ type ListAuditParams struct {
 	ActorUserID   uuid.NullUUID
 	ActorKind     *string
 	TargetType    *string
+	HideSpend     pgtype.Bool
 	OccurredFrom  *time.Time
 	OccurredTo    *time.Time
 	PageSize      int32
@@ -209,6 +211,8 @@ type ListAuditRow struct {
 // made (metadata.via = 'sso_group_rule'), across action groups.
 // actor_kind: 'system' for the system's entries, 'group_mapping' for the
 // memberships group mapping rules made (the system as the rule).
+// hide_spend: leave out the cost entries (a team's budget, enforcement mode
+// and extensions), for readers who may not see the team's spend.
 func (q *Queries) ListAudit(ctx context.Context, arg ListAuditParams) ([]ListAuditRow, error) {
 	rows, err := q.db.Query(ctx, listAudit,
 		arg.TeamID,
@@ -220,6 +224,7 @@ func (q *Queries) ListAudit(ctx context.Context, arg ListAuditParams) ([]ListAud
 		arg.ActorUserID,
 		arg.ActorKind,
 		arg.TargetType,
+		arg.HideSpend,
 		arg.OccurredFrom,
 		arg.OccurredTo,
 		arg.PageSize,

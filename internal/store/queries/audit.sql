@@ -23,6 +23,8 @@ INSERT INTO audit_log (
 -- made (metadata.via = 'sso_group_rule'), across action groups.
 -- actor_kind: 'system' for the system's entries, 'group_mapping' for the
 -- memberships group mapping rules made (the system as the rule).
+-- hide_spend: leave out the cost entries (a team's budget, enforcement mode
+-- and extensions), for readers who may not see the team's spend.
 SELECT a.id, a.occurred_at, a.actor_kind, a.actor_user_id, a.team_id, a.action,
        a.target_type, a.target_id, a.before_state, a.after_state, a.metadata,
        a.request_id, a.client_ip,
@@ -114,6 +116,7 @@ WHERE (sqlc.narg(team_id)::uuid IS NULL OR a.team_id = sqlc.narg(team_id)::uuid)
   AND (sqlc.narg(actor_kind)::text IS NULL
        OR (a.actor_kind = 'system' AND (sqlc.narg(actor_kind)::text = 'system' OR a.metadata->>'via' = 'sso_group_rule')))
   AND (sqlc.narg(target_type)::text IS NULL OR a.target_type = sqlc.narg(target_type)::text)
+  AND (NOT COALESCE(sqlc.narg(hide_spend)::boolean, false) OR a.action NOT LIKE 'costs.%')
   AND (sqlc.narg(occurred_from)::timestamptz IS NULL OR a.occurred_at >= sqlc.narg(occurred_from)::timestamptz)
   AND (sqlc.narg(occurred_to)::timestamptz IS NULL OR a.occurred_at < sqlc.narg(occurred_to)::timestamptz)
 ORDER BY a.id DESC

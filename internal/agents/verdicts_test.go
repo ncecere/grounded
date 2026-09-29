@@ -78,6 +78,22 @@ func TestUncitedSentences(t *testing.T) {
 		{"headings, bold lines, lead-ins and code", "## How to order a transcript\n\n**Official transcript steps**\n\nYou can order it as follows:\n\n" +
 			"- Log in to the student portal [1]\n- Choose the delivery method in the form\n\n```\nnot a claim at all here\n```", []string{"Choose the delivery method in the form"}},
 		{"short sentences", "Yes. It depends [1]. See below.", nil},
+		// The walkthrough's answer (v0.2.1): what the sources don't say, and the
+		// hedged suggestion after it, are not claims.
+		{"not covered, then a suggestion to ask", "The sources do not specify a same-day turnaround time for enrollment verifications. " +
+			"If you need the verification urgently, you may need to contact the Office of the Registrar directly to inquire about expedited options.", nil},
+		{"suggestions to ask", "Consider contacting the help desk for more. You might want to ask your advisor about it.", nil},
+		{"a suggestion with a number or an address is a claim", "You may need to call the office at 555-0100. You could email records@example.edu instead.",
+			[]string{"You may need to call the office at 555-0100.", "You could email records@example.edu instead."}},
+		{"a plain instruction to contact someone is a claim", "Contact the Registrar's office to order a rush transcript.",
+			[]string{"Contact the Registrar's office to order a rush transcript."}},
+		// Terms in a bulleted list belong to the lead-in (the owner's walkthrough):
+		// none is marked, whatever its number of words; numbered steps and
+		// longer items are sentences.
+		{"terms in a bulleted list", "You confirm the order details:\n\n  - Recipient (yourself)\n  - \"Process As Is\" option\n" +
+			"  - Purpose (e.g., certification/licensure)\n  - Delivery method (e.g., mail) [2]\n  - Fee of $10 per copy\n" +
+			"  - Transcripts are sent electronically.\n\n1. Open the portal",
+			[]string{"Fee of $10 per copy", "Transcripts are sent electronically.", "Open the portal"}},
 		{"table rows", "| Item | Fee |\n|---|---|\n| Official transcript | $10 [1] |\n| Rush delivery overnight | $25 |",
 			[]string{"| Rush delivery overnight | $25"}},
 		{"code points, not bytes", "Café hours are 9–5 on weekdays. Fees apply [1].", []string{"Café hours are 9–5 on weekdays."}},

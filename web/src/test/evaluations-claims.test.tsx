@@ -38,14 +38,29 @@ describe("an evaluation result's answer", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("starts with its sources collapsed; a chip opens them and focuses the source", async () => {
+  it("opens a chip's card from the keyboard, with the claim; the card leads to the source", async () => {
     const r = result("res1", "What does a transcript cost?", "pass", { answer, hits: [hit(1, "Fees"), hit(2, "Rush")], claims, scores });
-    renderBare(<EvalAnswer result={r} />);
+    const { container } = renderBare(<EvalAnswer result={r} />);
     const trigger = await screen.findByRole("button", { name: "Used 2 sources" });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
-    await userEvent.click(screen.getByRole("button", { name: /^Source 2: Rush/ }));
+    const chip = screen.getByRole("button", { name: /^Source 2: Rush/ });
+    chip.focus();
+    await userEvent.keyboard("{Enter}");
+    const card = await screen.findByRole("dialog");
+    // Screen readers get the claim as the card's description.
+    expect(card).toHaveAccessibleDescription(/Claim:/);
+    await waitFor(() => expect(card.contains(document.activeElement)).toBe(true));
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(chip).toHaveFocus();
+    await userEvent.keyboard(" ");
+    const jump = within(await screen.findByRole("dialog")).getByRole("button", { name: "Show source 2 below" });
+    jump.focus();
+    await userEvent.keyboard("{Enter}");
     const list = await screen.findByRole("list", { name: "Sources for this answer" });
     await waitFor(() => expect(within(list).getByRole("listitem", { name: "Source 2: Rush" })).toHaveFocus());
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("renders a result recorded before claims with plain chips and no summary", async () => {

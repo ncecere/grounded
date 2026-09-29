@@ -52,24 +52,27 @@ export function UsageView({ a, spend }: { a: Analytics; spend?: ReactNode }) {
         <StatCard label="Latency p95" value={ms(t.latencyP95Ms)} icon={<Timer />} hint="Slowest 5%" />
         <StatCard label="First token p50" value={ms(t.firstTokenP50Ms)} icon={<Zap />} hint="Median wait to first word" />
       </StatGroup>
-      <Card title="Tokens by model" description="Includes query rewriting. Reasoning tokens are part of output." flush>
-        {a.models.length === 0 ? (
-          <EmptyState size="compact" title="No usage yet." />
-        ) : (
-          <Table caption="Token use per model" columns={["Model", { label: "Answers", numeric: true }, { label: "Input", numeric: true }, { label: "Output", numeric: true }, { label: "Reasoning", numeric: true }]}>
-            {a.models.map((m) => (
-              <Tr key={m.modelId}>
-                <Td>{m.modelName}</Td>
-                <Td numeric>{num(m.answers)}</Td>
-                <Td numeric>{num(m.inputTokens)}</Td>
-                <Td numeric>{num(m.outputTokens)}</Td>
-                <Td numeric>{num(m.reasoningTokens)}</Td>
-              </Tr>
-            ))}
-          </Table>
-        )}
-      </Card>
-      {spend}
+      {/* The agent's spend sits beside the tokens it paid for (I4); alone, the tokens take the row. */}
+      <div className={an.tokensAndSpend}>
+        <Card title="Tokens by model" description="Includes query rewriting. Reasoning tokens are part of output." flush>
+          {a.models.length === 0 ? (
+            <EmptyState size="compact" title="No usage yet." />
+          ) : (
+            <Table caption="Token use per model" columns={["Model", { label: "Answers", numeric: true }, { label: "Input", numeric: true }, { label: "Output", numeric: true }, { label: "Reasoning", numeric: true }]}>
+              {a.models.map((m) => (
+                <Tr key={m.modelId}>
+                  <Td>{m.modelName}</Td>
+                  <Td numeric>{num(m.answers)}</Td>
+                  <Td numeric>{num(m.inputTokens)}</Td>
+                  <Td numeric>{num(m.outputTokens)}</Td>
+                  <Td numeric>{num(m.reasoningTokens)}</Td>
+                </Tr>
+              ))}
+            </Table>
+          )}
+        </Card>
+        {spend}
+      </div>
     </div>
   );
 }

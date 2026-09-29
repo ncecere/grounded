@@ -48,6 +48,7 @@ type unit struct {
 	kind       int
 	start, end int
 	leadIn     string // list items: the sentence introducing the list
+	bullet     bool   // a bulleted (not numbered) list item
 }
 
 // claimReader extracts claims from one answer.
@@ -146,7 +147,8 @@ func (r *claimReader) read() {
 		case listItemRE.MatchString(s):
 			flush()
 			// The item's text starts after its bullet or number ("1." is not a sentence).
-			cur = &unit{kind: unitList, start: ln.start + len(listItemRE.FindString(s)), end: ln.end, leadIn: leadIn}
+			mark := listItemRE.FindString(s)
+			cur = &unit{kind: unitList, start: ln.start + len(mark), end: ln.end, leadIn: leadIn, bullet: strings.ContainsAny(mark, "-*+")}
 		case cur != nil:
 			cur.end = ln.end // continuation (lazy continuation for list items)
 		default:
@@ -195,7 +197,10 @@ func (r *claimReader) readUnit(u unit) {
 		case len(ms) > 0 && isFactual:
 			r.claims = append(r.claims, claim{Text: text, Markers: ms, Start: r.lastSpan.start, End: r.lastSpan.end})
 			r.lastClaim = len(r.claims) - 1
-		case len(ms) == 0 && isFactual:
+		case len(ms) == 0 && isFactual && !(u.bullet && listFragment(sentence)):
+			// An uncited term in a bulleted list ("Recipient (yourself)",
+			// "Purpose") is part of the sentence introducing the list, not a
+			// sentence of its own; cited, it is checked as its marker asks.
 			r.addUncited(s.start, s.end, text)
 		}
 	}

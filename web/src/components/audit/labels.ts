@@ -182,10 +182,11 @@ function areaOf(action: string): string | undefined {
 
 /**
  * The audit log's Area filter: every area, then every known action under its area, so typing "budget" finds "Changed
- * a team budget". An area's value is its prefix ("costs."), an action's its code; the API takes both.
+ * a team budget". An area's value is its prefix ("costs."), an action's its code; the API takes both. `hideCosts`: for
+ * editors, whose log has no cost entries (they don't see the team's spend).
  */
-export function areaOptions(platform: boolean): FacetOption[] {
-  const areas = actionGroups.filter((g) => platform || !g.platform);
+export function areaOptions(platform: boolean, { hideCosts = false } = {}): FacetOption[] {
+  const areas = actionGroups.filter((g) => (platform || !g.platform) && !(hideCosts && g.prefix === "costs."));
   const shown = new Set(areas.map((g) => g.label));
   const actions = Object.entries(actionLabels)
     .map(([value, label]) => ({ value, label, group: areaOf(value) }))

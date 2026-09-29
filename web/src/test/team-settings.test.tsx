@@ -2,6 +2,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
+import { settingsDescription } from "../pages/team/settings/page";
 import { type Handler, meFor, mockApi, renderApp, shellRoutes, team } from "./harness";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -49,6 +50,15 @@ describe("team settings tabs", () => {
     await screen.findByRole("table", { name: "Team members" });
     // Five tabs: Crawl domains moved to Data sources (I4).
     expect(tabNames()).toEqual(["Members", "Usage & limits", "API keys", "Audit log", "General"]);
+    // The description names what the tabs hold, General included.
+    expect(screen.getByText("Members, usage, API keys, the audit log and general details of Office of the Registrar.")).toBeInTheDocument();
+  });
+
+  it("describes the page by what each reader's tabs hold", () => {
+    expect(settingsDescription("Advising", { role: "owner", spend: true })).toBe("Members, usage and spend, API keys, the audit log and general details of Advising.");
+    expect(settingsDescription("Advising", { role: "editor", spend: false })).toBe("Members, usage, API keys, the audit log and general details of Advising.");
+    expect(settingsDescription("Advising", { role: "member", spend: false })).toBe("The members, API keys and general details of Advising.");
+    expect(settingsDescription("Advising", { spend: true })).toBe("The members, audit log and general details of Advising.");
   });
 
   it("has no open-invites section without invites (W6)", async () => {

@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
@@ -94,26 +95,28 @@ func (a *api) revokeInvite(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) listTeamAudit(w http.ResponseWriter, r *http.Request) {
-	if teamID, ok := a.teamAuditAccess(w, r); ok {
-		a.writeAuditPage(w, r, teamID)
+	if scope, ok := a.teamAuditAccess(w, r); ok {
+		a.writeAuditPage(w, r, scope)
 	}
 }
 
 // getTeamAuditEntry serves one entry of the team's log (a linked entry in
-// the app's record sheet); entries of other teams are not found.
+// the app's record sheet); entries of other teams, and cost entries for
+// readers who may not see the team's spend, are not found.
 func (a *api) getTeamAuditEntry(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("entryId"), 10, 64)
 	if err != nil || id <= 0 {
 		httpx.Error(w, http.StatusBadRequest, "invalid_id", "Invalid entryId")
 		return
 	}
-	teamID, ok := a.teamAuditAccess(w, r)
+	scope, ok := a.teamAuditAccess(w, r)
 	if !ok {
 		return
 	}
 	// The list query, newest first below id+1, one row: exactly this entry if it is the team's.
 	before := id + 1
-	rows, err := a.q.ListAudit(r.Context(), dbgen.ListAuditParams{TeamID: teamID, BeforeID: &before, PageSize: 1})
+	scope.BeforeID, scope.PageSize = &before, 1
+	rows, err := a.q.ListAudit(r.Context(), scope)
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
@@ -126,16 +129,23 @@ func (a *api) getTeamAuditEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 // teamAuditAccess resolves the team and checks the caller may read its log:
-// editors and above, or platform staff (DESIGN.md §3.5).
-func (a *api) teamAuditAccess(w http.ResponseWriter, r *http.Request) (uuid.NullUUID, bool) {
+// editors and above, or platform staff (DESIGN.md §3.5). It returns the
+// log's scope: the team, without its cost entries (budget amounts, the
+// enforcement mode, extensions and their reasons) for readers who may not
+// see its spend, the rule of GET /spend (owners and admins; docs/costs.md).
+func (a *api) teamAuditAccess(w http.ResponseWriter, r *http.Request) (dbgen.ListAuditParams, bool) {
 	actor := a.actor(r)
 	acc, err := a.Teams.Get(r.Context(), actor, r.PathValue("team"))
 	if failed(w, r, err) {
-		return uuid.NullUUID{}, false
+		return dbgen.ListAuditParams{}, false
 	}
 	if !authz.RoleAtLeast(acc.Role, authz.RoleEditor) && !actor.CanReadPlatform() {
 		httpx.Error(w, http.StatusForbidden, "forbidden", "Only team owners, admins and editors can see the audit log")
-		return uuid.NullUUID{}, false
+		return dbgen.ListAuditParams{}, false
 	}
-	return uuid.NullUUID{UUID: acc.Team.ID, Valid: true}, true
+	seesSpend := authz.RoleAtLeast(acc.Role, authz.RoleAdmin) || actor.CanReadPlatform()
+	return dbgen.ListAuditParams{
+		TeamID:    uuid.NullUUID{UUID: acc.Team.ID, Valid: true},
+		HideSpend: pgtype.Bool{Bool: !seesSpend, Valid: true},
+	}, true
 }

@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
-import { claimLabel, claimSummaryText } from "../pages/chat/claims";
+import { claimLabel, claimSummaryText, sourceClaimsText } from "../pages/chat/claims";
 import { type AssistantItem, type ChatItem, applyChatEvent, itemsFromConversation, pendingAssistant } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
 import { renderBare } from "./harness";
@@ -47,11 +47,22 @@ describe("claims", () => {
     expect(claimSummaryText([])).toBe("");
   });
 
-  it("explains a claim's verdict for each of its sources", () => {
+  it("explains a claim's verdict for each of its sources, the claim's verdict first", () => {
     expect(claimLabel(claims[0]!, 1)).toBe("Claim supported by this source (97% confidence)");
-    expect(claimLabel(claims[0]!, 2)).toBe("Claim supported by source 1; not by this source");
-    expect(claimLabel(claims[1]!, 2)).toBe("Claim not supported: this source contradicts it (92% confidence)");
+    expect(claimLabel(claims[0]!, 2)).toBe("Claim supported by source 1. This source doesn't support it");
+    expect(claimLabel(claims[1]!, 2)).toBe("Claim not supported. This source contradicts it (92% confidence)");
     expect(claimLabel(claims[2]!, 1)).toBeUndefined();
+    // Sources are named with the numbers they're shown with.
+    expect(claimLabel(claims[0]!, 2, (n) => n + 2)).toBe("Claim supported by source 3. This source doesn't support it");
+    // A supporting verdict under 50% doesn't read as a plain "supported (43% confidence)".
+    const weak: Claim = { ...claims[0]!, checks: [{ n: 1, occurrence: 0, verification: "verified", confidence: 0.43 }] };
+    expect(claimLabel(weak, 1)).toBe("Claim supported by this source, with low confidence (43%)");
+  });
+
+  it("says on a source card how many of the claims citing it it supports", () => {
+    expect(sourceClaimsText(claims, 1)).toBe("Supports the claim that cites it");
+    expect(sourceClaimsText(claims, 2)).toBe("Supports 0 of 2 claims that cite it");
+    expect(sourceClaimsText(claims, 3)).toBeUndefined();
   });
 
   it("gives each chip its claim's verdict, shows the summary and marks the uncited claim", async () => {
@@ -61,8 +72,8 @@ describe("claims", () => {
     // [2] in the first sentence doesn't support it, but [1] does: the claim, and so the chip, is supported.
     expect(one).toHaveAttribute("data-verification", "verified");
     expect(twos.map((c) => c.getAttribute("data-verification"))).toEqual(["verified", "contradicted"]);
-    expect(twos[0]).toHaveAccessibleName("Source 2: Page 2. Claim supported by source 1; not by this source");
-    expect(twos[1]).toHaveAccessibleName("Source 2: Page 2. Claim not supported: this source contradicts it (92% confidence)");
+    expect(twos[0]).toHaveAccessibleName("Source 2: Page 2. Claim supported by source 1. This source doesn't support it");
+    expect(twos[1]).toHaveAccessibleName("Source 2: Page 2. Claim not supported. This source contradicts it (92% confidence)");
     expect(screen.getByTestId("claim-summary")).toHaveTextContent("1 of 3 claims supported · 1 uncited");
     const mark = screen.getByText("Uncited");
     expect(mark.closest("p")).toHaveTextContent(/Log in first with your account\. Uncited/);
@@ -74,7 +85,7 @@ describe("claims", () => {
     const twos = await screen.findAllByRole("button", { name: /^Source 2: Page 2/ });
     await userEvent.hover(twos[1]!);
     const card = await screen.findByRole("dialog", {}, { timeout: 2000 });
-    expect(within(card).getByText("Claim not supported: this source contradicts it (92% confidence)")).toBeInTheDocument();
+    expect(within(card).getByText("Claim not supported. This source contradicts it (92% confidence)")).toBeInTheDocument();
     expect(within(card).getByText("Rush orders arrive the same day.")).toBeInTheDocument();
     expect(within(card).getByText("Claim:", { exact: false })).toBeInTheDocument();
     expect(within(card).getByText("Passage 2 about transcripts.")).toBeInTheDocument();
@@ -116,15 +127,21 @@ describe("claims", () => {
 });
 
 describe("the sources under an answer", () => {
-  it("start collapsed; a citation chip opens them and focuses its source", async () => {
+  it("start collapsed; a chip's card leads to its source and focuses it", async () => {
     const { container } = renderBare(<ChatMessages items={thread(checkedAnswer(claims))} agent={{ name: "Helper" }} />);
     const trigger = await screen.findByRole("button", { name: "Used 2 sources" });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("list", { name: "Sources for this answer" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /^Source 1: Page 1/ }));
+    const popup = await screen.findByRole("dialog");
+    await userEvent.click(within(popup).getByRole("button", { name: "Show source 1 below" }));
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     const card = await screen.findByRole("listitem", { name: "Source 1: Page 1" });
     await waitFor(() => expect(card).toHaveFocus());
+    // With claims, a source card says how the claims citing it fared, not a verdict a chip could contradict.
+    expect(within(screen.getByRole("list", { name: "Sources for this answer" })).getByText(/Supports 0 of 2 claims that cite it/)).toBeInTheDocument();
+    // The card closed as it went.
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(await axe(container)).toHaveNoViolations();
   });
 });
