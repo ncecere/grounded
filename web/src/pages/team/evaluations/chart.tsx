@@ -4,6 +4,8 @@
  * what changed between them (agent version, embedding profile, results per
  * search), from each run's configuration. A trend needs a few points: the
  * chart shows from three completed runs of a kind, compact, under the runs.
+ * The scale is fixed at 0–100% (G19), so a small change doesn't look like a
+ * cliff and two sets' charts read the same.
  */
 import { Card } from "@/components/ui/card/card";
 import { LineChart } from "@/components/ui/line-chart/line-chart";
@@ -33,6 +35,7 @@ function Series({ runs, kind, label }: { runs: EvalRun[]; kind: EvalRun["kind"];
         series={[{ key: "score", label, tone: kind === "answer" ? "info" : "primary" }]}
         data={data}
         size="sm"
+        domain={{ min: 0, max: 100 }}
         formatValue={(v) => `${Math.round(v)}%`}
         points
         dataTable={{ caption: `${label} by run`, labelHeader: "Run" }}

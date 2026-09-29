@@ -82,7 +82,7 @@ func TestEvaluationRetrievalRun(t *testing.T) {
 	mustCode(t, "attach", code, e, 200, "")
 
 	set := env.newEvalSet(t, map[string]any{"kbId": kb.Id, "name": "Student questions"})
-	if set.Target.Type != "knowledge_base" || set.Target.Name != "Narrow help" || set.QuestionCount != 0 || set.LastRun != nil {
+	if set.Target.Type != "knowledge_base" || set.Target.Name != "Narrow help" || set.QuestionCount != 0 || set.LastRun != nil || set.PreviousRun != nil {
 		t.Fatalf("set = %+v", set)
 	}
 	env.addQuestion(t, set, qParking, map[string]any{"filenames": []string{"parking.md"}})
@@ -173,6 +173,19 @@ func TestEvaluationRetrievalRun(t *testing.T) {
 	env.editor.get(env.evalBase()+"/"+set.Id.String()+"/runs", &runs)
 	if len(runs) != 2 || runs[0].Id != d2.Run.Id {
 		t.Errorf("runs = %+v", runs)
+	}
+	// The team's list (no filter) carries each set's latest run and the
+	// completed run of the same kind before it, the trend's baseline (I3).
+	var sets []apitypes.EvaluationSet
+	env.editor.get(env.evalBase(), &sets)
+	if len(sets) != 1 || sets[0].LastRun == nil || sets[0].LastRun.Id != d2.Run.Id || sets[0].PreviousRun == nil || sets[0].PreviousRun.Id != d.Run.Id ||
+		sets[0].PreviousRun.Summary.Recall == nil || *sets[0].PreviousRun.Summary.Recall != 0.5 {
+		t.Errorf("sets = %+v", sets)
+	}
+	var one apitypes.EvaluationSet
+	env.editor.get(env.evalBase()+"/"+set.Id.String(), &one)
+	if one.PreviousRun == nil || one.PreviousRun.Id != d.Run.Id {
+		t.Errorf("set previous run = %+v", one.PreviousRun)
 	}
 	// The question's record: its results in both runs, newest first.
 	var detail apitypes.EvaluationQuestionDetail

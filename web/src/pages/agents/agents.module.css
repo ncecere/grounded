@@ -171,3 +171,16 @@
 .conflictCompare {
   margin-top: var(--space-3);
 }
+
+/* The header's version menu ("v4 live ▾", I6): as compact as the badges beside it. */
+.versionMenu {
+  min-height: 1.5rem;
+  padding-block: 0;
+  padding-inline: var(--space-2) var(--space-1);
+  font-size: var(--font-size-xs);
+
+  & svg {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+}

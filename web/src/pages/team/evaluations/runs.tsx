@@ -70,9 +70,10 @@ export function RunsTab({ set }: { set: EvalSet }) {
       cell: (r) => (
         <CellText
           primary={
+            // The name is one text ("Retrieval, Sep 28, 2026, 7:20 PM"): split over two elements, browsers read "Retrieval , Sep 28" (G20).
             <RecordLink id={r.id}>
-              {kindLabels[r.kind]}
-              <VisuallyHidden>, {formatDate(r.createdAt)}</VisuallyHidden>
+              <span aria-hidden>{kindLabels[r.kind]}</span>
+              <VisuallyHidden>{`${kindLabels[r.kind]}, ${formatDate(r.createdAt)}`}</VisuallyHidden>
             </RecordLink>
           }
           secondary={triggerLabels[r.trigger]}

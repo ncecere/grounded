@@ -123,6 +123,7 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
         { label: "Agents", render: <Link to="/teams/$team/agents" params={{ team: slug }} /> },
         ...(isNotFound(agent.error) ? [] : [{ label: agent.data?.name ?? "Agent" }]),
       );
+    else if (sub === "/evaluations") crumbs.push({ label: "Evaluations" });
     else if (sub === "/evaluations/$setId") crumbs.push(...evalSetCrumbs(slug, evalSet.data));
     else if (sub === "/settings") crumbs.push({ label: terms.teamSettings });
     return crumbs;
@@ -168,32 +169,30 @@ function chatParent(agent: { teamSlug: string; teamName: string } | undefined, f
 
 /** "Data sources · Office of the Registrar · <instance>": the last two crumbs, most specific first (D8). */
 export function documentTitle(crumbs: BreadcrumbItem[], instanceName: string) {
-  const labels = crumbs.map((c) => (typeof c.label === "string" ? c.label : "")).filter(Boolean);
+  const labels = crumbs.filter((c) => !c.collapsed).map((c) => (typeof c.label === "string" ? c.label : "")).filter(Boolean);
   return [...labels.slice(-2).reverse(), instanceName].join(" · ");
 }
 
 /**
  * An evaluation set, where its knowledge base's or agent's page puts it,
- * with the middle collapsed (S6): Team › … › the set, where "…" (named
- * "Student help, Evaluations" for screen readers, the full path as its
- * title) opens that page's Evaluations tab. bitop-ui's Breadcrumbs has no
- * collapsed item of its own yet.
+ * with the middle collapsed (S6, G19): Team › … › the set, where "…" is a
+ * menu of the hidden crumbs (Knowledge bases, Student help, its Evaluations
+ * tab), named "Knowledge bases, Student help, Evaluations" for screen readers.
  */
 function evalSetCrumbs(slug: string, set: EvalSet | undefined): BreadcrumbItem[] {
   if (!set) return [{ label: "Evaluation set" }];
   const t = set.target;
-  const agent = t.type === "agent";
-  const path = `${agent ? "Agents" : "Knowledge bases"} › ${t.name} › Evaluations`;
-  const render = agent ? (
-    <Link to="/teams/$team/agents/$agentId" params={{ team: slug, agentId: t.id }} search={{ tab: "evaluations" }} title={path} />
-  ) : (
-    <Link to="/teams/$team/kbs/$kbId" params={{ team: slug, kbId: t.id }} search={{ tab: "evaluations" }} title={path} />
-  );
-  const label = (
-    <>
-      <span aria-hidden="true">…</span>
-      <VisuallyHidden>{`${t.name}, Evaluations`}</VisuallyHidden>
-    </>
-  );
-  return [{ label, render }, { label: set.name }];
+  const hidden: BreadcrumbItem[] =
+    t.type === "agent"
+      ? [
+          { label: "Agents", render: <Link to="/teams/$team/agents" params={{ team: slug }} /> },
+          { label: t.name, render: <Link to="/teams/$team/agents/$agentId" params={{ team: slug, agentId: t.id }} /> },
+          { label: "Evaluations", render: <Link to="/teams/$team/agents/$agentId" params={{ team: slug, agentId: t.id }} search={{ tab: "evaluations" }} /> },
+        ]
+      : [
+          { label: "Knowledge bases", render: <Link to="/teams/$team/kbs" params={{ team: slug }} /> },
+          { label: t.name, render: <Link to="/teams/$team/kbs/$kbId" params={{ team: slug, kbId: t.id }} /> },
+          { label: "Evaluations", render: <Link to="/teams/$team/kbs/$kbId" params={{ team: slug, kbId: t.id }} search={{ tab: "evaluations" }} /> },
+        ];
+  return [{ label: hidden.map((h) => h.label).join(", "), collapsed: hidden }, { label: set.name }];
 }

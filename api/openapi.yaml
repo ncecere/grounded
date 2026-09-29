@@ -5779,8 +5779,9 @@ paths:
       operationId: listEvaluationSets
       summary: The team's evaluation sets, optionally one knowledge base's or agent's (editors, admins and owners)
       description: >-
-        Evaluation sets are for the team's editors, admins and owners in the
-        app. Members, API keys and platform staff get 404, and so does
+        Each set carries its latest run and the completed run of the same kind
+        before it (the trend's baseline). Evaluation sets are for the team's
+        editors, admins and owners in the app. Members, API keys and platform staff get 404, and so does
         everyone while evaluations are off (Admin, Limits, Evaluations).
       parameters:
         - name: kbId
@@ -11243,7 +11244,7 @@ components:
         createdAt: { type: string, format: date-time }
     EvaluationSet:
       type: object
-      required: [id, target, name, description, autoRun, questionCount, lastRun, revision, createdAt, updatedAt]
+      required: [id, target, name, description, autoRun, questionCount, lastRun, previousRun, revision, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         target: { $ref: "#/components/schemas/EvaluationTarget" }
@@ -11258,6 +11259,12 @@ components:
         questionCount: { type: integer, format: int64 }
         lastRun:
           nullable: true
+          allOf: [{ $ref: "#/components/schemas/EvaluationRunBrief" }]
+        previousRun:
+          nullable: true
+          description: >-
+            The completed run of the same kind before lastRun, the baseline of
+            its trend (null without one).
           allOf: [{ $ref: "#/components/schemas/EvaluationRunBrief" }]
         revision: { $ref: "#/components/schemas/Revision" }
         createdAt: { type: string, format: date-time }

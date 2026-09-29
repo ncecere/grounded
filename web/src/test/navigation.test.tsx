@@ -97,7 +97,7 @@ describe("moved pages", () => {
     expect(screen.getByRole("tab", { name: "API keys" })).toHaveAttribute("aria-selected", "true");
     expect(await screen.findByRole("heading", { level: 2, name: "API keys" })).toBeInTheDocument();
     const tabs = within(screen.getByRole("tablist", { name: "Team settings sections" })).getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Members", "Usage & limits", "API keys", "Crawl domains", "Audit log", "General"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["Members", "Usage & limits", "API keys", "Audit log", "General"]);
     expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(/Office of the Registrar.*Team settings.*API keys/);
   });
 

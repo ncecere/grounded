@@ -62,3 +62,22 @@
 .footnote {
   margin: var(--space-5) 0 0;
 }
+
+/* Spend this month in one line (I4): the amounts and state, then the budget meter; they wrap on a phone. */
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-6);
+}
+
+.stripText {
+  flex: 1 1 20rem;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.stripMeter {
+  flex: 0 1 16rem;
+  min-width: 10rem;
+}

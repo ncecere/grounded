@@ -1,7 +1,7 @@
 /*
  * ⌘K places inside a team, with the words people type for them (docs/v0.2.0.md
- * §7): Team settings' tabs (spend, usage, budget → Usage & limits; members;
- * API keys; crawl domains; audit log), and on a knowledge base, agent or
+ * §7): Team settings' tabs (spend, usage, budget → Usage & spend; members;
+ * API keys; audit log), Data sources › Crawl domains, and on a knowledge base, agent or
  * source page the tabs of that object (Try it, Evaluations, OCR settings).
  * Admin pages carry their words in nav.tsx (adminKeywords); these mirror
  * them for the workspace. Each command appears only where its tab shows.
@@ -63,15 +63,6 @@ function settingsItems(navigate: Navigate, slug: string, a: Access): Item[] {
     },
     { id: "team-tab:api-keys", label: "API keys", icon: <KeyRound aria-hidden />, keywords: ["key", "token", "secret", "integration"], show: a.member, hint, onSelect: go("api-keys") },
     {
-      id: "team-tab:crawl-domains",
-      label: terms.crawlDomains,
-      icon: <Globe aria-hidden />,
-      keywords: ["crawl", "domain", "website", "allowlist", "host", "request"],
-      show: a.member,
-      hint,
-      onSelect: go("crawl-domains"),
-    },
-    {
       id: "team-tab:audit",
       label: terms.auditLog,
       icon: <FileClock aria-hidden />,
@@ -82,6 +73,21 @@ function settingsItems(navigate: Navigate, slug: string, a: Access): Item[] {
     },
   ];
   return items.filter((i) => i.show).map(({ show: _show, ...item }) => item);
+}
+
+/** Data sources › Crawl domains (I4: moved from Team settings), with the words people use for it. */
+function crawlDomainsItem(navigate: Navigate, slug: string, a: Access): Item[] {
+  if (!a.member) return [];
+  return [
+    {
+      id: "team-tab:crawl-domains",
+      label: terms.crawlDomains,
+      icon: <Globe aria-hidden />,
+      keywords: ["crawl", "domain", "website", "allowlist", "host", "request"],
+      hint: "Data sources",
+      onSelect: () => void navigate({ to: "/teams/$team/sources", params: { team: slug }, search: { tab: "crawl-domains" } }),
+    },
+  ];
 }
 
 /** The tabs of the knowledge base, agent or source the page shows. */
@@ -143,6 +149,6 @@ export function teamPlacesGroup(navigate: Navigate, loc: Location, me: Me, slug:
   const onTeamPage = loc.routeId.startsWith("/app/teams/$team") && loc.params.team === slug;
   return {
     label: teamName,
-    items: [...(onTeamPage ? objectItems(navigate, loc, slug, a) : []), ...settingsItems(navigate, slug, a)],
+    items: [...(onTeamPage ? objectItems(navigate, loc, slug, a) : []), ...settingsItems(navigate, slug, a), ...crawlDomainsItem(navigate, slug, a)],
   };
 }

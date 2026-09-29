@@ -3681,7 +3681,7 @@ export interface paths {
         };
         /**
          * The team's evaluation sets, optionally one knowledge base's or agent's (editors, admins and owners)
-         * @description Evaluation sets are for the team's editors, admins and owners in the app. Members, API keys and platform staff get 404, and so does everyone while evaluations are off (Admin, Limits, Evaluations).
+         * @description Each set carries its latest run and the completed run of the same kind before it (the trend's baseline). Evaluation sets are for the team's editors, admins and owners in the app. Members, API keys and platform staff get 404, and so does everyone while evaluations are off (Admin, Limits, Evaluations).
          */
         get: operations["listEvaluationSets"];
         put?: never;
@@ -8655,6 +8655,8 @@ export interface components {
             /** Format: int64 */
             questionCount: number;
             lastRun: components["schemas"]["EvaluationRunBrief"] | null;
+            /** @description The completed run of the same kind before lastRun, the baseline of its trend (null without one). */
+            previousRun: components["schemas"]["EvaluationRunBrief"] | null;
             revision: components["schemas"]["Revision"];
             /** Format: date-time */
             createdAt: string;

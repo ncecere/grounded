@@ -56,12 +56,12 @@ function HostNotAllowed({ error, urls }: { error: ApiError; urls: string[] }) {
         {team && pending ? (
           <>
             Your team's request for <strong>{pending.pattern}</strong> is waiting for a platform admin.{" "}
-            <TextLink render={<Link to="/teams/$team/settings" params={{ team }} search={{ tab: "crawl-domains" }} />}>View your team's domain requests</TextLink>.
+            <TextLink render={<Link to="/teams/$team/sources" params={{ team }} search={{ tab: "crawl-domains" }} />}>View your team's domain requests</TextLink>.
           </>
         ) : team ? (
           <>
             Web sources can only crawl allowed hosts. {owner.canEdit ? "Request the domain and a platform admin will review it. " : ""}
-            <TextLink render={<Link to="/teams/$team/settings" params={{ team }} search={{ tab: "crawl-domains" }} />}>View your team's domain requests</TextLink>.
+            <TextLink render={<Link to="/teams/$team/sources" params={{ team }} search={{ tab: "crawl-domains" }} />}>View your team's domain requests</TextLink>.
           </>
         ) : (
           <>

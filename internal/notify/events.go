@@ -88,8 +88,8 @@ func DomainRequestDecidedEvent(t TeamRef, requester, requestID uuid.UUID, patter
 		body += "\n\nNote from the reviewer: " + note
 	}
 	return Event{
-		// The request's page in Team settings → Crawl domains.
-		Type: DomainRequestDecided, TeamID: t.ID, Users: []uuid.UUID{requester}, Link: t.path("/settings?tab=crawl-domains&record=" + requestID.String()),
+		// The request's page in Data sources → Crawl domains (v0.2.1; older links redirect there).
+		Type: DomainRequestDecided, TeamID: t.ID, Users: []uuid.UUID{requester}, Link: t.path("/sources?tab=crawl-domains&record=" + requestID.String()),
 		Title: fmt.Sprintf("Domain request %s: %s", word, pattern), Body: body,
 		Data: map[string]any{"team": t.Slug, "pattern": pattern, "decision": decision, "requestId": requestID},
 	}

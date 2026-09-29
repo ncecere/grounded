@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "registry": "../../../typescript/bitop-ui",
+  "registry": "/Users/nicholascecere/projects/typescript/bitop-ui",
   "items": {
     "accordion": {
       "files": {
@@ -40,14 +40,14 @@
     },
     "bar-chart": {
       "files": {
-        "src/components/ui/bar-chart/bar-chart.module.css": "60f4d4193e9248be1d7108aa9a4861873b2d13b9c7048f5d75e694d011c8a5d0",
-        "src/components/ui/bar-chart/bar-chart.tsx": "998b727a8050d72ab55910a27bb32571ad5e8d954bacbe8a163fbd05c58042bd"
+        "src/components/ui/bar-chart/bar-chart.module.css": "64ebd5981be6325c3b9639ded03625559f59f176d6636a21e3ae6f293b9c8c82",
+        "src/components/ui/bar-chart/bar-chart.tsx": "6c235e6df958f62b41fe38d39abe68cd631aa6f80e5e3a03d909056410357c8d"
       }
     },
     "breadcrumbs": {
       "files": {
-        "src/components/ui/breadcrumbs/breadcrumbs.module.css": "07f41b9ab88be834c5fa49a4e1e41760e0b4c089e855fe30f79043d29eb4d9ca",
-        "src/components/ui/breadcrumbs/breadcrumbs.tsx": "76755adea13ab371fae208b75c9837a50d518260e262ce5c6690144c78bcaa4f"
+        "src/components/ui/breadcrumbs/breadcrumbs.module.css": "f3a2918bc9f90fd2d4ac28613cf678028854476e139de003411b3732e7c3bc4e",
+        "src/components/ui/breadcrumbs/breadcrumbs.tsx": "75cdec4326220478947d38ff77d6f3f8c0e7cd41a29722538fbb978781156ec4"
       }
     },
     "button": {
@@ -253,8 +253,8 @@
     },
     "line-chart": {
       "files": {
-        "src/components/ui/line-chart/line-chart.module.css": "8f29314b6c7fb08305b58ebc42263c4b35ae7f97a5ab462b7fb0997d2aa84253",
-        "src/components/ui/line-chart/line-chart.tsx": "a5b2f1c1f29cca282430aa08ed99081c6a2cf38d9ed03f202e3e3216afb742db"
+        "src/components/ui/line-chart/line-chart.module.css": "41e06ba2f7c356e499df190b7595721029a0cee5b80d126af6f1b0120f00fca4",
+        "src/components/ui/line-chart/line-chart.tsx": "f442c01b9f25f54098ee20424053a2524f8ac315e3ca19e8b3d533000afb79b7"
       }
     },
     "loader": {

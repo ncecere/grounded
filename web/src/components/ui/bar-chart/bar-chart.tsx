@@ -25,6 +25,10 @@ import styles from "./bar-chart.module.css";
  * Negative values are drawn as empty bars (clamped to 0); NaN and ±Infinity
  * are "no data": left out of the scale and drawn as an empty bar marked
  * `data-missing`. Titles and the data table show the real values.
+ *
+ * `domain={{ max: 100 }}` fixes the top of the scale (a percentage, say), so
+ * a bar's height means the same whatever the data; values above it are drawn
+ * full height and stacks are cut there (titles keep the values). Bars always start at 0.
  */
 
 export type BarChartTone = ChartTone;
@@ -45,6 +49,8 @@ export type BarChartProps<K extends string = string> = {
   legend?: boolean;
   /** Show the first and last labels and the peak value (default true). */
   axis?: boolean;
+  /** Fix the top of the scale, e.g. `{ max: 100 }` for a percentage (default: the largest value or stack). */
+  domain?: { max?: number };
   /** Adds a "Show data" disclosure with the numbers in a table. */
   dataTable?: ChartDataOptions;
   className?: string;
@@ -60,14 +66,15 @@ export function BarChart<K extends string>({
   formatValue = (v) => v.toLocaleString(),
   legend = true,
   axis = true,
+  domain,
   dataTable,
   className,
 }: BarChartProps<K>) {
   // Non-finite values (null here) are left out of the scale; negatives count as 0.
   const total = (p: BarChartPoint<K>) => series.reduce((sum, s) => sum + Math.max(0, chartValue(p, s.key) ?? 0), 0);
   const top = (p: BarChartPoint<K>) => Math.max(0, ...series.map((s) => chartValue(p, s.key) ?? 0));
-  const peak = Math.max(0, ...data.map(layout === "stack" ? total : top));
-  const pct = (v: number | null) => `${peak > 0 && v !== null ? (Math.max(0, v) / peak) * 100 : 0}%`;
+  const peak = domain?.max ?? Math.max(0, ...data.map(layout === "stack" ? total : top));
+  const pct = (v: number | null) => `${peak > 0 && v !== null ? (Math.min(peak, Math.max(0, v)) / peak) * 100 : 0}%`;
   const describe = (s: BarChartSeries<K>, v: number | null) => (v === null ? `${seriesName(s)}: no data` : `${formatValue(v)} ${seriesName(s)}`);
 
   return (

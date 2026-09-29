@@ -40,14 +40,15 @@ describe("team settings tabs", () => {
     mockApi(routes("none", "member"));
     renderApp("/teams/registrar/settings");
     await screen.findByRole("table", { name: "Team members" });
-    expect(tabNames()).toEqual(["Members", "API keys", "Crawl domains", "General"]);
+    expect(tabNames()).toEqual(["Members", "API keys", "General"]);
   });
 
   it("shows editors every tab", async () => {
     mockApi(routes("none", "editor"));
     renderApp("/teams/registrar/settings");
     await screen.findByRole("table", { name: "Team members" });
-    expect(tabNames()).toEqual(["Members", "Usage & limits", "API keys", "Crawl domains", "Audit log", "General"]);
+    // Five tabs: Crawl domains moved to Data sources (I4).
+    expect(tabNames()).toEqual(["Members", "Usage & limits", "API keys", "Audit log", "General"]);
   });
 
   it("has no open-invites section without invites (W6)", async () => {

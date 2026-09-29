@@ -26,19 +26,11 @@ import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
 import s from "../../shared.module.css";
 import { plural, useTeam } from "../common";
-import { autoRunNotice, runScore, runStatus } from "./labels";
+import { autoRunNotice, runScore } from "./labels";
 import { type EvalSet, evalSetsKey, evalSetsQuery } from "./queries";
-import { ScoreValue } from "./score";
+import { LastScore } from "./score";
 
 export type EvalTarget = { kbId: string; agentId?: undefined; name: string } | { agentId: string; kbId?: undefined; name: string };
-
-/** The latest run's score (with its metric in the tooltip), or its status while it isn't done. */
-function LastScore({ set }: { set: EvalSet }) {
-  const r = set.lastRun;
-  if (!r) return <>Not run yet</>;
-  if (r.status !== "completed" || runScore(r) === undefined) return <>{runStatus[r.status].label}</>;
-  return <ScoreValue run={r} />;
-}
 
 /** "New set" and its dialog, which opens the new set. */
 export function NewSetButton({ target, variant = "primary" }: { target: EvalTarget; variant?: "primary" | "secondary" }) {

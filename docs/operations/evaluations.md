@@ -4,7 +4,7 @@ Evaluation sets let a team check that its knowledge bases and agents still find 
 
 ## Who sees what
 
-- **Team editors, admins and owners** see an **Evaluations** tab on each knowledge base and agent, and a page per set. Everything is in the app; API keys can't use evaluations.
+- **Team editors, admins and owners** see an **Evaluations** tab on each knowledge base and agent, a page per set, and the team's **Evaluations** page (the team sidebar's Evaluations item, ⌘K "evaluations"): every set with what it tests, its latest score, the trend since the run before, when it last ran, and a **Regressions** filter. The team **Overview** shows up to five sets' scores, regressions first ("Quality & spend"). Everything is in the app; API keys can't use evaluations.
 - **Members, people chatting and platform staff** (admins and auditors outside the team) don't see them: the tabs are hidden and the API answers 404. Break-glass doesn't open them either.
 - **Platform admins** turn the feature on or off for the whole platform with the **Evaluations** switch on **Admin → Overview → Features** (on by default; under Admin → Limits → Evaluations until v0.2.1, which now keeps only the two limits). While it's off, the tabs are hidden, the evaluation API answers 404 for everyone, the palette doesn't find sets and automatic runs don't start. Sets and runs are kept and come back when it's turned on. The switch is audited (`platform.evaluations`).
 

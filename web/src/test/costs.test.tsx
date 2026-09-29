@@ -84,15 +84,36 @@ describe("Admin → Costs", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("reports spend by day, team, agent and model, with CSV links and Unpriced flags", async () => {
-    mockApi(costRoutes("track"));
-    const { container } = renderApp("/admin/costs");
+  it("reports spend by day, then the top teams, agents or models in one card with one CSV (I5), with Unpriced flags", async () => {
+    const user = userEvent.setup();
+    const calls = mockApi(costRoutes("track"));
+    const { container, router } = renderApp("/admin/costs");
     const totals = await screen.findByRole("region", { name: "Totals" });
     expect(totals).toHaveTextContent(formatMoney("12.500000", "USD"));
+    // The day table is behind the chart's "Show data".
+    expect(await screen.findByRole("img", { name: /Spend per day by kind/ })).toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Spend per day" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: /Show data/ }));
     expect(await screen.findByRole("table", { name: "Spend per day" })).toHaveTextContent(formatMoney("12.500000", "USD"));
     expect(screen.getByRole("link", { name: "Download spend per day as CSV" }).getAttribute("href")).toMatch(/^\/v1\/admin\/costs\/report\.csv\?from=.*groupBy=day$/);
+    // Top spenders: Teams first, one CSV that follows the grouping; only the grouping shown is fetched.
+    const teams = await screen.findByRole("table", { name: "Top teams" });
+    expect(within(teams).getByRole("link", { name: "Office of the Registrar" })).toHaveAttribute("href", "/admin/teams/registrar");
+    expect(screen.getByRole("link", { name: "Download top teams as CSV" }).getAttribute("href")).toMatch(/groupBy=team$/);
+    expect(calls.some((c) => c.url === "/v1/admin/costs/report" && c.search.get("groupBy") === "agent")).toBe(false);
+    expect(await axe(container)).toHaveNoViolations();
+
+    const by = screen.getByRole("group", { name: "Top spenders by" });
+    await user.click(within(by).getByRole("button", { name: "Models" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ top: "models" }));
     const models = await screen.findByRole("table", { name: "Top models" });
     expect(within(models).getAllByText("Unpriced")).toHaveLength(1);
+    expect(within(models).getByRole("columnheader", { name: "Requests" })).toBeInTheDocument();
+    expect(within(models).getByRole("link", { name: "Chat large" })).toHaveAttribute("href", "/admin/models?record=m1&from=costs");
+    expect(screen.getByRole("link", { name: "Download top models as CSV" }).getAttribute("href")).toMatch(/groupBy=model$/);
+    expect(screen.queryByRole("table", { name: "Top teams" })).toBeNull();
+
+    await user.click(within(by).getByRole("button", { name: "Agents" }));
     const agents = await screen.findByRole("table", { name: "Top agents" });
     expect(agents).toHaveTextContent("Not from an agent (search, ingestion)");
     // An agent opens its admin page; usage without one isn't a link.
@@ -101,11 +122,16 @@ describe("Admin → Costs", () => {
     // Cents everywhere: $12.00 next to $0.50, never $12 next to $0.5.
     expect(agents).toHaveTextContent(formatMoney("12", "USD"));
     expect(agents).toHaveTextContent(formatMoney("0.5", "USD"));
-    expect(within(models).getByRole("columnheader", { name: "Requests" })).toBeInTheDocument();
     // One time-zone note on the page, in the header.
     expect(screen.getAllByText(/Budget months and report days follow America\/New_York; daily limits reset at midnight UTC\./)).toHaveLength(1);
-    expect(within(models).getByRole("link", { name: "Chat large" })).toHaveAttribute("href", "/admin/models?record=m1&from=costs");
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("opens Top spenders on the grouping in the address", async () => {
+    mockApi(costRoutes("track"));
+    renderApp("/admin/costs?top=agents");
+    expect(await screen.findByRole("table", { name: "Top agents" })).toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Top spenders by" })).getByRole("button", { name: "Agents" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("lists every team's budget state on the Budgets tab", async () => {
@@ -307,9 +333,15 @@ describe("the team's spend and banner", () => {
       }),
     });
     const { container } = renderBare(<TeamSpendCard team="registrar" />);
+    // One strip (I4): the amounts, the share, the state and the reset day, with the meter.
+    const strip = (await screen.findByText(/^of .* this month$/)).closest("p")!;
+    expect(strip).toHaveTextContent(`${formatMoney("85", "USD")} of ${formatMoney("100", "USD")} this month · 85% · Near budget · resets Oct 1`);
+    expect(screen.getByRole("meter", { name: "Share of this month's budget used" })).toBeInTheDocument();
+    // The breakdown is behind a disclosure.
+    expect(screen.queryByRole("table")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /Spend breakdown/ }));
     expect(await screen.findByRole("table", { name: "By agent" })).toHaveTextContent("Registrar help");
     expect(screen.getByRole("table", { name: "By model" })).toHaveTextContent("Unpriced");
-    expect(screen.getByText("Near budget")).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "By agent" })).toHaveTextContent(formatMoney("0.5", "USD"));
     expect(screen.getAllByRole("columnheader", { name: "Requests" })).toHaveLength(2);
     expect(screen.getByText(/SystemOne and moderation calls, priced per request/)).toBeInTheDocument();
@@ -345,15 +377,17 @@ describe("the team's spend and banner", () => {
 describe("a Track-only budget (progress, never enforced)", () => {
   const tracked = status("ok", { mode: "track", budget: "5.000000", limit: "5.000000", spent: "0.600000", percent: 12 });
 
-  it("shows owners progress against the budget on Usage & limits, not enforced", async () => {
+  it("shows owners progress against the budget on Usage & spend, not enforced", async () => {
     mockApi({
       "GET /v1/teams/registrar/spend": () => ({ status: tracked, timeZone: "UTC", from: "2026-09-01", to: "2026-09-02", total: reports.agent!.total, agents: [], models: [] }),
     });
     const { container } = renderBare(<TeamSpendCard team="registrar" />);
-    expect(await screen.findByText(/Tracking: 12% of \$5\.00 · not enforced/)).toBeInTheDocument();
+    const strip = (await screen.findByText(/^of .* this month$/)).closest("p")!;
+    expect(strip).toHaveTextContent("$0.60 of $5.00 this month · 12% · Within budget · not enforced · resets Oct 1");
     expect(screen.getByRole("meter", { name: "Share of this month's budget used" })).toBeInTheDocument();
-    expect(screen.getByText("Not enforced")).toBeInTheDocument();
     expect(container).not.toHaveTextContent(/At 100% the team's chats/);
+    // Nothing to break down: no disclosure.
+    expect(screen.queryByRole("button", { name: /Spend breakdown/ })).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
   });
 

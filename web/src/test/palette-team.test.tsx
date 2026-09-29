@@ -1,8 +1,10 @@
 /*
- * ⌘K inside a team (docs/v0.2.0.md §7): the words people type for team
- * pages (spend, budget, members, api keys, audit, crawl) lead to Team
- * settings' tabs, and on a knowledge base, agent or source the page's own
- * tabs (Try it, Evaluations, OCR settings), each only where its tab shows.
+ * ⌘K inside a team (docs/v0.2.0.md §7, docs/v0.2.1.md): the words people
+ * type for team pages (spend, budget, members, api keys, audit) lead to Team
+ * settings' tabs, "crawl" to Data sources › Crawl domains, "evaluations" to
+ * the team's Evaluations page, and on a knowledge base, agent or source the
+ * page's own tabs (Try it, Evaluations, OCR settings), each only where its
+ * tab shows.
  */
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -56,11 +58,29 @@ describe("⌘K team places", () => {
     }
     expect(await search("api keys")).toEqual(expect.arrayContaining(["API keysTeam settings", "New API key"]));
     expect(await search("audit")).toContain("Audit logTeam settings");
-    expect(await search("crawl domains")).toContain("Crawl domainsTeam settings");
-    // Evaluations belong to a knowledge base or an agent: nothing to open from here.
-    expect(await search("evaluations")).toEqual([]);
+    expect(await search("crawl domains")).toContain("Crawl domainsData sources");
+    // The team's Evaluations page (I3); "regression" and "eval" find it too.
+    for (const word of ["evaluations", "eval", "regression"]) {
+      expect(await search(word), word).toContain("EvaluationsOffice of the Registrar");
+    }
     expect(await axe(document.body)).toHaveNoViolations();
 
+    await search("crawl");
+    await user.click(within(dialog).getByRole("option", { name: /Crawl domains/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/teams/registrar/sources"));
+    expect(router.state.location.search).toMatchObject({ tab: "crawl-domains" });
+
+    await user.keyboard("{Control>}k{/Control}");
+    const again = await screen.findByRole("dialog", { name: "Command palette" });
+    await user.type(within(again).getByRole("combobox"), "evaluations");
+    await user.click(within(again).getByRole("option", { name: /^Evaluations/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/teams/registrar/evaluations"));
+
+  });
+
+  it("takes spend words to the usage tab", async () => {
+    mockApi(routes());
+    const { router, user, dialog, search } = await palette("/teams/registrar");
     await search("spend");
     await user.click(within(dialog).getByRole("option", { name: /Usage & limits/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/teams/registrar/settings"));
@@ -74,13 +94,15 @@ describe("⌘K team places", () => {
     expect(await search("usage")).toEqual([]);
     expect(await search("audit")).toEqual([]);
     expect(await search("members")).toContain("MembersTeam settings");
+    // Evaluations are for editors and above.
+    expect(await search("evaluations")).toEqual([]);
   });
 
   it("opens a knowledge base's Try it and Evaluations tabs from its page", async () => {
     mockApi(routes("editor"));
     const { router, user, dialog, search } = await palette("/teams/registrar/kbs/kb1");
-    expect(await search("evaluations")).toContain("EvaluationsThis knowledge base");
-    await user.click(within(dialog).getByRole("option", { name: /Evaluations/ }));
+    expect(await search("evaluations")).toEqual(expect.arrayContaining(["EvaluationsThis knowledge base", "EvaluationsOffice of the Registrar"]));
+    await user.click(within(dialog).getByRole("option", { name: /Evaluations.*This knowledge base/ }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ tab: "evaluations" }));
     expect(router.state.location.pathname).toBe("/teams/registrar/kbs/kb1");
 

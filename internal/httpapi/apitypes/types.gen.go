@@ -6296,8 +6296,11 @@ type EvaluationSet struct {
 	LastRun     *EvaluationRunBrief `json:"lastRun"`
 
 	// Name Example: Transcript questions
-	Name          string `json:"name"`
-	QuestionCount int64  `json:"questionCount"`
+	Name string `json:"name"`
+
+	// PreviousRun The completed run of the same kind before lastRun, the baseline of its trend (null without one).
+	PreviousRun   *EvaluationRunBrief `json:"previousRun"`
+	QuestionCount int64               `json:"questionCount"`
 
 	// Revision Increases on every change. Send it back in If-Match.
 	Revision  Revision         `json:"revision"`

@@ -9,6 +9,7 @@ import {
   costTabs,
   breakGlassTabs,
   crawlDomainTabs,
+  dataSourceTabs,
   editorTabs,
   embeddingProfileTabs,
   oldEditorTabs,
@@ -46,7 +47,7 @@ const pages = {
   limits: () => import("./pages/admin/limits/platform"),
   shared: () => import("./pages/admin/shared"),
   kbs: () => import("./pages/team/kbs/routes"),
-  evaluations: () => import("./pages/team/evaluations/set-page"),
+  evaluations: () => import("./pages/team/evaluations/routes"),
   teamLayout: () => import("./pages/team/layout"),
   teamSettings: () => import("./pages/team/settings/page"),
   conversations: () => import("./pages/conversations/page"),
@@ -201,24 +202,40 @@ const teamIndexRoute = createRoute({
   },
   component: lazy(pages.teamLayout, "TeamOverviewPage"),
 });
-/** Team pages that moved into Team settings. */
-const teamMoved = <P extends string>(path: P, tab: "api-keys" | "crawl-domains") =>
+/**
+ * Team pages that moved: API keys into Team settings (D1), and crawl domains
+ * into a tab of Data sources (I4, docs/v0.2.1.md). Other parameters, such as
+ * ?record=, come along.
+ */
+const teamMovedTo = { "api-keys": "settings?tab=api-keys", "crawl-domains": "sources?tab=crawl-domains" } as const;
+const movedHref = (team: string, to: keyof typeof teamMovedTo, searchStr = "") => {
+  const rest = new URLSearchParams(searchStr);
+  rest.delete("tab");
+  const extra = rest.toString();
+  return `/teams/${encodeURIComponent(team)}/${teamMovedTo[to]}${extra ? `&${extra}` : ""}`;
+};
+const teamMoved = <P extends string>(path: P, to: keyof typeof teamMovedTo) =>
   createRoute({
     getParentRoute: () => teamRoute,
     path,
-    beforeLoad: ({ params }) => {
-      throw redirect({ href: `/teams/${encodeURIComponent((params as { team: string }).team)}/settings?tab=${tab}`, replace: true });
+    beforeLoad: ({ params, location }) => {
+      throw redirect({ href: movedHref((params as { team: string }).team, to, location.searchStr), replace: true });
     },
   });
 const team = <P extends string>(path: P, component: Page) => createRoute({ getParentRoute: () => teamRoute, path, component });
+/** A team list page whose filters (?q=, ?trend=…) live in the URL. */
+const teamList = <P extends string>(path: P, component: Page) =>
+  createRoute({ getParentRoute: () => teamRoute, path, validateSearch: (s: Record<string, unknown>): Record<string, unknown> => s, component });
 /** A team page whose sections are tabs (?tab=). */
 const teamTabs = <P extends string, T extends string>(path: P, tabs: readonly T[], component: Page, opts?: { passthrough?: boolean }) =>
   createRoute({ getParentRoute: () => teamRoute, path, validateSearch: tabSearch(tabs, opts), component });
 
 /**
  * The agent editor: ?tab= plus its tabs' own parameters (?test=, ?record=,
- * ?range=, ?view=). Old links to Configure or Test open Build; ?tab=test also
- * opens the Test panel.
+ * ?range=, ?view=) and the version history (?history=, ?version=). Old links
+ * to Configure or Test open Build; ?tab=test also opens the Test panel. The
+ * old Versions tab (I6) opens the version history: ?tab=versions →
+ * ?history=versions, and its version records ?record=<n> → ?version=<n>.
  */
 const agentEditorRoute = createRoute({
   getParentRoute: () => teamRoute,
@@ -230,6 +247,12 @@ const agentEditorRoute = createRoute({
     if (!oldEditorTabs.includes(tab as (typeof oldEditorTabs)[number])) return;
     q.delete("tab");
     if (tab === "test") q.set("test", "open");
+    if (tab === "versions") {
+      q.set("history", "versions");
+      const record = q.get("record");
+      q.delete("record");
+      if (record) q.set("version", record);
+    }
     const rest = q.toString();
     throw redirect({ href: `${location.pathname}${rest ? `?${rest}` : ""}`, replace: true });
   },
@@ -284,11 +307,15 @@ const breakGlassConversationsRoute = createRoute({
   component: lazy(pages.breakGlass, "BreakGlassConversationsPage"),
 });
 
-/** Members · Usage & limits · API keys · Crawl domains · Audit log · General (D1). */
+/** Members · Usage & spend (or limits) · API keys · Audit log · General (D1, I4); ?tab=crawl-domains moved to Data sources. */
 const teamSettingsRoute = createRoute({
   getParentRoute: () => teamRoute,
   path: "settings",
   validateSearch: tabSearch(teamSettingsTabs, { passthrough: true }),
+  beforeLoad: ({ params, location }) => {
+    if (new URLSearchParams(location.searchStr).get("tab") !== "crawl-domains") return;
+    throw redirect({ href: movedHref(params.team, "crawl-domains", location.searchStr), replace: true });
+  },
   component: lazy(pages.teamSettings, "TeamSettingsPage"),
 });
 /** Audit · Access (D6). */
@@ -306,10 +333,11 @@ const appTree = appRoute.addChildren([
     chatRoute,
     teamRoute.addChildren([
       teamIndexRoute,
-      team("sources", lazy(pages.sources, "SourcesPage")),
+      teamTabs("sources", dataSourceTabs, lazy(pages.sources, "SourcesPage"), { passthrough: true }),
       teamTabs("sources/$sourceId", sourceTabs, lazy(pages.sources, "SourceDetailPage"), { passthrough: true }),
       team("kbs", lazy(pages.kbs, "KBsPage")),
       teamTabs("kbs/$kbId", kbTabs, lazy(pages.kbs, "KBDetailPage"), { passthrough: true }),
+      teamList("evaluations", lazy(pages.evaluations, "TeamEvaluationsPage")),
       teamTabs("evaluations/$setId", evaluationSetTabs, lazy(pages.evaluations, "EvaluationSetPage"), { passthrough: true }),
       team("agents", lazy(pages.agents, "AgentsPage")),
       agentEditorRoute,

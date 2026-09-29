@@ -64,3 +64,43 @@
   margin-inline: 0.125rem;
   color: var(--color-text-subtle);
 }
+
+/* A collapsed item: "…" opening a menu of the hidden crumbs. */
+.more {
+  display: inline-flex;
+  align-items: center;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  justify-content: center;
+  padding: 0 0.25rem;
+  margin: -0.125rem -0.125rem;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover,
+  &[data-popup-open] {
+    background-color: var(--color-surface-hover);
+    color: var(--color-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 1px;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

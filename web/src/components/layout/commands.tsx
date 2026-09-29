@@ -50,7 +50,7 @@ function pageGroup(navigate: Navigate, me: Me, slug: string | undefined, mine: M
         label: item.label,
         icon: item.icon,
         hint: mine?.name ?? "Team",
-        keywords: ["team", mine?.name ?? ""],
+        keywords: ["team", mine?.name ?? "", ...(item.keywords ?? [])],
         onSelect: () => void navigate({ to: item.to, params: { team: slug } }),
       });
     }
@@ -81,7 +81,10 @@ function teamActionGroup(navigate: Navigate, slug: string, mine: Membership): Co
         label: "Request a domain",
         icon: <Globe aria-hidden />,
         keywords: ["crawl", "website", "allowlist", "host"],
-        onSelect: settings("crawl-domains", "new-domain-request"),
+        onSelect: () => {
+          void navigate({ to: "/teams/$team/sources", params: { team: slug }, search: { tab: "crawl-domains" } });
+          requestIntent("new-domain-request");
+        },
       },
     );
   }
