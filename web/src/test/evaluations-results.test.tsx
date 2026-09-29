@@ -3,7 +3,7 @@
  * question failed or wasn't scored, Expected beside What came back, passes
  * on a citation alone, the question form's warnings, Enter in the document
  * picker, "Add to evaluations" from an answer, a run that finishes without
- * a reload.
+ * a reload, and the knowledge base's header action per tab.
  */
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -238,5 +238,32 @@ describe("a running run", () => {
     const page = await screen.findByRole("region", { name: "Run" }, T);
     expect(await within(page).findByText("Running")).toBeInTheDocument();
     expect(await within(page).findByText("Completed", {}, { timeout: 4000 })).toBeInTheDocument();
+  });
+});
+
+describe("the knowledge base's header action follows the tab", () => {
+  it("is New set on Evaluations, not repeated in the empty list", async () => {
+    mockApi(evalRoutes("editor", { "GET /v1/teams/registrar/evaluation-sets": () => [] }));
+    const { container } = renderApp("/teams/registrar/kbs/k1?tab=evaluations");
+    expect(await screen.findByText("No evaluation sets yet.", {}, T)).toBeInTheDocument();
+    const newSet = screen.getAllByRole("button", { name: "New set" });
+    expect(newSet).toHaveLength(1);
+    expect(newSet[0]).toHaveAttribute("data-variant", "primary");
+    expect(screen.queryByRole("button", { name: /Attach source/ })).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("is none on Try it, which searches a question passed in (Try this search)", async () => {
+    const calls = mockApi(evalRoutes("editor", { "POST /v1/teams/registrar/kbs/k1/retrieve": () => ({ hits: [], latencyMs: 3 }) }));
+    renderApp("/teams/registrar/kbs/k1?tab=try&q=How%20do%20I%20order%20a%20transcript%3F");
+    expect(await screen.findByRole("textbox", { name: "Question or search terms" }, T)).toHaveValue("How do I order a transcript?");
+    expect(screen.queryByRole("button", { name: /Attach source|New set/ })).toBeNull();
+    await waitFor(() => expect(calls.find((c) => c.url.endsWith("/retrieve"))?.body).toMatchObject({ query: "How do I order a transcript?" }));
+  });
+
+  it("is Attach source on Sources", async () => {
+    mockApi(evalRoutes());
+    renderApp("/teams/registrar/kbs/k1?tab=sources");
+    expect(await screen.findByRole("button", { name: /Attach source/ }, T)).toHaveAttribute("data-variant", "primary");
   });
 });

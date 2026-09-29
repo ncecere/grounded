@@ -1,7 +1,7 @@
 /* The "Try it" retrieval playground on the knowledge base page. */
 import { useMutation } from "@tanstack/react-query";
 import { ExternalLink, FileText, Search, SearchX, SlidersHorizontal } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError, api, unwrap, type Schemas } from "../../api/client";
 import { ApiErrorAlert } from "../../components/errors";
 import { Button } from "@/components/ui/button/button";
@@ -40,9 +40,17 @@ function friendlyError(err: unknown) {
   return err;
 }
 
-export function RetrievePlayground({ kbId, defaultTopK, sources = [] }: { kbId: string; defaultTopK: number; sources?: { id: string; name: string }[] }) {
+type PlaygroundProps = {
+  kbId: string;
+  defaultTopK: number;
+  sources?: { id: string; name: string }[];
+  /** A question to search for at once ("Try this search" on an evaluation result). */
+  initialQuery?: string;
+};
+
+export function RetrievePlayground({ kbId, defaultTopK, sources = [], initialQuery }: PlaygroundProps) {
   const { slug, role } = useTeam();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery ?? "");
   const [topK, setTopK] = useState("");
   const [filters, setFilters] = useState<MetadataFilter | undefined>(undefined);
   const systemOne = useSystemOneStatus();
@@ -58,6 +66,15 @@ export function RetrievePlayground({ kbId, defaultTopK, sources = [] }: { kbId: 
         }),
       ),
   });
+
+  // Search a question passed in once, as if it had been typed and sent.
+  const asked = useRef(false);
+  const { mutate } = run;
+  useEffect(() => {
+    if (asked.current || !initialQuery?.trim()) return;
+    asked.current = true;
+    mutate();
+  }, [initialQuery, mutate]);
 
   const active = cleanFilter(filters);
   const optionCount = (active ? Object.keys(active).length : 0) + (topK ? 1 : 0);
