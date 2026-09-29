@@ -220,7 +220,8 @@ export function searchGroups(results: Result[], navigate: Navigate, text = ""): 
     for (const spec of specs[r.type] ?? []) {
       const onSelect = spec.go(r, navigate);
       if (!onSelect) continue;
-      const g = groups.get(spec.group) ?? { label: spec.group, items: [] };
+      // The server ranked them: the palette keeps their order while it ranks the other groups' items.
+      const g = groups.get(spec.group) ?? { label: spec.group, items: [], keepOrder: true };
       const itemHint = r.type === "conversation" && duplicate(r) ? hint(r.secondary, formatDate(r.updatedAt) || undefined, state(r)) : spec.hint(r);
       const keywords = text ? [...spec.keywords(r), text] : spec.keywords(r);
       g.items.push({ id: `s:${spec.group}:${r.id}`, label: r.label, icon: spec.icon, hint: itemHint, keywords, onSelect });

@@ -17,7 +17,7 @@
     "app-shell": {
       "files": {
         "src/components/ui/app-shell/app-shell.module.css": "99dc9b22cc27d5fb5b728fda06e43cc7a42ec812882859d70bd5ae3afb07c91a",
-        "src/components/ui/app-shell/app-shell.tsx": "d9586f43e850dafe777c0ae4ed4b7b8677fd83b2aa893c05eb3991349fd75c8c"
+        "src/components/ui/app-shell/app-shell.tsx": "9eced5b10ccbc69d9579553ded2f7cf10572189c34858a6f309e481ee73d5a7d"
       }
     },
     "attachments": {
@@ -107,7 +107,7 @@
     "command-palette": {
       "files": {
         "src/components/ui/command-palette/command-palette.module.css": "54068eb1309bc1a07806acab8414cc66619c170aceab97267e91611897337f57",
-        "src/components/ui/command-palette/command-palette.tsx": "30db7cfa6ee8094e2e40c6b654592b2c180d0df257573cba417d655ed96924d1"
+        "src/components/ui/command-palette/command-palette.tsx": "f64c2330866caa0d92870e15afd54dd59b3982a0d864a693ab14c89671299f1b"
       }
     },
     "conversation": {
@@ -482,7 +482,7 @@
     },
     "toggle-group": {
       "files": {
-        "src/components/ui/toggle-group/toggle-group.module.css": "b59f902388f76197ef13651e6cbbcd2c20ecd17551be7bdf70d3b0c7d23136c9",
+        "src/components/ui/toggle-group/toggle-group.module.css": "870051ebb41deada69ab3df128edf849e68e970e88ccd10f5b36601ffcb23a62",
         "src/components/ui/toggle-group/toggle-group.tsx": "52a88a8174b07b81212598fc436f4e4492b8c3f2129f6a84521eff75603e34d7"
       }
     },

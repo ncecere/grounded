@@ -33,7 +33,8 @@ import styles from "./app-shell.module.css";
  * - Narrow windows (below 600px, `drawerQuery`): no permanent rail. The
  *   sidebar is a modal drawer (Base UI Dialog) opened from the same toggle,
  *   with its full labels; Escape, the backdrop, its close button or
- *   following a link in it close it.
+ *   following a link in it close it; after a link, focus moves to the main
+ *   content (the skip-link target), since the page it came from is gone.
  */
 
 /** Below this width the sidebar is a drawer (AppShell `drawerQuery`). */
@@ -120,7 +121,7 @@ export function AppShell({
       {skipTo && <SkipLink href={`#${skipTo}`} />}
       <div className={cx(styles.shell, className)} data-collapsed={dataFlag(collapsed)} data-narrow={dataFlag(narrow)}>
         {narrow ? (
-          <SidebarDrawer open={drawerOpen} onOpenChange={setDrawerOpen} label={drawerLabel}>
+          <SidebarDrawer open={drawerOpen} onOpenChange={setDrawerOpen} label={drawerLabel} contentId={skipTo}>
             {sidebar}
           </SidebarDrawer>
         ) : (
@@ -178,29 +179,84 @@ export type SidebarContentProps = {
 
 const currentSelector = '[aria-current="page"]';
 
+/** The element that scrolls `el` (the ScrollArea's viewport). */
+function scrollParent(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const style = getComputedStyle(p);
+    // jsdom leaves overflow-y at "visible" for an inline `overflow: scroll`; read the shorthand then.
+    const overflow = style.overflowY === "visible" ? style.overflow : style.overflowY;
+    if (overflow === "auto" || overflow === "scroll") return p;
+  }
+  return null;
+}
+
 /**
- * Keeps the current page's item in view: on mount, when another item becomes
- * the current page, and when the section holding it opens. Scrolling to the
- * "nearest" edge leaves a visible item where it is.
+ * Keeps the current page's item fully in view: on mount, when another item
+ * becomes the current page, when the section holding it opens, and when the
+ * layout changes while it was in view (items that load late above it, the
+ * rail collapsing, the window getting shorter). Once the person scrolls it
+ * out of view, layout changes leave the scroll position alone. A visible
+ * item stays where it is.
+ *
+ * It scrolls the viewport itself rather than calling scrollIntoView(): Chrome
+ * moves the sequential focus starting point to an element scrolled into
+ * view, so the first Tab after a page load would land after the current item
+ * instead of on the skip link.
  */
 function useRevealCurrent() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const root = ref.current;
-    if (!root) return;
-    const reveal = () => root.querySelector<HTMLElement>(currentSelector)?.scrollIntoView?.({ block: "nearest" });
+    const viewport = root && scrollParent(root);
+    if (!root || !viewport) return;
+    const offsets = () => {
+      const item = root.querySelector<HTMLElement>(currentSelector);
+      if (!item) return null;
+      const v = viewport.getBoundingClientRect();
+      const r = item.getBoundingClientRect();
+      return { above: v.top - r.top, below: r.bottom - v.bottom };
+    };
+    // Whether the current item was in view after the last reveal or scroll.
+    let pinned = true;
+    const reveal = () => {
+      const o = offsets();
+      if (!o) return;
+      if (o.above > 0.5) viewport.scrollTop -= o.above;
+      // Down far enough to show its bottom edge, but never past its top.
+      else if (o.below > 0.5) viewport.scrollTop += Math.min(o.below, -o.above);
+      pinned = true;
+    };
+    const onScroll = () => {
+      const o = offsets();
+      pinned = !o || (o.above <= 0.5 && o.below <= 0.5);
+    };
     reveal();
-    if (typeof MutationObserver === "undefined") return;
-    const mo = new MutationObserver((records) => {
-      const moved = records.some((r) => {
-        const t = r.target as HTMLElement;
-        if (r.attributeName === "aria-current") return t.getAttribute("aria-current") === "page";
-        return !t.hidden && t.querySelector(currentSelector) !== null;
-      });
-      if (moved) reveal();
-    });
-    mo.observe(root, { subtree: true, attributes: true, attributeFilter: ["aria-current", "hidden"] });
-    return () => mo.disconnect();
+    viewport.addEventListener("scroll", onScroll, { passive: true });
+    const ro =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            if (pinned) reveal();
+          });
+    ro?.observe(viewport);
+    ro?.observe(root);
+    const mo =
+      typeof MutationObserver === "undefined"
+        ? null
+        : new MutationObserver((records) => {
+            const moved = records.some((r) => {
+              const t = r.target as HTMLElement;
+              if (r.attributeName === "aria-current") return t.getAttribute("aria-current") === "page";
+              return !t.hidden && t.querySelector(currentSelector) !== null;
+            });
+            if (moved) reveal();
+          });
+    mo?.observe(root, { subtree: true, attributes: true, attributeFilter: ["aria-current", "hidden"] });
+    return () => {
+      viewport.removeEventListener("scroll", onScroll);
+      ro?.disconnect();
+      mo?.disconnect();
+    };
   }, []);
   return ref;
 }
@@ -230,20 +286,43 @@ export function SidebarNav({ children, className, ...props }: SidebarNavProps) {
   );
 }
 
+type SidebarDrawerProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  label: string;
+  /** The main content's id (the skip-link target): focus goes there after following a link. */
+  contentId: string | null;
+  children: ReactNode;
+};
+
 /** The drawer that holds the sidebar on a narrow window. */
-function SidebarDrawer({ open, onOpenChange, label, children }: { open: boolean; onOpenChange: (open: boolean) => void; label: string; children: ReactNode }) {
+function SidebarDrawer({ open, onOpenChange, label, contentId, children }: SidebarDrawerProps) {
+  const followed = useRef(false);
   // Following a link (a page in the sidebar, or a link in one of its menus) closes the drawer.
   // Router links cancel the browser's navigation (defaultPrevented) to do their own, so that isn't checked;
   // a modified click opens a new tab and leaves the drawer open.
   const onClick = (e: MouseEvent) => {
     const link = (e.target as Element).closest?.("a[href]");
-    if (link && !e.metaKey && !e.ctrlKey && !e.shiftKey) onOpenChange(false);
+    if (!link || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    followed.current = true;
+    onOpenChange(false);
   };
+  // After following a link, focus goes to the new page's content itself (the main landmark, not its first
+  // control, which Base UI would pick for an element that isn't a tab stop), not back to the toggle, whose
+  // page is gone. Escape, the backdrop and the close button return it to the toggle. Base UI may ask more
+  // than once while closing, so the flag is only reset when the drawer opens again.
+  const finalFocus = () => {
+    const content = followed.current && contentId ? document.getElementById(contentId) : null;
+    if (!content) return true;
+    queueMicrotask(() => content.focus({ preventScroll: true }));
+    return false;
+  };
+  if (open && followed.current) followed.current = false;
   return (
     <BaseDialog.Root open={open} onOpenChange={(o) => onOpenChange(o)}>
       <BaseDialog.Portal>
         <BaseDialog.Backdrop className={styles.drawerBackdrop} />
-        <BaseDialog.Popup className={styles.drawerPopup} aria-label={label} onClick={onClick}>
+        <BaseDialog.Popup className={styles.drawerPopup} aria-label={label} onClick={onClick} finalFocus={finalFocus}>
           {children}
           <BaseDialog.Close className={styles.drawerClose} aria-label={`Close ${label.toLowerCase()}`}>
             <X aria-hidden />
@@ -324,6 +403,8 @@ export type SidebarItemProps = {
 export function SidebarItem({ label, icon, href, render, current, trailing, dot, description, className }: SidebarItemProps) {
   const shell = useAppShell();
   const collapsed = shell?.collapsed ?? false;
+  const textual = (x: ReactNode) => typeof x === "string" || typeof x === "number";
+  const spoken = description && textual(label) && textual(description) ? `${label}, ${description}` : undefined;
   const link = useRender({
     render,
     defaultTagName: "a",
@@ -337,9 +418,16 @@ export function SidebarItem({ label, icon, href, render, current, trailing, dot,
           {icon && <span className={styles.itemIcon}>{icon}</span>}
           {description ? (
             <span className={cx(styles.itemText, collapsed && "sr-only")}>
-              <span className={styles.itemLabel}>{label}</span>
-              <span className={styles.itemDescription}>
-                <span className="sr-only">, </span>
+              {spoken && (
+                // Text labels are read as one text ("Question?, Agent"): split over the two lines, browsers
+                // join the parts with a space ("Question? , Agent").
+                <span className="sr-only">{spoken}</span>
+              )}
+              <span className={styles.itemLabel} aria-hidden={spoken ? true : undefined}>
+                {label}
+              </span>
+              <span className={styles.itemDescription} aria-hidden={spoken ? true : undefined}>
+                {!spoken && <span className="sr-only">, </span>}
                 {description}
               </span>
             </span>

@@ -1,7 +1,9 @@
 /* The command palette's groups: pages, the team's places (team-commands.tsx), team actions, objects found on the server (search-commands.tsx), teams and admin pages. */
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Bell, Boxes, Compass, Globe, Home, MessagesSquare, Plus, UserPlus } from "lucide-react";
 import { useMemo } from "react";
+import { teamSpendQuery } from "../../api/queries";
 import { requestIntent, type Intent } from "../../lib/intents";
 import { type TeamSettingsTab } from "../../lib/tabs";
 import { terms } from "../../lib/terms";
@@ -121,9 +123,16 @@ function adminGroup(navigate: Navigate, platformAdmin: boolean): CommandGroup {
     keywords: ["admin", ...(adminKeywords[n.to] ?? [])],
     onSelect: () => void navigate({ to: n.to }),
   }));
-  // Places that are a tab of an admin page (Profile migrations, Legal holds; v0.2.1 I1).
+  // Places inside an admin page: tabs (Profile migrations, Legal holds, Budgets; v0.2.1 I1) and the Overview's Features card.
   for (const t of adminTabCommands) {
-    items.push({ id: "admin:" + t.id, label: t.label, icon: t.icon, hint: "Admin", keywords: ["admin", ...t.keywords], onSelect: () => void navigate({ to: t.to, search: { tab: t.tab } as never }) });
+    items.push({
+      id: "admin:" + t.id,
+      label: t.label,
+      icon: t.icon,
+      hint: "Admin",
+      keywords: ["admin", ...t.keywords],
+      onSelect: () => void navigate({ to: t.to, search: (t.tab ? { tab: t.tab } : {}) as never, hash: t.hash }),
+    });
   }
   if (platformAdmin) {
     const adminAct = (to: AdminPath, intent: Intent) => () => {
@@ -168,16 +177,20 @@ export function useCommands(me: Me, active: ActiveTeam, open: boolean, query: st
   const found = useSearchCommands(open, query);
   const loc = useLocationInfo();
   const teamName = active.name ?? "Team";
+  // Whether the team's usage tab shows spend (its owners and admins, while cost tracking is on), for the command's name.
+  const manager = mine?.status === "active" && (mine.role === "owner" || mine.role === "admin");
+  const spend = useQuery({ ...teamSpendQuery(slug ?? ""), enabled: open && Boolean(slug) && manager });
+  const spendOn = manager && spend.data !== undefined;
 
   const groups = useMemo(() => {
     const groups: CommandGroup[] = [pageGroup(navigate, me, slug, mine)];
-    if (slug) groups.push(teamPlacesGroup(navigate, loc, me, slug, teamName, mine));
+    if (slug) groups.push(teamPlacesGroup(navigate, loc, me, { slug, name: teamName, spendOn }, mine));
     if (slug && mine) groups.push(teamActionGroup(navigate, slug, mine));
     groups.push(...found.groups);
     groups.push(teamsGroup(navigate, me.teams));
     if (canAdmin) groups.push(adminGroup(navigate, me.capabilities.platformAdmin));
     return groups;
     // `me` is only read for its teams and capabilities, which are dependencies.
-  }, [navigate, slug, mine, loc, teamName, found.groups, me.teams, me.capabilities, canAdmin]);
+  }, [navigate, slug, mine, loc, teamName, spendOn, found.groups, me.teams, me.capabilities, canAdmin]);
   return { groups, searching: found.searching };
 }

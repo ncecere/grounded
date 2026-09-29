@@ -145,8 +145,9 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
     } else if (routeId === "/app/admin/break-glass/$sessionId/conversations") {
       crumbs.push({ label: "Break-glass", render: <Link to="/admin/break-glass" /> }, { label: "Conversations" });
     } else {
-      const page = adminNav.find((n) => routeId === "/app" + n.to || routeId === "/app" + n.to + "/");
-      crumbs.push({ label: page?.label ?? "Administration" });
+      // Only the admin layout matched (an unknown admin address): the not-found page adds its own tail.
+      const page = routeId === "/app/admin" ? undefined : adminNav.find((n) => routeId === "/app" + n.to || routeId === "/app" + n.to + "/");
+      if (page || routeId !== "/app/admin") crumbs.push({ label: page?.label ?? "Administration" });
     }
     return crumbs;
   }

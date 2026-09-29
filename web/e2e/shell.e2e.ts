@@ -27,6 +27,9 @@ test("workspace shell: sidebar, breadcrumbs and ⌘K navigation", async ({ as, a
   await expect(page.getByRole("heading", { level: 1, name: `E2E ${team}` })).toBeVisible();
   await expect(page.getByRole("button", { name: `Current workspace: E2E ${team} Owner` })).toBeVisible();
   await a11y(page);
+  // The first Tab reaches the skip link, not the sidebar item after the current page (keeping it in view mustn't move the Tab start).
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
 
   // The sidebar.
   const sidebar = page.getByRole("navigation", { name: "Main" });

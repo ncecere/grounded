@@ -1,4 +1,4 @@
-import { Archive, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign } from "lucide-react";
+import { Archive, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet } from "lucide-react";
 import { type ReactNode } from "react";
 import { terms } from "../../lib/terms";
 import { type Me } from "../../session";
@@ -94,8 +94,12 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
 /** Admin group labels before v0.2.1 and the group each one's pages mostly went to (remembered open groups, admin-groups.ts). */
 export const oldAdminGroups: Record<string, string[]> = { Policy: ["Safety"], Monitoring: ["Usage & spend", "Records"] };
 
-/** Admin places that are a tab of a sidebar page, for ⌘K (their old pages redirect there, router.tsx). */
-export const adminTabCommands: { id: string; label: string; to: AdminPath; tab: string; icon: ReactNode; keywords: string[] }[] = [
+/**
+ * Admin places inside a sidebar page, for ⌘K: tabs (Profile migrations and Legal holds, whose old pages
+ * redirect there, router.tsx; Budgets) and the Overview's Features card. Their names rank above the page
+ * that holds them, so typing "legal holds" or "budget" and pressing Enter opens the place itself.
+ */
+export const adminTabCommands: { id: string; label: string; to: AdminPath; tab?: string; hash?: string; icon: ReactNode; keywords: string[] }[] = [
   {
     id: "profile-migrations",
     label: "Profile migrations",
@@ -112,6 +116,22 @@ export const adminTabCommands: { id: string; label: string; to: AdminPath; tab: 
     icon: icon(Scale),
     keywords: ["legal hold", "litigation", "records request", "preserve", "keep", "hold", "retention"],
   },
+  {
+    id: "budgets",
+    label: "Budgets",
+    to: "/admin/costs",
+    tab: "budgets",
+    icon: icon(Wallet),
+    keywords: ["budget", "team budgets", "monthly budget", "extension", "enforce", "track only", "spend limit", "costs"],
+  },
+  {
+    id: "features",
+    label: "Features",
+    to: "/admin",
+    hash: "features",
+    icon: icon(ToggleRight),
+    keywords: ["feature", "feature switches", "evaluations", "evaluation switch", "turn on", "turn off", "optional", "cost tracking", "overview"],
+  },
 ];
 
 export const adminNav = adminSections.flatMap((section) => section.items);
@@ -124,7 +144,7 @@ export function activeAdminGroup(pathname: string): string | undefined {
 
 /** Extra command-palette search words for admin pages. */
 export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
-  "/admin": ["overview", "dashboard", "attention", "home", "features", "feature switches", "evaluations", "evaluation switch", "turn on", "turn off"],
+  "/admin": ["overview", "dashboard", "attention", "home", "platform at a glance", "recent changes"],
   "/admin/group-mapping": ["sso", "groups", "identity provider", "idp", "oidc", "membership rules", "access"],
   "/admin/crawl-domains": ["allowlist", "domain requests", "web", "crawling"],
   "/admin/parsing": ["ocr", "scanned", "scan", "tesseract", "tika", "vision", "images", "pdf", "languages"],

@@ -20,6 +20,18 @@ export const adminTeamQuery = (team: string) =>
     queryFn: async () => unwrap(await api.GET("/v1/admin/teams/{team}", { params: { path: { team } } })),
   });
 
+/**
+ * A team's spend this month (owners, admins and platform staff). It answers 404 while the team's cost
+ * mode is Off, so data means cost tracking is on: Team settings' usage tab and its ⌘K command are then
+ * "Usage & spend".
+ */
+export const teamSpendQuery = (team: string) =>
+  queryOptions({
+    queryKey: ["team", team, "spend"],
+    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/spend", { params: { path: { team } } })),
+    retry: false,
+  });
+
 export const sharedSourceKey = (id: string) => ["admin", "shared-source", id];
 
 /** One platform-shared source (admin view). */

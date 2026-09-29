@@ -79,7 +79,8 @@ export function TeamEvaluationsPage() {
       cell: (x) => <CellText primary={<TargetLink set={x} slug={slug} />} secondary={x.target.type === "agent" ? "Agent" : "Knowledge base"} />,
     },
     { id: "score", header: "Latest score", sortable: true, accessor: (x) => (x.lastRun ? (runScore(x.lastRun) ?? -1) : -2), cell: (x) => <LastScore set={x} /> },
-    { id: "trend", header: "Trend", sortable: true, accessor: (x) => setTrend(x).points ?? 0, cell: (x) => <TrendValue set={x} /> },
+    // On a phone the set's name and its latest score share the width; Tests, Trend and Last run stay in the Columns menu.
+    { id: "trend", header: "Trend", sortable: true, defaultHiddenNarrow: true, accessor: (x) => setTrend(x).points ?? 0, cell: (x) => <TrendValue set={x} /> },
     {
       id: "lastRun",
       header: "Last run",

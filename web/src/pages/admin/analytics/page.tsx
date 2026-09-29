@@ -49,7 +49,8 @@ const csvHref = (d: PlatformAnalytics, f: AnalyticsFilter) => {
 export function AdminAnalyticsPage() {
   const dates = useDateRangeParam({ defaultPreset: "30d" });
   const range: Range = { from: dates.fromDay ?? "", to: dates.toDay ?? "" };
-  const [tab, setTab] = useUrlTab(analyticsTabs);
+  // The range and the team and audience filters sit above the tabs: they stay when the tab changes.
+  const [tab, setTab] = useUrlTab(analyticsTabs, { keep: ["range", "team", "audience"] });
   const filters = useAnalyticsFilter();
   const f = filters.filter;
   const data = useQuery({ ...adminAnalyticsQuery(range, f), enabled: Boolean(range.from && range.to) });
@@ -82,6 +83,8 @@ export function AdminAnalyticsPage() {
           label="Analytics sections"
           value={tab}
           onValueChange={setTab}
+          // Checks shows once SystemOne is known to be configured: a link to it waits for that.
+          ready={!systemOne.isPending}
           tabs={[
             {
               value: "overview",

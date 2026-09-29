@@ -202,7 +202,11 @@ describe("app shell", () => {
     expect(within(adminNav).getByRole("button", { name: "Safety" })).toHaveAttribute("aria-expanded", "true");
     await router.navigate({ to: "/admin/logs" });
     await waitFor(() => expect(within(adminNav).getByRole("button", { name: "Records" })).toHaveAttribute("aria-expanded", "true"));
-    expect(JSON.parse(localStorage.getItem("grounded.adminNavOpen") ?? "[]")).toEqual(expect.arrayContaining(["People", "Safety", "Records"]));
+    // Only groups opened by hand are remembered: Records opened because Logs is current, and closes again on leaving.
+    expect(JSON.parse(localStorage.getItem("grounded.adminNavOpen") ?? "[]")).toEqual(expect.arrayContaining(["People", "Safety"]));
+    expect(JSON.parse(localStorage.getItem("grounded.adminNavOpen") ?? "[]")).not.toContain("Records");
+    await router.navigate({ to: "/admin/teams" });
+    await waitFor(() => expect(within(adminNav).getByRole("button", { name: "Records" })).toHaveAttribute("aria-expanded", "false"));
   });
 
   it("opens Admin on Overview for someone who hasn't used it in this session, even after another admin did", async () => {
