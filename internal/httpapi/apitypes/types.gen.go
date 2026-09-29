@@ -4994,7 +4994,7 @@ type Claim struct {
 	Confidence *float64 `json:"confidence,omitempty"`
 	End        int      `json:"end"`
 
-	// Index The claim's position in the answer
+	// Index The claim's position in the answer, from 0
 	Index int `json:"index"`
 
 	// Sources The numbers ([n]) of the cited sources that support the claim; empty unless supported

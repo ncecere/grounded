@@ -7759,7 +7759,7 @@ export interface components {
         };
         /** @description One claim of the answer: a factual sentence (a list item or a table data row counts as one), with one verdict (SystemOne citation checks, docs/systemone.md §3). supported - a source it cites supports it (sources lists which); not_supported - it cites sources and none supports it; uncited - it cites no source (counted as not supported); unchecked - no cited source supports it and at least one check failed or timed out (left out of the counts). start and end are offsets in the answer text in Unicode code points. */
         Claim: {
-            /** @description The claim's position in the answer */
+            /** @description The claim's position in the answer, from 0 */
             index: number;
             start: number;
             end: number;
