@@ -1,6 +1,7 @@
 /*
  * The agent's spend this month on its Analytics tab (I4, docs/v0.2.1.md): its
- * row of the team's spend report (by agent), beside "Tokens by model". For
+ * row of the team's spend report (by agent), beside "Tokens by model", with
+ * the time it was read (the figures grow as usage is recorded). For
  * the team's owners and admins while cost tracking is on (the spend API
  * answers 404 while it's off, and nothing shows). Always this month, whatever
  * the tab's period: budgets are monthly.
@@ -14,7 +15,7 @@ import { DescriptionList } from "@/components/ui/description-list/description-li
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { monthLabel } from "@/lib/costs";
 import s from "../../shared.module.css";
-import { useTeamSpend } from "../../team/spend";
+import { asOf, useTeamSpend } from "../../team/spend";
 import { useTeam } from "../../team/common";
 import type { Agent } from "../common";
 
@@ -39,7 +40,8 @@ export function AgentSpendCard({ agent }: { agent: Pick<Agent, "id"> }) {
       title="Spend this month"
       description={
         <>
-          {monthLabel(d.status.month)}, whatever the period above. Platform admins set prices.{" "}
+          {monthLabel(d.status.month)}, whatever the period above. {asOf(q.dataUpdatedAt)}; figures update as usage is recorded, so they can differ from
+          a page read earlier. Platform admins set prices.{" "}
           <TextLink render={<Link to="/teams/$team/settings" params={{ team: slug }} search={{ tab: "usage" }} />}>The team's spend</TextLink>
         </>
       }

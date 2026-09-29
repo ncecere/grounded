@@ -211,12 +211,14 @@ describe("getting started", () => {
     await waitFor(() => expect(steps.map((st) => st.textContent?.startsWith("Done"))).toEqual([false, true, true, false]));
     expect(within(card).getByRole("link", { name: "New data source" })).toHaveAttribute("href", "/teams/registrar/sources");
     expect(within(card).getByRole("link", { name: "Open Helper" })).toHaveAttribute("href", "/teams/registrar/agents/ag1?tab=share");
-    // An empty team's primary action is a data source.
-    expect(screen.getAllByRole("link", { name: "New data source" })).toHaveLength(2);
+    // One primary per view: while the checklist shows, its current step is the page's action, not the header's too.
+    expect(screen.getAllByRole("link", { name: "New data source" })).toHaveLength(1);
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(within(card).getByRole("button", { name: "Dismiss Getting started" }));
     expect(screen.queryByRole("heading", { name: "Getting started" })).toBeNull();
     expect(localStorage.getItem("grounded.gettingStarted.dismissed.registrar")).toBe("1");
+    // Dismissed: the header offers it again.
+    expect(await screen.findByRole("link", { name: "New data source" })).toHaveAttribute("href", "/teams/registrar/sources");
   });
 
   it("gives members the agents they can chat with and the knowledge bases they can query (W13)", async () => {

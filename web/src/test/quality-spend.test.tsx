@@ -121,9 +121,12 @@ describe("the Overview's Quality & spend (I3)", () => {
     expect(within(row).getByText("1 set scored lower than the run before.")).toBeInTheDocument();
     expect(within(row).getByRole("link", { name: "All evaluations" })).toHaveAttribute("href", "/teams/registrar/evaluations");
     const strip = await within(row).findByText(/^of .* this month$/);
-    expect(strip.closest("p")).toHaveTextContent("$0.24 of $1.20 this month · 19% · Within budget · resets Oct 1");
-    expect(within(row).getByRole("meter", { name: "Share of this month's budget used" })).toBeInTheDocument();
-    expect(within(row).getByRole("link", { name: "Spend breakdown" })).toHaveAttribute("href", "/teams/registrar/settings?tab=usage");
+    // The share shows once, on the meter (the walkthrough's "20% · … 20%").
+    expect(strip.closest("p")).toHaveTextContent("$0.24 of $1.20 this month · Within budget · resets Oct 1");
+    expect(within(row).getByRole("meter", { name: "Share of this month's budget used" })).toHaveAttribute("aria-valuetext", "19%");
+    expect(within(row).getAllByText("19%")).toHaveLength(1);
+    // It opens the usage tab with the breakdown open.
+    expect(within(row).getByRole("link", { name: "Spend breakdown" })).toHaveAttribute("href", "/teams/registrar/settings?tab=usage#spend-breakdown");
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -180,6 +183,8 @@ describe("Usage & spend (I4)", () => {
     expect(await screen.findByRole("heading", { name: "Spend this month" }, T)).toBeInTheDocument();
     expect(screen.getByText("$0.18")).toBeInTheDocument();
     expect(screen.getByText("75% of the team's spend")).toBeInTheDocument();
+    // When the figures were read: they grow as usage is recorded (the walkthrough compared two pages minutes apart).
+    expect(screen.getByText(/As of .*; figures update as usage is recorded/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 

@@ -2,12 +2,15 @@
  * Team settings › Usage & spend › Spend this month (E2, docs/costs.md §5; I4,
  * docs/v0.2.1.md): for the team's owners and admins (and platform staff)
  * while its cost mode isn't Off. The spend is one strip ("$0.24 of $1.20 this
- * month · 19% · Within budget · resets Oct 1", with a meter; a Track-only
- * budget adds "not enforced"), shared with the team Overview; spend by agent
- * and by model sits in a "Spend breakdown" disclosure. Editors and members
- * see no money.
+ * month · Within budget · resets Oct 1", with a meter that shows the share,
+ * 19%, once; a Track-only budget adds "not enforced"), shared with the team
+ * Overview; spend by agent and by model sits in a "Spend breakdown"
+ * disclosure, which the Overview's link opens (#spend-breakdown). Figures
+ * update as usage is recorded, so the card says when they were read.
+ * Editors and members see no money.
  */
 import { useQuery } from "@tanstack/react-query";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { ApiError, api, unwrap, type Schemas } from "@/api/client";
 import { num } from "@/components/analytics/format";
 import { ErrorAlert } from "@/components/ui/alert/alert";
@@ -43,10 +46,9 @@ export function resetDay(month: string) {
   return new Date(Date.UTC(y!, m ?? 1, 1)).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-/** The strip's parts after the amount: "19%", "Within budget", "not enforced", "resets Oct 1". */
+/** The strip's parts after the amount: "Within budget", "not enforced", "resets Oct 1" (the meter shows the share). */
 export function stripParts(st: TeamBudgetState): string[] {
   const parts: string[] = [];
-  if (st.limit !== null) parts.push(`${st.percent ?? 0}%`);
   if (st.state !== "none") parts.push(budgetStateLabel(st));
   if (!st.enforced && st.state !== "none") parts.push("not enforced");
   parts.push(`resets ${resetDay(st.month)}`);
@@ -130,6 +132,28 @@ function EnforcedNote({ status: st }: { status: TeamBudgetState }) {
   );
 }
 
+/** Where the Overview's "Spend breakdown" link lands: the usage tab with the breakdown open (settings?tab=usage#spend-breakdown). */
+export const breakdownHash = "spend-breakdown";
+
+/** "As of 10:12 AM": when the figures were read (they grow as usage is recorded). */
+export const asOf = (at: number) => `As of ${new Date(at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+
+/** The breakdown disclosure, open and scrolled into view when the address asks for it. */
+function Breakdown({ children }: { children: ReactNode }) {
+  const [linked] = useState(() => globalThis.location?.hash === `#${breakdownHash}`);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (linked) ref.current?.scrollIntoView?.({ block: "start" });
+  }, [linked]);
+  return (
+    <div id={breakdownHash} ref={ref}>
+      <Disclosure title="Spend breakdown" summary="This month's spend by agent and by model." defaultOpen={linked}>
+        {children}
+      </Disclosure>
+    </div>
+  );
+}
+
 export function TeamSpendCard({ team }: { team: string }) {
   const q = useTeamSpend(team);
   if (q.off) return null;
@@ -140,19 +164,19 @@ export function TeamSpendCard({ team }: { team: string }) {
   const cur = st.currency;
   const rows = d.agents.length + d.models.length;
   return (
-    <Card title="Spend this month" description={`${monthLabel(st.month)}. Platform admins set prices and budgets.`}>
+    <Card title="Spend this month" description={`${monthLabel(st.month)}. ${asOf(q.dataUpdatedAt)}; figures update as usage is recorded. Platform admins set prices and budgets.`}>
       <div className={u.body}>
         <SpendStrip status={st} />
         <EnforcedNote status={st} />
         {d.total.unpriced && <p className={s.muted}>Some usage has no price yet, so it counts as zero.</p>}
         {rows > 0 && (
-          <Disclosure title="Spend breakdown" summary="This month's spend by agent and by model.">
+          <Breakdown>
             <div className={u.body}>
               <SpendTable caption="By agent" first="Agent" rows={d.agents} currency={cur} />
               <SpendTable caption="By model" first="Model" rows={d.models} currency={cur} />
               <p className={s.muted}>Requests: {requestsHint}</p>
             </div>
-          </Disclosure>
+          </Breakdown>
         )}
       </div>
     </Card>

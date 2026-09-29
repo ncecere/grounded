@@ -24,7 +24,7 @@ import { plural, useTeam } from "../common";
 import { evalSetsQuery, useEvaluationsOn } from "../evaluations/queries";
 import { LastScore, TrendValue } from "../evaluations/score";
 import { overviewSets, regressed } from "../evaluations/trend";
-import { SpendStrip, useTeamSpend } from "../spend";
+import { breakdownHash, SpendStrip, useTeamSpend } from "../spend";
 import o from "./overview.module.css";
 
 export function QualityAndSpend() {
@@ -105,7 +105,8 @@ function SpendThisMonth({ spend }: { spend: Schemas["TeamSpend"] }) {
     <Card
       title="Spend this month"
       description={`${monthLabel(spend.status.month)}. Platform admins set prices and budgets.`}
-      actions={<TextLink render={<Link to="/teams/$team/settings" params={{ team: slug }} search={{ tab: "usage" }} />}>Spend breakdown</TextLink>}
+      // The usage tab with the breakdown open (spend.tsx).
+      actions={<TextLink render={<Link to="/teams/$team/settings" params={{ team: slug }} search={{ tab: "usage" }} hash={breakdownHash} />}>Spend breakdown</TextLink>}
     >
       <SpendStrip status={spend.status} />
     </Card>

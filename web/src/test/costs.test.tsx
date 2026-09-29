@@ -335,9 +335,10 @@ describe("the team's spend and banner", () => {
     const { container } = renderBare(<TeamSpendCard team="registrar" />);
     // One strip (I4): the amounts, the share, the state and the reset day, with the meter.
     const strip = (await screen.findByText(/^of .* this month$/)).closest("p")!;
-    expect(strip).toHaveTextContent(`${formatMoney("85", "USD")} of ${formatMoney("100", "USD")} this month · 85% · Near budget · resets Oct 1`);
+    expect(strip).toHaveTextContent(`${formatMoney("85", "USD")} of ${formatMoney("100", "USD")} this month · Near budget · resets Oct 1`);
     expect(screen.getByRole("meter", { name: "Share of this month's budget used" })).toBeInTheDocument();
-    // The breakdown is behind a disclosure.
+    // The breakdown is behind a disclosure; the card says when its figures were read.
+    expect(screen.getByText(/As of .*figures update as usage is recorded/)).toBeInTheDocument();
     expect(screen.queryByRole("table")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /Spend breakdown/ }));
     expect(await screen.findByRole("table", { name: "By agent" })).toHaveTextContent("Registrar help");
@@ -346,6 +347,22 @@ describe("the team's spend and banner", () => {
     expect(screen.getAllByRole("columnheader", { name: "Requests" })).toHaveLength(2);
     expect(screen.getByText(/SystemOne and moderation calls, priced per request/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("opens the breakdown when the Overview's link asks for it (#spend-breakdown)", async () => {
+    mockApi({
+      "GET /v1/teams/registrar/spend": () => ({
+        status: status("ok"), timeZone: "UTC", from: "2026-09-01", to: "2026-09-02", total: reports.agent!.total, agents: reports.agent!.rows, models: reports.model!.rows,
+      }),
+    });
+    window.history.replaceState(null, "", "/teams/registrar/settings?tab=usage#spend-breakdown");
+    try {
+      renderBare(<TeamSpendCard team="registrar" />);
+      expect(await screen.findByRole("button", { name: /Spend breakdown/ })).toHaveAttribute("aria-expanded", "true");
+      expect(await screen.findByRole("table", { name: "By agent" })).toBeInTheDocument();
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
   });
 
   it("stays out of the way while cost tracking is off", async () => {
@@ -383,7 +400,7 @@ describe("a Track-only budget (progress, never enforced)", () => {
     });
     const { container } = renderBare(<TeamSpendCard team="registrar" />);
     const strip = (await screen.findByText(/^of .* this month$/)).closest("p")!;
-    expect(strip).toHaveTextContent("$0.60 of $5.00 this month · 12% · Within budget · not enforced · resets Oct 1");
+    expect(strip).toHaveTextContent("$0.60 of $5.00 this month · Within budget · not enforced · resets Oct 1");
     expect(screen.getByRole("meter", { name: "Share of this month's budget used" })).toBeInTheDocument();
     expect(container).not.toHaveTextContent(/At 100% the team's chats/);
     // Nothing to break down: no disclosure.

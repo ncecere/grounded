@@ -4,9 +4,11 @@
  * themselves off from the team's data; each open step links to the page (and
  * opens its create dialog). Editors and above can dismiss it; the choice is
  * remembered per team in this browser. It disappears once every step is done.
+ * While it shows, its current step's button is the page's one primary action
+ * (the Overview's header leaves its own out: checklistShowing).
  */
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { type Intent, requestIntent } from "../../../lib/intents";
 import { Checklist, type ChecklistStep } from "@/components/ui/checklist/checklist";
 import { useAgents } from "../../agents/common";
@@ -66,18 +68,31 @@ export function useGettingStarted() {
   return { steps, complete: loaded ? steps.every((st) => st.done) : undefined };
 }
 
-export function GettingStarted() {
-  const { slug, canEdit } = useTeam();
-  const { steps, complete } = useGettingStarted();
+/** Whether this team's checklist was dismissed in this browser, and dismissing it; the Overview holds it for its header too. */
+export function useChecklistDismissed(slug: string) {
   const [dismissed, setDismissed] = useState(() => readDismissed(slug));
-  if (!canEdit || dismissed || complete !== false) return null;
-  const dismiss = () => {
+  const dismiss = useCallback(() => {
     setDismissed(true);
     try {
       globalThis.localStorage?.setItem(dismissedKey(slug), "1");
     } catch {
       // Storage can be unavailable; it stays hidden until the page reloads.
     }
-  };
-  return <Checklist title="Getting started" description="Set up your team's first agent in four steps." steps={steps} onDismiss={dismiss} />;
+  }, [slug]);
+  return { dismissed, dismiss };
+}
+
+/** Whether the checklist shows (editors and above, not dismissed, a step left; undefined while loading). */
+export function useChecklistShowing(dismissed: boolean) {
+  const { canEdit } = useTeam();
+  const { complete } = useGettingStarted();
+  if (!canEdit || dismissed) return false;
+  return complete === undefined ? undefined : !complete;
+}
+
+export function GettingStarted({ dismissed, onDismiss }: { dismissed: boolean; onDismiss: () => void }) {
+  const { canEdit } = useTeam();
+  const { steps, complete } = useGettingStarted();
+  if (!canEdit || dismissed || complete !== false) return null;
+  return <Checklist title="Getting started" description="Set up your team's first agent in four steps." steps={steps} onDismiss={onDismiss} />;
 }
