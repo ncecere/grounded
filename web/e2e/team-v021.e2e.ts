@@ -36,15 +36,16 @@ test("quality and spend, crawl domains on Data sources, and the agent's version 
     await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Evaluations" })).toHaveAttribute("aria-current", "page");
     const table = page.getByRole("table", { name: "Evaluation sets" });
     await expect(table.getByRole("link", { name: "Parking questions" })).toHaveAttribute("href", `/teams/${team}/evaluations/${set.id}`);
-    await expect(table.getByText("Not run yet")).toBeVisible();
+    // "Not run yet" as the score, and the trend's text for screen readers.
+    await expect(table.getByText("Not run yet").first()).toBeVisible();
     await a11y(page);
     await table.getByRole("link", { name: "Parking questions" }).click();
-    // The set's breadcrumb collapses its path into a menu.
-    const more = page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("button", { name: `Knowledge bases, ${kb.name}, Evaluations` });
-    await more.click();
-    await expect(page.getByRole("menuitem", { name: kb.name })).toBeVisible();
-    await a11y(page, "breadcrumb menu");
-    await page.keyboard.press("Escape");
+    // The set sits under the team's Evaluations page in the breadcrumb, and it leads back there.
+    const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
+    await expect(crumbs.getByRole("listitem")).toHaveText([`E2E ${team}`, "Evaluations", "Parking questions"]);
+    await a11y(page);
+    await crumbs.getByRole("link", { name: "Evaluations" }).click();
+    await expect(page).toHaveURL(`/teams/${team}/evaluations`);
   });
 
   await test.step("Usage & spend in Team settings", async () => {
