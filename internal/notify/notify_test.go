@@ -130,7 +130,7 @@ func TestEventConstructors(t *testing.T) {
 		{InviteExpiringEvent(team, inv, "new@example.edu", "member", now), "/", "invite_expiring:" + inv.String() + ":26 September 2026"},
 		{MemberAddedEvent(team, uuid.New(), "admin"), "/teams/registrar", ""},
 		{RoleChangedEvent(team, uuid.New(), "member", "owner"), "/teams/registrar", ""},
-		{DomainRequestDecidedEvent(team, uuid.New(), reqID, "*.example.edu", "approve", "ok"), "/teams/registrar/settings?tab=crawl-domains&record=" + reqID.String(), ""},
+		{DomainRequestDecidedEvent(team, uuid.New(), reqID, "*.example.edu", "approve", "ok"), "/teams/registrar/sources?tab=crawl-domains&record=" + reqID.String(), ""},
 		{SyncFailedEvent(team, src, "Catalog", crawl, "boom"), "/teams/registrar/sources/" + src.String(), "sync_failed:" + crawl.String()},
 		{ClassificationLoweredEvent(team, src, "Catalog", "Sensitive", "Open", "now public"), "/teams/registrar/sources/" + src.String(), ""},
 		{AgentDisabledEvent(team, src, "Helper", "abuse"), "/teams/registrar/agents/" + src.String(), ""},
