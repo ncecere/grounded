@@ -260,23 +260,17 @@ describe("Add to evaluations", () => {
 });
 
 describe("Admin → Limits › Evaluations", () => {
-  it("turns evaluations off for the platform", async () => {
+  it("keeps only the evaluation limits and says where the switch is (Overview → Features)", async () => {
     const limits = { items: [], revision: 1, updatedAt: "2026-09-01T10:00:00Z" };
-    const calls = mockApi({
+    mockApi({
       ...shellRoutes("platform_admin"),
       "GET /v1/admin/limits": () => limits,
-      "GET /v1/admin/settings/evaluations": () => ({ enabled: true, revision: 2, updatedAt: "2026-09-01T10:00:00Z" }),
-      "PUT /v1/admin/settings/evaluations": (b) => ({ ...(b as object), revision: 3, updatedAt: "2026-09-28T10:00:00Z" }),
+      "GET /v1/admin/settings/evaluations": () => ({ enabled: false, revision: 2, updatedAt: "2026-09-01T10:00:00Z" }),
     });
     const { container } = renderApp("/admin/limits?tab=evaluations");
-    const toggle = await screen.findByRole("switch", { name: /Allow evaluations/ }, T);
-    expect(toggle).toBeChecked();
+    expect(await screen.findByText(/Evaluations are off/, {}, T)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Overview → Features" })).toHaveAttribute("href", "/admin#features");
+    expect(screen.queryByRole("switch")).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
-    await userEvent.click(toggle);
-    await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
-    const put = calls.find((c) => c.method === "PUT")!;
-    expect(put.body).toEqual({ enabled: false });
-    expect(put.headers.get("If-Match")).toBe('"2"');
-    expect(await screen.findByText(/Existing sets and runs are kept/)).toBeInTheDocument();
   });
 });
