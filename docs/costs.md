@@ -58,13 +58,13 @@ Spend = rollup quantities × the price in effect on each (local) day, per unit, 
 ## 5. What people see
 
 - **Admin → Costs** (new, under Monitoring, next to Analytics). Hidden while the mode is Off, except the Settings and Prices tabs.
-  - **Overview:** a date range, total spend, a daily chart by kind (chat, embedding, SystemOne, moderation), and top teams, agents and models with spend, tokens and "Unpriced" flags. CSV export.
+  - **Overview:** a date range, total spend, a daily chart by kind (chat, embedding, SystemOne, moderation) with the day table behind "Show data", and one "Top spenders" card (Teams · Agents · Models) with spend, tokens and "Unpriced" flags. CSV export of the grouping shown (v0.2.1, I5).
   - **Budgets:** each team's mode, budget, month-to-date spend, percentage and projected month-end; a team opens its record.
   - **Prices:** every model with its current prices and "Unpriced" where missing; a model opens its record.
   - **Settings:** mode, currency, time zone, warning threshold, default budget.
 - **A model's record page:** a **Pricing** section with the current prices and their history, and "Change prices".
 - **Admin → Teams → a team → Budget & limits:** a **Budget** card: mode override, monthly budget, extensions this month, and the budget meter (enforced or tracked).
-- **Team settings → Usage** (owners and admins): "Spend this month" with the budget meter (with "not enforced" in Track only), and spend by agent and model. Editors and members see no money.
+- **Team settings → Usage & spend** (owners and admins; "Usage & limits" while the mode is Off): "Spend this month" as one strip with the budget meter (with "not enforced" in Track only), and spend by agent and model in a "Spend breakdown" disclosure. The same strip is on the team Overview, and each agent's Analytics tab shows its own spend this month (v0.2.1, I3, I4). Editors and members see no money.
 - **A banner** in the team's workspace at the threshold and when blocked, for everyone in the team (members need to know why chat stopped), without amounts for members.
 
 ## 6. API (OpenAPI first)
