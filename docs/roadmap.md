@@ -202,7 +202,7 @@ All of G1–G18 are **Done** in v0.2.0.
 
 ## I. v0.2.1: navigation and clarity
 
-**Scheduled** by the owner (2026-09-28): the structural clean-up the review before rc.1 proposed ([`ui-review/v0.2-review.md`](ui-review/v0.2-review.md), "Structural changes"), deferred so it gets its own walkthrough.
+**Scheduled** by the owner (2026-09-28; design agreed 2026-09-29 in [`v0.2.1.md`](v0.2.1.md)): the structural clean-up the review before rc.1 proposed ([`ui-review/v0.2-review.md`](ui-review/v0.2-review.md), "Structural changes"), deferred so it gets its own walkthrough.
 
 | ID | Item | Size |
 |---|---|---|
