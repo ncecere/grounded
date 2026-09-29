@@ -121,7 +121,7 @@ export function FeaturesCard() {
               <ItemDescription className={o.fullText}>{r.description}</ItemDescription>
             </ItemContent>
             {(r.control || r.link) && (
-              <ItemActions className={o.rowActions}>
+              <ItemActions className={r.control ? `${o.rowActions} ${o.actionsBelow}` : o.rowActions}>
                 {r.control}
                 {r.link && (
                   <Button size="sm" variant="secondary" render={r.link}>

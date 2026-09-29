@@ -27,6 +27,14 @@
   padding-inline: var(--space-5);
 }
 
+/* A row with a control (the Evaluations switch) has two actions: they go under the
+   text at every width, so the description isn't squeezed to a word per line. */
+.actionsBelow {
+  flex-basis: 100%;
+  justify-content: flex-start;
+  padding-inline-start: calc(var(--control-height-md) + var(--item-gap));
+}
+
 /* On a phone the button goes under the text (aligned with it), so the title isn't squeezed to a word per line. */
 @media (max-width: 37.5rem) {
   .rowActions {
