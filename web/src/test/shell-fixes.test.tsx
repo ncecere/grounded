@@ -33,9 +33,27 @@ describe("shell fixes", () => {
     renderApp("/a/registrar");
     const crumbs = await screen.findByRole("navigation", { name: "Breadcrumb" });
     await waitFor(() => expect(crumbs).toHaveTextContent("Registrar assistant"));
-    expect(crumbs).toHaveTextContent("Discover agents");
+    // Opened directly (not from Discover agents): a member sees the agent's team.
+    await waitFor(() => expect(within(crumbs).getByRole("link", { name: "Office of the Registrar" })).toHaveAttribute("href", "/teams/registrar"));
+    expect(crumbs).not.toHaveTextContent("Discover agents");
     expect(crumbs).not.toHaveTextContent("Page not found");
-    await waitFor(() => expect(document.title).toBe("Registrar assistant · Discover agents · Grounded"));
+    await waitFor(() => expect(document.title).toBe("Registrar assistant · Office of the Registrar · Grounded"));
+  });
+
+  it("says Discover agents in a chat's breadcrumb only when the person came from there, and Chat for another team's agent", async () => {
+    const other = { ...card, teamSlug: "campus", teamName: "Campus Services", slug: "guide", name: "Campus guide" };
+    mockApi({ ...shellRoutes(), "GET /v1/agents/campus/guide": () => other, "GET /v1/agents": () => [other] });
+    const { router } = renderApp("/");
+    const crumbs = await screen.findByRole("navigation", { name: "Breadcrumb" });
+    await router.navigate({ to: "/a/$team/$agent", params: { team: "campus", agent: "guide" } });
+    await waitFor(() => expect(crumbs).toHaveTextContent("Campus guide"));
+    expect(crumbs).toHaveTextContent("Chat");
+    expect(crumbs).not.toHaveTextContent("Discover agents");
+
+    await router.navigate({ to: "/agents" });
+    await router.navigate({ to: "/a/$team/$agent", params: { team: "campus", agent: "guide" } });
+    await waitFor(() => expect(within(crumbs).getByRole("link", { name: "Discover agents" })).toHaveAttribute("href", "/agents"));
+    expect(await axe(document.body)).toHaveNoViolations();
   });
 
   it("gives members the no-access page in the workspace shell at /admin, without admin requests (m4)", async () => {
@@ -79,5 +97,21 @@ describe("shell fixes", () => {
     expect(documentTitle([{ label: "Home" }], "Example RAG")).toBe("Home · Example RAG");
     // A team still loading has no text crumb: the title never reads "… · Team · …".
     expect(documentTitle([{ label: <span>Team</span> }, { label: "Team settings" }], "Example RAG")).toBe("Team settings · Example RAG");
+  });
+
+  it("names the agent under each recent conversation in the sidebar, so the same titles can be told apart", async () => {
+    const conv = (id: string, agentName: string, agentSlug: string) => ({
+      id, agentId: "a-" + agentSlug, agentName, agentSlug, teamSlug: "registrar", agentDeleted: false,
+      title: "How do I request a transcript?", createdAt: "2026-09-27T10:00:00Z", updatedAt: "2026-09-27T10:00:00Z",
+    });
+    mockApi({
+      ...shellRoutes(),
+      "GET /v1/agents": () => [],
+      "GET /v1/conversations": () => ({ items: [conv("c1", "Records helper", "records"), conv("c2", "Student help", "student")], nextCursor: null }),
+    });
+    renderApp("/teams/registrar/sources");
+    const recent = await screen.findByRole("list", { name: "Recent conversations" });
+    expect(within(recent).getByRole("link", { name: /^How do I request a transcript\?\W+Records helper$/ })).toHaveAttribute("href", "/a/registrar/records?c=c1");
+    expect(within(recent).getByRole("link", { name: /^How do I request a transcript\?\W+Student help$/ })).toBeInTheDocument();
   });
 });

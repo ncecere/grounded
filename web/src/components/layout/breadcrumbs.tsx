@@ -1,15 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
-import { Bell, Boxes, Compass, Home, MessagesSquare, Shield } from "lucide-react";
+import { Bell, Boxes, Compass, Home, MessageSquare, MessagesSquare, Shield } from "lucide-react";
 import { adminTeamQuery, adminUserQuery, agentProfileQuery, sharedSourceQuery } from "../../api/queries";
 import { agentQuery, kbQuery, sourceQuery, teamQuery } from "../../pages/team/common";
 import { type EvalSet, evalSetQuery } from "../../pages/team/evaluations/queries";
 import { terms } from "../../lib/terms";
+import { useCurrentUser } from "../../session";
 import { type BreadcrumbItem } from "@/components/ui/breadcrumbs/breadcrumbs";
 import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { isNotFound } from "../not-found";
 import { type PageCrumb, useCurrentCrumbTail, useCurrentPageCrumbs } from "./crumb-tail";
-import { isAdminRoute, isTeamRoute, type Location } from "./location";
+import { isAdminRoute, isTeamRoute, type Location, useCameFrom } from "./location";
 import { adminNav, icon } from "./nav";
 
 /** Labels for the current route, using data the pages have already loaded, plus the page's tail (its active tab). */
@@ -76,6 +77,8 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
   const adminTeam = useQuery({ ...adminTeamQuery(adminTeamSlug ?? ""), enabled: canAdmin && !!adminTeamSlug });
   const sharedId = routeId === "/app/admin/shared-sources/$sourceId" ? params.sourceId : undefined;
   const shared = useQuery({ ...sharedSourceQuery(sharedId ?? ""), enabled: canAdmin && !!sharedId });
+  const cameFrom = useCameFrom();
+  const myTeams = useCurrentUser().teams;
 
   if (routeId === "/app/") return [{ label: "Home", icon: icon(Home) }];
   if (routeId === "/app/agents") return [{ label: terms.discoverAgents, icon: icon(Compass) }];
@@ -87,7 +90,7 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
     return [{ label: "Notifications", icon: icon(Bell), render: <Link to="/notifications" /> }, { label: "Settings" }];
   if (chatRef)
     return [
-      { label: terms.discoverAgents, icon: icon(Compass), render: <Link to="/agents" /> },
+      chatParent(profile.data, cameFrom === "/agents", myTeams),
       { label: profile.data?.name ?? ("agent" in chatRef ? chatRef.agent : "short" in chatRef ? chatRef.short : "Agent") },
     ];
 
@@ -147,6 +150,18 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
 
   // An unknown address: NotFoundState adds "Page not found" as the tail.
   return [{ label: "Home", icon: icon(Home), render: <Link to="/" /> }];
+}
+
+/**
+ * The crumb before a chat's agent: Discover agents when the person came from
+ * there, else the agent's team for its members, else "Chat" (docs/v0.2.0.md
+ * §7: opened from Home, a link or a conversation, "Discover agents" was wrong).
+ */
+function chatParent(agent: { teamSlug: string; teamName: string } | undefined, fromDirectory: boolean, myTeams: { slug: string }[]): BreadcrumbItem {
+  if (fromDirectory) return { label: terms.discoverAgents, icon: icon(Compass), render: <Link to="/agents" /> };
+  if (agent && myTeams.some((t) => t.slug === agent.teamSlug))
+    return { label: agent.teamName, icon: icon(Boxes), render: <Link to="/teams/$team" params={{ team: agent.teamSlug }} /> };
+  return { label: "Chat", icon: icon(MessageSquare) };
 }
 
 /** "Data sources · Office of the Registrar · <instance>": the last two crumbs, most specific first (D8). */
