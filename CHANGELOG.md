@@ -53,6 +53,7 @@ Work towards v0.2.0 ([`docs/v0.2.0.md`](docs/v0.2.0.md)). The release notes are 
 - Someone signed in without a team is told how to get onto one on Home and in the workspace switcher: the team request form (`TEAM_REQUEST_URL`) or the help link (`SUPPORT_URL`) when set, otherwise to ask a platform admin.
 
 ### Fixed
+- Web pages whose character set is declared only in the HTTP header, and whose first non-ASCII text comes after 1,024 bytes, were read as windows-1252, so curly quotes and dashes were garbled ("’" as "â€™"). A document that is valid UTF-8 is now read as UTF-8 unless it declares another charset. Pages stored by the old parser (`builtin:html`) are fetched and parsed again on their source's next sync (`builtin:html@2`), which re-embeds them once.
 - The ingestion dispatcher's list of teams whose enforced budget is used up covers every enforced team, not only teams that already had pending documents, so a blocked team's next upload waits instead of slipping into a free slot.
 - ⌘K under quick open → type → Escape cycles (M5): closing the palette cancels a search on its way and drops a late answer, and reopening it no longer searches for the previous text (every quick reopen fired a stale request). A reviewer's renderer froze once in such cycles; that freeze could not be reproduced (300 cycles in Chromium with slow searches), so this removes the work that piled up behind it.
 - The Admin toggle opens Admin → Overview for someone who hasn't used Admin in this browser session; it used to open the last admin page of whoever used the tab before.

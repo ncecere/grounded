@@ -461,3 +461,21 @@ func FuzzConvert(f *testing.F) {
 		}
 	})
 }
+
+// A UTF-8 page with no charset declaration whose first non-ASCII text comes
+// after the sniffer's 1,024 bytes stays UTF-8 ("’" was read as "â€™"), and a
+// declared charset still wins.
+func TestConvertCharsetAfterSniffWindow(t *testing.T) {
+	head := "<!DOCTYPE html><html><head><title>Waitlist</title><style>" + strings.Repeat("/* padding */ ", 100) + "</style></head>"
+	res, err := Convert([]byte(head+"<body><main><p>The Registrar’s office — room 222.</p></main></body></html>"), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(res.Markdown, "Registrar’s office — room 222") || strings.Contains(res.Markdown, "â€") {
+		t.Fatalf("markdown = %q", res.Markdown)
+	}
+	latin := append([]byte(`<html><head><meta charset="iso-8859-1"></head><body><p>caf`), 0xE9, '<', '/', 'p', '>')
+	if res, err := Convert(latin, Options{}); err != nil || !strings.Contains(res.Markdown, "café") {
+		t.Fatalf("declared charset: %q %v", res.Markdown, err)
+	}
+}

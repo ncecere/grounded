@@ -20,6 +20,7 @@ import (
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/observability"
+	"github.com/ncecere/grounded/internal/parse"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -57,7 +58,8 @@ func (r *run) page(ctx context.Context, rawURL string, depth int) error {
 		return err
 	}
 	etag, lastModified := "", ""
-	if v.found && v.known.Status != "failed" {
+	v.stale = v.found && parse.StaleHTML(v.known.Parser)
+	if v.found && v.known.Status != "failed" && !v.stale {
 		etag, lastModified = v.known.HttpEtag, v.known.HttpLastModified
 	}
 	start := time.Now()
@@ -98,6 +100,9 @@ type pageVisit struct {
 	// redirect is followed.
 	known dbgen.Document
 	found bool
+	// stale: the stored version was parsed by an older HTML parser, so the
+	// page is fetched unconditionally and stored again even when unchanged.
+	stale bool
 }
 
 // mark records the frontier URL's outcome and the counts.
@@ -169,7 +174,7 @@ func (v *pageVisit) fetched(ctx context.Context, pg crawl.Page) error {
 	}
 	sum := sha256.Sum256(pg.Body)
 	digest := hex.EncodeToString(sum[:])
-	if v.found && v.known.Sha256 == digest && v.known.Status != "failed" {
+	if v.found && v.known.Sha256 == digest && v.known.Status != "failed" && !v.stale {
 		v.c.unchanged = 1
 		if err := v.seen(ctx, pg.ETag, pg.LastModified); err != nil {
 			return err
@@ -218,6 +223,7 @@ func (v *pageVisit) redirected(ctx context.Context, pg crawl.Page) (final, reaso
 		return final, "", err
 	}
 	v.known, v.found, err = v.r.document(ctx, final)
+	v.stale = v.found && parse.StaleHTML(v.known.Parser)
 	return final, "", err
 }
 

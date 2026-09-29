@@ -15,13 +15,16 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/PuerkitoBio/goquery"
 	xhtml "golang.org/x/net/html"
 	"golang.org/x/net/html/charset"
+	"golang.org/x/text/transform"
 )
 
 // DefaultMaxInputBytes is the input bound used when Options.MaxInputBytes is 0.
@@ -83,13 +86,7 @@ func Convert(html []byte, opts Options) (Result, error) {
 	if len(bytes.TrimSpace(html)) == 0 {
 		return Result{}, nil
 	}
-	// With no transport content type, sniff BOM and <meta charset>, then fall
-	// back to UTF-8 when valid and windows-1252 otherwise (WHATWG algorithm).
-	reader, err := charset.NewReader(bytes.NewReader(html), "text/html")
-	if err != nil {
-		return Result{}, fmt.Errorf("htmlmd: decode charset: %w", err)
-	}
-	doc, err := goquery.NewDocumentFromReader(reader)
+	doc, err := goquery.NewDocumentFromReader(decoded(html))
 	if err != nil {
 		return Result{}, fmt.Errorf("htmlmd: parse HTML: %w", err)
 	}
@@ -294,4 +291,19 @@ func attr(n *xhtml.Node, key string) string {
 		}
 	}
 	return ""
+}
+
+// decoded reads html in its character set: a BOM or <meta charset> decides
+// (WHATWG sniffing, with no transport content type). The sniffer only looks
+// at the first 1,024 bytes and falls back to windows-1252 when they're ASCII,
+// which garbled UTF-8 pages whose first non-ASCII text comes later ("’" read
+// as "â€™"). So a document that is valid UTF-8 throughout is read as UTF-8
+// unless it declares another charset; valid UTF-8 with non-ASCII bytes is
+// almost never windows-1252 text.
+func decoded(html []byte) io.Reader {
+	enc, name, _ := charset.DetermineEncoding(html, "text/html")
+	if name == "windows-1252" && utf8.Valid(html) {
+		return bytes.NewReader(html)
+	}
+	return transform.NewReader(bytes.NewReader(html), enc.NewDecoder())
 }

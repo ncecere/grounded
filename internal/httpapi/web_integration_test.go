@@ -15,6 +15,7 @@ import (
 	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/jobs"
+	"github.com/ncecere/grounded/internal/parse"
 	"github.com/ncecere/grounded/internal/testutil"
 	"github.com/ncecere/grounded/internal/web"
 )
@@ -394,6 +395,25 @@ func TestWebCrawlSyncAndStalePages(t *testing.T) {
 		t.Errorf("after sync: last=%v next=%v active=%v", srcNow.LastSyncAt, srcNow.NextSyncAt, srcNow.ActiveCrawl)
 	}
 
+	// A page stored by an older HTML parser is fetched without conditions and
+	// stored again, though unchanged (parse.StaleHTML: garbled UTF-8 repair).
+	if _, err := env.app.Pool.Exec(context.Background(), `UPDATE documents SET parser = 'builtin:html' WHERE source_id = $1 AND external_id = $2`,
+		src.Id, site.url("/about")); err != nil {
+		t.Fatal(err)
+	}
+	var reparse apitypes.Crawl
+	code, e = owner.call("POST", srcPath+"/sync", nil, &reparse, nil)
+	mustCode(t, "sync", code, e, 202, "")
+	if reparse = waitCrawl(t, owner, srcPath, reparse.Id); reparse.Status != "completed" || reparse.PagesChanged != 1 {
+		t.Fatalf("re-parse sync = %+v", reparse)
+	}
+	eventually(t, "the stale page is parsed again", func() bool {
+		var parser string
+		_ = env.app.Pool.QueryRow(context.Background(), `SELECT parser FROM documents WHERE source_id = $1 AND external_id = $2 AND status = 'ready'`,
+			src.Id, site.url("/about")).Scan(&parser)
+		return parser == parse.HTMLParser
+	})
+
 	// A changed page is re-processed; a removed page is deleted.
 	site.set("/about", htmlPage("About | Test Registrar", `<h1>About the office</h1>
 <p>The office now opens on Saturday mornings for commencement ticket pickup.</p>`))
@@ -415,7 +435,7 @@ func TestWebCrawlSyncAndStalePages(t *testing.T) {
 		t.Errorf("page_crawled usage = %d", crawled)
 	}
 	docs = byURL(owner.waitForDocuments(t, srcPath+"/documents"))
-	if d := docs[site.url("/about")]; d.Version != 2 || d.Status != "ready" {
+	if d := docs[site.url("/about")]; d.Version != 3 || d.Status != "ready" { // v2 was the re-parse
 		t.Errorf("changed page = %+v", d)
 	}
 	if _, ok := docs[site.url("/admissions/apply")]; ok {
@@ -467,7 +487,7 @@ func TestWebCrawlSyncAndStalePages(t *testing.T) {
 	code, e = owner.call("PATCH", srcPath, map[string]any{"status": "active"}, nil, ifMatch(srcNow.Revision))
 	mustCode(t, "resume", code, e, 200, "")
 	site.setDelay(0)
-	if n := auditCount(t, env.app, "source.sync"); n != 4 {
+	if n := auditCount(t, env.app, "source.sync"); n != 5 {
 		t.Errorf("source.sync audits = %d", n)
 	}
 	if n := auditCount(t, env.app, "source.sync_cancel"); n != 1 {
