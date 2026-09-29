@@ -2,12 +2,18 @@
  * A full answer as chat shows it (docs/evaluations.md §3): the Markdown
  * answer with citation chips for its [n] markers, and its sources numbered
  * like the markers (one per number, as the answer cites them), the expected
- * documents marked. A chip previews its source and moves focus to it.
+ * documents marked. It uses chat's marker renderer (chat/citations.tsx), so
+ * with SystemOne citation checks each chip shows its claim's verdict, its
+ * card the claim, and the answer the same claims summary as in chat
+ * ("2 of 3 claims supported · 1 uncited"). A chip previews its source and
+ * moves focus to it.
  */
-import { useId, useState } from "react";
-import { InlineCitation } from "@/components/ui/inline-citation/inline-citation";
+import { useCallback, useId, useMemo, useState } from "react";
 import { LazyResponse } from "@/components/ui/response/response-lazy";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ui/sources/sources";
+import { useAnswerMarkers, withUncited } from "../../chat/citations";
+import { ClaimSummary, uncitedOfClaims } from "../../chat/claims";
+import type { Citation } from "../../chat/stream";
 import s from "../../shared.module.css";
 import type { EvalResult } from "./queries";
 import e from "./evaluations.module.css";
@@ -19,43 +25,54 @@ export const webUrl = (u?: string) => (u && /^https?:\/\//.test(u) ? u : undefin
 /** "p. 3", "pp. 3–4", or "". */
 const pages = (start?: number, end?: number) => (!start ? "" : !end || end === start ? `p. ${start}` : `pp. ${start}–${end}`);
 /** Where in the document: "Fees › Online · p. 3". */
-const where = (h: Hit) => [(h.headingPath ?? []).join(" › "), pages(h.pageStart, h.pageEnd)].filter(Boolean).join(" · ");
+const where = (h: Pick<Hit, "headingPath" | "pageStart" | "pageEnd">) =>
+  [(h.headingPath ?? []).join(" › "), pages(h.pageStart, h.pageEnd)].filter(Boolean).join(" · ");
 /** Snippets are raw passage text: drop Markdown heading and emphasis marks for display (as chat does). */
 export const plainSnippet = (t = "") => t.replace(/^#{1,6}\s+/gm, "").replace(/(\*\*|__)(.*?)\1/g, "$2").replace(/\s+/g, " ").trim();
 const titleOf = (h: Hit) => h.title || h.filename || "Untitled document";
+
+/** A cited hit in chat's citation shape, for the marker renderer. */
+const asCitation = (h: Hit): Citation => ({
+  n: h.n!,
+  documentId: h.documentId,
+  sourceId: "",
+  title: titleOf(h),
+  snippet: h.snippet ?? "",
+  headingPath: h.headingPath ?? [],
+  pageStart: h.pageStart,
+  pageEnd: h.pageEnd,
+  url: webUrl(h.url),
+});
+/** What a chip's card shows about its source. */
+const chipSource = (c: Citation) => ({ title: c.title, href: c.url, siteName: where(c) || undefined, description: plainSnippet(c.snippet) });
 
 export function EvalAnswer({ result }: { result: EvalResult }) {
   const id = useId();
   const [open, setOpen] = useState(true);
   // Results stored before citations were kept per marker have no numbers: their markers stay text.
-  const cites = result.hits.filter((h) => h.n !== undefined);
-  const byN = new Map(cites.map((h) => [h.n!, h]));
-  const sourceId = (n: number) => `${id}-source-${n}`;
-  const goTo = (n: number) => {
-    setOpen(true);
-    setTimeout(() => document.getElementById(sourceId(n))?.focus(), 30);
-  };
-  const renderCitation = (indices: number[]) => {
-    const cited = indices.map((n) => byN.get(n));
-    if (cited.some((h) => !h)) return undefined;
-    return (
-      <InlineCitation
-        index={indices}
-        sources={cited.map((h) => ({ title: titleOf(h!), href: webUrl(h!.url), siteName: where(h!) || undefined, description: plainSnippet(h!.snippet) }))}
-        onActivate={() => goTo(indices[0]!)}
-      />
-    );
-  };
+  const cites = useMemo(() => result.hits.filter((h) => h.n !== undefined), [result.hits]);
+  const citations = useMemo(() => cites.map(asCitation), [cites]);
+  const sourceId = useCallback((n: number) => `${id}-source-${n}`, [id]);
+  const goTo = useCallback(
+    (n: number) => {
+      setOpen(true);
+      setTimeout(() => document.getElementById(sourceId(n))?.focus(), 30);
+    },
+    [sourceId],
+  );
+  const markers = useAnswerMarkers(citations, goTo, chipSource, result.claims);
+  const text = result.answer ? withUncited(result.answer, result.claims ? uncitedOfClaims(result.claims) : undefined) : "";
   return (
     <div className={e.answer}>
       {result.answer ? (
         // Answers quote team documents: never fetch image URLs from them.
-        <LazyResponse renderCitation={cites.length > 0 ? renderCitation : undefined} images="alt">
-          {result.answer}
+        <LazyResponse images="alt" {...(cites.length > 0 || result.claims ? markers : {})}>
+          {text}
         </LazyResponse>
       ) : (
         <p className={s.muted}>The answer was empty.</p>
       )}
+      <ClaimSummary claims={result.claims} />
       {cites.length > 0 && (
         <Sources open={open} onOpenChange={setOpen}>
           <SourcesTrigger count={cites.length} />

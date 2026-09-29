@@ -1,0 +1,47 @@
+import { screen } from "@testing-library/react";
+import { axe } from "vitest-axe";
+import type { Schemas } from "../api/client";
+import { EvalAnswer } from "../pages/team/evaluations/answer";
+import { result } from "./evaluations-fixtures";
+import { renderBare } from "./harness";
+
+/*
+ * A full-answer result renders its answer with chat's chips and card (v0.2.1 I9): with claims, each chip shows its
+ * claim's verdict and the answer the same summary as in chat, so the result page and chat agree.
+ */
+
+const answer = "Official transcripts cost $10 [1]. Rush orders arrive the same day [2]. Pick them up at the front desk.";
+const hit = (n: number, title: string, extra: Partial<Schemas["EvaluationHit"]> = {}): Schemas["EvaluationHit"] => ({
+  rank: n, n, documentId: `d${n}`, title, expected: n === 1, snippet: `${title} passage.`, ...extra,
+});
+const claims: Schemas["Claim"][] = [
+  { index: 0, start: 0, end: 34, text: "Official transcripts cost $10.", verdict: "supported", sources: [1], confidence: 0.97,
+    checks: [{ n: 1, occurrence: 0, verification: "verified", confidence: 0.97 }] },
+  { index: 1, start: 35, end: 71, text: "Rush orders arrive the same day.", verdict: "not_supported", sources: [], confidence: 0.95,
+    checks: [{ n: 2, occurrence: 0, verification: "unsupported", confidence: 0.95 }] },
+  { index: 2, start: 72, end: 103, text: "Pick them up at the front desk.", verdict: "uncited", sources: [] },
+];
+const scores = { cited: true, refused: false, mentions: [], supportedShare: 1 / 3, uncited: 1, supportedClaims: 1, claimsScored: 3 };
+
+describe("an evaluation result's answer", () => {
+  it("shows claim verdicts on its chips, the claims summary and the Uncited mark, as chat does", async () => {
+    const r = result("res1", "What does a transcript cost?", "pass", { answer, hits: [hit(1, "Fees"), hit(2, "Rush")], claims, scores });
+    const { container } = renderBare(<EvalAnswer result={r} />);
+    const one = await screen.findByRole("button", { name: /^Source 1: Fees/ });
+    expect(one).toHaveAttribute("data-verification", "verified");
+    expect(one).toHaveAccessibleName("Source 1: Fees. Claim supported by this source (97% confidence)");
+    expect(screen.getByRole("button", { name: /^Source 2: Rush/ })).toHaveAttribute("data-verification", "unsupported");
+    expect(screen.getByTestId("claim-summary")).toHaveTextContent("1 of 3 claims supported · 1 uncited");
+    expect(screen.getByText("Uncited").closest("p")).toHaveTextContent(/front desk\. Uncited/);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("renders a result recorded before claims with plain chips and no summary", async () => {
+    const r = result("res1", "What does a transcript cost?", "pass", { answer, hits: [hit(1, "Fees"), hit(2, "Rush")], scores: { ...scores, supportedClaims: undefined } });
+    renderBare(<EvalAnswer result={r} />);
+    const one = await screen.findByRole("button", { name: /^Source 1: Fees/ });
+    expect(one).not.toHaveAttribute("data-verification");
+    expect(screen.queryByTestId("claim-summary")).toBeNull();
+    expect(screen.queryByText("Uncited")).toBeNull();
+  });
+});

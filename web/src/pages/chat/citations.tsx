@@ -11,12 +11,17 @@
  * Factual sentences without a citation (answer.uncited, code point offsets)
  * get a small "Uncited" mark after them: a private-use sentinel is put into
  * the text at each sentence's end, and a second plugin turns it into a mark.
+ *
+ * Answers checked by v0.2.1 or later have claims (claims.tsx): a chip then
+ * shows the verdict of its claim, found by the marker's occurrence, and its
+ * card the claim's text above the passage.
  */
 import type { ComponentPropsWithRef, ReactNode } from "react";
 import { useMemo } from "react";
 import type { Components, ExtraProps } from "react-markdown";
 import { InlineCitation } from "@/components/ui/inline-citation/inline-citation";
 import { verificationLabel, worstVerification } from "@/lib/systemone";
+import { type Claim, ClaimQuote, claimChipVerification, claimLabel, claimOfMarker } from "./claims";
 import type { Citation, UncitedSentence } from "./stream";
 import a from "./answer.module.css";
 
@@ -100,12 +105,38 @@ function markerVerdict(s: Citation, k: number | undefined) {
   return m ?? { verification: s.verification, confidence: s.confidence };
 }
 
-type ChipProps = { byN: Map<number, Citation>; onActivate: (n: number) => void; sourceProps: (s: Citation) => Parameters<typeof InlineCitation>[0]["sources"][number] };
+type ChipSource = Parameters<typeof InlineCitation>[0]["sources"][number];
+type ChipProps = { byN: Map<number, Citation>; onActivate: (n: number) => void; sourceProps: (s: Citation) => ChipSource; claims?: Claim[] };
+
+/** A chip whose markers' claims carry the verdicts: the worst of a group's, explained for the deciding source. */
+function claimChip({ onActivate, sourceProps, claims }: ChipProps, indices: number[], occurrences: number[], cited: Citation[]): ReactNode {
+  const found = indices.map((n, i) => claimOfMarker(claims, n, occurrences[i]));
+  const marks = found.map((c, i) => (c ? claimChipVerification(c, indices[i]!) : undefined));
+  const verification = worstVerification(marks);
+  const at = marks.findIndex((m) => m === verification);
+  const sources = cited.map((s, i): ChipSource => {
+    const base = sourceProps(s);
+    const claim = found[i];
+    return claim ? { ...base, description: <ClaimQuote claim={claim} />, quote: base.description } : base;
+  });
+  return (
+    <InlineCitation
+      index={indices}
+      className={a.chip}
+      verification={verification}
+      verificationLabel={verification && at >= 0 ? claimLabel(found[at]!, indices[at]!) : undefined}
+      sources={sources}
+      onActivate={() => onActivate(indices[0]!)}
+    />
+  );
+}
 
 /** A chip for a marker's numbers and their occurrences; undefined when a number has no source (it stays text). */
-function chip({ byN, onActivate, sourceProps }: ChipProps, indices: number[], occurrences: number[]): ReactNode {
+function chip(props: ChipProps, indices: number[], occurrences: number[]): ReactNode {
+  const { byN, onActivate, sourceProps } = props;
   const cited = indices.map((n) => byN.get(n));
   if (cited.some((s) => !s)) return undefined;
+  if (props.claims) return claimChip(props, indices, occurrences, cited as Citation[]);
   const verdicts = cited.map((s, i) => markerVerdict(s!, occurrences[i]));
   // A group marker [1][2] shows the worst verdict of its sources.
   const verification = worstVerification(verdicts.map((v) => v.verification));
@@ -126,10 +157,13 @@ type SupProps = ComponentPropsWithRef<"sup"> & ExtraProps;
 type SpanProps = ComponentPropsWithRef<"span"> & ExtraProps;
 const plugins = [remarkMarkerOccurrences, remarkUncitedMarks];
 
-/** Response props for an answer: marker chips with per-marker verdicts, and "Uncited" marks. */
-export function useAnswerMarkers(citations: Citation[], onActivate: (n: number) => void, sourceProps: ChipProps["sourceProps"]) {
+/**
+ * Response props for an answer: marker chips with the verdicts of their claims (or, for answers without claims,
+ * per-marker verdicts), and "Uncited" marks.
+ */
+export function useAnswerMarkers(citations: Citation[], onActivate: (n: number) => void, sourceProps: ChipProps["sourceProps"], claims?: Claim[]) {
   return useMemo(() => {
-    const props: ChipProps = { byN: new Map(citations.map((s) => [s.n, s])), onActivate, sourceProps };
+    const props: ChipProps = { byN: new Map(citations.map((s) => [s.n, s])), onActivate, sourceProps, claims };
     const components: Components = {
       sup({ node: _node, children, ...rest }: SupProps) {
         const data = rest as Record<string, unknown>;
@@ -145,5 +179,5 @@ export function useAnswerMarkers(citations: Citation[], onActivate: (n: number) 
     // renderCitation turns marker parsing on; the sup renderer above draws the chips.
     const renderCitation = (indices: number[]) => chip(props, indices, []);
     return { components, renderCitation, remarkPlugins: plugins };
-  }, [citations, onActivate, sourceProps]);
+  }, [citations, onActivate, sourceProps, claims]);
 }

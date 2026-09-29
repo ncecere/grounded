@@ -14,6 +14,7 @@ import { readSSE } from "../../lib/sse";
 
 export type Citation = Schemas["Citation"];
 export type UncitedSentence = Schemas["UncitedSentence"];
+export type Claim = Schemas["Claim"];
 export type RetrievalHit = Schemas["RetrievalHit"];
 export type ChatUsage = Schemas["ChatUsage"];
 export type StopReason = Schemas["StopReason"];
@@ -52,6 +53,8 @@ export type AssistantItem = {
   citations: Citation[];
   /** SystemOne citation checks: factual sentences without a citation (code point offsets in text). */
   uncited?: UncitedSentence[];
+  /** SystemOne citation checks (v0.2.1 and later): the factual sentences with one verdict each; absent for older answers. */
+  claims?: Claim[];
   status: AssistantStatus;
   stopReason?: StopReason;
   refused?: boolean;
@@ -105,6 +108,8 @@ function judgingOf(v: unknown): SearchStep["judging"] {
 
 /** The uncited sentences of an event (absent when citations weren't checked). */
 const uncitedOf = (v: unknown) => (Array.isArray(v) && v.length ? (v as UncitedSentence[]) : undefined);
+/** The claims of an event (absent when citations weren't checked). */
+const claimsOf = (v: unknown) => (Array.isArray(v) && v.length ? (v as Claim[]) : undefined);
 
 /** Folds one SSE event into the assistant message being streamed. */
 export function applyChatEvent(item: AssistantItem, event: string, data: unknown): AssistantItem {
@@ -119,7 +124,7 @@ export function applyChatEvent(item: AssistantItem, event: string, data: unknown
     case "moderation": {
       // The notice replaces whatever streamed: text, thinking and citations are dropped.
       const moderation = { stage: str(d.stage) === "output" ? "output" : "input", action: str(d.action), notice: str(d.notice) } as Moderation;
-      return { ...item, moderation, text: moderation.notice, thinking: "", citations: [] };
+      return { ...item, moderation, text: moderation.notice, thinking: "", citations: [], claims: undefined };
     }
     case "retrieval": {
       const hits = Array.isArray(d.hits) ? (d.hits as RetrievalHit[]) : [];
@@ -153,6 +158,7 @@ export function applyChatEvent(item: AssistantItem, event: string, data: unknown
         text: typeof d.text === "string" ? d.text : item.text,
         citations: item.moderation ? [] : Array.isArray(d.citations) ? (d.citations as Citation[]) : [],
         uncited: item.moderation ? undefined : uncitedOf(d.uncited),
+        claims: item.moderation ? undefined : claimsOf(d.claims),
         stopReason,
         refused: Boolean(d.refused),
         noContext: Boolean(d.noContext),
@@ -170,6 +176,7 @@ export function applyChatEvent(item: AssistantItem, event: string, data: unknown
         text: typeof d.text === "string" ? d.text : item.text,
         citations: Array.isArray(d.citations) ? (d.citations as Citation[]) : item.citations,
         uncited: uncitedOf(d.uncited),
+        claims: claimsOf(d.claims),
         refused: Boolean(d.refused) || item.refused,
       };
     case "error":
@@ -204,6 +211,7 @@ export function itemsFromConversation(messages: ConversationMessage[]): ChatItem
       sources: [],
       citations: m.citations ?? [],
       uncited: m.uncited,
+      claims: m.claims,
       status,
       stopReason: m.stopReason,
       usage: m.usage,

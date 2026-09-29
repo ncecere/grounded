@@ -1,9 +1,10 @@
 /*
  * The Grounded chat thread: maps streamed/stored chat items onto bitop-ui's AI
  * elements (Message, Response, Reasoning, Tool, Sources, InlineCitation)
- * and adds Grounded behaviour: citation markers with a verdict each that
- * focus the source card, "Uncited" marks (citations.tsx), feedback through
- * the API, status notes and friendly errors (notes.tsx).
+ * and adds Grounded behaviour: citation markers with their claim's verdict
+ * that focus the source card, "Uncited" marks (citations.tsx), the claims'
+ * summary (claims.tsx), feedback through the API, status notes and friendly
+ * errors (notes.tsx).
  *
  * The model's thinking is shown to editors testing a draft (showThinking);
  * everyone else sees "Thinking…" while the model thinks, never its reasoning.
@@ -20,6 +21,7 @@ import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ui
 import { verificationLabel } from "@/lib/systemone";
 import { displayText, normalizePunctuation } from "./answer-text";
 import { useAnswerMarkers, withUncited } from "./citations";
+import { ClaimSummary, uncitedOfClaims } from "./claims";
 import { Feedback, Notes, Steps, isAnswer } from "./notes";
 import type { AssistantItem, ChatItem, Citation } from "./stream";
 import { UserMessage } from "./user-message";
@@ -83,8 +85,10 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
     [item.key],
   );
   // [n] markers: chips that preview on hover and jump to the source card on press; unknown numbers stay text.
-  const markers = useAnswerMarkers(item.citations, goToSource, chipSource);
+  const markers = useAnswerMarkers(item.citations, goToSource, chipSource, item.claims);
   const thinking = Boolean(item.thinking) && !item.moderation;
+  // Answers without sources already say so: no "Uncited" marks or claim summary for them.
+  const uncited = item.noContext ? undefined : item.claims ? uncitedOfClaims(item.claims) : item.uncited;
 
   return (
     <Message from="assistant" label={`${agent.name} said`}>
@@ -110,7 +114,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
           item.text && (
             // Answers quote team documents: never fetch image URLs from them.
             <LazyResponse streaming={streaming} images="alt" {...markers}>
-              {displayText(withUncited(item.text, item.noContext ? undefined : item.uncited), streaming)}
+              {displayText(withUncited(item.text, uncited), streaming)}
             </LazyResponse>
           )
         )}
@@ -120,6 +124,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
             <Shimmer>Checking the citations…</Shimmer>
           </p>
         )}
+        {!item.noContext && !streaming && <ClaimSummary claims={item.claims} />}
         {item.citations.length > 0 && (
           <Sources open={sourcesOpen} onOpenChange={setSourcesOpen}>
             <SourcesTrigger count={item.citations.length} />
