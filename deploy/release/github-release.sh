@@ -121,13 +121,16 @@ notes="${work}/notes.md"
 
 # ---- release -----------------------------------------------------------------
 
-flags=(--title "Grounded ${TAG}" --notes-file "$notes" --verify-tag)
+# Name the repository: the asset upload runs from the assets directory,
+# where gh can't infer it from a git checkout (v0.2.0-rc.1's first run failed).
+repo="${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}" || fail "could not tell the repository (set GITHUB_REPOSITORY)"
+flags=(--repo "$repo" --title "Grounded ${TAG}" --notes-file "$notes" --verify-tag)
 [ "$TAG" != "$base" ] && flags+=(--prerelease)
-if gh release view "$TAG" >/dev/null 2>&1; then
-  gh release edit "$TAG" --title "Grounded ${TAG}" --notes-file "$notes" || fail "could not update the release ${TAG}"
+if gh release view "$TAG" --repo "$repo" >/dev/null 2>&1; then
+  gh release edit "$TAG" --repo "$repo" --title "Grounded ${TAG}" --notes-file "$notes" || fail "could not update the release ${TAG}"
 else
   gh release create "$TAG" "${flags[@]}" || fail "could not create the release ${TAG}"
 fi
-(cd "$assets" && gh release upload "$TAG" --clobber "${sbom_files[@]}" "grounded-${TAG}.digest.txt" "${ocr_files[@]}" checksums.txt) || fail "could not upload the release assets"
+(cd "$assets" && gh release upload "$TAG" --repo "$repo" --clobber "${sbom_files[@]}" "grounded-${TAG}.digest.txt" "${ocr_files[@]}" checksums.txt) || fail "could not upload the release assets"
 echo "release ${TAG}: ${ref}"
 ls -l "$assets"
