@@ -164,7 +164,8 @@ func collectLoop(added []llm.Message, usage *llm.Usage) (final llm.AssistantMess
 // loop outcome. It returns the model's error, without changing the answer,
 // when the model failed before responding at all.
 func (ru *run) settle(ctx context.Context, ans *Answer, final llm.AssistantMessage, runErr error, st *loopState, sources []numberedHit) error {
-	raw := st.textSoFar.String()
+	// The stored and returned text has plain hyphens and spaces (punctuation.go).
+	raw := NormalizePunctuation(st.textSoFar.String())
 	switch {
 	case ctx.Err() != nil || final.StopReason == llm.StopReasonAborted:
 		ans.StopReason = string(llm.StopReasonAborted)

@@ -21,7 +21,10 @@ import { toast } from "@/components/ui/toast/toast";
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "@/components/ui/tool/tool";
 import { judgedSummary, verificationLabel, worstVerification } from "@/lib/systemone";
 import { type AssistantItem, type ChatItem, type Citation, type FeedbackRating, type FeedbackReason, type SearchStep, chatErrorText, feedbackReasons } from "./stream";
+import { displayText, normalizePunctuation } from "./answer-text";
 import { AgentAvatar, type AgentLook } from "./welcome";
+
+export { normalizeMarkers } from "./answer-text";
 import c from "./chat.module.css";
 
 /** "p. 3", "pp. 3–4", or "". */
@@ -239,7 +242,7 @@ function AssistantMessage({ item, agent, feedback, onPatch, onAdd }: AssistantPr
           item.text && (
             // Answers quote team documents: never fetch image URLs from them.
             <LazyResponse streaming={streaming} renderCitation={renderCitation} images="alt">
-              {streaming ? normalizeMarkers(item.text) : item.text}
+              {displayText(item.text, streaming)}
             </LazyResponse>
           )
         )}
@@ -272,7 +275,7 @@ function AssistantMessage({ item, agent, feedback, onPatch, onAdd }: AssistantPr
       </MessageContent>
       {!streaming && isAnswer(item) && (
         <MessageActions label="Answer actions">
-          <MessageCopyAction value={item.text} label="Copy answer" />
+          <MessageCopyAction value={normalizePunctuation(item.text)} label="Copy answer" />
           {feedback && item.id && <Feedback item={item} onChange={(f) => onPatch?.(item.key, (a) => ({ ...a, feedback: f }))} />}
           {onAdd && (
             <MessageAction label="Add to evaluations" onClick={onAdd}>
@@ -303,20 +306,6 @@ type ChatMessagesProps = {
 export const needsEvaluation = (item: AssistantItem) => item.feedback?.rating === "down" || item.noContext === true || item.citations.length === 0;
 
 /** The messages of a chat; put them in <ConversationContent>. */
-
-/**
- * While an answer streams, show the citation markers some models write in
- * full-width or lenticular brackets (［1］, 【1】, 【1†L10-L12】) as [1], as the
- * server does for the finished answer (internal/agents/citations.go), so
- * they're chips from the start rather than raw text.
- */
-export function normalizeMarkers(text: string) {
-  return text.replace(/(?:［|【)(\d{1,3}(?:\s*[,，]\s*\d{1,3})*)(?:†[^】］]*)?(?:］|】)/g, (_m, nums: string, at: number, all: string) => {
-    // Right after a word ("online【2】") it gets a space, or it would read as part of an identifier.
-    const space = at > 0 && /[\p{L}\p{N}_]/u.test(all[at - 1]!) ? " " : "";
-    return `${space}[${nums.replace(/，/g, ",")}]`;
-  });
-}
 export function ChatMessages({ items, agent, feedback = false, onPatch, onAddToEvaluations, canAdd }: ChatMessagesProps) {
   // The question each answer replied to: the user message before it.
   const asked = new Map<string, string>();
