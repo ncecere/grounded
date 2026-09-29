@@ -1,15 +1,16 @@
 "use client";
 
+import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { useRender } from "@base-ui/react/use-render";
-import { ChevronsUpDown, PanelLeft } from "lucide-react";
-import { createContext, type ReactElement, type ReactNode, useCallback, useContext, useId, useMemo, useState } from "react";
+import { ChevronRight, ChevronsUpDown, PanelLeft, X } from "lucide-react";
+import { createContext, type MouseEvent, type ReactElement, type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar/avatar";
 import { IconButton } from "@/components/ui/button/button";
 import { Container } from "@/components/ui/layout/layout";
 import { Menu } from "@/components/ui/menu/menu";
 import { ScrollArea } from "@/components/ui/scroll-area/scroll-area";
 import { Tooltip } from "@/components/ui/tooltip/tooltip";
-import { cx, dataFlag } from "@/lib/bitop-utils";
+import { cx, dataFlag, NARROW_QUERY, useMediaQuery } from "@/lib/bitop-utils";
 import styles from "./app-shell.module.css";
 
 /*
@@ -29,9 +30,27 @@ import styles from "./app-shell.module.css";
  *   links set it automatically). When collapsed, labels become visually
  *   hidden (still announced) and show as tooltips.
  * - Main is the <main id="main"> skip-link target, with a max-width container.
+ * - Narrow windows (below 600px, `drawerQuery`): no permanent rail. The
+ *   sidebar is a modal drawer (Base UI Dialog) opened from the same toggle,
+ *   with its full labels; Escape, the backdrop, its close button or
+ *   following a link in it close it.
  */
 
-type ShellState = { collapsed: boolean; setCollapsed: (v: boolean) => void; toggle: () => void; sidebarId: string };
+/** Below this width the sidebar is a drawer (AppShell `drawerQuery`). */
+export const SIDEBAR_DRAWER_QUERY = NARROW_QUERY;
+
+type ShellState = {
+  /** The rail is collapsed to icons (never while the sidebar is a drawer). */
+  collapsed: boolean;
+  setCollapsed: (v: boolean) => void;
+  /** Collapses or expands the rail; opens or closes the drawer on a narrow window. */
+  toggle: () => void;
+  sidebarId: string;
+  /** The window is narrow: the sidebar is a drawer. */
+  narrow: boolean;
+  drawerOpen: boolean;
+  setDrawerOpen: (open: boolean) => void;
+};
 
 const ShellContext = createContext<ShellState | null>(null);
 
@@ -49,6 +68,10 @@ export type AppShellProps = {
   onCollapsedChange?: (collapsed: boolean) => void;
   /** Skip-link target id (default "main"). Set to null to omit the skip link. */
   skipTo?: string | null;
+  /** Media query below which the sidebar is a drawer (default SIDEBAR_DRAWER_QUERY, 600px); null keeps the rail. */
+  drawerQuery?: string | null;
+  /** Accessible name of the drawer (default "Navigation"). */
+  drawerLabel?: string;
   className?: string;
 };
 
@@ -60,10 +83,18 @@ export function AppShell({
   defaultCollapsed = false,
   onCollapsedChange,
   skipTo = "main",
+  drawerQuery = SIDEBAR_DRAWER_QUERY,
+  drawerLabel = "Navigation",
   className,
 }: AppShellProps) {
   const [uncontrolled, setUncontrolled] = useState(defaultCollapsed);
-  const collapsed = controlled ?? uncontrolled;
+  const narrow = useMediaQuery(drawerQuery ?? "not all") && drawerQuery !== null;
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Widening the window closes the drawer; the rail takes over.
+  useEffect(() => {
+    if (!narrow) setDrawerOpen(false);
+  }, [narrow]);
+  const collapsed = !narrow && (controlled ?? uncontrolled);
   const sidebarId = useId();
   const setCollapsed = useCallback(
     (v: boolean) => {
@@ -73,14 +104,28 @@ export function AppShell({
     [controlled, onCollapsedChange],
   );
   const value = useMemo(
-    () => ({ collapsed, setCollapsed, toggle: () => setCollapsed(!collapsed), sidebarId }),
-    [collapsed, setCollapsed, sidebarId],
+    () => ({
+      collapsed,
+      setCollapsed,
+      toggle: narrow ? () => setDrawerOpen((o) => !o) : () => setCollapsed(!collapsed),
+      sidebarId,
+      narrow,
+      drawerOpen,
+      setDrawerOpen,
+    }),
+    [collapsed, setCollapsed, sidebarId, narrow, drawerOpen],
   );
   return (
     <ShellContext.Provider value={value}>
       {skipTo && <SkipLink href={`#${skipTo}`} />}
-      <div className={cx(styles.shell, className)} data-collapsed={dataFlag(collapsed)}>
-        {sidebar}
+      <div className={cx(styles.shell, className)} data-collapsed={dataFlag(collapsed)} data-narrow={dataFlag(narrow)}>
+        {narrow ? (
+          <SidebarDrawer open={drawerOpen} onOpenChange={setDrawerOpen} label={drawerLabel}>
+            {sidebar}
+          </SidebarDrawer>
+        ) : (
+          sidebar
+        )}
         <div className={styles.column}>
           {topbar}
           {children}
@@ -131,11 +176,41 @@ export type SidebarContentProps = {
   className?: string;
 };
 
-/** The sidebar's middle part: grows to fill the sidebar and scrolls on its own. */
+const currentSelector = '[aria-current="page"]';
+
+/**
+ * Keeps the current page's item in view: on mount, when another item becomes
+ * the current page, and when the section holding it opens. Scrolling to the
+ * "nearest" edge leaves a visible item where it is.
+ */
+function useRevealCurrent() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    const reveal = () => root.querySelector<HTMLElement>(currentSelector)?.scrollIntoView?.({ block: "nearest" });
+    reveal();
+    if (typeof MutationObserver === "undefined") return;
+    const mo = new MutationObserver((records) => {
+      const moved = records.some((r) => {
+        const t = r.target as HTMLElement;
+        if (r.attributeName === "aria-current") return t.getAttribute("aria-current") === "page";
+        return !t.hidden && t.querySelector(currentSelector) !== null;
+      });
+      if (moved) reveal();
+    });
+    mo.observe(root, { subtree: true, attributes: true, attributeFilter: ["aria-current", "hidden"] });
+    return () => mo.disconnect();
+  }, []);
+  return ref;
+}
+
+/** The sidebar's middle part: grows to fill the sidebar, scrolls on its own and keeps the current page's item in view. */
 export function SidebarContent({ children, scrollLabel = "Sidebar navigation", className }: SidebarContentProps) {
+  const ref = useRevealCurrent();
   return (
     <ScrollArea label={scrollLabel} className={styles.sidebarScroll} contentClassName={cx(styles.sidebarContent, className)}>
-      {children}
+      <div ref={ref}>{children}</div>
     </ScrollArea>
   );
 }
@@ -155,20 +230,71 @@ export function SidebarNav({ children, className, ...props }: SidebarNavProps) {
   );
 }
 
-export type SidebarSectionProps = { label?: ReactNode; children: ReactNode; className?: string };
-
-/** A labelled list of items. The label is small muted uppercase text. */
-export function SidebarSection({ label, children, className }: SidebarSectionProps) {
-  const id = useId();
-  const shell = useAppShell();
+/** The drawer that holds the sidebar on a narrow window. */
+function SidebarDrawer({ open, onOpenChange, label, children }: { open: boolean; onOpenChange: (open: boolean) => void; label: string; children: ReactNode }) {
+  // Following a link (a page in the sidebar, or a link in one of its menus) closes the drawer.
+  const onClick = (e: MouseEvent) => {
+    const link = (e.target as Element).closest?.("a[href]");
+    if (link && !e.defaultPrevented && !e.metaKey && !e.ctrlKey && !e.shiftKey) onOpenChange(false);
+  };
   return (
-    <div className={cx(styles.section, className)}>
-      {label && (
-        <p id={id} className={cx(styles.sectionLabel, shell?.collapsed && "sr-only")}>
-          {label}
-        </p>
-      )}
-      <ul aria-labelledby={label ? id : undefined} className={styles.items}>
+    <BaseDialog.Root open={open} onOpenChange={(o) => onOpenChange(o)}>
+      <BaseDialog.Portal>
+        <BaseDialog.Backdrop className={styles.drawerBackdrop} />
+        <BaseDialog.Popup className={styles.drawerPopup} aria-label={label} onClick={onClick}>
+          {children}
+          <BaseDialog.Close className={styles.drawerClose} aria-label={`Close ${label.toLowerCase()}`}>
+            <X aria-hidden />
+          </BaseDialog.Close>
+        </BaseDialog.Popup>
+      </BaseDialog.Portal>
+    </BaseDialog.Root>
+  );
+}
+
+export type SidebarSectionProps = {
+  label?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  /**
+   * The label is a button that shows or hides the items (needs a label).
+   * On the collapsed icon rail every item shows. Keep the section of the
+   * current page open: its items stay hidden otherwise.
+   */
+  collapsible?: boolean;
+  /** Open state of a collapsible section (controlled). */
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
+
+/** A labelled list of items. The label is small muted uppercase text, or a disclosure button when `collapsible`. */
+export function SidebarSection({ label, children, className, collapsible, open: controlled, defaultOpen = true, onOpenChange }: SidebarSectionProps) {
+  const id = useId();
+  const listId = useId();
+  const shell = useAppShell();
+  const [uncontrolled, setUncontrolled] = useState(defaultOpen);
+  const railed = shell?.collapsed ?? false;
+  const toggles = Boolean(collapsible && label) && !railed;
+  const open = !toggles || (controlled ?? uncontrolled);
+  const setOpen = (o: boolean) => {
+    if (controlled === undefined) setUncontrolled(o);
+    onOpenChange?.(o);
+  };
+  return (
+    <div className={cx(styles.section, className)} data-collapsible={dataFlag(toggles)}>
+      {label &&
+        (toggles ? (
+          <button type="button" id={id} className={styles.sectionToggle} aria-expanded={open} aria-controls={listId} onClick={() => setOpen(!open)}>
+            <span className={styles.sectionToggleText}>{label}</span>
+            <ChevronRight aria-hidden className={styles.sectionChevron} />
+          </button>
+        ) : (
+          <p id={id} className={cx(styles.sectionLabel, railed && "sr-only")}>
+            {label}
+          </p>
+        ))}
+      <ul id={listId} aria-labelledby={label ? id : undefined} className={styles.items} hidden={!open}>
         {children}
       </ul>
     </div>
@@ -188,10 +314,12 @@ export type SidebarItemProps = {
   trailing?: ReactNode;
   /** A small "new" dot in --color-highlight (decorative; say "new" in the label if it matters). */
   dot?: boolean;
+  /** A second, muted line under the label (e.g. the agent of a conversation), so items with the same label can be told apart. */
+  description?: ReactNode;
   className?: string;
 };
 
-export function SidebarItem({ label, icon, href, render, current, trailing, dot, className }: SidebarItemProps) {
+export function SidebarItem({ label, icon, href, render, current, trailing, dot, description, className }: SidebarItemProps) {
   const shell = useAppShell();
   const collapsed = shell?.collapsed ?? false;
   const link = useRender({
@@ -201,10 +329,21 @@ export function SidebarItem({ label, icon, href, render, current, trailing, dot,
       href,
       ...(current ? { "aria-current": "page" } : {}),
       className: cx(styles.item, className),
+      "data-description": dataFlag(Boolean(description) && !collapsed),
       children: (
         <>
           {icon && <span className={styles.itemIcon}>{icon}</span>}
-          <span className={cx(styles.itemLabel, collapsed && "sr-only")}>{label}</span>
+          {description ? (
+            <span className={cx(styles.itemText, collapsed && "sr-only")}>
+              <span className={styles.itemLabel}>{label}</span>
+              <span className={styles.itemDescription}>
+                <span className="sr-only">, </span>
+                {description}
+              </span>
+            </span>
+          ) : (
+            <span className={cx(styles.itemLabel, collapsed && "sr-only")}>{label}</span>
+          )}
           {dot && <span aria-hidden className={styles.newDot} />}
           {trailing && !collapsed && <span className={styles.itemTrailing}>{trailing}</span>}
         </>
@@ -224,16 +363,17 @@ export function SidebarItem({ label, icon, href, render, current, trailing, dot,
   );
 }
 
-/** Collapses/expands the sidebar. Place in the TopBar or SidebarFooter. */
+/** Collapses/expands the sidebar, or opens the drawer on a narrow window. Place in the TopBar or SidebarFooter. */
 export function SidebarToggle({ className }: { className?: string }) {
   const shell = useAppShell();
   if (!shell) return null;
+  const label = shell.narrow ? (shell.drawerOpen ? "Close navigation" : "Open navigation") : shell.collapsed ? "Expand sidebar" : "Collapse sidebar";
   return (
     <IconButton
       size="sm"
       icon={<PanelLeft aria-hidden />}
-      label={shell.collapsed ? "Expand sidebar" : "Collapse sidebar"}
-      aria-expanded={!shell.collapsed}
+      label={label}
+      aria-expanded={shell.narrow ? shell.drawerOpen : !shell.collapsed}
       aria-controls={shell.sidebarId}
       onClick={shell.toggle}
       className={className}

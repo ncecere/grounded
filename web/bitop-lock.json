@@ -16,8 +16,8 @@
     },
     "app-shell": {
       "files": {
-        "src/components/ui/app-shell/app-shell.module.css": "8ae1322f020c168080823dd1b35f718ebf61b897fd2b07c79c909a68a912af95",
-        "src/components/ui/app-shell/app-shell.tsx": "a8eaa12a82699c110f41026850f9edbac23f26f7797c64a5bc42319dceadbb05"
+        "src/components/ui/app-shell/app-shell.module.css": "4da583d6a94992b47f99e19bc30e9a510adb1b698ffd60516d4115cfe7fa5042",
+        "src/components/ui/app-shell/app-shell.tsx": "4e8edb18ab5f45412d49152df0099e9798db830ec011714d729b3cb6b38c316f"
       }
     },
     "attachments": {
@@ -107,7 +107,7 @@
     "command-palette": {
       "files": {
         "src/components/ui/command-palette/command-palette.module.css": "c614f81a2939583cd3d593563526bbfd98873a38e664ddf877006c6f4b59bcfa",
-        "src/components/ui/command-palette/command-palette.tsx": "627788b18df0b2a9c5896f1803824ad6367b2040a224547587a8a861db8e5781"
+        "src/components/ui/command-palette/command-palette.tsx": "30db7cfa6ee8094e2e40c6b654592b2c180d0df257573cba417d655ed96924d1"
       }
     },
     "conversation": {
@@ -134,13 +134,13 @@
         "src/components/ui/styles/global.css": "2b5c7218cbebf7b490884a24fa1ed55e73ab601d99daced4a1bd0814c60f5eaa",
         "src/components/ui/styles/popup.module.css": "7d106f3e18699cd41e2a5ad77334cb2cf021fa069bfd984494e4d610b89a6cbf",
         "src/components/ui/styles/tokens.css": "73e4e9e64a0d7edba4172440e9bb8de43238e58a5c0753eb2a9a6c7eb183b694",
-        "src/lib/bitop-utils.ts": "5f2c2ac8e0b6eedf338ce52a8fbd837595b4270d0b8bdcc3d04af916b7892610"
+        "src/lib/bitop-utils.ts": "16a6837655f0c58474642c670f88a484e8559fb091bb89d6c273a3e69910edac"
       }
     },
     "data-table": {
       "files": {
         "src/components/ui/data-table/data-table.module.css": "6da80d6f810713a78a77c7109624f0554241465faf608cbee7972ac1d133b94d",
-        "src/components/ui/data-table/data-table.tsx": "e67ec71a444db0941f2a160c7b8281510d339782f4bff2989f880daadfab56c3"
+        "src/components/ui/data-table/data-table.tsx": "75dfd802f843565162e574349bbdab6d428f05d0c95a8e221cbee6f8ac332145"
       }
     },
     "date-picker": {
