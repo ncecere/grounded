@@ -77,7 +77,8 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Grows with the card, so a wide card doesn't hold a short meter. */
 .stripMeter {
-  flex: 0 1 16rem;
+  flex: 1 1 16rem;
   min-width: 10rem;
 }

@@ -2,8 +2,8 @@
  * Team settings › Usage & spend › Spend this month (E2, docs/costs.md §5; I4,
  * docs/v0.2.1.md): for the team's owners and admins (and platform staff)
  * while its cost mode isn't Off. The spend is one strip ("$0.24 of $1.20 this
- * month · 19% · Within budget · resets Oct 1", with a meter; a Track-only
- * budget adds "not enforced"), shared with the team Overview; spend by agent
+ * month · Within budget · resets Oct 1", with a meter that shows the share
+ * once; a Track-only budget adds "not enforced"), shared with the team Overview; spend by agent
  * and by model sits in a "Spend breakdown" disclosure. Editors and members
  * see no money.
  */
@@ -43,10 +43,9 @@ export function resetDay(month: string) {
   return new Date(Date.UTC(y!, m ?? 1, 1)).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-/** The strip's parts after the amount: "19%", "Within budget", "not enforced", "resets Oct 1". */
+/** The strip's parts after the amount: "Within budget", "not enforced", "resets Oct 1" (the meter beside it shows the share). */
 export function stripParts(st: TeamBudgetState): string[] {
   const parts: string[] = [];
-  if (st.limit !== null) parts.push(`${st.percent ?? 0}%`);
   if (st.state !== "none") parts.push(budgetStateLabel(st));
   if (!st.enforced && st.state !== "none") parts.push("not enforced");
   parts.push(`resets ${resetDay(st.month)}`);

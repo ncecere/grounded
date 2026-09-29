@@ -16,7 +16,8 @@ import { plural, useSources, useTeam } from "../common";
 import { useDomainRequests } from "../domains";
 import o from "./overview.module.css";
 
-export type AttentionRow = { id: string; icon: ReactNode; title: string; description: string; tone: "warning" | "danger"; link: ReactElement };
+/** A row; `count` is how many things it stands for (2 failed documents), so the card's badge adds up to what the rows say. */
+export type AttentionRow = { id: string; icon: ReactNode; title: string; description: string; tone: "warning" | "danger"; link: ReactElement; count: number };
 
 /** Share of a limit used, or undefined when it isn't measured. */
 export function usedRatio(it: { used: number | null; max: number | null }) {
@@ -40,6 +41,7 @@ export function useAttention(): AttentionRow[] {
       title: `${plural(src.documents.failed, "document")} failed in ${src.name}`,
       description: "They aren't searchable. Open the documents to see why, then fix or remove them.",
       tone: "danger",
+      count: src.documents.failed,
       link: <Link to="/teams/$team/sources/$sourceId" params={{ team, sourceId: src.id }} search={{ tab: "documents", status: "failed" } as { tab: "documents" }} />,
     });
   }
@@ -51,6 +53,7 @@ export function useAttention(): AttentionRow[] {
       title: `${plural(pending.length, "domain request")} waiting for review`,
       description: pending.map((r) => r.pattern).join(", "),
       tone: "warning",
+      count: pending.length,
       link: <Link to="/teams/$team/sources" params={{ team }} search={{ tab: "crawl-domains" }} />,
     });
   }
@@ -63,6 +66,7 @@ export function useAttention(): AttentionRow[] {
       title: `${it.label}: ${pct} % used`,
       description: pct >= 100 ? "The limit is reached. Ask a platform admin for more." : "Close to the limit.",
       tone: pct >= 100 ? "danger" : "warning",
+      count: 1,
       link: <Link to="/teams/$team/settings" params={{ team }} search={{ tab: "usage" }} />,
     });
   }
@@ -74,6 +78,7 @@ export function useAttention(): AttentionRow[] {
       title: `${a.name} was turned off by a platform admin`,
       description: a.disabledReason || "Nobody can chat with it until a platform admin turns it back on.",
       tone: "danger",
+      count: 1,
       link: <Link to="/teams/$team/agents/$agentId" params={{ team, agentId: a.id }} />,
     });
   }
@@ -84,7 +89,7 @@ export function NeedsAttention() {
   const rows = useAttention();
   if (rows.length === 0) return null;
   return (
-    <Card title="Needs attention" actions={<Badge tone="warning">{rows.length}</Badge>}>
+    <Card title="Needs attention" actions={<Badge tone="warning">{rows.reduce((n, r) => n + r.count, 0).toLocaleString()}</Badge>}>
       <ItemGroup aria-label="Needs attention">
         {rows.map((r) => (
           <Item key={r.id} size="sm" variant="outline" render={r.link} className={o.attention} data-tone={r.tone}>
