@@ -1,4 +1,4 @@
-/* Admin → Retention and Admin → Legal holds (docs/phase5-deploy.md §5 P3), with axe; the pure helpers. */
+/* Admin → Retention and its Legal holds tab (docs/phase5-deploy.md §5 P3), with axe; the old Legal holds address; the pure helpers. */
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
@@ -177,7 +177,7 @@ describe("Admin → Retention", () => {
   });
 });
 
-describe("Admin → Legal holds", () => {
+describe("Admin → Retention › Legal holds", () => {
   it("lists holds, shows what a hold keeps (including conversations users deleted) and releases one with a reason", async () => {
     const calls = mockApi({
       ...shellRoutes("platform_admin"),
@@ -185,7 +185,7 @@ describe("Admin → Legal holds", () => {
       "GET /v1/admin/legal-holds/h1": () => hold,
       "POST /v1/admin/legal-holds/h1/release": (b) => ({ ...hold, status: "released", releaseReason: (b as { reason: string }).reason }),
     });
-    const { container } = renderApp("/admin/legal-holds");
+    const { container } = renderApp("/admin/retention?tab=holds");
     const table = await screen.findByRole("table", { name: /Legal holds/ });
     expect(await within(table).findByText("1 deleted by users")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
@@ -208,8 +208,10 @@ describe("Admin → Legal holds", () => {
       "GET /v1/admin/legal-holds": () => [],
       "POST /v1/admin/legal-holds": () => ({ ...hold, scopeType: "team", scopeLabel: "Office of the Registrar" }),
     });
-    const { container } = renderApp("/admin/legal-holds");
+    const { container } = renderApp("/admin/retention?tab=holds");
     expect(await screen.findByText("No legal holds.")).toBeInTheDocument();
+    // The header's primary on this tab (and the empty state's action).
+    expect(screen.getAllByRole("button", { name: "Place a hold" })).toHaveLength(2);
     await userEvent.click(screen.getAllByRole("button", { name: "Place a hold" })[0]!);
     const dialog = await screen.findByRole("dialog", { name: "Place a legal hold" });
     expect(await axe(container.ownerDocument.body)).toHaveNoViolations();
@@ -225,11 +227,42 @@ describe("Admin → Legal holds", () => {
 
   it("offers no changes to auditors", async () => {
     mockApi({ ...shellRoutes("platform_auditor"), "GET /v1/admin/legal-holds": () => [hold], "GET /v1/admin/legal-holds/h1": () => hold });
-    renderApp("/admin/legal-holds?record=h1");
+    renderApp("/admin/retention?tab=holds&record=h1");
     const sheet = await screen.findByRole("region", { name: "Hold on Sam Student" });
     await within(sheet).findByText("Records request 2026-14");
     expect(screen.queryByRole("button", { name: "Place a hold" })).toBeNull();
     expect(within(sheet).queryByRole("button", { name: "Release hold" })).toBeNull();
+  });
+});
+
+describe("the old Legal holds address", () => {
+  const released: Schemas["LegalHold"] = { ...hold, id: "h2", status: "released", scopeLabel: "Alex Advisor", releasedAt: "2026-09-28T09:00:00Z", releaseReason: "Done" };
+  const routes = () => ({ ...shellRoutes("platform_admin"), "GET /v1/admin/legal-holds": () => [hold, released], "GET /v1/admin/legal-holds/h1": () => hold });
+
+  it("opens the Legal holds tab of Retention, filtered to active holds as the old page was", async () => {
+    mockApi(routes());
+    const { router } = renderApp("/admin/legal-holds");
+    const table = await screen.findByRole("table", { name: /Legal holds/ });
+    expect(router.state.location.pathname).toBe("/admin/retention");
+    expect(router.state.location.search).toEqual({ tab: "holds", status: "active" });
+    expect(await within(table).findByText("Sam Student")).toBeInTheDocument();
+    expect(within(table).queryByText("Alex Advisor")).toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: "Retention" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Legal holds" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("turns its Released and All tabs into the Status filter and keeps ?record=", async () => {
+    mockApi(routes());
+    const { router } = renderApp("/admin/legal-holds?tab=released");
+    const table = await screen.findByRole("table", { name: /Legal holds/ });
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: "holds", status: "released" }));
+    expect(await within(table).findByText("Alex Advisor")).toBeInTheDocument();
+    expect(within(table).queryByText("Sam Student")).toBeNull();
+
+    await router.navigate({ href: "/admin/legal-holds?tab=all&record=h1" });
+    expect(await screen.findByRole("region", { name: "Hold on Sam Student" })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/admin/retention");
+    expect(router.state.location.search).toEqual({ tab: "holds", record: "h1" });
   });
 });
 

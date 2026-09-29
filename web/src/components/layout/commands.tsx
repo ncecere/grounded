@@ -10,7 +10,7 @@ import { type CommandGroup } from "@/components/ui/command-palette/command-palet
 import { roleLabels } from "../roles";
 import { type ActiveTeam } from "./active-team";
 import { useCapabilities, useLocationInfo } from "./location";
-import { adminKeywords, adminNav, icon, teamNavFor, type AdminPath, type TeamPath } from "./nav";
+import { adminKeywords, adminNav, adminTabCommands, icon, teamNavFor, type AdminPath, type TeamPath } from "./nav";
 import { useSearchCommands } from "./search-commands";
 import { teamPlacesGroup } from "./team-commands";
 
@@ -118,6 +118,10 @@ function adminGroup(navigate: Navigate, platformAdmin: boolean): CommandGroup {
     keywords: ["admin", ...(adminKeywords[n.to] ?? [])],
     onSelect: () => void navigate({ to: n.to }),
   }));
+  // Places that are a tab of an admin page (Profile migrations, Legal holds; v0.2.1 I1).
+  for (const t of adminTabCommands) {
+    items.push({ id: "admin:" + t.id, label: t.label, icon: t.icon, hint: "Admin", keywords: ["admin", ...t.keywords], onSelect: () => void navigate({ to: t.to, search: { tab: t.tab } as never }) });
+  }
   if (platformAdmin) {
     const adminAct = (to: AdminPath, intent: Intent) => () => {
       void navigate({ to });

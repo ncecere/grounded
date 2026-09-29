@@ -2,7 +2,7 @@
 
 An embedding profile fixes a knowledge base's model, dimensions, prefixes and passage sizes ([ADR-0007](../adr/0007-embedding-profiles.md)). None of these can change in place. To adopt a new embedding model, or other passage sizes, create a new profile and **migrate** each knowledge base to it. Search keeps working throughout, and nothing is fetched or parsed again.
 
-Platform admins run migrations, under **Admin → Profile migrations**. Auditors can see them. Team members see their knowledge base's migration on its page.
+Platform admins run migrations, under **Admin → Embedding profiles → Migrations** (a page of its own until v0.2.1; `/admin/profile-migrations` opens the tab). Auditors can see them. Team members see their knowledge base's migration on its page.
 
 ## How it works
 
@@ -29,7 +29,7 @@ Platform admins run migrations, under **Admin → Profile migrations**. Auditors
 
 ## Run a migration
 
-1. **Admin → Profile migrations → Migrate a knowledge base**, or **Change embedding profile…** in the "…" menu of the knowledge base's page (platform admins who are members of the team).
+1. **Admin → Embedding profiles → Migrations → Migrate a knowledge base**, or **Change embedding profile…** in the "…" menu of the knowledge base's page (platform admins who are members of the team).
 2. Pick the knowledge base and the target profile. The **preflight** shows:
    - each source with its documents and passages, whether it's shared with other knowledge bases, and whether it already has vectors for the target;
    - documents, passages (about, when cut again), tokens, embedding requests and the time at the connection's request limit;

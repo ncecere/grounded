@@ -101,7 +101,7 @@ function KBPage({ kb: k }: { kb: KB }) {
             label: "Change embedding profile…",
             icon: <Shuffle aria-hidden />,
             hidden: !isAdmin,
-            render: <Link to="/admin/profile-migrations" search={{ start: k.id } as never} />,
+            render: <Link to="/admin/embedding-profiles" search={{ tab: "migrations", start: k.id } as never} />,
           },
           { label: "Delete knowledge base…", icon: <Trash2 aria-hidden />, danger: true, hidden: !canEdit, onSelect: del.request },
         ]}

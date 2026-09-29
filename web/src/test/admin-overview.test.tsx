@@ -1,10 +1,11 @@
-/* Admin → Overview (A1): the attention queue, the platform at a glance, the setup checklist and recent changes. */
-import { screen, within } from "@testing-library/react";
+/* Admin → Overview (A1, v0.2.1 I2): the platform at a glance, the attention queue, the Features card with the evaluations switch, the setup checklist and recent changes. */
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { weekDelta } from "../pages/admin/overview/glance";
 import { setupSteps } from "../pages/admin/overview/setup";
-import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
+import { type Handler, meFor, mockApi, renderApp, shellRoutes } from "./harness";
 import { adminAgent } from "./admin-fixtures";
 
 afterEach(() => {
@@ -56,8 +57,27 @@ const routes = (extra: Record<string, Handler> = {}): Record<string, Handler> =>
     ],
     nextCursor: null,
   }),
+  "GET /v1/admin/settings/evaluations": () => ({ enabled: true, revision: 2, updatedAt: "2026-09-01T10:00:00Z" }),
+  "GET /v1/admin/costs/settings": () => ({ mode: "track", currency: "USD", timeZone: "UTC", warnPercent: 80, defaultBudget: null, revision: 1, updatedAt: "" }),
+  "GET /v1/admin/parsing": () => ({ ocrEnabled: true, backend: "tesseract", visionModelId: null, languages: "eng", backends: [], maxPagesPerDocument: 50, concurrency: 1, needsOcr: [], revision: 1, updatedAt: null }),
+  "GET /v1/admin/group-mapping": () => ({ groupsClaim: "groups", oidcEnabled: true, ruleCount: 3, peopleSeen: 4, peopleWithClaim: 4, recentSignIns: 2 }),
+  "GET /v1/admin/systemone": () => ({
+    modelId: "s1",
+    judging: { enabled: true },
+    citations: { enabled: true },
+    scope: { enabled: false },
+    revision: 1,
+    updatedAt: null,
+  }),
+  "GET /v1/admin/settings/maintenance": () => ({ enabled: false, reason: "", plannedEndAt: null, startedAt: null, startedBy: null, updatedBy: null, updatedAt: "", revision: 1 }),
   ...extra,
 });
+
+const featureRow = async (name: string) => {
+  const card = (await screen.findByRole("heading", { level: 2, name: "Features" })).closest("section")!;
+  const title = await within(card).findByText(name, { selector: "[class*=title]" });
+  return title.closest<HTMLElement>("[class*=item]")!;
+};
 
 describe("admin overview", () => {
   it("lists what needs attention, the platform at a glance, setup and recent changes", async () => {
@@ -83,6 +103,77 @@ describe("admin overview", () => {
     expect(await screen.findByText("140")).toBeInTheDocument(); // answers in the last 7 days
     expect(calls.find((c) => c.url === "/v1/admin/audit")?.search.get("excludeAction")).toBe("auth.");
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("puts the platform at a glance first, then attention and features, then the last 5 changes", async () => {
+    const calls = mockApi(routes());
+    renderApp("/admin");
+    const glance = await screen.findByRole("heading", { level: 2, name: "Platform at a glance" });
+    const attention = screen.getByRole("heading", { level: 2, name: "Needs attention" });
+    const features = screen.getByRole("heading", { level: 2, name: "Features" });
+    const recent = screen.getByRole("heading", { level: 2, name: "Recent changes" });
+    const before = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(before(glance, attention) && before(attention, features) && before(features, recent)).toBe(true);
+    expect(within(recent.closest("section")!).getByRole("link", { name: /All logs/ })).toHaveAttribute("href", "/admin/logs");
+    await waitFor(() => expect(calls.find((c) => c.url === "/v1/admin/audit")?.search.get("limit")).toBe("5"));
+  });
+
+  it("links a team near its budget to the team's Overview, where the Budget card is (I7)", async () => {
+    const near = { teamSlug: "registrar", teamName: "Office of the Registrar", state: "warning" as const, percent: 85, spent: "85.000000", limit: "100.000000", currency: "USD" };
+    mockApi(routes({ "GET /v1/admin/overview": () => ({ ...overview, teamsNearBudget: [near] }) }));
+    renderApp("/admin");
+    const queue = (await screen.findByText("Needs attention")).closest("section")!;
+    expect(await within(queue).findByText("Office of the Registrar is at 85% of its monthly budget")).toBeInTheDocument();
+    expect(within(queue).getByRole("link", { name: /Team budget/ })).toHaveAttribute("href", "/admin/teams/registrar");
+    expect(within(queue).getByRole("link", { name: /Team limits/ })).toHaveAttribute("href", "/admin/teams/registrar?tab=limits");
+  });
+
+  it("lists the optional features with their state and where each is set up", async () => {
+    mockApi(routes());
+    const { container } = renderApp("/admin");
+    const costs = await featureRow("Cost tracking");
+    expect(await within(costs).findByText("Track only")).toBeInTheDocument();
+    expect(within(costs).getByRole("link", { name: /Cost settings/ })).toHaveAttribute("href", "/admin/costs?tab=settings");
+    const ocr = await featureRow("OCR");
+    expect(await within(ocr).findByText("On · Tesseract")).toBeInTheDocument();
+    expect(within(ocr).getByRole("link", { name: /Parsing & OCR/ })).toHaveAttribute("href", "/admin/parsing");
+    const sso = await featureRow("SSO groups");
+    expect(await within(sso).findByText("3 rules")).toBeInTheDocument();
+    expect(within(sso).getByRole("link", { name: /SSO groups/ })).toHaveAttribute("href", "/admin/group-mapping");
+    const systemOne = await featureRow("SystemOne");
+    expect(await within(systemOne).findByText("Configured")).toBeInTheDocument();
+    expect(within(systemOne).getByText("On: passage judging, citation checks.")).toBeInTheDocument();
+    expect(within(systemOne).getByRole("link", { name: /SystemOne/ })).toHaveAttribute("href", "/admin/systemone");
+    const pub = await featureRow("Public access");
+    expect(await within(pub).findByText("On")).toBeInTheDocument();
+    expect(within(pub).getByRole("link", { name: /Public access/ })).toHaveAttribute("href", "/admin/public-access");
+    const maintenance = await featureRow("Maintenance");
+    expect(await within(maintenance).findByText("Off")).toBeInTheDocument();
+    expect(within(maintenance).getByRole("link", { name: /Maintenance/ })).toHaveAttribute("href", "/admin/maintenance");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("turns evaluations off for the platform from the Features card, with If-Match", async () => {
+    const calls = mockApi(routes({ "PUT /v1/admin/settings/evaluations": (b) => ({ ...(b as object), revision: 3, updatedAt: "2026-09-28T10:00:00Z" }) }));
+    renderApp("/admin");
+    const row = await featureRow("Evaluations");
+    const toggle = await within(row).findByRole("switch", { name: "Allow evaluations" });
+    expect(toggle).toBeChecked();
+    await userEvent.click(toggle);
+    await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
+    const put = calls.find((c) => c.method === "PUT")!;
+    expect(put.body).toEqual({ enabled: false });
+    expect(put.headers.get("If-Match")).toBe('"2"');
+    expect(await within(row).findByText(/Existing sets and runs are kept/)).toBeInTheDocument();
+  });
+
+  it("shows auditors each feature's state without the switch", async () => {
+    mockApi(routes({ "GET /v1/me": () => meFor("platform_auditor"), "GET /v1/admin/costs/settings": () => ({ mode: "off", currency: "USD", timeZone: "UTC", warnPercent: 80, defaultBudget: null, revision: 1, updatedAt: "" }) }));
+    renderApp("/admin");
+    const row = await featureRow("Evaluations");
+    expect(await within(row).findByText("On")).toBeInTheDocument();
+    expect(within(row).queryByRole("switch")).toBeNull();
+    expect(await within(await featureRow("Cost tracking")).findByText("Off")).toBeInTheDocument();
   });
 
   it("computes the setup steps and the weekly change", () => {

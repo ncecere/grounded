@@ -116,7 +116,7 @@ describe("Admin → Costs", () => {
     expect(table).toHaveTextContent("Team setting");
     expect(table).toHaveTextContent("Platform setting");
     expect(within(table).getByRole("columnheader", { name: /Budget this month/ })).toBeInTheDocument();
-    expect(within(table).getByRole("link", { name: "Office of the Registrar" })).toHaveAttribute("href", "/admin/teams/registrar?tab=limits");
+    expect(within(table).getByRole("link", { name: "Office of the Registrar" })).toHaveAttribute("href", "/admin/teams/registrar");
     // A Track-only team over its budget: progress only, labelled, and listed with the teams near budget.
     const archives = within(table).getByRole("row", { name: /Archives/ });
     expect(archives).toHaveTextContent("Over budget");
@@ -408,7 +408,7 @@ describe("budget errors and money", () => {
     expect(container.querySelectorAll("[title]")).toHaveLength(1);
   });
 
-  it("links budget changes and extensions to the team's Limits tab", () => {
+  it("links budget changes and extensions to the team's Overview, where the Budget card is", () => {
     const e = (action: string): Schemas["AuditEntry"] => ({
       id: 1, occurredAt: "2026-09-26T10:00:00Z", actorKind: "system", actor: { kind: "system" }, actorUserId: null, teamId: "t1", action, targetType: "team", targetId: "t1",
       targetLabel: "Office of the Registrar", targetExists: true, parent: null, before: null, after: null, metadata: {}, requestId: "",
@@ -421,7 +421,7 @@ describe("budget errors and money", () => {
     );
     return waitFor(() => {
       const links = screen.getAllByRole("link", { name: "Office of the Registrar" });
-      expect(links.map((l) => l.getAttribute("href"))).toEqual(["/admin/teams/t1?tab=limits", "/admin/teams/t1"]);
+      expect(links.map((l) => l.getAttribute("href"))).toEqual(["/admin/teams/t1", "/admin/teams/t1"]);
     });
   });
 });

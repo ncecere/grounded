@@ -2,15 +2,27 @@
  * The admin sidebar's groups collapse to their headers (docs/v0.2.0.md §7):
  * the group of the current page opens by itself, the others stay as the
  * person left them (remembered in this browser); Overview has no group.
+ * Groups are remembered by label: labels from before the v0.2.1 regroup (I1)
+ * open their new groups, and labels that no longer exist are forgotten.
  */
 import { useCallback, useEffect, useState } from "react";
+import { adminSections, oldAdminGroups } from "./nav";
 
 const storageKey = "grounded.adminNavOpen";
+
+/** The remembered open groups that exist now: old labels become their new groups, unknown ones are dropped. */
+export function currentGroups(saved: string[]): string[] {
+  const known = new Set(adminSections.flatMap((s) => (s.label ? [s.label] : [])));
+  return [...new Set(saved.flatMap((l) => oldAdminGroups[l] ?? [l]))].filter((l) => known.has(l));
+}
 
 function read(): string[] {
   try {
     const parsed: unknown = JSON.parse(globalThis.localStorage?.getItem(storageKey) ?? "[]");
-    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+    const saved = Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+    const now = currentGroups(saved);
+    if (now.join("\n") !== saved.join("\n")) write(now);
+    return now;
   } catch {
     return [];
   }

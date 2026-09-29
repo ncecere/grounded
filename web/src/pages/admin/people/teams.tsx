@@ -120,7 +120,7 @@ export function AdminTeamsPage() {
         onRetry={() => void teams.refetch()}
         rowActions={(r) => [
           { label: "Open", icon: <Users aria-hidden />, render: <Link to="/admin/teams/$team" params={{ team: r.team.slug }} /> },
-          { label: "Budget & limits", render: <Link to="/admin/teams/$team" params={{ team: r.team.slug }} search={{ tab: "limits" }} /> },
+          { label: "Limits", render: <Link to="/admin/teams/$team" params={{ team: r.team.slug }} search={{ tab: "limits" }} /> },
           { label: "Agents", render: <Link to="/admin/agents" search={{ team: r.team.slug }} /> },
         ]}
         empty={{ icon: <UsersRound />, title: q || status ? "No teams match." : "No teams yet.", action: create || undefined }}

@@ -1,9 +1,43 @@
-/* SystemOne citation checks and scope check in analytics (docs/systemone.md §3-§4): counts only, shown once anything was checked. */
-import { BadgeCheck, MessageCircle, ShieldQuestion, TriangleAlert } from "lucide-react";
+/*
+ * SystemOne citation checks and scope check in analytics (docs/systemone.md
+ * §3-§4): counts only, shown once anything was checked. With passage judging
+ * they make up the Checks tab (admin Analytics) and view (an agent's
+ * Analytics), shown only while a SystemOne model is configured (v0.2.1 I8).
+ */
+import { BadgeCheck, MessageCircle, ShieldQuestion, Sparkles, TriangleAlert } from "lucide-react";
 import type { Schemas } from "@/api/client";
+import { Card } from "@/components/ui/card/card";
+import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { StatCard } from "@/components/ui/stat-card/stat-card";
+import an from "./analytics.module.css";
 import { StatGroup } from "./breakdowns";
 import { ms, num, pct } from "./format";
+import { JudgingGroup } from "./judging";
+
+type Checked = { judging?: Schemas["JudgingTotals"]; citations?: Schemas["CitationTotals"]; scope?: Schemas["ScopeTotals"] };
+
+/** Passage judging, citation checks and the scope check; says so when SystemOne checked nothing in the range. */
+export function SystemOneChecks({ judging, citations, scope }: Checked) {
+  const any = (judging?.answers ?? 0) > 0 || (citations?.answers ?? 0) > 0 || (scope?.checked ?? 0) > 0;
+  if (!any) {
+    return (
+      <Card>
+        <EmptyState
+          icon={<Sparkles />}
+          title="SystemOne checked nothing in this range."
+          description="Passage judging, citation checks and the scope check are counted here once they're on and answers use them."
+        />
+      </Card>
+    );
+  }
+  return (
+    <div className={an.totals}>
+      <JudgingGroup j={judging} />
+      <CitationsGroup c={citations} />
+      <ScopeGroup s={scope} />
+    </div>
+  );
+}
 
 export function CitationsGroup({ c }: { c?: Schemas["CitationTotals"] }) {
   if (!c || c.answers === 0) return null;

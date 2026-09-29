@@ -13,6 +13,13 @@ test("overview and logs (sign-ins hidden by default)", async ({ as, a11y }) => {
   await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Platform at a glance" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Recent changes" }).getByRole("listitem").first()).toBeVisible();
+  // The optional features and their states (v0.2.1 I2); the evaluations switch is platform-wide, so it isn't pressed here.
+  const features = page.getByRole("region", { name: "Features" });
+  await expect(features.getByRole("switch", { name: "Allow evaluations" })).toBeVisible();
+  await expect(features.getByRole("link", { name: /Cost settings/ })).toBeVisible();
+  // The sidebar's groups (v0.2.1 I1).
+  const nav = page.getByRole("navigation", { name: "Main" });
+  for (const group of ["People", "Content", "Models", "Usage & spend", "Safety", "Records", "Operations"]) await expect(nav.getByRole("button", { name: group })).toBeVisible();
   await a11y(page);
 
   await page.getByRole("region", { name: "Recent changes" }).getByRole("link", { name: "All logs" }).click();
@@ -33,6 +40,22 @@ test("overview and logs (sign-ins hidden by default)", async ({ as, a11y }) => {
   await expect(page.getByRole("region", { name: /Signed in/ })).toBeVisible();
   await expect(page).toHaveURL(/record=/);
   await a11y(page, "audit record");
+});
+
+test("embedding profiles: the Migrations tab, and the old Profile migrations address", async ({ as, a11y }) => {
+  const page = await as("admin");
+  // Profile migrations is a tab of Embedding profiles (v0.2.1 I1); the header's primary follows the tab.
+  await page.goto("/admin/profile-migrations");
+  await expect(page).toHaveURL(/\/admin\/embedding-profiles\?tab=migrations$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Embedding profiles" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Migrations", selected: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Migrate a knowledge base" }).first()).toBeVisible();
+  await a11y(page);
+  await page.getByRole("tab", { name: "Profiles" }).click();
+  await expect(page.getByRole("table", { name: "Embedding profiles" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add profile" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Migrate a knowledge base" })).toHaveCount(0);
+  await a11y(page);
 });
 
 test("limits: save, and the unsaved-changes guard", async ({ as, admin, a11y }) => {
@@ -99,8 +122,10 @@ test("retention dry run, and a legal hold placed and released", async ({ as, adm
   await expect(page.getByText("Nothing is deleted by viewing this.")).toBeVisible();
   await a11y(page);
 
-  await page.goto("/admin/legal-holds");
-  await expect(page.getByRole("heading", { level: 1, name: "Legal holds" })).toBeVisible();
+  // Legal holds is a tab of Retention (v0.2.1 I1), with Place a hold as the header's primary.
+  await page.getByRole("tab", { name: "Legal holds" }).click();
+  await expect(page).toHaveURL(/tab=holds/);
+  await expect(page.getByRole("table", { name: "Legal holds" })).toBeVisible();
   await a11y(page);
   await page.getByRole("button", { name: "Place a hold" }).first().click();
   const place = page.getByRole("dialog", { name: "Place a legal hold" });
@@ -126,9 +151,16 @@ test("retention dry run, and a legal hold placed and released", async ({ as, adm
 
   // The hold's page: its back link returns to the list.
   await sheet.getByRole("link", { name: /^Back to/ }).click();
-  await page.getByRole("tab", { name: "Released" }).click();
+  await page.getByRole("group", { name: "Status" }).getByRole("button", { name: /^Released/ }).click();
+  await expect(page).toHaveURL(/status=released/);
   await expect(page.getByRole("row", { name: new RegExp(`E2E ${team}`) })).toBeVisible();
   await a11y(page);
+
+  // The old address redirects to the tab, its Released tab to the Status filter.
+  await page.goto("/admin/legal-holds?tab=released");
+  await expect(page).toHaveURL(/\/admin\/retention\?tab=holds&status=released$/);
+  await expect(page.getByRole("tab", { name: "Legal holds", selected: true })).toBeVisible();
+  await expect(page.getByRole("row", { name: new RegExp(`E2E ${team}`) })).toBeVisible();
 });
 
 test("break-glass: start a documents session, read, end", async ({ as, admin, a11y }) => {

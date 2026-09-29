@@ -126,7 +126,8 @@ function useRows(): { rows: Row[]; loading: boolean } {
       title: n.state === "exhausted" ? `${n.teamName} has used up its monthly budget` : `${n.teamName} is at ${n.percent ?? 0}% of its monthly budget`,
       description: `${formatMoney(n.spent, n.currency)} of ${formatMoney(n.limit, n.currency)}${n.state === "exhausted" ? ": its chats, searches and ingestion are paused" : ""}`,
       action: "Team budget",
-      link: <Link to="/admin/teams/$team" params={{ team: n.teamSlug }} search={{ tab: "limits" }} />,
+      // The Budget card is on the team's Overview (v0.2.1 I7).
+      link: <Link to="/admin/teams/$team" params={{ team: n.teamSlug }} />,
       tone: n.state === "exhausted" ? "danger" : "warning",
     });
   }

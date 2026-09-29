@@ -63,7 +63,7 @@ Spend = rollup quantities × the price in effect on each (local) day, per unit, 
   - **Prices:** every model with its current prices and "Unpriced" where missing; a model opens its record.
   - **Settings:** mode, currency, time zone, warning threshold, default budget.
 - **A model's record page:** a **Pricing** section with the current prices and their history, and "Change prices".
-- **Admin → Teams → a team → Budget & limits:** a **Budget** card: mode override, monthly budget, extensions this month, and the budget meter (enforced or tracked).
+- **Admin → Teams → a team → Overview:** a **Budget** card (on the Limits tab, "Budget & limits", in v0.2.0): mode override, monthly budget, extensions this month, and the budget meter (enforced or tracked).
 - **Team settings → Usage** (owners and admins): "Spend this month" with the budget meter (with "not enforced" in Track only), and spend by agent and model. Editors and members see no money.
 - **A banner** in the team's workspace at the threshold and when blocked, for everyone in the team (members need to know why chat stopped), without amounts for members.
 

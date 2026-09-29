@@ -1,4 +1,4 @@
-/* Admin Overview › Recent changes (A1): the last 8 audit entries other than sign-ins, linking to Logs. */
+/* Admin Overview › Recent changes (A1): the last 5 audit entries other than sign-ins, linking to Logs. */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";

@@ -1,21 +1,22 @@
 /*
  * Admin → Analytics (A9): platform aggregates for a date range kept in the
  * URL (?range=), filtered by team and audience (?team=, ?audience=), in pill
- * tabs Overview · Breakdown · Models & tokens · Top agents & teams
- * (docs/phase4-publishing.md §9). No content and no user identities
- * (ADR-0010).
+ * tabs Overview · Breakdown · Models & tokens · Top agents & teams · Checks
+ * (docs/phase4-publishing.md §9). Overview has the daily chart first, then the
+ * totals; Checks holds the SystemOne cards and shows only while a SystemOne
+ * model is configured (v0.2.1 I8). No content and no user identities (ADR-0010).
  */
 import { useQuery } from "@tanstack/react-query";
-import { Activity, BarChart3, ChartPie, Clock, Cpu, Flag, Globe, LayoutDashboard, LifeBuoy, MessageSquare, MessagesSquare, SearchX, ShieldAlert, ShieldOff, ShieldX, ThumbsUp, Timer, Trophy, Users, Zap } from "lucide-react";
+import { Activity, BarChart3, ChartPie, Clock, Cpu, Flag, Globe, LayoutDashboard, LifeBuoy, MessageSquare, MessagesSquare, SearchX, ShieldAlert, ShieldCheck, ShieldOff, ShieldX, ThumbsUp, Timer, Trophy, Users, Zap } from "lucide-react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ModerationCard, ShareCard, StatGroup } from "@/components/analytics/breakdowns";
-import { CitationsGroup, ScopeGroup } from "@/components/analytics/checks";
-import { JudgingGroup } from "@/components/analytics/judging";
+import { SystemOneChecks } from "@/components/analytics/checks";
 import { DailyChart } from "@/components/analytics/daily-chart";
 import { audienceLabels, channelLabels, ms, num, pct } from "@/components/analytics/format";
 import type { Range } from "@/components/analytics/range-picker";
 import { PageTabs, useUrlTab } from "@/components/page-tabs";
 import { DateRangeFilter, useDateRangeParam } from "@/components/templates/date-range-filter";
+import { useSystemOneStatus } from "@/lib/systemone";
 import { analyticsTabs } from "@/lib/tabs";
 import an from "@/components/analytics/analytics.module.css";
 import { ErrorAlert } from "@/components/ui/alert/alert";
@@ -52,6 +53,7 @@ export function AdminAnalyticsPage() {
   const filters = useAnalyticsFilter();
   const f = filters.filter;
   const data = useQuery({ ...adminAnalyticsQuery(range, f), enabled: Boolean(range.from && range.to) });
+  const systemOne = useSystemOneStatus();
   const d = data.data;
   const empty = d && d.totals.answers === 0 && d.totals.conversations === 0 && d.models.length === 0;
 
@@ -87,7 +89,6 @@ export function AdminAnalyticsPage() {
               icon: <LayoutDashboard aria-hidden />,
               content: (
                 <Stack gap={6}>
-                  <Totals t={d.totals} audiences={d.audiences} />
                   <DailyChart
                     days={d.daily}
                     description="The paler bars are answers; the darker ones conversations started. The table and CSV add the quality and moderation counts."
@@ -99,6 +100,7 @@ export function AdminAnalyticsPage() {
                       { label: "Flagged", value: (x) => x.moderationFlagged },
                     ]}
                   />
+                  <Totals t={d.totals} audiences={d.audiences} />
                 </Stack>
               ),
             },
@@ -140,6 +142,13 @@ export function AdminAnalyticsPage() {
                 </Stack>
               ),
             },
+            {
+              value: "checks",
+              label: "Checks",
+              icon: <ShieldCheck aria-hidden />,
+              hidden: !systemOne.data?.available,
+              content: <SystemOneChecks judging={d.totals.judging} citations={d.totals.citations} scope={d.totals.scope} />,
+            },
           ]}
         />
       )}
@@ -174,9 +183,6 @@ function Totals({ t, audiences }: { t: PlatformAnalytics["totals"]; audiences: P
         <StatCard label="Flagged" value={num(t.moderation.flagged)} icon={<Flag />} hint="Answered and recorded" />
         {t.moderation.supported > 0 && <StatCard label="Support messages" value={num(t.moderation.supported)} icon={<LifeBuoy />} hint="Answered with the support message" />}
       </StatGroup>
-      <JudgingGroup j={t.judging} />
-      <CitationsGroup c={t.citations} />
-      <ScopeGroup s={t.scope} />
     </div>
   );
 }

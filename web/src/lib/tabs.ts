@@ -37,10 +37,22 @@ export const crawlDomainTabs = ["requests", "allowlist"] as const;
 export const teamSettingsTabs = ["members", "usage", "api-keys", "crawl-domains", "audit", "general"] as const;
 export type TeamSettingsTab = (typeof teamSettingsTabs)[number];
 export const logTabs = ["audit", "access"] as const;
-export const analyticsTabs = ["overview", "breakdown", "models", "top"] as const;
+/** Admin → Analytics; Checks (the SystemOne cards) shows only while a SystemOne model is configured (v0.2.1 I8). */
+export const analyticsTabs = ["overview", "breakdown", "models", "top", "checks"] as const;
 /** Admin → Costs (E2). Overview and Budgets are hidden while the mode is Off. */
 export const costTabs = ["overview", "budgets", "prices", "settings"] as const;
-export const retentionTabs = ["settings", "report", "runs"] as const;
-export const legalHoldTabs = ["active", "released", "all"] as const;
+/** Admin → Retention: Periods · Dry run · Runs · Legal holds (Admin → Legal holds until v0.2.1, I1). */
+export const retentionTabs = ["settings", "report", "runs", "holds"] as const;
+/** Admin → Embedding profiles: Profiles · Migrations (Admin → Profile migrations until v0.2.1, I1). */
+export const embeddingProfileTabs = ["profiles", "migrations"] as const;
 /** Admin → Break-glass (ADR-0024). */
 export const breakGlassTabs = ["sessions", "settings"] as const;
+
+/**
+ * /admin/legal-holds?tab= (until v0.2.1): its Active · Released · All tabs are
+ * the Legal holds tab's Status filter (?status=); Active was the default.
+ */
+export function movedLegalHoldSearch(q: URLSearchParams) {
+  const old = q.get("tab");
+  if (old !== "all") q.set("status", old === "released" ? "released" : "active");
+}

@@ -77,12 +77,12 @@ A hold can be limited to a **date range** of the data (first and last day, UTC):
 ### Procedure
 
 1. Get the request in writing from your legal counsel or records officer: what to preserve (people, teams, agents, conversations) and the dates.
-2. In **Administration → Legal holds**, choose **Place a hold** for each scope: a user's email or ID, a team's slug or ID, an agent as `team-slug/agent-slug` or its ID, or a conversation ID. Give the reason (the matter or request reference) and, if the request names dates, the date range. The hold is audited as `legal_hold.create` with who placed it and when.
+2. In **Admin → Retention → Legal holds**, choose **Place a hold** for each scope: a user's email or ID, a team's slug or ID, an agent as `team-slug/agent-slug` or its ID, or a conversation ID. Give the reason (the matter or request reference) and, if the request names dates, the date range. The hold is audited as `legal_hold.create` with who placed it and when.
 3. Check **Retention → Dry run**: what the hold keeps shows under "Kept by legal holds".
 4. If the request needs data to be produced, export it through the normal channels (users export their own conversations). Holds preserve; they don't grant access.
 5. When counsel confirms the matter is closed, **Release hold** with the reason. It's audited as `legal_hold.release`. What the hold kept is deleted at the next run if its period has passed, so check the dry run first if that matters.
 
-Holds and their audit entries stay listed (Legal holds → Released) for good.
+Holds and their audit entries stay listed (Legal holds, **Status: Released**) for good. The old address `/admin/legal-holds` (a page of its own until v0.2.1) opens this tab.
 
 ## API
 

@@ -27,7 +27,7 @@ export function KBMigrationNotice({ team, kbId, isAdmin }: { team: string; kbId:
   const m = q.data;
   if (!m) return null;
   const manage = isAdmin && (
-    <Button size="sm" variant="secondary" render={<Link to="/admin/profile-migrations" search={{ record: m.id } as never} />}>
+    <Button size="sm" variant="secondary" render={<Link to="/admin/embedding-profiles" search={{ tab: "migrations", record: m.id } as never} />}>
       Manage migration
     </Button>
   );

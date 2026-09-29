@@ -1,4 +1,4 @@
-/* Costs › Budgets: every active team's mode, budget (enforced, or tracked: progress only), month-to-date spend, share and projection; a team opens its page (Budget & limits tab). */
+/* Costs › Budgets: every active team's mode, budget (enforced, or tracked: progress only), month-to-date spend, share and projection; a team opens its page (its Overview has the Budget card). */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Pencil, UsersRound, Wallet } from "lucide-react";
@@ -47,7 +47,7 @@ function columns(currency: string): DataTableColumn<Item>[] {
       hideable: false,
       cell: (r) => (
         <CellText
-          primary={<TextLink render={<Link to="/admin/teams/$team" params={{ team: r.teamSlug }} search={{ tab: "limits" }} />}>{r.teamName}</TextLink>}
+          primary={<TextLink render={<Link to="/admin/teams/$team" params={{ team: r.teamSlug }} />}>{r.teamName}</TextLink>}
           secondary={r.teamSlug}
         />
       ),
@@ -137,7 +137,7 @@ export function BudgetsTab() {
           {
             label: "Open",
             icon: <UsersRound aria-hidden />,
-            render: <Link to="/admin/teams/$team" params={{ team: r.teamSlug }} search={{ tab: "limits" }} />,
+            render: <Link to="/admin/teams/$team" params={{ team: r.teamSlug }} />,
           },
         ]}
         empty={{ icon: <Wallet />, title: "No active teams." }}

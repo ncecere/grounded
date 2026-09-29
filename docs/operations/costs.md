@@ -42,7 +42,7 @@ In **Admin → Costs → Settings**:
 
 Saving is audited (`costs.settings_update`) and takes a revision check, so two admins can't overwrite each other.
 
-**A team's own mode** (on its page, **Admin → Teams → the team → Budget & limits → Budget → Change budget**, or **Change budget…** in a row's menu on Costs → Budgets) overrides the platform's: *Inherit*, *Off*, *Track only* or *Enforce*. A common rollout:
+**A team's own mode** (on its page, **Admin → Teams → the team → Overview → Budget → Change budget**, or **Change budget…** in a row's menu on Costs → Budgets) overrides the platform's: *Inherit*, *Off*, *Track only* or *Enforce*. A common rollout:
 
 1. Enter prices; set the platform to **Track only** for a month and compare the Overview with your gateway's bill. Budgets set now show each team's progress without stopping anything.
 2. Give a pilot team a budget and the mode **Enforce**.

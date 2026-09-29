@@ -170,7 +170,7 @@ describe("app shell", () => {
     expect(await within(nav).findByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
     // Groups other than the current page's start collapsed to their headers.
     expect(within(nav).queryByRole("link", { name: "Logs" })).toBeNull();
-    for (const group of ["People", "Content", "Policy", "Monitoring"]) {
+    for (const group of ["People", "Content", "Usage & spend", "Safety", "Records", "Operations"]) {
       const header = within(nav).getByRole("button", { name: group });
       expect(header).toHaveAttribute("aria-expanded", "false");
       await user.click(header);
@@ -197,12 +197,12 @@ describe("app shell", () => {
 
     // The groups stay as they were left (the admin sidebar was mounted again); arriving on a page of a closed group opens it.
     const adminNav = await screen.findByRole("navigation", { name: "Main" });
-    await user.click(await within(adminNav).findByRole("button", { name: "Monitoring" }));
-    expect(within(adminNav).getByRole("button", { name: "Monitoring" })).toHaveAttribute("aria-expanded", "false");
-    expect(within(adminNav).getByRole("button", { name: "Policy" })).toHaveAttribute("aria-expanded", "true");
+    await user.click(await within(adminNav).findByRole("button", { name: "Records" }));
+    expect(within(adminNav).getByRole("button", { name: "Records" })).toHaveAttribute("aria-expanded", "false");
+    expect(within(adminNav).getByRole("button", { name: "Safety" })).toHaveAttribute("aria-expanded", "true");
     await router.navigate({ to: "/admin/logs" });
-    await waitFor(() => expect(within(adminNav).getByRole("button", { name: "Monitoring" })).toHaveAttribute("aria-expanded", "true"));
-    expect(JSON.parse(localStorage.getItem("grounded.adminNavOpen") ?? "[]")).toEqual(expect.arrayContaining(["People", "Policy", "Monitoring"]));
+    await waitFor(() => expect(within(adminNav).getByRole("button", { name: "Records" })).toHaveAttribute("aria-expanded", "true"));
+    expect(JSON.parse(localStorage.getItem("grounded.adminNavOpen") ?? "[]")).toEqual(expect.arrayContaining(["People", "Safety", "Records"]));
   });
 
   it("opens Admin on Overview for someone who hasn't used it in this session, even after another admin did", async () => {

@@ -41,7 +41,32 @@ export const recentAnalyticsQuery = () => {
   };
 };
 
+/** The last 5 audit entries other than sign-ins (Recent changes). */
 export const recentChangesQuery = () => ({
   queryKey: ["admin", "audit", "recent"],
-  queryFn: async () => unwrap(await api.GET("/v1/admin/audit", { params: { query: { excludeAction: "auth.", limit: 8 } } })),
+  queryFn: async () => unwrap(await api.GET("/v1/admin/audit", { params: { query: { excludeAction: "auth.", limit: 5 } } })),
+});
+
+/*
+ * The Features card's settings (v0.2.1 I2), under the same keys as their
+ * own pages, so a change on either side shows on both.
+ */
+export const evaluationSettingsQuery = () => ({
+  queryKey: ["admin", "evaluations"],
+  queryFn: async () => unwrap(await api.GET("/v1/admin/settings/evaluations")),
+});
+
+export const parsingSettingsQuery = () => ({
+  queryKey: ["admin", "parsing"],
+  queryFn: async () => unwrap(await api.GET("/v1/admin/parsing")),
+});
+
+export const systemOneSettingsQuery = () => ({
+  queryKey: ["admin", "systemone"],
+  queryFn: async () => unwrap(await api.GET("/v1/admin/systemone")),
+});
+
+export const maintenanceSettingsQuery = () => ({
+  queryKey: ["admin", "maintenance"],
+  queryFn: async () => unwrap(await api.GET("/v1/admin/settings/maintenance")),
 });

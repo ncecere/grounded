@@ -10,13 +10,14 @@ import {
   breakGlassTabs,
   crawlDomainTabs,
   editorTabs,
+  embeddingProfileTabs,
   oldEditorTabs,
   kbTabs,
   evaluationSetTabs,
-  legalHoldTabs,
   limitTabs,
   logTabs,
   moderationTabs,
+  movedLegalHoldSearch,
   notificationTabs,
   retentionTabs,
   sourceTabs,
@@ -65,7 +66,6 @@ const pages = {
   maintenance: () => import("./pages/admin/maintenance/page"),
   retention: () => import("./pages/admin/retention/routes"),
   breakGlass: () => import("./pages/admin/break-glass/page"),
-  profileMigrations: () => import("./pages/admin/profile-migrations/page"),
   systemone: () => import("./pages/admin/systemone/page"),
   parsing: () => import("./pages/admin/parsing/page"),
   groupMapping: () => import("./pages/admin/group-mapping/page"),
@@ -239,14 +239,29 @@ const agentEditorRoute = createRoute({
 const adminRoute = createRoute({ getParentRoute: () => appRoute, path: "admin", component: AdminGate });
 const adminIndexRoute = createRoute({ getParentRoute: () => adminRoute, path: "/", component: lazy(pages.adminOverview, "AdminOverviewPage") });
 const admin = <P extends string>(path: P, component: Page) => createRoute({ getParentRoute: () => adminRoute, path, component });
-/** Old admin addresses that moved (D6). */
-const adminMoved = <P extends string>(path: P, to: "/admin/logs" | "/admin/crawl-domains", tab?: "access") =>
+/**
+ * Old admin addresses that moved (D6, v0.2.1 I1): to the new page and tab. The
+ * other parameters (?record=, filters) are kept; the old page's ?tab= is
+ * dropped, or translated by `rewrite` first.
+ */
+const adminMoved = <P extends string>(
+  path: P,
+  to: "/admin/logs" | "/admin/crawl-domains" | "/admin/embedding-profiles" | "/admin/retention",
+  tab?: "access" | "migrations" | "holds",
+  rewrite?: (q: URLSearchParams) => void,
+) =>
   createRoute({
     getParentRoute: () => adminRoute,
     path,
-    beforeLoad: () => {
+    beforeLoad: ({ location }) => {
+      const old = new URLSearchParams(location.searchStr);
+      rewrite?.(old);
+      old.delete("tab");
+      const q = new URLSearchParams(tab ? { tab } : {});
+      old.forEach((v, k) => q.append(k, v));
+      const rest = q.toString();
       // href, not typed search: typing the target's search here would make the route tree's type circular.
-      throw redirect({ href: tab ? `${to}?tab=${tab}` : to, replace: true });
+      throw redirect({ href: rest ? `${to}?${rest}` : to, replace: true });
     },
   });
 /** An admin page with tabs; list filters, ?q= and ?record= pass through (ListPage, RecordSheet). */
@@ -312,8 +327,8 @@ const appTree = appRoute.addChildren([
       admin("classifications", lazy(pages.policy, "ClassificationsPage")),
       admin("connections", lazy(pages.models, "ConnectionsPage")),
       admin("models", lazy(pages.models, "ModelsPage")),
-      admin("embedding-profiles", lazy(pages.models, "EmbeddingProfilesPage")),
-      admin("profile-migrations", lazy(pages.profileMigrations, "ProfileMigrationsPage")),
+      adminTabs("embedding-profiles", embeddingProfileTabs, lazy(pages.models, "EmbeddingProfilesPage")),
+      adminMoved("profile-migrations", "/admin/embedding-profiles", "migrations"),
       admin("systemone", lazy(pages.systemone, "SystemOnePage")),
       admin("shared-sources", lazy(pages.shared, "SharedSourcesPage")),
       adminTabs("shared-sources/$sourceId", sourceTabs, lazy(pages.shared, "SharedSourceDetailPage"), { passthrough: true }),
@@ -328,7 +343,7 @@ const appTree = appRoute.addChildren([
       admin("public-access", lazy(pages.publicAccess, "PublicAccessPage")),
       admin("maintenance", lazy(pages.maintenance, "MaintenancePage")),
       adminTabs("retention", retentionTabs, lazy(pages.retention, "RetentionPage")),
-      adminTabs("legal-holds", legalHoldTabs, lazy(pages.retention, "LegalHoldsPage")),
+      adminMoved("legal-holds", "/admin/retention", "holds", movedLegalHoldSearch),
       adminTabs("break-glass", breakGlassTabs, lazy(pages.breakGlass, "BreakGlassPage")),
       breakGlassConversationsRoute,
       logsRoute,
