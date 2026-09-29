@@ -15,7 +15,7 @@
  * Danger-zone buttons act on their own (with a confirmation); they're not
  * part of the save. Give them type="button" (bitop's Button's default).
  */
-import type { FormEvent, ReactNode } from "react";
+import { type FormEvent, type ReactNode, useEffect } from "react";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
@@ -97,12 +97,16 @@ export type SettingsSectionProps = {
   description?: ReactNode;
   /** Controls in the section header, e.g. a "Test" button. */
   actions?: ReactNode;
+  /** Anchor: a link with this hash (#ocr) scrolls the section into view once it renders (⌘K deep links). */
   id?: string;
   children: ReactNode;
 };
 
 /** One titled group of settings (General, Crawling, …). */
 export function SettingsSection({ title, description, actions, id, children }: SettingsSectionProps) {
+  useEffect(() => {
+    if (id && globalThis.location?.hash === `#${id}`) document.getElementById(id)?.scrollIntoView?.({ block: "start" });
+  }, [id]);
   return (
     <Card id={id} title={title} description={description} actions={actions}>
       <div className={styles.sectionBody}>{children}</div>

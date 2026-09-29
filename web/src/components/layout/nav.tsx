@@ -94,7 +94,7 @@ export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
   "/admin/group-mapping": ["sso", "groups", "identity provider", "idp", "oidc", "membership rules", "access"],
   "/admin/crawl-domains": ["allowlist", "domain requests", "web", "crawling"],
   "/admin/parsing": ["ocr", "scanned", "scan", "tesseract", "tika", "vision", "images", "pdf", "languages"],
-  "/admin/limits": ["quota", "usage", "rate limit", "storage", "defaults", "ceilings"],
+  "/admin/limits": ["quota", "usage", "rate limit", "storage", "defaults", "ceilings", "evaluations", "evaluation switch"],
   "/admin/agents": ["kill switch", "disable", "chat", "assistant"],
   "/admin/analytics": ["usage", "dashboard", "answers", "statistics", "report", "csv", "tokens"],
   "/admin/costs": ["spend", "budget", "prices", "pricing", "money", "billing", "currency", "extension", "tokens"],

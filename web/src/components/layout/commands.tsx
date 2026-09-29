@@ -1,4 +1,4 @@
-/* The command palette's groups: pages, team actions, objects found on the server (search-commands.tsx), teams and admin pages. */
+/* The command palette's groups: pages, the team's places (team-commands.tsx), team actions, objects found on the server (search-commands.tsx), teams and admin pages. */
 import { useNavigate } from "@tanstack/react-router";
 import { Bell, Boxes, Compass, Globe, Home, MessagesSquare, Plus, UserPlus } from "lucide-react";
 import { useMemo } from "react";
@@ -9,9 +9,10 @@ import { type Me } from "../../session";
 import { type CommandGroup } from "@/components/ui/command-palette/command-palette";
 import { roleLabels } from "../roles";
 import { type ActiveTeam } from "./active-team";
-import { useCapabilities } from "./location";
+import { useCapabilities, useLocationInfo } from "./location";
 import { adminKeywords, adminNav, icon, teamNavFor, type AdminPath, type TeamPath } from "./nav";
 import { useSearchCommands } from "./search-commands";
+import { teamPlacesGroup } from "./team-commands";
 
 type Navigate = ReturnType<typeof useNavigate>;
 type Membership = Me["teams"][number];
@@ -88,7 +89,7 @@ function teamActionGroup(navigate: Navigate, slug: string, mine: Membership): Co
     actions.items.push({ id: "new-key", label: "New API key", icon: <Plus aria-hidden />, keywords: ["create", "token"], onSelect: settings("api-keys", "new-api-key") });
   }
   if (active && (mine.role === "owner" || mine.role === "admin")) {
-    actions.items.push({ id: "add-member", label: "Add member", icon: <UserPlus aria-hidden />, keywords: ["invite", "people", "team"], onSelect: settings("members", "add-member") });
+    actions.items.push({ id: "add-member", label: "Add member", icon: <UserPlus aria-hidden />, keywords: ["invite", "people", "team", "role"], onSelect: settings("members", "add-member") });
   }
   return actions;
 }
@@ -158,15 +159,18 @@ export function useCommands(me: Me, active: ActiveTeam, open: boolean, query: st
   const slug = active.slug;
   const mine = active.membership;
   const found = useSearchCommands(open, query);
+  const loc = useLocationInfo();
+  const teamName = active.name ?? "Team";
 
   const groups = useMemo(() => {
     const groups: CommandGroup[] = [pageGroup(navigate, me, slug, mine)];
+    if (slug) groups.push(teamPlacesGroup(navigate, loc, me, slug, teamName, mine));
     if (slug && mine) groups.push(teamActionGroup(navigate, slug, mine));
     groups.push(...found.groups);
     groups.push(teamsGroup(navigate, me.teams));
     if (canAdmin) groups.push(adminGroup(navigate, me.capabilities.platformAdmin));
     return groups;
-    // `me` is only read for its teams (teamNavFor), which are a dependency.
-  }, [navigate, slug, mine, found.groups, me.teams, me.capabilities.platformAdmin, canAdmin]);
+    // `me` is only read for its teams and capabilities, which are dependencies.
+  }, [navigate, slug, mine, loc, teamName, found.groups, me.teams, me.capabilities, canAdmin]);
   return { groups, searching: found.searching };
 }
