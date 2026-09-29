@@ -4,7 +4,9 @@
  * their classification (DESIGN §3.4), so the form is editable for them (one
  * save bar, the unsaved-changes guard) and read-only for everyone else, who
  * are told whom to ask. Danger zone: members leave the team (not the only
- * owner); platform admins archive or unarchive it.
+ * owner, and not a membership an SSO group mapping rule manages: the next
+ * sign-in would add it again, so the API refuses, sso_managed); platform
+ * admins archive or unarchive it.
  */
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,6 +14,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { api, ifMatch, unwrap } from "../../../api/client";
 import { ConfirmMutationDialog } from "../../../components/confirm-dialog";
+import { ssoBlockedReason, ssoGroup } from "../../../components/member-list";
 import { leaveBlockedReason, membersKey } from "../../../components/members";
 import { RoleBadge } from "../../../components/role-badge";
 import { DangerAction, DangerZone, SettingsPage, SettingsSection } from "../../../components/templates/settings-page";
@@ -166,12 +169,18 @@ function LeaveTeam({ slug, myUserId }: { slug: string; myUserId: string }) {
       window.location.assign("/");
     },
   });
-  const blocked = leaveBlockedReason(members.data, role);
+  const mine = members.data?.find((m) => m.user.id === myUserId);
+  const managed = mine && ssoGroup(mine) !== undefined;
+  const blocked = managed ? ssoBlockedReason(mine, true) : leaveBlockedReason(members.data, role);
   return (
     <>
       <DangerAction
         title="Leave this team"
-        description="You lose access to its sources, knowledge bases, agents and keys. An admin or owner can add you again."
+        description={
+          managed
+            ? "Your membership comes from an SSO group, so leaving here wouldn't last."
+            : "You lose access to its sources, knowledge bases, agents and keys. An admin or owner can add you again."
+        }
         disabledReason={blocked}
         action={
           <Button variant="danger" disabled={!!blocked || members.isLoading} onClick={() => setConfirming(true)}>

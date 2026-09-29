@@ -126,6 +126,24 @@ describe("moved pages", () => {
     expect(leave).toHaveTextContent("You're the only owner");
   });
 
+  it("disables Leave team for a membership an SSO group manages, saying the next sign-in would add it again", async () => {
+    mockApi({
+      ...shellRoutes("none", "editor"),
+      "GET /v1/teams/registrar/members": () => [
+        { user: { id: "u1", email: "una@example.edu", displayName: "Una User", status: "active" }, role: "editor", revision: 1, createdAt: "2026-09-01T10:00:00Z",
+          managedBy: { ruleId: "r1", group: "advising-staff" } },
+        { user: { id: "u2", email: "blair@example.edu", displayName: "Blair", status: "active" }, role: "owner", revision: 1, createdAt: "2026-09-01T10:00:00Z" },
+      ],
+    });
+    const { container } = renderApp("/teams/registrar/settings?tab=general");
+    expect(await screen.findByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Leave team" })).toBeDisabled());
+    expect(screen.getByText("Your membership comes from an SSO group, so leaving here wouldn't last.")).toBeInTheDocument();
+    expect(screen.getByText(/Managed by SSO group advising-staff: you'd be added again at your next sign-in/)).toBeInTheDocument();
+    expect(screen.queryByText(/An admin or owner can add you again/)).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("redirects the old admin log and crawling addresses", async () => {
     mockApi({
       ...shellRoutes("platform_admin"),

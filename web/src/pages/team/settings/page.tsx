@@ -25,6 +25,13 @@ import { TeamAuditLog } from "./audit";
 import { GeneralTab } from "./general";
 import { MembersTab } from "./members";
 
+/** The page's description: what its tabs hold for this reader ("Members, usage and spend, API keys, the audit log and general details of …"). */
+export function settingsDescription(name: string, { role, spend }: { role?: string; spend: boolean }) {
+  if (role === "member") return `The members, API keys and general details of ${name}.`;
+  if (!role) return `The members, audit log and general details of ${name}.`;
+  return `Members, ${spend ? "usage and spend" : "usage"}, API keys, the audit log and general details of ${name}.`;
+}
+
 export function TeamSettingsPage() {
   const { slug, team, role, isManager } = useTeam();
   const me = useCurrentUser();
@@ -39,7 +46,7 @@ export function TeamSettingsPage() {
 
   return (
     <Stack gap={6} className={s.page}>
-      <PageHeader title={terms.teamSettings} description={role === "member" ? `The members and API keys of ${team.name}.` : `Members, usage, keys and the audit log of ${team.name}.`} />
+      <PageHeader title={terms.teamSettings} description={settingsDescription(team.name, { role, spend: isManager && Boolean(spend.data) })} />
       <ArchivedNotice />
       {!role && (
         <Alert tone="info" title="You're viewing this team as platform staff">
