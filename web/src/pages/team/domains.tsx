@@ -180,7 +180,6 @@ export function DomainRequestsPage({ embedded = false }: { embedded?: boolean })
         loading={requests.isLoading}
         error={requests.error}
         onRetry={() => void requests.refetch()}
-        requestAction={canEdit ? () => setRequesting(true) : undefined}
       />
       {canEdit && <RequestDomainDialog team={slug} open={requesting} onOpenChange={setRequesting} />}
     </Stack>
