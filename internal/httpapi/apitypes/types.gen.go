@@ -5969,7 +5969,7 @@ type EvaluationHit struct {
 	// HeadingPath The cited passage's headings (full answers)
 	HeadingPath *[]string `json:"headingPath,omitempty"`
 
-	// N The answer's marker number: [n] cites this entry (full answers)
+	// N The answer's marker number: [n] cites this entry (full answers). Results stored by v0.2.0 kept each cited document once, in marker order: they're numbered from the answer's markers when read, and a repeated document's later markers have no entry.
 	N *int `json:"n,omitempty"`
 
 	// PageEnd The cited passage's last page (full answers)

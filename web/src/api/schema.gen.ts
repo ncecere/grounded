@@ -8883,7 +8883,7 @@ export interface components {
             filename?: string;
             /** @description One of the question's expected documents */
             expected: boolean;
-            /** @description The answer's marker number: [n] cites this entry (full answers) */
+            /** @description The answer's marker number: [n] cites this entry (full answers). Results stored by v0.2.0 kept each cited document once, in marker order: they're numbered from the answer's markers when read, and a repeated document's later markers have no entry. */
             n?: number;
             /** @description The cited passage (full answers), or the start of the best passage (retrieval, at most 300 characters) */
             snippet?: string;

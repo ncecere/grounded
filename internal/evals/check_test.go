@@ -36,3 +36,19 @@ func TestCitationViews(t *testing.T) {
 		t.Errorf("passage details = %+v", got)
 	}
 }
+
+// A v0.2.0 answer kept each cited document once, at its citation's
+// position: reading it numbers the entries from the answer's markers
+// (ascending, as v0.2.0 listed them); a repeated document's marker has none.
+func TestNumberLegacyCitations(t *testing.T) {
+	hits := []HitView{{Rank: 1, Title: "Enrollment"}, {Rank: 3, Title: "Transcripts"}}
+	numberLegacyCitations("Request it online [4]. It costs $10 [1][4]. See the fees [5].", hits)
+	if hits[0].N != 1 || hits[1].N != 5 {
+		t.Errorf("legacy numbers = %+v", hits)
+	}
+	current := []HitView{{Rank: 1, N: 2}}
+	numberLegacyCitations("Fees [2].", current)
+	if current[0].N != 2 {
+		t.Errorf("numbered citations changed: %+v", current)
+	}
+}
