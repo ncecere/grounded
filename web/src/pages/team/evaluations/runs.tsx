@@ -17,7 +17,7 @@ import { PageHeader } from "@/components/ui/page-header/page-header";
 import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { useTeam } from "../common";
 import { ScoreChart } from "./chart";
-import { kindLabels, runStatus, runTitle, triggerLabels } from "./labels";
+import { kindLabels, runStatusLook, runTitle, triggerLabels, unscored } from "./labels";
 import { type EvalRun, type EvalSet, active, useEvalRuns } from "./queries";
 import { RunRecord } from "./run-record";
 import { ScoreValue } from "./score";
@@ -40,16 +40,17 @@ const kindFacet: Facet<EvalRun>[] = [
 /** "3 of 40 checked" while running. */
 export const progressText = (r: EvalRun) => `${r.done} of ${r.total} checked`;
 
-/** "1 passed · 1 failed · 1 not scored". */
+/** "1 passed · 1 failed · 1 not scored · 2 checks failed": not scored (no expected document indexed) and failed checks apart, as the results filter has them. */
 export function countsText(r: EvalRun) {
   const s = r.summary;
-  const notScored = s.missing + s.errors;
-  return `${s.passed} passed · ${s.failed} failed${notScored ? ` · ${notScored} not scored` : ""}`;
+  const errors = s.errors ? ` · ${s.errors} ${s.errors === 1 ? "check" : "checks"} failed` : "";
+  return `${s.passed} passed · ${s.failed} failed${s.missing ? ` · ${s.missing} not scored` : ""}${errors}`;
 }
 
-/** The score while it's known: the same column for both kinds, the metric in the tooltip. */
+/** The score while it's known: the same column for both kinds, the metric in the tooltip; "No score" when no question could be scored. */
 function ScoreCell({ run }: { run: EvalRun }) {
   if (active(run)) return <>{progressText(run)}</>;
+  if (unscored(run)) return <>No score</>;
   if (run.status !== "completed" && run.summary.passed + run.summary.failed === 0) return <>—</>;
   return <ScoreValue run={run} />;
 }
@@ -80,7 +81,7 @@ export function RunsTab({ set }: { set: EvalSet }) {
         />
       ),
     },
-    { id: "status", header: "Status", accessor: (r) => r.status, cell: (r) => <StatusBadge tone={runStatus[r.status].tone} pulse={active(r)}>{runStatus[r.status].label}</StatusBadge> },
+    { id: "status", header: "Status", accessor: (r) => r.status, cell: (r) => <StatusBadge tone={runStatusLook(r).tone} pulse={active(r)}>{runStatusLook(r).label}</StatusBadge> },
     { id: "score", header: "Score", accessor: (r) => r.summary.recall ?? r.summary.passRate ?? -1, cell: (r) => <ScoreCell run={r} /> },
     { id: "counts", header: "Questions", accessor: countsText, muted: true },
   ];

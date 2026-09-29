@@ -1,10 +1,11 @@
 /*
  * A set's trend (I3, docs/v0.2.1.md): its latest completed score against the
- * completed run of the same kind before it (the API's previousRun), in whole
- * points. A drop is a regression: the team's Evaluations page filters on it
- * and the team Overview flags it. Tested in src/test/evaluations-trend.test.ts.
+ * latest earlier run of the same kind that has a score (the API's
+ * previousRun: a run whose every check failed is skipped), in whole points.
+ * A drop is a regression: the team's Evaluations page filters on it and the
+ * team Overview flags it. Tested in src/test/evaluations-trend.test.ts.
  */
-import { pct, runScore } from "./labels";
+import { pct, runScore, unscored } from "./labels";
 import type { EvalSet } from "./queries";
 
 export type Trend = {
@@ -24,6 +25,17 @@ export function setTrend(set: Pick<EvalSet, "lastRun" | "previousRun">): Trend {
   if (score === undefined || previous === undefined) return { score, direction: "none" };
   const points = Math.round(score * 100) - Math.round(previous * 100);
   return { score, previous, points, direction: points > 0 ? "up" : points < 0 ? "down" : "same" };
+}
+
+/** Why a set has no trend, for screen readers (the cell shows "—"). */
+export function noTrendText(set: Pick<EvalSet, "lastRun" | "previousRun">): string {
+  const last = set.lastRun;
+  if (!last) return "Not run yet";
+  if (last.status === "queued" || last.status === "running") return "No trend until the run finishes";
+  if (last.status === "failed") return "No trend: the latest run failed";
+  if (last.status === "cancelled") return "No trend: the latest run was cancelled";
+  if (unscored(last)) return "No trend: the latest run has no score";
+  return "No earlier scored run to compare";
 }
 
 /** The latest run scored lower than the run before it. */

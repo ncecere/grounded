@@ -1,6 +1,7 @@
 /* A set's trend against the run before (I3): pure helpers in pages/team/evaluations/trend.ts, and the spend strip's words. */
 import type { Schemas } from "../api/client";
-import { overviewSets, regressed, setTrend, trendShort, trendText } from "../pages/team/evaluations/trend";
+import { noScoreReason, runStatusLook } from "../pages/team/evaluations/labels";
+import { noTrendText, overviewSets, regressed, setTrend, trendShort, trendText } from "../pages/team/evaluations/trend";
 import { resetDay, stripParts } from "../pages/team/spend";
 import { shareOfTeam } from "../pages/agents/analytics/spend";
 
@@ -30,6 +31,18 @@ describe("setTrend", () => {
     expect(setTrend({ lastRun: null, previousRun: null })).toEqual({ score: undefined, direction: "none" });
     expect(trendText({ direction: "none" })).toBe("");
     expect(trendShort({ direction: "none" })).toBe("");
+  });
+
+  it("says why there's no trend, and marks a run without a score apart from one that completed with a score", () => {
+    const errored: Brief = { ...run("retrieval", 0), summary: summary({ passed: 0, failed: 0, errors: 5 }) };
+    expect(noTrendText({ lastRun: null, previousRun: null })).toBe("Not run yet");
+    expect(noTrendText({ lastRun: run("retrieval", 0.8, "running"), previousRun: null })).toBe("No trend until the run finishes");
+    expect(noTrendText({ lastRun: errored, previousRun: run("retrieval", 0.8) })).toBe("No trend: the latest run has no score");
+    expect(noTrendText({ lastRun: run("retrieval", 0.8), previousRun: null })).toBe("No earlier scored run to compare");
+    expect(setTrend({ lastRun: errored, previousRun: run("retrieval", 0.8) }).direction).toBe("none");
+    expect(runStatusLook(errored)).toEqual({ label: "Completed · no scores (5 checks failed)", tone: "warning" });
+    expect(runStatusLook(run("retrieval", 0.8))).toEqual({ label: "Completed", tone: "success" });
+    expect(noScoreReason({ errors: 3, missing: 2 })).toBe("3 checks failed, 2 not scored");
   });
 
   it("puts regressions first on the Overview, then the most recently run, then the never run, up to n", () => {

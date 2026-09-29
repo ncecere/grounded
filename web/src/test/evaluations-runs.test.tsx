@@ -174,6 +174,30 @@ describe("a set's runs", () => {
     expect(row).toHaveTextContent("Transcripts, Diplomas");
   });
 
+  it("marks a run in which every check failed apart from one that completed with a score", async () => {
+    const errored = run("r9", "2026-09-29T10:00:00Z", { summary: { ...runs[0]!.summary, passed: 0, failed: 0, missing: 0, notIndexed: 0, errors: 3, recall: undefined, mrr: undefined } });
+    const failures = ["a", "b", "c"].map((x) => result(`res-${x}`, `Question ${x}?`, "error", { error: "The embedding model is unavailable" }));
+    mockApi(
+      evalRoutes("editor", {
+        "GET /v1/teams/registrar/evaluation-sets/set1/runs": () => [errored, ...runs],
+        "GET /v1/teams/registrar/evaluation-sets/set1/runs/r9": () => ({ run: errored, results: failures }),
+      }),
+    );
+    const { container } = renderApp("/teams/registrar/evaluations/set1?tab=runs");
+    const table = await screen.findByRole("table", { name: "Runs" }, T);
+    const row = await within(table).findByRole("row", { name: /Retrieval, Sep 29/ });
+    expect(row).toHaveTextContent("Completed \u00b7 no scores (3 checks failed)");
+    expect(row).toHaveTextContent("No score");
+    expect(row).toHaveTextContent("0 passed \u00b7 0 failed \u00b7 3 checks failed");
+    await userEvent.click(within(row).getByRole("link", { name: /Retrieval, Sep 29/ }));
+    const page = await screen.findByRole("region", { name: "Run" }, T);
+    expect(within(page).getByText("No question could be scored: 3 checks failed.")).toBeInTheDocument();
+    // "Not scored" is only a question whose expected document isn't indexed, as in the results filter; failed checks are their own row.
+    expect(within(page).queryByText("Not scored", { selector: "dt" })).toBeNull();
+    expect(within(page).getByText(/3 questions' checks failed, so they aren't in the score/)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("shows a running run's progress and cancels it", async () => {
     const running = run("r3", "2026-09-28T10:00:00Z", { status: "running", done: 1, total: 3 });
     const calls = mockApi(
