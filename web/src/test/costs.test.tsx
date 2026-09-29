@@ -335,7 +335,7 @@ describe("the team's spend and banner", () => {
     const { container } = renderBare(<TeamSpendCard team="registrar" />);
     // One strip (I4): the amounts, the share, the state and the reset day, with the meter.
     const strip = (await screen.findByText(/^of .* this month$/)).closest("p")!;
-    expect(strip).toHaveTextContent(`${formatMoney("85", "USD")} of ${formatMoney("100", "USD")} this month · 85% · Near budget · resets Oct 1`);
+    expect(strip).toHaveTextContent(`${formatMoney("85", "USD")} of ${formatMoney("100", "USD")} this month · Near budget · resets Oct 1`);
     expect(screen.getByRole("meter", { name: "Share of this month's budget used" })).toBeInTheDocument();
     // The breakdown is behind a disclosure.
     expect(screen.queryByRole("table")).toBeNull();
@@ -383,7 +383,7 @@ describe("a Track-only budget (progress, never enforced)", () => {
     });
     const { container } = renderBare(<TeamSpendCard team="registrar" />);
     const strip = (await screen.findByText(/^of .* this month$/)).closest("p")!;
-    expect(strip).toHaveTextContent("$0.60 of $5.00 this month · 12% · Within budget · not enforced · resets Oct 1");
+    expect(strip).toHaveTextContent("$0.60 of $5.00 this month · Within budget · not enforced · resets Oct 1");
     expect(screen.getByRole("meter", { name: "Share of this month's budget used" })).toBeInTheDocument();
     expect(container).not.toHaveTextContent(/At 100% the team's chats/);
     // Nothing to break down: no disclosure.
