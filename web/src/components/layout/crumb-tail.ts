@@ -49,7 +49,21 @@ export type PageCrumb = {
   label: string;
   close: () => void;
   href: string;
+  /** How deep the page is nested in other pages (1: over the route's page); orders the stack. */
+  depth?: number;
 };
+
+/**
+ * Adds an open page to a stack, bottom first, after every page at its depth
+ * or above it. Pages register in effects, and React runs a nested page's
+ * effects before its parent's: when both mount together (Back to a result
+ * over a run), registration order alone would put the result under the run.
+ */
+export function insertByDepth<T extends { depth?: number }>(stack: T[], item: T): T[] {
+  const d = item.depth ?? 1;
+  const at = stack.findIndex((x) => (x.depth ?? 1) > d);
+  return at < 0 ? [...stack, item] : [...stack.slice(0, at), item, ...stack.slice(at)];
+}
 
 let pageCrumbs: PageCrumb[] = [];
 const pageListeners = new Set<() => void>();
@@ -69,7 +83,7 @@ export function usePageCrumb(crumb: PageCrumb | undefined) {
   useEffect(() => {
     if (!crumb) return;
     const i = pageCrumbs.findIndex((c) => c.id === crumb.id);
-    setPageCrumbs(i < 0 ? [...pageCrumbs, crumb] : pageCrumbs.map((c) => (c.id === crumb.id ? crumb : c)));
+    setPageCrumbs(i < 0 ? insertByDepth(pageCrumbs, crumb) : pageCrumbs.map((c) => (c.id === crumb.id ? crumb : c)));
   }, [crumb]);
   const id = crumb?.id;
   useEffect(() => () => setPageCrumbs(pageCrumbs.filter((c) => c.id !== id)), [id]);

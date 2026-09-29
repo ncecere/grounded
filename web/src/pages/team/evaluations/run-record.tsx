@@ -21,7 +21,22 @@ import { Progress } from "@/components/ui/progress/progress";
 import { toast } from "@/components/ui/toast/toast";
 import { useTeam } from "../common";
 import { Comparison } from "./compare";
-import { citedOnly, decimal, kindLabels, missingText, mrrHelp, outcomeText, pct, resultLabel, runStatus, runTitle, triggerLabels } from "./labels";
+import {
+  citedOnly,
+  decimal,
+  kindLabels,
+  legacyShare,
+  legacyShareLabel,
+  missingText,
+  mrrHelp,
+  outcomeText,
+  pct,
+  resultLabel,
+  runStatusLook,
+  runTitle,
+  triggerLabels,
+  unscored,
+} from "./labels";
 import { hitTitles, rankCell, whyText } from "./result-detail";
 import { RESULT_PARAM, ResultRecord } from "./result-record";
 import { ScoreValue } from "./score";
@@ -48,7 +63,8 @@ function statusFacet(answers: boolean): Facet<EvalResult>[] {
   ];
 }
 
-function facts(run: EvalRun) {
+/** The run's details; `legacy`: its results were stored by v0.2.0, whose supported share counted citations (legacyShare). */
+function facts(run: EvalRun, legacy: boolean) {
   const c = run.config;
   const s = run.summary;
   const scored = `(${s.passed} of ${s.passed + s.failed})`;
@@ -59,7 +75,9 @@ function facts(run: EvalRun) {
     { label: "Searched", value: c.kbs.map((k) => [k.name, k.profile, `${k.topK} per search`].filter(Boolean).join(" · ")).join("; ") || undefined },
     {
       label: "Score",
-      value: active(run) ? undefined : (
+      value: active(run) ? undefined : unscored(run) ? (
+        "No score"
+      ) : (
         <>
           <ScoreValue run={run} /> {scored}
         </>
@@ -68,8 +86,20 @@ function facts(run: EvalRun) {
     { label: "MRR", value: run.kind === "retrieval" && s.mrr !== undefined ? `${decimal(s.mrr)}. ${mrrHelp}` : undefined },
     { label: "Answers", value: run.kind === "answer" && !active(run) ? `${s.cited} cited an expected document, ${s.refused} refused` : undefined },
     { label: "Content not checked", value: s.citedOnly ? `${s.citedOnly} passed on the citation alone: their questions have no must-mention phrases` : undefined },
-    { label: "Supported claims", value: s.supportedShare !== undefined ? pct(s.supportedShare) : undefined },
-    { label: "Not scored", value: [missingText(s), s.errors ? `${s.errors} checks failed.` : ""].filter(Boolean).join(" ") || undefined },
+    legacy
+      ? {
+          label: legacyShareLabel,
+          value:
+            s.supportedShare !== undefined
+              ? `${pct(s.supportedShare)} of citations supported. Newer runs count claims, with uncited sentences as not supported.`
+              : undefined,
+        }
+      : { label: "Supported claims", value: s.supportedShare !== undefined ? pct(s.supportedShare) : undefined },
+    { label: "Not scored", value: missingText(s) || undefined },
+    {
+      label: "Checks failed",
+      value: s.errors ? `${s.errors === 1 ? "1 question's check" : `${s.errors} questions' checks`} failed, so they aren't in the score. Each result says why.` : undefined,
+    },
   ].filter((f) => f.value !== undefined);
 }
 
@@ -143,7 +173,7 @@ export function RunRecord({ set, runs }: { set: EvalSet; runs: EvalRun[] }) {
       onClose={record.close}
       title={run ? runTitle(run) : "Run"}
       label="Run"
-      meta={run && <StatusBadge tone={runStatus[run.status].tone} pulse={active(run)}>{runStatus[run.status].label}</StatusBadge>}
+      meta={run && <StatusBadge tone={runStatusLook(run).tone} pulse={active(run)}>{runStatusLook(run).label}</StatusBadge>}
       description={run ? outcomeText(run) : "A run of this evaluation set."}
       loading={d.isLoading}
       error={d.error}
@@ -156,7 +186,7 @@ export function RunRecord({ set, runs }: { set: EvalSet; runs: EvalRun[] }) {
           </Button>
         )
       }
-      facts={run ? facts(run) : []}
+      facts={run ? facts(run, (d.data?.results ?? []).some((r) => legacyShare(r.scores))) : []}
       sections={[
         {
           title: "Progress",

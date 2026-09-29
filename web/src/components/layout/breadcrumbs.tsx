@@ -175,25 +175,24 @@ export function documentTitle(crumbs: BreadcrumbItem[], instanceName: string) {
 }
 
 /**
- * An evaluation set, where its knowledge base's or agent's page puts it,
- * with the middle collapsed (S6, G19): Team › … › the set, where "…" is a
- * menu of the hidden crumbs (Knowledge bases, Student help, its Evaluations
- * tab), named "Knowledge bases, Student help, Evaluations" for screen readers.
+ * An evaluation set under the team's Evaluations page, the parent of its
+ * address and the sidebar item it sits under: Team › Evaluations › Set (›
+ * Run › Result while those are open). The knowledge base or agent it tests
+ * is a fact on the set's page.
  */
 function evalSetCrumbs(slug: string, set: EvalSet | undefined): BreadcrumbItem[] {
-  if (!set) return [{ label: "Evaluation set" }];
-  const t = set.target;
-  const hidden: BreadcrumbItem[] =
-    t.type === "agent"
-      ? [
-          { label: "Agents", render: <Link to="/teams/$team/agents" params={{ team: slug }} /> },
-          { label: t.name, render: <Link to="/teams/$team/agents/$agentId" params={{ team: slug, agentId: t.id }} /> },
-          { label: "Evaluations", render: <Link to="/teams/$team/agents/$agentId" params={{ team: slug, agentId: t.id }} search={{ tab: "evaluations" }} /> },
-        ]
-      : [
-          { label: "Knowledge bases", render: <Link to="/teams/$team/kbs" params={{ team: slug }} /> },
-          { label: t.name, render: <Link to="/teams/$team/kbs/$kbId" params={{ team: slug, kbId: t.id }} /> },
-          { label: "Evaluations", render: <Link to="/teams/$team/kbs/$kbId" params={{ team: slug, kbId: t.id }} search={{ tab: "evaluations" }} /> },
-        ];
-  return [{ label: hidden.map((h) => h.label).join(", "), collapsed: hidden }, { label: set.name }];
+  return [{ label: "Evaluations", render: <Link to="/teams/$team/evaluations" params={{ team: slug }} /> }, { label: set?.name ?? "Evaluation set" }];
+}
+
+/**
+ * The trail as shown: on a phone (below 600px), a trail of more than three
+ * crumbs keeps the first and the last and collapses the ones between into
+ * "…", a menu of them in order, so it stays on one line. Wider, every crumb
+ * shows. The document title and the back links read the full trail.
+ */
+export function fitCrumbs(crumbs: BreadcrumbItem[], narrow: boolean): BreadcrumbItem[] {
+  if (!narrow || crumbs.length <= 3) return crumbs;
+  const middle = crumbs.slice(1, -1);
+  const labels = middle.map((c) => (typeof c.label === "string" ? c.label : "")).filter(Boolean);
+  return [crumbs[0]!, { label: labels.length ? labels.join(", ") : "More pages", collapsed: middle }, crumbs[crumbs.length - 1]!];
 }

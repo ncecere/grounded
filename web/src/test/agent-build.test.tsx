@@ -118,11 +118,13 @@ describe("Build", () => {
   }, 10_000);
 
   it("editors can't start a publish to Public and are told why (P-03)", async () => {
-    mockApi(routes(agent({ hasUnpublishedChanges: true, draft: { ...config, audience: "public" } }), {}, "editor"));
+    mockApi(routes(agent({ audience: "public", hasUnpublishedChanges: true, draft: { ...config, audience: "public" } }), {}, "editor"));
     renderApp("/teams/registrar/agents/ag1");
     const publish = await screen.findByRole("button", { name: "Publish" }, { timeout: 5000 });
     expect(publish).toBeDisabled();
     expect(publish).toHaveAccessibleDescription(/Only team admins and owners can publish to Public/);
+    // Said once: no second notice about the audience under the header.
+    expect(screen.queryByText(/can change this agent's audience or publish it beyond the team/)).toBeNull();
   });
 
   it("the publish dialog names the audience (F-15)", async () => {
@@ -219,9 +221,10 @@ describe("Build", () => {
     expect(router.state.location.search).toEqual({});
   });
 
-  it("the version history compares a version with the draft (diff-viewer) and has no second Publish", async () => {
+  it("the version history compares a version with the draft by setting name, SystemOne checks included, and has no second Publish", async () => {
+    const draft = { ...config, instructions: "Help students briefly.", temperature: 0.2, systemOne: { citations: "on" as const, scope: "on" as const } };
     mockApi(
-      routes(agent({ hasUnpublishedChanges: true, draft: { ...config, instructions: "Help students briefly.", temperature: 0.2 } }), {
+      routes(agent({ hasUnpublishedChanges: true, draft }), {
         "GET /v1/teams/registrar/agents/ag1/versions/3": () => version,
       }),
     );
@@ -232,7 +235,14 @@ describe("Build", () => {
     const text = await screen.findByRole("table", { name: "Instructions: version 3 and the draft" });
     expect(text).toHaveTextContent("Help students with registration.");
     expect(text).toHaveTextContent("Help students briefly.");
-    expect(screen.getByRole("table", { name: "Settings: version 3 and the draft" })).toHaveTextContent("temperature");
+    // The settings that changed, by the Build tab's names (no field paths or IDs), SystemOne checks included.
+    const settings = screen.getByRole("table", { name: "Settings that changed from version 3 to the draft" });
+    expect(within(settings).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Setting", "Version 3 (live)", "Draft"]);
+    const rows = within(settings).getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("cell")[0]!.textContent);
+    expect(rows).toEqual(["Temperature", "SystemOne checks"]);
+    expect(within(settings).getByRole("row", { name: /SystemOne checks/ })).toHaveTextContent("Platform defaultsCitation checks on · Scope check on");
+    // The page says what Compare is once, not again on its card.
+    expect(screen.getAllByText("The published versions of Helper. The draft has unpublished changes.")).toHaveLength(1);
     expect(await axe(container)).toHaveNoViolations();
   });
 

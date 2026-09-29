@@ -68,7 +68,7 @@ function routes(opts: { teamRole?: string; evaluations?: boolean; sets?: EvalSet
 const T = { timeout: 3000 };
 
 describe("the team's Evaluations page (I3)", () => {
-  it("lists every set with its target, latest score, trend and last run, and filters regressions", async () => {
+  it("lists every set with its target, questions, latest score and trend, and filters regressions", async () => {
     const calls = mockApi(routes({ teamRole: "editor" }));
     const { container, router } = renderApp("/teams/registrar/evaluations");
     const table = await screen.findByRole("table", { name: "Evaluation sets" }, T);
@@ -80,7 +80,12 @@ describe("the team's Evaluations page (I3)", () => {
     expect(within(table).getByRole("link", { name: "Registrar helper" })).toHaveAttribute("href", "/teams/registrar/agents/ag1?tab=evaluations");
     expect(within(table).getByText("Down 10 points from 80%")).toBeInTheDocument();
     expect(within(table).getByText("Up 5 points from 85%")).toBeInTheDocument();
-    expect(within(table).getByText("Not run yet")).toBeInTheDocument();
+    // Never run: the score says so, and so does the trend to a screen reader (not "no earlier run").
+    expect(within(table).getAllByText("Not run yet")).toHaveLength(2);
+    // The Evaluations tabs' columns, plus the knowledge base or agent; the name is the row's only link (no menu repeating it).
+    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Set", "Knowledge base or agent", "Questions", "Score", "Trend"]);
+    expect(within(table).queryByRole("button", { name: /^Actions for/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Columns" })).toBeNull();
     // The sidebar item is current, and the breadcrumb names the page.
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getByRole("link", { name: "Evaluations" })).toHaveAttribute("aria-current", "page");
@@ -91,6 +96,13 @@ describe("the team's Evaluations page (I3)", () => {
     await waitFor(() => expect(router.state.location.search).toMatchObject({ trend: "down" }));
     await waitFor(() => expect(within(table).queryByRole("link", { name: "Steady set" })).toBeNull());
     expect(within(table).getByRole("link", { name: "Transcript questions" })).toBeInTheDocument();
+  });
+
+  it("says no set got worse when Regressions matches none", async () => {
+    mockApi(routes({ teamRole: "editor", sets: sets.filter((x) => x.id !== "dropped") }));
+    const { container } = renderApp("/teams/registrar/evaluations?trend=down");
+    expect(await screen.findByText("No set got worse since its previous run.", {}, T)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it("is not found for members, who have no sidebar item", async () => {

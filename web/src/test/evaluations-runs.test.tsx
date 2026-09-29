@@ -142,6 +142,7 @@ describe("a set's runs", () => {
     const failed = result("res1", "How do I order a transcript?", "fail", {
       answer: "**Order online** [1]. Diplomas are mailed [2], and fees apply [3].",
       hits: [cite(1, "Transcripts"), cite(2, "Diplomas"), cite(3, "Transcripts", { documentId: "d1", expected: true, headingPath: ["Fees"], pageStart: 2 })],
+      expectedItems: [{ kind: "filename", value: "transcripts.pdf", title: "Transcripts", state: "indexed" }],
       scores: { cited: true, refused: false, mentions: [{ phrase: "transcript", found: true }, { phrase: "Parchment", found: false }] },
     });
     mockApi(
@@ -154,6 +155,8 @@ describe("a set's runs", () => {
     const res = await screen.findByRole("region", { name: "Result" }, T);
     // Rendered Markdown, not raw asterisks.
     expect(await within(res).findByText("Order online", { selector: "strong" }, T)).toBeInTheDocument();
+    // The expected documents are a card of their own, before the answer's, not part of it.
+    expect(within(res).getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Expected documents", "Answer"]);
     // The sources start collapsed, as in chat.
     await userEvent.click(within(res).getByRole("button", { name: "Used 3 sources" }));
     const sources = within(res).getByRole("list", { name: "Sources for this answer" });
@@ -172,6 +175,31 @@ describe("a set's runs", () => {
     const row = within(table).getByRole("row", { name: /order a transcript/ });
     expect(row).toHaveTextContent("Doesn't mention “Parchment”");
     expect(row).toHaveTextContent("Transcripts, Diplomas");
+  });
+
+  it("marks a run in which every check failed apart from one that completed with a score", async () => {
+    const none = { passed: 0, failed: 0, missing: 0, notIndexed: 0, errors: 3, recall: undefined, mrr: undefined };
+    const errored = run("r9", "2026-09-29T10:00:00Z", { summary: { ...runs[0]!.summary, ...none } });
+    const failures = ["a", "b", "c"].map((x) => result(`res-${x}`, `Question ${x}?`, "error", { error: "The embedding model is unavailable" }));
+    mockApi(
+      evalRoutes("editor", {
+        "GET /v1/teams/registrar/evaluation-sets/set1/runs": () => [errored, ...runs],
+        "GET /v1/teams/registrar/evaluation-sets/set1/runs/r9": () => ({ run: errored, results: failures }),
+      }),
+    );
+    const { container } = renderApp("/teams/registrar/evaluations/set1?tab=runs");
+    const table = await screen.findByRole("table", { name: "Runs" }, T);
+    const row = await within(table).findByRole("row", { name: /Retrieval, Sep 29/ });
+    expect(row).toHaveTextContent("Completed \u00b7 no scores (3 checks failed)");
+    expect(row).toHaveTextContent("No score");
+    expect(row).toHaveTextContent("0 passed \u00b7 0 failed \u00b7 3 checks failed");
+    await userEvent.click(within(row).getByRole("link", { name: /Retrieval, Sep 29/ }));
+    const page = await screen.findByRole("region", { name: "Run" }, T);
+    expect(within(page).getByText("No question could be scored: 3 checks failed.")).toBeInTheDocument();
+    // "Not scored" is only a question whose expected document isn't indexed, as in the results filter; failed checks are their own row.
+    expect(within(page).queryByText("Not scored", { selector: "dt" })).toBeNull();
+    expect(within(page).getByText(/3 questions' checks failed, so they aren't in the score/)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it("shows a running run's progress and cancels it", async () => {

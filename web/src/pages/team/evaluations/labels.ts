@@ -39,6 +39,16 @@ export const resultStatus: Record<EvalResult["status"], { label: string; tone: T
   error: { label: "Check failed", tone: "neutral" },
 };
 
+/**
+ * A share of supported claims stored by v0.2.0, which counted citation
+ * markers (uncited sentences left out): it has no claimsScored. Its figure
+ * isn't in the units newer results use, so it's labelled as the old count.
+ */
+export const legacyShare = (sc: EvalResult["scores"] | undefined) => sc?.supportedShare !== undefined && sc.claimsScored === undefined;
+
+/** The label of a v0.2.0 share (legacyShare). */
+export const legacyShareLabel = "Supported (v0.2.0 count)";
+
 /** A full answer that passed on its citation alone: the question has no must-mention phrases. */
 export const citedOnly = (r: Pick<EvalResult, "status" | "scores">) => r.status === "pass" && r.scores !== null && r.scores !== undefined && r.scores.mentions.length === 0;
 
@@ -59,6 +69,21 @@ export function resultLabel(r: Pick<EvalResult, "status" | "scores" | "missingRe
 
 /** The run's headline score: recall@k (retrieval) or the pass rate (full answers). */
 export const runScore = (r: Pick<EvalRun, "kind" | "summary">) => (r.kind === "answer" ? r.summary.passRate : r.summary.recall);
+
+/** A run that finished without a score: no question could be scored (every check failed, or no expected document is indexed). */
+export const unscored = (r: Pick<EvalRun, "kind" | "summary" | "status">) => r.status === "completed" && runScore(r) === undefined;
+
+/** Why a run has no score: "5 checks failed", "2 not scored", "3 checks failed, 2 not scored". */
+export function noScoreReason(s: Pick<EvalSummary, "errors" | "missing">) {
+  return [s.errors ? `${plural(s.errors, "check")} failed` : "", s.missing ? `${s.missing} not scored` : ""].filter(Boolean).join(", ");
+}
+
+/** A run's status: a completed run without a score says so ("Completed · no scores (5 checks failed)"), as a warning. */
+export function runStatusLook(r: Pick<EvalRun, "kind" | "summary" | "status">): { label: string; tone: Tone } {
+  if (!unscored(r)) return runStatus[r.status];
+  const why = noScoreReason(r.summary);
+  return { label: `Completed · no scores${why ? ` (${why})` : ""}`, tone: "warning" };
+}
 
 /** The score's metric in words, for its tooltip. */
 export function scoreHelp(r: Pick<EvalRun, "kind" | "summary">) {
@@ -91,7 +116,10 @@ export function outcomeText(r: Pick<EvalRun, "kind" | "summary" | "status" | "do
   if (r.status === "running") return `Checking the questions: ${r.done} of ${r.total} done.`;
   const s = r.summary;
   const scored = s.passed + s.failed;
-  if (scored === 0) return r.status === "completed" ? "No question could be scored." : "No question was scored.";
+  if (scored === 0) {
+    const why = noScoreReason(s);
+    return r.status === "completed" ? `No question could be scored${why ? `: ${why}` : ""}.` : "No question was scored.";
+  }
   if (r.kind === "retrieval") return `${s.passed} of ${plural(scored, "question")} found the right page.`;
   const only = s.citedOnly ? ` ${s.citedOnly} of them only cited the right source: add must-mention phrases to check what they say.` : "";
   return `${s.passed} of ${plural(scored, "answer")} passed.${only}`;

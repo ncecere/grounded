@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { EvalAnswer } from "../pages/team/evaluations/answer";
+import { ResultDetail } from "../pages/team/evaluations/result-detail";
 import { result } from "./evaluations-fixtures";
 import { renderBare } from "./harness";
 
@@ -54,5 +55,16 @@ describe("an evaluation result's answer", () => {
     expect(one).not.toHaveAttribute("data-verification");
     expect(screen.queryByTestId("claim-summary")).toBeNull();
     expect(screen.queryByText("Uncited")).toBeNull();
+  });
+
+  it("labels a v0.2.0 result's share as the old count, which counted citations", async () => {
+    const old = { cited: true, refused: false, mentions: [], supportedShare: 1 };
+    const r = result("res1", "What does a transcript cost?", "pass", { answer, hits: [hit(1, "Fees"), hit(2, "Rush")], scores: old });
+    const { container } = renderBare(<ResultDetail result={r} />);
+    expect(await screen.findByText("Supported (v0.2.0 count): 100% of citations")).toBeInTheDocument();
+    expect(screen.queryByText(/of claims supported/)).toBeNull();
+    // Its markers are chips (the API numbers v0.2.0 citations from the markers).
+    expect(screen.getByRole("button", { name: /^Source 1: Fees/ })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

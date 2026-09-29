@@ -14,9 +14,9 @@ import { Dialog, DialogClose } from "@/components/ui/dialog/dialog";
 import { Field, Form } from "@/components/ui/field/field";
 import { Textarea } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
-import { describeFilter } from "../team/filters";
 import { agentKey, useTeam } from "../team/common";
-import { type Agent, type AgentConfig, type AgentProblem, ProblemList, citationModeLabels, retrievalModeLabels } from "./common";
+import { type Agent, type AgentConfig, type AgentProblem, ProblemList } from "./common";
+import { configRows } from "./config-rows";
 import type { AgentDraft } from "./draft";
 import { publishAudienceText } from "./publish-state";
 import { audienceLabel } from "@/lib/terms";
@@ -24,29 +24,27 @@ import vs from "./versions.module.css";
 
 export const versionsKey = (team: string, id: string) => [...agentKey(team, id), "versions"];
 
-/** A read-only summary of a configuration. */
+/** A knowledge base of a published version in words: "Handbook (6 results)", "Handbook (4 results, the knowledge base's)". */
+export const versionKBText = (k: { name: string; topK: number; inherited?: boolean }) =>
+  `${k.name || "Deleted knowledge base"} (${k.topK} results${k.inherited ? ", the knowledge base's" : ""})`;
+
+/** A read-only summary of a configuration: every setting (config-rows.ts), then the instructions. */
 export function ConfigSummary({ config, kbs, modelName }: { config: AgentConfig; kbs: { id: string; name: string; topK: number; inherited?: boolean }[]; modelName: string }) {
-  const rows: [string, string][] = [
-    ["Model", modelName],
-    ["Knowledge bases", kbs.map((k) => `${k.name || "Deleted knowledge base"} (${k.topK} results${k.inherited ? ", the knowledge base's" : ""})`).join(", ") || "None"],
-    ["When to search", retrievalModeLabels[config.retrievalMode] + (config.retrievalMode === "tool" ? `, up to ${config.maxTurns} searches` : "")],
-    ["Answer only from sources", config.strictlyGrounded ? `Yes. Refusal: “${config.refusalMessage}”` : "No"],
-    ["Citations", citationModeLabels[config.citationMode]],
-    ["Pinned filters", describeFilter(config.filters)],
-    ["Temperature", config.temperature === undefined ? "Model default" : String(config.temperature)],
-    ["Maximum answer length", config.maxOutputTokens ? `${config.maxOutputTokens.toLocaleString()} tokens` : "Model limit"],
-    ["Source token budget", config.contextTokenBudget.toLocaleString()],
-    ["Minimum similarity", config.minSimilarity ? String(config.minSimilarity) : "Off"],
-    ["Rewrite follow-up questions", config.queryRewrite ? "Yes" : "No"],
-  ];
-  if (config.reasoningEffort) rows.push(["Reasoning effort", config.reasoningEffort]);
+  const byId = new Map(kbs.map((k) => [k.id, k]));
+  const rows = configRows(config, {
+    model: () => modelName,
+    kb: (k) => {
+      const v = byId.get(k.kbId);
+      return v ? versionKBText(v) : "Deleted knowledge base";
+    },
+  });
   return (
     <div className={vs.summary}>
       <dl className={vs.summaryList}>
-        {rows.map(([k, v]) => (
-          <div key={k} className={vs.summaryRow}>
-            <dt>{k}</dt>
-            <dd>{v}</dd>
+        {rows.map((r) => (
+          <div key={r.key} className={vs.summaryRow}>
+            <dt>{r.label}</dt>
+            <dd>{r.value}</dd>
           </div>
         ))}
       </dl>

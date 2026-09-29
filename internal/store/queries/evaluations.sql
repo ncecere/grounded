@@ -22,8 +22,9 @@ VALUES (@team_id, @kb_id, @agent_id, @name, @description, @auto_run, @created_by
 RETURNING *;
 
 -- A team's sets with their target's name, question count, latest run and
--- the completed run of the same kind before it (its trend's baseline;
--- optionally one knowledge base's or agent's).
+-- the latest completed run of the same kind before it that has a score (its
+-- trend's baseline: a run whose every check failed has none, and would hide
+-- the change; optionally one knowledge base's or agent's).
 -- name: ListEvalSetViews :many
 SELECT sqlc.embed(s), coalesce(kb.name, ag.name, '')::text AS target_name,
        (SELECT count(*) FROM eval_cases c WHERE c.set_id = s.id)::bigint AS question_count,
@@ -40,6 +41,7 @@ LEFT JOIN eval_runs lr ON lr.id = (
 LEFT JOIN eval_runs pr ON pr.id = (
     SELECT r.id FROM eval_runs r
     WHERE r.set_id = s.id AND r.kind = lr.kind AND r.status = 'completed' AND (r.created_at, r.id) < (lr.created_at, lr.id)
+      AND coalesce(r.summary->>'recall', r.summary->>'passRate') IS NOT NULL
     ORDER BY r.created_at DESC, r.id DESC LIMIT 1
 )
 WHERE s.team_id = @team_id
@@ -63,6 +65,7 @@ LEFT JOIN eval_runs lr ON lr.id = (
 LEFT JOIN eval_runs pr ON pr.id = (
     SELECT r.id FROM eval_runs r
     WHERE r.set_id = s.id AND r.kind = lr.kind AND r.status = 'completed' AND (r.created_at, r.id) < (lr.created_at, lr.id)
+      AND coalesce(r.summary->>'recall', r.summary->>'passRate') IS NOT NULL
     ORDER BY r.created_at DESC, r.id DESC LIMIT 1
 )
 WHERE s.id = @id AND s.team_id = @team_id;
@@ -257,10 +260,12 @@ SET status = @status, summary = @summary, error = @error, finished_at = now(),
 WHERE id = @id AND status IN ('queued', 'running')
 RETURNING *;
 
--- The latest completed run of a kind before @before, for regression checks.
+-- The latest completed run of a kind before @before that has a score, for
+-- regression checks (a run whose every check failed can't be compared with).
 -- name: PreviousCompletedRun :one
 SELECT * FROM eval_runs
 WHERE set_id = @set_id AND kind = @kind AND status = 'completed' AND created_at < @before::timestamptz
+  AND coalesce(summary->>'recall', summary->>'passRate') IS NOT NULL
 ORDER BY created_at DESC, id DESC
 LIMIT 1;
 

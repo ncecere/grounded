@@ -66,7 +66,8 @@ export function ActionMenu({ actions, label, size = "sm" }: ActionMenuProps) {
   );
 }
 
-function ItemText({ label, reason }: { label: string; reason: string }) {
+/** A menu item's label with the reason it's disabled under it (ActionMenu's, for other menus). */
+export function ItemText({ label, reason }: { label: string; reason: string }) {
   return (
     <span className={styles.menuText}>
       <span>{label}</span>

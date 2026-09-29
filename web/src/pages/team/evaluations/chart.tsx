@@ -16,6 +16,12 @@ import { pct, runScore, scoreSeries } from "./labels";
 import type { EvalRun } from "./queries";
 import e from "./evaluations.module.css";
 
+/** "Recall@5": the runs' results per search, or "Recall@k" when it changed between them. */
+export function recallLabel(runs: EvalRun[]) {
+  const ks = new Set(scoreSeries(runs, "retrieval").runs.map((r) => r.summary.k));
+  return ks.size === 1 ? `Recall@${[...ks][0]}` : "Recall@k";
+}
+
 /** Completed runs of a kind before the chart shows them. */
 export const minChartRuns = 3;
 
@@ -34,7 +40,8 @@ function Series({ runs, kind, label }: { runs: EvalRun[]; kind: EvalRun["kind"];
         summary={`${label} over ${plural(scored.length, "run")}, from ${pct(first)} to ${pct(last)}.${markers.length ? ` ${plural(markers.length, "run")} (◆) changed what was tested.` : ""}`}
         series={[{ key: "score", label, tone: kind === "answer" ? "info" : "primary" }]}
         data={data}
-        size="sm"
+        // Tall enough that 80% doesn't read as the top line.
+        size="md"
         domain={{ min: 0, max: 100 }}
         formatValue={(v) => `${Math.round(v)}%`}
         points
@@ -57,8 +64,12 @@ export function ScoreChart({ runs }: { runs: EvalRun[] }) {
   if (!charted(runs, "retrieval") && !charted(runs, "answer")) return null;
   return (
     // A subsection of Runs (its h2).
-    <Card title="Score over time" titleAs="h3" description="Each completed run's score. ◆ marks a run whose agent version, embedding profile or results per search differed from the run before.">
-      <Series runs={runs} kind="retrieval" label="Recall@k" />
+    <Card
+      title="Score over time"
+      titleAs="h3"
+      description="Each completed run's score, on a 0–100% scale. ◆ marks a run whose agent version, embedding profile or results per search differed from the run before."
+    >
+      <Series runs={runs} kind="retrieval" label={recallLabel(runs)} />
       <Series runs={runs} kind="answer" label="Full-answer pass rate" />
     </Card>
   );

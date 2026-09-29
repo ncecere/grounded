@@ -9,9 +9,9 @@
 import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip/tooltip";
 import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
-import { pct, runScore, runStatus, scoreHelp } from "./labels";
+import { pct, runScore, runStatus, scoreHelp, unscored } from "./labels";
 import type { EvalRun, EvalSet } from "./queries";
-import { setTrend, trendShort, trendText } from "./trend";
+import { noTrendText, setTrend, trendShort, trendText } from "./trend";
 import e from "./evaluations.module.css";
 
 export function ScoreValue({ run }: { run: Pick<EvalRun, "kind" | "summary"> }) {
@@ -26,24 +26,25 @@ export function ScoreValue({ run }: { run: Pick<EvalRun, "kind" | "summary"> }) 
   );
 }
 
-/** The latest run's score (with its metric in the tooltip), or its status while it isn't done. */
+/** The latest run's score (with its metric in the tooltip), its status while it isn't done, or "No score" when no question could be scored. */
 export function LastScore({ set }: { set: Pick<EvalSet, "lastRun"> }) {
   const r = set.lastRun;
   if (!r) return <>Not run yet</>;
+  if (unscored(r)) return <>No score</>;
   if (r.status !== "completed" || runScore(r) === undefined) return <>{runStatus[r.status].label}</>;
   return <ScoreValue run={r} />;
 }
 
 const icons = { up: TrendingUp, down: TrendingDown, same: Minus } as const;
 
-/** "−10 pts" in the danger colour with an arrow, read as "Down 10 points from 80%"; "—" without a run before to compare. */
+/** "−10 pts" in the danger colour with an arrow, read as "Down 10 points from 80%"; "—" without a trend, read as why ("Not run yet"). */
 export function TrendValue({ set }: { set: Pick<EvalSet, "lastRun" | "previousRun"> }) {
   const t = setTrend(set);
   if (t.direction === "none") {
     return (
       <span className={e.trend}>
         <span aria-hidden>—</span>
-        <VisuallyHidden>No earlier run to compare</VisuallyHidden>
+        <VisuallyHidden>{noTrendText(set)}</VisuallyHidden>
       </span>
     );
   }

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
@@ -175,7 +176,15 @@ func TestEvaluationRetrievalRun(t *testing.T) {
 		t.Errorf("runs = %+v", runs)
 	}
 	// The team's list (no filter) carries each set's latest run and the
-	// completed run of the same kind before it, the trend's baseline (I3).
+	// completed run of the same kind before it with a score, the trend's
+	// baseline (I3): a run between them whose every check failed is skipped.
+	var unscored uuid.UUID
+	if err := env.app.Pool.QueryRow(context.Background(), `INSERT INTO eval_runs (set_id, team_id, kind, trigger, status, summary, created_at)
+		SELECT a.set_id, a.team_id, 'retrieval', 'manual', 'completed', '{"k": 1, "questions": 3, "passed": 0, "failed": 0, "errors": 3}',
+			a.created_at + (b.created_at - a.created_at) / 2
+		FROM eval_runs a, eval_runs b WHERE a.id = $1 AND b.id = $2 RETURNING id`, d.Run.Id, d2.Run.Id).Scan(&unscored); err != nil {
+		t.Fatal(err)
+	}
 	var sets []apitypes.EvaluationSet
 	env.editor.get(env.evalBase(), &sets)
 	if len(sets) != 1 || sets[0].LastRun == nil || sets[0].LastRun.Id != d2.Run.Id || sets[0].PreviousRun == nil || sets[0].PreviousRun.Id != d.Run.Id ||
@@ -186,6 +195,9 @@ func TestEvaluationRetrievalRun(t *testing.T) {
 	env.editor.get(env.evalBase()+"/"+set.Id.String(), &one)
 	if one.PreviousRun == nil || one.PreviousRun.Id != d.Run.Id {
 		t.Errorf("set previous run = %+v", one.PreviousRun)
+	}
+	if _, err := env.app.Pool.Exec(context.Background(), `DELETE FROM eval_runs WHERE id = $1`, unscored); err != nil {
+		t.Fatal(err)
 	}
 	// The question's record: its results in both runs, newest first.
 	var detail apitypes.EvaluationQuestionDetail

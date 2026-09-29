@@ -8690,7 +8690,7 @@ export interface components {
             /** Format: int64 */
             questionCount: number;
             lastRun: components["schemas"]["EvaluationRunBrief"] | null;
-            /** @description The completed run of the same kind before lastRun, the baseline of its trend (null without one). */
+            /** @description The latest completed run of the same kind before lastRun that has a score (recall or passRate), the baseline of its trend (null without one). Runs in which no question could be scored (every check failed) are skipped. */
             previousRun: components["schemas"]["EvaluationRunBrief"] | null;
             revision: components["schemas"]["Revision"];
             /** Format: date-time */
@@ -8918,7 +8918,7 @@ export interface components {
             filename?: string;
             /** @description One of the question's expected documents */
             expected: boolean;
-            /** @description The answer's marker number: [n] cites this entry (full answers) */
+            /** @description The answer's marker number: [n] cites this entry (full answers). Results stored by v0.2.0 kept each cited document once, in marker order: they're numbered from the answer's markers when read, and a repeated document's later markers have no entry. */
             n?: number;
             /** @description The cited passage (full answers), or the start of the best passage (retrieval, at most 300 characters) */
             snippet?: string;

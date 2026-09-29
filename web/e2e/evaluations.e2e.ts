@@ -121,7 +121,7 @@ test("evaluation set: create, import a CSV, run, see a failure, fix, run again, 
     await run.getByRole("link", { name: /Back to/ }).click();
     // Two runs are too few for a trend: the table only.
     await expect(page.getByRole("table", { name: "Runs" })).toBeVisible();
-    await expect(page.getByRole("img", { name: /Recall@k over/ })).toHaveCount(0);
+    await expect(page.getByRole("img", { name: /Recall@\S+ over/ })).toHaveCount(0);
   });
 
   await test.step("a third run charts the score over time, under the runs", async () => {

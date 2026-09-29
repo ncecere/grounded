@@ -8,6 +8,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
+import { configInput } from "../pages/agents/common";
 import { type Handler, meFor, mockApi, renderApp, shellRoutes } from "./harness";
 
 beforeAll(() => {
@@ -142,6 +143,31 @@ describe("the agent editor's tabs and version menu (I6)", () => {
     await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.url.endsWith("/revert"))?.body).toEqual({ version: 1 }));
   });
 
+  it("shows Revert disabled with the reason while the draft matches the live version, and says live once", async () => {
+    const user = userEvent.setup();
+    mockApi(routes(agent({ hasUnpublishedChanges: false })));
+    const { container } = renderApp("/teams/registrar/agents/ag1");
+    const badge = await screen.findByRole("button", { name: "v1 live" }, T);
+    // One live indication: no separate Live badge next to "v1 live".
+    expect(screen.queryByText("Live", { exact: true })).toBeNull();
+    await user.click(badge);
+    const revert = await screen.findByRole("menuitem", { name: /Revert draft to v1\u2026/ });
+    expect(revert).toHaveAttribute("aria-disabled", "true");
+    expect(revert).toHaveTextContent("The draft already matches v1");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("shows a version's SystemOne checks and Safety with its other settings, and its Revert says which version", async () => {
+    const checked = { ...config, systemOne: { citations: "on" as const, citationMode: "annotate" as const, scope: "on" as const } };
+    mockApi(routes(agent(), { "GET /v1/teams/registrar/agents/ag1/versions/1": () => ({ ...version, config: checked }) }));
+    renderApp("/teams/registrar/agents/ag1?history=versions&version=1");
+    const page = await screen.findByRole("region", { name: "Version 1" }, T);
+    expect(await within(page).findByText("Citation checks on (annotate) \u00b7 Scope check on")).toBeInTheDocument();
+    expect(within(page).getByText("Platform policy only")).toBeInTheDocument();
+    expect(within(page).getByText("Registrar help (6 results)")).toBeInTheDocument();
+    expect(within(page).getByRole("button", { name: /Revert draft to v1\u2026/ })).toBeInTheDocument();
+  });
+
   it("says Draft before the first publish, with only the history in its menu", async () => {
     const user = userEvent.setup();
     mockApi(routes(agent({ published: null, hasUnpublishedChanges: false }), { "GET /v1/teams/registrar/agents/ag1/versions": () => [] }));
@@ -165,5 +191,14 @@ describe("the old Versions tab's addresses (I6)", () => {
     const { router } = renderApp("/teams/registrar/agents/ag1?tab=versions&record=1&from=1&to=draft");
     expect(await screen.findByRole("region", { name: "Version 1" }, T)).toBeInTheDocument();
     expect(router.state.location.search).toEqual({ history: "versions", version: 1, from: 1, to: "draft" });
+  });
+});
+
+describe("a draft's configuration as saved", () => {
+  it("keeps any SystemOne override, citation checks or the scope check alone too, and leaves out an empty one", () => {
+    expect(configInput({ ...config, systemOne: { citations: "on" } }).systemOne).toEqual({ citations: "on" });
+    expect(configInput({ ...config, systemOne: { scope: "off" } }).systemOne).toEqual({ scope: "off" });
+    expect(configInput({ ...config, systemOne: { judging: "" } }).systemOne).toBeUndefined();
+    expect(configInput(config).systemOne).toBeUndefined();
   });
 });

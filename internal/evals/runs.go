@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sort"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -287,7 +288,38 @@ func DecodeResult(r dbgen.EvalResult) Result {
 	if out.Scores != nil && r.Answer != nil {
 		out.Scores.Claims = agents.FillClaimText(*r.Answer, out.Scores.Claims)
 	}
+	if r.Answer != nil {
+		numberLegacyCitations(*r.Answer, out.Hits)
+	}
 	return out
+}
+
+// numberLegacyCitations gives the citations of an answer stored by v0.2.0
+// their marker numbers, so the answer shows chips as newer ones do. v0.2.0
+// kept each cited document once (its first citation), with its position in
+// the answer's citations as Rank, and those citations were the answer's
+// marker numbers in ascending order. A repeated document's later markers
+// have no entry, and stay text.
+func numberLegacyCitations(answer string, hits []HitView) {
+	for _, h := range hits {
+		if h.N != 0 {
+			return
+		}
+	}
+	seen := map[int]bool{}
+	var ns []int
+	for _, n := range agents.CitedNumbers(answer) {
+		if !seen[n] {
+			seen[n] = true
+			ns = append(ns, n)
+		}
+	}
+	sort.Ints(ns)
+	for i := range hits {
+		if r := hits[i].Rank; r >= 1 && r <= len(ns) {
+			hits[i].N = ns[r-1]
+		}
+	}
 }
 
 // Run returns a run with its results.

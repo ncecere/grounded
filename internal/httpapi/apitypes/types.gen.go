@@ -5981,7 +5981,7 @@ type EvaluationHit struct {
 	// HeadingPath The cited passage's headings (full answers)
 	HeadingPath *[]string `json:"headingPath,omitempty"`
 
-	// N The answer's marker number: [n] cites this entry (full answers)
+	// N The answer's marker number: [n] cites this entry (full answers). Results stored by v0.2.0 kept each cited document once, in marker order: they're numbered from the answer's markers when read, and a repeated document's later markers have no entry.
 	N *int `json:"n,omitempty"`
 
 	// PageEnd The cited passage's last page (full answers)
@@ -6310,7 +6310,7 @@ type EvaluationSet struct {
 	// Name Example: Transcript questions
 	Name string `json:"name"`
 
-	// PreviousRun The completed run of the same kind before lastRun, the baseline of its trend (null without one).
+	// PreviousRun The latest completed run of the same kind before lastRun that has a score (recall or passRate), the baseline of its trend (null without one). Runs in which no question could be scored (every check failed) are skipped.
 	PreviousRun   *EvaluationRunBrief `json:"previousRun"`
 	QuestionCount int64               `json:"questionCount"`
 

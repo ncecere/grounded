@@ -18,7 +18,7 @@ import { useTeam } from "../common";
 import { resultLabel, runTitle } from "./labels";
 import { type EvalResult, type EvalRun, type EvalSet, useEvalQuestion } from "./queries";
 import { QuestionDialog } from "./question-form";
-import { ResultDetail, verdictText } from "./result-detail";
+import { Expected, ResultDetail, verdictText } from "./result-detail";
 
 export const RESULT_PARAM = "result";
 
@@ -76,6 +76,7 @@ export function ResultRecord({ set, run, results, loading }: { set: EvalSet; run
   const [editing, setEditing] = useState(false);
   const r = results.find((x) => x.id === page.id);
   const look = r && resultLabel(r);
+  const answer = r?.answer !== null && r?.answer !== undefined;
   return (
     <>
       <RecordPage
@@ -89,8 +90,10 @@ export function ResultRecord({ set, run, results, loading }: { set: EvalSet; run
         loading={loading}
         actions={r && <Actions set={set} run={run} result={r} onEdit={() => setEditing(true)} />}
         sections={[
+          // A full answer's expected documents aren't part of the answer: a card of their own, as a retrieval result has a column.
+          { title: "Expected documents", hidden: !r || !answer || r.expectedItems.length === 0, content: r && <Expected result={r} heading={false} /> },
           {
-            title: r?.answer !== null && r?.answer !== undefined ? "Answer" : "Expected and what came back",
+            title: answer ? "Answer" : "Expected and what came back",
             content: r ? <ResultDetail result={r} /> : <p>This result isn't in the run.</p>,
           },
         ]}

@@ -117,7 +117,7 @@ func (s *Service) Nightly(ctx context.Context, now time.Time) (int, error) {
 }
 
 // checkDrop compares an automatic run with the previous completed
-// retrieval check and notifies the team's editors when recall@k fell by
+// retrieval check that has a score and notifies the team's editors when recall@k fell by
 // more than 5 points or a question newly fails.
 func (s *Service) checkDrop(ctx context.Context, run dbgen.EvalRun, set dbgen.EvalSet, sum Summary) error {
 	if s.Notify == nil {
