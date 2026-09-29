@@ -1,13 +1,13 @@
-/* One audit entry in a RecordPage (A3): who, what, when, the target and a before/after diff (with model, connection and profile ids named). */
+/* One audit entry in a RecordPage (A3): who, what, when, the target and what changed, field by field in plain words (with model, connection and profile ids named). */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { auditChange } from "@/components/audit/changes";
+import { AuditChangesTable } from "@/components/audit/changes-table";
 import { actionLabel, actorName, nameIds } from "@/components/audit/labels";
 import { AuditTarget } from "@/components/audit/target";
 import { RecordPage, type RecordSection } from "@/components/templates/record-page";
 import { CodeBlock } from "@/components/ui/code-block/code-block";
-import { DiffViewer } from "@/components/ui/diff-viewer/diff-viewer";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { Time } from "@/components/ui/time/time";
 import { useCostSettings } from "@/lib/costs";
@@ -43,13 +43,7 @@ export function auditSections(e: Entry, names: ReadonlyMap<string, string> = new
     out.push({
       title: "Changes",
       content: (
-        <DiffViewer
-          label={`What changed: ${actionLabel(e.action)}`}
-          before={nameIds(change.before, names) as object}
-          after={nameIds(change.after, names) as object}
-          format="json"
-          defaultMode="split"
-        />
+        <AuditChangesTable label={`What changed: ${actionLabel(e.action)}`} before={nameIds(change.before, names) as object} after={nameIds(change.after, names) as object} />
       ),
     });
   }

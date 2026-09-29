@@ -26,7 +26,7 @@ Matching ignores upper and lower case, and surrounding spaces. Up to 1,000 group
 
 - One rule per group and team. A rule's team can't change: map the group to another team with a new rule.
 - Rules for an archived team are ignored, and no rule can be added to an archived team.
-- Every rule change is audited: `platform.sso_rule_create`, `platform.sso_rule_update` and `platform.sso_rule_delete`, in the platform log and the team's log. The audit log's **Group mapping** action filter (API: `action=group_mapping.`) shows these and the memberships the rules added, changed or removed, whose actor reads "System (group mapping: *group* → *team*)".
+- Every rule change is audited: `platform.sso_rule_create`, `platform.sso_rule_update` and `platform.sso_rule_delete`, in the platform log and the team's log. The audit log's **SSO groups** area (API: `action=group_mapping.`) shows these and the memberships the rules added, changed or removed, whose actor reads "System (group mapping: *group* → *team*)". To see only those memberships, choose **System (group mapping)** under Person (API: `actorKind=group_mapping`), with the area **Team and members** or an action such as "Removed member" to see who a rule removed.
 
 ### The dry run
 

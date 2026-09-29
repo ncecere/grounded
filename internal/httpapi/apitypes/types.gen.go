@@ -3144,6 +3144,24 @@ func (e WebSchedule) Valid() bool {
 	}
 }
 
+// Defines values for AuditActorKindParam.
+const (
+	AuditActorKindParamGroupMapping AuditActorKindParam = "group_mapping"
+	AuditActorKindParamSystem       AuditActorKindParam = "system"
+)
+
+// Valid indicates whether the value is a known member of the AuditActorKindParam enum.
+func (e AuditActorKindParam) Valid() bool {
+	switch e {
+	case AuditActorKindParamGroupMapping:
+		return true
+	case AuditActorKindParamSystem:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CostGroupByParam.
 const (
 	CostGroupByParamAgent CostGroupByParam = "agent"
@@ -3264,6 +3282,24 @@ func (e AdminListModerationEventsParamsDecision) Valid() bool {
 	case AdminListModerationEventsParamsDecisionFlag:
 		return true
 	case AdminListModerationEventsParamsDecisionSupport:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminListAuditParamsActorKind.
+const (
+	AdminListAuditParamsActorKindGroupMapping AdminListAuditParamsActorKind = "group_mapping"
+	AdminListAuditParamsActorKindSystem       AdminListAuditParamsActorKind = "system"
+)
+
+// Valid indicates whether the value is a known member of the AdminListAuditParamsActorKind enum.
+func (e AdminListAuditParamsActorKind) Valid() bool {
+	switch e {
+	case AdminListAuditParamsActorKindGroupMapping:
+		return true
+	case AdminListAuditParamsActorKindSystem:
 		return true
 	default:
 		return false
@@ -3402,6 +3438,24 @@ func (e ExportConversationParamsFormat) Valid() bool {
 	case ExportConversationParamsFormatJson:
 		return true
 	case ExportConversationParamsFormatMarkdown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTeamAuditParamsActorKind.
+const (
+	ListTeamAuditParamsActorKindGroupMapping ListTeamAuditParamsActorKind = "group_mapping"
+	ListTeamAuditParamsActorKindSystem       ListTeamAuditParamsActorKind = "system"
+)
+
+// Valid indicates whether the value is a known member of the ListTeamAuditParamsActorKind enum.
+func (e ListTeamAuditParamsActorKind) Valid() bool {
+	switch e {
+	case ListTeamAuditParamsActorKindGroupMapping:
+		return true
+	case ListTeamAuditParamsActorKindSystem:
 		return true
 	default:
 		return false
@@ -8850,6 +8904,9 @@ type AnalyticsToParam = openapi_types.Date
 // AuditActionParam Example: agent.
 type AuditActionParam = string
 
+// AuditActorKindParam defines model for AuditActorKindParam.
+type AuditActorKindParam string
+
 // AuditActorParam defines model for AuditActorParam.
 type AuditActorParam = openapi_types.UUID
 
@@ -9113,8 +9170,11 @@ type AdminListAuditParams struct {
 	ExcludeAction *AuditExcludeActionParam `form:"excludeAction,omitempty" json:"excludeAction,omitempty"`
 
 	// ActorUserId Only entries by this person (including their API keys)
-	ActorUserId *AuditActorParam      `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
-	TargetType  *AuditTargetTypeParam `form:"targetType,omitempty" json:"targetType,omitempty"`
+	ActorUserId *AuditActorParam `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
+
+	// ActorKind Only entries by the system (system), or only the memberships SSO group mapping rules made at sign-in (group_mapping: "System (group mapping)" in the Person filter)
+	ActorKind  *AdminListAuditParamsActorKind `form:"actorKind,omitempty" json:"actorKind,omitempty"`
+	TargetType *AuditTargetTypeParam          `form:"targetType,omitempty" json:"targetType,omitempty"`
 
 	// From Entries at or after this time
 	From *AuditFromParam `form:"from,omitempty" json:"from,omitempty"`
@@ -9122,6 +9182,9 @@ type AdminListAuditParams struct {
 	// To Entries before this time (exclusive)
 	To *AuditToParam `form:"to,omitempty" json:"to,omitempty"`
 }
+
+// AdminListAuditParamsActorKind defines parameters for AdminListAudit.
+type AdminListAuditParamsActorKind string
 
 // AdminListBreakGlassSessionsParams defines parameters for AdminListBreakGlassSessions.
 type AdminListBreakGlassSessionsParams struct {
@@ -9544,8 +9607,11 @@ type ListTeamAuditParams struct {
 	ExcludeAction *AuditExcludeActionParam `form:"excludeAction,omitempty" json:"excludeAction,omitempty"`
 
 	// ActorUserId Only entries by this person (including their API keys)
-	ActorUserId *AuditActorParam      `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
-	TargetType  *AuditTargetTypeParam `form:"targetType,omitempty" json:"targetType,omitempty"`
+	ActorUserId *AuditActorParam `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
+
+	// ActorKind Only entries by the system (system), or only the memberships SSO group mapping rules made at sign-in (group_mapping: "System (group mapping)" in the Person filter)
+	ActorKind  *ListTeamAuditParamsActorKind `form:"actorKind,omitempty" json:"actorKind,omitempty"`
+	TargetType *AuditTargetTypeParam         `form:"targetType,omitempty" json:"targetType,omitempty"`
 
 	// From Entries at or after this time
 	From *AuditFromParam `form:"from,omitempty" json:"from,omitempty"`
@@ -9553,6 +9619,9 @@ type ListTeamAuditParams struct {
 	// To Entries before this time (exclusive)
 	To *AuditToParam `form:"to,omitempty" json:"to,omitempty"`
 }
+
+// ListTeamAuditParamsActorKind defines parameters for ListTeamAudit.
+type ListTeamAuditParamsActorKind string
 
 // ListTeamConversationsParams defines parameters for ListTeamConversations.
 type ListTeamConversationsParams struct {

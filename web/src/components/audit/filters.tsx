@@ -66,9 +66,9 @@ export function AuditFilterBar({ scope, value, onChange }: BarProps) {
   const active = value.action || value.person || value.from || value.to;
   return (
     <div className={a.filters} role="group" aria-label="Filter the audit log">
-      <Field label="Action" className={a.filter}>
+      <Field label="Area" className={a.filter}>
         <NativeSelect size="sm" value={value.action} onChange={(e) => set({ action: e.target.value })}>
-          <option value="">All actions</option>
+          <option value="">All areas</option>
           {groups.map((g) => (
             <option key={g.prefix} value={g.prefix}>
               {g.label}

@@ -549,6 +549,7 @@ paths:
         - $ref: "#/components/parameters/AuditActionParam"
         - $ref: "#/components/parameters/AuditExcludeActionParam"
         - $ref: "#/components/parameters/AuditActorParam"
+        - $ref: "#/components/parameters/AuditActorKindParam"
         - $ref: "#/components/parameters/AuditTargetTypeParam"
         - $ref: "#/components/parameters/AuditFromParam"
         - $ref: "#/components/parameters/AuditToParam"
@@ -1137,6 +1138,7 @@ paths:
         - $ref: "#/components/parameters/AuditActionParam"
         - $ref: "#/components/parameters/AuditExcludeActionParam"
         - $ref: "#/components/parameters/AuditActorParam"
+        - $ref: "#/components/parameters/AuditActorKindParam"
         - $ref: "#/components/parameters/AuditTargetTypeParam"
         - $ref: "#/components/parameters/AuditFromParam"
         - $ref: "#/components/parameters/AuditToParam"
@@ -6438,6 +6440,14 @@ components:
       required: false
       description: Only entries by this person (including their API keys)
       schema: { type: string, format: uuid }
+    AuditActorKindParam:
+      name: actorKind
+      in: query
+      required: false
+      description: >-
+        Only entries by the system (system), or only the memberships SSO group mapping rules made at sign-in
+        (group_mapping: "System (group mapping)" in the Person filter)
+      schema: { type: string, enum: [system, group_mapping] }
     AuditTargetTypeParam:
       name: targetType
       in: query

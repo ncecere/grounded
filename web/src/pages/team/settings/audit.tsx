@@ -1,10 +1,11 @@
 /*
  * Team settings › Audit log (D4, D5, Q13): the team's audit log on a
- * ListPage, filtered on the server by action group, person and a date range
- * (all in the URL), with Load more. One line per cell: the action's label
- * (its code is on the record page). Each entry opens in a RecordPage
+ * ListPage, filtered on the server by area or action, person (or "System
+ * (group mapping)") and a date range (all in the URL), with Load more. The
+ * action's label, with a simple change under it ("Monthly budget $5.00 →
+ * none"); its code is on the record page. Each entry opens in a RecordPage
  * (?record=<id>, fetched by id so links from the overview work) with the
- * before/after in a diff viewer. Sign-ins aren't team entries, so there is
+ * before/after field by field. Sign-ins aren't team entries, so there is
  * no "Hide sign-ins" here.
  */
 import { auditSections } from "../../admin/logs/audit-record";
@@ -12,7 +13,8 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Eye, FileClock } from "lucide-react";
 import { api, unwrap, type Schemas } from "../../../api/client";
 import { auditKey } from "../../../components/audit/audit-log";
-import { actionGroups, actionLabel, actorName } from "../../../components/audit/labels";
+import { changeSummary } from "../../../components/audit/changes";
+import { actionLabel, actorName, areaOptions, groupMappingPersonOption, personFilter } from "../../../components/audit/labels";
 import { AuditTarget } from "../../../components/audit/target";
 import { rangeWindow } from "../../admin/logs/common";
 import { ListPage, RelativeTime, useListFilters } from "../../../components/templates/list-page";
@@ -44,17 +46,17 @@ function useFacets(team: string): Facet<Entry>[] {
   return [
     {
       id: "action",
-      label: "Action",
+      label: "Area",
       type: "select",
-      placeholder: "All actions",
-      options: actionGroups.filter((g) => !g.platform).map((g) => ({ value: g.prefix, label: g.label })),
+      placeholder: "All areas, or type an action",
+      options: areaOptions(false),
     },
     {
       id: "person",
       label: "Person",
       type: "select",
       placeholder: "Anyone",
-      options: (members.data ?? []).map((m) => ({ value: m.user.id, label: m.user.displayName || m.user.email })),
+      options: [groupMappingPersonOption, ...(members.data ?? []).map((m) => ({ value: m.user.id, label: m.user.displayName || m.user.email }))],
     },
     { id: "range", label: "Date", type: "date-range" },
   ];
@@ -68,7 +70,7 @@ export function TeamAuditLog() {
   const record = useRecordParam();
   const query = {
     action: first(filters.values.action),
-    actorUserId: first(filters.values.person),
+    ...personFilter(first(filters.values.person)),
     ...rangeWindow(filters.values),
   };
   const log = useInfiniteQuery({
@@ -83,7 +85,13 @@ export function TeamAuditLog() {
   const columns: DataTableColumn<Entry>[] = [
     { id: "when", header: "When", accessor: (e) => new Date(e.occurredAt), cell: (e) => <RelativeTime value={e.occurredAt} /> },
     { id: "who", header: "Who", accessor: (e) => actorName(e.actor, e), cell: (e) => <CellText primary={actorName(e.actor, e)} secondary={who(e)} /> },
-    { id: "action", header: "Action", accessor: (e) => actionLabel(e.action), rowHeader: true, cell: (e) => <span className={s.primary}>{actionLabel(e.action)}</span> },
+    {
+      id: "action",
+      header: "Action",
+      accessor: (e) => actionLabel(e.action),
+      rowHeader: true,
+      cell: (e) => <CellText primary={actionLabel(e.action)} secondary={changeSummary(e) ?? undefined} />,
+    },
     { id: "target", header: "Target", accessor: (e) => e.targetLabel ?? e.targetType, cell: (e) => <AuditTarget entry={e} scope={{ ...scope, member: Boolean(role) }} /> },
   ];
 

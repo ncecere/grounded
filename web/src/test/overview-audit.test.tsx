@@ -166,13 +166,13 @@ describe("team overview", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("filters the audit log by action group, person and date range, in the URL", async () => {
+  it("filters the audit log by area, person and date range, in the URL", async () => {
     const calls = mockApi(routes());
     const { router } = renderApp("/teams/registrar/settings?tab=audit");
     await screen.findByRole("table", { name: "Audit log" });
     const audit = () => calls.filter((c) => c.url.endsWith("/audit"));
-    await userEvent.click(screen.getByRole("combobox", { name: "Action" }));
-    await userEvent.click(await screen.findByRole("option", { name: "Knowledge bases" }));
+    await userEvent.click(screen.getByRole("combobox", { name: "Area" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Knowledge bases (all)" }));
     await waitFor(() => expect(audit().at(-1)!.search.get("action")).toBe("kb."));
     await userEvent.click(screen.getByRole("combobox", { name: "Person" }));
     await userEvent.click(await screen.findByRole("option", { name: /Blair Dev/ }));
@@ -192,7 +192,10 @@ describe("team overview", () => {
     const sheet = await screen.findByRole("region", { name: "Changed knowledge base" });
     expect(within(sheet).getByText("kb.update")).toBeInTheDocument();
     expect(within(sheet).getByRole("table", { name: /What changed: Changed knowledge base/ })).toBeInTheDocument();
-    expect(sheet).toHaveTextContent('"New"');
+    // Plain field names and values, not JSON.
+    const changes = within(sheet).getByRole("table", { name: /What changed/ });
+    expect(within(changes).getByRole("row", { name: /Name/ })).toHaveTextContent("NameOldNew");
+    expect(sheet).not.toHaveTextContent('"New"');
     expect(await axe(container)).toHaveNoViolations();
   });
 });

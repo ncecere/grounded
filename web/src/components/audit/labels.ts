@@ -1,5 +1,6 @@
-/* Human-readable audit actions, action groups and actors. */
+/* Human-readable audit actions, action groups (areas) and actors. */
 import type { Schemas } from "../../api/client";
+import type { FacetOption } from "@/components/ui/filter-bar/filter-bar";
 
 type AuditEntry = Schemas["AuditEntry"];
 
@@ -161,6 +162,36 @@ export const actionGroups: { prefix: string; label: string; platform?: boolean }
   { prefix: "legal_hold.", label: "Legal holds", platform: true },
   { prefix: "retention.", label: "Retention", platform: true },
 ];
+
+/** The area an action belongs to, by its code's group (the SSO rules' own changes are under SSO groups). */
+function areaOf(action: string): string | undefined {
+  if (action.startsWith("platform.sso_rule_")) return actionGroups.find((g) => g.prefix === "group_mapping.")?.label;
+  return actionGroups.find((g) => g.prefix !== "group_mapping." && action.startsWith(g.prefix))?.label;
+}
+
+/**
+ * The audit log's Area filter: every area, then every known action under its area, so typing "budget" finds "Changed
+ * a team budget". An area's value is its prefix ("costs."), an action's its code; the API takes both.
+ */
+export function areaOptions(platform: boolean): FacetOption[] {
+  const areas = actionGroups.filter((g) => platform || !g.platform);
+  const shown = new Set(areas.map((g) => g.label));
+  const actions = Object.entries(actionLabels)
+    .map(([value, label]) => ({ value, label, group: areaOf(value) }))
+    .filter((o): o is FacetOption & { group: string } => Boolean(o.group && shown.has(o.group)))
+    .sort((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label));
+  return [...areas.map((g) => ({ value: g.prefix, label: `${g.label} (all)`, group: "Areas" })), ...actions];
+}
+
+/** The Person filter's entry for the memberships SSO group mapping rules made at sign-in (the API's actorKind). */
+export const groupMappingPerson = "system:group_mapping";
+export const groupMappingPersonOption: FacetOption = { value: groupMappingPerson, label: "System (group mapping)" };
+
+/** The Person filter's value as API filters: a person's ID, or the group mapping rules as the actor. */
+export function personFilter(value: string | undefined): { actorUserId?: string; actorKind?: "group_mapping" } {
+  if (!value) return {};
+  return value === groupMappingPerson ? { actorKind: "group_mapping" } : { actorUserId: value };
+}
 
 /**
  * Who did it: a person's name, the API key, or "System". With the entry, a

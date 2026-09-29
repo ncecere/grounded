@@ -21,6 +21,8 @@ INSERT INTO audit_log (
 -- action_prefix and exclude_prefix are LIKE-escaped by the caller.
 -- group_mapping: the group mapping rules' changes and the memberships they
 -- made (metadata.via = 'sso_group_rule'), across action groups.
+-- actor_kind: 'system' for the system's entries, 'group_mapping' for the
+-- memberships group mapping rules made (the system as the rule).
 SELECT a.id, a.occurred_at, a.actor_kind, a.actor_user_id, a.team_id, a.action,
        a.target_type, a.target_id, a.before_state, a.after_state, a.metadata,
        a.request_id, a.client_ip,
@@ -109,6 +111,8 @@ WHERE (sqlc.narg(team_id)::uuid IS NULL OR a.team_id = sqlc.narg(team_id)::uuid)
   AND (NOT COALESCE(sqlc.narg(group_mapping)::boolean, false)
        OR a.action LIKE 'platform.sso\_rule\_%' ESCAPE '\' OR a.metadata->>'via' = 'sso_group_rule')
   AND (sqlc.narg(actor_user_id)::uuid IS NULL OR a.actor_user_id = sqlc.narg(actor_user_id)::uuid)
+  AND (sqlc.narg(actor_kind)::text IS NULL
+       OR (a.actor_kind = 'system' AND (sqlc.narg(actor_kind)::text = 'system' OR a.metadata->>'via' = 'sso_group_rule')))
   AND (sqlc.narg(target_type)::text IS NULL OR a.target_type = sqlc.narg(target_type)::text)
   AND (sqlc.narg(occurred_from)::timestamptz IS NULL OR a.occurred_at >= sqlc.narg(occurred_from)::timestamptz)
   AND (sqlc.narg(occurred_to)::timestamptz IS NULL OR a.occurred_at < sqlc.narg(occurred_to)::timestamptz)

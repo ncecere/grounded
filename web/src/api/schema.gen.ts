@@ -9056,6 +9056,8 @@ export interface components {
         AuditExcludeActionParam: string;
         /** @description Only entries by this person (including their API keys) */
         AuditActorParam: string;
+        /** @description Only entries by the system (system), or only the memberships SSO group mapping rules made at sign-in (group_mapping: "System (group mapping)" in the Person filter) */
+        AuditActorKindParam: "system" | "group_mapping";
         AuditTargetTypeParam: string;
         /** @description Entries at or after this time */
         AuditFromParam: string;
@@ -9709,6 +9711,8 @@ export interface operations {
                 excludeAction?: components["parameters"]["AuditExcludeActionParam"];
                 /** @description Only entries by this person (including their API keys) */
                 actorUserId?: components["parameters"]["AuditActorParam"];
+                /** @description Only entries by the system (system), or only the memberships SSO group mapping rules made at sign-in (group_mapping: "System (group mapping)" in the Person filter) */
+                actorKind?: components["parameters"]["AuditActorKindParam"];
                 targetType?: components["parameters"]["AuditTargetTypeParam"];
                 /** @description Entries at or after this time */
                 from?: components["parameters"]["AuditFromParam"];
@@ -10434,6 +10438,8 @@ export interface operations {
                 excludeAction?: components["parameters"]["AuditExcludeActionParam"];
                 /** @description Only entries by this person (including their API keys) */
                 actorUserId?: components["parameters"]["AuditActorParam"];
+                /** @description Only entries by the system (system), or only the memberships SSO group mapping rules made at sign-in (group_mapping: "System (group mapping)" in the Person filter) */
+                actorKind?: components["parameters"]["AuditActorKindParam"];
                 targetType?: components["parameters"]["AuditTargetTypeParam"];
                 /** @description Entries at or after this time */
                 from?: components["parameters"]["AuditFromParam"];
