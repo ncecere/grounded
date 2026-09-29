@@ -14,6 +14,7 @@ import { SkeletonText } from "@/components/ui/skeleton/skeleton";
 import type { Schemas } from "@/api/client";
 import { formatMoney, formatStorage as formatBytes } from "@/lib/format";
 import { adminAgentsQuery } from "../agents/agents";
+import { useIsPlatformAdmin } from "../hooks";
 import { attentionQuery, overviewQuery, publicAccessQuery, publicPolicyQuery } from "./queries";
 import o from "./overview.module.css";
 
@@ -28,11 +29,14 @@ const warningRows: Record<string, Pick<Row, "icon" | "action" | "link">> = {
   sso_groups_claim_missing: { icon: <LogIn />, action: "SSO groups", link: <Link to="/admin/group-mapping" /> },
 };
 
-function warningRow(w: Schemas["AdminWarning"]): Row {
+function warningRow(w: Schemas["AdminWarning"], isAdmin: boolean): Row {
+  const known = warningRows[w.code];
   return {
     id: `warning-${w.code}`,
     icon: <TriangleAlert />,
-    ...warningRows[w.code],
+    ...known,
+    // Read-only staff open the page; they can't set anything up.
+    action: !isAdmin && known?.action === "Set up moderation" ? "Moderation" : known?.action,
     title: w.message,
     description: w.fix,
     tone: w.severity === "warning" ? "warning" : undefined,
@@ -41,7 +45,7 @@ function warningRow(w: Schemas["AdminWarning"]): Row {
 
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
-function useRows(): { rows: Row[]; loading: boolean } {
+function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
   const overview = useQuery(overviewQuery());
   const attention = useQuery(attentionQuery());
   const agents = useQuery(adminAgentsQuery());
@@ -55,7 +59,7 @@ function useRows(): { rows: Row[]; loading: boolean } {
       icon: <Globe />,
       title: `${plural(pending, "domain request", "domain requests")} waiting for review`,
       description: "Teams can't crawl these hosts until a platform admin approves them.",
-      action: "Review",
+      action: isAdmin ? "Review" : "View requests",
       link: <Link to="/admin/crawl-domains" />,
       tone: "warning",
     });
@@ -77,7 +81,7 @@ function useRows(): { rows: Row[]; loading: boolean } {
       icon: <ShieldAlert />,
       title: "The public audience has no moderation provider",
       description: "No agent can be published to the public until one is chosen.",
-      action: "Set up moderation",
+      action: isAdmin ? "Set up moderation" : "Moderation",
       link: <Link to="/admin/moderation" search={{ tab: "public" }} />,
       tone: "danger",
     });
@@ -85,7 +89,7 @@ function useRows(): { rows: Row[]; loading: boolean } {
   for (const w of overview.data?.warnings ?? []) {
     // The moderation row above already says this, with more detail.
     if (w.code === "public_agents_without_moderation" && rows.some((r) => r.id === "moderation")) continue;
-    rows.push(warningRow(w));
+    rows.push(warningRow(w, isAdmin));
   }
   if (access.data && !access.data.publicAgentsEnabled) {
     rows.push({
@@ -135,7 +139,7 @@ function useRows(): { rows: Row[]; loading: boolean } {
 }
 
 export function AttentionQueue() {
-  const { rows, loading } = useRows();
+  const { rows, loading } = useRows(useIsPlatformAdmin());
   return (
     <Card title="Needs attention" description={loading ? undefined : rows.length ? undefined : "Nothing is waiting for a platform admin."} flush={rows.length > 0}>
       {loading ? (

@@ -42,7 +42,7 @@ export function SystemOnePage() {
     <Stack gap={6} className={s.page}>
       <PageHeader
         title="SystemOne"
-        description="A SystemOne model answers typed questions about text with calibrated probabilities: Grounded uses it to judge passages, check citations, spot out-of-scope questions and moderate. Every feature is off until you turn it on."
+        description="A SystemOne model answers typed questions about text with calibrated probabilities: Grounded uses it to judge passages, check citations, spot out-of-scope questions and moderate. Each feature is off until a platform admin turns it on here for every agent, or an editor turns it on for one agent."
       />
       <QueryView
         query={models.isLoading ? models : settings}
@@ -127,9 +127,9 @@ function SettingsEditor({ saved, models, isAdmin }: { saved: SystemOneSettings; 
           </Alert>
         )}
       </SettingsSection>
-      <JudgingCard form={form} set={set} problems={shown} disabled={off} latency={latencyNote(t?.judging.latencyP50Ms)} />
-      <CitationsCard form={form} set={set} problems={shown} disabled={off} latency={latencyNote(t?.citations.latencyP50Ms)} />
-      <ScopeCard form={form} set={set} problems={shown} disabled={off} latency={latencyNote(t?.scope.latencyP50Ms)} />
+      <JudgingCard form={form} set={set} problems={shown} disabled={off} latency={latencyNote(t?.judging.latencyP50Ms)} agents={saved.agents.judging} />
+      <CitationsCard form={form} set={set} problems={shown} disabled={off} latency={latencyNote(t?.citations.latencyP50Ms)} agents={saved.agents.citations} />
+      <ScopeCard form={form} set={set} problems={shown} disabled={off} latency={latencyNote(t?.scope.latencyP50Ms)} agents={saved.agents.scope} />
       <SettingsSection
         title="Moderation"
         description="An audience's moderation policy can use a SystemOne model as its provider, with a severity threshold and a support message for self-harm."

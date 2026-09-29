@@ -19,6 +19,7 @@ const saved: Schemas["SystemOneSettings"] = {
   judging: { enabled: false, candidates: 10, mode: "per_passage", timeoutMs: 5000, thresholds: { injection: 0.7, relevant: 0.45, contradicts: 0.7, evidence: 0.3 } },
   citations: { enabled: false, mode: "annotate", autoAccept: 0.8, timeoutMs: 20000 },
   scope: { enabled: false, smallTalk: 0.5, inScope: 0.2, timeoutMs: 5000 },
+  agents: { judging: 0, citations: 0, scope: 0, any: 0 },
   revision: 3,
   updatedAt: "2026-09-26T10:00:00Z",
 };
@@ -34,10 +35,13 @@ describe("admin SystemOne checks", () => {
     const calls = mockApi({
       ...shellRoutes("platform_admin"),
       "GET /v1/admin/models": () => [judge],
-      "GET /v1/admin/systemone": () => saved,
+      "GET /v1/admin/systemone": () => ({ ...saved, agents: { judging: 0, citations: 2, scope: 0, any: 2 } }),
       "PUT /v1/admin/systemone": (body) => ({ ...saved, ...(body as object), revision: 4 }),
     });
     const { container } = renderApp("/admin/systemone");
+    // Off is only the agents' default: two agents check their citations anyway.
+    expect(await screen.findByText("On for 2 agents")).toBeInTheDocument();
+    expect(screen.getAllByText("Default: off").length).toBeGreaterThan(0);
     await userEvent.click(await screen.findByRole("switch", { name: /Check citations for every agent/ }));
     await userEvent.click(screen.getByRole("radio", { name: /Enforce/ }));
     await userEvent.click(screen.getByRole("switch", { name: /Check the scope for every agent/ }));
@@ -134,7 +138,8 @@ describe("analytics citation checks and scope", () => {
     const totals = {
       answers: 10, conversations: 4, uniqueUsers: 3, up: 1, down: 0, satisfaction: 1, noContextRate: 0.1, refusalRate: 0, errorRate: 0,
       latencyP50Ms: 3000, latencyP95Ms: 5000, firstTokenP50Ms: 800, moderation: { questionsBlocked: 0, answersWithheld: 0, flagged: 0, supported: 0 }, judging: zeroJudging,
-      citations: { answers: 8, pairs: 30, verified: 24, unsupported: 4, contradicted: 1, unchecked: 1, lowConfidence: 2, removed: 0, refused: 0, supportRate: 24 / 29, latencyP50Ms: 1900, latencyP95Ms: 3500 },
+      citations: { answers: 8, pairs: 30, verified: 24, unsupported: 4, contradicted: 1, unchecked: 1, lowConfidence: 2, removed: 0, refused: 0, supportRate: 24 / 29, latencyP50Ms: 1900, latencyP95Ms: 3500,
+        supportedClaims: 3, notSupportedClaims: 0, uncitedClaims: 3, claimSupportRate: 0.5 },
       scope: { checked: 10, smallTalk: 2, outOfScope: 1, refused: 1, skipped: 0, latencyP50Ms: 420 },
     };
     mockApi({
@@ -145,8 +150,10 @@ describe("analytics citation checks and scope", () => {
     // On the Checks tab (v0.2.1 I8).
     const { container } = renderApp("/admin/analytics?tab=checks");
     const cites = await screen.findByRole("region", { name: "Citation checks (SystemOne)" });
+    // Claims counted as the chat's summary counts them, then each cited source's verdict.
+    expect(cites).toHaveTextContent("Claims supported50%3 of 6 claims supported · 3 uncited");
     expect(cites).toHaveTextContent("82.8%");
-    expect(cites).toHaveTextContent("4 unsupported · 1 contradicted · 2 low confidence (review)");
+    expect(cites).toHaveTextContent("24 of 29 · 4 not supported · 1 contradicted · 2 low confidence (review)");
     const scope = screen.getByRole("region", { name: "Scope check (SystemOne)" });
     expect(scope).toHaveTextContent("1 refused without a search or model call");
     expect(screen.queryByRole("region", { name: "Passage judging (SystemOne)" })).toBeNull();

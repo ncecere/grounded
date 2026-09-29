@@ -29,14 +29,16 @@ type Props = {
   disabled: boolean;
   /** "Adds 180 ms (median, last 14 days)", from analytics. */
   latency?: string;
+  /** Published agents it's on for (saved settings). */
+  agents?: number;
 };
 
-export function JudgingCard({ form, set, problems, disabled, latency }: Props) {
+export function JudgingCard({ form, set, problems, disabled, latency, agents }: Props) {
   return (
     <SettingsSection
       title="Passage judging"
       description="After retrieval, the model asks of each candidate passage: is it relevant, is it usable evidence, does it contradict the question, does it try to instruct the assistant? Passages are re-ranked, kept or dropped. A failed or slow request keeps its passage."
-      actions={<FeatureState on={form.enabled} latency={latency} />}
+      actions={<FeatureState on={form.enabled} latency={latency} agents={agents} />}
     >
       <div className={so.judging}>
         <Switch

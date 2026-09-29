@@ -1,4 +1,7 @@
-/* Admin Overview › Platform at a glance (A1): whole-card links to teams, people, agents, content and answers. */
+/*
+ * Admin Overview › Platform at a glance (A1): whole-card links to teams, people, agents and answers. Documents isn't a
+ * link: no admin page lists documents (each team's are private to it).
+ */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Bot, FileText, MessageSquare, UserRound, UsersRound } from "lucide-react";
@@ -62,7 +65,6 @@ export function PlatformGlance() {
           value={n(d?.content.documents)}
           icon={<FileText />}
           hint={d ? `${d.content.passages.toLocaleString()} passages · ${formatBytes(d.content.storageBytes)}` : undefined}
-          render={<Link to="/admin/teams" />}
         />
         <StatCard
           label="Answers, last 7 days"

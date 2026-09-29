@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { actionLabel, actorName, targetTypeLabel } from "@/components/audit/labels";
+import { actorName, entryTitle, targetTypeLabel } from "@/components/audit/labels";
 import { RelativeTime } from "@/components/templates/list-page";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
@@ -38,10 +38,7 @@ export function RecentChanges() {
           {items.map((e) => (
             <Item key={e.id} size="xs" className={o.row} render={<Link to="/admin/logs" search={{ record: e.id } as never} />}>
               <ItemContent>
-                <ItemTitle>
-                  {actionLabel(e.action)}
-                  {e.targetLabel ? `: ${e.targetLabel}` : ""}
-                </ItemTitle>
+                <ItemTitle>{entryTitle(e)}</ItemTitle>
                 <ItemDescription>
                   {actorName(e.actor, e)} · {targetTypeLabel(e.targetType)} · <RelativeTime value={e.occurredAt} />
                 </ItemDescription>

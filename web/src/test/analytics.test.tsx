@@ -30,7 +30,7 @@ const overview: Schemas["PlatformAnalytics"] = {
     answers: 160, conversations: 51, uniqueUsers: 38, up: 30, down: 10, satisfaction: 0.75, noContextRate: 0.12, refusalRate: 0.03, errorRate: 0.01,
     latencyP50Ms: 2100, latencyP95Ms: 5400, firstTokenP50Ms: 640, moderation: { questionsBlocked: 4, answersWithheld: 1, flagged: 6, supported: 0 },
     judging: { answers: 0, candidates: 0, evidence: 0, conflicting: 0, kept: 0, dropped: { injection: 0, irrelevant: 0, notUsable: 0 }, skipped: 0, judgedOut: 0, requests: 0, latencyP50Ms: null, latencyP95Ms: null },
-    citations: { answers: 0, pairs: 0, verified: 0, unsupported: 0, contradicted: 0, unchecked: 0, lowConfidence: 0, removed: 0, refused: 0, supportRate: null, latencyP50Ms: null, latencyP95Ms: null },
+    citations: { answers: 0, pairs: 0, verified: 0, unsupported: 0, contradicted: 0, unchecked: 0, lowConfidence: 0, removed: 0, refused: 0, supportRate: null, latencyP50Ms: null, latencyP95Ms: null, supportedClaims: 0, notSupportedClaims: 0, uncitedClaims: 0, claimSupportRate: null },
     scope: { checked: 0, smallTalk: 0, outOfScope: 0, refused: 0, skipped: 0, latencyP50Ms: null },
   },
   audiences: [
