@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+v0.3.0: reach (MCP), stored health and tracing. The plan is [`docs/v0.3.0.md`](docs/v0.3.0.md) and the release notes are [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md).
+
 ### Added
 
 - **Grounded as an MCP server** (v0.3.0 M1, roadmap C1a; [`docs/mcp.md`](docs/mcp.md)): `POST /mcp` speaks the Model Context Protocol over stateless Streamable HTTP (revision `2026-07-28`, and `2025-11-25` back to `2024-11-05` for older clients; the official Go SDK v1.8.0). Two tools: `search` (passages with title, headings, URL and citation number) and `ask` (an agent's answer with `[n]` markers, citations (`kind` `document`, with the URL or upload's filename, or `tool` for an MCP tool's result, with its server and tool), claim verdicts when SystemOne checks citations, and a conversation handle for follow-ups that only works with the key that received it). Each tool's arguments list, as an enum, exactly the knowledge bases and agents the key may use; a key with none of one kind doesn't get that tool. Limits, classification, budgets and usage apply as on the REST API; a refusal inside a tool is a tool error with the reason. Usage and analytics record the channel `mcp`; each call is audited as `mcp.search` or `mcp.ask` (never the content). New metric `grounded_mcp_tool_calls_total` and route group `mcp` (outside the latency objective).
