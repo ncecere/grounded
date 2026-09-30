@@ -60,10 +60,34 @@ func (p *FakeProxy) FailJudgingWith(status int) {
 }
 
 // SetJudgingDelay delays every passage-judging answer by d.
-func (p *FakeProxy) SetJudgingDelay(d time.Duration) {
+func (p *FakeProxy) SetJudgingDelay(d time.Duration) { p.SetJudgingDelays(d) }
+
+// SetJudgingDelays delays the passage-judging answers in turn: request n
+// (counted from the fake's start) waits ds[n % len(ds)]. None: no delay.
+func (p *FakeProxy) SetJudgingDelays(ds ...time.Duration) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.judgeDelay = d
+	p.judgeDelays = ds
+}
+
+// SetScopeDelay delays every scope-check answer by d.
+func (p *FakeProxy) SetScopeDelay(d time.Duration) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.scopeDelay = d
+}
+
+// wait pauses d unless the request goes away first (false).
+func wait(r *http.Request, d time.Duration) bool {
+	if d <= 0 {
+		return true
+	}
+	select {
+	case <-time.After(d):
+		return true
+	case <-r.Context().Done():
+		return false
+	}
 }
 
 // JudgingRequests counts passage-judging requests so far.
@@ -76,15 +100,15 @@ func (p *FakeProxy) JudgingRequests() int {
 // admitJudging applies injected judging failures and delays.
 func (p *FakeProxy) admitJudging(w http.ResponseWriter, r *http.Request) bool {
 	p.mu.Lock()
+	var delay time.Duration
+	if len(p.judgeDelays) > 0 {
+		delay = p.judgeDelays[p.judgeCalls%len(p.judgeDelays)]
+	}
 	p.judgeCalls++
-	fail, delay := p.judgeFail, p.judgeDelay
+	fail := p.judgeFail
 	p.mu.Unlock()
-	if delay > 0 {
-		select {
-		case <-time.After(delay):
-		case <-r.Context().Done():
-			return false
-		}
+	if !wait(r, delay) {
+		return false
 	}
 	if fail != 0 {
 		writeErr(w, fail, "judging failure (test)")
@@ -253,8 +277,11 @@ func (p *FakeProxy) admitSystemOne(w http.ResponseWriter, r *http.Request, st fa
 	case st.Message != nil && st.Agent != nil:
 		p.mu.Lock()
 		p.scopeCalls++
-		fail := p.scopeFail
+		fail, delay := p.scopeFail, p.scopeDelay
 		p.mu.Unlock()
+		if !wait(r, delay) {
+			return false
+		}
 		if fail != 0 {
 			writeErr(w, fail, "scope failure (test)")
 			return false

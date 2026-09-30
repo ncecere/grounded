@@ -90,7 +90,7 @@ func decideFakeReply(in *fakeChatRequest, answer string, script []FakeToolCall) 
 	_ = json.Unmarshal(in.ToolChoice, &choice)
 
 	switch {
-	case len(in.Tools) == 0 && strings.Contains(strings.ToLower(sys), "standalone"):
+	case isFakeRewrite(in):
 		out.text = question
 	case len(script) > 0:
 		if call, ok := scriptedCall(in, choice, script, toolResults); ok {
@@ -111,6 +111,20 @@ func decideFakeReply(in *fakeChatRequest, answer string, script []FakeToolCall) 
 		out.text = fakeAnswer(sys, question, current, answer)
 	}
 	return out
+}
+
+// isFakeRewrite recognises a query rewrite: no tools and a system prompt
+// asking for a standalone query.
+func isFakeRewrite(in *fakeChatRequest) bool {
+	if len(in.Tools) > 0 {
+		return false
+	}
+	for _, m := range in.Messages {
+		if (m.Role == "system" || m.Role == "developer") && strings.Contains(strings.ToLower(fakeText(m.Content)), "standalone") {
+			return true
+		}
+	}
+	return false
 }
 
 // scriptedCall is the scripted call for this turn, when it is offered.
@@ -259,10 +273,16 @@ func (p *FakeProxy) completions(w http.ResponseWriter, r *http.Request) {
 	}
 	ok := p.chat[in.Model]
 	p.chatBodies = append(p.chatBodies, raw)
-	delay, answer, script := p.chunkDelay, p.answer, p.toolScript
+	delay, answer, script, first := p.chunkDelay, p.answer, p.toolScript, p.replyDelay
+	if isFakeRewrite(&in) {
+		first = p.rewriteDelay
+	}
 	p.mu.Unlock()
 	if !ok {
 		writeErr(w, 404, "model not found")
+		return
+	}
+	if !wait(r, first) {
 		return
 	}
 

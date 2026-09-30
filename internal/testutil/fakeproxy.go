@@ -64,18 +64,20 @@ type FakeProxy struct {
 	*httptest.Server
 	APIKey string
 
-	mu         sync.Mutex
-	chat       map[string]bool // chat model IDs
-	embedding  map[string]int  // embedding model ID -> dimensions
-	matryoshka map[string]bool // embedding models that accept "dimensions"
-	embedDims  []int           // the "dimensions" parameter of each embedding request (0 = none)
-	fail       int             // if non-zero, respond with this status
-	chatFail   int             // if non-zero, chat completions respond with this status
-	chunkDelay time.Duration   // pause between streamed chunks
-	answer     string          // SetAnswer: the reply to a question with sources
-	toolScript []FakeToolCall  // SetToolCalls
-	chatBodies []json.RawMessage
-	Requests   []string // "METHOD /path model" log
+	mu           sync.Mutex
+	chat         map[string]bool // chat model IDs
+	embedding    map[string]int  // embedding model ID -> dimensions
+	matryoshka   map[string]bool // embedding models that accept "dimensions"
+	embedDims    []int           // the "dimensions" parameter of each embedding request (0 = none)
+	fail         int             // if non-zero, respond with this status
+	chatFail     int             // if non-zero, chat completions respond with this status
+	chunkDelay   time.Duration   // pause between streamed chunks
+	replyDelay   time.Duration   // pause before a chat completion's first byte
+	rewriteDelay time.Duration   // pause before a query rewrite's
+	answer       string          // SetAnswer: the reply to a question with sources
+	toolScript   []FakeToolCall  // SetToolCalls
+	chatBodies   []json.RawMessage
+	Requests     []string // "METHOD /path model" log
 
 	// Embedding load simulation (see RejectEmbeddings, LimitEmbeddingRate).
 	rejectN          int
@@ -94,9 +96,9 @@ type FakeProxy struct {
 	modCalls int
 
 	// Passage judging (fakesystemone.go).
-	judgeFail  int
-	judgeDelay time.Duration
-	judgeCalls int
+	judgeFail   int
+	judgeDelays []time.Duration // request n waits judgeDelays[n % len]
+	judgeCalls  int
 
 	// Vision models (fakevision.go).
 	vision      map[string]bool
@@ -108,6 +110,7 @@ type FakeProxy struct {
 	citeDelay  time.Duration
 	scopeCalls int
 	scopeFail  int
+	scopeDelay time.Duration
 }
 
 // FakeReasoning is the reasoning the fake streams before every reply.
@@ -243,6 +246,16 @@ func (p *FakeProxy) SetChunkDelay(d time.Duration) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.chunkDelay = d
+}
+
+// SetReplyDelay pauses before a chat completion's first byte (0 = none):
+// rewrite before a query rewrite's (a reasoning model thinking before it
+// writes the query), firstToken before any other (the model's time to
+// first token).
+func (p *FakeProxy) SetReplyDelay(firstToken, rewrite time.Duration) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.replyDelay, p.rewriteDelay = firstToken, rewrite
 }
 
 // RejectEmbeddings makes the next n embedding requests fail with status,
