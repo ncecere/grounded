@@ -274,12 +274,14 @@ func oauthUseMCP(t *testing.T, env *agentEnv, access, agentSlug string) {
 		t.Fatalf("connect with an access token: %v", err)
 	}
 	names, tools := toolNames(t, cs)
-	if strings.Join(names, ",") != "ask,search" || strings.Join(schemaEnum(t, tools["search"], "knowledge_base"), ",") != "student-help" ||
-		strings.Join(schemaEnum(t, tools["ask"], "agent"), ",") != agentSlug {
-		t.Fatalf("tools = %v", names)
+	// A person's names carry the team, in one team or several, so joining a team renames nothing.
+	kb, agent := env.team+"/student-help", env.team+"/"+agentSlug
+	if strings.Join(names, ",") != "ask,search" || strings.Join(schemaEnum(t, tools["search"], "knowledge_base"), ",") != kb ||
+		strings.Join(schemaEnum(t, tools["ask"], "agent"), ",") != agent {
+		t.Fatalf("tools = %v, knowledge bases %v, agents %v", names, schemaEnum(t, tools["search"], "knowledge_base"), schemaEnum(t, tools["ask"], "agent"))
 	}
 	var found mcpserver.SearchResult
-	res := callTool(t, cs, "search", map[string]any{"knowledge_base": "student-help", "query": "Where do I buy a parking permit?"}, &found)
+	res := callTool(t, cs, "search", map[string]any{"knowledge_base": kb, "query": "Where do I buy a parking permit?"}, &found)
 	if res.IsError || len(found.Passages) == 0 {
 		t.Fatalf("search = %s", toolText(res))
 	}
@@ -289,7 +291,7 @@ func oauthUseMCP(t *testing.T, env *agentEnv, access, agentSlug string) {
 		t.Errorf("mcp usage as the person = %d", n)
 	}
 	var asked mcpserver.AskResult
-	res = callTool(t, cs, "ask", map[string]any{"agent": agentSlug, "question": "Where do students buy a parking permit?"}, &asked)
+	res = callTool(t, cs, "ask", map[string]any{"agent": agent, "question": "Where do students buy a parking permit?"}, &asked)
 	if res.IsError || asked.Conversation == "" {
 		t.Fatalf("ask = %s", toolText(res))
 	}

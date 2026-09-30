@@ -141,6 +141,7 @@ A token acts as the person, with only the `mcp` scope, and is checked against th
 - **`search`:** the knowledge bases of every team they belong to now, except those whose classification keeps programs to agents (as for API keys).
 - **`ask`:** the published agents of those teams. Not other teams' agents that are open to everyone signed in, and not public agents: a personal key can't reach those either.
 - Their platform role (admin or auditor) doesn't apply through a token.
+- **Names carry the team.** Through a connection, knowledge bases and agents are named `<team>/<name>`, with the team's slug: `it-help-desk/it-help-articles`, `it-help-desk/help-desk-assistant`. That's so in one team or several, so joining or leaving a team renames nothing, and two teams' "Handbook"s can't be confused. A key's names have no team (the key belongs to one): `it-help-articles`.
 - Its conversations are the person's, like a personal key's; a follow-up handle only works with the same connection.
 - Limits: the team's query and chat limits, the person's own per-minute limit, and the per-key query rate applied per connection; the request rate per connection is the API key rate.
 
@@ -203,7 +204,7 @@ A key that may search no knowledge base has no `search` tool, and one that may u
 
 | Argument | | |
 |---|---|---|
-| `knowledge_base` | required | One of the key's knowledge bases, by a name made from its title (`Student handbook` → `student-handbook`; two titles that make the same name get the start of their ID appended) |
+| `knowledge_base` | required | One of the key's knowledge bases, by a name made from its title (`Student handbook` → `student-handbook`; two titles that make the same name get the start of their ID appended). Through OAuth, the name starts with the team's slug: `registrar/student-handbook` |
 | `query` | required | 1–4,000 characters |
 | `top_k` | optional | 1–50 passages; by default the knowledge base's own setting |
 
@@ -231,7 +232,7 @@ It returns the passages twice: as text for the model to read, and as structured 
 
 | Argument | | |
 |---|---|---|
-| `agent` | required | One of the published agents the key may chat with, by its address name (`go-docs`) |
+| `agent` | required | One of the published agents the key may chat with, by its address name (`go-docs`). Through OAuth, it starts with the team's slug: `registrar/go-docs` |
 | `question` | required | 1–8,000 characters |
 | `conversation` | optional | The `conversation` value a previous `ask` returned, to ask a follow-up (personal keys only) |
 

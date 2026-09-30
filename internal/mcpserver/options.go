@@ -27,36 +27,52 @@ const maxOptionText = 200
 // kbOptions names knowledge bases by a slug of their name ("Student
 // handbook" → student-handbook). Names are unique in a team, but two can
 // share a slug ("A & B", "A-B"); those get the start of their ID appended,
-// so every slug is unique and stays the same while the names do.
+// so every slug is unique and stays the same while the names do. A person
+// signed in with OAuth may work in several teams, so their names always
+// start with the team's slug (it-help-desk/student-handbook): the same in
+// one team or five, so joining or leaving a team renames nothing.
 func kbOptions(list []KnowledgeBase) []option {
 	out := make([]option, len(list))
 	count := map[string]int{}
 	for i, kb := range list {
-		out[i] = option{ID: kb.ID, Slug: slugify(kb.Name), Name: kb.Name, Description: kb.Description, TeamID: kb.TeamID}
+		out[i] = option{ID: kb.ID, Slug: teamPrefix(kb.TeamSlug) + slugify(kb.Name), Name: kb.Name, Description: kb.Description, TeamID: kb.TeamID}
 		count[out[i].Slug]++
 	}
 	return unique(out, count)
 }
 
-// unique appends the start of their ID to slugs that are empty or shared.
+// teamPrefix is "<team-slug>/" for a person's options, "" for a key's.
+func teamPrefix(teamSlug string) string {
+	if teamSlug == "" {
+		return ""
+	}
+	return teamSlug + "/"
+}
+
+// unique appends the start of their ID to slugs that are empty (or only a
+// team) or shared.
 func unique(out []option, count map[string]int) []option {
 	for i := range out {
-		if out[i].Slug == "" || count[out[i].Slug] > 1 {
-			out[i].Slug = strings.TrimPrefix(out[i].Slug+"-"+out[i].ID.String()[:8], "-")
+		s := out[i].Slug
+		if s == "" || strings.HasSuffix(s, "/") || count[s] > 1 {
+			sep := "-"
+			if s == "" || strings.HasSuffix(s, "/") {
+				sep = ""
+			}
+			out[i].Slug = s + sep + out[i].ID.String()[:8]
 		}
 	}
 	return out
 }
 
-// agentOptions name agents by their slug (unique in a team; agents of two
-// teams, for a person signed in with OAuth, can share one, and then get the
-// start of their ID appended like knowledge bases).
+// agentOptions name agents by their slug, unique in a team; a person's
+// start with the team's slug, like knowledge bases (it-help-desk/helper).
 func agentOptions(list []Agent) []option {
 	out := make([]option, len(list))
 	count := map[string]int{}
 	for i, ag := range list {
-		out[i] = option(ag)
-		count[ag.Slug]++
+		out[i] = option{ID: ag.ID, Slug: teamPrefix(ag.TeamSlug) + ag.Slug, Name: ag.Name, Description: ag.Description, TeamID: ag.TeamID}
+		count[out[i].Slug]++
 	}
 	return unique(out, count)
 }

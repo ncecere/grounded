@@ -15,18 +15,22 @@ import (
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
-// KnowledgeBase is a knowledge base the caller may search.
+// KnowledgeBase is a knowledge base the caller may search. TeamSlug is set
+// for a person signed in with OAuth, whose options carry their team
+// (options.go).
 type KnowledgeBase struct {
 	ID                uuid.UUID
 	Name, Description string
 	TeamID            uuid.UUID
+	TeamSlug          string
 }
 
-// Agent is an agent the caller may ask.
+// Agent is an agent the caller may ask (TeamSlug as for KnowledgeBase).
 type Agent struct {
 	ID                      uuid.UUID
 	Slug, Name, Description string
 	TeamID                  uuid.UUID
+	TeamSlug                string
 }
 
 // Backend is what the tools use: Grounded's services, called exactly as the
@@ -55,8 +59,8 @@ var _ Backend = (*Services)(nil)
 
 // team is a team the actor works in.
 type team struct {
-	ID   uuid.UUID
-	Name string
+	ID         uuid.UUID
+	Slug, Name string
 }
 
 // teams are the teams the actor works in: an API key's team, or every team
@@ -75,7 +79,7 @@ func (s *Services) teams(ctx context.Context, a authz.Actor) ([]team, error) {
 	}
 	out := make([]team, len(rows))
 	for i, r := range rows {
-		out[i] = team{ID: r.ID, Name: r.Name}
+		out[i] = team{ID: r.ID, Slug: r.Slug, Name: r.Name}
 	}
 	return out, nil
 }
@@ -114,7 +118,11 @@ func (s *Services) KnowledgeBases(ctx context.Context, a authz.Actor) ([]Knowled
 				}
 				return nil, err
 			}
-			out = append(out, KnowledgeBase{ID: kb.ID, Name: withTeam(kb.Name, t, len(teams) > 1), Description: kb.Description, TeamID: kb.TeamID})
+			item := KnowledgeBase{ID: kb.ID, Name: withTeam(kb.Name, t, len(teams) > 1), Description: kb.Description, TeamID: kb.TeamID}
+			if a.Key == nil {
+				item.TeamSlug = t.Slug
+			}
+			out = append(out, item)
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
@@ -143,17 +151,17 @@ func (s *Services) Agents(ctx context.Context, a authz.Actor) ([]Agent, error) {
 	}
 	out := make([]Agent, 0, len(cards))
 	for _, c := range cards {
-		name := c.Agent.Name
+		ag := Agent{ID: c.Agent.ID, Slug: c.Agent.Slug, Name: c.Agent.Name, Description: c.Agent.Description, TeamID: c.Agent.TeamID}
 		if member != nil {
 			t, ok := member[c.Agent.TeamID]
 			if !ok {
 				continue
 			}
-			name = withTeam(name, t, len(member) > 1)
+			ag.Name, ag.TeamSlug = withTeam(ag.Name, t, len(member) > 1), t.Slug
 		}
-		out = append(out, Agent{ID: c.Agent.ID, Slug: c.Agent.Slug, Name: name, Description: c.Agent.Description, TeamID: c.Agent.TeamID})
+		out = append(out, ag)
 	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].Slug < out[j].Slug })
+	sort.SliceStable(out, func(i, j int) bool { return out[i].TeamSlug+"/"+out[i].Slug < out[j].TeamSlug+"/"+out[j].Slug })
 	return out, nil
 }
 
