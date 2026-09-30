@@ -45,13 +45,25 @@ DELETE FROM mcp_servers WHERE id = @id;
 
 -- name: MCPServerPublishedUses :many
 -- The agents whose published (current) version uses a tool of the server.
-SELECT DISTINCT a.id, a.name, t.slug AS team_slug, t.name AS team_name
+SELECT DISTINCT a.id, a.name, t.slug AS team_slug, t.name AS team_name, v.version
 FROM agents a
 JOIN teams t ON t.id = a.team_id
+JOIN agent_versions v ON v.id = a.published_version_id
 JOIN agent_tools vt ON vt.version_id = a.published_version_id
 JOIN mcp_server_tools st ON st.id = vt.tool_id
 WHERE st.server_id = @server_id AND a.deleted_at IS NULL
 ORDER BY a.name, a.id;
+
+-- name: MCPServerToolPublishedUses :many
+-- Per tool of the server, the agents whose published (current) version uses it.
+SELECT vt.tool_id, a.id AS agent_id, a.name, t.slug AS team_slug, t.name AS team_name, v.version
+FROM agents a
+JOIN teams t ON t.id = a.team_id
+JOIN agent_versions v ON v.id = a.published_version_id
+JOIN agent_tools vt ON vt.version_id = a.published_version_id
+JOIN mcp_server_tools st ON st.id = vt.tool_id
+WHERE st.server_id = @server_id AND a.deleted_at IS NULL
+ORDER BY lower(a.name), a.id;
 
 -- ---- tools ----------------------------------------------------------------------
 

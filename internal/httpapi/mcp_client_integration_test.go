@@ -249,8 +249,29 @@ func TestMCPToolInAnswer(t *testing.T) {
 	}
 
 	// A published version uses the server: it can't be deleted.
-	code, e := env.admin.call("DELETE", "/v1/admin/mcp-servers/"+env.server.Id.String(), nil, nil, nil)
-	mustCode(t, "delete in use", code, e, 409, "mcp_server_in_use")
+	// The refusal names the agents and their published versions.
+	code, raw := env.admin.raw("DELETE", "/v1/admin/mcp-servers/"+env.server.Id.String(), nil, nil)
+	mustCode(t, "delete in use", code, errorCode(raw), 409, "mcp_server_in_use")
+	if !strings.Contains(string(raw), `"name":"Status helper"`) || !strings.Contains(string(raw), `"version":1`) {
+		t.Fatalf("delete in use details = %s", raw)
+	}
+	// The tool list names the agents that use each tool, so withdrawing
+	// an approval can ask first.
+	var tools []apitypes.MCPServerTool
+	if code := env.admin.get("/v1/admin/mcp-servers/"+env.server.Id.String()+"/tools", &tools); code != 200 {
+		t.Fatalf("tools = %d", code)
+	}
+	for _, tool := range tools {
+		n := 0
+		if tool.UsedBy != nil {
+			n = len(*tool.UsedBy)
+		}
+		if want := map[bool]int{true: 1, false: 0}[tool.Name == "check_outage"]; n != want ||
+			(n == 1 && ((*tool.UsedBy)[0].AgentName != "Status helper" || (*tool.UsedBy)[0].Version != 1)) {
+			t.Fatalf("%s usedBy = %+v", tool.Name, tool.UsedBy)
+		}
+	}
+	var e string
 	// Unapproved, the tool is left out of answers at once, and the agent shows a warning.
 	code, e = env.admin.call("PUT", "/v1/admin/mcp-servers/"+env.server.Id.String()+"/tools/"+env.tools["check_outage"].Id.String()+"/approval",
 		map[string]any{"approved": false}, nil, nil)

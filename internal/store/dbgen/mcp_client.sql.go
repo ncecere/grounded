@@ -462,9 +462,10 @@ func (q *Queries) MCPServerCallTarget(ctx context.Context, id uuid.UUID) (MCPSer
 }
 
 const mCPServerPublishedUses = `-- name: MCPServerPublishedUses :many
-SELECT DISTINCT a.id, a.name, t.slug AS team_slug, t.name AS team_name
+SELECT DISTINCT a.id, a.name, t.slug AS team_slug, t.name AS team_name, v.version
 FROM agents a
 JOIN teams t ON t.id = a.team_id
+JOIN agent_versions v ON v.id = a.published_version_id
 JOIN agent_tools vt ON vt.version_id = a.published_version_id
 JOIN mcp_server_tools st ON st.id = vt.tool_id
 WHERE st.server_id = $1 AND a.deleted_at IS NULL
@@ -476,6 +477,7 @@ type MCPServerPublishedUsesRow struct {
 	Name     string
 	TeamSlug string
 	TeamName string
+	Version  int32
 }
 
 // The agents whose published (current) version uses a tool of the server.
@@ -493,6 +495,55 @@ func (q *Queries) MCPServerPublishedUses(ctx context.Context, serverID uuid.UUID
 			&i.Name,
 			&i.TeamSlug,
 			&i.TeamName,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const mCPServerToolPublishedUses = `-- name: MCPServerToolPublishedUses :many
+SELECT vt.tool_id, a.id AS agent_id, a.name, t.slug AS team_slug, t.name AS team_name, v.version
+FROM agents a
+JOIN teams t ON t.id = a.team_id
+JOIN agent_versions v ON v.id = a.published_version_id
+JOIN agent_tools vt ON vt.version_id = a.published_version_id
+JOIN mcp_server_tools st ON st.id = vt.tool_id
+WHERE st.server_id = $1 AND a.deleted_at IS NULL
+ORDER BY lower(a.name), a.id
+`
+
+type MCPServerToolPublishedUsesRow struct {
+	ToolID   uuid.UUID
+	AgentID  uuid.UUID
+	Name     string
+	TeamSlug string
+	TeamName string
+	Version  int32
+}
+
+// Per tool of the server, the agents whose published (current) version uses it.
+func (q *Queries) MCPServerToolPublishedUses(ctx context.Context, serverID uuid.UUID) ([]MCPServerToolPublishedUsesRow, error) {
+	rows, err := q.db.Query(ctx, mCPServerToolPublishedUses, serverID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MCPServerToolPublishedUsesRow{}
+	for rows.Next() {
+		var i MCPServerToolPublishedUsesRow
+		if err := rows.Scan(
+			&i.ToolID,
+			&i.AgentID,
+			&i.Name,
+			&i.TeamSlug,
+			&i.TeamName,
+			&i.Version,
 		); err != nil {
 			return nil, err
 		}

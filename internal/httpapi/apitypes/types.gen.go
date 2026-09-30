@@ -7272,6 +7272,9 @@ type MCPServerTool struct {
 	Name     string             `json:"name"`
 	ServerId openapi_types.UUID `json:"serverId"`
 	Title    string             `json:"title"`
+
+	// UsedBy The agents whose published version uses the tool (in the tool list and the refresh result; absent elsewhere)
+	UsedBy *[]MCPToolUse `json:"usedBy,omitempty"`
 }
 
 // MCPServerUpdate defines model for MCPServerUpdate.
@@ -7325,6 +7328,17 @@ type MCPToolOption struct {
 	ServerId          openapi_types.UUID `json:"serverId"`
 	ServerName        string             `json:"serverName"`
 	Title             string             `json:"title"`
+}
+
+// MCPToolUse An agent whose published version uses an MCP tool
+type MCPToolUse struct {
+	AgentId   openapi_types.UUID `json:"agentId"`
+	AgentName string             `json:"agentName"`
+	TeamName  string             `json:"teamName"`
+	TeamSlug  string             `json:"teamSlug"`
+
+	// Version The published version number
+	Version int32 `json:"version"`
 }
 
 // MaintenanceErrorResponse defines model for MaintenanceErrorResponse.

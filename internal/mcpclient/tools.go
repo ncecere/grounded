@@ -39,6 +39,27 @@ func (s *Service) ListTools(ctx context.Context, a authz.Actor, serverID uuid.UU
 	return s.q.ListMCPServerTools(ctx, serverID)
 }
 
+// ToolUse is an agent whose published version uses one of a server's tools.
+type ToolUse = dbgen.MCPServerToolPublishedUsesRow
+
+// ToolUses lists, per tool of a server, the agents whose published version
+// uses it, so the admin sees who loses a tool before withdrawing its
+// approval (platform admins and auditors).
+func (s *Service) ToolUses(ctx context.Context, a authz.Actor, serverID uuid.UUID) (map[uuid.UUID][]ToolUse, error) {
+	if !a.CanReadPlatform() {
+		return nil, errReadOnly
+	}
+	rows, err := s.q.MCPServerToolPublishedUses(ctx, serverID)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[uuid.UUID][]ToolUse, len(rows))
+	for _, r := range rows {
+		out[r.ToolID] = append(out[r.ToolID], r)
+	}
+	return out, nil
+}
+
 // RefreshSummary counts what a refresh changed.
 type RefreshSummary struct {
 	Listed, Added, Changed, Gone int

@@ -1069,7 +1069,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an MCP server and its tools (platform admins; audited)
-         * @description Refused (409 mcp_server_in_use, details.agents) while a published agent version uses one of its tools: turn the server off instead, or publish those agents without its tools. Past versions lose the tools.
+         * @description Refused (409 mcp_server_in_use, details.agents: each agent's id, name, teamSlug, teamName and published version) while a published agent version uses one of its tools: turn the server off instead, or publish those agents without its tools. Past versions lose the tools.
          */
         delete: operations["adminDeleteMCPServer"];
         options?: never;
@@ -5695,6 +5695,21 @@ export interface components {
              * @description When a refresh no longer found it (absent while listed); a gone tool is unapproved
              */
             goneAt?: string;
+            /** @description The agents whose published version uses the tool (in the tool list and the refresh result; absent elsewhere) */
+            usedBy?: components["schemas"]["MCPToolUse"][];
+        };
+        /** @description An agent whose published version uses an MCP tool */
+        MCPToolUse: {
+            /** Format: uuid */
+            agentId: string;
+            agentName: string;
+            teamSlug: string;
+            teamName: string;
+            /**
+             * Format: int32
+             * @description The published version number
+             */
+            version: number;
         };
         MCPRefreshResult: {
             /** @description Tools the server lists */
