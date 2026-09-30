@@ -134,6 +134,8 @@ CROSS JOIN LATERAL (
         WHEN 'evaluation_run' THEN (SELECT 'Run of ' || ers.name FROM eval_runs er JOIN eval_sets ers ON ers.id = er.set_id WHERE er.id = ids.target_uuid)
         WHEN 'evaluation_settings' THEN 'Evaluations'
         WHEN 'mcp_settings' THEN 'MCP server'
+        WHEN 'mcp_server' THEN (SELECT ms.name FROM mcp_servers ms WHERE ms.id = ids.target_uuid)
+        WHEN 'mcp_tool' THEN (SELECT mt.name || ' (' || mts.name || ')' FROM mcp_server_tools mt JOIN mcp_servers mts ON mts.id = mt.server_id WHERE mt.id = ids.target_uuid)
         WHEN 'conversation' THEN (SELECT 'Conversation' FROM conversations cv WHERE cv.id = ids.target_uuid)
     END)::text AS label
 ) live
