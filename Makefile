@@ -22,7 +22,7 @@ KIND        := $(K8S_TOOLS)/kind-$(KIND_VERSION)/kind
 PROMETHEUS_VERSION ?= 3.15.0
 PROMTOOL := $(CURDIR)/bin/obs-tools/prometheus-$(PROMETHEUS_VERSION)/promtool
 
-.PHONY: help deps-up dev-up deps-down mail-up demo generate check-generated web web-test e2e web-dev fake-proxy widget-demo build run migrate test test-authz test-unit lint fmt docker k8s-validate k8s-smoke k8s-load k8s-restore-rehearsal vendor-k8s cover-report upgrade-test deps-inventory obs-validate obs-generate
+.PHONY: help deps-up dev-up deps-down mail-up demo generate check-generated web web-test e2e web-dev fake-proxy fake-mcp widget-demo build run migrate test test-authz test-unit lint fmt docker k8s-validate k8s-smoke k8s-load k8s-restore-rehearsal vendor-k8s cover-report upgrade-test deps-inventory obs-validate obs-generate
 
 help: ## Show targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-16s %s\n", $$1, $$2}'
@@ -69,6 +69,9 @@ web-dev: ## Run the Vite dev server on :5173 (proxies to `make run` on :8080)
 
 fake-proxy: ## Run a fake OpenAI-compatible proxy on :8090 (key sk-dev-fake)
 	$(GO) run ./cmd/fakeproxy
+
+fake-mcp: ## Run a fake remote MCP server on :8091/mcp (docs/mcp-client.md)
+	$(GO) run ./cmd/fakemcp
 
 widget-demo: ## Serve a page embedding the widget on :8095 (GROUNDED_URL, WIDGET_AGENT, WIDGET_KEY)
 	$(GO) run ./cmd/widgetdemo

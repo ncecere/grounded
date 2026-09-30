@@ -53,10 +53,19 @@ const FakeMCPHugeChars = 50000
 
 // NewFakeMCP starts the fake on a loopback address (closed with the test).
 func NewFakeMCP(t testing.TB) *FakeMCP {
+	f, h := NewFakeMCPHandler()
+	f.Server = httptest.NewServer(h)
+	t.Cleanup(f.Close)
+	return f
+}
+
+// NewFakeMCPHandler builds the fake without starting a server (cmd/fakemcp
+// serves it for local development and smoke tests; URL() then isn't set).
+func NewFakeMCPHandler() (*FakeMCP, http.Handler) {
 	f := &FakeMCP{slow: 5 * time.Second, hidden: map[string]bool{}, descriptions: map[string]string{}}
 	h := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return f.server() },
 		&mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true, PropagateRequestCancellation: true})
-	f.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return f, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		f.requests++
 		name, value := f.header, f.value
@@ -67,9 +76,7 @@ func NewFakeMCP(t testing.TB) *FakeMCP {
 		}
 		r = r.WithContext(context.WithValue(r.Context(), fakeMCPHeaderKey{}, r.Header.Clone()))
 		h.ServeHTTP(w, r)
-	}))
-	t.Cleanup(f.Close)
-	return f
+	})
 }
 
 type fakeMCPHeaderKey struct{}

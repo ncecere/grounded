@@ -152,6 +152,7 @@ type fakeChatRequest struct {
 	StreamOptions *struct {
 		IncludeUsage bool `json:"include_usage"`
 	} `json:"stream_options"`
+	Tools []fakeTool `json:"tools"` // fakemodels_tools.go
 }
 
 // messageText reads a message content: a string or text parts.
@@ -179,6 +180,10 @@ func fakeCompletions(w http.ResponseWriter, r *http.Request, wordDelay time.Dura
 	}
 	if in.Model != FakeChatModel {
 		fakeError(w, http.StatusNotFound, "model not found")
+		return
+	}
+	if name, args, ok := demoToolCall(&in); ok {
+		writeToolCall(w, &in, name, args)
 		return
 	}
 	text, promptWords := fakeReply(&in)
