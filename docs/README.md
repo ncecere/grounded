@@ -65,6 +65,7 @@ People who run the admin portal: models, classifications, policies and governanc
 | [`operations/costs.md`](operations/costs.md) | Prices, cost modes and monthly team budgets; handling a team whose budget is used up |
 | [`operations/evaluations.md`](operations/evaluations.md) | Evaluation sets for knowledge bases and agents: building, running, reading results, automatic runs (team editors and platform admins) |
 | [`mcp.md`](mcp.md) | The MCP server: turning it on, the MCP key scope, limits, audit and metrics |
+| [`operations/health.md`](operations/health.md) | Stored health of connections and models: what Test and the scheduled check send, the schedule, error classes, retention, the metrics and alert |
 | [`benchmarks/`](benchmarks/README.md) | Measurements that inform model and setting choices: [scale](benchmarks/scale-10k.md), [vector store](benchmarks/vector-gate.md), [boilerplate](benchmarks/boilerplate.md), [self-hosted models](benchmarks/spark-models.md), [SystemOne](benchmarks/systemone.md), [load at 2× the sizing](benchmarks/load.md) |
 
 ## Operators
@@ -83,7 +84,7 @@ People who deploy, upgrade and monitor an install:
 | [`operations/monitoring.md`](operations/monitoring.md) | Metrics, dashboards, alerts and SLOs |
 | [`operations/alerts.md`](operations/alerts.md) | A runbook for each alert |
 | [`../deploy/observability/README.md`](../deploy/observability/README.md) | The dashboards and alert rules |
-| [`operations/retention.md`](operations/retention.md), [`operations/break-glass.md`](operations/break-glass.md), [`operations/profile-migration.md`](operations/profile-migration.md), [`operations/sso-groups.md`](operations/sso-groups.md), [`operations/ocr.md`](operations/ocr.md), [`operations/costs.md`](operations/costs.md), [`operations/evaluations.md`](operations/evaluations.md) | Runbooks shared with platform admins |
+| [`operations/retention.md`](operations/retention.md), [`operations/break-glass.md`](operations/break-glass.md), [`operations/profile-migration.md`](operations/profile-migration.md), [`operations/sso-groups.md`](operations/sso-groups.md), [`operations/ocr.md`](operations/ocr.md), [`operations/costs.md`](operations/costs.md), [`operations/evaluations.md`](operations/evaluations.md), [`operations/health.md`](operations/health.md) | Runbooks shared with platform admins |
 | [DESIGN §15](DESIGN.md#15-architecture-deployment-and-operations-adr-0001-adr-0013-adr-0014) | Architecture, availability target, backups and delivery |
 
 ## Security reviewers

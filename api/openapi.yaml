@@ -1544,7 +1544,9 @@ paths:
         (probe tells which). The test opens a new connection and reports the
         phases of its first request (timings). A failure names its cause:
         certificate, TLS, proxy, refused or reset connection, DNS, or a
-        timeout with the phase it happened in.
+        timeout with the phase it happened in. The result is stored as the
+        connection's health, and so is the health it implies for the
+        connection's enabled models (adminListHealthChecks).
       responses:
         "200":
           description: Test result (ok is false when the proxy call failed)
@@ -1686,7 +1688,8 @@ paths:
         The test opens a new connection and reports the phases of its first
         request (timings). A failure names its cause: certificate, TLS,
         proxy, refused or reset connection, DNS, or a timeout with the phase
-        it happened in.
+        it happened in. The result is stored as the model's health
+        (adminListHealthChecks).
       responses:
         "200":
           description: Test result (ok is false when the proxy call failed)
@@ -1721,6 +1724,39 @@ paths:
                 required: [data]
                 properties:
                   data: { $ref: "#/components/schemas/CatalogUsage" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/health-checks:
+    get:
+      tags: [admin]
+      operationId: adminListHealthChecks
+      summary: The latest health check of each connection and model (platform admins and auditors)
+      description: >-
+        Stored health (docs/operations/health.md): the latest result of each
+        subject's Test, whether an admin pressed Test or the health job
+        re-tested it. Subjects never tested are absent. The health job tests
+        each enabled connection (GET /models, or one small SystemOne question
+        for a SystemOne service) and derives its enabled models' health from
+        that result without calling them; a model's own Test sends it one
+        small request.
+      parameters:
+        - name: kind
+          in: query
+          required: false
+          description: Only subjects of this kind
+          schema: { $ref: "#/components/schemas/HealthSubjectKind" }
+      responses:
+        "200":
+          description: Latest checks
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/HealthCheck" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/embedding-profiles:
     get:
@@ -8010,6 +8046,35 @@ components:
         requestsPerMinute: { type: integer, format: int32, minimum: 0, maximum: 1000000, description: "Omit to keep; 0 removes the limit" }
         maxConcurrentRequests: { type: integer, format: int32, minimum: 1, maximum: 256 }
         enabled: { type: boolean }
+    HealthSubjectKind:
+      type: string
+      description: What a health check tested (MCP servers will join in a later release)
+      enum: [connection, model]
+    HealthCheck:
+      type: object
+      description: >-
+        A subject's latest stored health check. status is failing when the
+        test failed; statusSince is when the current status began (the first
+        check of the current streak) and survives pruning of older checks.
+      required: [subjectKind, subjectId, subjectName, subjectEnabled, status, latencyMs, message, trigger, checkedAt, statusSince]
+      properties:
+        subjectKind: { $ref: "#/components/schemas/HealthSubjectKind" }
+        subjectId: { type: string, format: uuid }
+        subjectName: { type: string, description: The connection's name or the model's display name }
+        subjectEnabled: { type: boolean, description: "Whether the subject is enabled (a model only while its connection is too); only enabled subjects are re-tested and counted as failing" }
+        status: { type: string, enum: [healthy, failing] }
+        latencyMs: { type: integer, format: int32 }
+        errorClass:
+          type: string
+          enum: [unavailable, auth, not_found, rate_limited, bad_request, bad_response, config]
+          description: "Why the test failed (failing only): the proxy error kind, or config when the subject's own settings keep it from being tested (for example an API key the current ENCRYPTION_KEY can't decrypt)"
+        httpStatus: { type: integer, format: int32, description: "HTTP status from the proxy, when it answered (failing only)" }
+        message: { type: string, description: "A short message for admins (empty when healthy); keys are redacted and response bodies never stored" }
+        trigger: { type: string, enum: [manual, scheduled], description: "manual: an admin pressed Test; scheduled: the health job" }
+        triggeredBy: { type: string, format: uuid, description: Who pressed Test (manual checks by a user who still exists) }
+        triggeredByName: { type: string, description: "Their display name (manual checks)" }
+        checkedAt: { type: string, format: date-time }
+        statusSince: { type: string, format: date-time }
     ConnectionTestResult:
       type: object
       required: [ok, latencyMs, models, probe]

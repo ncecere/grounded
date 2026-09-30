@@ -5,7 +5,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, CheckCircle2, CircleDollarSign, FileWarning, Gauge, Globe, LogIn, Mail, PowerOff, ShieldAlert, ShieldOff, TriangleAlert } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleDollarSign, Cpu, FileWarning, Gauge, Globe, LogIn, Mail, Plug, PowerOff, ShieldAlert, ShieldOff, TriangleAlert } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
@@ -14,6 +14,7 @@ import { SkeletonText } from "@/components/ui/skeleton/skeleton";
 import type { Schemas } from "@/api/client";
 import { formatMoney, formatStorage as formatBytes } from "@/lib/format";
 import { adminAgentsQuery } from "../agents/agents";
+import { failingCount, healthChecksQuery } from "../models/health";
 import { useIsPlatformAdmin } from "../hooks";
 import { attentionQuery, overviewQuery, publicAccessQuery, publicPolicyQuery } from "./queries";
 import o from "./overview.module.css";
@@ -51,6 +52,7 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
   const agents = useQuery(adminAgentsQuery());
   const access = useQuery(publicAccessQuery());
   const policy = useQuery(publicPolicyQuery());
+  const health = useQuery(healthChecksQuery());
   const rows: Row[] = [];
   const pending = attention.data?.pendingDomainRequests ?? 0;
   if (pending > 0) {
@@ -62,6 +64,31 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
       action: isAdmin ? "Review" : "View requests",
       link: <Link to="/admin/crawl-domains" />,
       tone: "warning",
+    });
+  }
+  // Stored health (E11): enabled connections and models whose latest test failed.
+  const failingConns = failingCount(health.data, "connection");
+  if (failingConns > 0) {
+    rows.push({
+      id: "health-connections",
+      icon: <Plug />,
+      title: `${plural(failingConns, "connection is", "connections are")} failing`,
+      description: "Their latest test failed, so the models on them can't answer.",
+      action: "View connections",
+      link: <Link to="/admin/connections" search={{ health: "failing" } as never} />,
+      tone: "danger",
+    });
+  }
+  const failingModels = failingCount(health.data, "model");
+  if (failingModels > 0) {
+    rows.push({
+      id: "health-models",
+      icon: <Cpu />,
+      title: `${plural(failingModels, "model is", "models are")} failing`,
+      description: "Their latest test failed. Agents and knowledge bases that use them may not work.",
+      action: "View models",
+      link: <Link to="/admin/models" search={{ health: "failing" } as never} />,
+      tone: "danger",
     });
   }
   const disabled = (agents.data ?? []).filter((a) => a.status === "disabled_by_platform");
@@ -135,7 +162,7 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
       tone: n.state === "exhausted" ? "danger" : "warning",
     });
   }
-  return { rows, loading: overview.isLoading || attention.isLoading || agents.isLoading || policy.isLoading || access.isLoading };
+  return { rows, loading: overview.isLoading || attention.isLoading || agents.isLoading || policy.isLoading || access.isLoading || health.isLoading };
 }
 
 export function AttentionQueue() {

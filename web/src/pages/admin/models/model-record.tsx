@@ -1,5 +1,5 @@
-/* One model in a RecordPage (A5): details, a test with its result in place, its prices (E2), what uses it, and edit/delete. */
-import { useMutation } from "@tanstack/react-query";
+/* One model in a RecordPage (A5): details and stored health (E11), a test with its result in place, its prices (E2), what uses it, and edit/delete. */
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FlaskConical, Pencil, Trash2 } from "lucide-react";
 import { api, unwrap } from "@/api/client";
 import { RelativeTime } from "@/components/templates/list-page";
@@ -13,11 +13,17 @@ import { ClassificationBadge, useClassificationLevels } from "../../team/common"
 import { ModerationSamples } from "../moderation/scores";
 import { SystemOneSample } from "../systemone/sample";
 import { EnabledBadge, kindLabels, type Model, type ModelUsage, modelUsedBy, ProxyErrorText, TimingsText } from "./common";
+import { type HealthCheck, healthFacts, refreshHealth } from "./health";
 import m from "./models.module.css";
 import { isPricedKind, ModelPricingSection } from "./pricing";
 
 export function useModelTest() {
-  return useMutation({ mutationFn: async (model: Model) => unwrap(await api.POST("/v1/admin/models/{modelId}/test", { params: { path: { modelId: model.id } } })) });
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (model: Model) => unwrap(await api.POST("/v1/admin/models/{modelId}/test", { params: { path: { modelId: model.id } } })),
+    // The result is stored as the model's health.
+    onSettled: () => refreshHealth(qc),
+  });
 }
 type ModelTest = ReturnType<typeof useModelTest>;
 
@@ -48,6 +54,8 @@ export function ModelTestResult({ test }: { test: ModelTest }) {
 
 type Props = {
   model?: Model;
+  /** Its latest stored health check (none: not tested yet). */
+  health?: HealthCheck;
   open: boolean;
   loading: boolean;
   onClose: () => void;
@@ -61,7 +69,7 @@ type Props = {
   back?: { label: string; href: string };
 };
 
-export function ModelRecordPage({ model, open, loading, onClose, connectionName, usage, isAdmin, test, onEdit, onDelete, back }: Props) {
+export function ModelRecordPage({ model, health, open, loading, onClose, connectionName, usage, isAdmin, test, onEdit, onDelete, back }: Props) {
   const levels = useClassificationLevels();
   const usedBy = modelUsedBy(usage);
   const testedThis = test.variables?.id === model?.id;
@@ -84,6 +92,7 @@ export function ModelRecordPage({ model, open, loading, onClose, connectionName,
               { label: "Connection", value: connectionName },
               { label: "Max classification", value: <ClassificationBadge levels={levels.data} value={model.maxClassification} /> },
               { label: "Status", value: <EnabledBadge enabled={model.enabled} /> },
+              ...healthFacts(health),
               { label: "Context window", value: model.contextWindow?.toLocaleString() },
               { label: "Max output tokens", value: model.maxOutputTokens?.toLocaleString() },
               { label: "Dimensions", value: model.dimensions?.toLocaleString() },

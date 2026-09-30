@@ -69,6 +69,29 @@ func duration(dst func(*Config) *time.Duration, min, max time.Duration) func(*Co
 	}
 }
 
+// Bounds of HEALTH_CHECK_INTERVAL: more often than every 5 minutes would
+// only load the gateways; less often than daily isn't a health check.
+const (
+	minHealthInterval = 5 * time.Minute
+	maxHealthInterval = 24 * time.Hour
+)
+
+// healthInterval parses HEALTH_CHECK_INTERVAL: a duration, or 0 or "off"
+// to turn the scheduled re-test off.
+func healthInterval(c *Config, v string) error {
+	v = strings.ToLower(strings.TrimSpace(v))
+	if v == "0" || v == "off" {
+		c.HealthCheckInterval = 0
+		return nil
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || (d != 0 && (d < minHealthInterval || d > maxHealthInterval)) {
+		return fmt.Errorf("must be 0 or \"off\", or a duration from %s to %s", minHealthInterval, maxHealthInterval)
+	}
+	c.HealthCheckInterval = d
+	return nil
+}
+
 func list(dst func(*Config) *[]string, lower bool) func(*Config, string) error {
 	return func(c *Config, v string) error {
 		var out []string
@@ -125,6 +148,7 @@ var settings = []setting{
 	{key: "EMBED_BATCH_WAIT", apply: duration(func(c *Config) *time.Duration { return &c.EmbedBatchWait }, 0, 10*time.Second)},
 	{key: "PROFILE_MIGRATION_GRACE_DAYS", apply: integer(func(c *Config) *int { return &c.ProfileMigrationGraceDays }, 0, 90)},
 	{key: "EVALUATION_CONCURRENCY", apply: integer(func(c *Config) *int { return &c.EvaluationConcurrency }, 1, 8)},
+	{key: "HEALTH_CHECK_INTERVAL", apply: healthInterval},
 	{key: "VECTOR_EXACT_THRESHOLD", apply: func(c *Config, v string) error {
 		n, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
 		if err != nil || n < 0 || n > 100_000_000 {

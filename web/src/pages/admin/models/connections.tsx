@@ -1,7 +1,8 @@
 /*
  * Admin → Connections (A5): OpenAI-compatible proxies as a ListPage with a
- * row menu, the Models count linking to the filtered Models page, and each
- * connection in a RecordPage (details, test with "Add as model", edit).
+ * row menu, the Models count linking to the filtered Models page, stored
+ * health (E11) with a Health filter, and each connection in a RecordPage
+ * (details, test with "Add as model", edit).
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -20,9 +21,10 @@ import s from "../../shared.module.css";
 import { useIsPlatformAdmin } from "../hooks";
 import { type Connection, EnabledBadge, useConnections, useModels } from "./common";
 import { ConnectionForm, ConnectionRecordPage } from "./connection-record";
+import { type HealthCheck, healthColumn, healthFacet, useHealthChecks } from "./health";
 import { ModelDialog, type ModelPreset } from "./model-dialog";
 
-const columns: DataTableColumn<Connection>[] = [
+const columns = (health: (id: string) => HealthCheck | undefined): DataTableColumn<Connection>[] => [
   {
     id: "name",
     header: "Connection",
@@ -49,6 +51,7 @@ const columns: DataTableColumn<Connection>[] = [
   },
   { id: "timeout", header: "Timeout", accessor: "timeoutSeconds", numeric: true, muted: true, defaultHidden: true, cell: (c) => `${c.timeoutSeconds} s` },
   { id: "status", header: "Status", accessor: (c) => (c.enabled ? "Enabled" : "Disabled"), sortable: true, cell: (c) => <EnabledBadge enabled={c.enabled} /> },
+  healthColumn((c) => health(c.id)),
 ];
 
 /** The model to add, from ?form=model:<connection id>:<upstream model> (the upstream name may contain colons). */
@@ -61,6 +64,7 @@ export function ConnectionsPage() {
   const isAdmin = useIsPlatformAdmin();
   const conns = useConnections();
   const models = useModels();
+  const health = useHealthChecks();
   const record = useRecordParam();
   const qc = useQueryClient();
   // ?form=new, ?form=<connection id>, or ?form=model:<connection id>:<upstream model> (add a model it offers).
@@ -94,8 +98,9 @@ export function ConnectionsPage() {
         description="OpenAI-compatible proxies (such as LiteLLM, open-model-gateway or vLLM). Connect one, then add the models you want to offer."
         primaryAction={add}
         caption="Connections"
-        columns={columns}
+        columns={columns(health.get)}
         data={list}
+        facets={[healthFacet((c: Connection) => health.get(c.id))]}
         getRowId={(c) => c.id}
         rowLabel={(c) => c.name}
         search={{ label: "Search connections", placeholder: "Name or URL" }}
@@ -120,6 +125,7 @@ export function ConnectionsPage() {
       />
       <ConnectionRecordPage
         conn={open}
+        health={open && health.get(open.id)}
         open={Boolean(record.id)}
         loading={conns.isLoading}
         onClose={record.close}

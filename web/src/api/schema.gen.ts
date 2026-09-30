@@ -982,7 +982,7 @@ export interface paths {
         put?: never;
         /**
          * Test the connection (GET /models, or one SystemOne question for a SystemOne service)
-         * @description An OpenAI-compatible gateway is asked for its model list (GET /models). A SystemOne service serves no model list, so a connection whose models are all SystemOne models is tested with one small SystemOne question to its first SystemOne model instead, and so is a connection with a SystemOne model whose GET /models answers 404 (probe tells which). The test opens a new connection and reports the phases of its first request (timings). A failure names its cause: certificate, TLS, proxy, refused or reset connection, DNS, or a timeout with the phase it happened in.
+         * @description An OpenAI-compatible gateway is asked for its model list (GET /models). A SystemOne service serves no model list, so a connection whose models are all SystemOne models is tested with one small SystemOne question to its first SystemOne model instead, and so is a connection with a SystemOne model whose GET /models answers 404 (probe tells which). The test opens a new connection and reports the phases of its first request (timings). A failure names its cause: certificate, TLS, proxy, refused or reset connection, DNS, or a timeout with the phase it happened in. The result is stored as the connection's health, and so is the health it implies for the connection's enabled models (adminListHealthChecks).
          */
         post: operations["adminTestConnection"];
         delete?: never;
@@ -1043,7 +1043,7 @@ export interface paths {
         put?: never;
         /**
          * Send a tiny real request to the model
-         * @description The test opens a new connection and reports the phases of its first request (timings). A failure names its cause: certificate, TLS, proxy, refused or reset connection, DNS, or a timeout with the phase it happened in.
+         * @description The test opens a new connection and reports the phases of its first request (timings). A failure names its cause: certificate, TLS, proxy, refused or reset connection, DNS, or a timeout with the phase it happened in. The result is stored as the model's health (adminListHealthChecks).
          */
         post: operations["adminTestModel"];
         delete?: never;
@@ -1064,6 +1064,26 @@ export interface paths {
          * @description For each model, the agents whose published version or draft uses it as the chat model, the embedding profiles on it, the moderation policies that use it and whether SystemOne does; for each embedding profile, the data sources (team and shared) and knowledge bases on it.
          */
         get: operations["adminGetCatalogUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/health-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The latest health check of each connection and model (platform admins and auditors)
+         * @description Stored health (docs/operations/health.md): the latest result of each subject's Test, whether an admin pressed Test or the health job re-tested it. Subjects never tested are absent. The health job tests each enabled connection (GET /models, or one small SystemOne question for a SystemOne service) and derives its enabled models' health from that result without calling them; a model's own Test sends it one small request.
+         */
+        get: operations["adminListHealthChecks"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5313,6 +5333,53 @@ export interface components {
             /** Format: int32 */
             maxConcurrentRequests?: number;
             enabled?: boolean;
+        };
+        /**
+         * @description What a health check tested (MCP servers will join in a later release)
+         * @enum {string}
+         */
+        HealthSubjectKind: "connection" | "model";
+        /** @description A subject's latest stored health check. status is failing when the test failed; statusSince is when the current status began (the first check of the current streak) and survives pruning of older checks. */
+        HealthCheck: {
+            subjectKind: components["schemas"]["HealthSubjectKind"];
+            /** Format: uuid */
+            subjectId: string;
+            /** @description The connection's name or the model's display name */
+            subjectName: string;
+            /** @description Whether the subject is enabled (a model only while its connection is too); only enabled subjects are re-tested and counted as failing */
+            subjectEnabled: boolean;
+            /** @enum {string} */
+            status: "healthy" | "failing";
+            /** Format: int32 */
+            latencyMs: number;
+            /**
+             * @description Why the test failed (failing only): the proxy error kind, or config when the subject's own settings keep it from being tested (for example an API key the current ENCRYPTION_KEY can't decrypt)
+             * @enum {string}
+             */
+            errorClass?: "unavailable" | "auth" | "not_found" | "rate_limited" | "bad_request" | "bad_response" | "config";
+            /**
+             * Format: int32
+             * @description HTTP status from the proxy, when it answered (failing only)
+             */
+            httpStatus?: number;
+            /** @description A short message for admins (empty when healthy); keys are redacted and response bodies never stored */
+            message: string;
+            /**
+             * @description manual: an admin pressed Test; scheduled: the health job
+             * @enum {string}
+             */
+            trigger: "manual" | "scheduled";
+            /**
+             * Format: uuid
+             * @description Who pressed Test (manual checks by a user who still exists)
+             */
+            triggeredBy?: string;
+            /** @description Their display name (manual checks) */
+            triggeredByName?: string;
+            /** Format: date-time */
+            checkedAt: string;
+            /** Format: date-time */
+            statusSince: string;
         };
         ConnectionTestResult: {
             ok: boolean;
@@ -11368,6 +11435,33 @@ export interface operations {
                     };
                 };
             };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminListHealthChecks: {
+        parameters: {
+            query?: {
+                /** @description Only subjects of this kind */
+                kind?: components["schemas"]["HealthSubjectKind"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest checks */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["HealthCheck"][];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
         };
     };

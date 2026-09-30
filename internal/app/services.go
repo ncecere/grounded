@@ -22,6 +22,7 @@ import (
 	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/crawl"
 	"github.com/ncecere/grounded/internal/evals"
+	"github.com/ncecere/grounded/internal/healthcheck"
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/jobs"
 	"github.com/ncecere/grounded/internal/kbs"
@@ -85,6 +86,9 @@ type Services struct {
 	Costs *costs.Service
 	// OCR is Admin -> Parsing and ingestion's OCR (docs/ocr.md).
 	OCR *ocr.Service
+	// HealthChecks stores connection and model test results (stored
+	// health, docs/operations/health.md).
+	HealthChecks *healthcheck.Service
 	// jobs enqueues River jobs (may be insert-only).
 	jobs *jobs.Client
 	pool *pgxpool.Pool
@@ -147,11 +151,12 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 		return nil, fmt.Errorf("object storage: %w", err)
 	}
 	s := &Services{
-		Teams:    teams.NewService(pool),
-		Platform: platform.NewService(pool),
-		Catalog:  catalog.NewService(pool, box),
-		Blob:     store,
-		Vectors:  &vectorstore.PGVector{Pool: pool, EfSearch: cfg.VectorEfSearch, ExactThreshold: cfg.VectorExactThreshold},
+		Teams:        teams.NewService(pool),
+		Platform:     platform.NewService(pool),
+		Catalog:      catalog.NewService(pool, box),
+		Blob:         store,
+		HealthChecks: healthcheck.New(pool),
+		Vectors:      &vectorstore.PGVector{Pool: pool, EfSearch: cfg.VectorEfSearch, ExactThreshold: cfg.VectorExactThreshold},
 	}
 	if kvs != nil {
 		s.Catalog.Pacer = &ratelimit.Pacer{KV: kvs}
@@ -274,13 +279,14 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 				Pool: pool, Blob: s.Blob, Env: cfg.Retention, Log: log, Metrics: s.RetentionMetrics,
 			})
 			evals.Register(w, s.Evaluations)
+			registerHealth(w, cfg, pool, s, log)
 		},
 		Queues: map[string]river.QueueConfig{
 			ingest.Queue: {MaxWorkers: cfg.IngestConcurrency},
 			web.Queue:    {MaxWorkers: cfg.Crawl.Concurrency},
 			evals.Queue:  {MaxWorkers: 2},
 		},
-		Periodic: []*river.PeriodicJob{
+		Periodic: append([]*river.PeriodicJob{
 			river.NewPeriodicJob(river.PeriodicInterval(5*time.Second),
 				func() (river.JobArgs, *river.InsertOpts) { return ingest.DispatchArgs{}, nil },
 				&river.PeriodicJobOpts{RunOnStart: true}),
@@ -299,6 +305,6 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			retention.Periodic(),
 			costs.RollupPeriodic(),
 			evals.Periodic(),
-		},
+		}, healthPeriodic(cfg)...),
 	}, nil
 }

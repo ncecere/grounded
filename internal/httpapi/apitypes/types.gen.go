@@ -1794,6 +1794,93 @@ func (e HealthStatus) Valid() bool {
 	}
 }
 
+// Defines values for HealthCheckErrorClass.
+const (
+	HealthCheckErrorClassAuth        HealthCheckErrorClass = "auth"
+	HealthCheckErrorClassBadRequest  HealthCheckErrorClass = "bad_request"
+	HealthCheckErrorClassBadResponse HealthCheckErrorClass = "bad_response"
+	HealthCheckErrorClassConfig      HealthCheckErrorClass = "config"
+	HealthCheckErrorClassNotFound    HealthCheckErrorClass = "not_found"
+	HealthCheckErrorClassRateLimited HealthCheckErrorClass = "rate_limited"
+	HealthCheckErrorClassUnavailable HealthCheckErrorClass = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the HealthCheckErrorClass enum.
+func (e HealthCheckErrorClass) Valid() bool {
+	switch e {
+	case HealthCheckErrorClassAuth:
+		return true
+	case HealthCheckErrorClassBadRequest:
+		return true
+	case HealthCheckErrorClassBadResponse:
+		return true
+	case HealthCheckErrorClassConfig:
+		return true
+	case HealthCheckErrorClassNotFound:
+		return true
+	case HealthCheckErrorClassRateLimited:
+		return true
+	case HealthCheckErrorClassUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for HealthCheckStatus.
+const (
+	Failing HealthCheckStatus = "failing"
+	Healthy HealthCheckStatus = "healthy"
+)
+
+// Valid indicates whether the value is a known member of the HealthCheckStatus enum.
+func (e HealthCheckStatus) Valid() bool {
+	switch e {
+	case Failing:
+		return true
+	case Healthy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for HealthCheckTrigger.
+const (
+	HealthCheckTriggerManual    HealthCheckTrigger = "manual"
+	HealthCheckTriggerScheduled HealthCheckTrigger = "scheduled"
+)
+
+// Valid indicates whether the value is a known member of the HealthCheckTrigger enum.
+func (e HealthCheckTrigger) Valid() bool {
+	switch e {
+	case HealthCheckTriggerManual:
+		return true
+	case HealthCheckTriggerScheduled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for HealthSubjectKind.
+const (
+	HealthSubjectKindConnection HealthSubjectKind = "connection"
+	HealthSubjectKindModel      HealthSubjectKind = "model"
+)
+
+// Valid indicates whether the value is a known member of the HealthSubjectKind enum.
+func (e HealthSubjectKind) Valid() bool {
+	switch e {
+	case HealthSubjectKindConnection:
+		return true
+	case HealthSubjectKindModel:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ImpactedAgentReasons.
 const (
 	ImpactedAgentReasonsAudience ImpactedAgentReasons = "audience"
@@ -6594,6 +6681,54 @@ type Health struct {
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
 
+// HealthCheck A subject's latest stored health check. status is failing when the test failed; statusSince is when the current status began (the first check of the current streak) and survives pruning of older checks.
+type HealthCheck struct {
+	CheckedAt time.Time `json:"checkedAt"`
+
+	// ErrorClass Why the test failed (failing only): the proxy error kind, or config when the subject's own settings keep it from being tested (for example an API key the current ENCRYPTION_KEY can't decrypt)
+	ErrorClass *HealthCheckErrorClass `json:"errorClass,omitempty"`
+
+	// HttpStatus HTTP status from the proxy, when it answered (failing only)
+	HttpStatus *int32 `json:"httpStatus,omitempty"`
+	LatencyMs  int32  `json:"latencyMs"`
+
+	// Message A short message for admins (empty when healthy); keys are redacted and response bodies never stored
+	Message     string            `json:"message"`
+	Status      HealthCheckStatus `json:"status"`
+	StatusSince time.Time         `json:"statusSince"`
+
+	// SubjectEnabled Whether the subject is enabled (a model only while its connection is too); only enabled subjects are re-tested and counted as failing
+	SubjectEnabled bool               `json:"subjectEnabled"`
+	SubjectId      openapi_types.UUID `json:"subjectId"`
+
+	// SubjectKind What a health check tested (MCP servers will join in a later release)
+	SubjectKind HealthSubjectKind `json:"subjectKind"`
+
+	// SubjectName The connection's name or the model's display name
+	SubjectName string `json:"subjectName"`
+
+	// Trigger manual: an admin pressed Test; scheduled: the health job
+	Trigger HealthCheckTrigger `json:"trigger"`
+
+	// TriggeredBy Who pressed Test (manual checks by a user who still exists)
+	TriggeredBy *openapi_types.UUID `json:"triggeredBy,omitempty"`
+
+	// TriggeredByName Their display name (manual checks)
+	TriggeredByName *string `json:"triggeredByName,omitempty"`
+}
+
+// HealthCheckErrorClass Why the test failed (failing only): the proxy error kind, or config when the subject's own settings keep it from being tested (for example an API key the current ENCRYPTION_KEY can't decrypt)
+type HealthCheckErrorClass string
+
+// HealthCheckStatus defines model for HealthCheck.Status.
+type HealthCheckStatus string
+
+// HealthCheckTrigger manual: an admin pressed Test; scheduled: the health job
+type HealthCheckTrigger string
+
+// HealthSubjectKind What a health check tested (MCP servers will join in a later release)
+type HealthSubjectKind string
+
 // ImpactedAgent defines model for ImpactedAgent.
 type ImpactedAgent struct {
 	AgentId   openapi_types.UUID `json:"agentId"`
@@ -9698,6 +9833,12 @@ type AdminListGroupRulesParams struct {
 type AdminUpdateGroupRuleParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
 	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// AdminListHealthChecksParams defines parameters for AdminListHealthChecks.
+type AdminListHealthChecksParams struct {
+	// Kind Only subjects of this kind
+	Kind *HealthSubjectKind `form:"kind,omitempty" json:"kind,omitempty"`
 }
 
 // AdminListLegalHoldsParams defines parameters for AdminListLegalHolds.

@@ -95,7 +95,7 @@ func (a *api) testSystemOneModel(w http.ResponseWriter, r *http.Request, id uuid
 			ScoreLevels: systemone.TestScoreLevels, Score: res.Score,
 		}
 	}
-	httpx.JSON(w, http.StatusOK, out)
+	a.writeModelTest(w, r, id, out)
 }
 
 func toAPIJudgment(j systemone.Judgment) *apitypes.PassageJudgment {

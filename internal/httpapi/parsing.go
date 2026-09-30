@@ -148,5 +148,5 @@ func (a *api) testVisionModel(w http.ResponseWriter, r *http.Request, id uuid.UU
 	} else {
 		out.Error = &apitypes.ProxyError{Kind: "unavailable", Message: res.Error}
 	}
-	httpx.JSON(w, http.StatusOK, out)
+	a.writeModelTest(w, r, id, out)
 }

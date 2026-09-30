@@ -94,6 +94,7 @@ func newEnv(t *testing.T) *env {
 	cfg.BlobDir = t.TempDir()
 	cfg.Crawl.AllowPrivateAddressesForTests = true
 	cfg.Crawl.OriginInterval = 100 * time.Millisecond
+	cfg.HealthCheckInterval = 0 // no scheduled health checks of the fake gateway
 	inserter, err := jobs.NewInsertOnly(pool, testutil.Logger())
 	if err != nil {
 		t.Fatal(err)

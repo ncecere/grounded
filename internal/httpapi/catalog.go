@@ -195,6 +195,10 @@ func (a *api) adminTestConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	r = probeRequest(r)
 	res, err := a.Catalog.TestConnection(r.Context(), a.actor(r), id)
+	if a.actor(r).IsPlatformAdmin() {
+		// Stored health; an error that proves nothing is not stored.
+		a.recordConnectionTest(r, id, res, err)
+	}
 	if failed(w, r, err) {
 		return
 	}
@@ -335,7 +339,7 @@ func (a *api) adminTestModel(w http.ResponseWriter, r *http.Request) {
 			out.Reply = &res.Reply
 		}
 	}
-	httpx.JSON(w, http.StatusOK, out)
+	a.writeModelTest(w, r, id, out)
 }
 
 // ---- embedding profiles ---------------------------------------------------------

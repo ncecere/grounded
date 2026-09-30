@@ -24,6 +24,7 @@ import (
 const (
 	ProbeModels    = "models"    // GET /models
 	ProbeSystemOne = "systemone" // one SystemOne question
+	ProbeReach     = "reach"     // the SystemOne endpoint answers (ProbeConnectionFree)
 )
 
 // ProbeError is a proxy failure reported to admins in a test result.
@@ -66,6 +67,21 @@ func (s *Service) TestConnection(ctx context.Context, a authz.Actor, id uuid.UUI
 // ProbeConnection is TestConnection without the permission check, for the
 // operator's `grounded doctor`.
 func (s *Service) ProbeConnection(ctx context.Context, id uuid.UUID) (ConnectionTest, error) {
+	return s.probeConnection(ctx, id, probeSystemOne)
+}
+
+// ProbeConnectionFree is ProbeConnection for the scheduled health job
+// (docs/operations/health.md): it never asks a SystemOne question, since a
+// SystemOne service may bill per request. Where ProbeConnection would ask
+// one, it only checks that the SystemOne endpoint answers (ProbeReach): no
+// answer, a 5xx, a refused key or a 429 fails; anything else passes. GET
+// /models costs nothing, so other connections are tested as by the Test
+// button.
+func (s *Service) ProbeConnectionFree(ctx context.Context, id uuid.UUID) (ConnectionTest, error) {
+	return s.probeConnection(ctx, id, reachSystemOne)
+}
+
+func (s *Service) probeConnection(ctx context.Context, id uuid.UUID, systemOne func(context.Context, *gateway.Client, string) (ConnectionTest, error)) (ConnectionTest, error) {
 	c, err := s.q.GetConnection(ctx, id)
 	if err != nil {
 		return ConnectionTest{}, notFound(err, errNoConn)
@@ -79,7 +95,7 @@ func (s *Service) ProbeConnection(ctx context.Context, id uuid.UUID) (Connection
 		return ConnectionTest{}, err
 	}
 	if only {
-		return probeSystemOne(ctx, cl, model)
+		return systemOne(ctx, cl, model)
 	}
 	start := time.Now()
 	ids, err := cl.ListModels(ctx)
@@ -87,7 +103,7 @@ func (s *Service) ProbeConnection(ctx context.Context, id uuid.UUID) (Connection
 	var ge *gateway.Error
 	if model != "" && errors.As(err, &ge) && ge.Kind == gateway.KindNotFound {
 		// No model list, but a SystemOne model: a SystemOne service.
-		return probeSystemOne(ctx, cl, model)
+		return systemOne(ctx, cl, model)
 	}
 	if err != nil {
 		res.Error, err = probeError(err)
@@ -151,6 +167,29 @@ func probeSystemOne(ctx context.Context, cl *gateway.Client, model string) (Conn
 	res := ConnectionTest{Probe: ProbeSystemOne, SystemOneModel: model, Latency: time.Since(start), Models: []string{}}
 	if a, ok := out.Answers["q"]; err == nil && (!ok || a.Type != "noul" || a.Noul == nil) {
 		err = &gateway.Error{Kind: gateway.KindBadResponse, Message: "SystemOne: the answer to the test question is missing or not a yes/no answer"}
+	}
+	if err != nil {
+		res.Error, err = probeError(err)
+		return res, err
+	}
+	res.OK = true
+	return res, nil
+}
+
+// reachSystemOne checks that a SystemOne service answers without asking it
+// anything: a GET of the SystemOne endpoint (which serves only POST).
+func reachSystemOne(ctx context.Context, cl *gateway.Client, model string) (ConnectionTest, error) {
+	start := time.Now()
+	status, err := cl.Reach(ctx, SystemOnePath(cl.BaseURL))
+	res := ConnectionTest{Probe: ProbeReach, SystemOneModel: model, Latency: time.Since(start), Models: []string{}}
+	switch {
+	case err != nil:
+	case status == 401 || status == 403:
+		err = &gateway.Error{Kind: gateway.KindAuth, Status: status, Message: "SystemOne: the service refused the API key"}
+	case status == 429 || status == 529:
+		err = &gateway.Error{Kind: gateway.KindRateLimited, Status: status, Message: "SystemOne: the service is rate limiting requests"}
+	case status >= 500:
+		err = &gateway.Error{Kind: gateway.KindUnavailable, Status: status, Message: "SystemOne: the service answered with a server error"}
 	}
 	if err != nil {
 		res.Error, err = probeError(err)

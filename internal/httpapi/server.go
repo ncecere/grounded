@@ -22,6 +22,7 @@ import (
 	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/evals"
+	"github.com/ncecere/grounded/internal/healthcheck"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/kbs"
 	"github.com/ncecere/grounded/internal/kv"
@@ -102,6 +103,8 @@ type api struct {
 	// groups administers SSO group mapping rules; it needs only the pool
 	// and the OIDC settings.
 	groups *ssogroups.Service
+	// health stores and reads connection and model health (Test buttons).
+	health *healthcheck.Service
 }
 
 // route is one entry in the served surface.
@@ -134,7 +137,7 @@ func publicOpsRoutes(d Deps) []route {
 // apiRoutes is the full served surface, grouped by area.
 func apiRoutes(d Deps) []route {
 	a := &api{Deps: d, q: dbgen.New(d.Pool), analytics: analytics.New(d.Pool), widget: &widgetAssets{},
-		groups: ssogroups.New(d.Pool, d.Config.OIDC.GroupsClaim, d.Config.OIDC.Enabled())}
+		groups: ssogroups.New(d.Pool, d.Config.OIDC.GroupsClaim, d.Config.OIDC.Enabled()), health: healthcheck.New(d.Pool)}
 	routes := publicOpsRoutes(d)
 	for _, group := range [][]route{
 		a.authRoutes(), a.notificationRoutes(), a.teamRoutes(), a.sourceRoutes(), a.kbRoutes(), a.agentRoutes(), a.chatRoutes(),
@@ -318,6 +321,7 @@ func (a *api) catalogAdminRoutes() []route {
 		{"DELETE", "/v1/admin/models/{modelId}", a.admin(a.adminDeleteModel)},
 		{"POST", "/v1/admin/models/{modelId}/test", a.admin(a.adminTestModel)},
 		{"GET", "/v1/admin/catalog-usage", a.admin(a.adminGetCatalogUsage)},
+		{"GET", "/v1/admin/health-checks", a.admin(a.adminListHealthChecks)},
 		{"GET", "/v1/admin/embedding-profiles", a.admin(a.adminListEmbeddingProfiles)},
 		{"POST", "/v1/admin/embedding-profiles", a.admin(a.adminCreateEmbeddingProfile)},
 		{"GET", "/v1/admin/embedding-profiles/{profileId}", a.admin(a.adminGetEmbeddingProfile)},

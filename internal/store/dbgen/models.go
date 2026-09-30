@@ -433,6 +433,28 @@ type EvaluationSetting struct {
 	UpdatedAt time.Time
 }
 
+type HealthCheck struct {
+	ID          int64
+	SubjectKind string
+	SubjectID   uuid.UUID
+	Status      string
+	LatencyMs   int32
+	ErrorClass  *string
+	HttpStatus  *int32
+	Message     string
+	Trigger     string
+	TriggeredBy uuid.NullUUID
+	CheckedAt   time.Time
+	StatusSince time.Time
+}
+
+type HealthSubject struct {
+	SubjectKind string
+	SubjectID   uuid.UUID
+	Name        string
+	Enabled     bool
+}
+
 type KbSource struct {
 	KBID      uuid.UUID
 	SourceID  uuid.UUID

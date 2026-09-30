@@ -309,3 +309,21 @@ func TestValidateInstance(t *testing.T) {
 		})
 	}
 }
+
+func TestHealthCheckInterval(t *testing.T) {
+	c, err := LoadFrom("", env(nil))
+	if err != nil || c.HealthCheckInterval != 15*time.Minute {
+		t.Fatalf("default = %s %v", c.HealthCheckInterval, err)
+	}
+	for v, want := range map[string]time.Duration{"30m": 30 * time.Minute, "5m": 5 * time.Minute, "24h": 24 * time.Hour, "0": 0, "off": 0, "0s": 0} {
+		c, err := LoadFrom("", env(map[string]string{"HEALTH_CHECK_INTERVAL": v}))
+		if err != nil || c.HealthCheckInterval != want {
+			t.Errorf("%q = %s %v, want %s", v, c.HealthCheckInterval, err, want)
+		}
+	}
+	for _, v := range []string{"1m", "4m59s", "25h", "soon", "-5m"} {
+		if _, err := LoadFrom("", env(map[string]string{"HEALTH_CHECK_INTERVAL": v})); err == nil || !strings.Contains(err.Error(), "HEALTH_CHECK_INTERVAL") {
+			t.Errorf("%q: %v", v, err)
+		}
+	}
+}

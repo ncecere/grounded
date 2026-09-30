@@ -136,6 +136,18 @@ var (
 		Name: "grounded_mcp_tool_calls_total",
 		Help: "MCP server tool calls by tool (search, ask) and outcome (ok, refused, error).",
 	}, []string{"tool", "outcome"})
+	// HealthChecks counts stored health checks (docs/operations/health.md)
+	// by subject kind, trigger (manual, scheduled) and status (healthy,
+	// failing); grounded_health_failing (state.go) is the current state.
+	HealthChecks = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "grounded_health_checks_total",
+		Help: "Stored health checks of connections and models by subject kind, trigger (manual, scheduled) and status (healthy, failing).",
+	}, []string{"kind", "trigger", "status"})
+	HealthCheckDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "grounded_health_check_duration_seconds",
+		Help:    "Latency of the test behind a stored health check, by subject kind.",
+		Buckets: modelBuckets,
+	}, []string{"kind"})
 
 	ValkeyErrors = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "grounded_valkey_errors_total",
@@ -149,7 +161,7 @@ func appCollectors() []prometheus.Collector {
 		BuildInfo, ChatAnswers, ChatFirstToken, ChatDuration, RetrievalDuration,
 		ModelRequests, ModelRequestDuration, SystemOneRequests, SystemOneDuration, ModerationDecisions,
 		JobsWorked, JobDuration, IngestDocuments, IngestDuration, EmbeddingBatchInputs,
-		CrawlPages, CrawlFetchDuration, BreakGlassSessions, BreakGlassReads, MCPToolCalls, ValkeyErrors,
+		CrawlPages, CrawlFetchDuration, BreakGlassSessions, BreakGlassReads, MCPToolCalls, HealthChecks, HealthCheckDuration, ValkeyErrors,
 	}
 }
 
@@ -192,6 +204,12 @@ func ModelObserver(connection, kind string) func(outcome string, elapsed time.Du
 func ObserveSystemOne(feature, outcome string, d time.Duration) {
 	SystemOneRequests.WithLabelValues(feature, outcome).Inc()
 	SystemOneDuration.WithLabelValues(feature).Observe(d.Seconds())
+}
+
+// ObserveHealthCheck records a stored health check.
+func ObserveHealthCheck(kind, trigger, status string, d time.Duration) {
+	HealthChecks.WithLabelValues(kind, trigger, status).Inc()
+	HealthCheckDuration.WithLabelValues(kind).Observe(d.Seconds())
 }
 
 func outcome(err error) string {

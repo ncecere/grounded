@@ -101,5 +101,5 @@ func (a *api) testModerationModel(w http.ResponseWriter, r *http.Request, id uui
 			Benign: toAPIModerationResult(res.Benign), Harmful: toAPIModerationResult(res.Harmful),
 		}
 	}
-	httpx.JSON(w, http.StatusOK, out)
+	a.writeModelTest(w, r, id, out)
 }
