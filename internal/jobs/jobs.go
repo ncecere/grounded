@@ -23,7 +23,7 @@ type Client = river.Client[pgx.Tx]
 // NewInsertOnly returns a client that can enqueue jobs but never works them.
 // API processes use this.
 func NewInsertOnly(pool *pgxpool.Pool, log *slog.Logger) (*Client, error) {
-	return river.NewClient(riverpgxv5.New(pool), &river.Config{Logger: log})
+	return river.NewClient(riverpgxv5.New(pool), &river.Config{Logger: log, Middleware: []rivertype.Middleware{&traceMiddleware{}}})
 }
 
 // Registration adds application workers, queues and periodic jobs.
@@ -55,7 +55,7 @@ func NewWorker(pool *pgxpool.Pool, log *slog.Logger, concurrency int, reg Regist
 		Queues:       queues,
 		Workers:      workers,
 		PeriodicJobs: periodic,
-		Middleware:   []rivertype.Middleware{metricsMiddleware()},
+		Middleware:   []rivertype.Middleware{&traceMiddleware{}, metricsMiddleware()},
 	})
 }
 

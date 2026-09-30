@@ -66,7 +66,7 @@ func searchTool(opts []option) *mcp.Tool {
 		PropertyOrder: []string{"knowledge_base", "query", "top_k"},
 	}
 	return &mcp.Tool{
-		Name:  "search",
+		Name:  toolSearch,
 		Title: "Search a knowledge base",
 		Description: "Search one of these knowledge bases and get the most relevant passages, each with its title, headings, " +
 			"link and a citation number:" + describe(opts),

@@ -17,6 +17,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ncecere/grounded/internal/tracing"
 )
 
 // Sentinel errors. Fetch wraps them (possibly inside *url.Error); test with
@@ -136,7 +138,9 @@ func NewFetcher(cfg FetcherConfig) *Fetcher {
 		MaxIdleConnsPerHost:    2,
 		IdleConnTimeout:        30 * time.Second,
 	}
-	f.client = &http.Client{Transport: guardTransport{f: f, next: f.transport}, CheckRedirect: f.checkRedirect}
+	// A client span per request (method, host, status), outside the guard;
+	// no traceparent: web sites don't get Grounded's trace IDs.
+	f.client = &http.Client{Transport: tracing.Transport(guardTransport{f: f, next: f.transport}, false), CheckRedirect: f.checkRedirect}
 	return f
 }
 

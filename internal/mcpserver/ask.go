@@ -70,7 +70,7 @@ func askTool(opts []option) *mcp.Tool {
 		PropertyOrder: []string{"agent", "question", "conversation"},
 	}
 	return &mcp.Tool{
-		Name:  "ask",
+		Name:  toolAsk,
 		Title: "Ask an agent",
 		Description: "Ask one of these agents a question. It answers from its knowledge bases with [n] markers citing numbered sources, " +
 			"and says whether each claim is supported when its citations are checked:" + describe(opts),

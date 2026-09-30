@@ -7,10 +7,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/ncecere/grounded/internal/observability"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/tracing"
 )
 
 // Calls from agents (internal/agents). The agent chooses its tools from
@@ -93,9 +96,14 @@ type CallOutcome struct {
 
 // Call checks the server and calls the tool. err is a *Refusal, an *Error
 // or a database error; the outcome is set either way.
-func (s *Service) Call(ctx context.Context, req CallRequest) (CallOutcome, error) {
+func (s *Service) Call(ctx context.Context, req CallRequest) (out CallOutcome, err error) {
+	// The tool and server names are the registry's; the arguments and the
+	// result are never recorded (only the result's size).
+	ctx, span := tracing.StartKind(ctx, "tools/call "+req.Tool, trace.SpanKindClient, attribute.String("mcp.method.name", "tools/call"),
+		attribute.String("gen_ai.tool.name", req.Tool), attribute.String("grounded.mcp.server_id", req.ServerID.String()))
+	defer func() { endCallSpan(span, out) }()
 	start := time.Now()
-	out := CallOutcome{Outcome: OutcomeRefused}
+	out = CallOutcome{Outcome: OutcomeRefused}
 	row, err := s.q.MCPServerCallTarget(ctx, req.ServerID)
 	if errors.Is(store.NotFound(err), store.ErrNotFound) {
 		return out, &Refusal{RefusedDisabled, "This tool's server was removed."}
@@ -123,6 +131,16 @@ func (s *Service) Call(ctx context.Context, req CallRequest) (CallOutcome, error
 		return out, &Refusal{RefusedInput, e.Message}
 	}
 	return out, err
+}
+
+// endCallSpan records a call's server, outcome and result size.
+func endCallSpan(span trace.Span, out CallOutcome) {
+	span.SetAttributes(attribute.String("grounded.mcp.server", out.ServerName), attribute.String("grounded.mcp.outcome", out.Outcome),
+		attribute.Int("grounded.mcp.result_bytes", out.Result.Size))
+	if out.Outcome != OutcomeOK {
+		tracing.Fail(span, out.Outcome)
+	}
+	span.End()
 }
 
 func outcomeOf(r CallResult, err error) string {

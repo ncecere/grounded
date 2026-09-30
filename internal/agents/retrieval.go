@@ -9,10 +9,12 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/ncecere/grounded/internal/agentloop"
 	"github.com/ncecere/grounded/internal/kbs"
 	"github.com/ncecere/grounded/internal/systemone"
+	"github.com/ncecere/grounded/internal/tracing"
 )
 
 // numberedHit is a retrieved chunk with its source number within one answer.
@@ -77,6 +79,12 @@ func newRetriever(svc *kbs.Service, resolved []kbs.KB, c Config, user string) *r
 // by relevance, dropped passages are left out and conflicting ones follow
 // (marked). sj is nil when nothing was judged.
 func (r *retriever) search(ctx context.Context, query string, maxResults int) (out []numberedHit, sj *searchJudging, err error) {
+	// The query is never recorded: only counts.
+	ctx, span := tracing.Start(ctx, "agent.retrieve", attribute.Int("grounded.retrieval.kbs", len(r.kbs)), attribute.Bool("grounded.retrieval.judged", r.judge != nil))
+	defer func() {
+		span.SetAttributes(attribute.Int("grounded.retrieval.results", len(out)))
+		tracing.End(span, err)
+	}()
 	results, total := r.searchKBs(ctx, query)
 	if maxResults <= 0 || maxResults > total {
 		maxResults = total

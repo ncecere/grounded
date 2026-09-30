@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/ncecere/grounded/internal/agentloop"
 	"github.com/ncecere/grounded/internal/apperr"
@@ -21,6 +22,7 @@ import (
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
+	"github.com/ncecere/grounded/internal/tracing"
 )
 
 // Channels (message_events.channel).
@@ -334,8 +336,21 @@ func (s *Service) recordViolation(ctx context.Context, a authz.Actor, ag dbgen.A
 	}
 }
 
-// execute runs the shared part of chat and test chat.
-func (ru *run) execute(ctx context.Context, emit func(Event)) (Answer, error) {
+// execute runs the shared part of chat and test chat, as one span (IDs
+// and the channel only: never the question or the answer).
+func (ru *run) execute(ctx context.Context, emit func(Event)) (ans Answer, err error) {
+	ctx, span := tracing.Start(ctx, "agent.answer", attribute.String("grounded.team_id", ru.team.ID.String()),
+		attribute.String("grounded.agent_id", ru.agent.ID.String()), attribute.String("grounded.channel", ru.channel))
+	if v := ru.versionNum(); v != nil {
+		span.SetAttributes(attribute.Int("grounded.agent_version", int(*v)))
+	}
+	defer func() { tracing.End(span, err) }()
+	return ru.answer(ctx, emit)
+}
+
+// answer runs the pipeline: limits, moderation and scope, retrieval, the
+// agent loop and the checks of the answer.
+func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 	s := ru.s
 	ru.started = time.Now()
 	ru.out = &streamer{emit: emit}

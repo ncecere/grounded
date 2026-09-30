@@ -7,8 +7,12 @@ import (
 	"fmt"
 	"sync"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/llm"
+	"github.com/ncecere/grounded/internal/tracing"
 )
 
 // DefaultMaxTurns is used when Config.MaxTurns is not positive.
@@ -120,6 +124,7 @@ func Run(ctx context.Context, cfg Config, history []llm.Message, emit func(Event
 		final := turn > maxTurns
 		r.turn, r.final = turn, final
 		r.emit(Event{Type: TurnStart})
+		tctx, span := tracing.Start(ctx, "agent.turn", attribute.Int("grounded.agent.turn", turn), attribute.Bool("grounded.agent.final_turn", final))
 
 		lctx, opts := turnRequest(cfg, messages, turn, final, finalInstruction)
 
@@ -127,30 +132,42 @@ func Run(ctx context.Context, cfg Config, history []llm.Message, emit func(Event
 		if ctx.Err() != nil {
 			msg, err = r.abortedMessage(ctx)
 		} else {
-			msg, err = r.streamTurn(ctx, lctx, opts)
+			msg, err = r.streamTurn(tctx, lctx, opts)
 		}
 		messages = append(messages, msg)
 		added = append(added, msg)
 		if msg.StopReason == llm.StopReasonError || msg.StopReason == llm.StopReasonAborted {
+			endTurn(span, msg, 0)
 			r.emit(Event{Type: TurnEnd, Message: msg})
 			return end(err)
 		}
 
 		calls := msg.ToolCalls()
 		if len(calls) == 0 {
+			endTurn(span, msg, 0)
 			r.emit(Event{Type: TurnEnd, Message: msg})
 			return end(nil)
 		}
-		results := r.toolResults(ctx, msg, calls, final)
+		results := r.toolResults(tctx, msg, calls, final)
 		for _, res := range results {
 			messages = append(messages, res)
 			added = append(added, res)
 		}
+		endTurn(span, msg, len(calls))
 		r.emit(Event{Type: TurnEnd, Message: msg, ToolResults: results})
 		if final {
 			return end(nil)
 		}
 	}
+}
+
+// endTurn ends a turn's span with its stop reason and tool call count.
+func endTurn(span trace.Span, msg llm.AssistantMessage, calls int) {
+	span.SetAttributes(attribute.String("grounded.agent.stop_reason", string(msg.StopReason)), attribute.Int("grounded.agent.tool_calls", calls))
+	if msg.StopReason == llm.StopReasonError || msg.StopReason == llm.StopReasonAborted {
+		tracing.Fail(span, string(msg.StopReason))
+	}
+	span.End()
 }
 
 // turnRequest is the model request of a turn: tools are offered except on
@@ -345,6 +362,16 @@ func (r *runner) prepare(c llm.ToolCall) (*compiledTool, json.RawMessage, *outco
 
 // run executes a prepared call, turning errors and panics into error results.
 func (r *runner) run(ctx context.Context, t *compiledTool, c llm.ToolCall, args json.RawMessage) (o outcome) {
+	// The tool's name is a registered tool's (prepare refused others); the
+	// arguments and the result are never recorded.
+	ctx, span := tracing.Start(ctx, "execute_tool "+c.Name, attribute.String("gen_ai.operation.name", "execute_tool"),
+		attribute.String("gen_ai.tool.name", c.Name))
+	defer func() {
+		if o.isError {
+			tracing.Fail(span, "tool_error")
+		}
+		span.End()
+	}()
 	o.call = c
 	if ctx.Err() != nil {
 		o.result, o.isError = errorResult("Operation aborted"), true

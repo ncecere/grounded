@@ -11,6 +11,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/observability"
+	"github.com/ncecere/grounded/internal/tracing"
 )
 
 // Options configure the MCP server.
@@ -70,6 +71,9 @@ func (s *Server) For(reqCtx context.Context, c Caller) (*mcp.Server, error) {
 			cc.TTLMs, cc.CacheScope = ttl, "private"
 		},
 	})
+	// Each request is a span under the HTTP request's, continuing the
+	// caller's trace from _meta.traceparent (docs/operations/tracing.md).
+	srv.AddReceivingMiddleware(tracing.MCPServerMiddleware(toolAsk, toolSearch))
 	call := &toolCall{s: s, caller: c, reqCtx: reqCtx}
 	if opts := agentOptions(agentList); len(opts) > 0 {
 		mcp.AddTool(srv, askTool(opts), call.ask(opts))
@@ -93,6 +97,12 @@ func (t *toolCall) bound(ctx context.Context) (context.Context, context.CancelFu
 	stop := context.AfterFunc(t.reqCtx, cancel)
 	return ctx, func() { stop(); cancel() }
 }
+
+// The tools' names.
+const (
+	toolAsk    = "ask"
+	toolSearch = "search"
+)
 
 // Outcomes of a tool call (the metric's and the audit entry's).
 const (

@@ -15,6 +15,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/crawl"
+	"github.com/ncecere/grounded/internal/tracing"
 )
 
 // The address rule (docs/mcp-client.md, "Security"): an MCP server's URL is
@@ -191,8 +192,8 @@ func (b *cappedBody) Read(p []byte) (int, error) {
 }
 
 // httpClient builds the client of one exchange with a server: the guarded
-// dialer, no proxy from the environment, no redirects, the header and the
-// body cap. done closes its idle connections.
+// dialer, no proxy from the environment, no redirects, the header, the
+// body cap and a client span per request. done closes its idle connections.
 func (s *Service) httpClient(t target, ex *exchange) (client *http.Client, done func()) {
 	d := &dialer{allowPrivate: s.AllowPrivate, lookup: s.lookup, net: net.Dialer{Timeout: 10 * time.Second}}
 	tr := &http.Transport{
@@ -204,7 +205,9 @@ func (s *Service) httpClient(t target, ex *exchange) (client *http.Client, done 
 		IdleConnTimeout:       30 * time.Second,
 	}
 	return &http.Client{
-		Transport: &headerTransport{next: tr, header: t.headerName, value: t.headerValue, maxResponse: s.maxResponse(), ex: ex},
+		// A client span per exchange, with traceparent (the guarded dialer
+		// still sees every connection).
+		Transport: tracing.Transport(&headerTransport{next: tr, header: t.headerName, value: t.headerValue, maxResponse: s.maxResponse(), ex: ex}, true),
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return fmt.Errorf("%w: MCP servers may not redirect", ErrBlockedAddress)
 		},

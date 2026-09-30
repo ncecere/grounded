@@ -34,6 +34,7 @@ import (
 	"github.com/ncecere/grounded/internal/healthcheck"
 	"github.com/ncecere/grounded/internal/secrets"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/tracing"
 )
 
 // Bounds of the client (docs/mcp-client.md, "Limits").
@@ -120,6 +121,9 @@ func (s *Service) open(ctx context.Context, t target) (*session, error) {
 		Capabilities:   &mcp.ClientCapabilities{},
 		MultiRoundTrip: &mcp.MultiRoundTripOptions{Disabled: true},
 	})
+	// Trace context in each request's _meta (and, by the transport, in its
+	// HTTP headers): docs/operations/tracing.md.
+	client.AddSendingMiddleware(tracing.MCPClientMiddleware())
 	tr := &mcp.StreamableClientTransport{Endpoint: t.url, HTTPClient: hc, MaxRetries: -1, DisableStandaloneSSE: true,
 		MaxEventSize: int(s.maxResponse())}
 	cs, err := client.Connect(ctx, tr, nil)
