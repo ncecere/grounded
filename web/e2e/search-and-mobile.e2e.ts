@@ -33,7 +33,8 @@ test("⌘K stays responsive through quick open, type and close cycles with slow 
   for (let i = 0; i < 15; i++) {
     await page.keyboard.press("ControlOrMeta+k");
     await expect(palette.getByRole("combobox")).toBeFocused();
-    await page.keyboard.type(["transcript", "members", "audit log"][i % 3]!);
+    // One input event per word: typed key by key, a slow runner can pause past the debounce mid-word and search.
+    await page.keyboard.insertText(["transcript", "members", "audit log"][i % 3]!);
     // Every fifth cycle waits past the debounce, so a search is on its way when Escape comes.
     if (i % 5 === 4) await page.waitForTimeout(300);
     await page.keyboard.press("Escape");
