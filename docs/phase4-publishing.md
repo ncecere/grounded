@@ -75,7 +75,7 @@ Out:
   - **Output** is checked on the final text. Buffer mode sends the text only after it passes. Stream mode retracts: a `moderation` event is sent and the message is replaced by the notice.
   - Flagged-but-allowed content is recorded.
   - `message_events` gets `moderation_input` and `moderation_output` (JSON: decision, top category, score, provider), with no content (ADR-0010). The audit log records policy changes.
-- **Performance:** calls are bounded by the connection timeout and a moderation timeout (default 10 s). Input moderation runs concurrently with query rewrite when both are enabled.
+- **Performance:** calls are bounded by the connection timeout and a moderation timeout (default 10 s). Input moderation runs concurrently with the query rewrite and, in always mode, the search; a blocked question's search results are discarded before judging or the model.
 
 ## 5. Anonymous public chat
 

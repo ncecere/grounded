@@ -262,7 +262,7 @@ source.sync ─► document.fetch ─► document.parse ─► [scan hook] ─�
 - **Metadata and tags** are stored from the start. Filters (on source, type, tags, dates, URL prefix) come to `/retrieve` and agent settings in Phase 3. Letting the model choose filters itself in `tool` mode comes later.
 
 ### Retrieval
-1. If there is chat history, optionally rewrite the question as a standalone query with the chat model; a follow-up that can't stand alone and comes back unchanged is searched with the earlier questions.
+1. If there is chat history and the question depends on it (a few words, led by a conjunction, or with a referring pronoun), optionally rewrite it as a standalone query with the chat model; one that comes back unchanged is searched with the earlier questions. A question that stands on its own is searched as it is.
 2. Embed the query with the KB's profile, including the query prefix (e.g. nomic's `search_query:`).
 3. Run a vector search and a lexical search (Postgres full-text) in parallel. Both are filtered to the KB's source IDs, plus any metadata filters and (later) ACL filters. Each returns 4 × top-k candidates (at least 20). The lexical query ORs the question's stemmed lexemes and ranks with `ts_rank` normalised by document length; it is skipped when the keyword weight is 0.
 4. Merge the results with **weighted** reciprocal rank fusion: score = w<sub>v</sub>/(60 + vector rank) + w<sub>k</sub>/(60 + keyword rank). Ties break on the vector rank, then the keyword rank. Remove duplicates, and trim to the token budget.
