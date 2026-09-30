@@ -98,7 +98,7 @@ func newTestAppOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config),
 		OCR:    svc.OCR,
 		Public: svc.Public, Retention: svc.Retention, BreakGlass: svc.BreakGlass, Web: testWeb, WebBuilt: true,
 	}
-	deps.ProfileMigrations, deps.Evaluations, deps.MCP = svc.ProfileMigrations, svc.Evaluations, svc.MCP
+	deps.ProfileMigrations, deps.Evaluations, deps.MCP, deps.OAuth = svc.ProfileMigrations, svc.Evaluations, svc.MCP, svc.OAuth
 	svc.Limits.OnBackendError = metrics.RateLimitErrors.Inc
 	svc.Public.Guard.OnBackendError = metrics.RateLimitErrors.Inc
 	deps.Auth = auth.NewService(cfg, pool, kvs, metrics, log)

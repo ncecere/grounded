@@ -17,6 +17,7 @@ import (
 	"github.com/ncecere/grounded/internal/buildinfo"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/mcpserver"
+	"github.com/ncecere/grounded/internal/platform"
 	"github.com/ncecere/grounded/internal/secrets"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -63,10 +64,57 @@ func mcpRoutes(d Deps) []route {
 	return []route{{"POST", "/mcp", h}, {"GET", "/mcp", h}, {"DELETE", "/mcp", h}}
 }
 
-// mcpHandler checks the switch, then the API key (keyauth.go: invalid,
-// revoked, expired, a personal key's owner gone or suspended, the per-key
-// request rate), then the mcp scope, and serves the caller's MCP server.
+// mcpHandler checks the switch, then the credential: an OAuth access token
+// (while OAuth sign-in is on, mcp_oauth.go) or an API key (keyauth.go:
+// invalid, revoked, expired, a personal key's owner gone or suspended, the
+// per-key request rate) with the mcp scope, and serves the caller's MCP
+// server.
 func (a *api) mcpHandler() http.Handler {
+	serveAs := a.mcpServe()
+	serveKey := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key, _ := keyActor(r)
+		if !key.Key.HasScope(authz.ScopeMCP) {
+			mcpError(w, http.StatusForbidden, "missing_scope", "This API key does not have the mcp scope. Create a key with the MCP scope.")
+			return
+		}
+		serveAs(w, r, mcpserver.NewKeyCaller(a.actor(r)))
+	})
+	noKey := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if a.oauthOn(r.Context()) {
+			w.Header().Set("WWW-Authenticate", a.wwwAuthenticate(""))
+			mcpError(w, http.StatusUnauthorized, "unauthorized", "Sign in: connect with OAuth, or send an API key with the mcp scope as: Authorization: Bearer <key>")
+			return
+		}
+		mcpError(w, http.StatusUnauthorized, "invalid_api_key", "Send an API key with the mcp scope as: Authorization: Bearer <key>")
+	})
+	withKey := a.keyOr(noKey, serveKey, mcpError)
+	withToken := a.mcpOAuth(serveAs)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		on, err := a.Platform.MCPEnabled(r.Context())
+		if err != nil {
+			a.Log.ErrorContext(r.Context(), "mcp switch", "err", err)
+			mcpError(w, http.StatusInternalServerError, "internal", "Something went wrong. Try again shortly.")
+			return
+		}
+		if !on {
+			mcpError(w, http.StatusNotFound, "mcp_off", "The MCP server is off. A platform admin can turn it on under Admin, Overview, Features.")
+			return
+		}
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			mcpError(w, http.StatusMethodNotAllowed, "method_not_allowed", "This MCP server is stateless: send every request with POST.")
+			return
+		}
+		if token, ok := bearerAccessToken(r); ok {
+			withToken(w, r, token)
+			return
+		}
+		withKey.ServeHTTP(w, r)
+	})
+}
+
+// mcpServe returns what serves a caller its MCP server.
+func (a *api) mcpServe() func(w http.ResponseWriter, r *http.Request, c mcpserver.Caller) {
 	pepper, _ := secrets.ParseKey(a.Config.APIKeyPepper) // validated at startup
 	srv := mcpserver.New(mcpserver.Options{
 		Backend: &mcpserver.Services{KnowledgeBaseService: a.KBs, AgentService: a.Agents, Q: a.q},
@@ -84,55 +132,31 @@ func (a *api) mcpHandler() http.Handler {
 		// loopback with the public Host, which the SDK's guard would refuse.
 		DisableLocalhostProtection: true,
 	})
-	serve := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		key, _ := keyActor(r)
-		if !key.Key.HasScope(authz.ScopeMCP) {
-			mcpError(w, http.StatusForbidden, "missing_scope", "This API key does not have the mcp scope. Create a key with the MCP scope.")
-			return
-		}
+	return func(w http.ResponseWriter, r *http.Request, c mcpserver.Caller) {
 		ctx, cancel := context.WithTimeout(r.Context(), mcpRequestTimeout)
 		defer cancel()
-		s, err := srv.For(ctx, mcpserver.NewKeyCaller(a.actor(r)))
+		s, err := srv.For(ctx, c)
 		if err != nil {
 			a.Log.ErrorContext(ctx, "mcp server", "err", err)
 			mcpError(w, http.StatusInternalServerError, "internal", "Something went wrong. Try again shortly.")
 			return
 		}
 		sdk.ServeHTTP(w, r.WithContext(context.WithValue(ctx, mcpServerKey{}, s)))
-	})
-	noKey := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		mcpError(w, http.StatusUnauthorized, "invalid_api_key", "Send an API key with the mcp scope as: Authorization: Bearer <key>")
-	})
-	withKey := a.keyOr(noKey, serve, mcpError)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		on, err := a.Platform.MCPEnabled(r.Context())
-		if err != nil {
-			a.Log.ErrorContext(r.Context(), "mcp switch", "err", err)
-			mcpError(w, http.StatusInternalServerError, "internal", "Something went wrong. Try again shortly.")
-			return
-		}
-		if !on {
-			mcpError(w, http.StatusNotFound, "mcp_off", "The MCP server is off. A platform admin can turn it on under Admin, Overview, Features.")
-			return
-		}
-		if r.Method != http.MethodPost {
-			w.Header().Set("Allow", http.MethodPost)
-			mcpError(w, http.StatusMethodNotAllowed, "method_not_allowed", "This MCP server is stateless: send every request with POST.")
-			return
-		}
-		withKey.ServeHTTP(w, r)
-	})
+	}
 }
 
 // mcpError writes a refusal as an HTTP status with a JSON-RPC error body
 // (id null: the request wasn't read), which MCP clients show; code is the
-// Grounded error code, in data. A 401 names the Bearer scheme.
+// Grounded error code, in data. A 401 names the Bearer scheme (unless the
+// caller set a challenge already).
 func mcpError(w http.ResponseWriter, status int, code, message string) {
 	rpc := rpcInvalid
 	switch status {
 	case http.StatusUnauthorized:
 		rpc = rpcUnauthorized
-		w.Header().Set("WWW-Authenticate", `Bearer realm="grounded"`)
+		if w.Header().Get("WWW-Authenticate") == "" {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="grounded"`)
+		}
 	case http.StatusForbidden:
 		rpc = rpcForbidden
 	case http.StatusNotFound:
@@ -159,7 +183,7 @@ func (a *api) mcpOn(ctx context.Context) bool {
 }
 
 func toAPIMCPSettings(st dbgen.McpSetting) apitypes.MCPSettings {
-	return apitypes.MCPSettings{Enabled: st.Enabled, Revision: st.Revision, UpdatedAt: st.UpdatedAt}
+	return apitypes.MCPSettings{Enabled: st.Enabled, OauthEnabled: st.OauthEnabled, Revision: st.Revision, UpdatedAt: st.UpdatedAt}
 }
 
 func (a *api) adminGetMCPSettings(w http.ResponseWriter, r *http.Request) {
@@ -175,7 +199,7 @@ func (a *api) adminPutMCPSettings(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	st, err := a.Platform.SetMCPEnabled(r.Context(), a.actor(r), in.Enabled, rev)
+	st, err := a.Platform.SetMCPSettings(r.Context(), a.actor(r), platform.MCPSettingsUpdate{Enabled: in.Enabled, OAuth: in.OauthEnabled}, rev)
 	if failed(w, r, err) {
 		return
 	}

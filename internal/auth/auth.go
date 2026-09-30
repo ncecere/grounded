@@ -107,6 +107,21 @@ func (s *Service) HasSessionCookie(r *http.Request) bool {
 	return err == nil && c.Value != ""
 }
 
+// SessionUser returns the active user of the request's session, for pages
+// outside the API that behave differently for a signed-in person (the
+// OAuth authorization endpoint). ok is false without a valid session.
+func (s *Service) SessionUser(r *http.Request) (user dbgen.User, ok bool) {
+	c, err := r.Cookie(s.sessionCookieName())
+	if err != nil || c.Value == "" || len(c.Value) > 256 {
+		return dbgen.User{}, false
+	}
+	row, err := s.q.GetSessionUser(r.Context(), digest(c.Value))
+	if err != nil || row.User.Status != StatusActive {
+		return dbgen.User{}, false
+	}
+	return row.User, true
+}
+
 func (s *Service) sessionCookieName() string {
 	if s.cfg.SecureCookies() {
 		return "__Host-grounded_session"

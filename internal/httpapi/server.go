@@ -30,6 +30,7 @@ import (
 	"github.com/ncecere/grounded/internal/mcpclient"
 	"github.com/ncecere/grounded/internal/moderation"
 	"github.com/ncecere/grounded/internal/notify"
+	"github.com/ncecere/grounded/internal/oauth"
 	"github.com/ncecere/grounded/internal/observability"
 	"github.com/ncecere/grounded/internal/ocr"
 	"github.com/ncecere/grounded/internal/platform"
@@ -95,6 +96,8 @@ type Deps struct {
 	Evaluations *evals.Service
 	// MCP registers MCP servers and approves their tools (docs/mcp-client.md).
 	MCP *mcpclient.Service
+	// OAuth is the authorization server for /mcp (experimental, docs/mcp.md).
+	OAuth *oauth.Service
 }
 
 type api struct {
@@ -148,7 +151,7 @@ func apiRoutes(d Deps) []route {
 		a.publicRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
 		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(),
-		a.mcpSettingsRoutes(), a.mcpClientRoutes(),
+		a.mcpSettingsRoutes(), a.mcpClientRoutes(), a.oauthRESTRoutes(),
 	} {
 		routes = append(routes, group...)
 	}
@@ -398,7 +401,7 @@ func NewAPIHandler(d Deps) http.Handler {
 	if d.Web != nil {
 		fallback = spaHandler(d.Web, d.WebBuilt, d.spaOptions())
 	}
-	return build(d, append(apiRoutes(d), mcpRoutes(d)...), fallback)
+	return build(d, append(append(apiRoutes(d), mcpRoutes(d)...), oauthRoutes(d)...), fallback)
 }
 
 // NewOpsHandler serves only health and metrics (worker mode).

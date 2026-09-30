@@ -1301,19 +1301,19 @@ func (e DomainRequestStatus) Valid() bool {
 
 // Defines values for DomainReviewDecision.
 const (
-	Approve DomainReviewDecision = "approve"
-	Deny    DomainReviewDecision = "deny"
-	Revoke  DomainReviewDecision = "revoke"
+	DomainReviewDecisionApprove DomainReviewDecision = "approve"
+	DomainReviewDecisionDeny    DomainReviewDecision = "deny"
+	DomainReviewDecisionRevoke  DomainReviewDecision = "revoke"
 )
 
 // Valid indicates whether the value is a known member of the DomainReviewDecision enum.
 func (e DomainReviewDecision) Valid() bool {
 	switch e {
-	case Approve:
+	case DomainReviewDecisionApprove:
 		return true
-	case Deny:
+	case DomainReviewDecisionDeny:
 		return true
-	case Revoke:
+	case DomainReviewDecisionRevoke:
 		return true
 	default:
 		return false
@@ -2622,6 +2622,60 @@ func (e NotificationType) Valid() bool {
 	case NotificationTypeWebDomainRequestNew:
 		return true
 	case NotificationTypeWebSyncFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OAuthClientInfoKind.
+const (
+	OAuthClientInfoKindMetadata   OAuthClientInfoKind = "metadata"
+	OAuthClientInfoKindRegistered OAuthClientInfoKind = "registered"
+)
+
+// Valid indicates whether the value is a known member of the OAuthClientInfoKind enum.
+func (e OAuthClientInfoKind) Valid() bool {
+	switch e {
+	case OAuthClientInfoKindMetadata:
+		return true
+	case OAuthClientInfoKindRegistered:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OAuthConsentDecisionDecision.
+const (
+	OAuthConsentDecisionDecisionAllow OAuthConsentDecisionDecision = "allow"
+	OAuthConsentDecisionDecisionDeny  OAuthConsentDecisionDecision = "deny"
+)
+
+// Valid indicates whether the value is a known member of the OAuthConsentDecisionDecision enum.
+func (e OAuthConsentDecisionDecision) Valid() bool {
+	switch e {
+	case OAuthConsentDecisionDecisionAllow:
+		return true
+	case OAuthConsentDecisionDecisionDeny:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OAuthGrantClientKind.
+const (
+	OAuthGrantClientKindMetadata   OAuthGrantClientKind = "metadata"
+	OAuthGrantClientKindRegistered OAuthGrantClientKind = "registered"
+)
+
+// Valid indicates whether the value is a known member of the OAuthGrantClientKind enum.
+func (e OAuthGrantClientKind) Valid() bool {
+	switch e {
+	case OAuthGrantClientKindMetadata:
+		return true
+	case OAuthGrantClientKindRegistered:
 		return true
 	default:
 		return false
@@ -4904,7 +4958,10 @@ type Capabilities struct {
 	Evaluations *bool `json:"evaluations,omitempty"`
 
 	// Mcp The MCP server (POST /mcp) is on for the platform
-	Mcp             *bool `json:"mcp,omitempty"`
+	Mcp *bool `json:"mcp,omitempty"`
+
+	// McpOAuth OAuth sign-in for MCP clients is in effect (experimental; its setting and the MCP server are both on)
+	McpOAuth        *bool `json:"mcpOAuth,omitempty"`
 	PlatformAdmin   bool  `json:"platformAdmin"`
 	PlatformAuditor bool  `json:"platformAuditor"`
 }
@@ -7240,6 +7297,9 @@ type MCPSettings struct {
 	// Enabled Off by default; while off, POST /mcp answers 404
 	Enabled bool `json:"enabled"`
 
+	// OauthEnabled OAuth sign-in for MCP clients (experimental, off by default; docs/mcp.md). Only in effect while the MCP server is on. API keys work either way.
+	OauthEnabled bool `json:"oauthEnabled"`
+
 	// Revision Increases on every change. Send it back in If-Match.
 	Revision  Revision  `json:"revision"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -7248,6 +7308,9 @@ type MCPSettings struct {
 // MCPSettingsUpdate defines model for MCPSettingsUpdate.
 type MCPSettingsUpdate struct {
 	Enabled bool `json:"enabled"`
+
+	// OauthEnabled Omitted: unchanged
+	OauthEnabled *bool `json:"oauthEnabled,omitempty"`
 }
 
 // MCPToolOption defines model for MCPToolOption.
@@ -7956,6 +8019,66 @@ type NotificationType string
 type NotificationUpdate struct {
 	Read bool `json:"read"`
 }
+
+// OAuthClientInfo defines model for OAuthClientInfo.
+type OAuthClientInfo struct {
+	// Host The host that vouches for the client (a metadata document's host), or a registered client's home page host; may be empty
+	Host string `json:"host"`
+
+	// Id The client_id: an https URL (a metadata document) or a registered client's id
+	Id string `json:"id"`
+
+	// Kind metadata: its host vouches for it; registered: it registered itself (Dynamic Client Registration), so its name is unverified
+	Kind OAuthClientInfoKind `json:"kind"`
+
+	// LogoUrl The client's logo (https only)
+	LogoUrl *string `json:"logoUrl"`
+	Name    string  `json:"name"`
+
+	// Uri The client's home page (https)
+	Uri *string `json:"uri"`
+}
+
+// OAuthClientInfoKind metadata: its host vouches for it; registered: it registered itself (Dynamic Client Registration), so its name is unverified
+type OAuthClientInfoKind string
+
+// OAuthConsent defines model for OAuthConsent.
+type OAuthConsent struct {
+	Client OAuthClientInfo `json:"client"`
+
+	// RedirectHost Where the browser goes back to, such as 127.0.0.1:53211
+	RedirectHost string `json:"redirectHost"`
+	RedirectUri  string `json:"redirectUri"`
+
+	// Remembered The caller already allowed this client
+	Remembered bool `json:"remembered"`
+}
+
+// OAuthConsentDecision defines model for OAuthConsentDecision.
+type OAuthConsentDecision struct {
+	Decision OAuthConsentDecisionDecision `json:"decision"`
+
+	// Query The authorization request's query string, as the consent page received it
+	Query string `json:"query"`
+}
+
+// OAuthConsentDecisionDecision defines model for OAuthConsentDecision.Decision.
+type OAuthConsentDecisionDecision string
+
+// OAuthGrant defines model for OAuthGrant.
+type OAuthGrant struct {
+	// ClientHost The host of the client's metadata document or home page (may be empty)
+	ClientHost string               `json:"clientHost"`
+	ClientId   string               `json:"clientId"`
+	ClientKind OAuthGrantClientKind `json:"clientKind"`
+	ClientName string               `json:"clientName"`
+	CreatedAt  time.Time            `json:"createdAt"`
+	Id         openapi_types.UUID   `json:"id"`
+	LastUsedAt *time.Time           `json:"lastUsedAt"`
+}
+
+// OAuthGrantClientKind defines model for OAuthGrant.ClientKind.
+type OAuthGrantClientKind string
 
 // OcrBackend tesseract: the grounded-ocr sidecar; tika: Apache Tika (the -full image); vision: a vision model
 type OcrBackend string
@@ -9792,6 +9915,9 @@ type EvaluationRunIdParam = openapi_types.UUID
 // EvaluationSetIdParam defines model for EvaluationSetIdParam.
 type EvaluationSetIdParam = openapi_types.UUID
 
+// GrantIdParam defines model for GrantIdParam.
+type GrantIdParam = openapi_types.UUID
+
 // HoldIdParam defines model for HoldIdParam.
 type HoldIdParam = openapi_types.UUID
 
@@ -10396,6 +10522,18 @@ type ListNotificationsParams struct {
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// GetOAuthConsentParams defines parameters for GetOAuthConsent.
+type GetOAuthConsentParams struct {
+	ClientId            string  `form:"client_id" json:"client_id"`
+	RedirectUri         string  `form:"redirect_uri" json:"redirect_uri"`
+	ResponseType        string  `form:"response_type" json:"response_type"`
+	CodeChallenge       string  `form:"code_challenge" json:"code_challenge"`
+	CodeChallengeMethod string  `form:"code_challenge_method" json:"code_challenge_method"`
+	Resource            string  `form:"resource" json:"resource"`
+	State               *string `form:"state,omitempty" json:"state,omitempty"`
+	Scope               *string `form:"scope,omitempty" json:"scope,omitempty"`
+}
+
 // WidgetCheckParams defines parameters for WidgetCheck.
 type WidgetCheckParams struct {
 	Key string `form:"key" json:"key"`
@@ -10784,6 +10922,9 @@ type MarkAllNotificationsReadJSONRequestBody = NotificationReadAll
 
 // UpdateNotificationJSONRequestBody defines body for UpdateNotification for application/json ContentType.
 type UpdateNotificationJSONRequestBody = NotificationUpdate
+
+// DecideOAuthConsentJSONRequestBody defines body for DecideOAuthConsent for application/json ContentType.
+type DecideOAuthConsentJSONRequestBody = OAuthConsentDecision
 
 // PublicChatJSONRequestBody defines body for PublicChat for application/json ContentType.
 type PublicChatJSONRequestBody = PublicChatRequest

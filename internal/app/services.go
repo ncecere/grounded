@@ -31,6 +31,7 @@ import (
 	"github.com/ncecere/grounded/internal/mcpclient"
 	"github.com/ncecere/grounded/internal/moderation"
 	"github.com/ncecere/grounded/internal/notify"
+	"github.com/ncecere/grounded/internal/oauth"
 	"github.com/ncecere/grounded/internal/ocr"
 	"github.com/ncecere/grounded/internal/parse"
 	"github.com/ncecere/grounded/internal/platform"
@@ -93,6 +94,9 @@ type Services struct {
 	// MCP registers MCP servers and calls their tools from agents
 	// (docs/mcp-client.md).
 	MCP *mcpclient.Service
+	// OAuth is the authorization server for /mcp (experimental; nil
+	// without an API-key pepper).
+	OAuth *oauth.Service
 	// jobs enqueues River jobs (may be insert-only).
 	jobs *jobs.Client
 	pool *pgxpool.Pool
@@ -195,6 +199,12 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	// servers may be on private and loopback addresses (docs/mcp-client.md).
 	s.MCP.Health, s.MCP.AllowPrivate, s.MCP.Log = s.HealthChecks, cfg.DevAuth && cfg.LoopbackAppURL(), log
 	s.Agents.MCP = s.MCP
+	if pepper != nil {
+		// OAuth sign-in for MCP clients (experimental, docs/mcp.md): the
+		// same development allowance for client metadata documents.
+		s.OAuth = oauth.New(pool, peppers, oauth.Config{Issuer: cfg.AppURL, AllowPrivate: cfg.DevAuth && cfg.LoopbackAppURL()})
+		s.OAuth.Log = log
+	}
 	s.Notify = notify.New(pool, jobsClient, cfg.SMTP.Enabled(), log)
 	s.Mail = NewMailSender(cfg)
 	s.BreakGlass = breakglass.New(pool, s.Teams, s.Notify, log)

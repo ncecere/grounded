@@ -175,7 +175,8 @@ var pathGroups = []struct {
 	{GroupMCP, func(p string) bool { return p == "/mcp" }},
 	{GroupAdmin, func(p string) bool { return strings.HasPrefix(p, "/v1/admin/") }},
 	{GroupAuth, func(p string) bool {
-		return strings.HasPrefix(p, "/auth/") || strings.HasPrefix(p, "/v1/auth/") || p == "/v1/me" || strings.HasPrefix(p, "/v1/me/")
+		return strings.HasPrefix(p, "/auth/") || strings.HasPrefix(p, "/v1/auth/") || p == "/v1/me" || strings.HasPrefix(p, "/v1/me/") ||
+			strings.HasPrefix(p, "/oauth/") || strings.HasPrefix(p, "/.well-known/oauth-") || strings.HasPrefix(p, "/v1/oauth/")
 	}},
 	{GroupAPI, func(p string) bool { return strings.HasPrefix(p, "/v1/") }},
 }

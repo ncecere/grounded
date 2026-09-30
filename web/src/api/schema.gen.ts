@@ -525,6 +525,45 @@ export interface paths {
         patch: operations["adminUpdateUser"];
         trace?: never;
     };
+    "/v1/admin/users/{userId}/oauth-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["parameters"]["UserIdParam"];
+            };
+            cookie?: never;
+        };
+        /** A person's connected apps (OAuth grants for MCP clients; platform admins and auditors) */
+        get: operations["adminListUserOAuthGrants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/users/{userId}/oauth-grants/{grantId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["parameters"]["UserIdParam"];
+                grantId: components["parameters"]["GrantIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Disconnect a person's app: its tokens stop working at once (platform admins; audited as oauth.revoke) */
+        delete: operations["adminRevokeUserOAuthGrant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/teams": {
         parameters: {
             query?: never;
@@ -3171,6 +3210,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/oauth-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's connected apps: MCP clients they allowed with OAuth */
+        get: operations["listMyOAuthGrants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/oauth-grants/{grantId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                grantId: components["parameters"]["GrantIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Disconnect one of the caller's apps: its tokens stop working at once and it must ask again (audited as oauth.revoke) */
+        delete: operations["revokeMyOAuthGrant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/oauth/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The consent page's view of an authorization request: the client and where it sends the caller back
+         * @description Takes the parameters of the authorization request (/oauth/authorize, docs/mcp.md) as they are and checks them again. 404 oauth_off while OAuth sign-in for MCP clients is off; 400 with the reason for a request that isn't valid (the page shows it and never redirects).
+         */
+        get: operations["getOAuthConsent"];
+        put?: never;
+        /**
+         * Allow or deny an authorization request; returns where to send the browser (the client, with a code or an error)
+         * @description Allow records the caller's consent for the client (a grant, audited as oauth.consent) and issues a single-use authorization code valid for 60 seconds. Deny sends the client access_denied.
+         */
+        post: operations["decideOAuthConsent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/search": {
         parameters: {
             query?: never;
@@ -4991,6 +5090,8 @@ export interface components {
             evaluations?: boolean;
             /** @description The MCP server (POST /mcp) is on for the platform */
             mcp?: boolean;
+            /** @description OAuth sign-in for MCP clients is in effect (experimental; its setting and the MCP server are both on) */
+            mcpOAuth?: boolean;
         };
         Me: {
             teams: components["schemas"]["MyTeam"][];
@@ -9469,12 +9570,60 @@ export interface components {
         MCPSettings: {
             /** @description Off by default; while off, POST /mcp answers 404 */
             enabled: boolean;
+            /** @description OAuth sign-in for MCP clients (experimental, off by default; docs/mcp.md). Only in effect while the MCP server is on. API keys work either way. */
+            oauthEnabled: boolean;
             revision: components["schemas"]["Revision"];
             /** Format: date-time */
             updatedAt: string;
         };
         MCPSettingsUpdate: {
             enabled: boolean;
+            /** @description Omitted: unchanged */
+            oauthEnabled?: boolean;
+        };
+        OAuthClientInfo: {
+            /** @description The client_id: an https URL (a metadata document) or a registered client's id */
+            id: string;
+            /**
+             * @description metadata: its host vouches for it; registered: it registered itself (Dynamic Client Registration), so its name is unverified
+             * @enum {string}
+             */
+            kind: "metadata" | "registered";
+            name: string;
+            /** @description The host that vouches for the client (a metadata document's host), or a registered client's home page host; may be empty */
+            host: string;
+            /** @description The client's home page (https) */
+            uri: string | null;
+            /** @description The client's logo (https only) */
+            logoUrl: string | null;
+        };
+        OAuthConsent: {
+            client: components["schemas"]["OAuthClientInfo"];
+            redirectUri: string;
+            /** @description Where the browser goes back to, such as 127.0.0.1:53211 */
+            redirectHost: string;
+            /** @description The caller already allowed this client */
+            remembered: boolean;
+        };
+        OAuthConsentDecision: {
+            /** @description The authorization request's query string, as the consent page received it */
+            query: string;
+            /** @enum {string} */
+            decision: "allow" | "deny";
+        };
+        OAuthGrant: {
+            /** Format: uuid */
+            id: string;
+            clientId: string;
+            /** @enum {string} */
+            clientKind: "metadata" | "registered";
+            clientName: string;
+            /** @description The host of the client's metadata document or home page (may be empty) */
+            clientHost: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastUsedAt: string | null;
         };
     };
     responses: {
@@ -9688,6 +9837,7 @@ export interface components {
         EvaluationSetIdParam: string;
         EvaluationRunIdParam: string;
         UserIdParam: string;
+        GrantIdParam: string;
         HoldIdParam: string;
         MCPServerParam: string;
         /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
@@ -10537,6 +10687,49 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+        };
+    };
+    adminListUserOAuthGrants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["parameters"]["UserIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active grants, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OAuthGrant"][];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminRevokeUserOAuthGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["parameters"]["UserIdParam"];
+                grantId: components["parameters"]["GrantIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
         };
     };
     adminListTeams: {
@@ -15636,6 +15829,111 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorReply"];
+        };
+    };
+    listMyOAuthGrants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active grants, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OAuthGrant"][];
+                    };
+                };
+            };
+            401: components["responses"]["ErrorReply"];
+        };
+    };
+    revokeMyOAuthGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                grantId: components["parameters"]["GrantIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            401: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    getOAuthConsent: {
+        parameters: {
+            query: {
+                client_id: string;
+                redirect_uri: string;
+                response_type: string;
+                code_challenge: string;
+                code_challenge_method: string;
+                resource: string;
+                state?: string;
+                scope?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request is valid */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OAuthConsent"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            401: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    decideOAuthConsent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthConsentDecision"];
+            };
+        };
+        responses: {
+            /** @description Where to send the browser */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            redirectUrl: string;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            401: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
         };
     };
     searchObjects: {
