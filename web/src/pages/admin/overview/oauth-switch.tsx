@@ -11,6 +11,7 @@ import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
 import { AlertDialog } from "@/components/ui/dialog/dialog";
 import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
+import { lockedSwitch } from "./locked-switch";
 import type { FeatureState } from "./feature-text";
 import type { useMCPSetting } from "./mcp-switch";
 import { mcpDocsUrl } from "./mcp-switch";
@@ -55,7 +56,7 @@ export function oauthFeature(d: Settings): { state: FeatureState; description: s
 const offConsequences =
   "Apps connected with OAuth stop working at once, until it's turned on again. People's connections are kept, and API keys keep working.";
 
-/** The switch: platform admins confirm before turning it off; others see it disabled, with the reason. */
+/** The switch: platform admins confirm before turning it off; others see it read-only, with the reason. */
 export function OAuthSwitch({ setting, save, isAdmin }: { setting: ReturnType<typeof useMCPSetting>; save: ReturnType<typeof useOAuthSave>; isAdmin: boolean }) {
   const [confirming, setConfirming] = useState(false);
   const d = setting.settings.data;
@@ -66,8 +67,8 @@ export function OAuthSwitch({ setting, save, isAdmin }: { setting: ReturnType<ty
         label="Allow OAuth sign-in"
         labelPosition="start"
         checked={d.oauthEnabled}
-        disabled={!isAdmin || save.isPending || setting.save.isPending}
-        description={isAdmin ? undefined : "Only platform admins can turn this on or off."}
+        disabled={save.isPending || setting.save.isPending}
+        {...lockedSwitch(isAdmin)}
         onCheckedChange={(v) => (v ? save.mutate(true) : setConfirming(true))}
       />
       <AlertDialog

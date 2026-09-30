@@ -73,7 +73,10 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
       id: "health-connections",
       icon: <Plug />,
       title: `${plural(failingConns, "connection is", "connections are")} failing`,
-      description: "Their latest test failed, so the models on them can't answer.",
+      description:
+        failingConns === 1
+          ? "Its latest test failed. Models on it may not answer until it works again."
+          : "Their latest tests failed. Models on them may not answer until they work again.",
       action: "View connections",
       link: <Link to="/admin/connections" search={{ health: "failing" } as never} />,
       tone: "danger",
@@ -85,7 +88,10 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
       id: "health-models",
       icon: <Cpu />,
       title: `${plural(failingModels, "model is", "models are")} failing`,
-      description: "Their latest test failed. Agents and knowledge bases that use them may not work.",
+      description:
+        failingModels === 1
+          ? "Its latest test failed. Agents and knowledge bases that use it may not work."
+          : "Their latest tests failed. Agents and knowledge bases that use them may not work.",
       action: "View models",
       link: <Link to="/admin/models" search={{ health: "failing" } as never} />,
       tone: "danger",
@@ -97,7 +103,10 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
       id: "health-mcp",
       icon: <Blocks />,
       title: `${plural(failingMCP, "MCP server is", "MCP servers are")} failing`,
-      description: "Their latest test failed, so agents can't call their tools.",
+      description:
+        failingMCP === 1
+          ? "Its latest test failed. Agents' calls to its tools will probably fail."
+          : "Their latest tests failed. Agents' calls to their tools will probably fail.",
       action: "View MCP servers",
       link: <Link to="/admin/mcp-servers" search={{ health: "failing" } as never} />,
       tone: "danger",

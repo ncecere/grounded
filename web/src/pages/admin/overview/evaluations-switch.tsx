@@ -12,6 +12,7 @@ import { api, ifMatch, unwrap } from "@/api/client";
 import { AlertDialog } from "@/components/ui/dialog/dialog";
 import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
+import { lockedSwitch } from "./locked-switch";
 import { evaluationSettingsQuery } from "./queries";
 
 /** The evaluations setting and its save. */
@@ -41,7 +42,7 @@ export function evaluationsText(enabled: boolean) {
 const offConsequences =
   "Every team's Evaluations tabs and pages disappear, the evaluation API is closed, and scheduled runs don't start. Sets, questions and past runs are kept, and come back when evaluations are turned on again.";
 
-/** The switch: platform admins confirm before turning evaluations off; others see it disabled, with the reason. */
+/** The switch: platform admins confirm before turning evaluations off; others see it read-only, with the reason. */
 export function EvaluationsSwitch({ setting, isAdmin }: { setting: ReturnType<typeof useEvaluationsSetting>; isAdmin: boolean }) {
   const { settings, save } = setting;
   const [confirming, setConfirming] = useState(false);
@@ -52,8 +53,8 @@ export function EvaluationsSwitch({ setting, isAdmin }: { setting: ReturnType<ty
         label="Allow evaluations"
         labelPosition="start"
         checked={settings.data.enabled}
-        disabled={!isAdmin || save.isPending}
-        description={isAdmin ? undefined : "Only platform admins can turn this on or off."}
+        disabled={save.isPending}
+        {...lockedSwitch(isAdmin)}
         onCheckedChange={(v) => (v ? save.mutate(true) : setConfirming(true))}
       />
       <AlertDialog
