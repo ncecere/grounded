@@ -340,7 +340,7 @@ Consumers cannot list KBs or documents, and cannot download original files. Cita
 ### 7.6 Access paths
 - **UI:** an agent directory for signed-in users, a chat page for each agent, and an embeddable widget. The widget is a small loader script that injects an **iframe** of the hosted chat page, which isolates host-site styles and scripts.
 - **API:** `POST /v1/agents/{team}/{agent}/chat` (streams over SSE), and **OpenAI-compatible** `POST /v1/chat/completions`.
-- **MCP (v0.3):** `POST /mcp`, the Model Context Protocol over stateless Streamable HTTP, for AI tools with an API key that has the `mcp` scope: the `search` and `ask` tools, off until a platform admin turns it on ([`mcp.md`](mcp.md)).
+- **MCP (v0.3):** `POST /mcp`, the Model Context Protocol over stateless Streamable HTTP, for AI tools with an API key that has the `mcp` scope (or, experimental and off by default, OAuth sign-in with Grounded as the authorization server: `/.well-known/oauth-*`, `/oauth/*`, the consent page and Connected apps): the `search` and `ask` tools, off until a platform admin turns it on ([`mcp.md`](mcp.md)).
 - **MCP tools in agents (v0.3):** agents call admin-approved tools of registered remote MCP servers during an answer; only the model's arguments are sent, each server has a classification ceiling, and results are cited as sources ([`mcp-client.md`](mcp-client.md)).
 - **Branding:** the install's theme and identity settings across the platform ("Configuration and instance identity", §15). Per-agent customization is limited to name, avatar, contrast-checked accent colour, welcome message and starter questions. **There is no custom CSS**, to protect accessibility.
 
@@ -628,6 +628,8 @@ Evaluations    /v1/teams/{team}/evaluation-sets[/{setId}[/questions[/import|/{id
 Notifications  GET /v1/notifications, PATCH /v1/notifications/{id}, PUT /v1/me/notification-settings
 OpenAI compat  POST /v1/chat/completions  (model = "agent:{team}/{agent}")   GET /v1/models
 MCP            POST /mcp  (JSON-RPC, described in docs/mcp.md, not the OpenAPI)   /v1/admin/settings/mcp (the switch)
+MCP OAuth      /.well-known/oauth-*  /oauth/{authorize,token,register,revoke}  (docs/mcp.md)   /v1/oauth/consent
+               /v1/me/oauth-grants[/{id}]   /v1/admin/users/{id}/oauth-grants[/{id}]
 MCP client     /v1/admin/mcp-servers[/{serverId}[/test|/refresh|/tools[/{toolId}/approval]]]   GET /v1/mcp-tools (docs/mcp-client.md)
 ```
 
