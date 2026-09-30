@@ -29,6 +29,8 @@ const (
 	ChannelAPI    = "api"
 	ChannelOpenAI = "openai"
 	ChannelTest   = "test"
+	// ChannelMCP is the MCP server's ask tool (docs/mcp.md).
+	ChannelMCP = "mcp"
 )
 
 // Limits of a chat request.
@@ -72,7 +74,7 @@ type ChatRequest struct {
 	// History is prior turns for stateless callers (service keys, the
 	// OpenAI-compatible endpoint).
 	History []HistoryMessage
-	// Channel is ui, api or openai.
+	// Channel is ui, api, openai or mcp.
 	Channel string
 	// Stateless never stores a transcript (the OpenAI-compatible endpoint).
 	Stateless bool

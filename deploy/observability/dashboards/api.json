@@ -475,7 +475,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat|mcp\"}[$__rate_interval])))",
           "legendFormat": "p50",
           "refId": "A",
           "editorMode": "code",
@@ -486,7 +486,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat|mcp\"}[$__rate_interval])))",
           "legendFormat": "p95",
           "refId": "B",
           "editorMode": "code",
@@ -497,7 +497,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat|mcp\"}[$__rate_interval])))",
           "legendFormat": "p99",
           "refId": "C",
           "editorMode": "code",
@@ -535,7 +535,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(15, histogram_quantile(0.95, sum by (le, method, route) (rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat\"}[$__range]))))",
+          "expr": "topk(15, histogram_quantile(0.95, sum by (le, method, route) (rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat|mcp\"}[$__range]))))",
           "legendFormat": "__auto",
           "refId": "A",
           "editorMode": "code",

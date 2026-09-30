@@ -50,19 +50,22 @@ func (e APIKeyCreateKind) Valid() bool {
 
 // Defines values for APIKeyScope.
 const (
-	Ingest APIKeyScope = "ingest"
-	Manage APIKeyScope = "manage"
-	Query  APIKeyScope = "query"
+	APIKeyScopeIngest APIKeyScope = "ingest"
+	APIKeyScopeManage APIKeyScope = "manage"
+	APIKeyScopeMcp    APIKeyScope = "mcp"
+	APIKeyScopeQuery  APIKeyScope = "query"
 )
 
 // Valid indicates whether the value is a known member of the APIKeyScope enum.
 func (e APIKeyScope) Valid() bool {
 	switch e {
-	case Ingest:
+	case APIKeyScopeIngest:
 		return true
-	case Manage:
+	case APIKeyScopeManage:
 		return true
-	case Query:
+	case APIKeyScopeMcp:
+		return true
+	case APIKeyScopeQuery:
 		return true
 	default:
 		return false
@@ -72,6 +75,7 @@ func (e APIKeyScope) Valid() bool {
 // Defines values for AccessLogEntryChannel.
 const (
 	AccessLogEntryChannelApi    AccessLogEntryChannel = "api"
+	AccessLogEntryChannelMcp    AccessLogEntryChannel = "mcp"
 	AccessLogEntryChannelOpenai AccessLogEntryChannel = "openai"
 	AccessLogEntryChannelPublic AccessLogEntryChannel = "public"
 	AccessLogEntryChannelTest   AccessLogEntryChannel = "test"
@@ -83,6 +87,8 @@ const (
 func (e AccessLogEntryChannel) Valid() bool {
 	switch e {
 	case AccessLogEntryChannelApi:
+		return true
+	case AccessLogEntryChannelMcp:
 		return true
 	case AccessLogEntryChannelOpenai:
 		return true
@@ -357,6 +363,7 @@ func (e AgentSystemOneScope) Valid() bool {
 // Defines values for AnalyticsChannel.
 const (
 	AnalyticsChannelApi    AnalyticsChannel = "api"
+	AnalyticsChannelMcp    AnalyticsChannel = "mcp"
 	AnalyticsChannelOpenai AnalyticsChannel = "openai"
 	AnalyticsChannelPublic AnalyticsChannel = "public"
 	AnalyticsChannelTest   AnalyticsChannel = "test"
@@ -368,6 +375,8 @@ const (
 func (e AnalyticsChannel) Valid() bool {
 	switch e {
 	case AnalyticsChannelApi:
+		return true
+	case AnalyticsChannelMcp:
 		return true
 	case AnalyticsChannelOpenai:
 		return true
@@ -2268,6 +2277,7 @@ func (e ModerationCountStage) Valid() bool {
 // Defines values for ModerationEventChannel.
 const (
 	ModerationEventChannelApi    ModerationEventChannel = "api"
+	ModerationEventChannelMcp    ModerationEventChannel = "mcp"
 	ModerationEventChannelOpenai ModerationEventChannel = "openai"
 	ModerationEventChannelPublic ModerationEventChannel = "public"
 	ModerationEventChannelUi     ModerationEventChannel = "ui"
@@ -2278,6 +2288,8 @@ const (
 func (e ModerationEventChannel) Valid() bool {
 	switch e {
 	case ModerationEventChannelApi:
+		return true
+	case ModerationEventChannelMcp:
 		return true
 	case ModerationEventChannelOpenai:
 		return true
@@ -3405,6 +3417,7 @@ func (e GetEmbedPageParamsPreview) Valid() bool {
 // Defines values for AdminListAccessLogParamsChannel.
 const (
 	AdminListAccessLogParamsChannelApi    AdminListAccessLogParamsChannel = "api"
+	AdminListAccessLogParamsChannelMcp    AdminListAccessLogParamsChannel = "mcp"
 	AdminListAccessLogParamsChannelOpenai AdminListAccessLogParamsChannel = "openai"
 	AdminListAccessLogParamsChannelPublic AdminListAccessLogParamsChannel = "public"
 	AdminListAccessLogParamsChannelTest   AdminListAccessLogParamsChannel = "test"
@@ -3416,6 +3429,8 @@ const (
 func (e AdminListAccessLogParamsChannel) Valid() bool {
 	switch e {
 	case AdminListAccessLogParamsChannelApi:
+		return true
+	case AdminListAccessLogParamsChannelMcp:
 		return true
 	case AdminListAccessLogParamsChannelOpenai:
 		return true
@@ -3726,7 +3741,7 @@ type APIKeyCreated struct {
 	Secret string `json:"secret"`
 }
 
-// APIKeyScope defines model for APIKeyScope.
+// APIKeyScope query searches knowledge bases and asks agents over the REST API; ingest uploads and manages documents; manage changes sources and knowledge bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md) and grants nothing on the REST API
 type APIKeyScope string
 
 // AccessLogEntry defines model for AccessLogEntry.
@@ -3972,7 +3987,7 @@ type AgentAnalytics struct {
 	Channels []struct {
 		Answers int64 `json:"answers"`
 
-		// Channel How an answer was requested (ui is the chat page, public the public chat page, widget the embed)
+		// Channel How an answer was requested (ui is the chat page, public the public chat page, widget the embed, mcp the MCP server)
 		Channel AnalyticsChannel `json:"channel"`
 	} `json:"channels"`
 	Daily           []AgentAnalyticsDay `json:"daily"`
@@ -4375,7 +4390,7 @@ type AllowlistEntry struct {
 	Pattern   string              `json:"pattern"`
 }
 
-// AnalyticsChannel How an answer was requested (ui is the chat page, public the public chat page, widget the embed)
+// AnalyticsChannel How an answer was requested (ui is the chat page, public the public chat page, widget the embed, mcp the MCP server)
 type AnalyticsChannel string
 
 // Audience defines model for Audience.
@@ -4715,7 +4730,10 @@ type BudgetState string
 // Capabilities defines model for Capabilities.
 type Capabilities struct {
 	// Evaluations Evaluations are on for the platform (the tabs show for team editors and above)
-	Evaluations     *bool `json:"evaluations,omitempty"`
+	Evaluations *bool `json:"evaluations,omitempty"`
+
+	// Mcp The MCP server (POST /mcp) is on for the platform
+	Mcp             *bool `json:"mcp,omitempty"`
 	PlatformAdmin   bool  `json:"platformAdmin"`
 	PlatformAuditor bool  `json:"platformAuditor"`
 }
@@ -6842,6 +6860,21 @@ type LimitUnit string
 // LimitValue defines model for LimitValue.
 type LimitValue = int64
 
+// MCPSettings defines model for MCPSettings.
+type MCPSettings struct {
+	// Enabled Off by default; while off, POST /mcp answers 404
+	Enabled bool `json:"enabled"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision  Revision  `json:"revision"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// MCPSettingsUpdate defines model for MCPSettingsUpdate.
+type MCPSettingsUpdate struct {
+	Enabled bool `json:"enabled"`
+}
+
 // MaintenanceErrorResponse defines model for MaintenanceErrorResponse.
 type MaintenanceErrorResponse struct {
 	Error struct {
@@ -7801,7 +7834,7 @@ type PlatformAnalytics struct {
 	Channels []struct {
 		Answers int64 `json:"answers"`
 
-		// Channel How an answer was requested (ui is the chat page, public the public chat page, widget the embed)
+		// Channel How an answer was requested (ui is the chat page, public the public chat page, widget the embed, mcp the MCP server)
 		Channel AnalyticsChannel `json:"channel"`
 		Share   float64          `json:"share"`
 	} `json:"channels"`
@@ -9301,7 +9334,7 @@ type AuditActorKindParam string
 // AuditActorParam defines model for AuditActorParam.
 type AuditActorParam = openapi_types.UUID
 
-// AuditExcludeActionParam Example: auth.
+// AuditExcludeActionParam Example: auth.,mcp.
 type AuditExcludeActionParam = string
 
 // AuditFromParam defines model for AuditFromParam.
@@ -9557,7 +9590,7 @@ type AdminListAuditParams struct {
 	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed.
 	Action *AuditActionParam `form:"action,omitempty" json:"action,omitempty"`
 
-	// ExcludeAction An action group (a prefix ending in a dot) to leave out, e.g. auth. to hide sign-ins and sign-outs.
+	// ExcludeAction Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls.
 	ExcludeAction *AuditExcludeActionParam `form:"excludeAction,omitempty" json:"excludeAction,omitempty"`
 
 	// ActorUserId Only entries by this person (including their API keys)
@@ -9760,6 +9793,12 @@ type AdminPutEvaluationSettingsParams struct {
 
 // AdminPutMaintenanceParams defines parameters for AdminPutMaintenance.
 type AdminPutMaintenanceParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// AdminPutMCPSettingsParams defines parameters for AdminPutMCPSettings.
+type AdminPutMCPSettingsParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
@@ -9994,7 +10033,7 @@ type ListTeamAuditParams struct {
 	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed.
 	Action *AuditActionParam `form:"action,omitempty" json:"action,omitempty"`
 
-	// ExcludeAction An action group (a prefix ending in a dot) to leave out, e.g. auth. to hide sign-ins and sign-outs.
+	// ExcludeAction Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls.
 	ExcludeAction *AuditExcludeActionParam `form:"excludeAction,omitempty" json:"excludeAction,omitempty"`
 
 	// ActorUserId Only entries by this person (including their API keys)
@@ -10249,6 +10288,9 @@ type AdminPutEvaluationSettingsJSONRequestBody = EvaluationSettingsUpdate
 
 // AdminPutMaintenanceJSONRequestBody defines body for AdminPutMaintenance for application/json ContentType.
 type AdminPutMaintenanceJSONRequestBody = MaintenanceUpdate
+
+// AdminPutMCPSettingsJSONRequestBody defines body for AdminPutMCPSettings for application/json ContentType.
+type AdminPutMCPSettingsJSONRequestBody = MCPSettingsUpdate
 
 // AdminPutPublicAccessJSONRequestBody defines body for AdminPutPublicAccess for application/json ContentType.
 type AdminPutPublicAccessJSONRequestBody = PublicAccessUpdate

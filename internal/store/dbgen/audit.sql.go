@@ -133,6 +133,7 @@ CROSS JOIN LATERAL (
         WHEN 'evaluation_set' THEN (SELECT es.name FROM eval_sets es WHERE es.id = ids.target_uuid)
         WHEN 'evaluation_run' THEN (SELECT 'Run of ' || ers.name FROM eval_runs er JOIN eval_sets ers ON ers.id = er.set_id WHERE er.id = ids.target_uuid)
         WHEN 'evaluation_settings' THEN 'Evaluations'
+        WHEN 'mcp_settings' THEN 'MCP server'
         WHEN 'conversation' THEN (SELECT 'Conversation' FROM conversations cv WHERE cv.id = ids.target_uuid)
     END)::text AS label
 ) live
@@ -140,7 +141,7 @@ WHERE ($1::uuid IS NULL OR a.team_id = $1::uuid)
   AND ($2::bigint IS NULL OR a.id < $2::bigint)
   AND ($3::text IS NULL OR a.action = $3::text)
   AND ($4::text IS NULL OR a.action LIKE $4::text || '%' ESCAPE '\')
-  AND ($5::text IS NULL OR a.action NOT LIKE $5::text || '%' ESCAPE '\')
+  AND NOT EXISTS (SELECT 1 FROM unnest($5::text[]) AS x(prefix) WHERE a.action LIKE x.prefix || '%' ESCAPE '\')
   AND (NOT COALESCE($6::boolean, false)
        OR a.action LIKE 'platform.sso\_rule\_%' ESCAPE '\' OR a.metadata->>'via' = 'sso_group_rule')
   AND ($7::uuid IS NULL OR a.actor_user_id = $7::uuid)
@@ -155,19 +156,19 @@ LIMIT $13
 `
 
 type ListAuditParams struct {
-	TeamID        uuid.NullUUID
-	BeforeID      *int64
-	Action        *string
-	ActionPrefix  *string
-	ExcludePrefix *string
-	GroupMapping  pgtype.Bool
-	ActorUserID   uuid.NullUUID
-	ActorKind     *string
-	TargetType    *string
-	HideSpend     pgtype.Bool
-	OccurredFrom  *time.Time
-	OccurredTo    *time.Time
-	PageSize      int32
+	TeamID          uuid.NullUUID
+	BeforeID        *int64
+	Action          *string
+	ActionPrefix    *string
+	ExcludePrefixes []string
+	GroupMapping    pgtype.Bool
+	ActorUserID     uuid.NullUUID
+	ActorKind       *string
+	TargetType      *string
+	HideSpend       pgtype.Bool
+	OccurredFrom    *time.Time
+	OccurredTo      *time.Time
+	PageSize        int32
 }
 
 type ListAuditRow struct {
@@ -206,7 +207,7 @@ type ListAuditRow struct {
 // policies) always have a live label. parent_* names the object a target
 // belongs to, for linking: a publishable key's agent, a document's source
 // (parent_label ” when the parent no longer exists).
-// action_prefix and exclude_prefix are LIKE-escaped by the caller.
+// action_prefix and exclude_prefixes are LIKE-escaped by the caller.
 // group_mapping: the group mapping rules' changes and the memberships they
 // made (metadata.via = 'sso_group_rule'), across action groups.
 // actor_kind: 'system' for the system's entries, 'group_mapping' for the
@@ -219,7 +220,7 @@ func (q *Queries) ListAudit(ctx context.Context, arg ListAuditParams) ([]ListAud
 		arg.BeforeID,
 		arg.Action,
 		arg.ActionPrefix,
-		arg.ExcludePrefix,
+		arg.ExcludePrefixes,
 		arg.GroupMapping,
 		arg.ActorUserID,
 		arg.ActorKind,

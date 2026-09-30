@@ -103,7 +103,7 @@ func parseTimeParam(w http.ResponseWriter, r *http.Request, name string, endOfDa
 }
 
 // accessChannels are the access log's channels (?channel=).
-var accessChannels = map[string]bool{"ui": true, "api": true, "openai": true, "test": true, "public": true, "widget": true}
+var accessChannels = map[string]bool{"ui": true, "api": true, "openai": true, "test": true, "public": true, "widget": true, "mcp": true}
 
 func (a *api) adminListAccessLog(w http.ResponseWriter, r *http.Request) {
 	limit, ok := pageLimit(w, r)

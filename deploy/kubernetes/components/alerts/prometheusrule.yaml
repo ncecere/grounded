@@ -35,19 +35,19 @@ spec:
           expr: (sum by (namespace) (rate(grounded_http_requests_total{group!="ops",status=~"5.."}[3d])) or 0 * sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[3d]))) / sum by (namespace) (rate(grounded_http_requests_total{group!="ops"}[3d]))
         # Latency SLI: the share of non-streaming API requests slower than 1 s.
         - record: grounded:http_slow:ratio_rate5m
-          expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat",le=~"1(\\.0)?"}[5m])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat"}[5m]))
+          expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat|mcp",le=~"1(\\.0)?"}[5m])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat|mcp"}[5m]))
         - record: grounded:http_slow:ratio_rate30m
-          expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat",le=~"1(\\.0)?"}[30m])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat"}[30m]))
+          expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat|mcp",le=~"1(\\.0)?"}[30m])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat|mcp"}[30m]))
         - record: grounded:http_slow:ratio_rate1h
-          expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat",le=~"1(\\.0)?"}[1h])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat"}[1h]))
+          expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat|mcp",le=~"1(\\.0)?"}[1h])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat|mcp"}[1h]))
         - record: grounded:http_slow:ratio_rate2h
-          expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat",le=~"1(\\.0)?"}[2h])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat"}[2h]))
+          expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat|mcp",le=~"1(\\.0)?"}[2h])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat|mcp"}[2h]))
         - record: grounded:http_slow:ratio_rate6h
-          expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat",le=~"1(\\.0)?"}[6h])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat"}[6h]))
+          expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat|mcp",le=~"1(\\.0)?"}[6h])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat|mcp"}[6h]))
         - record: grounded:http_slow:ratio_rate1d
-          expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat",le=~"1(\\.0)?"}[1d])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat"}[1d]))
+          expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat|mcp",le=~"1(\\.0)?"}[1d])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat|mcp"}[1d]))
         - record: grounded:http_slow:ratio_rate3d
-          expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat",le=~"1(\\.0)?"}[3d])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat"}[3d]))
+          expr: 1 - sum by (namespace) (rate(grounded_http_request_duration_seconds_bucket{group!~"ops|chat|mcp",le=~"1(\\.0)?"}[3d])) / sum by (namespace) (rate(grounded_http_request_duration_seconds_count{group!~"ops|chat|mcp"}[3d]))
 
     - name: grounded-slo
       rules:

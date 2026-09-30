@@ -30,6 +30,8 @@ type Service struct {
 	// Gate is this process's cached view of maintenance mode; the ingestion
 	// services share it (maintenance.go).
 	Gate *MaintenanceGate
+	// mcp caches the MCP server's switch (mcp.go).
+	mcp mcpSwitch
 }
 
 func NewService(pool *pgxpool.Pool) *Service {

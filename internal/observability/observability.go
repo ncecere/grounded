@@ -122,6 +122,7 @@ const (
 	GroupChat      = "chat"      // streamed answers (long-lived; outside the latency SLO)
 	GroupPublic    = "public"    // public agents and the widget
 	GroupOpenAI    = "openai"    // the OpenAI-compatible API (except its chat)
+	GroupMCP       = "mcp"       // the MCP server (POST /mcp; asks run for as long as answers do)
 	GroupAdmin     = "admin"     // platform administration
 	GroupAuth      = "auth"      // sign-in and the caller's identity
 	GroupAPI       = "api"       // the rest of /v1
@@ -166,6 +167,7 @@ var pathGroups = []struct {
 		return strings.HasPrefix(p, "/v1/public/") || p == "/widget.js" || strings.HasPrefix(p, "/embed/")
 	}},
 	{GroupOpenAI, func(p string) bool { return p == "/v1/models" }},
+	{GroupMCP, func(p string) bool { return p == "/mcp" }},
 	{GroupAdmin, func(p string) bool { return strings.HasPrefix(p, "/v1/admin/") }},
 	{GroupAuth, func(p string) bool {
 		return strings.HasPrefix(p, "/auth/") || strings.HasPrefix(p, "/v1/auth/") || p == "/v1/me" || strings.HasPrefix(p, "/v1/me/")

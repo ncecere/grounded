@@ -142,6 +142,7 @@ func apiRoutes(d Deps) []route {
 		a.publicRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
 		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(),
+		a.mcpSettingsRoutes(),
 	} {
 		routes = append(routes, group...)
 	}
@@ -390,7 +391,7 @@ func NewAPIHandler(d Deps) http.Handler {
 	if d.Web != nil {
 		fallback = spaHandler(d.Web, d.WebBuilt, d.spaOptions())
 	}
-	return build(d, apiRoutes(d), fallback)
+	return build(d, append(apiRoutes(d), mcpRoutes(d)...), fallback)
 }
 
 // NewOpsHandler serves only health and metrics (worker mode).

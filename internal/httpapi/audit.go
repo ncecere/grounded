@@ -27,12 +27,14 @@ const groupMappingActions = "group_mapping."
 
 var (
 	auditActionRe     = regexp.MustCompile(`^[a-z][a-z_]*\.[a-z_]*$`)
+	auditExcludeRe    = regexp.MustCompile(`^[a-z][a-z_]*\.(,[a-z][a-z_]*\.)*$`)
 	auditTargetTypeRe = regexp.MustCompile(`^[a-z_]{1,64}$`)
 )
 
 // auditFilters reads ?action=, ?excludeAction=, ?actorUserId=, ?actorKind=, ?targetType=,
 // ?from= and ?to= into p. An action ending in "." matches every action in
-// that group; excludeAction is always a group ("auth." hides sign-ins).
+// that group; excludeAction is one or more groups, comma-separated ("auth."
+// hides sign-ins; "auth.,mcp." also the MCP server's tool calls).
 func auditFilters(w http.ResponseWriter, r *http.Request, p *dbgen.ListAuditParams) bool {
 	q := r.URL.Query()
 	if v := q.Get("action"); v != "" {
@@ -51,12 +53,13 @@ func auditFilters(w http.ResponseWriter, r *http.Request, p *dbgen.ListAuditPara
 		}
 	}
 	if v := q.Get("excludeAction"); v != "" {
-		if len(v) > 100 || !auditActionRe.MatchString(v) || !strings.HasSuffix(v, ".") {
-			httpx.Error(w, http.StatusBadRequest, "invalid_action", "excludeAction must be an action group such as auth.")
+		if len(v) > 100 || !auditExcludeRe.MatchString(v) {
+			httpx.Error(w, http.StatusBadRequest, "invalid_action", "excludeAction must be action groups such as auth. or auth.,mcp.")
 			return false
 		}
-		prefix := store.EscapeLike(v)
-		p.ExcludePrefix = &prefix
+		for _, group := range strings.Split(v, ",") {
+			p.ExcludePrefixes = append(p.ExcludePrefixes, store.EscapeLike(group))
+		}
 	}
 	if v := q.Get("actorUserId"); v != "" {
 		id, err := uuid.Parse(v)

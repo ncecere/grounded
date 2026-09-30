@@ -63,11 +63,14 @@ type KeyGrant struct {
 // Personal reports whether the key is a personal key (acts as its user).
 func (k *KeyGrant) Personal() bool { return k.Kind == "personal" }
 
-// API key scopes (ADR-0012).
+// API key scopes (ADR-0012). ScopeMCP lets a key use the MCP server (POST
+// /mcp, docs/mcp.md): searching and asking there, as the query scope does
+// on the REST API; it grants nothing on the REST API itself.
 const (
 	ScopeQuery  = "query"
 	ScopeIngest = "ingest"
 	ScopeManage = "manage"
+	ScopeMCP    = "mcp"
 )
 
 // HasScope reports whether the key has scope.
@@ -123,11 +126,11 @@ func RoleForKey(k *KeyGrant) string {
 func MaxScopesForRole(role string) []string {
 	switch {
 	case RoleAtLeast(role, RoleAdmin):
-		return []string{ScopeQuery, ScopeIngest, ScopeManage}
+		return []string{ScopeQuery, ScopeIngest, ScopeManage, ScopeMCP}
 	case role == RoleEditor:
-		return []string{ScopeQuery, ScopeIngest}
+		return []string{ScopeQuery, ScopeIngest, ScopeMCP}
 	case role == RoleMember:
-		return []string{ScopeQuery}
+		return []string{ScopeQuery, ScopeMCP}
 	}
 	return nil
 }

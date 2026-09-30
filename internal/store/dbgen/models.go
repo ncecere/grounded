@@ -482,6 +482,14 @@ type MaintenanceMode struct {
 	UpdatedAt    time.Time
 }
 
+type McpSetting struct {
+	Singleton bool
+	Enabled   bool
+	Revision  int64
+	UpdatedBy uuid.NullUUID
+	UpdatedAt time.Time
+}
+
 type Message struct {
 	ID             uuid.UUID
 	ConversationID uuid.UUID

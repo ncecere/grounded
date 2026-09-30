@@ -28,6 +28,9 @@ type Query struct {
 	// Judge judges the platform's candidate count of fused hits with the
 	// SystemOne model (team editors; the KB playground). TopK is ignored.
 	Judge bool
+	// Channel is recorded on the query's usage events (mcp for the MCP
+	// server's search tool; "" records none, as for REST).
+	Channel string
 }
 
 // Hit is one retrieved chunk with its citation.
@@ -203,7 +206,11 @@ func (s *Service) Retrieve(ctx context.Context, a authz.Actor, teamRef string, k
 	if plan != nil {
 		k = plan.Candidates
 	}
-	return s.retrieve(ctx, a, kb, retrieval{text: text, k: k, filter: filter, plan: plan}, start)
+	var meta map[string]any
+	if in.Channel != "" {
+		meta = map[string]any{"channel": in.Channel}
+	}
+	return s.retrieve(ctx, a, kb, retrieval{text: text, k: k, filter: filter, plan: plan, meta: meta}, start)
 }
 
 // retrieval is one search of a knowledge base: k results (or the judging
@@ -348,6 +355,12 @@ type cachedCount struct {
 	n       int64
 	at      time.Time
 	sources int
+}
+
+// CheckDirectRetrieve is checkDirectRetrieve for callers that list what a
+// key may search (the MCP server's search tool offers only these).
+func (s *Service) CheckDirectRetrieve(ctx context.Context, a authz.Actor, kb KB) error {
+	return s.checkDirectRetrieve(ctx, a, kb)
 }
 
 // checkDirectRetrieve refuses an API key's /retrieve on a knowledge base

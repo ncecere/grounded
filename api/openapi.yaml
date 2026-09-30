@@ -11,6 +11,8 @@ info:
     and a same-origin `Origin`.
 
     Every route served by the application must be listed here; a test enforces it.
+    The one exception is the MCP server (`POST /mcp`), which speaks JSON-RPC
+    (the Model Context Protocol) and is described in docs/mcp.md.
 tags:
   - name: operations
   - name: auth
@@ -5036,7 +5038,7 @@ paths:
         - name: channel
           in: query
           required: false
-          schema: { type: string, enum: [ui, api, openai, test, public, widget] }
+          schema: { type: string, enum: [ui, api, openai, test, public, widget, mcp] }
         - $ref: "#/components/parameters/CursorParam"
         - $ref: "#/components/parameters/LimitParam"
       responses:
@@ -6347,6 +6349,51 @@ paths:
         "403": { $ref: "#/components/responses/ErrorReply" }
         "412": { $ref: "#/components/responses/ErrorReply" }
         "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/settings/mcp:
+    get:
+      tags: [admin]
+      operationId: adminGetMCPSettings
+      summary: Whether the MCP server is on (platform admins and auditors)
+      responses:
+        "200":
+          description: Settings
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/MCPSettings" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [admin]
+      operationId: adminPutMCPSettings
+      summary: "Turn the MCP server (POST /mcp, docs/mcp.md) on or off for the platform (platform admins; audited). Off answers 404 on /mcp."
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MCPSettingsUpdate" }
+      responses:
+        "200":
+          description: Saved
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/MCPSettings" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
 components:
   headers:
     ETag:
@@ -6499,8 +6546,8 @@ components:
       name: excludeAction
       in: query
       required: false
-      description: An action group (a prefix ending in a dot) to leave out, e.g. auth. to hide sign-ins and sign-outs.
-      schema: { type: string, maxLength: 100, pattern: '^[a-z][a-z_]*\.$', example: auth. }
+      description: "Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls."
+      schema: { type: string, maxLength: 100, pattern: '^[a-z][a-z_]*\.(,[a-z][a-z_]*\.)*$', example: "auth.,mcp." }
     AuditActorParam:
       name: actorUserId
       in: query
@@ -7513,6 +7560,9 @@ components:
         evaluations:
           type: boolean
           description: Evaluations are on for the platform (the tabs show for team editors and above)
+        mcp:
+          type: boolean
+          description: The MCP server (POST /mcp) is on for the platform
     Me:
       type: object
       required: [user, csrfToken, capabilities, teams]
@@ -9020,7 +9070,12 @@ components:
         latencyMs: { type: integer, format: int64 }
     APIKeyScope:
       type: string
-      enum: [query, ingest, manage]
+      description: >-
+        query searches knowledge bases and asks agents over the REST API; ingest
+        uploads and manages documents; manage changes sources and knowledge
+        bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md)
+        and grants nothing on the REST API
+      enum: [query, ingest, manage, mcp]
     APIKey:
       type: object
       required: [id, name, kind, prefix, scopes, createdAt]
@@ -10863,8 +10918,8 @@ components:
           items: { $ref: "#/components/schemas/ModerationCount" }
     AnalyticsChannel:
       type: string
-      description: How an answer was requested (ui is the chat page, public the public chat page, widget the embed)
-      enum: [ui, api, openai, test, public, widget]
+      description: How an answer was requested (ui is the chat page, public the public chat page, widget the embed, mcp the MCP server)
+      enum: [ui, api, openai, test, public, widget, mcp]
     ModerationCount:
       type: object
       description: Blocked and flagged questions (stage input) and answers (stage output) by top category; error is a provider failure, which blocks when the policy fails closed
@@ -11096,7 +11151,7 @@ components:
         agentVersion: { type: integer, format: int32, nullable: true, description: "null for draft test chats" }
         rank: { type: integer, format: int32 }
         classification: { type: string }
-        channel: { type: string, enum: [ui, api, openai, test, public, widget] }
+        channel: { type: string, enum: [ui, api, openai, test, public, widget, mcp] }
     ModerationEvent:
       type: object
       required: [id, at, agentId, agentName, agentSlug, teamSlug, agentDeleted, channel, audience, stage, decision, topCategory, score, categories, downgraded, provider, calibrated, latencyMs]
@@ -11108,7 +11163,7 @@ components:
         agentSlug: { type: string }
         teamSlug: { type: string }
         agentDeleted: { type: boolean }
-        channel: { type: string, enum: [ui, api, openai, public, widget] }
+        channel: { type: string, enum: [ui, api, openai, public, widget, mcp] }
         audience: { $ref: "#/components/schemas/Audience" }
         stage: { type: string, enum: [input, output] }
         decision: { type: string, enum: [block, flag, support, error] }
@@ -11681,6 +11736,18 @@ components:
         revision: { $ref: "#/components/schemas/Revision" }
         updatedAt: { type: string, format: date-time }
     EvaluationSettingsUpdate:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+    MCPSettings:
+      type: object
+      required: [enabled, revision, updatedAt]
+      properties:
+        enabled: { type: boolean, description: "Off by default; while off, POST /mcp answers 404" }
+        revision: { $ref: "#/components/schemas/Revision" }
+        updatedAt: { type: string, format: date-time }
+    MCPSettingsUpdate:
       type: object
       required: [enabled]
       properties:

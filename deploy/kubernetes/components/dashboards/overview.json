@@ -242,7 +242,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat\"}[$__range])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat|mcp\"}[$__range])))",
           "legendFormat": "__auto",
           "refId": "A",
           "editorMode": "code",
@@ -316,7 +316,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat\",le=~\"1(\\\\.0)?\"}[$__range])) / sum(rate(grounded_http_request_duration_seconds_count{namespace=~\"$namespace\",group!~\"ops|chat\"}[$__range]))",
+          "expr": "sum(rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat|mcp\",le=~\"1(\\\\.0)?\"}[$__range])) / sum(rate(grounded_http_request_duration_seconds_count{namespace=~\"$namespace\",group!~\"ops|chat|mcp\"}[$__range]))",
           "legendFormat": "__auto",
           "refId": "A",
           "editorMode": "code",
@@ -464,7 +464,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "1 - ((1 - sum(rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat\",le=~\"1(\\\\.0)?\"}[30d])) / sum(rate(grounded_http_request_duration_seconds_count{namespace=~\"$namespace\",group!~\"ops|chat\"}[30d]))) / 0.05)",
+          "expr": "1 - ((1 - sum(rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat|mcp\",le=~\"1(\\\\.0)?\"}[30d])) / sum(rate(grounded_http_request_duration_seconds_count{namespace=~\"$namespace\",group!~\"ops|chat|mcp\"}[30d]))) / 0.05)",
           "legendFormat": "__auto",
           "refId": "A",
           "editorMode": "code",
@@ -613,7 +613,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "(1 - sum(rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat\",le=~\"1(\\\\.0)?\"}[1h])) / sum(rate(grounded_http_request_duration_seconds_count{namespace=~\"$namespace\",group!~\"ops|chat\"}[1h]))) / 0.05",
+          "expr": "(1 - sum(rate(grounded_http_request_duration_seconds_bucket{namespace=~\"$namespace\",group!~\"ops|chat|mcp\",le=~\"1(\\\\.0)?\"}[1h])) / sum(rate(grounded_http_request_duration_seconds_count{namespace=~\"$namespace\",group!~\"ops|chat|mcp\"}[1h]))) / 0.05",
           "legendFormat": "latency, 1h",
           "refId": "C",
           "editorMode": "code",

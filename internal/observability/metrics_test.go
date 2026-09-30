@@ -24,6 +24,8 @@ func TestRouteGroup(t *testing.T) {
 		"GET /widget.js":                              observability.GroupPublic,
 		"GET /embed/{agentId}":                        observability.GroupPublic,
 		"GET /v1/models":                              observability.GroupOpenAI,
+		"POST /mcp":                                   observability.GroupMCP,
+		"GET /mcp":                                    observability.GroupMCP,
 		"GET /v1/admin/users":                         observability.GroupAdmin,
 		"GET /auth/callback":                          observability.GroupAuth,
 		"GET /v1/me":                                  observability.GroupAuth,

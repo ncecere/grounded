@@ -40,7 +40,7 @@ var (
 	// no_answer, moderated, model_busy, aborted, error).
 	ChatAnswers = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "grounded_chat_answers_total",
-		Help: "Chat answers by channel (ui, api, openai, public, widget, test) and outcome.",
+		Help: "Chat answers by channel (ui, api, openai, public, widget, mcp, test) and outcome.",
 	}, []string{"channel", "outcome"})
 	ChatFirstToken = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "grounded_chat_first_token_seconds",
@@ -131,6 +131,12 @@ var (
 		Help: "Audited reads under break-glass sessions by read kind.",
 	}, []string{"kind"})
 
+	// MCPToolCalls counts the MCP server's tool calls (docs/mcp.md).
+	MCPToolCalls = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "grounded_mcp_tool_calls_total",
+		Help: "MCP server tool calls by tool (search, ask) and outcome (ok, refused, error).",
+	}, []string{"tool", "outcome"})
+
 	ValkeyErrors = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "grounded_valkey_errors_total",
 		Help: "Valkey commands and dials that failed (a missing key is not an error), by command.",
@@ -143,7 +149,7 @@ func appCollectors() []prometheus.Collector {
 		BuildInfo, ChatAnswers, ChatFirstToken, ChatDuration, RetrievalDuration,
 		ModelRequests, ModelRequestDuration, SystemOneRequests, SystemOneDuration, ModerationDecisions,
 		JobsWorked, JobDuration, IngestDocuments, IngestDuration, EmbeddingBatchInputs,
-		CrawlPages, CrawlFetchDuration, BreakGlassSessions, BreakGlassReads, ValkeyErrors,
+		CrawlPages, CrawlFetchDuration, BreakGlassSessions, BreakGlassReads, MCPToolCalls, ValkeyErrors,
 	}
 }
 

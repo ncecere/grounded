@@ -190,6 +190,11 @@ var adminPolicies = map[string]policy{
 		p := "/v1/admin/settings/public-access"
 		return put(p, map[string]any{"publicAgentsEnabled": true}).h(c.rev(p))
 	}},
+	"adminGetMCPSettings": adminRead("/v1/admin/settings/mcp"),
+	"adminPutMCPSettings": {own: padmin, build: func(c *mctx) request {
+		p := "/v1/admin/settings/mcp"
+		return put(p, map[string]any{"enabled": false}).h(c.rev(p))
+	}},
 	"adminGetMaintenance": adminRead("/v1/admin/settings/maintenance"),
 	"adminPutMaintenance": {own: padmin, build: func(c *mctx) request {
 		p := "/v1/admin/settings/maintenance"

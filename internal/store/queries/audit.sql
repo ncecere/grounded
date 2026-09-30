@@ -18,7 +18,7 @@ INSERT INTO audit_log (
 -- policies) always have a live label. parent_* names the object a target
 -- belongs to, for linking: a publishable key's agent, a document's source
 -- (parent_label '' when the parent no longer exists).
--- action_prefix and exclude_prefix are LIKE-escaped by the caller.
+-- action_prefix and exclude_prefixes are LIKE-escaped by the caller.
 -- group_mapping: the group mapping rules' changes and the memberships they
 -- made (metadata.via = 'sso_group_rule'), across action groups.
 -- actor_kind: 'system' for the system's entries, 'group_mapping' for the
@@ -102,6 +102,7 @@ CROSS JOIN LATERAL (
         WHEN 'evaluation_set' THEN (SELECT es.name FROM eval_sets es WHERE es.id = ids.target_uuid)
         WHEN 'evaluation_run' THEN (SELECT 'Run of ' || ers.name FROM eval_runs er JOIN eval_sets ers ON ers.id = er.set_id WHERE er.id = ids.target_uuid)
         WHEN 'evaluation_settings' THEN 'Evaluations'
+        WHEN 'mcp_settings' THEN 'MCP server'
         WHEN 'conversation' THEN (SELECT 'Conversation' FROM conversations cv WHERE cv.id = ids.target_uuid)
     END)::text AS label
 ) live
@@ -109,7 +110,7 @@ WHERE (sqlc.narg(team_id)::uuid IS NULL OR a.team_id = sqlc.narg(team_id)::uuid)
   AND (sqlc.narg(before_id)::bigint IS NULL OR a.id < sqlc.narg(before_id)::bigint)
   AND (sqlc.narg(action)::text IS NULL OR a.action = sqlc.narg(action)::text)
   AND (sqlc.narg(action_prefix)::text IS NULL OR a.action LIKE sqlc.narg(action_prefix)::text || '%' ESCAPE '\')
-  AND (sqlc.narg(exclude_prefix)::text IS NULL OR a.action NOT LIKE sqlc.narg(exclude_prefix)::text || '%' ESCAPE '\')
+  AND NOT EXISTS (SELECT 1 FROM unnest(sqlc.arg(exclude_prefixes)::text[]) AS x(prefix) WHERE a.action LIKE x.prefix || '%' ESCAPE '\')
   AND (NOT COALESCE(sqlc.narg(group_mapping)::boolean, false)
        OR a.action LIKE 'platform.sso\_rule\_%' ESCAPE '\' OR a.metadata->>'via' = 'sso_group_rule')
   AND (sqlc.narg(actor_user_id)::uuid IS NULL OR a.actor_user_id = sqlc.narg(actor_user_id)::uuid)

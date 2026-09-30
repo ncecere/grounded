@@ -4012,6 +4012,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/settings/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the MCP server is on (platform admins and auditors) */
+        get: operations["adminGetMCPSettings"];
+        /** Turn the MCP server (POST /mcp, docs/mcp.md) on or off for the platform (platform admins; audited). Off answers 404 on /mcp. */
+        put: operations["adminPutMCPSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4796,6 +4814,8 @@ export interface components {
             platformAuditor: boolean;
             /** @description Evaluations are on for the platform (the tabs show for team editors and above) */
             evaluations?: boolean;
+            /** @description The MCP server (POST /mcp) is on for the platform */
+            mcp?: boolean;
         };
         Me: {
             teams: components["schemas"]["MyTeam"][];
@@ -6541,8 +6561,11 @@ export interface components {
             /** Format: int64 */
             latencyMs: number;
         };
-        /** @enum {string} */
-        APIKeyScope: "query" | "ingest" | "manage";
+        /**
+         * @description query searches knowledge bases and asks agents over the REST API; ingest uploads and manages documents; manage changes sources and knowledge bases; mcp searches and asks through the MCP server (POST /mcp, docs/mcp.md) and grants nothing on the REST API
+         * @enum {string}
+         */
+        APIKeyScope: "query" | "ingest" | "manage" | "mcp";
         APIKey: {
             /** Format: uuid */
             id: string;
@@ -8164,10 +8187,10 @@ export interface components {
             moderation: components["schemas"]["ModerationCount"][];
         };
         /**
-         * @description How an answer was requested (ui is the chat page, public the public chat page, widget the embed)
+         * @description How an answer was requested (ui is the chat page, public the public chat page, widget the embed, mcp the MCP server)
          * @enum {string}
          */
-        AnalyticsChannel: "ui" | "api" | "openai" | "test" | "public" | "widget";
+        AnalyticsChannel: "ui" | "api" | "openai" | "test" | "public" | "widget" | "mcp";
         /** @description Blocked and flagged questions (stage input) and answers (stage output) by top category; error is a provider failure, which blocks when the policy fails closed */
         ModerationCount: {
             /** @enum {string} */
@@ -8548,7 +8571,7 @@ export interface components {
             rank: number;
             classification: string;
             /** @enum {string} */
-            channel: "ui" | "api" | "openai" | "test" | "public" | "widget";
+            channel: "ui" | "api" | "openai" | "test" | "public" | "widget" | "mcp";
         };
         ModerationEvent: {
             /**
@@ -8565,7 +8588,7 @@ export interface components {
             teamSlug: string;
             agentDeleted: boolean;
             /** @enum {string} */
-            channel: "ui" | "api" | "openai" | "public" | "widget";
+            channel: "ui" | "api" | "openai" | "public" | "widget" | "mcp";
             audience: components["schemas"]["Audience"];
             /** @enum {string} */
             stage: "input" | "output";
@@ -9055,6 +9078,16 @@ export interface components {
         EvaluationSettingsUpdate: {
             enabled: boolean;
         };
+        MCPSettings: {
+            /** @description Off by default; while off, POST /mcp answers 404 */
+            enabled: boolean;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        MCPSettingsUpdate: {
+            enabled: boolean;
+        };
     };
     responses: {
         /** @description A crawl run */
@@ -9284,7 +9317,7 @@ export interface components {
         DocumentSearchParam: string;
         /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. */
         AuditActionParam: string;
-        /** @description An action group (a prefix ending in a dot) to leave out, e.g. auth. to hide sign-ins and sign-outs. */
+        /** @description Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls. */
         AuditExcludeActionParam: string;
         /** @description Only entries by this person (including their API keys) */
         AuditActorParam: string;
@@ -9939,7 +9972,7 @@ export interface operations {
                 limit?: components["parameters"]["LimitParam"];
                 /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. */
                 action?: components["parameters"]["AuditActionParam"];
-                /** @description An action group (a prefix ending in a dot) to leave out, e.g. auth. to hide sign-ins and sign-outs. */
+                /** @description Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls. */
                 excludeAction?: components["parameters"]["AuditExcludeActionParam"];
                 /** @description Only entries by this person (including their API keys) */
                 actorUserId?: components["parameters"]["AuditActorParam"];
@@ -10666,7 +10699,7 @@ export interface operations {
                 limit?: components["parameters"]["LimitParam"];
                 /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. */
                 action?: components["parameters"]["AuditActionParam"];
-                /** @description An action group (a prefix ending in a dot) to leave out, e.g. auth. to hide sign-ins and sign-outs. */
+                /** @description Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls. */
                 excludeAction?: components["parameters"]["AuditExcludeActionParam"];
                 /** @description Only entries by this person (including their API keys) */
                 actorUserId?: components["parameters"]["AuditActorParam"];
@@ -15279,7 +15312,7 @@ export interface operations {
                 to?: string;
                 agentId?: string;
                 userId?: string;
-                channel?: "ui" | "api" | "openai" | "test" | "public" | "widget";
+                channel?: "ui" | "api" | "openai" | "test" | "public" | "widget" | "mcp";
                 /** @description nextCursor from the previous page */
                 cursor?: components["parameters"]["CursorParam"];
                 limit?: components["parameters"]["LimitParam"];
@@ -16805,6 +16838,64 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["EvaluationSettings"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetMCPSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MCPSettings"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminPutMCPSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MCPSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MCPSettings"];
                     };
                 };
             };

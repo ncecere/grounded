@@ -248,7 +248,7 @@ type AccessLogFilter struct {
 	From, To *time.Time
 	AgentID  *uuid.UUID
 	UserID   *uuid.UUID
-	// Channel is ui, api, openai, test, public or widget ("" for all).
+	// Channel is ui, api, openai, test, public, widget or mcp ("" for all).
 	Channel string
 	// Before is the cursor: entries strictly older than (At, ID).
 	BeforeAt *time.Time
