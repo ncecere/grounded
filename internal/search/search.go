@@ -12,7 +12,7 @@
 //     the evaluation sets of the teams where they are an editor or above,
 //     while evaluations are on (docs/evaluations.md §5).
 //   - Platform admins and auditors, in addition: teams, users, models,
-//     connections, embedding profiles and shared sources, which they may
+//     connections, MCP servers, embedding profiles and shared sources, which they may
 //     read on the admin pages. Never another team's knowledge bases,
 //     sources or conversations (that is content, reachable only under
 //     break-glass, which search does not use).
@@ -42,6 +42,7 @@ const (
 	TypeUser             = "user"
 	TypeModel            = "model"
 	TypeConnection       = "connection"
+	TypeMCPServer        = "mcp_server"
 	TypeEmbeddingProfile = "embedding_profile"
 	TypeSharedSource     = "shared_source"
 	TypeAgent            = "agent"
@@ -125,7 +126,7 @@ func (s *Service) Search(ctx context.Context, a authz.Actor, text string, limit 
 	p := patterns{contains: "%" + esc + "%", prefix: esc + "%", word: `\m` + regexp.QuoteMeta(text), lim: int32(limit), user: a.UserID}
 	finders := []finder{s.agents, s.knowledgeBases, s.dataSources, s.evaluationSets, s.conversations}
 	if a.CanReadPlatform() {
-		finders = append([]finder{s.teams, s.users, s.catalog, s.sharedSources}, finders...)
+		finders = append([]finder{s.teams, s.users, s.catalog, s.mcpServers, s.sharedSources}, finders...)
 	}
 	var out []Result
 	for _, f := range finders {
@@ -181,6 +182,16 @@ func (s *Service) users(ctx context.Context, p patterns) ([]Result, error) {
 		}
 		out = append(out, Result{Type: TypeUser, ID: r.ID, Label: label, Secondary: r.Email,
 			Status: unless(r.Status, "active"), rank: int(r.Rank)})
+	}
+	return out, err
+}
+
+// mcpServers finds MCP servers (docs/mcp-client.md).
+func (s *Service) mcpServers(ctx context.Context, p patterns) ([]Result, error) {
+	rows, err := s.q.SearchMCPServers(ctx, dbgen.SearchMCPServersParams{Contains: p.contains, Prefix: p.prefix, Word: p.word, Lim: p.lim})
+	out := make([]Result, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, Result{Type: TypeMCPServer, ID: r.ID, Label: r.Name, Secondary: r.URL, Status: enabled(r.Enabled), rank: int(r.Rank)})
 	}
 	return out, err
 }

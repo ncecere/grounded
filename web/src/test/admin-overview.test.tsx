@@ -267,6 +267,14 @@ describe("admin overview", () => {
     const mcp = within(await featureRow("MCP server")).getByRole("switch", { name: "Allow MCP clients" });
     expect(mcp).toHaveAttribute("aria-disabled", "true");
     expect(mcp).toHaveAccessibleDescription("Only platform admins can turn this on or off.");
+    // Still in the tab order, so keyboard users reach the reason; pressing it changes nothing.
+    expect(toggle).toHaveAttribute("tabindex", "0");
+    const checked = toggle.getAttribute("aria-checked");
+    toggle.focus();
+    await userEvent.keyboard(" ");
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-checked", checked);
+    expect(await axe(document.body)).toHaveNoViolations();
     // Read-only staff open the requests; they don't review them.
     const queue = (await screen.findByText("Needs attention")).closest("section")!;
     expect(await within(queue).findByRole("link", { name: /View requests/ })).toBeInTheDocument();

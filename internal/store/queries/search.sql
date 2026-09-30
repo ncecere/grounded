@@ -45,6 +45,14 @@ WHERE c.name ILIKE @contains::text
 ORDER BY rank, length(c.name), lower(c.name), c.id
 LIMIT @lim;
 
+-- name: SearchMCPServers :many
+SELECT s.id, s.name, s.url, s.enabled,
+       (CASE WHEN s.name ILIKE @prefix::text THEN 0 WHEN s.name ~* @word::text THEN 1 ELSE 2 END)::int AS rank
+FROM mcp_servers s
+WHERE s.name ILIKE @contains::text
+ORDER BY rank, length(s.name), lower(s.name), s.id
+LIMIT @lim;
+
 -- name: SearchEmbeddingProfiles :many
 SELECT p.id, p.name, p.key, p.status,
        LEAST(CASE WHEN p.name ILIKE @prefix::text THEN 0 WHEN p.name ~* @word::text THEN 1 ELSE 2 END,

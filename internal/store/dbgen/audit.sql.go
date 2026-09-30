@@ -146,17 +146,19 @@ WHERE ($1::uuid IS NULL OR a.team_id = $1::uuid)
   AND ($3::text IS NULL OR a.action = $3::text)
   AND ($4::text IS NULL OR a.action LIKE $4::text || '%' ESCAPE '\')
   AND NOT EXISTS (SELECT 1 FROM unnest($5::text[]) AS x(prefix) WHERE a.action LIKE x.prefix || '%' ESCAPE '\')
-  AND (NOT COALESCE($6::boolean, false)
+  AND (COALESCE(cardinality($6::text[]), 0) = 0
+       OR EXISTS (SELECT 1 FROM unnest($6::text[]) AS y(prefix) WHERE a.action LIKE y.prefix || '%' ESCAPE '\'))
+  AND (NOT COALESCE($7::boolean, false)
        OR a.action LIKE 'platform.sso\_rule\_%' ESCAPE '\' OR a.metadata->>'via' = 'sso_group_rule')
-  AND ($7::uuid IS NULL OR a.actor_user_id = $7::uuid)
-  AND ($8::text IS NULL
-       OR (a.actor_kind = 'system' AND ($8::text = 'system' OR a.metadata->>'via' = 'sso_group_rule')))
-  AND ($9::text IS NULL OR a.target_type = $9::text)
-  AND (NOT COALESCE($10::boolean, false) OR a.action NOT LIKE 'costs.%')
-  AND ($11::timestamptz IS NULL OR a.occurred_at >= $11::timestamptz)
-  AND ($12::timestamptz IS NULL OR a.occurred_at < $12::timestamptz)
+  AND ($8::uuid IS NULL OR a.actor_user_id = $8::uuid)
+  AND ($9::text IS NULL
+       OR (a.actor_kind = 'system' AND ($9::text = 'system' OR a.metadata->>'via' = 'sso_group_rule')))
+  AND ($10::text IS NULL OR a.target_type = $10::text)
+  AND (NOT COALESCE($11::boolean, false) OR a.action NOT LIKE 'costs.%')
+  AND ($12::timestamptz IS NULL OR a.occurred_at >= $12::timestamptz)
+  AND ($13::timestamptz IS NULL OR a.occurred_at < $13::timestamptz)
 ORDER BY a.id DESC
-LIMIT $13
+LIMIT $14
 `
 
 type ListAuditParams struct {
@@ -165,6 +167,7 @@ type ListAuditParams struct {
 	Action          *string
 	ActionPrefix    *string
 	ExcludePrefixes []string
+	AnyPrefixes     []string
 	GroupMapping    pgtype.Bool
 	ActorUserID     uuid.NullUUID
 	ActorKind       *string
@@ -211,7 +214,8 @@ type ListAuditRow struct {
 // policies) always have a live label. parent_* names the object a target
 // belongs to, for linking: a publishable key's agent, a document's source
 // (parent_label ” when the parent no longer exists).
-// action_prefix and exclude_prefixes are LIKE-escaped by the caller.
+// action_prefix, exclude_prefixes and any_prefixes (an area spanning action
+// groups: any of them) are LIKE-escaped by the caller.
 // group_mapping: the group mapping rules' changes and the memberships they
 // made (metadata.via = 'sso_group_rule'), across action groups.
 // actor_kind: 'system' for the system's entries, 'group_mapping' for the
@@ -225,6 +229,7 @@ func (q *Queries) ListAudit(ctx context.Context, arg ListAuditParams) ([]ListAud
 		arg.Action,
 		arg.ActionPrefix,
 		arg.ExcludePrefixes,
+		arg.AnyPrefixes,
 		arg.GroupMapping,
 		arg.ActorUserID,
 		arg.ActorKind,

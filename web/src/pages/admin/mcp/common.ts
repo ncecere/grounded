@@ -5,6 +5,7 @@ import { api, type Schemas, unwrap } from "@/api/client";
 export type MCPServer = Schemas["MCPServer"];
 export type MCPTool = Schemas["MCPServerTool"];
 export type MCPTestResult = Schemas["MCPServerTestResult"];
+export type MCPToolUse = Schemas["MCPToolUse"];
 
 export const serversKey = ["admin", "mcp-servers"] as const;
 export const toolsKey = (serverId: string) => ["admin", "mcp-servers", serverId, "tools"] as const;

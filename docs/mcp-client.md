@@ -35,11 +35,11 @@ When you press **Read tools** again:
 - a tool whose title, description or input schema **changed** loses its approval (read it again, then approve);
 - a tool the server **no longer lists** is marked "No longer listed" and unapproved (it can't be approved until the server lists it again).
 
-Withdrawing an approval takes effect at once: agents stop offering the tool in their next answer.
+Withdrawing an approval takes effect at once: agents stop offering the tool in their next answer. Each tool lists the published agents that use it, and when there are any, **Withdraw approval** names them and asks first.
 
 ### Deleting a server
 
-A server that a published agent version uses can't be deleted (`409 mcp_server_in_use`, listing the agents): turn it off instead, or publish those agents without its tools first. Deleting removes its tools from past versions; drafts that chose them show a warning until they're removed.
+A server that a published agent version uses can't be deleted (`409 mcp_server_in_use`, listing the agents and their published versions; the Delete dialog names them): disable it instead, or publish those agents without its tools first. Deleting removes its tools from past versions; drafts that chose them show a warning until they're removed.
 
 ### Health
 

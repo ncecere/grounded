@@ -11,6 +11,7 @@ import { api, ifMatch, unwrap } from "@/api/client";
 import { AlertDialog } from "@/components/ui/dialog/dialog";
 import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
+import { lockedSwitch } from "./locked-switch";
 import { mcpSettingsQuery } from "./queries";
 
 /**
@@ -55,7 +56,7 @@ export function mcpText(enabled: boolean, endpoint = mcpEndpoint()) {
 const offConsequences =
   "AI tools connected over MCP stop working at once: the server answers “not found” until it is turned on again. API keys and their scopes are kept.";
 
-/** The switch: platform admins confirm before turning the server off; others see it disabled, with the reason. */
+/** The switch: platform admins confirm before turning the server off; others see it read-only, with the reason. */
 export function MCPSwitch({ setting, isAdmin }: { setting: ReturnType<typeof useMCPSetting>; isAdmin: boolean }) {
   const { settings, save } = setting;
   const [confirming, setConfirming] = useState(false);
@@ -66,8 +67,8 @@ export function MCPSwitch({ setting, isAdmin }: { setting: ReturnType<typeof use
         label="Allow MCP clients"
         labelPosition="start"
         checked={settings.data.enabled}
-        disabled={!isAdmin || save.isPending}
-        description={isAdmin ? undefined : "Only platform admins can turn this on or off."}
+        disabled={save.isPending}
+        {...lockedSwitch(isAdmin)}
         onCheckedChange={(v) => (v ? save.mutate(true) : setConfirming(true))}
       />
       <AlertDialog

@@ -2,7 +2,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FlaskConical, Pencil, Trash2 } from "lucide-react";
 import { api, unwrap } from "@/api/client";
-import { RelativeTime } from "@/components/templates/list-page";
+import { Time } from "@/components/ui/time/time";
 import { RecordPage } from "@/components/templates/record-page";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
@@ -98,7 +98,7 @@ export function ModelRecordPage({ model, health, open, loading, onClose, connect
               { label: "Dimensions", value: model.dimensions?.toLocaleString() },
               { label: "Check timeout", value: model.moderationTimeoutSeconds ? `${model.moderationTimeoutSeconds} s per attempt` : undefined },
               { label: "Description", value: model.description || undefined },
-              { label: "Updated", value: <RelativeTime value={model.updatedAt} /> },
+              { label: "Updated", value: <Time value={model.updatedAt} /> },
             ].filter((f) => f.value !== undefined)
           : []
       }

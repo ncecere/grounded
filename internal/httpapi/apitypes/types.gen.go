@@ -3285,6 +3285,7 @@ const (
 	SearchResultTypeEmbeddingProfile SearchResultType = "embedding_profile"
 	SearchResultTypeEvaluationSet    SearchResultType = "evaluation_set"
 	SearchResultTypeKnowledgeBase    SearchResultType = "knowledge_base"
+	SearchResultTypeMcpServer        SearchResultType = "mcp_server"
 	SearchResultTypeModel            SearchResultType = "model"
 	SearchResultTypeSharedSource     SearchResultType = "shared_source"
 	SearchResultTypeTeam             SearchResultType = "team"
@@ -3307,6 +3308,8 @@ func (e SearchResultType) Valid() bool {
 	case SearchResultTypeEvaluationSet:
 		return true
 	case SearchResultTypeKnowledgeBase:
+		return true
+	case SearchResultTypeMcpServer:
 		return true
 	case SearchResultTypeModel:
 		return true
@@ -7311,6 +7314,9 @@ type MCPServerTool struct {
 	Name     string             `json:"name"`
 	ServerId openapi_types.UUID `json:"serverId"`
 	Title    string             `json:"title"`
+
+	// UsedBy The agents whose published version uses the tool (in the tool list and the refresh result; absent elsewhere)
+	UsedBy *[]MCPToolUse `json:"usedBy,omitempty"`
 }
 
 // MCPServerUpdate defines model for MCPServerUpdate.
@@ -7364,6 +7370,17 @@ type MCPToolOption struct {
 	ServerId          openapi_types.UUID `json:"serverId"`
 	ServerName        string             `json:"serverName"`
 	Title             string             `json:"title"`
+}
+
+// MCPToolUse An agent whose published version uses an MCP tool
+type MCPToolUse struct {
+	AgentId   openapi_types.UUID `json:"agentId"`
+	AgentName string             `json:"agentName"`
+	TeamName  string             `json:"teamName"`
+	TeamSlug  string             `json:"teamSlug"`
+
+	// Version The published version number
+	Version int32 `json:"version"`
 }
 
 // MaintenanceErrorResponse defines model for MaintenanceErrorResponse.
@@ -9178,7 +9195,7 @@ type ScopeTotals struct {
 	SmallTalk int64 `json:"smallTalk"`
 }
 
-// SearchResult One match of GET /v1/search, with what the app needs to link to it: teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models, connections and embedding profiles their admin list with ?record={id}; shared sources /admin/shared-sources/{id}; agents the team's agent page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug}); knowledge bases and data sources their team page; conversations the chat with ?c={id}; evaluation sets /teams/{teamSlug}/evaluations/{id} (kind says whether the set tests a knowledge_base or an agent).
+// SearchResult One match of GET /v1/search, with what the app needs to link to it: teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models, connections, MCP servers and embedding profiles their admin list with ?record={id}; shared sources /admin/shared-sources/{id}; agents the team's agent page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug}); knowledge bases and data sources their team page; conversations the chat with ?c={id}; evaluation sets /teams/{teamSlug}/evaluations/{id} (kind says whether the set tests a knowledge_base or an agent).
 type SearchResult struct {
 	// AgentSlug The agent (agents, conversations)
 	AgentSlug *string `json:"agentSlug,omitempty"`
@@ -9196,7 +9213,7 @@ type SearchResult struct {
 	// Label The name (a user's display name, or their email without one; a conversation's title)
 	Label string `json:"label"`
 
-	// Secondary A second line: the team's name (agents, knowledge bases, data sources), the agent's name (conversations), the email (users), the slug (teams), the key (models, embedding profiles) or the base URL (connections). May be empty.
+	// Secondary A second line: the team's name (agents, knowledge bases, data sources), the agent's name (conversations), the email (users), the slug (teams), the key (models, embedding profiles), the base URL (connections) or the URL (MCP servers). May be empty.
 	Secondary string `json:"secondary"`
 
 	// Status The object's state when it isn't the normal one: archived (teams), suspended (users), disabled (models, connections), retired (embedding profiles), paused (sources), agent_deleted (conversations of a deleted agent)
@@ -10162,7 +10179,7 @@ type AdminListAuditParams struct {
 	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed.
+	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. mcp_clients. is what AI tools did over Grounded's MCP server (mcp. without mcp.tool_call); agent_tools. is agents' MCP tools: their calls (mcp.tool_call), MCP servers (mcp_server.) and tool approvals (mcp_tool.).
 	Action *AuditActionParam `form:"action,omitempty" json:"action,omitempty"`
 
 	// ExcludeAction Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls.
@@ -10634,7 +10651,7 @@ type ListTeamAuditParams struct {
 	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed.
+	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. mcp_clients. is what AI tools did over Grounded's MCP server (mcp. without mcp.tool_call); agent_tools. is agents' MCP tools: their calls (mcp.tool_call), MCP servers (mcp_server.) and tool approvals (mcp_tool.).
 	Action *AuditActionParam `form:"action,omitempty" json:"action,omitempty"`
 
 	// ExcludeAction Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls.

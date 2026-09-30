@@ -3,16 +3,17 @@
  * approved tools agents may call, as a ListPage with stored health and a
  * Health filter; each server in a RecordPage (?record=: settings, Test, the
  * tools with their approval) and a FormPage (?form=) to add or edit one.
- * Platform admins change them; auditors read.
+ * Platform admins change them; auditors read (the copy says so). Delete
+ * names the agents that block it (delete-dialog.tsx).
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Blocks, Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
-import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
 import { useFormParam } from "@/components/templates/form-page";
 import { useRecordParam } from "@/components/templates/record-page";
+import { Alert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import { toast } from "@/components/ui/toast/toast";
@@ -21,6 +22,7 @@ import { useClassifications, useIsPlatformAdmin } from "../hooks";
 import { EnabledBadge } from "../models/common";
 import { type HealthCheck, healthColumn, healthFacet, useHealthChecks } from "../models/health";
 import { type MCPServer, serversKey, useMCPServers } from "./common";
+import { DeleteServerDialog } from "./delete-dialog";
 import { ServerForm } from "./server-form";
 import { ServerRecordPage } from "./server-record";
 
@@ -81,7 +83,18 @@ export function MCPServersPage() {
       <ListPage<MCPServer>
         id="admin-mcp-servers"
         title="MCP servers"
-        description="Remote tools agents can call while they answer. Add a server, read its tools, and approve the ones agents may use."
+        description={
+          isAdmin
+            ? "Remote tools agents can call while they answer. Add a server, read its tools, and approve the ones agents may use."
+            : "Remote tools agents can call while they answer. Platform admins add the servers and approve the tools agents may use."
+        }
+        notices={
+          !isAdmin && (
+            <Alert tone="info" title="Read-only">
+              You can view the servers and their tools. Only platform admins can change them.
+            </Alert>
+          )
+        }
         primaryAction={add}
         caption="MCP servers"
         columns={columns(health.get, level)}
@@ -117,15 +130,7 @@ export function MCPServersPage() {
         onDelete={setDeleting}
       />
       {isAdmin && editing && <ServerForm server={editing === "new" ? null : editing} onClose={form.close} />}
-      <ConfirmMutationDialog
-        target={deleting}
-        onClose={() => setDeleting(null)}
-        mutation={del}
-        onConfirm={(x) => del.mutate(x)}
-        title={`Delete ${deleting?.name}?`}
-        description="Its tools are removed from every agent draft and past version. A server that published agents use can't be deleted: turn it off instead."
-        confirmLabel="Delete"
-      />
+      <DeleteServerDialog target={deleting} onClose={() => setDeleting(null)} mutation={del} />
     </>
   );
 }

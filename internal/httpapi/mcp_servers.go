@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/google/uuid"
+
 	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
@@ -177,12 +179,26 @@ func (a *api) adminRefreshMCPServerTools(w http.ResponseWriter, r *http.Request)
 	if failed(w, r, err) {
 		return
 	}
+	uses, err := a.MCP.ToolUses(r.Context(), a.actor(r), id)
+	if failed(w, r, err) {
+		return
+	}
 	out := apitypes.MCPRefreshResult{Listed: sum.Listed, Added: sum.Added, Changed: sum.Changed, Gone: sum.Gone,
 		Tools: make([]apitypes.MCPServerTool, len(tools))}
 	for i, t := range tools {
-		out.Tools[i] = toAPIMCPToolRow(t)
+		out.Tools[i] = withUses(toAPIMCPToolRow(t), uses)
 	}
 	httpx.JSON(w, http.StatusOK, out)
+}
+
+// withUses adds the agents whose published version uses the tool.
+func withUses(t apitypes.MCPServerTool, uses map[uuid.UUID][]mcpclient.ToolUse) apitypes.MCPServerTool {
+	list := make([]apitypes.MCPToolUse, 0, len(uses[t.Id]))
+	for _, u := range uses[t.Id] {
+		list = append(list, apitypes.MCPToolUse{AgentId: u.AgentID, AgentName: u.Name, TeamSlug: u.TeamSlug, TeamName: u.TeamName, Version: u.Version})
+	}
+	t.UsedBy = &list
+	return t
 }
 
 func (a *api) adminListMCPServerTools(w http.ResponseWriter, r *http.Request) {
@@ -191,7 +207,11 @@ func (a *api) adminListMCPServerTools(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tools, err := a.MCP.ListTools(r.Context(), a.actor(r), id)
-	writeList(w, r, tools, err, toAPIMCPToolRow)
+	if failed(w, r, err) {
+		return
+	}
+	uses, err := a.MCP.ToolUses(r.Context(), a.actor(r), id)
+	writeList(w, r, tools, err, func(t mcpclient.Tool) apitypes.MCPServerTool { return withUses(toAPIMCPToolRow(t), uses) })
 }
 
 func (a *api) adminSetMCPToolApproval(w http.ResponseWriter, r *http.Request) {

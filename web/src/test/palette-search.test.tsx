@@ -33,6 +33,7 @@ const staffHits = [
   hit("user", "u9", "Regina Rivera", "regina@example.edu"),
   hit("model", "m1", "Registrar chat", "reg-chat", { kind: "chat", status: "disabled" }),
   hit("connection", "n1", "Registrar gateway", "https://llm.example.edu/v1"),
+  hit("mcp_server", "x1", "Registrar status", "https://status.example.edu/mcp"),
   hit("embedding_profile", "p1", "Registrar vectors", "reg-vectors"),
   hit("shared_source", "ss1", "Registrar policies", "", { kind: "upload" }),
 ];
@@ -86,7 +87,7 @@ describe("command palette search (E15)", () => {
     await user.type(input, "reg");
     await within(dialog).findByRole("option", { name: /Regina Rivera/ });
     const listbox = within(dialog).getByRole("listbox");
-    for (const name of ["Teams in Admin", "Users", "Models", "Connections", "Embedding profiles", "Shared sources"]) {
+    for (const name of ["Teams in Admin", "Users", "Models", "Connections", "MCP servers", "Embedding profiles", "Shared sources"]) {
       expect(within(listbox).getByRole("group", { name })).toBeInTheDocument();
     }
     expect(within(listbox).getByRole("option", { name: /Registrar archive/ })).toHaveTextContent("Admin · Archived");
@@ -108,6 +109,16 @@ describe("command palette search (E15)", () => {
     await user.click(await within(dialog).findByRole("option", { name: /Registrar chat/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/admin/models"));
     expect(router.state.location.search).toMatchObject({ record: "m1" });
+  });
+
+  it("opens an MCP server as a record on its admin list", async () => {
+    mockApi({ ...shellRoutes("platform_admin"), "GET /v1/agents": () => [], "GET /v1/search": () => staffHits, "GET /v1/admin/mcp-servers": () => [] });
+    const { router } = renderApp("/");
+    const { user, dialog, input } = await openPalette();
+    await user.type(input, "registrar status");
+    await user.click(await within(dialog).findByRole("option", { name: /Registrar status/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/mcp-servers"));
+    expect(router.state.location.search).toMatchObject({ record: "x1" });
   });
 
   it("says it is searching, cancels a search that is no longer wanted, and says when nothing was found", async () => {

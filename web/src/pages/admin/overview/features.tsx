@@ -16,6 +16,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item/item";
+import { cx } from "@/lib/bitop-utils";
 import { costSettingsQuery } from "@/lib/costs";
 import { backendLabels } from "@/lib/parsing";
 import { terms } from "@/lib/terms";
@@ -161,7 +162,7 @@ export function FeaturesCard() {
               {r.icon}
             </ItemMedia>
             <ItemContent>
-              <ItemTitle>
+              <ItemTitle className={o.featureTitle}>
                 {r.title}
                 {r.state && (
                   <StatusBadge size="sm" tone={r.state.tone}>
@@ -174,7 +175,7 @@ export function FeaturesCard() {
               <ItemDescription className={o.fullText}>{r.description}</ItemDescription>
             </ItemContent>
             {(r.control || r.link) && (
-              <ItemActions className={o.rowActions}>
+              <ItemActions className={cx(o.rowActions, o.featureActions)}>
                 {r.control}
                 {r.link && (
                   <Button size="sm" variant="secondary" render={r.link}>

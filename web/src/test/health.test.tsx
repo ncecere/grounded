@@ -183,11 +183,16 @@ describe("Needs attention", () => {
   });
 
   it("says how many connections and models are failing, linking to the filtered lists", async () => {
-    mockApi(overviewRoutes([failing("connection", "c1"), failing("connection", "c2", { subjectEnabled: false }), failing("model", "m1"), failing("model", "m2"), check("model", "m3")]));
+    mockApi(overviewRoutes([failing("connection", "c1"), failing("connection", "c2", { subjectEnabled: false }), failing("model", "m1"), failing("model", "m2"), check("model", "m3"), failing("mcp_server", "s1")]));
     const { container } = renderApp("/admin");
     const queue = (await screen.findByText("Needs attention")).closest("section")!;
     expect(await within(queue).findByText("1 connection is failing")).toBeInTheDocument();
     expect(within(queue).getByText("2 models are failing")).toBeInTheDocument();
+    // One is "it", several are "they"; and a failing connection may have no models, so nothing is claimed about them.
+    expect(within(queue).getByText("Its latest test failed. Models on it may not answer until it works again.")).toBeInTheDocument();
+    expect(within(queue).getByText("Their latest tests failed. Agents and knowledge bases that use them may not work.")).toBeInTheDocument();
+    // Health doesn't stop agents calling a server's tools: the calls will probably fail.
+    expect(within(queue).getByText("Its latest test failed. Agents' calls to its tools will probably fail.")).toBeInTheDocument();
     expect(within(queue).getByRole("link", { name: /View connections/ })).toHaveAttribute("href", "/admin/connections?health=failing");
     expect(within(queue).getByRole("link", { name: /View models/ })).toHaveAttribute("href", "/admin/models?health=failing");
     expect(await axe(container)).toHaveNoViolations();

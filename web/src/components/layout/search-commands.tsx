@@ -2,7 +2,7 @@
  * ⌘K finds objects by name on the server (E15, GET /v1/search): agents,
  * knowledge bases and sources of all the user's teams, agents they may chat
  * with, their own conversations, and for platform staff teams, users,
- * models, connections, embedding profiles and shared sources. The palette's
+ * models, connections, MCP servers, embedding profiles and shared sources. The palette's
  * own lists (pages, actions, teams, admin pages) stay local and instant;
  * these results arrive as you type (debounced; a newer query cancels the
  * older request) and are filtered locally as you keep typing. The text that
@@ -15,7 +15,7 @@
  */
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Bot, ClipboardCheck, Cpu, Database, Layers, Library, MessageSquare, MessagesSquare, Plug, Search, Share2, UserRound, UsersRound } from "lucide-react";
+import { Blocks, Bot, ClipboardCheck, Cpu, Database, Layers, Library, MessageSquare, MessagesSquare, Plug, Search, Share2, UserRound, UsersRound } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
 import { type CommandGroup } from "@/components/ui/command-palette/command-palette";
@@ -86,7 +86,7 @@ type Spec = {
   go: (r: Result, nav: Navigate) => (() => void) | undefined;
 };
 
-const record = (to: "/admin/models" | "/admin/connections" | "/admin/embedding-profiles") => (r: Result, nav: Navigate) => () =>
+const record = (to: "/admin/models" | "/admin/connections" | "/admin/mcp-servers" | "/admin/embedding-profiles") => (r: Result, nav: Navigate) => () =>
   void nav({ to, search: { record: r.id } as never });
 const withState = (r: Result) => hint(r.secondary, state(r));
 
@@ -111,6 +111,7 @@ const specs: Record<Result["type"], Spec[]> = {
   ],
   model: [{ group: "Models", icon: <Cpu aria-hidden />, hint: (r) => hint(kind(r), state(r)), keywords: (r) => [r.secondary, r.kind ?? "", "model"], go: record("/admin/models") }],
   connection: [{ group: "Connections", icon: <Plug aria-hidden />, hint: withState, keywords: (r) => [r.secondary, "connection", "gateway"], go: record("/admin/connections") }],
+  mcp_server: [{ group: "MCP servers", icon: <Blocks aria-hidden />, hint: withState, keywords: (r) => [r.secondary, "mcp", "mcp server", "tools"], go: record("/admin/mcp-servers") }],
   embedding_profile: [
     { group: "Embedding profiles", icon: <Layers aria-hidden />, hint: withState, keywords: (r) => [r.secondary, "embedding profile"], go: record("/admin/embedding-profiles") },
   ],

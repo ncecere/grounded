@@ -10,7 +10,7 @@ import { useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import { RecordPage } from "@/components/templates/record-page";
-import { RelativeTime } from "@/components/templates/list-page";
+import { Time } from "@/components/ui/time/time";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
@@ -152,9 +152,9 @@ function facts(m: Migration) {
     { label: "From", value: m.fromProfile.name },
     { label: "To", value: m.toProfile.name },
     { label: "Started", value: `${formatDate(m.startedAt)}${m.startedBy ? ` by ${m.startedBy.displayName || m.startedBy.email}` : ""}` },
-    { label: "Switched", value: m.switchedAt ? <RelativeTime value={m.switchedAt} /> : undefined },
+    { label: "Switched", value: m.switchedAt ? <Time value={m.switchedAt} /> : undefined },
     { label: "Old vectors", value: grace ?? (m.status === "running" ? `Kept for ${m.graceDays} days after the switch` : undefined) },
-    { label: "Finished", value: m.finishedAt ? <RelativeTime value={m.finishedAt} /> : undefined },
+    { label: "Finished", value: m.finishedAt ? <Time value={m.finishedAt} /> : undefined },
   ].filter((f) => f.value !== undefined);
 }
 

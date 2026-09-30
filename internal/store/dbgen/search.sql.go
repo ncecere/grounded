@@ -399,6 +399,61 @@ func (q *Queries) SearchKnowledgeBases(ctx context.Context, arg SearchKnowledgeB
 	return items, nil
 }
 
+const searchMCPServers = `-- name: SearchMCPServers :many
+SELECT s.id, s.name, s.url, s.enabled,
+       (CASE WHEN s.name ILIKE $1::text THEN 0 WHEN s.name ~* $2::text THEN 1 ELSE 2 END)::int AS rank
+FROM mcp_servers s
+WHERE s.name ILIKE $3::text
+ORDER BY rank, length(s.name), lower(s.name), s.id
+LIMIT $4
+`
+
+type SearchMCPServersParams struct {
+	Prefix   string
+	Word     string
+	Contains string
+	Lim      int32
+}
+
+type SearchMCPServersRow struct {
+	ID      uuid.UUID
+	Name    string
+	URL     string
+	Enabled bool
+	Rank    int32
+}
+
+func (q *Queries) SearchMCPServers(ctx context.Context, arg SearchMCPServersParams) ([]SearchMCPServersRow, error) {
+	rows, err := q.db.Query(ctx, searchMCPServers,
+		arg.Prefix,
+		arg.Word,
+		arg.Contains,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchMCPServersRow{}
+	for rows.Next() {
+		var i SearchMCPServersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.URL,
+			&i.Enabled,
+			&i.Rank,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchModels = `-- name: SearchModels :many
 SELECT m.id, m.display_name, m.key, m.kind, m.enabled,
        LEAST(CASE WHEN m.display_name ILIKE $1::text THEN 0 WHEN m.display_name ~* $2::text THEN 1 ELSE 2 END,

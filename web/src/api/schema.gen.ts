@@ -1069,7 +1069,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an MCP server and its tools (platform admins; audited)
-         * @description Refused (409 mcp_server_in_use, details.agents) while a published agent version uses one of its tools: turn the server off instead, or publish those agents without its tools. Past versions lose the tools.
+         * @description Refused (409 mcp_server_in_use, details.agents: each agent's id, name, teamSlug, teamName and published version) while a published agent version uses one of its tools: turn the server off instead, or publish those agents without its tools. Past versions lose the tools.
          */
         delete: operations["adminDeleteMCPServer"];
         options?: never;
@@ -5708,6 +5708,21 @@ export interface components {
              * @description When a refresh no longer found it (absent while listed); a gone tool is unapproved
              */
             goneAt?: string;
+            /** @description The agents whose published version uses the tool (in the tool list and the refresh result; absent elsewhere) */
+            usedBy?: components["schemas"]["MCPToolUse"][];
+        };
+        /** @description An agent whose published version uses an MCP tool */
+        MCPToolUse: {
+            /** Format: uuid */
+            agentId: string;
+            agentName: string;
+            teamSlug: string;
+            teamName: string;
+            /**
+             * Format: int32
+             * @description The published version number
+             */
+            version: number;
         };
         MCPRefreshResult: {
             /** @description Tools the server lists */
@@ -7866,15 +7881,15 @@ export interface components {
             status: "active" | "disabled_by_team";
             reason?: string;
         };
-        /** @description One match of GET /v1/search, with what the app needs to link to it: teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models, connections and embedding profiles their admin list with ?record={id}; shared sources /admin/shared-sources/{id}; agents the team's agent page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug}); knowledge bases and data sources their team page; conversations the chat with ?c={id}; evaluation sets /teams/{teamSlug}/evaluations/{id} (kind says whether the set tests a knowledge_base or an agent). */
+        /** @description One match of GET /v1/search, with what the app needs to link to it: teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models, connections, MCP servers and embedding profiles their admin list with ?record={id}; shared sources /admin/shared-sources/{id}; agents the team's agent page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug}); knowledge bases and data sources their team page; conversations the chat with ?c={id}; evaluation sets /teams/{teamSlug}/evaluations/{id} (kind says whether the set tests a knowledge_base or an agent). */
         SearchResult: {
             /** @enum {string} */
-            type: "team" | "user" | "model" | "connection" | "embedding_profile" | "shared_source" | "agent" | "knowledge_base" | "data_source" | "conversation" | "evaluation_set";
+            type: "team" | "user" | "model" | "connection" | "mcp_server" | "embedding_profile" | "shared_source" | "agent" | "knowledge_base" | "data_source" | "conversation" | "evaluation_set";
             /** Format: uuid */
             id: string;
             /** @description The name (a user's display name, or their email without one; a conversation's title) */
             label: string;
-            /** @description A second line: the team's name (agents, knowledge bases, data sources), the agent's name (conversations), the email (users), the slug (teams), the key (models, embedding profiles) or the base URL (connections). May be empty. */
+            /** @description A second line: the team's name (agents, knowledge bases, data sources), the agent's name (conversations), the email (users), the slug (teams), the key (models, embedding profiles), the base URL (connections) or the URL (MCP servers). May be empty. */
             secondary: string;
             /** @description A model's kind (chat, embedding, moderation…), a data source's type (upload, web), or what an evaluation set tests (knowledge_base, agent) */
             kind?: string;
@@ -9877,7 +9892,7 @@ export interface components {
         DocumentTagParam: string;
         /** @description Case-insensitive substring match on the title, URL or file name */
         DocumentSearchParam: string;
-        /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. */
+        /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. mcp_clients. is what AI tools did over Grounded's MCP server (mcp. without mcp.tool_call); agent_tools. is agents' MCP tools: their calls (mcp.tool_call), MCP servers (mcp_server.) and tool approvals (mcp_tool.). */
         AuditActionParam: string;
         /** @description Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls. */
         AuditExcludeActionParam: string;
@@ -10532,7 +10547,7 @@ export interface operations {
                 /** @description nextCursor from the previous page */
                 cursor?: components["parameters"]["CursorParam"];
                 limit?: components["parameters"]["LimitParam"];
-                /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. */
+                /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. mcp_clients. is what AI tools did over Grounded's MCP server (mcp. without mcp.tool_call); agent_tools. is agents' MCP tools: their calls (mcp.tool_call), MCP servers (mcp_server.) and tool approvals (mcp_tool.). */
                 action?: components["parameters"]["AuditActionParam"];
                 /** @description Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls. */
                 excludeAction?: components["parameters"]["AuditExcludeActionParam"];
@@ -11302,7 +11317,7 @@ export interface operations {
                 /** @description nextCursor from the previous page */
                 cursor?: components["parameters"]["CursorParam"];
                 limit?: components["parameters"]["LimitParam"];
-                /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. */
+                /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. mcp_clients. is what AI tools did over Grounded's MCP server (mcp. without mcp.tool_call); agent_tools. is agents' MCP tools: their calls (mcp.tool_call), MCP servers (mcp_server.) and tool approvals (mcp_tool.). */
                 action?: components["parameters"]["AuditActionParam"];
                 /** @description Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls. */
                 excludeAction?: components["parameters"]["AuditExcludeActionParam"];

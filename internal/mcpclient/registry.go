@@ -356,7 +356,8 @@ func (s *Service) DeleteServer(ctx context.Context, a authz.Actor, id uuid.UUID)
 		if len(uses) > 0 {
 			agents := make([]map[string]any, len(uses))
 			for i, u := range uses {
-				agents[i] = map[string]any{"id": u.ID, "name": u.Name, "teamSlug": u.TeamSlug, "teamName": u.TeamName}
+				agents[i] = map[string]any{"id": u.ID, "name": u.Name, "teamSlug": u.TeamSlug, "teamName": u.TeamName,
+					"version": u.Version}
 			}
 			e := apperr.Conflict("mcp_server_in_use", "Published agents use this server's tools. Disable the server instead, "+
 				"or publish those agents without its tools first.")

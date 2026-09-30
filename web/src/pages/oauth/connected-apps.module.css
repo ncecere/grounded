@@ -1,0 +1,6 @@
+/* Connected apps: when an app was connected and last used, on one line that wraps. */
+.appMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}

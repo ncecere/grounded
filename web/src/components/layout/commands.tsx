@@ -1,7 +1,7 @@
 /* The command palette's groups: pages, the team's places (team-commands.tsx), team actions, objects found on the server (search-commands.tsx), teams and admin pages. */
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Bell, Boxes, Compass, Globe, Home, MessagesSquare, Plus, UserPlus } from "lucide-react";
+import { Bell, Boxes, Compass, Globe, Home, MessagesSquare, Plug, Plus, UserPlus } from "lucide-react";
 import { useMemo } from "react";
 import { teamSpendQuery } from "../../api/queries";
 import { requestIntent, type Intent } from "../../lib/intents";
@@ -42,6 +42,14 @@ function pageGroup(navigate: Navigate, me: Me, slug: string | undefined, mine: M
         hint: "Page",
         keywords: ["email", "preferences", "unsubscribe"],
         onSelect: () => void navigate({ to: "/settings/notifications" }),
+      },
+      {
+        id: "connected-apps",
+        label: "Connected apps",
+        icon: icon(Plug),
+        hint: "Page",
+        keywords: ["oauth", "ai tools", "mcp", "disconnect", "apps", "account"],
+        onSelect: () => void navigate({ to: "/settings/connected-apps" }),
       },
     ],
   };

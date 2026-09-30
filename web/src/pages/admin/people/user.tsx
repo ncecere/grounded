@@ -10,7 +10,7 @@ import { useRef, useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
 import { adminUserQuery } from "@/api/queries";
 import { ActionMenu } from "@/components/templates/action-menu";
-import { RelativeTime } from "@/components/templates/list-page";
+import { Time } from "@/components/ui/time/time";
 import { isNotFound, NotFoundState } from "@/components/not-found";
 import { roleLabels } from "@/components/roles";
 import { ErrorAlert } from "@/components/ui/alert/alert";
@@ -167,8 +167,8 @@ function UserAccessCard({ user, isAdmin, update }: { user: UserDetail["user"]; i
         <DescriptionList
           items={[
             { label: "Email", value: user.email },
-            { label: "First signed in", value: <RelativeTime value={user.createdAt} /> },
-            { label: "Last sign-in", value: user.lastLoginAt ? <RelativeTime value={user.lastLoginAt} /> : "Never" },
+            { label: "First signed in", value: <Time value={user.createdAt} fallback="—" /> },
+            { label: "Last sign-in", value: user.lastLoginAt ? <Time value={user.lastLoginAt} /> : "Never" },
           ]}
         />
       </Stack>

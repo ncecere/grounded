@@ -110,4 +110,16 @@ describe("⌘K admin pages (I1)", () => {
     expect(router.state.location.search).toEqual({ tab: "holds" });
     expect(await screen.findByRole("tab", { name: "Legal holds", selected: true })).toBeInTheDocument();
   });
+
+  it.each([
+    ["oauth", /Features/],
+    ["setup guide", /Features/],
+    ["failing", /Overview/],
+    ["connected apps", /Connected apps/],
+  ])("finds “%s”", async (text, option) => {
+    mockApi(routes());
+    const { dialog, input, user } = await palette("/");
+    await user.type(input, text);
+    expect(await within(dialog).findByRole("option", { name: option })).toBeInTheDocument();
+  });
 });

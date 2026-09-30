@@ -44,9 +44,12 @@ test("an AI tool connects with OAuth: consent, a code, tokens, and Disconnect on
     await page.goto(`/oauth/authorize?${q}`);
     await expect(page).toHaveURL(/\/oauth\/consent\?/);
     await expect(page.getByRole("heading", { level: 1, name: /E2E Assistant wants to use .+ as you/ })).toBeVisible();
-    await expect(page.getByText("assistant.example.com")).toBeVisible();
+    // A registered app's website is its own claim; the warning names where the answer really goes.
+    await expect(page.getByText("Says it's from assistant.example.com")).toBeVisible();
     await expect(page.getByText("Unverified").first()).toBeVisible();
-    await expect(page.getByText("Search knowledge bases and ask agents you can use, as you")).toBeVisible();
+    await expect(page.getByText(/Your answer goes to 127\.0\.0\.1/)).toBeVisible();
+    await expect(page.getByText(/Search knowledge bases and ask agents in .+ as you/)).toBeVisible();
+    await expect(page).toHaveTitle(/^Connect E2E Assistant · /);
     await a11y(page, "consent");
   });
 
@@ -75,8 +78,21 @@ test("an AI tool connects with OAuth: consent, a code, tokens, and Disconnect on
   await test.step("the API keys page lists the app and disconnects it", async () => {
     await page.goto(`/teams/${team}/settings?tab=api-keys`);
     const card = page.getByRole("region", { name: "Connected apps" });
-    await expect(card.getByRole("table", { name: "Connected apps" }).getByText("E2E Assistant")).toBeVisible();
+    await expect(card.getByRole("list", { name: "Your connected apps" }).getByText("E2E Assistant")).toBeVisible();
     await a11y(page, "connected apps");
+    // On a phone, Disconnect wraps under the app instead of scrolling out of view (and axe stays clean).
+    await page.setViewportSize({ width: 390, height: 844 });
+    const disconnect = card.getByRole("button", { name: "Disconnect E2E Assistant…" });
+    await disconnect.scrollIntoViewIfNeeded();
+    await expect(disconnect).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await a11y(page, "connected apps at 390 px");
+    // Everyone also reaches them from the account menu.
+    await page.goto("/settings/connected-apps");
+    await expect(page.getByRole("list", { name: "Your connected apps" }).getByText("E2E Assistant")).toBeVisible();
+    await a11y(page, "connected apps page");
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(`/teams/${team}/settings?tab=api-keys`);
     await card.getByRole("button", { name: "Disconnect E2E Assistant…" }).click();
     const confirm = page.getByRole("alertdialog", { name: "Disconnect E2E Assistant?" });
     await a11y(page, "disconnect?");

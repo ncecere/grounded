@@ -119,3 +119,9 @@
   padding: 0;
 }
 
+
+/* Whatever the browser scrolls into view (a field focused after a failed submit, an
+   anchor) lands below the sticky top bar, not under it (WCAG 2.4.11, focus not obscured). */
+:global(html) {
+  scroll-padding-block-start: calc(var(--topbar-height) + var(--space-4));
+}
