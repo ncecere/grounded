@@ -50,6 +50,19 @@ test("overview and logs (sign-ins hidden by default)", async ({ as, a11y }) => {
   await a11y(page, "audit record");
 });
 
+test("a field focused after a failed submit isn't hidden under the sticky top bar", async ({ as }) => {
+  const page = await as("admin");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/admin/mcp-servers?form=new");
+  const form = page.getByRole("region", { name: "Add MCP server" });
+  await form.getByRole("button", { name: "Add MCP server" }).click();
+  const name = form.getByRole("textbox", { name: "Name" });
+  await expect(name).toBeFocused();
+  const box = (await name.boundingBox())!;
+  const bar = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--topbar-height")) * 16);
+  expect(box.y).toBeGreaterThanOrEqual(bar);
+});
+
 test("embedding profiles: the Migrations tab, and the old Profile migrations address", async ({ as, a11y }) => {
   const page = await as("admin");
   // Profile migrations is a tab of Embedding profiles (v0.2.1 I1); the header's primary follows the tab.

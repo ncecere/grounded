@@ -61,6 +61,16 @@ test("only platform staff open the admin portal", async ({ as, a11y }) => {
   const auditor = await as("auditor");
   await auditor.goto("/admin");
   await expect(auditor.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
+  // A switch the auditor can't change stays in the tab order, so its reason is reachable from the keyboard.
+  const features = auditor.getByRole("region", { name: "Features" });
+  const evaluations = features.getByRole("switch", { name: "Allow evaluations" });
+  await expect(evaluations).toHaveAttribute("aria-disabled", "true");
+  await features.getByRole("link", { name: /Evaluation limits/ }).focus();
+  await auditor.keyboard.press("Shift+Tab");
+  await expect(evaluations).toBeFocused();
+  const checked = (await evaluations.getAttribute("aria-checked"))!;
+  await auditor.keyboard.press("Space");
+  await expect(evaluations).toHaveAttribute("aria-checked", checked);
   await a11y(auditor);
 
   // On a phone the top bar fits: the Read-only badge keeps its word for screen readers but shows only its dot.
