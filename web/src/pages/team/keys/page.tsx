@@ -4,7 +4,8 @@
  * scopes, restrictions (knowledge bases, agents), owner or responsible
  * contact, expiry and last use, and Revoke. The secret is shown once, when
  * the key is created (create-dialog.tsx). The list shows active keys; a
- * revoked key (linked from the audit log) is loaded by its id (G12).
+ * revoked key (linked from the audit log) is loaded by its id (G12). Below,
+ * the person's Connected apps (OAuth sign-in for MCP clients).
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, KeyRound, Lock, Plus, Trash2 } from "lucide-react";
@@ -25,6 +26,7 @@ import { useIntent } from "@/lib/intents";
 import { useCurrentUser } from "@/session";
 import s from "../../shared.module.css";
 import { useAgents } from "../../agents/common";
+import { ConnectedApps } from "../../oauth/connected-apps";
 import { keysKey, useKBs, useTeam } from "../common";
 import { ArchivedNotice } from "../layout";
 import { CreateKeyDialog } from "./create-dialog";
@@ -171,6 +173,8 @@ export function ApiKeysPage({ embedded = false }: { embedded?: boolean }) {
           ),
         }}
       />
+      {/* The person's own OAuth apps (not the team's): shown while OAuth sign-in is on, or while any is connected. */}
+      <ConnectedApps owner={{ self: true }} canDisconnect hideWhenEmpty={!me.capabilities.mcpOAuth} />
       <KeyRecordPage
         k={open}
         loading={!open && (keys.isLoading || byId.isLoading)}

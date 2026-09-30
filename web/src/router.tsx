@@ -72,6 +72,7 @@ const pages = {
   parsing: () => import("./pages/admin/parsing/page"),
   groupMapping: () => import("./pages/admin/group-mapping/page"),
   publicPages: () => import("./pages/public/routes"),
+  oauth: () => import("./pages/oauth/consent"),
 };
 const lazy = lazyRouteComponent;
 
@@ -351,10 +352,8 @@ const appTree = appRoute.addChildren([
     ]),
     adminRoute.addChildren([
       adminIndexRoute,
-      admin("users", lazy(pages.people, "AdminUsersPage")),
-      admin("users/$userId", lazy(pages.people, "AdminUserPage")),
-      admin("teams", lazy(pages.people, "AdminTeamsPage")),
-      adminTabs("teams/$team", adminTeamTabs, lazy(pages.people, "AdminTeamPage")),
+      admin("users", lazy(pages.people, "AdminUsersPage")), admin("users/$userId", lazy(pages.people, "AdminUserPage")),
+      admin("teams", lazy(pages.people, "AdminTeamsPage")), adminTabs("teams/$team", adminTeamTabs, lazy(pages.people, "AdminTeamPage")),
       admin("group-mapping", lazy(pages.groupMapping, "GroupMappingPage")),
       admin("classifications", lazy(pages.policy, "ClassificationsPage")),
       admin("connections", lazy(pages.models, "ConnectionsPage")),
@@ -372,19 +371,20 @@ const appTree = appRoute.addChildren([
       adminTabs("analytics", analyticsTabs, lazy(pages.adminAnalytics, "AdminAnalyticsPage")),
       adminTabs("costs", costTabs, lazy(pages.costs, "CostsPage")),
       adminTabs("moderation", moderationTabs, lazy(pages.moderation, "ModerationPage")),
-      admin("public-access", lazy(pages.publicAccess, "PublicAccessPage")),
-      admin("maintenance", lazy(pages.maintenance, "MaintenancePage")),
+      admin("public-access", lazy(pages.publicAccess, "PublicAccessPage")), admin("maintenance", lazy(pages.maintenance, "MaintenancePage")),
       adminTabs("retention", retentionTabs, lazy(pages.retention, "RetentionPage"), { renamed: { report: "dry-run" } }),
       adminMoved("legal-holds", "/admin/retention", "holds", movedLegalHoldSearch),
-      adminTabs("break-glass", breakGlassTabs, lazy(pages.breakGlass, "BreakGlassPage")),
-      breakGlassConversationsRoute,
+      adminTabs("break-glass", breakGlassTabs, lazy(pages.breakGlass, "BreakGlassPage")), breakGlassConversationsRoute,
       logsRoute,
-      adminMoved("access-log", "/admin/logs", "access"),
-      adminMoved("audit", "/admin/logs"),
+      adminMoved("access-log", "/admin/logs", "access"), adminMoved("audit", "/admin/logs"),
     ]),
   ]);
 
-export const routeTree = rootRoute.addChildren([appTree, embedRoute]);
+/** The OAuth consent page (docs/mcp.md): behind sign-in, outside the app's shell. */
+const OAuthConsentPage = lazy(pages.oauth, "OAuthConsentPage");
+const oauthConsentRoute = createRoute({ getParentRoute: () => rootRoute, path: "oauth/consent", component: () => <SessionGate><OAuthConsentPage /></SessionGate> });
+
+export const routeTree = rootRoute.addChildren([appTree, embedRoute, oauthConsentRoute]);
 
 export const router = createRouter({
   routeTree,

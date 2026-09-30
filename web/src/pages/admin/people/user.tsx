@@ -1,6 +1,6 @@
 /*
  * Admin → Users › one person (A7): one page with sections (Profile & access,
- * Teams, Activity) instead of three sparse tabs. Suspend is a menu action
+ * Teams, Connected apps, Activity) instead of three sparse tabs. Suspend is a menu action
  * (Q12); a platform-role change is confirmed with what the role can do (Q2).
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,6 +30,7 @@ import { useCurrentUser } from "@/session";
 import s from "../../shared.module.css";
 import { PageSkeleton } from "../../team/layout";
 import { useIsPlatformAdmin } from "../hooks";
+import { ConnectedApps } from "../../oauth/connected-apps";
 import { platformRoleLabels, UserStatusBadge } from "./common";
 import p from "./people.module.css";
 import { UserActivity } from "./user-activity";
@@ -106,6 +107,7 @@ export function AdminUserPage() {
       <div className={p.sections}>
         <UserAccessCard user={user} isAdmin={isAdmin} update={update} />
         <UserTeamsCard teams={teams} />
+        <ConnectedApps owner={{ self: false, userId, name }} canDisconnect={isAdmin} />
         <Card title="Activity" description={`Changes ${name} made, newest first, from the audit log.`}>
           <UserActivity user={user} />
         </Card>

@@ -41,10 +41,10 @@ export const recentAnalyticsQuery = () => {
   };
 };
 
-/** The last 5 audit entries other than sign-ins and MCP tool calls, which change nothing (Recent changes). */
+/** The last 5 audit entries other than sign-ins, MCP tool calls and OAuth sign-ins for MCP clients, which change nothing (Recent changes). */
 export const recentChangesQuery = () => ({
   queryKey: ["admin", "audit", "recent"],
-  queryFn: async () => unwrap(await api.GET("/v1/admin/audit", { params: { query: { excludeAction: "auth.,mcp.", limit: 5 } } })),
+  queryFn: async () => unwrap(await api.GET("/v1/admin/audit", { params: { query: { excludeAction: "auth.,mcp.,oauth.", limit: 5 } } })),
 });
 
 /*

@@ -118,6 +118,11 @@ const actionLabels: Record<string, string> = {
   "platform.sso_rule_delete": "Deleted SSO group rule",
   "platform.evaluations": "Turned evaluations on or off",
   "platform.mcp": "Turned the MCP server on or off",
+  "platform.mcp_oauth": "Turned OAuth sign-in for MCP clients on or off",
+  "oauth.consent": "Connected an app",
+  "oauth.token_issue": "App signed in",
+  "oauth.revoke": "Disconnected an app",
+  "oauth.client_register": "App registered itself",
   "mcp.search": "Searched over MCP",
   "mcp.ask": "Asked an agent over MCP",
   "mcp.tool_call": "An agent called an MCP tool",
@@ -145,6 +150,7 @@ const actionLabels: Record<string, string> = {
 const directedLabels: Record<string, (after: Record<string, unknown>) => string | undefined> = {
   "platform.evaluations": (a) => (typeof a.enabled === "boolean" ? `Turned evaluations ${a.enabled ? "on" : "off"}` : undefined),
   "platform.mcp": (a) => (typeof a.enabled === "boolean" ? `Turned the MCP server ${a.enabled ? "on" : "off"}` : undefined),
+  "platform.mcp_oauth": (a) => (typeof a.oauthEnabled === "boolean" ? `Turned OAuth sign-in for MCP clients ${a.oauthEnabled ? "on" : "off"}` : undefined),
 };
 
 /**
@@ -183,6 +189,7 @@ export const actionGroups: { prefix: string; label: string; platform?: boolean }
   { prefix: "mcp.", label: "MCP server" },
   { prefix: "mcp_server.", label: "MCP servers (client)", platform: true },
   { prefix: "mcp_tool.", label: "MCP tools", platform: true },
+  { prefix: "oauth.", label: "Connected apps (OAuth)", platform: true },
   { prefix: "platform.", label: "Platform settings", platform: true },
   { prefix: "auth.", label: "Sign-in", platform: true },
   { prefix: "legal_hold.", label: "Legal holds", platform: true },
@@ -254,6 +261,8 @@ export const targetTypeLabels: Record<string, string> = {
   mcp_settings: "MCP server setting",
   mcp_server: "MCP server",
   mcp_tool: "MCP tool",
+  oauth_grant: "Connected app",
+  oauth_client: "Registered app",
   model: "Model",
   model_connection: "Model connection",
   moderation_policy: "Moderation policy",

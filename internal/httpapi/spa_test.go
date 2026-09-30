@@ -107,4 +107,9 @@ func TestSPAIndexPersonalised(t *testing.T) {
 	if !strings.Contains(csp, "img-src 'self' data:;") || strings.Contains(csp, "script-src *") {
 		t.Errorf("csp = %q", csp)
 	}
+	// The OAuth consent page alone shows images from any https address (the client's logo).
+	csp = get(spaHandler(assets, true, spaOptions{}), "/oauth/consent").Header().Get("Content-Security-Policy")
+	if !strings.Contains(csp, "img-src 'self' data: https:;") || !strings.Contains(csp, "script-src 'self';") {
+		t.Errorf("consent csp = %q", csp)
+	}
 }

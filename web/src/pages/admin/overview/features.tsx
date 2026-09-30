@@ -8,11 +8,11 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, BookOpen, Cable, CircleDollarSign, ClipboardCheck, Earth, Network, ScanText, Sparkles, Wrench } from "lucide-react";
+import { ArrowRight, BookOpen, Cable, CircleDollarSign, ClipboardCheck, Earth, KeyRound, Network, ScanText, Sparkles, Wrench } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { ErrorAlert } from "@/components/ui/alert/alert";
-import { StatusBadge } from "@/components/ui/badge/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item/item";
@@ -25,6 +25,7 @@ import { useIsPlatformAdmin } from "../hooks";
 import { EvaluationsSwitch, evaluationsText, useEvaluationsSetting } from "./evaluations-switch";
 import { costFeature, type FeatureState, plural, systemOneFeature } from "./feature-text";
 import { MCPSwitch, mcpDocsUrl, mcpText, useMCPSetting } from "./mcp-switch";
+import { OAuthSwitch, oauthDocsUrl, oauthFeature, useOAuthSave } from "./oauth-switch";
 import { maintenanceSettingsQuery, parsingSettingsQuery, publicAccessQuery, systemOneSettingsQuery } from "./queries";
 import o from "./overview.module.css";
 
@@ -39,6 +40,8 @@ type Row = {
   /** An icon for the link's button (default: an arrow after the text). */
   actionIcon?: ReactNode;
   control?: ReactNode;
+  /** A mark after the state, such as Experimental. */
+  badge?: ReactNode;
 };
 
 const on: FeatureState = { label: "On", tone: "success" };
@@ -50,9 +53,9 @@ function fromQuery<T>(q: UseQueryResult<T>, base: Omit<Row, "description" | "sta
   return { ...base, description: q.error ? "Couldn't load this setting." : "Loading…" };
 }
 
-type Switches = { evaluations: ReturnType<typeof useEvaluationsSetting>; mcp: ReturnType<typeof useMCPSetting> };
+type Switches = { evaluations: ReturnType<typeof useEvaluationsSetting>; mcp: ReturnType<typeof useMCPSetting>; oauth: ReturnType<typeof useOAuthSave> };
 
-function useRows(isAdmin: boolean, { evaluations, mcp }: Switches): Row[] {
+function useRows(isAdmin: boolean, { evaluations, mcp, oauth }: Switches): Row[] {
   const costs = useQuery(costSettingsQuery());
   // Teams whose own mode differs from the platform's (Costs → Budgets).
   const budgets = useQuery(budgetsQuery());
@@ -87,6 +90,24 @@ function useRows(isAdmin: boolean, { evaluations, mcp }: Switches): Row[] {
       },
       (d) => ({ state: d.enabled ? on : off, description: mcpText(d.enabled) }),
     ),
+    fromQuery(
+      mcp.settings,
+      {
+        id: "mcp-oauth",
+        icon: <KeyRound />,
+        title: "OAuth sign-in for MCP clients",
+        badge: (
+          <Badge size="sm" tone="warning">
+            Experimental
+          </Badge>
+        ),
+        control: <OAuthSwitch setting={mcp} save={oauth} isAdmin={isAdmin} />,
+        action: "How it works",
+        actionIcon: <BookOpen aria-hidden />,
+        link: <a href={oauthDocsUrl} target="_blank" rel="noreferrer" aria-label="How OAuth sign-in works (opens in a new tab)" />,
+      },
+      oauthFeature,
+    ),
     fromQuery(costs, { id: "costs", icon: <CircleDollarSign />, title: "Cost tracking", action: "Cost settings", link: <Link to="/admin/costs" search={{ tab: "settings" }} /> }, (d) =>
       costFeature(d.mode, budgets.data?.items),
     ),
@@ -114,7 +135,8 @@ export function FeaturesCard() {
   const isAdmin = useIsPlatformAdmin();
   const evaluations = useEvaluationsSetting();
   const mcp = useMCPSetting();
-  const rows = useRows(isAdmin, { evaluations, mcp });
+  const oauth = useOAuthSave(mcp);
+  const rows = useRows(isAdmin, { evaluations, mcp, oauth });
   return (
     <Card id="features" className={o.features} title="Features" description="Optional features: whether each is on, and where to set it up." flush>
       {evaluations.save.error != null && (
@@ -125,6 +147,11 @@ export function FeaturesCard() {
       {mcp.save.error != null && (
         <div className={o.cardAlert}>
           <ErrorAlert error={mcp.save.error} title="Couldn't change the MCP server" />
+        </div>
+      )}
+      {oauth.error != null && (
+        <div className={o.cardAlert}>
+          <ErrorAlert error={oauth.error} title="Couldn't change OAuth sign-in" />
         </div>
       )}
       <ItemGroup className={o.queue}>
@@ -141,6 +168,7 @@ export function FeaturesCard() {
                     {r.state.label}
                   </StatusBadge>
                 )}
+                {r.badge}
               </ItemTitle>
               {/* The whole sentence: what a feature does, or what turning it off hides, matters here. */}
               <ItemDescription className={o.fullText}>{r.description}</ItemDescription>

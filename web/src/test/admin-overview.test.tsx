@@ -113,7 +113,7 @@ describe("admin overview", () => {
     expect(await screen.findByText("Set up this install")).toBeInTheDocument();
     expect(await screen.findByText(/Changed model: GPT/)).toBeInTheDocument();
     expect(await screen.findByText("140")).toBeInTheDocument(); // answers in the last 7 days
-    expect(calls.find((c) => c.url === "/v1/admin/audit")?.search.get("excludeAction")).toBe("auth.,mcp.");
+    expect(calls.find((c) => c.url === "/v1/admin/audit")?.search.get("excludeAction")).toBe("auth.,mcp.,oauth.");
     expect(await axe(container)).toHaveNoViolations();
   });
 

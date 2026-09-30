@@ -194,7 +194,7 @@ func (a *api) oauthAuthorize(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	http.Redirect(w, r, "/oauth/consent?"+r.URL.RawQuery, http.StatusFound)
+	http.Redirect(w, r, oauthConsentPath+"?"+r.URL.RawQuery, http.StatusFound)
 }
 
 var oauthPageTmpl = template.Must(template.New("oauth").Parse(`<!doctype html>

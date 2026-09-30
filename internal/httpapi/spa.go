@@ -22,6 +22,9 @@ import (
 const contentSecurityPolicy = "default-src 'self'; script-src 'self'%SCRIPT%; style-src 'self' 'unsafe-inline'; " +
 	"img-src %IMG%; font-src 'self'; connect-src 'self'; frame-src 'self'%FRAME%; frame-ancestors %ANCESTORS%; base-uri 'self'; form-action 'self'"
 
+// oauthConsentPath is the app's OAuth consent page.
+const oauthConsentPath = "/oauth/consent"
+
 // apiPrefixes never fall back to the app: unknown API paths are JSON 404s.
 var apiPrefixes = []string{"/v1/", "/auth/", "/healthz", "/readyz", "/metrics"}
 
@@ -103,6 +106,9 @@ func loadIndex(assets fs.FS, built bool, opts spaOptions) []byte {
 func spaHandler(assets fs.FS, built bool, opts spaOptions) http.Handler {
 	files := http.FileServer(http.FS(assets))
 	csp := cspFor(opts)
+	// The OAuth consent page (docs/mcp.md) shows the client's logo, from any
+	// https address; no other page loads outside images.
+	consentCSP := strings.Replace(csp, "img-src 'self' data:", "img-src 'self' data: https:", 1)
 	index := loadIndex(assets, built, opts)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		for _, p := range apiPrefixes {
@@ -116,7 +122,11 @@ func spaHandler(assets fs.FS, built bool, opts spaOptions) http.Handler {
 			return
 		}
 		h := w.Header()
-		h.Set("Content-Security-Policy", csp)
+		if r.URL.Path == oauthConsentPath {
+			h.Set("Content-Security-Policy", consentCSP)
+		} else {
+			h.Set("Content-Security-Policy", csp)
+		}
 		if !built || index == nil {
 			h.Set("Content-Type", "text/plain; charset=utf-8")
 			w.WriteHeader(http.StatusServiceUnavailable)
