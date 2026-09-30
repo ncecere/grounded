@@ -56,17 +56,23 @@ describe("a set's runs", () => {
     // The table comes before the chart.
     expect(table.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("list", { name: "What changed between retrieval runs" })).toHaveTextContent("results per search 4 → 1");
-    // The score names its metric (in its tooltip and accessible name); runs are "Retrieval", not "Retrieval check".
+    // The score is text with its metric in a tooltip, which is also its description (G19); runs are "Retrieval", not "Retrieval check".
     expect(within(table).getByRole("columnheader", { name: /Kind/ })).toBeInTheDocument();
-    expect(within(table).getByRole("button", { name: /^50%\. Recall@1: the share of questions/ })).toBeInTheDocument();
+    const score = within(table).getAllByText("50%")[0]!;
+    expect(score.tagName).toBe("SPAN");
+    expect(score).toHaveAttribute("tabindex", "0");
+    expect(score).toHaveAccessibleDescription(/^Recall@1: the share of questions/);
+    expect(within(table).queryByRole("button", { name: /^50%/ })).toBeNull();
     const links = within(table).getAllByRole("link", { name: /^Retrieval, Sep/ });
     expect(links).toHaveLength(3);
     // G20: the name is one text, not "Retrieval" + ", Sep 28" (browsers join those with a space: "Retrieval , Sep 28").
     expect([...links[0]!.childNodes].filter((n) => !(n instanceof Element && n.getAttribute("aria-hidden"))).map((n) => n.textContent)).toEqual([
       expect.stringMatching(/^Retrieval, Sep \d+, 2026/),
     ]);
-    // The chart's scale is fixed at 0–100% (G19): its top line reads 100%, whatever the scores.
+    // The chart's scale is fixed at 0–100% (G19): its top line reads 100%, whatever the scores, with 0% and 50% labelled.
     expect(within(chart).getByText("100%")).toBeInTheDocument();
+    expect(within(chart).getByText("50%")).toBeInTheDocument();
+    expect(within(chart).getByText("0%")).toBeInTheDocument();
     // A knowledge base's set has only retrieval runs: no kind filter, and no Columns menu on a short table.
     expect(screen.queryByRole("button", { name: /^Full answer/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Columns/ })).toBeNull();

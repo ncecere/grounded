@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { useTeam } from "../common";
+import { smallList } from "./labels";
 import { type EvalSet, evalSetsQuery, useEvaluationsOn } from "./queries";
 import { setColumns } from "./set-columns";
 import { setTrend } from "./trend";
@@ -84,8 +85,7 @@ export function TeamEvaluationsPage() {
       getRowId={(x) => x.id}
       rowLabel={(x) => x.name}
       facets={trendFacet}
-      // Its label is for screen readers (bitop-ui's DataTable hides it); the placeholder says what it searches.
-      search={{ label: "Search evaluation sets", placeholder: "Set, knowledge base or agent" }}
+      search={{ label: "Search evaluation sets", placeholder: "Set, knowledge base or agent", showLabel: true }}
       empty={{
         icon: <ClipboardCheck />,
         title: "No evaluation sets yet.",
@@ -97,7 +97,7 @@ export function TeamEvaluationsPage() {
         ),
       }}
       tableProps={{
-        columnsMenu: false,
+        ...smallList,
         noResults: regressionsOnly ? (
           <EmptyState
             size="compact"

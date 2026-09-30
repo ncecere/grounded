@@ -45,6 +45,12 @@ import styles from "./filter-bar.module.css";
  * filterValuesToSearchParams on change and read them back with
  * filterValuesFromSearchParams (see the DataTable docs).
  *
+ * Chips: every active facet gets one, except a single-choice toggle, whose
+ * pressed item already shows the choice ("Status: Active ×" next to a
+ * pressed Active said it twice); its "All" item (or pressing it again)
+ * clears it. A facet's `chip` overrides either way. "Clear all" shows
+ * with the chips.
+ *
  * Accessibility: the bar is a group named "Filters". Each facet is labelled
  * by its visible label; counts are read after the option ("Failed, 3").
  * Active filters are a list of buttons named "Remove filter Status: Failed";
@@ -66,6 +72,8 @@ type FacetBase = {
   id: string;
   /** Visible label and the control's accessible name. */
   label: string;
+  /** A chip while active (default: true, except for single-choice toggles, whose pressed item shows the choice). */
+  chip?: boolean;
 };
 
 export type ToggleFacet<T = unknown> = FacetBase & {
@@ -247,6 +255,11 @@ export function filterValuesFromSearchParams<T>(facets: Facet<T>[], params: URLS
 
 /* ---------------- Component ---------------- */
 
+/** Whether an active facet gets a chip: its `chip`, else every facet but a single-choice toggle. */
+function hasChip<T>(facet: Facet<T>): boolean {
+  return facet.chip ?? !(facet.type === "toggle" && !facet.multiple);
+}
+
 type Chip = { key: string; facetId: string; facetLabel: string; text: string; remove: () => FilterValues };
 
 function describeRange(sel: DateRangeSelection, presets: DateRangePreset[]): string {
@@ -293,7 +306,7 @@ export function FilterBar<T>({
   const chipList: Chip[] = [];
   for (const facet of facets) {
     const v = value[facet.id];
-    if (!isFacetActive(v)) continue;
+    if (!isFacetActive(v) || !hasChip(facet)) continue;
     if (facet.type === "date-range") {
       chipList.push({
         key: facet.id,

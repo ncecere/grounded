@@ -34,6 +34,7 @@ import {
   resultLabel,
   runStatusLook,
   runTitle,
+  smallList,
   triggerLabels,
   unscored,
 } from "./labels";
@@ -207,7 +208,7 @@ export function RunRecord({ set, runs }: { set: EvalSet; runs: EvalRun[] }) {
                 getRowId={(r) => r.id}
                 rowLabel={(r) => r.question}
                 facets={statusFacet(answers)}
-                tableProps={{ columnsMenu: false }}
+                tableProps={smallList}
                 rowActions={(r) => [{ label: "View details", icon: <Eye aria-hidden />, onSelect: () => resultPage.open(r.id) }]}
                 empty={{ title: run && active(run) ? "No results yet." : "No results." }}
               />

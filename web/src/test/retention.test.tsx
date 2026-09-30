@@ -274,6 +274,10 @@ describe("the old Legal holds address", () => {
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: "holds", status: "released" }));
     expect(await within(table).findByText("Alex Advisor")).toBeInTheDocument();
     expect(within(table).queryByText("Sam Student")).toBeNull();
+    // The pressed Released item shows the filter; there's no "Status: Released ×" chip repeating it (G19).
+    expect(within(screen.getByRole("group", { name: "Status" })).getByRole("button", { name: /Released/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("list", { name: "Active filters" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Remove filter Status/ })).toBeNull();
 
     await router.navigate({ href: "/admin/legal-holds?tab=all&record=h1" });
     expect(await screen.findByRole("region", { name: /^Hold on Sam Student/ })).toBeInTheDocument();

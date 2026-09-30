@@ -3,7 +3,7 @@
 import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
 import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
 import { Check, ChevronsUpDown, X } from "lucide-react";
-import { type ReactNode, useMemo, useRef } from "react";
+import { type KeyboardEvent, type ReactNode, useMemo, useRef } from "react";
 import popup from "@/components/ui/styles/popup.module.css";
 import { cx } from "@/lib/bitop-utils";
 import styles from "./combobox.module.css";
@@ -39,6 +39,12 @@ import styles from "./combobox.module.css";
  * fills in its `value`. Use it for names that may not be listed yet.
  *
  *   <Combobox freeText items={knownGroups} value={group} onValueChange={setGroup} />
+ *
+ * Enter in the input picks the highlighted option and never submits a
+ * surrounding form or dialog, open list or not: after Esc closes the list,
+ * the next Enter used to send the form half filled in. `submitOnEnter`
+ * lets Enter submit when the list has nothing highlighted (the `freeText`
+ * default, where the text is the value, like a plain input).
  *
  * Use Select when there are only a handful of options, and NativeSelect in
  * plain forms.
@@ -80,6 +86,11 @@ type ComboboxBaseProps<V extends string> = {
   autoHighlight?: boolean;
   /** Most options to render at once (long lists). */
   limit?: number;
+  /**
+   * Let Enter submit a surrounding form when no option is highlighted (default: false, and true with
+   * `freeText`). Enter on a highlighted option always picks it.
+   */
+  submitOnEnter?: boolean;
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -138,6 +149,18 @@ export function Combobox<V extends string = string>(props: ComboboxProps<V>) {
   return props.freeText ? <FreeTextCombobox {...props} /> : <SelectCombobox {...props} />;
 }
 
+/**
+ * Keeps Enter in the input from submitting the surrounding form. It runs as
+ * the key event bubbles out of the input, after Base UI has picked the
+ * highlighted option, so only the form's implicit submission is stopped.
+ */
+function keepEnter(submitOnEnter: boolean) {
+  return (event: KeyboardEvent<HTMLDivElement>) => {
+    if (submitOnEnter || event.key !== "Enter" || !(event.target instanceof HTMLInputElement)) return;
+    event.preventDefault();
+  };
+}
+
 function toBaseFilter<V extends string>(filter: ComboboxBaseProps<V>["filter"]) {
   if (filter === undefined || filter === null) return filter;
   return (item: unknown, query: string) => filter(item as ComboboxOption<V>, query);
@@ -156,6 +179,7 @@ function SelectCombobox<V extends string>(props: ComboboxSingleProps<V> | Combob
     onInputValueChange,
     autoHighlight,
     limit,
+    submitOnEnter = false,
     open,
     defaultOpen,
     onOpenChange,
@@ -231,7 +255,7 @@ function SelectCombobox<V extends string>(props: ComboboxSingleProps<V> | Combob
       readOnly={readOnly}
       required={required}
     >
-      <BaseCombobox.InputGroup ref={anchorRef} data-size={size} className={cx(styles.control, className)}>
+      <BaseCombobox.InputGroup ref={anchorRef} data-size={size} className={cx(styles.control, className)} onKeyDown={keepEnter(submitOnEnter)}>
         {props.multiple ? (
           <BaseCombobox.Value>
             {(selected: V[]) => (
@@ -296,6 +320,7 @@ function FreeTextCombobox(props: ComboboxFreeTextProps) {
     "aria-label": ariaLabel,
     autoHighlight,
     limit,
+    submitOnEnter = true,
     open,
     defaultOpen,
     onOpenChange,
@@ -345,7 +370,7 @@ function FreeTextCombobox(props: ComboboxFreeTextProps) {
       readOnly={readOnly}
       required={required}
     >
-      <BaseAutocomplete.InputGroup ref={anchorRef} data-size={size} className={cx(styles.control, className)}>
+      <BaseAutocomplete.InputGroup ref={anchorRef} data-size={size} className={cx(styles.control, className)} onKeyDown={keepEnter(submitOnEnter)}>
         <BaseAutocomplete.Input id={id} aria-label={ariaLabel} placeholder={placeholder} className={styles.input} />
         <div className={styles.actions}>
           {clearable && (

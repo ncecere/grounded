@@ -5,7 +5,7 @@
  * search), from each run's configuration. A trend needs a few points: the
  * chart shows from three completed runs of a kind, compact, under the runs.
  * The scale is fixed at 0–100% (G19), so a small change doesn't look like a
- * cliff and two sets' charts read the same.
+ * cliff and two sets' charts read the same; 0%, 50% and 100% are labelled.
  */
 import { Card } from "@/components/ui/card/card";
 import { LineChart } from "@/components/ui/line-chart/line-chart";
@@ -43,6 +43,8 @@ function Series({ runs, kind, label }: { runs: EvalRun[]; kind: EvalRun["kind"];
         // Tall enough that 80% doesn't read as the top line.
         size="md"
         domain={{ min: 0, max: 100 }}
+        // Labelled 0%, 50% and (the top) 100%.
+        ticks={[0, 50]}
         formatValue={(v) => `${Math.round(v)}%`}
         points
         dataTable={{ caption: `${label} by run`, labelHeader: "Run" }}

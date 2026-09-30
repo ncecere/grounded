@@ -6,10 +6,11 @@
   min-width: 0;
 }
 
+/* Controls line up on their bottom edge, so buttons sit level with a labelled search box. */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-2);
 }
