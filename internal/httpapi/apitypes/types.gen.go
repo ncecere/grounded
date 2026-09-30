@@ -717,6 +717,21 @@ func (e ChatHistoryMessageRole) Valid() bool {
 	}
 }
 
+// Defines values for CitationKind.
+const (
+	CitationKindTool CitationKind = "tool"
+)
+
+// Valid indicates whether the value is a known member of the CitationKind enum.
+func (e CitationKind) Valid() bool {
+	switch e {
+	case CitationKindTool:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CitationVerification.
 const (
 	CitationVerificationContradicted CitationVerification = "contradicted"
@@ -1866,6 +1881,7 @@ func (e HealthCheckTrigger) Valid() bool {
 // Defines values for HealthSubjectKind.
 const (
 	HealthSubjectKindConnection HealthSubjectKind = "connection"
+	HealthSubjectKindMcpServer  HealthSubjectKind = "mcp_server"
 	HealthSubjectKindModel      HealthSubjectKind = "model"
 )
 
@@ -1873,6 +1889,8 @@ const (
 func (e HealthSubjectKind) Valid() bool {
 	switch e {
 	case HealthSubjectKindConnection:
+		return true
+	case HealthSubjectKindMcpServer:
 		return true
 	case HealthSubjectKindModel:
 		return true
@@ -2018,6 +2036,7 @@ const (
 	LimitKeyEvaluationQuestionsPerSet        LimitKey = "evaluation_questions_per_set"
 	LimitKeyEvaluationSets                   LimitKey = "evaluation_sets"
 	LimitKeyKnowledgeBases                   LimitKey = "knowledge_bases"
+	LimitKeyMcpCallsPerAnswer                LimitKey = "mcp_calls_per_answer"
 	LimitKeyOcrPagesPerDay                   LimitKey = "ocr_pages_per_day"
 	LimitKeyPublicConcurrentChatsPerAgent    LimitKey = "public_concurrent_chats_per_agent"
 	LimitKeyPublicMessageMaxChars            LimitKey = "public_message_max_chars"
@@ -2057,6 +2076,8 @@ func (e LimitKey) Valid() bool {
 	case LimitKeyEvaluationSets:
 		return true
 	case LimitKeyKnowledgeBases:
+		return true
+	case LimitKeyMcpCallsPerAnswer:
 		return true
 	case LimitKeyOcrPagesPerDay:
 		return true
@@ -2118,6 +2139,48 @@ func (e LimitUnit) Valid() bool {
 	case Bytes:
 		return true
 	case Count:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MCPServerTestResultErrorClass.
+const (
+	MCPServerTestResultErrorClassAuth          MCPServerTestResultErrorClass = "auth"
+	MCPServerTestResultErrorClassBadRequest    MCPServerTestResultErrorClass = "bad_request"
+	MCPServerTestResultErrorClassBadResponse   MCPServerTestResultErrorClass = "bad_response"
+	MCPServerTestResultErrorClassConfig        MCPServerTestResultErrorClass = "config"
+	MCPServerTestResultErrorClassInputRequired MCPServerTestResultErrorClass = "input_required"
+	MCPServerTestResultErrorClassNotFound      MCPServerTestResultErrorClass = "not_found"
+	MCPServerTestResultErrorClassRateLimited   MCPServerTestResultErrorClass = "rate_limited"
+	MCPServerTestResultErrorClassTimeout       MCPServerTestResultErrorClass = "timeout"
+	MCPServerTestResultErrorClassTooLarge      MCPServerTestResultErrorClass = "too_large"
+	MCPServerTestResultErrorClassUnavailable   MCPServerTestResultErrorClass = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the MCPServerTestResultErrorClass enum.
+func (e MCPServerTestResultErrorClass) Valid() bool {
+	switch e {
+	case MCPServerTestResultErrorClassAuth:
+		return true
+	case MCPServerTestResultErrorClassBadRequest:
+		return true
+	case MCPServerTestResultErrorClassBadResponse:
+		return true
+	case MCPServerTestResultErrorClassConfig:
+		return true
+	case MCPServerTestResultErrorClassInputRequired:
+		return true
+	case MCPServerTestResultErrorClassNotFound:
+		return true
+	case MCPServerTestResultErrorClassRateLimited:
+		return true
+	case MCPServerTestResultErrorClassTimeout:
+		return true
+	case MCPServerTestResultErrorClassTooLarge:
+		return true
+	case MCPServerTestResultErrorClassUnavailable:
 		return true
 	default:
 		return false
@@ -3081,6 +3144,21 @@ func (e RetentionUpdatePeriodsMode) Valid() bool {
 	case Default:
 		return true
 	case Keep:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RetrievalHitKind.
+const (
+	RetrievalHitKindTool RetrievalHitKind = "tool"
+)
+
+// Valid indicates whether the value is a known member of the RetrievalHitKind enum.
+func (e RetrievalHitKind) Valid() bool {
+	switch e {
+	case RetrievalHitKindTool:
 		return true
 	default:
 		return false
@@ -4214,6 +4292,9 @@ type AgentConfig struct {
 	// SystemOne The agent's "SystemOne checks" (Configure, Advanced). Absent or empty follows the platform. Only takes effect when a SystemOne model is configured; thresholds are platform-only.
 	SystemOne   *AgentSystemOne `json:"systemOne,omitempty"`
 	Temperature *float64        `json:"temperature,omitempty"`
+
+	// Tools Approved MCP server tools the agent may call (docs/mcp-client.md), by ID; absent in configurations saved before v0.3
+	Tools *[]openapi_types.UUID `json:"tools,omitempty"`
 }
 
 // AgentConfigErrorResponse defines model for AgentConfigErrorResponse.
@@ -4259,6 +4340,9 @@ type AgentConfigInput struct {
 	// SystemOne The agent's "SystemOne checks" (Configure, Advanced). Absent or empty follows the platform. Only takes effect when a SystemOne model is configured; thresholds are platform-only.
 	SystemOne   *AgentSystemOne `json:"systemOne,omitempty"`
 	Temperature *float64        `json:"temperature,omitempty"`
+
+	// Tools Approved MCP server tools the agent may call, by ID (listUsableMCPTools). Publishing checks each is approved and its server enabled and approved for the agent's data
+	Tools *[]openapi_types.UUID `json:"tools,omitempty"`
 }
 
 // AgentConfigInputReasoningEffort defines model for AgentConfigInput.ReasoningEffort.
@@ -5047,19 +5131,34 @@ type Citation struct {
 	DocumentId  openapi_types.UUID `json:"documentId"`
 	HeadingPath []string           `json:"headingPath"`
 
+	// Kind tool: the source is an MCP tool's result (documentId and sourceId are the nil UUID), from server and tool; absent for passages
+	Kind *CitationKind `json:"kind,omitempty"`
+
 	// Markers Set by SystemOne citation checks: one entry per [n] marker of this source in the answer text, in order of appearance (the answer's markers carry one number each). Each is the verdict on the claim that marker sits in (its sentence, list item or table row), so the same source can be verified in one sentence and unsupported in another. Markers outside a checked claim (a citation list, a claim of fewer than three words) are unchecked.
-	Markers   *[]CitationMarker  `json:"markers,omitempty"`
-	N         int                `json:"n"`
-	PageEnd   *int32             `json:"pageEnd,omitempty"`
-	PageStart *int32             `json:"pageStart,omitempty"`
-	Snippet   string             `json:"snippet"`
-	SourceId  openapi_types.UUID `json:"sourceId"`
-	Title     string             `json:"title"`
-	Url       *string            `json:"url,omitempty"`
+	Markers   *[]CitationMarker `json:"markers,omitempty"`
+	N         int               `json:"n"`
+	PageEnd   *int32            `json:"pageEnd,omitempty"`
+	PageStart *int32            `json:"pageStart,omitempty"`
+
+	// Server The MCP server's name (kind tool)
+	Server   *string            `json:"server,omitempty"`
+	Snippet  string             `json:"snippet"`
+	SourceId openapi_types.UUID `json:"sourceId"`
+	Title    string             `json:"title"`
+
+	// Tool The tool's name (kind tool)
+	Tool *string `json:"tool,omitempty"`
+
+	// Truncated The tool's result was cut to the size the model reads (kind tool)
+	Truncated *bool   `json:"truncated,omitempty"`
+	Url       *string `json:"url,omitempty"`
 
 	// Verification Set by SystemOne citation checks: whether the source supports the claims citing it (the worst verdict of those claims wins); unchecked when the check failed or timed out. markers has the verdict of each [n] marker.
 	Verification *CitationVerification `json:"verification,omitempty"`
 }
+
+// CitationKind tool: the source is an MCP tool's result (documentId and sourceId are the nil UUID), from server and tool; absent for passages
+type CitationKind string
 
 // CitationVerification Set by SystemOne citation checks: whether the source supports the claims citing it (the worst verdict of those claims wins); unchecked when the check failed or timed out. markers has the verdict of each [n] marker.
 type CitationVerification string
@@ -5403,6 +5502,11 @@ type CostByKind struct {
 	//
 	// Example: 12.500000
 	Embedding Money `json:"embedding"`
+
+	// Mcp An exact decimal amount in the platform currency (never a float), with six decimals
+	//
+	// Example: 12.500000
+	Mcp Money `json:"mcp"`
 
 	// Moderation An exact decimal amount in the platform currency (never a float), with six decimals
 	//
@@ -6701,10 +6805,10 @@ type HealthCheck struct {
 	SubjectEnabled bool               `json:"subjectEnabled"`
 	SubjectId      openapi_types.UUID `json:"subjectId"`
 
-	// SubjectKind What a health check tested (MCP servers will join in a later release)
+	// SubjectKind What a health check tested
 	SubjectKind HealthSubjectKind `json:"subjectKind"`
 
-	// SubjectName The connection's name or the model's display name
+	// SubjectName The connection's or MCP server's name, or the model's display name
 	SubjectName string `json:"subjectName"`
 
 	// Trigger manual: an admin pressed Test; scheduled: the health job
@@ -6726,7 +6830,7 @@ type HealthCheckStatus string
 // HealthCheckTrigger manual: an admin pressed Test; scheduled: the health job
 type HealthCheckTrigger string
 
-// HealthSubjectKind What a health check tested (MCP servers will join in a later release)
+// HealthSubjectKind What a health check tested
 type HealthSubjectKind string
 
 // ImpactedAgent defines model for ImpactedAgent.
@@ -6995,6 +7099,142 @@ type LimitUnit string
 // LimitValue defines model for LimitValue.
 type LimitValue = int64
 
+// MCPRefreshResult defines model for MCPRefreshResult.
+type MCPRefreshResult struct {
+	Added int `json:"added"`
+
+	// Changed Tools whose title, description or input schema changed (unapproved again)
+	Changed int `json:"changed"`
+
+	// Gone Tools no longer listed (marked gone and unapproved)
+	Gone int `json:"gone"`
+
+	// Listed Tools the server lists
+	Listed int             `json:"listed"`
+	Tools  []MCPServerTool `json:"tools"`
+}
+
+// MCPServer A remote MCP server whose approved tools agents may call (docs/mcp-client.md)
+type MCPServer struct {
+	ApprovedCount int64 `json:"approvedCount"`
+
+	// AuthHeaderName The static header sent with every request, for example Authorization (absent: none)
+	AuthHeaderName *string `json:"authHeaderName,omitempty"`
+
+	// AuthValueHint Last 4 characters of the header value, or empty
+	AuthValueHint string    `json:"authValueHint"`
+	CreatedAt     time.Time `json:"createdAt"`
+	Description   string    `json:"description"`
+
+	// Enabled Turned off, no agent calls its tools and the health job skips it
+	Enabled bool `json:"enabled"`
+
+	// HasAuth The header value itself is never returned
+	HasAuth bool               `json:"hasAuth"`
+	Id      openapi_types.UUID `json:"id"`
+
+	// MaxClassification The most sensitive data the server may receive: agents whose knowledge bases hold more can't use its tools
+	MaxClassification string `json:"maxClassification"`
+
+	// Name Example: Service status
+	Name string `json:"name"`
+
+	// PricePerCall The price of one tool call from today, in the platform currency (absent: calls are counted, not priced)
+	PricePerCall *string `json:"pricePerCall,omitempty"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision       Revision `json:"revision"`
+	TimeoutSeconds int32    `json:"timeoutSeconds"`
+
+	// ToolCount Tools the server listed at the last refresh
+	ToolCount int64 `json:"toolCount"`
+
+	// ToolsRefreshedAt When the tool list was last read (absent: never)
+	ToolsRefreshedAt *time.Time `json:"toolsRefreshedAt,omitempty"`
+	UpdatedAt        time.Time  `json:"updatedAt"`
+
+	// Url Example: https://status.example.edu/mcp
+	Url string `json:"url"`
+}
+
+// MCPServerCreate defines model for MCPServerCreate.
+type MCPServerCreate struct {
+	// AuthHeaderName A header such as Authorization or X-API-Key; send it with authValue, or neither
+	AuthHeaderName *string `json:"authHeaderName,omitempty"`
+
+	// AuthValue For example Bearer … ; stored encrypted, never returned
+	AuthValue         *string `json:"authValue,omitempty"`
+	Description       *string `json:"description,omitempty"`
+	Enabled           *bool   `json:"enabled,omitempty"`
+	MaxClassification string  `json:"maxClassification"`
+	Name              string  `json:"name"`
+
+	// PricePerCall Optional price of one call (a decimal amount)
+	PricePerCall   *string `json:"pricePerCall,omitempty"`
+	TimeoutSeconds *int32  `json:"timeoutSeconds,omitempty"`
+
+	// Url The Streamable HTTP endpoint, https only, for example https://status.example.edu/mcp
+	Url string `json:"url"`
+}
+
+// MCPServerTestResult defines model for MCPServerTestResult.
+type MCPServerTestResult struct {
+	ErrorClass *MCPServerTestResultErrorClass `json:"errorClass,omitempty"`
+	HttpStatus *int32                         `json:"httpStatus,omitempty"`
+	LatencyMs  int64                          `json:"latencyMs"`
+
+	// Message A short message for admins (never a header value or a raw body)
+	Message *string `json:"message,omitempty"`
+	Ok      bool    `json:"ok"`
+
+	// ToolCount Tools the server lists (when ok)
+	ToolCount int `json:"toolCount"`
+}
+
+// MCPServerTestResultErrorClass defines model for MCPServerTestResult.ErrorClass.
+type MCPServerTestResultErrorClass string
+
+// MCPServerTool A tool as the server listed it. Its description and input schema are prompts the model reads: review them before approving.
+type MCPServerTool struct {
+	Approved       bool                `json:"approved"`
+	ApprovedAt     *time.Time          `json:"approvedAt,omitempty"`
+	ApprovedBy     *openapi_types.UUID `json:"approvedBy,omitempty"`
+	ApprovedByName *string             `json:"approvedByName,omitempty"`
+	Description    string              `json:"description"`
+	FirstSeenAt    time.Time           `json:"firstSeenAt"`
+
+	// GoneAt When a refresh no longer found it (absent while listed); a gone tool is unapproved
+	GoneAt *time.Time         `json:"goneAt,omitempty"`
+	Id     openapi_types.UUID `json:"id"`
+
+	// InputSchema The tool's JSON Schema for its arguments
+	InputSchema map[string]interface{} `json:"inputSchema"`
+	LastSeenAt  time.Time              `json:"lastSeenAt"`
+
+	// Name Example: check_outage
+	Name     string             `json:"name"`
+	ServerId openapi_types.UUID `json:"serverId"`
+	Title    string             `json:"title"`
+}
+
+// MCPServerUpdate defines model for MCPServerUpdate.
+type MCPServerUpdate struct {
+	// AuthHeaderName Omit to keep; an empty string removes the header and its value
+	AuthHeaderName *string `json:"authHeaderName,omitempty"`
+
+	// AuthValue Omit to keep the stored value
+	AuthValue         *string `json:"authValue,omitempty"`
+	Description       *string `json:"description,omitempty"`
+	Enabled           *bool   `json:"enabled,omitempty"`
+	MaxClassification *string `json:"maxClassification,omitempty"`
+	Name              *string `json:"name,omitempty"`
+
+	// PricePerCall A new price of one call from today (earlier days keep theirs); omit to keep
+	PricePerCall   *string `json:"pricePerCall,omitempty"`
+	TimeoutSeconds *int32  `json:"timeoutSeconds,omitempty"`
+	Url            *string `json:"url,omitempty"`
+}
+
 // MCPSettings defines model for MCPSettings.
 type MCPSettings struct {
 	// Enabled Off by default; while off, POST /mcp answers 404
@@ -7008,6 +7248,20 @@ type MCPSettings struct {
 // MCPSettingsUpdate defines model for MCPSettingsUpdate.
 type MCPSettingsUpdate struct {
 	Enabled bool `json:"enabled"`
+}
+
+// MCPToolOption defines model for MCPToolOption.
+type MCPToolOption struct {
+	// Description What the model reads about the tool
+	Description string             `json:"description"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// MaxClassification The server's ceiling: agents whose knowledge bases hold more sensitive data can't use it
+	MaxClassification string             `json:"maxClassification"`
+	Name              string             `json:"name"`
+	ServerId          openapi_types.UUID `json:"serverId"`
+	ServerName        string             `json:"serverName"`
+	Title             string             `json:"title"`
 }
 
 // MaintenanceErrorResponse defines model for MaintenanceErrorResponse.
@@ -8659,12 +8913,24 @@ type RetentionUpdatePeriodsMode string
 // RetrievalHit defines model for RetrievalHit.
 type RetrievalHit struct {
 	// Conflicting SystemOne judging found it contradicts the question's premise; it was given to the model as conflicting evidence
-	Conflicting *bool   `json:"conflicting,omitempty"`
-	N           int     `json:"n"`
-	Snippet     string  `json:"snippet"`
-	Title       string  `json:"title"`
-	Url         *string `json:"url,omitempty"`
+	Conflicting *bool `json:"conflicting,omitempty"`
+
+	// Kind tool: an MCP tool's result (absent for passages)
+	Kind *RetrievalHitKind `json:"kind,omitempty"`
+	N    int               `json:"n"`
+
+	// Server The MCP server's name (kind tool)
+	Server  *string `json:"server,omitempty"`
+	Snippet string  `json:"snippet"`
+	Title   string  `json:"title"`
+
+	// Tool The tool's name (kind tool)
+	Tool *string `json:"tool,omitempty"`
+	Url  *string `json:"url,omitempty"`
 }
+
+// RetrievalHitKind tool: an MCP tool's result (absent for passages)
+type RetrievalHitKind string
 
 // RetrievalMode defines model for RetrievalMode.
 type RetrievalMode string
@@ -9535,6 +9801,9 @@ type IfMatchHeader = string
 // LimitParam defines model for LimitParam.
 type LimitParam = int
 
+// MCPServerParam defines model for MCPServerParam.
+type MCPServerParam = openapi_types.UUID
+
 // MigrationIdParam defines model for MigrationIdParam.
 type MigrationIdParam = openapi_types.UUID
 
@@ -9853,6 +10122,17 @@ type AdminListLegalHoldsParamsStatus string
 type AdminUpdateLimitsParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
 	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// AdminUpdateMCPServerParams defines parameters for AdminUpdateMCPServer.
+type AdminUpdateMCPServerParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// AdminSetMCPToolApprovalJSONBody defines parameters for AdminSetMCPToolApproval.
+type AdminSetMCPToolApprovalJSONBody struct {
+	Approved bool `json:"approved"`
 }
 
 // AdminListModelsParams defines parameters for AdminListModels.
@@ -10381,6 +10661,15 @@ type AdminReleaseLegalHoldJSONRequestBody = LegalHoldRelease
 
 // AdminUpdateLimitsJSONRequestBody defines body for AdminUpdateLimits for application/json ContentType.
 type AdminUpdateLimitsJSONRequestBody = PlatformLimitsUpdate
+
+// AdminCreateMCPServerJSONRequestBody defines body for AdminCreateMCPServer for application/json ContentType.
+type AdminCreateMCPServerJSONRequestBody = MCPServerCreate
+
+// AdminUpdateMCPServerJSONRequestBody defines body for AdminUpdateMCPServer for application/json ContentType.
+type AdminUpdateMCPServerJSONRequestBody = MCPServerUpdate
+
+// AdminSetMCPToolApprovalJSONRequestBody defines body for AdminSetMCPToolApproval for application/json ContentType.
+type AdminSetMCPToolApprovalJSONRequestBody AdminSetMCPToolApprovalJSONBody
 
 // AdminCreateModelJSONRequestBody defines body for AdminCreateModel for application/json ContentType.
 type AdminCreateModelJSONRequestBody = ModelCreate

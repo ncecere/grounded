@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -284,10 +285,11 @@ func (s *Service) classify(ctx context.Context, ex *exchange, err error) error {
 	}
 	status := ex.lastStatus()
 	var rpc *jsonrpc.Error
+	var netErr *url.Error
 	switch {
-	case errors.Is(err, ErrBlockedAddress):
+	case errors.Is(err, ErrBlockedAddress) || strings.Contains(err.Error(), ErrBlockedAddress.Error()):
 		return &Error{Class: ClassConfig, Message: "The server's address is not allowed (private, loopback or link-local, or a redirect)."}
-	case errors.Is(err, ErrResponseTooLarge):
+	case errors.Is(err, ErrResponseTooLarge) || strings.Contains(err.Error(), ErrResponseTooLarge.Error()):
 		return &Error{Class: ClassTooLarge, Message: fmt.Sprintf("The server's response was larger than %d bytes.", s.maxResponse())}
 	case errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded):
 		return &Error{Class: ClassTimeout, Message: "The server didn't answer in time."}
@@ -299,6 +301,8 @@ func (s *Service) classify(ctx context.Context, ex *exchange, err error) error {
 		return &Error{Class: ClassRateLimited, HTTPStatus: status, Message: "The server is rate limiting requests (HTTP 429)."}
 	case status >= 400:
 		return &Error{Class: ClassUnavailable, HTTPStatus: status, Message: fmt.Sprintf("The server answered HTTP %d.", status)}
+	case errors.As(err, &netErr):
+		return &Error{Class: ClassUnavailable, Message: "Couldn't reach the server: " + healthcheck.SafeMessage(netErr.Err.Error())}
 	case errors.As(err, &rpc):
 		return &Error{Class: ClassBadResponse, Message: "The server returned an error: " + healthcheck.SafeMessage(rpc.Message)}
 	case errors.Is(err, io.ErrUnexpectedEOF):

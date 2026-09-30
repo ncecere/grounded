@@ -1561,6 +1561,229 @@ paths:
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/mcp-servers:
+    get:
+      tags: [admin]
+      operationId: adminListMCPServers
+      summary: List MCP servers (platform admins and auditors)
+      description: >-
+        Remote MCP servers whose approved tools agents may call
+        (docs/mcp-client.md). Header values are never returned.
+      responses:
+        "200":
+          description: MCP servers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/MCPServer" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+    post:
+      tags: [admin]
+      operationId: adminCreateMCPServer
+      summary: Register an MCP server (platform admins; audited)
+      description: >-
+        The URL must be https and its host must resolve to public addresses
+        (private, loopback and link-local addresses are refused, when saved and
+        on every connection). A development install (DEV_AUTH on a loopback
+        APP_URL) may use private addresses, and http for loopback. Credentials
+        go in the header, stored encrypted. Refresh the tools next.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MCPServerCreate" }
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/MCPServer" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/mcp-servers/{serverId}:
+    parameters:
+      - $ref: "#/components/parameters/MCPServerParam"
+    get:
+      tags: [admin]
+      operationId: adminGetMCPServer
+      summary: One MCP server
+      responses:
+        "200":
+          description: MCP server
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/MCPServer" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    patch:
+      tags: [admin]
+      operationId: adminUpdateMCPServer
+      summary: Change an MCP server (platform admins; audited)
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MCPServerUpdate" }
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/MCPServer" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+    delete:
+      tags: [admin]
+      operationId: adminDeleteMCPServer
+      summary: Delete an MCP server and its tools (platform admins; audited)
+      description: >-
+        Refused (409 mcp_server_in_use, details.agents) while a published
+        agent version uses one of its tools: turn the server off instead, or
+        publish those agents without its tools. Past versions lose the tools.
+      responses:
+        "200": { $ref: "#/components/responses/OkReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/mcp-servers/{serverId}/test:
+    parameters:
+      - $ref: "#/components/parameters/MCPServerParam"
+    post:
+      tags: [admin]
+      operationId: adminTestMCPServer
+      summary: Test an MCP server (reads its tool list; the result is stored as its health)
+      description: >-
+        Connects (server/discover, or initialize for older servers) and reads
+        the tool list, never calling a tool. The result is stored as the
+        server's health (adminListHealthChecks); the health job re-tests
+        enabled servers the same way.
+      responses:
+        "200":
+          description: Test result (ok is false when the server couldn't be read)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/MCPServerTestResult" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/mcp-servers/{serverId}/refresh:
+    parameters:
+      - $ref: "#/components/parameters/MCPServerParam"
+    post:
+      tags: [admin]
+      operationId: adminRefreshMCPServerTools
+      summary: Read the server's tool list and store it (platform admins; audited)
+      description: >-
+        New tools start unapproved. A tool whose title, description or input
+        schema changed loses its approval (they are prompts the model reads);
+        a tool the server no longer lists is marked gone and unapproved. 502
+        mcp_server_unreachable when the server couldn't be read
+        (details.class).
+      responses:
+        "200":
+          description: The stored tools and what changed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/MCPRefreshResult" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "502": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/mcp-servers/{serverId}/tools:
+    parameters:
+      - $ref: "#/components/parameters/MCPServerParam"
+    get:
+      tags: [admin]
+      operationId: adminListMCPServerTools
+      summary: A server's stored tools, listed ones first (platform admins and auditors)
+      responses:
+        "200":
+          description: Tools
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/MCPServerTool" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/mcp-servers/{serverId}/tools/{toolId}/approval:
+    parameters:
+      - $ref: "#/components/parameters/MCPServerParam"
+      - name: toolId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [admin]
+      operationId: adminSetMCPToolApproval
+      summary: Approve or unapprove a tool (platform admins; audited as mcp_tool.approve or mcp_tool.unapprove)
+      description: >-
+        Only approved tools can be chosen by agents and called. A tool the
+        server no longer lists can't be approved (409 mcp_tool_gone).
+        Unapproving a tool stops agents from calling it at once.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approved]
+              properties:
+                approved: { type: boolean }
+      responses:
+        "200":
+          description: The tool
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/MCPServerTool" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/models:
     get:
       tags: [admin]
@@ -2076,6 +2299,29 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/ChatModelOption" }
+        "401": { $ref: "#/components/responses/ErrorReply" }
+  /v1/mcp-tools:
+    get:
+      tags: [agents]
+      operationId: listUsableMCPTools
+      summary: MCP tools teams can choose for agents
+      description: >-
+        Approved tools of enabled MCP servers (docs/mcp-client.md), with the
+        server's name and classification ceiling: an agent whose knowledge
+        bases hold data above a server's ceiling can't use its tools. The
+        server's URL and credentials are never returned.
+      responses:
+        "200":
+          description: Tools, by server and name
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/MCPToolOption" }
         "401": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/sources:
     parameters:
@@ -6523,6 +6769,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    MCPServerParam:
+      name: serverId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     IfMatchHeader:
       name: If-Match
       in: header
@@ -6913,13 +7164,14 @@ components:
           items: { $ref: "#/components/schemas/CostPriceItem" }
     CostByKind:
       type: object
-      required: [chat, embedding, systemone, moderation, ocr]
+      required: [chat, embedding, systemone, moderation, ocr, mcp]
       properties:
         chat: { $ref: "#/components/schemas/Money" }
         embedding: { $ref: "#/components/schemas/Money" }
         systemone: { $ref: "#/components/schemas/Money" }
         moderation: { $ref: "#/components/schemas/Money" }
         ocr: { $ref: "#/components/schemas/Money" }
+        mcp: { $ref: "#/components/schemas/Money" }
     CostTotals:
       type: object
       required: [spend, byKind, tokens, requests, unpriced]
@@ -8046,10 +8298,109 @@ components:
         requestsPerMinute: { type: integer, format: int32, minimum: 0, maximum: 1000000, description: "Omit to keep; 0 removes the limit" }
         maxConcurrentRequests: { type: integer, format: int32, minimum: 1, maximum: 256 }
         enabled: { type: boolean }
+    MCPServer:
+      type: object
+      description: A remote MCP server whose approved tools agents may call (docs/mcp-client.md)
+      required: [id, name, description, url, hasAuth, authValueHint, maxClassification, timeoutSeconds, enabled, toolCount, approvedCount, revision, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, example: Service status }
+        description: { type: string }
+        url: { type: string, example: "https://status.example.edu/mcp" }
+        authHeaderName: { type: string, description: "The static header sent with every request, for example Authorization (absent: none)" }
+        hasAuth: { type: boolean, description: The header value itself is never returned }
+        authValueHint: { type: string, description: "Last 4 characters of the header value, or empty" }
+        maxClassification: { type: string, description: "The most sensitive data the server may receive: agents whose knowledge bases hold more can't use its tools" }
+        timeoutSeconds: { type: integer, format: int32, minimum: 1, maximum: 120 }
+        enabled: { type: boolean, description: "Turned off, no agent calls its tools and the health job skips it" }
+        pricePerCall: { type: string, description: "The price of one tool call from today, in the platform currency (absent: calls are counted, not priced)" }
+        toolCount: { type: integer, format: int64, description: Tools the server listed at the last refresh }
+        approvedCount: { type: integer, format: int64 }
+        toolsRefreshedAt: { type: string, format: date-time, description: "When the tool list was last read (absent: never)" }
+        revision: { $ref: "#/components/schemas/Revision" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    MCPServerCreate:
+      type: object
+      required: [name, url, maxClassification]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, maxLength: 2000 }
+        url: { type: string, description: "The Streamable HTTP endpoint, https only, for example https://status.example.edu/mcp" }
+        authHeaderName: { type: string, description: "A header such as Authorization or X-API-Key; send it with authValue, or neither" }
+        authValue: { type: string, description: "For example Bearer … ; stored encrypted, never returned" }
+        maxClassification: { type: string }
+        timeoutSeconds: { type: integer, format: int32, minimum: 1, maximum: 120, default: 30 }
+        enabled: { type: boolean, default: true }
+        pricePerCall: { type: string, description: "Optional price of one call (a decimal amount)" }
+    MCPServerUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, maxLength: 2000 }
+        url: { type: string }
+        authHeaderName: { type: string, description: "Omit to keep; an empty string removes the header and its value" }
+        authValue: { type: string, description: "Omit to keep the stored value" }
+        maxClassification: { type: string }
+        timeoutSeconds: { type: integer, format: int32, minimum: 1, maximum: 120 }
+        enabled: { type: boolean }
+        pricePerCall: { type: string, description: "A new price of one call from today (earlier days keep theirs); omit to keep" }
+    MCPServerTool:
+      type: object
+      description: >-
+        A tool as the server listed it. Its description and input schema are
+        prompts the model reads: review them before approving.
+      required: [id, serverId, name, title, description, inputSchema, approved, firstSeenAt, lastSeenAt]
+      properties:
+        id: { type: string, format: uuid }
+        serverId: { type: string, format: uuid }
+        name: { type: string, example: check_outage }
+        title: { type: string }
+        description: { type: string }
+        inputSchema: { type: object, additionalProperties: true, description: The tool's JSON Schema for its arguments }
+        approved: { type: boolean }
+        approvedBy: { type: string, format: uuid }
+        approvedByName: { type: string }
+        approvedAt: { type: string, format: date-time }
+        firstSeenAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+        goneAt: { type: string, format: date-time, description: "When a refresh no longer found it (absent while listed); a gone tool is unapproved" }
+    MCPRefreshResult:
+      type: object
+      required: [listed, added, changed, gone, tools]
+      properties:
+        listed: { type: integer, description: Tools the server lists }
+        added: { type: integer }
+        changed: { type: integer, description: "Tools whose title, description or input schema changed (unapproved again)" }
+        gone: { type: integer, description: Tools no longer listed (marked gone and unapproved) }
+        tools:
+          type: array
+          items: { $ref: "#/components/schemas/MCPServerTool" }
+    MCPServerTestResult:
+      type: object
+      required: [ok, latencyMs, toolCount]
+      properties:
+        ok: { type: boolean }
+        latencyMs: { type: integer, format: int64 }
+        toolCount: { type: integer, description: Tools the server lists (when ok) }
+        errorClass: { type: string, enum: [unavailable, auth, not_found, rate_limited, bad_request, bad_response, config, timeout, too_large, input_required] }
+        httpStatus: { type: integer, format: int32 }
+        message: { type: string, description: A short message for admins (never a header value or a raw body) }
+    MCPToolOption:
+      type: object
+      required: [id, serverId, serverName, name, title, description, maxClassification]
+      properties:
+        id: { type: string, format: uuid }
+        serverId: { type: string, format: uuid }
+        serverName: { type: string }
+        name: { type: string }
+        title: { type: string }
+        description: { type: string, description: What the model reads about the tool }
+        maxClassification: { type: string, description: "The server's ceiling: agents whose knowledge bases hold more sensitive data can't use it" }
     HealthSubjectKind:
       type: string
-      description: What a health check tested (MCP servers will join in a later release)
-      enum: [connection, model]
+      description: What a health check tested
+      enum: [connection, model, mcp_server]
     HealthCheck:
       type: object
       description: >-
@@ -8060,7 +8411,7 @@ components:
       properties:
         subjectKind: { $ref: "#/components/schemas/HealthSubjectKind" }
         subjectId: { type: string, format: uuid }
-        subjectName: { type: string, description: The connection's name or the model's display name }
+        subjectName: { type: string, description: "The connection's or MCP server's name, or the model's display name" }
         subjectEnabled: { type: boolean, description: "Whether the subject is enabled (a model only while its connection is too); only enabled subjects are re-tested and counted as failing" }
         status: { type: string, enum: [healthy, failing] }
         latencyMs: { type: integer, format: int32 }
@@ -9415,7 +9766,7 @@ components:
     LimitKey:
       type: string
       description: A team limit. See GET /v1/admin/limits for labels and descriptions.
-      enum: [storage_bytes, documents, data_sources, knowledge_bases, agents, crawl_pages_per_day, concurrent_crawls, concurrent_ingest_jobs, ocr_pages_per_day, queries_per_minute, queries_per_day, api_key_queries_per_minute, user_queries_per_minute, chat_tokens_per_day, concurrent_chats_per_user, public_queries_per_ip_per_minute, public_queries_per_session_per_minute, public_queries_per_agent_per_day, public_tokens_per_agent_per_day, public_concurrent_chats_per_agent, public_message_max_chars, evaluation_sets, evaluation_questions_per_set]
+      enum: [storage_bytes, documents, data_sources, knowledge_bases, agents, crawl_pages_per_day, concurrent_crawls, concurrent_ingest_jobs, ocr_pages_per_day, queries_per_minute, queries_per_day, api_key_queries_per_minute, user_queries_per_minute, chat_tokens_per_day, concurrent_chats_per_user, mcp_calls_per_answer, public_queries_per_ip_per_minute, public_queries_per_session_per_minute, public_queries_per_agent_per_day, public_tokens_per_agent_per_day, public_concurrent_chats_per_agent, public_message_max_chars, evaluation_sets, evaluation_questions_per_set]
     LimitGroup:
       type: string
       description: public limits apply per agent to anonymous public-page and widget traffic; evaluations are evaluation sets and their questions
@@ -9710,6 +10061,11 @@ components:
           description: Who may chat once published (a draft setting, versioned with publish)
           allOf: [{ $ref: "#/components/schemas/Audience" }]
         systemOne: { $ref: "#/components/schemas/AgentSystemOne" }
+        tools:
+          type: array
+          maxItems: 10
+          description: "Approved MCP server tools the agent may call (docs/mcp-client.md), by ID; absent in configurations saved before v0.3"
+          items: { type: string, format: uuid }
     AgentConfigInput:
       type: object
       description: >-
@@ -9744,6 +10100,11 @@ components:
             access on and a working public moderation policy.
           allOf: [{ $ref: "#/components/schemas/Audience" }]
         systemOne: { $ref: "#/components/schemas/AgentSystemOne" }
+        tools:
+          type: array
+          maxItems: 10
+          description: "Approved MCP server tools the agent may call, by ID (listUsableMCPTools). Publishing checks each is approved and its server enabled and approved for the agent's data"
+          items: { type: string, format: uuid }
     AgentSystemOne:
       type: object
       description: >-
@@ -10511,6 +10872,10 @@ components:
             another. Markers outside a checked claim (a citation list, a
             claim of fewer than three words) are unchecked.
           items: { $ref: "#/components/schemas/CitationMarker" }
+        kind: { type: string, enum: [tool], description: "tool: the source is an MCP tool's result (documentId and sourceId are the nil UUID), from server and tool; absent for passages" }
+        server: { type: string, description: "The MCP server's name (kind tool)" }
+        tool: { type: string, description: "The tool's name (kind tool)" }
+        truncated: { type: boolean, description: "The tool's result was cut to the size the model reads (kind tool)" }
     CitationMarker:
       type: object
       description: The citation check of one [n] marker.
@@ -10598,6 +10963,9 @@ components:
         url: { type: string }
         snippet: { type: string }
         conflicting: { type: boolean, description: "SystemOne judging found it contradicts the question's premise; it was given to the model as conflicting evidence" }
+        kind: { type: string, enum: [tool], description: "tool: an MCP tool's result (absent for passages)" }
+        server: { type: string, description: "The MCP server's name (kind tool)" }
+        tool: { type: string, description: "The tool's name (kind tool)" }
     StopReason:
       type: string
       enum: [stop, length, toolUse, error, aborted]

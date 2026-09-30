@@ -27,6 +27,7 @@ import (
 	"github.com/ncecere/grounded/internal/kbs"
 	"github.com/ncecere/grounded/internal/kv"
 	"github.com/ncecere/grounded/internal/limits"
+	"github.com/ncecere/grounded/internal/mcpclient"
 	"github.com/ncecere/grounded/internal/moderation"
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/observability"
@@ -92,6 +93,8 @@ type Deps struct {
 	ProfileMigrations *profilemig.Service
 	// Evaluations runs evaluation sets (docs/evaluations.md).
 	Evaluations *evals.Service
+	// MCP registers MCP servers and approves their tools (docs/mcp-client.md).
+	MCP *mcpclient.Service
 }
 
 type api struct {
@@ -145,7 +148,7 @@ func apiRoutes(d Deps) []route {
 		a.publicRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
 		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(),
-		a.mcpSettingsRoutes(),
+		a.mcpSettingsRoutes(), a.mcpClientRoutes(),
 	} {
 		routes = append(routes, group...)
 	}

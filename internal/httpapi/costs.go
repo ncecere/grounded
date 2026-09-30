@@ -156,7 +156,7 @@ func (a *api) adminDeleteModelPrice(w http.ResponseWriter, r *http.Request) {
 func totals(t *costs.Totals) (apitypes.CostByKind, apitypes.CostTotals) {
 	by := apitypes.CostByKind{Chat: money(t.ByCategory["chat"]), Embedding: money(t.ByCategory["embedding"]),
 		Systemone: money(t.ByCategory["systemone"]), Moderation: money(t.ByCategory["moderation"]),
-		Ocr: money(t.ByCategory["ocr"])}
+		Ocr: money(t.ByCategory["ocr"]), Mcp: money(t.ByCategory["mcp"])}
 	return by, apitypes.CostTotals{Spend: money(t.Spend), ByKind: by, Tokens: t.Tokens, Requests: t.Requests, Unpriced: t.Unpriced}
 }
 
