@@ -172,6 +172,7 @@ func TestMCPSwitchAndKeys(t *testing.T) {
 		t.Fatalf("a browser session = %d %s", code, raw)
 	}
 
+	checkDocumentedCurl(t, url, key.Secret)
 	// The key works, at 2026-07-28 and at an older revision (and is then used).
 	cs := mustConnect(t, url, key.Secret, "")
 	if n := env.scalar(t, `SELECT count(*) FROM api_keys WHERE id = $1 AND last_used_at IS NOT NULL`, key.Key.Id); n != 1 {
@@ -244,4 +245,38 @@ func toolText(res *mcp.CallToolResult) string {
 		}
 	}
 	return b.String()
+}
+
+// checkDocumentedCurl sends docs/mcp.md's "Checking the connection with
+// curl" requests as written: server/discover with its two headers, and the
+// plain tools/list.
+func checkDocumentedCurl(t *testing.T, base, key string) {
+	t.Helper()
+	for _, c := range []struct {
+		body    string
+		headers map[string]string
+		want    string
+	}{
+		{`{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28",` +
+			`"io.modelcontextprotocol/clientCapabilities":{}}}}`,
+			map[string]string{"Mcp-Protocol-Version": "2026-07-28", "Mcp-Method": "server/discover"}, `"grounded"`},
+		{`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`, nil, `"search"`},
+	} {
+		req, _ := http.NewRequest("POST", base+"/mcp", strings.NewReader(c.body))
+		req.Header.Set("Authorization", "Bearer "+key)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		for k, v := range c.headers {
+			req.Header.Set(k, v)
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, _ := io.ReadAll(res.Body)
+		_ = res.Body.Close()
+		if res.StatusCode != 200 || !strings.Contains(string(raw), c.want) {
+			t.Errorf("documented curl %s = %d %s", c.body[:40], res.StatusCode, raw)
+		}
+	}
 }

@@ -20,10 +20,11 @@ API: `GET /v1/admin/settings/mcp` and `PUT /v1/admin/settings/mcp` with `If-Matc
 
 ## Creating a key (anyone in a team)
 
-1. In your team, open **API keys → New API key**.
+1. In your team, open **Team settings** and its **API keys** tab, then press **New API key**.
 2. Tick **MCP: search and ask from AI tools**. Every team role may give a key this scope. It doesn't need the **Query** scope, and it grants nothing on the REST API.
-3. Optionally restrict the key to some knowledge bases or agents, and give it an expiry date.
-4. Copy the secret. The dialog also shows the MCP server's address.
+3. **Query** is ticked by default: untick it if the key is only for AI tools, so it can't also query the REST API.
+4. Optionally restrict the key to some knowledge bases or agents, and give it an expiry date.
+5. Copy the secret. The dialog also shows the MCP server's address: note it too, as it isn't shown again on the key's page (a platform admin finds it under **Admin → Overview → Features**; it's always `<APP_URL>/mcp`).
 
 What the key can reach over MCP is what it could reach as a query key, and nothing more:
 
@@ -109,10 +110,20 @@ These examples follow each client's documentation at the time of writing; client
 curl -s https://rag.example.edu/mcp \
   -H "Authorization: Bearer $GROUNDED_API_KEY" \
   -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Protocol-Version: 2026-07-28" -H "Mcp-Method: server/discover" \
   -d '{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}'
 ```
 
-The answer names the server (`grounded`), its supported protocol versions and its `tools` capability.
+The answer names the server (`grounded`), its supported protocol versions and its `tools` capability. Revision `2026-07-28` requires the `Mcp-Protocol-Version` and `Mcp-Method` headers to match the body: without them the answer is `400`. A shorter check, which lists the tools the key may use, needs neither:
+
+```sh
+curl -s https://rag.example.edu/mcp \
+  -H "Authorization: Bearer $GROUNDED_API_KEY" \
+  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+A refused key is `401` (`invalid_api_key`) or `403` (`missing_scope`: the key lacks the MCP scope). SDK-based clients often print only "Unauthorized" or "Forbidden"; the reason is in the JSON-RPC body, which these commands show.
 
 ## Signing in with OAuth (experimental)
 
