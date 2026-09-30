@@ -981,8 +981,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Call GET /models on the proxy and list its model IDs
-         * @description The test opens a new connection and reports the phases of its first request (timings). A failure names its cause: certificate, TLS, proxy, refused or reset connection, DNS, or a timeout with the phase it happened in.
+         * Test the connection (GET /models, or one SystemOne question for a SystemOne service)
+         * @description An OpenAI-compatible gateway is asked for its model list (GET /models). A SystemOne service serves no model list, so a connection whose models are all SystemOne models is tested with one small SystemOne question to its first SystemOne model instead, and so is a connection with a SystemOne model whose GET /models answers 404 (probe tells which). The test opens a new connection and reports the phases of its first request (timings). A failure names its cause: certificate, TLS, proxy, refused or reset connection, DNS, or a timeout with the phase it happened in.
          */
         post: operations["adminTestConnection"];
         delete?: never;
@@ -5274,8 +5274,18 @@ export interface components {
             ok: boolean;
             /** Format: int64 */
             latencyMs: number;
-            /** @description Model IDs the proxy advertises. Nothing is added automatically. */
+            /**
+             * @description How the connection was tested: models (GET /models) or systemone (one SystemOne question)
+             * @enum {string}
+             */
+            probe: "models" | "systemone";
+            /** @description Model IDs the proxy advertises (empty for a SystemOne test). Nothing is added automatically. */
             models: string[];
+            /**
+             * @description The upstream model the SystemOne test asked (systemone only)
+             * @example judge-latest
+             */
+            systemOneModel?: string;
             error?: components["schemas"]["ProxyError"];
             timings?: components["schemas"]["RequestTimings"];
         };

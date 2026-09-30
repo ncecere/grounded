@@ -1532,12 +1532,17 @@ paths:
     post:
       tags: [admin]
       operationId: adminTestConnection
-      summary: Call GET /models on the proxy and list its model IDs
+      summary: Test the connection (GET /models, or one SystemOne question for a SystemOne service)
       description: >-
-        The test opens a new connection and reports the phases of its first
-        request (timings). A failure names its cause: certificate, TLS,
-        proxy, refused or reset connection, DNS, or a timeout with the phase
-        it happened in.
+        An OpenAI-compatible gateway is asked for its model list (GET
+        /models). A SystemOne service serves no model list, so a connection
+        whose models are all SystemOne models is tested with one small
+        SystemOne question to its first SystemOne model instead, and so is a
+        connection with a SystemOne model whose GET /models answers 404
+        (probe tells which). The test opens a new connection and reports the
+        phases of its first request (timings). A failure names its cause:
+        certificate, TLS, proxy, refused or reset connection, DNS, or a
+        timeout with the phase it happened in.
       responses:
         "200":
           description: Test result (ok is false when the proxy call failed)
@@ -7936,14 +7941,22 @@ components:
         enabled: { type: boolean }
     ConnectionTestResult:
       type: object
-      required: [ok, latencyMs, models]
+      required: [ok, latencyMs, models, probe]
       properties:
         ok: { type: boolean }
         latencyMs: { type: integer, format: int64 }
+        probe:
+          type: string
+          enum: [models, systemone]
+          description: "How the connection was tested: models (GET /models) or systemone (one SystemOne question)"
         models:
           type: array
-          description: Model IDs the proxy advertises. Nothing is added automatically.
+          description: Model IDs the proxy advertises (empty for a SystemOne test). Nothing is added automatically.
           items: { type: string }
+        systemOneModel:
+          type: string
+          description: The upstream model the SystemOne test asked (systemone only)
+          example: judge-latest
         error: { $ref: "#/components/schemas/ProxyError" }
         timings: { $ref: "#/components/schemas/RequestTimings" }
     ModelKind:

@@ -139,6 +139,23 @@ func NewFakeProxy(t testing.TB) *FakeProxy {
 	return p
 }
 
+// NewFakeSystemOneService starts a fake that serves only POST
+// /v1/systemone, like a SystemOne service (ADR-0020): every other path,
+// GET /v1/models included, answers 404.
+func NewFakeSystemOneService(t testing.TB) *FakeProxy {
+	t.Helper()
+	p, h := NewFakeProxyHandler("sk-test-" + randomSuffix())
+	p.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/systemone" {
+			writeErr(w, http.StatusNotFound, "not found")
+			return
+		}
+		h.ServeHTTP(w, r)
+	}))
+	t.Cleanup(p.Close)
+	return p
+}
+
 // AddChatModel registers a chat model.
 func (p *FakeProxy) AddChatModel(id string) {
 	p.mu.Lock()

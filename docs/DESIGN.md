@@ -455,7 +455,7 @@ type VectorStore interface {
   - A connection is a name, a base URL, an API key, a request timeout, an optional `requestsPerMinute` limit (§5.5) and `maxConcurrentRequests` (default 8; applied to SystemOne calls, per process).
   - The key is entered in the admin portal and **stored encrypted** (AES-256-GCM, with the key from `ENCRYPTION_KEY`; a previous key can be kept for rotation). The API never returns the key; the portal shows only that one is set.
   - The platform has no LiteLLM- or vendor-specific code. It uses only the OpenAI API surface: `/models`, `/embeddings` and `/chat/completions`, with `/rerank` and `/moderations` later.
-  - **Test connection** calls `GET /models`. The response lists the proxy's model IDs to help the admin fill in forms. Nothing is added automatically.
+  - **Test connection** calls `GET /models`. The response lists the proxy's model IDs to help the admin fill in forms. Nothing is added automatically. A SystemOne service (ADR-0020) has no model list, so a connection whose models are all SystemOne models (or one whose `GET /models` answers 404 and that has a SystemOne model) is tested with one small SystemOne question instead.
 - **Models are added by admins.** A model belongs to a connection and has:
   - the upstream model ID sent to the proxy, and a display name
   - a **kind**: `chat`, `embedding`, `rerank`, `moderation`, `systemone` (ADR-0020) or `vision` (reads page images for OCR, [`ocr.md`](ocr.md); its Test transcribes the built-in sample page).

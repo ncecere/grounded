@@ -246,7 +246,7 @@ On branch `release/v0.2.2`; found while preparing the public sites' screenshots 
 | ID | Item | Size |
 |---|---|---|
 | J1 **Done** | The admin Overview's Features card squeezed the Evaluations description into a one-word column beside its switch: a row with a control now puts its actions under its text. | S |
-| J2 **New** | A connection test fails with 404 for a working SystemOne connection (the test asks `/models`, which a SystemOne service doesn't serve). Test SystemOne connections with a SystemOne request. | S |
+| J2 **Done** | A connection test fails with 404 for a working SystemOne connection (the test asks `/models`, which a SystemOne service doesn't serve). Test SystemOne connections with a SystemOne request: a connection with only SystemOne models (or a 404 from `/models` and a SystemOne model) is asked one SystemOne question; `grounded doctor` does the same. | S |
 | J3 **New** | Team avatar initials: "IT Help Desk" shows "ID"; initials should come from the first two words ("IH") or skip all-caps acronyms sensibly. | S |
 | J4 **New** | Editors can't withdraw their own pending domain request (there's no API for it). | S |
 | J5 **New** | The G19 bitop-ui items above, as they land. | S |

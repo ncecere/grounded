@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+- Admin → Connections → **Test connection** no longer fails with 404 for a working SystemOne service (J2): a SystemOne service serves no `GET /models`, so a connection whose models are all SystemOne models (or one with a SystemOne model whose `GET /models` answers 404) is tested with one small SystemOne question to its SystemOne model, reporting the latency, the phases of the request and the usual error classes (auth, not found, rate limited, unavailable). OpenAI-compatible gateways are still asked for their model list. A 404 on a connection without models says to add its SystemOne model first. `grounded doctor` tests connections the same way, so a healthy SystemOne service is ✓ ("SystemOne (model) answered a test question") instead of a warning. API (additive): `ConnectionTestResult.probe` (`models` or `systemone`) and `systemOneModel`.
+
 ## [0.2.1] - 2026-09-29
 
 Navigation and clarity: the admin sidebar regrouped, a Features card, quality and spend on the team Overview, a team Evaluations page, spend apart from limits, a six-tab agent editor, and per-claim verification. The plan is [`docs/v0.2.1.md`](docs/v0.2.1.md) and the release notes are [`docs/releases/v0.2.1.md`](docs/releases/v0.2.1.md). v0.2.1-rc.1 ran on the reference install first.

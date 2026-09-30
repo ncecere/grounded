@@ -76,7 +76,7 @@ describe("admin catalog", () => {
       ...shellRoutes("platform_admin"),
       "GET /v1/admin/connections": () => [connection],
       "GET /v1/admin/models": () => [chat],
-      "POST /v1/admin/connections/c1/test": () => ({ ok: true, latencyMs: 80, models: ["gpt-oss-120b", "openai/qwen3-32b"], timings: { dnsMs: 2, connectMs: 1, tlsMs: 12, firstByteMs: 60, reused: false } }),
+      "POST /v1/admin/connections/c1/test": () => ({ ok: true, latencyMs: 80, probe: "models", models: ["gpt-oss-120b", "openai/qwen3-32b"], timings: { dnsMs: 2, connectMs: 1, tlsMs: 12, firstByteMs: 60, reused: false } }),
     });
     renderApp("/admin/connections?record=c1");
     const sheet = await screen.findByRole("region", { name: "Campus gateway" }, { timeout: 4000 });
@@ -106,6 +106,26 @@ describe("admin catalog", () => {
     expect(again).toBeVisible();
     await userEvent.click(within(again).getByRole("link", { name: "Back to Connections" }));
     expect(await screen.findByRole("table", { name: "Connections" })).toBeInTheDocument();
+  });
+
+  it("tests a SystemOne service with a SystemOne question and explains a missing model list (J2)", async () => {
+    let answer: object = { ok: false, latencyMs: 9, probe: "models", models: [], error: { kind: "not_found", status: 404, message: "not found" } };
+    mockApi({
+      ...shellRoutes("platform_admin"),
+      "GET /v1/admin/connections": () => [{ ...connection, name: "Judge service", modelCount: 0 }],
+      "GET /v1/admin/models": () => [],
+      "POST /v1/admin/connections/c1/test": () => answer,
+    });
+    const { container } = renderApp("/admin/connections?record=c1");
+    const sheet = await screen.findByRole("region", { name: "Judge service" }, { timeout: 4000 });
+    await userEvent.click(within(sheet).getByRole("button", { name: "Test connection" }));
+    expect(await within(sheet).findByText(/add its SystemOne model to this connection, then test again/)).toBeInTheDocument();
+    answer = { ok: true, latencyMs: 42, probe: "systemone", systemOneModel: "judge-latest", models: [] };
+    await userEvent.click(within(sheet).getByRole("button", { name: "Test connection" }));
+    expect(await within(sheet).findByText("Connected in 42 ms")).toBeInTheDocument();
+    expect(within(sheet).getByText(/The SystemOne service answered a test question/)).toHaveTextContent("(model judge-latest)");
+    expect(within(sheet).queryByRole("list", { name: "Models offered by the proxy" })).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it("lists where each shared source is used, by team and knowledge base (A6)", async () => {

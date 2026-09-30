@@ -26,7 +26,7 @@ export function useModels() {
   return useQuery({ queryKey: ["admin", "models"], queryFn: async () => unwrap(await api.GET("/v1/admin/models")) });
 }
 
-/** The upstream model IDs a connection advertises (POST …/test); also used for model suggestions. */
+/** Tests a connection (POST …/test): the upstream model IDs it advertises, also used for model suggestions (none for a SystemOne service). */
 export function connectionTestQuery(connectionId: string) {
   return {
     queryKey: ["admin", "connection-test", connectionId],
