@@ -13,7 +13,7 @@ import (
 
 const getMCPSettings = `-- name: GetMCPSettings :one
 
-SELECT singleton, enabled, revision, updated_by, updated_at FROM mcp_settings
+SELECT singleton, enabled, revision, updated_by, updated_at, oauth_enabled FROM mcp_settings
 `
 
 // The MCP server's platform switch (migrations/00035_mcp_server.sql, docs/mcp.md).
@@ -26,12 +26,13 @@ func (q *Queries) GetMCPSettings(ctx context.Context) (McpSetting, error) {
 		&i.Revision,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
+		&i.OauthEnabled,
 	)
 	return i, err
 }
 
 const lockMCPSettings = `-- name: LockMCPSettings :one
-SELECT singleton, enabled, revision, updated_by, updated_at FROM mcp_settings FOR UPDATE
+SELECT singleton, enabled, revision, updated_by, updated_at, oauth_enabled FROM mcp_settings FOR UPDATE
 `
 
 func (q *Queries) LockMCPSettings(ctx context.Context) (McpSetting, error) {
@@ -43,23 +44,25 @@ func (q *Queries) LockMCPSettings(ctx context.Context) (McpSetting, error) {
 		&i.Revision,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
+		&i.OauthEnabled,
 	)
 	return i, err
 }
 
-const setMCPEnabled = `-- name: SetMCPEnabled :one
+const setMCPSettings = `-- name: SetMCPSettings :one
 UPDATE mcp_settings
-SET enabled = $1, revision = revision + 1, updated_by = $2, updated_at = now()
-RETURNING singleton, enabled, revision, updated_by, updated_at
+SET enabled = $1, oauth_enabled = $2, revision = revision + 1, updated_by = $3, updated_at = now()
+RETURNING singleton, enabled, revision, updated_by, updated_at, oauth_enabled
 `
 
-type SetMCPEnabledParams struct {
-	Enabled   bool
-	UpdatedBy uuid.NullUUID
+type SetMCPSettingsParams struct {
+	Enabled      bool
+	OauthEnabled bool
+	UpdatedBy    uuid.NullUUID
 }
 
-func (q *Queries) SetMCPEnabled(ctx context.Context, arg SetMCPEnabledParams) (McpSetting, error) {
-	row := q.db.QueryRow(ctx, setMCPEnabled, arg.Enabled, arg.UpdatedBy)
+func (q *Queries) SetMCPSettings(ctx context.Context, arg SetMCPSettingsParams) (McpSetting, error) {
+	row := q.db.QueryRow(ctx, setMCPSettings, arg.Enabled, arg.OauthEnabled, arg.UpdatedBy)
 	var i McpSetting
 	err := row.Scan(
 		&i.Singleton,
@@ -67,6 +70,7 @@ func (q *Queries) SetMCPEnabled(ctx context.Context, arg SetMCPEnabledParams) (M
 		&i.Revision,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
+		&i.OauthEnabled,
 	)
 	return i, err
 }

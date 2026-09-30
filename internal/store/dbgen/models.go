@@ -544,11 +544,12 @@ type McpServerTool struct {
 }
 
 type McpSetting struct {
-	Singleton bool
-	Enabled   bool
-	Revision  int64
-	UpdatedBy uuid.NullUUID
-	UpdatedAt time.Time
+	Singleton    bool
+	Enabled      bool
+	Revision     int64
+	UpdatedBy    uuid.NullUUID
+	UpdatedAt    time.Time
+	OauthEnabled bool
 }
 
 type Message struct {
@@ -704,6 +705,55 @@ type NotificationSetting struct {
 	InApp     bool
 	Email     bool
 	UpdatedAt time.Time
+}
+
+type OauthClient struct {
+	ID           uuid.UUID
+	ClientID     string
+	ClientName   string
+	RedirectUris []string
+	ClientUri    *string
+	LogoUri      *string
+	CreatedAt    time.Time
+	LastUsedAt   time.Time
+}
+
+type OauthCode struct {
+	CodeHash      []byte
+	GrantID       uuid.UUID
+	ClientID      string
+	RedirectUri   string
+	CodeChallenge string
+	Resource      string
+	ExpiresAt     time.Time
+	CreatedAt     time.Time
+}
+
+type OauthGrant struct {
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	ClientID      string
+	ClientKind    string
+	ClientName    string
+	ClientUri     *string
+	Resource      string
+	Scopes        []string
+	CreatedAt     time.Time
+	LastUsedAt    *time.Time
+	RevokedAt     *time.Time
+	RevokedReason *string
+}
+
+type OauthToken struct {
+	ID        uuid.UUID
+	GrantID   uuid.UUID
+	Kind      string
+	TokenHash []byte
+	PepperID  []byte
+	Resource  string
+	ExpiresAt time.Time
+	RotatedAt *time.Time
+	CreatedAt time.Time
 }
 
 type ParsingSetting struct {

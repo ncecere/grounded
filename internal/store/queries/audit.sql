@@ -104,6 +104,8 @@ CROSS JOIN LATERAL (
         WHEN 'evaluation_settings' THEN 'Evaluations'
         WHEN 'mcp_settings' THEN 'MCP server'
         WHEN 'mcp_server' THEN (SELECT ms.name FROM mcp_servers ms WHERE ms.id = ids.target_uuid)
+        WHEN 'oauth_grant' THEN (SELECT og.client_name FROM oauth_grants og WHERE og.id = ids.target_uuid)
+        WHEN 'oauth_client' THEN (SELECT oc.client_name FROM oauth_clients oc WHERE oc.id = ids.target_uuid)
         WHEN 'mcp_tool' THEN (SELECT mt.name || ' (' || mts.name || ')' FROM mcp_server_tools mt JOIN mcp_servers mts ON mts.id = mt.server_id WHERE mt.id = ids.target_uuid)
         WHEN 'conversation' THEN (SELECT 'Conversation' FROM conversations cv WHERE cv.id = ids.target_uuid)
     END)::text AS label

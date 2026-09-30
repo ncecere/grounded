@@ -6,7 +6,7 @@ SELECT * FROM mcp_settings;
 -- name: LockMCPSettings :one
 SELECT * FROM mcp_settings FOR UPDATE;
 
--- name: SetMCPEnabled :one
+-- name: SetMCPSettings :one
 UPDATE mcp_settings
-SET enabled = @enabled, revision = revision + 1, updated_by = @updated_by, updated_at = now()
+SET enabled = @enabled, oauth_enabled = @oauth_enabled, revision = revision + 1, updated_by = @updated_by, updated_at = now()
 RETURNING *;
