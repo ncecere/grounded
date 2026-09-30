@@ -91,12 +91,12 @@ func (t *toolCall) search(opts []option) mcp.ToolHandlerFor[SearchInput, SearchR
 		if err != nil {
 			outcome, code, out := t.toolError(ctx, "search", err)
 			meta["outcome"], meta["error"] = outcome, code
-			t.record(ctx, "search", "knowledge_base", kb.ID.String(), meta)
+			t.record(ctx, "search", "knowledge_base", kb, meta)
 			return nil, SearchResult{}, out
 		}
 		res := SearchResult{KnowledgeBase: kb.Slug, Passages: passages(hits)}
 		meta["outcome"], meta["results"] = outcomeOK, len(res.Passages)
-		t.record(ctx, "search", "knowledge_base", kb.ID.String(), meta)
+		t.record(ctx, "search", "knowledge_base", kb, meta)
 		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: searchText(kb, res)}}}, res, nil
 	}
 }

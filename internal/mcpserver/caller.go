@@ -18,9 +18,9 @@ import (
 	"github.com/ncecere/grounded/internal/authz"
 )
 
-// Caller is who is calling /mcp. In v0.3 it is an API key with the mcp
-// scope (KeyCaller); an OAuth access token acting as a signed-in person
-// (docs/v0.3.0.md §3, milestone M5) will be another implementation.
+// Caller is who is calling /mcp: an API key with the mcp scope (KeyCaller)
+// or an OAuth access token acting as a signed-in person (OAuthCaller,
+// experimental, docs/mcp.md).
 type Caller interface {
 	// Actor is the principal the tools act as: the services apply its
 	// team, its lists, its limits and its budget.
@@ -51,3 +51,23 @@ func NewKeyCaller(a authz.Actor) KeyCaller {
 func (c KeyCaller) Actor() authz.Actor { return c.actor }
 func (c KeyCaller) Binding() uuid.UUID { return c.actor.Key.ID }
 func (c KeyCaller) Stateless() bool    { return !c.actor.Key.Personal() }
+
+// OAuthCaller is an OAuth access token acting as its person (docs/mcp.md,
+// "Signing in with OAuth"): the person's current teams and team roles,
+// never a platform role, searching and asking only. Its conversations are
+// the person's; handles are bound to the grant, so a revoked and renewed
+// consent starts new conversations.
+type OAuthCaller struct{ actor authz.Actor }
+
+// NewOAuthCaller returns the caller for a person acting through an OAuth
+// grant. The platform role is dropped: through MCP a platform admin is
+// just a member of their teams.
+func NewOAuthCaller(userID uuid.UUID, grant authz.OAuthGrant, requestID, clientIP string) OAuthCaller {
+	return OAuthCaller{actor: authz.Actor{
+		UserID: userID, PlatformRole: authz.PlatformNone, RequestID: requestID, ClientIP: clientIP, OAuth: &grant,
+	}}
+}
+
+func (c OAuthCaller) Actor() authz.Actor { return c.actor }
+func (c OAuthCaller) Binding() uuid.UUID { return c.actor.OAuth.ID }
+func (c OAuthCaller) Stateless() bool    { return false }

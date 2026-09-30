@@ -16,6 +16,8 @@ type option struct {
 	Slug        string
 	Name        string
 	Description string
+	// TeamID is the team the knowledge base or agent belongs to.
+	TeamID uuid.UUID
 }
 
 // maxOptionText bounds an option's description in the tool description:
@@ -30,9 +32,14 @@ func kbOptions(list []KnowledgeBase) []option {
 	out := make([]option, len(list))
 	count := map[string]int{}
 	for i, kb := range list {
-		out[i] = option{ID: kb.ID, Slug: slugify(kb.Name), Name: kb.Name, Description: kb.Description}
+		out[i] = option{ID: kb.ID, Slug: slugify(kb.Name), Name: kb.Name, Description: kb.Description, TeamID: kb.TeamID}
 		count[out[i].Slug]++
 	}
+	return unique(out, count)
+}
+
+// unique appends the start of their ID to slugs that are empty or shared.
+func unique(out []option, count map[string]int) []option {
 	for i := range out {
 		if out[i].Slug == "" || count[out[i].Slug] > 1 {
 			out[i].Slug = strings.TrimPrefix(out[i].Slug+"-"+out[i].ID.String()[:8], "-")
@@ -41,13 +48,17 @@ func kbOptions(list []KnowledgeBase) []option {
 	return out
 }
 
-// agentOptions name agents by their slug (unique in a team).
+// agentOptions name agents by their slug (unique in a team; agents of two
+// teams, for a person signed in with OAuth, can share one, and then get the
+// start of their ID appended like knowledge bases).
 func agentOptions(list []Agent) []option {
 	out := make([]option, len(list))
+	count := map[string]int{}
 	for i, ag := range list {
 		out[i] = option(ag)
+		count[ag.Slug]++
 	}
-	return out
+	return unique(out, count)
 }
 
 // maxSlug bounds a knowledge base's slug, in runes.

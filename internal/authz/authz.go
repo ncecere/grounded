@@ -38,13 +38,30 @@ const (
 // Actor is the principal performing an operation, plus request metadata for
 // the audit log. For API-key requests Key is set: the key is bound to one
 // team, its scopes stand in for a team role, and it never has a platform role.
+// For an OAuth access token on /mcp OAuth is set: the actor is the person
+// (their current teams and roles, never a platform role), through a client.
 type Actor struct {
 	UserID       uuid.UUID // the session user, or the key's owner/contact (may be uuid.Nil)
 	PlatformRole string
 	RequestID    string
 	ClientIP     string
 	Key          *KeyGrant
+	OAuth        *OAuthGrant
 }
+
+// OAuthGrant describes an OAuth access token's grant (docs/mcp.md, "Signing
+// in with OAuth"): the person's consent for one client. It is only ever
+// used on /mcp, whose tools search and ask.
+type OAuthGrant struct {
+	ID         uuid.UUID
+	ClientID   string
+	ClientName string
+}
+
+// Delegated reports a caller that isn't the person at the keyboard of the
+// app: an API key or an OAuth client. Rules that keep programs to agents
+// (a classification's direct-retrieve setting) apply to both.
+func (a Actor) Delegated() bool { return a.Key != nil || a.OAuth != nil }
 
 // KeyGrant describes an authenticated API key.
 type KeyGrant struct {
@@ -153,6 +170,9 @@ func (a Actor) Audit(action, targetType, targetID string) audit.Entry {
 	if a.Key != nil {
 		e.ActorKind = audit.ActorAPIKey
 		e.Metadata = map[string]any{"apiKeyId": a.Key.ID.String()}
+	}
+	if a.OAuth != nil {
+		e.Metadata = map[string]any{"via": "oauth", "oauthGrantId": a.OAuth.ID.String(), "oauthClient": a.OAuth.ClientName}
 	}
 	return e
 }

@@ -363,11 +363,12 @@ func (s *Service) CheckDirectRetrieve(ctx context.Context, a authz.Actor, kb KB)
 	return s.checkDirectRetrieve(ctx, a, kb)
 }
 
-// checkDirectRetrieve refuses an API key's /retrieve on a knowledge base
-// whose classification level doesn't allow direct retrieval (DESIGN.md §4).
-// People in the app and agents are unaffected.
+// checkDirectRetrieve refuses an API key's /retrieve (and an OAuth client's
+// search over MCP) on a knowledge base whose classification level doesn't
+// allow direct retrieval (DESIGN.md §4). People in the app and agents are
+// unaffected.
 func (s *Service) checkDirectRetrieve(ctx context.Context, a authz.Actor, kb KB) error {
-	if a.Key == nil || kb.EffectiveClassification == "" {
+	if !a.Delegated() || kb.EffectiveClassification == "" {
 		return nil
 	}
 	level, err := s.q.GetClassification(ctx, kb.EffectiveClassification)
@@ -375,8 +376,12 @@ func (s *Service) checkDirectRetrieve(ctx context.Context, a authz.Actor, kb KB)
 		return err
 	}
 	if !level.DirectRetrieve {
+		who := "API keys"
+		if a.Key == nil {
+			who = "Connected apps"
+		}
 		return &apperr.Error{Status: 403, Code: "direct_retrieve_not_allowed",
-			Message: fmt.Sprintf("API keys can't retrieve from %s knowledge bases directly; use an agent", level.Name)}
+			Message: fmt.Sprintf("%s can't retrieve from %s knowledge bases directly; use an agent", who, level.Name)}
 	}
 	return nil
 }

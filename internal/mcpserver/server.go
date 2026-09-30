@@ -137,11 +137,12 @@ func (t *toolCall) toolError(ctx context.Context, tool string, err error) (outco
 	return outcomeError, "internal", userError("Something went wrong. Try again shortly.")
 }
 
-// record audits a tool call (the key as the actor, never the content) and
-// counts it.
-func (t *toolCall) record(ctx context.Context, tool, targetType, targetID string, meta map[string]any) {
+// record audits a tool call (the key or the person as the actor, never
+// the content) under the target's team, and counts it.
+func (t *toolCall) record(ctx context.Context, tool, targetType string, target option, meta map[string]any) {
 	a := t.caller.Actor()
-	e := a.Audit("mcp."+tool, targetType, targetID)
+	e := a.Audit("mcp."+tool, targetType, target.ID.String())
+	e.TeamID = target.TeamID
 	if a.Key != nil {
 		e.TeamID = a.Key.TeamID
 	}

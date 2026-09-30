@@ -99,7 +99,7 @@ func (t *toolCall) ask(opts []option) mcp.ToolHandlerFor[AskInput, AskResult] {
 		conv, err := t.conversation(in.Conversation)
 		if err != nil {
 			meta["outcome"], meta["error"] = outcomeRefused, "conversation_not_found"
-			t.record(ctx, "ask", "agent", ag.ID.String(), meta)
+			t.record(ctx, "ask", "agent", ag, meta)
 			return nil, AskResult{}, err
 		}
 		ctx, cancel := t.bound(ctx)
@@ -111,12 +111,12 @@ func (t *toolCall) ask(opts []option) mcp.ToolHandlerFor[AskInput, AskResult] {
 		if err != nil {
 			outcome, code, out := t.toolError(ctx, "ask", err)
 			meta["outcome"], meta["error"] = outcome, code
-			t.record(ctx, "ask", "agent", ag.ID.String(), meta)
+			t.record(ctx, "ask", "agent", ag, meta)
 			return nil, AskResult{}, out
 		}
 		res := t.askResult(ag, ans)
 		meta["outcome"], meta["results"] = outcomeOK, len(res.Citations)
-		t.record(ctx, "ask", "agent", ag.ID.String(), meta)
+		t.record(ctx, "ask", "agent", ag, meta)
 		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: askText(res)}}}, res, nil
 	}
 }

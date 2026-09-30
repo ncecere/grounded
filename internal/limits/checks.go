@@ -150,6 +150,10 @@ func (s *Service) CheckQuery(ctx context.Context, teamID uuid.UUID, a authz.Acto
 	} else if a.UserID != uuid.Nil {
 		rates = append(rates, rate{UserQueriesPerMinute, "q:user:" + teamID.String() + ":" + a.UserID.String()})
 	}
+	if a.OAuth != nil {
+		// An OAuth client is limited like an API key, per grant, besides its person.
+		rates = append(rates, rate{APIKeyQueriesPerMinute, "q:oauth:" + a.OAuth.ID.String()})
+	}
 	for _, r := range rates {
 		lim := set.Get(r.key)
 		if lim == nil {

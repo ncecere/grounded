@@ -19,12 +19,14 @@ import (
 type KnowledgeBase struct {
 	ID                uuid.UUID
 	Name, Description string
+	TeamID            uuid.UUID
 }
 
 // Agent is an agent the caller may ask.
 type Agent struct {
 	ID                      uuid.UUID
 	Slug, Name, Description string
+	TeamID                  uuid.UUID
 }
 
 // Backend is what the tools use: Grounded's services, called exactly as the
@@ -51,49 +53,105 @@ type Services struct {
 
 var _ Backend = (*Services)(nil)
 
-// teamRef is the team the actor works in: an API key's team.
-func teamRef(a authz.Actor) (string, bool) {
-	if a.Key == nil {
-		return "", false
-	}
-	return a.Key.TeamID.String(), true
+// team is a team the actor works in.
+type team struct {
+	ID   uuid.UUID
+	Name string
 }
 
-// KnowledgeBases are the key's knowledge bases that it may retrieve from
-// directly: a knowledge base whose classification keeps API keys to agents
-// (DESIGN.md §4) isn't offered, as /retrieve refuses it.
-func (s *Services) KnowledgeBases(ctx context.Context, a authz.Actor) ([]KnowledgeBase, error) {
-	team, ok := teamRef(a)
-	if !ok {
+// teams are the teams the actor works in: an API key's team, or every team
+// a person signed in with OAuth belongs to now (their current memberships,
+// read on every request).
+func (s *Services) teams(ctx context.Context, a authz.Actor) ([]team, error) {
+	if a.Key != nil {
+		return []team{{ID: a.Key.TeamID}}, nil
+	}
+	if a.OAuth == nil || a.UserID == uuid.Nil {
 		return nil, nil
 	}
-	list, err := s.KnowledgeBaseService.List(ctx, a, team)
+	rows, err := s.Q.ListTeamsForUser(ctx, a.UserID)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]KnowledgeBase, 0, len(list))
-	for _, kb := range list {
-		if err := s.KnowledgeBaseService.CheckDirectRetrieve(ctx, a, kb); err != nil {
-			if _, refused := apperr.As(err); refused {
-				continue
+	out := make([]team, len(rows))
+	for i, r := range rows {
+		out[i] = team{ID: r.ID, Name: r.Name}
+	}
+	return out, nil
+}
+
+// withTeam names the team after an option when the caller works in
+// several, so a model can tell two "Handbook"s apart.
+func withTeam(name string, t team, many bool) string {
+	if !many || t.Name == "" {
+		return name
+	}
+	return name + " (" + t.Name + ")"
+}
+
+// KnowledgeBases are the knowledge bases of the caller's teams that it may
+// retrieve from directly: an API key's (within its list), or a person's
+// through OAuth. A knowledge base whose classification keeps programs to
+// agents (DESIGN.md §4) isn't offered, as /retrieve refuses it.
+func (s *Services) KnowledgeBases(ctx context.Context, a authz.Actor) ([]KnowledgeBase, error) {
+	teams, err := s.teams(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	out := []KnowledgeBase{}
+	for _, t := range teams {
+		list, err := s.KnowledgeBaseService.List(ctx, a, t.ID.String())
+		if err != nil {
+			if _, refused := apperr.As(err); refused && a.Key == nil {
+				continue // a membership that ended since the list was read
 			}
 			return nil, err
 		}
-		out = append(out, KnowledgeBase{ID: kb.ID, Name: kb.Name, Description: kb.Description})
+		for _, kb := range list {
+			if err := s.KnowledgeBaseService.CheckDirectRetrieve(ctx, a, kb); err != nil {
+				if _, refused := apperr.As(err); refused {
+					continue
+				}
+				return nil, err
+			}
+			out = append(out, KnowledgeBase{ID: kb.ID, Name: withTeam(kb.Name, t, len(teams) > 1), Description: kb.Description, TeamID: kb.TeamID})
+		}
 	}
 	sort.SliceStable(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
 	return out, nil
 }
 
-// Agents are the published, active agents the key may chat with.
+// Agents are the published, active agents the caller may chat with: an API
+// key's team's (within its list), or, for a person through OAuth, those of
+// the teams they belong to (not other teams' agents open to everyone
+// signed in, which a personal key can't reach either).
 func (s *Services) Agents(ctx context.Context, a authz.Actor) ([]Agent, error) {
 	cards, err := s.AgentService.Directory(ctx, a, agents.DirectoryFilter{})
 	if err != nil {
 		return nil, err
 	}
+	var member map[uuid.UUID]team
+	if a.Key == nil {
+		teams, err := s.teams(ctx, a)
+		if err != nil {
+			return nil, err
+		}
+		member = make(map[uuid.UUID]team, len(teams))
+		for _, t := range teams {
+			member[t.ID] = t
+		}
+	}
 	out := make([]Agent, 0, len(cards))
 	for _, c := range cards {
-		out = append(out, Agent{ID: c.Agent.ID, Slug: c.Agent.Slug, Name: c.Agent.Name, Description: c.Agent.Description})
+		name := c.Agent.Name
+		if member != nil {
+			t, ok := member[c.Agent.TeamID]
+			if !ok {
+				continue
+			}
+			name = withTeam(name, t, len(member) > 1)
+		}
+		out = append(out, Agent{ID: c.Agent.ID, Slug: c.Agent.Slug, Name: name, Description: c.Agent.Description, TeamID: c.Agent.TeamID})
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Slug < out[j].Slug })
 	return out, nil
@@ -102,11 +160,20 @@ func (s *Services) Agents(ctx context.Context, a authz.Actor) ([]Agent, error) {
 // Search retrieves as POST /v1/teams/{team}/kbs/{kbId}/retrieve does, with
 // the query's usage recorded under the channel mcp.
 func (s *Services) Search(ctx context.Context, a authz.Actor, kb uuid.UUID, query string, topK int) ([]kbs.Hit, error) {
-	team, ok := teamRef(a)
-	if !ok {
+	var teamID uuid.UUID
+	switch {
+	case a.Key != nil:
+		teamID = a.Key.TeamID
+	case a.OAuth != nil:
+		row, err := s.Q.GetKB(ctx, kb)
+		if err != nil {
+			return nil, apperr.NotFound("kb_not_found", "Knowledge base not found")
+		}
+		teamID = row.TeamID
+	default:
 		return nil, apperr.NotFound("kb_not_found", "Knowledge base not found")
 	}
-	res, err := s.KnowledgeBaseService.Retrieve(ctx, a, team, kb, kbs.Query{Text: query, TopK: topK, Channel: agents.ChannelMCP})
+	res, err := s.KnowledgeBaseService.Retrieve(ctx, a, teamID.String(), kb, kbs.Query{Text: query, TopK: topK, Channel: agents.ChannelMCP})
 	return res.Hits, err
 }
 
