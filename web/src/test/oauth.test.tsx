@@ -206,13 +206,17 @@ describe("Connected apps from the account menu", () => {
     expect(await screen.findByRole("menuitem", { name: "Connected apps" })).toHaveAttribute("href", "/settings/connected-apps");
   });
 
-  it("an empty list reads with correct grammar", async () => {
+  it("an empty list reads with correct grammar, and the person's page dates sign-ins exactly", async () => {
     mockApi({ ...shellRoutes("platform_admin"), "GET /v1/admin/users/u2": () => ({
-      user: { id: "u2", email: "u2@example.edu", displayName: "Sam Ortiz", platformRole: "none", status: "active", revision: 1, createdAt: "", lastLoginAt: null, teamCount: 0 },
+      user: { id: "u2", email: "u2@example.edu", displayName: "Sam Ortiz", platformRole: "none", status: "active", revision: 1, createdAt: "2026-09-01T10:00:00Z", lastLoginAt: new Date().toISOString(), teamCount: 0 },
       teams: [],
     }), "GET /v1/admin/audit": () => ({ items: [], nextCursor: null }), "GET /v1/admin/users/u2/oauth-grants": () => [] });
     renderApp("/admin/users/u2");
     expect(await screen.findByText("Apps Sam Ortiz connects with OAuth sign-in are listed here.")).toBeInTheDocument();
+    // A record page: absolute dates, not "3 seconds ago".
+    const first = screen.getByText("First signed in").parentElement!;
+    expect(first).toHaveTextContent(/Sep 1, 2026/);
+    expect(screen.getByText("Last sign-in").parentElement!).not.toHaveTextContent(/ago|now/);
   });
 
   it("tells a person in no team that the app reaches nothing yet", async () => {

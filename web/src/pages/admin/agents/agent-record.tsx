@@ -2,7 +2,7 @@
 import { Link } from "@tanstack/react-router";
 import { Power, PowerOff, ScrollText } from "lucide-react";
 import type { Schemas } from "@/api/client";
-import { RelativeTime } from "@/components/templates/list-page";
+import { Time } from "@/components/ui/time/time";
 import { RecordPage } from "@/components/templates/record-page";
 import { StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
@@ -53,7 +53,7 @@ export function AgentRecordPage({ agent, open, loading, onClose, isAdmin, levels
                 label: "Published version",
                 value: agent.publishedVersion ? (
                   <>
-                    v{agent.publishedVersion} · <RelativeTime value={agent.publishedAt} />
+                    v{agent.publishedVersion} · <Time value={agent.publishedAt} />
                   </>
                 ) : (
                   "Not published"
@@ -61,7 +61,7 @@ export function AgentRecordPage({ agent, open, loading, onClose, isAdmin, levels
               },
               { label: "Chat model", value: agent.chatModelName ?? "—" },
               { label: "Slug", value: <code className={s.mono}>{agent.slug}</code> },
-              { label: "Updated", value: <RelativeTime value={agent.updatedAt} /> },
+              { label: "Updated", value: <Time value={agent.updatedAt} /> },
             ].filter((f) => f.value !== undefined)
           : []
       }

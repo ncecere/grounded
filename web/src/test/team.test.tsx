@@ -526,7 +526,10 @@ describe("API keys", () => {
     });
     const { container } = renderTeam(<ApiKeysPage />, "member");
     expect(await screen.findByText("No API keys yet.")).toBeInTheDocument();
-    await userEvent.click(screen.getAllByRole("button", { name: "New API key" })[0]!);
+    // One New API key (the header's): the empty state doesn't repeat it, and it mentions AI tools.
+    expect(screen.getAllByRole("button", { name: "New API key" })).toHaveLength(1);
+    expect(screen.getByText(/an AI tool connect over MCP/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "New API key" }));
     const dialog = await screen.findByRole("dialog", { name: "New API key" });
     expect(within(dialog).queryByRole("combobox", { name: "Key type" })).toBeNull();
     expect(within(dialog).getAllByRole("checkbox", { name: /^(Query|Ingest|Manage):/ })).toHaveLength(1);

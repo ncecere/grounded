@@ -8,7 +8,7 @@
  * the person's Connected apps (OAuth sign-in for MCP clients).
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, KeyRound, Lock, Plus, Trash2 } from "lucide-react";
+import { Eye, KeyRound, Lock, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
@@ -165,12 +165,8 @@ export function ApiKeysPage({ embedded = false }: { embedded?: boolean }) {
         empty={{
           icon: <KeyRound />,
           title: "No API keys yet.",
-          description: "Create a key to call the retrieval API from your own programs.",
-          action: !archived && (
-            <Button variant="secondary" onClick={() => setCreating(true)}>
-              <Plus aria-hidden /> New API key
-            </Button>
-          ),
+          // The header's New API key is the one way to create one (no second button here).
+          description: "A key lets your programs call the API, or an AI tool connect over MCP.",
         }}
       />
       {/* The person's own OAuth apps (not the team's): shown while OAuth sign-in is on, or while any is connected. */}
