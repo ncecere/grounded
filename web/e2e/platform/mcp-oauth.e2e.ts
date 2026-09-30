@@ -77,6 +77,17 @@ test("an AI tool connects with OAuth: consent, a code, tokens, and Disconnect on
     const card = page.getByRole("region", { name: "Connected apps" });
     await expect(card.getByRole("list", { name: "Your connected apps" }).getByText("E2E Assistant")).toBeVisible();
     await a11y(page, "connected apps");
+    // On a phone, Disconnect wraps under the app instead of scrolling out of view (and axe stays clean).
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(card.getByRole("button", { name: "Disconnect E2E Assistant…" })).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await a11y(page, "connected apps at 390 px");
+    // Everyone also reaches them from the account menu.
+    await page.goto("/settings/connected-apps");
+    await expect(page.getByRole("list", { name: "Your connected apps" }).getByText("E2E Assistant")).toBeVisible();
+    await a11y(page, "connected apps page");
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(`/teams/${team}/settings?tab=api-keys`);
     await card.getByRole("button", { name: "Disconnect E2E Assistant…" }).click();
     const confirm = page.getByRole("alertdialog", { name: "Disconnect E2E Assistant?" });
     await a11y(page, "disconnect?");
