@@ -209,7 +209,7 @@ All of G1–G18 are **Done** in v0.2.0.
 | G16 **Done** | The answer feedback buttons have no pressed state (`aria-pressed`), and the selected thumb is only a faint fill. | S |
 | G17 **Done** | Agent Appearance says the default accent is `#0021a5`, but the preview uses the theme's indigo: a leftover from the removed institution theme. | S |
 | G18 **Done** | The widget key form opens with `?record=new`; every other form page uses `?form=`. | S |
-| G19 | bitop-ui follow-ups. **Done in v0.2.1:** the collapsed breadcrumb item and LineChart's fixed range (0–100% score chart). **Open:** Combobox blocking a dialog's submit on Enter when its list is closed (Grounded has a wrapper); an accessible tooltip on plain text; LineChart axis ticks (0% and 50% labels); DataTable hiding the Columns button on small tables and showing its search label; FilterBar chips for single-choice filters; Menu and Popover popups inside a landmark (axe `region`); InlineCitation with a built-in "go to source" action; column hiding on the team spend tables. | S |
+| G19 **Done** | bitop-ui follow-ups. **Done in v0.2.1:** the collapsed breadcrumb item and LineChart's fixed range (0–100% score chart). **Done in v0.2.2 (J5):** Combobox no longer submits a form or dialog on Enter (Grounded's wrapper is gone); `TooltipText`, an accessible tooltip on plain text (the evaluation Score cell); LineChart `ticks` (0%, 50%, 100% on the score chart); DataTable `columnsMenuMin` and `showFilterLabel` (the evaluation lists); no FilterBar chip for single-choice toggles (Legal holds' duplicated "Status: Active ×"); Menu popups portalled into their trigger's landmark (axe `region`; Popover popups are dialogs, which axe already accepts); InlineCitation `sourceAction` (the chat citation card); column hiding on the team spend tables (DataTable with `defaultHiddenNarrow`). **Noticed, not scheduled:** Select, Combobox, Tooltip and ContextMenu popups still open at the end of `<body>` (axe `region`, a best-practice rule outside the WCAG A/AA set the tests enforce); they can use the same `useLandmarkContainer`. | S |
 | G20 **Done** | Evaluation run links read "Retrieval , Sep 28…" (a stray space before the comma). | S |
 
 ## H. Next release housekeeping
@@ -247,9 +247,9 @@ On branch `release/v0.2.2`; found while preparing the public sites' screenshots 
 |---|---|---|
 | J1 **Done** | The admin Overview's Features card squeezed the Evaluations description into a one-word column beside its switch: a row with a control now puts its actions under its text. | S |
 | J2 **New** | A connection test fails with 404 for a working SystemOne connection (the test asks `/models`, which a SystemOne service doesn't serve). Test SystemOne connections with a SystemOne request. | S |
-| J3 **New** | Team avatar initials: "IT Help Desk" shows "ID"; initials should come from the first two words ("IH") or skip all-caps acronyms sensibly. | S |
+| J3 **Done** | Team avatar initials: "IT Help Desk" showed "ID"; bitop-ui's Avatar now takes the first letters of the first two words ("IH"), still skipping punctuation (G10) and passing over lowercase name particles (van, de, of). | S |
 | J4 **New** | Editors can't withdraw their own pending domain request (there's no API for it). | S |
-| J5 **New** | The G19 bitop-ui items above, as they land. | S |
+| J5 **Done** | The G19 bitop-ui items above. | S |
 | J6 **New** | F13 local dev resilience: the fake model proxy and OCR sidecar come back after a Docker restart. | S |
 
 ---

@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+- Small evaluation lists (a set's Questions, Runs and Results, the Evaluations tabs and the team's Evaluations page) have no Columns menu until a column is hidden (on a phone, where the low-priority columns start hidden), so a hidden column can always come back; the team's Evaluations page and a set's Questions show their search box's label ("Search evaluation sets") above it, like the filters' labels (G19). bitop-ui's `data-table` gained `columnsMenuMin` and `showFilterLabel`.
+- An evaluation score ("82%") is text with a dotted underline and a tooltip naming its metric, not a button; the tooltip's text is its accessible description (G19; bitop-ui's `tooltip` gained `TooltipText`). The score-over-time chart labels 0%, 50% and 100% (bitop-ui's `line-chart` gained `ticks`).
+- Usage & spend's **Spend breakdown** tables show the name and the spend on a phone, with Tokens and Requests in a Columns menu (G19).
+- Menus open inside the page's landmark (the page's main area, the sidebar), not at the end of the page, so all content is inside a landmark (axe's `region` rule; G19). bitop-ui's `menu` does this.
+
+### Fixed
+- Avatars take their initials from the first two words: "IT Help Desk" shows IH, not ID, and "Go docs (signed-in)" GD; lowercase name particles (van, de, of) are passed over for the second letter (J3, bitop-ui's `avatar`).
+- Retention → Legal holds no longer shows a "Status: Active ×" chip beside the pressed Active filter: single-choice toggle filters have no chip, their pressed item says it (G19, bitop-ui's `filter-bar`).
+- Enter in a combobox never submits the form or dialog around it, also after Esc has closed its list (bitop-ui's `combobox`; the question form's own guard is gone), and a citation card's **Show source n below** is bitop-ui's `inline-citation` `sourceAction` (G19).
+
 ## [0.2.1] - 2026-09-29
 
 Navigation and clarity: the admin sidebar regrouped, a Features card, quality and spend on the team Overview, a team Evaluations page, spend apart from limits, a six-tab agent editor, and per-claim verification. The plan is [`docs/v0.2.1.md`](docs/v0.2.1.md) and the release notes are [`docs/releases/v0.2.1.md`](docs/releases/v0.2.1.md). v0.2.1-rc.1 ran on the reference install first.
