@@ -54,6 +54,16 @@ func TestOAuthOffByDefaultAndOnlyWithMCP(t *testing.T) {
 				t.Errorf("%s: POST %s = %d", what, p, res.StatusCode)
 			}
 		}
+		for _, p := range []string{"/oauth/token", "/oauth/revoke", "/oauth/register"} {
+			// Never the web app: 405 while on, 404 while off.
+			code, h, _ := getStatus(t, base+p)
+			if want == 404 && code != 404 || want != 404 && (code != 405 || h.Get("Allow") != "POST") {
+				t.Errorf("%s: GET %s = %d (Allow %q)", what, p, code, h.Get("Allow"))
+			}
+		}
+		if code, h, _ := getStatus(t, base+"/.well-known/openid-configuration"); code != 404 || !strings.HasPrefix(h.Get("Content-Type"), "application/json") {
+			t.Errorf("%s: GET /.well-known/openid-configuration = %d %s", what, code, h.Get("Content-Type"))
+		}
 		code, _ := env.member.call("GET", "/v1/oauth/consent?client_id=x", nil, nil, nil)
 		if (want == 404) != (code == 404) {
 			t.Errorf("%s: consent = %d", what, code)

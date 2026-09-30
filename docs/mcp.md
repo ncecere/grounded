@@ -159,6 +159,8 @@ Like `/mcp`, these speak a protocol, so they're described here rather than in th
 | `POST /oauth/register` | Dynamic Client Registration (RFC 7591), public clients only |
 | `POST /oauth/revoke` | Token revocation (RFC 7009) |
 
+A `GET` on the three `POST` endpoints answers `405` with `Allow: POST` (`404` while OAuth sign-in is off). Other `/.well-known/` documents, such as `openid-configuration`, answer `404` in JSON: Grounded isn't an OpenID provider for clients.
+
 **Clients.** A client identifies itself in one of two ways:
 
 - **A Client ID Metadata Document** (preferred): its `client_id` is an https URL with a path, such as `https://assistant.example.com/oauth/client.json`, whose JSON document gives `client_id` (the same URL), `client_name`, `redirect_uris` and optionally `client_uri` and `logo_uri`. Grounded fetches it like an MCP server's URL: public addresses only (checked when dialling), no redirects, 5 seconds, at most 16 KiB, `application/json`. It's cached for its `Cache-Control` max-age, between a minute and an hour (10 minutes without one). The consent page shows the document's host, which vouches for the name.
