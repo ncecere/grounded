@@ -341,6 +341,7 @@ Consumers cannot list KBs or documents, and cannot download original files. Cita
 - **UI:** an agent directory for signed-in users, a chat page for each agent, and an embeddable widget. The widget is a small loader script that injects an **iframe** of the hosted chat page, which isolates host-site styles and scripts.
 - **API:** `POST /v1/agents/{team}/{agent}/chat` (streams over SSE), and **OpenAI-compatible** `POST /v1/chat/completions`.
 - **MCP (v0.3):** `POST /mcp`, the Model Context Protocol over stateless Streamable HTTP, for AI tools with an API key that has the `mcp` scope: the `search` and `ask` tools, off until a platform admin turns it on ([`mcp.md`](mcp.md)).
+- **MCP tools in agents (v0.3):** agents call admin-approved tools of registered remote MCP servers during an answer; only the model's arguments are sent, each server has a classification ceiling, and results are cited as sources ([`mcp-client.md`](mcp-client.md)).
 - **Branding:** the install's theme and identity settings across the platform ("Configuration and instance identity", §15). Per-agent customization is limited to name, avatar, contrast-checked accent colour, welcome message and starter questions. **There is no custom CSS**, to protect accessibility.
 
 ### 7.7 AI runtime: modelled on pi (ADR-0017)
