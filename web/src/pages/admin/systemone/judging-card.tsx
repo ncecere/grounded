@@ -1,4 +1,4 @@
-/* Passage judging settings on Admin → SystemOne: the agents' default, candidates, mode, timeout and the routing thresholds. */
+/* Passage judging settings on Admin → SystemOne: the agents' default, candidates, mode, timeout, time limit and the routing thresholds. */
 import { SettingsSection } from "@/components/templates/settings-page";
 import { Field } from "@/components/ui/field/field";
 import { NumberInput } from "@/components/ui/number-input/number-input";
@@ -56,6 +56,13 @@ export function JudgingCard({ form, set, problems, disabled, latency, agents }: 
               </Field>
               <Field label="Timeout per request (ms)" description="A slower request keeps its passage (500–60,000)." error={problems.timeoutMs}>
                 <NumberInput maximumFractionDigits={0} disabled={disabled} value={form.timeoutMs} onValueChange={(v) => set({ timeoutMs: v })} />
+              </Field>
+              <Field
+                label="Passage judging time limit (seconds)"
+                description="The longest an answer waits for judging (0.5–10). Passages still being judged then are used unjudged."
+                error={problems.timeLimit}
+              >
+                <NumberInput maximumFractionDigits={1} disabled={disabled} value={form.timeLimit} onValueChange={(v) => set({ timeLimit: v })} />
               </Field>
             </div>
             <RadioGroup legend="Requests" variant="card" disabled={disabled} value={form.mode} onValueChange={(v) => set({ mode: v })} options={modeOptions} />

@@ -23,6 +23,7 @@ import { displayText, normalizePunctuation } from "./answer-text";
 import { displayNumbers, useAnswerMarkers, withUncited } from "./citations";
 import { type Claim, ClaimSummary, sourceClaimsText, uncitedOfClaims } from "./claims";
 import { Feedback, Notes, Steps, isAnswer } from "./notes";
+import { waitingText } from "./progress";
 import { revealSource } from "./reveal";
 import type { AssistantItem, ChatItem, Citation } from "./stream";
 import { UserMessage } from "./user-message";
@@ -59,10 +60,6 @@ const sourceMeta = (s: Citation, claims?: Claim[]) => {
 };
 /** What a citation chip's card shows about its source. */
 const chipSource = (s: Citation) => ({ title: sourceTitle(s), href: webUrl(s), siteName: where(s) || undefined, description: plainSnippet(s.snippet) });
-
-/** Waiting text before the answer's first words. */
-const waitingText = (item: AssistantItem, thinking: boolean) =>
-  item.buffered || thinking ? "Thinking…" : item.steps.length > 0 ? "Reading the sources…" : "Working on it…";
 
 type AssistantProps = {
   item: AssistantItem;
@@ -112,7 +109,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
           // While thinking, the editor's Reasoning trigger already shimmers "Thinking…". Buffered answers arrive whole.
           !(thinking && showThinking) && (
             <p className={c.waiting}>
-              <Shimmer>{waitingText(item, thinking)}</Shimmer>
+              <Shimmer>{waitingText(item, thinking, agent.name)}</Shimmer>
             </p>
           )
         ) : (

@@ -24,7 +24,7 @@ export function AnsweringSection({ c, set, errorFor, model }: SectionProps) {
             {
               value: "always",
               label: "Search before every answer",
-              description: "Fast and predictable: the question (rewritten to stand on its own) is searched once and the passages go to the model.",
+              description: "Fast and predictable: the question is searched once and the passages go to the model. A follow-up that depends on the conversation is rewritten to stand on its own first.",
             },
             {
               value: "tool",

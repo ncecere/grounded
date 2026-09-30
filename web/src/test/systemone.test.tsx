@@ -18,7 +18,10 @@ beforeAll(() => {
 
 const defaults: Schemas["SystemOneSettings"] = {
   modelId: null,
-  judging: { enabled: false, candidates: 20, mode: "per_passage", timeoutMs: 5000, thresholds: { injection: 0.7, relevant: 0.45, contradicts: 0.7, evidence: 0.55 } },
+  judging: {
+    enabled: false, candidates: 20, mode: "per_passage", timeoutMs: 5000, timeLimitMs: 1500,
+    thresholds: { injection: 0.7, relevant: 0.45, contradicts: 0.7, evidence: 0.55 },
+  },
   citations: { enabled: false, mode: "annotate", autoAccept: 0.8, timeoutMs: 20000 },
   scope: { enabled: false, smallTalk: 0.5, inScope: 0.2, timeoutMs: 5000 },
   agents: { judging: 0, citations: 0, scope: 0, any: 0 },
@@ -52,12 +55,17 @@ describe("admin SystemOne page", () => {
     const candidates = screen.getByRole("textbox", { name: "Candidates" });
     await userEvent.clear(candidates);
     await userEvent.type(candidates, "10");
-    expect(screen.getByText("3 unsaved changes")).toBeInTheDocument();
+    // The judging time limit, in seconds.
+    const limit = screen.getByRole("textbox", { name: "Passage judging time limit (seconds)" });
+    expect(limit).toHaveValue("1.5");
+    await userEvent.clear(limit);
+    await userEvent.type(limit, "2.5");
+    expect(screen.getByText("4 unsaved changes")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     const put = calls.find((c) => c.method === "PUT")!;
     expect(put.headers.get("If-Match")).toBe('"1"');
-    expect(put.body).toEqual({ modelId: "s1", judging: { ...defaults.judging, enabled: true, candidates: 10 }, citations: defaults.citations, scope: defaults.scope });
+    expect(put.body).toEqual({ modelId: "s1", judging: { ...defaults.judging, enabled: true, candidates: 10, timeLimitMs: 2500 }, citations: defaults.citations, scope: defaults.scope });
     expect(await screen.findByText("SystemOne settings saved")).toBeInTheDocument();
   });
 
@@ -75,14 +83,20 @@ describe("SystemOne settings form", () => {
     const f = settingsForm({ ...defaults, modelId: "s1" });
     expect(f.thresholds).toEqual({ injection: "70", relevant: "45", contradicts: "70", evidence: "55" });
     expect(settingsInput(f)).toEqual({ modelId: "s1", judging: defaults.judging, citations: defaults.citations, scope: defaults.scope });
-    expect(settingsProblems({ ...f, candidates: "0", timeoutMs: "100", thresholds: { ...f.thresholds, evidence: "120" } })).toEqual({
+    expect(f.timeLimit).toBe("1.5");
+    // A server from before the time limit: the default.
+    expect(settingsForm({ ...defaults, judging: { ...defaults.judging, timeLimitMs: undefined } }).timeLimit).toBe("1.5");
+    expect(settingsProblems({ ...f, candidates: "0", timeoutMs: "100", timeLimit: "0.4", thresholds: { ...f.thresholds, evidence: "120" } })).toEqual({
       candidates: "Enter 1 to 50 candidates.",
       timeoutMs: "Enter a timeout from 500 to 60,000 ms.",
+      timeLimit: "Enter a time limit from 0.5 to 10 seconds.",
       evidence: "Evidence: enter 0 to 100%.",
     });
     expect(settingsProblems({ ...f, modelId: "", enabled: true }).modelId).toMatch(/Choose a SystemOne model/);
     expect(settingsProblems({ ...f, modelId: "", citations: { ...f.citations, enabled: true } }).modelId).toMatch(/Choose a SystemOne model/);
     expect(settingsChanges({ ...defaults, modelId: "s1" }, { ...f, mode: "batched", thresholds: { ...f.thresholds, relevant: "30" } })).toBe(2);
+    expect(settingsChanges({ ...defaults, modelId: "s1" }, { ...f, timeLimit: "1.50" })).toBe(0);
+    expect(settingsInput({ ...f, timeLimit: "0.5" }).judging.timeLimitMs).toBe(500);
     expect(judgedSummary({ judged: 20, kept: 5 })).toBe("20 passages checked, 5 used");
     expect(judgedSummary({ judged: 1, kept: 0 })).toBe("1 passage checked, 0 used");
   });

@@ -66,6 +66,8 @@ export type SettingsForm = {
   candidates: string;
   mode: SystemOneJudging["mode"];
   timeoutMs: string;
+  /** Passage judging time limit, in seconds ("1.5"). */
+  timeLimit: string;
   thresholds: Record<keyof Schemas["SystemOneThresholds"], string>;
   citations: { enabled: boolean; mode: Schemas["SystemOneCitations"]["mode"]; autoAccept: string; timeoutMs: string };
   scope: { enabled: boolean; smallTalk: string; inScope: string; timeoutMs: string };
@@ -88,11 +90,21 @@ export function settingsForm(s: SystemOneSettings): SettingsForm {
     candidates: String(s.judging.candidates),
     mode: s.judging.mode,
     timeoutMs: String(s.judging.timeoutMs),
+    timeLimit: String((s.judging.timeLimitMs ?? defaultTimeLimitMs) / 1000),
     thresholds: { injection: percent(t.injection), relevant: percent(t.relevant), contradicts: percent(t.contradicts), evidence: percent(t.evidence) },
     citations: { enabled: s.citations.enabled, mode: s.citations.mode, autoAccept: percent(s.citations.autoAccept), timeoutMs: String(s.citations.timeoutMs) },
     scope: { enabled: s.scope.enabled, smallTalk: percent(s.scope.smallTalk), inScope: percent(s.scope.inScope), timeoutMs: String(s.scope.timeoutMs) },
   };
 }
+
+/** The judging time limit when the server doesn't send one (docs/systemone.md §2). */
+const defaultTimeLimitMs = 1500;
+
+/** Seconds as typed ("1.5") in milliseconds, when from min to max seconds. */
+const secondsMs = (v: string, min: number, max: number) => {
+  const n = Number(v.trim().replace(",", "."));
+  return v.trim() !== "" && Number.isFinite(n) && n >= min && n <= max ? Math.round(n * 1000) : undefined;
+};
 
 const int = (v: string, min: number, max: number) => {
   const n = Number(v.trim().replace(/[,\s]/g, ""));
@@ -104,6 +116,7 @@ export function settingsProblems(f: SettingsForm): Record<string, string> {
   const out: Record<string, string> = {};
   if (int(f.candidates, 1, 50) === undefined) out.candidates = "Enter 1 to 50 candidates.";
   if (int(f.timeoutMs, 500, 60000) === undefined) out.timeoutMs = "Enter a timeout from 500 to 60,000 ms.";
+  if (secondsMs(f.timeLimit, 0.5, 10) === undefined) out.timeLimit = "Enter a time limit from 0.5 to 10 seconds.";
   for (const { key, label } of thresholdFields) {
     if (int(f.thresholds[key], 0, 100) === undefined) out[key] = `${label}: enter 0 to 100%.`;
   }
@@ -126,6 +139,7 @@ export function settingsInput(f: SettingsForm): Schemas["SystemOneSettingsInput"
       candidates: int(f.candidates, 1, 50) ?? 10,
       mode: f.mode,
       timeoutMs: int(f.timeoutMs, 500, 60000) ?? 5000,
+      timeLimitMs: secondsMs(f.timeLimit, 0.5, 10) ?? defaultTimeLimitMs,
       thresholds: { injection: t("injection"), relevant: t("relevant"), contradicts: t("contradicts"), evidence: t("evidence") },
     },
     citations: {
@@ -152,6 +166,7 @@ export function settingsChanges(saved: SystemOneSettings, f: SettingsForm) {
   if (a.candidates !== f.candidates.trim()) n++;
   if (a.mode !== f.mode) n++;
   if (a.timeoutMs !== f.timeoutMs.trim()) n++;
+  if (secondsMs(a.timeLimit, 0, Infinity) !== secondsMs(f.timeLimit, 0, Infinity)) n++;
   for (const { key } of thresholdFields) if (a.thresholds[key] !== f.thresholds[key].trim()) n++;
   for (const k of ["enabled", "mode", "autoAccept", "timeoutMs"] as const) if (String(a.citations[k]).trim() !== String(f.citations[k]).trim()) n++;
   for (const k of ["enabled", "smallTalk", "inScope", "timeoutMs"] as const) if (String(a.scope[k]).trim() !== String(f.scope[k]).trim()) n++;

@@ -3,8 +3,9 @@
  * reducer that folds events into an assistant message, and friendly text for
  * chat errors. Used by the chat page and the agent editor's draft test.
  *
- * Errors before the answer starts (policy, limits, model_unavailable) are
- * plain JSON responses (spec §12 deviation 3). text_delta is the raw model
+ * Errors before the stream starts (policy, limits) are plain JSON responses
+ * (spec §12 deviation 3); later ones are error events. status events say
+ * what the agent is doing until the first token. text_delta is the raw model
  * text; message_end.text replaces it (deviation 4). With SystemOne citation
  * checks, citations_checked follows message_end and replaces the citations
  * (and, in enforce mode, the text) in place.
@@ -46,6 +47,10 @@ export type UserItem = { role: "user"; key: string; id?: string; text: string };
 
 export type AssistantStatus = "streaming" | "done" | "aborted" | "error";
 
+/** What the agent is doing before the answer's first words (status events). */
+export type ChatStep = Schemas["ChatEventStatus"]["step"];
+const chatSteps = new Set<string>(["rewriting", "searching", "checking", "answering"] satisfies ChatStep[]);
+
 export type AssistantItem = {
   role: "assistant";
   key: string;
@@ -62,6 +67,8 @@ export type AssistantItem = {
   /** SystemOne citation checks (v0.2.1 and later): the factual sentences with one verdict each; absent for older answers. */
   claims?: Claim[];
   status: AssistantStatus;
+  /** The last status event's step (unknown steps are ignored). */
+  step?: ChatStep;
   stopReason?: StopReason;
   refused?: boolean;
   noContext?: boolean;
@@ -140,6 +147,8 @@ const claimsOf = (v: unknown) => (Array.isArray(v) && v.length ? (v as Claim[]) 
 export function applyChatEvent(item: AssistantItem, event: string, data: unknown): AssistantItem {
   const d = (data ?? {}) as Json;
   switch (event) {
+    case "status":
+      return chatSteps.has(str(d.step)) ? { ...item, step: str(d.step) as ChatStep } : item;
     case "message_start":
       return { ...item, id: str(d.messageId) || item.id, buffered: Boolean(d.buffered) };
     case "thinking_delta":

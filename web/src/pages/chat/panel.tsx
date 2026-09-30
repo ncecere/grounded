@@ -3,6 +3,7 @@
  * test: the scrolling conversation, a pre-start error, and the composer.
  * Focus: sending keeps focus in the textarea; Stop and the end of an answer
  * return it there. The message log stays silent while tokens stream; a
+ * polite status says each step before the first words (progress.ts), and a
  * ConversationAnnouncer (polite status) says how each answer ended.
  */
 import { RotateCcw } from "lucide-react";
@@ -12,7 +13,9 @@ import { Button } from "@/components/ui/button/button";
 import { Conversation, ConversationAnnouncer, ConversationContent, ConversationScrollButton, useConversation } from "@/components/ui/conversation/conversation";
 import { PromptInput, PromptInputSubmit, PromptInputTextarea, PromptInputToolbar, PromptInputTools } from "@/components/ui/prompt-input/prompt-input";
 import { preloadResponse } from "@/components/ui/response/response-lazy";
+import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { cx } from "@/lib/bitop-utils";
+import { progressAnnouncement } from "./progress";
 import { ChatMessages } from "./thread";
 import type { AssistantItem } from "./stream";
 import type { useChat } from "./useChat";
@@ -149,6 +152,8 @@ export function ChatPanel(props: ChatPanelProps) {
           {errorExtra}
         </Alert>
       )}
+      {/* What the agent is doing until the first words, one polite announcement per step (the log itself is silent). */}
+      <VisuallyHidden role="status">{progressAnnouncement(chat.items, agent.name)}</VisuallyHidden>
       <ConversationAnnouncer
         status={chat.streaming ? "streaming" : "ready"}
         // Silent while answering (the log isn't live either); the outcome comes from useChat.

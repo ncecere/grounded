@@ -16,7 +16,7 @@ beforeAll(() => {
 
 const saved: Schemas["SystemOneSettings"] = {
   modelId: "s1",
-  judging: { enabled: false, candidates: 10, mode: "per_passage", timeoutMs: 5000, thresholds: { injection: 0.7, relevant: 0.45, contradicts: 0.7, evidence: 0.3 } },
+  judging: { enabled: false, candidates: 10, mode: "per_passage", timeoutMs: 5000, timeLimitMs: 1500, thresholds: { injection: 0.7, relevant: 0.45, contradicts: 0.7, evidence: 0.3 } },
   citations: { enabled: false, mode: "annotate", autoAccept: 0.8, timeoutMs: 20000 },
   scope: { enabled: false, smallTalk: 0.5, inScope: 0.2, timeoutMs: 5000 },
   agents: { judging: 0, citations: 0, scope: 0, any: 0 },
