@@ -1631,6 +1631,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/domain-requests/{requestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw a pending request (the person who asked, or a team admin or owner)
+         * @description The request is removed: platform admins no longer see it, and the team can ask for the pattern again. The withdrawal is audited (crawl.domain_withdraw) with the request as it was. A request that was already reviewed cannot be withdrawn (409 request_not_pending).
+         */
+        delete: operations["withdrawDomainRequest"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/shared-sources": {
         parameters: {
             query?: never;
@@ -12352,6 +12376,25 @@ export interface operations {
                 };
             };
             400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    withdrawDomainRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];

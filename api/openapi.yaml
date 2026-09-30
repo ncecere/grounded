@@ -2564,6 +2564,27 @@ paths:
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/domain-requests/{requestId}:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - name: requestId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [web]
+      operationId: withdrawDomainRequest
+      summary: Withdraw a pending request (the person who asked, or a team admin or owner)
+      description: >-
+        The request is removed: platform admins no longer see it, and the
+        team can ask for the pattern again. The withdrawal is audited
+        (crawl.domain_withdraw) with the request as it was. A request that
+        was already reviewed cannot be withdrawn (409 request_not_pending).
+      responses:
+        "200": { $ref: "#/components/responses/OkReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
   /v1/shared-sources:
     get:
       tags: [sources]

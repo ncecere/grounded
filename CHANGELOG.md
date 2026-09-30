@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+- Team editors can **withdraw their own pending domain request** (J4): Data sources → Crawl domains has **Withdraw request…** in a pending request's row menu and on its page, with a confirmation; team admins and owners can withdraw any pending request of the team. A withdrawn request is removed, so it leaves Admin → Crawl domains (and the pending count), the platform admins' "New domain request" notification is marked read, and the team can ask for the domain again. A reviewed request can't be withdrawn (409 `request_not_pending`). Audited as `crawl.domain_withdraw` with the request as it was. API: `DELETE /v1/teams/{team}/domain-requests/{requestId}`. No migration.
+
 ### Fixed
 - Admin → Connections → **Test connection** no longer fails with 404 for a working SystemOne service (J2): a SystemOne service serves no `GET /models`, so a connection whose models are all SystemOne models (or one with a SystemOne model whose `GET /models` answers 404) is tested with one small SystemOne question to its SystemOne model, reporting the latency, the phases of the request and the usual error classes (auth, not found, rate limited, unavailable). OpenAI-compatible gateways are still asked for their model list. A 404 on a connection without models says to add its SystemOne model first. `grounded doctor` tests connections the same way, so a healthy SystemOne service is ✓ ("SystemOne (model) answered a test question") instead of a warning. API (additive): `ConnectionTestResult.probe` (`models` or `systemone`) and `systemOneModel`.
 

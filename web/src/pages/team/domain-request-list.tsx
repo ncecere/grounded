@@ -1,8 +1,9 @@
 /*
  * Domain requests as a ListPage (status facet and search in the URL) with
  * each request in a RecordPage (?record=<id>): the reference use of both
- * templates (D4, D5). A team's own requests, or every team's for platform
- * staff (`admin`: a Team column, and Approve / Deny / Revoke for admins).
+ * templates (D4, D5). A team's own requests, with "Withdraw request…" while
+ * one is pending (`withdraw`), or every team's for platform staff (`admin`:
+ * a Team column, and Approve / Deny / Revoke for admins).
  */
 import { Link } from "@tanstack/react-router";
 import { Check, Eye, Globe, Plus, Undo2, X } from "lucide-react";
@@ -26,6 +27,8 @@ type Props = {
   requestAction?: () => void;
   /** Platform staff: every team's requests; `onReview` for admins (auditors get none). */
   admin?: { onReview?: (r: DomainRequest, decision: Decision) => void };
+  /** The team's page: which requests the viewer may withdraw (pending ones they asked for, or any as a team admin), and how. */
+  withdraw?: { can: (r: DomainRequest) => boolean; onSelect: (r: DomainRequest) => void };
 };
 
 export type Decision = "approve" | "deny" | "revoke";
@@ -60,6 +63,12 @@ function reviewActions(r: DomainRequest, onReview?: (r: DomainRequest, d: Decisi
   return [];
 }
 
+/** "Withdraw request…" for a request the viewer may withdraw. */
+function withdrawActions(r: DomainRequest, withdraw?: Props["withdraw"]): ActionItem[] {
+  if (!withdraw?.can(r)) return [];
+  return [{ label: "Withdraw request…", icon: <Undo2 aria-hidden />, danger: true, onSelect: () => withdraw.onSelect(r) }];
+}
+
 // Pending first, then newest first.
 const byStatus = (a: DomainRequest, b: DomainRequest) =>
   Number(b.status === "pending") - Number(a.status === "pending") || b.createdAt.localeCompare(a.createdAt);
@@ -76,11 +85,11 @@ const statusFacets = (): Facet<DomainRequest>[] => [
   },
 ];
 
-export function DomainRequestList({ list, loading, error, onRetry, requestAction, admin }: Props) {
+export function DomainRequestList({ list, loading, error, onRetry, requestAction, admin, withdraw }: Props) {
   const record = useRecordParam();
   const open = list.find((r) => r.id === record.id);
   const onReview = admin?.onReview;
-  const review = open ? reviewActions(open, onReview) : [];
+  const recordActions = open ? [...reviewActions(open, onReview), ...withdrawActions(open, withdraw)] : [];
   return (
     <>
       <ListPage<DomainRequest>
@@ -93,7 +102,11 @@ export function DomainRequestList({ list, loading, error, onRetry, requestAction
         facets={statusFacets()}
         search={{ label: "Search domain requests", placeholder: admin ? "Host, team or reason" : "Host or reason" }}
         onRowClick={(r) => record.open(r.id)}
-        rowActions={(r) => [{ label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(r.id) }, ...reviewActions(r, onReview)]}
+        rowActions={(r) => [
+          { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(r.id) },
+          ...reviewActions(r, onReview),
+          ...withdrawActions(r, withdraw),
+        ]}
         loading={loading}
         error={error}
         onRetry={onRetry}
@@ -114,14 +127,14 @@ export function DomainRequestList({ list, loading, error, onRetry, requestAction
         title={open?.pattern ?? "Domain request"}
         description={open && admin ? `A request by ${open.teamName} to crawl a host outside the platform allowlist.` : "A request to crawl a host outside the platform allowlist."}
         loading={loading && !open}
-        error={!loading && record.id && !open ? new Error("This request doesn't exist, or the link is wrong.") : undefined}
+        error={!loading && record.id && !open ? new Error("This request doesn't exist: it may have been withdrawn, or the link is wrong.") : undefined}
         facts={open ? requestFacts(open, Boolean(admin)) : []}
         sections={open?.reason ? [{ title: "Reason", content: <p className={s.settingDescription}>{open.reason}</p> }] : []}
         actions={
-          review.length > 0 && (
+          recordActions.length > 0 && (
             <>
               {/* Destructive first, the main action last. */}
-              {[...review].reverse().map((a) => (
+              {[...recordActions].reverse().map((a) => (
                 <Button key={a.label} variant={a.danger ? "danger" : "primary"} onClick={a.onSelect}>
                   {a.icon} {a.label}
                 </Button>

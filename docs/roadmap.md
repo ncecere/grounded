@@ -248,7 +248,7 @@ On branch `release/v0.2.2`; found while preparing the public sites' screenshots 
 | J1 **Done** | The admin Overview's Features card squeezed the Evaluations description into a one-word column beside its switch: a row with a control now puts its actions under its text. | S |
 | J2 **Done** | A connection test fails with 404 for a working SystemOne connection (the test asks `/models`, which a SystemOne service doesn't serve). Test SystemOne connections with a SystemOne request: a connection with only SystemOne models (or a 404 from `/models` and a SystemOne model) is asked one SystemOne question; `grounded doctor` does the same. | S |
 | J3 **New** | Team avatar initials: "IT Help Desk" shows "ID"; initials should come from the first two words ("IH") or skip all-caps acronyms sensibly. | S |
-| J4 **New** | Editors can't withdraw their own pending domain request (there's no API for it). | S |
+| J4 **Done** | Editors can't withdraw their own pending domain request (there's no API for it). `DELETE /v1/teams/{team}/domain-requests/{id}` for the requester or a team admin or owner while pending, audited (`crawl.domain_withdraw`); "Withdraw request…" on Data sources → Crawl domains. The request is removed, not given a new status (no migration). | S |
 | J5 **New** | The G19 bitop-ui items above, as they land. | S |
 | J6 **New** | F13 local dev resilience: the fake model proxy and OCR sidecar come back after a Docker restart. | S |
 

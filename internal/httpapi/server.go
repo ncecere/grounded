@@ -220,6 +220,7 @@ func (a *api) sourceRoutes() []route {
 		{"POST", "/v1/teams/{team}/web/map", a.either(a.mapSite)},
 		{"GET", "/v1/teams/{team}/domain-requests", a.session(a.listTeamDomainRequests)},
 		{"POST", "/v1/teams/{team}/domain-requests", a.session(a.createDomainRequest)},
+		{"DELETE", "/v1/teams/{team}/domain-requests/{requestId}", a.session(a.withdrawDomainRequest)},
 		{"GET", "/v1/shared-sources", a.session(a.listSharedSources)},
 		{"PUT", "/v1/teams/{team}/kbs/{kbId}/sources/{sourceId}", a.session(a.attachSource)},
 		{"DELETE", "/v1/teams/{team}/kbs/{kbId}/sources/{sourceId}", a.session(a.detachSource)},
