@@ -8,7 +8,7 @@
  * an error, since a document added later counts from then on.
  */
 import { TriangleAlert } from "lucide-react";
-import { type KeyboardEvent, useState } from "react";
+import { useState } from "react";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox/combobox";
 import { Field } from "@/components/ui/field/field";
 import { Textarea } from "@/components/ui/input/input";
@@ -48,15 +48,6 @@ export function documentLabel(d: Pick<EvalDocument, "title" | "filename" | "url"
   const other = d.filename || d.url;
   if (!d.title) return other || "Untitled document";
   return other && other !== d.title ? `${d.title} · ${other}` : d.title;
-}
-
-/**
- * Enter in the document picker picks the highlighted document or does
- * nothing; it never submits the dialog (the picker closes on Esc, and the
- * next Enter used to send the form half filled in).
- */
-function keepEnter(ev: KeyboardEvent) {
-  if (ev.key === "Enter" && ev.target instanceof HTMLInputElement) ev.preventDefault();
 }
 
 /** The warnings of the server's check, in words. */
@@ -132,22 +123,21 @@ export function QuestionFields({ team: slug, scope, form, onChange, errors, answ
           .join(" ")}
         error={errors.expected}
       >
-        <div onKeyDown={keepEnter}>
-          <Combobox
-            multiple
-            filter={null}
-            items={options}
-            value={form.documentIds}
-            onInputValueChange={setText}
-            onValueChange={(ids, opts) => {
-              setPicked(opts);
-              onChange({ ...form, documentIds: ids });
-            }}
-            placeholder="Search documents by title, filename or URL"
-            chipsLabel="Picked documents"
-            emptyText="No matching documents."
-          />
-        </div>
+        {/* Enter picks the highlighted document; it never submits the dialog (bitop-ui's Combobox, G19). */}
+        <Combobox
+          multiple
+          filter={null}
+          items={options}
+          value={form.documentIds}
+          onInputValueChange={setText}
+          onValueChange={(ids, opts) => {
+            setPicked(opts);
+            onChange({ ...form, documentIds: ids });
+          }}
+          placeholder="Search documents by title, filename or URL"
+          chipsLabel="Picked documents"
+          emptyText="No matching documents."
+        />
       </Field>
       <Field label="URLs and filenames" description="Pages (end a URL with * for everything under it) and filenames, one at a time.">
         <TagInput value={form.others} onValueChange={(others) => onChange({ ...form, others })} maxTags={20} maxTagLength={2048} normalize={(t) => t.trim()} placeholder="https://example.edu/registrar/transcripts*" />

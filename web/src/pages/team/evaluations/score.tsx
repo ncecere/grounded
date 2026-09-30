@@ -1,13 +1,14 @@
 /*
  * A run's score, the same for a knowledge base's and an agent's sets: recall@k
  * for a retrieval run, the pass rate for a full-answer run, with the metric
- * named in a tooltip (and in the accessible name, since a tooltip isn't read).
+ * named in a tooltip on the text (also its accessible description, since a
+ * tooltip isn't read).
  * A set's latest score (LastScore) and its trend against the run before
  * (TrendValue, I3) are shared by the Evaluations tabs, the team's
  * Evaluations page and its Overview.
  */
 import { Minus, TrendingDown, TrendingUp } from "lucide-react";
-import { Tooltip } from "@/components/ui/tooltip/tooltip";
+import { TooltipText } from "@/components/ui/tooltip/tooltip";
 import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { pct, runScore, runStatus, scoreHelp, unscored } from "./labels";
 import type { EvalRun, EvalSet } from "./queries";
@@ -17,13 +18,7 @@ import e from "./evaluations.module.css";
 export function ScoreValue({ run }: { run: Pick<EvalRun, "kind" | "summary"> }) {
   const value = pct(runScore(run));
   const help = scoreHelp(run);
-  return (
-    <Tooltip content={help}>
-      <button type="button" className={e.scoreButton} aria-label={`${value}. ${help}`}>
-        {value}
-      </button>
-    </Tooltip>
-  );
+  return <TooltipText content={help}>{value}</TooltipText>;
 }
 
 /** The latest run's score (with its metric in the tooltip), its status while it isn't done, or "No score" when no question could be scored. */

@@ -86,6 +86,10 @@ describe("the team's Evaluations page (I3)", () => {
     expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Set", "Knowledge base or agent", "Questions", "Score", "Trend"]);
     expect(within(table).queryByRole("button", { name: /^Actions for/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Columns" })).toBeNull();
+    // The search box's label is shown, like the Regressions filter's (G19).
+    const search = screen.getByRole("searchbox", { name: "Search evaluation sets" });
+    expect(screen.getByText("Search evaluation sets").closest(".sr-only")).toBeNull();
+    expect(search).toHaveAttribute("placeholder", "Set, knowledge base or agent");
     // The sidebar item is current, and the breadcrumb names the page.
     const nav = screen.getByRole("navigation", { name: "Main" });
     expect(within(nav).getByRole("link", { name: "Evaluations" })).toHaveAttribute("aria-current", "page");
@@ -96,6 +100,25 @@ describe("the team's Evaluations page (I3)", () => {
     await waitFor(() => expect(router.state.location.search).toMatchObject({ trend: "down" }));
     await waitFor(() => expect(within(table).queryByRole("link", { name: "Steady set" })).toBeNull());
     expect(within(table).getByRole("link", { name: "Transcript questions" })).toBeInTheDocument();
+  });
+
+  it("on a phone starts without its low-priority columns, and a Columns menu brings them back (G19)", async () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: /max-width/.test(q), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
+    try {
+      const user = userEvent.setup();
+      mockApi(routes({ teamRole: "editor" }));
+      renderApp("/teams/registrar/evaluations");
+      const table = await screen.findByRole("table", { name: "Evaluation sets" }, T);
+      expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Set", "Score"]);
+      await user.click(screen.getByRole("button", { name: "Columns" }));
+      await user.click(await screen.findByRole("menuitemcheckbox", { name: "Trend" }));
+      expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Set", "Score", "Trend"]);
+      // The menu opens inside the page's main landmark, not at the end of <body> (G19, axe's region rule).
+      expect(screen.getByRole("menu").closest("main")).not.toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+      localStorage.clear();
+    }
   });
 
   it("says no set got worse when Regressions matches none", async () => {

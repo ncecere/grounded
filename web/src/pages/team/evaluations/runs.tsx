@@ -17,7 +17,7 @@ import { PageHeader } from "@/components/ui/page-header/page-header";
 import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { useTeam } from "../common";
 import { ScoreChart } from "./chart";
-import { kindLabels, runStatusLook, runTitle, triggerLabels, unscored } from "./labels";
+import { kindLabels, runStatusLook, runTitle, smallList, triggerLabels, unscored } from "./labels";
 import { type EvalRun, type EvalSet, active, useEvalRuns } from "./queries";
 import { RunRecord } from "./run-record";
 import { ScoreValue } from "./score";
@@ -109,7 +109,7 @@ export function RunsTab({ set }: { set: EvalSet }) {
         getRowId={(r) => r.id}
         rowLabel={runTitle}
         facets={agentSet ? kindFacet : undefined}
-        tableProps={{ columnsMenu: false }}
+        tableProps={smallList}
         rowActions={(r) => [{ label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(r.id) }]}
         empty={{ icon: <History />, title: "No runs yet.", description: "A retrieval run puts each question through the search and needs no model." }}
         loading={runs.isLoading}

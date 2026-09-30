@@ -184,7 +184,8 @@ describe("the question form", () => {
     await userEvent.type(picker, "transcripts.pdf");
     await screen.findByRole("option", { name: /Transcript policy/ });
     await userEvent.keyboard("{Escape}");
-    // With the list closed, Enter's default (the browser submitting the dialog's form, whose button sits outside it) is prevented.
+    // With the list closed, Enter's default (the browser submitting the dialog's form, whose button sits outside it) is prevented
+    // by bitop-ui's Combobox itself (G19; Grounded's wrapper is gone).
     // user-event doesn't submit a form through a button outside it, so the default is checked directly; the e2e spec presses it.
     expect(fireEvent.keyDown(picker, { key: "Enter" })).toBe(false);
     expect(screen.getByRole("dialog", { name: "New question" })).toBeInTheDocument();

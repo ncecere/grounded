@@ -82,8 +82,11 @@ export type ListPageProps<T> = {
   /** Names a row for its menu and checkbox. */
   rowLabel: (row: T) => string;
   facets?: Facet<T>[];
-  /** A search box synced to ?q= (in-memory over the columns' accessors unless `manual`). */
-  search?: { label: string; placeholder?: string };
+  /**
+   * A search box synced to ?q= (in-memory over the columns' accessors unless `manual`). Its label is for screen
+   * readers unless `showLabel`, which shows it above the box like the filters' labels.
+   */
+  search?: { label: string; placeholder?: string; showLabel?: boolean };
   /** The row "…" menu; destructive actions are placed last. */
   rowActions?: (row: T) => ActionItem[];
   /**
@@ -143,6 +146,7 @@ export function ListPage<T>({
       onFacetValuesChange={filters.setValues}
       filterable={Boolean(search)}
       filterLabel={search?.label}
+      showFilterLabel={search?.showLabel}
       filterPlaceholder={search?.placeholder}
       filter={search ? filters.query : undefined}
       onFilterChange={search ? filters.setQuery : undefined}
