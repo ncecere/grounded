@@ -148,6 +148,9 @@ type run struct {
 	firstToken time.Duration
 	retr       *retriever
 	extraUsage llm.Usage // query rewrite
+	// firstSearch is the search before the model (always mode), stored
+	// with the answer so a reload shows its step.
+	firstSearch *RetrievalView
 
 	mod           *moderation.Plan // nil: nothing is moderated
 	modIn, modOut *moderation.Decision
@@ -480,6 +483,7 @@ func (ru *run) retrieveFirst(ctx context.Context, query string, canRefuse bool) 
 		return nil, false, err
 	}
 	ru.out.send(Event{"retrieval", RetrievalEvent{Query: query, Hits: ru.retrievalHits(hits), Judging: sj.event()}})
+	ru.firstSearch = &RetrievalView{Query: query, HitCount: len(hits), Judging: sj.event()}
 	if len(hits) == 0 && ru.cfg.StrictlyGrounded && canRefuse {
 		if sj.judgedOut() {
 			ru.noContextReason = NoContextJudgedOut

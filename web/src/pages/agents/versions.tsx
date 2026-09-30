@@ -7,7 +7,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Upload } from "lucide-react";
 import { useId, useState } from "react";
-import { ApiError, api, unwrap } from "../../api/client";
+import { ApiError, api, type Schemas, unwrap } from "../../api/client";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { Dialog, DialogClose } from "@/components/ui/dialog/dialog";
@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
 import { agentKey, useTeam } from "../team/common";
 import { type Agent, type AgentConfig, type AgentProblem, ProblemList } from "./common";
-import { configRows } from "./config-rows";
+import { configRows, toolText, unknownTool } from "./config-rows";
 import type { AgentDraft } from "./draft";
 import { publishAudienceText } from "./publish-state";
 import { audienceLabel } from "@/lib/terms";
@@ -28,14 +28,27 @@ export const versionsKey = (team: string, id: string) => [...agentKey(team, id),
 export const versionKBText = (k: { name: string; topK: number; inherited?: boolean }) =>
   `${k.name || "Deleted knowledge base"} (${k.topK} results${k.inherited ? ", the knowledge base's" : ""})`;
 
+type SummaryProps = {
+  config: AgentConfig;
+  kbs: { id: string; name: string; topK: number; inherited?: boolean }[];
+  modelName: string;
+  /** The version's tools that still exist (AgentVersion.tools). */
+  tools?: Schemas["AgentVersionTool"][];
+};
+
 /** A read-only summary of a configuration: every setting (config-rows.ts), then the instructions. */
-export function ConfigSummary({ config, kbs, modelName }: { config: AgentConfig; kbs: { id: string; name: string; topK: number; inherited?: boolean }[]; modelName: string }) {
+export function ConfigSummary({ config, kbs, modelName, tools }: SummaryProps) {
   const byId = new Map(kbs.map((k) => [k.id, k]));
+  const toolById = new Map((tools ?? []).map((t) => [t.id, t]));
   const rows = configRows(config, {
     model: () => modelName,
     kb: (k) => {
       const v = byId.get(k.kbId);
       return v ? versionKBText(v) : "Deleted knowledge base";
+    },
+    tool: (id) => {
+      const t = toolById.get(id);
+      return t ? toolText(t) : unknownTool;
     },
   });
   return (

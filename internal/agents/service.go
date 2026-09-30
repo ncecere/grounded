@@ -165,6 +165,14 @@ type KBSummary struct {
 	Inherited bool
 }
 
+// ToolSummary names an MCP tool in a view.
+type ToolSummary struct {
+	ID         uuid.UUID
+	Name       string
+	Title      string
+	ServerName string
+}
+
 // Version is a published version.
 type Version struct {
 	dbgen.AgentVersion
@@ -173,6 +181,8 @@ type Version struct {
 	ChatModelName   string
 	Classification  string
 	KBs             []KBSummary
+	// Tools are the version's tools that still exist, in its order.
+	Tools []ToolSummary
 }
 
 // View is an agent as its team sees it.
@@ -212,6 +222,15 @@ func (s *Service) versionView(ctx context.Context, v dbgen.AgentVersion, byName 
 	for _, ref := range out.Config.KBs {
 		kb := rows[ref.KBID]
 		out.KBs = append(out.KBs, KBSummary{ID: ref.KBID, Name: kb.Name, TopK: ref.EffectiveTopK(int(kb.TopK)), Inherited: ref.TopK == nil})
+	}
+	if s.MCP != nil && len(out.Config.Tools) > 0 {
+		if refs, err := s.MCP.ToolsByID(ctx, out.Config.Tools); err == nil {
+			for _, id := range out.Config.Tools {
+				if r, ok := refs[id]; ok {
+					out.Tools = append(out.Tools, ToolSummary{ID: id, Name: r.Name, Title: r.Title, ServerName: r.ServerName})
+				}
+			}
+		}
 	}
 	return out
 }

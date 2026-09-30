@@ -8,7 +8,7 @@ import { Field } from "@/components/ui/field/field";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
 import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
-import { amountError } from "@/lib/costs";
+import { amountError, useCostSettings } from "@/lib/costs";
 import { useFormState } from "@/lib/use-form-state";
 import { useClassifications } from "../hooks";
 import m from "../models/models.module.css";
@@ -17,6 +17,7 @@ import { type MCPServer, serversKey } from "./common";
 export function ServerForm({ server, onClose }: { server: MCPServer | null; onClose: () => void }) {
   const qc = useQueryClient();
   const levels = useClassifications();
+  const currency = useCostSettings().data?.currency;
   const [form, set] = useFormState({
     name: server?.name ?? "",
     description: server?.description ?? "",
@@ -30,6 +31,7 @@ export function ServerForm({ server, onClose }: { server: MCPServer | null; onCl
     pricePerCall: server?.pricePerCall ?? "",
   });
   const priceError = form.pricePerCall ? amountError(form.pricePerCall, "price", false) : undefined;
+  const price = form.pricePerCall.trim();
   const save = useMutation({
     mutationFn: async () => {
       const common = {
@@ -39,7 +41,8 @@ export function ServerForm({ server, onClose }: { server: MCPServer | null; onCl
         maxClassification: form.maxClassification,
         timeoutSeconds: form.timeoutSeconds,
         enabled: form.enabled,
-        pricePerCall: form.pricePerCall && form.pricePerCall !== server?.pricePerCall ? form.pricePerCall : undefined,
+        // Sent only when changed: a new price from today, or "" (an emptied field) to remove it.
+        pricePerCall: price !== (server?.pricePerCall ?? "") ? price : undefined,
       };
       if (!server) {
         const auth = form.authValue ? { authHeaderName: form.authHeaderName, authValue: form.authValue } : {};
@@ -101,7 +104,16 @@ export function ServerForm({ server, onClose }: { server: MCPServer | null; onCl
         <Field label="Timeout (seconds)" description="How long one tool call may take (1–120).">
           <Input type="number" min={1} max={120} value={form.timeoutSeconds} onChange={(e) => set("timeoutSeconds", Number(e.target.value))} />
         </Field>
-        <Field label="Price per call" labelHint="Optional" description="In the platform currency, from today. Without a price, calls are counted but cost nothing." error={priceError}>
+        <Field
+          label={currency ? `Price per call (${currency})` : "Price per call"}
+          labelHint="Optional"
+          description={
+            server?.pricePerCall
+              ? "A new price applies from today. Empty the field to remove the price: its calls, past ones too, are then counted but cost nothing."
+              : "In the platform currency, from today. Without a price, calls are counted but cost nothing."
+          }
+          error={priceError}
+        >
           <Input inputMode="decimal" value={form.pricePerCall} onChange={(e) => set("pricePerCall", e.target.value)} />
         </Field>
       </FormSection>

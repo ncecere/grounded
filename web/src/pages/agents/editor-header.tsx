@@ -8,7 +8,7 @@ import { terms } from "../../lib/terms";
 import { Alert } from "@/components/ui/alert/alert";
 import { DiffViewer } from "@/components/ui/diff-viewer/diff-viewer";
 import { Button } from "@/components/ui/button/button";
-import { type Agent, ProblemList } from "./common";
+import { type Agent, ProblemList, asSentence } from "./common";
 import { overlapping } from "./conflict";
 import type { AgentDraft, DraftConflict } from "./draft";
 import { saveView } from "./publish-state";
@@ -74,7 +74,7 @@ export function EditorAlerts({ current, d, onProblem }: { current: Agent; d: Age
         <Alert tone="danger" title="The published version is blocked">
           <ul className={a.problemList}>
             {publishedWarnings.map((w, i) => (
-              <li key={i}>{w.problem}</li>
+              <li key={i}>{asSentence(w.problem)}</li>
             ))}
           </ul>
         </Alert>

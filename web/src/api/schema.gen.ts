@@ -3772,7 +3772,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Every priced model's current prices, with unpriced units (platform admins and auditors) */
+        /** Every priced model's and MCP server's current prices, with unpriced units (platform admins and auditors) */
         get: operations["adminListCostPrices"];
         put?: never;
         post?: never;
@@ -4325,10 +4325,10 @@ export interface components {
          */
         BudgetState: "none" | "ok" | "warning" | "exhausted";
         /**
-         * @description The usage ledger kind priced; tokens per million, requests per request
+         * @description The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)
          * @enum {string}
          */
-        PriceUnit: "chat_tokens_in" | "chat_tokens_out" | "embed_tokens" | "systemone_tokens" | "systemone_requests" | "moderation_requests" | "vision_tokens_in" | "vision_tokens_out";
+        PriceUnit: "chat_tokens_in" | "chat_tokens_out" | "embed_tokens" | "systemone_tokens" | "systemone_requests" | "moderation_requests" | "vision_tokens_in" | "vision_tokens_out" | "mcp_calls";
         CostSettings: {
             mode: components["schemas"]["CostMode"];
             /**
@@ -4397,11 +4397,13 @@ export interface components {
                 price: string;
             }[];
         };
+        /** @description A model, or an MCP server (kind mcp_server: modelId is the server's ID, modelKey is empty, and its one price is mcp_calls, set on the server) */
         CostPriceItem: {
             /** Format: uuid */
             modelId: string;
             modelKey: string;
             displayName: string;
+            /** @description The model's kind, or mcp_server */
             kind: string;
             enabled: boolean;
             current: components["schemas"]["UnitPrice"][];
@@ -5676,7 +5678,7 @@ export interface components {
             /** Format: int32 */
             timeoutSeconds?: number;
             enabled?: boolean;
-            /** @description A new price of one call from today (earlier days keep theirs); omit to keep */
+            /** @description A new price of one call from today (earlier days keep theirs); omit to keep; an empty string removes the server's prices, so its calls (past ones too) are unpriced */
             pricePerCall?: string;
         };
         /** @description A tool as the server listed it. Its description and input schema are prompts the model reads: review them before approving. */
@@ -7789,6 +7791,15 @@ export interface components {
             /** @description The version doesn't set results per search for this knowledge base; it uses the knowledge base's */
             inherited: boolean;
         };
+        /** @description An MCP tool of a version, by name (docs/mcp-client.md) */
+        AgentVersionTool: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @description "" when the server gave none */
+            title: string;
+            serverName: string;
+        };
         AgentVersion: {
             /** Format: uuid */
             id: string;
@@ -7811,6 +7822,8 @@ export interface components {
             /** @description The classification level at that rank */
             classification: string;
             knowledgeBases: components["schemas"]["AgentVersionKB"][];
+            /** @description The version's MCP tools that still exist, by name (a deleted server's tools are gone from past versions) */
+            tools?: components["schemas"]["AgentVersionTool"][];
             config: components["schemas"]["AgentConfig"];
         };
         Agent: {
@@ -8462,6 +8475,12 @@ export interface components {
                 dropped: number;
             };
         };
+        /** @description SystemOne passage judging of a search: candidates judged, passages given to the model and passages dropped */
+        RetrievalJudging: {
+            judged: number;
+            kept: number;
+            dropped: number;
+        };
         /** @description SSE event message_start */
         ChatEventMessageStart: {
             /** Format: uuid */
@@ -8497,6 +8516,10 @@ export interface components {
             id: string;
             isError: boolean;
             hitCount: number;
+            /** @description Set with isError: why the call failed or wasn't made, in a sentence for people (for example the answer's tool-call limit) */
+            error?: string;
+            /** @description What an MCP tool returned (the start of its source's text), or a note when it gave no source; absent for knowledge base searches */
+            result?: string;
         };
         /** @description SSE event message_end. text is the final answer text; it replaces the streamed deltas. */
         ChatEventMessageEnd: {
@@ -8569,6 +8592,17 @@ export interface components {
             isError: boolean;
             hitCount: number;
             query?: string;
+            /** @description Set with isError: why the call failed or wasn't made, in a sentence for people */
+            error?: string;
+            /** @description What an MCP tool returned (the start of its source's text), or a note when it gave no source */
+            result?: string;
+        };
+        /** @description The search an answer ran before the model (retrieval mode always) */
+        ConversationRetrieval: {
+            query: string;
+            /** @description Passages given to the model */
+            hitCount: number;
+            judging?: components["schemas"]["RetrievalJudging"];
         };
         /** @enum {string} */
         FeedbackRating: "up" | "down";
@@ -8584,6 +8618,8 @@ export interface components {
             text: string;
             thinking?: string;
             toolCalls?: components["schemas"]["ConversationToolCall"][];
+            /** @description The search the answer ran before the model (retrieval mode always); absent for answers stored before v0.3.0 */
+            retrieval?: components["schemas"]["ConversationRetrieval"];
             citations?: components["schemas"]["Citation"][];
             stopReason?: components["schemas"]["StopReason"];
             /** @description moderation_blocked, moderation_withheld, moderation_support or moderation_unavailable (the safety check could not run; try again) when text is a moderation notice */

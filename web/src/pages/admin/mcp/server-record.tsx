@@ -10,6 +10,7 @@ import { RecordPage } from "@/components/templates/record-page";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { Time } from "@/components/ui/time/time";
+import { perCallText, useCostSettings } from "@/lib/costs";
 import s from "../../shared.module.css";
 import { EnabledBadge } from "../models/common";
 import { type HealthCheck, healthFacts, refreshHealth } from "../models/health";
@@ -36,6 +37,7 @@ export function ServerRecordPage({ server, health, open, loading, onClose, isAdm
     onSettled: () => void refreshHealth(qc),
   });
   const x = server;
+  const currency = useCostSettings().data?.currency ?? "USD";
   return (
     <RecordPage
       open={open}
@@ -54,7 +56,7 @@ export function ServerRecordPage({ server, health, open, loading, onClose, isAdm
               { label: "Credentials", value: x.hasAuth ? <code className={s.mono}>{`${x.authHeaderName}: ••••${x.authValueHint}`}</code> : "None" },
               { label: "Data up to", value: levelName(x.maxClassification) },
               { label: "Timeout", value: `${x.timeoutSeconds} s` },
-              { label: "Price per call", value: x.pricePerCall ?? "Not priced" },
+              { label: "Price per call", value: perCallText(x.pricePerCall, currency) },
               { label: "Status", value: <EnabledBadge enabled={x.enabled} /> },
               ...healthFacts(health),
               { label: "Tools read", value: x.toolsRefreshedAt ? <Time value={x.toolsRefreshedAt} /> : "Not yet" },

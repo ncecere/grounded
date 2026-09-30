@@ -60,7 +60,7 @@ Spend = rollup quantities × the price in effect on each (local) day, per unit, 
 - **Admin → Costs** (new, under Monitoring, next to Analytics). Hidden while the mode is Off, except the Settings and Prices tabs.
   - **Overview:** a date range, total spend, a daily chart by kind (chat, embedding, SystemOne, moderation) with the day table behind "Show data", and one "Top spenders" card (Teams · Agents · Models) with spend, tokens and "Unpriced" flags. CSV export of the grouping shown (v0.2.1, I5).
   - **Budgets:** each team's mode, budget, month-to-date spend, percentage and projected month-end; a team opens its record.
-  - **Prices:** every model with its current prices and "Unpriced" where missing; a model opens its record.
+  - **Prices:** every model and MCP server with its current prices and "Unpriced" where missing; a model opens its record, and an MCP server opens its record, where its price per call is set ([`mcp-client.md`](mcp-client.md#costs)).
   - **Settings:** mode, currency, time zone, warning threshold, default budget.
 - **A model's record page:** a **Pricing** section with the current prices and their history, and "Change prices".
 - **Admin → Teams → a team → Overview:** a **Budget** card (on the Limits tab, "Budget & limits", in v0.2.0): mode override, monthly budget, extensions this month, and the budget meter (enforced or tracked).
@@ -71,7 +71,7 @@ Spend = rollup quantities × the price in effect on each (local) day, per unit, 
 ## 6. API (OpenAPI first)
 
 - `GET/PUT /v1/admin/costs/settings` (mode, currency, time zone, threshold, default budget; If-Match)
-- `GET /v1/admin/costs/prices` (every model's current prices) · `GET/POST /v1/admin/models/{modelId}/prices` · `DELETE /v1/admin/models/{modelId}/prices/{priceId}`
+- `GET /v1/admin/costs/prices` (every model's and MCP server's current prices) · `GET/POST /v1/admin/models/{modelId}/prices` · `DELETE /v1/admin/models/{modelId}/prices/{priceId}`
 - `GET /v1/admin/costs/report?from&to&groupBy=team|agent|model|day` and `…/report.csv`
 - `GET /v1/admin/costs/budgets` · `GET/PUT /v1/admin/teams/{team}/budget` (mode override, amount, threshold; If-Match) · `POST /v1/admin/teams/{team}/budget/extensions`
 - `GET /v1/teams/{team}/spend?from&to` (owners, admins; 404 while the effective mode is Off)

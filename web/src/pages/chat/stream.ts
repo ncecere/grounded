@@ -22,7 +22,7 @@ export type FeedbackRating = Schemas["FeedbackRating"];
 export type FeedbackReason = Schemas["FeedbackReason"];
 type ConversationMessage = Schemas["ConversationMessage"];
 
-/** A search the agent ran: the automatic retrieval (always mode) or a search_knowledge call (tool mode). */
+/** A step of the answer: the automatic retrieval (always mode), a search_knowledge call (tool mode) or an MCP tool's call. */
 export type SearchStep = {
   /** The tool call ID (tool mode). */
   id?: string;
@@ -30,8 +30,14 @@ export type SearchStep = {
   /** Tool name for tool calls other than search_knowledge. */
   name?: string;
   query: string;
+  /** An MCP tool's arguments, as the model sent them. */
+  args?: unknown;
   hitCount?: number;
   isError?: boolean;
+  /** Why the call failed or wasn't made (a sentence from the server). */
+  error?: string;
+  /** What an MCP tool returned (the start of it), or a note such as "The tool returned nothing." */
+  result?: string;
   /** SystemOne passage judging of this search: candidates checked, passages used, dropped. */
   judging?: { judged: number; kept: number; dropped: number };
 };
@@ -99,6 +105,25 @@ function toolQuery(args: unknown): string {
   return args && typeof args === "object" ? str((args as Json).query) : "";
 }
 
+/** A tool call's JSON arguments as an object (a JSON string is parsed). */
+function toolArgs(args: unknown): unknown {
+  if (typeof args !== "string") return args ?? {};
+  try {
+    return JSON.parse(args);
+  } catch {
+    return args;
+  }
+}
+
+/** The step of a tool call: a knowledge base search (its query) or an MCP tool (its arguments). */
+function toolStep(id: string, name: string, args: unknown): SearchStep {
+  if (name === "search_knowledge") return { kind: "tool", id, query: toolQuery(args) };
+  return { kind: "tool", id, name, query: "", args: toolArgs(args) };
+}
+
+/** A tool result's outcome fields, when set. */
+const outcomeOf = (d: { error?: unknown; result?: unknown }) => ({ error: str(d.error) || undefined, result: str(d.result) || undefined });
+
 /** The judging counts of a retrieval event (absent when nothing was judged). */
 function judgingOf(v: unknown): SearchStep["judging"] {
   if (!v || typeof v !== "object") return undefined;
@@ -138,17 +163,14 @@ export function applyChatEvent(item: AssistantItem, event: string, data: unknown
       if (item.steps.some((s) => s.kind === "tool")) return { ...item, sources };
       return { ...item, sources, steps: [...item.steps, { kind: "retrieval", query, hitCount: hits.length, judging }] };
     }
-    case "tool_call": {
-      const name = str(d.name);
-      return {
-        ...item,
-        steps: [...item.steps, { kind: "tool", id: str(d.id), name: name === "search_knowledge" ? undefined : name, query: toolQuery(d.arguments) }],
-      };
-    }
+    case "tool_call":
+      return { ...item, steps: [...item.steps, toolStep(str(d.id), str(d.name), d.arguments)] };
     case "tool_result":
       return {
         ...item,
-        steps: item.steps.map((s) => (s.kind === "tool" && s.id === str(d.id) ? { ...s, hitCount: Number(d.hitCount) || 0, isError: Boolean(d.isError) } : s)),
+        steps: item.steps.map((s) =>
+          s.kind === "tool" && s.id === str(d.id) ? { ...s, hitCount: Number(d.hitCount) || 0, isError: Boolean(d.isError), ...outcomeOf(d) } : s,
+        ),
       };
     case "message_end": {
       const stopReason = str(d.stopReason) as StopReason;
@@ -200,14 +222,7 @@ export function itemsFromConversation(messages: ConversationMessage[]): ChatItem
       id: m.id,
       text: m.text,
       thinking: m.thinking ?? "",
-      steps: (m.toolCalls ?? []).map((t) => ({
-        kind: "tool",
-        id: t.id,
-        name: t.name === "search_knowledge" ? undefined : t.name,
-        query: t.query || toolQuery(t.arguments),
-        hitCount: t.hitCount,
-        isError: t.isError,
-      })),
+      steps: storedSteps(m),
       sources: [],
       citations: m.citations ?? [],
       uncited: m.uncited,
@@ -221,6 +236,17 @@ export function itemsFromConversation(messages: ConversationMessage[]): ChatItem
       moderation,
     };
   });
+}
+
+/** A stored answer's steps: the search before the model (always mode), then its tool calls. */
+function storedSteps(m: ConversationMessage): SearchStep[] {
+  const r = m.retrieval;
+  const first: SearchStep[] = r ? [{ kind: "retrieval", query: r.query, hitCount: r.hitCount, judging: r.judging }] : [];
+  const calls = (m.toolCalls ?? []).map((t): SearchStep => {
+    const step = toolStep(t.id, t.name, t.arguments);
+    return { ...step, query: t.query || step.query, hitCount: t.hitCount, isError: t.isError, ...outcomeOf(t) };
+  });
+  return [...first, ...calls];
 }
 
 /** A stored answer that moderation replaced with a notice. */

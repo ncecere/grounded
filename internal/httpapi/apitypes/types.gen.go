@@ -2933,6 +2933,7 @@ const (
 	ChatTokensIn       PriceUnit = "chat_tokens_in"
 	ChatTokensOut      PriceUnit = "chat_tokens_out"
 	EmbedTokens        PriceUnit = "embed_tokens"
+	McpCalls           PriceUnit = "mcp_calls"
 	ModerationRequests PriceUnit = "moderation_requests"
 	SystemoneRequests  PriceUnit = "systemone_requests"
 	SystemoneTokens    PriceUnit = "systemone_tokens"
@@ -2948,6 +2949,8 @@ func (e PriceUnit) Valid() bool {
 	case ChatTokensOut:
 		return true
 	case EmbedTokens:
+		return true
+	case McpCalls:
 		return true
 	case ModerationRequests:
 		return true
@@ -4603,7 +4606,10 @@ type AgentVersion struct {
 	PublishedAt     time.Time           `json:"publishedAt"`
 	PublishedBy     *openapi_types.UUID `json:"publishedBy"`
 	PublishedByName string              `json:"publishedByName"`
-	Version         int32               `json:"version"`
+
+	// Tools The version's MCP tools that still exist, by name (a deleted server's tools are gone from past versions)
+	Tools   *[]AgentVersionTool `json:"tools,omitempty"`
+	Version int32               `json:"version"`
 }
 
 // AgentVersionKB defines model for AgentVersionKB.
@@ -4618,6 +4624,16 @@ type AgentVersionKB struct {
 
 	// TopK Results per search in effect (the knowledge base's current top-k when inherited)
 	TopK int `json:"topK"`
+}
+
+// AgentVersionTool An MCP tool of a version, by name (docs/mcp-client.md)
+type AgentVersionTool struct {
+	Id         openapi_types.UUID `json:"id"`
+	Name       string             `json:"name"`
+	ServerName string             `json:"serverName"`
+
+	// Title "" when the server gave none
+	Title string `json:"title"`
 }
 
 // AllowlistCreate defines model for AllowlistCreate.
@@ -5169,9 +5185,14 @@ type ChatEventToolCall struct {
 
 // ChatEventToolResult SSE event tool_result
 type ChatEventToolResult struct {
-	HitCount int    `json:"hitCount"`
-	Id       string `json:"id"`
-	IsError  bool   `json:"isError"`
+	// Error Set with isError: why the call failed or wasn't made, in a sentence for people (for example the answer's tool-call limit)
+	Error    *string `json:"error,omitempty"`
+	HitCount int     `json:"hitCount"`
+	Id       string  `json:"id"`
+	IsError  bool    `json:"isError"`
+
+	// Result What an MCP tool returned (the start of its source's text), or a note when it gave no source; absent for knowledge base searches
+	Result *string `json:"result,omitempty"`
 }
 
 // ChatHistoryMessage defines model for ChatHistoryMessage.
@@ -5548,17 +5569,20 @@ type ConversationMessage struct {
 	CreatedAt time.Time `json:"createdAt"`
 
 	// ErrorCode moderation_blocked, moderation_withheld, moderation_support or moderation_unavailable (the safety check could not run; try again) when text is a moderation notice
-	ErrorCode      *string                 `json:"errorCode,omitempty"`
-	Feedback       *FeedbackRating         `json:"feedback,omitempty"`
-	FeedbackReason *FeedbackReason         `json:"feedbackReason,omitempty"`
-	Id             openapi_types.UUID      `json:"id"`
-	LatencyMs      *int32                  `json:"latencyMs,omitempty"`
-	Role           ConversationMessageRole `json:"role"`
-	Seq            int32                   `json:"seq"`
-	StopReason     *StopReason             `json:"stopReason,omitempty"`
-	Text           string                  `json:"text"`
-	Thinking       *string                 `json:"thinking,omitempty"`
-	ToolCalls      *[]ConversationToolCall `json:"toolCalls,omitempty"`
+	ErrorCode      *string            `json:"errorCode,omitempty"`
+	Feedback       *FeedbackRating    `json:"feedback,omitempty"`
+	FeedbackReason *FeedbackReason    `json:"feedbackReason,omitempty"`
+	Id             openapi_types.UUID `json:"id"`
+	LatencyMs      *int32             `json:"latencyMs,omitempty"`
+
+	// Retrieval The search the answer ran before the model (retrieval mode always); absent for answers stored before v0.3.0
+	Retrieval  *ConversationRetrieval  `json:"retrieval,omitempty"`
+	Role       ConversationMessageRole `json:"role"`
+	Seq        int32                   `json:"seq"`
+	StopReason *StopReason             `json:"stopReason,omitempty"`
+	Text       string                  `json:"text"`
+	Thinking   *string                 `json:"thinking,omitempty"`
+	ToolCalls  *[]ConversationToolCall `json:"toolCalls,omitempty"`
 
 	// Uncited Set by SystemOne citation checks: the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources.
 	Uncited *[]UncitedSentence `json:"uncited,omitempty"`
@@ -5574,15 +5598,31 @@ type ConversationPage struct {
 	NextCursor *string        `json:"nextCursor,omitempty"`
 }
 
+// ConversationRetrieval The search an answer ran before the model (retrieval mode always)
+type ConversationRetrieval struct {
+	// HitCount Passages given to the model
+	HitCount int `json:"hitCount"`
+
+	// Judging SystemOne passage judging of a search: candidates judged, passages given to the model and passages dropped
+	Judging *RetrievalJudging `json:"judging,omitempty"`
+	Query   string            `json:"query"`
+}
+
 // ConversationToolCall defines model for ConversationToolCall.
 type ConversationToolCall struct {
 	// Arguments The model's JSON arguments
 	Arguments interface{} `json:"arguments"`
-	HitCount  int         `json:"hitCount"`
-	Id        string      `json:"id"`
-	IsError   bool        `json:"isError"`
-	Name      string      `json:"name"`
-	Query     *string     `json:"query,omitempty"`
+
+	// Error Set with isError: why the call failed or wasn't made, in a sentence for people
+	Error    *string `json:"error,omitempty"`
+	HitCount int     `json:"hitCount"`
+	Id       string  `json:"id"`
+	IsError  bool    `json:"isError"`
+	Name     string  `json:"name"`
+	Query    *string `json:"query,omitempty"`
+
+	// Result What an MCP tool returned (the start of its source's text), or a note when it gave no source
+	Result *string `json:"result,omitempty"`
 }
 
 // ConversationUpdate defines model for ConversationUpdate.
@@ -5629,14 +5669,16 @@ type CostMode string
 // CostModeOverride defines model for CostModeOverride.
 type CostModeOverride string
 
-// CostPriceItem defines model for CostPriceItem.
+// CostPriceItem A model, or an MCP server (kind mcp_server: modelId is the server's ID, modelKey is empty, and its one price is mcp_calls, set on the server)
 type CostPriceItem struct {
-	Current     []UnitPrice        `json:"current"`
-	DisplayName string             `json:"displayName"`
-	Enabled     bool               `json:"enabled"`
-	Kind        string             `json:"kind"`
-	ModelId     openapi_types.UUID `json:"modelId"`
-	ModelKey    string             `json:"modelKey"`
+	Current     []UnitPrice `json:"current"`
+	DisplayName string      `json:"displayName"`
+	Enabled     bool        `json:"enabled"`
+
+	// Kind The model's kind, or mcp_server
+	Kind     string             `json:"kind"`
+	ModelId  openapi_types.UUID `json:"modelId"`
+	ModelKey string             `json:"modelKey"`
 
 	// Unpriced Some unit has no price today
 	Unpriced bool `json:"unpriced"`
@@ -7331,7 +7373,7 @@ type MCPServerUpdate struct {
 	MaxClassification *string `json:"maxClassification,omitempty"`
 	Name              *string `json:"name,omitempty"`
 
-	// PricePerCall A new price of one call from today (earlier days keep theirs); omit to keep
+	// PricePerCall A new price of one call from today (earlier days keep theirs); omit to keep; an empty string removes the server's prices, so its calls (past ones too) are unpriced
 	PricePerCall   *string `json:"pricePerCall,omitempty"`
 	TimeoutSeconds *int32  `json:"timeoutSeconds,omitempty"`
 	Url            *string `json:"url,omitempty"`
@@ -7666,7 +7708,7 @@ type ModelPrice struct {
 	// Example: 12.500000
 	Price Money `json:"price"`
 
-	// Unit The usage ledger kind priced; tokens per million, requests per request
+	// Unit The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)
 	Unit PriceUnit `json:"unit"`
 }
 
@@ -7677,7 +7719,7 @@ type ModelPricesCreate struct {
 		// Price Example: 0.15
 		Price string `json:"price"`
 
-		// Unit The usage ledger kind priced; tokens per million, requests per request
+		// Unit The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)
 		Unit PriceUnit `json:"unit"`
 	} `json:"prices"`
 }
@@ -8573,7 +8615,7 @@ type PlatformLimitsUpdate struct {
 // PlatformRole defines model for PlatformRole.
 type PlatformRole string
 
-// PriceUnit The usage ledger kind priced; tokens per million, requests per request
+// PriceUnit The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)
 type PriceUnit string
 
 // ProfileMigration defines model for ProfileMigration.
@@ -9113,6 +9155,13 @@ type RetrievalHit struct {
 
 // RetrievalHitKind tool: an MCP tool's result (absent for passages)
 type RetrievalHitKind string
+
+// RetrievalJudging SystemOne passage judging of a search: candidates judged, passages given to the model and passages dropped
+type RetrievalJudging struct {
+	Dropped int `json:"dropped"`
+	Judged  int `json:"judged"`
+	Kept    int `json:"kept"`
+}
 
 // RetrievalMode defines model for RetrievalMode.
 type RetrievalMode string
@@ -9761,7 +9810,7 @@ type UnitPrice struct {
 	// Price null: unpriced (its usage costs nothing and is flagged)
 	Price *Money `json:"price"`
 
-	// Unit The usage ledger kind priced; tokens per million, requests per request
+	// Unit The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)
 	Unit PriceUnit `json:"unit"`
 }
 

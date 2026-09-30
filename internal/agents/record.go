@@ -102,6 +102,10 @@ func (ru *run) storeAnswer(ctx context.Context, q *dbgen.Queries, ans *Answer, m
 	}
 	cites, _ := json.Marshal(ans.Citations)
 	usage, _ := json.Marshal(ans.Usage)
+	var retrieval json.RawMessage
+	if ru.firstSearch != nil {
+		retrieval, _ = json.Marshal(ru.firstSearch)
+	}
 	code := ans.ErrorCode
 	if ans.storedCode != "" {
 		code = ans.storedCode
@@ -113,7 +117,7 @@ func (ru *run) storeAnswer(ctx context.Context, q *dbgen.Queries, ans *Answer, m
 	if _, err := q.InsertMessage(ctx, dbgen.InsertMessageParams{
 		ID: ans.MessageID, ConversationID: ru.conv.ID, Seq: seq, Role: "assistant", Content: content,
 		Citations: cites, AgentVersionID: ru.versionID(), ModelID: modelID, Usage: usage,
-		StopReason: ans.StopReason, ErrorCode: code, LatencyMs: &latency,
+		StopReason: ans.StopReason, ErrorCode: code, LatencyMs: &latency, Retrieval: retrieval,
 	}); err != nil {
 		return err
 	}

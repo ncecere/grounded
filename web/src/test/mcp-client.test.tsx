@@ -9,7 +9,7 @@ import type { Schemas } from "../api/client";
 import { sectionSummary } from "../pages/agents/build/summaries";
 import { type AssistantItem, type ChatItem, applyChatEvent, pendingAssistant } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
-import { type Handler, mockApi, renderApp, renderBare, shellRoutes } from "./harness";
+import { type Handler, meFor, mockApi, renderApp, renderBare, shellRoutes } from "./harness";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -199,11 +199,32 @@ describe("Build → Tools", () => {
     // The open server is below the sensitive knowledge base: it can't be chosen.
     const forecast = screen.getByRole("checkbox", { name: /forecast/ });
     expect(forecast).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByText(/From Public weather · approved for data up to Open · not approved for this agent's data/)).toBeInTheDocument();
+    expect(screen.getByText(/From Public weather\. Not available: this agent's knowledge is Sensitive, and Public weather may receive data up to Open\./)).toBeInTheDocument();
+    expect(screen.getByText(/Only tools a platform admin approved are listed\./)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(check);
     await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: 3000 });
     expect((calls.find((c) => c.method === "PATCH")!.body as { config: { tools: string[] } }).config.tools).toEqual(["t1"]);
+  }, 15_000);
+
+  const noToolModels = { "GET /v1/chat-models": () => [{ id: "mod1", key: "m", displayName: "Chat", description: "", maxClassification: "restricted", supportsTools: false, supportsReasoningEffort: false }] };
+
+  it("says why no tool can be used when no chat model can call tools, and who turns support on", async () => {
+    mockApi(routes("open", noToolModels));
+    const { container } = renderApp("/teams/registrar/agents/ag1");
+    await userEvent.click(await screen.findByRole("button", { name: /^Tools/ }, { timeout: 5000 }));
+    const alert = (await screen.findByText("No chat model can call tools yet.")).closest("[role=alert], [role=status], div")!;
+    expect(alert).toHaveTextContent("A platform admin turns on tool support for a model in Admin → Models. Ask one if this agent needs tools.");
+    expect(screen.queryByRole("link", { name: "Admin → Models" })).toBeNull();
+    expect(screen.getByRole("checkbox", { name: /Check outage/ })).toHaveAttribute("aria-disabled", "true");
+    expect(await axe(container)).toHaveNoViolations();
+  }, 15_000);
+
+  it("links a platform admin to Admin → Models", async () => {
+    mockApi(routes("open", { ...noToolModels, "GET /v1/me": () => meFor("platform_admin", "editor") }));
+    renderApp("/teams/registrar/agents/ag1");
+    await userEvent.click(await screen.findByRole("button", { name: /^Tools/ }, { timeout: 5000 }));
+    expect(await screen.findByRole("link", { name: "Admin → Models" })).toHaveAttribute("href", "/admin/models");
   }, 15_000);
 
   it("summarises the section", () => {

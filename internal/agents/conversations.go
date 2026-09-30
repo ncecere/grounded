@@ -109,6 +109,18 @@ type ToolCallView struct {
 	IsError   bool            `json:"isError"`
 	HitCount  int             `json:"hitCount"`
 	Query     string          `json:"query,omitempty"`
+	// Error says why the call failed or wasn't made; Result is what an MCP
+	// tool returned (its source's snippet) or a note (stepOutcome).
+	Error  string `json:"error,omitempty"`
+	Result string `json:"result,omitempty"`
+}
+
+// RetrievalView is the search an answer ran before the model (always
+// mode), stored in messages.retrieval.
+type RetrievalView struct {
+	Query    string            `json:"query"`
+	HitCount int               `json:"hitCount"`
+	Judging  *RetrievalJudging `json:"judging,omitempty"`
 }
 
 // MessageView is one transcript message: a user question or an answer.
@@ -119,6 +131,7 @@ type MessageView struct {
 	Text           string         `json:"text"`
 	Thinking       string         `json:"thinking,omitempty"`
 	ToolCalls      []ToolCallView `json:"toolCalls,omitempty"`
+	Retrieval      *RetrievalView `json:"retrieval,omitempty"`
 	Citations      []Citation     `json:"citations,omitempty"`
 	StopReason     string         `json:"stopReason,omitempty"`
 	ErrorCode      string         `json:"errorCode,omitempty"`
@@ -224,6 +237,7 @@ func messageViews(rows []dbgen.ListMessagesRow) []MessageView {
 				if last.ToolCalls[i].ID == tr.ToolCallID {
 					last.ToolCalls[i].IsError, last.ToolCalls[i].HitCount = tr.IsError, len(tr.Details.Hits)
 					last.ToolCalls[i].Query = tr.Details.Query
+					last.ToolCalls[i].Error, last.ToolCalls[i].Result = stepOutcome(tr.IsError, tr.Details)
 				}
 			}
 		}
@@ -255,6 +269,12 @@ func assistantView(r dbgen.ListMessagesRow) MessageView {
 		}
 	}
 	m.Thinking = strings.Join(think, "\n\n")
+	if len(r.Retrieval) > 0 {
+		var rv RetrievalView
+		if json.Unmarshal(r.Retrieval, &rv) == nil {
+			m.Retrieval = &rv
+		}
+	}
 	if len(r.Citations) > 0 {
 		_ = json.Unmarshal(r.Citations, &m.Citations)
 	}

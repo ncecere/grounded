@@ -131,7 +131,7 @@ function VersionRecord({ agent, version, onClose, onRevert }: { agent: Agent; ve
       loading={v.isLoading}
       error={invalid ? new Error("This version doesn't exist, or the link is wrong.") : v.error}
       actions={v.data && <RevertButton version={v.data.version} reason={revertReason(agent, v.data.version)} onRevert={onRevert} />}
-      sections={v.data ? [{ title: "Configuration", content: <ConfigSummary config={v.data.config} kbs={v.data.knowledgeBases} modelName={v.data.chatModelName} /> }] : []}
+      sections={v.data ? [{ title: "Configuration", content: <ConfigSummary config={v.data.config} kbs={v.data.knowledgeBases} modelName={v.data.chatModelName} tools={v.data.tools} /> }] : []}
     />
   );
 }

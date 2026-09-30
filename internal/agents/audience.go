@@ -180,7 +180,7 @@ func audienceOption(aud, role string, pol policy, publicOn bool, modReason strin
 		}
 		if !authz.AudienceAllowed(aud, pol.MaxAudience) {
 			o.Reasons = append(o.Reasons, fmt.Sprintf("The knowledge bases hold %s data, which allows at most the %s audience",
-				pol.Classification, audienceLabel(pol.MaxAudience)))
+				pol.LevelName, audienceLabel(pol.MaxAudience)))
 		}
 	}
 	if aud == authz.AudiencePublic {

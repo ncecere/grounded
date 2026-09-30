@@ -820,10 +820,10 @@ func (q *Queries) InsertConversation(ctx context.Context, arg InsertConversation
 
 const insertMessage = `-- name: InsertMessage :one
 INSERT INTO messages (id, conversation_id, seq, role, content, citations, agent_version_id, model_id, usage,
-                      stop_reason, error_code, latency_ms)
+                      stop_reason, error_code, latency_ms, retrieval)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-        $10, $11, $12)
-RETURNING id, conversation_id, seq, role, content, citations, agent_version_id, model_id, usage, stop_reason, error_code, latency_ms, created_at
+        $10, $11, $12, $13)
+RETURNING id, conversation_id, seq, role, content, citations, agent_version_id, model_id, usage, stop_reason, error_code, latency_ms, created_at, retrieval
 `
 
 type InsertMessageParams struct {
@@ -839,6 +839,7 @@ type InsertMessageParams struct {
 	StopReason     string
 	ErrorCode      string
 	LatencyMs      *int32
+	Retrieval      json.RawMessage
 }
 
 func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (Message, error) {
@@ -855,6 +856,7 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (M
 		arg.StopReason,
 		arg.ErrorCode,
 		arg.LatencyMs,
+		arg.Retrieval,
 	)
 	var i Message
 	err := row.Scan(
@@ -871,6 +873,7 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (M
 		&i.ErrorCode,
 		&i.LatencyMs,
 		&i.CreatedAt,
+		&i.Retrieval,
 	)
 	return i, err
 }
@@ -1290,7 +1293,7 @@ func (q *Queries) ListConversations(ctx context.Context, arg ListConversationsPa
 }
 
 const listMessages = `-- name: ListMessages :many
-SELECT m.id, m.conversation_id, m.seq, m.role, m.content, m.citations, m.agent_version_id, m.model_id, m.usage, m.stop_reason, m.error_code, m.latency_ms, m.created_at, e.feedback, e.feedback_reason, e.citations AS citation_check,
+SELECT m.id, m.conversation_id, m.seq, m.role, m.content, m.citations, m.agent_version_id, m.model_id, m.usage, m.stop_reason, m.error_code, m.latency_ms, m.created_at, m.retrieval, e.feedback, e.feedback_reason, e.citations AS citation_check,
        coalesce(e.refused, false)::bool AS answer_refused, coalesce(e.no_context, false)::bool AS answer_no_context
 FROM messages m LEFT JOIN message_events e ON e.message_id = m.id
 WHERE m.conversation_id = $1
@@ -1311,6 +1314,7 @@ type ListMessagesRow struct {
 	ErrorCode       string
 	LatencyMs       *int32
 	CreatedAt       time.Time
+	Retrieval       json.RawMessage
 	Feedback        *string
 	FeedbackReason  *string
 	CitationCheck   json.RawMessage
@@ -1343,6 +1347,7 @@ func (q *Queries) ListMessages(ctx context.Context, conversationID uuid.UUID) ([
 			&i.ErrorCode,
 			&i.LatencyMs,
 			&i.CreatedAt,
+			&i.Retrieval,
 			&i.Feedback,
 			&i.FeedbackReason,
 			&i.CitationCheck,

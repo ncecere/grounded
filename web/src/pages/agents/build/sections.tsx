@@ -12,7 +12,7 @@ import { Field } from "@/components/ui/field/field";
 import { Textarea } from "@/components/ui/input/input";
 import { useSystemOneStatus } from "@/lib/systemone";
 import { useClassificationLevels, useKBs, useTeam } from "../../team/common";
-import { problemTarget, useChatModels } from "../common";
+import { asSentence, problemTarget, useChatModels } from "../common";
 import type { AgentDraft } from "../draft";
 import { AdvancedSection } from "./advanced-section";
 import { AnsweringSection } from "./answering-section";
@@ -25,6 +25,8 @@ import { SystemOneChecks } from "./systemone-checks";
 import { ToolsSection } from "./tools-section";
 
 const maxInstructions = 20000;
+
+const sentence = (text?: string) => (text ? asSentence(text) : undefined);
 
 const titles: Record<BuildSection, string> = {
   instructions: "Instructions",
@@ -54,8 +56,8 @@ export function BuildSections({ d, open, onOpenChange }: Props) {
   const section: SectionProps = {
     c,
     set: d.setConfig,
-    errorFor: (field) => d.problems.find((p) => problemTarget(p.field).id === problemTarget(field).id)?.problem,
-    warningFor: (field) => d.base.warnings.find((w) => w.field === `draft.${field}`)?.problem,
+    errorFor: (field) => sentence(d.problems.find((p) => problemTarget(p.field).id === problemTarget(field).id)?.problem),
+    warningFor: (field) => sentence(d.base.warnings.find((w) => w.field === `draft.${field}`)?.problem),
     model: models.data?.find((m) => m.id === c.chatModelId),
     levelName: (key) => levels.data?.find((l) => l.key === key)?.name ?? key,
   };

@@ -5935,7 +5935,7 @@ paths:
     get:
       tags: [costs, admin]
       operationId: adminListCostPrices
-      summary: Every priced model's current prices, with unpriced units (platform admins and auditors)
+      summary: "Every priced model's and MCP server's current prices, with unpriced units (platform admins and auditors)"
       responses:
         "200":
           description: Prices
@@ -7209,8 +7209,8 @@ components:
         or notifies anyone; a Track-only budget shows the same states as progress and nothing else.
     PriceUnit:
       type: string
-      enum: [chat_tokens_in, chat_tokens_out, embed_tokens, systemone_tokens, systemone_requests, moderation_requests, vision_tokens_in, vision_tokens_out]
-      description: The usage ledger kind priced; tokens per million, requests per request
+      enum: [chat_tokens_in, chat_tokens_out, embed_tokens, systemone_tokens, systemone_requests, moderation_requests, vision_tokens_in, vision_tokens_out, mcp_calls]
+      description: "The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)"
     CostSettings:
       type: object
       required: [mode, currency, timeZone, warnPercent, defaultBudget, revision, updatedAt]
@@ -7285,12 +7285,13 @@ components:
               price: { type: string, example: "0.15" }
     CostPriceItem:
       type: object
+      description: "A model, or an MCP server (kind mcp_server: modelId is the server's ID, modelKey is empty, and its one price is mcp_calls, set on the server)"
       required: [modelId, modelKey, displayName, kind, enabled, current, unpriced]
       properties:
         modelId: { type: string, format: uuid }
         modelKey: { type: string }
         displayName: { type: string }
-        kind: { type: string }
+        kind: { type: string, description: "The model's kind, or mcp_server" }
         enabled: { type: boolean }
         current:
           type: array
@@ -8506,7 +8507,7 @@ components:
         maxClassification: { type: string }
         timeoutSeconds: { type: integer, format: int32, minimum: 1, maximum: 120 }
         enabled: { type: boolean }
-        pricePerCall: { type: string, description: "A new price of one call from today (earlier days keep theirs); omit to keep" }
+        pricePerCall: { type: string, description: "A new price of one call from today (earlier days keep theirs); omit to keep; an empty string removes the server's prices, so its calls (past ones too) are unpriced" }
     MCPServerTool:
       type: object
       description: >-
@@ -10452,6 +10453,15 @@ components:
         name: { type: string, description: '"" when the knowledge base no longer exists' }
         topK: { type: integer, description: Results per search in effect (the knowledge base's current top-k when inherited) }
         inherited: { type: boolean, description: The version doesn't set results per search for this knowledge base; it uses the knowledge base's }
+    AgentVersionTool:
+      type: object
+      description: "An MCP tool of a version, by name (docs/mcp-client.md)"
+      required: [id, name, title, serverName]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        title: { type: string, description: '"" when the server gave none' }
+        serverName: { type: string }
     AgentVersion:
       type: object
       required: [id, version, publishedAt, publishedBy, publishedByName, note, chatModelId, chatModelName, effectiveRank, classification, knowledgeBases, config]
@@ -10469,6 +10479,10 @@ components:
         knowledgeBases:
           type: array
           items: { $ref: "#/components/schemas/AgentVersionKB" }
+        tools:
+          type: array
+          description: "The version's MCP tools that still exist, by name (a deleted server's tools are gone from past versions)"
+          items: { $ref: "#/components/schemas/AgentVersionTool" }
         config: { $ref: "#/components/schemas/AgentConfig" }
     Agent:
       type: object
@@ -11221,6 +11235,14 @@ components:
             judged: { type: integer }
             kept: { type: integer }
             dropped: { type: integer }
+    RetrievalJudging:
+      type: object
+      description: "SystemOne passage judging of a search: candidates judged, passages given to the model and passages dropped"
+      required: [judged, kept, dropped]
+      properties:
+        judged: { type: integer }
+        kept: { type: integer }
+        dropped: { type: integer }
     ChatEventMessageStart:
       type: object
       description: "SSE event message_start"
@@ -11268,6 +11290,8 @@ components:
         id: { type: string }
         isError: { type: boolean }
         hitCount: { type: integer }
+        error: { type: string, description: "Set with isError: why the call failed or wasn't made, in a sentence for people (for example the answer's tool-call limit)" }
+        result: { type: string, description: "What an MCP tool returned (the start of its source's text), or a note when it gave no source; absent for knowledge base searches" }
     ChatEventMessageEnd:
       type: object
       description: "SSE event message_end. text is the final answer text; it replaces the streamed deltas."
@@ -11375,6 +11399,16 @@ components:
         isError: { type: boolean }
         hitCount: { type: integer }
         query: { type: string }
+        error: { type: string, description: "Set with isError: why the call failed or wasn't made, in a sentence for people" }
+        result: { type: string, description: "What an MCP tool returned (the start of its source's text), or a note when it gave no source" }
+    ConversationRetrieval:
+      type: object
+      description: "The search an answer ran before the model (retrieval mode always)"
+      required: [query, hitCount]
+      properties:
+        query: { type: string }
+        hitCount: { type: integer, description: Passages given to the model }
+        judging: { $ref: "#/components/schemas/RetrievalJudging" }
     FeedbackRating:
       type: string
       enum: [up, down]
@@ -11393,6 +11427,9 @@ components:
         toolCalls:
           type: array
           items: { $ref: "#/components/schemas/ConversationToolCall" }
+        retrieval:
+          description: "The search the answer ran before the model (retrieval mode always); absent for answers stored before v0.3.0"
+          allOf: [{ $ref: "#/components/schemas/ConversationRetrieval" }]
         citations:
           type: array
           items: { $ref: "#/components/schemas/Citation" }

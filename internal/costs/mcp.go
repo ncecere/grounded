@@ -74,3 +74,47 @@ func (s *Service) SetMCPServerPrice(ctx context.Context, a authz.Actor, serverID
 	}
 	return err
 }
+
+// ClearMCPServerPrice removes a server's per-call prices, so its calls are
+// unpriced again, past ones included (a price set by mistake; dated rows
+// can't say "unpriced from today"). The caller has checked that the actor may
+// change the server. Audited as costs.price_delete; nothing to remove is a
+// no-op.
+func (s *Service) ClearMCPServerPrice(ctx context.Context, a authz.Actor, serverID uuid.UUID, serverName string) error {
+	if !canWrite(a) {
+		return errAdminOnly
+	}
+	removed := 0
+	err := store.InTx(ctx, s.pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `DELETE FROM model_prices WHERE model_id = $1 AND unit = $2 RETURNING price::text, effective_from`,
+			serverID, UnitMCPCalls)
+		if err != nil {
+			return err
+		}
+		var prices []map[string]any
+		for rows.Next() {
+			var price string
+			var from time.Time
+			if err := rows.Scan(&price, &from); err != nil {
+				rows.Close()
+				return err
+			}
+			prices = append(prices, map[string]any{"price": price, "effectiveFrom": from.Format(time.DateOnly)})
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil || len(prices) == 0 {
+			return err
+		}
+		removed = len(prices)
+		if err := q.BumpCostGeneration(ctx); err != nil {
+			return err
+		}
+		e := a.Audit("costs.price_delete", "mcp_server", serverID.String())
+		e.Before = map[string]any{"mcpServer": serverName, "unit": UnitMCPCalls, "prices": prices}
+		return audit.Record(ctx, q, e)
+	})
+	if err == nil && removed > 0 {
+		s.changed(ctx, uuid.NullUUID{})
+	}
+	return err
+}

@@ -108,7 +108,7 @@ function Editor({ agent }: { agent: Agent }) {
         <PageHeader title={current.name} description={current.description || undefined} meta={<AgentStatusBadge agent={current} />} actions={live ? <ChatButton agent={current} /> : undefined} />
         {/* The same reason every team page gives for an archived team (F-16). */}
         {archived ? <ArchivedNotice>Its agents can be viewed but not changed.</ArchivedNotice> : <Alert tone="info">Only editors, admins and owners can configure agents.</Alert>}
-        {current.published && <ConfigSummary config={current.published.config} kbs={current.published.knowledgeBases} modelName={current.published.chatModelName} />}
+        {current.published && <ConfigSummary config={current.published.config} kbs={current.published.knowledgeBases} modelName={current.published.chatModelName} tools={current.published.tools} />}
       </Stack>
     );
   }

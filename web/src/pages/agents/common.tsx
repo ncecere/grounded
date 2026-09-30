@@ -139,6 +139,9 @@ export function slugify(name: string) {
     .replace(/-+$/g, "");
 }
 
+/** A server problem as a sentence: problems come without a final period ("Choose a chat model"). */
+export const asSentence = (text: string) => (/[.!?…]$/.test(text.trim()) ? text : `${text.trim()}.`);
+
 /** Problems as buttons that jump to the control. */
 export function ProblemList({ problems, onSelect }: { problems: { field: string; problem: string }[]; onSelect: (field: string) => void }) {
   return (
@@ -148,7 +151,7 @@ export function ProblemList({ problems, onSelect }: { problems: { field: string;
           <button type="button" className={a.problemLink} onClick={() => onSelect(p.field)}>
             {problemTarget(p.field).label}
           </button>
-          : {p.problem}
+          : {asSentence(p.problem)}
         </li>
       ))}
     </ul>

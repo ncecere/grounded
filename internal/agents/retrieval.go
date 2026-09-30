@@ -269,12 +269,16 @@ type searchArgs struct {
 	MaxResults int    `json:"maxResults"`
 }
 
-// toolDetails is the application-side result of search_knowledge.
+// toolDetails is the application-side result of search_knowledge or an MCP
+// tool. Reason (a failed call) and Note (a call that gave no source) are
+// for people: the chat shows them on the call's step.
 type toolDetails struct {
 	Query   string            `json:"query"`
 	Hits    []RetrievalHit    `json:"hits"`
 	Error   string            `json:"error,omitempty"`
 	Judging *RetrievalJudging `json:"judging,omitempty"`
+	Reason  string            `json:"reason,omitempty"`
+	Note    string            `json:"note,omitempty"`
 }
 
 func (ru *run) searchTool() agentloop.Tool {
@@ -291,7 +295,7 @@ func (ru *run) searchTool() agentloop.Tool {
 			if err != nil {
 				ru.s.Log.Warn("search_knowledge failed", "err", err, "agent", ru.agent.ID)
 				return agentloop.ToolResult{Content: "The search failed. Try again later.", IsError: true,
-					Details: toolDetails{Query: q, Hits: []RetrievalHit{}, Error: "retrieval_failed"}}, nil
+					Details: toolDetails{Query: q, Hits: []RetrievalHit{}, Error: "retrieval_failed", Reason: "The search failed."}}, nil
 			}
 			d := toolDetails{Query: q, Hits: ru.retrievalHits(hits), Judging: sj.event()}
 			if len(hits) == 0 {

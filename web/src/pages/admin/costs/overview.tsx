@@ -85,7 +85,7 @@ export function CostOverviewTab({ settings }: { settings: CostSettings }) {
               label="Unpriced usage"
               value={d.total.unpriced ? "Yes" : "None"}
               icon={<TriangleAlert />}
-              hint={d.total.unpriced ? "Some models have no price; see Prices" : "Every model used has a price"}
+              hint={d.total.unpriced ? "Some models or MCP servers have no price. See Prices." : "Every model and MCP server used has a price."}
             />
           </StatGroup>
           <DailySpend report={d} currency={cur} />
@@ -102,7 +102,7 @@ function DailySpend({ report, currency }: { report: Report; currency: string }) 
   return (
     <Card
       title="Spend per day"
-      description="Chat, embedding, SystemOne, moderation and OCR spend each day. Show data lists the days with spend."
+      description="Chat, embedding, SystemOne, moderation, OCR and MCP tool spend each day. Show data lists the days with spend."
       actions={<CsvButton from={report.from} to={report.to} groupBy="day" what="spend per day" />}
     >
       {spent.length === 0 ? (
@@ -167,6 +167,8 @@ function useGrouping(): [Grouping, (value: Grouping["value"]) => void] {
 
 function RowLabel({ r, groupBy }: { r: Row; groupBy: GroupBy }) {
   if (groupBy === "team" && r.teamSlug && !r.deleted) return <TextLink render={<Link to="/admin/teams/$team" params={{ team: r.teamSlug }} />}>{r.label}</TextLink>;
+  if (groupBy === "model" && r.key && !r.deleted && r.modelKind === "mcp_server")
+    return <TextLink render={<Link to="/admin/mcp-servers" search={{ record: r.key } as never} />}>{r.label}</TextLink>;
   if (groupBy === "model" && r.key && !r.deleted) return <TextLink render={<Link to="/admin/models" search={{ record: r.key, from: "costs" } as never} />}>{r.label}</TextLink>;
   if (groupBy === "agent" && r.key && !r.deleted) return <TextLink render={<Link to="/admin/agents" search={{ record: r.key } as never} />}>{r.label}</TextLink>;
   return <>{r.deleted ? `${r.label || "Deleted"} (deleted)` : r.label}</>;
