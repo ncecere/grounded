@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Agent editor: **Publish** is disabled while the draft has problems publishing would refuse ("Fix the 2 problems listed under Build first."), instead of failing after it's pressed.
 - Chat: a reopened answer shows the "Searched the knowledge base for …" step it showed live (retrieval mode "Search before every answer"). Stored answers keep that search's query and counts (`retrieval` on conversation messages; migration `00039_message_retrieval`, a new nullable column). Publish problems name classification levels as the platform does ("Restricted", not `restricted`) and end with a period.
 - Admin → Overview: Needs attention and Features span the page, so each feature reads on one line beside its actions (in a narrow card the actions go under the text); the published-agents count reads "2 for the team · 1 public".
 

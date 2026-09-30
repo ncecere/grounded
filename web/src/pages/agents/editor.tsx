@@ -114,8 +114,15 @@ function Editor({ agent }: { agent: Agent }) {
   }
 
   const c = d.draft.config;
-  const blocked = publishBlocked({ agent: current, status: d.status, needsFix: d.held || d.invalidFields.length > 0, audience: c.audience, isManager });
   const draftWarnings = current.warnings.filter((w) => w.field !== "published");
+  const blocked = publishBlocked({
+    agent: current,
+    status: d.status,
+    needsFix: d.held || d.invalidFields.length > 0,
+    audience: c.audience,
+    isManager,
+    problems: draftWarnings.length,
+  });
   const model = models.data?.find((m) => m.id === c.chatModelId);
 
   return (

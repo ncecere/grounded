@@ -27,12 +27,15 @@ type PublishInput = {
   audience: Agent["audience"];
   /** Team admins and owners may publish beyond the team; editors only to it (P-03). */
   isManager: boolean;
+  /** The draft's publish problems (the server's draft.* warnings): publishing would refuse them. */
+  problems?: number;
 };
 
 /** Why Publish is disabled, or undefined when it can be offered. */
-export function publishBlocked({ agent, status, needsFix, audience, isManager }: PublishInput): string | undefined {
+export function publishBlocked({ agent, status, needsFix, audience, isManager, problems = 0 }: PublishInput): string | undefined {
   if (!isManager && audience !== "team")
     return `Only team admins and owners can publish to ${audienceLabel(audience)}. Choose Team under Share, or ask an admin to publish.`;
+  if (problems > 0) return problems === 1 ? "Fix the problem listed under Build first." : `Fix the ${problems} problems listed under Build first.`;
   const pending = status !== "saved" || needsFix;
   if (agent.published && !agent.hasUnpublishedChanges && !pending) return `No changes since version ${agent.published.version}`;
   return undefined;

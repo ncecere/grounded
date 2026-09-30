@@ -80,6 +80,10 @@ describe("pure helpers", () => {
     expect(publishBlocked({ agent: live, status: "saved", needsFix: false, audience: "team", isManager: true })).toBe("No changes since version 3");
     expect(publishBlocked({ agent: live, status: "dirty", needsFix: false, audience: "team", isManager: true })).toBeUndefined();
     expect(publishBlocked({ agent: { published: null, hasUnpublishedChanges: true }, status: "saved", needsFix: false, audience: "team", isManager: true })).toBeUndefined();
+    // The draft's publish problems (draft.* warnings) disable Publish, with how many.
+    const fresh = { published: null, hasUnpublishedChanges: true };
+    expect(publishBlocked({ agent: fresh, status: "saved", needsFix: false, audience: "team", isManager: true, problems: 1 })).toBe("Fix the problem listed under Build first.");
+    expect(publishBlocked({ agent: fresh, status: "saved", needsFix: false, audience: "team", isManager: true, problems: 2 })).toBe("Fix the 2 problems listed under Build first.");
     expect(publishBlocked({ agent: { ...live, hasUnpublishedChanges: true }, status: "saved", needsFix: false, audience: "public", isManager: false })).toMatch(
       /Only team admins and owners can publish to Public/,
     );
