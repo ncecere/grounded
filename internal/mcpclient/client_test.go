@@ -27,17 +27,17 @@ func TestNormalizeURL(t *testing.T) {
 	}{
 		{"https://status.example.edu/mcp", false, true},
 		{"  https://status.example.edu/mcp ", false, true},
-		{"http://status.example.edu/mcp", false, false},     // https only
-		{"http://status.example.edu/mcp", true, false},      // http only for loopback
-		{"http://127.0.0.1:9000/mcp", false, false},         // loopback refused
-		{"http://127.0.0.1:9000/mcp", true, true},           // the development allowance
-		{"http://localhost:9000/mcp", true, true},           // loopback by name
-		{"https://localhost/mcp", false, false},             // loopback by name refused
-		{"https://10.1.2.3/mcp", false, false},              // private
-		{"https://169.254.169.254/latest", false, false},    // link-local (metadata)
-		{"https://[fe80::1]/mcp", false, false},             // IPv6 link-local
-		{"https://10.1.2.3/mcp", true, true},                // private with the allowance
-		{"https://8.8.8.8/mcp", false, true},                // a public literal
+		{"http://status.example.edu/mcp", false, false},  // https only
+		{"http://status.example.edu/mcp", true, false},   // http only for loopback
+		{"http://127.0.0.1:9000/mcp", false, false},      // loopback refused
+		{"http://127.0.0.1:9000/mcp", true, true},        // the development allowance
+		{"http://localhost:9000/mcp", true, true},        // loopback by name
+		{"https://localhost/mcp", false, false},          // loopback by name refused
+		{"https://10.1.2.3/mcp", false, false},           // private
+		{"https://169.254.169.254/latest", false, false}, // link-local (metadata)
+		{"https://[fe80::1]/mcp", false, false},          // IPv6 link-local
+		{"https://10.1.2.3/mcp", true, true},             // private with the allowance
+		{"https://8.8.8.8/mcp", false, true},             // a public literal
 		{"https://user:pw@status.example.edu/mcp", false, false},
 		{"https://status.example.edu/mcp?key=secret", false, false},
 		{"https://status.example.edu/mcp#x", false, false},
