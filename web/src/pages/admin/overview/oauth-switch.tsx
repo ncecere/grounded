@@ -13,11 +13,11 @@ import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
 import type { FeatureState } from "./feature-text";
 import type { useMCPSetting } from "./mcp-switch";
-import { mcpDocsUrl } from "./mcp-switch";
+import { mcpServerDocsUrl } from "./mcp-switch";
 import { mcpSettingsQuery } from "./queries";
 
-/** The guide's OAuth section. */
-export const oauthDocsUrl = `${mcpDocsUrl}#signing-in-with-oauth-experimental`;
+/** How OAuth sign-in works (the self-hosting guide to the MCP server). */
+export const oauthDocsUrl = mcpServerDocsUrl;
 
 type Settings = Schemas["MCPSettings"];
 
