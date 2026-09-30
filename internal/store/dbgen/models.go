@@ -80,6 +80,11 @@ type AgentShortName struct {
 	CreatedAt time.Time
 }
 
+type AgentTool struct {
+	VersionID uuid.UUID
+	ToolID    uuid.UUID
+}
+
 type AgentVersion struct {
 	ID            uuid.UUID
 	AgentID       uuid.UUID
@@ -502,6 +507,40 @@ type MaintenanceMode struct {
 	Revision     int64
 	UpdatedBy    uuid.NullUUID
 	UpdatedAt    time.Time
+}
+
+type McpServer struct {
+	ID                uuid.UUID
+	Name              string
+	Description       string
+	URL               string
+	AuthHeaderName    *string
+	AuthValueCipher   []byte
+	AuthValueHint     string
+	MaxClassification string
+	TimeoutSeconds    int32
+	Enabled           bool
+	ToolsRefreshedAt  *time.Time
+	Revision          int64
+	CreatedBy         uuid.NullUUID
+	CreatedAt         time.Time
+	UpdatedBy         uuid.NullUUID
+	UpdatedAt         time.Time
+}
+
+type McpServerTool struct {
+	ID          uuid.UUID
+	ServerID    uuid.UUID
+	Name        string
+	Title       string
+	Description string
+	InputSchema json.RawMessage
+	Approved    bool
+	ApprovedBy  uuid.NullUUID
+	ApprovedAt  *time.Time
+	FirstSeenAt time.Time
+	LastSeenAt  time.Time
+	GoneAt      *time.Time
 }
 
 type McpSetting struct {
