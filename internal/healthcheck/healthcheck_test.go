@@ -53,6 +53,11 @@ func TestPeriodic(t *testing.T) {
 	if Periodic(DefaultInterval) == nil {
 		t.Error("no schedule for the default interval")
 	}
+	now := time.Date(2026, 9, 30, 14, 14, 0, 0, time.UTC)
+	o := InsertOpts(15*time.Minute, now, func(n int64) int64 { return n - 1 })
+	if o.MaxAttempts != 1 || !o.ScheduledAt.After(now) || o.ScheduledAt.Sub(now) >= 90*time.Second || o.UniqueOpts.ByPeriod != 0 {
+		t.Errorf("insert opts = %+v", o)
+	}
 	w := &Worker{Interval: 5 * time.Minute}
 	if w.Timeout(nil) != 5*time.Minute {
 		t.Errorf("a run outlasts its interval: %s", w.Timeout(nil))

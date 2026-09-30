@@ -68,19 +68,23 @@ func Jitter(interval time.Duration, rnd func(n int64) int64) time.Duration {
 }
 
 // Periodic schedules the job every interval (nil when interval is 0: the
-// scheduled re-test is off). Each run starts after a Jitter delay; one run
-// per interval even when several workers schedule it.
+// scheduled re-test is off). Each run starts after a Jitter delay. River's
+// leader alone enqueues periodic jobs, so there is one run per interval
+// without unique options (which would key on the jittered time and could
+// drop a run whose jitter lands it in the previous run's period).
 func Periodic(interval time.Duration) *river.PeriodicJob {
 	if interval <= 0 {
 		return nil
 	}
 	return river.NewPeriodicJob(river.PeriodicInterval(interval), func() (river.JobArgs, *river.InsertOpts) {
-		return Args{}, &river.InsertOpts{
-			MaxAttempts: 1,
-			ScheduledAt: time.Now().Add(Jitter(interval, rand.Int64N)),
-			UniqueOpts:  river.UniqueOpts{ByPeriod: interval},
-		}
+		return Args{}, InsertOpts(interval, time.Now(), rand.Int64N)
 	}, &river.PeriodicJobOpts{RunOnStart: true})
+}
+
+// InsertOpts are a scheduled run's options: one attempt (the next run
+// re-tests), starting after a Jitter delay from now.
+func InsertOpts(interval time.Duration, now time.Time, rnd func(n int64) int64) *river.InsertOpts {
+	return &river.InsertOpts{MaxAttempts: 1, ScheduledAt: now.Add(Jitter(interval, rnd))}
 }
 
 // Register adds the health job's worker.

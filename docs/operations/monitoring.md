@@ -53,7 +53,12 @@ Route groups (`group`): `ops` (`/healthz`, `/readyz`, `/metrics`), `chat` (strea
 | `grounded_model_requests_total` | counter | `connection`, `kind`, `outcome` | `connection` is the connection's name in Administration → Models; `kind` the model kind (`chat`, `embedding`, `moderation`, `systemone`). Outcomes: `ok`, `rate_limited` (HTTP 429, or 503 with Retry-After), `throttled` (the connection's own requests-per-minute limit held it back; never sent), `unavailable` (network, timeout, 5xx), `auth`, `not_found`, `bad_request`, `bad_response`, `canceled` |
 | `grounded_model_request_duration_seconds` | histogram | `connection`, `kind` | To the response; for streams, to the response headers. Throttled requests aren't timed |
 
-Admin **Test connection** and **Test model** calls and `grounded doctor` probes aren't counted. Renaming a connection starts new series.
+Admin **Test connection** and **Test model** calls, the scheduled health check and `grounded doctor` probes aren't counted. Renaming a connection starts new series.
+
+| Metric | Type | Labels | Notes |
+|---|---|---|---|
+| `grounded_health_checks_total` | counter | `kind` (`connection`, `model`), `trigger` (`manual`, `scheduled`), `status` (`healthy`, `failing`) | Stored health checks ([`health.md`](health.md)) |
+| `grounded_health_check_duration_seconds` | histogram | `kind` | The latency of the test behind a stored check |
 
 ### Ingestion, crawling and jobs
 
@@ -79,6 +84,8 @@ The worker and `serve` processes read these from Postgres when scraped (cached f
 | `grounded_maintenance_mode` | gauge | | 1 while maintenance mode is on |
 | `grounded_maintenance_mode_started_timestamp_seconds` | gauge | | When it was turned on; absent while off |
 | `grounded_breakglass_open_sessions` | gauge | `status` (`active`, `pending`) | |
+| `grounded_health_failing` | gauge | `kind` (`connection`, `model`) | Enabled subjects whose latest stored health check failed ([`health.md`](health.md)) |
+| `grounded_health_failing_seconds` | gauge | `kind`, `name` | How long each failing enabled connection or model has been failing (by its name); absent while healthy |
 | `grounded_state_up` | gauge | | 0 when the last read failed (the others are then absent) |
 
 ### Governance
@@ -147,6 +154,7 @@ The rule file has four groups of alerts, plus recording rules for the SLO ratios
 | `GroundedMaintenanceModeLong` | warning | Maintenance mode on for over 4 hours |
 | `GroundedModelConnectionFailing` | critical | Over half of a connection's requests (one model kind, at least 5) fail for 10 min, 429s aside |
 | `GroundedModelConnectionRateLimited` | warning | Over 20% refused by 429 or the connection's own limit for 30 min |
+| `GroundedHealthCheckFailing` | warning | An enabled connection or model has failed every stored health check for over 30 min |
 | `GroundedDBPoolSaturated` | warning | A process uses over 90% of its Postgres pool for 10 min |
 | `GroundedValkeyErrors` | warning | More than one Valkey error every 10 s for 10 min |
 | `GroundedBackupMissing` | critical | The `grounded-postgres-backup` CronJob hasn't succeeded for 26 h (kube-state-metrics) |

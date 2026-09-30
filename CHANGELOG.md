@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Stored health of connections and models** (E11, v0.3.0 M2, [`docs/operations/health.md`](docs/operations/health.md)). Every **Test connection** and **Test model** stores its result: healthy or failing, the latency, the error class (`unavailable`, `auth`, `not_found`, `rate_limited`, `bad_request`, `bad_response`, or `config` for an API key the current `ENCRYPTION_KEY` can't decrypt), a short message with keys redacted, and who ran it. A connection test also stores the health it implies for the connection's enabled models. The worker's `health.check` job re-tests enabled connections every `HEALTH_CHECK_INTERVAL` (default `15m`; `5m` to `24h`, or `off`), with jitter, at most 4 at once and each once per run. It costs nothing: `GET /models`, or for a SystemOne service only a check that its endpoint answers, with each enabled model healthy when its connection is and the gateway lists it. Admin → Connections and Models show "Healthy · 3 minutes ago", "Failing · since 2 hours ago" or "Not tested yet", with a Health filter; record pages show the exact time, error class and message. Needs attention on the admin Overview says "N connections are failing" and "N models are failing", linking to the filtered list. Seven days of checks are kept, plus each subject's latest. Metrics `grounded_health_failing`, `grounded_health_failing_seconds` (by kind and name), `grounded_health_checks_total` and `grounded_health_check_duration_seconds`, and the alert `GroundedHealthCheckFailing` (failing for over 30 minutes). API (additive): `GET /v1/admin/health-checks` (platform admins and auditors). Migration `00035_health_checks` (a table and a view).
+
 ### Fixed
 
 - Admin → Overview: Needs attention and Features span the page, so each feature reads on one line beside its actions (in a narrow card the actions go under the text); the published-agents count reads "2 for the team · 1 public".
