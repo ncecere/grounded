@@ -103,7 +103,6 @@ export function MCPServersPage() {
           icon: <Blocks />,
           title: "No MCP servers yet.",
           description: "Agents only call tools you register here and approve.",
-          action: add || undefined,
         }}
       />
       <ServerRecordPage
