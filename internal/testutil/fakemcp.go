@@ -27,7 +27,7 @@ import (
 //
 // RequireHeader makes it answer 401 to requests without a header; Hide and
 // SetDescription change what tools/list returns (refresh tests). Calls
-// records every tools/call with its arguments and headers.
+// records every tools/call with its arguments, headers and _meta.
 type FakeMCP struct {
 	*httptest.Server
 
@@ -46,6 +46,8 @@ type FakeMCPCall struct {
 	Tool      string
 	Arguments json.RawMessage
 	Header    http.Header
+	// Meta is the request's _meta (trace context travels in it).
+	Meta map[string]any
 }
 
 // FakeMCPHugeChars is the length of the huge tool's result.
@@ -194,7 +196,8 @@ func (f *FakeMCP) server() *mcp.Server {
 				_ = json.Unmarshal(req.Params.Arguments, &args)
 				hdr, _ := ctx.Value(fakeMCPHeaderKey{}).(http.Header)
 				f.mu.Lock()
-				f.calls = append(f.calls, FakeMCPCall{Tool: name, Arguments: append(json.RawMessage(nil), req.Params.Arguments...), Header: hdr})
+				f.calls = append(f.calls, FakeMCPCall{Tool: name, Arguments: append(json.RawMessage(nil), req.Params.Arguments...), Header: hdr,
+					Meta: req.Params.GetMeta()})
 				f.mu.Unlock()
 				return run(ctx, args), nil
 			})
