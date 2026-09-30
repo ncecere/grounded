@@ -17,10 +17,13 @@ import (
 
 // KnowledgeBase is a knowledge base the caller may search. TeamSlug is set
 // for a person signed in with OAuth, whose options carry their team
-// (options.go).
+// (options.go). Name may name the team too ("Handbook (Library)"); SlugName
+// is the knowledge base's own name, which its slug is made from, so the slug
+// doesn't change with the number of teams.
 type KnowledgeBase struct {
 	ID                uuid.UUID
 	Name, Description string
+	SlugName          string
 	TeamID            uuid.UUID
 	TeamSlug          string
 }
@@ -118,7 +121,7 @@ func (s *Services) KnowledgeBases(ctx context.Context, a authz.Actor) ([]Knowled
 				}
 				return nil, err
 			}
-			item := KnowledgeBase{ID: kb.ID, Name: withTeam(kb.Name, t, len(teams) > 1), Description: kb.Description, TeamID: kb.TeamID}
+			item := KnowledgeBase{ID: kb.ID, Name: withTeam(kb.Name, t, len(teams) > 1), SlugName: kb.Name, Description: kb.Description, TeamID: kb.TeamID}
 			if a.Key == nil {
 				item.TeamSlug = t.Slug
 			}

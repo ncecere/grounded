@@ -1,6 +1,7 @@
 package mcpserver
 
 import (
+	"cmp"
 	"fmt"
 	"strings"
 	"unicode"
@@ -35,7 +36,7 @@ func kbOptions(list []KnowledgeBase) []option {
 	out := make([]option, len(list))
 	count := map[string]int{}
 	for i, kb := range list {
-		out[i] = option{ID: kb.ID, Slug: teamPrefix(kb.TeamSlug) + slugify(kb.Name), Name: kb.Name, Description: kb.Description, TeamID: kb.TeamID}
+		out[i] = option{ID: kb.ID, Slug: teamPrefix(kb.TeamSlug) + slugify(cmp.Or(kb.SlugName, kb.Name)), Name: kb.Name, Description: kb.Description, TeamID: kb.TeamID}
 		count[out[i].Slug]++
 	}
 	return unique(out, count)

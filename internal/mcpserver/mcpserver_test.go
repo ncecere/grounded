@@ -79,7 +79,8 @@ func TestOptions(t *testing.T) {
 		t.Errorf("slugs = %s %s %s", opts[0].Slug, opts[1].Slug, opts[2].Slug)
 	}
 	// A person's (OAuth) names start with the team's slug, however many teams they're in.
-	opts2 := kbOptions([]KnowledgeBase{{ID: a, Name: "Student help", TeamSlug: "registrar"}, {ID: b, Name: "Student help", TeamSlug: "library"},
+	// The display name may name the team (several teams); the slug comes from the knowledge base's own name.
+	opts2 := kbOptions([]KnowledgeBase{{ID: a, Name: "Student help (Registrar)", SlugName: "Student help", TeamSlug: "registrar"}, {ID: b, Name: "Student help", TeamSlug: "library"},
 		{ID: c, Name: "???", TeamSlug: "library"}})
 	if opts2[0].Slug != "registrar/student-help" || opts2[1].Slug != "library/student-help" || opts2[2].Slug != "library/"+c.String()[:8] {
 		t.Errorf("team slugs = %s %s %s", opts2[0].Slug, opts2[1].Slug, opts2[2].Slug)
