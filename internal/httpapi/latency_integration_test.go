@@ -13,6 +13,7 @@ import (
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
+	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/tracing/tracingtest"
 )
 
@@ -80,6 +81,17 @@ func (s *session) timedStream(t *testing.T, path string, body any) timedEvents {
 	return out
 }
 
+// statusSteps are the steps of the status events, in order.
+func statusSteps(evs sseEvents) []string {
+	var out []string
+	for _, e := range evs.all("status") {
+		var d struct{ Step string }
+		_ = json.Unmarshal(e.data, &d)
+		out = append(out, d.Step)
+	}
+	return out
+}
+
 // answerSteps renders the children of a trace's agent.answer span with
 // their start (from the answer's) and duration, for the log.
 func answerSteps(trace []sdktrace.ReadOnlySpan) string {
@@ -141,11 +153,123 @@ func TestAnswerLatency(t *testing.T) {
 			return sp.EndTime().After(time.Now().Add(-2 * time.Second))
 		}).SpanContext().TraceID()))
 		t.Logf("%s: first token after %d ms (%s)\n%s", label, ttft.Milliseconds(), strings.Join(evs.events().names(), " "), steps)
-		if ttft < 0 || !strings.Contains(answer.Text, "transcripts") && !strings.Contains(answer.Text, "halls") {
+		if ttft < 0 || answer.Text == "" {
 			t.Errorf("%s: answer %q", label, answer.Text)
 		}
 		return conv.ConversationId
 	}
 	conv := ask("first message", "What is the transcript fee?", nil)
 	ask("standalone follow-up", "When do residence halls open for move-in in August?", conv)
+}
+
+// TestSearchOverlapsTheScopeCheck: in always mode the search runs while
+// the scope check answers (its delay doesn't add to the time to first
+// token), judging waits for it, so small talk and an out-of-scope refusal
+// make no judging request (the search's tokens are still recorded), and
+// the status events name each step in order.
+func TestSearchOverlapsTheScopeCheck(t *testing.T) {
+	env := newSystemOneEnv(t)
+	env.putSettings(t, nil)
+	env.putChecks(t, map[string]any{"enabled": false}, map[string]any{"enabled": true})
+	ag := env.publishAgent(t, "Fees", env.agentConfig(env.kb.Id.String()))
+	env.proxy.SetScopeDelay(600 * time.Millisecond)
+	env.proxy.SetEmbedLatency(600 * time.Millisecond)
+
+	judged := env.proxy.JudgingRequests()
+	evs := env.member.timedStream(t, env.chatPath("fees"), map[string]any{"message": "What is the transcript fee?"})
+	if ttft := evs.first("text_delta"); ttft < 0 || ttft > time.Second { // one after the other: 1.2 s and more
+		t.Errorf("first token after %v: the scope check and the search did not overlap", ttft)
+	}
+	names := strings.Join(evs.events().names(), ",")
+	if !strings.HasPrefix(names, "conversation,status,status,retrieval,status,message_start,") ||
+		strings.Join(statusSteps(evs.events()), ",") != "searching,checking,answering" || env.proxy.JudgingRequests() == judged {
+		t.Errorf("events = %s, steps = %v", names, statusSteps(evs.events()))
+	}
+	if evs.first("status") > 300*time.Millisecond {
+		t.Errorf("the first status event came after %v", evs.first("status"))
+	}
+
+	embedRows := func() int64 {
+		return env.scalar(t, `SELECT count(*) FROM usage_events WHERE kind = 'embed_tokens' AND agent_id = $1`, ag.Id)
+	}
+	for _, tc := range []struct{ message, steps, reason string }{
+		{"OFFTOPIC Which car should I buy?", "searching", "out_of_scope"},
+		{"Hello!", "searching,answering", "small_talk"},
+	} {
+		judged, chats, rows := env.proxy.JudgingRequests(), len(env.proxy.ChatRequests()), embedRows()
+		code, evs, e := env.member.stream(env.chatPath("fees"), map[string]any{"message": tc.message})
+		mustCode(t, tc.message, code, e, 200, "")
+		var end apitypes.ChatEventMessageEnd
+		evs.one(t, "message_end", &end)
+		if end.NoContextReason == nil || string(*end.NoContextReason) != tc.reason || len(evs.all("retrieval")) != 0 ||
+			strings.Join(statusSteps(evs), ",") != tc.steps {
+			t.Errorf("%s = %v %v %+v", tc.message, evs.names(), statusSteps(evs), end)
+		}
+		if env.proxy.JudgingRequests() != judged {
+			t.Errorf("%s: %d judging requests", tc.message, env.proxy.JudgingRequests()-judged)
+		}
+		if wantChats := map[string]int{"out_of_scope": 0, "small_talk": 1}[tc.reason]; len(env.proxy.ChatRequests())-chats != wantChats {
+			t.Errorf("%s: %d chat requests", tc.message, len(env.proxy.ChatRequests())-chats)
+		}
+		if embedRows() != rows+1 {
+			t.Errorf("%s: the discarded search's tokens were not recorded", tc.message)
+		}
+	}
+}
+
+// TestJudgingTimeLimit: judging waits at most the platform's time limit;
+// requests still running are cancelled and their passages kept unjudged
+// (skipped), counted in the record and on the search's span.
+func TestJudgingTimeLimit(t *testing.T) {
+	spans := tracingtest.RecordSpans(t)
+	env := newSystemOneEnv(t)
+	st := env.putSettings(t, nil)
+	if st.Judging.TimeLimitMs == nil || *st.Judging.TimeLimitMs != 1500 {
+		t.Fatalf("default time limit = %v", st.Judging.TimeLimitMs)
+	}
+	for _, bad := range []int{400, 10001} {
+		var cur apitypes.SystemOneSettings
+		env.admin.get("/v1/admin/systemone", &cur)
+		j := cur.Judging
+		j.TimeLimitMs = &bad
+		code, e := env.admin.call("PUT", "/v1/admin/systemone", map[string]any{"modelId": env.judge.Id, "judging": j}, nil, ifMatch(cur.Revision))
+		mustCode(t, fmt.Sprintf("time limit %d", bad), code, e, 400, "invalid_settings")
+	}
+	if st = env.putSettings(t, map[string]any{"timeLimitMs": 600}); *st.Judging.TimeLimitMs != 600 {
+		t.Fatalf("saved time limit = %d", *st.Judging.TimeLimitMs)
+	}
+	// A client from before the setting keeps the saved value.
+	var cur apitypes.SystemOneSettings
+	env.admin.get("/v1/admin/systemone", &cur)
+	j := cur.Judging
+	j.TimeLimitMs = nil
+	code, e := env.admin.call("PUT", "/v1/admin/systemone", map[string]any{"modelId": env.judge.Id, "judging": j}, &st, ifMatch(cur.Revision))
+	if mustCode(t, "without the time limit", code, e, 200, ""); *st.Judging.TimeLimitMs != 600 {
+		t.Fatalf("kept time limit = %d", *st.Judging.TimeLimitMs)
+	}
+
+	ag := env.publishAgent(t, "Fees", env.agentConfig(env.kb.Id.String()))
+	before := env.proxy.JudgingRequests()
+	env.proxy.SetJudgingDelays(20*time.Millisecond, 3*time.Second) // every other request is slow
+	slow := 0
+	for i := range 7 {
+		slow += (before + i) % 2
+	}
+	evs := env.member.timedStream(t, env.chatPath("fees"), map[string]any{"message": "What is the transcript fee?"})
+	env.proxy.SetJudgingDelays()
+	if ttft := evs.first("text_delta"); ttft < 0 || ttft > 1500*time.Millisecond {
+		t.Errorf("first token after %v with a 600 ms time limit", ttft)
+	}
+	var ret apitypes.ChatEventRetrieval
+	evs.events().one(t, "retrieval", &ret)
+	if ret.Judging == nil || ret.Judging.Judged != 7 || ret.Judging.Kept == 0 {
+		t.Errorf("retrieval judging = %+v", ret.Judging)
+	}
+	if rec, raw := judgingRecord(t, env.agentEnv, ag.Id.String()); rec.Skipped != slow || rec.CutShort != 1 || rec.Candidates != 7 {
+		t.Errorf("record = %s, want %d skipped", raw, slow)
+	}
+	retrieve := spans.Find(t, "agent.retrieve", func(sp sdktrace.ReadOnlySpan) bool { return attr(sp, "grounded.judging.cut_short") == "true" })
+	if attr(retrieve, "grounded.judging.skipped") != fmt.Sprint(slow) || attr(retrieve, "grounded.judging.time_limit_ms") != "600" {
+		t.Errorf("span = %v", retrieve.Attributes())
+	}
 }

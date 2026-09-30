@@ -32,6 +32,7 @@ func addUsage(dst *llm.Usage, u llm.Usage) {
 // record stores the answer (for user conversations), usage events and one
 // message_events row. It runs even when the request was cancelled.
 func (ru *run) record(ctx context.Context, ans *Answer, msg *llm.AssistantMessage, results []llm.ToolResultMessage) {
+	ru.settleSearch() // an unused search's embedding tokens are recorded too
 	ctx = context.WithoutCancel(ctx)
 	ans.Latency = time.Since(ru.started)
 	if !ru.answeredAt.IsZero() { // a streamed answer's citation check came after it

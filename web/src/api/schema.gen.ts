@@ -2945,7 +2945,7 @@ export interface paths {
         put?: never;
         /**
          * Ask an agent (session, or an API key with the query scope)
-         * @description Sessions and personal API keys store the conversation (send conversationId to continue one). Service keys are stateless: send prior turns in history; conversationId is rejected. With stream true (the default) the reply is Server-Sent Events: named events whose data is JSON (see ChatEvent* schemas), in this order: conversation, retrieval (always mode), message_start, then thinking_delta / text_delta / tool_call / retrieval / tool_result as they happen, moderation (only when moderation replaced the question's answer or the answer with a notice), message_end, citations_checked (only when SystemOne citation checks are on and the answer has citations: it follows message_end and replaces the answer's citations, and in enforce mode its text), error (only on failure), done. A blocked question gets conversation, message_start, moderation, message_end. A ": ping" comment is sent every 15 s. Errors before the answer starts (agent_disabled, agent_policy_violation, rate_limited, quota_exceeded, budget_exhausted, model_unavailable, model_busy) are plain HTTP errors. 429 budget_exhausted (details budget, spent, currency, resetsAt) means the team's enforced monthly budget is used up (docs/costs.md). text_delta carries the raw model text; message_end.text is the final text (unknown [n] markers removed, [1, 2] written as [1][2], markers removed in citation mode none). Closing the connection stops the answer; the partial answer is saved with stopReason aborted.
+         * @description Sessions and personal API keys store the conversation (send conversationId to continue one). Service keys are stateless: send prior turns in history; conversationId is rejected. With stream true (the default) the reply is Server-Sent Events: named events whose data is JSON (see ChatEvent* schemas), in this order: conversation, status (what the agent is doing before the answer's first words: rewriting, searching, checking, answering; one event per step, and clients should ignore steps they don't know), retrieval (always mode), message_start, then thinking_delta / text_delta / tool_call / retrieval / tool_result as they happen, moderation (only when moderation replaced the question's answer or the answer with a notice), message_end, citations_checked (only when SystemOne citation checks are on and the answer has citations: it follows message_end and replaces the answer's citations, and in enforce mode its text), error (only on failure), done. A blocked question gets conversation, status, message_start, moderation, message_end. A ": ping" comment is sent every 15 s. Errors before the stream starts (agent_disabled, agent_policy_violation, rate_limited, quota_exceeded, budget_exhausted, and model_unavailable when the agent's model is unusable) are plain HTTP errors; a failure after the first status event (model_unavailable or model_busy when the model is called) is an error event. 429 budget_exhausted (details budget, spent, currency, resetsAt) means the team's enforced monthly budget is used up (docs/costs.md). text_delta carries the raw model text; message_end.text is the final text (unknown [n] markers removed, [1, 2] written as [1][2], markers removed in citation mode none). Closing the connection stops the answer; the partial answer is saved with stopReason aborted.
          */
         post: operations["chat"];
         delete?: never;
@@ -7659,6 +7659,8 @@ export interface components {
             mode: "per_passage" | "batched";
             /** @description Per request; a request that times out keeps its passage (fail-open) */
             timeoutMs: number;
+            /** @description Passage judging time limit: the longest an answer waits for one search's judging (never more than twice timeoutMs). Requests still running then are cancelled and their passages kept unjudged (fail-open). Default 1500; always returned; when a client leaves it out on save, the saved value is kept. */
+            timeLimitMs?: number;
             thresholds: components["schemas"]["SystemOneThresholds"];
         };
         /** @description Citation checks: after the answer, each claim and the source it cites get one question (supports, contradicts or says nothing). */
@@ -8480,6 +8482,11 @@ export interface components {
             judged: number;
             kept: number;
             dropped: number;
+        };
+        /** @description SSE event status: what the agent is doing before the answer's first words, once per step (v0.3.0 and later). rewriting: turning a follow-up that depends on the conversation into a search query; searching: searching the knowledge bases; checking: SystemOne passage judging; answering: the model is writing (until the first token). Clients should ignore steps they don't know. */
+        ChatEventStatus: {
+            /** @enum {string} */
+            step: "rewriting" | "searching" | "checking" | "answering";
         };
         /** @description SSE event message_start */
         ChatEventMessageStart: {

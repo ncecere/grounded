@@ -1,6 +1,8 @@
 // Moderation in the chat pipeline (docs/phase4-publishing.md §2 and §4,
-// ADR-0019): the question is checked before retrieval, concurrently with
-// query rewriting; the final answer is checked before it is stored.
+// ADR-0019): the question is checked concurrently with the query rewrite
+// and the search, before the search's results are judged or used (a
+// blocked question's are discarded); the final answer is checked before it
+// is stored.
 // Streamed answers that fail are retracted; buffered answers are sent only
 // after they pass. Only decisions are recorded, never the text (ADR-0010).
 

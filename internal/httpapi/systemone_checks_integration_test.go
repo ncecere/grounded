@@ -405,17 +405,20 @@ func TestScopeCheck(t *testing.T) {
 		t.Errorf("status = %+v", status)
 	}
 	ag := env.publishAgent(t, "Help", env.agentConfig(env.kb.Id.String()))
-	embeds := len(env.proxy.EmbedBatches())
 
-	// Small talk: one short chat call, no retrieval.
+	// Small talk: one short chat call, no sources. The search that started with the scope check is discarded; the
+	// tokens it spent are recorded.
 	chats := len(env.proxy.ChatRequests())
 	code, evs, e := env.member.stream(env.chatPath("help"), map[string]any{"message": "Hello!"})
 	mustCode(t, "small talk", code, e, 200, "")
 	var end apitypes.ChatEventMessageEnd
 	evs.one(t, "message_end", &end)
 	if end.Text != testutil.FakeSmallTalk || end.NoContextReason == nil || *end.NoContextReason != "small_talk" || end.Refused ||
-		len(evs.all("retrieval")) != 0 || len(env.proxy.ChatRequests()) != chats+1 || len(env.proxy.EmbedBatches()) != embeds {
+		len(evs.all("retrieval")) != 0 || len(env.proxy.ChatRequests()) != chats+1 || strings.Join(statusSteps(evs), ",") != "searching,answering" {
 		t.Fatalf("small talk = %v %+v", evs.names(), end)
+	}
+	if n := env.scalar(t, `SELECT count(*) FROM usage_events WHERE kind = 'embed_tokens' AND agent_id = $1`, ag.Id); n != 1 {
+		t.Errorf("small talk's search spend = %d rows", n)
 	}
 	if sys := systemPrompts(env.proxy); !strings.Contains(sys[len(sys)-1], "small talk") || strings.Contains(sys[len(sys)-1], "<sources>") {
 		t.Errorf("small-talk prompt = %s", sys[len(sys)-1])

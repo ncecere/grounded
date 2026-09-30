@@ -688,7 +688,9 @@ func TestUsableChatModels(t *testing.T) {
 
 // A gateway refusing because of load (429, or 503 with Retry-After) is
 // "busy", not an outage; other failures stay model_unavailable. Both keep
-// the question in the conversation.
+// the question in the conversation: a JSON answer is a 503 with its ID; a
+// streamed one (already showing its progress) an error event after the
+// conversation event.
 func TestChatModelBusyVersusUnavailable(t *testing.T) {
 	env := newAgentEnv(t)
 	ag := env.publishAgent(t, "Helper", env.agentConfig(env.kb.Id.String()))
@@ -697,7 +699,7 @@ func TestChatModelBusyVersusUnavailable(t *testing.T) {
 		code   string
 	}{{http.StatusTooManyRequests, "model_busy"}, {http.StatusInternalServerError, "model_unavailable"}} {
 		env.proxy.FailChatWith(tc.status)
-		code, raw := env.member.raw("POST", env.chatPath(ag.Slug), map[string]any{"message": "Where do students buy a parking permit?"}, nil)
+		code, raw := env.member.raw("POST", env.chatPath(ag.Slug), map[string]any{"message": "Where do students buy a parking permit?", "stream": false}, nil)
 		var body struct {
 			Error struct {
 				Code    string         `json:"code"`
@@ -707,9 +709,18 @@ func TestChatModelBusyVersusUnavailable(t *testing.T) {
 		if err := json.Unmarshal(raw, &body); err != nil || code != 503 || body.Error.Code != tc.code || body.Error.Details["conversationId"] == nil {
 			t.Fatalf("gateway %d: chat = %d %s", tc.status, code, raw)
 		}
+		code, evs, e := env.member.stream(env.chatPath(ag.Slug), map[string]any{"message": "Where do students buy a parking permit?"})
+		mustCode(t, "streamed", code, e, 200, "")
+		var conv struct{ ConversationId *string }
+		evs.one(t, "conversation", &conv)
+		var failed apitypes.ChatEventError
+		evs.one(t, "error", &failed)
+		if conv.ConversationId == nil || failed.Code != tc.code || strings.Join(evs.names(), ",") != "conversation,status,retrieval,status,error,done" {
+			t.Fatalf("gateway %d: streamed = %v %+v", tc.status, evs.names(), failed)
+		}
 	}
 	env.proxy.FailChatWith(0)
-	if n := env.scalar(t, `SELECT count(*) FROM message_events WHERE error_code IN ('model_busy', 'model_unavailable')`); n != 2 {
+	if n := env.scalar(t, `SELECT count(*) FROM message_events WHERE error_code IN ('model_busy', 'model_unavailable')`); n != 4 {
 		t.Errorf("failed answers recorded = %d", n)
 	}
 }

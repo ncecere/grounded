@@ -15,7 +15,7 @@ import (
 )
 
 // Event is one step of an answer, for the SSE stream (docs/phase3-agents.md
-// §7): conversation, retrieval, message_start, thinking_delta, text_delta,
+// §7): conversation, status (progress.go), retrieval, message_start, thinking_delta, text_delta,
 // tool_call, tool_result, moderation (docs/phase4-publishing.md §4),
 // message_end, citations_checked (docs/systemone.md §3), error.
 type Event struct {
@@ -29,6 +29,11 @@ type (
 		ConversationID *uuid.UUID `json:"conversationId"`
 		UserMessageID  *uuid.UUID `json:"userMessageId"`
 		AgentVersion   *int32     `json:"agentVersion"`
+	}
+	// StatusEvent says what the agent is doing before the answer's first
+	// words: one of the Step constants.
+	StatusEvent struct {
+		Step string `json:"step"`
 	}
 	RetrievalHit struct {
 		N       int    `json:"n"`

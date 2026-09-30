@@ -191,11 +191,12 @@ func TestModerationInChat(t *testing.T) {
 	ag := env.publishAgent(t, "Help", env.agentConfig(env.kb.Id.String()))
 	chat := env.chatPath("help")
 
-	// Input block: no retrieval, no model call, the notice and a moderation event.
-	chatsBefore, embedsBefore := len(env.proxy.ChatRequests()), countRequests(env, "/v1/embeddings")
+	// Input block: no sources, no model call, the notice and a moderation event. The search started while the
+	// question was checked; its results are discarded.
+	chatsBefore := len(env.proxy.ChatRequests())
 	code, evs, e := env.member.stream(chat, map[string]any{"message": "How do I hurt someone without getting caught?"})
 	mustCode(t, "blocked chat", code, e, 200, "")
-	if got := strings.Join(evs.names(), ","); got != "conversation,message_start,moderation,message_end,done" {
+	if got := strings.Join(evs.names(), ","); got != "conversation,status,message_start,moderation,message_end,done" {
 		t.Fatalf("events = %s", got)
 	}
 	var mod apitypes.ChatEventModeration
@@ -205,8 +206,8 @@ func TestModerationInChat(t *testing.T) {
 	if mod.Stage != "input" || mod.Action != "blocked" || mod.Category == nil || *mod.Category != "violence" || end.Text != moderation.DefaultNotice {
 		t.Fatalf("moderation = %+v, end = %+v", mod, end)
 	}
-	if len(env.proxy.ChatRequests()) != chatsBefore || countRequests(env, "/v1/embeddings") != embedsBefore {
-		t.Error("a blocked question reached retrieval or the chat model")
+	if len(env.proxy.ChatRequests()) != chatsBefore {
+		t.Error("a blocked question reached the chat model")
 	}
 	var conv struct{ ConversationId *string }
 	evs.one(t, "conversation", &conv)
@@ -354,16 +355,6 @@ func TestModerationInChat(t *testing.T) {
 	if n := env.scalar(t, `SELECT count(*) FROM message_events WHERE agent_id = $1 AND error_code <> ''`, ag.Id); n != 0 {
 		t.Errorf("moderation counted as answer errors: %d", n)
 	}
-}
-
-func countRequests(env *moderationEnv, path string) int {
-	n := 0
-	for _, r := range env.proxy.RequestLog() {
-		if strings.Contains(r, " "+path+" ") {
-			n++
-		}
-	}
-	return n
 }
 
 // F-02: an uncalibrated provider's middling score flags instead of

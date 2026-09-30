@@ -3,14 +3,20 @@
 // platform's SystemOne model and routed to evidence, conflicting evidence
 // or dropped. It runs in always mode and for each search_knowledge call.
 // Judging is quality, not safety: a failed or slow request keeps the
-// passage at its fused rank (fail-open). Only counts are recorded, never
-// text (ADR-0010).
+// passage at its fused rank (fail-open), and judging waits at most the
+// platform's time limit, so an answer is never worse or much later than
+// without it. Only counts are recorded, never text (ADR-0010).
 
 package agents
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"time"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/ncecere/grounded/internal/kbs"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -57,8 +63,11 @@ type JudgingRecord struct {
 	Kept        int            `json:"kept"` // passages given to the model
 	Dropped     map[string]int `json:"dropped"`
 	Skipped     int            `json:"skipped"`
-	Requests    int            `json:"requests"`
-	LatencyMs   int64          `json:"latencyMs"`
+	// CutShort counts the searches whose judging the time limit ended
+	// with requests still running (their passages are among Skipped).
+	CutShort  int   `json:"cutShort,omitempty"`
+	Requests  int   `json:"requests"`
+	LatencyMs int64 `json:"latencyMs"`
 	// NoContextReason is judged_out when a strict agent refused because
 	// judging dropped every candidate.
 	NoContextReason string `json:"noContextReason,omitempty"`
@@ -70,20 +79,26 @@ type searchJudging struct {
 }
 
 // judgeCandidates judges the fused candidates of one search and returns
-// the evidence and conflicting passages, each best first. The step is
-// bounded by twice the per-request timeout; requests still waiting for a
-// slot then are skipped.
-func (r *retriever) judgeCandidates(ctx context.Context, query string, merged []*fusedHit) (evidence, conflicting []*fusedHit, js []systemone.Judgment) {
+// the evidence and conflicting passages, each best first. The step waits
+// at most the time limit (and never more than twice the per-request
+// timeout): requests still running or waiting for a slot then are
+// cancelled and their passages kept unjudged (skipped). The counts go on
+// the search's span.
+func (r *retriever) judgeCandidates(ctx context.Context, span trace.Span, query string, merged []*fusedHit) (evidence, conflicting []*fusedHit, js []systemone.Judgment) {
 	plan := r.judge
 	cands := merged[:min(len(merged), plan.Candidates)]
 	ps := make([]systemone.Passage, len(cands))
 	for i, f := range cands {
 		ps[i] = kbs.PassageOf(f.hit)
 	}
-	jctx, cancel := context.WithTimeout(ctx, 2*plan.Options.Timeout) // fail-open beyond this
-
+	limit := judgingLimit(plan)
+	jctx, cancel := context.WithTimeout(ctx, limit) // fail-open beyond this
 	defer cancel()
 	js, st := plan.Client.Judge(jctx, query, ps, plan.Options)
+	skipped := countSkipped(js)
+	cutShort := skipped > 0 && errors.Is(jctx.Err(), context.DeadlineExceeded) && ctx.Err() == nil
+	span.SetAttributes(attribute.Int("grounded.judging.candidates", len(js)), attribute.Int("grounded.judging.skipped", skipped),
+		attribute.Int64("grounded.judging.time_limit_ms", limit.Milliseconds()), attribute.Bool("grounded.judging.cut_short", cutShort))
 	for _, i := range systemone.Rank(js, func(j systemone.Judgment) bool { return j.Route == systemone.RouteEvidence }) {
 		evidence = append(evidence, cands[i])
 	}
@@ -92,8 +107,32 @@ func (r *retriever) judgeCandidates(ctx context.Context, query string, merged []
 	}
 	r.mu.Lock()
 	r.addJudging(plan.Options.Mode, js, st)
+	if cutShort {
+		r.judging.CutShort++
+	}
 	r.mu.Unlock()
 	return evidence, conflicting, js
+}
+
+// judgingLimit is how long one search's judging may take: the platform's
+// time limit, bounded by twice the per-request timeout.
+func judgingLimit(plan *systemone.JudgePlan) time.Duration {
+	hard := 2 * plan.Options.Timeout
+	if plan.TimeLimit > 0 && plan.TimeLimit < hard {
+		return plan.TimeLimit
+	}
+	return hard
+}
+
+// countSkipped counts the judgments that did not complete.
+func countSkipped(js []systemone.Judgment) int {
+	n := 0
+	for _, j := range js {
+		if j.Skipped {
+			n++
+		}
+	}
+	return n
 }
 
 // addJudging adds one search to the answer's record. r.mu must be held.

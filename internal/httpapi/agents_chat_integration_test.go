@@ -148,11 +148,14 @@ func TestAgentLifecycleAndChat(t *testing.T) {
 	code, evs, e := member.stream(env.chatPath("student-help"), map[string]any{"message": "Where do students buy a parking permit?"})
 	mustCode(t, "chat", code, e, 200, "")
 	names := evs.names()
-	want := []string{"conversation", "retrieval", "message_start"}
+	want := []string{"conversation", "status", "retrieval", "status", "message_start"}
 	for i, n := range want {
 		if i >= len(names) || names[i] != n {
 			t.Fatalf("event order = %v", names)
 		}
+	}
+	if steps := statusSteps(evs); strings.Join(steps, ",") != "searching,answering" {
+		t.Fatalf("status steps = %v", steps)
 	}
 	if names[len(names)-1] != "done" || names[len(names)-2] != "message_end" {
 		t.Fatalf("event order = %v", names)

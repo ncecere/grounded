@@ -720,6 +720,30 @@ func (e ChatEventModerationStage) Valid() bool {
 	}
 }
 
+// Defines values for ChatEventStatusStep.
+const (
+	Answering ChatEventStatusStep = "answering"
+	Checking  ChatEventStatusStep = "checking"
+	Rewriting ChatEventStatusStep = "rewriting"
+	Searching ChatEventStatusStep = "searching"
+)
+
+// Valid indicates whether the value is a known member of the ChatEventStatusStep enum.
+func (e ChatEventStatusStep) Valid() bool {
+	switch e {
+	case Answering:
+		return true
+	case Checking:
+		return true
+	case Rewriting:
+		return true
+	case Searching:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ChatHistoryMessageRole.
 const (
 	ChatHistoryMessageRoleAssistant ChatHistoryMessageRole = "assistant"
@@ -5175,6 +5199,14 @@ type ChatEventRetrieval struct {
 	Query string `json:"query"`
 }
 
+// ChatEventStatus SSE event status: what the agent is doing before the answer's first words, once per step (v0.3.0 and later). rewriting: turning a follow-up that depends on the conversation into a search query; searching: searching the knowledge bases; checking: SystemOne passage judging; answering: the model is writing (until the first token). Clients should ignore steps they don't know.
+type ChatEventStatus struct {
+	Step ChatEventStatusStep `json:"step"`
+}
+
+// ChatEventStatusStep defines model for ChatEventStatus.Step.
+type ChatEventStatusStep string
+
 // ChatEventToolCall SSE event tool_call
 type ChatEventToolCall struct {
 	// Arguments The model's JSON arguments
@@ -9395,6 +9427,9 @@ type SystemOneJudging struct {
 
 	// Thresholds The routing table, first match wins: injection >= injection drops; relevant < relevant drops; contradicts >= contradicts is conflicting evidence; evidence >= evidence is evidence; otherwise dropped
 	Thresholds SystemOneThresholds `json:"thresholds"`
+
+	// TimeLimitMs Passage judging time limit: the longest an answer waits for one search's judging (never more than twice timeoutMs). Requests still running then are cancelled and their passages kept unjudged (fail-open). Default 1500; always returned; when a client leaves it out on save, the saved value is kept.
+	TimeLimitMs *int `json:"timeLimitMs,omitempty"`
 
 	// TimeoutMs Per request; a request that times out keeps its passage (fail-open)
 	TimeoutMs int `json:"timeoutMs"`

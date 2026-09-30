@@ -101,11 +101,13 @@ func (s *Service) Get(ctx context.Context, a authz.Actor) (Stored, error) {
 }
 
 // Input is the settings to save. KeepCitations and KeepScope keep the
-// saved sections (clients from before those features send judging only).
+// saved sections (clients from before those features send judging only);
+// KeepTimeLimit keeps the saved judging time limit (clients from before
+// it).
 type Input struct {
-	ModelID                  *uuid.UUID
-	Settings                 Settings
-	KeepCitations, KeepScope bool
+	ModelID                                 *uuid.UUID
+	Settings                                Settings
+	KeepCitations, KeepScope, KeepTimeLimit bool
 }
 
 // check validates the settings to save.
@@ -140,7 +142,7 @@ func (s *Service) Put(ctx context.Context, a authz.Actor, in Input, expectedRevi
 	if a.Key != nil || !a.IsPlatformAdmin() {
 		return Stored{}, errAdminOnly
 	}
-	if !in.KeepCitations && !in.KeepScope {
+	if !in.KeepCitations && !in.KeepScope && !in.KeepTimeLimit {
 		if err := in.check(); err != nil {
 			return Stored{}, err // before taking the lock
 		}
@@ -159,6 +161,9 @@ func (s *Service) Put(ctx context.Context, a authz.Actor, in Input, expectedRevi
 		}
 		if in.KeepScope {
 			in.Settings.Scope = cur.Settings.Scope
+		}
+		if in.KeepTimeLimit {
+			in.Settings.Judging.TimeLimitMs = cur.Settings.Judging.TimeLimitMs
 		}
 		if err := in.check(); err != nil {
 			return err
@@ -228,11 +233,14 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 	return out, nil
 }
 
-// JudgePlan is passage judging for one chat or retrieval.
+// JudgePlan is passage judging for one chat or retrieval. TimeLimit bounds
+// one search's judging in a chat (the KB playground waits for every
+// judgment).
 type JudgePlan struct {
 	Client     *Client
 	Candidates int
 	Options    JudgeOptions
+	TimeLimit  time.Duration
 }
 
 // JudgePlan returns the judging to run under an agent's override; nil when
@@ -256,7 +264,7 @@ func (s *Service) JudgePlan(ctx context.Context, o Override, force bool) (*Judge
 }
 
 func judgePlan(cl *Client, j Judging) *JudgePlan {
-	return &JudgePlan{Client: cl, Candidates: j.Candidates,
+	return &JudgePlan{Client: cl, Candidates: j.Candidates, TimeLimit: j.TimeLimit(),
 		Options: JudgeOptions{Mode: j.Mode, Timeout: j.Timeout(), Thresholds: j.Thresholds}}
 }
 

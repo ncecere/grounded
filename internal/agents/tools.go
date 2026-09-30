@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/ncecere/grounded/internal/agentloop"
 	"github.com/ncecere/grounded/internal/audit"
@@ -281,7 +282,7 @@ func (r *retriever) addToolSource(ctx context.Context, question, text string, sr
 	h := kbs.Hit{ChunkID: uuid.New(), Title: src.ServerName + " · " + src.Tool, Content: text, Distance: -1}
 	conflicting := false
 	if r.judge != nil {
-		evidence, conf, _ := r.judgeCandidates(ctx, question, []*fusedHit{{hit: h}})
+		evidence, conf, _ := r.judgeCandidates(ctx, trace.SpanFromContext(ctx), question, []*fusedHit{{hit: h}})
 		if len(evidence) == 0 && len(conf) == 0 {
 			return numberedHit{}, false
 		}

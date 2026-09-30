@@ -104,7 +104,7 @@ func TestOpenAICompatibleEndpoint(t *testing.T) {
 	if comp.Object != "chat.completion" || comp.Model != model || !strings.HasPrefix(comp.ID, "chatcmpl-") || c.Message.Role != "assistant" ||
 		!strings.HasSuffix(c.Message.Content, "[1]") || c.Message.ReasoningContent == "" || c.FinishReason != "stop" ||
 		comp.Usage.PromptTokens == 0 || comp.Usage.TotalTokens != comp.Usage.PromptTokens+comp.Usage.CompletionTokens ||
-		comp.Usage.CompletionTokensDetails.ReasoningTokens != 6 || // answer + query rewrite
+		comp.Usage.CompletionTokensDetails.ReasoningTokens != 3 || // the answer: the question stands on its own, so it isn't rewritten
 		len(comp.Citations) != 1 || comp.Citations[0].Title != "Parking" {
 		t.Fatalf("completion = %s", raw)
 	}

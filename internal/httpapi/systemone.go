@@ -54,7 +54,7 @@ func (a *api) adminPutSystemOne(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	put := systemone.Input{ModelID: in.ModelId, Settings: systemone.Settings{Judging: viaJSON[systemone.Judging](in.Judging)},
-		KeepCitations: in.Citations == nil, KeepScope: in.Scope == nil}
+		KeepCitations: in.Citations == nil, KeepScope: in.Scope == nil, KeepTimeLimit: in.Judging.TimeLimitMs == nil}
 	if in.Citations != nil {
 		put.Settings.Citations = viaJSON[systemone.Citations](*in.Citations)
 	}

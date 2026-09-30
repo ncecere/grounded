@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/ncecere/grounded/internal/agentloop"
 	"github.com/ncecere/grounded/internal/kbs"
@@ -78,27 +79,54 @@ func newRetriever(svc *kbs.Service, resolved []kbs.KB, c Config, user string) *r
 // With judging, the top candidates are judged first: evidence is re-ranked
 // by relevance, dropped passages are left out and conflicting ones follow
 // (marked). sj is nil when nothing was judged.
-func (r *retriever) search(ctx context.Context, query string, maxResults int) (out []numberedHit, sj *searchJudging, err error) {
-	// The query is never recorded: only counts.
-	ctx, span := tracing.Start(ctx, "agent.retrieve", attribute.Int("grounded.retrieval.kbs", len(r.kbs)), attribute.Bool("grounded.retrieval.judged", r.judge != nil))
+func (r *retriever) search(ctx context.Context, query string, maxResults int) ([]numberedHit, *searchJudging, error) {
+	ctx, span := r.startSearch(ctx)
+	return r.finishSearch(ctx, span, r.fetch(ctx, query), maxResults)
+}
+
+// startSearch starts a search's span. The query is never recorded: only
+// counts.
+func (r *retriever) startSearch(ctx context.Context) (context.Context, trace.Span) {
+	return tracing.Start(ctx, "agent.retrieve", attribute.Int("grounded.retrieval.kbs", len(r.kbs)), attribute.Bool("grounded.retrieval.judged", r.judge != nil))
+}
+
+// candidates are a search's fused hits before judging.
+type candidates struct {
+	query  string
+	merged []*fusedHit
+	total  int // the sum of the KBs' top-k
+	err    error
+}
+
+// fetch searches every KB and fuses the rankings, without judging: the
+// part of a search that may run before the input and scope checks have
+// answered (always mode). Embedding tokens are counted.
+func (r *retriever) fetch(ctx context.Context, query string) candidates {
+	results, total := r.searchKBs(ctx, query)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	merged, err := r.fuse(results)
+	return candidates{query: query, merged: merged, total: total, err: err}
+}
+
+// finishSearch judges the candidates (when judging is on), numbers them
+// and ends the search's span.
+func (r *retriever) finishSearch(ctx context.Context, span trace.Span, c candidates, maxResults int) (out []numberedHit, sj *searchJudging, err error) {
 	defer func() {
 		span.SetAttributes(attribute.Int("grounded.retrieval.results", len(out)))
 		tracing.End(span, err)
 	}()
-	results, total := r.searchKBs(ctx, query)
-	if maxResults <= 0 || maxResults > total {
-		maxResults = total
+	if c.err != nil {
+		return nil, nil, c.err
 	}
-	r.mu.Lock()
-	merged, err := r.fuse(results)
-	r.mu.Unlock()
-	if err != nil {
-		return nil, nil, err
+	if maxResults <= 0 || maxResults > c.total {
+		maxResults = c.total
 	}
+	merged := c.merged
 	var conflicting []*fusedHit
 	if r.judge != nil && len(merged) > 0 {
 		var js []systemone.Judgment
-		merged, conflicting, js = r.judgeCandidates(ctx, query, merged)
+		merged, conflicting, js = r.judgeCandidates(ctx, span, c.query, merged)
 		sj = &searchJudging{judged: len(js), dropped: countDropped(js)}
 	}
 

@@ -68,10 +68,23 @@ func TestFollowUpsAreSearchedInContext(t *testing.T) {
 	if q, _ = ask("And for a second one?", conv); q != first+" How much does it cost? And for a second one?" {
 		t.Errorf("third turn searched %q", q)
 	}
-	// A follow-up that names its subject is searched as the model rewrote it.
+	// A follow-up that names its subject is searched as it is, without a rewrite.
+	rewrites := func() int {
+		n := 0
+		for _, sys := range systemPrompts(env.proxy) {
+			if strings.Contains(sys, "standalone") {
+				n++
+			}
+		}
+		return n
+	}
+	before := rewrites()
+	if before != 2 {
+		t.Errorf("rewrites of the dependent follow-ups = %d", before)
+	}
 	clear := "When do the residence halls open for move-in in August?"
-	if q, _ = ask(clear, conv); q != clear {
-		t.Errorf("a clear follow-up searched %q", q)
+	if q, _ = ask(clear, conv); q != clear || rewrites() != before {
+		t.Errorf("a clear follow-up searched %q after %d rewrites", q, rewrites()-before)
 	}
 	// The rewrite leaves room for a reasoning model's thinking.
 	for _, raw := range env.proxy.ChatRequests() {

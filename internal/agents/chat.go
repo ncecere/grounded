@@ -148,9 +148,13 @@ type run struct {
 	firstToken time.Duration
 	retr       *retriever
 	extraUsage llm.Usage // query rewrite
-	// firstSearch is the search before the model (always mode), stored
-	// with the answer so a reload shows its step.
+	// early is always mode's search while the input and scope checks run
+	// (progress.go); nil once used or settled. firstSearch is its view,
+	// stored with the answer so a reload shows its step.
+	early       *earlySearch
 	firstSearch *RetrievalView
+	// step is the last status event's step.
+	step string
 
 	mod           *moderation.Plan // nil: nothing is moderated
 	modIn, modOut *moderation.Decision
@@ -347,7 +351,10 @@ func (ru *run) execute(ctx context.Context, emit func(Event)) (ans Answer, err e
 	if v := ru.versionNum(); v != nil {
 		span.SetAttributes(attribute.Int("grounded.agent_version", int(*v)))
 	}
-	defer func() { tracing.End(span, err) }()
+	defer func() {
+		ru.settleSearch() // a search left over by an early return
+		tracing.End(span, err)
+	}()
 	return ru.answer(ctx, emit)
 }
 
@@ -385,12 +392,10 @@ func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 	if err := ru.planModeration(ctx); err != nil {
 		return ru.failBeforeStart(ctx, err)
 	}
-	// Input moderation and the scope check run concurrently with the rewrite.
+	// Input moderation and the scope check run concurrently with the rewrite
+	// and, in always mode, the search; judging waits for them (progress.go).
 	inputCheck, scopeCheck := ru.startInputCheck(ctx), ru.startScopeCheck(ctx)
-	query := ru.question
-	if ru.cfg.QueryRewrite && len(ru.history) > 0 {
-		query = ru.rewrite(ctx)
-	}
+	ru.startSearch(ctx)
 	if ru.awaitInput(inputCheck) {
 		return ru.blockInput(ctx)
 	}
@@ -412,7 +417,7 @@ func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 		msgs = append(msgs, llm.UserMessage{Content: ru.question})
 	} else {
 		// A strict agent with tools may still answer from a tool's result.
-		msg, refuse, err := ru.retrieveFirst(ctx, query, len(mcpTools) == 0)
+		msg, refuse, err := ru.retrieveFirst(len(mcpTools) == 0)
 		if err != nil {
 			return ru.failBeforeStart(ctx, err)
 		}
@@ -423,6 +428,7 @@ func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 	}
 	tools = append(tools, mcpTools...)
 
+	ru.status(StepAnswering)
 	st := &loopState{}
 	loopCfg := agentloop.Config{
 		Provider: s.NewProvider(target.Client), Model: ru.model, SystemPrompt: sys, Tools: tools,
@@ -472,29 +478,6 @@ func (ru *run) admit(ctx context.Context) (release func(), err error) {
 		}
 	}
 	return release, nil
-}
-
-// retrieveFirst searches before the model runs (always mode) and builds the
-// user message with the sources. refuse is set when strict grounding found
-// nothing to answer from and canRefuse (the agent has no tools to call).
-func (ru *run) retrieveFirst(ctx context.Context, query string, canRefuse bool) (msg llm.Message, refuse bool, err error) {
-	hits, sj, err := ru.retr.search(ctx, query, 0)
-	if err != nil {
-		return nil, false, err
-	}
-	ru.out.send(Event{"retrieval", RetrievalEvent{Query: query, Hits: ru.retrievalHits(hits), Judging: sj.event()}})
-	ru.firstSearch = &RetrievalView{Query: query, HitCount: len(hits), Judging: sj.event()}
-	if len(hits) == 0 && ru.cfg.StrictlyGrounded && canRefuse {
-		if sj.judgedOut() {
-			ru.noContextReason = NoContextJudgedOut
-		}
-		return nil, true, nil
-	}
-	content := noSourcesNote + "\n\n" + ru.question
-	if len(hits) > 0 {
-		content = formatSources(hits) + "\n\n" + ru.question
-	}
-	return llm.UserMessage{Content: content}, false, nil
 }
 
 // options are the model options of the answer.

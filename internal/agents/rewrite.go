@@ -1,17 +1,18 @@
-// Query rewrite (docs/phase3-agents.md §6, queryRewrite): in a conversation, the chat
-// model turns the user's latest message into a search query that stands on
-// its own ("And for a second copy?" → "How much does a second official
-// transcript cost?"). Retrieval is only as good as that query, so the
-// rewrite must not fail quietly:
+// Query rewrite (docs/phase3-agents.md §6, queryRewrite): in a conversation,
+// a message that leans on it (needsContext: short, led by a conjunction or
+// "what about", or with a referring pronoun) is turned by the chat model into
+// a search query that stands on its own ("And for a second copy?" → "How
+// much does a second official transcript cost?"). A message that already
+// stands on its own is searched as it is: no model call, which a reasoning
+// model can make take seconds. Retrieval is only as good as the query, so
+// the rewrite must not fail quietly:
 //
 //   - reasoning models spend output tokens thinking before they answer, so
 //     the rewrite asks for low reasoning effort (when the model supports it)
 //     and leaves room for the reasoning;
 //   - long earlier answers are shortened in the rewrite's context;
-//   - a message that leans on the conversation (short, led by a
-//     conjunction, or with a pronoun) that comes back empty or unchanged is
-//     searched together with the user's earlier question, and a failed
-//     rewrite is logged.
+//   - a rewrite that comes back empty or unchanged is searched together
+//     with the user's earlier question, and a failed rewrite is logged.
 
 package agents
 
@@ -35,9 +36,9 @@ const (
 	rewriteShortWords  = 6
 )
 
-// rewrite turns the question into a search query that stands on its own
-// (non-streaming). On failure, or when a message that needs the conversation
-// comes back unchanged, the earlier questions are searched with it.
+// rewrite turns a question that needs the conversation into a search query
+// that stands on its own (the caller checks needsContext). On failure, or
+// when it comes back unchanged, the earlier questions are searched with it.
 func (ru *run) rewrite(ctx context.Context) string {
 	rctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()

@@ -1,10 +1,11 @@
 // The scope check in the chat pipeline (docs/systemone.md §4, ADR-0020):
-// before retrieval, the SystemOne model says whether the message is small
-// talk and whether it is within the agent's subject. Small talk is
-// answered briefly without retrieval; a strict agent refuses an
-// out-of-scope question without retrieval or a chat-model call. It runs
-// concurrently with input moderation and the query rewrite, and fails open
-// (the message is answered normally). Only decisions are recorded.
+// before the search's results are used, the SystemOne model says whether
+// the message is small talk and whether it is within the agent's subject.
+// Small talk is answered briefly without sources; a strict agent refuses
+// an out-of-scope question without judging or a chat-model call. It runs
+// concurrently with input moderation, the query rewrite and the search
+// (whose results are then discarded; progress.go), and fails open (the
+// message is answered normally). Only decisions are recorded.
 
 package agents
 
@@ -123,6 +124,7 @@ func (ru *run) smallTalk(ctx context.Context) (Answer, error) {
 	if opts.MaxTokens == 0 || opts.MaxTokens > smallTalkMaxTokens {
 		opts.MaxTokens = smallTalkMaxTokens
 	}
+	ru.status(StepAnswering)
 	st := &loopState{}
 	cfg := agentloop.Config{Provider: ru.s.NewProvider(ru.target.Client), Model: ru.model, SystemPrompt: sys, MaxTurns: 1, Options: opts}
 	added, runErr := agentloop.Run(ctx, cfg, msgs, func(ev agentloop.Event) { ru.onEvent(ev, st) })

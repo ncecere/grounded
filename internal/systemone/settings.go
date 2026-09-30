@@ -24,8 +24,12 @@ type Judging struct {
 	Candidates int    `json:"candidates"`
 	Mode       string `json:"mode"`
 	// TimeoutMs bounds each SystemOne request (500-60000).
-	TimeoutMs  int        `json:"timeoutMs"`
-	Thresholds Thresholds `json:"thresholds"`
+	TimeoutMs int `json:"timeoutMs"`
+	// TimeLimitMs bounds the judging of one search in a chat (500-10000,
+	// and never more than twice TimeoutMs): requests still running then
+	// are cancelled and their passages kept unjudged (fail-open).
+	TimeLimitMs int        `json:"timeLimitMs"`
+	Thresholds  Thresholds `json:"thresholds"`
 }
 
 // Limits and defaults of the judging settings.
@@ -38,13 +42,18 @@ const (
 	DefaultTimeoutMs  = 5000
 	minTimeoutMs      = 500
 	maxTimeoutMs      = 60000
+	// DefaultTimeLimitMs: an answer waits at most 1.5 s for judging (one
+	// slow request used to hold every answer up to twice the timeout).
+	DefaultTimeLimitMs = 1500
+	minTimeLimitMs     = 500
+	maxTimeLimitMs     = 10000
 )
 
 // DefaultSettings are the settings until an admin saves some.
 func DefaultSettings() Settings {
 	return Settings{
 		Judging: Judging{Candidates: DefaultCandidates, Mode: ModePerPassage,
-			TimeoutMs: DefaultTimeoutMs, Thresholds: DefaultThresholds},
+			TimeoutMs: DefaultTimeoutMs, TimeLimitMs: DefaultTimeLimitMs, Thresholds: DefaultThresholds},
 		Citations: DefaultCitations(),
 		Scope:     DefaultScope(),
 	}
@@ -61,6 +70,9 @@ func DecodeSettings(raw json.RawMessage) Settings {
 
 // Timeout is the per-request timeout.
 func (j Judging) Timeout() time.Duration { return time.Duration(j.TimeoutMs) * time.Millisecond }
+
+// TimeLimit is how long a chat waits for one search's judging.
+func (j Judging) TimeLimit() time.Duration { return time.Duration(j.TimeLimitMs) * time.Millisecond }
 
 // Problem is one invalid field.
 type Problem struct {
@@ -88,6 +100,9 @@ func (s Settings) Validate() []Problem {
 	}
 	if j.TimeoutMs < minTimeoutMs || j.TimeoutMs > maxTimeoutMs {
 		out = append(out, Problem{"judging.timeoutMs", "The timeout must be between 500 and 60000 ms"})
+	}
+	if j.TimeLimitMs < minTimeLimitMs || j.TimeLimitMs > maxTimeLimitMs {
+		out = append(out, Problem{"judging.timeLimitMs", "The time limit must be between 500 and 10000 ms"})
 	}
 	t := j.Thresholds
 	out = append(out, checkUnit("judging.thresholds.injection", t.Injection)...)
