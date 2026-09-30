@@ -132,7 +132,10 @@ export const adminTabCommands: { id: string; label: string; to: AdminPath; tab?:
     to: "/admin",
     hash: "features",
     icon: icon(ToggleRight),
-    keywords: ["feature", "feature switches", "evaluations", "evaluation switch", "turn on", "turn off", "optional", "cost tracking", "overview"],
+    keywords: [
+      "feature", "feature switches", "evaluations", "evaluation switch", "turn on", "turn off", "optional", "cost tracking", "overview",
+      "mcp", "mcp server", "model context protocol", "oauth", "oauth sign-in", "ai tools", "setup guide", "how it works",
+    ],
   },
 ];
 
@@ -146,8 +149,10 @@ export function activeAdminGroup(pathname: string): string | undefined {
 
 /** Extra command-palette search words for admin pages. */
 export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
-  "/admin": ["overview", "dashboard", "attention", "home", "platform at a glance", "recent changes"],
-  "/admin/mcp-servers": ["mcp", "tools", "model context protocol", "remote tools", "approve tools", "tool approval", "integrations"],
+  "/admin": ["overview", "dashboard", "attention", "needs attention", "failing", "health", "home", "platform at a glance", "recent changes"],
+  "/admin/connections": ["gateway", "health", "failing", "test connection"],
+  "/admin/models": ["health", "failing", "test model"],
+  "/admin/mcp-servers": ["mcp", "tools", "model context protocol", "remote tools", "approve tools", "tool approval", "integrations", "health", "failing"],
   "/admin/group-mapping": ["sso", "groups", "identity provider", "idp", "oidc", "membership rules", "access"],
   "/admin/crawl-domains": ["allowlist", "domain requests", "web", "crawling"],
   "/admin/parsing": ["ocr", "scanned", "scan", "tesseract", "tika", "vision", "images", "pdf", "languages"],

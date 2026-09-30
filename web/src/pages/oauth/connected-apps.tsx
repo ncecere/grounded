@@ -2,24 +2,30 @@
  * Connected apps (docs/mcp.md, "Signing in with OAuth"): the AI tools a
  * person allowed to search and ask as them with OAuth sign-in (an OAuth
  * grant each), with when they were connected and last used, and Disconnect.
- * The person sees theirs on their team's API keys page; platform admins see
- * anyone's on the person's admin page (auditors read, without Disconnect).
+ * Everyone reaches theirs from the account menu (/settings/connected-apps,
+ * also for people in no team) and from their team's API keys page; platform
+ * admins see anyone's on the person's admin page (auditors read, without
+ * Disconnect), with absolute dates as on any record page.
+ *
+ * A list rather than a table, so Disconnect wraps under the app on a phone
+ * instead of scrolling out of view.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plug, Unplug } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
-import { RelativeTime } from "@/components/templates/list-page";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item/item";
 import { Loading } from "@/components/ui/spinner/spinner";
-import { Table, TableActions, Td, Th, Tr } from "@/components/ui/table/table";
+import { Time } from "@/components/ui/time/time";
 import { toast } from "@/components/ui/toast/toast";
 import s from "../shared.module.css";
+import styles from "./connected-apps.module.css";
 
 type Grant = Schemas["OAuthGrant"];
 
@@ -53,6 +59,13 @@ function useDisconnect(owner: ConnectedAppsOwner, onDone: () => void) {
   });
 }
 
+function intro(owner: ConnectedAppsOwner, canDisconnect: boolean) {
+  const who = owner.self ? "you" : owner.name;
+  const them = owner.self ? "you" : "them";
+  const lead = `AI tools ${who} allowed to search knowledge bases and ask agents as ${them}, with OAuth sign-in.`;
+  return canDisconnect ? `${lead} Disconnecting one stops it at once.` : lead;
+}
+
 /**
  * The Connected apps card. `hideWhenEmpty` leaves it out for a person with
  * no apps while OAuth sign-in is off (the API keys page).
@@ -63,47 +76,45 @@ export function ConnectedApps({ owner, canDisconnect, hideWhenEmpty = false }: {
   const disconnect = useDisconnect(owner, () => setTarget(null));
   const list = grants.data ?? [];
   if (hideWhenEmpty && grants.isSuccess && list.length === 0) return null;
-  const whose = owner.self ? "you" : owner.name;
+  const empty = owner.self ? "Apps you connect with OAuth sign-in are listed here." : `Apps ${owner.name} connects with OAuth sign-in are listed here.`;
+  // A person's admin page is a record page: absolute dates there.
+  const format = owner.self ? "relative" : "datetime";
   return (
-    <Card
-      title="Connected apps"
-      description={`AI tools ${owner.self ? "you" : owner.name} allowed to search knowledge bases and ask agents as ${owner.self ? "you" : "them"}, with OAuth sign-in. Disconnecting one stops it at once.`}
-      flush={list.length > 0}
-    >
+    <Card title="Connected apps" description={intro(owner, canDisconnect)}>
       {grants.isLoading && <Loading label="Loading connected apps…" />}
       <ErrorAlert error={grants.error} title="Couldn't load connected apps" />
-      {grants.isSuccess && list.length === 0 && (
-        <EmptyState size="compact" icon={<Plug />} title="No connected apps." description={`Apps ${whose} connect with OAuth sign-in are listed here.`} />
-      )}
+      {grants.isSuccess && list.length === 0 && <EmptyState size="compact" icon={<Plug />} title="No connected apps." description={empty} />}
       {list.length > 0 && (
-        <Table caption="Connected apps" columns={["App", "Connected", "Last used", ""]}>
+        <ItemGroup aria-label={owner.self ? "Your connected apps" : `Apps ${owner.name} connected`}>
           {list.map((g) => (
-            <Tr key={g.id}>
-              <Th>
-                <span className={s.primary}>{g.clientName}</span>{" "}
-                {g.clientKind === "registered" && (
-                  <Badge size="sm" tone="neutral">
-                    Unverified
-                  </Badge>
-                )}
-                {g.clientHost && <span className={s.secondary}>{g.clientHost}</span>}
-              </Th>
-              <Td>
-                <RelativeTime value={g.createdAt} />
-              </Td>
-              <Td>{g.lastUsedAt ? <RelativeTime value={g.lastUsedAt} /> : "Never"}</Td>
-              <Td>
-                {canDisconnect && (
-                  <TableActions>
-                    <Button size="sm" variant="secondary" onClick={() => setTarget(g)} aria-label={`Disconnect ${g.clientName}…`}>
-                      <Unplug aria-hidden /> Disconnect…
-                    </Button>
-                  </TableActions>
-                )}
-              </Td>
-            </Tr>
+            <Item key={g.id} size="sm" variant="outline">
+              <ItemContent>
+                <ItemTitle>
+                  {g.clientName}{" "}
+                  {g.clientKind === "registered" && (
+                    <Badge size="sm" tone="neutral">
+                      Unverified
+                    </Badge>
+                  )}
+                </ItemTitle>
+                {g.clientHost && <ItemDescription className={s.mono}>{g.clientHost}</ItemDescription>}
+                <ItemDescription className={styles.appMeta}>
+                  <span>
+                    Connected <Time value={g.createdAt} format={format} />
+                  </span>
+                  <span>{g.lastUsedAt ? <>Last used <Time value={g.lastUsedAt} format={format} /></> : "Not used yet"}</span>
+                </ItemDescription>
+              </ItemContent>
+              {canDisconnect && (
+                <ItemActions>
+                  <Button size="sm" variant="secondary" onClick={() => setTarget(g)} aria-label={`Disconnect ${g.clientName}…`}>
+                    <Unplug aria-hidden /> Disconnect…
+                  </Button>
+                </ItemActions>
+              )}
+            </Item>
           ))}
-        </Table>
+        </ItemGroup>
       )}
       <ConfirmMutationDialog
         target={target}

@@ -7858,15 +7858,15 @@ export interface components {
             status: "active" | "disabled_by_team";
             reason?: string;
         };
-        /** @description One match of GET /v1/search, with what the app needs to link to it: teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models, connections and embedding profiles their admin list with ?record={id}; shared sources /admin/shared-sources/{id}; agents the team's agent page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug}); knowledge bases and data sources their team page; conversations the chat with ?c={id}; evaluation sets /teams/{teamSlug}/evaluations/{id} (kind says whether the set tests a knowledge_base or an agent). */
+        /** @description One match of GET /v1/search, with what the app needs to link to it: teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models, connections, MCP servers and embedding profiles their admin list with ?record={id}; shared sources /admin/shared-sources/{id}; agents the team's agent page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug}); knowledge bases and data sources their team page; conversations the chat with ?c={id}; evaluation sets /teams/{teamSlug}/evaluations/{id} (kind says whether the set tests a knowledge_base or an agent). */
         SearchResult: {
             /** @enum {string} */
-            type: "team" | "user" | "model" | "connection" | "embedding_profile" | "shared_source" | "agent" | "knowledge_base" | "data_source" | "conversation" | "evaluation_set";
+            type: "team" | "user" | "model" | "connection" | "mcp_server" | "embedding_profile" | "shared_source" | "agent" | "knowledge_base" | "data_source" | "conversation" | "evaluation_set";
             /** Format: uuid */
             id: string;
             /** @description The name (a user's display name, or their email without one; a conversation's title) */
             label: string;
-            /** @description A second line: the team's name (agents, knowledge bases, data sources), the agent's name (conversations), the email (users), the slug (teams), the key (models, embedding profiles) or the base URL (connections). May be empty. */
+            /** @description A second line: the team's name (agents, knowledge bases, data sources), the agent's name (conversations), the email (users), the slug (teams), the key (models, embedding profiles), the base URL (connections) or the URL (MCP servers). May be empty. */
             secondary: string;
             /** @description A model's kind (chat, embedding, moderation…), a data source's type (upload, web), or what an evaluation set tests (knowledge_base, agent) */
             kind?: string;

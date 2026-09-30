@@ -65,17 +65,17 @@ func (c Client) Host() string {
 // used within the last 30 days.
 func (s *Service) ResolveClient(ctx context.Context, clientID string) (Client, error) {
 	if clientID == "" || len(clientID) > maxURILen {
-		return Client{}, pageError("invalid_client", "The request names no client, or an unknown one.")
+		return Client{}, pageError("invalid_client", "This app isn't known: the request doesn't name one. Connect the app again.")
 	}
 	if strings.HasPrefix(clientID, "https://") {
 		return s.docs.get(ctx, clientID)
 	}
 	if !strings.HasPrefix(clientID, clientPrefix) {
-		return Client{}, pageError("invalid_client", "The client is unknown. Its client_id must be an https URL (a metadata document) or a registered client.")
+		return Client{}, pageError("invalid_client", "This app isn't known: its client_id must be an https URL (a metadata document) or a registered client.")
 	}
 	row, err := s.q.GetOAuthClient(ctx, dbgen.GetOAuthClientParams{ClientID: clientID, UnusedSince: s.now().Add(-ClientUnusedTTL)})
 	if errors.Is(store.NotFound(err), store.ErrNotFound) {
-		return Client{}, pageError("invalid_client", "The client is unknown, or its registration expired. Connect the app again.")
+		return Client{}, pageError("invalid_client", "This app isn't known, or its registration expired. Connect the app again.")
 	} else if err != nil {
 		return Client{}, err
 	}

@@ -75,7 +75,7 @@ test("an AI tool connects with OAuth: consent, a code, tokens, and Disconnect on
   await test.step("the API keys page lists the app and disconnects it", async () => {
     await page.goto(`/teams/${team}/settings?tab=api-keys`);
     const card = page.getByRole("region", { name: "Connected apps" });
-    await expect(card.getByRole("table", { name: "Connected apps" }).getByText("E2E Assistant")).toBeVisible();
+    await expect(card.getByRole("list", { name: "Your connected apps" }).getByText("E2E Assistant")).toBeVisible();
     await a11y(page, "connected apps");
     await card.getByRole("button", { name: "Disconnect E2E Assistant…" }).click();
     const confirm = page.getByRole("alertdialog", { name: "Disconnect E2E Assistant?" });

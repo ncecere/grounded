@@ -3,15 +3,18 @@
  * asks to search knowledge bases and ask agents as the signed-in person.
  * The authorization endpoint (/oauth/authorize) checked the request and
  * sent the browser here with its parameters; this page reads them again
- * (GET /v1/oauth/consent), names the client, shows the host that vouches
- * for it prominently (a registered client's name is marked unverified,
- * since anyone can register any name) and where the browser goes back to,
- * and sends the decision (POST, with the app's CSRF token). The server
+ * (GET /v1/oauth/consent), names the client and the host that vouches for
+ * it (a registered client's name and website are its own claims, since
+ * anyone can register anything: they read as such, and the host that really
+ * receives the answer is named in the warning), the person's teams, and
+ * sends the decision (POST, with the app's CSRF token). The server
  * returns where to go: the client, with a code or access_denied. A request
  * that isn't valid is shown here and never sent anywhere.
  */
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Check } from "lucide-react";
+import { useEffect } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Avatar } from "@/components/ui/avatar/avatar";
@@ -20,6 +23,7 @@ import { Button } from "@/components/ui/button/button";
 import { Card, CardBody } from "@/components/ui/card/card";
 import { Stack } from "@/components/ui/layout/layout";
 import { Loading } from "@/components/ui/spinner/spinner";
+import { TextLink } from "@/components/ui/text-link/text-link";
 import { useCurrentUser, useInstance } from "@/session";
 import styles from "./consent.module.css";
 
@@ -62,6 +66,12 @@ export function OAuthConsentPage() {
     mutationFn: async (decision: Decision) => unwrap(await api.POST("/v1/oauth/consent", { body: { query: request.raw, decision } })),
     onSuccess: (out) => redirectTo.go(out.redirectUrl),
   });
+  const clientName = view.data?.client.name;
+  useEffect(() => {
+    if (clientName) document.title = `Connect ${clientName} · ${instance.name}`;
+    else if (view.error != null) document.title = `Can't connect this app · ${instance.name}`;
+  }, [clientName, view.error, instance.name]);
+  const teams = me.teams.filter((t) => t.status === "active").map((t) => t.name);
 
   return (
     <main className={styles.page}>
@@ -77,7 +87,7 @@ export function OAuthConsentPage() {
                 <p className={styles.muted}>Nothing was shared with the app. Close this page and try connecting again.</p>
               </Stack>
             )}
-            {view.data && <ConsentBody consent={view.data} instanceName={instance.name} email={me.user.email} decide={decide} />}
+            {view.data && <ConsentBody consent={view.data} instanceName={instance.name} email={me.user.email} teams={teams} decide={decide} />}
           </CardBody>
         </Card>
       </div>
@@ -85,7 +95,22 @@ export function OAuthConsentPage() {
   );
 }
 
-function ConsentBody({ consent, instanceName, email, decide }: { consent: Consent; instanceName: string; email: string; decide: ReturnType<typeof useMutation<{ redirectUrl: string }, Error, Decision>> }) {
+const listFormat = (items: string[]) => new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(items);
+
+type BodyProps = { consent: Consent; instanceName: string; email: string; teams: string[]; decide: ReturnType<typeof useMutation<{ redirectUrl: string }, Error, Decision>> };
+
+/** Where the app says it's from: a fact for a metadata document's host, the app's own claim for a registered one. */
+function ClientHost({ host, unverified }: { host: string; unverified: boolean }) {
+  if (!host) return <>It didn't give a website</>;
+  if (unverified) return <>Says it's from {host}</>;
+  return (
+    <>
+      From <strong>{host}</strong>
+    </>
+  );
+}
+
+function ConsentBody({ consent, instanceName, email, teams, decide }: BodyProps) {
   const { client } = consent;
   const unverified = client.kind === "registered";
   const busy = decide.isPending || decide.isSuccess;
@@ -98,13 +123,7 @@ function ConsentBody({ consent, instanceName, email, decide }: { consent: Consen
             {client.name} wants to use {instanceName} as you
           </h1>
           <p className={styles.host}>
-            {client.host ? (
-              <>
-                From <strong>{client.host}</strong>
-              </>
-            ) : (
-              "Its address isn't known"
-            )}{" "}
+            <ClientHost host={client.host} unverified={unverified} />{" "}
             {unverified && (
               <Badge size="sm" tone="warning">
                 Unverified
@@ -115,17 +134,22 @@ function ConsentBody({ consent, instanceName, email, decide }: { consent: Consen
       </div>
       {unverified && (
         <Alert tone="warning">
-          This app registered itself, so its name isn't checked. Allow it only if you just connected it yourself.
+          This app registered itself, so its name and website aren't checked. Your answer goes to <strong>{consent.redirectHost}</strong>. Allow it only
+          if you just connected it yourself.
         </Alert>
       )}
       <div>
         <h2 className={styles.heading}>It will be able to</h2>
         <ul className={styles.list}>
           <li>
-            <Check aria-hidden /> Search knowledge bases and ask agents you can use, as you
+            <Check aria-hidden /> {teams.length > 0 ? `Search knowledge bases and ask agents in ${listFormat(teams)}, as you` : "Search knowledge bases and ask agents of the teams you join, as you"}
           </li>
         </ul>
-        <p className={styles.muted}>It can't change anything. You can disconnect it at any time from your API keys page.</p>
+        {teams.length === 0 && <p className={styles.muted}>You're not in any team yet, so it can't reach anything until you join one.</p>}
+        <p className={styles.muted}>
+          It can't change any settings. What it asks is saved as your conversations and counts toward your teams' usage. You can disconnect it at any time
+          from <TextLink render={<Link to="/settings/connected-apps" />}>Connected apps</TextLink> in your account menu.
+        </p>
       </div>
       <p className={styles.muted}>
         Signed in as <strong>{email}</strong>. After you answer, you go back to <strong>{consent.redirectHost}</strong>.

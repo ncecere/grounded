@@ -153,6 +153,18 @@ func TestSearchVisibilityByRole(t *testing.T) {
 	if m := findHit(rs, "model", "Chat Tools"); m == nil || *m.Kind != "chat" || m.Secondary != "chat" {
 		t.Errorf("admin searching the model = %q", hits(rs))
 	}
+	// MCP servers too, by name, with their URL.
+	var mcpServer apitypes.MCPServer
+	code, e := env.admin.call("POST", "/v1/admin/mcp-servers", map[string]any{"name": "Zeta service status", "url": "https://status.example.edu/mcp",
+		"maxClassification": "open"}, &mcpServer, nil)
+	mustCode(t, "create MCP server", code, e, 201, "")
+	if m := findHit(searchAs(t, env.auditor, "zeta service"), "mcp_server", "Zeta service status"); m == nil || m.Id != mcpServer.Id ||
+		m.Secondary != "https://status.example.edu/mcp" {
+		t.Errorf("auditor searching the MCP server = %+v", m)
+	}
+	if rs := searchAs(t, blair, "zeta service"); len(rs) != 0 {
+		t.Errorf("blair searching MCP servers = %q", hits(rs))
+	}
 	if rs := searchAs(t, blair, "chat tools"); len(rs) != 0 {
 		t.Errorf("blair searching the model = %q", hits(rs))
 	}
@@ -161,7 +173,7 @@ func TestSearchVisibilityByRole(t *testing.T) {
 	}
 
 	// A deleted conversation is gone.
-	code, e := blair.call("DELETE", "/v1/conversations/"+blairConv, nil, nil, nil)
+	code, e = blair.call("DELETE", "/v1/conversations/"+blairConv, nil, nil, nil)
 	mustCode(t, "delete conversation", code, e, 200, "")
 	wantHits(t, "blair after delete", searchAs(t, blair, "zephyr"), "agent:Zephyr campus guide")
 

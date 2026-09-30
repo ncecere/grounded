@@ -3264,6 +3264,7 @@ const (
 	SearchResultTypeEmbeddingProfile SearchResultType = "embedding_profile"
 	SearchResultTypeEvaluationSet    SearchResultType = "evaluation_set"
 	SearchResultTypeKnowledgeBase    SearchResultType = "knowledge_base"
+	SearchResultTypeMcpServer        SearchResultType = "mcp_server"
 	SearchResultTypeModel            SearchResultType = "model"
 	SearchResultTypeSharedSource     SearchResultType = "shared_source"
 	SearchResultTypeTeam             SearchResultType = "team"
@@ -3286,6 +3287,8 @@ func (e SearchResultType) Valid() bool {
 	case SearchResultTypeEvaluationSet:
 		return true
 	case SearchResultTypeKnowledgeBase:
+		return true
+	case SearchResultTypeMcpServer:
 		return true
 	case SearchResultTypeModel:
 		return true
@@ -9150,7 +9153,7 @@ type ScopeTotals struct {
 	SmallTalk int64 `json:"smallTalk"`
 }
 
-// SearchResult One match of GET /v1/search, with what the app needs to link to it: teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models, connections and embedding profiles their admin list with ?record={id}; shared sources /admin/shared-sources/{id}; agents the team's agent page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug}); knowledge bases and data sources their team page; conversations the chat with ?c={id}; evaluation sets /teams/{teamSlug}/evaluations/{id} (kind says whether the set tests a knowledge_base or an agent).
+// SearchResult One match of GET /v1/search, with what the app needs to link to it: teams open /admin/teams/{teamSlug}; users /admin/users/{id}; models, connections, MCP servers and embedding profiles their admin list with ?record={id}; shared sources /admin/shared-sources/{id}; agents the team's agent page (canOpen) or the chat (canChat, /a/{teamSlug}/{agentSlug}); knowledge bases and data sources their team page; conversations the chat with ?c={id}; evaluation sets /teams/{teamSlug}/evaluations/{id} (kind says whether the set tests a knowledge_base or an agent).
 type SearchResult struct {
 	// AgentSlug The agent (agents, conversations)
 	AgentSlug *string `json:"agentSlug,omitempty"`
@@ -9168,7 +9171,7 @@ type SearchResult struct {
 	// Label The name (a user's display name, or their email without one; a conversation's title)
 	Label string `json:"label"`
 
-	// Secondary A second line: the team's name (agents, knowledge bases, data sources), the agent's name (conversations), the email (users), the slug (teams), the key (models, embedding profiles) or the base URL (connections). May be empty.
+	// Secondary A second line: the team's name (agents, knowledge bases, data sources), the agent's name (conversations), the email (users), the slug (teams), the key (models, embedding profiles), the base URL (connections) or the URL (MCP servers). May be empty.
 	Secondary string `json:"secondary"`
 
 	// Status The object's state when it isn't the normal one: archived (teams), suspended (users), disabled (models, connections), retired (embedding profiles), paused (sources), agent_deleted (conversations of a deleted agent)

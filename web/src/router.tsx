@@ -72,7 +72,7 @@ const pages = {
   parsing: () => import("./pages/admin/parsing/page"),
   groupMapping: () => import("./pages/admin/group-mapping/page"),
   publicPages: () => import("./pages/public/routes"),
-  oauth: () => import("./pages/oauth/consent"),
+  oauth: () => import("./pages/oauth/routes"),
 };
 const lazy = lazyRouteComponent;
 
@@ -188,6 +188,7 @@ const notificationsRoute = createRoute({
   component: lazy(pages.notifications, "NotificationsPage"),
 });
 const notificationSettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "settings/notifications", component: lazy(pages.notifications, "NotificationSettingsPage") });
+const connectedAppsRoute = createRoute({ getParentRoute: () => appRoute, path: "settings/connected-apps", component: lazy(pages.oauth, "ConnectedAppsPage") });
 const teamRoute = createRoute({ getParentRoute: () => appRoute, path: "teams/$team", component: lazy(pages.teamLayout, "TeamLayout") });
 type Page = ReturnType<typeof lazyRouteComponent>;
 
@@ -331,8 +332,7 @@ const appTree = appRoute.addChildren([
     agentDirectoryRoute,
     conversationsRoute,
     conversationRoute,
-    notificationsRoute,
-    notificationSettingsRoute,
+    notificationsRoute, notificationSettingsRoute, connectedAppsRoute,
     chatByIdRoute,
     chatByShortRoute,
     chatRoute,

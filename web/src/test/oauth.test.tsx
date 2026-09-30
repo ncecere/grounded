@@ -47,7 +47,9 @@ describe("OAuth consent page", () => {
     });
     expect(await screen.findByRole("heading", { level: 1, name: /Research Assistant wants to use .+ as you/ })).toBeInTheDocument();
     expect(screen.getByText("assistant.example.com")).toBeInTheDocument();
-    expect(screen.getByText("Search knowledge bases and ask agents you can use, as you")).toBeInTheDocument();
+    expect(screen.getByText("Search knowledge bases and ask agents in Office of the Registrar, as you")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Connected apps" })).toHaveAttribute("href", "/settings/connected-apps");
+    await waitFor(() => expect(document.title).toMatch(/^Connect Research Assistant · /));
     expect(screen.getByText("127.0.0.1:4567")).toBeInTheDocument();
     expect(screen.getByText("una@example.edu")).toBeInTheDocument();
     expect(screen.queryByText("Unverified")).toBeNull();
@@ -71,7 +73,11 @@ describe("OAuth consent page", () => {
       "POST /v1/oauth/consent": () => ({ redirectUrl: "http://127.0.0.1:4567/callback?error=access_denied" }),
     });
     expect(await screen.findByText("Unverified")).toBeInTheDocument();
-    expect(screen.getByText(/registered itself, so its name isn't checked/)).toBeInTheDocument();
+    // A registered client's website is its own claim, and the warning names where the answer really goes.
+    expect(screen.getByText(/Says it's from assistant.example.com/)).toBeInTheDocument();
+    expect(screen.queryByText("assistant.example.com", { selector: "strong" })).toBeNull();
+    const warning = screen.getByText(/registered itself, so its name and website aren't checked/);
+    expect(warning).toHaveTextContent("Your answer goes to 127.0.0.1:4567.");
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(screen.getByRole("button", { name: "Deny" }));
     await waitFor(() => expect(go).toHaveBeenCalledWith("http://127.0.0.1:4567/callback?error=access_denied"));
@@ -87,6 +93,7 @@ describe("OAuth consent page", () => {
     expect(await screen.findByText("The redirect_uri isn't one the client registered.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
     expect(go).not.toHaveBeenCalled();
+    await waitFor(() => expect(document.title).toMatch(/^Can't connect this app · /));
     expect(await axe(container)).toHaveNoViolations();
   });
 });
@@ -123,11 +130,11 @@ describe("Connected apps", () => {
     });
     const { container } = renderApp("/teams/registrar/settings?tab=api-keys");
     const card = (await screen.findByRole("heading", { name: "Connected apps" })).closest("section")!;
-    const table = await within(card).findByRole("table", { name: "Connected apps" });
+    const table = await within(card).findByRole("list", { name: "Your connected apps" });
     expect(within(table).getByText("Research Assistant")).toBeInTheDocument();
     expect(within(table).getByText("assistant.example.com")).toBeInTheDocument();
     expect(within(table).getByText("Unverified")).toBeInTheDocument();
-    expect(within(table).getByText("Never")).toBeInTheDocument();
+    expect(within(table).getByText("Not used yet")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(within(table).getByRole("button", { name: "Disconnect Research Assistant…" }));
     const confirm = await screen.findByRole("alertdialog", { name: "Disconnect Research Assistant?" });
@@ -162,9 +169,14 @@ describe("Connected apps", () => {
       const card = (await screen.findByRole("heading", { name: "Connected apps" })).closest("section")!;
       expect(await within(card).findByText("Research Assistant")).toBeInTheDocument();
       expect(card).toHaveTextContent("AI tools Pat Person allowed");
+      // A record page: the exact date, not "3 days ago".
+      expect(card.querySelector("time")?.textContent).toMatch(/2026/);
       const button = within(card).queryByRole("button", { name: "Disconnect Research Assistant…" });
       if (role === "platform_auditor") {
         expect(button).toBeNull();
+        expect(card).not.toHaveTextContent("Disconnecting one stops it at once.");
+        expect(within(card).queryByRole("columnheader")).toBeNull();
+        expect(await axe(container)).toHaveNoViolations();
       } else {
         expect(await axe(container)).toHaveNoViolations();
         await userEvent.click(button!);
@@ -174,5 +186,39 @@ describe("Connected apps", () => {
       unmount();
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("Connected apps from the account menu", () => {
+  it("is reachable by a person in no team, and in the account menu", async () => {
+    const me = { ...meFor("platform_auditor"), teams: [] };
+    mockApi({ ...shellRoutes("platform_auditor"), "GET /v1/me": () => me, "GET /v1/me/oauth-grants": () => [grant] });
+    const { container } = renderApp("/settings/connected-apps");
+    expect(await screen.findByRole("heading", { level: 1, name: "Connected apps" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Disconnect Research Assistant…" })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("is linked from the account menu", async () => {
+    mockApi({ ...shellRoutes(), "GET /v1/agents": () => [] });
+    renderApp("/");
+    await userEvent.click(await screen.findByRole("button", { name: /Una User/ }));
+    expect(await screen.findByRole("menuitem", { name: "Connected apps" })).toHaveAttribute("href", "/settings/connected-apps");
+  });
+
+  it("an empty list reads with correct grammar", async () => {
+    mockApi({ ...shellRoutes("platform_admin"), "GET /v1/admin/users/u2": () => ({
+      user: { id: "u2", email: "u2@example.edu", displayName: "Sam Ortiz", platformRole: "none", status: "active", revision: 1, createdAt: "", lastLoginAt: null, teamCount: 0 },
+      teams: [],
+    }), "GET /v1/admin/audit": () => ({ items: [], nextCursor: null }), "GET /v1/admin/users/u2/oauth-grants": () => [] });
+    renderApp("/admin/users/u2");
+    expect(await screen.findByText("Apps Sam Ortiz connects with OAuth sign-in are listed here.")).toBeInTheDocument();
+  });
+
+  it("tells a person in no team that the app reaches nothing yet", async () => {
+    window.history.replaceState({}, "", `/oauth/consent?${query}`);
+    mockApi({ ...shellRoutes(), "GET /v1/me": () => ({ ...meFor(), teams: [] }), "GET /v1/oauth/consent": () => consent("metadata") });
+    renderApp(`/oauth/consent?${query}`);
+    expect(await screen.findByText("You're not in any team yet, so it can't reach anything until you join one.")).toBeInTheDocument();
   });
 });
