@@ -92,6 +92,10 @@ func chain(mux *http.ServeMux, d Deps) http.Handler {
 			// ServeMux sets r.Pattern on the request it routes; it is empty
 			// for unmatched paths, which keeps metric labels bounded.
 			elapsed := time.Since(start)
+			if rec.status >= 500 && httpx.ClientGone(r) {
+				// The client went away first: not a server error (httpx.Internal).
+				rec.status = httpx.StatusClientClosedRequest
+			}
 			endSpan(span, r.Pattern, rec.status)
 			d.Metrics.ObserveHTTP(r.Method, r.Pattern, rec.status, elapsed)
 			level := slog.LevelInfo

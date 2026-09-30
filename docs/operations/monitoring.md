@@ -28,7 +28,7 @@ Labels are bounded by design: route patterns (never raw paths), channels, kinds,
 
 | Metric | Type | Labels | Notes |
 |---|---|---|---|
-| `grounded_http_requests_total` | counter | `group`, `method`, `route`, `status` | `route` is the matched pattern, such as `GET /v1/teams/{team}/agents`; unmatched paths are `unmatched` |
+| `grounded_http_requests_total` | counter | `group`, `method`, `route`, `status` | `route` is the matched pattern, such as `GET /v1/teams/{team}/agents`; unmatched paths are `unmatched`. A request whose client went away before it failed (a page reload, a closed tab) is `499`, logged at info as `client closed request`, so it stays out of the 5xx series and the error objective |
 | `grounded_http_request_duration_seconds` | histogram | `group`, `method`, `route` | For streamed chat, the whole stream |
 | `grounded_http_requests_in_flight` | gauge | | Includes open chat streams |
 | `grounded_ratelimit_backend_errors_total` | counter | | Rate-limit checks that failed open because Valkey was unavailable |

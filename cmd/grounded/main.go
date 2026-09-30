@@ -15,6 +15,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -92,6 +93,9 @@ func run(args []string) error {
 		return fmt.Errorf("configuration:\n%w", err)
 	}
 	log := observability.NewLogger(os.Stdout, cfg.LogLevel, cfg.LogFormat)
+	// Packages that log through slog's package functions (httpx.Internal)
+	// write in the same structured format as everything else.
+	slog.SetDefault(log)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

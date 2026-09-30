@@ -1,6 +1,10 @@
 package httpx
 
 import (
+	"bytes"
+	"context"
+	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -60,5 +64,32 @@ func TestDecode(t *testing.T) {
 				t.Fatalf("want %d, got ok=%v code=%d", tc.status, ok, w.Code)
 			}
 		})
+	}
+}
+
+// A request whose client went away is logged at info as a cancellation and
+// recorded as 499, not as a 500 internal error.
+func TestInternalClientGone(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	w := httptest.NewRecorder()
+	Internal(w, httptest.NewRequest("GET", "/v1/notifications", nil).WithContext(ctx), context.Canceled)
+	if w.Code != StatusClientClosedRequest {
+		t.Fatalf("status %d, want 499", w.Code)
+	}
+	if out := buf.String(); !strings.Contains(out, "level=INFO") || !strings.Contains(out, "client closed request") {
+		t.Fatalf("log %q, want an info client cancellation", out)
+	}
+
+	buf.Reset()
+	w = httptest.NewRecorder()
+	Internal(w, httptest.NewRequest("GET", "/v1/notifications", nil), errors.New("boom"))
+	if w.Code != http.StatusInternalServerError || !strings.Contains(buf.String(), "level=ERROR") {
+		t.Fatalf("status %d log %q, want a 500 logged as an error", w.Code, buf.String())
 	}
 }
