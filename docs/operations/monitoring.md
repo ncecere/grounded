@@ -28,7 +28,7 @@ Labels are bounded by design: route patterns (never raw paths), channels, kinds,
 
 | Metric | Type | Labels | Notes |
 |---|---|---|---|
-| `grounded_http_requests_total` | counter | `group`, `method`, `route`, `status` | `route` is the matched pattern, such as `GET /v1/teams/{team}/agents`; unmatched paths are `unmatched` |
+| `grounded_http_requests_total` | counter | `group`, `method`, `route`, `status` | `route` is the matched pattern, such as `GET /v1/teams/{team}/agents`; unmatched paths are `unmatched`. A request whose client went away before it failed (a page reload, a closed tab) is `499`, logged at info as `client closed request`, so it stays out of the 5xx series and the error objective |
 | `grounded_http_request_duration_seconds` | histogram | `group`, `method`, `route` | For streamed chat, the whole stream |
 | `grounded_http_requests_in_flight` | gauge | | Includes open chat streams |
 | `grounded_ratelimit_backend_errors_total` | counter | | Rate-limit checks that failed open because Valkey was unavailable |
@@ -61,7 +61,7 @@ Admin **Test connection** and **Test model** calls, the scheduled health check a
 
 | Metric | Type | Labels | Notes |
 |---|---|---|---|
-| `grounded_health_checks_total` | counter | `kind` (`connection`, `model`), `trigger` (`manual`, `scheduled`), `status` (`healthy`, `failing`) | Stored health checks ([`health.md`](health.md)) |
+| `grounded_health_checks_total` | counter | `kind` (`connection`, `model`, `mcp_server`), `trigger` (`manual`, `scheduled`), `status` (`healthy`, `failing`) | Stored health checks ([`health.md`](health.md)) |
 | `grounded_health_check_duration_seconds` | histogram | `kind` | The latency of the test behind a stored check |
 
 ### Ingestion, crawling and jobs
@@ -88,8 +88,8 @@ The worker and `serve` processes read these from Postgres when scraped (cached f
 | `grounded_maintenance_mode` | gauge | | 1 while maintenance mode is on |
 | `grounded_maintenance_mode_started_timestamp_seconds` | gauge | | When it was turned on; absent while off |
 | `grounded_breakglass_open_sessions` | gauge | `status` (`active`, `pending`) | |
-| `grounded_health_failing` | gauge | `kind` (`connection`, `model`) | Enabled subjects whose latest stored health check failed ([`health.md`](health.md)) |
-| `grounded_health_failing_seconds` | gauge | `kind`, `name` | How long each failing enabled connection or model has been failing (by its name); absent while healthy |
+| `grounded_health_failing` | gauge | `kind` (`connection`, `model`, `mcp_server`) | Enabled subjects whose latest stored health check failed ([`health.md`](health.md)) |
+| `grounded_health_failing_seconds` | gauge | `kind`, `name` | How long each failing enabled connection, model or MCP server has been failing (by its name); absent while healthy |
 | `grounded_state_up` | gauge | | 0 when the last read failed (the others are then absent) |
 
 ### Governance
@@ -158,7 +158,7 @@ The rule file has four groups of alerts, plus recording rules for the SLO ratios
 | `GroundedMaintenanceModeLong` | warning | Maintenance mode on for over 4 hours |
 | `GroundedModelConnectionFailing` | critical | Over half of a connection's requests (one model kind, at least 5) fail for 10 min, 429s aside |
 | `GroundedModelConnectionRateLimited` | warning | Over 20% refused by 429 or the connection's own limit for 30 min |
-| `GroundedHealthCheckFailing` | warning | An enabled connection or model has failed every stored health check for over 30 min |
+| `GroundedHealthCheckFailing` | warning | An enabled connection, model or MCP server has failed every stored health check for over 30 min |
 | `GroundedDBPoolSaturated` | warning | A process uses over 90% of its Postgres pool for 10 min |
 | `GroundedValkeyErrors` | warning | More than one Valkey error every 10 s for 10 min |
 | `GroundedBackupMissing` | critical | The `grounded-postgres-backup` CronJob hasn't succeeded for 26 h (kube-state-metrics) |

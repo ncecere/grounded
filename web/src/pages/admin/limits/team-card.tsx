@@ -13,7 +13,7 @@ import { Loading } from "@/components/ui/spinner/spinner";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
-import { formatLimit, teamLimitsQuery, teamOverridesQuery, toInput } from "@/lib/limits";
+import { formatLimit, formatLimitMax, teamLimitsQuery, teamOverridesQuery, toInput } from "@/lib/limits";
 import { useCurrentUser } from "@/session";
 import s from "../../shared.module.css";
 import { AmountInput, LimitName } from "./fields";
@@ -133,7 +133,7 @@ function OverrideRowView({ it, f, usage, isAdmin, submitted, onChange }: RowProp
         <LimitName label={it.label} description={it.description} />
       </Td>
       <Td muted>
-        {formatLimit(it.unit, it.period, it.default)}
+        {formatLimitMax(it, it.default)}
         {it.ceiling !== null && <span className={s.secondary}>Ceiling {formatLimit(it.unit, it.period, it.ceiling)}</span>}
       </Td>
       <Td>

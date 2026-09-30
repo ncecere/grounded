@@ -20,10 +20,11 @@ API: `GET /v1/admin/settings/mcp` and `PUT /v1/admin/settings/mcp` with `If-Matc
 
 ## Creating a key (anyone in a team)
 
-1. In your team, open **API keys → New API key**.
+1. In your team, open **Team settings** and its **API keys** tab, then press **New API key**.
 2. Tick **MCP: search and ask from AI tools**. Every team role may give a key this scope. It doesn't need the **Query** scope, and it grants nothing on the REST API.
-3. Optionally restrict the key to some knowledge bases or agents, and give it an expiry date.
-4. Copy the secret. The dialog also shows the MCP server's address.
+3. **Query** is ticked by default: untick it if the key is only for AI tools, so it can't also query the REST API.
+4. Optionally restrict the key to some knowledge bases or agents, and give it an expiry date.
+5. Copy the secret. The dialog also shows the MCP server's address: note it too, as it isn't shown again on the key's page (a platform admin finds it under **Admin → Overview → Features**; it's always `<APP_URL>/mcp`).
 
 What the key can reach over MCP is what it could reach as a query key, and nothing more:
 
@@ -109,10 +110,20 @@ These examples follow each client's documentation at the time of writing; client
 curl -s https://rag.example.edu/mcp \
   -H "Authorization: Bearer $GROUNDED_API_KEY" \
   -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Protocol-Version: 2026-07-28" -H "Mcp-Method: server/discover" \
   -d '{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}'
 ```
 
-The answer names the server (`grounded`), its supported protocol versions and its `tools` capability.
+The answer names the server (`grounded`), its supported protocol versions and its `tools` capability. Revision `2026-07-28` requires the `Mcp-Protocol-Version` and `Mcp-Method` headers to match the body: without them the answer is `400`. A shorter check, which lists the tools the key may use, needs neither:
+
+```sh
+curl -s https://rag.example.edu/mcp \
+  -H "Authorization: Bearer $GROUNDED_API_KEY" \
+  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+A refused key is `401` (`invalid_api_key`) or `403` (`missing_scope`: the key lacks the MCP scope). SDK-based clients often print only "Unauthorized" or "Forbidden"; the reason is in the JSON-RPC body, which these commands show.
 
 ## Signing in with OAuth (experimental)
 
@@ -141,6 +152,7 @@ A token acts as the person, with only the `mcp` scope, and is checked against th
 - **`search`:** the knowledge bases of every team they belong to now, except those whose classification keeps programs to agents (as for API keys).
 - **`ask`:** the published agents of those teams. Not other teams' agents that are open to everyone signed in, and not public agents: a personal key can't reach those either.
 - Their platform role (admin or auditor) doesn't apply through a token.
+- **Names carry the team.** Through a connection, knowledge bases and agents are named `<team>/<name>`, with the team's slug: `it-help-desk/it-help-articles`, `it-help-desk/help-desk-assistant`. That's so in one team or several, so joining or leaving a team renames nothing, and two teams' "Handbook"s can't be confused. A key's names have no team (the key belongs to one): `it-help-articles`.
 - Its conversations are the person's, like a personal key's; a follow-up handle only works with the same connection.
 - Limits: the team's query and chat limits, the person's own per-minute limit, and the per-key query rate applied per connection; the request rate per connection is the API key rate.
 
@@ -158,6 +170,8 @@ Like `/mcp`, these speak a protocol, so they're described here rather than in th
 | `POST /oauth/token` | `authorization_code` and `refresh_token` grants (form-encoded; public clients send `client_id`) |
 | `POST /oauth/register` | Dynamic Client Registration (RFC 7591), public clients only |
 | `POST /oauth/revoke` | Token revocation (RFC 7009) |
+
+A `GET` on the three `POST` endpoints answers `405` with `Allow: POST` (`404` while OAuth sign-in is off). Other `/.well-known/` documents, such as `openid-configuration`, answer `404` in JSON: Grounded isn't an OpenID provider for clients.
 
 **Clients.** A client identifies itself in one of two ways:
 
@@ -180,7 +194,7 @@ Tokens are opaque random values, stored only as HMAC-SHA256 digests under the AP
 
 ### What's recorded
 
-- **Audit:** `oauth.client_register` (a registration, as the system, with the caller's address), `oauth.consent` (a person allowed a tool), `oauth.token_issue` (tokens issued, with the grant type; never a token), `oauth.revoke` (with the reason: `user`, `admin`, `client` or `refresh_reuse`), and `platform.mcp_oauth`. Tool calls are `mcp.search` and `mcp.ask` with the person as the actor and `via: oauth` and the tool's name in the metadata, under the team of the knowledge base or agent. Recent changes on the admin Overview leave out `oauth.` entries.
+- **Audit:** `oauth.client_register` (a registration, as the system, with the caller's address, shown as **Address** on the entry in Admin → Logs and in its CSV), `oauth.consent` (a person allowed a tool), `oauth.token_issue` (tokens issued, with the grant type; never a token: "App signed in", or "App renewed its sign-in" for a refresh), `oauth.revoke` (with the reason, which the log names: `user` "Disconnected an app", `admin` "Disconnected a person's app", `client` "App disconnected itself" or "App signed out one token", `refresh_reuse` "Connection revoked: a refresh token was reused (possible theft)"), and `platform.mcp_oauth`. Tool calls are `mcp.search` and `mcp.ask` with the person as the actor and `via: oauth` and the tool's name in the metadata, under the team of the knowledge base or agent. Each entry says how the person acted (**How**: signed in, an API key, or a connected app, by name; the API's `via`, and the CSV's `via` and `viaName` columns). Recent changes on the admin Overview leave out `oauth.` entries.
 - **Usage:** as the person, on the channel `mcp` (no API key).
 
 ### Known limitations
@@ -201,7 +215,7 @@ A key that may search no knowledge base has no `search` tool, and one that may u
 
 | Argument | | |
 |---|---|---|
-| `knowledge_base` | required | One of the key's knowledge bases, by a name made from its title (`Student handbook` → `student-handbook`; two titles that make the same name get the start of their ID appended) |
+| `knowledge_base` | required | One of the key's knowledge bases, by a name made from its title (`Student handbook` → `student-handbook`; two titles that make the same name get the start of their ID appended). Through OAuth, the name starts with the team's slug: `registrar/student-handbook` |
 | `query` | required | 1–4,000 characters |
 | `top_k` | optional | 1–50 passages; by default the knowledge base's own setting |
 
@@ -229,7 +243,7 @@ It returns the passages twice: as text for the model to read, and as structured 
 
 | Argument | | |
 |---|---|---|
-| `agent` | required | One of the published agents the key may chat with, by its address name (`go-docs`) |
+| `agent` | required | One of the published agents the key may chat with, by its address name (`go-docs`). Through OAuth, it starts with the team's slug: `registrar/go-docs` |
 | `question` | required | 1–8,000 characters |
 | `conversation` | optional | The `conversation` value a previous `ask` returned, to ask a follow-up (personal keys only) |
 
@@ -240,13 +254,15 @@ The answer is not streamed. It returns the answer text with its `[n]` markers, t
   "agent": "go-docs",
   "answer": "Use go test with -run to pick tests [1].",
   "citations": [
-    { "n": 1, "title": "Testing", "heading_path": ["Running tests"], "url": "https://go.dev/doc/…", "document_id": "…", "snippet": "…" }
+    { "n": 1, "kind": "document", "title": "Testing", "heading_path": ["Running tests"], "url": "https://go.dev/doc/…", "document_id": "…", "snippet": "…" },
+    { "n": 2, "kind": "tool", "title": "Service status · check_outage", "heading_path": [], "server": "Service status", "tool": "check_outage", "snippet": "…" }
   ],
   "claims": [{ "text": "Use go test with -run to pick tests.", "verdict": "supported", "sources": [1] }],
   "conversation": "c1_…"
 }
 ```
 
+- Each citation has a `kind`: `document` for a passage (with its `document_id`, and `url` for a web page when the agent links its sources, or `filename` for an upload, as in `search`), or `tool` for the result of an MCP tool the agent called ([`mcp-client.md`](mcp-client.md)), with the `server` and `tool` and no `document_id`. The text marks those sources "(tool result)".
 - `claims` (and each citation's `verification`) are there when the agent's citations are checked by SystemOne ([`systemone.md`](systemone.md) §3): each factual sentence with its verdict (`supported`, `not_supported`, `uncited` or `unchecked`).
 - `conversation` is an opaque handle for the conversation Grounded stored. It only works with the key that received it: another key, even the same person's, gets "That conversation wasn't found". Rotating `API_KEY_PEPPER` retires every handle ([`operations/rotate-keys.md`](operations/rotate-keys.md)); the next question starts a new conversation.
 - `refused` is true when the agent declined (for example, a strict agent with nothing to answer from).

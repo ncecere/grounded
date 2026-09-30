@@ -1,6 +1,6 @@
-# Stored health: connections and models
+# Stored health: connections, models and MCP servers
 
-Grounded keeps the latest test result of every model connection, model and MCP server (roadmap E11; MCP servers since v0.3 M3, [`../mcp-client.md`](../mcp-client.md#health); [`v0.3.0.md` §5](../v0.3.0.md#5-stored-health-e11)). Admin → Connections and Admin → Models show it in a **Health** column, "Healthy · 3 minutes ago" or "Failing · since 2 hours ago", with a Health filter. A connection or model that has never been tested shows **Not tested yet**. The record page of a connection or model shows the exact time of the last test, who ran it (an admin or the scheduled check), and, when it failed, the error class and the gateway's message. Failures also appear on the admin Overview under **Needs attention** ("1 connection is failing", "2 models are failing"), linking to the list filtered to the failing ones.
+Grounded keeps the latest test result of every model connection, model and MCP server (roadmap E11; MCP servers since v0.3 M3, [`../mcp-client.md`](../mcp-client.md#health); [`v0.3.0.md` §5](../v0.3.0.md#5-stored-health-e11)). Admin → Connections, Admin → Models and Admin → MCP servers show it in a **Health** column, "Healthy · 3 minutes ago" or "Failing · since 2 hours ago", with a Health filter. A subject that has never been tested shows **Not tested yet**, and so does one whose address or credentials changed since its last test (a connection's base URL or API key, which also forgets its models' results; an MCP server's URL or header): the old result says nothing about the new settings, so it's forgotten until the next test or scheduled check. The record page of a connection, model or MCP server shows the exact time of the last test, who ran it (an admin or the scheduled check), and, when it failed, the error class and the message. Failures also appear on the admin Overview under **Needs attention** ("1 connection is failing", "2 models are failing", "1 MCP server is failing"), linking to the list filtered to the failing ones.
 
 Platform admins and platform auditors can see health; nobody else can. Only platform admins can run a test.
 
@@ -39,14 +39,14 @@ The stored message is the gateway's error message, at most 300 characters, with 
 
 ## Schedule
 
-The worker re-tests enabled connections every `HEALTH_CHECK_INTERVAL` (default `15m`):
+The worker re-tests enabled connections and MCP servers every `HEALTH_CHECK_INTERVAL` (default `15m`):
 
 | Setting | Default | Allowed |
 |---|---|---|
 | `HEALTH_CHECK_INTERVAL` | `15m` | `5m` to `24h`, or `0` / `off` to stop the scheduled check (Test buttons still store their results) |
 
-- **Only enabled subjects** are tested: an enabled connection and its enabled models. A disabled connection or model keeps its last result, and isn't counted on the Overview or in the metrics. With nothing enabled, a run tests nothing.
-- **Each connection is tested once per run.** Its models' health comes from that one test, so a connection is never probed more than once at a time by a run. At most 4 connections are tested at once, and each test is bounded by the connection's timeout and by 2 minutes.
+- **Only enabled subjects** are tested: an enabled connection and its enabled models, and each enabled MCP server. A disabled connection or model keeps its last result, and isn't counted on the Overview or in the metrics. With nothing enabled, a run tests nothing.
+- **Each connection and MCP server is tested once per run.** Its models' health comes from that one test, so a connection is never probed more than once at a time by a run. At most 4 connections are tested at once, and each test is bounded by the connection's timeout and by 2 minutes.
 - **Jitter:** each run starts after a random delay of up to a tenth of the interval (at most 2 minutes), so installs and restarts don't probe a shared gateway in step. The first run comes shortly after a worker starts.
 - **One run per interval** across all worker processes: only River's leader enqueues periodic jobs. A run never outlasts the interval (at most 10 minutes).
 - **Maintenance mode doesn't pause it.** Maintenance pauses ingestion and the writes it names, and a check writes nothing but its own result.
@@ -56,11 +56,11 @@ The scheduled check doesn't count in `grounded_model_requests_total`, like the T
 
 ## Retention
 
-The `health_checks` table keeps **7 days** of checks per subject, plus always each subject's latest check however old. The health job prunes older checks, and every check of a deleted connection or model, at the end of each run. With the default interval that is about 700 rows per connection (one for the connection and one per enabled model every 15 minutes). With `HEALTH_CHECK_INTERVAL=off`, nothing is pruned until the schedule is back on, and only Test presses add rows.
+The `health_checks` table keeps **7 days** of checks per subject, plus always each subject's latest check however old. The health job prunes older checks, and every check of a deleted connection, model or MCP server, at the end of each run. With the default interval that is about 700 rows per connection (one for the connection and one per enabled model every 15 minutes). With `HEALTH_CHECK_INTERVAL=off`, nothing is pruned until the schedule is back on, and only Test presses add rows.
 
 ## API
 
-`GET /v1/admin/health-checks` (platform admins and auditors) returns the latest check of each subject that has one: `subjectKind` (`connection` or `model`), `subjectId`, `subjectName`, `subjectEnabled`, `status`, `latencyMs`, `errorClass`, `httpStatus`, `message`, `trigger` (`manual` or `scheduled`), `triggeredBy` and `triggeredByName`, `checkedAt` and `statusSince`. `?kind=connection` or `?kind=model` narrows it. The Test endpoints (`POST /v1/admin/connections/{id}/test`, `POST /v1/admin/models/{id}/test`) return their results as before, and store them. See [`api/openapi.yaml`](../../api/openapi.yaml).
+`GET /v1/admin/health-checks` (platform admins and auditors) returns the latest check of each subject that has one: `subjectKind` (`connection`, `model` or `mcp_server`), `subjectId`, `subjectName`, `subjectEnabled`, `status`, `latencyMs`, `errorClass`, `httpStatus`, `message`, `trigger` (`manual` or `scheduled`), `triggeredBy` and `triggeredByName`, `checkedAt` and `statusSince`. `?kind=connection`, `?kind=model` or `?kind=mcp_server` narrows it. The Test endpoints (`POST /v1/admin/connections/{id}/test`, `POST /v1/admin/models/{id}/test`, `POST /v1/admin/mcp-servers/{id}/test`) return their results, and store them. See [`api/openapi.yaml`](../../api/openapi.yaml).
 
 ## Metrics and alert
 
@@ -68,8 +68,8 @@ The worker (and `serve`) processes read these from Postgres when scraped, with t
 
 | Metric | Type | Labels | Notes |
 |---|---|---|---|
-| `grounded_health_failing` | gauge | `kind` (`connection`, `model`) | Enabled subjects whose latest check failed |
-| `grounded_health_failing_seconds` | gauge | `kind`, `name` | How long each failing enabled subject has been failing; absent while it's healthy. `name` is the connection's name or the model's display name |
+| `grounded_health_failing` | gauge | `kind` (`connection`, `model`, `mcp_server`) | Enabled subjects whose latest check failed |
+| `grounded_health_failing_seconds` | gauge | `kind`, `name` | How long each failing enabled subject has been failing; absent while it's healthy. `name` is the connection's name, the model's display name or the MCP server's name |
 
 Every process that stores a check also counts it:
 
@@ -78,8 +78,8 @@ Every process that stores a check also counts it:
 | `grounded_health_checks_total` | counter | `kind`, `trigger` (`manual`, `scheduled`), `status` (`healthy`, `failing`) | Stored checks |
 | `grounded_health_check_duration_seconds` | histogram | `kind` | The test's latency |
 
-The alert [`GroundedHealthCheckFailing`](alerts.md#groundedhealthcheckfailing) (warning) fires when an enabled connection or model has failed every check for over 30 minutes: `max by (namespace, kind, name) (grounded_health_failing_seconds) > 1800`.
+The alert [`GroundedHealthCheckFailing`](alerts.md#groundedhealthcheckfailing) (warning) fires when an enabled connection, model or MCP server has failed every check for over 30 minutes: `max by (namespace, kind, name) (grounded_health_failing_seconds) > 1800`.
 
 ## Adding a subject kind
 
-A subject is a kind and an ID, with no foreign key. MCP servers (v0.3 M3) become a third kind: a value in the `health_checks_subject_kind` constraint, a branch in the `health_subjects` view (name, and whether it's enabled), a `Kind` constant and a `Checker` for the job in `internal/healthcheck`, and the value in `HealthSubjectKind` in the OpenAPI.
+A subject is a kind and an ID, with no foreign key. There are three kinds: `connection`, `model` and `mcp_server` (added in v0.3 by migration `00037_mcp_client`). Another kind needs a value in the `health_checks_subject_kind` constraint, a branch in the `health_subjects` view (name, and whether it's enabled), a `Kind` constant and a `Checker` for the job in `internal/healthcheck`, and the value in `HealthSubjectKind` in the OpenAPI.

@@ -252,6 +252,19 @@ describe("admin limits page", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByRole("button", { name: "Save limits" })).toBeNull();
   });
+
+  it("shows a limit's built-in maximum instead of No ceiling", async () => {
+    const mcp = { key: "mcp_calls_per_answer", group: "queries", unit: "count", period: "none", label: "MCP tool calls per answer", description: "Calls." } as const;
+    const p = platform();
+    p.items.push({ ...mcp, default: 5, ceiling: null, builtInDefault: 5, custom: false, max: 25 });
+    mockApi({ "GET /v1/admin/limits": () => p });
+    renderWith(<LimitsPage />, { platformRole: "platform_auditor" });
+    await userEvent.click(await screen.findByRole("tab", { name: /Queries & chat/ }));
+    const queries = await screen.findByRole("table", { name: "Queries & chat: defaults and ceilings" });
+    const row = within(queries).getByText("MCP tool calls per answer").closest("tr")!;
+    expect(within(row).getByText("25 (maximum)")).toBeInTheDocument();
+    expect(within(row).queryByText("No ceiling")).toBeNull();
+  });
 });
 
 describe("admin team limits card", () => {

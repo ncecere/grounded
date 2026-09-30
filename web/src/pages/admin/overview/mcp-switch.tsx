@@ -13,8 +13,17 @@ import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
 import { mcpSettingsQuery } from "./queries";
 
+/**
+ * The public documentation site: its pages follow releases, unlike the repository's main branch (existing pages live
+ * under /docs, such as /docs/using/chat).
+ */
+const publicDocs = "https://docs.grounded.bitop.dev/docs";
+
 /** The guide to connecting AI tools (docs/mcp.md in the repository). */
-export const mcpDocsUrl = "https://github.com/ncecere/grounded/blob/main/docs/mcp.md";
+export const mcpDocsUrl = `${publicDocs}/using/mcp`;
+
+/** How the MCP server and its OAuth sign-in work, for the people who run Grounded. */
+export const mcpServerDocsUrl = `${publicDocs}/self-hosting/mcp-server`;
 
 /** The MCP server's address on this install. */
 export const mcpEndpoint = (origin = window.location.origin) => `${origin}/mcp`;

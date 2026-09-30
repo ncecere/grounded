@@ -77,6 +77,7 @@ func (a *api) mcpHandler() http.Handler {
 			mcpError(w, http.StatusForbidden, "missing_scope", "This API key does not have the mcp scope. Create a key with the MCP scope.")
 			return
 		}
+		a.APIKeys.Touch(r.Context(), key.Key.ID) // only an accepted call is a use
 		serveAs(w, r, mcpserver.NewKeyCaller(a.actor(r)))
 	})
 	noKey := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +88,7 @@ func (a *api) mcpHandler() http.Handler {
 		}
 		mcpError(w, http.StatusUnauthorized, "invalid_api_key", "Send an API key with the mcp scope as: Authorization: Bearer <key>")
 	})
-	withKey := a.keyOr(noKey, serveKey, mcpError)
+	withKey := a.keyAuth(noKey, serveKey, mcpError, false)
 	withToken := a.mcpOAuth(serveAs)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		on, err := a.Platform.MCPEnabled(r.Context())

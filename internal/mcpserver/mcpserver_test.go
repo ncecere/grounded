@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"sync"
@@ -77,6 +78,16 @@ func TestOptions(t *testing.T) {
 	if opts[0].Slug != "a-b-"+a.String()[:8] || opts[1].Slug != "a-b-"+b.String()[:8] || opts[2].Slug != c.String()[:8] {
 		t.Errorf("slugs = %s %s %s", opts[0].Slug, opts[1].Slug, opts[2].Slug)
 	}
+	// A person's (OAuth) names start with the team's slug, however many teams they're in.
+	opts2 := kbOptions([]KnowledgeBase{{ID: a, Name: "Student help", TeamSlug: "registrar"}, {ID: b, Name: "Student help", TeamSlug: "library"},
+		{ID: c, Name: "???", TeamSlug: "library"}})
+	if opts2[0].Slug != "registrar/student-help" || opts2[1].Slug != "library/student-help" || opts2[2].Slug != "library/"+c.String()[:8] {
+		t.Errorf("team slugs = %s %s %s", opts2[0].Slug, opts2[1].Slug, opts2[2].Slug)
+	}
+	ags := agentOptions([]Agent{{ID: a, Slug: "helper", TeamSlug: "registrar"}, {ID: b, Slug: "helper", TeamSlug: "library"}, {ID: c, Slug: "helper"}})
+	if ags[0].Slug != "registrar/helper" || ags[1].Slug != "library/helper" || ags[2].Slug != "helper" {
+		t.Errorf("agent slugs = %s %s %s", ags[0].Slug, ags[1].Slug, ags[2].Slug)
+	}
 	if d := describe(opts[2:]); d != "\n- "+c.String()[:8]+": ??? — First line." {
 		t.Errorf("describe = %q", d)
 	}
@@ -105,6 +116,36 @@ func TestText(t *testing.T) {
 		"To follow up, ask again with conversation: c1_x"
 	if got != want {
 		t.Errorf("ask text =\n%s\nwant\n%s", got, want)
+	}
+	// One passage is "1 passage".
+	if got := searchText(kb, SearchResult{Passages: []Passage{{N: 1, Title: "Parking", HeadingPath: []string{}, Text: "x"}}}); !strings.HasPrefix(got,
+		"1 passage from Handbook. Cite it by its [n] number.") {
+		t.Errorf("one passage = %q", got)
+	}
+}
+
+// ask's citations: an upload's filename, like search; a tool's result is
+// kind tool with its server and tool, and no (zero) document ID.
+func TestAskCitations(t *testing.T) {
+	doc := uuid.New()
+	tc := &toolCall{} // no conversation, so no caller
+	res := tc.askResult(option{Slug: "helper"}, agents.Answer{Text: "Email is up [1]. Wi-Fi help [2].", Citations: []agents.Citation{
+		{N: 1, Title: "Service status · check_outage", Kind: agents.SourceTool, Server: "Service status", Tool: "check_outage", Snippet: "Email: ok"},
+		{N: 2, DocumentID: doc, Title: "Wi-Fi", Filename: "wifi.md", HeadingPath: []string{"Setup"}, Snippet: "Connect to eduroam."},
+	}})
+	tool, passage := res.Citations[0], res.Citations[1]
+	if tool.Kind != "tool" || tool.DocumentID != "" || tool.Server != "Service status" || tool.Tool != "check_outage" {
+		t.Errorf("tool citation = %+v", tool)
+	}
+	if passage.Kind != "document" || passage.DocumentID != doc.String() || passage.Filename != "wifi.md" {
+		t.Errorf("passage citation = %+v", passage)
+	}
+	raw, _ := json.Marshal(tool)
+	if strings.Contains(string(raw), "document_id") || strings.Contains(string(raw), uuid.Nil.String()) {
+		t.Errorf("tool citation JSON = %s", raw)
+	}
+	if got := askText(res); !strings.Contains(got, "[1] Service status · check_outage (tool result)") || !strings.Contains(got, "[2] Wi-Fi › Setup") {
+		t.Errorf("ask text = %q", got)
 	}
 }
 

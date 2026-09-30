@@ -29,7 +29,7 @@ type Platform struct {
 }
 
 // Effective computes a key's limit for a team: override ?? default, capped
-// by the ceiling. nil means unlimited.
+// by the ceiling and the key's built-in maximum. nil means unlimited.
 func (p Platform) Effective(k Key, o Overrides) *int64 {
 	st := p.Settings[k]
 	v := st.Default
@@ -38,6 +38,9 @@ func (p Platform) Effective(k Key, o Overrides) *int64 {
 	}
 	if st.Ceiling != nil && (v == nil || *v > *st.Ceiling) {
 		v = st.Ceiling
+	}
+	if d, _ := Lookup(k); d.Max != nil && (v == nil || *v > *d.Max) {
+		v = d.Max
 	}
 	if v == nil {
 		return nil
@@ -208,6 +211,9 @@ const maxValue = int64(1) << 53
 func checkValue(d Def, what string, v *int64) error {
 	if v != nil && (*v < 0 || *v > maxValue) {
 		return invalid("The %s for %s must be between 0 and %d", what, label(d), maxValue)
+	}
+	if v != nil && d.Max != nil && *v > *d.Max {
+		return invalid("The %s for %s must be at most %d, the most Grounded allows.", what, label(d), *d.Max)
 	}
 	return nil
 }

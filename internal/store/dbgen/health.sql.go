@@ -12,6 +12,26 @@ import (
 	"github.com/google/uuid"
 )
 
+const forgetHealthChecks = `-- name: ForgetHealthChecks :exec
+DELETE FROM health_checks h
+WHERE (h.subject_kind = $1::text AND h.subject_id = $2::uuid)
+   OR ($1::text = 'connection' AND h.subject_kind = 'model'
+       AND h.subject_id IN (SELECT m.id FROM models m WHERE m.connection_id = $2::uuid))
+`
+
+type ForgetHealthChecksParams struct {
+	SubjectKind string
+	SubjectID   uuid.UUID
+}
+
+// Forgets a subject's stored health, and for a connection its models' too:
+// its address or credentials changed, so the last result no longer says
+// anything about it (it reads "Not tested yet" until it is tested again).
+func (q *Queries) ForgetHealthChecks(ctx context.Context, arg ForgetHealthChecksParams) error {
+	_, err := q.db.Exec(ctx, forgetHealthChecks, arg.SubjectKind, arg.SubjectID)
+	return err
+}
+
 const insertHealthCheck = `-- name: InsertHealthCheck :one
 INSERT INTO health_checks (subject_kind, subject_id, status, latency_ms, error_class, http_status, message, trigger, triggered_by, checked_at, status_since)
 SELECT $1, $2, $3, $4, $5, $6::integer, $7, $8, $9, $10::timestamptz,

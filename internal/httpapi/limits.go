@@ -22,7 +22,7 @@ func toAPIPlatformLimits(svc *limits.Service, p limits.Platform) apitypes.Platfo
 		out.Items = append(out.Items, apitypes.PlatformLimit{
 			Key: apitypes.LimitKey(d.Key), Group: apitypes.LimitGroup(d.Group), Unit: apitypes.LimitUnit(d.Unit), Period: period(d),
 			Label: d.Label, Description: d.Description, Default: st.Default, Ceiling: st.Ceiling,
-			BuiltInDefault: svc.BuiltIn(d.Key), Custom: p.Custom[d.Key],
+			BuiltInDefault: svc.BuiltIn(d.Key), Custom: p.Custom[d.Key], Max: d.Max,
 		})
 	}
 	return out
@@ -35,7 +35,7 @@ func toAPITeamOverrides(c limits.TeamConfig) apitypes.TeamLimitOverrides {
 		item := apitypes.TeamLimitOverride{
 			Key: apitypes.LimitKey(d.Key), Group: apitypes.LimitGroup(d.Group), Unit: apitypes.LimitUnit(d.Unit), Period: period(d),
 			Label: d.Label, Description: d.Description, Default: st.Default, Ceiling: st.Ceiling,
-			Effective: c.Platform.Effective(d.Key, c.Overrides),
+			Effective: c.Platform.Effective(d.Key, c.Overrides), Max: d.Max,
 		}
 		if v, ok := c.Overrides[d.Key]; ok {
 			item.Override = &v

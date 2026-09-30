@@ -54,7 +54,20 @@ func oauthRoutes(d Deps) []route {
 		{"POST", "/oauth/token", on("token", oauthRatePerMinute, false, a.oauthToken)},
 		{"POST", "/oauth/revoke", on("revoke", oauthRatePerMinute, false, a.oauthRevoke)},
 		{"POST", "/oauth/register", on("register", registerRatePerMinute, true, a.oauthRegister)},
+		// Without these, a GET would fall through to the web app (an HTML page with 200).
+		{"GET", "/oauth/token", on("", 0, false, oauthPostOnly)},
+		{"GET", "/oauth/revoke", on("", 0, false, oauthPostOnly)},
+		{"GET", "/oauth/register", on("", 0, false, oauthPostOnly)},
+		// Other well-known documents (OpenID discovery, which clients try as a
+		// fallback) don't exist: JSON 404, not the web app, whether OAuth is on or not.
+		{"GET", "/.well-known/", notFound},
 	}
+}
+
+// oauthPostOnly answers a GET on an endpoint that only takes POST (405).
+func oauthPostOnly(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Allow", http.MethodPost)
+	oauthJSONError(w, http.StatusMethodNotAllowed, "invalid_request", "This endpoint only accepts POST.")
 }
 
 // oauthOn reports whether OAuth sign-in is in effect.

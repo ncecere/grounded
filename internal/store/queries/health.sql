@@ -35,3 +35,12 @@ WHERE NOT EXISTS (SELECT 1 FROM health_subjects s WHERE s.subject_kind = h.subje
        AND EXISTS (SELECT 1 FROM health_checks n
                    WHERE n.subject_kind = h.subject_kind AND n.subject_id = h.subject_id
                      AND (n.checked_at, n.id) > (h.checked_at, h.id)));
+
+-- name: ForgetHealthChecks :exec
+-- Forgets a subject's stored health, and for a connection its models' too:
+-- its address or credentials changed, so the last result no longer says
+-- anything about it (it reads "Not tested yet" until it is tested again).
+DELETE FROM health_checks h
+WHERE (h.subject_kind = @subject_kind::text AND h.subject_id = @subject_id::uuid)
+   OR (@subject_kind::text = 'connection' AND h.subject_kind = 'model'
+       AND h.subject_id IN (SELECT m.id FROM models m WHERE m.connection_id = @subject_id::uuid));

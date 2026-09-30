@@ -206,13 +206,13 @@ WHERE state = 'running' ORDER BY attempted_at LIMIT 10;
 
 ## GroundedHealthCheckFailing
 
-**Meaning:** an enabled connection or model (named in the `kind` and `name` labels) has failed every health check for over 30 minutes: its latest stored check, from the health job or an admin's Test, failed, and so did every check since the first failure ([stored health](health.md)). The job re-tests every 15 minutes by default, so this is two or three failed checks in a row. Unlike [GroundedModelConnectionFailing](#groundedmodelconnectionfailing), it fires on an idle install too.
+**Meaning:** an enabled connection, model or MCP server (named in the `kind` and `name` labels; `kind` is `connection`, `model` or `mcp_server`) has failed every health check for over 30 minutes: its latest stored check, from the health job or an admin's Test, failed, and so did every check since the first failure ([stored health](health.md)). The job re-tests every 15 minutes by default, so this is two or three failed checks in a row. Unlike [GroundedModelConnectionFailing](#groundedmodelconnectionfailing), it fires on an idle install too.
 
 **First checks:**
-1. Administration → Connections or Models: the record page shows the error class, the gateway's message and when it started failing. A model that fails while its connection is healthy has class `not_found`: the gateway no longer lists its upstream model.
+1. Administration → Connections, Models or MCP servers: the record page shows the error class, the message and when it started failing. A model that fails while its connection is healthy has class `not_found`: the gateway no longer lists its upstream model.
 2. **Test connection** again to see the phases (DNS, connect, TLS, first byte); `grounded doctor` tests from inside the cluster.
 
-**Fixes:** as for [GroundedModelConnectionFailing](#groundedmodelconnectionfailing). Class `config` means the stored API key can't be decrypted with the current `ENCRYPTION_KEY`: enter the key again. A connection or model you no longer use: disable it, and it's neither tested nor alerted on.
+**Fixes:** as for [GroundedModelConnectionFailing](#groundedmodelconnectionfailing). Class `config` means the stored API key can't be decrypted with the current `ENCRYPTION_KEY`: enter the key again. An MCP server: **Test server** on its page; class `auth` means its header was refused, `unavailable` that it couldn't be reached or timed out. A connection, model or MCP server you no longer use: disable it, and it's neither tested nor alerted on.
 
 ## GroundedDBPoolSaturated
 

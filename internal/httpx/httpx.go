@@ -52,8 +52,27 @@ func ErrorDetails(w http.ResponseWriter, status int, code, message string, detai
 	writeJSON(w, status, errorBody{Error: ErrorDetail{Code: code, Message: message, Details: details}})
 }
 
-// Internal logs err with the request ID and writes a generic 500.
+// StatusClientClosedRequest is the status recorded for a request whose
+// client went away before the answer was ready (nginx's 499). It isn't a
+// server error: it stays out of the 5xx metrics and the error SLO.
+const StatusClientClosedRequest = 499
+
+// ClientGone reports whether the request's client disconnected (or
+// cancelled it), as opposed to a deadline or a server-side failure.
+func ClientGone(r *http.Request) bool {
+	return errors.Is(r.Context().Err(), context.Canceled)
+}
+
+// Internal logs err with the request ID and writes a generic 500. When the
+// client has gone away the failure is almost always the cancellation
+// itself, so it is logged at info as a client cancellation and recorded
+// as 499 instead.
 func Internal(w http.ResponseWriter, r *http.Request, err error) {
+	if ClientGone(r) {
+		slog.InfoContext(r.Context(), "client closed request", "err", err, "request_id", RequestID(r.Context()), "path", r.URL.Path)
+		Error(w, StatusClientClosedRequest, "client_closed_request", "The request was cancelled.")
+		return
+	}
 	slog.ErrorContext(r.Context(), "internal error", "err", err, "request_id", RequestID(r.Context()), "path", r.URL.Path)
 	Error(w, http.StatusInternalServerError, "internal", "Something went wrong. Include the request ID if you report this.")
 }

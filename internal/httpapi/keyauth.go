@@ -27,9 +27,17 @@ func (a *api) sessionOrKey(next http.Handler) http.Handler {
 // errorWriter writes an error response in some envelope.
 type errorWriter func(w http.ResponseWriter, status int, code, message string)
 
-// keyOr authenticates "Authorization: Bearer rag_..." API keys (then calls
-// next) and hands every other request to fallback. fail writes key errors.
+// keyOr authenticates "Authorization: Bearer rag_..." API keys (then records
+// the use and calls next) and hands every other request to fallback. fail
+// writes key errors.
 func (a *api) keyOr(fallback, next http.Handler, fail errorWriter) http.Handler {
+	return a.keyAuth(fallback, next, fail, true)
+}
+
+// keyAuth is keyOr; with touch false, next records the key's use itself
+// once it accepts the request (/mcp refuses a key without the mcp scope,
+// and a refused call isn't a use).
+func (a *api) keyAuth(fallback, next http.Handler, fail errorWriter, touch bool) http.Handler {
 	limiter := &ratelimit.Limiter{KV: a.KV}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header := r.Header.Get("Authorization")
@@ -41,7 +49,7 @@ func (a *api) keyOr(fallback, next http.Handler, fail errorWriter) http.Handler 
 			fail(w, http.StatusUnauthorized, "invalid_api_key", "Send a valid API key as: Authorization: Bearer <key>")
 			return
 		}
-		actor, err := a.APIKeys.Authenticate(r.Context(), strings.TrimPrefix(header, "Bearer "))
+		actor, err := a.APIKeys.Verify(r.Context(), strings.TrimPrefix(header, "Bearer "))
 		if errors.Is(err, apikeys.ErrInvalidKey) {
 			fail(w, http.StatusUnauthorized, "invalid_api_key", "The API key is invalid, expired or revoked")
 			return
@@ -56,6 +64,9 @@ func (a *api) keyOr(fallback, next http.Handler, fail errorWriter) http.Handler 
 			w.Header().Set("Retry-After", strconv.Itoa(max(int(res.RetryAfter.Seconds()), 1)))
 			fail(w, http.StatusTooManyRequests, "rate_limited", "Too many requests for this API key. Try again shortly.")
 			return
+		}
+		if touch {
+			a.APIKeys.Touch(r.Context(), actor.Key.ID)
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), keyActorKey{}, actor)))
 	})

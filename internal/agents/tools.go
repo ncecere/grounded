@@ -25,6 +25,7 @@ import (
 	"github.com/ncecere/grounded/internal/kbs"
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/mcpclient"
+	"github.com/ncecere/grounded/internal/observability"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
@@ -32,8 +33,9 @@ import (
 // model_id is the server).
 const UsageMCPCalls = "mcp_calls"
 
-// hardMaxMCPCalls bounds the calls of one answer when the limit is unlimited.
-const hardMaxMCPCalls = 25
+// hardMaxMCPCalls bounds the calls of one answer (the limit's built-in
+// maximum, which saving the limit also enforces).
+const hardMaxMCPCalls = limits.MaxMCPCallsPerAnswer
 
 // toolSource marks a numbered source that is a tool's result.
 type toolSource struct {
@@ -172,12 +174,12 @@ func (ru *run) callTool(ref mcpclient.ToolRef) agentloop.ExecuteFunc {
 			return agentloop.ToolResult{Content: msg, IsError: true, Details: toolDetails{Hits: []RetrievalHit{}, Error: "tool_failed"}}, nil
 		}
 		if !ru.mcp.admitCall() {
-			ru.auditToolCall(ctx, ref, mcpclient.CallOutcome{Outcome: mcpclient.OutcomeRefused, ServerName: ref.ServerName}, "call_limit")
+			ru.refuseToolCall(ctx, ref, "call_limit")
 			return fail(fmt.Sprintf("Not called: this answer already made its %d tool calls. Answer with what you have.", ru.mcp.max))
 		}
 		if ru.s.Limits != nil && ru.s.Limits.Budget != nil {
 			if err := ru.s.Limits.Budget.Check(ctx, ru.team.ID); err != nil {
-				ru.auditToolCall(ctx, ref, mcpclient.CallOutcome{Outcome: mcpclient.OutcomeRefused, ServerName: ref.ServerName}, "budget")
+				ru.refuseToolCall(ctx, ref, "budget")
 				return fail("Not called: the team's budget is used up. Answer with what you have.")
 			}
 		}
@@ -265,6 +267,15 @@ func (r *retriever) addToolSource(ctx context.Context, question, text string, sr
 	return *n, true
 }
 
+// refuseToolCall records a call the answer didn't make (its call limit, the
+// team's budget): audited as refused with the reason, and counted in
+// grounded_mcp_client_calls_total{outcome="refused"} like the MCP client's
+// own refusals (not timed).
+func (ru *run) refuseToolCall(ctx context.Context, ref mcpclient.ToolRef, reason string) {
+	observability.MCPClientCalls.WithLabelValues(ref.ServerName, ref.Name, mcpclient.OutcomeRefused).Inc() // no latency: nothing was sent
+	ru.auditToolCall(ctx, ref, mcpclient.CallOutcome{Outcome: mcpclient.OutcomeRefused, ServerName: ref.ServerName}, reason)
+}
+
 // auditToolCall records mcp.tool_call: the server, the tool, the outcome,
 // the duration and the result's size; never the arguments or the result.
 func (ru *run) auditToolCall(ctx context.Context, ref mcpclient.ToolRef, out mcpclient.CallOutcome, reason string) {
@@ -273,7 +284,7 @@ func (ru *run) auditToolCall(ctx context.Context, ref mcpclient.ToolRef, out mcp
 		e.ActorKind = audit.ActorSystem
 	}
 	e.TeamID = ru.team.ID
-	meta := map[string]any{"agentId": ru.agent.ID, "serverId": ref.ServerID, "server": ref.ServerName, "tool": ref.Name,
+	meta := map[string]any{"agentId": ru.agent.ID, "agent": ru.agent.Name, "serverId": ref.ServerID, "server": ref.ServerName, "tool": ref.Name,
 		"outcome": out.Outcome, "durationMs": out.Duration.Milliseconds(), "resultBytes": out.Result.Size,
 		"truncated": out.Result.Truncated, "channel": ru.channel}
 	if v := ru.versionNum(); v != nil {

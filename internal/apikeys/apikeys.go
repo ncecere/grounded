@@ -368,9 +368,23 @@ func (s *Service) markPepper(ctx context.Context, k dbgen.APIKey, p secrets.Pepp
 var ErrInvalidKey = errors.New("invalid API key")
 
 // Authenticate verifies a presented key and returns the principal it acts
-// as. Personal keys stop working when their owner leaves the team or is
-// suspended, even before revocation is recorded.
+// as, and records the key as used (Verify, then Touch).
 func (s *Service) Authenticate(ctx context.Context, presented string) (authz.Actor, error) {
+	actor, err := s.Verify(ctx, presented)
+	if err == nil {
+		s.Touch(ctx, actor.Key.ID)
+	}
+	return actor, err
+}
+
+// Touch records that a key was used ("Last used"). Callers that may still
+// refuse the request (a missing scope) call it only once they accept it.
+func (s *Service) Touch(ctx context.Context, id uuid.UUID) { _ = s.q.TouchAPIKey(ctx, id) }
+
+// Verify verifies a presented key and returns the principal it acts as,
+// without recording a use. Personal keys stop working when their owner
+// leaves the team or is suspended, even before revocation is recorded.
+func (s *Service) Verify(ctx context.Context, presented string) (authz.Actor, error) {
 	if len(presented) != len(keyPrefix)+idLen+1+secretLen || !strings.HasPrefix(presented, keyPrefix) {
 		return authz.Actor{}, ErrInvalidKey
 	}
@@ -398,7 +412,6 @@ func (s *Service) Authenticate(ctx context.Context, presented string) (authz.Act
 	if err := s.markPepper(ctx, k, peppers, match, rehash); err != nil {
 		return authz.Actor{}, err
 	}
-	_ = s.q.TouchAPIKey(ctx, k.ID)
 	return authz.Actor{
 		UserID: k.UserID.UUID,
 		Key:    &authz.KeyGrant{ID: k.ID, TeamID: k.TeamID, Scopes: k.Scopes, KBIDs: k.KBIDs, AgentIDs: k.AgentIDs, Kind: k.Kind},

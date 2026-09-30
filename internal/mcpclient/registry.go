@@ -13,6 +13,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/healthcheck"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -247,7 +248,15 @@ func (s *Service) UpdateServer(ctx context.Context, a authz.Actor, id uuid.UUID,
 		e := a.Audit("mcp_server.update", "mcp_server", id.String())
 		e.Before, e.After = snapshot(cur), snapshot(row)
 		e.Metadata = map[string]any{"authValueChanged": valueChanged}
-		return audit.Record(ctx, q, e)
+		if err := audit.Record(ctx, q, e); err != nil {
+			return err
+		}
+		// A new address or header makes the stored health meaningless: "Not
+		// tested yet" (and off Needs attention) until the next test.
+		if valueChanged || row.URL != cur.URL || !equalPtr(row.AuthHeaderName, cur.AuthHeaderName) {
+			return q.ForgetHealthChecks(ctx, dbgen.ForgetHealthChecksParams{SubjectKind: healthcheck.KindMCPServer, SubjectID: id})
+		}
+		return nil
 	})
 	if err != nil {
 		return Server{}, err
@@ -376,3 +385,5 @@ func (s *Service) target(sv dbgen.McpServer) (target, error) {
 	}
 	return t, nil
 }
+
+func equalPtr(a, b *string) bool { return (a == nil) == (b == nil) && (a == nil || *a == *b) }

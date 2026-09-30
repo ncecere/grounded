@@ -118,8 +118,9 @@ tests:
               description: 80% of chat requests to connection gateway failed in the last 10 minutes.
               runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedmodelconnectionfailing
 
-  # Stored health: a connection failing for 35 minutes (reported by two
-  # workers); a model failing for 10 minutes doesn't alert yet.
+  # Stored health: a connection and an MCP server failing for 35 minutes
+  # (the connection reported by two workers); a model failing for 10
+  # minutes doesn't alert yet.
   - interval: 1m
     input_series:
       - series: 'grounded_health_failing_seconds{namespace="g",kind="connection",name="gateway",instance="w1"}'
@@ -128,6 +129,8 @@ tests:
         values: '1500+60x20'
       - series: 'grounded_health_failing_seconds{namespace="g",kind="model",name="Chat",instance="w1"}'
         values: '0+60x20'
+      - series: 'grounded_health_failing_seconds{namespace="g",kind="mcp_server",name="Service status",instance="w1"}'
+        values: '1500+60x20'
     alert_rule_test:
       - eval_time: 5m
         alertname: GroundedHealthCheckFailing
@@ -142,8 +145,18 @@ tests:
               kind: connection
               name: gateway
             exp_annotations:
-              summary: Grounded connection gateway is failing its health check
-              description: The connection gateway has failed every test for 35m 0s. Admin → Connections or Models shows the error.
+              summary: 'Grounded health check failing: gateway (connection)'
+              description: 'gateway (connection: a connection, model or MCP server) has failed every test for 35m 0s. Admin → Connections, Models or MCP servers shows the error.'
+              runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedhealthcheckfailing
+          - exp_labels:
+              severity: warning
+              service: grounded
+              namespace: g
+              kind: mcp_server
+              name: Service status
+            exp_annotations:
+              summary: 'Grounded health check failing: Service status (mcp_server)'
+              description: 'Service status (mcp_server: a connection, model or MCP server) has failed every test for 35m 0s. Admin → Connections, Models or MCP servers shows the error.'
               runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedhealthcheckfailing
 
   # Queue: a job waiting 20 minutes; maintenance mode on for 5 hours.

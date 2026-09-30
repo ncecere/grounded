@@ -289,6 +289,13 @@ func (s *Service) UpdateConnection(ctx context.Context, a authz.Actor, id uuid.U
 		if err := audit.Record(ctx, q, e); err != nil {
 			return err
 		}
+		// A new address or key makes the stored health (and its models')
+		// meaningless: "Not tested yet" until the next test (health.md).
+		if keyChanged || updated.BaseURL != cur.BaseURL {
+			if err := q.ForgetHealthChecks(ctx, dbgen.ForgetHealthChecksParams{SubjectKind: "connection", SubjectID: id}); err != nil {
+				return err
+			}
+		}
 		n, err := q.CountConnectionModels(ctx, id)
 		out = Connection{ModelConnection: updated, ModelCount: n}
 		return err

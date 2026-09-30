@@ -216,6 +216,7 @@ func TestOAuthRevocationSuspensionAndSetting(t *testing.T) {
 	if n := env.scalar(t, `SELECT count(*) FROM audit_log WHERE action = 'oauth.revoke'`); n != 3 {
 		t.Errorf("oauth.revoke entries = %d, want 3", n)
 	}
+	checkOAuthAuditVia(t, env)
 
 	// Suspension, the setting, the MCP switch and the audience.
 	access, _ = c.signInApp(env.member)
@@ -276,5 +277,52 @@ func TestOAuthMetadataDocumentClient(t *testing.T) {
 	res := authorize(t, base, env.member, c2.query(p, nil))
 	if res.StatusCode != 400 || res.Header.Get("Location") != "" {
 		t.Errorf("mismatched client_id = %d %q", res.StatusCode, res.Header.Get("Location"))
+	}
+}
+
+// checkOAuthAuditVia: the platform log says how the person acted (through
+// the app, or signed in to Grounded) and shows a registration's address;
+// the team log never shows addresses.
+func checkOAuthAuditVia(t *testing.T, env *agentEnv) {
+	t.Helper()
+	var page apitypes.AuditPage
+	if code := env.admin.get("/v1/admin/audit?action=oauth.", &page); code != 200 {
+		t.Fatalf("audit = %d", code)
+	}
+	var revokes []string
+	for _, e := range page.Items {
+		via := "none"
+		if e.Via != nil {
+			via = string(e.Via.Kind)
+			if e.Via.Name != nil {
+				via += ":" + *e.Via.Name
+			}
+		}
+		switch e.Action {
+		case "oauth.revoke":
+			revokes = append(revokes, e.Metadata["reason"].(string)+"="+via)
+		case "oauth.client_register":
+			if via != "none" || e.ClientIp == nil || *e.ClientIp == "" {
+				t.Errorf("client_register via %s, address %v", via, e.ClientIp)
+			}
+		case "oauth.token_issue":
+			if via != "oauth:Test Assistant" {
+				t.Errorf("token_issue via %s", via)
+			}
+		}
+	}
+	// Newest first: the admin's disconnect, the person's, the app's.
+	if strings.Join(revokes, ",") != "admin=session,user=session,client=oauth:Test Assistant" {
+		t.Errorf("revocations = %v", revokes)
+	}
+	var team apitypes.AuditPage
+	if code := env.tadmin.get(env.base+"/audit", &team); code != 200 || len(team.Items) == 0 {
+		t.Errorf("team audit = %d, %d entries", code, len(team.Items))
+	} else {
+		for _, e := range team.Items {
+			if e.ClientIp != nil {
+				t.Errorf("team log shows the address of %s", e.Action)
+			}
+		}
 	}
 }

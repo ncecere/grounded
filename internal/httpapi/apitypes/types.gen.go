@@ -474,6 +474,27 @@ func (e AuditParentType) Valid() bool {
 	}
 }
 
+// Defines values for AuditViaKind.
+const (
+	AuditViaKindApiKey  AuditViaKind = "api_key"
+	AuditViaKindOauth   AuditViaKind = "oauth"
+	AuditViaKindSession AuditViaKind = "session"
+)
+
+// Valid indicates whether the value is a known member of the AuditViaKind enum.
+func (e AuditViaKind) Valid() bool {
+	switch e {
+	case AuditViaKindApiKey:
+		return true
+	case AuditViaKindOauth:
+		return true
+	case AuditViaKindSession:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BreakGlassReadTargetType.
 const (
 	BreakGlassReadTargetTypeConversation BreakGlassReadTargetType = "conversation"
@@ -4658,7 +4679,10 @@ type AuditEntry struct {
 	After interface{} `json:"after,omitempty"`
 
 	// Before Configuration before the change
-	Before     interface{}            `json:"before,omitempty"`
+	Before interface{} `json:"before,omitempty"`
+
+	// ClientIp The caller's address as recorded, in the platform log only (null in a team's log, or when none was recorded).
+	ClientIp   *string                `json:"clientIp,omitempty"`
 	Id         int64                  `json:"id"`
 	Metadata   map[string]interface{} `json:"metadata"`
 	OccurredAt time.Time              `json:"occurredAt"`
@@ -4681,6 +4705,9 @@ type AuditEntry struct {
 
 	// TeamSlug The team's slug, with teamName
 	TeamSlug *string `json:"teamSlug,omitempty"`
+
+	// Via How the person acted: signed in to Grounded, with an API key, or through a connected app (OAuth). Null for the system's entries.
+	Via *AuditVia `json:"via,omitempty"`
 }
 
 // AuditEntryActorKind defines model for AuditEntry.ActorKind.
@@ -4704,6 +4731,18 @@ type AuditParent struct {
 
 // AuditParentType defines model for AuditParent.Type.
 type AuditParentType string
+
+// AuditVia defines model for AuditVia.
+type AuditVia struct {
+	// Kind session: signed in to Grounded (the web app); api_key: with an API key; oauth: through a connected app (OAuth sign-in for MCP clients).
+	Kind AuditViaKind `json:"kind"`
+
+	// Name The API key's or the connected app's name, when known
+	Name *string `json:"name,omitempty"`
+}
+
+// AuditViaKind session: signed in to Grounded (the web app); api_key: with an API key; oauth: through a connected app (OAuth sign-in for MCP clients).
+type AuditViaKind string
 
 // AuthConfig defines model for AuthConfig.
 type AuthConfig struct {
@@ -8480,6 +8519,9 @@ type PlatformLimit struct {
 	Key   LimitKey `json:"key"`
 	Label string   `json:"label"`
 
+	// Max The most Grounded allows for this limit, whatever the ceiling: an empty default or ceiling means it, and higher values are refused. Absent when there is none.
+	Max *int64 `json:"max,omitempty"`
+
 	// Period none: a total or a concurrency level; minute; day: a UTC day
 	Period LimitPeriod `json:"period"`
 	Unit   LimitUnit   `json:"unit"`
@@ -9567,7 +9609,7 @@ type TeamLimitOverride struct {
 	Default     *LimitValue `json:"default"`
 	Description string      `json:"description"`
 
-	// Effective override ?? default, capped by the ceiling; null = unlimited
+	// Effective override ?? default, capped by the ceiling and max; null = unlimited
 	Effective *LimitValue `json:"effective"`
 
 	// Group public limits apply per agent to anonymous public-page and widget traffic; evaluations are evaluation sets and their questions
@@ -9576,6 +9618,9 @@ type TeamLimitOverride struct {
 	// Key A team limit. See GET /v1/admin/limits for labels and descriptions.
 	Key   LimitKey `json:"key"`
 	Label string   `json:"label"`
+
+	// Max The most Grounded allows for this limit (see PlatformLimit.max). Absent when there is none.
+	Max *int64 `json:"max,omitempty"`
 
 	// Override The team's own value (0 = blocked); null = inherits the default
 	Override *LimitValue `json:"override"`

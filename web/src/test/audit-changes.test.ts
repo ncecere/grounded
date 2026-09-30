@@ -1,6 +1,6 @@
 /* Audit diffs in words (components/audit/changes.ts): money, months, days, price units, no raw ids, one word for no value, a revoked key. */
 import { auditChange, auditMoney, changedRows, changeSummary, plainKey, valueText } from "../components/audit/changes";
-import { actionLabel, areaOptions, entryTitle, personFilter } from "../components/audit/labels";
+import { actionLabel, areaOptions, entryTitle, personFilter, viaLabel } from "../components/audit/labels";
 
 describe("audit changes", () => {
   it("shows a budget change in money and words, with no value left out (the diff says Not set)", () => {
@@ -67,6 +67,27 @@ describe("switches and holds in words", () => {
     expect(entryTitle(off)).toBe("Turned evaluations off");
     expect(entryTitle({ action: "platform.model_update", after: null, targetLabel: "GPT" })).toBe("Changed model: GPT");
     expect(valueText(true)).toBe("On");
+  });
+
+  it("labels OAuth and MCP tool entries by what happened, and says how the person acted", () => {
+    const revoke = (metadata: Record<string, unknown>) => actionLabel("oauth.revoke", { after: null, metadata });
+    expect(revoke({ reason: "user" })).toBe("Disconnected an app");
+    expect(revoke({ reason: "admin" })).toBe("Disconnected a person's app");
+    expect(revoke({ reason: "client", token: "access" })).toBe("App signed out one token");
+    expect(revoke({ reason: "refresh_reuse" })).toBe("Connection revoked: a refresh token was reused (possible theft)");
+    expect(actionLabel("oauth.token_issue", { after: null, metadata: { grantType: "refresh_token" } })).toBe("App renewed its sign-in");
+    expect(actionLabel("oauth.token_issue", { after: null, metadata: { grantType: "authorization_code" } })).toBe("App signed in");
+    const call = (metadata: Record<string, unknown>) => actionLabel("mcp.tool_call", { after: null, metadata });
+    expect(call({ outcome: "ok" })).toBe("An agent called an MCP tool");
+    expect(call({ outcome: "refused", reason: "call_limit" })).toBe("An agent's MCP tool call was refused (call limit)");
+    expect(call({ outcome: "timeout" })).toBe("An agent's MCP tool call failed (timeout)");
+    // The OAuth switch's title doesn't add its settings record's label (": MCP server").
+    const oauth = { action: "platform.mcp_oauth", after: { oauthEnabled: true }, targetLabel: "MCP server", targetType: "mcp_settings" };
+    expect(entryTitle(oauth)).toBe("Turned OAuth sign-in for MCP clients on");
+    expect(viaLabel({ kind: "oauth", name: "Example Assistant" })).toBe("Connected app: Example Assistant");
+    expect(viaLabel({ kind: "api_key" })).toBe("API key");
+    expect(viaLabel({ kind: "session" })).toBe("Signed in");
+    expect(viaLabel(null)).toBe("");
   });
 
   it("shows a released hold's status as Active → Released", () => {

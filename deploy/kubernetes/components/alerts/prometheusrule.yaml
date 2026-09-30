@@ -275,8 +275,8 @@ spec:
             severity: warning
             service: grounded
           annotations:
-            summary: 'Grounded {{ $labels.kind }} {{ $labels.name }} is failing its health check'
-            description: 'The {{ $labels.kind }} {{ $labels.name }} has failed every test for {{ $value | humanizeDuration }}. Admin → Connections or Models shows the error.'
+            summary: 'Grounded health check failing: {{ $labels.name }} ({{ $labels.kind }})'
+            description: '{{ $labels.name }} ({{ $labels.kind }}: a connection, model or MCP server) has failed every test for {{ $value | humanizeDuration }}. Admin → Connections, Models or MCP servers shows the error.'
             runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedhealthcheckfailing
         - alert: GroundedDBPoolSaturated
           expr: grounded_db_pool_acquired_connections / grounded_db_pool_max_connections > 0.9

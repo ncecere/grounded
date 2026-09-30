@@ -125,7 +125,7 @@ func (a *api) getTeamAuditEntry(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "not_found", "Audit entry not found")
 		return
 	}
-	httpx.JSON(w, http.StatusOK, toAPIAudit(rows[0]))
+	httpx.JSON(w, http.StatusOK, toAPIAudit(rows[0], false))
 }
 
 // teamAuditAccess resolves the team and checks the caller may read its log:

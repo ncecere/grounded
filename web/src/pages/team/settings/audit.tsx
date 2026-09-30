@@ -15,7 +15,7 @@ import { Eye, FileClock } from "lucide-react";
 import { api, unwrap, type Schemas } from "../../../api/client";
 import { auditKey } from "../../../components/audit/audit-log";
 import { changeSummary } from "../../../components/audit/changes";
-import { actionLabel, actorName, areaOptions, groupMappingPersonOption, personFilter } from "../../../components/audit/labels";
+import { actionLabel, actorName, areaOptions, groupMappingPersonOption, personFilter, viaLabel } from "../../../components/audit/labels";
 import { AuditTarget } from "../../../components/audit/target";
 import { rangeWindow } from "../../admin/logs/common";
 import { ListPage, RelativeTime, useListFilters } from "../../../components/templates/list-page";
@@ -145,6 +145,7 @@ function AuditEntryPage({ id, loaded, onClose }: { id?: string; loaded?: Entry; 
           ? [
               { label: "When", value: <Time value={e.occurredAt} format="datetime" /> },
               { label: "Who", value: [actorName(e.actor, e), who(e)].filter(Boolean).join(" · ") },
+              ...(e.via ? [{ label: "How", value: viaLabel(e.via) }] : []),
               { label: "Action", value: <code className={s.mono}>{e.action}</code> },
               { label: "Target", value: <AuditTarget entry={e} scope={{ kind: "team", team, member: Boolean(role) }} /> },
               { label: "Request", value: e.requestId ? <code className={s.mono}>{e.requestId}</code> : undefined },

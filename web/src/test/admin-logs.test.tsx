@@ -46,6 +46,27 @@ describe("admin logs", () => {
     expect(within(page).getByText("platform.model_create")).toBeInTheDocument();
   });
 
+  it("says how the person acted and from which address, on the record page", async () => {
+    const search = entry(101, "mcp.search", {
+      targetType: "knowledge_base",
+      targetLabel: "IT help articles",
+      metadata: { via: "oauth", oauthClient: "Example Assistant" },
+      via: { kind: "oauth", name: "Example Assistant" },
+      clientIp: "203.0.113.9",
+    });
+    mockApi({
+      ...shellRoutes("platform_auditor"),
+      "GET /v1/admin/audit": () => ({ items: [], nextCursor: null }),
+      "GET /v1/admin/audit/101": () => search,
+      "GET /v1/admin/users": () => users,
+    });
+    const { container } = renderApp("/admin/logs?record=101");
+    const page = await screen.findByRole("region", { name: "Searched over MCP" }, { timeout: 4000 });
+    expect(within(page).getByText("Connected app: Example Assistant")).toBeInTheDocument();
+    expect(within(page).getByText("203.0.113.9")).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("shows a missing linked entry as not found", async () => {
     mockApi({
       ...shellRoutes("platform_auditor"),

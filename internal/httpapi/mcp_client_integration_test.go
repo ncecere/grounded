@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -166,6 +168,19 @@ func TestMCPServerRegistry(t *testing.T) {
 		checks[0].Status != "failing" || checks[0].SubjectName != "Service status" || checks[0].Trigger != "manual" {
 		t.Fatalf("health = %d %+v", code, checks)
 	}
+	// A description change keeps the stored health; a new header value forgets it ("Not tested yet").
+	var srv apitypes.MCPServer
+	env.admin.get(path, &srv)
+	code, e = env.admin.call("PATCH", path, map[string]any{"description": "Campus status."}, &srv, ifMatch(srv.Revision))
+	mustCode(t, "describe", code, e, 200, "")
+	if env.auditor.get("/v1/admin/health-checks?kind=mcp_server", &checks); len(checks) != 1 {
+		t.Fatalf("health after a description change = %+v", checks)
+	}
+	code, e = env.admin.call("PATCH", path, map[string]any{"authValue": "Bearer status-key-1234"}, &srv, ifMatch(srv.Revision))
+	mustCode(t, "new key", code, e, 200, "")
+	if env.auditor.get("/v1/admin/health-checks?kind=mcp_server", &checks); len(checks) != 0 {
+		t.Fatalf("health after a new key = %+v", checks)
+	}
 	// The health job re-tests enabled servers the same way (a list, never a call).
 	env.fake.RequireHeader("Authorization", "Bearer status-key-1234")
 	calls := len(env.fake.Calls())
@@ -311,15 +326,37 @@ func TestMCPToolBounds(t *testing.T) {
 	ag = env.toolAgent(t, "Limited", []string{"check_outage"},
 		testutil.FakeToolCall{Name: "check_outage", Args: `{"service":"email"}`}, testutil.FakeToolCall{Name: "check_outage", Args: `{"service":"wifi"}`})
 	before := len(env.fake.Calls())
+	refused := env.refusedCalls(t)
 	if code, _, errCode := env.member.stream(env.chatPath(ag.Slug), map[string]any{"message": "Email and wifi?"}); code != 200 {
 		t.Fatalf("chat = %d %s", code, errCode)
 	}
 	if n := len(env.fake.Calls()) - before; n != 1 {
 		t.Fatalf("%d calls made", n)
 	}
-	if !strings.Contains(strings.Join(env.auditRows(t, "mcp.tool_call"), "\n"), `"reason": "call_limit"`) {
-		t.Fatal("the refused call is not audited")
+	audits = strings.Join(env.auditRows(t, "mcp.tool_call"), "\n")
+	if !strings.Contains(audits, `"reason": "call_limit"`) || !strings.Contains(audits, `"agent": "Limited"`) {
+		t.Fatal("the refused call is not audited with the agent's name")
 	}
+	// A call the answer didn't make is counted as refused, like the client's own refusals.
+	if got := env.refusedCalls(t); got != refused+1 {
+		t.Errorf("refused calls counted = %v, want %v", got, refused+1)
+	}
+}
+
+// refusedCalls reads grounded_mcp_client_calls_total{outcome="refused"} for
+// Service status's check_outage from /metrics (0 before the first).
+func (env *mcpEnv) refusedCalls(t *testing.T) int {
+	t.Helper()
+	code, raw := env.member.raw("GET", "/metrics", nil, nil)
+	if code != 200 {
+		t.Fatalf("metrics = %d", code)
+	}
+	m := regexp.MustCompile(`(?m)^grounded_mcp_client_calls_total\{outcome="refused",server="Service status",tool="check_outage"\} (\d+)$`).FindSubmatch(raw)
+	if m == nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(string(m[1]))
+	return n
 }
 
 // budgetAfter admits the first n checks, then refuses (a budget used up mid-answer).

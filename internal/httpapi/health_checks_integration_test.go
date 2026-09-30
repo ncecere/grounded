@@ -135,6 +135,10 @@ func TestHealthChecksStoredByTestsAndJob(t *testing.T) {
 	proxy.FailWith(0)
 	code, e = admin.call("PATCH", "/v1/admin/connections/"+conn.Id.String(), map[string]any{"apiKey": proxy.APIKey}, nil, ifMatch(connRevision(t, admin, conn.Id)))
 	mustCode(t, "re-enter the key", code, e, 200, "")
+	// A new key forgets the connection's (and its models') stored health: "Not tested yet".
+	if h := latestHealth(t, admin, ""); len(h) != 0 {
+		t.Errorf("health after a new key = %+v", h)
+	}
 	if _, err := runner.Run(ctx); err != nil {
 		t.Fatal(err)
 	}

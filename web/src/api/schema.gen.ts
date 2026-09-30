@@ -5457,6 +5457,19 @@ export interface components {
                 [key: string]: unknown;
             };
             requestId: string;
+            /** @description How the person acted: signed in to Grounded, with an API key, or through a connected app (OAuth). Null for the system's entries. */
+            via?: components["schemas"]["AuditVia"] | null;
+            /** @description The caller's address as recorded, in the platform log only (null in a team's log, or when none was recorded). */
+            clientIp?: string | null;
+        };
+        AuditVia: {
+            /**
+             * @description session: signed in to Grounded (the web app); api_key: with an API key; oauth: through a connected app (OAuth sign-in for MCP clients).
+             * @enum {string}
+             */
+            kind: "session" | "api_key" | "oauth";
+            /** @description The API key's or the connected app's name, when known */
+            name?: string;
         };
         AuditParent: {
             /** @enum {string} */
@@ -7342,6 +7355,11 @@ export interface components {
             builtInDefault: components["schemas"]["LimitValue"];
             /** @description A platform admin has set this limit */
             custom: boolean;
+            /**
+             * Format: int64
+             * @description The most Grounded allows for this limit, whatever the ceiling: an empty default or ceiling means it, and higher values are refused. Absent when there is none.
+             */
+            max?: number;
         };
         PlatformLimits: {
             revision: components["schemas"]["Revision"];
@@ -7370,8 +7388,13 @@ export interface components {
             override: components["schemas"]["LimitValue"];
             default: components["schemas"]["LimitValue"];
             ceiling: components["schemas"]["LimitValue"];
-            /** @description override ?? default, capped by the ceiling; null = unlimited */
+            /** @description override ?? default, capped by the ceiling and max; null = unlimited */
             effective: components["schemas"]["LimitValue"];
+            /**
+             * Format: int64
+             * @description The most Grounded allows for this limit (see PlatformLimit.max). Absent when there is none.
+             */
+            max?: number;
         };
         TeamLimitOverrides: {
             /** Format: uuid */

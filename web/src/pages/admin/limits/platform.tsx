@@ -21,7 +21,7 @@ import { Table, Td, Tr } from "@/components/ui/table/table";
 import { toast } from "@/components/ui/toast/toast";
 import { formatDate } from "@/lib/format";
 import { PageTabs, useUrlTab } from "@/components/page-tabs";
-import { formatLimit, limitGroups, platformLimitsQuery } from "@/lib/limits";
+import { formatLimit, formatLimitMax, limitGroups, platformLimitsQuery } from "@/lib/limits";
 import { limitTabs } from "@/lib/tabs";
 import { adminOnly } from "@/lib/terms";
 import { useCurrentUser } from "@/session";
@@ -88,7 +88,7 @@ export function LimitsPage() {
     <Stack gap={6} className={s.page}>
       <PageHeader
         title="Limits"
-        description="Defaults apply to every team without its own value; a ceiling is the most any team can be given (lowering it caps existing team values). Empty means unlimited or no ceiling. A team's own values are on its page under Teams."
+        description="Defaults apply to every team without its own value; a ceiling is the most any team can be given (lowering it caps existing team values). Empty means unlimited or no ceiling, or a limit's maximum where Grounded has one. A team's own values are on its page under Teams."
         meta={limits.data && limits.data.revision > 1 ? <span className={s.note}>Last changed {formatDate(limits.data.updatedAt)}</span> : undefined}
       />
       {!isAdmin && (
@@ -175,12 +175,12 @@ function PlatformLimitRow({ it, f, isAdmin, submitted, onChange }: RowProps) {
             unit={it.unit}
             period={it.period}
             value={f.def}
-            placeholder="Unlimited"
+            placeholder={formatLimitMax(it, null)}
             error={errs.def}
             onChange={(v) => onChange({ ...f, def: v })}
           />
         ) : (
-          formatLimit(it.unit, it.period, it.default)
+          formatLimitMax(it, it.default)
         )}
       </Td>
       <Td>
@@ -190,14 +190,14 @@ function PlatformLimitRow({ it, f, isAdmin, submitted, onChange }: RowProps) {
             unit={it.unit}
             period={it.period}
             value={f.ceil}
-            placeholder="No ceiling"
+            placeholder={formatLimitMax(it, null, "No ceiling")}
             error={errs.ceil}
             onChange={(v) => onChange({ ...f, ceil: v })}
           />
-        ) : it.ceiling === null ? (
+        ) : it.ceiling === null && it.max === undefined ? (
           <span className={s.muted}>No ceiling</span>
         ) : (
-          formatLimit(it.unit, it.period, it.ceiling)
+          formatLimitMax(it, it.ceiling)
         )}
       </Td>
     </Tr>

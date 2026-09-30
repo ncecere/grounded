@@ -145,12 +145,14 @@ func (a *api) writeAuditPage(w http.ResponseWriter, r *http.Request, scope dbgen
 		page.NextCursor = encodeCursor(strconv.FormatInt(rows[len(rows)-1].ID, 10))
 	}
 	for _, e := range rows {
-		page.Items = append(page.Items, toAPIAudit(e))
+		page.Items = append(page.Items, toAPIAudit(e, !scope.TeamID.Valid))
 	}
 	httpx.JSON(w, http.StatusOK, page)
 }
 
-func toAPIAudit(e dbgen.ListAuditRow) apitypes.AuditEntry {
+// toAPIAudit converts one entry; platform is whether it is read in the
+// platform log (the caller's address is shown there only).
+func toAPIAudit(e dbgen.ListAuditRow, platform bool) apitypes.AuditEntry {
 	out := apitypes.AuditEntry{
 		Id: e.ID, OccurredAt: e.OccurredAt, ActorKind: apitypes.AuditEntryActorKind(e.ActorKind),
 		Actor:  toAPIAuditActor(e),
@@ -176,7 +178,30 @@ func toAPIAudit(e dbgen.ListAuditRow) apitypes.AuditEntry {
 		out.After = e.AfterState
 	}
 	_ = json.Unmarshal(e.Metadata, &out.Metadata)
+	out.Via = auditVia(e, out.Metadata)
+	if platform && e.ClientIP != "" {
+		out.ClientIp = &e.ClientIP
+	}
 	return out
+}
+
+// auditVia says how the person acted: with an API key (the key's actor
+// kind), through a connected app (metadata via: oauth, authz.Actor.Audit),
+// or otherwise signed in to Grounded. Nil for the system's entries.
+func auditVia(e dbgen.ListAuditRow, meta map[string]any) *apitypes.AuditVia {
+	switch {
+	case e.ActorKind == "api_key":
+		return &apitypes.AuditVia{Kind: apitypes.AuditViaKindApiKey, Name: e.ActorApiKeyName}
+	case meta["via"] == "oauth":
+		v := &apitypes.AuditVia{Kind: apitypes.AuditViaKindOauth}
+		if name, ok := meta["oauthClient"].(string); ok && name != "" {
+			v.Name = &name
+		}
+		return v
+	case e.ActorKind == "user" && e.ActorUserID.Valid:
+		return &apitypes.AuditVia{Kind: apitypes.AuditViaKindSession}
+	}
+	return nil
 }
 
 // toAPIAuditParent links a target to the object it belongs to (a widget
