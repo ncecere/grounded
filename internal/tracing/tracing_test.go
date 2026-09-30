@@ -139,8 +139,8 @@ func TestTransport(t *testing.T) {
 		t.Fatalf("span = %+v", sp)
 	}
 	for _, a := range sp.Attributes() {
-		if strings.Contains(a.Value.Emit(), "secret") || strings.Contains(a.Value.Emit(), "/private") {
-			t.Fatalf("attribute %s = %s", a.Key, a.Value.Emit())
+		if strings.Contains(a.Value.String(), "secret") || strings.Contains(a.Value.String(), "/private") {
+			t.Fatalf("attribute %s = %s", a.Key, a.Value.String())
 		}
 	}
 }

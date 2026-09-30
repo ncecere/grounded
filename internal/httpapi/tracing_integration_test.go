@@ -49,12 +49,12 @@ func noText(t *testing.T, spans []sdktrace.ReadOnlySpan, texts ...string) {
 	for _, sp := range spans {
 		values := []string{sp.Name(), sp.Status().Description}
 		for _, a := range sp.Attributes() {
-			values = append(values, a.Value.Emit())
+			values = append(values, a.Value.String())
 		}
 		for _, ev := range sp.Events() {
 			values = append(values, ev.Name)
 			for _, a := range ev.Attributes {
-				values = append(values, a.Value.Emit())
+				values = append(values, a.Value.String())
 			}
 		}
 		for _, v := range values {
@@ -70,7 +70,7 @@ func noText(t *testing.T, spans []sdktrace.ReadOnlySpan, texts ...string) {
 func attr(sp sdktrace.ReadOnlySpan, key string) string {
 	for _, a := range sp.Attributes() {
 		if string(a.Key) == key {
-			return a.Value.Emit()
+			return a.Value.String()
 		}
 	}
 	return ""
