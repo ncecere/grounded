@@ -243,13 +243,15 @@ The answer is not streamed. It returns the answer text with its `[n]` markers, t
   "agent": "go-docs",
   "answer": "Use go test with -run to pick tests [1].",
   "citations": [
-    { "n": 1, "title": "Testing", "heading_path": ["Running tests"], "url": "https://go.dev/doc/…", "document_id": "…", "snippet": "…" }
+    { "n": 1, "kind": "document", "title": "Testing", "heading_path": ["Running tests"], "url": "https://go.dev/doc/…", "document_id": "…", "snippet": "…" },
+    { "n": 2, "kind": "tool", "title": "Service status · check_outage", "heading_path": [], "server": "Service status", "tool": "check_outage", "snippet": "…" }
   ],
   "claims": [{ "text": "Use go test with -run to pick tests.", "verdict": "supported", "sources": [1] }],
   "conversation": "c1_…"
 }
 ```
 
+- Each citation has a `kind`: `document` for a passage (with its `document_id`, and `url` for a web page when the agent links its sources, or `filename` for an upload, as in `search`), or `tool` for the result of an MCP tool the agent called ([`mcp-client.md`](mcp-client.md)), with the `server` and `tool` and no `document_id`. The text marks those sources "(tool result)".
 - `claims` (and each citation's `verification`) are there when the agent's citations are checked by SystemOne ([`systemone.md`](systemone.md) §3): each factual sentence with its verdict (`supported`, `not_supported`, `uncited` or `unchecked`).
 - `conversation` is an opaque handle for the conversation Grounded stored. It only works with the key that received it: another key, even the same person's, gets "That conversation wasn't found". Rotating `API_KEY_PEPPER` retires every handle ([`operations/rotate-keys.md`](operations/rotate-keys.md)); the next question starts a new conversation.
 - `refused` is true when the agent declined (for example, a strict agent with nothing to answer from).

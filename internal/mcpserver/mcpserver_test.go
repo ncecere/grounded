@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"sync"
@@ -115,6 +116,36 @@ func TestText(t *testing.T) {
 		"To follow up, ask again with conversation: c1_x"
 	if got != want {
 		t.Errorf("ask text =\n%s\nwant\n%s", got, want)
+	}
+	// One passage is "1 passage".
+	if got := searchText(kb, SearchResult{Passages: []Passage{{N: 1, Title: "Parking", HeadingPath: []string{}, Text: "x"}}}); !strings.HasPrefix(got,
+		"1 passage from Handbook. Cite it by its [n] number.") {
+		t.Errorf("one passage = %q", got)
+	}
+}
+
+// ask's citations: an upload's filename, like search; a tool's result is
+// kind tool with its server and tool, and no (zero) document ID.
+func TestAskCitations(t *testing.T) {
+	doc := uuid.New()
+	tc := &toolCall{} // no conversation, so no caller
+	res := tc.askResult(option{Slug: "helper"}, agents.Answer{Text: "Email is up [1]. Wi-Fi help [2].", Citations: []agents.Citation{
+		{N: 1, Title: "Service status · check_outage", Kind: agents.SourceTool, Server: "Service status", Tool: "check_outage", Snippet: "Email: ok"},
+		{N: 2, DocumentID: doc, Title: "Wi-Fi", Filename: "wifi.md", HeadingPath: []string{"Setup"}, Snippet: "Connect to eduroam."},
+	}})
+	tool, passage := res.Citations[0], res.Citations[1]
+	if tool.Kind != "tool" || tool.DocumentID != "" || tool.Server != "Service status" || tool.Tool != "check_outage" {
+		t.Errorf("tool citation = %+v", tool)
+	}
+	if passage.Kind != "document" || passage.DocumentID != doc.String() || passage.Filename != "wifi.md" {
+		t.Errorf("passage citation = %+v", passage)
+	}
+	raw, _ := json.Marshal(tool)
+	if strings.Contains(string(raw), "document_id") || strings.Contains(string(raw), uuid.Nil.String()) {
+		t.Errorf("tool citation JSON = %s", raw)
+	}
+	if got := askText(res); !strings.Contains(got, "[1] Service status · check_outage (tool result)") || !strings.Contains(got, "[2] Wi-Fi › Setup") {
+		t.Errorf("ask text = %q", got)
 	}
 }
 

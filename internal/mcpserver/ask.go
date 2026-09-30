@@ -15,6 +15,9 @@ import (
 // maxQuestionChars is an agent question's limit (as for chat).
 const maxQuestionChars = agents.MaxMessageChars
 
+// citationDocument is the kind of a citation of a document's passage.
+const citationDocument = "document"
+
 // AskInput is the ask tool's arguments.
 type AskInput struct {
 	Agent        string `json:"agent"`
@@ -22,16 +25,22 @@ type AskInput struct {
 	Conversation string `json:"conversation,omitempty"`
 }
 
-// Citation is one numbered source of an answer.
+// Citation is one numbered source of an answer: a passage of a document,
+// or (kind tool) the result of an MCP tool the agent called, which has no
+// document.
 type Citation struct {
 	N           int      `json:"n" jsonschema:"The number the answer's [n] markers refer to"`
-	Title       string   `json:"title" jsonschema:"The document's title"`
+	Kind        string   `json:"kind" jsonschema:"document: a passage of a document in Grounded; tool: the result of a tool the agent called (server and tool name it; it has no document_id)"`
+	Title       string   `json:"title" jsonschema:"The document's title, or for a tool's result the server and the tool"`
 	HeadingPath []string `json:"heading_path" jsonschema:"The headings above the cited passage, outermost first"`
 	URL         string   `json:"url,omitempty" jsonschema:"The web page, when the agent links its sources"`
+	Filename    string   `json:"filename,omitempty" jsonschema:"The uploaded file, for passages from uploads"`
 	PageStart   int32    `json:"page_start,omitempty" jsonschema:"The first page of the cited passage, for paged documents"`
 	PageEnd     int32    `json:"page_end,omitempty" jsonschema:"The last page of the cited passage, for paged documents"`
-	DocumentID  string   `json:"document_id" jsonschema:"The document's ID in Grounded"`
-	Snippet     string   `json:"snippet" jsonschema:"The cited passage, or its start"`
+	DocumentID  string   `json:"document_id,omitempty" jsonschema:"The document's ID in Grounded (kind document only)"`
+	Server      string   `json:"server,omitempty" jsonschema:"The MCP server's name (kind tool)"`
+	Tool        string   `json:"tool,omitempty" jsonschema:"The tool's name (kind tool)"`
+	Snippet     string   `json:"snippet" jsonschema:"The cited passage or tool result, or its start"`
 	// Verification is set when SystemOne checked the answer's citations.
 	Verification string `json:"verification,omitempty" jsonschema:"Whether the source supports what cites it: verified, unsupported, contradicted or unchecked (only when citations are checked)"`
 }
@@ -164,8 +173,12 @@ func (t *toolCall) askResult(ag option, ans agents.Answer) AskResult {
 		if heading == nil {
 			heading = []string{}
 		}
-		res.Citations[i] = Citation{N: c.N, Title: c.Title, HeadingPath: heading, URL: c.URL, DocumentID: c.DocumentID.String(),
-			Snippet: c.Snippet, Verification: c.Verification}
+		res.Citations[i] = Citation{N: c.N, Kind: citationDocument, Title: c.Title, HeadingPath: heading, URL: c.URL, Filename: c.Filename,
+			DocumentID: c.DocumentID.String(), Snippet: c.Snippet, Verification: c.Verification}
+		if c.Kind == agents.SourceTool {
+			res.Citations[i].Kind, res.Citations[i].DocumentID = agents.SourceTool, ""
+			res.Citations[i].Server, res.Citations[i].Tool = c.Server, c.Tool
+		}
 		if c.PageStart != nil {
 			res.Citations[i].PageStart = *c.PageStart
 		}
@@ -199,7 +212,10 @@ func askText(res AskResult) string {
 	if len(res.Citations) > 0 {
 		b.WriteString("\n\nSources:")
 		for _, c := range res.Citations {
-			b.WriteString("\n" + sourceLine(c.N, c.Title, c.HeadingPath, c.URL, "", c.PageStart, c.PageEnd))
+			b.WriteString("\n" + sourceLine(c.N, c.Title, c.HeadingPath, c.URL, c.Filename, c.PageStart, c.PageEnd))
+			if c.Kind == agents.SourceTool {
+				b.WriteString(" (tool result)")
+			}
 			if c.Verification != "" {
 				b.WriteString(" (" + c.Verification + ")")
 			}

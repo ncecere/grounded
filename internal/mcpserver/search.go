@@ -120,7 +120,11 @@ func searchText(kb option, res SearchResult) string {
 		return fmt.Sprintf("No passages in %s matched the query.", kb.Name)
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "%d passages from %s. Cite them by their [n] numbers.", len(res.Passages), kb.Name)
+	if len(res.Passages) == 1 {
+		fmt.Fprintf(&b, "1 passage from %s. Cite it by its [n] number.", kb.Name)
+	} else {
+		fmt.Fprintf(&b, "%d passages from %s. Cite them by their [n] numbers.", len(res.Passages), kb.Name)
+	}
 	for _, p := range res.Passages {
 		b.WriteString("\n\n" + sourceLine(p.N, p.Title, p.HeadingPath, p.URL, p.Filename, p.PageStart, p.PageEnd))
 		b.WriteString("\n" + strings.TrimSpace(p.Text))

@@ -22,6 +22,9 @@ type Citation struct {
 	PageEnd     *int32    `json:"pageEnd,omitempty"`
 	// URL is set only for web pages, and only in snippet_link mode.
 	URL string `json:"url,omitempty"`
+	// Filename is the uploaded file of a passage from an upload (the MCP
+	// server's ask shows it, like search does).
+	Filename string `json:"filename,omitempty"`
 	// Verification and Confidence are set by SystemOne citation checks
 	// (docs/systemone.md §3): verified, unsupported, contradicted or
 	// unchecked, with the model's confidence.
@@ -196,6 +199,8 @@ func citationOf(h numberedHit, mode string) Citation {
 	}
 	if h.Tool != nil {
 		c.Kind, c.Server, c.Tool, c.Truncated = SourceTool, h.Tool.ServerName, h.Tool.Tool, h.Tool.Truncated
+	} else if !isWebURL(h.URL) {
+		c.Filename = h.Filename
 	}
 	return c
 }
