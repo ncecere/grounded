@@ -2,8 +2,8 @@
 
 import { Popover } from "@base-ui/react/popover";
 import { ArrowUpRight, Check, ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
-import { IconButton } from "@/components/ui/button/button";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Button, IconButton } from "@/components/ui/button/button";
 import popup from "@/components/ui/styles/popup.module.css";
 import { cx } from "@/lib/bitop-utils";
 import styles from "./inline-citation.module.css";
@@ -23,6 +23,15 @@ import styles from "./inline-citation.module.css";
  * With `onActivate`, a click / Enter / Space calls it instead of opening
  * the card (hover still previews it). Use it when the full sources are
  * listed below the answer: jump to and focus the matching Source there.
+ *
+ * With `sourceAction`, the card ends with a link-style button that leads
+ * to the current source elsewhere, e.g. "Show source 2 below" when the
+ * sources are listed after the answer: it closes the card and calls
+ * `onSelect` with that source's position in `sources`. Focus isn't
+ * returned to the chip then, so `onSelect` can move it to the source.
+ *
+ *   <InlineCitation index={2} sources={[src]}
+ *     sourceAction={{ label: () => "Show source 2 below", onSelect: () => revealSource(2) }} />
  *
  * With `verification` (the claim was checked against its source), the chip
  * carries a small check (verified) or a warning (unsupported,
@@ -78,7 +87,15 @@ export type InlineCitationProps = {
   verification?: CitationVerification;
   /** Explains the verification in the card and the chip's name; defaults per status, e.g. "Not supported by this source". */
   verificationLabel?: string;
+  /** A button at the end of the card that closes it and goes to the current source (see above). */
+  sourceAction?: CitationSourceAction;
   className?: string;
+};
+
+/** The card's "go to source" button: its text and what it does, for the source at `index` in `sources`. */
+export type CitationSourceAction = {
+  label: (index: number, source: CitationSource) => ReactNode;
+  onSelect: (index: number, source: CitationSource) => void;
 };
 
 /** "https://www.example.com/a" → "example.com". Returns undefined for invalid URLs. */
@@ -110,8 +127,20 @@ function VerificationIcon({ verification, className }: { verification: CitationV
   return <Icon aria-hidden className={className} />;
 }
 
-export function InlineCitation({ sources, index, label, side = "top", onActivate, verification, verificationLabel, className }: InlineCitationProps) {
+export function InlineCitation({
+  sources,
+  index,
+  label,
+  side = "top",
+  onActivate,
+  verification,
+  verificationLabel,
+  sourceAction,
+  className,
+}: InlineCitationProps) {
   const [rawPage, setPage] = useState(0);
+  // The source action moves focus itself: the card mustn't hand it back to the chip as it closes.
+  const leaving = useRef(false);
   // The sources list can shrink while the card is open (e.g. a re-streamed
   // answer): show and page from the last source, and store that page.
   const last = Math.max(0, sources.length - 1);
@@ -154,7 +183,14 @@ export function InlineCitation({ sources, index, label, side = "top", onActivate
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner className={popup.positioner} side={side} sideOffset={6} collisionPadding={8}>
-          <Popover.Popup className={cx(popup.popup, styles.card)}>
+          <Popover.Popup
+            className={cx(popup.popup, styles.card)}
+            finalFocus={() => {
+              const keep = !leaving.current;
+              leaving.current = false;
+              return keep;
+            }}
+          >
             {multiple && (
               <div className={styles.pager}>
                 <IconButton
@@ -206,6 +242,18 @@ export function InlineCitation({ sources, index, label, side = "top", onActivate
               </Popover.Title>
               {current.description && <Popover.Description className={styles.description}>{current.description}</Popover.Description>}
               {current.quote && <blockquote className={styles.quote}>{current.quote}</blockquote>}
+              {sourceAction && (
+                <Popover.Close
+                  render={<Button variant="link" size="sm" />}
+                  className={styles.sourceAction}
+                  onClick={() => {
+                    leaving.current = true;
+                    sourceAction.onSelect(page, current);
+                  }}
+                >
+                  {sourceAction.label(page, current)}
+                </Popover.Close>
+              )}
             </div>
           </Popover.Popup>
         </Popover.Positioner>

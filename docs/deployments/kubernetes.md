@@ -157,7 +157,7 @@ Some settings are allowed but deserve attention. They are logged at startup (`pr
 
 ## grounded doctor
 
-`grounded doctor` prints the safety checks and warnings, then checks every dependency with timings: Postgres (version, pgvector, whether migrations are current), Valkey (PING), object storage (writes, reads and deletes a probe object under `doctor/`), the OIDC issuer (discovery document, JWKS, signing algorithms) and each enabled model connection (`GET /models`). It exits 1 if any check fails; warnings don't fail it. The image has no shell and the binary is `/grounded`:
+`grounded doctor` prints the safety checks and warnings, then checks every dependency with timings: Postgres (version, pgvector, whether migrations are current), Valkey (PING), object storage (writes, reads and deletes a probe object under `doctor/`), the OIDC issuer (discovery document, JWKS, signing algorithms) and each enabled model connection (`GET /models`, or one SystemOne question for a SystemOne service). It exits 1 if any check fails; warnings don't fail it. The image has no shell and the binary is `/grounded`:
 
 ```sh
 kubectl -n grounded exec deploy/grounded-api -c api -- /grounded doctor

@@ -78,11 +78,14 @@ Words come from `src/lib/terms.ts` (D8): "Passages", not chunks; "Signed-in user
 ```
 
 - Filters (`?status=failed`) and search (`?q=`) live in the URL and replace the history entry. Date facets use the same presets as `DateRangeFilter`.
+- The search box's label is for screen readers; `search={{ label, showLabel: true }}` shows it above the box, like the filters' labels, where the placeholder alone wouldn't say what it searches.
+- A single-choice toggle filter (Status: All · Active · Released) gets no "Status: Active ×" chip: its pressed item shows the choice. Other filters get a chip while active.
 - Filtering is in memory by default. For server-side lists, read the values with `useListFilters(facets)`, pass them to the query, and set `manual` (plus `tableProps={{ loadMore }}` or `cursor`).
 - Dates use `timeColumn(id, header, get)` or `<RelativeTime value=…/>`, which show relative text with the full date as the title.
 - Rows that open a RecordPage get `onRowClick={(r) => record.open(r.id)}`: a click anywhere on the row (except its links and buttons) or Enter on the focused row opens it. Keep "View details" in the row menu too. Where people will want to open records in a new tab or copy their links, render the row header's name as `<RecordLink id={r.id}>` instead (a real link that opens in place on a plain click, like the knowledge base list's names) and leave `onRowClick` out: a link can't sit inside the row's open button.
 - Fit at 1280 px: the list sits in a 976 px column there. Give long text a one-line `max-width` with an ellipsis (the full text as `title`), keep short cells `nowrap`, and start low-priority columns hidden (`defaultHidden`, still in the Columns menu). On a phone (below 600px) `defaultHiddenNarrow` columns start hidden too. A table never widens the page; it scrolls inside its own wrapper only as a last resort.
 - Without `title`, only the table renders (for a list inside a tab or card).
+- A small list leaves out the Columns menu with `tableProps={{ columnsMenuMin: 5 }}`: it shows once that many columns can be hidden, or once one is hidden (a `defaultHiddenNarrow` column on a phone), so a hidden column can always come back.
 - `tableProps` passes anything else to `DataTable`: `selectable`, `bulkActions`, `toolbar`, `loadMore`, `cursor`, `defaultSort`, `stickyHeader`.
 
 ## Record and form pages (no side sheets)

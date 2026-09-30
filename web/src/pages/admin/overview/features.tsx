@@ -96,7 +96,7 @@ export function FeaturesCard() {
   const evaluations = useEvaluationsSetting();
   const rows = useRows(isAdmin, evaluations);
   return (
-    <Card id="features" className={o.features} title="Features" description="Optional features, whether each is on, and where it's set up." flush>
+    <Card id="features" className={o.features} title="Features" description="Optional features: whether each is on, and where to set it up." flush>
       {evaluations.save.error != null && (
         <div className={o.cardAlert}>
           <ErrorAlert error={evaluations.save.error} title="Couldn't change evaluations" />
@@ -121,7 +121,7 @@ export function FeaturesCard() {
               <ItemDescription className={o.fullText}>{r.description}</ItemDescription>
             </ItemContent>
             {(r.control || r.link) && (
-              <ItemActions className={r.control ? `${o.rowActions} ${o.actionsBelow}` : o.rowActions}>
+              <ItemActions className={o.rowActions}>
                 {r.control}
                 {r.link && (
                   <Button size="sm" variant="secondary" render={r.link}>

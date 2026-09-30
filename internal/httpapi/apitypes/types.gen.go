@@ -861,6 +861,24 @@ func (e ClassificationUpdateAllowedSourceTypes) Valid() bool {
 	}
 }
 
+// Defines values for ConnectionTestResultProbe.
+const (
+	ConnectionTestResultProbeModels    ConnectionTestResultProbe = "models"
+	ConnectionTestResultProbeSystemone ConnectionTestResultProbe = "systemone"
+)
+
+// Valid indicates whether the value is a known member of the ConnectionTestResultProbe enum.
+func (e ConnectionTestResultProbe) Valid() bool {
+	switch e {
+	case ConnectionTestResultProbeModels:
+		return true
+	case ConnectionTestResultProbeSystemone:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConversationMessageRole.
 const (
 	ConversationMessageRoleAssistant ConversationMessageRole = "assistant"
@@ -5164,13 +5182,24 @@ type ConnectionTestResult struct {
 	Error     *ProxyError `json:"error,omitempty"`
 	LatencyMs int64       `json:"latencyMs"`
 
-	// Models Model IDs the proxy advertises. Nothing is added automatically.
+	// Models Model IDs the proxy advertises (empty for a SystemOne test). Nothing is added automatically.
 	Models []string `json:"models"`
 	Ok     bool     `json:"ok"`
+
+	// Probe How the connection was tested: models (GET /models) or systemone (one SystemOne question)
+	Probe ConnectionTestResultProbe `json:"probe"`
+
+	// SystemOneModel The upstream model the SystemOne test asked (systemone only)
+	//
+	// Example: judge-latest
+	SystemOneModel *string `json:"systemOneModel,omitempty"`
 
 	// Timings Phases of the test's first request, which opens a new connection. A slow dns points at name resolution (for example search domains or ndots in a cluster), connect at the network path, tls at the handshake, and firstByte at the proxy and model themselves.
 	Timings *RequestTimings `json:"timings,omitempty"`
 }
+
+// ConnectionTestResultProbe How the connection was tested: models (GET /models) or systemone (one SystemOne question)
+type ConnectionTestResultProbe string
 
 // ConnectionUpdate defines model for ConnectionUpdate.
 type ConnectionUpdate struct {

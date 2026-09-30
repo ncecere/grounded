@@ -1,4 +1,7 @@
 # Development dependencies only. Ports bind to loopback; never expose these.
+# `make deps-up` starts Postgres and Valkey (and the OCR sidecar when .env
+# points OCR_TESSERACT_URL at it); `make dev-up` adds the fake model gateway.
+# They restart with Docker (restart: unless-stopped) until `make deps-down`.
 name: grounded
 services:
   postgres:
@@ -11,6 +14,7 @@ services:
       POSTGRES_DB: grounded
     ports: ["127.0.0.1:55432:5432"]
     volumes: [postgres:/var/lib/postgresql/data]
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U grounded -d grounded"]
       interval: 5s
@@ -20,6 +24,7 @@ services:
     image: valkey/valkey:8-alpine
     command: ["valkey-server", "--save", "", "--appendonly", "no"]
     ports: ["127.0.0.1:56379:6379"]
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
@@ -33,9 +38,9 @@ services:
     profiles: ["tika"]
     ports: ["127.0.0.1:59998:9998"]
   # Optional OCR sidecar (docs/ocr.md, docs/operations/ocr.md), built from
-  # Dockerfile.ocr. Start with: docker compose --profile ocr up -d --build ocr
-  # then set OCR_TESSERACT_URL=http://127.0.0.1:58080 and turn OCR on in
-  # Admin -> Parsing.
+  # Dockerfile.ocr. Set OCR_TESSERACT_URL=http://127.0.0.1:58080 in .env and
+  # `make deps-up` starts it (or: docker compose --profile ocr up -d --build ocr),
+  # then turn OCR on in Admin -> Parsing.
   ocr:
     build:
       context: .
@@ -45,6 +50,30 @@ services:
     read_only: true
     tmpfs: ["/tmp"]
     ports: ["127.0.0.1:58080:8080"]
+    restart: unless-stopped
+  # Optional fake OpenAI-compatible gateway (cmd/fakeproxy), like
+  # `make fake-proxy` but supervised by Docker, so it comes back after a
+  # restart: http://127.0.0.1:8090/v1, key sk-dev-fake. Start with
+  # `make dev-up` (or: docker compose --profile fake up -d --wait fake-proxy).
+  # It runs this checkout's code, compiled on each start (the module and
+  # build caches are volumes); FAKE_PROXY_PORT moves it off 8090.
+  fake-proxy:
+    image: golang:1.26-alpine
+    profiles: ["fake"]
+    working_dir: /src
+    command: ["go", "run", "./cmd/fakeproxy", "-addr", "0.0.0.0:8090"]
+    environment:
+      CGO_ENABLED: "0"
+      GOFLAGS: -buildvcs=false
+    volumes: [".:/src:ro", "gomod:/go/pkg/mod", "gocache:/root/.cache/go-build"]
+    ports: ["127.0.0.1:${FAKE_PROXY_PORT:-8090}:8090"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--header", "Authorization: Bearer sk-dev-fake", "http://127.0.0.1:8090/v1/models"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 5m
+    restart: unless-stopped
   # Optional S3-compatible object store for exercising the S3 blob backend
   # (the filesystem backend is the default). Start with:
   #   docker compose --profile s3 up -d minio minio-init
@@ -84,6 +113,9 @@ services:
     image: axllent/mailpit:v1.31.2
     profiles: ["mail"]
     ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
+    restart: unless-stopped
 volumes:
   postgres: {}
   minio: {}
+  gomod: {}
+  gocache: {}

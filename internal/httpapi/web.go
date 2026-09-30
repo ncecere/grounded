@@ -77,6 +77,16 @@ func (a *api) createDomainRequest(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusCreated, toAPIDomainRequest(req))
 }
 
+// withdrawDomainRequest removes a pending request (its requester, or a team
+// admin or owner; roadmap J4).
+func (a *api) withdrawDomainRequest(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r, "requestId")
+	if !ok {
+		return
+	}
+	writeOK(w, r, a.WebSources.Withdraw(r.Context(), a.actor(r), r.PathValue("team"), id))
+}
+
 func (a *api) adminListDomainRequests(w http.ResponseWriter, r *http.Request) {
 	list, err := a.WebSources.ListRequests(r.Context(), a.actor(r), r.URL.Query().Get("status"))
 	if failed(w, r, err) {

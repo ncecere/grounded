@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- Admin → Overview: Needs attention and Features span the page, so each feature reads on one line beside its actions (in a narrow card the actions go under the text); the published-agents count reads "2 for the team · 1 public".
+
+## [0.2.2] - 2026-09-30
+
+Small fixes after v0.2.1; no migrations. The release notes are [`docs/releases/v0.2.2.md`](docs/releases/v0.2.2.md).
+
+### Changed
+- Team editors can **withdraw their own pending domain request** (J4): Data sources → Crawl domains has **Withdraw request…** in a pending request's row menu and on its page, with a confirmation; team admins and owners can withdraw any pending request of the team. A withdrawn request is removed, so it leaves Admin → Crawl domains (and the pending count), the platform admins' "New domain request" notification is marked read, and the team can ask for the domain again. A reviewed request can't be withdrawn (409 `request_not_pending`). Audited as `crawl.domain_withdraw` with the request as it was. API: `DELETE /v1/teams/{team}/domain-requests/{requestId}`. No migration.
+
+- Local development (J6): the compose services (Postgres, Valkey, the OCR sidecar, Mailpit) restart with Docker (`restart: unless-stopped`); `make deps-up` also starts the OCR sidecar when `.env` sets `OCR_TESSERACT_URL=http://127.0.0.1:58080`; and `make dev-up` adds the fake model gateway as a Docker service (compose profile `fake`, `http://127.0.0.1:8090/v1`, key `sk-dev-fake`), which comes back after a restart, unlike `make fake-proxy`. `make deps-down` stops them all and keeps the data. The first `make deps-up` after this change recreates the containers (the data is kept).
+
+### Fixed
+-- `grounded demo` no longer fails when the development admin signs in while it seeds (it uses the account the sign-in created); the upgrade test waits for the demo before signing in.
+ Admin → Connections → **Test connection** no longer fails with 404 for a working SystemOne service (J2): a SystemOne service serves no `GET /models`, so a connection whose models are all SystemOne models (or one with a SystemOne model whose `GET /models` answers 404) is tested with one small SystemOne question to its SystemOne model, reporting the latency, the phases of the request and the usual error classes (auth, not found, rate limited, unavailable). OpenAI-compatible gateways are still asked for their model list. A 404 on a connection without models says to add its SystemOne model first. `grounded doctor` tests connections the same way, so a healthy SystemOne service is ✓ ("SystemOne (model) answered a test question") instead of a warning. API (additive): `ConnectionTestResult.probe` (`models` or `systemone`) and `systemOneModel`.
+- Small evaluation lists (a set's Questions, Runs and Results, the Evaluations tabs and the team's Evaluations page) have no Columns menu until a column is hidden (on a phone, where the low-priority columns start hidden), so a hidden column can always come back; the team's Evaluations page and a set's Questions show their search box's label ("Search evaluation sets") above it, like the filters' labels (G19). bitop-ui's `data-table` gained `columnsMenuMin` and `showFilterLabel`.
+- An evaluation score ("82%") is text with a dotted underline and a tooltip naming its metric, not a button; the tooltip's text is its accessible description (G19; bitop-ui's `tooltip` gained `TooltipText`). The score-over-time chart labels 0%, 50% and 100% (bitop-ui's `line-chart` gained `ticks`).
+- Usage & spend's **Spend breakdown** tables show the name and the spend on a phone, with Tokens and Requests in a Columns menu (G19).
+- Menus open inside the page's landmark (the page's main area, the sidebar), not at the end of the page, so all content is inside a landmark (axe's `region` rule; G19). bitop-ui's `menu` does this.
+
+### Fixed
+- Avatars take their initials from the first two words: "IT Help Desk" shows IH, not ID, and "Go docs (signed-in)" GD; lowercase name particles (van, de, of) are passed over for the second letter (J3, bitop-ui's `avatar`).
+- Retention → Legal holds no longer shows a "Status: Active ×" chip beside the pressed Active filter: single-choice toggle filters have no chip, their pressed item says it (G19, bitop-ui's `filter-bar`).
+- Enter in a combobox never submits the form or dialog around it, also after Esc has closed its list (bitop-ui's `combobox`; the question form's own guard is gone), and a citation card's **Show source n below** is bitop-ui's `inline-citation` `sourceAction` (G19).
+
 ## [0.2.1] - 2026-09-29
 
 Navigation and clarity: the admin sidebar regrouped, a Features card, quality and spend on the team Overview, a team Evaluations page, spend apart from limits, a six-tab agent editor, and per-claim verification. The plan is [`docs/v0.2.1.md`](docs/v0.2.1.md) and the release notes are [`docs/releases/v0.2.1.md`](docs/releases/v0.2.1.md). v0.2.1-rc.1 ran on the reference install first.
@@ -256,7 +282,8 @@ Development before this release happened in a private repository. The public rep
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
 
-[Unreleased]: https://github.com/ncecere/grounded/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/ncecere/grounded/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/ncecere/grounded/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/ncecere/grounded/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/ncecere/grounded/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ncecere/grounded/releases/tag/v0.1.0

@@ -173,6 +173,13 @@ wait_ready "$OLD_PORT" old
 log "old: grounded demo --serve-fake-models"
 app "$OLD_IMAGE" "$OLD_PORT" "$P-models" demo -d -e DEMO_MODELS=fake -e DEMO_SERVE_FAKE_MODELS=true \
 	-e DEMO_FAKE_ADDR=0.0.0.0:8090 -e DEMO_FAKE_URL="http://$P-models:8090/v1" >/dev/null
+# Sign in only once the demo has seeded: it creates the admin account itself,
+# and a sign-in that gets there first makes an older demo refuse to seed.
+for _ in $(seq 1 90); do
+	docker logs "$P-models" 2>&1 | grep -q 'Serving the fake model gateway' && break
+	docker ps -q -f "name=^$P-models\$" | grep -q . || { docker logs "$P-models" >&2; fail "the demo exited"; }
+	sleep 1
+done
 
 signin "$OLD_PORT"
 for _ in $(seq 1 60); do

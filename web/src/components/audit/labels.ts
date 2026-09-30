@@ -38,6 +38,7 @@ const actionLabels: Record<string, string> = {
   "crawl.allowlist_seed": "Seeded crawl allowlist",
   "crawl.domain_request": "Requested crawl domain",
   "crawl.domain_review": "Reviewed domain request",
+  "crawl.domain_withdraw": "Withdrew domain request",
   "demo.seed": "Seeded the demo",
   "demo.owner_provision": "Created the demo owner's account",
   "document.upload": "Uploaded documents",

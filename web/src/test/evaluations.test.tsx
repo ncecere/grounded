@@ -26,8 +26,8 @@ describe("a knowledge base's Evaluations tab", () => {
     expect(link).toHaveAttribute("href", "/teams/registrar/evaluations/set1");
     const row = link.closest("tr")!;
     expect(row).toHaveTextContent("2 questions");
-    // One Score column, with the metric in the score's tooltip and accessible name.
-    expect(within(row).getByRole("button", { name: /^50%\. Recall@4/ })).toBeInTheDocument();
+    // One Score column, with the metric in the score's tooltip and accessible description (text, not a button: G19).
+    expect(within(row).getByText("50%")).toHaveAccessibleDescription(/^Recall@4/);
     expect(screen.getByRole("tab", { name: /Evaluations/, selected: true })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
 

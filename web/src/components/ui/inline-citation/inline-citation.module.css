@@ -192,3 +192,9 @@
   font-style: italic;
   line-height: var(--line-height-normal);
 }
+
+/* The "go to source" button, under the passage. */
+.sourceAction {
+  align-self: flex-start;
+  margin-block-start: var(--space-1);
+}

@@ -264,6 +264,15 @@ func (q *Queries) DeleteAllowlist(ctx context.Context, id uuid.UUID) (CrawlAllow
 	return i, err
 }
 
+const deleteDomainRequest = `-- name: DeleteDomainRequest :exec
+DELETE FROM crawl_domain_requests WHERE id = $1
+`
+
+func (q *Queries) DeleteDomainRequest(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteDomainRequest, id)
+	return err
+}
+
 const deleteUnseenDocuments = `-- name: DeleteUnseenDocuments :many
 DELETE FROM documents
 WHERE source_id = $1 AND (last_seen_crawl_id IS NULL OR last_seen_crawl_id <> $2)

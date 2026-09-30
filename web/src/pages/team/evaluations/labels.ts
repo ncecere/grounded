@@ -4,6 +4,12 @@ import { plural } from "../common";
 import type { EvalExpected, EvalQuestion, EvalResult, EvalRun, EvalSummary } from "./queries";
 
 /** 0.834 → "83%"; undefined → "—". */
+/**
+ * The evaluation lists are small (up to four columns that can be hidden): no Columns menu, until a
+ * column is hidden (on a phone), so it can come back (G19).
+ */
+export const smallList = { columnsMenuMin: 5 } as const;
+
 export const pct = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${Math.round(v * 100)}%`);
 
 /** MRR with two decimals. */

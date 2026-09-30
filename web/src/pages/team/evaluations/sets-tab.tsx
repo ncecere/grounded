@@ -25,7 +25,7 @@ import { PageHeader } from "@/components/ui/page-header/page-header";
 import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
 import { useTeam } from "../common";
-import { autoRunNotice } from "./labels";
+import { autoRunNotice, smallList } from "./labels";
 import { type EvalSet, evalSetsKey, evalSetsQuery } from "./queries";
 import { setColumns } from "./set-columns";
 
@@ -96,7 +96,7 @@ export function EvaluationsTab({ target, newSetInHeader = false }: { target: Eva
           description: `A set is a list of questions with the documents that should answer them.${newSetInHeader && canEdit ? " Create one with New set above." : ""}`,
           action: newSet,
         }}
-        tableProps={{ columnsMenu: false }}
+        tableProps={smallList}
         loading={sets.isLoading}
         error={sets.error}
         onRetry={() => void sets.refetch()}

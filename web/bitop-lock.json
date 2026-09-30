@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "registry": "/Users/nicholascecere/projects/typescript/bitop-ui",
+  "registry": "../../../typescript/bitop-ui",
   "items": {
     "accordion": {
       "files": {
@@ -29,7 +29,7 @@
     "avatar": {
       "files": {
         "src/components/ui/avatar/avatar.module.css": "29ea708c8a33763fd77b101d61331d8dff2a8d32051108f79e7c1b628d77ac1d",
-        "src/components/ui/avatar/avatar.tsx": "348a63995cc559b3d726e81aaba7d678017f3c15d30c931103340f8067b31c7a"
+        "src/components/ui/avatar/avatar.tsx": "25315b06ed6717e28197c86700cbb6ad1f31718140e160c792d66236b1c4bf2a"
       }
     },
     "badge": {
@@ -101,7 +101,7 @@
     "combobox": {
       "files": {
         "src/components/ui/combobox/combobox.module.css": "66dad9c4dee551fd322f47735a16a4a44b75efb52102ae34e8b9869e5ef0e215",
-        "src/components/ui/combobox/combobox.tsx": "16c33e16a0abcb4225edb67ea293d9093b8f78cda66a139ac3ba7fd6a7fe730b"
+        "src/components/ui/combobox/combobox.tsx": "737facc4d4ed2af36730c3cd2041a23ec11972694121fd5092070eb65d46c372"
       }
     },
     "command-palette": {
@@ -132,15 +132,15 @@
       "files": {
         "src/components/ui/styles/bitop.css": "3b8adf734e8c7bbc17991c2bd5ef226befb17f92fa9bde251cb15f156da9804e",
         "src/components/ui/styles/global.css": "2b5c7218cbebf7b490884a24fa1ed55e73ab601d99daced4a1bd0814c60f5eaa",
-        "src/components/ui/styles/popup.module.css": "7d106f3e18699cd41e2a5ad77334cb2cf021fa069bfd984494e4d610b89a6cbf",
+        "src/components/ui/styles/popup.module.css": "5039820b8a2adb3a2a9e3dbbde80b1d53e4c3ec9998ddd9cce819320b3082e9d",
         "src/components/ui/styles/tokens.css": "73e4e9e64a0d7edba4172440e9bb8de43238e58a5c0753eb2a9a6c7eb183b694",
-        "src/lib/bitop-utils.ts": "16a6837655f0c58474642c670f88a484e8559fb091bb89d6c273a3e69910edac"
+        "src/lib/bitop-utils.ts": "7969f7e7d3ea02778a403c08f0d738d75cc26a5a30eb81b590e0bb13fc1889ed"
       }
     },
     "data-table": {
       "files": {
-        "src/components/ui/data-table/data-table.module.css": "6da80d6f810713a78a77c7109624f0554241465faf608cbee7972ac1d133b94d",
-        "src/components/ui/data-table/data-table.tsx": "75dfd802f843565162e574349bbdab6d428f05d0c95a8e221cbee6f8ac332145"
+        "src/components/ui/data-table/data-table.module.css": "1aca723ee33f9a384354d72f792b3abd1071c906d000f716ad6aaa15f5b81315",
+        "src/components/ui/data-table/data-table.tsx": "fbb72485ed7dd64df5d24ce8413a9fd43305654be05326a83bde8508feae950a"
       }
     },
     "date-picker": {
@@ -201,7 +201,7 @@
     "filter-bar": {
       "files": {
         "src/components/ui/filter-bar/filter-bar.module.css": "007a26e2415ea105d63957168ea94a639e2a6fc00dd4cdedb7686f5951e9fee5",
-        "src/components/ui/filter-bar/filter-bar.tsx": "a0fe4d12ee6f12834380f381d9892bed202ee9b965c646725d6b511ee2c68187"
+        "src/components/ui/filter-bar/filter-bar.tsx": "b1c78b17e9643463858b4da18a663e11efaeb589229cef4482af3e3095ea0cef"
       }
     },
     "format": {
@@ -217,8 +217,8 @@
     },
     "inline-citation": {
       "files": {
-        "src/components/ui/inline-citation/inline-citation.module.css": "d7ebc898efd2ccdb788bfd523759b8ac97bd2d48ee7cad943d3fa382935fdd2d",
-        "src/components/ui/inline-citation/inline-citation.tsx": "67af13ae7b4c01abbac8284dc10c7cec9774d899a7ad649caba865cc7f1429a6"
+        "src/components/ui/inline-citation/inline-citation.module.css": "406b42a0b0164fa0f2e8d63bf2a1d4222948556d7f9e6a9cb9a59f7bfade3317",
+        "src/components/ui/inline-citation/inline-citation.tsx": "9b0a19311dda706709669a5bfd09df6020445d44d87b83a1888647c0d214f47b"
       }
     },
     "input": {
@@ -253,8 +253,8 @@
     },
     "line-chart": {
       "files": {
-        "src/components/ui/line-chart/line-chart.module.css": "41e06ba2f7c356e499df190b7595721029a0cee5b80d126af6f1b0120f00fca4",
-        "src/components/ui/line-chart/line-chart.tsx": "f442c01b9f25f54098ee20424053a2524f8ac315e3ca19e8b3d533000afb79b7"
+        "src/components/ui/line-chart/line-chart.module.css": "63e6544b55c03ad9d8106abe99febe3c48efc1b07418f48a70cf9760cbc77f11",
+        "src/components/ui/line-chart/line-chart.tsx": "f29e5824f6845846f6daa5f5428478305488d0c3f56accfe817a2be04653e169"
       }
     },
     "loader": {
@@ -266,7 +266,7 @@
     "menu": {
       "files": {
         "src/components/ui/menu/menu.module.css": "4570ae6da4d79db75583a70c35c0a80286a78519da32f6b2e7f20f54f8edfec3",
-        "src/components/ui/menu/menu.tsx": "32a10816b34dbb3ab7e4a30489a03577eb18d98f700ff3271e24d2ea0c23ac08"
+        "src/components/ui/menu/menu.tsx": "bdb333c02a4999c784ef765e452e8169c9b1107cfda0af32675a8603c3b2b66c"
       }
     },
     "message": {
@@ -494,8 +494,8 @@
     },
     "tooltip": {
       "files": {
-        "src/components/ui/tooltip/tooltip.module.css": "2183ecf91e3ddca3a233bacf63a408b908e335ecef34f8e169449143ef1c51fc",
-        "src/components/ui/tooltip/tooltip.tsx": "30b5027693925c90739dc16ac01eb962fdd9ecdfeb61b239e6caadb1e7e25485"
+        "src/components/ui/tooltip/tooltip.module.css": "92ca36149da18a85744d002de7511d1c6b7e28028298be7503ea2035afa16462",
+        "src/components/ui/tooltip/tooltip.tsx": "2efbad6aa9551e5ca9d424873b98939cc753ceb8a9b7a271b32dfcb71f9eaa55"
       }
     },
     "visually-hidden": {

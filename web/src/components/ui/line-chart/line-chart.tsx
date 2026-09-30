@@ -13,7 +13,7 @@ import {
   type ChartSeries,
   type ChartTone,
 } from "@/components/ui/chart/chart";
-import { cx } from "@/lib/bitop-utils";
+import { cx, dataFlag } from "@/lib/bitop-utils";
 import styles from "./line-chart.module.css";
 
 /*
@@ -43,6 +43,10 @@ import styles from "./line-chart.module.css";
  * percentage keeps 50% half way up whatever the values are. The top line
  * shows `max`; a `min` other than 0 is labelled at the bottom. Values
  * outside the domain are drawn at its edge (their titles keep the value).
+ *
+ * `ticks` labels more values on the scale, each on a faint line:
+ * `ticks={[0, 50]}` with that domain reads 0%, 50% and (the top) 100%.
+ * Ticks outside the scale are left out, and the top is always labelled.
  */
 
 export type LineChartTone = ChartTone;
@@ -70,6 +74,8 @@ export type LineChartProps<K extends string = string> = {
   points?: boolean;
   /** Fix the scale, e.g. `{ min: 0, max: 100 }` for a percentage (default: 0 to the largest value). */
   domain?: LineChartDomain;
+  /** Values labelled on the scale, each on a faint line, e.g. `[0, 50]` (the top is labelled already). Needs `axis`. */
+  ticks?: number[];
   /** Adds a "Show data" disclosure with the numbers in a table. */
   dataTable?: ChartDataOptions;
   className?: string;
@@ -98,6 +104,7 @@ export function LineChart<K extends string>({
   axis = true,
   points,
   domain,
+  ticks = [],
   dataTable,
   className,
 }: LineChartProps<K>) {
@@ -110,6 +117,8 @@ export function LineChart<K extends string>({
   const xy = (i: number, v: number) => `${x(i).toFixed(2)},${y(v).toFixed(2)}`;
   const showPoints = points ?? n === 1;
   const runs = values.map((vs) => chartRuns(vs));
+  // The top of the scale has its own label (the peak line).
+  const tickValues = peak > floor ? [...new Set(ticks)].filter((t) => Number.isFinite(t) && t >= floor && t < peak) : [];
   const describe = (s: LineChartSeries<K>, v: number | null) => (v === null ? `${seriesName(s)}: no data` : `${formatValue(v)} ${seriesName(s)}`);
 
   return (
@@ -118,7 +127,18 @@ export function LineChart<K extends string>({
       <div className={styles.plot} role="img" aria-label={summary}>
         {axis && <span className={styles.peak}>{formatValue(peak)}</span>}
         <div className={styles.area}>
-          {axis && floor !== 0 && <span className={styles.floor}>{formatValue(floor)}</span>}
+          {axis && floor !== 0 && !tickValues.includes(floor) && <span className={styles.floor}>{formatValue(floor)}</span>}
+          {axis &&
+            tickValues.map((t) => (
+              <span
+                key={t}
+                className={styles.tick}
+                data-floor={dataFlag(t === floor)}
+                style={{ "--y": `${((y(t) / H) * 100).toFixed(2)}%` } as CSSProperties}
+              >
+                {formatValue(t)}
+              </span>
+            ))}
           <svg aria-hidden focusable="false" className={styles.svg} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
             {n > 1 &&
               series.map((s, i) => {

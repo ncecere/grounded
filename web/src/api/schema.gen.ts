@@ -981,8 +981,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Call GET /models on the proxy and list its model IDs
-         * @description The test opens a new connection and reports the phases of its first request (timings). A failure names its cause: certificate, TLS, proxy, refused or reset connection, DNS, or a timeout with the phase it happened in.
+         * Test the connection (GET /models, or one SystemOne question for a SystemOne service)
+         * @description An OpenAI-compatible gateway is asked for its model list (GET /models). A SystemOne service serves no model list, so a connection whose models are all SystemOne models is tested with one small SystemOne question to its first SystemOne model instead, and so is a connection with a SystemOne model whose GET /models answers 404 (probe tells which). The test opens a new connection and reports the phases of its first request (timings). A failure names its cause: certificate, TLS, proxy, refused or reset connection, DNS, or a timeout with the phase it happened in.
          */
         post: operations["adminTestConnection"];
         delete?: never;
@@ -1626,6 +1626,30 @@ export interface paths {
         /** Ask platform admins to allow a host pattern for this team (editors and above) */
         post: operations["createDomainRequest"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/domain-requests/{requestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw a pending request (the person who asked, or a team admin or owner)
+         * @description The request is removed: platform admins no longer see it, and the team can ask for the pattern again. The withdrawal is audited (crawl.domain_withdraw) with the request as it was. A request that was already reviewed cannot be withdrawn (409 request_not_pending).
+         */
+        delete: operations["withdrawDomainRequest"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5274,8 +5298,18 @@ export interface components {
             ok: boolean;
             /** Format: int64 */
             latencyMs: number;
-            /** @description Model IDs the proxy advertises. Nothing is added automatically. */
+            /**
+             * @description How the connection was tested: models (GET /models) or systemone (one SystemOne question)
+             * @enum {string}
+             */
+            probe: "models" | "systemone";
+            /** @description Model IDs the proxy advertises (empty for a SystemOne test). Nothing is added automatically. */
             models: string[];
+            /**
+             * @description The upstream model the SystemOne test asked (systemone only)
+             * @example judge-latest
+             */
+            systemOneModel?: string;
             error?: components["schemas"]["ProxyError"];
             timings?: components["schemas"]["RequestTimings"];
         };
@@ -12342,6 +12376,25 @@ export interface operations {
                 };
             };
             400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    withdrawDomainRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];

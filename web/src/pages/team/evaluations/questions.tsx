@@ -18,7 +18,7 @@ import { PageHeader } from "@/components/ui/page-header/page-header";
 import { toast } from "@/components/ui/toast/toast";
 import { useTeam } from "../common";
 import { ImportPage } from "./import";
-import { expectedList } from "./labels";
+import { expectedList, smallList } from "./labels";
 import { QuestionDialog } from "./question-form";
 import { QuestionRecord } from "./question-record";
 import { type EvalQuestion, type EvalSet, evalQuestionsKey, evalQuestionsQuery, evalSetKey, evalSetsKey } from "./queries";
@@ -95,14 +95,14 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
         data={questions.data ?? []}
         getRowId={(q) => q.id}
         rowLabel={(q) => q.question}
-        search={{ label: "Search questions" }}
+        search={{ label: "Search questions", showLabel: true }}
         rowActions={(q) => [
           { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(q.id) },
           { label: "Edit question", icon: <Pencil aria-hidden />, onSelect: () => setEditing(q), hidden: !canEdit },
           { label: "Delete question", icon: <Trash2 aria-hidden />, danger: true, onSelect: () => setDeleting(q), hidden: !canEdit },
         ]}
         empty={{ icon: <ListChecks />, title: "No questions yet.", description: "Add one with New question, or import a CSV or JSONL file." }}
-        tableProps={{ columnsMenu: false }}
+        tableProps={smallList}
         loading={questions.isLoading}
         error={questions.error}
         onRetry={() => void questions.refetch()}

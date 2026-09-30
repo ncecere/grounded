@@ -26,12 +26,10 @@
  * don't change (displayNumbers). A chip keeps the punctuation right after it
  * on its line (remarkChipPunctuation).
  */
-import { Popover } from "@base-ui/react/popover";
 import type { ComponentPropsWithRef, ReactNode } from "react";
 import { useMemo } from "react";
 import type { Components, ExtraProps } from "react-markdown";
-import { Button } from "@/components/ui/button/button";
-import { InlineCitation } from "@/components/ui/inline-citation/inline-citation";
+import { type CitationSourceAction, InlineCitation } from "@/components/ui/inline-citation/inline-citation";
 import { verificationLabel, worstVerification } from "@/lib/systemone";
 import { type Claim, ClaimQuote, claimChipVerification, claimLabel, claimOfMarker } from "./claims";
 import type { Citation, UncitedSentence } from "./stream";
@@ -161,23 +159,12 @@ type ChipProps = {
   num: (n: number) => number;
 };
 
-/** The card's way to the source's card under the answer, after the passage (or the snippet). */
-function withJump(src: ChipSource, n: number, { onActivate, num }: ChipProps): ChipSource {
-  const jump = (
-    <span className={a.jump}>
-      {/* It closes the card, which it sits in, as it goes (Base UI's Close: the chip's popover is Base UI's Popover). */}
-      <Popover.Close render={<Button variant="link" size="sm" />} onClick={() => onActivate(n)}>
-        Show source {num(n)} below
-      </Popover.Close>
-    </span>
-  );
-  const add = (node: ReactNode) => (
-    <>
-      {node}
-      {jump}
-    </>
-  );
-  return src.quote !== undefined ? { ...src, quote: add(src.quote) } : { ...src, description: add(src.description) };
+/**
+ * The card's way to the source's card under the answer, "Show source n below", after the passage (bitop-ui's
+ * sourceAction closes the card as it goes). `cited[i]` is the chip's i-th source.
+ */
+function jumpTo(cited: Citation[], { onActivate, num }: ChipProps): CitationSourceAction {
+  return { label: (i) => `Show source ${num(cited[i]!.n)} below`, onSelect: (i) => onActivate(cited[i]!.n) };
 }
 
 /** A chip whose markers' claims carry the verdicts: the worst of a group's, explained for the deciding source. */
@@ -190,7 +177,7 @@ function claimChip(props: ChipProps, indices: number[], occurrences: number[], c
   const sources = cited.map((s, i): ChipSource => {
     const base = sourceProps(s);
     const claim = found[i];
-    return withJump(claim ? { ...base, description: <ClaimQuote claim={claim} />, quote: base.description } : base, s.n, props);
+    return claim ? { ...base, description: <ClaimQuote claim={claim} />, quote: base.description } : base;
   });
   return (
     <InlineCitation
@@ -199,6 +186,7 @@ function claimChip(props: ChipProps, indices: number[], occurrences: number[], c
       verification={verification}
       verificationLabel={verification && at >= 0 ? claimLabel(found[at]!, indices[at]!, num) : undefined}
       sources={sources}
+      sourceAction={jumpTo(cited, props)}
     />
   );
 }
@@ -219,7 +207,8 @@ function chip(props: ChipProps, indices: number[], occurrences: number[]): React
       className={a.chip}
       verification={verification}
       verificationLabel={verification ? verificationLabel(verification, deciding?.confidence) : undefined}
-      sources={cited.map((s) => withJump(sourceProps(s!), s!.n, props))}
+      sources={cited.map((s) => sourceProps(s!))}
+      sourceAction={jumpTo(cited as Citation[], props)}
     />
   );
 }
