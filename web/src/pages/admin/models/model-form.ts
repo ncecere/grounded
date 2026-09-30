@@ -67,6 +67,7 @@ export function initialModelForm(model: Model | null, connections: Connection[])
     maxTokensField: compat.maxTokensField ?? "",
     supportsDeveloperRole: compat.supportsDeveloperRole,
     supportsToolChoice: compat.supportsToolChoice,
+    supportsReasoningEffort: compat.supportsReasoningEffort,
     supportsDimensionsParam: compat.supportsDimensionsParam ?? false,
     extraBody: compat.extraBody ? JSON.stringify(compat.extraBody, null, 2) : "",
     /** Flags the form doesn't edit (e.g. thinkingField), kept on save: a PATCH replaces all compat flags. */
@@ -88,6 +89,7 @@ function compatOf(form: ModelForm): Compat {
   set("maxTokensField", (form.maxTokensField || undefined) as Compat["maxTokensField"]);
   set("supportsDeveloperRole", form.supportsDeveloperRole);
   set("supportsToolChoice", form.supportsToolChoice);
+  set("supportsReasoningEffort", form.supportsReasoningEffort);
   set("supportsDimensionsParam", form.kind === "embedding" && form.supportsDimensionsParam ? true : undefined);
   set("extraBody", form.kind === "chat" || form.kind === "moderation" || form.kind === "vision" ? parseExtraBody(form.extraBody).value : undefined);
   return compat;

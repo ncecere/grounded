@@ -121,6 +121,16 @@ describe("Build", () => {
     expect(screen.getAllByText("Not saved: fix the highlighted field").length).toBeGreaterThan(1);
   }, 10_000);
 
+  it("Reasoning effort says why it can't be chosen until the model accepts it", async () => {
+    mockApi(routes(agent()));
+    const { container } = renderApp("/teams/registrar/agents/ag1");
+    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: 5000 }));
+    const effort = screen.getByRole("combobox", { name: /Reasoning effort/ });
+    expect(effort).toBeDisabled();
+    expect(effort).toHaveAccessibleDescription(/turn on "Accepts reasoning effort" for it in Admin → Models/);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("editors can't start a publish to Public and are told why (P-03)", async () => {
     mockApi(routes(agent({ audience: "public", hasUnpublishedChanges: true, draft: { ...config, audience: "public" } }), {}, "editor"));
     renderApp("/teams/registrar/agents/ag1");

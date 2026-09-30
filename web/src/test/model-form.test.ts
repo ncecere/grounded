@@ -48,6 +48,14 @@ describe("model form", () => {
     expect(modelSpec({ ...form, extraBody: " " }).compat.extraBody).toBeUndefined();
   });
 
+  it("sends Accepts reasoning effort as supportsReasoningEffort, and keeps it on an edit", () => {
+    const form = initialModelForm(null, [conn]);
+    expect(modelSpec({ ...form, supportsReasoningEffort: true }).compat).toEqual({ supportsReasoningEffort: true });
+    const model = { kind: "chat", compat: { supportsReasoningEffort: true } } as unknown as Schemas["Model"];
+    expect(modelSpec(initialModelForm(model, [conn])).compat).toEqual({ supportsReasoningEffort: true });
+    expect(modelSpec({ ...initialModelForm(model, [conn]), supportsReasoningEffort: undefined }).compat).toEqual({});
+  });
+
   it("sends supportsDimensionsParam for embedding models only", () => {
     const form = { ...initialModelForm(null, [conn]), supportsDimensionsParam: true };
     expect(modelSpec(form).compat.supportsDimensionsParam).toBeUndefined();

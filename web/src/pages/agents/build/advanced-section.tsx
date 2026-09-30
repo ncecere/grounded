@@ -35,9 +35,24 @@ export function AdvancedSection({ c, set, errorFor, model }: SectionProps) {
           optional
           error={errorFor("maxOutputTokens")}
         />
-        {model?.supportsReasoningEffort && (
-          <Field label="Reasoning effort" labelHint="Optional" description="How long the model thinks before answering." error={errorFor("reasoningEffort")}>
-            <NativeSelect id="agent-field-reasoningEffort" value={c.reasoningEffort ?? ""} onChange={(e) => set({ reasoningEffort: (e.target.value || undefined) as AgentConfig["reasoningEffort"] })}>
+        {model && (
+          <Field
+            label="Reasoning effort"
+            labelHint="Optional"
+            description={
+              model.supportsReasoningEffort
+                ? "How long the model thinks before answering. Lower starts answering sooner."
+                : `${model.displayName} isn't set up to take a reasoning effort. A platform admin can turn on "Accepts reasoning effort" for it in Admin → Models.`
+            }
+            disabled={!model.supportsReasoningEffort}
+            error={errorFor("reasoningEffort")}
+          >
+            <NativeSelect
+              id="agent-field-reasoningEffort"
+              value={c.reasoningEffort ?? ""}
+              disabled={!model.supportsReasoningEffort}
+              onChange={(e) => set({ reasoningEffort: (e.target.value || undefined) as AgentConfig["reasoningEffort"] })}
+            >
               <option value="">Model default</option>
               <option value="low">Low</option>
               <option value="medium">Medium</option>

@@ -18,7 +18,7 @@ type Props = { form: ModelForm; set: SetField; extraBodyError?: string };
 /** Chat completion quirks, for chat models and chat-classifier moderation models. */
 export function ChatCompatFields({ form, set, extraBodyError }: Props) {
   // Open when something is set; always open while a field is invalid, so its error is visible.
-  const [open, setOpen] = useState(() => Boolean(form.extraBody || form.supportsToolChoice));
+  const [open, setOpen] = useState(() => Boolean(form.extraBody || form.supportsToolChoice || form.supportsReasoningEffort));
   return (
     <Disclosure title="Compatibility" open={open || Boolean(extraBodyError)} onOpenChange={setOpen}>
       <div className={s.grid2}>
@@ -41,6 +41,16 @@ export function ChatCompatFields({ form, set, extraBodyError }: Props) {
         </Field>
         <Field label="Honours tool_choice" description="Send tool_choice (e.g. required) only if the server honours it.">
           <NativeSelect value={tri(form.supportsToolChoice)} onChange={(e) => set("supportsToolChoice", fromTri(e.target.value))}>
+            <option value="">Default (not sent)</option>
+            <option value="yes">Yes, send it</option>
+            <option value="no">No</option>
+          </NativeSelect>
+        </Field>
+        <Field
+          label="Accepts reasoning effort"
+          description="Send reasoning_effort (low, medium or high) for a reasoning model. Agents can then choose it under Build → Advanced, and query rewrites ask for low."
+        >
+          <NativeSelect value={tri(form.supportsReasoningEffort)} onChange={(e) => set("supportsReasoningEffort", fromTri(e.target.value))}>
             <option value="">Default (not sent)</option>
             <option value="yes">Yes, send it</option>
             <option value="no">No</option>
