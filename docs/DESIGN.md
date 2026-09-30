@@ -628,6 +628,7 @@ Evaluations    /v1/teams/{team}/evaluation-sets[/{setId}[/questions[/import|/{id
 Notifications  GET /v1/notifications, PATCH /v1/notifications/{id}, PUT /v1/me/notification-settings
 OpenAI compat  POST /v1/chat/completions  (model = "agent:{team}/{agent}")   GET /v1/models
 MCP            POST /mcp  (JSON-RPC, described in docs/mcp.md, not the OpenAPI)   /v1/admin/settings/mcp (the switch)
+MCP client     /v1/admin/mcp-servers[/{serverId}[/test|/refresh|/tools[/{toolId}/approval]]]   GET /v1/mcp-tools (docs/mcp-client.md)
 ```
 
 ## 15. Architecture, deployment and operations (ADR-0001, ADR-0013, ADR-0014)
