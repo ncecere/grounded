@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- Admin → Overview: Needs attention and Features span the page, so each feature reads on one line beside its actions (in a narrow card the actions go under the text); the published-agents count reads "2 for the team · 1 public".
+
 ## [0.2.2] - 2026-09-30
 
 Small fixes after v0.2.1; no migrations. The release notes are [`docs/releases/v0.2.2.md`](docs/releases/v0.2.2.md).

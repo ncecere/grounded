@@ -24,6 +24,9 @@ export function weekDelta(daily: number[]) {
   return { value: `${change > 0 ? "+" : ""}${change}%`, trend: change > 0 ? ("up" as const) : change < 0 ? ("down" as const) : ("flat" as const), label: "vs the week before" };
 }
 
+/** "2 for the team · 1 public": who a count of published agents answers. */
+const audienceHints: Record<keyof typeof audienceLabels, string> = { team: "for the team", all_authenticated: "for signed-in users", public: "public" };
+
 export function PlatformGlance() {
   const overview = useQuery(overviewQuery());
   const agents = useQuery(adminAgentsQuery());
@@ -57,7 +60,7 @@ export function PlatformGlance() {
           label="Published agents"
           value={agents.isLoading ? "…" : published.length.toLocaleString()}
           icon={<Bot />}
-          hint={byAudience.map((b) => `${b.count} ${audienceLabels[b.aud]}`).join(" · ")}
+          hint={published.length > 0 ? byAudience.filter((b) => b.count > 0).map((b) => `${b.count} ${audienceHints[b.aud]}`).join(" · ") : undefined}
           render={<Link to="/admin/agents" />}
         />
         <StatCard

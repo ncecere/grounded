@@ -34,7 +34,7 @@ export function useEvaluationsSetting() {
 /** What evaluations do in their current state, for the Features row (short: the row shows it whole). */
 export function evaluationsText(enabled: boolean) {
   return enabled
-    ? "Team editors, admins and owners test their knowledge bases and agents with sets of questions. Members never see them."
+    ? "Team editors, admins and owners test knowledge bases and agents with question sets. Members never see them."
     : "Hidden from every team, and the evaluation API is closed. Sets and runs are kept.";
 }
 

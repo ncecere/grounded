@@ -14,7 +14,6 @@ import { PlatformGlance } from "./glance";
 import { KeyRotationNotice } from "./key-rotation";
 import { RecentChanges } from "./recent";
 import { SetupChecklist } from "./setup";
-import o from "./overview.module.css";
 
 export function AdminOverviewPage() {
   return (
@@ -23,10 +22,8 @@ export function AdminOverviewPage() {
       <KeyRotationNotice />
       <SetupChecklist />
       <PlatformGlance />
-      <div className={o.columns}>
-        <AttentionQueue />
-        <FeaturesCard />
-      </div>
+      <AttentionQueue />
+      <FeaturesCard />
       <RecentChanges />
     </Stack>
   );

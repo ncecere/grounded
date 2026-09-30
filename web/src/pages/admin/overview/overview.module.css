@@ -1,21 +1,9 @@
 /* Admin → Overview. Semantic tokens only. */
 
-.columns {
-  display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  gap: var(--space-6);
-  align-items: start;
-}
-
-@media (max-width: 1100px) {
-  .columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 .queue {
   display: flex;
   flex-direction: column;
+  container-type: inline-size;
 }
 
 .row + .row {
@@ -27,19 +15,14 @@
   padding-inline: var(--space-5);
 }
 
-/* A row with a control (the Evaluations switch) has two actions: they go under the
-   text at every width, so the description isn't squeezed to a word per line. */
-.actionsBelow {
-  flex-basis: 100%;
-  justify-content: flex-start;
-  padding-inline-start: calc(var(--control-height-md) + var(--item-gap));
-}
-
-/* On a phone the button goes under the text (aligned with it), so the title isn't squeezed to a word per line. */
-@media (max-width: 37.5rem) {
+/* Features and Needs attention span the page, so a row's text reads on one line
+   beside its actions. In a narrower card (a tablet, a phone, the sidebar open) the
+   actions go under the text (aligned with it), so the description isn't squeezed. */
+@container (max-width: 48rem) {
   .rowActions {
     flex-basis: 100%;
     padding-inline-start: calc(var(--control-height-md) + var(--item-gap));
+    flex-wrap: wrap;
   }
 }
 
