@@ -30,6 +30,7 @@ People who chat with agents in the web UI, the widget or the API. There's no sep
 | [DESIGN §7.2, Audience](DESIGN.md#72-audience) and [§7.6, Access paths](DESIGN.md#76-access-paths) | Who can use an agent, and through which channels |
 | [DESIGN §8, Conversations and analytics](DESIGN.md#8-conversations-and-analytics-adr-0010) | Who can read your conversations (only you, apart from audited break-glass), export and deletion, and what teams see |
 | [`../api/openapi.yaml`](../api/openapi.yaml) | The API contract, including the OpenAI-compatible `POST /v1/chat/completions` and API keys |
+| [`mcp.md`](mcp.md) | The MCP server: connecting AI tools (Claude Code, OpenCode, VS Code, any Streamable HTTP client) with an API key, and what `search` and `ask` return |
 
 ## Team owners and editors
 
@@ -63,6 +64,7 @@ People who run the admin portal: models, classifications, policies and governanc
 | [`operations/ocr.md`](operations/ocr.md) | OCR for scanned documents: deploying the sidecar, choosing a backend, languages, retrying scanned documents, costs |
 | [`operations/costs.md`](operations/costs.md) | Prices, cost modes and monthly team budgets; handling a team whose budget is used up |
 | [`operations/evaluations.md`](operations/evaluations.md) | Evaluation sets for knowledge bases and agents: building, running, reading results, automatic runs (team editors and platform admins) |
+| [`mcp.md`](mcp.md) | The MCP server: turning it on, the MCP key scope, limits, audit and metrics |
 | [`benchmarks/`](benchmarks/README.md) | Measurements that inform model and setting choices: [scale](benchmarks/scale-10k.md), [vector store](benchmarks/vector-gate.md), [boilerplate](benchmarks/boilerplate.md), [self-hosted models](benchmarks/spark-models.md), [SystemOne](benchmarks/systemone.md), [load at 2× the sizing](benchmarks/load.md) |
 
 ## Operators

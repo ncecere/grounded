@@ -77,10 +77,10 @@ Platform
 - **Requesting a team.** In v1, the app links to `TEAM_REQUEST_URL` (for example a service-desk request form), and a platform admin creates the team by hand. Later: an in-app request form (purpose, owner, requested maximum classification, justification) with an approval queue.
 
 ### 3.3 API keys (ADR-0012)
-- **Personal keys.** Tied to a user and a team. Revoked automatically when the user leaves the team. Allowed scopes depend on role: members get `query` only, editors get `query` and `ingest`, admins and owners get all scopes.
+- **Personal keys.** Tied to a user and a team. Revoked automatically when the user leaves the team. Allowed scopes depend on role: members get `query` (and `mcp`), editors get `query` and `ingest` (and `mcp`), admins and owners get all scopes.
 - **Team service keys.** Only team admins and owners can create them. They belong to the team, survive staff changes, and have a named responsible contact (a team member, chosen at creation and reassigned with `PATCH /v1/teams/{team}/api-keys/{keyId}`), shown in the key list.
 - **All keys:**
-  - Scopes: `query`, `ingest`, `manage`.
+  - Scopes: `query`, `ingest`, `manage`, and `mcp` (v0.3: the MCP server at `POST /mcp`, acting as a `query` key there and granting nothing on the REST API; [`mcp.md`](mcp.md)).
   - Can be restricted to specific KBs or agents.
   - Have an expiry date.
   - Format `rag_<12-char id>_<40-char secret>`. The id is stored in clear for lookup; only HMAC-SHA256(`API_KEY_PEPPER`, key) is stored. The secret is shown once.
@@ -107,7 +107,7 @@ Admins get no access to content by default (ADR-0011). The last active platform 
 | Publish agents to `authenticated` / `public` | ✅ | ✅ | | |
 | Manage members | ✅ | ✅ (not owners) | | |
 | Create team service keys | ✅ | ✅ | | |
-| Create personal API keys (scopes by role, §3.3) | ✅ | ✅ | ✅ | `query` only |
+| Create personal API keys (scopes by role, §3.3) | ✅ | ✅ | ✅ | `query` and `mcp` only |
 | Request crawl domains outside the allowlist | ✅ | ✅ | ✅ | |
 | View team usage, analytics and audit | ✅ | ✅ | read | |
 | Change team limits or approved classification | platform admin only | | | |
@@ -340,6 +340,7 @@ Consumers cannot list KBs or documents, and cannot download original files. Cita
 ### 7.6 Access paths
 - **UI:** an agent directory for signed-in users, a chat page for each agent, and an embeddable widget. The widget is a small loader script that injects an **iframe** of the hosted chat page, which isolates host-site styles and scripts.
 - **API:** `POST /v1/agents/{team}/{agent}/chat` (streams over SSE), and **OpenAI-compatible** `POST /v1/chat/completions`.
+- **MCP (v0.3):** `POST /mcp`, the Model Context Protocol over stateless Streamable HTTP, for AI tools with an API key that has the `mcp` scope: the `search` and `ask` tools, off until a platform admin turns it on ([`mcp.md`](mcp.md)).
 - **Branding:** the install's theme and identity settings across the platform ("Configuration and instance identity", §15). Per-agent customization is limited to name, avatar, contrast-checked accent colour, welcome message and starter questions. **There is no custom CSS**, to protect accessibility.
 
 ### 7.7 AI runtime: modelled on pi (ADR-0017)
@@ -624,6 +625,7 @@ Evaluations    /v1/teams/{team}/evaluation-sets[/{setId}[/questions[/import|/{id
                /v1/admin/settings/evaluations       (editors and above; 404 for everyone else and while off)
 Notifications  GET /v1/notifications, PATCH /v1/notifications/{id}, PUT /v1/me/notification-settings
 OpenAI compat  POST /v1/chat/completions  (model = "agent:{team}/{agent}")   GET /v1/models
+MCP            POST /mcp  (JSON-RPC, described in docs/mcp.md, not the OpenAPI)   /v1/admin/settings/mcp (the switch)
 ```
 
 ## 15. Architecture, deployment and operations (ADR-0001, ADR-0013, ADR-0014)

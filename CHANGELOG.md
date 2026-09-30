@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Grounded as an MCP server** (v0.3.0 M1, roadmap C1a; [`docs/mcp.md`](docs/mcp.md)): `POST /mcp` speaks the Model Context Protocol over stateless Streamable HTTP (revision `2026-07-28`, and `2025-11-25` back to `2024-11-05` for older clients; the official Go SDK v1.8.0). Two tools: `search` (passages with title, headings, URL and citation number) and `ask` (an agent's answer with `[n]` markers, citations, claim verdicts when SystemOne checks citations, and a conversation handle for follow-ups that only works with the key that received it). Each tool's arguments list, as an enum, exactly the knowledge bases and agents the key may use; a key with none of one kind doesn't get that tool. Limits, classification, budgets and usage apply as on the REST API; a refusal inside a tool is a tool error with the reason. Usage and analytics record the channel `mcp`; each call is audited as `mcp.search` or `mcp.ask` (never the content). New metric `grounded_mcp_tool_calls_total` and route group `mcp` (outside the latency objective).
+- The **MCP server** switch on **Admin → Overview → Features**: off by default (`/mcp` answers 404), turned on by platform admins (turning it off asks first), audited as `platform.mcp`, with the server's address and a link to the guide. API: `GET`/`PUT /v1/admin/settings/mcp`; `GET /v1/me` has `capabilities.mcp`.
+- API keys have a new scope **`mcp`** ("MCP: search and ask from AI tools"), open to every team role; it grants nothing on the REST API. A new key with it shows the MCP server's address.
+
+### Changed
+
+- The audit log's `excludeAction` takes several comma-separated groups (`auth.,mcp.`); Recent changes on the admin and team Overview pages leave out MCP tool calls, which change nothing.
+- Migration `00035_mcp_server.sql`: the `mcp_settings` switch, `mcp` in the API-key scope and answer channel constraints (expand only).
+
 ### Fixed
 
 - Admin → Overview: Needs attention and Features span the page, so each feature reads on one line beside its actions (in a narrow card the actions go under the text); the published-agents count reads "2 for the team · 1 public".

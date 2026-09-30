@@ -32,19 +32,20 @@ Labels are bounded by design: route patterns (never raw paths), channels, kinds,
 | `grounded_http_requests_in_flight` | gauge | | Includes open chat streams |
 | `grounded_ratelimit_backend_errors_total` | counter | | Rate-limit checks that failed open because Valkey was unavailable |
 
-Route groups (`group`): `ops` (`/healthz`, `/readyz`, `/metrics`), `chat` (streamed answers: agent chat, public chat, `POST /v1/chat/completions`, editors' test chat), `public` (public pages and the widget), `openai` (`GET /v1/models`), `admin` (`/v1/admin/…`), `auth` (sign-in and `/v1/me…`), `api` (the rest of `/v1`), `ui` (the web app) and `unmatched`.
+Route groups (`group`): `ops` (`/healthz`, `/readyz`, `/metrics`), `chat` (streamed answers: agent chat, public chat, `POST /v1/chat/completions`, editors' test chat), `public` (public pages and the widget), `openai` (`GET /v1/models`), `mcp` (`/mcp`, the MCP server; like `chat`, outside the latency objective, as an `ask` lasts as long as its answer), `admin` (`/v1/admin/…`), `auth` (sign-in and `/v1/me…`), `api` (the rest of `/v1`), `ui` (the web app) and `unmatched`.
 
 ### Chat, retrieval and checks
 
 | Metric | Type | Labels | Notes |
 |---|---|---|---|
-| `grounded_chat_answers_total` | counter | `channel`, `outcome` | Channels: `ui`, `api`, `openai`, `public`, `widget`, `test` (editors' drafts). Outcomes: `ok`, `no_answer` (refused, or nothing to answer from), `moderated`, `model_busy`, `aborted` (the caller went away), `error` |
+| `grounded_chat_answers_total` | counter | `channel`, `outcome` | Channels: `ui`, `api`, `openai`, `public`, `widget`, `mcp` (the MCP server's `ask`), `test` (editors' drafts). Outcomes: `ok`, `no_answer` (refused, or nothing to answer from), `moderated`, `model_busy`, `aborted` (the caller went away), `error` |
 | `grounded_chat_first_token_seconds` | histogram | `channel` | Question to the first streamed token (absent when nothing streamed) |
 | `grounded_chat_duration_seconds` | histogram | `channel` | Question to the end of the answer (before a streamed answer's citation check) |
 | `grounded_retrieval_duration_seconds` | histogram | `outcome` (`ok`, `error`) | One hybrid search over one knowledge base, including the query embedding |
 | `grounded_systemone_requests_total` | counter | `feature`, `outcome` | Features: `moderation`, `judging`, `citations`, `scope`, `test`. Outcomes: `ok`, `timeout`, `error` |
 | `grounded_systemone_request_duration_seconds` | histogram | `feature` | After a concurrency slot is free |
 | `grounded_moderation_decisions_total` | counter | `stage` (`input`, `output`), `decision` | Decisions: `pass`, `flag`, `block`, `support`, `error` (the provider failed; the policy decides whether that blocks) |
+| `grounded_mcp_tool_calls_total` | counter | `tool` (`search`, `ask`), `outcome` | The MCP server's tool calls ([`../mcp.md`](../mcp.md)). Outcomes: `ok`, `refused` (a limit, a budget, a classification rule), `error` |
 
 ### Model connections
 
@@ -182,12 +183,12 @@ DESIGN §15 targets 99.9% availability. The rules measure it at the API:
 | SLO | SLI | Objective | Budget over 30 days |
 |---|---|---|---|
 | Availability | Share of API requests (group `ops` excluded) that don't fail with 5xx | 99.9% | 0.1% of requests (about 43 minutes of full outage) |
-| Latency | Share of non-streaming API requests (groups `ops` and `chat` excluded) that finish within 1 s | 95% (so p95 under 1 s) | 5% of requests |
+| Latency | Share of non-streaming API requests (groups `ops`, `chat` and `mcp` excluded) that finish within 1 s | 95% (so p95 under 1 s) | 5% of requests |
 
 The Overview dashboard shows both over the chosen time range, and the budget left over 30 days.
 
 - **Burn-rate alerts** follow the multi-window, multi-burn-rate method of the Google SRE workbook: a fast burn (14.4× over 1 h and 5 min, or 6× over 6 h and 30 min) pages; a slow burn (3× over 1 day and 2 h, or 1× over 3 days and 6 h) warns. Both need at least one request a minute, so a single error on an idle install doesn't page.
-- **Streamed chat** is outside the latency SLO. Its speed depends mostly on the chat model; the dashboards show time to first token and answer time per channel. Answers that fail after streaming started get an HTTP 200, so they're covered by `GroundedChatAnswersFailing`, not the availability SLO.
+- **Streamed chat and the MCP server** are outside the latency SLO (an MCP `ask` returns when its answer is complete). Its speed depends mostly on the chat model; the dashboards show time to first token and answer time per channel. Answers that fail after streaming started get an HTTP 200, so they're covered by `GroundedChatAnswersFailing`, not the availability SLO.
 - **Intentional 503s count.** Uploads and crawls refused during maintenance mode are 5xx. Planned maintenance spends budget; keep it short.
 - **Dependencies** bound the SLO (DESIGN §15): the model gateway, the OIDC provider and SMTP. Model connection health has its own alerts. A single-Postgres install (like the home install) can't meet 99.9% through node or storage failures; the HA overlay can.
 - **Ingestion freshness** has no SLO yet. The queue alerts (`GroundedQueueBacklog`, `GroundedJobStuck`) and the Ingest dashboard cover it.

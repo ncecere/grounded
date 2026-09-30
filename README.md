@@ -93,6 +93,7 @@ Each install sets its own name, logo, support links and crawl allowlist through 
 
 **Publishing**
 - An **OpenAI-compatible API**: each agent is a model (`agent:{team}/{agent}`) on `POST /v1/chat/completions`, with citations in the response.
+- An **MCP server** (`POST /mcp`, off until a platform admin turns it on): AI tools such as coding agents search knowledge bases and ask agents with an API key that has the MCP scope, under the same limits as the API. See [`docs/mcp.md`](docs/mcp.md).
 - An **embeddable widget** (iframe) with publishable keys, allowed origins and optional CAPTCHA, plus public agent pages and admin-assigned short names.
 - Public agents have per-IP and per-session rate limits, daily query and token caps, a platform-wide switch and a kill switch.
 - **Moderation** is required for public agents and fails closed. Four provider kinds are supported: `/moderations` endpoints, guardrail models, chat models used as classifiers, and SystemOne models.

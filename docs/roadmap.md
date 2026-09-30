@@ -123,7 +123,7 @@ The plan is [`v0.2.1.md`](v0.2.1.md); the release notes are [`releases/v0.2.1.md
 
 | ID | Item | What and why | Size | Value | Depends on |
 |---|---|---|---|---|---|
-| C1 ★ | **MCP support** | (a) Expose each KB or agent as an MCP server. (b) Let agents call admin-approved external MCP tools. | M | High | a tool approval policy |
+| C1 ★ **(a) Done** (v0.3.0 M1) | **MCP support** | (a) Expose each KB or agent as an MCP server: **done** as `POST /mcp` with the `search` and `ask` tools, API keys with the `mcp` scope ([`mcp.md`](mcp.md)); OAuth sign-in follows (M5). (b) Let agents call admin-approved external MCP tools (M3). | M | High | a tool approval policy |
 | C2 ★ | **Unanswered-questions and gap report** | Cluster questions that got no context, refusals or thumbs-down, without showing content (ADR-0010). Tells teams what to add. | M | High | privacy review |
 | C3 | **Human handoff and ticketing** | Create a ticket (webhook, or ServiceNow/Jira/TeamDynamix adapters) with the transcript, with the user's consent. | M | High for service desks | F3 |
 | C4 | **Agent templates** | "Service desk FAQ", "Policy explainer" and others, with good defaults. | S | Medium | — |
