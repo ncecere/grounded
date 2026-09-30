@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-09-30
+
+Small fixes after v0.2.1; no migrations. The release notes are [`docs/releases/v0.2.2.md`](docs/releases/v0.2.2.md).
+
 ### Changed
 - Team editors can **withdraw their own pending domain request** (J4): Data sources → Crawl domains has **Withdraw request…** in a pending request's row menu and on its page, with a confirmation; team admins and owners can withdraw any pending request of the team. A withdrawn request is removed, so it leaves Admin → Crawl domains (and the pending count), the platform admins' "New domain request" notification is marked read, and the team can ask for the domain again. A reviewed request can't be withdrawn (409 `request_not_pending`). Audited as `crawl.domain_withdraw` with the request as it was. API: `DELETE /v1/teams/{team}/domain-requests/{requestId}`. No migration.
 
@@ -273,7 +277,8 @@ Development before this release happened in a private repository. The public rep
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
 
-[Unreleased]: https://github.com/ncecere/grounded/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/ncecere/grounded/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/ncecere/grounded/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/ncecere/grounded/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/ncecere/grounded/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ncecere/grounded/releases/tag/v0.1.0

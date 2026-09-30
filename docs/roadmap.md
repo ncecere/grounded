@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-09-30. **v0.2.1 is released** (2026-09-29) and runs on the reference install; the project now has a website ([`ncecere/grounded-website`](https://github.com/ncecere/grounded-website)) and a documentation site ([`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs)). **v0.2.2** collects small fixes (§ J); nothing else below is scheduled until the owner picks it.
+Status: refreshed 2026-09-30. **v0.2.2 is released** (2026-09-30) and runs on the reference install; the project now has a website ([`ncecere/grounded-website`](https://github.com/ncecere/grounded-website)) and a documentation site ([`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs)). **v0.3.0** (MCP server and client, stored health, tracing, and the Community/Enterprise edition plumbing) is designed in [`v0.3.0.md`](v0.3.0.md) on branch `release/v0.3.0`.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -239,7 +239,7 @@ All of G1–G18 are **Done** in v0.2.0.
 
 ---
 
-## J. v0.2.2: small fixes
+## J. v0.2.2: small fixes — **Done** (v0.2.2, [`releases/v0.2.2.md`](releases/v0.2.2.md))
 
 On branch `release/v0.2.2`; found while preparing the public sites' screenshots and in the v0.2.1 walkthrough.
 
