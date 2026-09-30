@@ -7,10 +7,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/observability"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/tracing"
 )
 
 // DefaultMaxConcurrent is a connection's default max_concurrent_requests:
@@ -77,7 +80,16 @@ const (
 
 // Ask sends the state and questions and returns the validated answers.
 // Waiting for a slot is bounded by ctx; the call itself by c.Timeout.
-func (cl *Client) Ask(ctx context.Context, c Call, state any, qs map[string]Question) (Response, error) {
+func (cl *Client) Ask(ctx context.Context, c Call, state any, qs map[string]Question) (res Response, err error) {
+	ctx, span := tracing.StartKind(ctx, "systemone "+c.Feature, trace.SpanKindClient, attribute.String("grounded.systemone.feature", c.Feature),
+		attribute.String("gen_ai.request.model", cl.Model), attribute.Int("grounded.systemone.questions", len(qs)))
+	defer func() {
+		span.SetAttributes(attribute.Int("gen_ai.usage.input_tokens", res.Usage.InputTokens))
+		if err != nil {
+			tracing.Fail(span, requestOutcome(err))
+		}
+		span.End()
+	}()
 	release, err := cl.slots.acquire(ctx)
 	if err != nil {
 		return Response{}, err
@@ -88,7 +100,6 @@ func (cl *Client) Ask(ctx context.Context, c Call, state any, qs map[string]Ques
 		ctx, cancel = context.WithTimeout(ctx, c.Timeout)
 		defer cancel()
 	}
-	var res Response
 	start := time.Now()
 	err = cl.GW.PostJSON(ctx, Path(cl.GW.BaseURL), Request{State: state, Model: cl.Model, Questions: qs}, &res)
 	if err == nil {

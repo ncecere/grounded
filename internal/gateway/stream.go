@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/ncecere/grounded/internal/tracing"
 )
 
 // maxErrorBodyBytes bounds how much of an error response we read.
@@ -44,6 +46,7 @@ func (c *Client) PostStream(ctx context.Context, path string, body any) (*Stream
 		return nil, &Error{Kind: KindBadRequest, Message: "invalid base URL"}
 	}
 	req.Header.Set("Accept", "text/event-stream")
+	tracing.InjectHeader(ctx, req.Header)
 	req.Header.Set("Content-Type", "application/json")
 	if c.APIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.APIKey)

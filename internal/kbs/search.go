@@ -12,11 +12,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/observability"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/tracing"
 	"github.com/ncecere/grounded/internal/vectorstore"
 )
 
@@ -94,7 +96,13 @@ type SearchResult struct {
 // else the platform's). It checks no permissions and writes no usage: the
 // caller (Retrieve, or an agent, which is the grant) does both.
 func (s *Service) Search(ctx context.Context, kb KB, p SearchParams) (res SearchResult, err error) {
-	defer func(start time.Time) { observability.ObserveRetrieval(time.Since(start), err) }(time.Now())
+	ctx, span := tracing.Start(ctx, "retrieval.search", attribute.String("grounded.kb_id", kb.ID.String()),
+		attribute.String("grounded.team_id", kb.TeamID.String()), attribute.Int("grounded.retrieval.top_k", p.TopK))
+	defer func(start time.Time) {
+		observability.ObserveRetrieval(time.Since(start), err)
+		span.SetAttributes(attribute.Int("grounded.retrieval.results", len(res.Hits)), attribute.Int("grounded.retrieval.embed_tokens", res.EmbedTokens))
+		tracing.End(span, err)
+	}(time.Now())
 	return s.search(ctx, kb, p)
 }
 
@@ -123,7 +131,7 @@ func (s *Service) search(ctx context.Context, kb KB, p SearchParams) (SearchResu
 		return res, err
 	}
 	docs := p.Filter.docs()
-	vhits, err := s.Vectors.Search(ctx, prof, vec, vectorstore.Filter{SourceIDs: sourceIDs, Estimated: estimated, Docs: docs}, candidates)
+	vhits, err := s.vectorSearch(ctx, prof, vec, vectorstore.Filter{SourceIDs: sourceIDs, Estimated: estimated, Docs: docs}, candidates)
 	if err != nil {
 		return res, err
 	}
@@ -137,13 +145,7 @@ func (s *Service) search(ctx context.Context, kb KB, p SearchParams) (SearchResu
 			return res, err
 		}
 	}
-	ranked := Fuse(vhits, lexical, weights)
-	for _, h := range ranked {
-		h.KBID = kb.ID
-	}
-	if len(ranked) > k {
-		ranked = ranked[:k]
-	}
+	ranked := fuse(ctx, kb.ID, vhits, lexical, weights, k)
 	if err := s.fillDistances(ctx, prof, vec, ranked); err != nil {
 		return res, err
 	}
@@ -192,14 +194,48 @@ func queryVector(ctx context.Context, target catalog.EmbedTarget, profileID uuid
 	return vec, max(emb.Usage.TotalTokens, 1), nil
 }
 
+// vectorSearch returns vector candidates.
+func (s *Service) vectorSearch(ctx context.Context, prof vectorstore.Profile, vec []float32, f vectorstore.Filter, candidates int) (hits []vectorstore.Hit, err error) {
+	ctx, span := tracing.Start(ctx, "retrieval.vector", attribute.Int("grounded.retrieval.candidates", candidates),
+		attribute.Int("grounded.retrieval.sources", len(f.SourceIDs)), attribute.Bool("grounded.retrieval.filtered", !f.Docs.IsZero()))
+	defer func() {
+		span.SetAttributes(attribute.Int("grounded.retrieval.results", len(hits)))
+		tracing.End(span, err)
+	}()
+	return s.Vectors.Search(ctx, prof, vec, f, candidates)
+}
+
 // lexicalSearch returns full-text candidates (LexicalSQL).
-func (s *Service) lexicalSearch(ctx context.Context, text string, sourceIDs []uuid.UUID, profileID uuid.UUID, candidates int, docs vectorstore.DocFilter) ([]uuid.UUID, error) {
+func (s *Service) lexicalSearch(ctx context.Context, text string, sourceIDs []uuid.UUID, profileID uuid.UUID, candidates int,
+	docs vectorstore.DocFilter) (ids []uuid.UUID, err error) {
+	ctx, span := tracing.Start(ctx, "retrieval.lexical", attribute.Int("grounded.retrieval.candidates", candidates))
+	defer func() {
+		span.SetAttributes(attribute.Int("grounded.retrieval.results", len(ids)))
+		tracing.End(span, err)
+	}()
 	docSQL, docArgs := docs.SQL("d", 5)
 	rows, err := s.Pool.Query(ctx, fmt.Sprintf(LexicalSQL, docSQL), append([]any{text, sourceIDs, candidates, profileID}, docArgs...)...)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+}
+
+// fuse merges vector and full-text candidates (Fuse) and keeps the best k.
+func fuse(ctx context.Context, kbID uuid.UUID, vhits []vectorstore.Hit, lexical []uuid.UUID, weights Weights, k int) []*Hit {
+	_, span := tracing.Start(ctx, "retrieval.fusion", attribute.Int("grounded.retrieval.vector_candidates", len(vhits)),
+		attribute.Int("grounded.retrieval.lexical_candidates", len(lexical)),
+		attribute.Float64("grounded.retrieval.vector_weight", weights.Vector), attribute.Float64("grounded.retrieval.keyword_weight", weights.Keyword))
+	defer span.End()
+	ranked := Fuse(vhits, lexical, weights)
+	for _, h := range ranked {
+		h.KBID = kbID
+	}
+	if len(ranked) > k {
+		ranked = ranked[:k]
+	}
+	span.SetAttributes(attribute.Int("grounded.retrieval.results", len(ranked)))
+	return ranked
 }
 
 // fillDistances gives keyword-only hits their vector distance too, so

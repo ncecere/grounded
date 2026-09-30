@@ -16,6 +16,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/ncecere/grounded/internal/tracing"
 )
 
 // Error kinds, stable for callers and the API.
@@ -184,6 +188,7 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) (er
 		return &Error{Kind: KindBadRequest, Message: "invalid base URL"}
 	}
 	req.Header.Set("Accept", "application/json")
+	tracing.InjectHeader(ctx, req.Header) // the proxy may continue the trace
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -309,7 +314,9 @@ type EmbedResult struct {
 }
 
 // Embed calls POST /embeddings.
-func (c *Client) Embed(ctx context.Context, r EmbedRequest) (EmbedResult, error) {
+func (c *Client) Embed(ctx context.Context, r EmbedRequest) (res EmbedResult, err error) {
+	ctx, span := StartModelSpan(ctx, OperationEmbeddings, r.Model, attribute.Int("grounded.embeddings.inputs", len(r.Input)))
+	defer func() { EndModelSpan(span, res.Usage.PromptTokens, 0, err) }()
 	body := map[string]any{"model": r.Model, "input": r.Input, "encoding_format": "float"}
 	if r.User != "" {
 		body["user"] = r.User
@@ -368,7 +375,9 @@ type CompleteResult struct {
 }
 
 // Complete calls POST /chat/completions without streaming.
-func (c *Client) Complete(ctx context.Context, r CompleteRequest) (CompleteResult, error) {
+func (c *Client) Complete(ctx context.Context, r CompleteRequest) (res CompleteResult, err error) {
+	ctx, span := StartModelSpan(ctx, OperationChat, r.Model)
+	defer func() { EndModelSpan(span, res.Usage.PromptTokens, res.Usage.CompletionTokens, err) }()
 	body := map[string]any{"model": r.Model, "messages": r.Messages, "stream": false}
 	if r.MaxTokens > 0 {
 		body["max_tokens"] = r.MaxTokens

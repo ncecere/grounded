@@ -2,12 +2,16 @@ package llm
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"strings"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/ncecere/grounded/internal/gateway"
 )
@@ -43,9 +47,28 @@ func (p *OpenAI) Stream(ctx context.Context, model Model, c Context, opts Option
 	go func() {
 		defer close(ch)
 		a := newAssembler(ch, model.ID, model.Compat.ThinkingField)
+		ctx, span := gateway.StartModelSpan(ctx, gateway.OperationChat, model.ID,
+			attribute.Bool("grounded.llm.stream", true), attribute.Int("grounded.llm.tools", len(c.Tools)))
+		start := time.Now()
 		p.run(ctx, a, model, c, opts)
+		endStreamSpan(span, a, start)
 	}()
 	return ch
+}
+
+// endStreamSpan records a streamed call on its span: the time to the first
+// token, the token counts and the stop reason (never the content).
+func endStreamSpan(span trace.Span, a *assembler, start time.Time) {
+	m := a.msg
+	if !a.firstDelta.IsZero() {
+		span.SetAttributes(attribute.Float64("grounded.llm.time_to_first_token_ms", float64(a.firstDelta.Sub(start).Microseconds())/1000))
+	}
+	span.SetAttributes(attribute.String("gen_ai.response.finish_reasons", string(m.StopReason)))
+	var err error
+	if m.StopReason == StopReasonError || m.StopReason == StopReasonAborted {
+		err = &gateway.Error{Kind: cmp.Or(m.ErrorKind, string(m.StopReason))}
+	}
+	gateway.EndModelSpan(span, m.Usage.Input, m.Usage.Output, err)
 }
 
 func (p *OpenAI) run(ctx context.Context, a *assembler, model Model, c Context, opts Options) {

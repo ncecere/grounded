@@ -39,6 +39,9 @@ type assembler struct {
 
 	finishReason string
 	terminated   bool
+	// firstDelta is when the first text, thinking or tool-call delta arrived
+	// (time to first token, on the model call's span).
+	firstDelta time.Time
 }
 
 type callState struct {
@@ -56,6 +59,9 @@ func newAssembler(out chan<- Event, modelID, thinkingField string) *assembler {
 }
 
 func (a *assembler) emit(ev Event) {
+	if a.firstDelta.IsZero() && (ev.Type == EventTextDelta || ev.Type == EventThinkingDelta || ev.Type == EventToolCallDelta) {
+		a.firstDelta = time.Now()
+	}
 	ev.Message = a.msg.Clone()
 	a.out <- ev
 }
