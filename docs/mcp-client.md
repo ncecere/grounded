@@ -66,7 +66,7 @@ A tool's result is untrusted text. It is given to the model inside `<sources>` a
 
 ## Costs
 
-Each call that reaches a server is one unit of the ledger kind `mcp_calls`, with the server as its model. With a **price per call** it is priced like any other usage (the category "MCP tools" in Usage & spend), counts toward team budgets, and an enforced budget that is used up stops further calls. Without a price, calls are counted but cost nothing (reports mark the spend as incomplete). A new price applies from today; earlier days keep theirs.
+Each call that reaches a server is one unit of the ledger kind `mcp_calls`, with the server as its model. With a **price per call** it is priced like any other usage (the category "MCP tools" in Usage & spend), counts toward team budgets, and an enforced budget that is used up stops further calls. Without a price, calls are counted but cost nothing (reports mark the spend as incomplete). A new price applies from today; earlier days keep theirs. Emptying the price in the server's form removes it: its calls, past ones too, are unpriced again (audited as `costs.price_delete`). Admin → Costs → Prices lists MCP servers beside the models, with their price per call or "Unpriced", and each opens the server's record, where the price is set.
 
 ## Audit and metrics
 

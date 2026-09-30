@@ -309,7 +309,12 @@ func (s *Service) DeletePrice(ctx context.Context, a authz.Actor, modelID, price
 	return err
 }
 
-// ModelPriceSummary is one model's current prices (the Prices tab).
+// KindMCPServer marks a Prices item that is an MCP server (priced per call;
+// its Model carries the server's ID, name and switch).
+const KindMCPServer = "mcp_server"
+
+// ModelPriceSummary is one model's (or MCP server's) current prices (the
+// Prices tab).
 type ModelPriceSummary struct {
 	Model    dbgen.Model
 	Current  []UnitPrice
@@ -322,8 +327,8 @@ type PriceList struct {
 	Items    []ModelPriceSummary
 }
 
-// Prices lists every model of a priced kind with its current prices
-// (platform admins and auditors).
+// Prices lists every model of a priced kind, then every MCP server, with its
+// current prices (platform admins and auditors).
 func (s *Service) Prices(ctx context.Context, a authz.Actor) (PriceList, error) {
 	if !canRead(a) {
 		return PriceList{}, errReadOnly
@@ -348,6 +353,15 @@ func (s *Service) Prices(ctx context.Context, a authz.Actor) (PriceList, error) 
 			continue
 		}
 		cur, unpriced := currentPrices(book, m.ID, units, today)
+		out.Items = append(out.Items, ModelPriceSummary{Model: m, Current: cur, Unpriced: unpriced})
+	}
+	servers, err := s.q.ListMCPServers(ctx)
+	if err != nil {
+		return PriceList{}, err
+	}
+	for _, sv := range servers {
+		cur, unpriced := currentPrices(book, sv.ID, []string{UnitMCPCalls}, today)
+		m := dbgen.Model{ID: sv.ID, DisplayName: sv.Name, Kind: KindMCPServer, Enabled: sv.Enabled}
 		out.Items = append(out.Items, ModelPriceSummary{Model: m, Current: cur, Unpriced: unpriced})
 	}
 	return out, nil

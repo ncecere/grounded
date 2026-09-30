@@ -3772,7 +3772,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Every priced model's current prices, with unpriced units (platform admins and auditors) */
+        /** Every priced model's and MCP server's current prices, with unpriced units (platform admins and auditors) */
         get: operations["adminListCostPrices"];
         put?: never;
         post?: never;
@@ -4325,10 +4325,10 @@ export interface components {
          */
         BudgetState: "none" | "ok" | "warning" | "exhausted";
         /**
-         * @description The usage ledger kind priced; tokens per million, requests per request
+         * @description The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)
          * @enum {string}
          */
-        PriceUnit: "chat_tokens_in" | "chat_tokens_out" | "embed_tokens" | "systemone_tokens" | "systemone_requests" | "moderation_requests" | "vision_tokens_in" | "vision_tokens_out";
+        PriceUnit: "chat_tokens_in" | "chat_tokens_out" | "embed_tokens" | "systemone_tokens" | "systemone_requests" | "moderation_requests" | "vision_tokens_in" | "vision_tokens_out" | "mcp_calls";
         CostSettings: {
             mode: components["schemas"]["CostMode"];
             /**
@@ -4397,11 +4397,13 @@ export interface components {
                 price: string;
             }[];
         };
+        /** @description A model, or an MCP server (kind mcp_server: modelId is the server's ID, modelKey is empty, and its one price is mcp_calls, set on the server) */
         CostPriceItem: {
             /** Format: uuid */
             modelId: string;
             modelKey: string;
             displayName: string;
+            /** @description The model's kind, or mcp_server */
             kind: string;
             enabled: boolean;
             current: components["schemas"]["UnitPrice"][];
@@ -5663,7 +5665,7 @@ export interface components {
             /** Format: int32 */
             timeoutSeconds?: number;
             enabled?: boolean;
-            /** @description A new price of one call from today (earlier days keep theirs); omit to keep */
+            /** @description A new price of one call from today (earlier days keep theirs); omit to keep; an empty string removes the server's prices, so its calls (past ones too) are unpriced */
             pricePerCall?: string;
         };
         /** @description A tool as the server listed it. Its description and input schema are prompts the model reads: review them before approving. */

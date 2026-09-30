@@ -147,6 +147,31 @@ func TestMCPServerRegistry(t *testing.T) {
 	if !upd.HasAuth || upd.Description != "Campus status" || upd.PricePerCall == nil || *upd.PricePerCall != "0.010000" {
 		t.Fatalf("updated = %+v", upd)
 	}
+	// Costs → Prices lists the server beside the models; an empty price removes it (unpriced again, audited).
+	serverPrice := func() (apitypes.CostPriceItem, bool) {
+		var list apitypes.CostPriceList
+		env.auditor.get("/v1/admin/costs/prices", &list)
+		for _, it := range list.Items {
+			if it.ModelId == env.server.Id {
+				return it, true
+			}
+		}
+		return apitypes.CostPriceItem{}, false
+	}
+	if it, ok := serverPrice(); !ok || it.Kind != "mcp_server" || it.Unpriced || len(it.Current) != 1 || it.Current[0].Unit != "mcp_calls" {
+		t.Fatalf("prices item = %+v", it)
+	}
+	var cleared apitypes.MCPServer
+	code, e = env.admin.call("PATCH", path, map[string]any{"pricePerCall": ""}, &cleared, ifMatch(upd.Revision))
+	mustCode(t, "remove the price", code, e, 200, "")
+	if it, _ := serverPrice(); cleared.PricePerCall != nil || !it.Unpriced {
+		t.Fatalf("price removed = %+v %+v", cleared.PricePerCall, it)
+	}
+	if a := env.auditRows(t, "costs.price_delete"); len(a) != 1 || !strings.Contains(a[0], "0.010000") {
+		t.Fatalf("price delete audit = %v", a)
+	}
+	code, e = env.admin.call("PATCH", path, map[string]any{"pricePerCall": "0.01"}, &upd, ifMatch(cleared.Revision))
+	mustCode(t, "price again", code, e, 200, "")
 
 	// Test stores health; a wrong key is a failing auth check.
 	var res apitypes.MCPServerTestResult

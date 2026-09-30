@@ -79,7 +79,7 @@ func (a *api) adminCreateMCPServer(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &in) {
 		return
 	}
-	if in.PricePerCall != nil {
+	if in.PricePerCall != nil && *in.PricePerCall != "" {
 		if _, err := costs.ParseAmount(*in.PricePerCall, "pricePerCall"); failed(w, r, err) {
 			return
 		}
@@ -95,10 +95,14 @@ func (a *api) adminCreateMCPServer(w http.ResponseWriter, r *http.Request) {
 	writeRevised(w, http.StatusCreated, s.Revision, a.toAPIMCPServer(r.Context(), s))
 }
 
-// setMCPPrice records a server's per-call price from today (nil: unchanged).
+// setMCPPrice records a server's per-call price from today (nil: unchanged;
+// "": removed, so its calls are unpriced).
 func (a *api) setMCPPrice(r *http.Request, s mcpclient.Server, price *string) error {
 	if price == nil || a.Costs == nil {
 		return nil
+	}
+	if *price == "" {
+		return a.Costs.ClearMCPServerPrice(r.Context(), a.actor(r), s.ID, s.Name)
 	}
 	return a.Costs.SetMCPServerPrice(r.Context(), a.actor(r), s.ID, s.Name, *price)
 }
@@ -124,7 +128,7 @@ func (a *api) adminUpdateMCPServer(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if in.PricePerCall != nil {
+	if in.PricePerCall != nil && *in.PricePerCall != "" {
 		if _, err := costs.ParseAmount(*in.PricePerCall, "pricePerCall"); failed(w, r, err) {
 			return
 		}

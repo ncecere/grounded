@@ -2912,6 +2912,7 @@ const (
 	ChatTokensIn       PriceUnit = "chat_tokens_in"
 	ChatTokensOut      PriceUnit = "chat_tokens_out"
 	EmbedTokens        PriceUnit = "embed_tokens"
+	McpCalls           PriceUnit = "mcp_calls"
 	ModerationRequests PriceUnit = "moderation_requests"
 	SystemoneRequests  PriceUnit = "systemone_requests"
 	SystemoneTokens    PriceUnit = "systemone_tokens"
@@ -2927,6 +2928,8 @@ func (e PriceUnit) Valid() bool {
 	case ChatTokensOut:
 		return true
 	case EmbedTokens:
+		return true
+	case McpCalls:
 		return true
 	case ModerationRequests:
 		return true
@@ -5624,14 +5627,16 @@ type CostMode string
 // CostModeOverride defines model for CostModeOverride.
 type CostModeOverride string
 
-// CostPriceItem defines model for CostPriceItem.
+// CostPriceItem A model, or an MCP server (kind mcp_server: modelId is the server's ID, modelKey is empty, and its one price is mcp_calls, set on the server)
 type CostPriceItem struct {
-	Current     []UnitPrice        `json:"current"`
-	DisplayName string             `json:"displayName"`
-	Enabled     bool               `json:"enabled"`
-	Kind        string             `json:"kind"`
-	ModelId     openapi_types.UUID `json:"modelId"`
-	ModelKey    string             `json:"modelKey"`
+	Current     []UnitPrice `json:"current"`
+	DisplayName string      `json:"displayName"`
+	Enabled     bool        `json:"enabled"`
+
+	// Kind The model's kind, or mcp_server
+	Kind     string             `json:"kind"`
+	ModelId  openapi_types.UUID `json:"modelId"`
+	ModelKey string             `json:"modelKey"`
 
 	// Unpriced Some unit has no price today
 	Unpriced bool `json:"unpriced"`
@@ -7323,7 +7328,7 @@ type MCPServerUpdate struct {
 	MaxClassification *string `json:"maxClassification,omitempty"`
 	Name              *string `json:"name,omitempty"`
 
-	// PricePerCall A new price of one call from today (earlier days keep theirs); omit to keep
+	// PricePerCall A new price of one call from today (earlier days keep theirs); omit to keep; an empty string removes the server's prices, so its calls (past ones too) are unpriced
 	PricePerCall   *string `json:"pricePerCall,omitempty"`
 	TimeoutSeconds *int32  `json:"timeoutSeconds,omitempty"`
 	Url            *string `json:"url,omitempty"`
@@ -7647,7 +7652,7 @@ type ModelPrice struct {
 	// Example: 12.500000
 	Price Money `json:"price"`
 
-	// Unit The usage ledger kind priced; tokens per million, requests per request
+	// Unit The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)
 	Unit PriceUnit `json:"unit"`
 }
 
@@ -7658,7 +7663,7 @@ type ModelPricesCreate struct {
 		// Price Example: 0.15
 		Price string `json:"price"`
 
-		// Unit The usage ledger kind priced; tokens per million, requests per request
+		// Unit The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)
 		Unit PriceUnit `json:"unit"`
 	} `json:"prices"`
 }
@@ -8551,7 +8556,7 @@ type PlatformLimitsUpdate struct {
 // PlatformRole defines model for PlatformRole.
 type PlatformRole string
 
-// PriceUnit The usage ledger kind priced; tokens per million, requests per request
+// PriceUnit The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)
 type PriceUnit string
 
 // ProfileMigration defines model for ProfileMigration.
@@ -9743,7 +9748,7 @@ type UnitPrice struct {
 	// Price null: unpriced (its usage costs nothing and is flagged)
 	Price *Money `json:"price"`
 
-	// Unit The usage ledger kind priced; tokens per million, requests per request
+	// Unit The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)
 	Unit PriceUnit `json:"unit"`
 }
 

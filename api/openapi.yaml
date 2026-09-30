@@ -5934,7 +5934,7 @@ paths:
     get:
       tags: [costs, admin]
       operationId: adminListCostPrices
-      summary: Every priced model's current prices, with unpriced units (platform admins and auditors)
+      summary: "Every priced model's and MCP server's current prices, with unpriced units (platform admins and auditors)"
       responses:
         "200":
           description: Prices
@@ -7204,8 +7204,8 @@ components:
         or notifies anyone; a Track-only budget shows the same states as progress and nothing else.
     PriceUnit:
       type: string
-      enum: [chat_tokens_in, chat_tokens_out, embed_tokens, systemone_tokens, systemone_requests, moderation_requests, vision_tokens_in, vision_tokens_out]
-      description: The usage ledger kind priced; tokens per million, requests per request
+      enum: [chat_tokens_in, chat_tokens_out, embed_tokens, systemone_tokens, systemone_requests, moderation_requests, vision_tokens_in, vision_tokens_out, mcp_calls]
+      description: "The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)"
     CostSettings:
       type: object
       required: [mode, currency, timeZone, warnPercent, defaultBudget, revision, updatedAt]
@@ -7280,12 +7280,13 @@ components:
               price: { type: string, example: "0.15" }
     CostPriceItem:
       type: object
+      description: "A model, or an MCP server (kind mcp_server: modelId is the server's ID, modelKey is empty, and its one price is mcp_calls, set on the server)"
       required: [modelId, modelKey, displayName, kind, enabled, current, unpriced]
       properties:
         modelId: { type: string, format: uuid }
         modelKey: { type: string }
         displayName: { type: string }
-        kind: { type: string }
+        kind: { type: string, description: "The model's kind, or mcp_server" }
         enabled: { type: boolean }
         current:
           type: array
@@ -8484,7 +8485,7 @@ components:
         maxClassification: { type: string }
         timeoutSeconds: { type: integer, format: int32, minimum: 1, maximum: 120 }
         enabled: { type: boolean }
-        pricePerCall: { type: string, description: "A new price of one call from today (earlier days keep theirs); omit to keep" }
+        pricePerCall: { type: string, description: "A new price of one call from today (earlier days keep theirs); omit to keep; an empty string removes the server's prices, so its calls (past ones too) are unpriced" }
     MCPServerTool:
       type: object
       description: >-

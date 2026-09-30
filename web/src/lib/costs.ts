@@ -78,7 +78,11 @@ export const unitLabels: Record<PriceUnit, { label: string; per: string }> = {
   moderation_requests: { label: "Requests", per: "per request" },
   vision_tokens_in: { label: "Input tokens", per: "per 1M tokens" },
   vision_tokens_out: { label: "Output tokens", per: "per 1M tokens" },
+  mcp_calls: { label: "Tool calls", per: "per call" },
 };
+
+/** An MCP server's price per call ("$0.0001 per call"), exact: prices are rates, often a fraction of a cent. */
+export const perCallText = (price: string | null | undefined, currency: string) => (price ? `${formatMoneyExact(price, currency)} per call` : "Not priced");
 
 /** Spend categories, in chart order. */
 export const categories = [
@@ -138,9 +142,9 @@ export function budgetThisMonth(st: TeamBudgetState, opts: { platformDefault?: b
 /** Whether a team's mode is its own or the platform's, in the same words everywhere. */
 export const modeSourceLabel = (override: Schemas["CostModeOverride"]) => (override === "inherit" ? "Platform setting" : "Team setting");
 
-/** Names the per-request column: SystemOne and moderation are priced per request, not per token. */
+/** Names the per-request column: SystemOne, moderation and MCP tool calls are priced per request, not per token. */
 export const requestsColumn = "Requests";
-export const requestsHint = "SystemOne and moderation calls, priced per request.";
+export const requestsHint = "SystemOne, moderation and MCP tool calls, priced per request.";
 
 /** Today (YYYY-MM-DD) in a time zone such as the platform's, or the browser's day without one. */
 export function dayIn(timeZone?: string) {

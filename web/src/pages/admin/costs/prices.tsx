@@ -1,4 +1,7 @@
-/* Costs › Prices: every priced model with its prices today and "Unpriced" where one is missing; a model opens its record, where prices are changed. */
+/*
+ * Costs › Prices: every priced model and MCP server with its prices today and "Unpriced" where one is missing. A model
+ * opens its record, where prices are changed; an MCP server opens its record, where its price per call is set.
+ */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Eye, Tags } from "lucide-react";
@@ -52,18 +55,22 @@ export function PriceLines({ current, currency }: { current: Schemas["UnitPrice"
 
 // ?from= gives the model's record page a "Back to Costs" link.
 const modelLink = (id: string) => <Link to="/admin/models" search={{ record: id, from: "costs-prices" } as never} />;
+const serverLink = (id: string) => <Link to="/admin/mcp-servers" search={{ record: id } as never} />;
+const isServer = (r: Item) => r.kind === "mcp_server";
+const itemLink = (r: Item) => (isServer(r) ? serverLink(r.modelId) : modelLink(r.modelId));
+const kindLabel = (kind: string) => (kind === "mcp_server" ? "MCP server" : (kindLabels[kind as keyof typeof kindLabels] ?? kind));
 
 function columns(currency: string): DataTableColumn<Item>[] {
   return [
     {
       id: "model",
-      header: "Model",
+      header: "Model or MCP server",
       accessor: (r) => r.displayName,
       rowHeader: true,
       hideable: false,
-      cell: (r) => <CellText primary={<TextLink render={modelLink(r.modelId)}>{r.displayName}</TextLink>} secondary={r.modelKey} />,
+      cell: (r) => <CellText primary={<TextLink render={itemLink(r)}>{r.displayName}</TextLink>} secondary={r.modelKey || undefined} />,
     },
-    { id: "kind", header: "Kind", accessor: "kind", cell: (r) => <Badge tone="info">{kindLabels[r.kind as keyof typeof kindLabels] ?? r.kind}</Badge> },
+    { id: "kind", header: "Kind", accessor: (r) => kindLabel(r.kind), cell: (r) => <Badge tone="info">{kindLabel(r.kind)}</Badge> },
     { id: "prices", header: "Prices today", accessor: (r) => (r.unpriced ? 0 : 1), cell: (r) => <PriceLines current={r.current} currency={currency} /> },
     { id: "status", header: "Status", accessor: (r) => (r.enabled ? "Enabled" : "Disabled"), defaultHidden: true },
   ];
@@ -75,18 +82,18 @@ export function PricesTab() {
   return (
     <ListPage<Item>
       id="admin-cost-prices"
-      caption="Model prices"
+      caption="Prices"
       columns={columns(d?.currency ?? "USD")}
       data={d?.items ?? []}
       getRowId={(r) => r.modelId}
       rowLabel={(r) => r.displayName}
       facets={facets}
-      search={{ label: "Search models", placeholder: "Name or key" }}
+      search={{ label: "Search models and MCP servers", placeholder: "Name or key" }}
       loading={list.isLoading}
       error={list.error}
       onRetry={() => void list.refetch()}
-      rowActions={(r) => [{ label: "View details", icon: <Eye aria-hidden />, render: modelLink(r.modelId) }]}
-      empty={{ icon: <Tags />, title: "No chat, embedding, SystemOne or moderation models yet." }}
+      rowActions={(r) => [{ label: "View details", icon: <Eye aria-hidden />, render: itemLink(r) }]}
+      empty={{ icon: <Tags />, title: "No priced models or MCP servers yet." }}
     />
   );
 }

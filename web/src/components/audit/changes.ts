@@ -84,6 +84,7 @@ function fieldsFor(action: string, currency?: string): Fields | undefined {
     case "costs.price_delete":
       return {
         priceId: null,
+        mcpServer: ["MCP server"],
         unit: ["Unit", (v) => (typeof v === "string" ? unitText(v) : v)],
         price: ["Price", price],
         effectiveFrom: ["Effective from", dateText],
