@@ -23,7 +23,7 @@ type Stage = "input" | "output";
 
 const modeOptions = [
   { value: "stream_retract" as const, label: "Stream, then retract", description: "Answers appear as they are written; a failing answer is replaced by the notice." },
-  { value: "buffer" as const, label: "Buffer", description: "Answers are checked before anyone sees them. Users see “Thinking…” meanwhile." },
+  { value: "buffer" as const, label: "Buffer", description: "Answers are checked before anyone sees them. Meanwhile people see what the agent is doing, then the whole answer at once." },
 ];
 
 function useSavePolicy(policy: Policy, onSaved: (p: Policy) => void) {

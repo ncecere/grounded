@@ -210,12 +210,12 @@ describe("the moderation event in chat", () => {
     ]);
   });
 
-  it("shows the notice as an alert (not an answer) and “Thinking…” while an answer is buffered", async () => {
+  it("shows the notice as an alert (not an answer) and “Writing and checking the answer…” while an answer is buffered", async () => {
     const buffered = { ...pendingAssistant(), key: "a1", buffered: true };
     const moderated = { ...pendingAssistant(), key: "a2", status: "done" as const, text: "Withheld.", moderation: { stage: "input" as const, action: "blocked" as const, notice: "Withheld." } };
     const items: ChatItem[] = [{ role: "user", key: "u1", text: "Hi" }, buffered, { role: "user", key: "u2", text: "Bad" }, moderated];
     const { container } = renderBare(<ChatMessages items={items} agent={{ name: "Helper" }} />);
-    expect(await screen.findByText("Thinking…")).toBeInTheDocument();
+    expect(await screen.findByText("Writing and checking the answer…")).toBeInTheDocument();
     const notice = screen.getAllByRole("status").find((el) => el.textContent?.includes("Withheld."));
     expect(notice).toHaveTextContent("Not answered");
     // No copy or rating buttons on a notice (F-10).

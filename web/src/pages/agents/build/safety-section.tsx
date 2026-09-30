@@ -59,7 +59,7 @@ export function SafetySection({ c, set, errorFor, warningFor }: SectionProps) {
       )}
       <Switch
         label="Check answers before showing them"
-        description="Buffer answers: people see “Thinking…” until the answer passes the check, instead of a streamed answer that may be retracted."
+        description="Buffer answers: people see what the agent is doing until the answer passes the check, instead of a streamed answer that may be retracted."
         checked={override.outputMode === "buffer"}
         onCheckedChange={(v) => set({ moderation: { ...override, outputMode: v ? "buffer" : "" } })}
       />

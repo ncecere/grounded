@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-30
+
+Reach: Grounded as an MCP server and client, stored health, OpenTelemetry tracing and faster answers. The release notes are [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md).
+
 ### Added
 
 - **Grounded as an MCP server** (v0.3.0 M1, roadmap C1a; [`docs/mcp.md`](docs/mcp.md)): `POST /mcp` speaks the Model Context Protocol over stateless Streamable HTTP (revision `2026-07-28`, and `2025-11-25` back to `2024-11-05` for older clients; the official Go SDK v1.8.0). Two tools: `search` (passages with title, headings, URL and citation number) and `ask` (an agent's answer with `[n]` markers, citations (`kind` `document`, with the URL or upload's filename, or `tool` for an MCP tool's result, with its server and tool), claim verdicts when SystemOne checks citations, and a conversation handle for follow-ups that only works with the key that received it). Each tool's arguments list, as an enum, exactly the knowledge bases and agents the key may use; a key with none of one kind doesn't get that tool. Limits, classification, budgets and usage apply as on the REST API; a refusal inside a tool is a tool error with the reason. Usage and analytics record the channel `mcp`; each call is audited as `mcp.search` or `mcp.ask` (never the content). New metric `grounded_mcp_tool_calls_total` and route group `mcp` (outside the latency objective).
@@ -19,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Chat: an answer that is checked before it's shown (buffered moderation, the default for public agents) says "Writing and checking the answer…" until it arrives, instead of "Thinking…".
 - Admin → Models → a chat model → Compatibility: **Accepts reasoning effort** turns on `reasoning_effort` for a reasoning model, so agents can choose **Reasoning effort** (Build → Advanced) and query rewrites ask for low effort. Until it's on, the agent field says why it can't be chosen instead of being hidden.
 - The audit log's `excludeAction` takes several comma-separated groups (`auth.,mcp.`), and its Area filter (`action`) has two areas for MCP: `mcp_clients.` (what AI tools did over the MCP server) and `agent_tools.` (agents' tool calls, MCP servers and tool approvals); entries say how the person acted (API key or connected app); Recent changes on the admin and team Overview pages leave out MCP tool calls, which change nothing, and the admin Overview also OAuth sign-ins (`oauth.`).
 - Audit entries say how the person acted: signed in, with an API key or through a connected app, by name (**How** on the record page; `via` and `viaName` in the CSV); the platform log also shows the caller's address (**Address**; `clientIp` in the CSV). API (additive): `AuditEntry.via` and `AuditEntry.clientIp` (platform log only). OAuth and MCP tool entries are labelled by what happened: a refresh is "App renewed its sign-in", a revocation names its reason ("Connection revoked: a refresh token was reused (possible theft)"), a tool call that wasn't made is "An agent's MCP tool call was refused (call limit)" and names the agent.
@@ -305,7 +310,8 @@ Development before this release happened in a private repository. The public rep
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
 
-[Unreleased]: https://github.com/ncecere/grounded/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/ncecere/grounded/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/ncecere/grounded/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/ncecere/grounded/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/ncecere/grounded/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/ncecere/grounded/compare/v0.1.0...v0.2.0

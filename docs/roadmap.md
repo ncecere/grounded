@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-09-30. **v0.2.2 is released** (2026-09-30) and runs on the reference install; the project now has a website ([`ncecere/grounded-website`](https://github.com/ncecere/grounded-website)) and a documentation site ([`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs)). **v0.3.0** (MCP server and client, stored health, tracing, and the Community/Enterprise edition plumbing) is designed in [`v0.3.0.md`](v0.3.0.md) on branch `release/v0.3.0`.
+Status: refreshed 2026-09-30. **v0.3.0 is released** (2026-09-30): Grounded as an MCP server and client (C1), stored health (E11), OpenTelemetry tracing (F1), OAuth sign-in for MCP clients (experimental) and faster answers ([`releases/v0.3.0.md`](releases/v0.3.0.md)). The project has a website ([`ncecere/grounded-website`](https://github.com/ncecere/grounded-website)) and a documentation site ([`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs)). The Community/Enterprise edition plumbing (ADR-0025, a draft) was deferred from v0.3.0; nothing after v0.3.0 is scheduled until the owner picks it.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.

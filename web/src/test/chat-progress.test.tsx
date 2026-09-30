@@ -41,9 +41,11 @@ describe("progress labels", () => {
     expect(stepLabel("rewriting", "Fees")).toBe("Understanding the question…");
     expect(stepLabel("checking", "Fees")).toBe("Checking the passages…");
     expect(stepLabel("answering", "Fees")).toBe("Writing the answer…");
-    // A reasoning model's thinking and buffered answers say "Thinking…".
+    // A reasoning model's thinking says "Thinking…"; a buffered answer is written and checked before it's shown.
     expect(waitingText({ ...item, step: "answering" }, true, "Fees")).toBe("Thinking…");
-    expect(waitingText({ ...item, step: "answering", buffered: true }, false, "Fees")).toBe("Thinking…");
+    expect(waitingText({ ...item, step: "answering", buffered: true }, false, "Fees")).toBe("Writing and checking the answer…");
+    expect(waitingText({ ...item, step: "checking", buffered: true }, false, "Fees")).toBe("Checking the passages…");
+    expect(progressAnnouncement([{ ...item, step: "answering", buffered: true }], "Fees")).toBe("Writing and checking the answer…");
     // Nothing to announce once words arrive, or for a finished answer.
     expect(progressAnnouncement([item], "Fees")).toBe("Searching Fees' knowledge…");
     expect(progressAnnouncement([{ ...item, text: "Use" }], "Fees")).toBe("");
