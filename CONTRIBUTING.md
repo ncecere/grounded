@@ -17,6 +17,7 @@ make deps-up     # Postgres (pgvector) + Valkey via docker compose, on loopback 
 make web         # build the UI (embedded into the binary)
 make run         # builds bin/grounded, creates .env from .env.example if needed, runs `grounded serve`
 make fake-proxy  # optional: a fake OpenAI-compatible gateway on :8090 (key sk-dev-fake)
+make fake-mcp    # optional: a fake remote MCP server on :8091/mcp (docs/mcp-client.md)
 make dev-up      # optional, instead of deps-up and fake-proxy: both, with the fake gateway in Docker
 make web-dev     # optional: Vite with hot reload on :5173, proxying the API to :8080
 make mail-up     # optional: Mailpit catches notification email (inbox http://127.0.0.1:8025)

@@ -76,7 +76,7 @@ Each call that reaches a server is one unit of the ledger kind `mcp_calls`, with
 ## Security
 
 - **Addresses:** the URL must be https; its host must resolve to public addresses only. Private, loopback, link-local (including cloud metadata), CGNAT, documentation and translation ranges are refused when the server is saved and again, pinned, every time Grounded dials it, so a DNS change can't point a registered server at the internal network. Redirects are never followed. Credentials go in the header, not the URL (a URL with a query string is refused). Proxy settings from the environment are not used for MCP servers.
-- **Development:** with `DEV_AUTH=true` (which needs a loopback `APP_URL`), private and loopback addresses are allowed and so is plain `http://` for a loopback host, so a local test server works. There is no setting to allow them in production.
+- **Development:** with `DEV_AUTH=true` (which needs a loopback `APP_URL`), private and loopback addresses are allowed and so is plain `http://` for a loopback host, so a local test server works. There is no setting to allow them in production. `make fake-mcp` runs a fake MCP server on `http://127.0.0.1:8091/mcp` (tools `check_outage`, `slow`, `huge`, `needs_input`, `broken`) for trying this locally.
 - **Tool descriptions and results are untrusted.** Descriptions and schemas are shown before approval and a changed one loses its approval; results are framed as data, judged when SystemOne judging is on, and cited so readers can see where a claim came from.
 - **No local servers:** Grounded only speaks Streamable HTTP; it never starts processes (stdio).
 
