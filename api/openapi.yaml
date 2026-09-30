@@ -11176,6 +11176,14 @@ components:
             judged: { type: integer }
             kept: { type: integer }
             dropped: { type: integer }
+    RetrievalJudging:
+      type: object
+      description: "SystemOne passage judging of a search: candidates judged, passages given to the model and passages dropped"
+      required: [judged, kept, dropped]
+      properties:
+        judged: { type: integer }
+        kept: { type: integer }
+        dropped: { type: integer }
     ChatEventMessageStart:
       type: object
       description: "SSE event message_start"
@@ -11223,6 +11231,8 @@ components:
         id: { type: string }
         isError: { type: boolean }
         hitCount: { type: integer }
+        error: { type: string, description: "Set with isError: why the call failed or wasn't made, in a sentence for people (for example the answer's tool-call limit)" }
+        result: { type: string, description: "What an MCP tool returned (the start of its source's text), or a note when it gave no source; absent for knowledge base searches" }
     ChatEventMessageEnd:
       type: object
       description: "SSE event message_end. text is the final answer text; it replaces the streamed deltas."
@@ -11330,6 +11340,16 @@ components:
         isError: { type: boolean }
         hitCount: { type: integer }
         query: { type: string }
+        error: { type: string, description: "Set with isError: why the call failed or wasn't made, in a sentence for people" }
+        result: { type: string, description: "What an MCP tool returned (the start of its source's text), or a note when it gave no source" }
+    ConversationRetrieval:
+      type: object
+      description: "The search an answer ran before the model (retrieval mode always)"
+      required: [query, hitCount]
+      properties:
+        query: { type: string }
+        hitCount: { type: integer, description: Passages given to the model }
+        judging: { $ref: "#/components/schemas/RetrievalJudging" }
     FeedbackRating:
       type: string
       enum: [up, down]
@@ -11348,6 +11368,9 @@ components:
         toolCalls:
           type: array
           items: { $ref: "#/components/schemas/ConversationToolCall" }
+        retrieval:
+          description: "The search the answer ran before the model (retrieval mode always); absent for answers stored before v0.3.0"
+          allOf: [{ $ref: "#/components/schemas/ConversationRetrieval" }]
         citations:
           type: array
           items: { $ref: "#/components/schemas/Citation" }

@@ -216,9 +216,9 @@ SELECT coalesce(max(seq), 0)::int + 1 FROM messages WHERE conversation_id = $1;
 
 -- name: InsertMessage :one
 INSERT INTO messages (id, conversation_id, seq, role, content, citations, agent_version_id, model_id, usage,
-                      stop_reason, error_code, latency_ms)
+                      stop_reason, error_code, latency_ms, retrieval)
 VALUES (@id, @conversation_id, @seq, @role, @content, @citations, @agent_version_id, @model_id, @usage,
-        @stop_reason, @error_code, @latency_ms)
+        @stop_reason, @error_code, @latency_ms, @retrieval)
 RETURNING *;
 
 -- name: ListMessages :many

@@ -5127,9 +5127,14 @@ type ChatEventToolCall struct {
 
 // ChatEventToolResult SSE event tool_result
 type ChatEventToolResult struct {
-	HitCount int    `json:"hitCount"`
-	Id       string `json:"id"`
-	IsError  bool   `json:"isError"`
+	// Error Set with isError: why the call failed or wasn't made, in a sentence for people (for example the answer's tool-call limit)
+	Error    *string `json:"error,omitempty"`
+	HitCount int     `json:"hitCount"`
+	Id       string  `json:"id"`
+	IsError  bool    `json:"isError"`
+
+	// Result What an MCP tool returned (the start of its source's text), or a note when it gave no source; absent for knowledge base searches
+	Result *string `json:"result,omitempty"`
 }
 
 // ChatHistoryMessage defines model for ChatHistoryMessage.
@@ -5506,17 +5511,20 @@ type ConversationMessage struct {
 	CreatedAt time.Time `json:"createdAt"`
 
 	// ErrorCode moderation_blocked, moderation_withheld, moderation_support or moderation_unavailable (the safety check could not run; try again) when text is a moderation notice
-	ErrorCode      *string                 `json:"errorCode,omitempty"`
-	Feedback       *FeedbackRating         `json:"feedback,omitempty"`
-	FeedbackReason *FeedbackReason         `json:"feedbackReason,omitempty"`
-	Id             openapi_types.UUID      `json:"id"`
-	LatencyMs      *int32                  `json:"latencyMs,omitempty"`
-	Role           ConversationMessageRole `json:"role"`
-	Seq            int32                   `json:"seq"`
-	StopReason     *StopReason             `json:"stopReason,omitempty"`
-	Text           string                  `json:"text"`
-	Thinking       *string                 `json:"thinking,omitempty"`
-	ToolCalls      *[]ConversationToolCall `json:"toolCalls,omitempty"`
+	ErrorCode      *string            `json:"errorCode,omitempty"`
+	Feedback       *FeedbackRating    `json:"feedback,omitempty"`
+	FeedbackReason *FeedbackReason    `json:"feedbackReason,omitempty"`
+	Id             openapi_types.UUID `json:"id"`
+	LatencyMs      *int32             `json:"latencyMs,omitempty"`
+
+	// Retrieval The search the answer ran before the model (retrieval mode always); absent for answers stored before v0.3.0
+	Retrieval  *ConversationRetrieval  `json:"retrieval,omitempty"`
+	Role       ConversationMessageRole `json:"role"`
+	Seq        int32                   `json:"seq"`
+	StopReason *StopReason             `json:"stopReason,omitempty"`
+	Text       string                  `json:"text"`
+	Thinking   *string                 `json:"thinking,omitempty"`
+	ToolCalls  *[]ConversationToolCall `json:"toolCalls,omitempty"`
 
 	// Uncited Set by SystemOne citation checks: the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources.
 	Uncited *[]UncitedSentence `json:"uncited,omitempty"`
@@ -5532,15 +5540,31 @@ type ConversationPage struct {
 	NextCursor *string        `json:"nextCursor,omitempty"`
 }
 
+// ConversationRetrieval The search an answer ran before the model (retrieval mode always)
+type ConversationRetrieval struct {
+	// HitCount Passages given to the model
+	HitCount int `json:"hitCount"`
+
+	// Judging SystemOne passage judging of a search: candidates judged, passages given to the model and passages dropped
+	Judging *RetrievalJudging `json:"judging,omitempty"`
+	Query   string            `json:"query"`
+}
+
 // ConversationToolCall defines model for ConversationToolCall.
 type ConversationToolCall struct {
 	// Arguments The model's JSON arguments
 	Arguments interface{} `json:"arguments"`
-	HitCount  int         `json:"hitCount"`
-	Id        string      `json:"id"`
-	IsError   bool        `json:"isError"`
-	Name      string      `json:"name"`
-	Query     *string     `json:"query,omitempty"`
+
+	// Error Set with isError: why the call failed or wasn't made, in a sentence for people
+	Error    *string `json:"error,omitempty"`
+	HitCount int     `json:"hitCount"`
+	Id       string  `json:"id"`
+	IsError  bool    `json:"isError"`
+	Name     string  `json:"name"`
+	Query    *string `json:"query,omitempty"`
+
+	// Result What an MCP tool returned (the start of its source's text), or a note when it gave no source
+	Result *string `json:"result,omitempty"`
 }
 
 // ConversationUpdate defines model for ConversationUpdate.
@@ -9054,6 +9078,13 @@ type RetrievalHit struct {
 
 // RetrievalHitKind tool: an MCP tool's result (absent for passages)
 type RetrievalHitKind string
+
+// RetrievalJudging SystemOne passage judging of a search: candidates judged, passages given to the model and passages dropped
+type RetrievalJudging struct {
+	Dropped int `json:"dropped"`
+	Judged  int `json:"judged"`
+	Kept    int `json:"kept"`
+}
 
 // RetrievalMode defines model for RetrievalMode.
 type RetrievalMode string

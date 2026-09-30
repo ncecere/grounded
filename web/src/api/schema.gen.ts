@@ -8424,6 +8424,12 @@ export interface components {
                 dropped: number;
             };
         };
+        /** @description SystemOne passage judging of a search: candidates judged, passages given to the model and passages dropped */
+        RetrievalJudging: {
+            judged: number;
+            kept: number;
+            dropped: number;
+        };
         /** @description SSE event message_start */
         ChatEventMessageStart: {
             /** Format: uuid */
@@ -8459,6 +8465,10 @@ export interface components {
             id: string;
             isError: boolean;
             hitCount: number;
+            /** @description Set with isError: why the call failed or wasn't made, in a sentence for people (for example the answer's tool-call limit) */
+            error?: string;
+            /** @description What an MCP tool returned (the start of its source's text), or a note when it gave no source; absent for knowledge base searches */
+            result?: string;
         };
         /** @description SSE event message_end. text is the final answer text; it replaces the streamed deltas. */
         ChatEventMessageEnd: {
@@ -8531,6 +8541,17 @@ export interface components {
             isError: boolean;
             hitCount: number;
             query?: string;
+            /** @description Set with isError: why the call failed or wasn't made, in a sentence for people */
+            error?: string;
+            /** @description What an MCP tool returned (the start of its source's text), or a note when it gave no source */
+            result?: string;
+        };
+        /** @description The search an answer ran before the model (retrieval mode always) */
+        ConversationRetrieval: {
+            query: string;
+            /** @description Passages given to the model */
+            hitCount: number;
+            judging?: components["schemas"]["RetrievalJudging"];
         };
         /** @enum {string} */
         FeedbackRating: "up" | "down";
@@ -8546,6 +8567,8 @@ export interface components {
             text: string;
             thinking?: string;
             toolCalls?: components["schemas"]["ConversationToolCall"][];
+            /** @description The search the answer ran before the model (retrieval mode always); absent for answers stored before v0.3.0 */
+            retrieval?: components["schemas"]["ConversationRetrieval"];
             citations?: components["schemas"]["Citation"][];
             stopReason?: components["schemas"]["StopReason"];
             /** @description moderation_blocked, moderation_withheld, moderation_support or moderation_unavailable (the safety check could not run; try again) when text is a moderation notice */

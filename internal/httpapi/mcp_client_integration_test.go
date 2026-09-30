@@ -209,6 +209,12 @@ func TestMCPToolInAnswer(t *testing.T) {
 	if !strings.Contains(end.Text, "Service email: operating normally.") || len(end.Citations) != 1 {
 		t.Fatalf("answer = %q %+v", end.Text, end.Citations)
 	}
+	// The step shows what the tool returned.
+	var res apitypes.ChatEventToolResult
+	evs.one(t, "tool_result", &res)
+	if res.IsError || res.Error != nil || res.Result == nil || !strings.Contains(*res.Result, "Service email: operating normally.") {
+		t.Fatalf("tool result = %+v", res)
+	}
 	c := end.Citations[0]
 	if c.Kind == nil || *c.Kind != "tool" || c.Server == nil || *c.Server != "Service status" || c.Tool == nil || *c.Tool != "check_outage" ||
 		c.DocumentId != uuid.Nil {
@@ -246,6 +252,11 @@ func TestMCPToolInAnswer(t *testing.T) {
 	last := conv.Messages[len(conv.Messages)-1]
 	if last.Citations == nil || len(*last.Citations) != 1 || (*last.Citations)[0].Kind == nil {
 		t.Fatalf("stored citations = %+v", last.Citations)
+	}
+	// And the step: the arguments the model sent and the result.
+	if tc := last.ToolCalls; tc == nil || len(*tc) != 1 || fmt.Sprint((*tc)[0].Arguments) != "map[service:email]" ||
+		(*tc)[0].Result == nil || !strings.Contains(*(*tc)[0].Result, "operating normally") {
+		t.Fatalf("stored tool calls = %+v", last.ToolCalls)
 	}
 
 	// A published version uses the server: it can't be deleted.
@@ -287,11 +298,12 @@ func TestMCPToolBounds(t *testing.T) {
 	if len(results) != 4 {
 		t.Fatalf("tool results = %d", len(results))
 	}
-	for i, want := range []bool{true, true, true, false} {
+	// Each failed call says why, in words for people; a tool's own error message comes with it.
+	for i, want := range []string{"The tool didn't answer in time.", "Refused: the tool asked for more details", "The tool reported an error.", ""} {
 		var r apitypes.ChatEventToolResult
 		_ = json.Unmarshal(results[i].data, &r)
-		if r.IsError != want {
-			t.Errorf("result %d isError = %v", i, r.IsError)
+		if r.IsError != (want != "") || (want != "" && (r.Error == nil || !strings.HasPrefix(*r.Error, want))) {
+			t.Errorf("result %d = %+v", i, r)
 		}
 	}
 	var end apitypes.ChatEventMessageEnd
@@ -311,11 +323,19 @@ func TestMCPToolBounds(t *testing.T) {
 	ag = env.toolAgent(t, "Limited", []string{"check_outage"},
 		testutil.FakeToolCall{Name: "check_outage", Args: `{"service":"email"}`}, testutil.FakeToolCall{Name: "check_outage", Args: `{"service":"wifi"}`})
 	before := len(env.fake.Calls())
-	if code, _, errCode := env.member.stream(env.chatPath(ag.Slug), map[string]any{"message": "Email and wifi?"}); code != 200 {
+	code, evs, errCode = env.member.stream(env.chatPath(ag.Slug), map[string]any{"message": "Email and wifi?"})
+	if code != 200 {
 		t.Fatalf("chat = %d %s", code, errCode)
 	}
 	if n := len(env.fake.Calls()) - before; n != 1 {
 		t.Fatalf("%d calls made", n)
+	}
+	var refused apitypes.ChatEventToolResult
+	if results := evs.all("tool_result"); len(results) == 2 {
+		_ = json.Unmarshal(results[1].data, &refused)
+	}
+	if refused.Error == nil || *refused.Error != "Not called: this answer reached its limit of 1 tool call." {
+		t.Fatalf("refused call = %+v", refused)
 	}
 	if !strings.Contains(strings.Join(env.auditRows(t, "mcp.tool_call"), "\n"), `"reason": "call_limit"`) {
 		t.Fatal("the refused call is not audited")
@@ -356,6 +376,10 @@ func TestMCPToolCeilingAndBudget(t *testing.T) {
 	code, raw := env.editor.raw("POST", env.base+"/agents/"+ag.Id.String()+"/publish", map[string]any{}, nil)
 	if code != 422 || !hasField(decodeProblems(t, raw).Error.Details.Problems, "tools[0]") {
 		t.Fatalf("publish above the ceiling = %d %s", code, raw)
+	}
+	// In plain words, with the levels' names (not their keys).
+	if !strings.Contains(string(raw), "Service status may receive data up to Open, and this agent's knowledge bases hold Sensitive data") {
+		t.Fatalf("publish problem = %s", raw)
 	}
 
 	// Checked again at every call.

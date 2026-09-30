@@ -27,11 +27,13 @@ const (
 // 1, 4 and 5.
 type policy struct {
 	Rank           int32
-	Classification string // the level at Rank
-	MaxAudience    string // that level's widest audience
-	Model          *dbgen.ModelWithRankRow
-	KBs            []dbgen.KBPolicyRowsRow
-	Violations     []violation
+	Classification string // the level at Rank (its key)
+	// LevelName is that level's name ("Restricted"), for messages.
+	LevelName   string
+	MaxAudience string // that level's widest audience
+	Model       *dbgen.ModelWithRankRow
+	KBs         []dbgen.KBPolicyRowsRow
+	Violations  []violation
 }
 
 type violation struct {
@@ -56,7 +58,10 @@ func (s *Service) evaluate(ctx context.Context, q *dbgen.Queries, team dbgen.Tea
 	if err != nil && !errors.Is(store.NotFound(err), store.ErrNotFound) {
 		return p, err
 	}
-	p.Classification, p.MaxAudience = level.Key, level.MaxAudience
+	p.Classification, p.MaxAudience, p.LevelName = level.Key, level.MaxAudience, level.Name
+	if p.LevelName == "" {
+		p.LevelName = level.Key
+	}
 	if p.MaxAudience == "" {
 		p.MaxAudience = authz.AudienceTeam
 	}
@@ -66,7 +71,7 @@ func (s *Service) evaluate(ctx context.Context, q *dbgen.Queries, team dbgen.Tea
 	}
 	if p.Rank > teamLevel.Rank {
 		p.Violations = append(p.Violations, violation{RuleTeamCeiling, "kbs",
-			fmt.Sprintf("The knowledge bases hold %s data, above what this team is approved for", p.Classification)})
+			fmt.Sprintf("The knowledge bases hold %s data, above what this team is approved for", p.LevelName)})
 	}
 	for _, kb := range rows {
 		if kb.EmbedModelRank < kb.Rank {
@@ -83,13 +88,13 @@ func (s *Service) evaluate(ctx context.Context, q *dbgen.Queries, team dbgen.Tea
 			p.Model = &m
 			if m.MaxRank < p.Rank {
 				p.Violations = append(p.Violations, violation{RuleModelCeiling, "chatModelId",
-					fmt.Sprintf("The chat model %s is not approved for %s data", m.DisplayName, p.Classification)})
+					fmt.Sprintf("The chat model %s is not approved for %s data", m.DisplayName, p.LevelName)})
 			}
 		}
 	}
 	if !authz.AudienceAllowed(audience, p.MaxAudience) {
 		p.Violations = append(p.Violations, violation{RuleAudienceCeiling, "audience",
-			fmt.Sprintf("The %s audience is not allowed for %s data", audience, p.Classification)})
+			fmt.Sprintf("The %s audience is not allowed for %s data", audienceLabel(audience), p.LevelName)})
 	}
 	return p, nil
 }
@@ -150,7 +155,7 @@ func chatModelProblems(c Config, m *dbgen.ModelWithRankRow) []Problem {
 		add("chatModelId", "This chat model is disabled")
 	default:
 		if c.RetrievalMode == ModeTool && !m.SupportsTools {
-			add("retrievalMode", "This chat model does not support tools; use retrieval mode always")
+			add("retrievalMode", "This chat model can't call tools. Choose “Search before every answer”, or another model")
 		}
 		if c.MaxOutputTokens != nil && m.MaxOutputTokens != nil && int32(*c.MaxOutputTokens) > *m.MaxOutputTokens {
 			add("maxOutputTokens", fmt.Sprintf("The model allows at most %d output tokens", *m.MaxOutputTokens))

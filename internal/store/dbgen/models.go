@@ -566,6 +566,7 @@ type Message struct {
 	ErrorCode      string
 	LatencyMs      *int32
 	CreatedAt      time.Time
+	Retrieval      json.RawMessage
 }
 
 type MessageEvent struct {

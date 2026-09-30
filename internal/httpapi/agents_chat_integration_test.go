@@ -236,6 +236,10 @@ func TestAgentLifecycleAndChat(t *testing.T) {
 		m1.Usage == nil || m1.StopReason == nil || *m1.StopReason != "stop" || detail.Conversation.Title != "Where do students buy a parking permit?" {
 		t.Fatalf("assistant message = %+v", m1)
 	}
+	// The search before the model (always mode) is stored, so a reload shows its step.
+	if r := m1.Retrieval; r == nil || r.Query != "Where do students buy a parking permit?" || r.HitCount == 0 {
+		t.Fatalf("stored retrieval = %+v", m1.Retrieval)
+	}
 	var page apitypes.ConversationPage
 	if code := member.get("/v1/conversations?agentId="+ag.Id.String(), &page); code != 200 || len(page.Items) != 2 {
 		t.Fatalf("conversations = %d %+v", code, page)
@@ -384,7 +388,8 @@ func TestAgentToolModeWebCitationsAndFilters(t *testing.T) {
 	evs.one(t, "conversation", &conv)
 	var detail apitypes.ConversationDetail
 	env.member.get("/v1/conversations/"+conv.ConversationId, &detail)
-	if tc := detail.Messages[1].ToolCalls; tc == nil || len(*tc) != 1 || (*tc)[0].HitCount == 0 || (*tc)[0].Query == nil {
+	if tc := detail.Messages[1].ToolCalls; tc == nil || len(*tc) != 1 || (*tc)[0].HitCount == 0 || (*tc)[0].Query == nil ||
+		(*tc)[0].Error != nil || (*tc)[0].Result != nil || detail.Messages[1].Retrieval != nil {
 		t.Fatalf("stored tool calls = %+v", detail.Messages[1])
 	}
 	if n := env.scalar(t, `SELECT count(*) FROM messages WHERE role = 'tool_result' AND conversation_id = $1`, conv.ConversationId); n != 1 {

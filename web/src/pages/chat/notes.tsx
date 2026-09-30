@@ -4,7 +4,7 @@
  * starter questions, and the feedback buttons.
  */
 import { useMutation } from "@tanstack/react-query";
-import { Ban, CircleStop, RotateCcw, Search, ThumbsDown, ThumbsUp, TriangleAlert } from "lucide-react";
+import { Ban, CircleStop, RotateCcw, Search, ThumbsDown, ThumbsUp, TriangleAlert, Wrench } from "lucide-react";
 import { api, unwrap } from "../../api/client";
 import { Alert } from "@/components/ui/alert/alert";
 import { Button, IconButton } from "@/components/ui/button/button";
@@ -24,19 +24,41 @@ function stepTitle(step: SearchStep) {
   return step.kind === "retrieval" ? `Searched the knowledge base for ${q}` : `Searched: ${q}`;
 }
 
+/** A search's result in words: "5 results", or the judged counts. */
+function searchSummary(s: SearchStep) {
+  if (s.judging) return judgedSummary(s.judging);
+  return s.hitCount === undefined ? undefined : s.hitCount === 1 ? "1 result" : `${s.hitCount} results`;
+}
+
+/** Why a step failed or wasn't made, as the server says it. */
+const failure = (s: SearchStep) => (s.isError ? (s.error ?? (s.name ? "The call failed." : "The search failed.")) : undefined);
+
 export function Steps({ item }: { item: AssistantItem }) {
   if (item.steps.length === 0) return null;
   return (
     <div className={c.steps}>
       {item.steps.map((s, i) => {
         const state = s.isError ? "error" : s.hitCount !== undefined ? "completed" : item.status === "streaming" ? "running" : "completed";
-        const results = s.judging ? judgedSummary(s.judging) : s.hitCount === undefined ? undefined : s.hitCount === 1 ? "1 result" : `${s.hitCount} results`;
+        // An MCP tool shows its arguments and what it returned; a search, its query and hit count.
+        const tool = Boolean(s.name);
+        const reason = failure(s);
+        // A tool that reported an error sent its own message too.
+        const error = reason && tool && s.result ? `${reason} Its message: ${s.result}` : reason;
+        const result = tool ? s.result : searchSummary(s);
+        const summary = reason ?? (tool ? (s.hitCount ? "1 source" : undefined) : result);
         return (
           <Tool key={s.id ?? i}>
-            <ToolHeader className={a.step} name={s.name ?? (s.kind === "retrieval" ? "retrieve" : "search_knowledge")} icon={<Search />} title={stepTitle(s)} state={state} summary={results} />
+            <ToolHeader
+              className={a.step}
+              name={s.name ?? (s.kind === "retrieval" ? "retrieve" : "search_knowledge")}
+              icon={tool ? <Wrench /> : <Search />}
+              title={stepTitle(s)}
+              state={state}
+              summary={summary}
+            />
             <ToolContent>
-              <ToolInput input={{ query: s.query }} />
-              <ToolOutput output={results} errorText={s.isError ? "The search failed." : undefined} />
+              <ToolInput input={tool ? (s.args ?? {}) : { query: s.query }} />
+              <ToolOutput output={result} errorText={error} />
             </ToolContent>
           </Tool>
         );

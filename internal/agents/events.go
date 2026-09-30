@@ -82,10 +82,14 @@ type (
 		Name      string          `json:"name"`
 		Arguments json.RawMessage `json:"arguments"`
 	}
+	// ToolResultEvent: Error says why a call failed or wasn't made;
+	// Result is what an MCP tool returned, or a note (stepOutcome).
 	ToolResultEvent struct {
 		ID       string `json:"id"`
 		IsError  bool   `json:"isError"`
 		HitCount int    `json:"hitCount"`
+		Error    string `json:"error,omitempty"`
+		Result   string `json:"result,omitempty"`
 	}
 	MessageEndEvent struct {
 		MessageID  uuid.UUID  `json:"messageId"`
@@ -211,15 +215,40 @@ func (ru *run) onEvent(ev agentloop.Event, st *loopState) {
 		}
 		ru.out.send(Event{"tool_call", ToolCallEvent{ID: ev.ToolCallID, Name: ev.ToolName, Arguments: args}})
 	case agentloop.ToolExecutionEnd:
-		hitCount := 0
+		res := ToolResultEvent{ID: ev.ToolCallID, IsError: ev.IsError}
 		if ev.Result != nil {
 			if d, ok := ev.Result.Details.(toolDetails); ok {
-				hitCount = len(d.Hits)
+				res.HitCount = len(d.Hits)
+				res.Error, res.Result = stepOutcome(ev.IsError, d)
 				ru.out.send(Event{"retrieval", RetrievalEvent{Query: d.Query, Hits: d.Hits, Judging: d.Judging}})
 			}
 		}
-		ru.out.send(Event{"tool_result", ToolResultEvent{ID: ev.ToolCallID, IsError: ev.IsError, HitCount: hitCount}})
+		ru.out.send(Event{"tool_result", res})
 	}
+}
+
+// stepOutcome is a tool call's step in words: why it failed or wasn't made
+// (errText), and what an MCP tool returned (its source's snippet) or a note
+// such as "The tool returned nothing." (result). A search's result is its
+// hit count, so it has neither unless it failed.
+func stepOutcome(isError bool, d toolDetails) (errText, result string) {
+	if isError {
+		switch {
+		case d.Reason != "":
+			errText = d.Reason
+		case d.Error == "retrieval_failed":
+			errText = "The search failed."
+		default: // stored without a reason
+			errText = "The call failed."
+		}
+		return errText, d.Note
+	}
+	for _, h := range d.Hits {
+		if h.Kind == SourceTool {
+			return "", h.Snippet
+		}
+	}
+	return "", d.Note
 }
 
 func (ru *run) sendEnd(ans Answer) {
