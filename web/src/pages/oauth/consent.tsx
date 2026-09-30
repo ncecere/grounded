@@ -24,6 +24,9 @@ import { useCurrentUser, useInstance } from "@/session";
 import styles from "./consent.module.css";
 
 type Consent = Schemas["OAuthConsent"];
+
+/** Leaves the app for the client (a seam for tests). */
+export const redirectTo = { go: (url: string) => window.location.assign(url) };
 type Decision = "allow" | "deny";
 
 /** The authorization request's parameters, as the endpoint passed them on. */
@@ -57,7 +60,7 @@ export function OAuthConsentPage() {
   });
   const decide = useMutation({
     mutationFn: async (decision: Decision) => unwrap(await api.POST("/v1/oauth/consent", { body: { query: request.raw, decision } })),
-    onSuccess: (out) => window.location.assign(out.redirectUrl),
+    onSuccess: (out) => redirectTo.go(out.redirectUrl),
   });
 
   return (

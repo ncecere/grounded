@@ -227,6 +227,34 @@ describe("admin overview", () => {
     expect(calls.filter((c) => c.method === "PUT")[1]!.body).toEqual({ enabled: false });
   });
 
+  it("turns OAuth sign-in for MCP clients on (Experimental) keeping the server's switch, and confirms before turning it off", async () => {
+    const calls = mockApi(
+      routes({
+        "GET /v1/admin/settings/mcp": () => ({ enabled: true, oauthEnabled: false, revision: 4, updatedAt: "2026-09-01T10:00:00Z" }),
+        "PUT /v1/admin/settings/mcp": (b) => ({ ...(b as object), revision: 5, updatedAt: "2026-09-28T10:00:00Z" }),
+      }),
+    );
+    const { container } = renderApp("/admin");
+    const row = await featureRow("OAuth sign-in for MCP clients");
+    expect(within(row).getByText("Experimental")).toBeInTheDocument();
+    expect(await within(row).findByText("AI tools connect with API keys only.")).toBeInTheDocument();
+    const guide = within(row).getByRole("link", { name: "How OAuth sign-in works (opens in a new tab)" });
+    expect(guide).toHaveAttribute("href", expect.stringMatching(/docs\/mcp\.md#signing-in-with-oauth-experimental$/));
+    await userEvent.click(within(row).getByRole("switch", { name: "Allow OAuth sign-in" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
+    const put = calls.find((c) => c.method === "PUT")!;
+    expect(put.body).toEqual({ enabled: true, oauthEnabled: true });
+    expect(put.headers.get("If-Match")).toBe('"4"');
+    expect(await within(row).findByText(/AI tools can also connect by signing in as the person using them/)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(within(row).getByRole("switch", { name: "Allow OAuth sign-in" }));
+    const confirm = await screen.findByRole("alertdialog", { name: "Turn OAuth sign-in off?" });
+    expect(within(confirm).getByText(/API keys keep working/)).toBeInTheDocument();
+    await userEvent.click(within(confirm).getByRole("button", { name: "Turn OAuth sign-in off" }));
+    await waitFor(() => expect(calls.filter((c) => c.method === "PUT")).toHaveLength(2));
+    expect(calls.filter((c) => c.method === "PUT")[1]!.body).toEqual({ enabled: true, oauthEnabled: false });
+  });
+
   it("shows auditors each feature's state, and the switch disabled with the reason", async () => {
     mockApi(routes({ "GET /v1/me": () => meFor("platform_auditor"), "GET /v1/admin/costs/settings": () => ({ mode: "off", currency: "USD", timeZone: "UTC", warnPercent: 80, defaultBudget: null, revision: 1, updatedAt: "" }) }));
     renderApp("/admin");
