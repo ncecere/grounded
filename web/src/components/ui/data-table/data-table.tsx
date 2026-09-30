@@ -88,7 +88,11 @@ import styles from "./data-table.module.css";
  *     columns (`hideable: false` keeps one fixed; `defaultHidden` starts it
  *     hidden, `defaultHiddenNarrow` only below 600px). Control it with
  *     `hiddenColumns` / `onHiddenColumnsChange`, or let `columnsStorageKey`
- *     persist the choice in localStorage.
+ *     persist the choice in localStorage. `columnsMenuMin` leaves the menu
+ *     out of small tables: it shows once that many columns can be hidden,
+ *     or once one is hidden (so a column hidden on a phone can come back).
+ *   - `showFilterLabel`: the search box's label is shown above it, like a
+ *     facet's, instead of only to assistive technology.
  *   - `facets`: a FilterBar (toggle / select / date-range facets with
  *     counts, active-filter chips and "Clear all") under the toolbar. Rows
  *     are filtered in memory with each facet's accessor unless `manual`.
@@ -192,6 +196,8 @@ export type DataTableProps<T> = Omit<TableProps, "columns" | "children" | "empty
   onFilterChange?: (filter: string) => void;
   /** Label of the filter input (default "Filter rows"). */
   filterLabel?: string;
+  /** Show the filter's label above it (default: only to assistive technology). */
+  showFilterLabel?: boolean;
   filterPlaceholder?: string;
 
   /** Rows per page; omit to show every row. */
@@ -258,6 +264,11 @@ export type DataTableProps<T> = Omit<TableProps, "columns" | "children" | "empty
   columnsStorageKey?: string;
   /** Text of the Columns menu button (default "Columns"). */
   columnsMenuLabel?: string;
+  /**
+   * With `columnsMenu`, show the menu only when at least this many columns can be hidden, or once one
+   * is hidden (default 0: always).
+   */
+  columnsMenuMin?: number;
 
   /** Faceted filters in a FilterBar under the toolbar (in-memory with accessors, or `manual`). */
   facets?: Facet<T>[];
@@ -392,6 +403,7 @@ export function DataTable<T>({
   defaultFilter = "",
   onFilterChange,
   filterLabel = "Filter rows",
+  showFilterLabel = false,
   filterPlaceholder = "Filter…",
   pageSize: pageSizeProp,
   page: pageProp,
@@ -421,6 +433,7 @@ export function DataTable<T>({
   onHiddenColumnsChange,
   columnsStorageKey,
   columnsMenuLabel = "Columns",
+  columnsMenuMin = 0,
   facets,
   facetValues: facetValuesProp,
   defaultFacetValues = EMPTY_FILTERS,
@@ -475,6 +488,13 @@ export function DataTable<T>({
   const hiddenSet = new Set(hidden);
   const isHideable = (c: DataTableColumn<T>) => c.hideable ?? !c.rowHeader;
   const shownColumns = columns.filter((c) => !(isHideable(c) && hiddenSet.has(c.id)));
+  const hideableColumns = columns.filter(isHideable);
+  // Small tables leave the menu out, unless a column is hidden (it must be possible to show it again).
+  // Once shown it stays, so showing the last hidden column doesn't pull the menu from under the pointer.
+  const [keepColumnsMenu, setKeepColumnsMenu] = useState(false);
+  const someHidden = shownColumns.length < columns.length;
+  if (someHidden && !keepColumnsMenu) setKeepColumnsMenu(true);
+  const showColumnsMenu = columnsMenu && hideableColumns.length > 0 && (hideableColumns.length >= columnsMenuMin || someHidden || keepColumnsMenu);
   // With onRowClick, this column's cell holds the row's open button.
   const openColumnId = (shownColumns.find((c) => c.rowHeader) ?? shownColumns[0])?.id;
   // Cursor paging and numbered paging are mutually exclusive: the cursor wins.
@@ -735,7 +755,7 @@ export function DataTable<T>({
 
   const searchBox = (
     <div className={styles.filter}>
-      <Field label={filterLabel} hideLabel>
+      <Field label={filterLabel} hideLabel={!showFilterLabel}>
         <Input type="search" size="sm" value={filter} placeholder={filterPlaceholder} startIcon={<Search />} onValueChange={setFilter} />
       </Field>
     </div>
@@ -743,7 +763,7 @@ export function DataTable<T>({
   const tableActions = (
     <div className={styles.actions}>
       {toolbar}
-      {columnsMenu && (
+      {showColumnsMenu && (
         <Menu
           align="end"
           trigger={
@@ -753,7 +773,7 @@ export function DataTable<T>({
           }
         >
           <MenuGroup label="Show columns">
-            {columns.filter(isHideable).map((c) => {
+            {hideableColumns.map((c) => {
               const visible = !hiddenSet.has(c.id);
               // Keep at least one column on screen.
               const onlyOne = visible && shownColumns.length === 1;
@@ -794,14 +814,14 @@ export function DataTable<T>({
             counts={counts}
             labels={facetLabels}
             start={filterable ? searchBox : undefined}
-            end={toolbar || columnsMenu ? tableActions : undefined}
+            end={toolbar || showColumnsMenu ? tableActions : undefined}
           />
         </div>
       ) : (
-        (filterable || toolbar || columnsMenu) && (
+        (filterable || toolbar || showColumnsMenu) && (
           <div ref={toolbarRef} className={styles.toolbar}>
             {filterable && searchBox}
-            {(toolbar || columnsMenu) && tableActions}
+            {(toolbar || showColumnsMenu) && tableActions}
           </div>
         )
       )}

@@ -53,6 +53,23 @@
   color: var(--color-text-muted);
 }
 
+/* A tick: its value above a faint line at --y from the top (the floor's line is the axis). */
+.tick {
+  position: absolute;
+  inset-inline: 0;
+  bottom: calc(100% - var(--y, 100%));
+  padding-bottom: var(--space-1);
+  border-bottom: 1px dashed var(--color-border);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  pointer-events: none;
+
+  &[data-floor] {
+    border-bottom: 0;
+  }
+}
+
 .svg {
   position: absolute;
   inset: 0;

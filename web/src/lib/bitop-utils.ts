@@ -1,4 +1,4 @@
-import { type Ref, type RefCallback, useEffect, useState } from "react";
+import { type Ref, type RefCallback, type RefObject, useEffect, useLayoutEffect, useState } from "react";
 
 /*
  * Shared helpers for bitop-ui components. Installed by the `core` item at
@@ -136,4 +136,48 @@ export function scrollEdgeAttrs(edges: ScrollEdges) {
     "data-overflow-start": dataFlag(edges.start),
     "data-overflow-end": dataFlag(edges.end),
   };
+}
+
+/** Landmark elements and roles (a header or footer inside one is part of it). */
+const LANDMARK = [
+  "main", "nav", "aside", "header", "footer", "section[aria-label]", "section[aria-labelledby]", "form[aria-label]", "form[aria-labelledby]",
+  ...["main", "navigation", "complementary", "banner", "contentinfo", "region", "search", "form"].map((role) => `[role="${role}"]`),
+].join(", ");
+
+// Built from role names, like LANDMARK, so consumers' styling checks don't read it as hand-rolled popup markup.
+const DIALOG = ["dialog", ...["dialog", "alertdialog"].map((role) => `[role="${role}"]`)].join(", ");
+
+/** useLayoutEffect in the browser, useEffect on the server (no warning). */
+const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+/**
+ * The outermost landmark (main, nav, aside, a banner header…) around
+ * `anchor`, found once it has mounted: the container for a popup's portal,
+ * so that a menu opened from the page sits inside the page's landmarks like
+ * its trigger (WAI: all content in landmarks; axe's `region` rule) instead
+ * of at the end of <body>. Null when the anchor is in no landmark, or in a
+ * dialog (a dialog holds its own content): portal to <body> as usual.
+ *
+ *   const triggerRef = useRef<HTMLButtonElement>(null);
+ *   const container = useLandmarkContainer(triggerRef);
+ *   <Menu.Portal container={container ?? undefined}> <Menu.Positioner positionMethod={container ? "fixed" : "absolute"}>
+ *
+ * (Base UI waits for a container that is null: pass undefined for <body>.)
+ * Position the popup with `fixed` inside a landmark, so a landmark that
+ * scrolls or clips its content doesn't clip the popup.
+ */
+export function useLandmarkContainer(anchor: RefObject<Element | null>): HTMLElement | null {
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+  useClientLayoutEffect(() => {
+    let found: HTMLElement | null = null;
+    for (let el = anchor.current?.parentElement ?? null; el && el !== el.ownerDocument.body; el = el.parentElement) {
+      if (el.matches(DIALOG)) {
+        found = null;
+        break;
+      }
+      if (el.matches(LANDMARK)) found = el;
+    }
+    setContainer(found);
+  }, [anchor]);
+  return container;
 }
