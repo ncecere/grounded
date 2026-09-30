@@ -70,7 +70,7 @@ Each call that reaches a server is one unit of the ledger kind `mcp_calls`, with
 
 ## Audit and metrics
 
-- Every call is audited as `mcp.tool_call` with the agent, the server, the tool, the outcome (`ok`, `tool_error`, `timeout`, `too_large`, `refused`, `error`), a reason when refused (`call_limit`, `budget`, `ceiling`, `disabled`, `input_required`), the duration and the result's size, never the arguments or the result.
+- Every call is audited as `mcp.tool_call` with the agent (its name and ID), the server, the tool, the outcome (`ok`, `tool_error`, `timeout`, `too_large`, `refused`, `error`), a reason when refused (`call_limit`, `budget`, `ceiling`, `disabled`, `input_required`), the duration and the result's size, never the arguments or the result. The log names the outcome: "An agent called an MCP tool", "An agent's MCP tool call was refused (call limit)" for a call that wasn't made, or "…failed (timeout)". Refused calls also count in `grounded_mcp_client_calls_total{outcome="refused"}`.
 - `grounded_mcp_client_calls_total{server, tool, outcome}` and `grounded_mcp_client_call_duration_seconds{server, tool}`; server and tool names are bounded by what admins register and approve.
 
 ## Security

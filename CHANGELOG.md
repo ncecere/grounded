@@ -20,6 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - The audit log's `excludeAction` takes several comma-separated groups (`auth.,mcp.`); Recent changes on the admin and team Overview pages leave out MCP tool calls, which change nothing, and the admin Overview also OAuth sign-ins (`oauth.`).
+- Audit entries say how the person acted: signed in, with an API key or through a connected app, by name (**How** on the record page; `via` and `viaName` in the CSV); the platform log also shows the caller's address (**Address**; `clientIp` in the CSV). API (additive): `AuditEntry.via` and `AuditEntry.clientIp` (platform log only). OAuth and MCP tool entries are labelled by what happened: a refresh is "App renewed its sign-in", a revocation names its reason ("Connection revoked: a refresh token was reused (possible theft)"), a tool call that wasn't made is "An agent's MCP tool call was refused (call limit)" and names the agent.
+- A request its client cancelled (a page reload, a closed tab) is logged at info as `client closed request` and counted with status `499`, no longer as a `500` internal error in the 5xx metrics and the error objective; every log line uses the configured format (`LOG_FORMAT`).
 - Migration `00035_mcp_server.sql`: the `mcp_settings` switch, `mcp` in the API-key scope and answer channel constraints (expand only).
 
 ### Fixed

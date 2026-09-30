@@ -146,20 +146,43 @@ const actionLabels: Record<string, string> = {
   "team.invite_accept": "Accepted invite",
 };
 
-/** Actions whose entry says which way they went ("Turned evaluations off"), by their recorded after. */
-const directedLabels: Record<string, (after: Record<string, unknown>) => string | undefined> = {
+type Obj = Record<string, unknown>;
+
+/** Actions whose entry says which way they went ("Turned evaluations off"), by their recorded after (and metadata). */
+const directedLabels: Record<string, (after: Obj, meta: Obj) => string | undefined> = {
   "platform.evaluations": (a) => (typeof a.enabled === "boolean" ? `Turned evaluations ${a.enabled ? "on" : "off"}` : undefined),
   "platform.mcp": (a) => (typeof a.enabled === "boolean" ? `Turned the MCP server ${a.enabled ? "on" : "off"}` : undefined),
   "platform.mcp_oauth": (a) => (typeof a.oauthEnabled === "boolean" ? `Turned OAuth sign-in for MCP clients ${a.oauthEnabled ? "on" : "off"}` : undefined),
 };
 
+/** Actions whose label follows their metadata: why a connection ended, a refresh, a tool call that wasn't made. */
+const metadataLabels: Record<string, (meta: Obj) => string | undefined> = {
+  "oauth.revoke": (m) =>
+    ({
+      admin: "Disconnected a person's app",
+      client: m.token === "access" ? "App signed out one token" : "App disconnected itself",
+      refresh_reuse: "Connection revoked: a refresh token was reused (possible theft)",
+    })[String(m.reason)],
+  "oauth.token_issue": (m) => (m.grantType === "refresh_token" ? "App renewed its sign-in" : undefined),
+  "mcp.tool_call": (m) => {
+    if (m.outcome === "ok") return undefined;
+    const why = { call_limit: "call limit", budget: "budget used up" }[String(m.reason)];
+    if (m.outcome === "refused") return `An agent's MCP tool call was refused${why ? ` (${why})` : ""}`;
+    return typeof m.outcome === "string" ? `An agent's MCP tool call failed (${m.outcome.replace(/_/g, " ")})` : undefined;
+  },
+};
+
+const isObj = (v: unknown): v is Obj => Boolean(v) && typeof v === "object" && !Array.isArray(v);
+
 /**
  * "Published agent" for agent.publish; unknown actions are spelled out ("foo.bar_baz" → "Foo: bar baz"). With the
- * entry, a switch says which way it went: "Turned evaluations off", not "…on or off".
+ * entry, a switch says which way it went ("Turned evaluations off", not "…on or off"), and some actions say what
+ * happened ("App renewed its sign-in", "An agent's MCP tool call was refused (call limit)").
  */
-export function actionLabel(action: string, entry?: Pick<AuditEntry, "after">) {
-  const after = entry?.after;
-  const directed = after && typeof after === "object" && !Array.isArray(after) ? directedLabels[action]?.(after as Record<string, unknown>) : undefined;
+export function actionLabel(action: string, entry?: Pick<AuditEntry, "after"> & Partial<Pick<AuditEntry, "metadata">>) {
+  const after = isObj(entry?.after) ? entry.after : undefined;
+  const meta = isObj(entry?.metadata) ? entry.metadata : {};
+  const directed = (after && directedLabels[action]?.(after, meta)) ?? metadataLabels[action]?.(meta);
   if (directed) return directed;
   const known = actionLabels[action];
   if (known) return known;
@@ -242,6 +265,13 @@ export function actorName(actor: AuditEntry["actor"], entry?: Pick<AuditEntry, "
   return actor.displayName || actor.email || (actor.userId ? "Unknown user" : "Unknown");
 }
 
+/** How the person acted, in words ("Signed in", "API key: Help desk bot", "Connected app: Example Assistant"); "" for the system. */
+export function viaLabel(via: AuditEntry["via"]) {
+  if (!via) return "";
+  const named = (what: string) => (via.name ? `${what}: ${via.name}` : what);
+  return via.kind === "api_key" ? named("API key") : via.kind === "oauth" ? named("Connected app") : "Signed in";
+}
+
 export const targetTypeLabels: Record<string, string> = {
   agent: "Agent",
   api_key: "API key",
@@ -283,14 +313,20 @@ export const targetTypeLabels: Record<string, string> = {
   user: "User",
 };
 
+/** Target types that are a platform setting: an entry's action names it ("Turned OAuth sign-in for MCP clients on"). */
+const settingsTargets = new Set(["mcp_settings"]);
+
 /**
  * An entry's action and target in one line for a short list ("Changed a team budget: QA Team"), leaving out a target
  * the action already names ("Turned evaluations off", not "…: Evaluations").
  */
-export function entryTitle(e: Pick<AuditEntry, "action" | "after" | "targetLabel">) {
+export function entryTitle(e: Pick<AuditEntry, "action" | "after" | "targetLabel"> & Partial<Pick<AuditEntry, "metadata" | "targetType">>) {
   const action = actionLabel(e.action, e);
+  // A setting's label ("MCP server") names the settings record, which the action already says in its own words.
+  if (e.targetType && settingsTargets.has(e.targetType)) return action;
   return e.targetLabel && !action.toLowerCase().includes(e.targetLabel.toLowerCase()) ? `${action}: ${e.targetLabel}` : action;
 }
+
 
 export const targetTypeLabel = (type: string) => targetTypeLabels[type] ?? type.replace(/_/g, " ");
 
@@ -310,4 +346,3 @@ export function nameIds(value: unknown, names: ReadonlyMap<string, string>): unk
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, nameIds(v, names)]));
   return value;
 }
-

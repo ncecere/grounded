@@ -5457,6 +5457,19 @@ export interface components {
                 [key: string]: unknown;
             };
             requestId: string;
+            /** @description How the person acted: signed in to Grounded, with an API key, or through a connected app (OAuth). Null for the system's entries. */
+            via?: components["schemas"]["AuditVia"] | null;
+            /** @description The caller's address as recorded, in the platform log only (null in a team's log, or when none was recorded). */
+            clientIp?: string | null;
+        };
+        AuditVia: {
+            /**
+             * @description session: signed in to Grounded (the web app); api_key: with an API key; oauth: through a connected app (OAuth sign-in for MCP clients).
+             * @enum {string}
+             */
+            kind: "session" | "api_key" | "oauth";
+            /** @description The API key's or the connected app's name, when known */
+            name?: string;
         };
         AuditParent: {
             /** @enum {string} */

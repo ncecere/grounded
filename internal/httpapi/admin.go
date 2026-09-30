@@ -295,5 +295,5 @@ func (a *api) adminGetAuditEntry(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "not_found", "Audit entry not found")
 		return
 	}
-	httpx.JSON(w, http.StatusOK, toAPIAudit(rows[0]))
+	httpx.JSON(w, http.StatusOK, toAPIAudit(rows[0], true))
 }

@@ -8333,6 +8333,23 @@ components:
         after: { description: Configuration after the change, nullable: true }
         metadata: { type: object, additionalProperties: true }
         requestId: { type: string }
+        via:
+          allOf: [{ $ref: "#/components/schemas/AuditVia" }]
+          nullable: true
+          description: "How the person acted: signed in to Grounded, with an API key, or through a connected app (OAuth). Null for the system's entries."
+        clientIp:
+          type: string
+          nullable: true
+          description: "The caller's address as recorded, in the platform log only (null in a team's log, or when none was recorded)."
+    AuditVia:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [session, api_key, oauth]
+          description: "session: signed in to Grounded (the web app); api_key: with an API key; oauth: through a connected app (OAuth sign-in for MCP clients)."
+        name: { type: string, description: "The API key's or the connected app's name, when known" }
     AuditParent:
       type: object
       required: [type, id, label, exists]

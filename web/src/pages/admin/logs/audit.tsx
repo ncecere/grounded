@@ -156,7 +156,7 @@ export function AuditLogTab() {
               <ExportButton
                 filename="audit-log.csv"
                 fetchPage={(cursor) => fetchPage(cursor, 200)}
-                header={["occurredAt", "actor", "actorEmail", "action", "targetType", "targetId", "target", "teamId", "requestId", "before", "after", "metadata"]}
+                header={["occurredAt", "actor", "actorEmail", "action", "targetType", "targetId", "target", "teamId", "requestId", "before", "after", "metadata", "via", "viaName", "clientIp"]}
                 row={(e) => [
                   e.occurredAt,
                   actorName(e.actor, e),
@@ -170,6 +170,9 @@ export function AuditLogTab() {
                   e.before ?? "",
                   e.after ?? "",
                   e.metadata,
+                  e.via?.kind ?? "",
+                  e.via?.name ?? "",
+                  e.clientIp ?? "",
                 ]}
               />
             </div>
