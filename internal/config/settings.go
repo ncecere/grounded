@@ -109,7 +109,7 @@ func list(dst func(*Config) *[]string, lower bool) func(*Config, string) error {
 	}
 }
 
-var settings = []setting{
+var settings = append([]setting{
 	{key: "APP_URL", apply: str(func(c *Config) *string { return &c.AppURL })},
 	{key: "HTTP_ADDR", apply: str(func(c *Config) *string { return &c.HTTPAddr })},
 	{key: "WORKER_HTTP_ADDR", apply: str(func(c *Config) *string { return &c.WorkerHTTPAddr })},
@@ -250,7 +250,7 @@ var settings = []setting{
 	{key: "WORKER_CONCURRENCY", apply: integer(func(c *Config) *int { return &c.WorkerConcurrency }, 1, 1000)},
 	{key: "SHUTDOWN_DELAY", apply: duration(func(c *Config) *time.Duration { return &c.ShutdownDelay }, 0, 5*time.Minute)},
 	{key: "SHUTDOWN_TIMEOUT", apply: duration(func(c *Config) *time.Duration { return &c.ShutdownTimeout }, time.Second, 30*time.Minute)},
-}
+}, tracingSettings...)
 
 // devGroups parses DEV_AUTH_GROUPS: "alex=registrar-staff,library;blair=library"
 // (persona ID, then its groups; personas separated by semicolons).

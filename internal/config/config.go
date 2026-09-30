@@ -106,6 +106,10 @@ type Config struct {
 	LogLevel  string
 	LogFormat string
 
+	// Tracing exports OpenTelemetry traces (docs/operations/tracing.md);
+	// off unless OTEL_EXPORTER_OTLP_ENDPOINT is set.
+	Tracing Tracing
+
 	// Instance is this deployment's identity: names, theme and links shown
 	// in the UI and used in the agent preamble (ADR-0018).
 	Instance Instance
@@ -254,6 +258,7 @@ func Defaults() Config {
 	c.ProfileMigrationGraceDays = 7
 	c.EvaluationConcurrency = 2
 	c.HealthCheckInterval = 15 * time.Minute
+	c.Tracing = TracingDefaults()
 	return c
 }
 
