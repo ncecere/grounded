@@ -71,6 +71,9 @@ func newTestAppOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config),
 	cfg.APIKeyPepper = "cGVwcGVycGVwcGVycGVwcGVycGVwcGVycGVwcGVyISE="
 	cfg.BlobDir = t.TempDir()
 	cfg.MaxUploadBytes = 1 << 20
+	// No scheduled health checks: they would probe fake proxies mid-test
+	// (health_checks_integration_test.go runs the job itself).
+	cfg.HealthCheckInterval = 0
 	if mutate != nil {
 		mutate(&cfg)
 	}
