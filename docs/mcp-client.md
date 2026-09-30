@@ -13,14 +13,15 @@ Nothing changes until a platform admin registers a server and approves a tool.
 | Field | What it is |
 |---|---|
 | Name | How editors and answers name it ("From *Service status* · check_outage") |
-| URL | The server's Streamable HTTP endpoint, for example `https://status.example.edu/mcp`. **https only**, at a public address (see [Security](#security)) |
+| Description | Optional: what the server is for. Editors see it beside its tools in **Build → Tools** |
+| URL | The server's Streamable HTTP endpoint, for example `https://status.example.edu/mcp`. **https only**, at a public address (see [Security](#security)), with no user name, password, query (`?…`) or fragment (`#…`) |
 | Header and value | A static header sent with every request, such as `Authorization: Bearer …` or `X-API-Key: …`. The value is stored encrypted with `ENCRYPTION_KEY` (like connection keys), never shown again, and rotated by `grounded rotate-keys`. OAuth to outside servers is not in v0.3 |
 | Data up to | The **classification ceiling**: the most sensitive data the server may receive. An agent whose knowledge bases hold more can't use its tools |
 | Timeout | How long one call may take (1–120 s, default 30) |
 | Price per call | Optional, in the platform currency, from today (see [Costs](#costs)) |
 | Enabled | Turned off, no agent calls its tools and the health job skips it |
 
-Then open the server and press **Read tools**: Grounded fetches its tool list (`tools/list`). Every new tool starts **not approved**.
+Saving returns to the list. Then open the new server from the list and press **Read tools**: Grounded fetches its tool list (`tools/list`). Every new tool starts **not approved**.
 
 Auditors see the servers and tools but change nothing. Everything is audited: `mcp_server.create`, `mcp_server.update` (with whether the header value changed, never the value), `mcp_server.delete`, `mcp_server.refresh` (counts, and the names of tools that lost their approval), `mcp_tool.approve` and `mcp_tool.unapprove`.
 
@@ -75,7 +76,11 @@ Each call that reaches a server is one unit of the ledger kind `mcp_calls`, with
 
 ## Security
 
-- **Addresses:** the URL must be https; its host must resolve to public addresses only. Private, loopback, link-local (including cloud metadata), CGNAT, documentation and translation ranges are refused when the server is saved and again, pinned, every time Grounded dials it, so a DNS change can't point a registered server at the internal network. Redirects are never followed. Credentials go in the header, not the URL (a URL with a query string is refused). Proxy settings from the environment are not used for MCP servers.
+- **Addresses:** the URL must be https, and the server must be at a public address. Private, loopback, link-local (including cloud metadata), CGNAT, documentation and translation ranges are refused:
+  - **when the server is saved,** for an address written in the URL (`https://10.0.0.5/mcp`) and for `localhost`. A host name isn't looked up when saving, so a name that resolves to an internal address saves;
+  - **every time Grounded dials it** (Test server, Read tools, the health check and every call), for every address the host name resolves to. The connection is pinned to the checked address, so a DNS change can't point a registered server at the internal network. A name that resolves to an internal address fails there: Test server says "The server's address is not allowed (private, loopback or link-local, or a redirect)." Test a new server before approving its tools.
+
+  Redirects are never followed. Credentials go in the header, not the URL: a URL with a user name or password, a query (`?…`) or a fragment (`#…`) is refused with a message saying which. Proxy settings from the environment are not used for MCP servers.
 - **Development:** with `DEV_AUTH=true` (which needs a loopback `APP_URL`), private and loopback addresses are allowed and so is plain `http://` for a loopback host, so a local test server works. There is no setting to allow them in production. `make fake-mcp` runs a fake MCP server on `http://127.0.0.1:8091/mcp` (tools `check_outage`, `slow`, `huge`, `needs_input`, `broken`) for trying this locally.
 - **Tool descriptions and results are untrusted.** Descriptions and schemas are shown before approval and a changed one loses its approval; results are framed as data, judged when SystemOne judging is on, and cited so readers can see where a claim came from.
 - **No local servers:** Grounded only speaks Streamable HTTP; it never starts processes (stdio).

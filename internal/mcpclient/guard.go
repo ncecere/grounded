@@ -43,26 +43,46 @@ func invalidURL(msg string) error { return apperr.Invalid("invalid_url", msg) }
 func NormalizeURL(raw string, allowPrivate bool) (string, error) {
 	raw = strings.TrimSpace(raw)
 	u, err := url.Parse(raw)
-	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || len(raw) > maxURL {
-		return "", invalidURL("The URL must be an https URL without a query, such as https://status.example.edu/mcp")
+	if msg := urlShapeProblem(raw, u, err); msg != "" {
+		return "", invalidURL(msg)
 	}
 	host := u.Hostname()
 	switch u.Scheme {
 	case "https":
 	case "http":
 		if !allowPrivate || !loopbackHost(host) {
-			return "", invalidURL("The URL must use https")
+			return "", invalidURL("The URL must use https.")
 		}
 	default:
-		return "", invalidURL("The URL must use https")
+		return "", invalidURL("The URL must use https.")
 	}
+	const notPublic = "The URL's address is private, loopback or link-local. MCP servers must be reachable at a public address."
 	if ip, err := netip.ParseAddr(host); err == nil && !allowPrivate && !crawl.PublicAddr(ip) {
-		return "", invalidURL("The URL's address is private, loopback or link-local; MCP servers must be reachable at a public address")
+		return "", invalidURL(notPublic)
 	}
 	if !allowPrivate && strings.EqualFold(host, "localhost") {
-		return "", invalidURL("The URL's address is private, loopback or link-local; MCP servers must be reachable at a public address")
+		return "", invalidURL(notPublic)
 	}
 	return u.String(), nil
+}
+
+// urlShapeProblem says what is wrong with a URL's shape, in words an admin
+// can act on ("" when nothing is). A host name's addresses are checked when
+// Grounded dials it (dialer), not here.
+func urlShapeProblem(raw string, u *url.URL, err error) string {
+	switch {
+	case len(raw) > maxURL:
+		return fmt.Sprintf("The URL is too long: at most %d characters.", maxURL)
+	case err != nil || u.Host == "":
+		return "Enter a full URL, such as https://status.example.edu/mcp."
+	case u.User != nil:
+		return "The URL can't contain a user name or password. Put credentials in the header instead."
+	case u.RawQuery != "":
+		return "The URL can't have a query (?…). Put credentials in the header instead."
+	case u.Fragment != "" || strings.Contains(raw, "#"):
+		return "The URL can't have a fragment (#…)."
+	}
+	return ""
 }
 
 func loopbackHost(host string) bool {

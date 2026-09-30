@@ -50,6 +50,19 @@ func TestNormalizeURL(t *testing.T) {
 			t.Errorf("NormalizeURL(%q, %v) = %v, want ok %v", c.in, c.allowPrivate, err, c.ok)
 		}
 	}
+	// Each problem says what it is.
+	for in, want := range map[string]string{
+		"https://user:pw@status.example.edu/mcp":     "user name or password",
+		"https://status.example.edu/mcp?key=secret":  "can't have a query",
+		"https://status.example.edu/mcp#x":           "can't have a fragment",
+		"status.example.edu/mcp":                     "Enter a full URL",
+		"ftp://status.example.edu/mcp":               "must use https.",
+		"https://" + strings.Repeat("a", 500) + ".x": "too long",
+	} {
+		if _, err := NormalizeURL(in, false); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("NormalizeURL(%.40q) = %v, want %q", in, err, want)
+		}
+	}
 }
 
 // The dialer refuses a host that resolves to a private address (a DNS
