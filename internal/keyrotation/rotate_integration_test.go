@@ -327,6 +327,8 @@ func TestEveryEncryptedColumnIsRegistered(t *testing.T) {
 	known := map[string]bool{
 		"api_keys.secret_hash": true, "api_keys.pepper_id": true, // HMAC digests (pepper rotation)
 		"publishable_keys.secret_hash": true, "publishable_keys.pepper_id": true,
+		// OAuth codes and tokens for /mcp: HMAC digests, looked up under either pepper, never re-hashed (short-lived).
+		"oauth_codes.code_hash": true, "oauth_tokens.token_hash": true, "oauth_tokens.pepper_id": true,
 		"river_job.unique_key": true,
 	}
 	for _, c := range keyrotation.Columns {
