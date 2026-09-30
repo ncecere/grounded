@@ -67,6 +67,7 @@ export function problemTarget(field: string): { id: string; label: string } {
     reasoningEffort: "Reasoning effort",
     moderation: "Moderation",
     audience: "Audience",
+    tools: "Tools",
     published: "Published version",
   };
   return { id: `agent-field-${base}`, label: labels[base] ?? base };
@@ -121,6 +122,8 @@ export function configInput(c: AgentConfig): AgentConfigInput {
     // Omitted (not null) when unset: agents without SystemOne checks keep the exact config they had. Any override
     // counts (citation checks or the scope check alone too), or saving and Compare versions would drop it.
     systemOne: c.systemOne && Object.values(c.systemOne).some((v) => v !== undefined && v !== "") ? c.systemOne : undefined,
+    // MCP tools (docs/mcp-client.md); absent in configurations saved before v0.3.
+    tools: c.tools,
   };
 }
 

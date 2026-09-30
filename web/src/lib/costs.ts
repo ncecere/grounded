@@ -87,6 +87,7 @@ export const categories = [
   { key: "systemone", label: "SystemOne", tone: "warning" },
   { key: "moderation", label: "Moderation", tone: "neutral" },
   { key: "ocr", label: "OCR", tone: "primary" },
+  { key: "mcp", label: "MCP tools", tone: "danger" },
 ] as const;
 
 /** A decimal amount a person typed: up to 14 digits and 6 decimals. */

@@ -37,7 +37,7 @@ const spendStatus = {
   percent: null,
   warnPercent: 80,
 };
-const byKind = { chat: "0.240000", embedding: "0.000000", systemone: "0.000000", moderation: "0.000000", ocr: "0.000000" };
+const byKind = { chat: "0.240000", embedding: "0.000000", systemone: "0.000000", moderation: "0.000000", ocr: "0.000000", mcp: "0.000000" };
 const spend = {
   status: spendStatus,
   timeZone: "UTC",

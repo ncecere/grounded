@@ -359,6 +359,7 @@ const appTree = appRoute.addChildren([
       admin("classifications", lazy(pages.policy, "ClassificationsPage")),
       admin("connections", lazy(pages.models, "ConnectionsPage")),
       admin("models", lazy(pages.models, "ModelsPage")),
+      admin("mcp-servers", lazy(pages.models, "MCPServersPage")),
       adminTabs("embedding-profiles", embeddingProfileTabs, lazy(pages.models, "EmbeddingProfilesPage")),
       adminMoved("profile-migrations", "/admin/embedding-profiles", "migrations"),
       admin("systemone", lazy(pages.systemone, "SystemOnePage")),

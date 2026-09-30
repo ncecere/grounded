@@ -1,4 +1,4 @@
-import { Archive, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet } from "lucide-react";
+import { Archive, Blocks, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet } from "lucide-react";
 import { type ReactNode } from "react";
 import { terms } from "../../lib/terms";
 import { type Me } from "../../session";
@@ -14,6 +14,7 @@ export type AdminPath =
   | "/admin/connections"
   | "/admin/models"
   | "/admin/embedding-profiles"
+  | "/admin/mcp-servers"
   | "/admin/systemone"
   | "/admin/shared-sources"
   | "/admin/crawl-domains"
@@ -32,7 +33,7 @@ export type AdminPath =
 export type AdminNavItem = { to: AdminPath; label: string; icon: ReactNode; exact?: boolean; /** Only when a SystemOne model exists. */ systemOne?: boolean };
 
 /**
- * Admin sidebar groups (D6; regrouped in v0.2.1, I1): Overview and 7 groups, 21 items.
+ * Admin sidebar groups (D6; regrouped in v0.2.1, I1): Overview and 7 groups, 22 items (MCP servers joined Models in v0.3).
  * Profile migrations is a tab of Embedding profiles and Legal holds a tab of
  * Retention (adminTabCommands keeps both in ⌘K).
  */
@@ -61,6 +62,7 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
       { to: "/admin/connections", label: "Connections", icon: icon(Plug) },
       { to: "/admin/models", label: "Models", icon: icon(Cpu) },
       { to: "/admin/embedding-profiles", label: "Embedding profiles", icon: icon(Layers) },
+      { to: "/admin/mcp-servers", label: "MCP servers", icon: icon(Blocks) },
       { to: "/admin/systemone", label: "SystemOne", icon: icon(Sparkles), systemOne: true },
     ],
   },
@@ -145,6 +147,7 @@ export function activeAdminGroup(pathname: string): string | undefined {
 /** Extra command-palette search words for admin pages. */
 export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
   "/admin": ["overview", "dashboard", "attention", "home", "platform at a glance", "recent changes"],
+  "/admin/mcp-servers": ["mcp", "tools", "model context protocol", "remote tools", "approve tools", "tool approval", "integrations"],
   "/admin/group-mapping": ["sso", "groups", "identity provider", "idp", "oidc", "membership rules", "access"],
   "/admin/crawl-domains": ["allowlist", "domain requests", "web", "crawling"],
   "/admin/parsing": ["ocr", "scanned", "scan", "tesseract", "tika", "vision", "images", "pdf", "languages"],

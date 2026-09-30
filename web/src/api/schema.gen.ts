@@ -991,6 +991,140 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/mcp-servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List MCP servers (platform admins and auditors)
+         * @description Remote MCP servers whose approved tools agents may call (docs/mcp-client.md). Header values are never returned.
+         */
+        get: operations["adminListMCPServers"];
+        put?: never;
+        /**
+         * Register an MCP server (platform admins; audited)
+         * @description The URL must be https and its host must resolve to public addresses (private, loopback and link-local addresses are refused, when saved and on every connection). A development install (DEV_AUTH on a loopback APP_URL) may use private addresses, and http for loopback. Credentials go in the header, stored encrypted. Refresh the tools next.
+         */
+        post: operations["adminCreateMCPServer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/mcp-servers/{serverId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serverId: components["parameters"]["MCPServerParam"];
+            };
+            cookie?: never;
+        };
+        /** One MCP server */
+        get: operations["adminGetMCPServer"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete an MCP server and its tools (platform admins; audited)
+         * @description Refused (409 mcp_server_in_use, details.agents) while a published agent version uses one of its tools: turn the server off instead, or publish those agents without its tools. Past versions lose the tools.
+         */
+        delete: operations["adminDeleteMCPServer"];
+        options?: never;
+        head?: never;
+        /** Change an MCP server (platform admins; audited) */
+        patch: operations["adminUpdateMCPServer"];
+        trace?: never;
+    };
+    "/v1/admin/mcp-servers/{serverId}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serverId: components["parameters"]["MCPServerParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test an MCP server (reads its tool list; the result is stored as its health)
+         * @description Connects (server/discover, or initialize for older servers) and reads the tool list, never calling a tool. The result is stored as the server's health (adminListHealthChecks); the health job re-tests enabled servers the same way.
+         */
+        post: operations["adminTestMCPServer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/mcp-servers/{serverId}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serverId: components["parameters"]["MCPServerParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read the server's tool list and store it (platform admins; audited)
+         * @description New tools start unapproved. A tool whose title, description or input schema changed loses its approval (they are prompts the model reads); a tool the server no longer lists is marked gone and unapproved. 502 mcp_server_unreachable when the server couldn't be read (details.class).
+         */
+        post: operations["adminRefreshMCPServerTools"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/mcp-servers/{serverId}/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serverId: components["parameters"]["MCPServerParam"];
+            };
+            cookie?: never;
+        };
+        /** A server's stored tools, listed ones first (platform admins and auditors) */
+        get: operations["adminListMCPServerTools"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/mcp-servers/{serverId}/tools/{toolId}/approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serverId: components["parameters"]["MCPServerParam"];
+                toolId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Approve or unapprove a tool (platform admins; audited as mcp_tool.approve or mcp_tool.unapprove)
+         * @description Only approved tools can be chosen by agents and called. A tool the server no longer lists can't be approved (409 mcp_tool_gone). Unapproving a tool stops agents from calling it at once.
+         */
+        put: operations["adminSetMCPToolApproval"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/models": {
         parameters: {
             query?: never;
@@ -1310,6 +1444,26 @@ export interface paths {
         };
         /** Chat models teams can choose for agents */
         get: operations["listUsableChatModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp-tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * MCP tools teams can choose for agents
+         * @description Approved tools of enabled MCP servers (docs/mcp-client.md), with the server's name and classification ceiling: an agent whose knowledge bases hold data above a server's ceiling can't use its tools. The server's URL and credentials are never returned.
+         */
+        get: operations["listUsableMCPTools"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4165,6 +4319,7 @@ export interface components {
             systemone: components["schemas"]["Money"];
             moderation: components["schemas"]["Money"];
             ocr: components["schemas"]["Money"];
+            mcp: components["schemas"]["Money"];
         };
         CostTotals: {
             spend: components["schemas"]["Money"];
@@ -5334,17 +5489,159 @@ export interface components {
             maxConcurrentRequests?: number;
             enabled?: boolean;
         };
+        /** @description A remote MCP server whose approved tools agents may call (docs/mcp-client.md) */
+        MCPServer: {
+            /** Format: uuid */
+            id: string;
+            /** @example Service status */
+            name: string;
+            description: string;
+            /** @example https://status.example.edu/mcp */
+            url: string;
+            /** @description The static header sent with every request, for example Authorization (absent: none) */
+            authHeaderName?: string;
+            /** @description The header value itself is never returned */
+            hasAuth: boolean;
+            /** @description Last 4 characters of the header value, or empty */
+            authValueHint: string;
+            /** @description The most sensitive data the server may receive: agents whose knowledge bases hold more can't use its tools */
+            maxClassification: string;
+            /** Format: int32 */
+            timeoutSeconds: number;
+            /** @description Turned off, no agent calls its tools and the health job skips it */
+            enabled: boolean;
+            /** @description The price of one tool call from today, in the platform currency (absent: calls are counted, not priced) */
+            pricePerCall?: string;
+            /**
+             * Format: int64
+             * @description Tools the server listed at the last refresh
+             */
+            toolCount: number;
+            /** Format: int64 */
+            approvedCount: number;
+            /**
+             * Format: date-time
+             * @description When the tool list was last read (absent: never)
+             */
+            toolsRefreshedAt?: string;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        MCPServerCreate: {
+            name: string;
+            description?: string;
+            /** @description The Streamable HTTP endpoint, https only, for example https://status.example.edu/mcp */
+            url: string;
+            /** @description A header such as Authorization or X-API-Key; send it with authValue, or neither */
+            authHeaderName?: string;
+            /** @description For example Bearer … ; stored encrypted, never returned */
+            authValue?: string;
+            maxClassification: string;
+            /**
+             * Format: int32
+             * @default 30
+             */
+            timeoutSeconds: number;
+            /** @default true */
+            enabled: boolean;
+            /** @description Optional price of one call (a decimal amount) */
+            pricePerCall?: string;
+        };
+        MCPServerUpdate: {
+            name?: string;
+            description?: string;
+            url?: string;
+            /** @description Omit to keep; an empty string removes the header and its value */
+            authHeaderName?: string;
+            /** @description Omit to keep the stored value */
+            authValue?: string;
+            maxClassification?: string;
+            /** Format: int32 */
+            timeoutSeconds?: number;
+            enabled?: boolean;
+            /** @description A new price of one call from today (earlier days keep theirs); omit to keep */
+            pricePerCall?: string;
+        };
+        /** @description A tool as the server listed it. Its description and input schema are prompts the model reads: review them before approving. */
+        MCPServerTool: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            serverId: string;
+            /** @example check_outage */
+            name: string;
+            title: string;
+            description: string;
+            /** @description The tool's JSON Schema for its arguments */
+            inputSchema: {
+                [key: string]: unknown;
+            };
+            approved: boolean;
+            /** Format: uuid */
+            approvedBy?: string;
+            approvedByName?: string;
+            /** Format: date-time */
+            approvedAt?: string;
+            /** Format: date-time */
+            firstSeenAt: string;
+            /** Format: date-time */
+            lastSeenAt: string;
+            /**
+             * Format: date-time
+             * @description When a refresh no longer found it (absent while listed); a gone tool is unapproved
+             */
+            goneAt?: string;
+        };
+        MCPRefreshResult: {
+            /** @description Tools the server lists */
+            listed: number;
+            added: number;
+            /** @description Tools whose title, description or input schema changed (unapproved again) */
+            changed: number;
+            /** @description Tools no longer listed (marked gone and unapproved) */
+            gone: number;
+            tools: components["schemas"]["MCPServerTool"][];
+        };
+        MCPServerTestResult: {
+            ok: boolean;
+            /** Format: int64 */
+            latencyMs: number;
+            /** @description Tools the server lists (when ok) */
+            toolCount: number;
+            /** @enum {string} */
+            errorClass?: "unavailable" | "auth" | "not_found" | "rate_limited" | "bad_request" | "bad_response" | "config" | "timeout" | "too_large" | "input_required";
+            /** Format: int32 */
+            httpStatus?: number;
+            /** @description A short message for admins (never a header value or a raw body) */
+            message?: string;
+        };
+        MCPToolOption: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            serverId: string;
+            serverName: string;
+            name: string;
+            title: string;
+            /** @description What the model reads about the tool */
+            description: string;
+            /** @description The server's ceiling: agents whose knowledge bases hold more sensitive data can't use it */
+            maxClassification: string;
+        };
         /**
-         * @description What a health check tested (MCP servers will join in a later release)
+         * @description What a health check tested
          * @enum {string}
          */
-        HealthSubjectKind: "connection" | "model";
+        HealthSubjectKind: "connection" | "model" | "mcp_server";
         /** @description A subject's latest stored health check. status is failing when the test failed; statusSince is when the current status began (the first check of the current streak) and survives pruning of older checks. */
         HealthCheck: {
             subjectKind: components["schemas"]["HealthSubjectKind"];
             /** Format: uuid */
             subjectId: string;
-            /** @description The connection's name or the model's display name */
+            /** @description The connection's or MCP server's name, or the model's display name */
             subjectName: string;
             /** @description Whether the subject is enabled (a model only while its connection is too); only enabled subjects are re-tested and counted as failing */
             subjectEnabled: boolean;
@@ -6894,7 +7191,7 @@ export interface components {
          * @description A team limit. See GET /v1/admin/limits for labels and descriptions.
          * @enum {string}
          */
-        LimitKey: "storage_bytes" | "documents" | "data_sources" | "knowledge_bases" | "agents" | "crawl_pages_per_day" | "concurrent_crawls" | "concurrent_ingest_jobs" | "ocr_pages_per_day" | "queries_per_minute" | "queries_per_day" | "api_key_queries_per_minute" | "user_queries_per_minute" | "chat_tokens_per_day" | "concurrent_chats_per_user" | "public_queries_per_ip_per_minute" | "public_queries_per_session_per_minute" | "public_queries_per_agent_per_day" | "public_tokens_per_agent_per_day" | "public_concurrent_chats_per_agent" | "public_message_max_chars" | "evaluation_sets" | "evaluation_questions_per_set";
+        LimitKey: "storage_bytes" | "documents" | "data_sources" | "knowledge_bases" | "agents" | "crawl_pages_per_day" | "concurrent_crawls" | "concurrent_ingest_jobs" | "ocr_pages_per_day" | "queries_per_minute" | "queries_per_day" | "api_key_queries_per_minute" | "user_queries_per_minute" | "chat_tokens_per_day" | "concurrent_chats_per_user" | "mcp_calls_per_answer" | "public_queries_per_ip_per_minute" | "public_queries_per_session_per_minute" | "public_queries_per_agent_per_day" | "public_tokens_per_agent_per_day" | "public_concurrent_chats_per_agent" | "public_message_max_chars" | "evaluation_sets" | "evaluation_questions_per_set";
         /**
          * @description public limits apply per agent to anonymous public-page and widget traffic; evaluations are evaluation sets and their questions
          * @enum {string}
@@ -7135,6 +7432,8 @@ export interface components {
             /** @description Who may chat once published (a draft setting, versioned with publish) */
             audience: components["schemas"]["Audience"];
             systemOne?: components["schemas"]["AgentSystemOne"];
+            /** @description Approved MCP server tools the agent may call (docs/mcp-client.md), by ID; absent in configurations saved before v0.3 */
+            tools?: string[];
         };
         /** @description A draft configuration. Every field is optional (defaults apply); types and ranges are checked (400 invalid_config with details.problems) but an incomplete draft (no model, no knowledge bases) can be saved. Unknown fields are rejected. */
         AgentConfigInput: {
@@ -7169,6 +7468,8 @@ export interface components {
             /** @description Default team. Editors publish to team; team admins and owners to any audience the classification allows. Public also needs public access on and a working public moderation policy. */
             audience?: components["schemas"]["Audience"];
             systemOne?: components["schemas"]["AgentSystemOne"];
+            /** @description Approved MCP server tools the agent may call, by ID (listUsableMCPTools). Publishing checks each is approved and its server enabled and approved for the agent's data */
+            tools?: string[];
         };
         /** @description The agent's "SystemOne checks" (Configure, Advanced). Absent or empty follows the platform. Only takes effect when a SystemOne model is configured; thresholds are platform-only. */
         AgentSystemOne: {
@@ -7886,6 +8187,17 @@ export interface components {
             confidence?: number;
             /** @description Set by SystemOne citation checks: one entry per [n] marker of this source in the answer text, in order of appearance (the answer's markers carry one number each). Each is the verdict on the claim that marker sits in (its sentence, list item or table row), so the same source can be verified in one sentence and unsupported in another. Markers outside a checked claim (a citation list, a claim of fewer than three words) are unchecked. */
             markers?: components["schemas"]["CitationMarker"][];
+            /**
+             * @description tool: the source is an MCP tool's result (documentId and sourceId are the nil UUID), from server and tool; absent for passages
+             * @enum {string}
+             */
+            kind?: "tool";
+            /** @description The MCP server's name (kind tool) */
+            server?: string;
+            /** @description The tool's name (kind tool) */
+            tool?: string;
+            /** @description The tool's result was cut to the size the model reads (kind tool) */
+            truncated?: boolean;
         };
         /** @description The citation check of one [n] marker. */
         CitationMarker: {
@@ -7947,6 +8259,15 @@ export interface components {
             snippet: string;
             /** @description SystemOne judging found it contradicts the question's premise; it was given to the model as conflicting evidence */
             conflicting?: boolean;
+            /**
+             * @description tool: an MCP tool's result (absent for passages)
+             * @enum {string}
+             */
+            kind?: "tool";
+            /** @description The MCP server's name (kind tool) */
+            server?: string;
+            /** @description The tool's name (kind tool) */
+            tool?: string;
         };
         /** @enum {string} */
         StopReason: "stop" | "length" | "toolUse" | "error" | "aborted";
@@ -9368,6 +9689,7 @@ export interface components {
         EvaluationRunIdParam: string;
         UserIdParam: string;
         HoldIdParam: string;
+        MCPServerParam: string;
         /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
         IfMatchHeader: string;
         /** @description nextCursor from the previous page */
@@ -11249,6 +11571,255 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
         };
     };
+    adminListMCPServers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MCP servers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MCPServer"][];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminCreateMCPServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MCPServerCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MCPServer"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetMCPServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serverId: components["parameters"]["MCPServerParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MCP server */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MCPServer"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminDeleteMCPServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serverId: components["parameters"]["MCPServerParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    adminUpdateMCPServer: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                serverId: components["parameters"]["MCPServerParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MCPServerUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MCPServer"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    adminTestMCPServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serverId: components["parameters"]["MCPServerParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Test result (ok is false when the server couldn't be read) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MCPServerTestResult"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminRefreshMCPServerTools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serverId: components["parameters"]["MCPServerParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The stored tools and what changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MCPRefreshResult"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            502: components["responses"]["ErrorReply"];
+        };
+    };
+    adminListMCPServerTools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serverId: components["parameters"]["MCPServerParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tools */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MCPServerTool"][];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminSetMCPToolApproval: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serverId: components["parameters"]["MCPServerParam"];
+                toolId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    approved: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The tool */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MCPServerTool"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
     adminListModels: {
         parameters: {
             query?: {
@@ -11853,6 +12424,29 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["ChatModelOption"][];
+                    };
+                };
+            };
+            401: components["responses"]["ErrorReply"];
+        };
+    };
+    listUsableMCPTools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tools, by server and name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MCPToolOption"][];
                     };
                 };
             };

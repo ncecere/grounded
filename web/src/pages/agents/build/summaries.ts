@@ -35,6 +35,10 @@ export function sectionSummary(section: BuildSection, { c, model, kbName, system
       const filter = describeFilter(c.filters);
       return filter === "None" || !filter ? names : `${names} · filtered: ${filter}`;
     }
+    case "tools": {
+      const n = c.tools?.length ?? 0;
+      return n === 0 ? "No tools: the agent only searches its knowledge bases" : n === 1 ? "1 tool" : `${n} tools`;
+    }
     case "answering":
       return [
         c.retrievalMode === "always" ? "Search before every answer" : `The model searches (up to ${c.maxTurns})`,

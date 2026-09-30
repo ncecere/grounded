@@ -1,6 +1,6 @@
 /*
- * Build's configuration (D2 / W2): Instructions, Model, Knowledge,
- * Answering, Safety, SystemOne checks (only with a SystemOne model) and
+ * Build's configuration (D2 / W2): Instructions, Model, Knowledge, Tools
+ * (MCP server tools, docs/mcp-client.md), Answering, Safety, SystemOne checks (only with a SystemOne model) and
  * Advanced as accordion sections. A closed section shows a one-line summary,
  * or "Not saved: fix the highlighted field" while one of its fields holds
  * text that isn't valid (F-26).
@@ -22,6 +22,7 @@ import { SafetySection } from "./safety-section";
 import { type BuildSection, FieldValidity, type SectionProps, fieldPlace } from "./section";
 import { sectionSummary } from "./summaries";
 import { SystemOneChecks } from "./systemone-checks";
+import { ToolsSection } from "./tools-section";
 
 const maxInstructions = 20000;
 
@@ -29,6 +30,7 @@ const titles: Record<BuildSection, string> = {
   instructions: "Instructions",
   model: "Model",
   knowledge: "Knowledge",
+  tools: "Tools",
   answering: "Answering",
   safety: "Safety",
   systemone: "SystemOne checks",
@@ -71,6 +73,7 @@ export function BuildSections({ d, open, onOpenChange }: Props) {
     instructions: <InstructionsSection {...section} />,
     model: <ModelSection {...section} />,
     knowledge: <KnowledgeSection {...section} />,
+    tools: <ToolsSection {...section} />,
     answering: <AnsweringSection {...section} />,
     safety: <SafetySection {...section} />,
     systemone: <SystemOneChecks c={c} set={d.setConfig} errorFor={section.errorFor} />,

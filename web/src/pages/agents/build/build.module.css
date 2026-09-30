@@ -126,3 +126,12 @@
 .topKError {
   color: var(--color-danger-text);
 }
+
+/* Tools: the server's description of a tool, under its checkbox. */
+.toolDescription {
+  margin: var(--space-1) 0 0 var(--space-7);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

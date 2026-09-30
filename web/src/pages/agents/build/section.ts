@@ -19,7 +19,7 @@ export type SectionProps = {
 };
 
 /** The Build sections, in order. */
-export const buildSections = ["instructions", "model", "knowledge", "answering", "safety", "systemone", "advanced"] as const;
+export const buildSections = ["instructions", "model", "knowledge", "tools", "answering", "safety", "systemone", "advanced"] as const;
 export type BuildSection = (typeof buildSections)[number];
 
 const sectionOfField: Record<string, BuildSection> = {
@@ -27,6 +27,7 @@ const sectionOfField: Record<string, BuildSection> = {
   chatModelId: "model",
   kbs: "knowledge",
   filters: "knowledge",
+  tools: "tools",
   retrievalMode: "answering",
   strictlyGrounded: "answering",
   refusalMessage: "answering",

@@ -2,3 +2,4 @@
 export { ConnectionsPage } from "./connections";
 export { ModelsPage } from "./models";
 export { EmbeddingProfilesPage } from "./profiles-page";
+export { MCPServersPage } from "../mcp/servers";

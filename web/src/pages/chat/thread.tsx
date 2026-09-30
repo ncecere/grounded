@@ -40,7 +40,12 @@ function pages(start?: number, end?: number) {
 }
 
 const sourceElementId = (itemKey: string, n: number) => `${itemKey}-source-${n}`;
-const where = (s: Citation) => [s.headingPath.join(" › "), pages(s.pageStart, s.pageEnd)].filter(Boolean).join(" · ");
+/** An MCP tool's result (docs/mcp-client.md) reads "From Service status · check_outage"; a passage by its document's title. */
+export const sourceTitle = (s: Citation) => (s.kind === "tool" ? `From ${s.server ?? "a tool"} · ${s.tool ?? ""}` : s.title || "Untitled document");
+const where = (s: Citation) =>
+  s.kind === "tool"
+    ? ["Tool result", s.truncated ? "cut to fit" : ""].filter(Boolean).join(" · ")
+    : [s.headingPath.join(" › "), pages(s.pageStart, s.pageEnd)].filter(Boolean).join(" · ");
 /** Snippets are raw chunk text: drop Markdown heading and emphasis marks for display. */
 const plainSnippet = (t: string) => t.replace(/^#{1,6}\s+/gm, "").replace(/(\*\*|__)(.*?)\1/g, "$2").replace(/\s+/g, " ").trim();
 const webUrl = (s: Citation) => (s.url && /^https?:\/\//.test(s.url) ? s.url : undefined);
@@ -53,7 +58,7 @@ const sourceMeta = (s: Citation, claims?: Claim[]) => {
   return [where(s), check].filter(Boolean).join(" · ") || undefined;
 };
 /** What a citation chip's card shows about its source. */
-const chipSource = (s: Citation) => ({ title: s.title || "Untitled document", href: webUrl(s), siteName: where(s) || undefined, description: plainSnippet(s.snippet) });
+const chipSource = (s: Citation) => ({ title: sourceTitle(s), href: webUrl(s), siteName: where(s) || undefined, description: plainSnippet(s.snippet) });
 
 /** Waiting text before the answer's first words. */
 const waitingText = (item: AssistantItem, thinking: boolean) =>
@@ -135,9 +140,9 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
                   id={sourceElementId(item.key, s.n)}
                   tabIndex={-1}
                   className={a.sourceCard}
-                  aria-label={`Source ${num(s.n)}: ${s.title || "Untitled document"}`}
+                  aria-label={`Source ${num(s.n)}: ${sourceTitle(s)}`}
                   index={num(s.n)}
-                  title={s.title || "Untitled document"}
+                  title={sourceTitle(s)}
                   href={webUrl(s)}
                   meta={sourceMeta(s, item.claims)}
                   description={plainSnippet(s.snippet)}

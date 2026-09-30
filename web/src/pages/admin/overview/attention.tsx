@@ -5,7 +5,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, CheckCircle2, CircleDollarSign, Cpu, FileWarning, Gauge, Globe, LogIn, Mail, Plug, PowerOff, ShieldAlert, ShieldOff, TriangleAlert } from "lucide-react";
+import { ArrowRight, Blocks, CheckCircle2, CircleDollarSign, Cpu, FileWarning, Gauge, Globe, LogIn, Mail, Plug, PowerOff, ShieldAlert, ShieldOff, TriangleAlert } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
@@ -88,6 +88,18 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
       description: "Their latest test failed. Agents and knowledge bases that use them may not work.",
       action: "View models",
       link: <Link to="/admin/models" search={{ health: "failing" } as never} />,
+      tone: "danger",
+    });
+  }
+  const failingMCP = failingCount(health.data, "mcp_server");
+  if (failingMCP > 0) {
+    rows.push({
+      id: "health-mcp",
+      icon: <Blocks />,
+      title: `${plural(failingMCP, "MCP server is", "MCP servers are")} failing`,
+      description: "Their latest test failed, so agents can't call their tools.",
+      action: "View MCP servers",
+      link: <Link to="/admin/mcp-servers" search={{ health: "failing" } as never} />,
       tone: "danger",
     });
   }
