@@ -268,6 +268,16 @@ spec:
             summary: 'Model connection {{ $labels.connection }} ({{ $labels.kind }}) is rate limited'
             description: '{{ $value | humanizePercentage }} of {{ $labels.kind }} requests to {{ $labels.connection }} were refused by the gateway (429) or by the connection''s own request limit for 30 minutes.'
             runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedmodelconnectionratelimited
+        - alert: GroundedHealthCheckFailing
+          expr: |
+            max by (namespace, kind, name) (grounded_health_failing_seconds) > 30 * 60
+          labels:
+            severity: warning
+            service: grounded
+          annotations:
+            summary: 'Grounded {{ $labels.kind }} {{ $labels.name }} is failing its health check'
+            description: 'The {{ $labels.kind }} {{ $labels.name }} has failed every test for {{ $value | humanizeDuration }}. Admin → Connections or Models shows the error.'
+            runbook_url: https://github.com/ncecere/grounded/blob/main/docs/operations/alerts.md#groundedhealthcheckfailing
         - alert: GroundedDBPoolSaturated
           expr: grounded_db_pool_acquired_connections / grounded_db_pool_max_connections > 0.9
           for: 10m

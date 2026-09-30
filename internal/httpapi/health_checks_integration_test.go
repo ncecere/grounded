@@ -20,7 +20,7 @@ import (
 func healthRunner(app *testApp) *healthcheck.Runner {
 	return &healthcheck.Runner{
 		Store: app.Svc.HealthChecks, Log: testutil.Logger(),
-		Checkers: []healthcheck.Checker{&healthcheck.ConnectionChecker{Queries: dbgen.New(app.Pool), Probe: app.Svc.Catalog.ProbeConnection}},
+		Checkers: []healthcheck.Checker{&healthcheck.ConnectionChecker{Queries: dbgen.New(app.Pool), Probe: app.Svc.Catalog.ProbeConnectionFree}},
 	}
 }
 
@@ -225,5 +225,42 @@ func assertHealthMetrics(t *testing.T, app *testApp, failing float64, subjects .
 	}
 	if !ok {
 		t.Errorf("grounded_health_failing = %v, failing subjects %v; want %v and %v", count, named, failing, subjects)
+	}
+}
+
+// The health job never asks a SystemOne service a question (it may bill per
+// request): it only checks that the SystemOne endpoint answers.
+func TestHealthJobSystemOneServiceAsksNothing(t *testing.T) {
+	app := newTestApp(t, nil)
+	admin := app.signIn("admin")
+	ctx := context.Background()
+	svc := testutil.NewFakeSystemOneService(t)
+	var conn apitypes.Connection
+	code, e := admin.call("POST", "/v1/admin/connections", map[string]any{"name": "Judge service", "baseUrl": svc.BaseURL(), "apiKey": svc.APIKey}, &conn, nil)
+	mustCode(t, "create connection", code, e, 201, "")
+	var judge apitypes.Model
+	code, e = admin.call("POST", "/v1/admin/models", map[string]any{"connectionId": conn.Id, "key": "judge", "upstreamModel": "judge-latest",
+		"displayName": "Judge", "kind": "systemone", "maxClassification": "open"}, &judge, nil)
+	mustCode(t, "SystemOne model", code, e, 201, "")
+
+	runner := healthRunner(app)
+	if sum, err := runner.Run(ctx); err != nil || sum.Healthy != 2 {
+		t.Fatalf("run = %+v %v", sum, err)
+	}
+	if len(svc.Requests) != 0 {
+		t.Errorf("the health job asked the SystemOne service %v", svc.Requests)
+	}
+	got := latestHealth(t, admin, "")
+	if got[conn.Id].Status != "healthy" || got[judge.Id].Status != "healthy" || got[conn.Id].Trigger != "scheduled" {
+		t.Fatalf("health = %+v", got)
+	}
+
+	// The service is gone: the connection and its model fail.
+	svc.Close()
+	if sum, err := runner.Run(ctx); err != nil || sum.Failing != 2 {
+		t.Fatalf("run against a closed service = %+v %v", sum, err)
+	}
+	if c := latestHealth(t, admin, "")[conn.Id]; c.Status != "failing" || c.ErrorClass == nil || *c.ErrorClass != "unavailable" || c.Message == "" {
+		t.Errorf("unreachable service = %+v", c)
 	}
 }

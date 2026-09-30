@@ -14,15 +14,15 @@ import (
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
-// ConnectionChecker tests each enabled connection once per run with the
-// connection Test (catalog.ProbeConnection: GET /models, or one small
-// SystemOne question for a service that serves only SystemOne) and derives
-// the health of its enabled models from that result without calling them:
-// a scheduled run sends no completion or embedding, so it costs no tokens
+// ConnectionChecker tests each enabled connection once per run with
+// catalog.ProbeConnectionFree (GET /models; for a SystemOne service, only
+// whether its endpoint answers) and derives the health of its enabled
+// models from that result without calling them: a scheduled run sends no
+// completion, embedding or SystemOne question, so it costs nothing
 // (docs/operations/health.md).
 type ConnectionChecker struct {
 	Queries *dbgen.Queries
-	// Probe tests a connection (catalog.Service.ProbeConnection).
+	// Probe tests a connection (catalog.Service.ProbeConnectionFree).
 	Probe func(ctx context.Context, id uuid.UUID) (catalog.ConnectionTest, error)
 }
 
