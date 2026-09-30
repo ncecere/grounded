@@ -46,9 +46,9 @@ A server that a published agent version uses can't be deleted (`409 mcp_server_i
 
 ## Choosing tools for an agent (team editors)
 
-**Agent → Build → Tools** lists the approved tools of enabled servers with the server's description. Tick the ones the agent may call (up to 10). A tool whose server is approved for less sensitive data than the agent's knowledge bases hold can't be ticked; the same rule is checked again when you publish and before every call. The chat model must support tools.
+**Agent → Build → Tools** lists the approved tools of enabled servers with the server's description. Tick the ones the agent may call (up to 10). A tool whose server is approved for less sensitive data than the agent's knowledge bases hold can't be ticked; the same rule is checked again when you publish and before every call. The chat model must support tools: when no chat model does, the section says so, and a platform admin turns on tool support for a model in Admin → Models.
 
-Tools are part of the draft and of each published version (`agent_tools`), like the knowledge bases. When a tool later loses its approval, its server is turned off or its ceiling drops below the agent's data, the agent keeps answering without it and its page warns until it's fixed.
+Tools are part of the draft and of each published version (`agent_tools`), like the knowledge bases; a version's page, Compare versions and a member's read-only summary list them by name. When a tool later loses its approval, its server is turned off or its ceiling drops below the agent's data, the agent keeps answering without it and its page warns until it's fixed.
 
 ## At answer time
 
@@ -59,6 +59,7 @@ The chosen tools join `search_knowledge` in the agent loop. The model decides wh
 - **Bounds:** the server's timeout; one HTTP response of at most 1 MiB; the result the model reads is cut to 8,000 characters with a note (the citation says it was cut); and the team limit **MCP tool calls per answer** (`mcp_calls_per_answer`, default 5, Admin → Limits; at most 25).
 - **Refused:** requests from the server for more input (MRTR input requests, the new pattern for elicitation), sampling and roots: an agent answering a person can't answer a remote server's questions. The model reads a tool error.
 - **Errors:** a timeout, an unreachable server or a tool that reports an error become a tool error the model reads; the answer goes on.
+- **In the chat:** each call is a step of the answer that shows the arguments the model sent and what the tool returned; a call that failed or wasn't made says why, for example "Not called: this answer reached its limit of 5 tool calls." (`error` and `result` on the `tool_result` event and on the conversation's stored tool calls).
 
 ### Results are sources
 
