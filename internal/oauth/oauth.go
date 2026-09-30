@@ -50,6 +50,11 @@ const (
 	// with a new 30 days, so a client used at least monthly stays signed in
 	// (idle expiry) until the grant is revoked.
 	RefreshTokenTTL = 30 * 24 * time.Hour
+	// RefreshReuseGrace: a refresh token presented again this soon after
+	// its rotation is a client refreshing twice at once (two requests in
+	// flight), not a stolen token, so it gets a new pair instead of
+	// revoking the grant. Later reuse still revokes it (docs/mcp.md).
+	RefreshReuseGrace = 30 * time.Second
 	// CodeTTL is an authorization code's life (single use).
 	CodeTTL = time.Minute
 	// ClientUnusedTTL: a registered client unused this long is deleted.

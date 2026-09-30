@@ -174,7 +174,7 @@ Redirect URIs are `https`, or `http` on `localhost`, `127.0.0.1` or `[::1]` (a l
 |---|---|---|
 | Authorization code | 60 seconds, single use | Bound to the client, redirect URI, PKCE challenge, resource and person; used up by the first exchange, even a failed one |
 | Access token (`gat_…`) | 1 hour | Bound to `<APP_URL>/mcp`; only accepted by `/mcp` |
-| Refresh token (`grt_…`) | 30 days, renewed on each use | Rotated on every use; presenting an already-used refresh token revokes the whole connection (a stolen copy, or a client that lost the new one), and the person connects again |
+| Refresh token (`grt_…`) | 30 days, renewed on each use | Rotated on every use; presenting an already-used refresh token more than 30 seconds after it was used revokes the whole connection (within 30 seconds it's a client refreshing twice at once, and gets another pair) (a stolen copy, or a client that lost the new one), and the person connects again |
 
 Tokens are opaque random values, stored only as HMAC-SHA256 digests under the API-key pepper (like API keys), and looked up by digest. During a pepper rotation (`API_KEY_PEPPER_PREVIOUS`) existing tokens keep working; once the previous pepper is removed, tools sign in again. Rate limits: 60 requests per minute per address on the authorization, token and revocation endpoints.
 
@@ -189,7 +189,6 @@ Tokens are opaque random values, stored only as HMAC-SHA256 digests under the AP
 - One resource (`/mcp`) and one scope (`mcp`); no per-tool scopes or step-up.
 - Public clients only: no client secrets or `private_key_jwt`.
 - No private-use URI schemes for redirects; no CORS on the endpoints (browser-based clients need their own proxy).
-- Two concurrent refreshes with the same token look like reuse and revoke the connection.
 - Consent is per person and client: disconnecting a tool on one computer disconnects it everywhere that person uses it.
 
 ## The tools

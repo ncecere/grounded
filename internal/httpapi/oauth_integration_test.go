@@ -1,6 +1,7 @@
 package httpapi_test
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -218,7 +219,8 @@ func TestOAuthFlowWithRegisteredClient(t *testing.T) {
 		}
 	}
 
-	// Refresh rotates; presenting the old refresh token again revokes the grant.
+	// Refresh rotates. The old refresh token again within the grace period
+	// (two refreshes in flight) gets another pair; after it, reuse revokes the grant.
 	status, out, _ = c.token(url.Values{"grant_type": {"refresh_token"}, "refresh_token": {refresh}})
 	if status != 200 || out["refresh_token"] == refresh || out["access_token"] == access {
 		t.Fatalf("refresh = %d %v", status, out)
@@ -226,6 +228,16 @@ func TestOAuthFlowWithRegisteredClient(t *testing.T) {
 	access2 := out["access_token"].(string)
 	if _, err := mcpToken(t, base, access2); err != nil {
 		t.Fatalf("refreshed token: %v", err)
+	}
+	status, out, _ = c.token(url.Values{"grant_type": {"refresh_token"}, "refresh_token": {refresh}})
+	if status != 200 || out["access_token"] == access2 {
+		t.Fatalf("refresh again within the grace period = %d %v", status, out)
+	}
+	if _, err := mcpToken(t, base, out["access_token"].(string)); err != nil {
+		t.Fatalf("token from the second refresh: %v", err)
+	}
+	if _, err := env.app.Pool.Exec(context.Background(), `UPDATE oauth_tokens SET rotated_at = rotated_at - interval '1 minute' WHERE rotated_at IS NOT NULL`); err != nil {
+		t.Fatal(err)
 	}
 	status, out, _ = c.token(url.Values{"grant_type": {"refresh_token"}, "refresh_token": {refresh}})
 	wantOAuthError(t, "refresh reuse", status, out, 400, "invalid_grant")

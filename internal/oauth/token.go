@@ -160,7 +160,7 @@ func (s *Service) refresh(ctx context.Context, r TokenRequest) (Tokens, error) {
 		} else if err != nil {
 			return err
 		}
-		if tok.RotatedAt != nil {
+		if tok.RotatedAt != nil && s.now().Sub(*tok.RotatedAt) > RefreshReuseGrace {
 			reused = true
 			return s.revokeGrant(ctx, q, grantActor(row.OauthGrant, r.RequestID, r.ClientIP), row.OauthGrant.ID, reasonReuse)
 		}
@@ -171,8 +171,11 @@ func (s *Service) refresh(ctx context.Context, r TokenRequest) (Tokens, error) {
 		if err != nil {
 			return err
 		}
-		if n, err := q.RotateOAuthToken(ctx, tok.ID); err != nil || n == 0 {
-			return errors.Join(err, errInvalidGrant())
+		// Within RefreshReuseGrace of its rotation the token was already rotated: issue a new pair without rotating again.
+		if tok.RotatedAt == nil {
+			if n, err := q.RotateOAuthToken(ctx, tok.ID); err != nil || n == 0 {
+				return errors.Join(err, errInvalidGrant())
+			}
 		}
 		if out, err = s.issue(ctx, q, g, tok.Resource); err != nil {
 			return err
