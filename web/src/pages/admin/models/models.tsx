@@ -1,7 +1,8 @@
 /*
- * Admin → Models (A5): the catalog as a ListPage (kind and connection facets,
- * search, Used by) with each model in a RecordPage (?record=<id>): details,
- * test and edit. Adding and editing open a form page (?form=new or ?form=<id>).
+ * Admin → Models (A5): the catalog as a ListPage (kind, connection and health
+ * facets, search, Used by, stored health) with each model in a RecordPage
+ * (?record=<id>): details, test and edit. Adding and editing open a form page
+ * (?form=new or ?form=<id>).
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Cpu, Eye, FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
@@ -23,6 +24,7 @@ import s from "../../shared.module.css";
 import { ClassificationBadge, useClassificationLevels } from "../../team/common";
 import { useIsPlatformAdmin } from "../hooks";
 import { EnabledBadge, kindLabels, type Model, type ModelKind, type ModelUsage, modelUsedBy, useCatalogUsage, useConnections, useModels } from "./common";
+import { type HealthCheck, healthColumn, healthFacet, useHealthChecks } from "./health";
 import { ModelDialog } from "./model-dialog";
 import { ModelRecordPage, useModelTest } from "./model-record";
 
@@ -62,7 +64,9 @@ function kindDetail(x: Model) {
   return undefined;
 }
 
-function columns(levels: ReturnType<typeof useClassificationLevels>["data"], connName: (id: string) => string, usage: Map<string, ModelUsage>): DataTableColumn<Model>[] {
+type Lookups = { connName: (id: string) => string; usage: Map<string, ModelUsage>; health: (id: string) => HealthCheck | undefined };
+
+function columns(levels: ReturnType<typeof useClassificationLevels>["data"], { connName, usage, health }: Lookups): DataTableColumn<Model>[] {
   return [
     {
       id: "model",
@@ -91,6 +95,7 @@ function columns(levels: ReturnType<typeof useClassificationLevels>["data"], con
       cell: (x) => modelUsedBy(usage.get(x.id))[0] ?? <span className={s.muted}>—</span>,
     },
     { id: "status", header: "Status", accessor: (x) => (x.enabled ? "Enabled" : "Disabled"), sortable: true, cell: (x) => <EnabledBadge enabled={x.enabled} /> },
+    healthColumn((x) => health(x.id)),
     { id: "upstream", header: "Upstream model", accessor: "upstreamModel", muted: true, defaultHidden: true },
   ];
 }
@@ -101,6 +106,7 @@ export function ModelsPage() {
   const conns = useConnections();
   const levels = useClassificationLevels();
   const usage = useCatalogUsage();
+  const health = useHealthChecks();
   const record = useRecordParam();
   const recordBack = useRecordBack(record.close);
   const test = useModelTest();
@@ -136,6 +142,7 @@ export function ModelsPage() {
       accessor: (x) => x.connectionId,
       options: (conns.data ?? []).map((c) => ({ value: c.id, label: c.name })),
     },
+    healthFacet((x: Model) => health.get(x.id)),
   ];
   const add = isAdmin && (
     <Button onClick={() => setEditing("new")} disabled={noConnections}>
@@ -151,7 +158,7 @@ export function ModelsPage() {
         description="Models offered to teams, each tagged with the most sensitive data it may process."
         primaryAction={add}
         caption="Models"
-        columns={columns(levels.data, connName, usageById)}
+        columns={columns(levels.data, { connName, usage: usageById, health: health.get })}
         data={list}
         getRowId={(x) => x.id}
         rowLabel={(x) => x.displayName}
@@ -179,6 +186,7 @@ export function ModelsPage() {
       />
       <ModelRecordPage
         model={open}
+        health={open && health.get(open.id)}
         open={Boolean(record.id)}
         loading={models.isLoading}
         onClose={recordBack.close}

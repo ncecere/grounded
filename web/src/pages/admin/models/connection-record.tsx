@@ -21,12 +21,15 @@ import { toast } from "@/components/ui/toast/toast";
 import { useFormState } from "@/lib/use-form-state";
 import s from "../../shared.module.css";
 import { connectionTestQuery, type Connection, EnabledBadge, type Model, ProxyErrorText, TimingsText } from "./common";
+import { type HealthCheck, healthFacts, refreshHealth } from "./health";
 import type { ModelPreset } from "./model-dialog";
 import m from "./models.module.css";
 import { FormPage, FormSection } from "@/components/templates/form-page";
 
 type RecordProps = {
   conn?: Connection;
+  /** Its latest stored health check (none: not tested yet). */
+  health?: HealthCheck;
   open: boolean;
   loading: boolean;
   onClose: () => void;
@@ -37,7 +40,7 @@ type RecordProps = {
   onAddModel: (p: ModelPreset) => void;
 };
 
-export function ConnectionRecordPage({ conn, open, loading, onClose, models, isAdmin, onEdit, onDelete, onAddModel }: RecordProps) {
+export function ConnectionRecordPage({ conn, health, open, loading, onClose, models, isAdmin, onEdit, onDelete, onAddModel }: RecordProps) {
   const qc = useQueryClient();
   const test = useQuery({ ...connectionTestQuery(conn?.id ?? ""), enabled: false, gcTime: 0 });
   const onThis = models.filter((x) => x.connectionId === conn?.id);
@@ -61,6 +64,7 @@ export function ConnectionRecordPage({ conn, open, loading, onClose, models, isA
               { label: "Timeout", value: `${conn.timeoutSeconds} s` },
               { label: "Concurrent requests", value: `Up to ${conn.maxConcurrentRequests} per process` },
               { label: "Status", value: <EnabledBadge enabled={conn.enabled} /> },
+              ...healthFacts(health),
               { label: "Description", value: conn.description || undefined },
             ].filter((f) => f.value !== undefined)
           : []
@@ -75,7 +79,7 @@ export function ConnectionRecordPage({ conn, open, loading, onClose, models, isA
                   <div className={m.sheetForm}>
                     {isAdmin && (
                       <div>
-                        <Button size="sm" variant="secondary" loading={test.isFetching} onClick={() => void test.refetch()}>
+                        <Button size="sm" variant="secondary" loading={test.isFetching} onClick={() => void test.refetch().then(() => refreshHealth(qc))}>
                           <FlaskConical aria-hidden /> Test connection
                         </Button>
                       </div>
