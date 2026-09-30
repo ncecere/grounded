@@ -123,6 +123,15 @@ func (d *dialer) dial(ctx context.Context, network, address string) (net.Conn, e
 	return nil, fmt.Errorf("mcpclient: dial %s: %w", host, errors.Join(errs...))
 }
 
+// GuardedDial is the dialer of the address rule for other outbound fetches
+// of URLs someone else chose (an OAuth client's metadata document,
+// internal/oauth): public addresses only (any with allowPrivate), resolved
+// once and pinned.
+func GuardedDial(allowPrivate bool) func(ctx context.Context, network, address string) (net.Conn, error) {
+	d := &dialer{allowPrivate: allowPrivate, lookup: defaultResolver, net: net.Dialer{Timeout: 5 * time.Second}}
+	return d.dial
+}
+
 // exchange records what the server answered, for error classes.
 type exchange struct {
 	mu     sync.Mutex
