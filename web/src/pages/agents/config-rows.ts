@@ -13,11 +13,18 @@ import { type AgentConfig, citationModeLabels, retrievalModeLabels } from "./com
 
 export type ConfigRow = { key: string; label: string; value: string };
 
-/** How a configuration's names are found: its model's, and each knowledge base's with its results per search in words. */
+/** How a configuration's names are found: its model's, each knowledge base's with its results per search in words, and each tool's. */
 export type ConfigNames = {
   model: (id: string | null) => string;
   kb: (k: AgentConfig["kbs"][number]) => string;
+  tool: (id: string) => string;
 };
+
+/** A tool as the Build tab names it: "Check outage (Service status)". */
+export const toolText = (t: { name: string; title?: string; serverName: string }) => `${t.title || t.name} (${t.serverName})`;
+
+/** A tool whose server was deleted, or that is no longer approved and listed. */
+export const unknownTool = "A tool that is no longer available";
 
 type SystemOne = NonNullable<AgentConfig["systemOne"]>;
 
@@ -54,6 +61,7 @@ export function configRows(c: AgentConfig, names: ConfigNames): ConfigRow[] {
     { key: "grounded", label: "Answer only from sources", value: c.strictlyGrounded ? `Yes. Refusal: “${c.refusalMessage}”` : "No" },
     { key: "citations", label: "Citations", value: citationModeLabels[c.citationMode] },
     { key: "filters", label: "Pinned filters", value: describeFilter(c.filters) },
+    { key: "tools", label: "Tools", value: (c.tools ?? []).map(names.tool).join(", ") || "None" },
     { key: "temperature", label: "Temperature", value: c.temperature === undefined ? "Model default" : String(c.temperature) },
     { key: "maxOutput", label: "Maximum answer length", value: c.maxOutputTokens ? `${c.maxOutputTokens.toLocaleString()} tokens` : "Model limit" },
     { key: "budget", label: "Source token budget", value: c.contextTokenBudget.toLocaleString() },

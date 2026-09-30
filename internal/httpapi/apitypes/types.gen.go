@@ -4579,7 +4579,10 @@ type AgentVersion struct {
 	PublishedAt     time.Time           `json:"publishedAt"`
 	PublishedBy     *openapi_types.UUID `json:"publishedBy"`
 	PublishedByName string              `json:"publishedByName"`
-	Version         int32               `json:"version"`
+
+	// Tools The version's MCP tools that still exist, by name (a deleted server's tools are gone from past versions)
+	Tools   *[]AgentVersionTool `json:"tools,omitempty"`
+	Version int32               `json:"version"`
 }
 
 // AgentVersionKB defines model for AgentVersionKB.
@@ -4594,6 +4597,16 @@ type AgentVersionKB struct {
 
 	// TopK Results per search in effect (the knowledge base's current top-k when inherited)
 	TopK int `json:"topK"`
+}
+
+// AgentVersionTool An MCP tool of a version, by name (docs/mcp-client.md)
+type AgentVersionTool struct {
+	Id         openapi_types.UUID `json:"id"`
+	Name       string             `json:"name"`
+	ServerName string             `json:"serverName"`
+
+	// Title "" when the server gave none
+	Title string `json:"title"`
 }
 
 // AllowlistCreate defines model for AllowlistCreate.

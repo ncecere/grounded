@@ -10408,6 +10408,15 @@ components:
         name: { type: string, description: '"" when the knowledge base no longer exists' }
         topK: { type: integer, description: Results per search in effect (the knowledge base's current top-k when inherited) }
         inherited: { type: boolean, description: The version doesn't set results per search for this knowledge base; it uses the knowledge base's }
+    AgentVersionTool:
+      type: object
+      description: "An MCP tool of a version, by name (docs/mcp-client.md)"
+      required: [id, name, title, serverName]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        title: { type: string, description: '"" when the server gave none' }
+        serverName: { type: string }
     AgentVersion:
       type: object
       required: [id, version, publishedAt, publishedBy, publishedByName, note, chatModelId, chatModelName, effectiveRank, classification, knowledgeBases, config]
@@ -10425,6 +10434,10 @@ components:
         knowledgeBases:
           type: array
           items: { $ref: "#/components/schemas/AgentVersionKB" }
+        tools:
+          type: array
+          description: "The version's MCP tools that still exist, by name (a deleted server's tools are gone from past versions)"
+          items: { $ref: "#/components/schemas/AgentVersionTool" }
         config: { $ref: "#/components/schemas/AgentConfig" }
     Agent:
       type: object

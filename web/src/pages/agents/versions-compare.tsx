@@ -16,7 +16,8 @@ import { Table, Td, Tr } from "@/components/ui/table/table";
 import s from "../shared.module.css";
 import { agentKey, useKBs, useTeam } from "../team/common";
 import { type Agent, type AgentConfig, type AgentVersion, useChatModels } from "./common";
-import { type ConfigNames, changedRows } from "./config-rows";
+import { useMCPToolOptions } from "./build/tools-section";
+import { type ConfigNames, changedRows, toolText, unknownTool } from "./config-rows";
 import { useSearchParams } from "@/lib/url-search";
 import vs from "./versions.module.css";
 
@@ -36,8 +37,9 @@ function useSide(agent: Agent, side: Side) {
 }
 
 /**
- * Names for both sides alike: the team's knowledge bases and the chat
- * models, then those the versions recorded (deleted since). Results per
+ * Names for both sides alike: the team's knowledge bases, the chat models
+ * and the tools teams may choose, then those the versions recorded (deleted
+ * or withdrawn since). Results per
  * search come from each configuration, so an inherited value reads the same
  * on both sides.
  */
@@ -45,17 +47,21 @@ function useNames(versions: (AgentVersion | undefined)[]): ConfigNames {
   const { slug } = useTeam();
   const kbs = useKBs(slug);
   const models = useChatModels();
+  const tools = useMCPToolOptions();
   const names = new Map<string, string>();
   for (const v of versions) {
     if (!v) continue;
     for (const k of v.knowledgeBases) if (k.name) names.set(k.id, k.name);
+    for (const t of v.tools ?? []) names.set(t.id, toolText(t));
     names.set(v.chatModelId, v.chatModelName);
   }
   for (const k of kbs.data ?? []) names.set(k.id, k.name);
   for (const m of models.data ?? []) names.set(m.id, m.displayName);
+  for (const t of tools.data ?? []) names.set(t.id, toolText(t));
   return {
     model: (id) => (id ? (names.get(id) ?? "A model that no longer exists") : "No model"),
     kb: (k) => `${names.get(k.kbId) ?? "Deleted knowledge base"} (${k.topK ? `${k.topK} results` : "the knowledge base's results per search"})`,
+    tool: (id) => names.get(id) ?? unknownTool,
   };
 }
 

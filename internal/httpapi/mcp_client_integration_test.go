@@ -199,6 +199,12 @@ func TestMCPToolInAnswer(t *testing.T) {
 	env.approve(t, "check_outage")
 	ag := env.toolAgent(t, "Status helper", []string{"check_outage"},
 		testutil.FakeToolCall{Name: "check_outage", Args: `{"service":"email"}`})
+	// The version names its tools (its page, Compare and members' summary show them).
+	var v1 apitypes.AgentVersion
+	if code := env.member.get(env.base+"/agents/"+ag.Id.String()+"/versions/1", &v1); code != 200 || v1.Tools == nil || len(*v1.Tools) != 1 ||
+		(*v1.Tools)[0].Name != "check_outage" || (*v1.Tools)[0].ServerName != "Service status" {
+		t.Fatalf("version = %d %+v", code, v1.Tools)
+	}
 
 	code, evs, errCode := env.member.stream(env.chatPath(ag.Slug), map[string]any{"message": "Is email down? My password is hunter2."})
 	if code != 200 {

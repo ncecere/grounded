@@ -7751,6 +7751,15 @@ export interface components {
             /** @description The version doesn't set results per search for this knowledge base; it uses the knowledge base's */
             inherited: boolean;
         };
+        /** @description An MCP tool of a version, by name (docs/mcp-client.md) */
+        AgentVersionTool: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @description "" when the server gave none */
+            title: string;
+            serverName: string;
+        };
         AgentVersion: {
             /** Format: uuid */
             id: string;
@@ -7773,6 +7782,8 @@ export interface components {
             /** @description The classification level at that rank */
             classification: string;
             knowledgeBases: components["schemas"]["AgentVersionKB"][];
+            /** @description The version's MCP tools that still exist, by name (a deleted server's tools are gone from past versions) */
+            tools?: components["schemas"]["AgentVersionTool"][];
             config: components["schemas"]["AgentConfig"];
         };
         Agent: {
