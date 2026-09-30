@@ -24,7 +24,9 @@ CREATE TABLE health_checks (
     status       text        NOT NULL CHECK (status IN ('healthy', 'failing')),
     latency_ms   integer     NOT NULL DEFAULT 0 CHECK (latency_ms >= 0),
     -- The probe's error class (internal/gateway: unavailable, auth,
-    -- not_found, rate_limited, bad_request, bad_response); NULL when healthy.
+    -- not_found, rate_limited, bad_request, bad_response; or config when
+    -- the subject's own settings keep it from being tested, such as an
+    -- API key that can't be decrypted); NULL when healthy.
     error_class  text        CHECK (char_length(error_class) BETWEEN 1 AND 40),
     -- The HTTP status the gateway answered with, when it answered.
     http_status  integer     CHECK (http_status BETWEEN 100 AND 599),

@@ -20,6 +20,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/observability"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -45,15 +46,14 @@ const (
 	TriggerScheduled = "scheduled" // the health job
 )
 
-// Retention of the history: checks older than this are pruned by the health
-// job, except each subject's latest.
-const Keep = 7 * 24 * time.Hour
+// ClassConfig is the error class of a subject whose own settings keep it
+// from being tested (for example an API key the current ENCRYPTION_KEY
+// can't decrypt). The other classes are the gateway's (internal/gateway).
+const ClassConfig = "config"
 
-// History bounds of the history endpoint.
-const (
-	DefaultHistory = 50
-	MaxHistory     = 500
-)
+// Keep is how long the history is kept: the health job prunes checks older
+// than this, except each subject's latest.
+const Keep = 7 * 24 * time.Hour
 
 // maxMessage bounds a stored message (in characters).
 const maxMessage = 300
@@ -64,8 +64,9 @@ type Result struct {
 	SubjectID uuid.UUID
 	OK        bool
 	Latency   time.Duration
-	// ErrorClass is the probe's error class (internal/gateway kinds) and
-	// Message a short admin-safe message; both empty when OK.
+	// ErrorClass is the probe's error class (internal/gateway kinds, or
+	// ClassConfig) and Message a short admin-safe message; both empty when
+	// OK.
 	ErrorClass string
 	HTTPStatus int
 	Message    string
@@ -77,14 +78,13 @@ type Result struct {
 // Check is one stored check.
 type Check = dbgen.HealthCheck
 
-// Latest is a subject's latest check with its name and whether it is
-// enabled (a model only while its connection is enabled too).
+// Latest is a subject's latest check with its name, whether it is enabled
+// (a model only while its connection is enabled too) and who pressed Test.
 type Latest = dbgen.LatestHealthChecksRow
 
 var (
 	errReadOnly = apperr.Forbidden("Health checks are visible to platform admins and auditors")
 	errNoKind   = apperr.Invalid("invalid_subject_kind", "The subject kind must be connection or model")
-	errNoSubj   = apperr.NotFound("subject_not_found", "No such connection or model")
 )
 
 // Service stores and reads health checks.
@@ -126,6 +126,32 @@ func (s *Service) Record(ctx context.Context, r Result) (Check, error) {
 	return c, err
 }
 
+// RecordConnectionTest stores a connection test (test and testErr as
+// catalog.ProbeConnection returned them) and the health it implies for the
+// connection's enabled models (DeriveModel). It returns the error when the
+// test proves nothing about the connection (ConnectionResult).
+func (s *Service) RecordConnectionTest(ctx context.Context, id uuid.UUID, test catalog.ConnectionTest, testErr error, trigger string, by uuid.NullUUID) error {
+	models, err := s.q.ListModels(ctx, dbgen.ListModelsParams{ConnectionID: uuid.NullUUID{UUID: id, Valid: true}})
+	if err != nil {
+		return err
+	}
+	results, err := ConnectionResults(id, test, testErr, enabled(models))
+	if err != nil {
+		return err
+	}
+	for _, r := range results {
+		r.Trigger, r.By = trigger, by
+		if _, err := s.Record(ctx, r); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func enabled(models []dbgen.Model) []dbgen.Model {
+	return slices.DeleteFunc(models, func(m dbgen.Model) bool { return !m.Enabled })
+}
+
 // ValidKind reports whether kind is a subject kind.
 func ValidKind(kind string) bool { return slices.Contains(Kinds, kind) }
 
@@ -145,28 +171,6 @@ func (s *Service) Latest(ctx context.Context, a authz.Actor, kind string) ([]Lat
 	return s.q.LatestHealthChecks(ctx, k)
 }
 
-// History returns a subject's checks, newest first (at most limit; 0 for
-// DefaultHistory).
-func (s *Service) History(ctx context.Context, a authz.Actor, kind string, id uuid.UUID, limit int) ([]Check, error) {
-	if !a.CanReadPlatform() {
-		return nil, errReadOnly
-	}
-	if !ValidKind(kind) {
-		return nil, errNoKind
-	}
-	ok, err := s.q.HealthSubjectExists(ctx, dbgen.HealthSubjectExistsParams{SubjectKind: kind, SubjectID: id})
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return nil, errNoSubj
-	}
-	if limit <= 0 {
-		limit = DefaultHistory
-	}
-	return s.q.HealthCheckHistory(ctx, dbgen.HealthCheckHistoryParams{SubjectKind: kind, SubjectID: id, MaxRows: int32(min(limit, MaxHistory))})
-}
-
 // Prune removes checks older than keep (except each subject's latest) and
 // the checks of subjects that no longer exist.
 func (s *Service) Prune(ctx context.Context, keep time.Duration) (int64, error) {
@@ -174,8 +178,8 @@ func (s *Service) Prune(ctx context.Context, keep time.Duration) (int64, error) 
 }
 
 // Secrets that must never be stored, even if a gateway echoes them in an
-// error message: bearer tokens and OpenAI-style keys.
-var secretPattern = regexp.MustCompile(`(?i)\bbearer\s+\S+|\bsk-[A-Za-z0-9_\-*.]{6,}`)
+// error message: bearer tokens, OpenAI-style keys and key=value secrets.
+var secretPattern = regexp.MustCompile(`(?i)\bbearer\s+\S+|\bsk-[A-Za-z0-9_\-*.]{6,}|\b(api[_-]?key|token|secret|password)\s*[=:]\s*\S+`)
 
 // SafeMessage makes a message fit to store and show admins: secrets
 // redacted, whitespace collapsed, at most maxMessage characters.

@@ -48,9 +48,12 @@ type jobState struct {
 	availableAge, runAge float64
 }
 
+// healthState is one row of healthSQL: a kind's count of failing subjects
+// (name empty), or how long one failing subject has been failing.
 type healthState struct {
-	kind                string
-	failing, failingFor float64
+	count      bool
+	kind, name string
+	value      float64
 }
 
 type stateSnapshot struct {
@@ -84,7 +87,7 @@ func NewStateCollector(db StateDB, log *slog.Logger) *StateCollector {
 		healthFailing: prometheus.NewDesc("grounded_health_failing",
 			"Enabled subjects (connections, models) whose latest stored health check failed, by kind.", []string{"kind"}, nil),
 		healthFailingFor: prometheus.NewDesc("grounded_health_failing_seconds",
-			"How long the longest-failing enabled subject of a kind has been failing (0 when none is).", []string{"kind"}, nil),
+			"How long each failing enabled subject has been failing, by kind and name (absent while healthy).", []string{"kind", "name"}, nil),
 	}
 }
 
@@ -123,8 +126,11 @@ func (c *StateCollector) Collect(ch chan<- prometheus.Metric) {
 	gauge(c.bg, s.bgActive, "active")
 	gauge(c.bg, s.bgPend, "pending")
 	for _, h := range s.health {
-		gauge(c.healthFailing, h.failing, h.kind)
-		gauge(c.healthFailingFor, h.failingFor, h.kind)
+		if h.count {
+			gauge(c.healthFailing, h.value, h.kind)
+		} else {
+			gauge(c.healthFailingFor, h.value, h.kind, h.name)
+		}
 	}
 }
 
@@ -162,23 +168,28 @@ SELECT m.enabled, m.started_at,
        (SELECT count(*) FROM break_glass_sessions WHERE status = 'pending')::float8
 FROM maintenance_mode m`
 
-// healthSQL counts, per kind with an enabled subject, the enabled subjects
-// whose latest check failed and how long the longest has been failing
-// (docs/operations/health.md).
+// healthSQL reads the stored health of enabled subjects
+// (docs/operations/health.md): per kind with an enabled subject, how many
+// failed their latest check; per failing subject (by kind and name, so two
+// models with one display name are one series), how long it has failed.
 const healthSQL = `
-SELECT s.subject_kind,
-       count(*) FILTER (WHERE h.status = 'failing')::float8,
-       COALESCE(max(GREATEST(EXTRACT(EPOCH FROM now() - h.status_since), 0)) FILTER (WHERE h.status = 'failing'), 0)::float8
-FROM health_subjects s
-LEFT JOIN LATERAL (
-    SELECT c.status, c.status_since FROM health_checks c
-    WHERE c.subject_kind = s.subject_kind AND c.subject_id = s.subject_id
-    ORDER BY c.checked_at DESC, c.id DESC
-    LIMIT 1
-) h ON true
-WHERE s.enabled
-GROUP BY s.subject_kind
-ORDER BY s.subject_kind`
+WITH latest AS (
+    SELECT s.subject_kind, s.name, h.status, h.status_since
+    FROM health_subjects s
+    LEFT JOIN LATERAL (
+        SELECT c.status, c.status_since FROM health_checks c
+        WHERE c.subject_kind = s.subject_kind AND c.subject_id = s.subject_id
+        ORDER BY c.checked_at DESC, c.id DESC
+        LIMIT 1
+    ) h ON true
+    WHERE s.enabled
+)
+SELECT true, subject_kind, ''::text, (count(*) FILTER (WHERE status = 'failing'))::float8
+FROM latest GROUP BY subject_kind
+UNION ALL
+SELECT false, subject_kind, name, max(GREATEST(EXTRACT(EPOCH FROM now() - status_since), 0))::float8
+FROM latest WHERE status = 'failing' GROUP BY subject_kind, name
+ORDER BY 1 DESC, 2, 3`
 
 func readState(ctx context.Context, db StateDB) (stateSnapshot, error) {
 	var s stateSnapshot
@@ -204,7 +215,7 @@ func readState(ctx context.Context, db StateDB) (stateSnapshot, error) {
 	}
 	s.health, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (healthState, error) {
 		var h healthState
-		err := r.Scan(&h.kind, &h.failing, &h.failingFor)
+		err := r.Scan(&h.count, &h.kind, &h.name, &h.value)
 		return h, err
 	})
 	return s, err

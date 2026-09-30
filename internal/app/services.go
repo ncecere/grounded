@@ -279,7 +279,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 				Pool: pool, Blob: s.Blob, Env: cfg.Retention, Log: log, Metrics: s.RetentionMetrics,
 			})
 			evals.Register(w, s.Evaluations)
-			registerHealth(w, pool, s, log)
+			registerHealth(w, cfg, pool, s, log)
 		},
 		Queues: map[string]river.QueueConfig{
 			ingest.Queue: {MaxWorkers: cfg.IngestConcurrency},

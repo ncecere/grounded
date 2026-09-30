@@ -12,8 +12,9 @@ RETURNING *;
 
 -- name: LatestHealthChecks :many
 -- The latest check of every existing subject (subjects never checked are
--- absent), with the subject's name and whether it is enabled.
-SELECT s.name AS subject_name, s.enabled AS subject_enabled, h.*
+-- absent), with the subject's name, whether it is enabled and who pressed
+-- Test (manual checks by a user who still exists).
+SELECT s.name AS subject_name, s.enabled AS subject_enabled, COALESCE(u.display_name, '')::text AS triggered_by_name, h.*
 FROM health_subjects s
 CROSS JOIN LATERAL (
     SELECT * FROM health_checks c
@@ -21,18 +22,9 @@ CROSS JOIN LATERAL (
     ORDER BY c.checked_at DESC, c.id DESC
     LIMIT 1
 ) h
+LEFT JOIN users u ON u.id = h.triggered_by
 WHERE sqlc.narg(kind)::text IS NULL OR s.subject_kind = sqlc.narg(kind)::text
 ORDER BY s.subject_kind, s.name, s.subject_id;
-
--- name: HealthSubjectExists :one
-SELECT EXISTS (SELECT 1 FROM health_subjects WHERE subject_kind = @subject_kind AND subject_id = @subject_id);
-
--- name: HealthCheckHistory :many
--- A subject's checks, newest first.
-SELECT * FROM health_checks
-WHERE subject_kind = @subject_kind AND subject_id = @subject_id
-ORDER BY checked_at DESC, id DESC
-LIMIT @max_rows;
 
 -- name: PruneHealthChecks :execrows
 -- Removes checks older than the cutoff, except each subject's latest, and
@@ -43,4 +35,3 @@ WHERE NOT EXISTS (SELECT 1 FROM health_subjects s WHERE s.subject_kind = h.subje
        AND EXISTS (SELECT 1 FROM health_checks n
                    WHERE n.subject_kind = h.subject_kind AND n.subject_id = h.subject_id
                      AND (n.checked_at, n.id) > (h.checked_at, h.id)));
-

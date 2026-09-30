@@ -15,7 +15,8 @@ const DefaultInterval = 15 * time.Minute
 // maxJitter bounds the random delay of each scheduled run.
 const maxJitter = 2 * time.Minute
 
-// runTimeout bounds one run; probes are bounded too (probeTimeout).
+// runTimeout bounds one run (and the interval, when shorter, so runs
+// never overlap); probes are bounded too (probeTimeout).
 const runTimeout = 10 * time.Minute
 
 // Args is a scheduled run of the health job.
@@ -23,14 +24,23 @@ type Args struct{}
 
 func (Args) Kind() string { return "health.check" }
 
-// Worker runs the health job. Maintenance mode doesn't pause it: it pauses
-// ingestion, and a probe changes nothing and costs no tokens.
+// Worker runs the health job. Maintenance mode doesn't pause it: maintenance
+// pauses ingestion and the writes it names, and a probe writes nothing but
+// its result and costs no tokens.
 type Worker struct {
 	river.WorkerDefaults[Args]
 	Runner *Runner
+	// Interval is the schedule (0: off; a queued run still completes).
+	Interval time.Duration
 }
 
-func (w *Worker) Timeout(*river.Job[Args]) time.Duration { return runTimeout }
+// Timeout is runTimeout, or the interval when that is shorter.
+func (w *Worker) Timeout(*river.Job[Args]) time.Duration {
+	if w.Interval > 0 {
+		return min(runTimeout, w.Interval)
+	}
+	return runTimeout
+}
 
 // Work runs one pass. Probe failures are recorded, not returned: River
 // doesn't retry a run; the next scheduled one re-tests.
@@ -74,6 +84,6 @@ func Periodic(interval time.Duration) *river.PeriodicJob {
 }
 
 // Register adds the health job's worker.
-func Register(w *river.Workers, r *Runner) {
-	river.AddWorker(w, &Worker{Runner: r})
+func Register(w *river.Workers, r *Runner, interval time.Duration) {
+	river.AddWorker(w, &Worker{Runner: r, Interval: interval})
 }

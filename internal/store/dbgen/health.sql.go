@@ -12,69 +12,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const healthCheckHistory = `-- name: HealthCheckHistory :many
-SELECT id, subject_kind, subject_id, status, latency_ms, error_class, http_status, message, trigger, triggered_by, checked_at, status_since FROM health_checks
-WHERE subject_kind = $1 AND subject_id = $2
-ORDER BY checked_at DESC, id DESC
-LIMIT $3
-`
-
-type HealthCheckHistoryParams struct {
-	SubjectKind string
-	SubjectID   uuid.UUID
-	MaxRows     int32
-}
-
-// A subject's checks, newest first.
-func (q *Queries) HealthCheckHistory(ctx context.Context, arg HealthCheckHistoryParams) ([]HealthCheck, error) {
-	rows, err := q.db.Query(ctx, healthCheckHistory, arg.SubjectKind, arg.SubjectID, arg.MaxRows)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []HealthCheck{}
-	for rows.Next() {
-		var i HealthCheck
-		if err := rows.Scan(
-			&i.ID,
-			&i.SubjectKind,
-			&i.SubjectID,
-			&i.Status,
-			&i.LatencyMs,
-			&i.ErrorClass,
-			&i.HttpStatus,
-			&i.Message,
-			&i.Trigger,
-			&i.TriggeredBy,
-			&i.CheckedAt,
-			&i.StatusSince,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const healthSubjectExists = `-- name: HealthSubjectExists :one
-SELECT EXISTS (SELECT 1 FROM health_subjects WHERE subject_kind = $1 AND subject_id = $2)
-`
-
-type HealthSubjectExistsParams struct {
-	SubjectKind string
-	SubjectID   uuid.UUID
-}
-
-func (q *Queries) HealthSubjectExists(ctx context.Context, arg HealthSubjectExistsParams) (bool, error) {
-	row := q.db.QueryRow(ctx, healthSubjectExists, arg.SubjectKind, arg.SubjectID)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
-}
-
 const insertHealthCheck = `-- name: InsertHealthCheck :one
 INSERT INTO health_checks (subject_kind, subject_id, status, latency_ms, error_class, http_status, message, trigger, triggered_by, checked_at, status_since)
 SELECT $1, $2, $3, $4, $5, $6::integer, $7, $8, $9, $10::timestamptz,
@@ -133,7 +70,7 @@ func (q *Queries) InsertHealthCheck(ctx context.Context, arg InsertHealthCheckPa
 }
 
 const latestHealthChecks = `-- name: LatestHealthChecks :many
-SELECT s.name AS subject_name, s.enabled AS subject_enabled, h.id, h.subject_kind, h.subject_id, h.status, h.latency_ms, h.error_class, h.http_status, h.message, h.trigger, h.triggered_by, h.checked_at, h.status_since
+SELECT s.name AS subject_name, s.enabled AS subject_enabled, COALESCE(u.display_name, '')::text AS triggered_by_name, h.id, h.subject_kind, h.subject_id, h.status, h.latency_ms, h.error_class, h.http_status, h.message, h.trigger, h.triggered_by, h.checked_at, h.status_since
 FROM health_subjects s
 CROSS JOIN LATERAL (
     SELECT id, subject_kind, subject_id, status, latency_ms, error_class, http_status, message, trigger, triggered_by, checked_at, status_since FROM health_checks c
@@ -141,29 +78,32 @@ CROSS JOIN LATERAL (
     ORDER BY c.checked_at DESC, c.id DESC
     LIMIT 1
 ) h
+LEFT JOIN users u ON u.id = h.triggered_by
 WHERE $1::text IS NULL OR s.subject_kind = $1::text
 ORDER BY s.subject_kind, s.name, s.subject_id
 `
 
 type LatestHealthChecksRow struct {
-	SubjectName    string
-	SubjectEnabled bool
-	ID             int64
-	SubjectKind    string
-	SubjectID      uuid.UUID
-	Status         string
-	LatencyMs      int32
-	ErrorClass     *string
-	HttpStatus     *int32
-	Message        string
-	Trigger        string
-	TriggeredBy    uuid.NullUUID
-	CheckedAt      time.Time
-	StatusSince    time.Time
+	SubjectName     string
+	SubjectEnabled  bool
+	TriggeredByName string
+	ID              int64
+	SubjectKind     string
+	SubjectID       uuid.UUID
+	Status          string
+	LatencyMs       int32
+	ErrorClass      *string
+	HttpStatus      *int32
+	Message         string
+	Trigger         string
+	TriggeredBy     uuid.NullUUID
+	CheckedAt       time.Time
+	StatusSince     time.Time
 }
 
 // The latest check of every existing subject (subjects never checked are
-// absent), with the subject's name and whether it is enabled.
+// absent), with the subject's name, whether it is enabled and who pressed
+// Test (manual checks by a user who still exists).
 func (q *Queries) LatestHealthChecks(ctx context.Context, kind *string) ([]LatestHealthChecksRow, error) {
 	rows, err := q.db.Query(ctx, latestHealthChecks, kind)
 	if err != nil {
@@ -176,6 +116,7 @@ func (q *Queries) LatestHealthChecks(ctx context.Context, kind *string) ([]Lates
 		if err := rows.Scan(
 			&i.SubjectName,
 			&i.SubjectEnabled,
+			&i.TriggeredByName,
 			&i.ID,
 			&i.SubjectKind,
 			&i.SubjectID,

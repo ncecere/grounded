@@ -14,11 +14,11 @@ import (
 // registerHealth adds the health job (stored health, docs/operations/health.md):
 // its worker always (a job queued before HEALTH_CHECK_INTERVAL turned it
 // off still completes), its schedule while the interval isn't 0.
-func registerHealth(w *river.Workers, pool *pgxpool.Pool, s *Services, log *slog.Logger) {
+func registerHealth(w *river.Workers, cfg config.Config, pool *pgxpool.Pool, s *Services, log *slog.Logger) {
 	healthcheck.Register(w, &healthcheck.Runner{
 		Store: s.HealthChecks, Log: log,
 		Checkers: []healthcheck.Checker{&healthcheck.ConnectionChecker{Queries: dbgen.New(pool), Probe: s.Catalog.ProbeConnection}},
-	})
+	}, cfg.HealthCheckInterval)
 }
 
 // healthPeriodic is the health job's schedule (none while the interval is 0).

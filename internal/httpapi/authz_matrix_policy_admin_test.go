@@ -143,6 +143,7 @@ var adminPolicies = map[string]policy{
 	}},
 	"adminTestModel":             {own: padmin, build: func(c *mctx) request { return post("/v1/admin/models/"+c.e.chat.Id.String()+"/test", nil) }},
 	"adminGetCatalogUsage":       adminRead("/v1/admin/catalog-usage"),
+	"adminListHealthChecks":      adminRead("/v1/admin/health-checks"),
 	"adminListEmbeddingProfiles": adminRead("/v1/admin/embedding-profiles"),
 	"adminCreateEmbeddingProfile": {own: padmin, build: func(c *mctx) request {
 		n := c.e.next()
