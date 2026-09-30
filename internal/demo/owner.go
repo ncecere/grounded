@@ -110,6 +110,14 @@ func (s *seeder) provisionPersona(ctx context.Context, subject, email, name stri
 			VALUES ($1, $2, $3, $4, $5) ON CONFLICT (oidc_issuer, oidc_subject) DO NOTHING RETURNING id`,
 			auth.DevIssuer, subject, email, name, claims).Scan(&id)
 		if errors.Is(err, pgx.ErrNoRows) {
+			// A first sign-in can create the account between resolveOwner's
+			// look-up and this insert: use it if it is the same person.
+			err = tx.QueryRow(ctx, `SELECT id FROM users WHERE oidc_issuer = $1 AND oidc_subject = $2 AND lower(email) = lower($3) AND status = 'active'`,
+				auth.DevIssuer, subject, email).Scan(&id)
+			if err == nil {
+				u, err = q.GetUser(ctx, id)
+				return errSignedInMeanwhile{err}
+			}
 			return fmt.Errorf("the development account %s exists with another email: sign in as it once, then run grounded demo again", subject)
 		} else if err != nil {
 			return err
@@ -122,8 +130,18 @@ func (s *seeder) provisionPersona(ctx context.Context, subject, email, name stri
 			After: map[string]any{"email": email, "displayName": name}, Metadata: map[string]any{"source": "grounded demo"},
 		})
 	})
+	var meanwhile errSignedInMeanwhile
+	if errors.As(err, &meanwhile) {
+		return u, meanwhile.err
+	}
 	if err == nil {
 		s.created("account %s (development sign-in; signing in uses it)", email)
 	}
 	return u, err
 }
+
+// errSignedInMeanwhile rolls back provisionPersona's transaction (there is
+// nothing to write) when the persona signed in first; err is the look-up's.
+type errSignedInMeanwhile struct{ err error }
+
+func (errSignedInMeanwhile) Error() string { return "the development account signed in meanwhile" }
