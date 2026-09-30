@@ -95,7 +95,13 @@ export function OAuthConsentPage() {
   );
 }
 
-const listFormat = (items: string[]) => new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(items);
+/** "A", "A and B", "A, B and C", "A, B, C and 2 more". */
+function listFormat(items: string[], max = 3) {
+  if (items.length <= 1) return items.join("");
+  const shown = items.slice(0, items.length > max ? max : items.length - 1);
+  const rest = items.length > max ? `${items.length - max} more` : items[items.length - 1];
+  return `${shown.join(", ")} and ${rest}`;
+}
 
 type BodyProps = { consent: Consent; instanceName: string; email: string; teams: string[]; decide: ReturnType<typeof useMutation<{ redirectUrl: string }, Error, Decision>> };
 

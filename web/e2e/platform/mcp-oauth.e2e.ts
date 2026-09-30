@@ -44,9 +44,12 @@ test("an AI tool connects with OAuth: consent, a code, tokens, and Disconnect on
     await page.goto(`/oauth/authorize?${q}`);
     await expect(page).toHaveURL(/\/oauth\/consent\?/);
     await expect(page.getByRole("heading", { level: 1, name: /E2E Assistant wants to use .+ as you/ })).toBeVisible();
-    await expect(page.getByText("assistant.example.com")).toBeVisible();
+    // A registered app's website is its own claim; the warning names where the answer really goes.
+    await expect(page.getByText("Says it's from assistant.example.com")).toBeVisible();
     await expect(page.getByText("Unverified").first()).toBeVisible();
-    await expect(page.getByText("Search knowledge bases and ask agents you can use, as you")).toBeVisible();
+    await expect(page.getByText(/Your answer goes to 127\.0\.0\.1/)).toBeVisible();
+    await expect(page.getByText(/Search knowledge bases and ask agents in .+ as you/)).toBeVisible();
+    await expect(page).toHaveTitle(/^Connect E2E Assistant · /);
     await a11y(page, "consent");
   });
 
@@ -79,7 +82,9 @@ test("an AI tool connects with OAuth: consent, a code, tokens, and Disconnect on
     await a11y(page, "connected apps");
     // On a phone, Disconnect wraps under the app instead of scrolling out of view (and axe stays clean).
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(card.getByRole("button", { name: "Disconnect E2E Assistant…" })).toBeInViewport({ ratio: 1 });
+    const disconnect = card.getByRole("button", { name: "Disconnect E2E Assistant…" });
+    await disconnect.scrollIntoViewIfNeeded();
+    await expect(disconnect).toBeInViewport({ ratio: 1 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await a11y(page, "connected apps at 390 px");
     // Everyone also reaches them from the account menu.
