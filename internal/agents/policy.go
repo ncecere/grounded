@@ -118,6 +118,11 @@ func (s *Service) strictProblems(ctx context.Context, q *dbgen.Queries, team dbg
 		return nil, p, err
 	}
 	probs = append(probs, chatModelProblems(c, p.Model)...)
+	toolProbs, err := s.toolProblems(ctx, c, p)
+	if err != nil {
+		return nil, p, err
+	}
+	probs = append(probs, toolProbs...)
 	if msg, err := s.moderationProblem(ctx, c, audience); err != nil {
 		return nil, p, err
 	} else if msg != "" {

@@ -46,6 +46,16 @@ var seeders = map[string]func(ctx context.Context, pool *pgxpool.Pool, id uuid.U
 			VALUES ($1, $2, 'https://gateway.example.edu/v1', $3, 'x')`, id, "conn-"+id.String(), ct)
 		return err
 	},
+	"mcp_servers.auth_value_cipher": func(ctx context.Context, pool *pgxpool.Pool, id uuid.UUID, ct []byte) error {
+		name := any(nil)
+		if ct != nil {
+			name = "Authorization"
+		}
+		_, err := pool.Exec(ctx, `INSERT INTO mcp_servers (id, name, url, auth_header_name, auth_value_cipher, max_classification)
+			VALUES ($1, $2, 'https://status.example.edu/mcp', $3, $4, (SELECT key FROM classification_levels ORDER BY rank LIMIT 1))`,
+			id, "mcp-"+id.String(), name, ct)
+		return err
+	},
 }
 
 // fixture is a database with secrets in every encrypted column.
@@ -195,7 +205,11 @@ func TestRotateEveryEncryptedColumn(t *testing.T) {
 
 	// Audited as the system with counts only: one entry per batch, one summary.
 	actions, meta := f.audit(t)
-	want := []string{"platform.secrets_reencrypt", "platform.secrets_reencrypt", "platform.secrets_reencrypt", "platform.key_rotation"}
+	var want []string // three batches per column (100, 100, 50), then the summary
+	for range keyrotation.Columns {
+		want = append(want, "platform.secrets_reencrypt", "platform.secrets_reencrypt", "platform.secrets_reencrypt")
+	}
+	want = append(want, "platform.key_rotation")
 	if !slices.Equal(actions, want) {
 		t.Fatalf("audit = %v", actions)
 	}
@@ -257,7 +271,8 @@ func TestRotateResumesAfterInterruption(t *testing.T) {
 	f.checkAll(t, rotating)
 
 	sum, err := keyrotation.Run(context.Background(), f.pool, rotating, secrets.Peppers{}, keyrotation.Options{BatchSize: 50})
-	if err != nil || sum.Reencrypted() != 70 || sum.Columns[0].Current != 50 {
+	// The first column resumes after its committed batch; the others hadn't started.
+	if err != nil || sum.Reencrypted() != 70+120*(len(keyrotation.Columns)-1) || sum.Columns[0].Current != 50 {
 		t.Fatalf("resumed run = %+v, %v", sum, err)
 	}
 	f.checkAll(t, box(t, newKey))

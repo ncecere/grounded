@@ -75,7 +75,7 @@ func (s *Service) Publish(ctx context.Context, a authz.Actor, teamRef string, id
 		}
 		e := a.Audit("agent.publish", "agent", id.String())
 		e.TeamID = acc.Team.ID
-		e.After = map[string]any{"version": ver.Version, "chatModelId": cfg.ChatModelID, "kbIds": cfg.KBIDs(),
+		e.After = map[string]any{"version": ver.Version, "chatModelId": cfg.ChatModelID, "kbIds": cfg.KBIDs(), "toolIds": cfg.Tools,
 			"effectiveRank": pol.Rank, "classification": pol.Classification, "audience": audience, "note": note}
 		if previous != audience {
 			e.Before = map[string]any{"audience": previous}
@@ -116,6 +116,11 @@ func (s *Service) insertVersion(ctx context.Context, q *dbgen.Queries, a authz.A
 	}
 	for _, kbID := range cfg.KBIDs() {
 		if err := q.InsertAgentVersionKB(ctx, dbgen.InsertAgentVersionKBParams{VersionID: ver.ID, KBID: kbID}); err != nil {
+			return ver, err
+		}
+	}
+	for _, toolID := range cfg.Tools {
+		if err := q.InsertAgentTool(ctx, dbgen.InsertAgentToolParams{VersionID: ver.ID, ToolID: toolID}); err != nil {
 			return ver, err
 		}
 	}

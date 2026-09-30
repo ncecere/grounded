@@ -173,7 +173,9 @@ func (s *Service) label(ctx context.Context, groupBy string, rows []ReportRow) e
 	case ByAgent:
 		own, err = s.names(ctx, `SELECT id, slug, name, '', deleted_at IS NOT NULL FROM agents WHERE id = ANY($1)`, rows, keyID)
 	case ByModel:
-		own, err = s.names(ctx, `SELECT id, key, display_name, kind, false FROM models WHERE id = ANY($1)`, rows, keyID)
+		// MCP servers are priced like models (docs/mcp-client.md): their calls' model_id is the server.
+		own, err = s.names(ctx, `SELECT id, key, display_name, kind, false FROM models WHERE id = ANY($1)
+			UNION ALL SELECT id, '', name, 'mcp_server', false FROM mcp_servers WHERE id = ANY($1)`, rows, keyID)
 	}
 	if err != nil {
 		return err

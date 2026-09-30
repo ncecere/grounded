@@ -22,6 +22,8 @@ type numberedHit struct {
 	// Conflicting: judging found that it contradicts the question's
 	// premise; it goes in the <conflicting_sources> block.
 	Conflicting bool
+	// Tool is set when the source is an MCP tool's result (tools.go).
+	Tool *toolSource
 }
 
 // estimateTokens is the budget estimate: characters / 4.
@@ -246,6 +248,9 @@ func (ru *run) retrievalHits(hits []numberedHit) []RetrievalHit {
 		out[i] = RetrievalHit{N: h.N, Title: h.Title, Snippet: snippet(h.Content), Conflicting: h.Conflicting}
 		if ru.cfg.CitationMode == CitationSnippetLink && isWebURL(h.URL) {
 			out[i].URL = h.URL
+		}
+		if h.Tool != nil {
+			out[i].Kind, out[i].Server, out[i].Tool = SourceTool, h.Tool.ServerName, h.Tool.Tool
 		}
 	}
 	return out

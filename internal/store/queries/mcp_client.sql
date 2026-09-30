@@ -11,7 +11,9 @@ JOIN classification_levels cl ON cl.key = s.max_classification
 ORDER BY lower(s.name), s.id;
 
 -- name: GetMCPServer :one
-SELECT s.*, cl.rank::int AS max_rank
+SELECT s.*, cl.rank::int AS max_rank,
+       (SELECT count(*) FROM mcp_server_tools t WHERE t.server_id = s.id AND t.gone_at IS NULL)::bigint AS tool_count,
+       (SELECT count(*) FROM mcp_server_tools t WHERE t.server_id = s.id AND t.approved)::bigint AS approved_count
 FROM mcp_servers s
 JOIN classification_levels cl ON cl.key = s.max_classification
 WHERE s.id = @id;

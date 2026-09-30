@@ -28,6 +28,7 @@ import (
 	"github.com/ncecere/grounded/internal/kbs"
 	"github.com/ncecere/grounded/internal/kv"
 	"github.com/ncecere/grounded/internal/limits"
+	"github.com/ncecere/grounded/internal/mcpclient"
 	"github.com/ncecere/grounded/internal/moderation"
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/ocr"
@@ -89,6 +90,9 @@ type Services struct {
 	// HealthChecks stores connection and model test results (stored
 	// health, docs/operations/health.md).
 	HealthChecks *healthcheck.Service
+	// MCP registers MCP servers and calls their tools from agents
+	// (docs/mcp-client.md).
+	MCP *mcpclient.Service
 	// jobs enqueues River jobs (may be insert-only).
 	jobs *jobs.Client
 	pool *pgxpool.Pool
@@ -186,6 +190,11 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.Moderation = moderation.New(pool, s.Catalog, cfg.ModerationTimeout, log)
 	s.Agents = agents.New(pool, s.Teams, s.KBs, s.Catalog, s.Limits, pepper, log)
 	s.Agents.OrgName = cfg.Instance.OrgName
+	s.MCP = mcpclient.New(pool, box)
+	// Development only: with DEV_AUTH (which needs a loopback APP_URL), MCP
+	// servers may be on private and loopback addresses (docs/mcp-client.md).
+	s.MCP.Health, s.MCP.AllowPrivate, s.MCP.Log = s.HealthChecks, cfg.DevAuth && cfg.LoopbackAppURL(), log
+	s.Agents.MCP = s.MCP
 	s.Notify = notify.New(pool, jobsClient, cfg.SMTP.Enabled(), log)
 	s.Mail = NewMailSender(cfg)
 	s.BreakGlass = breakglass.New(pool, s.Teams, s.Notify, log)

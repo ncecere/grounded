@@ -33,6 +33,8 @@ const (
 
 	MaxInstructions = 20000
 	MaxKBs          = 5
+	// MaxTools bounds the MCP tools of an agent (docs/mcp-client.md).
+	MaxTools = 10
 )
 
 // KBRef is one KB an agent searches.
@@ -79,6 +81,9 @@ type Config struct {
 	// SystemOne is the agent's "SystemOne checks" override
 	// (docs/systemone.md §2); nil follows the platform.
 	SystemOne *systemone.Override `json:"systemOne,omitempty"`
+	// Tools are the approved MCP server tools the agent may call
+	// (docs/mcp-client.md), by ID, in the order the model is offered them.
+	Tools []uuid.UUID `json:"tools"`
 }
 
 // configInput is Config with every field optional, so absent fields take
@@ -102,6 +107,7 @@ type configInput struct {
 	Moderation         *moderation.Override `json:"moderation"`
 	Audience           *string              `json:"audience"`
 	SystemOne          *systemone.Override  `json:"systemOne"`
+	Tools              []uuid.UUID          `json:"tools"`
 }
 
 // Problem is one reason a configuration is invalid.
@@ -175,9 +181,10 @@ func normalize(in configInput) (Config, []Problem) {
 		RetrievalMode: ModeAlways, MaxTurns: DefaultMaxTurns, ContextTokenBudget: DefaultTokenBudget,
 		StrictlyGrounded: true, RefusalMessage: DefaultRefusal, CitationMode: CitationSnippetLink,
 		QueryRewrite: true, Moderation: moderation.Override{}.Normalize(), KBs: []KBRef{},
-		Audience: authz.AudienceTeam,
+		Audience: authz.AudienceTeam, Tools: []uuid.UUID{},
 	}
 	c.normalizeModel(in, &p)
+	c.normalizeTools(in.Tools, &p)
 	c.normalizeKBs(in.KBs, &p)
 	c.normalizeRetrieval(in, &p)
 	c.normalizeAnswer(in, &p)
@@ -317,6 +324,24 @@ func (c *Config) normalizeAnswer(in configInput, p *problems) {
 			p.bad(pr.Field, "%s", pr.Problem)
 		}
 		c.SystemOne = o
+	}
+}
+
+// normalizeTools handles the MCP tools: unique, at most MaxTools.
+func (c *Config) normalizeTools(ids []uuid.UUID, p *problems) {
+	if len(ids) > MaxTools {
+		p.bad("tools", "An agent can use at most %d tools", MaxTools)
+	}
+	seen := map[uuid.UUID]bool{}
+	for i, id := range ids {
+		switch {
+		case id == uuid.Nil:
+			p.bad("tools["+strconv.Itoa(i)+"]", "Choose a tool")
+		case seen[id]:
+			p.bad("tools["+strconv.Itoa(i)+"]", "This tool is listed twice")
+		}
+		seen[id] = true
+		c.Tools = append(c.Tools, id)
 	}
 }
 

@@ -23,7 +23,9 @@ func (q *Queries) DeleteMCPServer(ctx context.Context, id uuid.UUID) error {
 }
 
 const getMCPServer = `-- name: GetMCPServer :one
-SELECT s.id, s.name, s.description, s.url, s.auth_header_name, s.auth_value_cipher, s.auth_value_hint, s.max_classification, s.timeout_seconds, s.enabled, s.tools_refreshed_at, s.revision, s.created_by, s.created_at, s.updated_by, s.updated_at, cl.rank::int AS max_rank
+SELECT s.id, s.name, s.description, s.url, s.auth_header_name, s.auth_value_cipher, s.auth_value_hint, s.max_classification, s.timeout_seconds, s.enabled, s.tools_refreshed_at, s.revision, s.created_by, s.created_at, s.updated_by, s.updated_at, cl.rank::int AS max_rank,
+       (SELECT count(*) FROM mcp_server_tools t WHERE t.server_id = s.id AND t.gone_at IS NULL)::bigint AS tool_count,
+       (SELECT count(*) FROM mcp_server_tools t WHERE t.server_id = s.id AND t.approved)::bigint AS approved_count
 FROM mcp_servers s
 JOIN classification_levels cl ON cl.key = s.max_classification
 WHERE s.id = $1
@@ -47,6 +49,8 @@ type GetMCPServerRow struct {
 	UpdatedBy         uuid.NullUUID
 	UpdatedAt         time.Time
 	MaxRank           int32
+	ToolCount         int64
+	ApprovedCount     int64
 }
 
 func (q *Queries) GetMCPServer(ctx context.Context, id uuid.UUID) (GetMCPServerRow, error) {
@@ -70,6 +74,8 @@ func (q *Queries) GetMCPServer(ctx context.Context, id uuid.UUID) (GetMCPServerR
 		&i.UpdatedBy,
 		&i.UpdatedAt,
 		&i.MaxRank,
+		&i.ToolCount,
+		&i.ApprovedCount,
 	)
 	return i, err
 }

@@ -105,7 +105,7 @@ func (ru *run) finish(ctx context.Context, added []llm.Message, runErr error, st
 	sources := ru.retr.numbered()
 	ans.Sources = ru.retrievalHits(sources)
 	if ru.cfg.RetrievalMode == ModeTool {
-		ans.NoContext = ru.retr.hitSearches == 0
+		ans.NoContext = ru.retr.hitSearches == 0 && !hasToolSource(sources)
 	} else {
 		ans.NoContext = len(sources) == 0
 	}
@@ -143,6 +143,16 @@ func (ru *run) finish(ctx context.Context, added []llm.Message, runErr error, st
 		ru.out.send(ru.citationsChecked(ans))
 	}
 	return ans, nil
+}
+
+// hasToolSource reports whether an MCP tool's result is among the sources.
+func hasToolSource(sources []numberedHit) bool {
+	for _, h := range sources {
+		if h.Tool != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // collectLoop sums the usage of the messages the loop added into usage and

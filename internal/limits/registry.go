@@ -57,6 +57,9 @@ const (
 	Agents                 Key = "agents"
 	ChatTokensPerDay       Key = "chat_tokens_per_day"
 	ConcurrentChatsPerUser Key = "concurrent_chats_per_user"
+	// MCPCallsPerAnswer bounds the MCP tool calls of one answer
+	// (docs/mcp-client.md); calls past it get an error the model reads.
+	MCPCallsPerAnswer Key = "mcp_calls_per_answer"
 
 	// Public agents (docs/phase4-publishing.md §7): apply per agent to
 	// anonymous public-page and widget traffic.
@@ -119,6 +122,9 @@ type Def struct {
 
 func ptr(n int64) *int64 { return &n }
 
+// DefaultMCPCallsPerAnswer is the built-in mcp_calls_per_answer.
+const DefaultMCPCallsPerAnswer = 5
+
 const gib = int64(1) << 30
 
 // registry lists every limit in display order. It is the only place keys
@@ -154,6 +160,9 @@ var registry = []Def{
 		Description: "Chat model input and output tokens per UTC day across the team's agents. Answers are refused once it is reached.", Default: ptr(2_000_000)},
 	{Key: ConcurrentChatsPerUser, Group: GroupQueries, Unit: UnitCount, Label: "Concurrent chats (each person or key)", Noun: "concurrent chats",
 		Description: "Answers streaming at once for each person (or service key).", Default: ptr(3)},
+	{Key: MCPCallsPerAnswer, Group: GroupQueries, Unit: UnitCount, Label: "MCP tool calls per answer", Noun: "MCP tool calls per answer",
+		Description: "Calls an agent may make to MCP server tools while writing one answer. Calls past it are refused and the agent answers with what it has.",
+		Default:     ptr(DefaultMCPCallsPerAnswer)},
 	{Key: PublicQueriesPerIPPerMinute, Group: GroupPublic, Unit: UnitCount, Period: PeriodMinute, Label: "Public questions per minute (each address)", Noun: "public questions per minute from one address",
 		Description: "Anonymous questions to one public agent per minute from one network address (/24 or /48).", Default: ptr(10)},
 	{Key: PublicQueriesPerSessionPerMinute, Group: GroupPublic, Unit: UnitCount, Period: PeriodMinute, Label: "Public questions per minute (each visitor)", Noun: "public questions per minute from one visitor",

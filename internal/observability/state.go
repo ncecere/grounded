@@ -85,7 +85,7 @@ func NewStateCollector(db StateDB, log *slog.Logger) *StateCollector {
 		bg: prometheus.NewDesc("grounded_breakglass_open_sessions",
 			"Break-glass sessions open now, by status (active, pending).", []string{"status"}, nil),
 		healthFailing: prometheus.NewDesc("grounded_health_failing",
-			"Enabled subjects (connections, models) whose latest stored health check failed, by kind.", []string{"kind"}, nil),
+			"Enabled subjects (connections, models, MCP servers) whose latest stored health check failed, by kind.", []string{"kind"}, nil),
 		healthFailingFor: prometheus.NewDesc("grounded_health_failing_seconds",
 			"How long each failing enabled subject has been failing, by kind and name (absent while healthy).", []string{"kind", "name"}, nil),
 	}

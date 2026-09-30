@@ -136,12 +136,24 @@ var (
 		Name: "grounded_mcp_tool_calls_total",
 		Help: "MCP server tool calls by tool (search, ask) and outcome (ok, refused, error).",
 	}, []string{"tool", "outcome"})
+	// MCPClientCalls counts the tool calls agents make to registered MCP
+	// servers (docs/mcp-client.md). Server and tool names are admin-bounded:
+	// only approved tools of registered servers are called.
+	MCPClientCalls = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "grounded_mcp_client_calls_total",
+		Help: "Agents' calls to MCP server tools by server, tool and outcome (ok, tool_error, refused, timeout, too_large, error).",
+	}, []string{"server", "tool", "outcome"})
+	MCPClientCallDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "grounded_mcp_client_call_duration_seconds",
+		Help:    "Latency of agents' calls to MCP server tools, by server and tool.",
+		Buckets: modelBuckets,
+	}, []string{"server", "tool"})
 	// HealthChecks counts stored health checks (docs/operations/health.md)
 	// by subject kind, trigger (manual, scheduled) and status (healthy,
 	// failing); grounded_health_failing (state.go) is the current state.
 	HealthChecks = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "grounded_health_checks_total",
-		Help: "Stored health checks of connections and models by subject kind, trigger (manual, scheduled) and status (healthy, failing).",
+		Help: "Stored health checks of connections, models and MCP servers by subject kind, trigger (manual, scheduled) and status (healthy, failing).",
 	}, []string{"kind", "trigger", "status"})
 	HealthCheckDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "grounded_health_check_duration_seconds",
@@ -161,7 +173,7 @@ func appCollectors() []prometheus.Collector {
 		BuildInfo, ChatAnswers, ChatFirstToken, ChatDuration, RetrievalDuration,
 		ModelRequests, ModelRequestDuration, SystemOneRequests, SystemOneDuration, ModerationDecisions,
 		JobsWorked, JobDuration, IngestDocuments, IngestDuration, EmbeddingBatchInputs,
-		CrawlPages, CrawlFetchDuration, BreakGlassSessions, BreakGlassReads, MCPToolCalls, HealthChecks, HealthCheckDuration, ValkeyErrors,
+		CrawlPages, CrawlFetchDuration, BreakGlassSessions, BreakGlassReads, MCPToolCalls, MCPClientCalls, MCPClientCallDuration, HealthChecks, HealthCheckDuration, ValkeyErrors,
 	}
 }
 
@@ -204,6 +216,12 @@ func ModelObserver(connection, kind string) func(outcome string, elapsed time.Du
 func ObserveSystemOne(feature, outcome string, d time.Duration) {
 	SystemOneRequests.WithLabelValues(feature, outcome).Inc()
 	SystemOneDuration.WithLabelValues(feature).Observe(d.Seconds())
+}
+
+// ObserveMCPClientCall records an agent's call to an MCP server tool.
+func ObserveMCPClientCall(server, tool, outcome string, d time.Duration) {
+	MCPClientCalls.WithLabelValues(server, tool, outcome).Inc()
+	MCPClientCallDuration.WithLabelValues(server, tool).Observe(d.Seconds())
 }
 
 // ObserveHealthCheck records a stored health check.

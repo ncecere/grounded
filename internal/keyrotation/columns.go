@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/ncecere/grounded/internal/catalog"
+	"github.com/ncecere/grounded/internal/mcpclient"
 )
 
 // Column is one column of internal/secrets ciphertexts, in a table keyed by
@@ -39,4 +40,5 @@ func (c Column) col() string   { return pgx.Identifier{c.Column}.Sanitize() }
 // listed here.
 var Columns = []Column{
 	{Table: "model_connections", Column: "api_key_ciphertext", AAD: catalog.ConnectionAAD},
+	{Table: "mcp_servers", Column: "auth_value_cipher", AAD: mcpclient.ServerAAD},
 }

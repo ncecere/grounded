@@ -173,6 +173,9 @@ type run struct {
 	// usageMeta is added to the usage events' metadata (evaluation runs
 	// tag theirs with source: evaluation).
 	usageMeta map[string]any
+
+	// mcp is the answer's MCP tool calls (nil: the agent has none; tools.go).
+	mcp *mcpState
 }
 
 // Chat answers a question with a published agent. Errors returned before
@@ -384,12 +387,14 @@ func (ru *run) execute(ctx context.Context, emit func(Event)) (Answer, error) {
 	sys := systemPromptJudged(ru.agent.Name, ru.team.Name, ru.s.OrgName, ru.cfg, ru.retr.judge != nil, time.Now())
 	msgs := append([]llm.Message(nil), ru.history...)
 	var tools []agentloop.Tool
+	mcpTools := ru.mcpTools(ctx)
 
 	if ru.cfg.RetrievalMode == ModeTool {
 		tools = []agentloop.Tool{ru.searchTool()}
 		msgs = append(msgs, llm.UserMessage{Content: ru.question})
 	} else {
-		msg, refuse, err := ru.retrieveFirst(ctx, query)
+		// A strict agent with tools may still answer from a tool's result.
+		msg, refuse, err := ru.retrieveFirst(ctx, query, len(mcpTools) == 0)
 		if err != nil {
 			return ru.failBeforeStart(ctx, err)
 		}
@@ -398,11 +403,12 @@ func (ru *run) execute(ctx context.Context, emit func(Event)) (Answer, error) {
 		}
 		msgs = append(msgs, msg)
 	}
+	tools = append(tools, mcpTools...)
 
 	st := &loopState{}
 	loopCfg := agentloop.Config{
 		Provider: s.NewProvider(target.Client), Model: ru.model, SystemPrompt: sys, Tools: tools,
-		MaxTurns: ru.cfg.MaxTurns, Options: ru.options(len(tools) > 0),
+		MaxTurns: ru.cfg.MaxTurns, Options: ru.options(ru.cfg.RetrievalMode == ModeTool),
 	}
 	added, runErr := agentloop.Run(ctx, loopCfg, msgs, func(ev agentloop.Event) { ru.onEvent(ev, st) })
 	return ru.finish(ctx, added, runErr, st)
@@ -452,14 +458,14 @@ func (ru *run) admit(ctx context.Context) (release func(), err error) {
 
 // retrieveFirst searches before the model runs (always mode) and builds the
 // user message with the sources. refuse is set when strict grounding found
-// nothing to answer from.
-func (ru *run) retrieveFirst(ctx context.Context, query string) (msg llm.Message, refuse bool, err error) {
+// nothing to answer from and canRefuse (the agent has no tools to call).
+func (ru *run) retrieveFirst(ctx context.Context, query string, canRefuse bool) (msg llm.Message, refuse bool, err error) {
 	hits, sj, err := ru.retr.search(ctx, query, 0)
 	if err != nil {
 		return nil, false, err
 	}
 	ru.out.send(Event{"retrieval", RetrievalEvent{Query: query, Hits: ru.retrievalHits(hits), Judging: sj.event()}})
-	if len(hits) == 0 && ru.cfg.StrictlyGrounded {
+	if len(hits) == 0 && ru.cfg.StrictlyGrounded && canRefuse {
 		if sj.judgedOut() {
 			ru.noContextReason = NoContextJudgedOut
 		}

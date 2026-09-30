@@ -30,7 +30,17 @@ type Citation struct {
 	// Markers has the check of each [n] of this source in the answer text,
 	// in order (verdicts.go): the verdict on that marker's own claim.
 	Markers []MarkerVerdict `json:"markers,omitempty"`
+	// Kind is tool when the source is an MCP tool's result (DocumentID and
+	// SourceID are then the nil UUID), with the server's name and the tool;
+	// empty for passages (docs/mcp-client.md).
+	Kind      string `json:"kind,omitempty"`
+	Server    string `json:"server,omitempty"`
+	Tool      string `json:"tool,omitempty"`
+	Truncated bool   `json:"truncated,omitempty"`
 }
+
+// SourceTool is the kind of a source that is an MCP tool's result.
+const SourceTool = "tool"
 
 // markerRE matches [1], [1, 2] and [1,2,3]; [1][2] is two matches. Only
 // findMarkers (markers.go) uses it: a match in code or attached to an
@@ -183,6 +193,9 @@ func citationOf(h numberedHit, mode string) Citation {
 	}
 	if mode == CitationSnippetLink && isWebURL(h.URL) {
 		c.URL = h.URL
+	}
+	if h.Tool != nil {
+		c.Kind, c.Server, c.Tool, c.Truncated = SourceTool, h.Tool.ServerName, h.Tool.Tool, h.Tool.Truncated
 	}
 	return c
 }

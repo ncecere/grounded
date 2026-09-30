@@ -152,6 +152,7 @@ func (ru *run) recordUsage(ctx context.Context, q *dbgen.Queries, ans *Answer, m
 		usage[i].Metadata = meta
 	}
 	usage = append(usage, ru.systemOneUsage()...)
+	usage = append(usage, ru.mcpUsage()...)
 	for i := range usage {
 		usage[i].TeamID, usage[i].AgentID, usage[i].UserID, usage[i].APIKeyID = team, agent, nullUser(ru.a), keyID(ru.a)
 		if err := q.InsertUsage(ctx, usage[i]); err != nil {
@@ -190,6 +191,9 @@ func citedDocuments(cites []Citation) []uuid.UUID {
 	docs := []uuid.UUID{}
 	seen := map[uuid.UUID]bool{}
 	for _, c := range cites {
+		if c.DocumentID == uuid.Nil {
+			continue // a tool's result
+		}
 		if !seen[c.DocumentID] {
 			seen[c.DocumentID] = true
 			docs = append(docs, c.DocumentID)

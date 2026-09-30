@@ -38,6 +38,11 @@ type (
 		// Conflicting: SystemOne judging found it contradicts the
 		// question's premise (docs/systemone.md §2).
 		Conflicting bool `json:"conflicting,omitempty"`
+		// Kind is tool for an MCP tool's result, with its server and tool
+		// (docs/mcp-client.md); empty for passages.
+		Kind   string `json:"kind,omitempty"`
+		Server string `json:"server,omitempty"`
+		Tool   string `json:"tool,omitempty"`
 	}
 	RetrievalEvent struct {
 		Query string         `json:"query"`

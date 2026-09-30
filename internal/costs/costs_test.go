@@ -243,7 +243,7 @@ func TestCSVColumnsAreUnique(t *testing.T) {
 		{ByTeam, team, "team_id,team_slug,team_name,currency,spend,", team.Key + ",qa-team,QA Team,USD,0.000000,"},
 		{ByAgent, agent, "agent_id,agent_name,team_slug,team_name,currency,spend,", agent.Key + ",Helper,qa-team,QA Team,USD,"},
 		{ByModel, model, "model_id,model_name,model_kind,currency,spend,", model.Key + ",Chat,chat,USD,"},
-		{ByDay, daily, "day,currency,spend,chat,embedding,systemone,moderation,ocr,tokens,requests,unpriced", "2026-09-01,USD,0.000000,"},
+		{ByDay, daily, "day,currency,spend,chat,embedding,systemone,moderation,ocr,mcp,tokens,requests,unpriced", "2026-09-01,USD,0.000000,"},
 	} {
 		var b strings.Builder
 		if err := WriteCSV(&b, Report{GroupBy: c.groupBy, Currency: "USD", Rows: []ReportRow{c.row}}); err != nil {

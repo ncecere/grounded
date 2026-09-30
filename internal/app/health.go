@@ -17,7 +17,10 @@ import (
 func registerHealth(w *river.Workers, cfg config.Config, pool *pgxpool.Pool, s *Services, log *slog.Logger) {
 	healthcheck.Register(w, &healthcheck.Runner{
 		Store: s.HealthChecks, Log: log,
-		Checkers: []healthcheck.Checker{&healthcheck.ConnectionChecker{Queries: dbgen.New(pool), Probe: s.Catalog.ProbeConnectionFree}},
+		Checkers: []healthcheck.Checker{
+			&healthcheck.ConnectionChecker{Queries: dbgen.New(pool), Probe: s.Catalog.ProbeConnectionFree},
+			s.MCP.Checker(),
+		},
 	}, cfg.HealthCheckInterval)
 }
 

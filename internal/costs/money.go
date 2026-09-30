@@ -70,7 +70,7 @@ func optFormat(r *big.Rat) *string {
 // request.
 func PerUnits(unit string) int64 {
 	switch unit {
-	case UnitSystemOneRequests, UnitModeration:
+	case UnitSystemOneRequests, UnitModeration, UnitMCPCalls:
 		return 1
 	}
 	return 1_000_000

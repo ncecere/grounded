@@ -49,6 +49,16 @@ type Tool struct {
 	Execute     ExecuteFunc
 }
 
+// CheckTool reports whether a tool would be accepted by Run: a name, an
+// Execute, a known mode and a parameters schema that compiles (external
+// references are refused). Callers that build tools from outside data (MCP
+// servers' input schemas) check each one first, so one bad schema doesn't
+// fail the whole run.
+func CheckTool(t Tool) error {
+	_, err := compileTools([]Tool{t})
+	return err
+}
+
 // compiledTool is a Tool with its schema compiled.
 type compiledTool struct {
 	Tool

@@ -1,11 +1,13 @@
-// Package healthcheck stores the health of connections and models (stored
+// Package healthcheck stores the health of connections, models and MCP
+// servers (stored
 // health, docs/v0.3.0.md §5, roadmap E11): the result of every admin Test
 // and of the health job, which re-tests enabled subjects on a schedule
 // (docs/operations/health.md).
 //
-// A subject is a kind and an ID. Adding a kind (v0.3 M3: MCP servers) takes
-// a value in the health_checks_subject_kind constraint, a branch in the
-// health_subjects view, a Kind constant and a Checker for the job.
+// A subject is a kind and an ID. Adding a kind takes a value in the
+// health_checks_subject_kind constraint, a branch in the health_subjects
+// view, a Kind constant and a Checker for the job (MCP servers:
+// internal/mcpclient, migration 00037).
 package healthcheck
 
 import (
@@ -29,10 +31,11 @@ import (
 const (
 	KindConnection = "connection"
 	KindModel      = "model"
+	KindMCPServer  = "mcp_server"
 )
 
 // Kinds lists the subject kinds, in the order the API documents them.
-var Kinds = []string{KindConnection, KindModel}
+var Kinds = []string{KindConnection, KindModel, KindMCPServer}
 
 // Statuses.
 const (
@@ -84,7 +87,7 @@ type Latest = dbgen.LatestHealthChecksRow
 
 var (
 	errReadOnly = apperr.Forbidden("Health checks are visible to platform admins and auditors")
-	errNoKind   = apperr.Invalid("invalid_subject_kind", "The subject kind must be connection or model")
+	errNoKind   = apperr.Invalid("invalid_subject_kind", "The subject kind must be connection, model or mcp_server")
 )
 
 // Service stores and reads health checks.

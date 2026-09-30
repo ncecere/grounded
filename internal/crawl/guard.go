@@ -34,6 +34,11 @@ var deniedNetworks = func() []netip.Prefix {
 
 var globalUnicast6 = netip.MustParsePrefix("2000::/3")
 
+// PublicAddr reports whether ip is a public unicast address: not private,
+// loopback, link-local, CGNAT, metadata, documentation or translation
+// space. The MCP client's guard uses it too (internal/mcpclient).
+func PublicAddr(ip netip.Addr) bool { return publicIP(ip) }
+
 // publicIP reports whether ip is a public unicast address (ported from yoink).
 func publicIP(ip netip.Addr) bool {
 	if !ip.IsValid() || ip.Zone() != "" {

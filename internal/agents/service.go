@@ -25,6 +25,7 @@ import (
 	"github.com/ncecere/grounded/internal/kbs"
 	"github.com/ncecere/grounded/internal/limits"
 	"github.com/ncecere/grounded/internal/llm"
+	"github.com/ncecere/grounded/internal/mcpclient"
 	"github.com/ncecere/grounded/internal/moderation"
 	"github.com/ncecere/grounded/internal/notify"
 	"github.com/ncecere/grounded/internal/store"
@@ -71,6 +72,9 @@ type Service struct {
 	// NewProvider builds the model provider for a connection (default: the
 	// OpenAI-compatible adapter).
 	NewProvider func(*gateway.Client) llm.Provider
+	// MCP calls the approved tools of registered MCP servers
+	// (docs/mcp-client.md; nil: agents have no MCP tools).
+	MCP *mcpclient.Service
 	// OnPublished runs in the publish transaction (internal/evals queues
 	// the agent's automatic evaluation runs; nil: nothing).
 	OnPublished func(ctx context.Context, tx pgx.Tx, agentID uuid.UUID) error
@@ -250,6 +254,13 @@ func (s *Service) view(ctx context.Context, ag dbgen.Agent, team dbgen.Team, war
 			}
 			for _, viol := range p.Violations {
 				v.Warnings = append(v.Warnings, Problem{Field: "published", Problem: viol.Message + " (chat is refused until this is fixed)"})
+			}
+			tp, err := s.toolProblems(ctx, v.Published.Config, p)
+			if err != nil {
+				return v, err
+			}
+			for _, pr := range tp {
+				v.Warnings = append(v.Warnings, Problem{Field: "published", Problem: pr.Problem + " (answers go without it until this is fixed)"})
 			}
 		}
 	}
