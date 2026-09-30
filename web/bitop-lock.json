@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "registry": "/Users/nicholascecere/projects/typescript/bitop-ui",
+  "registry": "../../../typescript/bitop-ui",
   "items": {
     "accordion": {
       "files": {
