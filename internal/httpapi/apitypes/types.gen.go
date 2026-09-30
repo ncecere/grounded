@@ -8519,6 +8519,9 @@ type PlatformLimit struct {
 	Key   LimitKey `json:"key"`
 	Label string   `json:"label"`
 
+	// Max The most Grounded allows for this limit, whatever the ceiling: an empty default or ceiling means it, and higher values are refused. Absent when there is none.
+	Max *int64 `json:"max,omitempty"`
+
 	// Period none: a total or a concurrency level; minute; day: a UTC day
 	Period LimitPeriod `json:"period"`
 	Unit   LimitUnit   `json:"unit"`
@@ -9606,7 +9609,7 @@ type TeamLimitOverride struct {
 	Default     *LimitValue `json:"default"`
 	Description string      `json:"description"`
 
-	// Effective override ?? default, capped by the ceiling; null = unlimited
+	// Effective override ?? default, capped by the ceiling and max; null = unlimited
 	Effective *LimitValue `json:"effective"`
 
 	// Group public limits apply per agent to anonymous public-page and widget traffic; evaluations are evaluation sets and their questions
@@ -9615,6 +9618,9 @@ type TeamLimitOverride struct {
 	// Key A team limit. See GET /v1/admin/limits for labels and descriptions.
 	Key   LimitKey `json:"key"`
 	Label string   `json:"label"`
+
+	// Max The most Grounded allows for this limit (see PlatformLimit.max). Absent when there is none.
+	Max *int64 `json:"max,omitempty"`
 
 	// Override The team's own value (0 = blocked); null = inherits the default
 	Override *LimitValue `json:"override"`

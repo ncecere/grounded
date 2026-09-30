@@ -33,8 +33,9 @@ import (
 // model_id is the server).
 const UsageMCPCalls = "mcp_calls"
 
-// hardMaxMCPCalls bounds the calls of one answer when the limit is unlimited.
-const hardMaxMCPCalls = 25
+// hardMaxMCPCalls bounds the calls of one answer (the limit's built-in
+// maximum, which saving the limit also enforces).
+const hardMaxMCPCalls = limits.MaxMCPCallsPerAnswer
 
 // toolSource marks a numbered source that is a tool's result.
 type toolSource struct {

@@ -1,4 +1,5 @@
 import type { Schemas } from "../api/client";
+import { formatLimitMax } from "../lib/limits";
 import { desired, effectiveLimit, overrideChanges, overrideError, overrideForm, platformChanges, platformErrors, platformForm } from "../pages/admin/limits/form";
 
 const platform = (p: Partial<Schemas["PlatformLimit"]>) => ({ key: "data_sources", unit: "count", period: "none", default: 10, ceiling: 100, ...p }) as Schemas["PlatformLimit"];
@@ -11,6 +12,19 @@ describe("platform limits form", () => {
     expect(platformErrors(it0, { def: "200", ceil: "100" })).toEqual({ def: "The default can't be above the ceiling." });
     expect(platformErrors(it0, { def: "x", ceil: "" })).toEqual({ def: "Enter a whole number, or leave empty." });
     expect(platformErrors(it0, { def: "", ceil: "100" })).toEqual({ def: "The default can't be above the ceiling." });
+  });
+
+  it("refuses values above a limit's built-in maximum, and says what empty means", () => {
+    const mcp = platform({ key: "mcp_calls_per_answer", default: 5, ceiling: null, max: 25 });
+    expect(platformErrors(mcp, { def: "30", ceil: "" })).toEqual({ def: "Enter at most 25, the most Grounded allows." });
+    expect(platformErrors(mcp, { def: "5", ceil: "40" })).toEqual({ ceil: "Enter at most 25, the most Grounded allows." });
+    expect(platformErrors(mcp, { def: "", ceil: "" })).toEqual({});
+    expect(formatLimitMax(mcp, null, "No ceiling")).toBe("25 (maximum)");
+    expect(formatLimitMax(platform({}), null, "No ceiling")).toBe("No ceiling");
+    expect(formatLimitMax(mcp, 5)).toBe("5");
+    const team = override({ key: "mcp_calls_per_answer", default: null, ceiling: null, max: 25, effective: 25 });
+    expect(overrideError(team, { mode: "custom", value: "26" })).toBe("Enter at most 25, the most Grounded allows.");
+    expect(effectiveLimit(team, { mode: "inherit", value: "" })).toBe(25);
   });
 
   it("only sends rows that changed and parse", () => {

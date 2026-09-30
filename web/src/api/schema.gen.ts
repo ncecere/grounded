@@ -7355,6 +7355,11 @@ export interface components {
             builtInDefault: components["schemas"]["LimitValue"];
             /** @description A platform admin has set this limit */
             custom: boolean;
+            /**
+             * Format: int64
+             * @description The most Grounded allows for this limit, whatever the ceiling: an empty default or ceiling means it, and higher values are refused. Absent when there is none.
+             */
+            max?: number;
         };
         PlatformLimits: {
             revision: components["schemas"]["Revision"];
@@ -7383,8 +7388,13 @@ export interface components {
             override: components["schemas"]["LimitValue"];
             default: components["schemas"]["LimitValue"];
             ceiling: components["schemas"]["LimitValue"];
-            /** @description override ?? default, capped by the ceiling; null = unlimited */
+            /** @description override ?? default, capped by the ceiling and max; null = unlimited */
             effective: components["schemas"]["LimitValue"];
+            /**
+             * Format: int64
+             * @description The most Grounded allows for this limit (see PlatformLimit.max). Absent when there is none.
+             */
+            max?: number;
         };
         TeamLimitOverrides: {
             /** Format: uuid */

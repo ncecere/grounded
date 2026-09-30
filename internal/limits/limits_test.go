@@ -37,10 +37,11 @@ func n(v int64) *int64 { return &v }
 
 func TestEffective(t *testing.T) {
 	p := Platform{Settings: map[Key]Setting{
-		Documents:        {Default: n(100), Ceiling: n(500)},
-		DataSources:      {Default: nil},                 // unlimited
-		KnowledgeBases:   {Default: n(10)},               // no ceiling
-		QueriesPerMinute: {Default: nil, Ceiling: n(50)}, // stored before validation: capped
+		Documents:         {Default: n(100), Ceiling: n(500)},
+		DataSources:       {Default: nil},                 // unlimited
+		KnowledgeBases:    {Default: n(10)},               // no ceiling
+		QueriesPerMinute:  {Default: nil, Ceiling: n(50)}, // stored before validation: capped
+		MCPCallsPerAnswer: {Default: n(30)},               // stored before its maximum: capped
 	}}
 	cases := []struct {
 		key  Key
@@ -55,6 +56,10 @@ func TestEffective(t *testing.T) {
 		{DataSources, Overrides{DataSources: 7}, n(7)}, // override of unlimited
 		{KnowledgeBases, Overrides{KnowledgeBases: 1e9}, n(1e9)},
 		{QueriesPerMinute, nil, n(50)},
+		// A built-in maximum caps everything, and "unlimited" means it.
+		{MCPCallsPerAnswer, nil, n(MaxMCPCallsPerAnswer)},
+		{MCPCallsPerAnswer, Overrides{MCPCallsPerAnswer: 3}, n(3)},
+		{MCPCallsPerAnswer, Overrides{MCPCallsPerAnswer: 0}, n(0)},
 	}
 	for _, c := range cases {
 		got := p.Effective(c.key, c.o)
@@ -129,6 +134,19 @@ func TestValidation(t *testing.T) {
 	}
 	if err := ValidateOverride(d, Setting{}, nil); err != nil {
 		t.Error(err)
+	}
+	// mcp_calls_per_answer has a built-in maximum of 25: no default, ceiling or team value above it.
+	mcp, _ := Lookup(MCPCallsPerAnswer)
+	for _, st := range []Setting{{Default: n(26)}, {Default: n(5), Ceiling: n(30)}} {
+		if err := ValidateSetting(mcp, st); err == nil || !strings.Contains(err.Error(), "at most 25") {
+			t.Errorf("%v/%v: err = %v", deref(st.Default), deref(st.Ceiling), err)
+		}
+	}
+	if err := ValidateSetting(mcp, Setting{Default: n(25), Ceiling: n(25)}); err != nil {
+		t.Error(err)
+	}
+	if err := ValidateOverride(mcp, Setting{}, n(26)); err == nil {
+		t.Error("override above the maximum accepted")
 	}
 }
 

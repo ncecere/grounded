@@ -9978,6 +9978,10 @@ components:
           description: The default before any platform admin changed it
           allOf: [{ $ref: "#/components/schemas/LimitValue" }]
         custom: { type: boolean, description: A platform admin has set this limit }
+        max:
+          description: "The most Grounded allows for this limit, whatever the ceiling: an empty default or ceiling means it, and higher values are refused. Absent when there is none."
+          type: integer
+          format: int64
     PlatformLimits:
       type: object
       required: [revision, updatedAt, items]
@@ -10021,8 +10025,12 @@ components:
         default: { $ref: "#/components/schemas/LimitValue" }
         ceiling: { $ref: "#/components/schemas/LimitValue" }
         effective:
-          description: override ?? default, capped by the ceiling; null = unlimited
+          description: "override ?? default, capped by the ceiling and max; null = unlimited"
           allOf: [{ $ref: "#/components/schemas/LimitValue" }]
+        max:
+          description: "The most Grounded allows for this limit (see PlatformLimit.max). Absent when there is none."
+          type: integer
+          format: int64
     TeamLimitOverrides:
       type: object
       required: [teamId, revision, items]

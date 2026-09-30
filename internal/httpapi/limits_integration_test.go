@@ -103,6 +103,14 @@ func TestLimitsAdministration(t *testing.T) {
 	mustCode(t, "default above ceiling", code, e, 400, "invalid_limit")
 	code, e = admin.call("PUT", "/v1/admin/limits", map[string]any{"items": []map[string]any{{"key": "bogus", "default": 1, "ceiling": nil}}}, nil, ifMatch(1))
 	mustCode(t, "unknown key", code, e, 400, "unknown_limit")
+	// mcp_calls_per_answer has a built-in maximum (25), which the API names and refuses to exceed.
+	code, e = admin.call("PUT", "/v1/admin/limits", map[string]any{"items": []map[string]any{{"key": "mcp_calls_per_answer", "default": 30, "ceiling": nil}}}, nil, ifMatch(1))
+	mustCode(t, "above the maximum", code, e, 400, "invalid_limit")
+	for _, it := range p.Items {
+		if (it.Key == "mcp_calls_per_answer") != (it.Max != nil) || it.Max != nil && *it.Max != 25 {
+			t.Errorf("%s max = %v", it.Key, it.Max)
+		}
+	}
 	code, e = admin.call("PUT", "/v1/admin/limits", body, &p, ifMatch(1))
 	mustCode(t, "put", code, e, 200, "")
 	if p.Revision != 2 {

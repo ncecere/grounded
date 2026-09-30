@@ -54,6 +54,19 @@ export function formatLimit(unit: LimitUnit, period: LimitPeriod, v: number | nu
 }
 
 /**
+ * A limit value, where empty means the limit's built-in maximum when it has one: "25 (maximum)" rather than
+ * "Unlimited" or "No ceiling". `empty` is what an empty value means otherwise.
+ */
+export function formatLimitMax(
+  it: { unit: LimitUnit; period: LimitPeriod; max?: number },
+  v: number | null | undefined,
+  empty = "Unlimited",
+) {
+  if (v !== null && v !== undefined) return formatLimit(it.unit, it.period, v);
+  return it.max !== undefined ? `${formatAmount(it.unit, it.max)}${periodSuffix(it.period)} (maximum)` : empty;
+}
+
+/**
  * Form values: storage is entered in GiB (decimals allowed), counts as whole
  * numbers. "" means null (unlimited / no ceiling / inherit).
  */

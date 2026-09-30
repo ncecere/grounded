@@ -118,12 +118,19 @@ type Def struct {
 	Description string
 	// Default is the built-in platform default; nil = unlimited.
 	Default *int64
+	// Max is a maximum built into Grounded (nil = none): no default,
+	// ceiling or team value may be above it, and "unlimited" means it.
+	Max *int64
 }
 
 func ptr(n int64) *int64 { return &n }
 
-// DefaultMCPCallsPerAnswer is the built-in mcp_calls_per_answer.
-const DefaultMCPCallsPerAnswer = 5
+// DefaultMCPCallsPerAnswer is the built-in mcp_calls_per_answer, and
+// MaxMCPCallsPerAnswer its maximum (an answer never makes more calls).
+const (
+	DefaultMCPCallsPerAnswer = 5
+	MaxMCPCallsPerAnswer     = 25
+)
 
 const gib = int64(1) << 30
 
@@ -161,8 +168,8 @@ var registry = []Def{
 	{Key: ConcurrentChatsPerUser, Group: GroupQueries, Unit: UnitCount, Label: "Concurrent chats (each person or key)", Noun: "concurrent chats",
 		Description: "Answers streaming at once for each person (or service key).", Default: ptr(3)},
 	{Key: MCPCallsPerAnswer, Group: GroupQueries, Unit: UnitCount, Label: "MCP tool calls per answer", Noun: "MCP tool calls per answer",
-		Description: "Calls an agent may make to MCP server tools while writing one answer. Calls past it are refused and the agent answers with what it has.",
-		Default:     ptr(DefaultMCPCallsPerAnswer)},
+		Description: "Calls an agent may make to MCP server tools while writing one answer, at most 25 (empty means 25, 0 means no calls). Calls past it are refused and the agent answers with what it has.",
+		Default:     ptr(DefaultMCPCallsPerAnswer), Max: ptr(MaxMCPCallsPerAnswer)},
 	{Key: PublicQueriesPerIPPerMinute, Group: GroupPublic, Unit: UnitCount, Period: PeriodMinute, Label: "Public questions per minute (each address)", Noun: "public questions per minute from one address",
 		Description: "Anonymous questions to one public agent per minute from one network address (/24 or /48).", Default: ptr(10)},
 	{Key: PublicQueriesPerSessionPerMinute, Group: GroupPublic, Unit: UnitCount, Period: PeriodMinute, Label: "Public questions per minute (each visitor)", Noun: "public questions per minute from one visitor",
