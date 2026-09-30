@@ -38,7 +38,7 @@ It adds the `grounded-ocr` Deployment and Service (port 8080), a NetworkPolicy t
 
 Sizing: each request is one page; the sidecar runs `OCR_CONCURRENCY` Tesseract processes at once (2 in the component, matching its CPU limit) and queues the rest until its timeout. Each Grounded worker sends at most `OCR_CONCURRENCY` pages at once (default 2). A page takes about 0.5–3 s of CPU; scale the sidecar's replicas or CPUs with the number of workers.
 
-Docker Compose (development): `docker compose --profile ocr up -d --build ocr`, then `OCR_TESSERACT_URL=http://127.0.0.1:58080` in `.env`.
+Docker Compose (development): set `OCR_TESSERACT_URL=http://127.0.0.1:58080` in `.env` and `make deps-up` starts the sidecar with the other dependencies (or `docker compose --profile ocr up -d --build ocr`); it restarts with Docker.
 
 Verify: `kubectl exec deploy/grounded-ocr -- grounded-ocr version` prints the sidecar's and Tesseract's versions; then use the **Test** button (below).
 

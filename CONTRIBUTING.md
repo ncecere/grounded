@@ -17,6 +17,7 @@ make deps-up     # Postgres (pgvector) + Valkey via docker compose, on loopback 
 make web         # build the UI (embedded into the binary)
 make run         # builds bin/grounded, creates .env from .env.example if needed, runs `grounded serve`
 make fake-proxy  # optional: a fake OpenAI-compatible gateway on :8090 (key sk-dev-fake)
+make dev-up      # optional, instead of deps-up and fake-proxy: both, with the fake gateway in Docker
 make web-dev     # optional: Vite with hot reload on :5173, proxying the API to :8080
 make mail-up     # optional: Mailpit catches notification email (inbox http://127.0.0.1:8025)
 ```
@@ -25,7 +26,8 @@ make mail-up     # optional: Mailpit catches notification email (inbox http://12
 - **Models without a real gateway:** run `make fake-proxy`, then in the admin portal add a connection with base URL `http://127.0.0.1:8090/v1` and key `sk-dev-fake`. It offers `gpt-oss-120b` (chat), `nomic-embed-text-v1.5` (768 dimensions) and `sfr-embedding-mistral` (4096 dimensions). To get sample data instead, seed the demo ([`docs/demo.md`](docs/demo.md), "Seeding an existing install").
 - **Hot reload:** run `make run` and `make web-dev` together and open http://localhost:5173.
 - **Email:** with `make mail-up`, set `SMTP_HOST=127.0.0.1 SMTP_PORT=1025 SMTP_TLS=none` in `.env`.
-- `make deps-down` stops the dependencies and keeps their data. `make help` lists every target.
+- **After a Docker or machine restart:** the compose services have `restart: unless-stopped`, so Postgres, Valkey, the OCR sidecar, Mailpit and the Docker fake gateway come back by themselves once Docker is running (the first `make deps-up` after updating `compose.yaml` recreates the containers; the data is kept). `make deps-up` also starts the OCR sidecar (compose profile `ocr`, built on first use) when `.env` sets `OCR_TESSERACT_URL=http://127.0.0.1:58080`. `make fake-proxy` runs in your terminal and doesn't come back; `make dev-up` runs the same fake gateway in Docker (compose profile `fake`: this checkout's code, compiled when it starts, so the first start takes a minute), so stop `make fake-proxy` first, or set `FAKE_PROXY_PORT` for another port.
+- `make deps-down` stops the dependencies, the OCR sidecar, the Docker fake gateway and Mailpit, and keeps their data. `make help` lists every target.
 
 Settings come from environment variables (optionally layered over a YAML file named by `GROUNDED_CONFIG_FILE`); [`.env.example`](.env.example) describes each one.
 

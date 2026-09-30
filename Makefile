@@ -22,16 +22,23 @@ KIND        := $(K8S_TOOLS)/kind-$(KIND_VERSION)/kind
 PROMETHEUS_VERSION ?= 3.15.0
 PROMTOOL := $(CURDIR)/bin/obs-tools/prometheus-$(PROMETHEUS_VERSION)/promtool
 
-.PHONY: help deps-up deps-down mail-up demo generate check-generated web web-test e2e web-dev fake-proxy widget-demo build run migrate test test-authz test-unit lint fmt docker k8s-validate k8s-smoke k8s-load k8s-restore-rehearsal vendor-k8s cover-report upgrade-test deps-inventory obs-validate obs-generate
+.PHONY: help deps-up dev-up deps-down mail-up demo generate check-generated web web-test e2e web-dev fake-proxy widget-demo build run migrate test test-authz test-unit lint fmt docker k8s-validate k8s-smoke k8s-load k8s-restore-rehearsal vendor-k8s cover-report upgrade-test deps-inventory obs-validate obs-generate
 
 help: ## Show targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-16s %s\n", $$1, $$2}'
 
-deps-up: ## Start local Postgres + Valkey
-	docker compose up -d --wait
+# The OCR sidecar (compose profile ocr) starts with the dependencies when
+# .env points OCR_TESSERACT_URL at it (port 58080).
+DEV_PROFILES = $(if $(shell grep -Eqs '^[[:space:]]*(export[[:space:]]+)?OCR_TESSERACT_URL=[^[:space:]]*:58080' .env && echo y),--profile ocr)
 
-deps-down: ## Stop local dependencies (keeps data)
-	docker compose down
+deps-up: ## Start local Postgres + Valkey (+ the OCR sidecar when .env sets OCR_TESSERACT_URL); they restart with Docker
+	docker compose $(DEV_PROFILES) up -d --wait
+
+dev-up: ## deps-up plus the fake model gateway in Docker on :8090 (key sk-dev-fake), which restarts with Docker too
+	docker compose $(DEV_PROFILES) --profile fake up -d --wait
+
+deps-down: ## Stop local dependencies, the OCR sidecar, the fake gateway and Mailpit (keeps data)
+	docker compose --profile ocr --profile fake --profile mail down
 
 mail-up: ## Start Mailpit for notification email (SMTP 127.0.0.1:1025, inbox http://127.0.0.1:8025)
 	docker compose --profile mail up -d mailpit
