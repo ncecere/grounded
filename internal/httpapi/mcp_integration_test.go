@@ -160,6 +160,10 @@ func TestMCPSwitchAndKeys(t *testing.T) {
 	query := createKey(t, env.member, env.base, map[string]any{"name": "rest", "scopes": []string{"query"}})
 	res, body = mcpRaw(t, url, "POST", query.Secret, listTools)
 	wantRefusal(t, "a key without mcp", res, body, 403, -32003, "missing_scope")
+	// A refused call isn't a use: the key's Last used stays empty.
+	if n := env.scalar(t, `SELECT count(*) FROM api_keys WHERE id = $1 AND last_used_at IS NOT NULL`, query.Key.Id); n != 0 {
+		t.Error("a refused /mcp call set the key's Last used")
+	}
 	res, body = mcpRaw(t, url, "GET", key.Secret, nil)
 	wantRefusal(t, "GET", res, body, 405, -32600, "method_not_allowed")
 	// A session cookie is no credential here.
@@ -168,8 +172,11 @@ func TestMCPSwitchAndKeys(t *testing.T) {
 		t.Fatalf("a browser session = %d %s", code, raw)
 	}
 
-	// The key works, at 2026-07-28 and at an older revision.
+	// The key works, at 2026-07-28 and at an older revision (and is then used).
 	cs := mustConnect(t, url, key.Secret, "")
+	if n := env.scalar(t, `SELECT count(*) FROM api_keys WHERE id = $1 AND last_used_at IS NOT NULL`, key.Key.Id); n != 1 {
+		t.Error("an accepted /mcp call didn't set the key's Last used")
+	}
 	if v := cs.InitializeResult().ProtocolVersion; v != "2026-07-28" {
 		t.Errorf("negotiated %s", v)
 	}
