@@ -216,6 +216,7 @@ Add components in the overlay's `components:` list.
 - **`ocr-tesseract`**: the OCR sidecar `ghcr.io/ncecere/grounded-ocr` (Tesseract 5, common languages) on `grounded-ocr:8080`, a NetworkPolicy that lets only the api and worker call it, and `OCR_TESSERACT_URL` set in `grounded-config`. Pin its image by digest in the overlay, like Grounded's. OCR stays off until a platform admin turns it on in Admin → Parsing ([`operations/ocr.md`](../operations/ocr.md)).
 - **`monitoring`** or **`monitoring-annotations`**: see [Monitoring](#monitoring). Use one of them.
 - **`alerts`** and **`dashboards`**: Grounded's alert rules as a `PrometheusRule`, and its Grafana dashboards as ConfigMaps for the Grafana sidecar; see [Monitoring](#monitoring).
+- **`tracing`**: turns on OpenTelemetry tracing: `OTEL_EXPORTER_OTLP_ENDPOINT` (a placeholder, `http://tempo.monitoring.svc:4318`; patch it) and a sampling ratio of 0.2 in `grounded-config`, and a NetworkPolicy letting api and worker reach TCP 4318 and 4317 in the `monitoring` namespace. Headers with a token (`OTEL_EXPORTER_OTLP_HEADERS`) go in `grounded-runtime`. See [`operations/tracing.md`](../operations/tracing.md).
 - **`private-registry`**: adds the pull secret `grounded-registry` to the `grounded` ServiceAccount (the image is private until v0.1.0).
 
 ## Overlays
@@ -321,7 +322,7 @@ API metrics are on `:9091/metrics` (the internal `METRICS_ADDR` listener; the pu
 - **Annotation-based scraping** (plain Prometheus pod discovery, Grafana Alloy, the OpenTelemetry Collector): add `components/monitoring-annotations`.
 - Both add `grounded-allow-metrics-scrape`, admitting the scraper from the `monitoring` namespace; patch it to where yours runs.
 - **Alert rules:** `components/alerts` adds a `PrometheusRule` (for the Prometheus Operator, or Grafana Alloy's `mimir.rules.kubernetes` loading them into Mimir). **Dashboards:** `components/dashboards` adds one ConfigMap per dashboard with the `grafana_dashboard: "1"` label for the Grafana sidecar. Both are generated from [`deploy/observability/`](../../deploy/observability/README.md); loading them without these components, the metrics reference and the SLOs: [`operations/monitoring.md`](../operations/monitoring.md). Runbooks: [`operations/alerts.md`](../operations/alerts.md).
-- Logs are JSON on stdout.
+- Logs are JSON on stdout. **Traces** (OpenTelemetry, to Tempo or Jaeger): `components/tracing` ([`operations/tracing.md`](../operations/tracing.md)).
 
 ## Health checks
 

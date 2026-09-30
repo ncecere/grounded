@@ -16,7 +16,7 @@ import (
 // traceMiddleware carries trace context from where a job is enqueued to
 // where it is worked (docs/operations/tracing.md): at insert it writes the
 // caller's traceparent (and tracestate) into the job's metadata; when the
-// job is worked, it runs in a consumer span ("job ingest.process") that
+// job is worked, it runs in a consumer span ("job ingest.document") that
 // continues that trace, with the job's kind, queue and attempt. Periodic
 // jobs (River marks them "periodic") are not traced: housekeeping every few
 // seconds would make a trace each time. The jobs they enqueue are traced,

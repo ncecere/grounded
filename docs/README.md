@@ -83,6 +83,7 @@ People who deploy, upgrade and monitor an install:
 | [`operations/rotate-keys.md`](operations/rotate-keys.md) | Rotating `ENCRYPTION_KEY` and `API_KEY_PEPPER` |
 | [`operations/restore.md`](operations/restore.md) | Backups, and restoring Postgres and the bucket (rehearsed) |
 | [`operations/monitoring.md`](operations/monitoring.md) | Metrics, dashboards, alerts and SLOs |
+| [`operations/tracing.md`](operations/tracing.md) | OpenTelemetry tracing: turning it on, sampling, what's recorded and never recorded, trace context through MCP and jobs, Tempo and Jaeger |
 | [`operations/alerts.md`](operations/alerts.md) | A runbook for each alert |
 | [`../deploy/observability/README.md`](../deploy/observability/README.md) | The dashboards and alert rules |
 | [`operations/retention.md`](operations/retention.md), [`operations/break-glass.md`](operations/break-glass.md), [`operations/profile-migration.md`](operations/profile-migration.md), [`operations/sso-groups.md`](operations/sso-groups.md), [`operations/ocr.md`](operations/ocr.md), [`operations/costs.md`](operations/costs.md), [`operations/evaluations.md`](operations/evaluations.md), [`operations/health.md`](operations/health.md) | Runbooks shared with platform admins |

@@ -173,7 +173,7 @@ The plan is [`v0.2.1.md`](v0.2.1.md); the release notes are [`releases/v0.2.1.md
 
 | ID | Item | What and why | Size | Value | Depends on |
 |---|---|---|---|---|---|
-| F1 | **OpenTelemetry tracing** | HTTP → retrieval → model calls, with per-stage timings for admins. | M | Medium–High | — |
+| F1 **Done** (v0.3.0 M4) | **OpenTelemetry tracing** | HTTP → retrieval → model calls, with per-stage timings for admins. **Done** ([`operations/tracing.md`](operations/tracing.md)): off unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set; one answer is one trace across HTTP, retrieval, model calls (token counts, time to first token), SystemOne, agent turns and MCP tool calls; trace context through HTTP, MCP `_meta` (both ways) and River job metadata; `trace_id` in log lines; never content. Per-stage timings inside the product and dashboard trace links are not done. | M | Medium–High | — |
 | F2 | **Partitioned vector tables** | Hash-partition `emb_<profile>` before millions of chunks. | M | High at scale | P2 |
 | F3 | **Webhooks** | Signed, retried events (source synced, crawl failed, agent published, feedback). | M | Medium | — |
 | F4 | **Second vector store** | Qdrant or pgvectorscale behind the interface. | L | Low for now | only if F2 isn't enough |

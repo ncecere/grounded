@@ -8,7 +8,8 @@ Grounded exposes Prometheus metrics, ships five Grafana dashboards and a set of 
 | Dashboards | [`deploy/observability/dashboards/`](../../deploy/observability/dashboards) (Grafana JSON, schema 39) |
 | Alert and recording rules | [`deploy/observability/alerts/grounded.rules.yaml`](../../deploy/observability/alerts/grounded.rules.yaml), with unit tests in `grounded.rules.test.yaml` |
 | Kubernetes components | `monitoring` or `monitoring-annotations` (scraping), `alerts` (PrometheusRule), `dashboards` (Grafana sidecar ConfigMaps) |
-| Logs | JSON on stdout (`LOG_FORMAT=json`), one line per request with `route`, `status`, `duration_ms` and `request_id` |
+| Logs | JSON on stdout (`LOG_FORMAT=json`), one line per request with `route`, `status`, `duration_ms` and `request_id` (and `trace_id`, `span_id` when the request is traced) |
+| Traces | OpenTelemetry over OTLP, off unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set: [`tracing.md`](tracing.md) |
 
 ## Scraping
 
