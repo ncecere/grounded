@@ -306,12 +306,13 @@ func (s *Service) classify(ctx context.Context, ex *exchange, err error) error {
 	case status >= 400:
 		return &Error{Class: ClassUnavailable, HTTPStatus: status, Message: fmt.Sprintf("The server answered HTTP %d.", status)}
 	case errors.As(err, &netErr):
-		return &Error{Class: ClassUnavailable, Message: "Couldn't reach the server: " + healthcheck.SafeMessage(netErr.Err.Error())}
+		s.Log.InfoContext(ctx, "mcp server unreachable", "err", err)
+		return &Error{Class: ClassUnavailable, Message: unreachableMessage(err)}
 	case errors.As(err, &rpc):
 		return &Error{Class: ClassBadResponse, Message: "The server returned an error: " + healthcheck.SafeMessage(rpc.Message)}
 	case errors.Is(err, io.ErrUnexpectedEOF):
 		return &Error{Class: ClassBadResponse, Message: "The server's response was cut off."}
 	}
 	s.Log.WarnContext(ctx, "mcp server exchange failed", "err", err)
-	return &Error{Class: ClassUnavailable, Message: "Couldn't reach the server: " + healthcheck.SafeMessage(err.Error())}
+	return &Error{Class: ClassUnavailable, Message: unreachableMessage(err)}
 }

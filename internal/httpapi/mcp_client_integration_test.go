@@ -168,6 +168,19 @@ func TestMCPServerRegistry(t *testing.T) {
 		checks[0].Status != "failing" || checks[0].SubjectName != "Service status" || checks[0].Trigger != "manual" {
 		t.Fatalf("health = %d %+v", code, checks)
 	}
+	// A description change keeps the stored health; a new header value forgets it ("Not tested yet").
+	var srv apitypes.MCPServer
+	env.admin.get(path, &srv)
+	code, e = env.admin.call("PATCH", path, map[string]any{"description": "Campus status."}, &srv, ifMatch(srv.Revision))
+	mustCode(t, "describe", code, e, 200, "")
+	if env.auditor.get("/v1/admin/health-checks?kind=mcp_server", &checks); len(checks) != 1 {
+		t.Fatalf("health after a description change = %+v", checks)
+	}
+	code, e = env.admin.call("PATCH", path, map[string]any{"authValue": "Bearer status-key-1234"}, &srv, ifMatch(srv.Revision))
+	mustCode(t, "new key", code, e, 200, "")
+	if env.auditor.get("/v1/admin/health-checks?kind=mcp_server", &checks); len(checks) != 0 {
+		t.Fatalf("health after a new key = %+v", checks)
+	}
 	// The health job re-tests enabled servers the same way (a list, never a call).
 	env.fake.RequireHeader("Authorization", "Bearer status-key-1234")
 	calls := len(env.fake.Calls())
