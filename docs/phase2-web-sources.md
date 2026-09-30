@@ -45,7 +45,8 @@ A `web` data source stores this JSON in `data_sources.config`. The type is fixed
 **Domain requests:**
 - Team editors and above request a pattern with a reason (at least 10 characters).
 - Platform admins approve, deny or revoke them, with an optional note.
-- Every step is audited (`crawl.domain_request`, `crawl.domain_review`).
+- While a request is pending, the person who asked, or a team admin or owner, can withdraw it (`DELETE /v1/teams/{team}/domain-requests/{id}`; 409 `request_not_pending` once reviewed). A withdrawn request is removed: platform admins no longer see it, and the team can ask again (v0.2.2, J4).
+- Every step is audited (`crawl.domain_request`, `crawl.domain_review`, `crawl.domain_withdraw`).
 - Revoking takes effect on the next fetch.
 - The allowlist cache per team is at most 30 s old.
 

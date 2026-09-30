@@ -57,12 +57,22 @@ func TestDoctorHealthyInstall(t *testing.T) {
 	}
 	actor := authz.Actor{UserID: admin, PlatformRole: authz.PlatformAdmin}
 	cat := catalog.NewService(pool, box)
+	judge := testutil.NewFakeSystemOneService(t) // no GET /models
 	for _, in := range []catalog.ConnectionInput{
 		{Name: "Gateway", BaseURL: proxy.BaseURL(), APIKey: proxy.APIKey, TimeoutSeconds: 5, Enabled: true},
 		{Name: "Old gateway", BaseURL: "https://old.example.edu/v1", TimeoutSeconds: 5, Enabled: false},
+		{Name: "Judge service", BaseURL: judge.BaseURL(), APIKey: judge.APIKey, TimeoutSeconds: 5, Enabled: true},
 	} {
-		if _, err := cat.CreateConnection(ctx, actor, in); err != nil {
+		conn, err := cat.CreateConnection(ctx, actor, in)
+		if err != nil {
 			t.Fatal(err)
+		}
+		if in.Name == "Judge service" {
+			_, err = cat.CreateModel(ctx, actor, catalog.ModelInput{ConnectionID: conn.ID, Key: "judge", Kind: catalog.KindSystemOne,
+				ModelSpec: catalog.ModelSpec{UpstreamModel: "judge-latest", DisplayName: "Judge", MaxClassification: "sensitive", Enabled: true}})
+			if err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 
@@ -83,6 +93,10 @@ func TestDoctorHealthyInstall(t *testing.T) {
 	gw := find(t, rep, "models", "Gateway")
 	if gw.Status != doctor.OK || gw.Timings == nil || gw.Timings.Reused || gw.Timings.ConnectMs <= 0 || !strings.Contains(gw.Detail, "model(s)") {
 		t.Errorf("model connection = %+v %+v", gw, gw.Timings)
+	}
+	// A SystemOne service is asked a SystemOne question, not GET /models.
+	if c := find(t, rep, "models", "Judge service"); c.Status != doctor.OK || !strings.Contains(c.Detail, "SystemOne (judge-latest) answered") {
+		t.Errorf("SystemOne connection = %+v", c)
 	}
 	if c := find(t, rep, "models", "Old gateway"); c.Status != doctor.Skip {
 		t.Errorf("disabled connection = %+v", c)

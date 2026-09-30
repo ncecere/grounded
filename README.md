@@ -170,7 +170,8 @@ Grounded is **pre-1.0**. v0.1.0 is the first release: the whole design through P
 You'll need Go 1.26+, Node 22+ and Docker.
 
 ```sh
-make deps-up   # Postgres (pgvector) and Valkey on loopback ports
+make deps-up   # Postgres (pgvector) and Valkey on loopback ports; they restart with Docker
+make dev-up    # optional, instead: deps-up plus the fake model gateway on :8090, also restarted by Docker
 make web       # build the UI, which is embedded in the binary
 make run       # build bin/grounded and run `grounded serve` with .env (created from .env.example)
 make test      # all Go tests, including integration tests

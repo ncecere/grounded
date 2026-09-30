@@ -58,6 +58,9 @@ SET status = @status, reviewed_by = @reviewed_by, review_note = @review_note, re
 WHERE id = @id
 RETURNING *;
 
+-- name: DeleteDomainRequest :exec
+DELETE FROM crawl_domain_requests WHERE id = $1;
+
 -- ---- crawls -------------------------------------------------------------------
 
 -- name: InsertCrawl :one

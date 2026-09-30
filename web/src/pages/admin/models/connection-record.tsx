@@ -1,7 +1,8 @@
 /*
  * One connection in a RecordPage (A5): its settings, a test that lists the
  * models the proxy offers with "Add as model" for the ones not in the
- * catalog yet, and the models on it. Editing happens in a SheetForm.
+ * catalog yet (a SystemOne service is asked one question instead), and the
+ * models on it. Editing happens in a SheetForm.
  */
 import { plural } from "../../team/common";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -81,6 +82,12 @@ export function ConnectionRecordPage({ conn, open, loading, onClose, models, isA
                     )}
                     {test.error ? (
                       <ErrorAlert error={test.error} />
+                    ) : test.data?.ok && test.data.probe === "systemone" ? (
+                      <Alert tone="success" title={`Connected in ${test.data.latencyMs} ms`}>
+                        The SystemOne service answered a test question (model <code className={s.mono}>{test.data.systemOneModel}</code>). It doesn't
+                        list its models.
+                        <TimingsText timings={test.data.timings} />
+                      </Alert>
                     ) : test.data?.ok ? (
                       <>
                         <Alert tone="success" title={`Connected in ${test.data.latencyMs} ms`}>
@@ -107,6 +114,9 @@ export function ConnectionRecordPage({ conn, open, loading, onClose, models, isA
                     ) : test.data ? (
                       <Alert tone="danger" title="The connection test failed.">
                         <ProxyErrorText error={test.data.error} />
+                        {test.data.probe === "models" && test.data.error?.kind === "not_found" && (
+                          <> A SystemOne service doesn't serve GET /models: add its SystemOne model to this connection, then test again.</>
+                        )}
                         <TimingsText timings={test.data.timings} />
                       </Alert>
                     ) : null}

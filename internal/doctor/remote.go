@@ -122,8 +122,9 @@ func (r *runner) jwks(ctx context.Context, uri string) {
 	r.add(c)
 }
 
-// models calls GET /models on every enabled model connection, like the
-// admin "Test connection".
+// models tests every enabled model connection like the admin "Test
+// connection": GET /models, or one SystemOne question for a SystemOne
+// service.
 func (r *runner) models(ctx context.Context, pool *pgxpool.Pool) {
 	if pool == nil {
 		r.add(Check{Group: "models", Name: "connections", Status: Skip, Detail: "needs Postgres"})
@@ -169,15 +170,20 @@ func (r *runner) model(ctx context.Context, cat *catalog.Service, conn dbgen.Lis
 		if res.Error.Status > 0 {
 			c.Detail += fmt.Sprintf(" (HTTP %d)", res.Error.Status)
 		}
-		switch res.Error.Kind {
-		case gateway.KindNotFound:
-			// The server answered: reachable. SystemOne and some moderation
-			// endpoints do not serve the OpenAI model list.
+		switch {
+		case res.Error.Kind == gateway.KindNotFound && res.Probe == catalog.ProbeModels:
+			// The server answered: reachable. Some moderation endpoints do
+			// not serve the OpenAI model list, nor does a SystemOne service
+			// before its SystemOne model is added (then it is asked a
+			// SystemOne question instead).
 			c.Status = Warn
-			c.Detail = conn.BaseURL + ": reachable, but GET /models answered 404 (expected if it serves only SystemOne or moderation models)"
-		case gateway.KindRateLimited:
+			c.Detail = conn.BaseURL + ": reachable, but GET /models answered 404 (expected if it serves only moderation models, " +
+				"or SystemOne before its SystemOne model is added)"
+		case res.Error.Kind == gateway.KindRateLimited:
 			c.Status = Warn
 		}
+	case res.Probe == catalog.ProbeSystemOne:
+		c.Detail = fmt.Sprintf("%s: SystemOne (%s) answered a test question", conn.BaseURL, res.SystemOneModel)
 	default:
 		c.Detail = fmt.Sprintf("%s: GET /models, %d model(s)", conn.BaseURL, len(res.Models))
 	}

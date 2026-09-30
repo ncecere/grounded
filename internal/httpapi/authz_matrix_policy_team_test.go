@@ -110,6 +110,12 @@ var teamPolicies = map[string]policy{
 	"createDomainRequest": {own: editors, build: func(c *mctx) request {
 		return post(c.team("/domain-requests"), map[string]any{"pattern": fmt.Sprintf("m%d.example.org", c.e.next()), "reason": "The matrix needs this site"})
 	}},
+	// The requester or a team admin or owner; the fixture's requester is the
+	// owner, so editors and members are refused (a requester who is an
+	// editor is tested in domain_withdraw_integration_test.go).
+	"withdrawDomainRequest": {own: admins, build: func(c *mctx) request {
+		return del(c.team("/domain-requests/" + c.pick(c.tf.domainRequest, c.e.freshDomainRequest)))
+	}},
 
 	// Knowledge bases.
 	"listKnowledgeBases": {own: members.and(readKeys), build: func(c *mctx) request { return get(c.team("/kbs")) }},

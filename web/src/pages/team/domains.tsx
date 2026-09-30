@@ -3,7 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useId, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
+import { ConfirmMutationDialog } from "../../components/confirm-dialog";
+import { useRecordParam } from "../../components/templates/record-page";
 import { useIntent } from "../../lib/intents";
+import { useCurrentUser } from "../../session";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { StatusBadge } from "@/components/ui/badge/badge";
 import { terms } from "@/lib/terms";
@@ -155,11 +158,32 @@ export function RequestDomainDialog({
 export const crawlDomainsDescription =
   "Web sources can crawl hosts on the platform allowlist, such as *.example.edu. To crawl another site, request its domain. A platform admin reviews each request.";
 
+/** Withdraws a pending request (the person who asked, or a team admin or owner), closing its page if open. */
+function useWithdrawRequest(team: string, onDone: () => void) {
+  const qc = useQueryClient();
+  const record = useRecordParam();
+  return useMutation({
+    mutationFn: async (r: DomainRequest) =>
+      unwrap(await api.DELETE("/v1/teams/{team}/domain-requests/{requestId}", { params: { path: { team, requestId: r.id } } })),
+    onSuccess: (_, r) => {
+      void qc.invalidateQueries({ queryKey: domainRequestsKey(team) });
+      toast.success("Request withdrawn", `${r.pattern} is no longer waiting for review.`);
+      if (record.id === r.id) record.close();
+      onDone();
+    },
+  });
+}
+
 /** The team's domain requests; `embedded` renders it as the Data sources page's Crawl domains tab. */
 export function DomainRequestsPage({ embedded = false }: { embedded?: boolean }) {
-  const { slug, canEdit, role } = useTeam();
+  const { slug, canEdit, role, archived, isManager } = useTeam();
+  const me = useCurrentUser();
   const requests = useDomainRequests(slug);
   const [requesting, setRequesting] = useState(false);
+  const [withdrawing, setWithdrawing] = useState<DomainRequest | null>(null);
+  const withdraw = useWithdrawRequest(slug, () => setWithdrawing(null));
+  // Mirrors the server: pending, on an active team, asked by the viewer or any as a team admin or owner.
+  const canWithdraw = (r: DomainRequest) => r.status === "pending" && !archived && (isManager || (role !== undefined && r.requestedBy === me.user.id));
   useIntent("new-domain-request", () => canEdit && setRequesting(true));
   const list = requests.data ?? [];
 
@@ -185,6 +209,16 @@ export function DomainRequestsPage({ embedded = false }: { embedded?: boolean })
         loading={requests.isLoading}
         error={requests.error}
         onRetry={() => void requests.refetch()}
+        withdraw={{ can: canWithdraw, onSelect: setWithdrawing }}
+      />
+      <ConfirmMutationDialog
+        target={withdrawing}
+        onClose={() => setWithdrawing(null)}
+        mutation={withdraw}
+        onConfirm={(r) => withdraw.mutate(r)}
+        title={`Withdraw the request for ${withdrawing?.pattern ?? "this domain"}?`}
+        description="Platform admins will no longer see it. Your team can request the domain again later."
+        confirmLabel="Withdraw request"
       />
       {canEdit && <RequestDomainDialog team={slug} open={requesting} onOpenChange={setRequesting} />}
     </Stack>

@@ -185,7 +185,7 @@ The plan is [`v0.2.1.md`](v0.2.1.md); the release notes are [`releases/v0.2.1.md
 | F10 **Done** (v0.2.0) | **Remote Kustomize base for the reference install** | The repository is public, so the homelab overlay can reference `github.com/ncecere/grounded//deploy/kubernetes?ref=v0.1.0` and drop its vendored copy (`docs/deployments/kubernetes.md`, "Consuming the base"). Upgrades become a one-line ref and digest change. | S | Medium | — |
 | F11 | **bitop-ui docs site and npm** | bitop-ui is public, but its docs site isn't published (`DEPLOY_PAGES` is off) and the CLI installs from a checkout. Publish the site, and consider a registry URL so Grounded (and others) install without a local clone. | S | Medium (adoption) | — |
 | F12 **Done** (v0.2.0) | **Dependabot triage** | Weekly grouped update PRs now arrive for Go, npm, Actions and Docker. Decide who merges them and how (CI green → merge), so they don't pile up. | S (ongoing) | Medium | — |
-| F13 **New** | **Local dev resilience** | The dev fake model proxy and the OCR sidecar don't come back after Docker restarts; `make deps-up` should start (or `make dev` should supervise) everything a local build expects. | S | Low (developers) | — |
+| F13 **Done** (v0.2.2, J6) | **Local dev resilience** | The dev fake model proxy and the OCR sidecar don't come back after Docker restarts; `make deps-up` should start (or `make dev` should supervise) everything a local build expects. | S | Low (developers) | — |
 
 ## G. Small fixes and polish
 
@@ -246,11 +246,11 @@ On branch `release/v0.2.2`; found while preparing the public sites' screenshots 
 | ID | Item | Size |
 |---|---|---|
 | J1 **Done** | The admin Overview's Features card squeezed the Evaluations description into a one-word column beside its switch: a row with a control now puts its actions under its text. | S |
-| J2 **New** | A connection test fails with 404 for a working SystemOne connection (the test asks `/models`, which a SystemOne service doesn't serve). Test SystemOne connections with a SystemOne request. | S |
+| J2 **Done** | A connection test fails with 404 for a working SystemOne connection (the test asks `/models`, which a SystemOne service doesn't serve). Test SystemOne connections with a SystemOne request: a connection with only SystemOne models (or a 404 from `/models` and a SystemOne model) is asked one SystemOne question; `grounded doctor` does the same. | S |
 | J3 **New** | Team avatar initials: "IT Help Desk" shows "ID"; initials should come from the first two words ("IH") or skip all-caps acronyms sensibly. | S |
-| J4 **New** | Editors can't withdraw their own pending domain request (there's no API for it). | S |
+| J4 **Done** | Editors can't withdraw their own pending domain request (there's no API for it). `DELETE /v1/teams/{team}/domain-requests/{id}` for the requester or a team admin or owner while pending, audited (`crawl.domain_withdraw`); "Withdraw request…" on Data sources → Crawl domains. The request is removed, not given a new status (no migration). | S |
 | J5 **New** | The G19 bitop-ui items above, as they land. | S |
-| J6 **New** | F13 local dev resilience: the fake model proxy and OCR sidecar come back after a Docker restart. | S |
+| J6 **Done** | F13 local dev resilience: the fake model proxy and OCR sidecar come back after a Docker restart. Compose services restart with Docker; `make deps-up` starts the OCR sidecar when `.env` sets `OCR_TESSERACT_URL`; `make dev-up` adds the fake gateway as a Docker service. | S |
 
 ---
 

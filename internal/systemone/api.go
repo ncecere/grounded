@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"strings"
 
+	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/gateway"
 )
 
@@ -97,12 +97,7 @@ func (r Response) Score(id string) float64 {
 // Path is the endpoint relative to a connection's base URL: a base ending
 // in the version (https://judge.example.edu/v1) gets /systemone, any other
 // base /v1/systemone.
-func Path(base string) string {
-	if strings.HasSuffix(strings.TrimRight(base, "/"), "/v1") {
-		return "/systemone"
-	}
-	return "/v1/systemone"
-}
+func Path(base string) string { return catalog.SystemOnePath(base) }
 
 // badResponse is an answer the client could not accept.
 func badResponse(format string, args ...any) error {

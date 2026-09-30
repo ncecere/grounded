@@ -67,7 +67,7 @@ export function ModelDialog({ model, connections, preset, onClose }: { model: Mo
       busy={save.isPending}
     >
       <FormSection title="Source">
-        <SourceFields model={model} connections={connections} form={form} set={set} listId={listId} suggested={!!available.data?.ok} />
+        <SourceFields model={model} connections={connections} form={form} set={set} listId={listId} suggested={!!available.data?.models.length} />
       </FormSection>
       <FormSection title="Identity">
         <Field label="Display name">

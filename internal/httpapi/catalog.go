@@ -202,10 +202,14 @@ func (a *api) adminTestConnection(w http.ResponseWriter, r *http.Request) {
 	if models == nil {
 		models = []string{}
 	}
-	httpx.JSON(w, http.StatusOK, apitypes.ConnectionTestResult{
+	out := apitypes.ConnectionTestResult{
 		Ok: res.OK, LatencyMs: res.Latency.Milliseconds(), Models: models, Error: toAPIProxyError(res.Error),
-		Timings: probeTimings(r),
-	})
+		Probe: apitypes.ConnectionTestResultProbe(res.Probe), Timings: probeTimings(r),
+	}
+	if res.SystemOneModel != "" {
+		out.SystemOneModel = &res.SystemOneModel
+	}
+	httpx.JSON(w, http.StatusOK, out)
 }
 
 // ---- models -------------------------------------------------------------------
