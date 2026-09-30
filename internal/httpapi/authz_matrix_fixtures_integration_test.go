@@ -74,7 +74,9 @@ type matrixEnv struct {
 	// An MCP server (on a fake MCP server) and one of its tools.
 	mcpFake            *testutil.FakeMCP
 	mcpServer, mcpTool string
-	publicSessions     [numCallers]bool
+	// oauthClient is a registered OAuth client (MCP and OAuth sign-in are on).
+	oauthClient    string
+	publicSessions [numCallers]bool
 	seq                atomic.Int64
 }
 
@@ -300,6 +302,7 @@ func (e *matrixEnv) seedPlatform(t *testing.T) {
 	e.mcpServer = e.freshMCPServer(t)
 	tools := must(t, a, "POST", "/v1/admin/mcp-servers/"+e.mcpServer+"/refresh", nil, nil)
 	e.mcpTool = field(tools, "tools.0.id")
+	e.oauthClient = e.seedOAuth(t)
 }
 
 // freshMCPServer registers the fake MCP server under a new name.

@@ -216,7 +216,8 @@ var adminPolicies = map[string]policy{
 	"adminGetMCPSettings": adminRead("/v1/admin/settings/mcp"),
 	"adminPutMCPSettings": {own: padmin, build: func(c *mctx) request {
 		p := "/v1/admin/settings/mcp"
-		return put(p, map[string]any{"enabled": false}).h(c.rev(p))
+		// Stays on: the OAuth consent operations need it (authz_matrix_policy_oauth_test.go).
+		return put(p, map[string]any{"enabled": true, "oauthEnabled": true}).h(c.rev(p))
 	}},
 	"adminGetMaintenance": adminRead("/v1/admin/settings/maintenance"),
 	"adminPutMaintenance": {own: padmin, build: func(c *mctx) request {
