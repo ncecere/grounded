@@ -170,8 +170,12 @@ export function actionLabel(action: string, entry?: Pick<AuditEntry, "after">) {
 
 /**
  * Action groups for the filter; `platform` groups are only offered in the
- * platform log. "group_mapping." isn't a prefix: the API reads it as the
- * group mapping rules' changes and the memberships they made.
+ * platform log. "group_mapping.", "mcp_clients." and "agent_tools." aren't
+ * prefixes: the API reads the first as the group mapping rules' changes and
+ * the memberships they made, "mcp_clients." as what AI tools did over the MCP
+ * server (mcp. without mcp.tool_call) and "agent_tools." as agents' MCP tool
+ * calls with the MCP servers' and tools' changes (mcp.tool_call, mcp_server.,
+ * mcp_tool.).
  */
 export const actionGroups: { prefix: string; label: string; platform?: boolean }[] = [
   { prefix: "agent.", label: "Agents" },
@@ -186,19 +190,22 @@ export const actionGroups: { prefix: string; label: string; platform?: boolean }
   { prefix: "evaluation.", label: "Evaluations" },
   { prefix: "group_mapping.", label: "SSO groups" },
   { prefix: "breakglass.", label: "Break-glass" },
-  { prefix: "mcp.", label: "MCP server" },
-  { prefix: "mcp_server.", label: "MCP servers (client)", platform: true },
-  { prefix: "mcp_tool.", label: "MCP tools", platform: true },
-  { prefix: "oauth.", label: "Connected apps (OAuth)", platform: true },
+  { prefix: "mcp_clients.", label: "MCP server: AI tools' searches and questions" },
+  { prefix: "agent_tools.", label: "Agents' MCP tools: calls, servers and approvals" },
+  { prefix: "oauth.", label: "Connected apps and OAuth sign-in", platform: true },
   { prefix: "platform.", label: "Platform settings", platform: true },
   { prefix: "auth.", label: "Sign-in", platform: true },
   { prefix: "legal_hold.", label: "Legal holds", platform: true },
   { prefix: "retention.", label: "Retention", platform: true },
 ];
 
+const areaLabel = (prefix: string) => actionGroups.find((g) => g.prefix === prefix)?.label;
+
 /** The area an action belongs to, by its code's group (the SSO rules' own changes are under SSO groups). */
-function areaOf(action: string): string | undefined {
-  if (action.startsWith("platform.sso_rule_")) return actionGroups.find((g) => g.prefix === "group_mapping.")?.label;
+export function areaOf(action: string): string | undefined {
+  if (action.startsWith("platform.sso_rule_")) return areaLabel("group_mapping.");
+  if (action === "mcp.tool_call" || action.startsWith("mcp_server.") || action.startsWith("mcp_tool.")) return areaLabel("agent_tools.");
+  if (action.startsWith("mcp.")) return areaLabel("mcp_clients.");
   return actionGroups.find((g) => g.prefix !== "group_mapping." && action.startsWith(g.prefix))?.label;
 }
 
@@ -240,6 +247,21 @@ export function actorName(actor: AuditEntry["actor"], entry?: Pick<AuditEntry, "
     return rule ? `System (group mapping: ${rule})` : "System (group mapping)";
   }
   return actor.displayName || actor.email || (actor.userId ? "Unknown user" : "Unknown");
+}
+
+/**
+ * How the person acted, when it wasn't in the app: "API key: Nightly sync" (the key is the actor) or "Connected app:
+ * Research Assistant" (an OAuth token, recorded as via: oauth with the app's name). Undefined otherwise.
+ */
+export function actedVia(e: Pick<AuditEntry, "actor" | "metadata">): string | undefined {
+  if (e.actor.kind === "api_key") return `API key${e.actor.apiKeyName ? `: ${e.actor.apiKeyName}` : ""}`;
+  if (e.metadata.via === "oauth") return `Connected app${typeof e.metadata.oauthClient === "string" && e.metadata.oauthClient ? `: ${e.metadata.oauthClient}` : ""}`;
+  return undefined;
+}
+
+/** The same for the record page's How row: a person without a key or an app acted in the app. */
+export function actedHow(e: Pick<AuditEntry, "actor" | "metadata">): string | undefined {
+  return actedVia(e) ?? (e.actor.kind === "user" ? "In the app (signed in)" : undefined);
 }
 
 export const targetTypeLabels: Record<string, string> = {

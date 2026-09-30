@@ -10134,7 +10134,7 @@ type AdminListAuditParams struct {
 	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed.
+	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. mcp_clients. is what AI tools did over Grounded's MCP server (mcp. without mcp.tool_call); agent_tools. is agents' MCP tools: their calls (mcp.tool_call), MCP servers (mcp_server.) and tool approvals (mcp_tool.).
 	Action *AuditActionParam `form:"action,omitempty" json:"action,omitempty"`
 
 	// ExcludeAction Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls.
@@ -10606,7 +10606,7 @@ type ListTeamAuditParams struct {
 	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed.
+	// Action An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. mcp_clients. is what AI tools did over Grounded's MCP server (mcp. without mcp.tool_call); agent_tools. is agents' MCP tools: their calls (mcp.tool_call), MCP servers (mcp_server.) and tool approvals (mcp_tool.).
 	Action *AuditActionParam `form:"action,omitempty" json:"action,omitempty"`
 
 	// ExcludeAction Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls.

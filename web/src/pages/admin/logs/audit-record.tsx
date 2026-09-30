@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { auditChange } from "@/components/audit/changes";
 import { AuditChangesTable } from "@/components/audit/changes-table";
-import { actionLabel, actorName, nameIds } from "@/components/audit/labels";
+import { actedHow, actionLabel, actorName, nameIds } from "@/components/audit/labels";
 import { AuditTarget } from "@/components/audit/target";
 import { RecordPage, type RecordSection } from "@/components/templates/record-page";
 import { CodeBlock } from "@/components/ui/code-block/code-block";
@@ -81,6 +81,7 @@ export function AuditEntryPage({ id, listed, onClose }: Props) {
           ? [
               { label: "When", value: <Time value={entry.occurredAt} format="datetime" /> },
               { label: "Who", value: entry.actor.email && entry.actor.displayName ? `${actorName(entry.actor, entry)} (${entry.actor.email})` : actorName(entry.actor, entry) },
+              ...(actedHow(entry) ? [{ label: "How", value: actedHow(entry) }] : []),
               ...(entry.teamId ? [{ label: "Team", value: <AuditTeam entry={entry} /> }] : []),
               { label: "Action", value: <code className={s.mono}>{entry.action}</code> },
               { label: "Target", value: <AuditTarget entry={entry} scope={{ kind: "platform" }} /> },

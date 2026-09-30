@@ -9,7 +9,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { Eye, FileClock } from "lucide-react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { changeSummary } from "@/components/audit/changes";
-import { actionLabel, actorName, areaOptions, groupMappingPersonOption, personFilter, targetTypeLabel, targetTypeLabels } from "@/components/audit/labels";
+import { actedVia, actionLabel, actorName, areaOptions, groupMappingPersonOption, personFilter, targetTypeLabel, targetTypeLabels } from "@/components/audit/labels";
 import { AuditTarget } from "@/components/audit/target";
 import { ListPage, timeColumn, useListFilters } from "@/components/templates/list-page";
 import { useRecordParam } from "@/components/templates/record-page";
@@ -61,7 +61,7 @@ const columns = (currency?: string): DataTableColumn<Entry>[] => [
     cell: (e) => (
       <span className={e.actor.kind === "system" ? s.muted : s.primary} title={e.actor.email ?? undefined}>
         {actorName(e.actor, e)}
-        {e.actor.kind === "api_key" && <span className={s.secondary}>API key{e.actor.apiKeyName ? `: ${e.actor.apiKeyName}` : ""}</span>}
+        {actedVia(e) && <span className={s.secondary}>{actedVia(e)}</span>}
       </span>
     ),
   },

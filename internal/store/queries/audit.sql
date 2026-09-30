@@ -18,7 +18,8 @@ INSERT INTO audit_log (
 -- policies) always have a live label. parent_* names the object a target
 -- belongs to, for linking: a publishable key's agent, a document's source
 -- (parent_label '' when the parent no longer exists).
--- action_prefix and exclude_prefixes are LIKE-escaped by the caller.
+-- action_prefix, exclude_prefixes and any_prefixes (an area spanning action
+-- groups: any of them) are LIKE-escaped by the caller.
 -- group_mapping: the group mapping rules' changes and the memberships they
 -- made (metadata.via = 'sso_group_rule'), across action groups.
 -- actor_kind: 'system' for the system's entries, 'group_mapping' for the
@@ -115,6 +116,8 @@ WHERE (sqlc.narg(team_id)::uuid IS NULL OR a.team_id = sqlc.narg(team_id)::uuid)
   AND (sqlc.narg(action)::text IS NULL OR a.action = sqlc.narg(action)::text)
   AND (sqlc.narg(action_prefix)::text IS NULL OR a.action LIKE sqlc.narg(action_prefix)::text || '%' ESCAPE '\')
   AND NOT EXISTS (SELECT 1 FROM unnest(sqlc.arg(exclude_prefixes)::text[]) AS x(prefix) WHERE a.action LIKE x.prefix || '%' ESCAPE '\')
+  AND (COALESCE(cardinality(sqlc.arg(any_prefixes)::text[]), 0) = 0
+       OR EXISTS (SELECT 1 FROM unnest(sqlc.arg(any_prefixes)::text[]) AS y(prefix) WHERE a.action LIKE y.prefix || '%' ESCAPE '\'))
   AND (NOT COALESCE(sqlc.narg(group_mapping)::boolean, false)
        OR a.action LIKE 'platform.sso\_rule\_%' ESCAPE '\' OR a.metadata->>'via' = 'sso_group_rule')
   AND (sqlc.narg(actor_user_id)::uuid IS NULL OR a.actor_user_id = sqlc.narg(actor_user_id)::uuid)

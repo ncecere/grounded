@@ -12,7 +12,7 @@ import { Disclosure } from "@/components/ui/disclosure/disclosure";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
-import { actionLabel, actorName } from "./labels";
+import { actedVia, actionLabel, actorName } from "./labels";
 import { type AuditScope, AuditTarget } from "./target";
 import a from "./audit.module.css";
 
@@ -72,7 +72,7 @@ function Who({ entry }: { entry: AuditEntry }) {
   const { actor } = entry;
   // A group mapping rule's change names the rule in the actor ("System (group mapping: …)").
   const name = actorName(actor, entry);
-  const secondary = actor.kind === "api_key" ? `API key${actor.apiKeyName ? `: ${actor.apiKeyName}` : ""}` : actor.kind === "user" && actor.displayName ? actor.email : undefined;
+  const secondary = actedVia(entry) ?? (actor.kind === "user" && actor.displayName ? actor.email : undefined);
   return (
     <>
       <span className={actor.kind === "system" ? s.muted : s.primary}>{name}</span>

@@ -6966,6 +6966,10 @@ components:
         An exact action (agent.publish), or a prefix ending in a dot (agent.)
         for every action in that group. group_mapping. is the SSO group mapping
         rules' changes and the memberships the rules added, changed or removed.
+        mcp_clients. is what AI tools did over Grounded's MCP server (mcp.
+        without mcp.tool_call); agent_tools. is agents' MCP tools: their
+        calls (mcp.tool_call), MCP servers (mcp_server.) and tool approvals
+        (mcp_tool.).
       schema: { type: string, maxLength: 100, pattern: '^[a-z][a-z_]*\.[a-z_]*$', example: agent. }
     AuditExcludeActionParam:
       name: excludeAction

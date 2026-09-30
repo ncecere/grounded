@@ -236,6 +236,26 @@ func TestMCPToolInAnswer(t *testing.T) {
 		t.Fatalf("audit = %v", audits)
 	}
 
+	// The audit areas split agents' tool calls (with the servers and approvals) from what AI tools did over MCP.
+	actions := func(filter string) string {
+		var page apitypes.AuditPage
+		if code := env.admin.get("/v1/admin/audit?limit=100&action="+filter, &page); code != 200 {
+			t.Fatalf("audit %s = %d", filter, code)
+		}
+		seen := map[string]bool{}
+		for _, it := range page.Items {
+			seen[it.Action] = true
+		}
+		return fmt.Sprint(seen)
+	}
+	if got := actions("agent_tools."); !strings.Contains(got, "mcp.tool_call") || !strings.Contains(got, "mcp_server.create") ||
+		!strings.Contains(got, "mcp_tool.approve") || strings.Contains(got, "agent.") {
+		t.Fatalf("agent_tools. = %s", got)
+	}
+	if got := actions("mcp_clients."); strings.Contains(got, "mcp.tool_call") || strings.Contains(got, "mcp_server.") {
+		t.Fatalf("mcp_clients. = %s", got)
+	}
+
 	// Reopening the conversation shows the tool source.
 	var conv apitypes.ConversationDetail
 	var ce struct{ ConversationId string }

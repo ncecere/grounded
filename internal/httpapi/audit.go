@@ -25,6 +25,16 @@ import (
 // changes and the memberships they made, which span action groups.
 const groupMappingActions = "group_mapping."
 
+// auditAreas are action filters spanning groups (docs/mcp.md, docs/mcp-client.md):
+// an entry is in the area when its action starts with one of the prefixes and
+// with none of the exclusions.
+var auditAreas = map[string]struct{ any, exclude []string }{
+	// What AI tools did over Grounded's MCP server (search, ask), not agents' calls out.
+	"mcp_clients.": {any: []string{"mcp."}, exclude: []string{"mcp.tool_call"}},
+	// Agents' MCP tools: their calls, the servers and the tools' approval.
+	"agent_tools.": {any: []string{"mcp.tool_call", "mcp_server.", "mcp_tool."}},
+}
+
 var (
 	auditActionRe     = regexp.MustCompile(`^[a-z][a-z_]*\.[a-z_]*$`)
 	auditExcludeRe    = regexp.MustCompile(`^[a-z][a-z_]*\.(,[a-z][a-z_]*\.)*$`)
@@ -42,9 +52,17 @@ func auditFilters(w http.ResponseWriter, r *http.Request, p *dbgen.ListAuditPara
 			httpx.Error(w, http.StatusBadRequest, "invalid_action", "action must be an action such as agent.publish, or a group prefix such as agent.")
 			return false
 		}
+		area, isArea := auditAreas[v]
 		switch {
 		case v == groupMappingActions:
 			p.GroupMapping = pgtype.Bool{Bool: true, Valid: true}
+		case isArea:
+			for _, x := range area.any {
+				p.AnyPrefixes = append(p.AnyPrefixes, store.EscapeLike(x))
+			}
+			for _, x := range area.exclude {
+				p.ExcludePrefixes = append(p.ExcludePrefixes, store.EscapeLike(x))
+			}
 		case strings.HasSuffix(v, "."):
 			prefix := store.EscapeLike(v)
 			p.ActionPrefix = &prefix

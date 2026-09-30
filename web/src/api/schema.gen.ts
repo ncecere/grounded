@@ -9869,7 +9869,7 @@ export interface components {
         DocumentTagParam: string;
         /** @description Case-insensitive substring match on the title, URL or file name */
         DocumentSearchParam: string;
-        /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. */
+        /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. mcp_clients. is what AI tools did over Grounded's MCP server (mcp. without mcp.tool_call); agent_tools. is agents' MCP tools: their calls (mcp.tool_call), MCP servers (mcp_server.) and tool approvals (mcp_tool.). */
         AuditActionParam: string;
         /** @description Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls. */
         AuditExcludeActionParam: string;
@@ -10524,7 +10524,7 @@ export interface operations {
                 /** @description nextCursor from the previous page */
                 cursor?: components["parameters"]["CursorParam"];
                 limit?: components["parameters"]["LimitParam"];
-                /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. */
+                /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. mcp_clients. is what AI tools did over Grounded's MCP server (mcp. without mcp.tool_call); agent_tools. is agents' MCP tools: their calls (mcp.tool_call), MCP servers (mcp_server.) and tool approvals (mcp_tool.). */
                 action?: components["parameters"]["AuditActionParam"];
                 /** @description Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls. */
                 excludeAction?: components["parameters"]["AuditExcludeActionParam"];
@@ -11294,7 +11294,7 @@ export interface operations {
                 /** @description nextCursor from the previous page */
                 cursor?: components["parameters"]["CursorParam"];
                 limit?: components["parameters"]["LimitParam"];
-                /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. */
+                /** @description An exact action (agent.publish), or a prefix ending in a dot (agent.) for every action in that group. group_mapping. is the SSO group mapping rules' changes and the memberships the rules added, changed or removed. mcp_clients. is what AI tools did over Grounded's MCP server (mcp. without mcp.tool_call); agent_tools. is agents' MCP tools: their calls (mcp.tool_call), MCP servers (mcp_server.) and tool approvals (mcp_tool.). */
                 action?: components["parameters"]["AuditActionParam"];
                 /** @description Action groups (prefixes ending in a dot, comma-separated) to leave out: auth. hides sign-ins and sign-outs; auth.,mcp. also the MCP server's tool calls. */
                 excludeAction?: components["parameters"]["AuditExcludeActionParam"];
