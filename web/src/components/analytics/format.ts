@@ -30,6 +30,7 @@ export const channelLabels: Record<AnalyticsChannel, string> = {
   test: "Draft tests",
   public: "Public page",
   widget: "Embedded widget",
+  mcp: "MCP server",
 };
 
 export { audienceLabels } from "../../lib/terms";

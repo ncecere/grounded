@@ -108,4 +108,4 @@ export const reasonLabels: Record<Schemas["RetentionGroup"]["reason"], string> =
 };
 
 export const audienceText = (a: string) =>
-  ({ signed_in: "Signed-in", anonymous: "Anonymous", team: "Team", all_authenticated: "Signed-in users", public: "Public", widget: "Widget", ui: "App", api: "API", openai: "OpenAI API", test: "Test" })[a] ?? a;
+  ({ signed_in: "Signed-in", anonymous: "Anonymous", team: "Team", all_authenticated: "Signed-in users", public: "Public", widget: "Widget", ui: "App", api: "API", openai: "OpenAI API", mcp: "MCP server", test: "Test" })[a] ?? a;

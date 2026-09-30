@@ -41,10 +41,10 @@ export const recentAnalyticsQuery = () => {
   };
 };
 
-/** The last 5 audit entries other than sign-ins (Recent changes). */
+/** The last 5 audit entries other than sign-ins and MCP tool calls, which change nothing (Recent changes). */
 export const recentChangesQuery = () => ({
   queryKey: ["admin", "audit", "recent"],
-  queryFn: async () => unwrap(await api.GET("/v1/admin/audit", { params: { query: { excludeAction: "auth.", limit: 5 } } })),
+  queryFn: async () => unwrap(await api.GET("/v1/admin/audit", { params: { query: { excludeAction: "auth.,mcp.", limit: 5 } } })),
 });
 
 /*
@@ -54,6 +54,11 @@ export const recentChangesQuery = () => ({
 export const evaluationSettingsQuery = () => ({
   queryKey: ["admin", "evaluations"],
   queryFn: async () => unwrap(await api.GET("/v1/admin/settings/evaluations")),
+});
+
+export const mcpSettingsQuery = () => ({
+  queryKey: ["admin", "mcp"],
+  queryFn: async () => unwrap(await api.GET("/v1/admin/settings/mcp")),
 });
 
 export const parsingSettingsQuery = () => ({

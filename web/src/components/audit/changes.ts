@@ -66,6 +66,8 @@ function fieldsFor(action: string, currency?: string): Fields | undefined {
       };
     case "platform.evaluations":
       return { enabled: ["Evaluations", onOff] };
+    case "platform.mcp":
+      return { enabled: ["MCP server", onOff] };
     case "legal_hold.create":
     case "legal_hold.release":
       return {

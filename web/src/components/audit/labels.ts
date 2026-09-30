@@ -117,6 +117,9 @@ const actionLabels: Record<string, string> = {
   "platform.sso_rule_update": "Changed SSO group rule",
   "platform.sso_rule_delete": "Deleted SSO group rule",
   "platform.evaluations": "Turned evaluations on or off",
+  "platform.mcp": "Turned the MCP server on or off",
+  "mcp.search": "Searched over MCP",
+  "mcp.ask": "Asked an agent over MCP",
   "evaluation.set_create": "Created evaluation set",
   "evaluation.set_update": "Changed evaluation set",
   "evaluation.set_delete": "Deleted evaluation set",
@@ -134,6 +137,7 @@ const actionLabels: Record<string, string> = {
 /** Actions whose entry says which way they went ("Turned evaluations off"), by their recorded after. */
 const directedLabels: Record<string, (after: Record<string, unknown>) => string | undefined> = {
   "platform.evaluations": (a) => (typeof a.enabled === "boolean" ? `Turned evaluations ${a.enabled ? "on" : "off"}` : undefined),
+  "platform.mcp": (a) => (typeof a.enabled === "boolean" ? `Turned the MCP server ${a.enabled ? "on" : "off"}` : undefined),
 };
 
 /**
@@ -169,6 +173,7 @@ export const actionGroups: { prefix: string; label: string; platform?: boolean }
   { prefix: "evaluation.", label: "Evaluations" },
   { prefix: "group_mapping.", label: "SSO groups" },
   { prefix: "breakglass.", label: "Break-glass" },
+  { prefix: "mcp.", label: "MCP server" },
   { prefix: "platform.", label: "Platform settings", platform: true },
   { prefix: "auth.", label: "Sign-in", platform: true },
   { prefix: "legal_hold.", label: "Legal holds", platform: true },
@@ -237,6 +242,7 @@ export const targetTypeLabels: Record<string, string> = {
   knowledge_base: "Knowledge base",
   legal_hold: "Legal hold",
   maintenance_mode: "Maintenance mode",
+  mcp_settings: "MCP server setting",
   model: "Model",
   model_connection: "Model connection",
   moderation_policy: "Moderation policy",

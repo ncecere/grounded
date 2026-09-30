@@ -59,6 +59,7 @@ const routes = (extra: Record<string, Handler> = {}): Record<string, Handler> =>
     nextCursor: null,
   }),
   "GET /v1/admin/settings/evaluations": () => ({ enabled: true, revision: 2, updatedAt: "2026-09-01T10:00:00Z" }),
+  "GET /v1/admin/settings/mcp": () => ({ enabled: false, revision: 4, updatedAt: "2026-09-01T10:00:00Z" }),
   "GET /v1/admin/costs/settings": () => ({ mode: "track", currency: "USD", timeZone: "UTC", warnPercent: 80, defaultBudget: null, revision: 1, updatedAt: "" }),
   "GET /v1/admin/parsing": () => ({ ocrEnabled: true, backend: "tesseract", visionModelId: null, languages: "eng", backends: [], maxPagesPerDocument: 50, concurrency: 1, needsOcr: [], revision: 1, updatedAt: null }),
   "GET /v1/admin/group-mapping": () => ({ groupsClaim: "groups", oidcEnabled: true, ruleCount: 3, peopleSeen: 4, peopleWithClaim: 4, recentSignIns: 2 }),
@@ -112,7 +113,7 @@ describe("admin overview", () => {
     expect(await screen.findByText("Set up this install")).toBeInTheDocument();
     expect(await screen.findByText(/Changed model: GPT/)).toBeInTheDocument();
     expect(await screen.findByText("140")).toBeInTheDocument(); // answers in the last 7 days
-    expect(calls.find((c) => c.url === "/v1/admin/audit")?.search.get("excludeAction")).toBe("auth.");
+    expect(calls.find((c) => c.url === "/v1/admin/audit")?.search.get("excludeAction")).toBe("auth.,mcp.");
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -196,6 +197,36 @@ describe("admin overview", () => {
     expect(await within(row).findByText("Off")).toBeInTheDocument();
   });
 
+  it("turns the MCP server on from the Features card, links its guide, and confirms before turning it off", async () => {
+    const calls = mockApi(routes({ "PUT /v1/admin/settings/mcp": (b) => ({ ...(b as object), revision: 5, updatedAt: "2026-09-28T10:00:00Z" }) }));
+    const { container } = renderApp("/admin");
+    const row = await featureRow("MCP server");
+    expect(await within(row).findByText("Off")).toBeInTheDocument();
+    expect(within(row).getByText("No AI tool can connect over MCP. API keys with the MCP scope are kept.")).toBeInTheDocument();
+    const guide = within(row).getByRole("link", { name: "MCP server setup guide (opens in a new tab)" });
+    expect(guide).toHaveAttribute("href", expect.stringMatching(/docs\/mcp\.md$/));
+    expect(guide).toHaveAttribute("target", "_blank");
+    const toggle = within(row).getByRole("switch", { name: "Allow MCP clients" });
+    expect(toggle).not.toBeChecked();
+    await userEvent.click(toggle);
+    // Turning it on needs no confirmation; the row then names the endpoint.
+    await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
+    const put = calls.find((c) => c.method === "PUT")!;
+    expect(put.url).toBe("/v1/admin/settings/mcp");
+    expect(put.body).toEqual({ enabled: true });
+    expect(put.headers.get("If-Match")).toBe('"4"');
+    expect(await within(row).findByText(`AI tools connect to ${window.location.origin}/mcp with an API key that has the MCP scope, to search knowledge bases and ask agents.`)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    // Off again: a confirmation first, saying what stops.
+    await userEvent.click(within(row).getByRole("switch", { name: "Allow MCP clients" }));
+    const confirm = await screen.findByRole("alertdialog", { name: "Turn the MCP server off?" });
+    expect(within(confirm).getByText(/stop working at once/)).toBeInTheDocument();
+    expect(await axe(confirm)).toHaveNoViolations();
+    await userEvent.click(within(confirm).getByRole("button", { name: "Turn the MCP server off" }));
+    await waitFor(() => expect(calls.filter((c) => c.method === "PUT")).toHaveLength(2));
+    expect(calls.filter((c) => c.method === "PUT")[1]!.body).toEqual({ enabled: false });
+  });
+
   it("shows auditors each feature's state, and the switch disabled with the reason", async () => {
     mockApi(routes({ "GET /v1/me": () => meFor("platform_auditor"), "GET /v1/admin/costs/settings": () => ({ mode: "off", currency: "USD", timeZone: "UTC", warnPercent: 80, defaultBudget: null, revision: 1, updatedAt: "" }) }));
     renderApp("/admin");
@@ -204,6 +235,9 @@ describe("admin overview", () => {
     const toggle = within(row).getByRole("switch", { name: "Allow evaluations" });
     expect(toggle).toHaveAttribute("aria-disabled", "true");
     expect(toggle).toHaveAccessibleDescription("Only platform admins can turn this on or off.");
+    const mcp = within(await featureRow("MCP server")).getByRole("switch", { name: "Allow MCP clients" });
+    expect(mcp).toHaveAttribute("aria-disabled", "true");
+    expect(mcp).toHaveAccessibleDescription("Only platform admins can turn this on or off.");
     // Read-only staff open the requests; they don't review them.
     const queue = (await screen.findByText("Needs attention")).closest("section")!;
     expect(await within(queue).findByRole("link", { name: /View requests/ })).toBeInTheDocument();

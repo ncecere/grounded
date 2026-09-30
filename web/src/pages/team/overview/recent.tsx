@@ -22,7 +22,7 @@ export function RecentChanges() {
   const { slug: team } = useTeam();
   const recent = useQuery({
     queryKey: [...auditKey({ kind: "team", team }), "recent"],
-    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/audit", { params: { path: { team }, query: { limit: 5, excludeAction: "breakglass." } } })),
+    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/audit", { params: { path: { team }, query: { limit: 5, excludeAction: "breakglass.,mcp." } } })),
   });
   const items = recent.data?.items ?? [];
   return (

@@ -1,13 +1,14 @@
 /*
  * Admin Overview › Features (docs/v0.2.1.md I2): one row per optional feature
- * with its state and a link to where it's set up. Evaluations has its switch
- * here (platform admins; auditors see it disabled, with the reason). Each row
+ * with its state and a link to where it's set up. Evaluations and the MCP
+ * server have their switches here (platform admins; auditors see them
+ * disabled, with the reason); the MCP row links to its guide. Each row
  * reads the same query as the feature's own page, so one failure doesn't hide
  * the others, and shows its whole description (not clamped).
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, CircleDollarSign, ClipboardCheck, Earth, Network, ScanText, Sparkles, Wrench } from "lucide-react";
+import { ArrowRight, BookOpen, Cable, CircleDollarSign, ClipboardCheck, Earth, Network, ScanText, Sparkles, Wrench } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { ErrorAlert } from "@/components/ui/alert/alert";
@@ -23,6 +24,7 @@ import { groupMappingStatusQuery } from "../group-mapping/queries";
 import { useIsPlatformAdmin } from "../hooks";
 import { EvaluationsSwitch, evaluationsText, useEvaluationsSetting } from "./evaluations-switch";
 import { costFeature, type FeatureState, plural, systemOneFeature } from "./feature-text";
+import { MCPSwitch, mcpDocsUrl, mcpText, useMCPSetting } from "./mcp-switch";
 import { maintenanceSettingsQuery, parsingSettingsQuery, publicAccessQuery, systemOneSettingsQuery } from "./queries";
 import o from "./overview.module.css";
 
@@ -34,6 +36,8 @@ type Row = {
   description: ReactNode;
   link?: ReactElement;
   action?: string;
+  /** An icon for the link's button (default: an arrow after the text). */
+  actionIcon?: ReactNode;
   control?: ReactNode;
 };
 
@@ -46,7 +50,9 @@ function fromQuery<T>(q: UseQueryResult<T>, base: Omit<Row, "description" | "sta
   return { ...base, description: q.error ? "Couldn't load this setting." : "Loading…" };
 }
 
-function useRows(isAdmin: boolean, evaluations: ReturnType<typeof useEvaluationsSetting>): Row[] {
+type Switches = { evaluations: ReturnType<typeof useEvaluationsSetting>; mcp: ReturnType<typeof useMCPSetting> };
+
+function useRows(isAdmin: boolean, { evaluations, mcp }: Switches): Row[] {
   const costs = useQuery(costSettingsQuery());
   // Teams whose own mode differs from the platform's (Costs → Budgets).
   const budgets = useQuery(budgetsQuery());
@@ -67,6 +73,19 @@ function useRows(isAdmin: boolean, evaluations: ReturnType<typeof useEvaluations
         link: <Link to="/admin/limits" search={{ tab: "evaluations" }} />,
       },
       (d) => ({ state: d.enabled ? on : off, description: evaluationsText(d.enabled) }),
+    ),
+    fromQuery(
+      mcp.settings,
+      {
+        id: "mcp",
+        icon: <Cable />,
+        title: "MCP server",
+        control: <MCPSwitch setting={mcp} isAdmin={isAdmin} />,
+        action: "Setup guide",
+        actionIcon: <BookOpen aria-hidden />,
+        link: <a href={mcpDocsUrl} target="_blank" rel="noreferrer" aria-label="MCP server setup guide (opens in a new tab)" />,
+      },
+      (d) => ({ state: d.enabled ? on : off, description: mcpText(d.enabled) }),
     ),
     fromQuery(costs, { id: "costs", icon: <CircleDollarSign />, title: "Cost tracking", action: "Cost settings", link: <Link to="/admin/costs" search={{ tab: "settings" }} /> }, (d) =>
       costFeature(d.mode, budgets.data?.items),
@@ -94,12 +113,18 @@ function useRows(isAdmin: boolean, evaluations: ReturnType<typeof useEvaluations
 export function FeaturesCard() {
   const isAdmin = useIsPlatformAdmin();
   const evaluations = useEvaluationsSetting();
-  const rows = useRows(isAdmin, evaluations);
+  const mcp = useMCPSetting();
+  const rows = useRows(isAdmin, { evaluations, mcp });
   return (
     <Card id="features" className={o.features} title="Features" description="Optional features: whether each is on, and where to set it up." flush>
       {evaluations.save.error != null && (
         <div className={o.cardAlert}>
           <ErrorAlert error={evaluations.save.error} title="Couldn't change evaluations" />
+        </div>
+      )}
+      {mcp.save.error != null && (
+        <div className={o.cardAlert}>
+          <ErrorAlert error={mcp.save.error} title="Couldn't change the MCP server" />
         </div>
       )}
       <ItemGroup className={o.queue}>
@@ -125,7 +150,8 @@ export function FeaturesCard() {
                 {r.control}
                 {r.link && (
                   <Button size="sm" variant="secondary" render={r.link}>
-                    {r.action} <ArrowRight aria-hidden />
+                    {r.actionIcon}
+                    {r.action} {!r.actionIcon && <ArrowRight aria-hidden />}
                   </Button>
                 )}
               </ItemActions>

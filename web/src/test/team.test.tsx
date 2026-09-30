@@ -493,11 +493,11 @@ describe("knowledge base page", () => {
 
 describe("API keys", () => {
   it("limits scopes by role", () => {
-    expect(allowedScopes("member", "personal")).toEqual(["query"]);
-    expect(allowedScopes("editor", "personal")).toEqual(["query", "ingest"]);
-    expect(allowedScopes("admin", "personal")).toEqual(["query", "ingest", "manage"]);
+    expect(allowedScopes("member", "personal")).toEqual(["query", "mcp"]);
+    expect(allowedScopes("editor", "personal")).toEqual(["query", "ingest", "mcp"]);
+    expect(allowedScopes("admin", "personal")).toEqual(["query", "ingest", "manage", "mcp"]);
     expect(allowedScopes("editor", "service")).toEqual([]);
-    expect(allowedScopes("owner", "service")).toEqual(["query", "ingest", "manage"]);
+    expect(allowedScopes("owner", "service")).toEqual(["query", "ingest", "manage", "mcp"]);
   });
 
   it("shows the secret once, with a curl example, and never again", async () => {
@@ -530,6 +530,10 @@ describe("API keys", () => {
     const dialog = await screen.findByRole("dialog", { name: "New API key" });
     expect(within(dialog).queryByRole("combobox", { name: "Key type" })).toBeNull();
     expect(within(dialog).getAllByRole("checkbox", { name: /^(Query|Ingest|Manage):/ })).toHaveLength(1);
+    // Members may give their key the MCP scope; its line says what it's for, or that the server is off.
+    const mcpScope = within(dialog).getByRole("checkbox", { name: "MCP: search and ask from AI tools" });
+    expect(mcpScope).not.toBeChecked();
+    expect(mcpScope).toHaveAccessibleDescription(/The MCP server is off until a platform admin turns it on\./);
     await userEvent.type(within(dialog).getByLabelText("Name"), "Course search");
     await userEvent.click(within(dialog).getByRole("button", { name: "Create key" }));
 

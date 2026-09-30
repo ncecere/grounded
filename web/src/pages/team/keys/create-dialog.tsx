@@ -15,7 +15,7 @@ import { membersKey } from "@/components/members";
 import { useCurrentUser } from "@/session";
 import { useAgents } from "../../agents/common";
 import { type KB, keysKey, useTeam } from "../common";
-import { type Kind, type Scope, allScopes, allowedScopes, scopeLabels } from "./scopes";
+import { type Kind, type Scope, allScopes, allowedScopes, mcpScopeDescription, scopeLabels } from "./scopes";
 
 function endOfDay(date: string) {
   return new Date(date + "T23:59:59").toISOString();
@@ -55,7 +55,7 @@ export function CreateKeyDialog({ kbs, onClose }: { kbs: KB[]; onClose: () => vo
   if (create.data) {
     return (
       <Dialog open onOpenChange={(o) => !o && onClose()} title="API key created" size="lg" footer={<Button onClick={onClose}>Done</Button>}>
-        <SecretView secret={create.data.secret} team={slug} kbId={create.data.key.knowledgeBaseIds?.[0] ?? kbs[0]?.id} />
+        <SecretView secret={create.data.secret} team={slug} scopes={create.data.key.scopes} kbId={create.data.key.knowledgeBaseIds?.[0] ?? kbs[0]?.id} />
       </Dialog>
     );
   }
@@ -133,7 +133,7 @@ function KeyFields({ form, onChange, chosen, kbs }: KeyFieldsProps) {
         onValueChange={(v) => onChange({ scopes: v as Scope[] })}
       >
         {allowed.map((sc) => (
-          <Checkbox key={sc} value={sc} label={scopeLabels[sc]} />
+          <Checkbox key={sc} value={sc} label={scopeLabels[sc]} description={sc === "mcp" ? mcpScopeDescription(me.capabilities.mcp) : undefined} />
         ))}
       </CheckboxGroup>
       {kbs.length > 0 && (
@@ -169,8 +169,10 @@ function KeyFields({ form, onChange, chosen, kbs }: KeyFieldsProps) {
   );
 }
 
-function SecretView({ secret, team, kbId }: { secret: string; team: string; kbId?: string }) {
+/** The secret once, with how to use it: a retrieve request for REST scopes, the MCP address for the mcp scope (docs/mcp.md). */
+function SecretView({ secret, team, scopes, kbId }: { secret: string; team: string; scopes: Scope[]; kbId?: string }) {
   const origin = globalThis.location?.origin ?? "";
+  const rest = scopes.some((sc) => sc !== "mcp");
   const curl = [
     `curl -X POST ${origin}/v1/teams/${team}/kbs/${kbId ?? "{kbId}"}/retrieve \\`,
     `  -H "Authorization: Bearer ${secret}" \\`,
@@ -183,7 +185,10 @@ function SecretView({ secret, team, kbId }: { secret: string; team: string; kbId
         It won't be shown again. Store it somewhere safe, such as a secrets manager. If you lose it, revoke it and create a new one.
       </Alert>
       <CopyField label="Secret" name="secret" value={secret} />
-      <CopyField label="Example request" name="example request" value={curl} multiline />
+      {rest && <CopyField label="Example request" name="example request" value={curl} multiline />}
+      {scopes.includes("mcp") && (
+        <CopyField label="MCP server" name="MCP server address" value={`${origin}/mcp`} description="Give AI tools this address, with the key as a Bearer token." />
+      )}
     </Stack>
   );
 }
