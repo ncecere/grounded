@@ -349,6 +349,40 @@ describe("the team's spend and banner", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("on a phone shows the breakdown's name and spend, with Tokens and Requests in a Columns menu (G19)", async () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: /max-width/.test(q), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
+    try {
+      mockApi({
+        "GET /v1/teams/registrar/spend": () => ({
+          status: status("warning"), timeZone: "America/New_York", from: "2026-09-01", to: "2026-09-02",
+          total: reports.agent!.total, agents: reports.agent!.rows, models: reports.model!.rows,
+        }),
+      });
+      const { container } = renderBare(<TeamSpendCard team="registrar" />);
+      await userEvent.click(await screen.findByRole("button", { name: /Spend breakdown/ }));
+      const byAgent = await screen.findByRole("table", { name: "By agent" });
+      expect(within(byAgent).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Agent", "Spend"]);
+      expect(screen.getAllByRole("button", { name: "Columns" })).toHaveLength(2);
+      expect(await axe(container)).toHaveNoViolations();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("on a wider window shows every column without a Columns menu", async () => {
+    mockApi({
+      "GET /v1/teams/registrar/spend": () => ({
+        status: status("warning"), timeZone: "America/New_York", from: "2026-09-01", to: "2026-09-02",
+        total: reports.agent!.total, agents: reports.agent!.rows, models: reports.model!.rows,
+      }),
+    });
+    renderBare(<TeamSpendCard team="registrar" />);
+    await userEvent.click(await screen.findByRole("button", { name: /Spend breakdown/ }));
+    const byAgent = await screen.findByRole("table", { name: "By agent" });
+    expect(within(byAgent).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Agent", "Spend", "Tokens", "Requests"]);
+    expect(screen.queryByRole("button", { name: "Columns" })).toBeNull();
+  });
+
   it("opens the breakdown when the Overview's link asks for it (#spend-breakdown)", async () => {
     mockApi({
       "GET /v1/teams/registrar/spend": () => ({

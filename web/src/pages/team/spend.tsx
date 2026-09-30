@@ -7,7 +7,8 @@
  * Overview; spend by agent and by model sits in a "Spend breakdown"
  * disclosure, which the Overview's link opens (#spend-breakdown). Figures
  * update as usage is recorded, so the card says when they were read.
- * Editors and members see no money.
+ * Editors and members see no money. On a phone the breakdown's tables show
+ * the name and the spend; Tokens and Requests are in their Columns menu.
  */
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useRef, useState } from "react";
@@ -19,7 +20,7 @@ import { Badge } from "@/components/ui/badge/badge";
 import { Card } from "@/components/ui/card/card";
 import { Disclosure } from "@/components/ui/disclosure/disclosure";
 import { Loading } from "@/components/ui/spinner/spinner";
-import { Table, Td, Tr } from "@/components/ui/table/table";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import { budgetStateLabel, monthLabel, requestsColumn, requestsHint, type TeamBudgetState } from "@/lib/costs";
 import { Money } from "@/components/money";
 import { BudgetMeter } from "../admin/costs/budget-parts";
@@ -84,33 +85,47 @@ export function SpendStrip({ status: st }: { status: TeamBudgetState }) {
   );
 }
 
+const rowName = (r: Row) => (r.deleted ? `${r.label || "Deleted"} (deleted)` : r.label);
+
+/** The breakdown's columns: the name and the spend stay; on a phone Tokens and Requests start hidden (G19). */
+function spendColumns(first: string, currency: string): DataTableColumn<Row>[] {
+  return [
+    {
+      id: "name",
+      header: first,
+      rowHeader: true,
+      accessor: rowName,
+      cell: (r) => (
+        <>
+          {rowName(r)}{" "}
+          {r.unpriced && (
+            <Badge tone="warning" size="sm">
+              Unpriced
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    { id: "spend", header: "Spend", numeric: true, hideable: false, accessor: (r) => Number(r.spend), cell: (r) => <Money amount={r.spend} currency={currency} /> },
+    { id: "tokens", header: "Tokens", numeric: true, defaultHiddenNarrow: true, accessor: "tokens", cell: (r) => num(r.tokens) },
+    { id: "requests", header: requestsColumn, numeric: true, defaultHiddenNarrow: true, accessor: "requests", cell: (r) => num(r.requests) },
+  ];
+}
+
 function SpendTable({ caption, first, rows, currency }: { caption: string; first: string; rows: Row[]; currency: string }) {
   if (rows.length === 0) return null;
   return (
-    <Table
+    <DataTable
       caption={caption}
       showCaption
-      columns={[first, { label: "Spend", numeric: true }, { label: "Tokens", numeric: true }, { label: requestsColumn, numeric: true }]}
       density="compact"
-    >
-      {rows.map((r) => (
-        <Tr key={r.key || "none"}>
-          <Td>
-            {r.deleted ? `${r.label || "Deleted"} (deleted)` : r.label}{" "}
-            {r.unpriced && (
-              <Badge tone="warning" size="sm">
-                Unpriced
-              </Badge>
-            )}
-          </Td>
-          <Td numeric>
-            <Money amount={r.spend} currency={currency} />
-          </Td>
-          <Td numeric>{num(r.tokens)}</Td>
-          <Td numeric>{num(r.requests)}</Td>
-        </Tr>
-      ))}
-    </Table>
+      columns={spendColumns(first, currency)}
+      data={rows}
+      getRowId={(r) => r.key || "none"}
+      // A Columns menu only on a phone, where Tokens and Requests start hidden.
+      columnsMenu
+      columnsMenuMin={3}
+    />
   );
 }
 
