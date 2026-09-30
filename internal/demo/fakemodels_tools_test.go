@@ -18,16 +18,16 @@ func TestFakeModelsCallsAnOfferedTool(t *testing.T) {
 	}
 	tools := `"tools":[{"type":"function","function":{"name":"search_knowledge","parameters":{}}},
 		{"type":"function","function":{"name":"check_outage","parameters":{"type":"object","required":["service"],"properties":{"service":{"type":"string"}}}}}]`
-	name, args, ok := demoToolCall(req(`{"messages":[{"role":"user","content":"Is email down?"}],` + tools + `}`))
+	name, args, ok := demoToolCall(req(`{"messages":[{"role":"user","content":"<sources>\n<source id=\"1\" title=\"x\">\nA passage.\n</source>\n</sources>\n\nIs email down?"}],` + tools + `}`))
 	if !ok || name != "check_outage" || args != `{"service":"Is email down?"}` {
 		t.Fatalf("call = %q %q %v", name, args, ok)
 	}
 	after := req(`{"messages":[{"role":"user","content":"Is email down?"},{"role":"assistant","content":""},
-		{"role":"tool","content":"<sources>\n<source id=\"1\" title=\"Status · check_outage\">\nEmail is up.\n</source>\n</sources>"}],` + tools + `}`)
+		{"role":"tool","content":"<sources>\n<source id=\"2\" title=\"Status · check_outage\" type=\"tool_result\">\nEmail is up.\n</source>\n</sources>"}],` + tools + `}`)
 	if _, _, ok := demoToolCall(after); ok {
 		t.Fatal("called again after the result")
 	}
-	if text, _ := fakeReply(after); !strings.Contains(text, "Email is up. [1]") {
+	if text, _ := fakeReply(after); !strings.Contains(text, "Email is up. [2]") {
 		t.Fatalf("reply = %q", text)
 	}
 	if _, _, ok := demoToolCall(req(`{"messages":[{"role":"user","content":"hi"}]}`)); ok {

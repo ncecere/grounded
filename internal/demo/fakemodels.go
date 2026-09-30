@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -263,7 +264,12 @@ var titleRE = regexp.MustCompile(`title="([^"]*)"`)
 // "**Title**: words… [n]".
 func quoteSources(text string) string {
 	var out []string
-	for _, m := range sourceRE.FindAllStringSubmatch(text, quotedSources) {
+	// A tool's result (an agent's MCP tool) comes first: it answers the question asked of it.
+	matches := sourceRE.FindAllStringSubmatch(text, -1)
+	sort.SliceStable(matches, func(i, j int) bool {
+		return strings.Contains(matches[i][2], `type="tool_result"`) && !strings.Contains(matches[j][2], `type="tool_result"`)
+	})
+	for _, m := range matches[:min(len(matches), quotedSources)] {
 		title := "Source " + m[1]
 		if t := titleRE.FindStringSubmatch(m[2]); t != nil && strings.TrimSpace(t[1]) != "" {
 			title = html.UnescapeString(t[1])

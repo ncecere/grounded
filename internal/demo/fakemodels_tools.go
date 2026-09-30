@@ -27,7 +27,7 @@ func demoToolCall(in *fakeChatRequest) (name, args string, ok bool) {
 	for _, m := range in.Messages {
 		switch m.Role {
 		case "user":
-			question, afterQuestion = messageText(m.Content), false
+			question, afterQuestion = questionOf(messageText(m.Content)), false
 		case "tool":
 			afterQuestion = true
 		}
@@ -42,6 +42,19 @@ func demoToolCall(in *fakeChatRequest) (name, args string, ok bool) {
 		return t.Function.Name, toolArguments(t.Function.Parameters, question), true
 	}
 	return "", "", false
+}
+
+// questionOf is the question of a user message: the text after the
+// retrieved sources, when the message carries them (retrieval mode always).
+func questionOf(text string) string {
+	for _, end := range []string{"</conflicting_sources>", "</sources>"} {
+		if i := strings.LastIndex(text, end); i >= 0 {
+			text = text[i+len(end):]
+			break
+		}
+	}
+	text = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(text), "No sources matched this question."))
+	return text
 }
 
 // toolArguments fills the schema's required string properties with text.
