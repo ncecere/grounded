@@ -201,6 +201,10 @@ A problem inside a tool (a limit, a used-up budget, an unavailable model, a foll
 - **Audit:** every tool call is an entry with the key as the actor: `mcp.search` (target: the knowledge base) and `mcp.ask` (target: the agent), with the tool, the knowledge base or agent, the number of passages or citations, and the outcome (`ok`, `refused` or `error`, with the error code). Never the query, the question or the answer. Recent changes on the Overview pages leave them out; the audit log shows them under **MCP server**.
 - **Metrics:** `grounded_mcp_tool_calls_total{tool, outcome}`, and the HTTP metrics for `POST /mcp` in the route group `mcp` (outside the latency objective, as answers can take minutes). See [`operations/monitoring.md`](operations/monitoring.md).
 
+## MCP tools in agents
+
+The other direction, agents calling tools on remote MCP servers that platform admins register and approve, is described in [`mcp-client.md`](mcp-client.md).
+
 ## Not in this release
 
 - OAuth sign-in for `/mcp` (planned as an experimental setting).

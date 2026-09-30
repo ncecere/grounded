@@ -46,6 +46,8 @@ Route groups (`group`): `ops` (`/healthz`, `/readyz`, `/metrics`), `chat` (strea
 | `grounded_systemone_request_duration_seconds` | histogram | `feature` | After a concurrency slot is free |
 | `grounded_moderation_decisions_total` | counter | `stage` (`input`, `output`), `decision` | Decisions: `pass`, `flag`, `block`, `support`, `error` (the provider failed; the policy decides whether that blocks) |
 | `grounded_mcp_tool_calls_total` | counter | `tool` (`search`, `ask`), `outcome` | The MCP server's tool calls ([`../mcp.md`](../mcp.md)). Outcomes: `ok`, `refused` (a limit, a budget, a classification rule), `error` |
+| `grounded_mcp_client_calls_total` | counter | `server`, `tool`, `outcome` | Agents' calls to approved MCP server tools ([`../mcp-client.md`](../mcp-client.md)). Outcomes: `ok`, `tool_error`, `refused`, `timeout`, `too_large`, `error`. Server and tool names are bounded by what admins register and approve |
+| `grounded_mcp_client_call_duration_seconds` | histogram | `server`, `tool` | Latency of those calls |
 
 ### Model connections
 
