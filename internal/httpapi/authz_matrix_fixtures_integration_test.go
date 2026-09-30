@@ -77,7 +77,7 @@ type matrixEnv struct {
 	// oauthClient is a registered OAuth client (MCP and OAuth sign-in are on).
 	oauthClient    string
 	publicSessions [numCallers]bool
-	seq                atomic.Int64
+	seq            atomic.Int64
 }
 
 type ownObjects struct{ conv, message, notification string }
