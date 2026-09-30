@@ -18,7 +18,7 @@ const tracingFlushTimeout = 5 * time.Second
 // is logged, not fatal: traces are diagnostics.
 func startTracing(ctx context.Context, cfg config.Tracing, mode string, log *slog.Logger) (stop func()) {
 	shutdown, err := tracing.Setup(ctx, tracing.Options{
-		Endpoint: cfg.Endpoint, Headers: cfg.Headers, ServiceName: cfg.ServiceName,
+		Endpoint: cfg.Endpoint, Protocol: cfg.Protocol, Headers: cfg.Headers, ServiceName: cfg.ServiceName,
 		Sampler: cfg.Sampler, SamplerArg: cfg.SamplerArg, Mode: mode,
 	}, log)
 	if err != nil {

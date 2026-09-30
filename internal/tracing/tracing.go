@@ -14,6 +14,7 @@
 package tracing
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -24,6 +25,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -70,8 +73,10 @@ func Fail(span trace.Span, class string) {
 // Options are the exporter settings (config.Tracing, validated there; this
 // package can't import config, which imports the crawler).
 type Options struct {
-	// Endpoint is the OTLP/HTTP base URL; empty turns tracing off.
+	// Endpoint is the OTLP base URL; empty turns tracing off.
 	Endpoint string
+	// Protocol is http/protobuf (the default) or grpc.
+	Protocol string
 	// Headers are sent with every export; they may carry a token.
 	Headers     map[string]string
 	ServiceName string
@@ -89,11 +94,7 @@ func Setup(ctx context.Context, cfg Options, log *slog.Logger) (shutdown func(co
 	if cfg.Endpoint == "" {
 		return noop, nil
 	}
-	opts := []otlptracehttp.Option{otlptracehttp.WithEndpointURL(cfg.Endpoint + "/v1/traces")}
-	if len(cfg.Headers) > 0 {
-		opts = append(opts, otlptracehttp.WithHeaders(cfg.Headers))
-	}
-	exp, err := otlptracehttp.New(ctx, opts...)
+	exp, err := exporter(ctx, cfg)
 	if err != nil {
 		return noop, fmt.Errorf("tracing: OTLP exporter: %w", err)
 	}
@@ -115,9 +116,30 @@ func Setup(ctx context.Context, cfg Options, log *slog.Logger) (shutdown func(co
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 	otel.SetErrorHandler(&errorHandler{log: log})
 	// The endpoint is logged without the headers, which may carry a token.
-	log.Info("tracing on", "endpoint", cfg.Endpoint, "sampler", cfg.Sampler, "sampler_arg", cfg.SamplerArg)
+	log.Info("tracing on", "endpoint", cfg.Endpoint, "protocol", cmp.Or(cfg.Protocol, "http/protobuf"), "sampler", cfg.Sampler, "sampler_arg", cfg.SamplerArg)
 	return tp.Shutdown, nil
 }
+
+// exporter builds the OTLP exporter: over HTTP, spans go to Endpoint +
+// /v1/traces (as the specification says of OTEL_EXPORTER_OTLP_ENDPOINT);
+// over gRPC, to Endpoint's host (http:// means without TLS).
+func exporter(ctx context.Context, cfg Options) (*otlptrace.Exporter, error) {
+	if cfg.Protocol == ProtocolGRPC {
+		opts := []otlptracegrpc.Option{otlptracegrpc.WithEndpointURL(cfg.Endpoint)}
+		if len(cfg.Headers) > 0 {
+			opts = append(opts, otlptracegrpc.WithHeaders(cfg.Headers))
+		}
+		return otlptracegrpc.New(ctx, opts...)
+	}
+	opts := []otlptracehttp.Option{otlptracehttp.WithEndpointURL(cfg.Endpoint + "/v1/traces")}
+	if len(cfg.Headers) > 0 {
+		opts = append(opts, otlptracehttp.WithHeaders(cfg.Headers))
+	}
+	return otlptracehttp.New(ctx, opts...)
+}
+
+// ProtocolGRPC is OTEL_EXPORTER_OTLP_PROTOCOL=grpc.
+const ProtocolGRPC = "grpc"
 
 // Sampler builds an OTEL_TRACES_SAMPLER sampler (config validated the name).
 func Sampler(name string, arg float64) sdktrace.Sampler {

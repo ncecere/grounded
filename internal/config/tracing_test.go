@@ -38,6 +38,9 @@ func TestTracingSettings(t *testing.T) {
 		tr.Sampler != "parentbased_always_on" || tr.SamplerArg != 0.25 {
 		t.Errorf("tracing = %+v", tr)
 	}
+	if c, err := LoadFrom("", env(map[string]string{"OTEL_EXPORTER_OTLP_PROTOCOL": "gRPC"})); err != nil || c.Tracing.Protocol != "grpc" {
+		t.Errorf("grpc: %v %q", err, c.Tracing.Protocol)
+	}
 	if tr.Headers["Authorization"] != "Bearer abc" || tr.Headers["X-Scope-OrgID"] != "tenant-1" || len(tr.Headers) != 2 {
 		t.Errorf("headers = %d entries", len(tr.Headers))
 	}
@@ -46,7 +49,7 @@ func TestTracingSettings(t *testing.T) {
 func TestTracingInvalidValues(t *testing.T) {
 	for key, value := range map[string]string{
 		"OTEL_EXPORTER_OTLP_ENDPOINT": "tempo:4318",
-		"OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+		"OTEL_EXPORTER_OTLP_PROTOCOL": "http/json",
 		"OTEL_EXPORTER_OTLP_HEADERS":  "not-a-pair",
 		"OTEL_TRACES_SAMPLER":         "jaeger_remote",
 		"OTEL_TRACES_SAMPLER_ARG":     "1.5",

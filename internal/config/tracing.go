@@ -15,11 +15,11 @@ import (
 
 // Tracing configures the OpenTelemetry trace exporter.
 type Tracing struct {
-	// Endpoint is the OTLP/HTTP base URL (OTEL_EXPORTER_OTLP_ENDPOINT), for
-	// example http://tempo.monitoring.svc:4318; traces go to Endpoint +
-	// /v1/traces. Empty: tracing is off.
+	// Endpoint is the OTLP base URL (OTEL_EXPORTER_OTLP_ENDPOINT), for
+	// example http://tempo.monitoring.svc:4318; over HTTP traces go to
+	// Endpoint + /v1/traces. Empty: tracing is off.
 	Endpoint string
-	// Protocol is OTEL_EXPORTER_OTLP_PROTOCOL; only http/protobuf is built in.
+	// Protocol is OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf (default) or grpc.
 	Protocol string
 	// Headers are sent with every export (OTEL_EXPORTER_OTLP_HEADERS,
 	// "name=value,name2=value2" with URL-encoded values). They may carry
@@ -39,6 +39,7 @@ func (t Tracing) Enabled() bool { return t.Endpoint != "" }
 // Tracing protocol and sampler values.
 const (
 	OTLPProtocolHTTP        = "http/protobuf"
+	OTLPProtocolGRPC        = "grpc"
 	DefaultTraceSampler     = "parentbased_traceidratio"
 	DefaultTraceServiceName = "grounded"
 )
@@ -111,18 +112,19 @@ func otlpEndpoint(c *Config, v string) error {
 	return nil
 }
 
-// otlpProtocol accepts http/protobuf only: the gRPC exporter would add
-// several megabytes to the binary (docs/operations/tracing.md).
+// otlpProtocol accepts http/protobuf and grpc (http/json is not built into
+// the Go exporters).
 func otlpProtocol(c *Config, v string) error {
 	v = strings.ToLower(strings.TrimSpace(v))
 	switch v {
 	case "", OTLPProtocolHTTP:
 		c.Tracing.Protocol = OTLPProtocolHTTP
-		return nil
-	case "grpc":
-		return errors.New("grpc is not built in: use http/protobuf (the collector's port 4318)")
+	case OTLPProtocolGRPC:
+		c.Tracing.Protocol = OTLPProtocolGRPC
+	default:
+		return errors.New("must be http/protobuf or grpc")
 	}
-	return errors.New("must be http/protobuf")
+	return nil
 }
 
 // otlpHeaders parses OTEL_EXPORTER_OTLP_HEADERS. Errors never quote a value
