@@ -111,6 +111,28 @@ var adminPolicies = map[string]policy{
 		return post("/v1/admin/legal-holds/"+c.pickP(c.e.legalHold, c.e.freshLegalHold)+"/release", map[string]any{"reason": "Matrix"})
 	}},
 
+	// MCP servers (docs/mcp-client.md).
+	"adminListMCPServers": adminRead("/v1/admin/mcp-servers"),
+	"adminCreateMCPServer": {own: padmin, build: func(c *mctx) request {
+		return post("/v1/admin/mcp-servers", map[string]any{"name": fmt.Sprintf("mcp %d", c.e.next()), "url": c.e.mcpFake.URL(), "maxClassification": "open"})
+	}},
+	"adminGetMCPServer": {own: platform, build: func(c *mctx) request { return get("/v1/admin/mcp-servers/" + c.e.mcpServer) }},
+	"adminUpdateMCPServer": {own: padmin, build: func(c *mctx) request {
+		p := "/v1/admin/mcp-servers/" + c.e.mcpServer
+		return patch(p, map[string]any{"description": upd}).h(c.rev(p))
+	}},
+	"adminDeleteMCPServer": {own: padmin, build: func(c *mctx) request {
+		return del("/v1/admin/mcp-servers/" + c.pickP(c.e.mcpServer, c.e.freshMCPServer))
+	}},
+	"adminTestMCPServer": {own: padmin, build: func(c *mctx) request { return post("/v1/admin/mcp-servers/"+c.e.mcpServer+"/test", nil) }},
+	"adminRefreshMCPServerTools": {own: padmin, build: func(c *mctx) request {
+		return post("/v1/admin/mcp-servers/"+c.e.mcpServer+"/refresh", nil)
+	}},
+	"adminListMCPServerTools": {own: platform, build: func(c *mctx) request { return get("/v1/admin/mcp-servers/" + c.e.mcpServer + "/tools") }},
+	"adminSetMCPToolApproval": {own: padmin, build: func(c *mctx) request {
+		return put("/v1/admin/mcp-servers/"+c.e.mcpServer+"/tools/"+c.e.mcpTool+"/approval", map[string]any{"approved": true})
+	}},
+
 	// Connections, models and embedding profiles.
 	"adminListConnections": adminRead("/v1/admin/connections"),
 	"adminCreateConnection": {own: padmin, build: func(c *mctx) request {

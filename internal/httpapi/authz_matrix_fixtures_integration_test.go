@@ -70,9 +70,12 @@ type matrixEnv struct {
 	// groupRule is an SSO group mapping rule on team B.
 	groupRule string
 	// price is a price row of the chat model.
-	price          string
-	publicSessions [numCallers]bool
-	seq            atomic.Int64
+	price string
+	// An MCP server (on a fake MCP server) and one of its tools.
+	mcpFake            *testutil.FakeMCP
+	mcpServer, mcpTool string
+	publicSessions     [numCallers]bool
+	seq                atomic.Int64
 }
 
 type ownObjects struct{ conv, message, notification string }
@@ -293,6 +296,16 @@ func (e *matrixEnv) seedPlatform(t *testing.T) {
 	must(t, a, "PUT", "/v1/admin/costs/settings", map[string]any{"mode": "track", "currency": "USD", "timeZone": "UTC", "warnPercent": 80,
 		"defaultBudget": nil}, ifMatch(revisionOf(t, a, "/v1/admin/costs/settings")))
 	e.price = e.freshPrice(t)
+	e.mcpFake = testutil.NewFakeMCP(t)
+	e.mcpServer = e.freshMCPServer(t)
+	tools := must(t, a, "POST", "/v1/admin/mcp-servers/"+e.mcpServer+"/refresh", nil, nil)
+	e.mcpTool = field(tools, "tools.0.id")
+}
+
+// freshMCPServer registers the fake MCP server under a new name.
+func (e *matrixEnv) freshMCPServer(t *testing.T) string {
+	return field(must(t, e.admin, "POST", "/v1/admin/mcp-servers", map[string]any{"name": fmt.Sprintf("MCP %d", e.next()),
+		"url": e.mcpFake.URL(), "maxClassification": "open"}, nil), "id")
 }
 
 // freshPrice adds a price row to the chat model.

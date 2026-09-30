@@ -33,6 +33,10 @@ import (
 //     the last user message → one call to search_knowledge (or the first
 //     offered tool if that is absent) with arguments {"query": <last user
 //     text>}, split across several chunks, finish_reason "tool_calls".
+//     With SetToolCalls, the scripted calls come instead, one per turn: the
+//     k-th when k-1 "tool" messages follow the last user message and that
+//     tool is offered (MCP tools, docs/mcp-client.md); once they are used
+//     up, the rules below answer.
 //  3. Small talk: the system prompt contains "latest message is small talk"
 //     → FakeSmallTalk (the scope check's small-talk reply).
 //  4. Sources: the most recent of those messages containing `<source id="1"`
@@ -69,6 +73,7 @@ type FakeProxy struct {
 	chatFail   int             // if non-zero, chat completions respond with this status
 	chunkDelay time.Duration   // pause between streamed chunks
 	answer     string          // SetAnswer: the reply to a question with sources
+	toolScript []FakeToolCall  // SetToolCalls
 	chatBodies []json.RawMessage
 	Requests   []string // "METHOD /path model" log
 
@@ -170,6 +175,20 @@ func (p *FakeProxy) SetAnswer(text string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.answer = text
+}
+
+// FakeToolCall is a scripted tool call (SetToolCalls).
+type FakeToolCall struct {
+	Name string
+	Args string // JSON
+}
+
+// SetToolCalls scripts the tool calls of every answer, one per turn (rule
+// 2); none restores the default.
+func (p *FakeProxy) SetToolCalls(calls ...FakeToolCall) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.toolScript = calls
 }
 
 // BaseURL returns the OpenAI-style base URL including /v1.

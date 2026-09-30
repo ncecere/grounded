@@ -57,8 +57,9 @@ type fakeReply struct {
 	promptTokens       int
 }
 
-// decideFakeReply applies the rules; answer is SetAnswer's text.
-func decideFakeReply(in *fakeChatRequest, answer string) fakeReply {
+// decideFakeReply applies the rules; answer is SetAnswer's text and
+// script SetToolCalls'.
+func decideFakeReply(in *fakeChatRequest, answer string, script []FakeToolCall) fakeReply {
 	var system []string
 	lastUser, words := -1, 0
 	for i, m := range in.Messages {
@@ -73,21 +74,30 @@ func decideFakeReply(in *fakeChatRequest, answer string) fakeReply {
 	}
 	out := fakeReply{promptTokens: words + 1}
 	sys := strings.Join(system, "\n")
-	question, hasToolResult := "", false
+	question, toolResults := "", 0
 	var current []string // contents of the last user message and what follows
 	if lastUser >= 0 {
 		question = fakeText(in.Messages[lastUser].Content)
 		for _, m := range in.Messages[lastUser:] {
 			current = append(current, fakeText(m.Content))
-			hasToolResult = hasToolResult || m.Role == "tool"
+			if m.Role == "tool" {
+				toolResults++
+			}
 		}
 	}
+	hasToolResult := toolResults > 0
 	var choice string
 	_ = json.Unmarshal(in.ToolChoice, &choice)
 
 	switch {
 	case len(in.Tools) == 0 && strings.Contains(strings.ToLower(sys), "standalone"):
 		out.text = question
+	case len(script) > 0:
+		if call, ok := scriptedCall(in, choice, script, toolResults); ok {
+			out.toolName, out.toolArgs = call.Name, call.Args
+		} else {
+			out.text = fakeAnswer(sys, question, current, answer)
+		}
 	case len(in.Tools) > 0 && choice != "none" && !hasToolResult:
 		out.toolName = in.Tools[0].Function.Name
 		for _, t := range in.Tools {
@@ -101,6 +111,20 @@ func decideFakeReply(in *fakeChatRequest, answer string) fakeReply {
 		out.text = fakeAnswer(sys, question, current, answer)
 	}
 	return out
+}
+
+// scriptedCall is the scripted call for this turn, when it is offered.
+func scriptedCall(in *fakeChatRequest, choice string, script []FakeToolCall, done int) (FakeToolCall, bool) {
+	if choice == "none" || done >= len(script) {
+		return FakeToolCall{}, false
+	}
+	call := script[done]
+	for _, t := range in.Tools {
+		if t.Function.Name == call.Name {
+			return call, true
+		}
+	}
+	return FakeToolCall{}, false
 }
 
 // fakeAnswer is a text answer (rules 3-7).
@@ -235,14 +259,14 @@ func (p *FakeProxy) completions(w http.ResponseWriter, r *http.Request) {
 	}
 	ok := p.chat[in.Model]
 	p.chatBodies = append(p.chatBodies, raw)
-	delay, answer := p.chunkDelay, p.answer
+	delay, answer, script := p.chunkDelay, p.answer, p.toolScript
 	p.mu.Unlock()
 	if !ok {
 		writeErr(w, 404, "model not found")
 		return
 	}
 
-	reply := decideFakeReply(&in, answer)
+	reply := decideFakeReply(&in, answer, script)
 	completion := len(strings.Fields(reply.text)) + len(strings.Fields(reply.toolArgs)) + len(FakeReasoning)
 	usage := map[string]any{
 		"prompt_tokens": reply.promptTokens, "completion_tokens": completion,
