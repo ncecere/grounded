@@ -1,0 +1,29 @@
+# Optional OpenTelemetry tracing (docs/operations/tracing.md): api and worker
+# send traces over OTLP/HTTP to a collector such as Tempo, Jaeger or the
+# OpenTelemetry Collector, and may reach it on TCP 4318 (and 4317 for
+# OTEL_EXPORTER_OTLP_PROTOCOL=grpc) in the "monitoring" namespace.
+#
+# Tracing is off in the base. With this component, patch in your overlay:
+#   - OTEL_EXPORTER_OTLP_ENDPOINT below (a placeholder),
+#   - the NetworkPolicy's namespace (or an ipBlock for a collector outside
+#     the cluster),
+#   - optionally OTEL_TRACES_SAMPLER_ARG (the share of new traces kept).
+# An OTEL_EXPORTER_OTLP_HEADERS with a token belongs in the grounded-runtime
+# Secret, not here.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - networkpolicy.yaml
+
+patches:
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: grounded-config
+      data:
+        OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo.monitoring.svc:4318
+        OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+        OTEL_TRACES_SAMPLER: parentbased_traceidratio
+        OTEL_TRACES_SAMPLER_ARG: "0.2"

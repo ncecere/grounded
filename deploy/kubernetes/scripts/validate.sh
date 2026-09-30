@@ -32,7 +32,8 @@ combinations=(
   "alerts"
   "dashboards"
   "private-registry"
-  "postgres-single valkey-single backup-pgdump backup-objects ingress tika ocr-tesseract monitoring alerts dashboards private-registry"
+  "tracing"
+  "postgres-single valkey-single backup-pgdump backup-objects ingress tika ocr-tesseract monitoring alerts dashboards private-registry tracing"
   "postgres-cnpg valkey-single ingress tika monitoring-annotations private-registry"
 )
 
