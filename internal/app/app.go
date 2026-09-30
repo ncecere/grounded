@@ -44,6 +44,9 @@ func Run(ctx context.Context, mode string, cfg config.Config, log *slog.Logger) 
 	}
 	log = log.With("mode", mode)
 	log.Info("starting", "version", buildinfo.Version, "commit", buildinfo.Commit)
+	if mode != ModeMigrate {
+		defer startTracing(ctx, cfg.Tracing, mode, log)()
+	}
 
 	pool, err := store.OpenWait(ctx, cfg.DatabaseURL, dbConnectWait, log)
 	if err != nil {

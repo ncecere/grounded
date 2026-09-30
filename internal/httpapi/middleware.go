@@ -2,14 +2,22 @@ package httpapi
 
 import (
 	"bufio"
+	"cmp"
 	"errors"
 	"log/slog"
 	"net"
 	"net/http"
 	"runtime/debug"
+	"strconv"
+	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/ncecere/grounded/internal/httpx"
+	"github.com/ncecere/grounded/internal/observability"
+	"github.com/ncecere/grounded/internal/tracing"
 )
 
 // statusRecorder captures the status code while still supporting streaming
@@ -57,6 +65,7 @@ func chain(mux *http.ServeMux, d Deps) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		reqID := httpx.NewID(12)
+		r, span := startSpan(r, reqID)
 		r = r.WithContext(httpx.WithRequestID(r.Context(), reqID))
 
 		h := w.Header()
@@ -83,6 +92,7 @@ func chain(mux *http.ServeMux, d Deps) http.Handler {
 			// ServeMux sets r.Pattern on the request it routes; it is empty
 			// for unmatched paths, which keeps metric labels bounded.
 			elapsed := time.Since(start)
+			endSpan(span, r.Pattern, rec.status)
 			d.Metrics.ObserveHTTP(r.Method, r.Pattern, rec.status, elapsed)
 			level := slog.LevelInfo
 			if quietRoutes[r.Pattern] {
@@ -95,4 +105,42 @@ func chain(mux *http.ServeMux, d Deps) http.Handler {
 		}()
 		mux.ServeHTTP(rec, r)
 	})
+}
+
+// startSpan starts the request's server span (none for health checks and
+// metrics). The W3C trace context of the request continues its trace,
+// except on public-agent and widget routes: their callers are anonymous, so
+// they start a new trace and can't make Grounded sample (or not) at will.
+func startSpan(r *http.Request, reqID string) (*http.Request, trace.Span) {
+	if quietRoutes["GET "+r.URL.Path] {
+		return r, trace.SpanFromContext(r.Context()) // a no-op span
+	}
+	ctx := r.Context()
+	if observability.RouteGroup(r.URL.Path) != observability.GroupPublic {
+		ctx = tracing.ExtractHeader(ctx, r.Header)
+	}
+	// Named by method until routed; endSpan names it by route pattern.
+	ctx, span := tracing.StartKind(ctx, r.Method, trace.SpanKindServer,
+		attribute.String("http.request.method", r.Method), attribute.String("grounded.request_id", reqID))
+	return r.WithContext(ctx), span
+}
+
+// endSpan names the span by the matched route pattern (never the raw path,
+// which holds IDs) and records the status.
+func endSpan(span trace.Span, pattern string, status int) {
+	if !span.IsRecording() {
+		span.End()
+		return
+	}
+	name := cmp.Or(pattern, "unmatched")
+	route := name
+	if _, path, ok := strings.Cut(name, " "); ok {
+		route = path
+	}
+	span.SetName(name)
+	span.SetAttributes(attribute.String("http.route", route), attribute.Int("http.response.status_code", status))
+	if status >= 500 {
+		tracing.Fail(span, strconv.Itoa(status))
+	}
+	span.End()
 }

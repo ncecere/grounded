@@ -1,4 +1,5 @@
-// Package observability configures structured logging and Prometheus metrics.
+// Package observability configures structured logging and Prometheus
+// metrics (tracing: internal/tracing).
 package observability
 
 import (
@@ -14,17 +15,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/ncecere/grounded/internal/tracing"
 )
 
-// NewLogger returns a slog logger writing JSON (for Loki) or text.
+// NewLogger returns a slog logger writing JSON (for Loki) or text. Records
+// logged with the context of a traced request or job carry its trace_id and
+// span_id (tracing.LogHandler).
 func NewLogger(w io.Writer, level, format string) *slog.Logger {
 	var lvl slog.Level
 	_ = lvl.UnmarshalText([]byte(level))
 	opts := &slog.HandlerOptions{Level: lvl}
 	if format == "text" {
-		return slog.New(slog.NewTextHandler(w, opts))
+		return slog.New(tracing.LogHandler(slog.NewTextHandler(w, opts)))
 	}
-	return slog.New(slog.NewJSONHandler(w, opts))
+	return slog.New(tracing.LogHandler(slog.NewJSONHandler(w, opts)))
 }
 
 // Metrics owns the process registry and the metrics every mode needs: HTTP
