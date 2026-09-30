@@ -24,7 +24,8 @@ const (
 
 // StateCollector exposes install-wide state read from Postgres at scrape
 // time: the River queue (jobs per kind and state, the oldest waiting and
-// running job per kind), maintenance mode and open break-glass sessions.
+// running job per kind), maintenance mode, open break-glass sessions and
+// the stored health of enabled connections and models.
 // Every process that registers it reports the same values, so dashboards
 // and alerts aggregate them with max(). The worker (and serve) processes
 // register it; API processes do not, to keep scrapes off the database.
@@ -38,6 +39,7 @@ type StateCollector struct {
 
 	up, jobs, availableAge, runningAge  *prometheus.Desc
 	maintenance, maintenanceStarted, bg *prometheus.Desc
+	healthFailing, healthFailingFor     *prometheus.Desc
 }
 
 type jobState struct {
@@ -46,12 +48,18 @@ type jobState struct {
 	availableAge, runAge float64
 }
 
+type healthState struct {
+	kind                string
+	failing, failingFor float64
+}
+
 type stateSnapshot struct {
 	ok                 bool
 	jobs               []jobState
 	maintenance        bool
 	maintenanceStarted *time.Time
 	bgActive, bgPend   float64
+	health             []healthState
 }
 
 // NewStateCollector reads from db (nil: the collector only describes its
@@ -73,11 +81,15 @@ func NewStateCollector(db StateDB, log *slog.Logger) *StateCollector {
 			"When the current maintenance mode started (Unix time); absent while off.", nil, nil),
 		bg: prometheus.NewDesc("grounded_breakglass_open_sessions",
 			"Break-glass sessions open now, by status (active, pending).", []string{"status"}, nil),
+		healthFailing: prometheus.NewDesc("grounded_health_failing",
+			"Enabled subjects (connections, models) whose latest stored health check failed, by kind.", []string{"kind"}, nil),
+		healthFailingFor: prometheus.NewDesc("grounded_health_failing_seconds",
+			"How long the longest-failing enabled subject of a kind has been failing (0 when none is).", []string{"kind"}, nil),
 	}
 }
 
 func (c *StateCollector) Describe(ch chan<- *prometheus.Desc) {
-	for _, d := range []*prometheus.Desc{c.up, c.jobs, c.availableAge, c.runningAge, c.maintenance, c.maintenanceStarted, c.bg} {
+	for _, d := range []*prometheus.Desc{c.up, c.jobs, c.availableAge, c.runningAge, c.maintenance, c.maintenanceStarted, c.bg, c.healthFailing, c.healthFailingFor} {
 		ch <- d
 	}
 }
@@ -110,6 +122,10 @@ func (c *StateCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	gauge(c.bg, s.bgActive, "active")
 	gauge(c.bg, s.bgPend, "pending")
+	for _, h := range s.health {
+		gauge(c.healthFailing, h.failing, h.kind)
+		gauge(c.healthFailingFor, h.failingFor, h.kind)
+	}
 }
 
 // snapshot returns the cached state, reading it again when older than
@@ -146,6 +162,24 @@ SELECT m.enabled, m.started_at,
        (SELECT count(*) FROM break_glass_sessions WHERE status = 'pending')::float8
 FROM maintenance_mode m`
 
+// healthSQL counts, per kind with an enabled subject, the enabled subjects
+// whose latest check failed and how long the longest has been failing
+// (docs/operations/health.md).
+const healthSQL = `
+SELECT s.subject_kind,
+       count(*) FILTER (WHERE h.status = 'failing')::float8,
+       COALESCE(max(GREATEST(EXTRACT(EPOCH FROM now() - h.status_since), 0)) FILTER (WHERE h.status = 'failing'), 0)::float8
+FROM health_subjects s
+LEFT JOIN LATERAL (
+    SELECT c.status, c.status_since FROM health_checks c
+    WHERE c.subject_kind = s.subject_kind AND c.subject_id = s.subject_id
+    ORDER BY c.checked_at DESC, c.id DESC
+    LIMIT 1
+) h ON true
+WHERE s.enabled
+GROUP BY s.subject_kind
+ORDER BY s.subject_kind`
+
 func readState(ctx context.Context, db StateDB) (stateSnapshot, error) {
 	var s stateSnapshot
 	rows, err := db.Query(ctx, jobStateSQL)
@@ -161,6 +195,18 @@ func readState(ctx context.Context, db StateDB) (stateSnapshot, error) {
 		return s, err
 	}
 	err = db.QueryRow(ctx, platformStateSQL).Scan(&s.maintenance, &s.maintenanceStarted, &s.bgActive, &s.bgPend)
+	if err != nil {
+		return s, err
+	}
+	rows, err = db.Query(ctx, healthSQL)
+	if err != nil {
+		return s, err
+	}
+	s.health, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (healthState, error) {
+		var h healthState
+		err := r.Scan(&h.kind, &h.failing, &h.failingFor)
+		return h, err
+	})
 	return s, err
 }
 

@@ -71,6 +71,10 @@ type Config struct {
 	// EvaluationConcurrency is how many questions an evaluation run checks
 	// at once (docs/evaluations.md §4).
 	EvaluationConcurrency int
+	// HealthCheckInterval is how often the health job re-tests enabled
+	// connections and models (docs/operations/health.md); 0 turns the
+	// scheduled re-test off (Test buttons still store their results).
+	HealthCheckInterval time.Duration
 
 	// Boilerplate are the platform defaults of repeated-block suppression
 	// (ADR-0021); sources may override them.
@@ -249,6 +253,7 @@ func Defaults() Config {
 	}
 	c.ProfileMigrationGraceDays = 7
 	c.EvaluationConcurrency = 2
+	c.HealthCheckInterval = 15 * time.Minute
 	return c
 }
 
