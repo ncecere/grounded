@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Cross-encoder reranking** (v0.4.0 M1, roadmap A1b; [`docs/operations/rerank.md`](docs/operations/rerank.md)). A platform admin chooses a rerank model under **Admin → Models → Reranking settings** (a model of kind `rerank` served at `POST {base}/rerank`, the Cohere and Jina shape that LiteLLM, vLLM and SGLang accept), with the candidate count (default 40) and a time limit (default 2 s). Every search then fetches the candidates, scores them in one call and keeps the best: agents keep their **passages kept after reranking** (Build → Advanced, default 6; **Rerank passages** turns it off for an agent) for SystemOne judging, which then judges only those few, or for the model; Try it, the retrieval API and MCP `search` keep the k asked for. It fails open: an error or a slow call keeps the fusion order. A rerank model only reads knowledge bases up to its maximum classification. **Test model** works for rerank models (a passage that answers a fixed question must score above one that doesn't) and is stored as health; compatibility flags `rerankDocumentsField` (`documents` or `texts`) and `supportsRerankTopN`, and an optional maximum input length. Try it shows each passage's rerank score, how the search was reranked, and a **Rerank** switch to compare; evaluation runs rerank like searches and can run without it (**Rerank** off), recorded in the run's configuration and marked on the score chart. Usage: `rerank_tokens` and `rerank_requests`, priced per rerank model, shown as the spend category **Rerank**. Metrics `grounded_rerank_requests_total{caller, status}` and `grounded_rerank_duration_seconds`, a Reranking row on the Chat and retrieval dashboard, and `rerank` spans. API (additive): `GET`/`PUT /v1/admin/rerank` (audited `platform.rerank_settings_update`), `GET /v1/rerank/status`, `rerank` and `rerankTopN` in agent configurations, `rerank` on `RetrieveRequest` and `EvaluationRunStart`, `rerankScore` on retrieved hits and `rerank` on retrieval results, `rerank` on evaluation run configurations, model tests and catalog usage, `rerank` in spend by kind, the `rerank_tokens` and `rerank_requests` price units. Migration `00040_rerank` (a settings table; the price unit constraint widened).
+
+### Changed
+
+- Cost report CSVs have a `rerank` column after `mcp`, before `tokens`.
+
 ## [0.3.1] - 2026-09-30
 
 The logo, and long answers that arrive whole shown from their start; no migrations. The release notes are [`docs/releases/v0.3.1.md`](docs/releases/v0.3.1.md).

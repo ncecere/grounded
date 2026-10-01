@@ -117,7 +117,7 @@ In priority order; the design is [`v0.4.0.md`](v0.4.0.md) (all five items are de
 | # | ID | Item | Why |
 |---|---|---|---|
 | 1 | C2 (+A15) | **Unanswered-questions and gap report**, with sharing a failed question on a thumbs-down | Teams see what their agents fail at (refusals, no context, thumbs-down), clustered into the sources to add. |
-| 2 | A1b | **Cross-encoder reranking** | Better retrieval, and fewer passages for SystemOne to judge (the slowest step before the first words). |
+| 2 | A1b **Done** (v0.4.0 M1) | **Cross-encoder reranking** | Better retrieval, and fewer passages for SystemOne to judge (the slowest step before the first words). |
 | 3 | A8 | **Answer cache** | Repeated questions (public agents especially) answered at once, keyed by agent version and knowledge-base state. |
 | 4 | **New** | **Stream public answers safely:** moderate the answer in chunks as it's written instead of buffering it whole | Visitors see text in seconds while moderation still fails closed. |
 | 5 | B10 (+A13) | **Document viewer with highlights**, and citation marks per claim | A citation opens the passage, highlighted: the clearest proof that an answer is grounded. |
@@ -132,7 +132,7 @@ Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector w
 
 | ID | Item | What and why | Size | Value | Depends on |
 |---|---|---|---|---|---|
-| A1b | **Cross-encoder reranking** | Rerank the fused top 30–50 with a `/rerank` model (the kind already exists in the catalog). It's much faster than per-passage SystemOne judging on one GPU. | S–M | High | a rerank model |
+| A1b **Done** (v0.4.0) | **Cross-encoder reranking** | Rerank the fused top 30–50 with a `/rerank` model (the kind already exists in the catalog). It's much faster than per-passage SystemOne judging on one GPU. | S–M | High | a rerank model |
 | A2 **Done** (v0.2.0) | **Evaluation sets and regression runs** | Teams keep sets of questions with the expected page or answer, per KB or agent. One click runs them and shows recall and nDCG plus citation support over time, so every change to settings, chunking or models gets a score. This generalises `ragbench`'s URL-judged sets. | M | High | — |
 | A4 | **Contextual chunks** | At ingest, prepend a short model-written summary of the document and section to each chunk before embedding. | M | Medium–High | budget for ingest-time LLM calls |
 | A5 | **Parent/child retrieval** | Search small chunks, but give the model their larger parent section. | M | Medium | — |
