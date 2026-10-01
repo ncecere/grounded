@@ -45,6 +45,8 @@ Route groups (`group`): `ops` (`/healthz`, `/readyz`, `/metrics`), `chat` (strea
 | `grounded_retrieval_duration_seconds` | histogram | `outcome` (`ok`, `error`) | One hybrid search over one knowledge base, including the query embedding |
 | `grounded_systemone_requests_total` | counter | `feature`, `outcome` | Features: `moderation`, `judging`, `citations`, `scope`, `test`. Outcomes: `ok`, `timeout`, `error` |
 | `grounded_systemone_request_duration_seconds` | histogram | `feature` | After a concurrency slot is free |
+| `grounded_rerank_requests_total` | counter | `caller`, `status` | Rerank calls of searches ([`rerank.md`](rerank.md)). Callers: `agent`, `retrieve` (Try it, the retrieval API, MCP `search`), `evaluation`. Statuses: `ok`, `timeout` and `error` (the search kept the fusion order), `skipped` (the rerank model may not read the knowledge base's classification; nothing was sent) |
+| `grounded_rerank_duration_seconds` | histogram | `caller` | Bounded by the platform's rerank time limit |
 | `grounded_moderation_decisions_total` | counter | `stage` (`input`, `output`), `decision` | Decisions: `pass`, `flag`, `block`, `support`, `error` (the provider failed; the policy decides whether that blocks) |
 | `grounded_mcp_tool_calls_total` | counter | `tool` (`search`, `ask`), `outcome` | The MCP server's tool calls ([`../mcp.md`](../mcp.md)). Outcomes: `ok`, `refused` (a limit, a budget, a classification rule), `error` |
 | `grounded_mcp_client_calls_total` | counter | `server`, `tool`, `outcome` | Agents' calls to approved MCP server tools ([`../mcp-client.md`](../mcp-client.md)). Outcomes: `ok`, `tool_error`, `refused`, `timeout`, `too_large`, `error`. Server and tool names are bounded by what admins register and approve |
@@ -54,7 +56,7 @@ Route groups (`group`): `ops` (`/healthz`, `/readyz`, `/metrics`), `chat` (strea
 
 | Metric | Type | Labels | Notes |
 |---|---|---|---|
-| `grounded_model_requests_total` | counter | `connection`, `kind`, `outcome` | `connection` is the connection's name in Administration → Models; `kind` the model kind (`chat`, `embedding`, `moderation`, `systemone`). Outcomes: `ok`, `rate_limited` (HTTP 429, or 503 with Retry-After), `throttled` (the connection's own requests-per-minute limit held it back; never sent), `unavailable` (network, timeout, 5xx), `auth`, `not_found`, `bad_request`, `bad_response`, `canceled` |
+| `grounded_model_requests_total` | counter | `connection`, `kind`, `outcome` | `connection` is the connection's name in Administration → Models; `kind` the model kind (`chat`, `embedding`, `rerank`, `moderation`, `systemone`, `vision`). Outcomes: `ok`, `rate_limited` (HTTP 429, or 503 with Retry-After), `throttled` (the connection's own requests-per-minute limit held it back; never sent), `unavailable` (network, timeout, 5xx), `auth`, `not_found`, `bad_request`, `bad_response`, `canceled` |
 | `grounded_model_request_duration_seconds` | histogram | `connection`, `kind` | To the response; for streams, to the response headers. Throttled requests aren't timed |
 
 Admin **Test connection** and **Test model** calls, the scheduled health check and `grounded doctor` probes aren't counted. Renaming a connection starts new series.

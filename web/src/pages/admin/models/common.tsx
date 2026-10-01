@@ -103,6 +103,7 @@ export function modelUsedBy(u?: ModelUsage): string[] {
     u.profiles ? count(u.profiles, "embedding profile", "embedding profiles") : "",
     ...u.moderationAudiences.map((a) => `${aud[a]} moderation`),
     u.systemOne ? "SystemOne" : "",
+    u.rerank ? "Reranking" : "",
   ].filter(Boolean);
 }
 

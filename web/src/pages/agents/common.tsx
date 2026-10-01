@@ -68,6 +68,7 @@ export function problemTarget(field: string): { id: string; label: string } {
     moderation: "Moderation",
     audience: "Audience",
     tools: "Tools",
+    rerankTopN: "Passages kept after reranking",
     published: "Published version",
   };
   return { id: `agent-field-${base}`, label: labels[base] ?? base };
@@ -97,6 +98,8 @@ export const defaultConfig: AgentConfigInput = {
   refusalMessage: "I couldn't find an answer to that in the sources I have.",
   citationMode: "snippet_link",
   queryRewrite: true,
+  rerank: true,
+  rerankTopN: 6,
 };
 
 /** A draft config ready to send: the server rejects unknown fields; optional values are cleared with null / "". */
@@ -124,6 +127,9 @@ export function configInput(c: AgentConfig): AgentConfigInput {
     systemOne: c.systemOne && Object.values(c.systemOne).some((v) => v !== undefined && v !== "") ? c.systemOne : undefined,
     // MCP tools (docs/mcp-client.md); absent in configurations saved before v0.3.
     tools: c.tools,
+    // Reranking (docs/v0.4.0.md §3); absent in configurations saved before v0.4: on, keeping 6.
+    rerank: c.rerank ?? true,
+    rerankTopN: c.rerankTopN ?? 6,
   };
 }
 

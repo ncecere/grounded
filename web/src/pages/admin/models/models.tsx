@@ -27,6 +27,7 @@ import { EnabledBadge, kindLabels, type Model, type ModelKind, type ModelUsage, 
 import { type HealthCheck, healthColumn, healthFacet, useHealthChecks } from "./health";
 import { ModelDialog } from "./model-dialog";
 import { ModelRecordPage, useModelTest } from "./model-record";
+import { RerankingNotice } from "./reranking";
 
 function useDeleteModel(onDeleted: () => void) {
   const qc = useQueryClient();
@@ -157,6 +158,7 @@ export function ModelsPage() {
         title="Models"
         description="Models offered to teams, each tagged with the most sensitive data it may process."
         primaryAction={add}
+        notices={<RerankingNotice models={list} isAdmin={isAdmin} />}
         caption="Models"
         columns={columns(levels.data, { connName, usage: usageById, health: health.get })}
         data={list}
@@ -173,7 +175,7 @@ export function ModelsPage() {
           {
             label: "Test",
             icon: <FlaskConical aria-hidden />,
-            hidden: !isAdmin || x.kind === "rerank",
+            hidden: !isAdmin,
             onSelect: () => {
               record.open(x.id);
               test.mutate(x);

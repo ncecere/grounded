@@ -69,6 +69,9 @@ export function initialModelForm(model: Model | null, connections: Connection[])
     supportsToolChoice: compat.supportsToolChoice,
     supportsReasoningEffort: compat.supportsReasoningEffort,
     supportsDimensionsParam: compat.supportsDimensionsParam ?? false,
+    /** Rerank models: "" = the default (documents). */
+    rerankDocumentsField: (compat.rerankDocumentsField ?? "") as "" | NonNullable<Compat["rerankDocumentsField"]>,
+    supportsRerankTopN: compat.supportsRerankTopN,
     extraBody: compat.extraBody ? JSON.stringify(compat.extraBody, null, 2) : "",
     /** Flags the form doesn't edit (e.g. thinkingField), kept on save: a PATCH replaces all compat flags. */
     otherCompat: compat,
@@ -91,6 +94,8 @@ function compatOf(form: ModelForm): Compat {
   set("supportsToolChoice", form.supportsToolChoice);
   set("supportsReasoningEffort", form.supportsReasoningEffort);
   set("supportsDimensionsParam", form.kind === "embedding" && form.supportsDimensionsParam ? true : undefined);
+  set("rerankDocumentsField", form.kind === "rerank" && form.rerankDocumentsField ? form.rerankDocumentsField : undefined);
+  set("supportsRerankTopN", form.kind === "rerank" ? form.supportsRerankTopN : undefined);
   set("extraBody", form.kind === "chat" || form.kind === "moderation" || form.kind === "vision" ? parseExtraBody(form.extraBody).value : undefined);
   return compat;
 }

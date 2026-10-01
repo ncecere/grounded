@@ -6785,7 +6785,7 @@ type EvaluationRunStart struct {
 	// Kind retrieval checks retrieval only; answer asks the agent and scores the answer
 	Kind *EvaluationRunKind `json:"kind,omitempty"`
 
-	// Rerank Rerank as searches do when the platform has a rerank model; false runs without reranking, to compare (docs/v0.4.0.md §3).
+	// Rerank Rerank as searches do when the platform has a rerank model (the default); false runs without reranking, to compare (docs/v0.4.0.md §3).
 	Rerank *bool `json:"rerank,omitempty"`
 
 	// Version The agent version to test (agent sets; default draft)
@@ -9399,7 +9399,7 @@ type RetrieveRequest struct {
 	Judge *bool  `json:"judge,omitempty"`
 	Query string `json:"query"`
 
-	// Rerank Rerank with the platform's rerank model when one is set (docs/v0.4.0.md §3); false searches without it, to compare.
+	// Rerank Rerank with the platform's rerank model when one is set (docs/v0.4.0.md §3; the default); false searches without it, to compare.
 	Rerank *bool `json:"rerank,omitempty"`
 
 	// TopK Defaults to the knowledge base's setting

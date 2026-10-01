@@ -12,6 +12,7 @@ import s from "../../shared.module.css";
 import { ClassificationBadge, useClassificationLevels } from "../../team/common";
 import { ModerationSamples } from "../moderation/scores";
 import { SystemOneSample } from "../systemone/sample";
+import { RerankSample } from "./rerank-sample";
 import { EnabledBadge, kindLabels, type Model, type ModelUsage, modelUsedBy, ProxyErrorText, TimingsText } from "./common";
 import { type HealthCheck, healthFacts, refreshHealth } from "./health";
 import m from "./models.module.css";
@@ -35,6 +36,7 @@ export function ModelTestResult({ test }: { test: ModelTest }) {
     return (
       <Alert tone="danger" title="The test failed">
         <ProxyErrorText error={test.data.error} />
+        {test.data.rerank && <RerankSample test={test.data.rerank} />}
         <TimingsText timings={test.data.timings} />
       </Alert>
     );
@@ -46,7 +48,8 @@ export function ModelTestResult({ test }: { test: ModelTest }) {
       {test.data.reply != null && `Reply: “${test.data.reply}”`}
       {test.data.moderation && <ModerationSamples test={test.data.moderation} />}
       {test.data.systemOne && <SystemOneSample test={test.data.systemOne} />}
-      {test.data.dimensions == null && test.data.reply == null && !test.data.moderation && !test.data.systemOne && "The model responded."}
+      {test.data.rerank && <RerankSample test={test.data.rerank} />}
+      {test.data.dimensions == null && test.data.reply == null && !test.data.moderation && !test.data.systemOne && !test.data.rerank && "The model responded."}
       <TimingsText timings={test.data.timings} />
     </Alert>
   );
@@ -107,10 +110,10 @@ export function ModelRecordPage({ model, health, open, loading, onClose, connect
           ? [
               {
                 title: "Test",
-                hidden: !isAdmin || model.kind === "rerank",
+                hidden: !isAdmin,
                 content: (
                   <div className={m.testRow}>
-                    {isAdmin && model.kind !== "rerank" && (
+                    {isAdmin && (
                       <Button size="sm" variant="secondary" loading={test.isPending && testedThis} onClick={() => test.mutate(model)}>
                         <FlaskConical aria-hidden /> Test model
                       </Button>

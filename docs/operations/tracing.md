@@ -57,6 +57,8 @@ POST /v1/agents/{team}/{agent}/chat
         retrieval.vector
         retrieval.lexical
         retrieval.fusion
+      rerank                               (when the platform has a rerank model)
+        rerank bge-reranker-v2-m3
       systemone judging                    (one per judged passage or batch)
     agent.turn
       chat gpt-4o                          (a streamed model call)
@@ -74,6 +76,8 @@ POST /v1/agents/{team}/{agent}/chat
 | `agent.retrieve` | internal | number of knowledge bases, whether judging is on, number of passages kept |
 | `retrieval.search`, `retrieval.vector`, `retrieval.lexical`, `retrieval.fusion` | internal | `grounded.kb_id`, `grounded.team_id`, `top_k`, candidates, results, fusion weights, embedding tokens |
 | `chat <model>`, `embeddings <model>` | client | `gen_ai.operation.name`, `gen_ai.request.model` (the upstream model ID), `gen_ai.usage.input_tokens` and `output_tokens`, for streams `grounded.llm.time_to_first_token_ms` and the stop reason, the number of tools offered, the number of inputs in an embedding batch |
+| `rerank` | internal | the caller (`agent`, `retrieve`, `evaluation`), number of candidates, the time limit, the status (`ok`, `timeout`, `error`) and number of passages kept |
+| `rerank <model>` | client | `gen_ai.operation.name` `rerank`, `gen_ai.request.model`, number of documents, input tokens |
 | `systemone <feature>` | client | the feature (`judging`, `citations`, `scope`, `moderation`, `test`), the SystemOne model, number of questions, input tokens |
 | `agent.turn` | internal | turn number, whether it's the final turn (no tools), stop reason, number of tool calls |
 | `execute_tool <tool>` | internal | `gen_ai.tool.name` (`search_knowledge`, or an MCP tool's name as the model sees it) |

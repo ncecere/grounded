@@ -13,7 +13,7 @@ import { useFormState } from "@/lib/use-form-state";
 import s from "../../shared.module.css";
 import { useClassifications } from "../hooks";
 import { connectionTestQuery, kindLabels, type Connection, type Model, type ModelKind } from "./common";
-import { ChatCompatFields, EmbeddingCompatFields } from "./compat-fields";
+import { ChatCompatFields, EmbeddingCompatFields, RerankCompatFields } from "./compat-fields";
 import { initialModelForm, modelSpec, parseExtraBody, type ModelForm } from "./model-form";
 import m from "./models.module.css";
 import { FormPage, FormSection } from "@/components/templates/form-page";
@@ -85,7 +85,7 @@ export function ModelDialog({ model, connections, preset, onClose }: { model: Mo
         {form.kind === "embedding" && <EmbeddingFields form={form} set={set} />}
         {form.kind === "embedding" && <EmbeddingCompatFields form={form} set={set} />}
         {form.kind === "moderation" && <ModerationFields form={form} set={set} />}
-        {form.kind === "rerank" && <p className={`${s.settingDescription} ${m.wide}`}>Rerank models have no extra settings.</p>}
+        {form.kind === "rerank" && <RerankFields form={form} set={set} />}
         {form.kind === "vision" && <VisionFields form={form} set={set} />}
         {form.kind === "systemone" && (
           <p className={`${s.settingDescription} ${m.wide}`}>
@@ -203,6 +203,18 @@ function EmbeddingFields({ form, set }: { form: ModelForm; set: SetField }) {
       <Field label="Max input tokens">
         <NumberInput maximumFractionDigits={0} value={form.maxInputTokens} onValueChange={(v) => set("maxInputTokens", v)} />
       </Field>
+    </>
+  );
+}
+
+/** A rerank model's input limit and server quirks; Admin → Models → Reranking chooses the one searches use. */
+function RerankFields({ form, set }: { form: ModelForm; set: SetField }) {
+  return (
+    <>
+      <Field label="Max input tokens" labelHint="Optional" description="Longer passages are shortened to fit with the question.">
+        <NumberInput maximumFractionDigits={0} value={form.maxInputTokens} onValueChange={(v) => set("maxInputTokens", v)} />
+      </Field>
+      <RerankCompatFields form={form} set={set} />
     </>
   );
 }

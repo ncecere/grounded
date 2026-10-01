@@ -38,7 +38,7 @@ const status = (extra: Partial<Schemas["TeamBudgetState"]> = {}): Schemas["TeamB
   mode: "enforce", state: "ok", enforced: true, currency: "USD", month: "2026-09-01", resetsAt: "2026-10-01T04:00:00Z", budget: "1.200000",
   extensions: "0.000000", limit: "1.200000", spent: "0.240000", percent: 19, warnPercent: 80, ...extra,
 });
-const byKind = { chat: "0.240000", embedding: "0.000000", systemone: "0.000000", moderation: "0.000000", ocr: "0.000000", mcp: "0.000000" };
+const byKind = { chat: "0.240000", embedding: "0.000000", systemone: "0.000000", moderation: "0.000000", ocr: "0.000000", mcp: "0.000000", rerank: "0.000000" };
 const spend: Schemas["TeamSpend"] = {
   status: status(), timeZone: "UTC", from: "2026-09-01", to: "2026-09-29",
   total: { spend: "0.240000", byKind, tokens: 5000, requests: 0, unpriced: false },

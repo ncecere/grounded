@@ -9705,10 +9705,10 @@ components:
             topK is ignored.
         rerank:
           type: boolean
-          default: true
           description: >-
             Rerank with the platform's rerank model when one is set
-            (docs/v0.4.0.md §3); false searches without it, to compare.
+            (docs/v0.4.0.md §3; the default); false searches without it, to
+            compare.
     RetrieveHit:
       type: object
       required: [chunkId, documentId, sourceId, content, headingPath, title, filename, url, score]
@@ -12375,10 +12375,10 @@ components:
           description: The agent version to test (agent sets; default draft)
         rerank:
           type: boolean
-          default: true
           description: >-
-            Rerank as searches do when the platform has a rerank model; false
-            runs without reranking, to compare (docs/v0.4.0.md §3).
+            Rerank as searches do when the platform has a rerank model (the
+            default); false runs without reranking, to compare
+            (docs/v0.4.0.md §3).
     EvaluationRunKB:
       type: object
       required: [id, name, profileId, profile, topK]

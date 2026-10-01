@@ -79,6 +79,8 @@ export const unitLabels: Record<PriceUnit, { label: string; per: string }> = {
   vision_tokens_in: { label: "Input tokens", per: "per 1M tokens" },
   vision_tokens_out: { label: "Output tokens", per: "per 1M tokens" },
   mcp_calls: { label: "Tool calls", per: "per call" },
+  rerank_tokens: { label: "Rerank tokens", per: "per 1M tokens" },
+  rerank_requests: { label: "Requests", per: "per request" },
 };
 
 /** An MCP server's price per call ("$0.0001 per call"), exact: prices are rates, often a fraction of a cent. */
@@ -92,6 +94,8 @@ export const categories = [
   { key: "moderation", label: "Moderation", tone: "neutral" },
   { key: "ocr", label: "OCR", tone: "primary" },
   { key: "mcp", label: "MCP tools", tone: "danger" },
+  // Six chart tones only: reranking shares embedding's (both are retrieval); the legend and table name them apart.
+  { key: "rerank", label: "Rerank", tone: "success" },
 ] as const;
 
 /** A decimal amount a person typed: up to 14 digits and 6 decimals. */

@@ -33,8 +33,8 @@ export const modelPricesQuery = (modelId: string) => ({
   queryFn: async () => unwrap(await api.GET("/v1/admin/models/{modelId}/prices", { params: { path: { modelId } } })),
 });
 
-/** Whether models of a kind are priced (rerank models aren't). */
-export const isPricedKind = (kind: string) => ["chat", "embedding", "systemone", "moderation", "vision"].includes(kind);
+/** Whether models of a kind are priced. */
+export const isPricedKind = (kind: string) => ["chat", "embedding", "systemone", "moderation", "vision", "rerank"].includes(kind);
 
 /** "the input tokens price of $4.00 from Oct 28, 2026", naming a row in its delete button and confirmation. */
 const rowName = (row: PriceRow, currency: string) =>

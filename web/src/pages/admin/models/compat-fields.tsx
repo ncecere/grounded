@@ -75,6 +75,28 @@ export function ChatCompatFields({ form, set, extraBodyError }: Props) {
   );
 }
 
+/** Rerank quirks (docs/operations/rerank.md): the documents field and top_n, for servers that differ from the Cohere and Jina shape. */
+export function RerankCompatFields({ form, set }: Props) {
+  return (
+    <>
+      <Field label="Passages field" description="Text embeddings inference takes texts; LiteLLM, vLLM and SGLang take documents.">
+        <NativeSelect value={form.rerankDocumentsField} onChange={(e) => set("rerankDocumentsField", e.target.value as ModelForm["rerankDocumentsField"])}>
+          <option value="">Default (documents)</option>
+          <option value="documents">documents</option>
+          <option value="texts">texts</option>
+        </NativeSelect>
+      </Field>
+      <Field label="Accepts top_n" description="Ask for the best few results only.">
+        <NativeSelect value={tri(form.supportsRerankTopN)} onChange={(e) => set("supportsRerankTopN", fromTri(e.target.value))}>
+          <option value="">Default (sent)</option>
+          <option value="yes">Yes, send it</option>
+          <option value="no">No</option>
+        </NativeSelect>
+      </Field>
+    </>
+  );
+}
+
 /** Embedding quirks: whether the server shortens vectors itself. */
 export function EmbeddingCompatFields({ form, set }: Props) {
   return (

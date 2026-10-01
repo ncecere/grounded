@@ -7058,11 +7058,8 @@ export interface components {
             filters?: components["schemas"]["MetadataFilter"];
             /** @description Judge the platform's candidate count of fused hits with the SystemOne model and return every candidate with its scores and route: evidence, then conflicting, then dropped (team editors signed in; 409 systemone_unavailable without a SystemOne model). topK is ignored. */
             judge?: boolean;
-            /**
-             * @description Rerank with the platform's rerank model when one is set (docs/v0.4.0.md §3); false searches without it, to compare.
-             * @default true
-             */
-            rerank: boolean;
+            /** @description Rerank with the platform's rerank model when one is set (docs/v0.4.0.md §3; the default); false searches without it, to compare. */
+            rerank?: boolean;
         };
         RetrieveHit: {
             /** Format: uuid */
@@ -9612,11 +9609,8 @@ export interface components {
              * @enum {string}
              */
             version?: "draft" | "published";
-            /**
-             * @description Rerank as searches do when the platform has a rerank model; false runs without reranking, to compare (docs/v0.4.0.md §3).
-             * @default true
-             */
-            rerank: boolean;
+            /** @description Rerank as searches do when the platform has a rerank model (the default); false runs without reranking, to compare (docs/v0.4.0.md §3). */
+            rerank?: boolean;
         };
         EvaluationRunKB: {
             /** Format: uuid */

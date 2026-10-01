@@ -18,7 +18,7 @@ const settings: Schemas["CostSettings"] = {
   mode: "track", currency: "USD", timeZone: "America/New_York", warnPercent: 80, defaultBudget: null, revision: 4, updatedAt: "2026-09-20T10:00:00Z",
 };
 const zero = "0.000000";
-const byKind = { chat: "1.000000", embedding: zero, systemone: zero, moderation: zero, ocr: zero, mcp: zero };
+const byKind = { chat: "1.000000", embedding: zero, systemone: zero, moderation: zero, ocr: zero, mcp: zero, rerank: zero };
 const row = (key: string, label: string, extra: Partial<Schemas["CostReportRow"]> = {}): Schemas["CostReportRow"] => ({
   key, label, deleted: false, spend: "1.000000", byKind, tokens: 0, requests: 7, unpriced: false, ...extra,
 });
