@@ -113,7 +113,7 @@
     "conversation": {
       "files": {
         "src/components/ui/conversation/conversation.module.css": "0451c6290e56c2f3fc9afe584f79463a238335d3e3aa8d79ca497c14b74b754a",
-        "src/components/ui/conversation/conversation.tsx": "f14c081a6ac604d3eba2202a839e09b15bd699f2abcc05f03e2a7f1486a6c77d"
+        "src/components/ui/conversation/conversation.tsx": "6eb979ec85b772f346a803cb19f3768531d15d8b353ee146917aad33b756902b"
       }
     },
     "copy-button": {

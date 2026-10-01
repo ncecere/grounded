@@ -22,7 +22,7 @@ export function UserMessage({ text }: { text: string }) {
   return (
     <Message from="user">
       <MessageContent className={c.userText}>
-        <div id={id} className={long && !expanded ? a.collapsed : undefined}>
+        <div id={id} data-chat-question="" className={long && !expanded ? a.collapsed : undefined}>
           {text}
         </div>
         {long && (

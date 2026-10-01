@@ -22,6 +22,7 @@ import type { useChat } from "./useChat";
 import { type AgentLook, ChatWelcome } from "./welcome";
 import a from "./answer.module.css";
 import c from "./chat.module.css";
+import { RevealBufferedAnswer } from "./reveal-answer";
 
 const defaultMaxLength = 8000;
 
@@ -127,6 +128,7 @@ export function ChatPanel(props: ChatPanelProps) {
           )}
         </ConversationContent>
         <ScrollOnSend questions={chat.items.filter((i) => i.role === "user").length} />
+        <RevealBufferedAnswer items={chat.items} />
         {chat.items.length > 0 && <ConversationScrollButton />}
       </Conversation>
       {disabledReason && (

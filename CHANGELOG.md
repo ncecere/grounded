@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Chat: an answer that arrives whole (checked by moderation before it's shown, the default for public agents) is shown from its start: its question moves to the top of the view instead of the view jumping to the answer's last lines. Streamed answers still follow as they're written. (bitop-ui's Conversation gains `scrollToElement`.)
 - Grounded has a logo: a citation's brackets around a check (the "Cited" mark). It replaces the placeholder tile in the sidebar and on the sign-in page (an instance logo, `UI_LOGO_URL`, still takes its place), and the favicon, with `favicon.ico` and an Apple touch icon.
 
 ## [0.3.0] - 2026-09-30
