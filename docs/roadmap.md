@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-09-30. **v0.3.0 is released** (2026-09-30): Grounded as an MCP server and client (C1), stored health (E11), OpenTelemetry tracing (F1), OAuth sign-in for MCP clients (experimental) and faster answers ([`releases/v0.3.0.md`](releases/v0.3.0.md)). The project has a website ([`ncecere/grounded-website`](https://github.com/ncecere/grounded-website)) and a documentation site ([`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs)). The Community/Enterprise edition plumbing (ADR-0025, a draft) was deferred from v0.3.0; nothing after v0.3.0 is scheduled until the owner picks it.
+Status: refreshed 2026-09-30. **v0.3.0 is released** (2026-09-30): Grounded as an MCP server and client (C1), stored health (E11), OpenTelemetry tracing (F1), OAuth sign-in for MCP clients (experimental) and faster answers ([`releases/v0.3.0.md`](releases/v0.3.0.md)). The project has a website ([`ncecere/grounded-website`](https://github.com/ncecere/grounded-website)) and a documentation site ([`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs)). The Community/Enterprise edition plumbing (ADR-0025, a draft) was deferred from v0.3.0. **Next (owner, 2026-09-30): v0.4.0 "answers people trust and teams can improve"** (§ K below); Teams/Slack bots (D1), the Microsoft 365 connector with document ACLs (B1, B6), and SCIM with SIEM export (E4, E5) wait until much later.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -107,6 +107,24 @@ The plan and the owner's decisions are in [`v0.3.0.md`](v0.3.0.md); the release 
 | — | **Faster answers:** a follow-up is rewritten only when it depends on the conversation, the search runs alongside the input and scope checks, a passage judging time limit, and progress steps until the first words. | [`phase3-agents.md`](phase3-agents.md) §6–7 |
 | — | **Reasoning effort** per agent for models that accept it; **Publish** disabled while the draft has problems. | — |
 | — | **From the walkthrough by role:** about 60 fixes (how a person acted in the audit log, client cancellations no longer counted as 500s, a real `mcp_calls_per_answer` maximum, Connected apps for everyone, accessibility fixes, and more). | [`CHANGELOG.md`](../CHANGELOG.md) |
+
+---
+
+## K. v0.4.0: answers people trust and teams can improve (owner, 2026-09-30; to be designed)
+
+In priority order; the design (`v0.4.0.md`) comes first.
+
+| # | ID | Item | Why |
+|---|---|---|---|
+| 1 | C2 (+A15) | **Unanswered-questions and gap report**, with sharing a failed question on a thumbs-down | Teams see what their agents fail at (refusals, no context, thumbs-down), clustered into the sources to add. |
+| 2 | A1b | **Cross-encoder reranking** | Better retrieval, and fewer passages for SystemOne to judge (the slowest step before the first words). |
+| 3 | A8 | **Answer cache** | Repeated questions (public agents especially) answered at once, keyed by agent version and knowledge-base state. |
+| 4 | **New** | **Stream public answers safely:** moderate the answer in chunks as it's written instead of buffering it whole | Visitors see text in seconds while moderation still fails closed. |
+| 5 | B10 (+A13) | **Document viewer with highlights**, and citation marks per claim | A citation opens the passage, highlighted: the clearest proof that an answer is grounded. |
+| — | C8, A14, B12, A12 | **Small wins**, as patch releases | Follow-up suggestions, warnings about expectations a KB can't meet, OCR follow-ups, SystemOne capacity. |
+| — | — | **Housekeeping** | The product name decision (ADR-0025) before more public exposure, a screenshot refresh (logo, v0.3 UI), the MCP threat-model update. |
+
+Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector with B6 document ACLs; E4 SCIM and E5 SIEM export.
 
 ---
 

@@ -190,13 +190,18 @@ Grounded is **pre-1.0**. The current release is **v0.3.0** (2026-09-30). The who
 
 - [x] **The Grounded logo** (the "Cited" mark) in the app, the favicon and the public sites, on `release/v0.3.1`.
 
-**Candidates** (not scheduled; the full list with sizes is in [`docs/roadmap.md`](docs/roadmap.md))
+**Next: v0.4.0** (planned; [`docs/roadmap.md`](docs/roadmap.md) § K)
 
-- [ ] Citation marks per claim (A13)
-- [ ] An unanswered-questions and gap report (C2)
-- [ ] Microsoft 365 connector: SharePoint and OneDrive (B1), with document ACLs (B6)
+- [ ] An unanswered-questions and gap report, with sharing a failed question on a thumbs-down (C2, A15)
+- [ ] Cross-encoder reranking (A1b)
+- [ ] An answer cache (A8)
+- [ ] Public answers streamed while they're moderated
+- [ ] A document viewer with highlights, and citation marks per claim (B10, A13)
+
+**Later**
+
 - [ ] Microsoft Teams and Slack bots (D1)
-- [ ] Cross-encoder reranking (A1b) and a document viewer with highlights (B10)
+- [ ] Microsoft 365 connector: SharePoint and OneDrive (B1), with document ACLs (B6)
 - [ ] SCIM provisioning (E4) and audit export to a SIEM (E5)
 - [ ] Community and Enterprise editions ([ADR-0025](docs/adr/0025-community-and-enterprise-editions.md), a draft)
 
