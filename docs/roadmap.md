@@ -112,7 +112,7 @@ The plan and the owner's decisions are in [`v0.3.0.md`](v0.3.0.md); the release 
 
 ## K. v0.4.0: answers people trust and teams can improve (owner, 2026-09-30; to be designed)
 
-In priority order; the design (`v0.4.0.md`) comes first.
+In priority order; the design is [`v0.4.0.md`](v0.4.0.md) (the answer cache is decided).
 
 | # | ID | Item | Why |
 |---|---|---|---|
