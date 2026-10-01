@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/ncecere/grounded/internal/observability"
 	"github.com/ncecere/grounded/internal/systemone"
 )
 
@@ -102,6 +103,11 @@ func (ru *run) captureGap(ctx context.Context, ans *Answer, signals []string, pr
 	_, err := ru.s.Pool.Exec(ctx, `INSERT INTO gap_questions (team_id, agent_id, conversation_id, message_id, question, profile_id, embedding, signals, asker_key)
 		VALUES ($1, $2, $3, $4, $5, $6, $7::text::vector, $8, $9) ON CONFLICT (message_id) DO NOTHING`,
 		ru.team.ID, ru.agent.ID, ru.conv.ID, ans.MessageID, ru.question, profile, VectorText(vec), signals, *asker)
+	if err == nil {
+		for _, sig := range signals {
+			observability.GapQuestions.WithLabelValues(sig).Inc()
+		}
+	}
 	return err
 }
 
@@ -182,5 +188,8 @@ func gapFeedback(ctx context.Context, tx pgx.Tx, messageID uuid.UUID, rating str
 		    ELSE gap_questions.signals || ARRAY['thumbs_down'] END,
 		    feedback_reason = EXCLUDED.feedback_reason, shared = EXCLUDED.shared, updated_at = now()`,
 		messageID, reason, *asker, share)
+	if err == nil {
+		observability.GapQuestions.WithLabelValues(GapThumbsDown).Inc()
+	}
 	return err
 }
