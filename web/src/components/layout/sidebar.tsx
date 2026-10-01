@@ -6,6 +6,7 @@ import { conversationsQuery } from "../../api/queries";
 import { liveGrant, useMyBreakGlass } from "../../lib/break-glass";
 import { terms } from "../../lib/terms";
 import { InstanceLogo, useInstance, useSignOut, type Me } from "../../session";
+import { ProductMark } from "./product-mark";
 import { Brand, Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarItem, SidebarNav, SidebarSection, SidebarUser, useAppShell } from "@/components/ui/app-shell/app-shell";
 import { Badge } from "@/components/ui/badge/badge";
 import { MenuHeader, MenuItem, MenuLinkItem, MenuSeparator } from "@/components/ui/menu/menu";
@@ -27,7 +28,7 @@ export function AppSidebar({ me, mode, active }: { me: Me; mode: Mode; active: A
       <SidebarHeader>
         <Brand
           name={instance.name}
-          logo={instance.logoUrl ? <InstanceLogo src={instance.logoUrl} className={styles.brandLogo} /> : undefined}
+          logo={instance.logoUrl ? <InstanceLogo src={instance.logoUrl} className={styles.brandLogo} /> : <ProductMark small className={styles.brandLogo} />}
           render={<Link to="/" />}
         />
         {canAdmin && <ModeSwitch mode={mode} />}

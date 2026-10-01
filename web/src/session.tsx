@@ -12,6 +12,7 @@ import { Stack } from "@/components/ui/layout/layout";
 import { Separator } from "@/components/ui/separator/separator";
 import { Loading, Spinner } from "@/components/ui/spinner/spinner";
 import styles from "./session.module.css";
+import { ProductMark } from "./components/layout/product-mark";
 
 export type Me = Schemas["Me"];
 
@@ -102,9 +103,7 @@ export function SignInPage() {
           {instance.logoUrl ? (
             <InstanceLogo src={instance.logoUrl} className={styles.logo} />
           ) : (
-            <span aria-hidden className={styles.mark}>
-              <span className={styles.accent} />
-            </span>
+            <ProductMark className={styles.mark} />
           )}
           <h1 className={styles.title}>{instance.name}</h1>
           <p className={styles.subtitle}>{tagline(instance)}</p>

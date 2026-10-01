@@ -91,7 +91,9 @@ describe("sign-in page", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Grounded" })).toBeInTheDocument();
     expect(screen.getByText("Knowledge bases and AI agents for your teams")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Sign in with single sign-on/ })).toBeInTheDocument();
-    expect(container.querySelector("img")).toBeNull();
+    // The default mark is Grounded's logo, decorative (alt ""), not an instance logo.
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("/grounded-mark.svg");
+    expect(container.querySelector("img")?.getAttribute("alt")).toBe("");
     expect(screen.queryByRole("link", { name: /Help/ })).toBeNull();
     expect(container.textContent).not.toMatch(/University|Example/);
     expect(await axe(container)).toHaveNoViolations();

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Grounded has a logo: a citation's brackets around a check (the "Cited" mark). It replaces the placeholder tile in the sidebar and on the sign-in page (an instance logo, `UI_LOGO_URL`, still takes its place), and the favicon, with `favicon.ico` and an Apple touch icon.
+
 ## [0.3.0] - 2026-09-30
 
 Reach: Grounded as an MCP server and client, stored health, OpenTelemetry tracing and faster answers. The release notes are [`docs/releases/v0.3.0.md`](docs/releases/v0.3.0.md).
