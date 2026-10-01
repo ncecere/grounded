@@ -165,3 +165,48 @@ func TestCitedPassageClaims(t *testing.T) {
 		}
 	}
 }
+
+// TestDocumentTextAround: a passage in context is the passage with about a
+// page of neighbours on each side, in order; pages of the whole document
+// follow each other.
+func TestDocumentTextAround(t *testing.T) {
+	env := newAgentEnv(t)
+	var b strings.Builder
+	for i := 1; i <= 9; i++ {
+		b.WriteString("# Section " + string(rune('0'+i)) + "\n\nThe rules of section " + string(rune('0'+i)) + " apply on weekdays only.\n\n")
+	}
+	docs := env.base + "/sources/" + env.upload.Id.String() + "/documents"
+	if code, res, e := env.owner.uploadFiles(docs, []upload{{"sections.md", []byte(b.String())}}, ""); code != 200 || res[0].Document == nil {
+		t.Fatalf("upload = %d %s %+v", code, e, res)
+	}
+	env.owner.waitForDocuments(t, docs)
+	var doc, chunk string
+	if err := env.app.Pool.QueryRow(t.Context(), `SELECT d.id::text, c.id::text FROM documents d JOIN chunks c ON c.document_id = d.id
+		WHERE d.filename = 'sections.md' AND c.content LIKE '%section 5 %'`).Scan(&doc, &chunk); err != nil {
+		t.Fatal(err)
+	}
+	text := docs + "/" + doc + "/text"
+	var dt apitypes.DocumentText
+	code, e := env.editor.call("GET", text+"?around="+chunk, nil, &dt, nil)
+	mustCode(t, "around", code, e, 200, "")
+	cited := -1
+	for i, p := range dt.Items {
+		if p.Cited {
+			cited = i
+		}
+		if i > 0 && p.Ordinal != dt.Items[i-1].Ordinal+1 {
+			t.Errorf("out of order: %+v", dt.Items)
+		}
+	}
+	if cited < 1 || cited == len(dt.Items)-1 || !strings.Contains(dt.Items[cited].Content, "section 5 ") || dt.From != dt.Items[0].Ordinal || len(dt.Items) > 7 {
+		t.Fatalf("around = %+v", dt)
+	}
+	var page2 apitypes.DocumentText
+	env.editor.call("GET", text+"?from=3&limit=3", nil, &page2, nil)
+	if len(page2.Items) != 3 || page2.From != 3 || page2.Items[2].Ordinal != 5 {
+		t.Fatalf("page = %+v", page2)
+	}
+	if code, e := env.editor.call("GET", text+"?around=00000000-0000-0000-0000-000000000001", nil, nil, nil); code != 404 || e != "passage_not_found" {
+		t.Errorf("unknown passage = %d %s", code, e)
+	}
+}
