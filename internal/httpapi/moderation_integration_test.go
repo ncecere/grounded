@@ -118,7 +118,7 @@ func TestModerationModelsAndPolicies(t *testing.T) {
 	// Policies: defaults with revision 1, then If-Match writes.
 	var pub apitypes.ModerationPolicy
 	if code := env.auditor.get("/v1/admin/moderation/policies/public", &pub); code != 200 || pub.Revision != 1 || pub.ModelId != nil ||
-		!pub.FailClosed || pub.OutputMode != "buffer" || pub.Categories["violence"].Input.Action != "block" || len(pub.Categories) != 8 {
+		!pub.FailClosed || pub.OutputMode != "stream_checked" || pub.Categories["violence"].Input.Action != "block" || len(pub.Categories) != 8 {
 		t.Fatalf("public defaults = %d %+v", code, pub)
 	}
 	if code := admin.get("/v1/admin/moderation/policies/everyone", nil); code != 404 {

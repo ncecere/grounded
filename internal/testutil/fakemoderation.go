@@ -82,6 +82,16 @@ func (p *FakeProxy) FailModerationWith(status int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.modFail = status
+	p.modFailLater, p.modPassLeft = 0, 0
+}
+
+// FailModerationAfter lets the next n moderation calls answer and makes
+// the ones after them answer status, for an outage in the middle of an
+// answer; FailModerationWith(0) restores.
+func (p *FakeProxy) FailModerationAfter(n, status int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.modFailLater, p.modPassLeft = status, n
 }
 
 // SetModerationDelay delays every moderation answer by d.
@@ -111,6 +121,13 @@ func (p *FakeProxy) admitModeration(w http.ResponseWriter, r *http.Request) bool
 	p.mu.Lock()
 	p.modCalls++
 	fail, delay := p.modFail, p.modDelay
+	if p.modFailLater != 0 {
+		if p.modPassLeft > 0 {
+			p.modPassLeft--
+		} else {
+			fail = p.modFailLater
+		}
+	}
 	p.mu.Unlock()
 	if delay > 0 {
 		select {

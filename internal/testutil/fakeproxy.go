@@ -95,6 +95,9 @@ type FakeProxy struct {
 	modFail  int
 	modDelay time.Duration
 	modCalls int
+	// modFailLater fails moderation calls with this status once
+	// modPassLeft more have answered (FailModerationAfter).
+	modFailLater, modPassLeft int
 
 	// Passage judging (fakesystemone.go).
 	judgeFail   int
