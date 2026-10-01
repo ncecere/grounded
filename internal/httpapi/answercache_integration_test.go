@@ -15,7 +15,9 @@ type cacheEnv struct {
 	agent apitypes.Agent
 }
 
-func (env *cacheEnv) cachePath() string { return env.base + "/agents/" + env.agent.Id.String() + "/answer-cache" }
+func (env *cacheEnv) cachePath() string {
+	return env.base + "/agents/" + env.agent.Id.String() + "/answer-cache"
+}
 
 // putCache saves the agent's cache settings.
 func (env *cacheEnv) putCache(t *testing.T, body map[string]any) apitypes.AgentAnswerCache {
@@ -253,7 +255,9 @@ func TestAnswerCacheInvalidation(t *testing.T) {
 	mustCode(t, "expiry out of range", code, e, 400, "invalid_expiry")
 
 	// Detaching and attaching a source raise the knowledge base's revision.
-	rev := func() int64 { return env.scalar(t, `SELECT content_revision FROM knowledge_bases WHERE id = $1`, env.kb.Id) }
+	rev := func() int64 {
+		return env.scalar(t, `SELECT content_revision FROM knowledge_bases WHERE id = $1`, env.kb.Id)
+	}
 	r0 := rev()
 	attach := env.base + "/kbs/" + env.kb.Id.String() + "/sources/" + env.upload.Id.String()
 	code, e = env.owner.call("DELETE", attach, nil, nil, nil)

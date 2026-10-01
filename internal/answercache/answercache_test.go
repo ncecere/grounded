@@ -23,8 +23,8 @@ func TestHashSeparatesParts(t *testing.T) {
 	if Hash("ab", "c") == Hash("a", "bc") {
 		t.Error("parts run together")
 	}
-	if Hash("x") != Hash("x") {
-		t.Error("not deterministic")
+	if a, b := Hash("x", "y"), Hash("x", "y"); a != b || len(a) != 64 {
+		t.Errorf("Hash = %q, %q", a, b)
 	}
 }
 

@@ -420,13 +420,20 @@ func (s *Service) SetFeedback(ctx context.Context, a authz.Actor, messageID uuid
 		if n == 0 {
 			return errNoMessage
 		}
-		if rating == "down" { // the next person gets a fresh answer (docs/answer-cache.md)
-			if _, err := answercache.EvictMessage(ctx, tx, messageID); err != nil {
-				return err
-			}
-		}
-		return gapFeedback(ctx, tx, messageID, rating, reason, share, s.pseudonym(teamID, a))
+		return afterFeedback(ctx, tx, messageID, rating, reason, share, s.pseudonym(teamID, a))
 	})
+}
+
+// afterFeedback evicts a thumbs-down answer from the answer cache, so the
+// next person gets a fresh one (docs/answer-cache.md), and records the
+// rating for the gap report (gaps.go).
+func afterFeedback(ctx context.Context, tx pgx.Tx, messageID uuid.UUID, rating string, reason *string, share bool, asker *string) error {
+	if rating == "down" {
+		if _, err := answercache.EvictMessage(ctx, tx, messageID); err != nil {
+			return err
+		}
+	}
+	return gapFeedback(ctx, tx, messageID, rating, reason, share, asker)
 }
 
 // ownedBy reports whether a conversation's user is id (anonymous
