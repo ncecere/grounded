@@ -316,10 +316,12 @@ func (ru *run) storeCached(ctx context.Context, ans *Answer) {
 }
 
 // cleanAnswer reports whether an answer may be stored (it has sources:
-// NoContext is false).
+// NoContext is false). An answer whose text has citation markers but no
+// citations is never stored: its replay would show bare [n] markers.
 func (ru *run) cleanAnswer(ans *Answer) bool {
 	return ans.ErrorCode == "" && ans.Moderation == nil && !ans.Refused && !ans.NoContext && ans.toolCalls == 0 &&
-		ans.StopReason == string(llm.StopReasonStop) && strings.TrimSpace(ans.Text) != "" && len(ru.gapSignals(ans)) == 0
+		ans.StopReason == string(llm.StopReasonStop) && strings.TrimSpace(ans.Text) != "" && len(ru.gapSignals(ans)) == 0 &&
+		(len(ans.Citations) > 0 || len(extractMarkers(ans.Text)) == 0)
 }
 
 // transcriptRetention is the transcript retention of the agent version's

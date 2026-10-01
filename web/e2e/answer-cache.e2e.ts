@@ -38,6 +38,8 @@ test("saved answers: an editor turns them on, a repeated question is reused, the
       await composer.press("Enter");
       const answer = editor.getByRole("article", { name: "Permit helper said" });
       await expect(answer.getByRole("button", { name: "Good answer" })).toBeVisible();
+      // Its citations are chips, live and saved alike (a bare [1] means the answer came without its citations).
+      await expect(answer).not.toContainText("[1]");
       texts.push((await answer.innerText()).trim());
       if (i === 1) await a11y(editor, "a saved answer in the chat");
     }
