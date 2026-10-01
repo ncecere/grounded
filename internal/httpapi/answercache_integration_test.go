@@ -232,8 +232,13 @@ func TestAnswerCacheInvalidation(t *testing.T) {
 
 	// Expiry: an expired entry isn't served, and retention would delete it.
 	prime("before expiry")
-	if _, err := env.app.Pool.Exec(t.Context(), `UPDATE answer_cache SET expires_at = now() - interval '1 minute' WHERE agent_id = $1`, env.agent.Id); err != nil {
+	// An hour back, so the report's clock (the server's) and the database's can't disagree about it.
+	tag, err := env.app.Pool.Exec(t.Context(), `UPDATE answer_cache SET expires_at = now() - interval '1 hour', created_at = least(created_at, now() - interval '1 hour')
+		WHERE agent_id = $1`, env.agent.Id)
+	if err != nil {
 		t.Fatal(err)
+	} else if tag.RowsAffected() != 1 {
+		t.Fatalf("stored answers expired = %d, want 1", tag.RowsAffected())
 	}
 	var report apitypes.RetentionReport
 	env.admin.get("/v1/admin/retention/report", &report)
