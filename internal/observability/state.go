@@ -40,6 +40,7 @@ type StateCollector struct {
 	up, jobs, availableAge, runningAge  *prometheus.Desc
 	maintenance, maintenanceStarted, bg *prometheus.Desc
 	healthFailing, healthFailingFor     *prometheus.Desc
+	cacheEntries                        *prometheus.Desc
 }
 
 type jobState struct {
@@ -63,6 +64,7 @@ type stateSnapshot struct {
 	maintenanceStarted *time.Time
 	bgActive, bgPend   float64
 	health             []healthState
+	cacheEntries       float64
 }
 
 // NewStateCollector reads from db (nil: the collector only describes its
@@ -88,11 +90,14 @@ func NewStateCollector(db StateDB, log *slog.Logger) *StateCollector {
 			"Enabled subjects (connections, models, MCP servers) whose latest stored health check failed, by kind.", []string{"kind"}, nil),
 		healthFailingFor: prometheus.NewDesc("grounded_health_failing_seconds",
 			"How long each failing enabled subject has been failing, by kind and name (absent while healthy).", []string{"kind", "name"}, nil),
+		cacheEntries: prometheus.NewDesc("grounded_answer_cache_entries",
+			"Answers in the answer cache that haven't expired.", nil, nil),
 	}
 }
 
 func (c *StateCollector) Describe(ch chan<- *prometheus.Desc) {
-	for _, d := range []*prometheus.Desc{c.up, c.jobs, c.availableAge, c.runningAge, c.maintenance, c.maintenanceStarted, c.bg, c.healthFailing, c.healthFailingFor} {
+	for _, d := range []*prometheus.Desc{c.up, c.jobs, c.availableAge, c.runningAge, c.maintenance, c.maintenanceStarted, c.bg, c.healthFailing, c.healthFailingFor,
+		c.cacheEntries} {
 		ch <- d
 	}
 }
@@ -125,6 +130,7 @@ func (c *StateCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	gauge(c.bg, s.bgActive, "active")
 	gauge(c.bg, s.bgPend, "pending")
+	gauge(c.cacheEntries, s.cacheEntries)
 	for _, h := range s.health {
 		if h.count {
 			gauge(c.healthFailing, h.value, h.kind)
@@ -165,7 +171,8 @@ ORDER BY kind, state`
 const platformStateSQL = `
 SELECT m.enabled, m.started_at,
        (SELECT count(*) FROM break_glass_sessions WHERE status = 'active' AND expires_at > now())::float8,
-       (SELECT count(*) FROM break_glass_sessions WHERE status = 'pending')::float8
+       (SELECT count(*) FROM break_glass_sessions WHERE status = 'pending')::float8,
+       (SELECT count(*) FROM answer_cache WHERE expires_at > now())::float8
 FROM maintenance_mode m`
 
 // healthSQL reads the stored health of enabled subjects
@@ -205,7 +212,7 @@ func readState(ctx context.Context, db StateDB) (stateSnapshot, error) {
 	if err != nil {
 		return s, err
 	}
-	err = db.QueryRow(ctx, platformStateSQL).Scan(&s.maintenance, &s.maintenanceStarted, &s.bgActive, &s.bgPend)
+	err = db.QueryRow(ctx, platformStateSQL).Scan(&s.maintenance, &s.maintenanceStarted, &s.bgActive, &s.bgPend, &s.cacheEntries)
 	if err != nil {
 		return s, err
 	}

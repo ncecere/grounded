@@ -34,6 +34,10 @@
 // carries SMALLTALK or is only a greeting or thanks ("hi", "thanks!"),
 // otherwise 0.02; in_scope 0.04 with the marker OFFTOPIC, otherwise 0.93.
 //
+// The answer cache's same-question check (state {question,
+// cached_question}): same_question 0.95, or 0.05 when the question carries
+// DIFFERENT.
+//
 // Other noul questions answer FakeSafeScore, other score questions 0 and
 // choice questions their first option (sorted).
 
@@ -135,6 +139,8 @@ type fakeS1State struct {
 	Query    *string                `json:"query"`
 	Passage  *fakePassage           `json:"passage"`
 	Passages map[string]fakePassage `json:"passages"`
+	Question *string                `json:"question"`
+	Cached   *string                `json:"cached_question"`
 }
 
 func (p *FakeProxy) systemOne(w http.ResponseWriter, r *http.Request) {
@@ -224,6 +230,12 @@ func fakeSeverity(text string) float64 {
 func fakeNoul(id, text string, st fakeS1State) float64 {
 	if st.Message != nil && st.Agent != nil {
 		return fakeScope(id, *st.Message)
+	}
+	if st.Question != nil && st.Cached != nil {
+		if strings.Contains(strings.ToUpper(*st.Question), "DIFFERENT") {
+			return 0.05
+		}
+		return 0.95
 	}
 	if st.Query != nil {
 		passage, question := st.Passage, id

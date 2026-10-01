@@ -158,6 +158,10 @@ func (p *Processor) commitRechunk(ctx context.Context, src dbgen.DataSource, d d
 		if err := q.SetDocumentChunkStats(ctx, dbgen.SetDocumentChunkStatsParams{ID: d.DocumentID, ChunkCount: int32(len(rc.chunks)), TokenCount: int32(total)}); err != nil {
 			return err
 		}
+		// The passages changed: answers cached from the old ones go (migration 00042).
+		if _, err := tx.Exec(ctx, "SELECT raise_kb_content_revision($1)", src.ID); err != nil {
+			return err
+		}
 		if err := q.UpsertDocumentBlocks(ctx, dbgen.UpsertDocumentBlocksParams{
 			DocumentID: d.DocumentID, SourceID: src.ID, Hashes: nonNilInts(plan.hashes), Dropped: nonNilInts(plan.dropped), Rev: plan.rev,
 		}); err != nil {

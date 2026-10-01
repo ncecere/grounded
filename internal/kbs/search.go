@@ -175,6 +175,19 @@ func searchSources(kb KB, f MetadataFilter) []uuid.UUID {
 	return sourceIDs
 }
 
+// EmbedQuery embeds a query in a profile as a search would (or takes it
+// from the cache) and leaves it in the cache, so the request's searches
+// reuse it (the answer cache's near-identical lookup, docs/answer-cache.md).
+// tokens is 0 for a cached vector; modelID is the profile's model.
+func (s *Service) EmbedQuery(ctx context.Context, profileID uuid.UUID, text, user string, cache *EmbedCache) (vec []float32, tokens int, modelID uuid.UUID, err error) {
+	target, err := s.Catalog.EmbedTarget(ctx, profileID)
+	if err != nil {
+		return nil, 0, uuid.Nil, err
+	}
+	vec, tokens, err = queryVector(ctx, target, profileID, SearchParams{Text: text, User: user, Cache: cache})
+	return vec, tokens, target.Model.ID, err
+}
+
 // queryVector embeds the query text (or takes it from the cache). tokens is
 // 0 for a cached vector. Gateway failures become ErrModelUnavailable, with
 // Retry-After under backpressure.

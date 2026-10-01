@@ -184,6 +184,19 @@ var (
 		Help: "The gap topics job's work by kind (embedded, assigned, new_topic, reopened, resolved, labelled, pruned).",
 	}, []string{"kind"})
 
+	// AnswerCacheLookups counts the answer cache's lookups
+	// (docs/answer-cache.md): hits by match (exact, near) and misses by
+	// reason; AnswerCacheTokensSaved the model tokens hits didn't spend.
+	// grounded_answer_cache_entries (state.go) is the live entries.
+	AnswerCacheLookups = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "grounded_answer_cache_lookups_total",
+		Help: "Answer cache lookups by result (hit, miss) and reason (exact, near; no_entry, near_rejected, not_standalone, error).",
+	}, []string{"result", "reason"})
+	AnswerCacheTokensSaved = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "grounded_answer_cache_tokens_saved_total",
+		Help: "Model tokens the original answers spent that answers served from the cache did not spend again.",
+	})
+
 	ValkeyErrors = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "grounded_valkey_errors_total",
 		Help: "Valkey commands and dials that failed (a missing key is not an error), by command.",
@@ -197,7 +210,7 @@ func appCollectors() []prometheus.Collector {
 		ModelRequests, ModelRequestDuration, SystemOneRequests, SystemOneDuration, RerankRequests, RerankDuration, ModerationDecisions,
 		JobsWorked, JobDuration, IngestDocuments, IngestDuration, EmbeddingBatchInputs,
 		CrawlPages, CrawlFetchDuration, BreakGlassSessions, BreakGlassReads, MCPToolCalls, MCPClientCalls, MCPClientCallDuration, HealthChecks, HealthCheckDuration,
-		GapQuestions, GapTopicChanges, ValkeyErrors,
+		GapQuestions, GapTopicChanges, AnswerCacheLookups, AnswerCacheTokensSaved, ValkeyErrors,
 	}
 }
 
