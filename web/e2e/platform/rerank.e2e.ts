@@ -61,7 +61,7 @@ test("reranking: an admin chooses the rerank model; Try it shows the reranked or
   await test.step("Try it shows the reranked order with scores", async () => {
     await page.goto(`/teams/${team}/kbs/${kb.id}?tab=try`);
     await page.getByRole("textbox", { name: "Question or search terms" }).fill("transcript fee");
-    await page.getByRole("button", { name: "Search" }).click();
+    await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.getByText(/Reranked the best 2 passages in/)).toBeVisible();
     const cards = page.getByRole("list", { name: "Search results" }).getByRole("article");
     await expect(cards.first()).toContainText("FAKE-RERANK-TOP");
@@ -71,7 +71,7 @@ test("reranking: an admin chooses the rerank model; Try it shows the reranked or
 
   await test.step("turning Rerank off compares with the usual order", async () => {
     await page.getByRole("switch", { name: /Rerank/ }).click();
-    await page.getByRole("button", { name: "Search" }).click();
+    await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.getByText(/Reranked the best/)).toHaveCount(0);
     await expect(page.getByRole("list", { name: "Search results" }).getByRole("article").first()).not.toContainText("Rerank 1.000");
   });
