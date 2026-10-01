@@ -62,6 +62,14 @@ test("the public page: a signed-out visitor chats with a public agent", async ({
   await sources.click();
   await expect(answer.getByRole("list", { name: "Sources for this answer" }).getByRole("listitem")).toHaveCount(1);
   await a11y(page, "public answer");
+  // The source card opens the cited passage beside the conversation, through the visitor's own session.
+  await answer.getByRole("button", { name: /^Show source 1: / }).click();
+  const viewer = page.getByTestId("source-viewer");
+  await expect(viewer.getByTestId("cited-passage")).toContainText(handbook.answer);
+  await expect(viewer.getByRole("button", { name: "Open full document" })).toHaveCount(0);
+  await a11y(page, "public source viewer");
+  await viewer.getByRole("button", { name: "Close the source" }).click();
+  await expect(viewer).toBeHidden();
 });
 
 test("the widget on an allowed origin, and nothing on another", async ({ page, admin, a11y }) => {

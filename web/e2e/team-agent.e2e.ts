@@ -103,7 +103,8 @@ test("upload source, knowledge base, agent, publish, streamed chat with citation
     await expect(answer).toContainText(handbook.answer);
     await expect(answer.getByRole("button", { name: "Good answer" })).toBeVisible();
     // The sources start collapsed. The citation chip's card opens from the keyboard (Escape returns to the chip),
-    // and its "Show source 1 below" opens the sources and focuses that card, in view above the composer.
+    // and its "Show source 1" opens the passage in the source viewer beside the conversation (docs/v0.4.0.md §5);
+    // closing it focuses the source's card under the answer, in view above the composer.
     await expect(answer.getByRole("button", { name: "Used 1 source" })).toHaveAttribute("aria-expanded", "false");
     const chip = answer.getByRole("button", { name: /^Source 1: / });
     await chip.focus();
@@ -115,7 +116,18 @@ test("upload source, knowledge base, agent, publish, streamed chat with citation
     await expect(card).toBeHidden();
     await expect(chip).toBeFocused();
     await page.keyboard.press("Enter");
-    await card.getByRole("button", { name: "Show source 1 below" }).click();
+    await card.getByRole("button", { name: "Show source 1" }).click();
+    const viewer = page.getByTestId("source-viewer");
+    await expect(viewer.getByRole("heading", { level: 2 })).toBeFocused();
+    await expect(viewer.getByTestId("cited-passage")).toContainText(handbook.answer);
+    await expect(viewer.getByText("Source 1 of 1")).toBeVisible();
+    await a11y(page, "source viewer");
+    // The team's owner may read the whole document.
+    await viewer.getByRole("button", { name: "Open full document" }).click();
+    await expect(viewer.getByTestId("cited-passage")).toContainText(handbook.answer);
+    await a11y(page, "source viewer, whole document");
+    await page.keyboard.press("Escape");
+    await expect(viewer).toBeHidden();
     const source = answer.getByRole("list", { name: "Sources for this answer" }).getByRole("listitem", { name: /^Source 1: / });
     await expect(source).toBeFocused();
     await expect(source).toContainText(handbook.answer);
