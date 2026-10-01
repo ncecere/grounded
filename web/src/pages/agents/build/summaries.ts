@@ -1,5 +1,5 @@
 /* The one-line summary each closed Build section shows (W2). Pure: tested in src/test/agent-build.test.tsx. */
-import { cleanOverride, overrideCount } from "@/lib/moderation";
+import { cleanOverride, overrideCount, overrideModeText } from "@/lib/moderation";
 import { describeFilter } from "../../team/filters";
 import type { AgentConfig } from "../common";
 import type { BuildSection, ChatModel } from "./section";
@@ -49,7 +49,7 @@ export function sectionSummary(section: BuildSection, { c, model, kbName, system
       const o = cleanOverride(c.moderation);
       const n = overrideCount(c.moderation);
       const parts = [n === 0 ? "Platform policy only" : n === 1 ? "1 category tightened" : `${n} categories tightened`];
-      if (o.outputMode === "buffer") parts.push("answers checked before they're shown");
+      if (o.outputMode) parts.push(overrideModeText(o.outputMode));
       return parts.join(" · ");
     }
     case "systemone": {

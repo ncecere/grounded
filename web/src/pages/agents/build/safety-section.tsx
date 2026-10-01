@@ -10,7 +10,7 @@ import { useCurrentUser } from "../../../session";
 import { ModerationRuleFields, type RuleForm } from "@/components/moderation-rule";
 import { Alert } from "@/components/ui/alert/alert";
 import { Disclosure } from "@/components/ui/disclosure/disclosure";
-import { Switch } from "@/components/ui/switch/switch";
+import { RadioGroup } from "@/components/ui/radio-group/radio-group";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { cleanOverride, fullRules, moderationCategories, overrideCount, parseThreshold, supportCategories, type ModerationCategory, type ModerationRule } from "@/lib/moderation";
@@ -19,6 +19,17 @@ import cf from "./build.module.css";
 import { type SectionProps, useReportInvalid } from "./section";
 
 type Stage = "input" | "output";
+
+/** How the agent's answers are checked: the platform's mode, or a stricter one (stream_checked, then buffer). */
+const modeOptions = [
+  { value: "platform" as const, label: "As the platform's policy says", description: "Answers are checked as the audience's moderation policy sets." },
+  {
+    value: "stream_checked" as const,
+    label: "Paragraph by paragraph",
+    description: "Each paragraph is checked with everything before it, then shown, so the answer appears as it's written.",
+  },
+  { value: "buffer" as const, label: "The whole answer", description: "People see what the agent is doing until the whole answer passes, then all of it at once." },
+];
 
 const pct = (r: ModerationRule) => String(Math.round(r.threshold * 100));
 
@@ -57,11 +68,12 @@ export function SafetySection({ c, set, errorFor, warningFor }: SectionProps) {
           )}
         </Alert>
       )}
-      <Switch
-        label="Check answers before showing them"
-        description="Buffer answers: people see what the agent is doing until the answer passes the check, instead of a streamed answer that may be retracted."
-        checked={override.outputMode === "buffer"}
-        onCheckedChange={(v) => set({ moderation: { ...override, outputMode: v ? "buffer" : "" } })}
+      <RadioGroup
+        legend="Check answers before showing them"
+        description="Stricter only: a mode the platform's policy already exceeds changes nothing."
+        value={override.outputMode || "platform"}
+        onValueChange={(v) => set({ moderation: { ...override, outputMode: v === "platform" ? "" : v } })}
+        options={modeOptions}
       />
       <Disclosure
         title="Stricter category rules"

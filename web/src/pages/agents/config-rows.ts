@@ -7,7 +7,7 @@
  * Pure: tested in src/test/agent-versions.test.tsx.
  */
 import { audienceLabel } from "@/lib/terms";
-import { actionLabels, categoryLabel, cleanOverride } from "@/lib/moderation";
+import { actionLabels, categoryLabel, cleanOverride, overrideModeText } from "@/lib/moderation";
 import { describeFilter } from "../team/filters";
 import { type AgentConfig, citationModeLabels, retrievalModeLabels } from "./common";
 
@@ -48,7 +48,8 @@ export function safetyText(m: AgentConfig["moderation"]): string {
   const rules = Object.entries(o.categories ?? {}).map(
     ([c, r]) => `${categoryLabel(c)} (questions: ${actionLabels[r.input.action].toLowerCase()}, answers: ${actionLabels[r.output.action].toLowerCase()})`,
   );
-  const parts = [...rules, o.outputMode === "buffer" ? "Answers checked before they're shown" : "", m?.severityBlock ? `Block at severity ${m.severityBlock}` : ""];
+  const mode = overrideModeText(o.outputMode);
+  const parts = [...rules, mode && mode[0]!.toUpperCase() + mode.slice(1), m?.severityBlock ? `Block at severity ${m.severityBlock}` : ""];
   return parts.filter(Boolean).join("; ") || "Platform policy only";
 }
 

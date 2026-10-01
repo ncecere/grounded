@@ -23,13 +23,17 @@ export function stepLabel(step: ChatStep, agentName: string) {
   }
 }
 
-/** A buffered answer (moderated before it is shown) arrives whole: until then it is written and checked. */
+/**
+ * A buffered answer (moderated before it is shown) arrives whole, and a checked one (stream_checked) a paragraph at a
+ * time once each passes: until the first words, it is written and checked.
+ */
 const bufferedLabel = "Writing and checking the answer…";
+const checksFirst = (item: AssistantItem) => Boolean(item.buffered || item.checked);
 
 /** Waiting text before the answer's first words. */
 export function waitingText(item: AssistantItem, thinking: boolean, agentName: string) {
   if (thinking) return "Thinking…";
-  if (item.buffered && (!item.step || item.step === "answering")) return bufferedLabel;
+  if (checksFirst(item) && (!item.step || item.step === "answering")) return bufferedLabel;
   if (item.step) return stepLabel(item.step, agentName);
   return item.steps.length > 0 ? "Reading the sources…" : "Working on it…";
 }
@@ -38,5 +42,5 @@ export function waitingText(item: AssistantItem, thinking: boolean, agentName: s
 export function progressAnnouncement(items: ChatItem[], agentName: string) {
   const last = items[items.length - 1];
   if (!last || last.role !== "assistant" || last.status !== "streaming" || last.text || last.moderation || !last.step) return "";
-  return last.buffered && last.step === "answering" ? bufferedLabel : stepLabel(last.step, agentName);
+  return checksFirst(last) && last.step === "answering" ? bufferedLabel : stepLabel(last.step, agentName);
 }

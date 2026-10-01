@@ -102,8 +102,12 @@ export function cleanOverride(o: Schemas["AgentModeration"] | undefined): Schema
   for (const [c, r] of Object.entries(o?.categories ?? {})) {
     if (r.input.action !== "off" || r.output.action !== "off") categories[c] = r;
   }
-  return { categories, outputMode: o?.outputMode === "buffer" ? "buffer" : "" };
+  return { categories, outputMode: o?.outputMode === "buffer" || o?.outputMode === "stream_checked" ? o.outputMode : "" };
 }
+
+/** An override's output mode in words, "" when it keeps the platform's: "answers checked paragraph by paragraph". */
+export const overrideModeText = (m: Schemas["AgentModeration"]["outputMode"] | undefined) =>
+  m === "buffer" ? "answers checked whole before they're shown" : m === "stream_checked" ? "answers checked paragraph by paragraph" : "";
 
 /** How many categories an override tightens. */
 export const overrideCount = (o: Schemas["AgentModeration"] | undefined) => Object.keys(cleanOverride(o).categories ?? {}).length;

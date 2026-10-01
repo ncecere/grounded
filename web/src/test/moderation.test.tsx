@@ -20,7 +20,7 @@ const policy = (audience: Schemas["Audience"], extra: Partial<Schemas["Moderatio
   const action = audience === "public" ? "block" : "off";
   const categories = Object.fromEntries(cats.map((c) => [c, { input: { action, threshold: 0.5 }, output: { action, threshold: 0.5 } }])) as Schemas["ModerationPolicy"]["categories"];
   return {
-    audience, modelId: null, categories, outputMode: audience === "public" ? "buffer" : "stream_retract", failClosed: audience === "public",
+    audience, modelId: null, categories, outputMode: audience === "public" ? "stream_checked" : "stream_retract", failClosed: audience === "public",
     notice: "This message can't be answered because it may break the usage policy.", severityBlock: null, supportMessage: "Please reach out for support.", uncalibratedBlockThreshold: 0.95,
     revision: 1, updatedAt: null, ...extra,
   };
@@ -99,6 +99,11 @@ describe("admin moderation page", () => {
     const failClosed = screen.getByRole("switch", { name: /Fail closed/ });
     expect(failClosed).toBeChecked();
     expect(failClosed.getAttribute("aria-disabled") === "true" || failClosed.hasAttribute("data-disabled")).toBe(true);
+    // Three output modes; the Public default streams checked paragraphs.
+    const modes = screen.getByRole("radiogroup", { name: "Answers" });
+    expect(within(modes).getAllByRole("radio").map((r) => r.closest("label")?.textContent)).toEqual(["Stream, then retract", "Stream checked paragraphs", "Buffer"]);
+    expect(within(modes).getByRole("radio", { name: /Stream checked paragraphs/ })).toBeChecked();
+    expect(screen.getByText(/Provider: Classifier · Streams checked paragraphs · Fails closed/)).toBeInTheDocument();
     const threshold = screen.getByRole("textbox", { name: "Violence, questions: threshold (%)" });
     await userEvent.clear(threshold);
     await userEvent.type(threshold, "30");
@@ -180,6 +185,7 @@ describe("moderation form helpers", () => {
       categories: { illicit: { input: { action: "flag", threshold: 0.2 }, output: off } },
       outputMode: "",
     });
+    expect(cleanOverride({ categories: {}, outputMode: "stream_checked" }).outputMode).toBe("stream_checked");
   });
 });
 

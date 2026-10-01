@@ -23,8 +23,15 @@ type Stage = "input" | "output";
 
 const modeOptions = [
   { value: "stream_retract" as const, label: "Stream, then retract", description: "Answers appear as they are written; a failing answer is replaced by the notice." },
+  {
+    value: "stream_checked" as const,
+    label: "Stream checked paragraphs",
+    description: "Each paragraph is checked, with everything before it, before it appears. A failing paragraph replaces the whole answer with the notice.",
+  },
   { value: "buffer" as const, label: "Buffer", description: "Answers are checked before anyone sees them. Meanwhile people see what the agent is doing, then the whole answer at once." },
 ];
+
+const modeSummary = { stream_retract: "Streams, then retracts", stream_checked: "Streams checked paragraphs", buffer: "Buffers answers" } as const;
 
 function useSavePolicy(policy: Policy, onSaved: (p: Policy) => void) {
   const qc = useQueryClient();
@@ -181,7 +188,7 @@ function policySummary(form: PolicyForm, providers: Model[]) {
   if (!provider) return "No provider: moderation is off";
   return [
     `Provider: ${provider.displayName}`,
-    form.outputMode === "buffer" ? "Buffers answers" : "Streams, then retracts",
+    modeSummary[form.outputMode],
     form.failClosed ? "Fails closed" : "Fails open",
     `${blocking} ${blocking === 1 ? "category" : "categories"} blocking`,
     flagging ? `${flagging} ${flagging === 1 ? "rule" : "rules"} flagging` : "",

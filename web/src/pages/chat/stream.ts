@@ -82,6 +82,8 @@ export type AssistantItem = {
   feedback?: { rating: FeedbackRating; reason?: FeedbackReason; shared?: boolean };
   /** Output moderation buffers the answer: nothing streams until it passes. */
   buffered?: boolean;
+  /** Output moderation checks each paragraph before it's shown (stream_checked): the answer grows a paragraph at a time. */
+  checked?: boolean;
   /** Moderation replaced the answer with a notice (text is the notice). */
   moderation?: Moderation;
 };
@@ -150,7 +152,7 @@ export function applyChatEvent(item: AssistantItem, event: string, data: unknown
     case "status":
       return chatSteps.has(str(d.step)) ? { ...item, step: str(d.step) as ChatStep } : item;
     case "message_start":
-      return { ...item, id: str(d.messageId) || item.id, buffered: Boolean(d.buffered) };
+      return { ...item, id: str(d.messageId) || item.id, buffered: Boolean(d.buffered), checked: d.mode === "stream_checked" };
     case "thinking_delta":
       return item.moderation ? item : { ...item, thinking: item.thinking + str(d.delta) };
     case "text_delta":

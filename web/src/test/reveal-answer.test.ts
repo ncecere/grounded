@@ -15,6 +15,9 @@ describe("a buffered answer arriving whole", () => {
 
   it("leaves streamed answers, empty answers and questions alone", () => {
     expect(arrivedWhole({ key: "a1", hadText: false }, answer("The first words", false))).toBe("");
+    // Checked paragraphs (stream_checked) grow like a streamed answer: followed, not shown from the start.
+    const checked = { ...answer("The first paragraph.\n\n", false), checked: true } as ChatItem;
+    expect(arrivedWhole({ key: "a1", hadText: false }, checked)).toBe("");
     expect(arrivedWhole({ key: "a1", hadText: false }, answer(""))).toBe("");
     expect(arrivedWhole({ key: "a1", hadText: false }, { role: "user", key: "u1", text: "Hi" })).toBe("");
     expect(arrivedWhole({ key: "a1", hadText: false }, undefined)).toBe("");

@@ -412,7 +412,7 @@ describe("agent editor", () => {
     expect(await axe(a.container)).toHaveNoViolations();
   });
 
-  it("the moderation override only adds stricter rules and buffering", async () => {
+  it("the moderation override only adds stricter rules and a stricter output mode", async () => {
     const calls = mockApi(
       agentRoutes({
         "PATCH /v1/teams/registrar/agents/ag1": (b) => agent({ revision: 3, draft: { ...config, ...(b as { config: Schemas["AgentConfig"] }).config } }),
@@ -423,7 +423,9 @@ describe("agent editor", () => {
     const safety = await screen.findByRole("button", { name: /^Safety/ }, { timeout: 5000 });
     expect(safety).toHaveTextContent("Platform policy only");
     await userEvent.click(safety);
-    await userEvent.click(screen.getByRole("switch", { name: /Check answers before showing them/ }));
+    const modes = screen.getByRole("radiogroup", { name: /Check answers before showing them/ });
+    expect(within(modes).getByRole("radio", { name: /As the platform's policy says/ })).toBeChecked();
+    await userEvent.click(within(modes).getByRole("radio", { name: /Paragraph by paragraph/ }));
     await userEvent.click(screen.getByRole("button", { name: /Stricter category rules/ }));
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Self-harm, questions: action" }), "block");
     const threshold = screen.getByRole("textbox", { name: "Self-harm, questions: threshold (%)" });
@@ -436,7 +438,7 @@ describe("agent editor", () => {
     await waitFor(() => {
       const body = calls.filter((c) => c.method === "PATCH").at(-1)!.body as { config: Schemas["AgentConfig"] };
       expect(body.config.moderation).toEqual({
-        outputMode: "buffer",
+        outputMode: "stream_checked",
         categories: { self_harm: { input: { action: "block", threshold: 0.3 }, output: { action: "off", threshold: 0.5 } } },
       });
     }, { timeout: 3000 });
