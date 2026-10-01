@@ -14,8 +14,10 @@ import { Alert } from "@/components/ui/alert/alert";
 import { Field } from "@/components/ui/field/field";
 import { NativeSelect } from "@/components/ui/input/input";
 import { RadioGroup } from "@/components/ui/radio-group/radio-group";
+import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
 import { useBudgetStatus } from "@/lib/costs";
+import { useRerankStatus } from "@/lib/rerank";
 import { plural, useTeam } from "../common";
 import { type EvalSet, evalRunsKey, evalSetKey, evalSetsKey } from "./queries";
 
@@ -38,6 +40,9 @@ export function RunDialog({ set, onClose }: { set: EvalSet; onClose: () => void 
   const agentSet = set.target.type === "agent";
   const [kind, setKind] = useState<Kind>("retrieval");
   const [version, setVersion] = useState<Version>("draft");
+  // Reranking (docs/v0.4.0.md §3): runs rerank like searches do; off compares with the usual order.
+  const canRerank = Boolean(useRerankStatus().data?.available);
+  const [rerank, setRerank] = useState(true);
   // "none" unless the budget is enforced; the amounts are for owners and admins only.
   const budget = useBudgetStatus(agentSet ? slug : undefined).data?.state;
   const start = useMutation({
@@ -45,7 +50,7 @@ export function RunDialog({ set, onClose }: { set: EvalSet; onClose: () => void 
       unwrap(
         await api.POST("/v1/teams/{team}/evaluation-sets/{setId}/runs", {
           params: { path: { team: slug, setId: set.id } },
-          body: agentSet ? { kind, version } : { kind: "retrieval" },
+          body: { ...(agentSet ? { kind, version } : { kind: "retrieval" as const }), ...(canRerank && !rerank ? { rerank: false } : {}) },
         }),
       ),
     onSuccess: (run) => {
@@ -84,6 +89,14 @@ export function RunDialog({ set, onClose }: { set: EvalSet; onClose: () => void 
             <option value="published">Published version</option>
           </NativeSelect>
         </Field>
+      )}
+      {canRerank && (
+        <Switch
+          label="Rerank"
+          description={agentSet ? "Rerank as the agent does, unless it turned reranking off. Turn it off to compare." : "Rerank as searches do. Turn it off to compare."}
+          checked={rerank}
+          onCheckedChange={setRerank}
+        />
       )}
       {kind === "answer" && (
         <Alert tone={budget === "warning" || budget === "exhausted" ? "warning" : "info"}>
