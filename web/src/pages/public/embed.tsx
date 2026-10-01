@@ -24,6 +24,9 @@ import { PublicChat } from "./public-chat";
 import { publicAgentQuery } from "./session";
 import p from "./public.module.css";
 
+/** Something open inside the frame (bitop-ui's dialogs and popovers): Escape is theirs first. */
+const openLayer = ["dialog", "alertdialog"].map((r) => `[role="${r}"]`).join(", ");
+
 export type EmbedSearch = { key?: string; preview?: "1"; team?: string };
 
 /**
@@ -33,7 +36,7 @@ export type EmbedSearch = { key?: string; preview?: "1"; team?: string };
 function useWidgetBridge(input: React.RefObject<HTMLTextAreaElement | null>) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || window.parent === window || e.defaultPrevented || document.querySelector('[role="dialog"]')) return;
+      if (e.key !== "Escape" || window.parent === window || e.defaultPrevented || document.querySelector(openLayer)) return;
       window.parent.postMessage({ type: "grounded-widget:close" }, "*");
     };
     const onMessage = (e: MessageEvent) => {
