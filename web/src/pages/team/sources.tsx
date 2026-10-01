@@ -9,6 +9,8 @@
 import { useParams } from "@tanstack/react-router";
 import { Database, Globe, Plus } from "lucide-react";
 import { useIntent } from "../../lib/intents";
+import { useSearchParams } from "@/lib/url-search";
+import { Alert } from "@/components/ui/alert/alert";
 import { PageTabs, useUrlTab } from "@/components/page-tabs";
 import { Button } from "@/components/ui/button/button";
 import { Stack } from "@/components/ui/layout/layout";
@@ -28,11 +30,19 @@ export { documentSummary, SourceStatusBadge } from "../sources/list";
 export { isLowering } from "../sources/impact";
 export { SourceDetail } from "../sources/detail";
 
+/** The topic a Gaps page's "Add a source" came from (?gap=, ?agent=; docs/gaps.md). */
+function useGapNote() {
+  const [params] = useSearchParams();
+  const topic = params.get("gap");
+  return topic ? { topic, agent: params.get("agent") || "the agent" } : undefined;
+}
+
 export function SourcesPage() {
   const { canEdit, role } = useTeam();
   const owner = useSourceOwner();
   const [tab, setTab] = useUrlTab(dataSourceTabs);
-  const newSource = useCreateSource();
+  const gap = useGapNote();
+  const newSource = useCreateSource(gap ? { description: `Covers ${gap.topic}: questions to ${gap.agent} it couldn't answer (the gap report).` } : undefined);
   useIntent("new-source", () => {
     if (!canEdit) return;
     if (tab !== "sources") setTab("sources");
@@ -57,6 +67,11 @@ export function SourcesPage() {
         actions={create}
       />
       {tab === "sources" || !role ? owner.readOnlyNote : <ArchivedNotice>Its domain requests are read-only.</ArchivedNotice>}
+      {gap && tab === "sources" && (
+        <Alert tone="info" title={`Add a source about ${gap.topic}.`}>
+          People asked {gap.agent} about it and got no good answer. Create or update a source that covers it, then add it to one of {gap.agent}'s knowledge bases.
+        </Alert>
+      )}
       <PageTabs
         label="Data source sections"
         value={tab}

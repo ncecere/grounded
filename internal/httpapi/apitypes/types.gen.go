@@ -1821,6 +1821,30 @@ func (e FeedbackReason) Valid() bool {
 	}
 }
 
+// Defines values for GapTopicState.
+const (
+	GapTopicStateDismissed GapTopicState = "dismissed"
+	GapTopicStateFixed     GapTopicState = "fixed"
+	GapTopicStateOpen      GapTopicState = "open"
+	GapTopicStateResolved  GapTopicState = "resolved"
+)
+
+// Valid indicates whether the value is a known member of the GapTopicState enum.
+func (e GapTopicState) Valid() bool {
+	switch e {
+	case GapTopicStateDismissed:
+		return true
+	case GapTopicStateFixed:
+		return true
+	case GapTopicStateOpen:
+		return true
+	case GapTopicStateResolved:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GroupRuleChangeKind.
 const (
 	GroupRuleChangeKindAdd       GroupRuleChangeKind = "add"
@@ -3848,16 +3872,16 @@ func (e AdminListAuditParamsActorKind) Valid() bool {
 
 // Defines values for AdminListBreakGlassSessionsParamsState.
 const (
-	Closed AdminListBreakGlassSessionsParamsState = "closed"
-	Open   AdminListBreakGlassSessionsParamsState = "open"
+	AdminListBreakGlassSessionsParamsStateClosed AdminListBreakGlassSessionsParamsState = "closed"
+	AdminListBreakGlassSessionsParamsStateOpen   AdminListBreakGlassSessionsParamsState = "open"
 )
 
 // Valid indicates whether the value is a known member of the AdminListBreakGlassSessionsParamsState enum.
 func (e AdminListBreakGlassSessionsParamsState) Valid() bool {
 	switch e {
-	case Closed:
+	case AdminListBreakGlassSessionsParamsStateClosed:
 		return true
-	case Open:
+	case AdminListBreakGlassSessionsParamsStateOpen:
 		return true
 	default:
 		return false
@@ -3996,6 +4020,27 @@ func (e ListTeamAuditParamsActorKind) Valid() bool {
 	case ListTeamAuditParamsActorKindGroupMapping:
 		return true
 	case ListTeamAuditParamsActorKindSystem:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListGapTopicsParamsState.
+const (
+	ListGapTopicsParamsStateAll    ListGapTopicsParamsState = "all"
+	ListGapTopicsParamsStateClosed ListGapTopicsParamsState = "closed"
+	ListGapTopicsParamsStateOpen   ListGapTopicsParamsState = "open"
+)
+
+// Valid indicates whether the value is a known member of the ListGapTopicsParamsState enum.
+func (e ListGapTopicsParamsState) Valid() bool {
+	switch e {
+	case ListGapTopicsParamsStateAll:
+		return true
+	case ListGapTopicsParamsStateClosed:
+		return true
+	case ListGapTopicsParamsStateOpen:
 		return true
 	default:
 		return false
@@ -4176,6 +4221,25 @@ type AdminFailedIngest struct {
 
 	// TeamSlug Null for platform-shared sources
 	TeamSlug *string `json:"teamSlug"`
+}
+
+// AdminGapCounts defines model for AdminGapCounts.
+type AdminGapCounts struct {
+	From      openapi_types.Date `json:"from"`
+	Questions int32              `json:"questions"`
+	Teams     []AdminGapTeam     `json:"teams"`
+	To        openapi_types.Date `json:"to"`
+}
+
+// AdminGapTeam defines model for AdminGapTeam.
+type AdminGapTeam struct {
+	Name      string `json:"name"`
+	Questions int32  `json:"questions"`
+
+	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down
+	Signals GapSignalCounts    `json:"signals"`
+	Slug    string             `json:"slug"`
+	TeamId  openapi_types.UUID `json:"teamId"`
 }
 
 // AdminKnowledgeBase defines model for AdminKnowledgeBase.
@@ -5741,9 +5805,12 @@ type ConversationMessage struct {
 	CreatedAt time.Time `json:"createdAt"`
 
 	// ErrorCode moderation_blocked, moderation_withheld, moderation_support or moderation_unavailable (the safety check could not run; try again) when text is a moderation notice
-	ErrorCode      *string            `json:"errorCode,omitempty"`
-	Feedback       *FeedbackRating    `json:"feedback,omitempty"`
-	FeedbackReason *FeedbackReason    `json:"feedbackReason,omitempty"`
+	ErrorCode      *string         `json:"errorCode,omitempty"`
+	Feedback       *FeedbackRating `json:"feedback,omitempty"`
+	FeedbackReason *FeedbackReason `json:"feedbackReason,omitempty"`
+
+	// FeedbackShared The asker shared the question with the team with a thumbs-down (the gap report, docs/gaps.md)
+	FeedbackShared *bool              `json:"feedbackShared,omitempty"`
 	Id             openapi_types.UUID `json:"id"`
 	LatencyMs      *int32             `json:"latencyMs,omitempty"`
 
@@ -6989,6 +7056,9 @@ type EvaluationTargetType string
 type Feedback struct {
 	Rating FeedbackRating  `json:"rating"`
 	Reason *FeedbackReason `json:"reason,omitempty"`
+
+	// Share With a thumbs-down: show the question in full to the team's editors, admins and owners in the gap report (off by default; ignored with a thumbs-up). Docs: docs/gaps.md.
+	Share *bool `json:"share,omitempty"`
 }
 
 // FeedbackRating defines model for FeedbackRating.
@@ -7002,12 +7072,106 @@ type FeedbackResult struct {
 	MessageId openapi_types.UUID `json:"messageId"`
 	Rating    FeedbackRating     `json:"rating"`
 	Reason    *FeedbackReason    `json:"reason,omitempty"`
+	Shared    bool               `json:"shared"`
 }
 
 // FusionWeights Weighted reciprocal rank fusion of vector and keyword (full-text) search: score = vector / (60 + vector rank) + keyword / (60 + keyword rank). Each weight is 0-1 and at least one is above 0. A keyword weight of 0 makes retrieval vector-only.
 type FusionWeights struct {
 	Keyword float64 `json:"keyword"`
 	Vector  float64 `json:"vector"`
+}
+
+// GapEvaluationAdd defines model for GapEvaluationAdd.
+type GapEvaluationAdd struct {
+	// Expected What a good result is: any of these documents. urls are http(s) pages; one ending in * is a prefix (https://example.edu/registrar/transcripts*). filenames match uploaded files' names, case aside.
+	Expected    EvaluationExpected `json:"expected"`
+	MustMention *[]string          `json:"mustMention,omitempty"`
+	Note        *string            `json:"note,omitempty"`
+
+	// Question The question as added (editors may tidy it); the shared text when absent
+	Question         *string            `json:"question,omitempty"`
+	SetId            openapi_types.UUID `json:"setId"`
+	SharedQuestionId openapi_types.UUID `json:"sharedQuestionId"`
+}
+
+// GapEvaluationAdded defines model for GapEvaluationAdded.
+type GapEvaluationAdded struct {
+	EvaluationQuestionId openapi_types.UUID `json:"evaluationQuestionId"`
+	SetId                openapi_types.UUID `json:"setId"`
+	SharedQuestion       GapSharedQuestion  `json:"sharedQuestion"`
+}
+
+// GapSharedQuestion defines model for GapSharedQuestion.
+type GapSharedQuestion struct {
+	AddedToEvaluations bool               `json:"addedToEvaluations"`
+	CreatedAt          time.Time          `json:"createdAt"`
+	FeedbackReason     *FeedbackReason    `json:"feedbackReason,omitempty"`
+	Id                 openapi_types.UUID `json:"id"`
+	Question           string             `json:"question"`
+}
+
+// GapSignalCounts Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down
+type GapSignalCounts map[string]int32
+
+// GapTopic defines model for GapTopic.
+type GapTopic struct {
+	AgentId   openapi_types.UUID `json:"agentId"`
+	AgentName string             `json:"agentName"`
+
+	// Askers Different askers (pseudonymous; an anonymous session counts as one)
+	Askers    int32              `json:"askers"`
+	FirstSeen time.Time          `json:"firstSeen"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// Label 2-5 words written by the agent's chat model from the topic's questions; empty until the topics job labels it
+	//
+	// Example: Parking permits
+	Label      string    `json:"label"`
+	Last30Days int32     `json:"last30Days"`
+	LastSeen   time.Time `json:"lastSeen"`
+	Questions  int32     `json:"questions"`
+
+	// Reasons Thumbs-down reasons and their counts
+	Reasons map[string]int32 `json:"reasons"`
+
+	// Shared Questions their askers shared
+	Shared int32 `json:"shared"`
+
+	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down
+	Signals GapSignalCounts `json:"signals"`
+
+	// State open; dismissed or fixed by an editor; resolved when its questions started being answered well. A closed topic reopens on new failures.
+	State          GapTopicState `json:"state"`
+	StateChangedAt time.Time     `json:"stateChangedAt"`
+
+	// StateReason The optional reason of a dismissal
+	StateReason string `json:"stateReason"`
+
+	// Trend Questions per week over the last 8 weeks, oldest first
+	Trend []int32 `json:"trend"`
+}
+
+// GapTopicState open; dismissed or fixed by an editor; resolved when its questions started being answered well. A closed topic reopens on new failures.
+type GapTopicState string
+
+// GapTopicDetail defines model for GapTopicDetail.
+type GapTopicDetail struct {
+	SharedQuestions []GapSharedQuestion `json:"sharedQuestions"`
+	Topic           GapTopic            `json:"topic"`
+}
+
+// GapTopicDismiss defines model for GapTopicDismiss.
+type GapTopicDismiss struct {
+	Reason *string `json:"reason,omitempty"`
+}
+
+// GapTopicList defines model for GapTopicList.
+type GapTopicList struct {
+	MinAskers int32 `json:"minAskers"`
+
+	// Pending Failed questions of the last 30 days not in a topic shown yet (not grouped yet, or fewer than minAskers askers)
+	Pending int32      `json:"pending"`
+	Topics  []GapTopic `json:"topics"`
 }
 
 // GroupMappingStatus defines model for GroupMappingStatus.
@@ -10316,6 +10480,9 @@ type EvaluationRunIdParam = openapi_types.UUID
 // EvaluationSetIdParam defines model for EvaluationSetIdParam.
 type EvaluationSetIdParam = openapi_types.UUID
 
+// GapTopicIdParam defines model for GapTopicIdParam.
+type GapTopicIdParam = openapi_types.UUID
+
 // GrantIdParam defines model for GrantIdParam.
 type GrantIdParam = openapi_types.UUID
 
@@ -10489,6 +10656,15 @@ type AdminExportAnalyticsDailyParams struct {
 
 	// Audience Only answers to this audience
 	Audience *AnalyticsAudienceParam `form:"audience,omitempty" json:"audience,omitempty"`
+}
+
+// AdminGetGapCountsParams defines parameters for AdminGetGapCounts.
+type AdminGetGapCountsParams struct {
+	// From First UTC day (default 29 days before to)
+	From *AnalyticsFromParam `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last UTC day, inclusive (default today); at most 366 days after from
+	To *AnalyticsToParam `form:"to,omitempty" json:"to,omitempty"`
 }
 
 // AdminListModerationEventsParams defines parameters for AdminListModerationEvents.
@@ -11071,6 +11247,17 @@ type CompareEvaluationRunsParams struct {
 	B openapi_types.UUID `form:"b" json:"b"`
 }
 
+// ListGapTopicsParams defines parameters for ListGapTopics.
+type ListGapTopicsParams struct {
+	AgentId *openapi_types.UUID `form:"agentId,omitempty" json:"agentId,omitempty"`
+
+	// State open (the default), closed (dismissed, fixed or resolved) or all
+	State *ListGapTopicsParamsState `form:"state,omitempty" json:"state,omitempty"`
+}
+
+// ListGapTopicsParamsState defines parameters for ListGapTopics.
+type ListGapTopicsParamsState string
+
 // UpdateKnowledgeBaseParams defines parameters for UpdateKnowledgeBase.
 type UpdateKnowledgeBaseParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
@@ -11402,6 +11589,12 @@ type UpdateEvaluationQuestionJSONRequestBody = EvaluationQuestionInput
 
 // StartEvaluationRunJSONRequestBody defines body for StartEvaluationRun for application/json ContentType.
 type StartEvaluationRunJSONRequestBody = EvaluationRunStart
+
+// DismissGapTopicJSONRequestBody defines body for DismissGapTopic for application/json ContentType.
+type DismissGapTopicJSONRequestBody = GapTopicDismiss
+
+// AddGapQuestionToEvaluationsJSONRequestBody defines body for AddGapQuestionToEvaluations for application/json ContentType.
+type AddGapQuestionToEvaluationsJSONRequestBody = GapEvaluationAdd
 
 // CreateKnowledgeBaseJSONRequestBody defines body for CreateKnowledgeBase for application/json ContentType.
 type CreateKnowledgeBaseJSONRequestBody = KnowledgeBaseCreate

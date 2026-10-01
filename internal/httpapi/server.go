@@ -22,6 +22,7 @@ import (
 	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/evals"
+	"github.com/ncecere/grounded/internal/gaps"
 	"github.com/ncecere/grounded/internal/healthcheck"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/kbs"
@@ -101,6 +102,8 @@ type Deps struct {
 	MCP *mcpclient.Service
 	// OAuth is the authorization server for /mcp (experimental, docs/mcp.md).
 	OAuth *oauth.Service
+	// Gaps is the unanswered-questions and gap report (docs/gaps.md).
+	Gaps *gaps.Service
 }
 
 type api struct {
@@ -153,7 +156,7 @@ func apiRoutes(d Deps) []route {
 		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.rerankRoutes(), a.analyticsRoutes(),
 		a.publicRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
-		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(),
+		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(), a.gapRoutes(),
 		a.mcpSettingsRoutes(), a.mcpClientRoutes(), a.oauthRESTRoutes(),
 	} {
 		routes = append(routes, group...)

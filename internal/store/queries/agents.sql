@@ -224,7 +224,7 @@ RETURNING *;
 -- name: ListMessages :many
 -- citation_check is the answer's content-free citation check record (NULL:
 -- not checked), and answer_refused and answer_no_context its analytics flags.
-SELECT m.*, e.feedback, e.feedback_reason, e.citations AS citation_check,
+SELECT m.*, e.feedback, e.feedback_reason, coalesce(e.feedback_shared, false)::bool AS feedback_shared, e.citations AS citation_check,
        coalesce(e.refused, false)::bool AS answer_refused, coalesce(e.no_context, false)::bool AS answer_no_context
 FROM messages m LEFT JOIN message_events e ON e.message_id = m.id
 WHERE m.conversation_id = $1
@@ -250,7 +250,7 @@ VALUES (@team_id, @agent_id, @agent_version_id, @message_id, @channel, @audience
         @citations, @scope);
 
 -- name: SetMessageFeedback :execrows
-UPDATE message_events SET feedback = @feedback, feedback_reason = @feedback_reason, feedback_at = now()
+UPDATE message_events SET feedback = @feedback, feedback_reason = @feedback_reason, feedback_shared = @feedback_shared, feedback_at = now()
 WHERE message_id = @message_id;
 
 -- name: InsertAccessLog :exec

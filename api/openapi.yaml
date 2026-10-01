@@ -43,6 +43,12 @@ tags:
       full-answer checks, and their runs (docs/evaluations.md). For the
       team's editors, admins and owners; 404 for everyone else and while the
       platform switch is off.
+  - name: gaps
+    description: >-
+      The unanswered-questions and gap report (docs/gaps.md): failed
+      questions grouped into labelled topics, shown once at least 3
+      different people asked, and questions their askers shared. For the
+      team's editors, admins and owners; platform staff see counts only.
   - name: openai
     description: The OpenAI-compatible API for agents
   - name: oauth
@@ -5617,6 +5623,26 @@ paths:
                   data: { $ref: "#/components/schemas/PlatformAnalytics" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/analytics/gaps:
+    get:
+      tags: [admin, gaps]
+      operationId: adminGetGapCounts
+      summary: Failed questions per team and signal (platform admins and auditors; counts only, never topics or questions)
+      parameters:
+        - $ref: "#/components/parameters/AnalyticsFromParam"
+        - $ref: "#/components/parameters/AnalyticsToParam"
+      responses:
+        "200":
+          description: Counts per team, most failed questions first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AdminGapCounts" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/analytics/daily.csv:
     get:
       tags: [admin]
@@ -6914,6 +6940,152 @@ paths:
                   data: { $ref: "#/components/schemas/EvaluationRun" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/gap-topics:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+    get:
+      tags: [gaps]
+      operationId: listGapTopics
+      summary: The team's gap topics, groups of failed questions (editors, admins and owners)
+      description: >-
+        Only topics with at least minAskers different askers are listed (3:
+        a label can't point at one person). A topic shows its label, counts,
+        signals and trend, never a question's text or who asked. Members,
+        API keys and platform staff get 404.
+      parameters:
+        - name: agentId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: state
+          in: query
+          required: false
+          description: "open (the default), closed (dismissed, fixed or resolved) or all"
+          schema: { type: string, enum: [open, closed, all] }
+      responses:
+        "200":
+          description: Topics, open first, then by recent activity
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/GapTopicList" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/gap-topics/{topicId}:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/GapTopicIdParam"
+    get:
+      tags: [gaps]
+      operationId: getGapTopic
+      summary: A gap topic with the questions its askers shared (editors, admins and owners)
+      responses:
+        "200":
+          description: The topic
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/GapTopicDetail" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/gap-topics/{topicId}/dismiss:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/GapTopicIdParam"
+    post:
+      tags: [gaps]
+      operationId: dismissGapTopic
+      summary: Dismiss a topic, with an optional reason; it reopens on new failures (audited)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GapTopicDismiss" }
+      responses:
+        "200":
+          description: Dismissed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/GapTopic" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/gap-topics/{topicId}/fix:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/GapTopicIdParam"
+    post:
+      tags: [gaps]
+      operationId: fixGapTopic
+      summary: Mark a topic fixed; it reopens on new failures (audited)
+      responses:
+        "200":
+          description: Marked fixed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/GapTopic" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/gap-topics/{topicId}/add-source:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/GapTopicIdParam"
+    post:
+      tags: [gaps]
+      operationId: addGapTopicSource
+      summary: Record that an editor went to add a source for the topic (audited); the app then opens Data sources with the topic as a note
+      responses:
+        "200":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/GapTopic" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/gap-topics/{topicId}/evaluations:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/GapTopicIdParam"
+    post:
+      tags: [gaps]
+      operationId: addGapQuestionToEvaluations
+      summary: Add one of the topic's shared questions to an evaluation set of the team (audited; evaluations must be on)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GapEvaluationAdd" }
+      responses:
+        "201":
+          description: Added
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/GapEvaluationAdded" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "422": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/settings/evaluations:
     get:
       tags: [admin, evaluations]
@@ -7079,6 +7251,11 @@ components:
       schema: { type: string }
     EvaluationSetIdParam:
       name: setId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    GapTopicIdParam:
+      name: topicId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -11795,6 +11972,7 @@ components:
         latencyMs: { type: integer, format: int32 }
         feedback: { $ref: "#/components/schemas/FeedbackRating" }
         feedbackReason: { $ref: "#/components/schemas/FeedbackReason" }
+        feedbackShared: { type: boolean, description: "The asker shared the question with the team with a thumbs-down (the gap report, docs/gaps.md)" }
         uncited:
           type: array
           description: >-
@@ -11830,13 +12008,20 @@ components:
       properties:
         rating: { $ref: "#/components/schemas/FeedbackRating" }
         reason: { $ref: "#/components/schemas/FeedbackReason" }
+        share:
+          type: boolean
+          description: >-
+            With a thumbs-down: show the question in full to the team's
+            editors, admins and owners in the gap report (off by default;
+            ignored with a thumbs-up). Docs: docs/gaps.md.
     FeedbackResult:
       type: object
-      required: [messageId, rating]
+      required: [messageId, rating, shared]
       properties:
         messageId: { type: string, format: uuid }
         rating: { $ref: "#/components/schemas/FeedbackRating" }
         reason: { $ref: "#/components/schemas/FeedbackReason" }
+        shared: { type: boolean }
     AgentAnalyticsTotals:
       type: object
       required: [conversations, answers, uniqueUsers, up, down, satisfaction, noContextRate, refusalRate, errorRate, latencyP50Ms, latencyP95Ms, firstTokenP50Ms, moderation, judging, citations, scope]
@@ -12417,6 +12602,108 @@ components:
         filename: { type: string }
         url: { type: string }
         sourceName: { type: string }
+    GapSignalCounts:
+      type: object
+      description: "Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down"
+      additionalProperties: { type: integer, format: int32 }
+    GapTopic:
+      type: object
+      required: [id, agentId, agentName, label, state, stateReason, stateChangedAt, questions, askers, shared, last30Days, firstSeen, lastSeen, signals, reasons, trend]
+      properties:
+        id: { type: string, format: uuid }
+        agentId: { type: string, format: uuid }
+        agentName: { type: string }
+        label: { type: string, description: "2-5 words written by the agent's chat model from the topic's questions; empty until the topics job labels it", example: "Parking permits" }
+        state:
+          type: string
+          description: "open; dismissed or fixed by an editor; resolved when its questions started being answered well. A closed topic reopens on new failures."
+          enum: [open, dismissed, fixed, resolved]
+        stateReason: { type: string, description: "The optional reason of a dismissal" }
+        stateChangedAt: { type: string, format: date-time }
+        questions: { type: integer, format: int32 }
+        askers: { type: integer, format: int32, description: Different askers (pseudonymous; an anonymous session counts as one) }
+        shared: { type: integer, format: int32, description: Questions their askers shared }
+        last30Days: { type: integer, format: int32 }
+        firstSeen: { type: string, format: date-time }
+        lastSeen: { type: string, format: date-time }
+        signals: { $ref: "#/components/schemas/GapSignalCounts" }
+        reasons:
+          type: object
+          description: Thumbs-down reasons and their counts
+          additionalProperties: { type: integer, format: int32 }
+        trend:
+          type: array
+          description: Questions per week over the last 8 weeks, oldest first
+          items: { type: integer, format: int32 }
+    GapTopicList:
+      type: object
+      required: [topics, pending, minAskers]
+      properties:
+        topics:
+          type: array
+          items: { $ref: "#/components/schemas/GapTopic" }
+        pending: { type: integer, format: int32, description: "Failed questions of the last 30 days not in a topic shown yet (not grouped yet, or fewer than minAskers askers)" }
+        minAskers: { type: integer, format: int32 }
+    GapSharedQuestion:
+      type: object
+      required: [id, question, addedToEvaluations, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        question: { type: string }
+        feedbackReason: { $ref: "#/components/schemas/FeedbackReason" }
+        addedToEvaluations: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    GapTopicDetail:
+      type: object
+      required: [topic, sharedQuestions]
+      properties:
+        topic: { $ref: "#/components/schemas/GapTopic" }
+        sharedQuestions:
+          type: array
+          items: { $ref: "#/components/schemas/GapSharedQuestion" }
+    GapTopicDismiss:
+      type: object
+      properties:
+        reason: { type: string, maxLength: 500 }
+    GapEvaluationAdd:
+      type: object
+      required: [setId, sharedQuestionId, expected]
+      properties:
+        setId: { type: string, format: uuid }
+        sharedQuestionId: { type: string, format: uuid }
+        question: { type: string, maxLength: 4000, description: "The question as added (editors may tidy it); the shared text when absent" }
+        expected: { $ref: "#/components/schemas/EvaluationExpected" }
+        mustMention:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 200 }
+        note: { type: string, maxLength: 2000 }
+    GapEvaluationAdded:
+      type: object
+      required: [sharedQuestion, evaluationQuestionId, setId]
+      properties:
+        sharedQuestion: { $ref: "#/components/schemas/GapSharedQuestion" }
+        evaluationQuestionId: { type: string, format: uuid }
+        setId: { type: string, format: uuid }
+    AdminGapTeam:
+      type: object
+      required: [teamId, slug, name, questions, signals]
+      properties:
+        teamId: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        questions: { type: integer, format: int32 }
+        signals: { $ref: "#/components/schemas/GapSignalCounts" }
+    AdminGapCounts:
+      type: object
+      required: [from, to, questions, teams]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        questions: { type: integer, format: int32 }
+        teams:
+          type: array
+          items: { $ref: "#/components/schemas/AdminGapTeam" }
     EvaluationQuestion:
       type: object
       required: [id, question, expected, expectedDocuments, mustMention, note, revision, createdAt, updatedAt]

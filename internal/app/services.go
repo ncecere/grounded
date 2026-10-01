@@ -22,6 +22,7 @@ import (
 	"github.com/ncecere/grounded/internal/costs"
 	"github.com/ncecere/grounded/internal/crawl"
 	"github.com/ncecere/grounded/internal/evals"
+	"github.com/ncecere/grounded/internal/gaps"
 	"github.com/ncecere/grounded/internal/healthcheck"
 	"github.com/ncecere/grounded/internal/ingest"
 	"github.com/ncecere/grounded/internal/jobs"
@@ -100,6 +101,8 @@ type Services struct {
 	// OAuth is the authorization server for /mcp (experimental; nil
 	// without an API-key pepper).
 	OAuth *oauth.Service
+	// Gaps is the unanswered-questions and gap report (docs/gaps.md).
+	Gaps *gaps.Service
 	// jobs enqueues River jobs (may be insert-only).
 	jobs *jobs.Client
 	pool *pgxpool.Pool
@@ -243,6 +246,7 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.Evaluations.Concurrency = cfg.EvaluationConcurrency
 	// Automatic evaluation runs: after a publish and a profile switch.
 	s.Agents.OnPublished, s.ProfileMigrations.OnSwitched = s.Evaluations.QueueForAgent, s.Evaluations.QueueForKB
+	s.Gaps = gaps.New(pool, s.Teams, s.Evaluations, log)
 	return s, nil
 }
 
@@ -304,6 +308,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			})
 			evals.Register(w, s.Evaluations)
 			registerHealth(w, cfg, pool, s, log)
+			gaps.Register(w, &gaps.Runner{Pool: pool, Catalog: s.Catalog, NewProvider: s.Agents.NewProvider, Budget: s.Costs.Check, Log: log})
 		},
 		Queues: map[string]river.QueueConfig{
 			ingest.Queue: {MaxWorkers: cfg.IngestConcurrency},
@@ -329,6 +334,7 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			retention.Periodic(),
 			costs.RollupPeriodic(),
 			evals.Periodic(),
+			gaps.Periodic(),
 		}, healthPeriodic(cfg)...),
 	}, nil
 }

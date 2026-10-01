@@ -173,6 +173,17 @@ var (
 		Buckets: modelBuckets,
 	}, []string{"kind"})
 
+	// GapQuestions counts failed questions kept for the gap report
+	// (docs/gaps.md) by signal; GapTopicChanges the topics job's work.
+	GapQuestions = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "grounded_gap_questions_total",
+		Help: "Failed questions kept for the gap report by signal (no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down).",
+	}, []string{"signal"})
+	GapTopicChanges = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "grounded_gap_topic_changes_total",
+		Help: "The gap topics job's work by kind (embedded, assigned, new_topic, reopened, resolved, labelled, pruned).",
+	}, []string{"kind"})
+
 	ValkeyErrors = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "grounded_valkey_errors_total",
 		Help: "Valkey commands and dials that failed (a missing key is not an error), by command.",
@@ -185,7 +196,8 @@ func appCollectors() []prometheus.Collector {
 		BuildInfo, ChatAnswers, ChatFirstToken, ChatDuration, RetrievalDuration,
 		ModelRequests, ModelRequestDuration, SystemOneRequests, SystemOneDuration, RerankRequests, RerankDuration, ModerationDecisions,
 		JobsWorked, JobDuration, IngestDocuments, IngestDuration, EmbeddingBatchInputs,
-		CrawlPages, CrawlFetchDuration, BreakGlassSessions, BreakGlassReads, MCPToolCalls, MCPClientCalls, MCPClientCallDuration, HealthChecks, HealthCheckDuration, ValkeyErrors,
+		CrawlPages, CrawlFetchDuration, BreakGlassSessions, BreakGlassReads, MCPToolCalls, MCPClientCalls, MCPClientCallDuration, HealthChecks, HealthCheckDuration,
+		GapQuestions, GapTopicChanges, ValkeyErrors,
 	}
 }
 

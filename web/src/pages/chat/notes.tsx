@@ -4,11 +4,12 @@
  * starter questions, and the feedback buttons.
  */
 import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import { Ban, CircleStop, RotateCcw, Search, ThumbsDown, ThumbsUp, TriangleAlert, Wrench } from "lucide-react";
 import { api, unwrap } from "../../api/client";
 import { Alert } from "@/components/ui/alert/alert";
 import { Button, IconButton } from "@/components/ui/button/button";
-import { Menu, MenuGroup, MenuItem } from "@/components/ui/menu/menu";
+import { Menu, MenuCheckboxItem, MenuGroup, MenuItem, MenuSeparator } from "@/components/ui/menu/menu";
 import { MessageAction } from "@/components/ui/message/message";
 import { Suggestion, Suggestions } from "@/components/ui/suggestion/suggestion";
 import { toast } from "@/components/ui/toast/toast";
@@ -152,15 +153,17 @@ export function Notes({ item, onRetry, starters, onStarter }: NotesProps) {
 
 export function Feedback({ item, onChange }: { item: AssistantItem; onChange: (f: AssistantItem["feedback"]) => void }) {
   const send = useMutation({
-    mutationFn: async (body: { rating: FeedbackRating; reason?: FeedbackReason }) =>
+    mutationFn: async (body: { rating: FeedbackRating; reason?: FeedbackReason; share?: boolean }) =>
       unwrap(await api.POST("/v1/messages/{messageId}/feedback", { params: { path: { messageId: item.id! } }, body })),
     onSuccess: (res) => {
-      onChange({ rating: res.rating, reason: res.reason });
+      onChange({ rating: res.rating, reason: res.reason, shared: res.shared });
       toast.success("Thanks for the feedback");
     },
     onError: (err) => toast.error("Couldn't save your feedback", err instanceof Error ? err.message : undefined),
   });
   const rating = item.feedback?.rating;
+  // "Share this question with the team" (off by default; docs/gaps.md): ticked before choosing what was wrong.
+  const [share, setShare] = useState(item.feedback?.shared === true);
   const reason = feedbackReasons.find((r) => r.value === item.feedback?.reason)?.label;
   return (
     <>
@@ -188,9 +191,13 @@ export function Feedback({ item, onChange }: { item: AssistantItem; onChange: (f
           />
         }
       >
+        <MenuCheckboxItem checked={share} onCheckedChange={setShare}>
+          Share this question with the team
+        </MenuCheckboxItem>
+        <MenuSeparator />
         <MenuGroup label="What was wrong?">
           {feedbackReasons.map((r) => (
-            <MenuItem key={r.value} onClick={() => send.mutate({ rating: "down", reason: r.value })}>
+            <MenuItem key={r.value} onClick={() => send.mutate({ rating: "down", reason: r.value, share })}>
               {r.label}
             </MenuItem>
           ))}

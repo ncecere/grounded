@@ -4,7 +4,8 @@
  * tabs Overview · Breakdown · Models & tokens · Top agents & teams · Checks
  * (docs/phase4-publishing.md §9). Overview has the daily chart first, then the
  * totals; Checks holds the SystemOne cards and shows only while a SystemOne
- * model is configured (v0.2.1 I8). No content and no user identities (ADR-0010).
+ * model is configured (v0.2.1 I8). Top agents & teams ends with failed questions
+ * per team (counts only, docs/gaps.md). No content and no user identities (ADR-0010).
  */
 import { useQuery } from "@tanstack/react-query";
 import { Activity, BarChart3, ChartPie, Clock, Cpu, Flag, Globe, LayoutDashboard, LifeBuoy, MessageSquare, MessagesSquare, SearchX, ShieldAlert, ShieldCheck, ShieldOff, ShieldX, ThumbsUp, Timer, Trophy, Users, Zap } from "lucide-react";
@@ -29,6 +30,7 @@ import { StatCard } from "@/components/ui/stat-card/stat-card";
 import s from "../../shared.module.css";
 import { AnalyticsFilters, type AnalyticsFilter, useAnalyticsFilter } from "./filters";
 import { ModelTokens, TopAgents, TopTeams } from "./lists";
+import { FailedQuestions } from "./gaps";
 import { ModerationEvents } from "./moderation-events";
 
 export type PlatformAnalytics = Schemas["PlatformAnalytics"];
@@ -142,6 +144,7 @@ export function AdminAnalyticsPage() {
                 <Stack gap={6}>
                   <TopAgents agents={d.topAgents} />
                   {!f.team && <TopTeams teams={d.topTeams} />}
+                  <FailedQuestions range={range} team={f.team} />
                 </Stack>
               ),
             },

@@ -1,4 +1,4 @@
-import { Archive, Blocks, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet } from "lucide-react";
+import { Archive, Blocks, CircleHelp, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet } from "lucide-react";
 import { type ReactNode } from "react";
 import { terms } from "../../lib/terms";
 import { type Me } from "../../session";
@@ -176,6 +176,7 @@ export type TeamPath =
   | "/teams/$team/kbs"
   | "/teams/$team/agents"
   | "/teams/$team/evaluations"
+  | "/teams/$team/gaps"
   | "/teams/$team/settings";
 
 export type TeamNavItem = {
@@ -187,6 +188,8 @@ export type TeamNavItem = {
   staff?: boolean;
   /** Only the team's editors, admins and owners, while evaluations are on. */
   editors?: boolean;
+  /** Only the team's editors, admins and owners (the gap report). */
+  editorRole?: boolean;
   /** Extra command-palette search words. */
   keywords?: string[];
 };
@@ -203,6 +206,13 @@ const teamNav: TeamNavItem[] = [
     editors: true,
     keywords: ["evaluation", "eval", "evals", "test questions", "regression", "score", "quality", "recall"],
   },
+  {
+    to: "/teams/$team/gaps",
+    label: "Gaps",
+    icon: icon(CircleHelp),
+    editorRole: true,
+    keywords: ["gap report", "unanswered questions", "failed questions", "no answer", "topics", "missing content", "shared questions"],
+  },
   { to: "/teams/$team/settings", label: terms.teamSettings, icon: icon(Settings), staff: true },
 ];
 
@@ -215,7 +225,7 @@ export function teamNavFor(me: Me, slug: string, breakGlassDocuments = false) {
   const mine = me.teams.find((t) => t.slug === slug);
   if (mine) {
     const editor = mine.status === "active" && (mine.role === "owner" || mine.role === "admin" || mine.role === "editor");
-    return teamNav.filter((item) => !item.editors || (editor && me.capabilities.evaluations === true));
+    return teamNav.filter((item) => (!item.editors || (editor && me.capabilities.evaluations === true)) && (!item.editorRole || editor));
   }
   return teamNav.filter((item) => item.staff || (breakGlassDocuments && item.to === "/teams/$team/sources"));
 }

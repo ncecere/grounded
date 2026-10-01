@@ -2,7 +2,7 @@
  * The Analytics tab (W7): a date range in the URL (?range=), a strip of five
  * KPIs, then one of Usage · Quality · Moderation · Content · Checks (?view=;
  * Checks holds the SystemOne cards, only while a SystemOne model is
- * configured, v0.2.1 I8). Charts
+ * configured, v0.2.1 I8; Gaps lists the agent's open gap topics, docs/gaps.md). Charts
  * are bitop-ui charts with "Show data". No message content or identities.
  */
 import { useQuery } from "@tanstack/react-query";
@@ -18,6 +18,7 @@ import { useSystemOneStatus } from "@/lib/systemone";
 import { useSearchParams } from "@/lib/url-search";
 import { agentKey, useTeam } from "../../team/common";
 import type { Agent } from "../common";
+import { GapsView } from "./gaps";
 import { AgentSpendCard } from "./spend";
 import { ChecksView, ContentView, ModerationView, QualityView, UsageView, type Analytics } from "./views";
 import an from "./analytics.module.css";
@@ -28,6 +29,7 @@ const views = [
   { value: "moderation", label: "Moderation" },
   { value: "content", label: "Content" },
   { value: "checks", label: "Checks" },
+  { value: "gaps", label: "Gaps" },
 ] as const;
 type View = (typeof views)[number]["value"];
 
@@ -74,7 +76,9 @@ export function AnalyticsTab({ agent }: { agent: Agent }) {
         </ToggleGroup>
         <DateRangeFilter range={range} label="Analytics period" />
       </div>
-      {data.isLoading ? (
+      {view === "gaps" ? (
+        <GapsView team={slug} agentId={agent.id} agentName={agent.name} />
+      ) : data.isLoading ? (
         <Loading label="Loading analytics…" />
       ) : data.error ? (
         <ErrorAlert error={data.error} title="Couldn't load analytics" />

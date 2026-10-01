@@ -19,6 +19,8 @@ export type SourceTab = (typeof sourceTabs)[number];
 export const kbTabs = ["overview", "sources", "try", "evaluations", "settings"] as const;
 /** An evaluation set (docs/evaluations.md §5). */
 export const evaluationSetTabs = ["questions", "runs", "settings"] as const;
+/** The team's Gaps page (docs/gaps.md). */
+export const gapTabs = ["open", "closed"] as const;
 export const adminTeamTabs = ["overview", "members", "group-mapping", "limits", "settings"] as const;
 export const limitTabs = ["resources", "ingestion", "queries", "public", "evaluations"] as const;
 export const notificationTabs = ["all", "unread"] as const;

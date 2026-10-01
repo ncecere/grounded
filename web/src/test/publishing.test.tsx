@@ -142,6 +142,8 @@ describe("public page", () => {
     expect(within(bar).getByRole("link", { name: "Sign in" })).toBeInTheDocument();
     expect(container.querySelectorAll("header")).toHaveLength(1);
     expect(within(bar).queryByRole("button", { name: "New chat" })).toBeNull();
+    // The footer says unanswerable questions may be grouped, without the visitor's details (the gap report, ADR-0010).
+    expect(screen.getByText(/can't answer may be grouped,\s+without your details, to improve it\./)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.type(screen.getByRole("textbox", { name: "Message Registrar help" }), "How do I order a transcript?{Enter}");
     expect(await screen.findByText(/Order it online/)).toBeInTheDocument();

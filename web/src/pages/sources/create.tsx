@@ -45,7 +45,7 @@ export function useOwnerLevels() {
 const typeOf = (value: string | undefined): SourceType | undefined => (value === "new-upload" ? "upload" : value === "new-web" ? "web" : undefined);
 
 /** The "New data source" flow: `start()` opens the type dialog; `element` renders it and the form page. */
-export function useCreateSource(): { start: () => void; element: ReactNode } {
+export function useCreateSource(defaults?: { description?: string }): { start: () => void; element: ReactNode } {
   const owner = useSourceOwner();
   const form = useFormParam();
   const [picking, setPicking] = useState(false);
@@ -67,6 +67,7 @@ export function useCreateSource(): { start: () => void; element: ReactNode } {
           <CreateSourcePage
             key={type}
             type={type}
+            description={defaults?.description}
             onBack={() => {
               form.close();
               setPicking(true);
@@ -111,14 +112,14 @@ export function SourceTypeDialog({ onClose, onPick }: { onClose: () => void; onP
 }
 
 /** Step 2: the form page. */
-export function CreateSourcePage({ type, onBack, onClose }: { type: SourceType; onBack?: () => void; onClose: () => void }) {
+export function CreateSourcePage({ type, description = "", onBack, onClose }: { type: SourceType; description?: string; onBack?: () => void; onClose: () => void }) {
   const owner = useSourceOwner();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
   const { levels, usable } = useOwnerLevels();
   const profiles = useEmbeddingProfiles();
-  const [form, setForm] = useState({ type, name: "", description: "", classification: "", embeddingProfileId: "" });
+  const [form, setForm] = useState({ type, name: "", description, classification: "", embeddingProfileId: "" });
   const [web, setWeb] = useState<WebFormState>(webDefaults);
   const [submitted, setSubmitted] = useState(false);
   const classification = form.classification || usable[0]?.key || "";

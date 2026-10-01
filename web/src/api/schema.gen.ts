@@ -3590,6 +3590,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/analytics/gaps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Failed questions per team and signal (platform admins and auditors; counts only, never topics or questions) */
+        get: operations["adminGetGapCounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/analytics/daily.csv": {
         parameters: {
             query?: never;
@@ -4379,6 +4396,134 @@ export interface paths {
         put?: never;
         /** Cancel a queued or running run; its results so far are kept (audited) */
         post: operations["cancelEvaluationRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/gap-topics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * The team's gap topics, groups of failed questions (editors, admins and owners)
+         * @description Only topics with at least minAskers different askers are listed (3: a label can't point at one person). A topic shows its label, counts, signals and trend, never a question's text or who asked. Members, API keys and platform staff get 404.
+         */
+        get: operations["listGapTopics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/gap-topics/{topicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                topicId: components["parameters"]["GapTopicIdParam"];
+            };
+            cookie?: never;
+        };
+        /** A gap topic with the questions its askers shared (editors, admins and owners) */
+        get: operations["getGapTopic"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/gap-topics/{topicId}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                topicId: components["parameters"]["GapTopicIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss a topic, with an optional reason; it reopens on new failures (audited) */
+        post: operations["dismissGapTopic"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/gap-topics/{topicId}/fix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                topicId: components["parameters"]["GapTopicIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a topic fixed; it reopens on new failures (audited) */
+        post: operations["fixGapTopic"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/gap-topics/{topicId}/add-source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                topicId: components["parameters"]["GapTopicIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record that an editor went to add a source for the topic (audited); the app then opens Data sources with the topic as a note */
+        post: operations["addGapTopicSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/gap-topics/{topicId}/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                topicId: components["parameters"]["GapTopicIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add one of the topic's shared questions to an evaluation set of the team (audited; evaluations must be on) */
+        post: operations["addGapQuestionToEvaluations"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8900,6 +9045,8 @@ export interface components {
             latencyMs?: number;
             feedback?: components["schemas"]["FeedbackRating"];
             feedbackReason?: components["schemas"]["FeedbackReason"];
+            /** @description The asker shared the question with the team with a thumbs-down (the gap report, docs/gaps.md) */
+            feedbackShared?: boolean;
             /** @description Set by SystemOne citation checks: the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources. */
             uncited?: components["schemas"]["UncitedSentence"][];
             /** @description Set for answers whose citations were checked by v0.2.1 or later: the answer's claims with their verdicts (docs/systemone.md §3). Answers checked before have per-marker verdicts (citations[].markers) only. */
@@ -8917,12 +9064,15 @@ export interface components {
         Feedback: {
             rating: components["schemas"]["FeedbackRating"];
             reason?: components["schemas"]["FeedbackReason"];
+            /** @description With a thumbs-down: show the question in full to the team's editors, admins and owners in the gap report (off by default; ignored with a thumbs-up). Docs: docs/gaps.md. */
+            share?: boolean;
         };
         FeedbackResult: {
             /** Format: uuid */
             messageId: string;
             rating: components["schemas"]["FeedbackRating"];
             reason?: components["schemas"]["FeedbackReason"];
+            shared: boolean;
         };
         AgentAnalyticsTotals: {
             /**
@@ -9623,6 +9773,118 @@ export interface components {
             url: string;
             sourceName?: string;
         };
+        /** @description Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down */
+        GapSignalCounts: {
+            [key: string]: number;
+        };
+        GapTopic: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            agentId: string;
+            agentName: string;
+            /**
+             * @description 2-5 words written by the agent's chat model from the topic's questions; empty until the topics job labels it
+             * @example Parking permits
+             */
+            label: string;
+            /**
+             * @description open; dismissed or fixed by an editor; resolved when its questions started being answered well. A closed topic reopens on new failures.
+             * @enum {string}
+             */
+            state: "open" | "dismissed" | "fixed" | "resolved";
+            /** @description The optional reason of a dismissal */
+            stateReason: string;
+            /** Format: date-time */
+            stateChangedAt: string;
+            /** Format: int32 */
+            questions: number;
+            /**
+             * Format: int32
+             * @description Different askers (pseudonymous; an anonymous session counts as one)
+             */
+            askers: number;
+            /**
+             * Format: int32
+             * @description Questions their askers shared
+             */
+            shared: number;
+            /** Format: int32 */
+            last30Days: number;
+            /** Format: date-time */
+            firstSeen: string;
+            /** Format: date-time */
+            lastSeen: string;
+            signals: components["schemas"]["GapSignalCounts"];
+            /** @description Thumbs-down reasons and their counts */
+            reasons: {
+                [key: string]: number;
+            };
+            /** @description Questions per week over the last 8 weeks, oldest first */
+            trend: number[];
+        };
+        GapTopicList: {
+            topics: components["schemas"]["GapTopic"][];
+            /**
+             * Format: int32
+             * @description Failed questions of the last 30 days not in a topic shown yet (not grouped yet, or fewer than minAskers askers)
+             */
+            pending: number;
+            /** Format: int32 */
+            minAskers: number;
+        };
+        GapSharedQuestion: {
+            /** Format: uuid */
+            id: string;
+            question: string;
+            feedbackReason?: components["schemas"]["FeedbackReason"];
+            addedToEvaluations: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        GapTopicDetail: {
+            topic: components["schemas"]["GapTopic"];
+            sharedQuestions: components["schemas"]["GapSharedQuestion"][];
+        };
+        GapTopicDismiss: {
+            reason?: string;
+        };
+        GapEvaluationAdd: {
+            /** Format: uuid */
+            setId: string;
+            /** Format: uuid */
+            sharedQuestionId: string;
+            /** @description The question as added (editors may tidy it); the shared text when absent */
+            question?: string;
+            expected: components["schemas"]["EvaluationExpected"];
+            mustMention?: string[];
+            note?: string;
+        };
+        GapEvaluationAdded: {
+            sharedQuestion: components["schemas"]["GapSharedQuestion"];
+            /** Format: uuid */
+            evaluationQuestionId: string;
+            /** Format: uuid */
+            setId: string;
+        };
+        AdminGapTeam: {
+            /** Format: uuid */
+            teamId: string;
+            slug: string;
+            name: string;
+            /** Format: int32 */
+            questions: number;
+            signals: components["schemas"]["GapSignalCounts"];
+        };
+        AdminGapCounts: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** Format: int32 */
+            questions: number;
+            teams: components["schemas"]["AdminGapTeam"][];
+        };
         EvaluationQuestion: {
             /** Format: uuid */
             id: string;
@@ -10187,6 +10449,7 @@ export interface components {
         /** @description Team slug or ID */
         TeamParam: string;
         EvaluationSetIdParam: string;
+        GapTopicIdParam: string;
         EvaluationRunIdParam: string;
         UserIdParam: string;
         GrantIdParam: string;
@@ -16804,6 +17067,35 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
         };
     };
+    adminGetGapCounts: {
+        parameters: {
+            query?: {
+                /** @description First UTC day (default 29 days before to) */
+                from?: components["parameters"]["AnalyticsFromParam"];
+                /** @description Last UTC day, inclusive (default today); at most 366 days after from */
+                to?: components["parameters"]["AnalyticsToParam"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Counts per team, most failed questions first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminGapCounts"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+        };
+    };
     adminExportAnalyticsDaily: {
         parameters: {
             query?: {
@@ -18301,6 +18593,187 @@ export interface operations {
             };
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+        };
+    };
+    listGapTopics: {
+        parameters: {
+            query?: {
+                agentId?: string;
+                /** @description open (the default), closed (dismissed, fixed or resolved) or all */
+                state?: "open" | "closed" | "all";
+            };
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Topics, open first, then by recent activity */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GapTopicList"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    getGapTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                topicId: components["parameters"]["GapTopicIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The topic */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GapTopicDetail"];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    dismissGapTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                topicId: components["parameters"]["GapTopicIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["GapTopicDismiss"];
+            };
+        };
+        responses: {
+            /** @description Dismissed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GapTopic"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    fixGapTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                topicId: components["parameters"]["GapTopicIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marked fixed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GapTopic"];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    addGapTopicSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                topicId: components["parameters"]["GapTopicIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GapTopic"];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    addGapQuestionToEvaluations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                topicId: components["parameters"]["GapTopicIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GapEvaluationAdd"];
+            };
+        };
+        responses: {
+            /** @description Added */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GapEvaluationAdded"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            422: components["responses"]["ErrorReply"];
         };
     };
     adminGetEvaluationSettings: {

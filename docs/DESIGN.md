@@ -405,6 +405,8 @@ Each message event records the following, **without message content**:
 
 Teams never see who a user is. Unique-user counts use pseudonymous IDs.
 
+**Gap report (v0.4.0, ADR-0010 as amended; [`gaps.md`](gaps.md)).** The question of a failed answer (no context, a refusal, every passage judged out, out of scope, unsupported or uncited claims, a thumbs-down) is kept apart from the transcript with its embedding and a pseudonymous asker key, and deleted with its conversation. An hourly job groups each agent's questions into topics; the team's editors, admins and owners see a topic (a 2-5 word label by the agent's chat model, counts, signals, trend) once at least 3 different askers are in it, and a question's text only when its asker shared it on a thumbs-down. Platform admins and auditors see counts per team only.
+
 **Dashboards:** conversations over time, satisfaction, how often no context was found, most-cited documents, and latency and tokens by model.
 
 ### Retention and legal hold
