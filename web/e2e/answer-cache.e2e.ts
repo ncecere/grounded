@@ -21,7 +21,7 @@ test("saved answers: an editor turns them on, a repeated question is reused, the
     await editor.goto(settings);
     const section = editor.locator("#saved-answers");
     await expect(section.getByText("Each question is answered afresh.", { exact: false })).toBeVisible();
-    const reuse = section.getByRole("switch", { name: "Reuse answers" });
+    const reuse = section.getByRole("switch", { name: "Reuse answers", exact: true });
     await expect(reuse).not.toBeChecked();
     await reuse.click();
     await expect(reuse).toBeChecked();
@@ -39,6 +39,7 @@ test("saved answers: an editor turns them on, a repeated question is reused, the
       const answer = editor.getByRole("article", { name: "Permit helper said" });
       await expect(answer.getByRole("button", { name: "Good answer" })).toBeVisible();
       texts.push((await answer.innerText()).trim());
+      if (i === 1) await a11y(editor, "a saved answer in the chat");
     }
     expect(texts[1]).toBe(texts[0]);
   });
