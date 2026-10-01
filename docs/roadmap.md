@@ -83,6 +83,33 @@ The plan is [`v0.2.1.md`](v0.2.1.md); the release notes are [`releases/v0.2.1.md
 
 ---
 
+## Done in v0.2.2 (released 2026-09-30)
+
+Small fixes after v0.2.1 (§ J); the release notes are [`releases/v0.2.2.md`](releases/v0.2.2.md).
+
+| ID | Item |
+|---|---|
+| J1–J6 | The Features card layout, SystemOne connections tested with a SystemOne request, team initials, an editor withdrawing a domain request, bitop-ui follow-ups (G19), and local development that survives a Docker restart (F13). |
+
+---
+
+## Done in v0.3.0 (released 2026-09-30)
+
+The plan and the owner's decisions are in [`v0.3.0.md`](v0.3.0.md); the release notes are [`releases/v0.3.0.md`](releases/v0.3.0.md). The Community/Enterprise edition plumbing (ADR-0025) was deferred.
+
+| ID | Item | Where |
+|---|---|---|
+| C1a | **Grounded as an MCP server:** `POST /mcp` (protocol `2026-07-28` and older clients), the `search` and `ask` tools, the `mcp` key scope, limits, budgets and audit as for the REST API. | [`mcp.md`](mcp.md) |
+| — | **OAuth sign-in for MCP clients** (experimental, off by default): Grounded as an OAuth 2.1 authorization server in front of the OIDC provider, a consent page and Connected apps. | [`mcp.md`](mcp.md) |
+| C1b | **MCP tools in agents:** a registry of remote MCP servers with tool approval and classification ceilings, Build → Tools, results cited as sources and verified like passages, metered and audited calls. | [`mcp-client.md`](mcp-client.md) |
+| E11 | **Stored health** of connections, models and MCP servers: every Test stores its result, a scheduled re-test at no cost, failures under Needs attention, metrics and an alert. | [`operations/health.md`](operations/health.md) |
+| F1 | **OpenTelemetry tracing:** one answer is one trace across HTTP, retrieval, model calls, SystemOne, MCP (both ways) and jobs; trace context through MCP `_meta`; log lines carry the trace ID. | [`operations/tracing.md`](operations/tracing.md) |
+| — | **Faster answers:** a follow-up is rewritten only when it depends on the conversation, the search runs alongside the input and scope checks, a passage judging time limit, and progress steps until the first words. | [`phase3-agents.md`](phase3-agents.md) §6–7 |
+| — | **Reasoning effort** per agent for models that accept it; **Publish** disabled while the draft has problems. | — |
+| — | **From the walkthrough by role:** about 60 fixes (how a person acted in the audit log, client cancellations no longer counted as 500s, a real `mcp_calls_per_answer` maximum, Connected apps for everyone, accessibility fixes, and more). | [`CHANGELOG.md`](../CHANGELOG.md) |
+
+---
+
 ## A. Answer quality
 
 | ID | Item | What and why | Size | Value | Depends on |
