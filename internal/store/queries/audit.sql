@@ -103,6 +103,8 @@ CROSS JOIN LATERAL (
         WHEN 'evaluation_set' THEN (SELECT es.name FROM eval_sets es WHERE es.id = ids.target_uuid)
         WHEN 'evaluation_run' THEN (SELECT 'Run of ' || ers.name FROM eval_runs er JOIN eval_sets ers ON ers.id = er.set_id WHERE er.id = ids.target_uuid)
         WHEN 'evaluation_settings' THEN 'Evaluations'
+        -- A gap topic is never named: its label is written from people's questions, and platform staff read team audit logs.
+        WHEN 'gap_topic' THEN (SELECT 'Gap topic' FROM gap_topics gt WHERE gt.id = ids.target_uuid)
         WHEN 'mcp_settings' THEN 'MCP server'
         WHEN 'mcp_server' THEN (SELECT ms.name FROM mcp_servers ms WHERE ms.id = ids.target_uuid)
         WHEN 'oauth_grant' THEN (SELECT og.client_name FROM oauth_grants og WHERE og.id = ids.target_uuid)

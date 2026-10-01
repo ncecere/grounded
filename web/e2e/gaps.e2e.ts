@@ -44,6 +44,8 @@ test("gap report: share a question on a thumbs-down; editors see it pending, mem
   const editor = await as("alex");
   await test.step("the editor sees the question waiting for a topic, without its text", async () => {
     await editor.goto(`/teams/${team}`);
+    await expect(editor.getByRole("heading", { level: 1 })).toBeVisible();
+    await a11y(editor, "team overview");
     await editor.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Gaps" }).click();
     await expect(editor.getByRole("heading", { level: 1, name: "Gaps" })).toBeVisible();
     await expect(editor.getByText("1 failed question in the last 30 days isn't in a topic yet.")).toBeVisible();
