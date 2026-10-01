@@ -184,3 +184,22 @@
     height: 0.875rem;
   }
 }
+
+/* Settings › Saved answers (answer-cache.tsx): the time limit, and the state beside Clear. */
+.cacheExpiry {
+  max-width: 16rem;
+}
+
+.cacheFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.cacheSummary {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}

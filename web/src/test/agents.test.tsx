@@ -96,7 +96,7 @@ const analytics = {
   from: "2026-09-01",
   to: "2026-09-26",
   totals: { conversations: 12, answers: 30, uniqueUsers: 5, up: 8, down: 2, satisfaction: 0.8, noContextRate: 0.1, refusalRate: 0.05, errorRate: 0, latencyP50Ms: 2400, latencyP95Ms: 6100, firstTokenP50Ms: 900,
-    moderation: { questionsBlocked: 3, answersWithheld: 1, flagged: 2 } },
+    moderation: { questionsBlocked: 3, answersWithheld: 1, flagged: 2 }, cache: { hits: 6, hitRate: 0.2, tokensSaved: 12000 } },
   daily: [
     { date: "2026-09-25", conversations: 2, answers: 5 },
     { date: "2026-09-26", conversations: 3, answers: 9 },

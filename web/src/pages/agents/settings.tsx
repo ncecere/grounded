@@ -1,7 +1,8 @@
 /*
  * The agent editor's Settings tab (C13), like a source's and a knowledge
- * base's: General (name, address, description) and the Danger zone
- * (disable or enable, delete). The fields are part of the editor's draft,
+ * base's: General (name, address, description), Saved answers (the answer
+ * cache, answer-cache.tsx, which saves through its own API) and the Danger
+ * zone (disable or enable, delete). The fields are part of the editor's draft,
  * so they save on their own like the rest of the editor (no save bar), and
  * reach people at once: they aren't part of versions. Look and welcome stay
  * in Appearance.
@@ -13,6 +14,7 @@ import { Field } from "@/components/ui/field/field";
 import { Input, Textarea } from "@/components/ui/input/input";
 import { useTeam } from "../team/common";
 import type { Agent } from "./common";
+import { AnswerCacheSection } from "./answer-cache";
 import { type AgentDraft, profileErrors } from "./draft";
 import a from "./agents.module.css";
 import ap from "./appearance.module.css";
@@ -49,6 +51,7 @@ export function AgentSettingsTab({ agent, d, onStatus, onDelete }: Props) {
           <Textarea id="agent-field-description" rows={2} maxLength={500} value={p.description} onChange={(e) => set({ description: e.target.value })} />
         </Field>
       </SettingsSection>
+      <AnswerCacheSection team={team} agentId={agent.id} />
       <DangerZone>
         <DangerAction
           title={active ? "Disable this agent" : "Enable this agent"}

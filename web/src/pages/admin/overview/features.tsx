@@ -1,14 +1,14 @@
 /*
  * Admin Overview › Features (docs/v0.2.1.md I2): one row per optional feature
- * with its state and a link to where it's set up. Evaluations and the MCP
- * server have their switches here (platform admins; auditors see them
+ * with its state and a link to where it's set up. Evaluations, the MCP
+ * server and saved answers (the answer cache) have their switches here (platform admins; auditors see them
  * disabled, with the reason); the MCP row links to its guide. Each row
  * reads the same query as the feature's own page, so one failure doesn't hide
  * the others, and shows its whole description (not clamped).
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, BookOpen, Cable, CircleDollarSign, ClipboardCheck, Earth, KeyRound, Network, ScanText, Sparkles, Wrench } from "lucide-react";
+import { ArrowRight, BookOpen, Cable, DatabaseZap, CircleDollarSign, ClipboardCheck, Earth, KeyRound, Network, ScanText, Sparkles, Wrench } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { ErrorAlert } from "@/components/ui/alert/alert";
@@ -23,6 +23,7 @@ import { terms } from "@/lib/terms";
 import { budgetsQuery } from "../costs/budgets";
 import { groupMappingStatusQuery } from "../group-mapping/queries";
 import { useIsPlatformAdmin } from "../hooks";
+import { AnswerCacheSwitch, answerCacheText, useAnswerCacheSetting } from "./answer-cache-switch";
 import { EvaluationsSwitch, evaluationsText, useEvaluationsSetting } from "./evaluations-switch";
 import { costFeature, type FeatureState, plural, systemOneFeature } from "./feature-text";
 import { MCPSwitch, mcpDocsUrl, mcpText, useMCPSetting } from "./mcp-switch";
@@ -54,9 +55,14 @@ function fromQuery<T>(q: UseQueryResult<T>, base: Omit<Row, "description" | "sta
   return { ...base, description: q.error ? "Couldn't load this setting." : "Loading…" };
 }
 
-type Switches = { evaluations: ReturnType<typeof useEvaluationsSetting>; mcp: ReturnType<typeof useMCPSetting>; oauth: ReturnType<typeof useOAuthSave> };
+type Switches = {
+  evaluations: ReturnType<typeof useEvaluationsSetting>;
+  mcp: ReturnType<typeof useMCPSetting>;
+  oauth: ReturnType<typeof useOAuthSave>;
+  cache: ReturnType<typeof useAnswerCacheSetting>;
+};
 
-function useRows(isAdmin: boolean, { evaluations, mcp, oauth }: Switches): Row[] {
+function useRows(isAdmin: boolean, { evaluations, mcp, oauth, cache }: Switches): Row[] {
   const costs = useQuery(costSettingsQuery());
   // Teams whose own mode differs from the platform's (Costs → Budgets).
   const budgets = useQuery(budgetsQuery());
@@ -109,6 +115,11 @@ function useRows(isAdmin: boolean, { evaluations, mcp, oauth }: Switches): Row[]
       },
       oauthFeature,
     ),
+    fromQuery(
+      cache.settings,
+      { id: "answer-cache", icon: <DatabaseZap />, title: "Saved answers", control: <AnswerCacheSwitch setting={cache} isAdmin={isAdmin} /> },
+      (d) => ({ state: d.enabled ? on : off, description: answerCacheText(d.enabled) }),
+    ),
     fromQuery(costs, { id: "costs", icon: <CircleDollarSign />, title: "Cost tracking", action: "Cost settings", link: <Link to="/admin/costs" search={{ tab: "settings" }} /> }, (d) =>
       costFeature(d.mode, budgets.data?.items),
     ),
@@ -137,7 +148,8 @@ export function FeaturesCard() {
   const evaluations = useEvaluationsSetting();
   const mcp = useMCPSetting();
   const oauth = useOAuthSave(mcp);
-  const rows = useRows(isAdmin, { evaluations, mcp, oauth });
+  const cache = useAnswerCacheSetting();
+  const rows = useRows(isAdmin, { evaluations, mcp, oauth, cache });
   return (
     <Card id="features" className={o.features} title="Features" description="Optional features: whether each is on, and where to set it up." flush>
       {evaluations.save.error != null && (
@@ -148,6 +160,11 @@ export function FeaturesCard() {
       {mcp.save.error != null && (
         <div className={o.cardAlert}>
           <ErrorAlert error={mcp.save.error} title="Couldn't change the MCP server" />
+        </div>
+      )}
+      {cache.save.error != null && (
+        <div className={o.cardAlert}>
+          <ErrorAlert error={cache.save.error} title="Couldn't change saved answers" />
         </div>
       )}
       {oauth.error != null && (

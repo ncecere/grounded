@@ -24,6 +24,7 @@ const scope = { checked: 0, smallTalk: 0, outOfScope: 0, refused: 0, skipped: 0,
 const totals = {
   answers: 10, conversations: 4, uniqueUsers: 3, up: 1, down: 0, satisfaction: 1, noContextRate: 0.1, refusalRate: 0, errorRate: 0,
   latencyP50Ms: 3000, latencyP95Ms: 5000, firstTokenP50Ms: 800, moderation: { questionsBlocked: 0, answersWithheld: 0, flagged: 0, supported: 0 }, judging, citations, scope,
+  cache: { hits: 0, hitRate: 0, tokensSaved: 0 },
 };
 const platform = {
   from: "2026-09-24", to: "2026-09-26", totals, audiences: [], channels: [], moderation: [], models: [], topAgents: [], topTeams: [],

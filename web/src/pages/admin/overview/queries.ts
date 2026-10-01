@@ -56,6 +56,11 @@ export const evaluationSettingsQuery = () => ({
   queryFn: async () => unwrap(await api.GET("/v1/admin/settings/evaluations")),
 });
 
+export const answerCacheSettingsQuery = () => ({
+  queryKey: ["admin", "answer-cache"],
+  queryFn: async () => unwrap(await api.GET("/v1/admin/settings/answer-cache")),
+});
+
 export const mcpSettingsQuery = () => ({
   queryKey: ["admin", "mcp"],
   queryFn: async () => unwrap(await api.GET("/v1/admin/settings/mcp")),

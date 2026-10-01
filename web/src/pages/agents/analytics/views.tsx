@@ -1,5 +1,5 @@
 /* The Analytics tab's sections: Usage, Quality, Moderation, Content (W7) and Checks (the SystemOne cards, v0.2.1 I8). */
-import { Activity, Clock, Flag, LifeBuoy, SearchX, ShieldAlert, ShieldOff, ShieldX, Timer, Zap } from "lucide-react";
+import { Activity, Clock, Coins, DatabaseZap, Flag, LifeBuoy, SearchX, ShieldAlert, ShieldOff, ShieldX, Timer, Zap } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Schemas } from "../../../api/client";
 import { ModerationCard, ShareCard, StatGroup } from "@/components/analytics/breakdowns";
@@ -51,6 +51,11 @@ export function UsageView({ a, spend }: { a: Analytics; spend?: ReactNode }) {
         <StatCard label="Latency p50" value={ms(t.latencyP50Ms)} icon={<Clock />} hint="Median full answer" />
         <StatCard label="Latency p95" value={ms(t.latencyP95Ms)} icon={<Timer />} hint="Slowest 5%" />
         <StatCard label="First token p50" value={ms(t.firstTokenP50Ms)} icon={<Zap />} hint="Median wait to first word" />
+      </StatGroup>
+      {/* The answer cache (docs/answer-cache.md): invisible to people, shown here. */}
+      <StatGroup id="usage-saved-answers" title="Saved answers" columns={3}>
+        <StatCard label="Answered from saved answers" value={pct(t.cache.hitRate)} icon={<DatabaseZap />} hint={`${num(t.cache.hits)} of ${num(t.answers)} answers`} />
+        <StatCard label="Tokens saved" value={num(t.cache.tokensSaved)} icon={<Coins />} hint="Model tokens not spent again" />
       </StatGroup>
       {/* The agent's spend sits beside the tokens it paid for (I4); alone, the tokens take the row. */}
       <div className={an.tokensAndSpend}>
