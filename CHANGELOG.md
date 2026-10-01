@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-30
+
+The logo, and long answers that arrive whole shown from their start; no migrations. The release notes are [`docs/releases/v0.3.1.md`](docs/releases/v0.3.1.md).
+
 ### Changed
 
 - Chat: an answer that arrives whole (checked by moderation before it's shown, the default for public agents) is shown from its start: its question moves to the top of the view instead of the view jumping to the answer's last lines. Streamed answers still follow as they're written. (bitop-ui's Conversation gains `scrollToElement`.)
@@ -315,7 +319,8 @@ Development before this release happened in a private repository. The public rep
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
 
-[Unreleased]: https://github.com/ncecere/grounded/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ncecere/grounded/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/ncecere/grounded/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/ncecere/grounded/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/ncecere/grounded/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/ncecere/grounded/compare/v0.2.0...v0.2.1

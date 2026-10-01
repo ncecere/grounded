@@ -52,7 +52,7 @@ Grounded runs on Kubernetes. [`deploy/kubernetes/`](deploy/kubernetes/README.md)
 
 ```yaml
 resources:
-  - https://github.com/ncecere/grounded//deploy/kubernetes/base?ref=v0.3.0
+  - https://github.com/ncecere/grounded//deploy/kubernetes/base?ref=v0.3.1
 images:
   - name: ghcr.io/ncecere/grounded
     digest: sha256:<digest from the release notes>
@@ -163,11 +163,11 @@ PostgreSQL is the system of record. It holds the vectors (pgvector, one table pe
 | Security reviewers | [`docs/security/`](docs/security/README.md), [`SECURITY.md`](SECURITY.md) |
 | API users | [`api/openapi.yaml`](api/openapi.yaml) (every route; a test enforces it) |
 | Contributors | [`CONTRIBUTING.md`](CONTRIBUTING.md), [`docs/DESIGN.md`](docs/DESIGN.md), [ADRs](docs/adr/README.md) |
-| Release notes | [`CHANGELOG.md`](CHANGELOG.md), [`docs/releases/`](docs/releases/) (latest: [`v0.3.0`](docs/releases/v0.3.0.md)) |
+| Release notes | [`CHANGELOG.md`](CHANGELOG.md), [`docs/releases/`](docs/releases/) (latest: [`v0.3.1`](docs/releases/v0.3.1.md)) |
 
 ## Project status
 
-Grounded is **pre-1.0**. The current release is **v0.3.0** (2026-09-30). The whole design through Phase 5 shipped in v0.1.0 ([`docs/DESIGN.md`](docs/DESIGN.md) §19), and every release since runs on a reference install before it is tagged, but Grounded hasn't yet had long production use. What to expect:
+Grounded is **pre-1.0**. The current release is **v0.3.1** (2026-09-30). The whole design through Phase 5 shipped in v0.1.0 ([`docs/DESIGN.md`](docs/DESIGN.md) §19), and every release since runs on a reference install before it is tagged, but Grounded hasn't yet had long production use. What to expect:
 
 - **Meant to stay stable through 0.x:** the OpenAI-compatible chat endpoint, the widget embed, the environment variables in `.env.example`, and the Kubernetes resource names that overlays patch. If one of these has to change, the release notes will say how to adapt.
 - **May change between minor releases:** the native REST API (`/v1/...`, described in [`api/openapi.yaml`](api/openapi.yaml)), metric names, the UI, and component defaults. Changes are listed in the [changelog](CHANGELOG.md).
@@ -185,10 +185,7 @@ Grounded is **pre-1.0**. The current release is **v0.3.0** (2026-09-30). The who
 - [x] **v0.2.1** (2026-09-29): navigation and clarity (the admin sidebar in groups, fewer pages, the agent editor in tabs) and per-claim verification.
 - [x] **v0.2.2** (2026-09-30): small fixes (SystemOne connection tests, withdrawing a domain request, local development).
 - [x] **v0.3.0** (2026-09-30): Grounded as an MCP server, OAuth sign-in for MCP clients (experimental), MCP tools in agents, stored health, OpenTelemetry tracing, faster answers with progress steps, and reasoning effort.
-
-**Built, not yet released**
-
-- [x] **The Grounded logo** (the "Cited" mark) in the app, the favicon and the public sites, on `release/v0.3.1`.
+- [x] **v0.3.1** (2026-09-30): the Grounded logo (the "Cited" mark), and long answers that arrive whole shown from their start.
 
 **Next: v0.4.0** (planned; [`docs/roadmap.md`](docs/roadmap.md) § K)
 
