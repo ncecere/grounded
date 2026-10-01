@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
@@ -139,6 +140,8 @@ type MessageView struct {
 	LatencyMs      *int32         `json:"latencyMs,omitempty"`
 	Feedback       *string        `json:"feedback,omitempty"`
 	FeedbackReason *string        `json:"feedbackReason,omitempty"`
+	// FeedbackShared: the asker shared the question with the team (gaps.go).
+	FeedbackShared bool `json:"feedbackShared,omitempty"`
 	// Uncited: the answer's citations were checked (verdicts.go).
 	Uncited []UncitedSentence `json:"uncited,omitempty"`
 	// Claims: the answer's citations were checked by v0.2.1 or later
@@ -250,7 +253,7 @@ func messageViews(rows []dbgen.ListMessagesRow) []MessageView {
 // sentences (found again in the text).
 func assistantView(r dbgen.ListMessagesRow) MessageView {
 	m := MessageView{ID: r.ID, Seq: r.Seq, Role: "assistant", StopReason: r.StopReason, ErrorCode: r.ErrorCode,
-		LatencyMs: r.LatencyMs, Feedback: r.Feedback, FeedbackReason: r.FeedbackReason, CreatedAt: r.CreatedAt,
+		LatencyMs: r.LatencyMs, Feedback: r.Feedback, FeedbackReason: r.FeedbackReason, FeedbackShared: r.FeedbackShared, CreatedAt: r.CreatedAt,
 		Citations: []Citation{}}
 	blocks, _ := llm.UnmarshalBlocks(r.Content)
 	var think []string
@@ -375,8 +378,10 @@ var feedbackReasons = map[string]bool{
 }
 
 // SetFeedback rates an answer in the actor's own conversation. It is
-// recorded on the answer's analytics event (no free text).
-func (s *Service) SetFeedback(ctx context.Context, a authz.Actor, messageID uuid.UUID, rating string, reason *string) error {
+// recorded on the answer's analytics event (no free text). A thumbs-down
+// keeps the question for the gap report, shown in full to the team's
+// editors only when share is set (gaps.go, ADR-0010 as amended).
+func (s *Service) SetFeedback(ctx context.Context, a authz.Actor, messageID uuid.UUID, rating string, reason *string, share bool) error {
 	if rating != "up" && rating != "down" {
 		return apperr.Invalid("invalid_rating", "Rating must be up or down")
 	}
@@ -399,16 +404,23 @@ func (s *Service) SetFeedback(ctx context.Context, a authz.Actor, messageID uuid
 	if ok, err := s.keyReaches(ctx, a, m.AgentID); err != nil || !ok {
 		return notFoundAs(err, errNoMessage)
 	}
-	n, err := s.q.SetMessageFeedback(ctx, dbgen.SetMessageFeedbackParams{
-		MessageID: uuid.NullUUID{UUID: messageID, Valid: true}, Feedback: &rating, FeedbackReason: reason,
-	})
-	if err != nil {
+	share = share && rating == "down"
+	var teamID uuid.UUID
+	if err := s.Pool.QueryRow(ctx, `SELECT team_id FROM agents WHERE id = $1`, m.AgentID).Scan(&teamID); err != nil {
 		return err
 	}
-	if n == 0 {
-		return errNoMessage
-	}
-	return nil
+	return store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
+		n, err := q.SetMessageFeedback(ctx, dbgen.SetMessageFeedbackParams{
+			MessageID: uuid.NullUUID{UUID: messageID, Valid: true}, Feedback: &rating, FeedbackReason: reason, FeedbackShared: share,
+		})
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return errNoMessage
+		}
+		return gapFeedback(ctx, tx, messageID, rating, reason, share, s.pseudonym(teamID, a))
+	})
 }
 
 // ownedBy reports whether a conversation's user is id (anonymous

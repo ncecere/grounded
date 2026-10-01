@@ -175,9 +175,10 @@ func (a *api) setMessageFeedback(w http.ResponseWriter, r *http.Request) {
 		s := string(*in.Reason)
 		reason = &s
 	}
-	if err := a.Agents.SetFeedback(r.Context(), a.actor(r), id, string(in.Rating), reason); err != nil {
+	share := in.Share != nil && *in.Share && in.Rating == apitypes.Down
+	if err := a.Agents.SetFeedback(r.Context(), a.actor(r), id, string(in.Rating), reason, share); err != nil {
 		httpx.Fail(w, r, err)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, apitypes.FeedbackResult{MessageId: id, Rating: in.Rating, Reason: in.Reason})
+	httpx.JSON(w, http.StatusOK, apitypes.FeedbackResult{MessageId: id, Rating: in.Rating, Reason: in.Reason, Shared: share})
 }

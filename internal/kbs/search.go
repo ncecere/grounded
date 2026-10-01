@@ -61,6 +61,13 @@ func (c *EmbedCache) get(key string) ([]float32, bool) {
 	return v, ok
 }
 
+// Lookup returns the query vector a search of this request already computed
+// for the text in a profile, without embedding anything (the gap report
+// reuses it, docs/v0.4.0.md §2).
+func (c *EmbedCache) Lookup(profileID uuid.UUID, text string) ([]float32, bool) {
+	return c.get(profileID.String() + "\x00" + text)
+}
+
 func (c *EmbedCache) put(key string, v []float32) {
 	if c == nil {
 		return

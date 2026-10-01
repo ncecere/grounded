@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/pgvector/pgvector-go"
 )
 
 type APIKey struct {
@@ -438,6 +439,45 @@ type EvaluationSetting struct {
 	UpdatedAt time.Time
 }
 
+type GapQuestion struct {
+	ID                   uuid.UUID
+	TeamID               uuid.UUID
+	AgentID              uuid.UUID
+	ConversationID       uuid.UUID
+	MessageID            uuid.UUID
+	Question             string
+	ProfileID            uuid.NullUUID
+	Embedding            pgvector.Vector
+	Signals              []string
+	FeedbackReason       *string
+	AskerKey             string
+	Shared               bool
+	TopicID              uuid.NullUUID
+	EvaluationQuestionID uuid.NullUUID
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+}
+
+type GapTopic struct {
+	ID                uuid.UUID
+	TeamID            uuid.UUID
+	AgentID           uuid.UUID
+	ProfileID         uuid.NullUUID
+	Centroid          pgvector.Vector
+	Label             string
+	LabelledQuestions int32
+	LabelledAt        *time.Time
+	State             string
+	StateReason       string
+	StateChangedAt    time.Time
+	StateChangedBy    uuid.NullUUID
+	AnsweredSince     int32
+	LastAnsweredAt    *time.Time
+	LastFailedAt      *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
 type HealthCheck struct {
 	ID          int64
 	SubjectKind string
@@ -601,6 +641,7 @@ type MessageEvent struct {
 	Judging          json.RawMessage
 	Citations        json.RawMessage
 	Scope            json.RawMessage
+	FeedbackShared   bool
 }
 
 type Model struct {

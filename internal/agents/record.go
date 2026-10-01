@@ -62,6 +62,7 @@ func (ru *run) record(ctx context.Context, ans *Answer, msg *llm.AssistantMessag
 	if ru.s.Limits != nil {
 		ru.s.Limits.Recorded(ru.team.ID, ru.usage)
 	}
+	ru.recordGap(ctx, ans) // the gap report (gaps.go)
 }
 
 // Chat outcomes (grounded_chat_answers_total).

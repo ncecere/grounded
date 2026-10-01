@@ -1293,7 +1293,7 @@ func (q *Queries) ListConversations(ctx context.Context, arg ListConversationsPa
 }
 
 const listMessages = `-- name: ListMessages :many
-SELECT m.id, m.conversation_id, m.seq, m.role, m.content, m.citations, m.agent_version_id, m.model_id, m.usage, m.stop_reason, m.error_code, m.latency_ms, m.created_at, m.retrieval, e.feedback, e.feedback_reason, e.citations AS citation_check,
+SELECT m.id, m.conversation_id, m.seq, m.role, m.content, m.citations, m.agent_version_id, m.model_id, m.usage, m.stop_reason, m.error_code, m.latency_ms, m.created_at, m.retrieval, e.feedback, e.feedback_reason, coalesce(e.feedback_shared, false)::bool AS feedback_shared, e.citations AS citation_check,
        coalesce(e.refused, false)::bool AS answer_refused, coalesce(e.no_context, false)::bool AS answer_no_context
 FROM messages m LEFT JOIN message_events e ON e.message_id = m.id
 WHERE m.conversation_id = $1
@@ -1317,6 +1317,7 @@ type ListMessagesRow struct {
 	Retrieval       json.RawMessage
 	Feedback        *string
 	FeedbackReason  *string
+	FeedbackShared  bool
 	CitationCheck   json.RawMessage
 	AnswerRefused   bool
 	AnswerNoContext bool
@@ -1350,6 +1351,7 @@ func (q *Queries) ListMessages(ctx context.Context, conversationID uuid.UUID) ([
 			&i.Retrieval,
 			&i.Feedback,
 			&i.FeedbackReason,
+			&i.FeedbackShared,
 			&i.CitationCheck,
 			&i.AnswerRefused,
 			&i.AnswerNoContext,
@@ -1712,18 +1714,24 @@ func (q *Queries) SetAgentStatus(ctx context.Context, arg SetAgentStatusParams) 
 }
 
 const setMessageFeedback = `-- name: SetMessageFeedback :execrows
-UPDATE message_events SET feedback = $1, feedback_reason = $2, feedback_at = now()
-WHERE message_id = $3
+UPDATE message_events SET feedback = $1, feedback_reason = $2, feedback_shared = $3, feedback_at = now()
+WHERE message_id = $4
 `
 
 type SetMessageFeedbackParams struct {
 	Feedback       *string
 	FeedbackReason *string
+	FeedbackShared bool
 	MessageID      uuid.NullUUID
 }
 
 func (q *Queries) SetMessageFeedback(ctx context.Context, arg SetMessageFeedbackParams) (int64, error) {
-	result, err := q.db.Exec(ctx, setMessageFeedback, arg.Feedback, arg.FeedbackReason, arg.MessageID)
+	result, err := q.db.Exec(ctx, setMessageFeedback,
+		arg.Feedback,
+		arg.FeedbackReason,
+		arg.FeedbackShared,
+		arg.MessageID,
+	)
 	if err != nil {
 		return 0, err
 	}
