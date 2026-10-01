@@ -48,6 +48,8 @@ Route groups (`group`): `ops` (`/healthz`, `/readyz`, `/metrics`), `chat` (strea
 | `grounded_rerank_requests_total` | counter | `caller`, `status` | Rerank calls of searches ([`rerank.md`](rerank.md)). Callers: `agent`, `retrieve` (Try it, the retrieval API, MCP `search`), `evaluation`. Statuses: `ok`, `timeout` and `error` (the search kept the fusion order), `skipped` (the rerank model may not read the knowledge base's classification; nothing was sent) |
 | `grounded_rerank_duration_seconds` | histogram | `caller` | Bounded by the platform's rerank time limit |
 | `grounded_moderation_decisions_total` | counter | `stage` (`input`, `output`), `decision` | Decisions: `pass`, `flag`, `block`, `support`, `error` (the provider failed; the policy decides whether that blocks) |
+| `grounded_moderation_first_release_seconds` | histogram | `channel` | Answers streamed in checked paragraphs ([`../moderation-streaming.md`](../moderation-streaming.md)): question to the first paragraph shown |
+| `grounded_moderation_paragraph_checks_total` | counter | `decision` | Their checks, one per paragraph (of the answer so far); also counted in `grounded_moderation_decisions_total` |
 | `grounded_mcp_tool_calls_total` | counter | `tool` (`search`, `ask`), `outcome` | The MCP server's tool calls ([`../mcp.md`](../mcp.md)). Outcomes: `ok`, `refused` (a limit, a budget, a classification rule), `error` |
 | `grounded_mcp_client_calls_total` | counter | `server`, `tool`, `outcome` | Agents' calls to approved MCP server tools ([`../mcp-client.md`](../mcp-client.md)). Outcomes: `ok`, `tool_error`, `refused`, `timeout`, `too_large`, `error`. Server and tool names are bounded by what admins register and approve |
 | `grounded_mcp_client_call_duration_seconds` | histogram | `server`, `tool` | Latency of those calls |
@@ -129,7 +131,7 @@ The worker and `serve` processes read these from Postgres when scraped (cached f
 | **Grounded / API** (`grounded-api`) | Traffic, errors and latency by route group, the slowest and most failing routes, requests in flight, the Postgres pool, Valkey errors, break-glass reads, CPU, memory, goroutines and versions |
 | **Grounded / Chat & retrieval** (`grounded-chat`) | Answers by channel and outcome, time to first token and answer time by channel, retrieval latency and errors, SystemOne latency by feature |
 | **Grounded / Ingest & jobs** (`grounded-ingest`) | The River queue (depth, oldest waiting and running job, failures, run time, discarded jobs), documents by outcome, embedding batch sizes, crawled pages, maintenance mode, break-glass and retention |
-| **Grounded / Models & moderation** (`grounded-models`) | Requests, failures, 429s and latency per connection and model kind, SystemOne, moderation decisions and block rates |
+| **Grounded / Models & moderation** (`grounded-models`) | Requests, failures, 429s and latency per connection and model kind, SystemOne, moderation decisions and block rates, and the time to the first checked paragraph |
 
 Every dashboard picks its data source through the `DS_PROMETHEUS` variable (any Prometheus-type data source, Mimir included), filters by `namespace`, and links to the others. Nothing is hard-coded, so they import into any Grafana 10.4 or later.
 

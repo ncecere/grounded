@@ -119,7 +119,7 @@ In priority order; the design is [`v0.4.0.md`](v0.4.0.md) (all five items are de
 | 1 | C2 (+A15) | **Unanswered-questions and gap report**, with sharing a failed question on a thumbs-down: **Done** (v0.4.0 M2, [`gaps.md`](gaps.md)) | Teams see what their agents fail at (refusals, no context, thumbs-down), clustered into the sources to add. |
 | 2 | A1b **Done** (v0.4.0 M1) | **Cross-encoder reranking** | Better retrieval, and fewer passages for SystemOne to judge (the slowest step before the first words). |
 | 3 **Done** (v0.4.0 M4) | A8 | **Answer cache** ([`answer-cache.md`](answer-cache.md)) | Repeated questions (public agents especially) answered at once, keyed by agent version and knowledge-base state. |
-| 4 | **New** | **Stream public answers safely:** moderate the answer in chunks as it's written instead of buffering it whole | Visitors see text in seconds while moderation still fails closed. |
+| 4 **Done** (v0.4.0 M5) | **New** | **Stream public answers safely:** moderate the answer in chunks as it's written instead of buffering it whole ([`moderation-streaming.md`](moderation-streaming.md)) | Visitors see text in seconds while moderation still fails closed. |
 | 5 **Done** (v0.4.0 M3) | B10 (+A13) | **Document viewer with highlights**, and citation marks per claim ([`source-viewer.md`](source-viewer.md)) | A citation opens the passage, highlighted: the clearest proof that an answer is grounded. |
 | — | C8, A14, B12, A12 | **Small wins**, as patch releases | Follow-up suggestions, warnings about expectations a KB can't meet, OCR follow-ups, SystemOne capacity. |
 | — | — | **Housekeeping** | The product name decision (ADR-0025) before more public exposure, a screenshot refresh (logo, v0.3 UI), the MCP threat-model update. |

@@ -22,7 +22,7 @@ Out:
 
 ## 2. Decisions taken for this phase
 
-1. **Output moderation for streamed answers depends on the audience** (owner delegated, 2026-09-26). `public`: **buffer**, so the answer is generated, checked, then sent; the UI shows the answer's steps, then "Writing and checking the answer…" until then (v0.3.0). `all_authenticated` and `team`: **stream, then retract**, so text streams live, the final text is checked, and a failing answer is replaced by a notice (SSE `moderation` event) and stored as withheld. The platform policy sets the mode per audience, and an agent may only make it stricter (stream → buffer).
+1. **Output moderation for streamed answers depends on the audience** (owner delegated, 2026-09-26). `public`: **buffer**, so the answer is generated, checked, then sent; the UI shows the answer's steps, then "Writing and checking the answer…" until then (v0.3.0). `all_authenticated` and `team`: **stream, then retract**, so text streams live, the final text is checked, and a failing answer is replaced by a notice (SSE `moderation` event) and stored as withheld. The platform policy sets the mode per audience, and an agent may only make it stricter (stream → buffer). **Since v0.4.0** a third mode, **stream checked paragraphs** (`stream_checked`), is the default for `public`: the answer is released paragraph by paragraph, each checked with everything before it ([`moderation-streaming.md`](moderation-streaming.md)); a public policy saved before keeps its mode.
 2. **Moderation is required for `public`** and fails closed: provider error or timeout (after one retry) means the answer is refused with "The safety check is unavailable right now. Please try again." (code `moderation_unavailable`; docs/ui-review F-01). For the other audiences, moderation is optional per platform policy (default off), with fail-open or fail-closed configurable.
 3. **Development moderation provider:** `chat_classifier` on the gateway's `gpt-oss-20b`, until a guardrail or System One model is available. The fake proxy gets deterministic implementations of all four provider kinds for tests.
 4. **CAPTCHA** is a pluggable verifier with `none` (the default) and Cloudflare Turnstile. Other providers can be added behind the same interface.
@@ -66,13 +66,13 @@ Out:
 - **Policy.** One platform policy per audience (`team`, `all_authenticated`, `public`):
   - the provider (model ID)
   - per category, for input and for output: threshold (0–1) and action (`block` | `flag` | `off`)
-  - the output mode (`stream_retract` | `buffer`), and `fail_closed`
+  - the output mode (`stream_retract` | `stream_checked` | `buffer`), and `fail_closed`
   - a custom notice text
-  - Defaults: `public` blocks every category at 0.5 on input and output, buffers, and fails closed. The others default to off.
-  - Agents may make the policy stricter but not weaker (a lower threshold, block instead of flag, buffer instead of stream).
+  - Defaults: `public` blocks every category at 0.5 on input and output, streams checked paragraphs (v0.4.0; buffered before), and fails closed. The others default to off.
+  - Agents may make the policy stricter but not weaker (a lower threshold, block instead of flag, checked paragraphs or buffer instead of stream).
 - **Pipeline:**
   - **Input** is checked before retrieval. If blocked, no retrieval and no model call happen: the reply is the notice and a `moderation` SSE event is sent.
-  - **Output** is checked on the final text. Buffer mode sends the text only after it passes. Stream mode retracts: a `moderation` event is sent and the message is replaced by the notice.
+  - **Output** is checked on the final text. Buffer mode sends the text only after it passes. Stream mode retracts: a `moderation` event is sent and the message is replaced by the notice. Checked-paragraph mode checks the answer so far at every paragraph end and releases the paragraph once it passes; a failing paragraph replaces the whole answer ([`moderation-streaming.md`](moderation-streaming.md)).
   - Flagged-but-allowed content is recorded.
   - `message_events` gets `moderation_input` and `moderation_output` (JSON: decision, top category, score, provider), with no content (ADR-0010). The audit log records policy changes.
 - **Performance:** calls are bounded by the connection timeout and a moderation timeout (default 10 s). Input moderation runs concurrently with the query rewrite and, in always mode, the search; a blocked question's search results are discarded before judging or the model.

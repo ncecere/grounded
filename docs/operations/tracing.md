@@ -79,6 +79,7 @@ POST /v1/agents/{team}/{agent}/chat
 | `rerank` | internal | the caller (`agent`, `retrieve`, `evaluation`), number of candidates, the time limit, the status (`ok`, `timeout`, `error`) and number of passages kept |
 | `rerank <model>` | client | `gen_ai.operation.name` `rerank`, `gen_ai.request.model`, number of documents, input tokens |
 | `systemone <feature>` | client | the feature (`judging`, `citations`, `scope`, `moderation`, `test`), the SystemOne model, number of questions, input tokens |
+| `moderation.paragraph` | internal | an answer streamed in checked paragraphs ([`../moderation-streaming.md`](../moderation-streaming.md)): one per check, with the paragraph's number, the length of the text checked and the decision |
 | `agent.turn` | internal | turn number, whether it's the final turn (no tools), stop reason, number of tool calls |
 | `execute_tool <tool>` | internal | `gen_ai.tool.name` (`search_knowledge`, or an MCP tool's name as the model sees it) |
 | `tools/call <tool>` | client | `mcp.method.name`, `gen_ai.tool.name`, `grounded.mcp.server` (its name in the registry), `grounded.mcp.server_id`, the outcome, the result's size in bytes |
