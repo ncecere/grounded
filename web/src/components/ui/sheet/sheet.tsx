@@ -23,10 +23,13 @@ import styles from "./sheet.module.css";
  *   >
  *     …fields…
  *   </Sheet>
+ *
+ * On a phone, a split view's side panel can open as a full-screen sheet
+ * instead: `size="full"` covers the viewport (no backdrop shows around it).
  */
 
 export type SheetSide = "right" | "left" | "top" | "bottom";
-export type SheetSize = "sm" | "md" | "lg" | "xl";
+export type SheetSize = "sm" | "md" | "lg" | "xl" | "full";
 
 export type SheetProps = {
   open?: boolean;
@@ -42,7 +45,11 @@ export type SheetProps = {
   footer?: ReactNode;
   /** The edge the sheet slides in from. */
   side?: SheetSide;
-  /** Width of left/right sheets (top/bottom sheets span the viewport width). */
+  /**
+   * Width of left/right sheets (top/bottom sheets span the viewport width).
+   * `full` covers the whole screen from any side, e.g. a side panel's
+   * stand-in on a phone; keep the close button (or give another way out).
+   */
   size?: SheetSize;
   /** Hide the × close button (Escape still closes). */
   hideClose?: boolean;
