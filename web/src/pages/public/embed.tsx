@@ -26,11 +26,15 @@ import p from "./public.module.css";
 
 export type EmbedSearch = { key?: string; preview?: "1"; team?: string };
 
-/** Esc closes the widget's panel; the loader's "focus" puts the cursor in the composer. */
+/**
+ * Esc closes the widget's panel, unless it closes something open inside it first (a citation's card, the source
+ * viewer's sheet); the loader's "focus" puts the cursor in the composer.
+ */
 function useWidgetBridge(input: React.RefObject<HTMLTextAreaElement | null>) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && window.parent !== window) window.parent.postMessage({ type: "grounded-widget:close" }, "*");
+      if (e.key !== "Escape" || window.parent === window || e.defaultPrevented || document.querySelector('[role="dialog"]')) return;
+      window.parent.postMessage({ type: "grounded-widget:close" }, "*");
     };
     const onMessage = (e: MessageEvent) => {
       if (e.source === window.parent && (e.data as { type?: string } | null)?.type === "grounded-widget:focus") input.current?.focus();
