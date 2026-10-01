@@ -137,6 +137,7 @@ CROSS JOIN LATERAL (
         -- A gap topic is never named: its label is written from people's questions, and platform staff read team audit logs.
         WHEN 'gap_topic' THEN (SELECT 'Gap topic' FROM gap_topics gt WHERE gt.id = ids.target_uuid)
         WHEN 'mcp_settings' THEN 'MCP server'
+        WHEN 'answer_cache_settings' THEN 'Saved answers'
         WHEN 'mcp_server' THEN (SELECT ms.name FROM mcp_servers ms WHERE ms.id = ids.target_uuid)
         WHEN 'oauth_grant' THEN (SELECT og.client_name FROM oauth_grants og WHERE og.id = ids.target_uuid)
         WHEN 'oauth_client' THEN (SELECT oc.client_name FROM oauth_clients oc WHERE oc.id = ids.target_uuid)

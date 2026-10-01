@@ -324,6 +324,7 @@ export const targetTypeLabels: Record<string, string> = {
   legal_hold: "Legal hold",
   maintenance_mode: "Maintenance mode",
   mcp_settings: "MCP server setting",
+  answer_cache_settings: "Saved answers setting",
   mcp_server: "MCP server",
   mcp_tool: "MCP tool",
   oauth_grant: "Connected app",
@@ -349,7 +350,7 @@ export const targetTypeLabels: Record<string, string> = {
 };
 
 /** Target types that are a platform setting: an entry's action names it ("Turned OAuth sign-in for MCP clients on"). */
-const settingsTargets = new Set(["mcp_settings"]);
+const settingsTargets = new Set(["mcp_settings", "answer_cache_settings"]);
 
 /**
  * An entry's action and target in one line for a short list ("Changed a team budget: QA Team"), leaving out a target
