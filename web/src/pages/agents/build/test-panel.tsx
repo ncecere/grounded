@@ -1,6 +1,6 @@
 /* Build's live Try it chat: a chat with the saved draft. Nothing is stored; the history is sent with each question. */
 import { Eraser } from "lucide-react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { terms } from "../../../lib/terms";
 import { AddToEvaluationsDialog } from "../../team/evaluations/add-to-evaluations";
 import { answerKey, useAddedAnswers } from "../../team/evaluations/added";
@@ -32,6 +32,8 @@ export function TestPanel({ agent, d, chat, onProblem, heading = true }: Props) 
   const [adding, setAdding] = useState<AnswerToAdd | null>(null);
   const isAdded = useAddedAnswers();
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  // Nothing is stored: cited passages open through the team's documents (editors may read them).
+  const viewer = useMemo(() => ({ kind: "team" as const, team: slug }), [slug]);
   const p = d.draft.profile;
   const problems = (chat.error?.code === "agent_invalid" ? (chat.error.details?.problems as AgentProblem[] | undefined) : undefined) ?? [];
 
@@ -74,6 +76,7 @@ export function TestPanel({ agent, d, chat, onProblem, heading = true }: Props) 
           text={text}
           onTextChange={setText}
           inputRef={inputRef}
+          viewer={viewer}
           label="Draft test conversation"
           // Editors may open the model's thinking; the chat's readers only see "Thinking…".
           showThinking

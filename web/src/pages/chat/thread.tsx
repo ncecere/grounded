@@ -4,7 +4,10 @@
  * and adds Grounded behaviour: citation markers with their claim's verdict
  * whose card leads to the source card (sources numbered 1..n), "Uncited" marks (citations.tsx), the claims'
  * summary (claims.tsx), feedback through the API, status notes and friendly
- * errors (notes.tsx). The sources start collapsed; a chip opens them.
+ * errors (notes.tsx). The sources start collapsed; a chip opens them. Where the
+ * chat has a source viewer (viewer/, docs/v0.4.0.md §5), a chip's "Show source
+ * n" and a source card open the passage there; each card breaks down how the
+ * source fared with the claims citing it ("Supports 3 claims · 1 not supported").
  *
  * The model's thinking is shown to editors testing a draft (showThinking);
  * everyone else sees "Thinking…" while the model thinks, never its reasoning.
@@ -20,13 +23,14 @@ import { Shimmer } from "@/components/ui/shimmer/shimmer";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ui/sources/sources";
 import { verificationLabel } from "@/lib/systemone";
 import { displayText, normalizePunctuation } from "./answer-text";
-import { displayNumbers, useAnswerMarkers, withUncited } from "./citations";
-import { type Claim, ClaimSummary, sourceClaimsText, uncitedOfClaims } from "./claims";
+import { displayNumbers, jumpBelow, useAnswerMarkers, withUncited } from "./citations";
+import { type Claim, ClaimSummary, SourceBreakdown, sourceBreakdown, uncitedOfClaims } from "./claims";
 import { Feedback, Notes, Steps, isAnswer } from "./notes";
 import { waitingText } from "./progress";
 import { revealSource } from "./reveal";
 import type { AssistantItem, ChatItem, Citation } from "./stream";
 import { UserMessage } from "./user-message";
+import { useSourceViewer } from "./viewer/data";
 import { AgentAvatar, type AgentLook } from "./welcome";
 import a from "./answer.module.css";
 import c from "./chat.module.css";
@@ -40,7 +44,8 @@ function pages(start?: number, end?: number) {
   return !end || end === start ? `p. ${start}` : `pp. ${start}–${end}`;
 }
 
-const sourceElementId = (itemKey: string, n: number) => `${itemKey}-source-${n}`;
+/** The id of an answer's source card (a chip, or the source viewer when it closes, focuses it). */
+export const sourceElementId = (itemKey: string, n: number) => `${itemKey}-source-${n}`;
 /** An MCP tool's result (docs/mcp-client.md) reads "From Service status · check_outage"; a passage by its document's title. */
 export const sourceTitle = (s: Citation) => (s.kind === "tool" ? `From ${s.server ?? "a tool"} · ${s.tool ?? ""}` : s.title || "Untitled document");
 const where = (s: Citation) =>
@@ -51,13 +56,25 @@ const where = (s: Citation) =>
 const plainSnippet = (t: string) => t.replace(/^#{1,6}\s+/gm, "").replace(/(\*\*|__)(.*?)\1/g, "$2").replace(/\s+/g, " ").trim();
 const webUrl = (s: Citation) => (s.url && /^https?:\/\//.test(s.url) ? s.url : undefined);
 /**
- * The source card's meta line, with the SystemOne citation check when there is one: with claims, how many of the
- * claims citing it it supports (a chip's claim may be supported by another source); before claims, its own verdict.
+ * The source card's meta line, with the SystemOne citation check when there is one: with claims, the breakdown of
+ * the claims citing it by this source's verdict (a chip's claim may be supported by another source); before claims,
+ * its own verdict.
  */
 const sourceMeta = (s: Citation, claims?: Claim[]) => {
-  const check = claims ? sourceClaimsText(claims, s.n) : s.verification && s.verification !== "unchecked" ? verificationLabel(s.verification, s.confidence) : "";
+  const parts = claims ? sourceBreakdown(claims, s.n) : undefined;
+  if (parts) {
+    return (
+      <>
+        {where(s)}
+        <SourceBreakdown parts={parts} />
+      </>
+    );
+  }
+  const check = !claims && s.verification && s.verification !== "unchecked" ? verificationLabel(s.verification, s.confidence) : "";
   return [where(s), check].filter(Boolean).join(" · ") || undefined;
 };
+/** The chip card's action where the viewer opens passages: "Show source 2" (tools' results keep the jump below). */
+const showSource = (s: Citation, shown: number) => (s.kind === "tool" ? jumpBelow(s, shown) : `Show source ${shown}`);
 /** What a citation chip's card shows about its source. */
 const chipSource = (s: Citation) => ({ title: sourceTitle(s), href: webUrl(s), siteName: where(s) || undefined, description: plainSnippet(s.snippet) });
 
@@ -85,8 +102,20 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
     },
     [item.key],
   );
-  // [n] markers: chips whose card (hover, click, Enter) shows the claim and offers the source card; unknown numbers stay text.
-  const markers = useAnswerMarkers(item.citations, goToSource, chipSource, item.claims);
+  const viewer = useSourceViewer();
+  const viewable = (s: Citation) => Boolean(viewer) && s.kind !== "tool";
+  /** The viewer for passages (the sources under the answer open too, so its card is there); a tool's result its card. */
+  const openSource = useCallback(
+    (n: number) => {
+      const s = item.citations.find((x) => x.n === n);
+      if (!viewer || !s || s.kind === "tool") return goToSource(n);
+      setSourcesOpen(true);
+      viewer.open({ item, n });
+    },
+    [viewer, item, goToSource],
+  );
+  // [n] markers: chips whose card (hover, click, Enter) shows the claim and offers the source; unknown numbers stay text.
+  const markers = useAnswerMarkers(item.citations, openSource, chipSource, item.claims, viewer ? showSource : jumpBelow);
   const num = useMemo(() => displayNumbers(item.citations), [item.citations]);
   const thinking = Boolean(item.thinking) && !item.moderation;
   // Answers without sources already say so: no "Uncited" marks or claim summary for them.
@@ -143,6 +172,9 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
                   href={webUrl(s)}
                   meta={sourceMeta(s, item.claims)}
                   description={plainSnippet(s.snippet)}
+                  onSelect={viewable(s) ? () => openSource(s.n) : undefined}
+                  selectLabel={viewable(s) ? `Show source ${num(s.n)}: ${sourceTitle(s)}` : undefined}
+                  linkLabel="Open the page"
                 />
               ))}
             </SourcesContent>

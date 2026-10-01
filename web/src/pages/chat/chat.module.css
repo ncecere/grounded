@@ -323,9 +323,13 @@
   margin-bottom: var(--space-4);
 }
 
-/* The agent editor's Test tab: a framed conversation above the composer. */
+/* The agent editor's Test tab: a framed conversation above the composer (beside the source viewer when it is open). */
 .panel {
-  display: contents;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
 }
 
 .conversation {

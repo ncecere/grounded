@@ -1,0 +1,169 @@
+/* The source viewer (viewer.tsx) and its split beside the conversation (host.tsx). */
+
+/* The split fills the chat's column. Doubled class: wins over the group's own height: 100%. */
+.split.split {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
+.chatPane.chatPane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.viewerPane {
+  background-color: var(--color-surface);
+}
+
+.viewer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 100%;
+  padding: var(--space-4) var(--space-5) var(--space-6);
+}
+
+/* In the phone's full-screen sheet, the sheet's own header names it. */
+.bare {
+  padding: 0;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.headText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  overflow-wrap: anywhere;
+
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.where {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.navLabel {
+  margin-inline-end: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.claims {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.claimsTitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.claimList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.claim {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+}
+
+.claimBadge {
+  flex: none;
+}
+
+.passages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  color: var(--color-text);
+}
+
+.passage {
+  color: var(--color-text-muted);
+}
+
+/* The cited passage: highlighted, with a bar at its start edge (not colour alone). */
+.cited {
+  scroll-margin-block: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-inline-start: 3px solid var(--color-warning);
+  border-radius: var(--radius-2);
+  background-color: var(--color-warning-subtle);
+  color: var(--color-text);
+}
+
+.citedLabel {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.quote {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-inline-start: 3px solid var(--color-border-strong);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.more {
+  align-self: flex-start;
+}

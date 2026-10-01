@@ -32,6 +32,9 @@ import c from "./chat.module.css";
 
 type Card = Schemas["AgentCard"];
 
+/** Cited passages open through the person's own stored answers (docs/v0.4.0.md §5). */
+const ownAnswers = { kind: "message" } as const;
+
 const AddToEvaluationsDialog = lazy(() => import("../team/evaluations/add-to-evaluations").then((m) => ({ default: m.AddToEvaluationsDialog })));
 
 export function ChatPage() {
@@ -175,6 +178,7 @@ function AgentChat({ card }: { card: Card }) {
           onTextChange={setText}
           feedback
           fullPage
+          viewer={ownAnswers}
           inputRef={inputRef}
           disabledReason={disabledReason}
           label={`Conversation with ${card.name}`}

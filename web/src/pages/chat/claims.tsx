@@ -50,16 +50,45 @@ export function claimLabel(claim: Claim, n: number, num: (n: number) => number =
   return undefined;
 }
 
+export type BreakdownTone = "success" | "warning" | "danger" | "neutral";
+export type BreakdownPart = { tone: BreakdownTone; text: string };
+
+const claimsWord = (k: number) => (k === 1 ? "claim" : "claims");
+
 /**
- * A source card's line about the claims citing that source ("Supports 2 of 3 claims that cite it"), so it doesn't
- * contradict a chip whose claim another source supports; undefined when none of them was checked against it.
+ * A source card's breakdown of the claims citing that source, by this source's verdict on each ("Supports 3 claims ·
+ * 1 not supported", docs/v0.4.0.md §5), instead of the worst verdict of all of them; undefined when none was checked.
  */
-export function sourceClaimsText(claims: Claim[], n: number) {
-  const checks = claims.flatMap((c) => c.checks?.filter((k) => k.n === n && k.verification !== "unchecked") ?? []);
-  if (checks.length === 0) return undefined;
-  const yes = checks.filter((k) => k.verification === "verified").length;
-  if (checks.length === 1) return yes ? "Supports the claim that cites it" : "Doesn't support the claim that cites it";
-  return `Supports ${yes} of ${checks.length} claims that cite it`;
+export function sourceBreakdown(claims: Claim[], n: number): BreakdownPart[] | undefined {
+  const checks = claims.flatMap((c) => c.checks?.filter((k) => k.n === n) ?? []);
+  const count = (v: string) => checks.filter((k) => k.verification === v).length;
+  const [yes, no, against, unchecked] = [count("verified"), count("unsupported"), count("contradicted"), count("unchecked")];
+  if (yes + no + against === 0) return undefined;
+  const parts: BreakdownPart[] = [];
+  if (yes) parts.push({ tone: "success", text: `Supports ${yes} ${claimsWord(yes)}` });
+  // The first part names what it counts: "1 claim not supported", then "· 1 not supported".
+  if (no) parts.push({ tone: "warning", text: parts.length ? `${no} not supported` : `${no} ${claimsWord(no)} not supported` });
+  if (against) parts.push({ tone: "danger", text: parts.length ? `${against} contradicted` : `${against} ${claimsWord(against)} contradicted` });
+  if (unchecked) parts.push({ tone: "neutral", text: `${unchecked} not checked` });
+  return parts;
+}
+
+export const breakdownText = (parts: BreakdownPart[]) => parts.map((p) => p.text).join(" · ");
+
+/** The breakdown in the verdict colours (the words carry the meaning; colour only repeats it). */
+export function SourceBreakdown({ parts }: { parts: BreakdownPart[] }) {
+  return (
+    <span className={a.breakdown} data-testid="source-breakdown">
+      {parts.map((p, i) => (
+        <span key={p.tone}>
+          {i > 0 && " · "}
+          <span className={a.verdictText} data-tone={p.tone}>
+            {p.text}
+          </span>
+        </span>
+      ))}
+    </span>
+  );
 }
 
 /** The uncited claims as sentences for the "Uncited" marks. */

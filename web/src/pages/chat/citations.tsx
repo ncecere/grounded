@@ -18,8 +18,10 @@
  *
  * A chip opens its card on hover, click, Enter or Space (focus moves into the
  * card, Escape returns it to the chip), so keyboard and screen-reader users
- * get the claim too: it is the card's description. The card's "Show source n
- * below" opens the sources under the answer and focuses that one.
+ * get the claim too: it is the card's description. The card's "Show source n"
+ * opens the source viewer where the chat has one (viewer/, docs/v0.4.0.md §5);
+ * elsewhere its "Show source n below" opens the sources under the answer and
+ * focuses that one.
  *
  * Sources are shown numbered 1..n in the order of their numbers, whatever the
  * numbers the model cited ([1], [4], [5] read 1, 2, 3); the stored numbers
@@ -154,17 +156,22 @@ type ChipSource = Parameters<typeof InlineCitation>[0]["sources"][number];
 type ChipProps = {
   byN: Map<number, Citation>;
   onActivate: (n: number) => void;
+  /** The card's action for a source, shown with its number: "Show source 2 below" by default. */
+  actionLabel: (s: Citation, shown: number) => string;
   sourceProps: (s: Citation) => ChipSource;
   claims?: Claim[];
   num: (n: number) => number;
 };
 
+/** The card's "Show source n below" (the source's card under the answer). */
+export const jumpBelow = (_: Citation, shown: number) => `Show source ${shown} below`;
+
 /**
- * The card's way to the source's card under the answer, "Show source n below", after the passage (bitop-ui's
+ * The card's way to the source, after the passage: the viewer or the source's card under the answer (bitop-ui's
  * sourceAction closes the card as it goes). `cited[i]` is the chip's i-th source.
  */
-function jumpTo(cited: Citation[], { onActivate, num }: ChipProps): CitationSourceAction {
-  return { label: (i) => `Show source ${num(cited[i]!.n)} below`, onSelect: (i) => onActivate(cited[i]!.n) };
+function jumpTo(cited: Citation[], { onActivate, num, actionLabel }: ChipProps): CitationSourceAction {
+  return { label: (i) => actionLabel(cited[i]!, num(cited[i]!.n)), onSelect: (i) => onActivate(cited[i]!.n) };
 }
 
 /** A chip whose markers' claims carry the verdicts: the worst of a group's, explained for the deciding source. */
@@ -219,11 +226,17 @@ const plugins = [remarkMarkerOccurrences, remarkUncitedMarks, remarkChipPunctuat
 
 /**
  * Response props for an answer: marker chips with the verdicts of their claims (or, for answers without claims,
- * per-marker verdicts), and "Uncited" marks. `onActivate(n)` is the card's "Show source n below".
+ * per-marker verdicts), and "Uncited" marks. `onActivate(n)` is the card's action, labelled by `actionLabel`.
  */
-export function useAnswerMarkers(citations: Citation[], onActivate: (n: number) => void, sourceProps: ChipProps["sourceProps"], claims?: Claim[]) {
+export function useAnswerMarkers(
+  citations: Citation[],
+  onActivate: (n: number) => void,
+  sourceProps: ChipProps["sourceProps"],
+  claims?: Claim[],
+  actionLabel: ChipProps["actionLabel"] = jumpBelow,
+) {
   return useMemo(() => {
-    const props: ChipProps = { byN: new Map(citations.map((s) => [s.n, s])), onActivate, sourceProps, claims, num: displayNumbers(citations) };
+    const props: ChipProps = { byN: new Map(citations.map((s) => [s.n, s])), onActivate, actionLabel, sourceProps, claims, num: displayNumbers(citations) };
     const components: Components = {
       sup({ node: _node, children, ...rest }: SupProps) {
         const data = rest as Record<string, unknown>;
@@ -240,5 +253,5 @@ export function useAnswerMarkers(citations: Citation[], onActivate: (n: number) 
     // renderCitation turns marker parsing on; the sup renderer above draws the chips.
     const renderCitation = (indices: number[]) => chip(props, indices, []);
     return { components, renderCitation, remarkPlugins: plugins };
-  }, [citations, onActivate, sourceProps, claims]);
+  }, [citations, onActivate, actionLabel, sourceProps, claims]);
 }

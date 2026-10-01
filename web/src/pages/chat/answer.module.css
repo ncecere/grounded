@@ -96,3 +96,25 @@
 .sourceCard {
   scroll-margin-block: var(--space-4) var(--space-11);
 }
+
+/* A source card's per-claim breakdown ("Supports 3 claims · 1 not supported") in the verdict colours. */
+.breakdown {
+  display: block;
+  white-space: normal;
+}
+
+.verdictText {
+  font-weight: var(--font-weight-medium);
+
+  &[data-tone="success"] {
+    color: var(--color-success-text);
+  }
+
+  &[data-tone="warning"] {
+    color: var(--color-warning-text);
+  }
+
+  &[data-tone="danger"] {
+    color: var(--color-danger-text);
+  }
+}

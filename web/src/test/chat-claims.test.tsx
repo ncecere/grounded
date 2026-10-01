@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
-import { claimLabel, claimSummaryText, sourceClaimsText } from "../pages/chat/claims";
+import { breakdownText, claimLabel, claimSummaryText, sourceBreakdown } from "../pages/chat/claims";
 import { type AssistantItem, type ChatItem, applyChatEvent, itemsFromConversation, pendingAssistant } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
 import { renderBare } from "./harness";
@@ -59,10 +59,20 @@ describe("claims", () => {
     expect(claimLabel(weak, 1)).toBe("Claim supported by this source, with low confidence (43%)");
   });
 
-  it("says on a source card how many of the claims citing it it supports", () => {
-    expect(sourceClaimsText(claims, 1)).toBe("Supports the claim that cites it");
-    expect(sourceClaimsText(claims, 2)).toBe("Supports 0 of 2 claims that cite it");
-    expect(sourceClaimsText(claims, 3)).toBeUndefined();
+  it("breaks down on a source card how it fared with each claim citing it, in the verdict colours", () => {
+    expect(sourceBreakdown(claims, 1)).toEqual([{ tone: "success", text: "Supports 1 claim" }]);
+    expect(breakdownText(sourceBreakdown(claims, 2)!)).toBe("1 claim not supported · 1 contradicted");
+    expect(sourceBreakdown(claims, 2)!.map((p) => p.tone)).toEqual(["warning", "danger"]);
+    expect(sourceBreakdown(claims, 3)).toBeUndefined();
+    const many: Claim[] = [0, 1, 2, 3].map((i) => ({
+      index: i, start: 0, end: 1, text: "x", verdict: "supported", sources: [1],
+      checks: [{ n: 1, occurrence: i, verification: i === 3 ? "unsupported" : "verified" }],
+    }));
+    expect(breakdownText(sourceBreakdown(many, 1)!)).toBe("Supports 3 claims · 1 not supported");
+    // Unchecked pairs are counted apart, and alone say nothing.
+    const unchecked: Claim = { ...many[0]!, checks: [{ n: 1, occurrence: 0, verification: "unchecked" }] };
+    expect(breakdownText(sourceBreakdown([...many, unchecked], 1)!)).toBe("Supports 3 claims · 1 not supported · 1 not checked");
+    expect(sourceBreakdown([unchecked], 1)).toBeUndefined();
   });
 
   it("gives each chip its claim's verdict, shows the summary and marks the uncited claim", async () => {
@@ -139,7 +149,8 @@ describe("the sources under an answer", () => {
     const card = await screen.findByRole("listitem", { name: "Source 1: Page 1" });
     await waitFor(() => expect(card).toHaveFocus());
     // With claims, a source card says how the claims citing it fared, not a verdict a chip could contradict.
-    expect(within(screen.getByRole("list", { name: "Sources for this answer" })).getByText(/Supports 0 of 2 claims that cite it/)).toBeInTheDocument();
+    const list = screen.getByRole("list", { name: "Sources for this answer" });
+    expect(within(list).getAllByTestId("source-breakdown").map((b) => b.textContent)).toEqual(["Supports 1 claim", "1 claim not supported · 1 contradicted"]);
     // The card closed as it went.
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(await axe(container)).toHaveNoViolations();

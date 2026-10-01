@@ -13,7 +13,7 @@
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SquarePen } from "lucide-react";
-import { type ReactNode, type RefObject, useEffect, useRef, useState } from "react";
+import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "../../api/client";
 import { Button } from "@/components/ui/button/button";
 import { Loading } from "@/components/ui/spinner/spinner";
@@ -59,6 +59,8 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
     },
   });
   const { reset } = chat;
+  // Cited passages of the session's own answers (docs/v0.4.0.md §5).
+  const viewer = useMemo(() => ({ kind: "public" as const, agentId: agent.id }), [agent.id]);
 
   // Restore the session's current conversation once.
   const restored = useRef(false);
@@ -131,6 +133,7 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
           text={text}
           onTextChange={setText}
           fullPage
+          viewer={viewer}
           inputRef={ref}
           maxLength={agent.maxMessageChars}
           disabledReason={disabledReason}

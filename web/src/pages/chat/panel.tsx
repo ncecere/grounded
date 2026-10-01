@@ -17,6 +17,8 @@ import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden"
 import { cx } from "@/lib/bitop-utils";
 import { progressAnnouncement } from "./progress";
 import { ChatMessages } from "./thread";
+import type { ViewerAccess } from "./viewer/data";
+import { ViewerHost } from "./viewer/host";
 import type { AssistantItem } from "./stream";
 import type { useChat } from "./useChat";
 import { type AgentLook, ChatWelcome } from "./welcome";
@@ -51,6 +53,8 @@ type ChatPanelProps = {
   added?: (item: AssistantItem) => boolean;
   /** Let the reader open the model's thinking (editors testing a draft); others see "Thinking…" only. */
   showThinking?: boolean;
+  /** How the source viewer reads cited passages (docs/v0.4.0.md §5); without it, sources open under the answer only. */
+  viewer?: ViewerAccess;
 };
 
 /** Sending scrolls to your new message (and follows the answer), even after you scrolled up to read. */
@@ -68,7 +72,7 @@ function ScrollOnSend({ questions }: { questions: number }) {
 const retriable = new Set(["send_failed"]);
 
 export function ChatPanel(props: ChatPanelProps) {
-  const { chat, agent, text, onTextChange, feedback, disabledReason, errorExtra, loading, inputRef, label = "Conversation", fullPage, maxLength = defaultMaxLength } = props;
+  const { chat, text, onTextChange, disabledReason, inputRef, maxLength = defaultMaxLength } = props;
   const local = useRef<HTMLTextAreaElement | null>(null);
   const ref = inputRef ?? local;
   const over = text.length > maxLength;
@@ -100,6 +104,24 @@ export function ChatPanel(props: ChatPanelProps) {
     if (!started && !ref.current?.value.trim()) onTextChange(question);
   };
 
+  return (
+    <ViewerHost access={props.viewer} items={chat.items}>
+      <ChatColumn {...props} send={send} ask={ask} over={over} inputRef={ref} />
+    </ViewerHost>
+  );
+}
+
+type ColumnProps = ChatPanelProps & {
+  send: (message: string) => Promise<void>;
+  ask: (question: string) => Promise<void>;
+  over: boolean;
+  inputRef: RefObject<HTMLTextAreaElement | null>;
+};
+
+/** The conversation, its errors and the composer: one column, beside the source viewer when it is open. */
+function ChatColumn(props: ColumnProps) {
+  const { chat, agent, text, onTextChange, feedback, disabledReason, errorExtra, loading, inputRef: ref, label = "Conversation", fullPage, send, ask, over } = props;
+  const maxLength = props.maxLength ?? defaultMaxLength;
   return (
     <div className={fullPage ? c.pagePanel : c.panel}>
       <Conversation

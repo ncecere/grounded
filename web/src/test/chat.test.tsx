@@ -29,6 +29,22 @@ const citation = {
   url: "https://registrar.example.edu/registration/drop-add/",
 };
 
+/** GET /v1/messages/m1/sources/1: the cited passage after a neighbour. */
+const citedPassage = {
+  n: 1,
+  status: "available",
+  documentId: "d1",
+  sourceId: "s1",
+  title: "Drop/Add",
+  headingPath: ["Registration", "Drop/Add"],
+  url: citation.url,
+  passages: [
+    { ordinal: 0, content: "The academic calendar lists the dates.", headingPath: ["Registration"], pageStart: 0, pageEnd: 0, cited: false },
+    { ordinal: 1, content: "Students may drop or add courses during drop/add.", headingPath: ["Registration", "Drop/Add"], pageStart: 0, pageEnd: 0, cited: true },
+  ],
+  claims: [],
+};
+
 const usage = { input: 900, output: 120, reasoning: 40, cacheRead: 0, cacheWrite: 0, total: 1020 };
 
 const answerEvents = (text = "You can drop a class in the student portal [1].", conversationId = "c1"): [string, unknown][] => [
@@ -126,8 +142,13 @@ describe("chat page", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("streams an answer, replaces the raw text with the final text, and focuses a cited source", async () => {
-    const calls = mockApi(routes({ "POST /v1/agents/registrar/registrar-assistant/chat": () => sse(answerEvents()) }));
+  it("streams an answer, replaces the raw text with the final text, and opens a cited source beside it", async () => {
+    const calls = mockApi(
+      routes({
+        "POST /v1/agents/registrar/registrar-assistant/chat": () => sse(answerEvents()),
+        "GET /v1/messages/m1/sources/1": () => citedPassage,
+      }),
+    );
     const { container, router } = renderApp(chatPath);
     const box = await screen.findByRole("textbox", { name: "Message Registrar assistant" });
     await userEvent.type(box, "How do I drop a class?{Enter}");
@@ -143,16 +164,31 @@ describe("chat page", () => {
     // ConversationAnnouncer (a polite status) says how the answer ended.
     await waitFor(() => expect(screen.getAllByRole("status").some((el) => el.textContent?.trim() === "Answer ready")).toBe(true));
 
-    // The marker is a keyboard-reachable button whose card leads to the source card and focuses it.
+    // The marker is a keyboard-reachable button whose card opens the source viewer beside the conversation (docs/v0.4.0.md §5).
     const marker = await screen.findByRole("button", { name: "Source 1: Drop/Add" });
     await userEvent.click(marker);
-    await userEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Show source 1 below" }));
+    await userEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Show source 1" }));
+    const viewer = await screen.findByRole("region", { name: "Drop/Add" });
+    await waitFor(() => expect(within(viewer).getByRole("heading", { level: 2, name: "Drop/Add" })).toHaveFocus());
+    expect(await within(viewer).findByTestId("cited-passage")).toHaveTextContent("Students may drop or add courses during drop/add.");
+    expect(within(viewer).getByText("Source 1 of 1")).toBeInTheDocument();
+    expect(within(viewer).getByRole("link", { name: /Open the page/ })).toHaveAttribute(
+      "href",
+      "https://registrar.example.edu/registration/drop-add/#:~:text=Students%20may%20drop%20or%20add%20courses%20during%20drop%2Fadd.",
+    );
+    // A member doesn't get the whole document.
+    expect(within(viewer).queryByRole("button", { name: /Open full document/ })).toBeNull();
+    // The sources under the answer opened too; each card opens the viewer, its page is a separate link.
     const cardEl = screen.getByRole("listitem", { name: "Source 1: Drop/Add" });
-    await waitFor(() => expect(cardEl).toHaveFocus());
-    expect(within(cardEl).getByRole("link", { name: /Drop\/Add/ })).toHaveAttribute("href", citation.url);
+    expect(within(cardEl).getByRole("button", { name: "Show source 1: Drop/Add" })).toBeInTheDocument();
+    expect(within(cardEl).getByRole("link", { name: "Open the page (opens in a new tab)" })).toHaveAttribute("href", citation.url);
     expect(within(cardEl).getByText("Registration › Drop/Add")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Searched the knowledge base for “drop a class”/ })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+    // Escape closes it; focus goes to the source's card (the chip's card that opened it is gone).
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Drop/Add" })).toBeNull());
+    await waitFor(() => expect(cardEl).toHaveFocus());
   });
 
   it("shows a withheld answer as an alert, without copy or rating buttons, and announces it as not answered (F-10)", async () => {

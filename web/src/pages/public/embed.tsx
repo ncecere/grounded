@@ -11,7 +11,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useSearch } from "@tanstack/react-router";
 import { Bot } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMe } from "../../session";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Loading } from "@/components/ui/spinner/spinner";
@@ -81,6 +81,7 @@ function EmbedPreview({ team, agentId, input }: { team: string; agentId: string;
   // The real public message limit, so the preview composer matches the widget (P-14).
   const sharing = useQuery({ ...sharingQuery(team, agentId), enabled: Boolean(me.data) });
   const [text, setText] = useState("");
+  const viewer = useMemo(() => ({ kind: "team" as const, team }), [team]);
   const chat = useChat({
     path: `/v1/teams/${encodeURIComponent(team)}/agents/${agentId}/test`,
     body: (message, previous) => ({ message, history: historyOf(previous), stream: true }),
@@ -105,6 +106,7 @@ function EmbedPreview({ team, agentId, input }: { team: string; agentId: string;
         text={text}
         onTextChange={setText}
         fullPage
+        viewer={viewer}
         inputRef={input}
         label={`Preview conversation with ${a.name}`}
         maxLength={sharing.data?.widget.maxMessageChars}
