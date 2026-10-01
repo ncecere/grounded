@@ -2695,6 +2695,56 @@ paths:
                     items: { type: string }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/sources/{sourceId}/documents/{documentId}/text:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - name: sourceId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: documentId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [sources]
+      operationId: getDocumentText
+      summary: A document's text as passages, for the team's editors, admins and owners
+      description: >-
+        The whole document for the source viewer (docs/v0.4.0.md §5): its
+        passages in order from the passage at ordinal from (limit at a
+        time), with the text a passage repeats from the one before it
+        (chunk overlap) left out. With around (a passage ID), the passage
+        with its neighbours (about a page) instead, marked cited; 404
+        passage_not_found when the document no longer has that passage.
+        Members get 403: they see cited passages in context from their
+        answers.
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: around
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Passages of the document
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/DocumentText" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/sources/{sourceId}/documents/{documentId}/retry:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -4586,6 +4636,37 @@ paths:
         "409": { $ref: "#/components/responses/ErrorReply" }
         "429": { $ref: "#/components/responses/RateLimitedReply" }
         "503": { $ref: "#/components/responses/ErrorReply" }
+  /v1/public/agents/{agentId}/messages/{messageId}/sources/{n}:
+    parameters:
+      - $ref: "#/components/parameters/AgentIdParam"
+      - name: messageId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/CitationNumberParam"
+    get:
+      tags: [public]
+      operationId: getPublicCitedPassage
+      summary: A passage an answer cited, in context, for the anonymous session that asked (needs the session cookie)
+      description: >-
+        As GET /v1/messages/{messageId}/sources/{n}, for an answer in a
+        conversation of the caller's anonymous session with the agent: 404
+        for any other conversation, 401 without a live session. documentTeam
+        is never set.
+      responses:
+        "200":
+          description: The cited passage
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/CitedPassage" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "401": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "503": { $ref: "#/components/responses/ErrorReply" }
   /v1/conversations:
     get:
       tags: [chat]
@@ -4728,6 +4809,41 @@ paths:
                 required: [data]
                 properties:
                   data: { $ref: "#/components/schemas/FeedbackResult" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/messages/{messageId}/sources/{n}:
+    parameters:
+      - name: messageId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/CitationNumberParam"
+    get:
+      tags: [chat]
+      operationId: getCitedPassage
+      summary: A passage an answer cited, in its document's context (the answer's own conversation only)
+      description: >-
+        The passage cited as [n] by an answer in one of the caller's
+        conversations, with its neighbours (about a page), the document's
+        title, heading path and link, and the claims of the answer that cite
+        it (docs/v0.4.0.md §5). Only passages the answer cited are served,
+        so nobody can page through a knowledge base by its answers. 404 for
+        anyone but the conversation's user (ADR-0010), for a number the
+        answer didn't cite and for an MCP tool's result. A document deleted
+        since the answer, or a passage no longer in it, is status
+        document_deleted or passage_changed with no passages. documentTeam
+        is set when the caller may open the whole document (the source's
+        team editors, admins and owners; GET .../documents/{documentId}/text).
+      responses:
+        "200":
+          description: The cited passage
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/CitedPassage" }
         "400": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/models:
@@ -7036,6 +7152,12 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    CitationNumberParam:
+      name: n
+      in: path
+      required: true
+      description: The source's number in the answer ([n])
+      schema: { type: integer, minimum: 1, maximum: 999 }
     ConversationIdParam:
       name: conversationId
       in: path
@@ -9498,6 +9620,67 @@ components:
         pageStart: { type: integer, format: int32, description: "First page (0 when the format has no pages)" }
         pageEnd: { type: integer, format: int32 }
         tokenCount: { type: integer, format: int32 }
+    ContextPassage:
+      type: object
+      description: >-
+        A passage of a document shown in the source viewer. content is
+        Markdown without the text it repeats from the passage before it
+        (chunk overlap); the cited passage is always whole.
+      required: [ordinal, content, headingPath, pageStart, pageEnd, cited]
+      properties:
+        ordinal: { type: integer, format: int32, description: "Position in the document, from 0" }
+        content: { type: string }
+        headingPath:
+          type: array
+          items: { type: string }
+        pageStart: { type: integer, format: int32, description: "First page (0 when the format has no pages)" }
+        pageEnd: { type: integer, format: int32 }
+        cited: { type: boolean, description: The passage the answer cited (or around named) }
+    CitedPassage:
+      type: object
+      description: >-
+        A passage an answer cited, in context (docs/v0.4.0.md §5). status
+        available has the passage with its neighbours; document_deleted
+        (the document was deleted since the answer) and passage_changed
+        (the document no longer has that text, e.g. it was re-fetched and
+        changed) have none.
+      required: [n, status, documentId, sourceId, title, headingPath, passages, claims]
+      properties:
+        n: { type: integer }
+        status: { type: string, enum: [available, document_deleted, passage_changed] }
+        documentId: { type: string, format: uuid }
+        sourceId: { type: string, format: uuid }
+        title: { type: string }
+        headingPath:
+          type: array
+          items: { type: string }
+        url: { type: string, description: "The web page, when the answer's citation links it (snippet_link mode)" }
+        filename: { type: string }
+        passages:
+          type: array
+          items: { $ref: "#/components/schemas/ContextPassage" }
+        claims:
+          type: array
+          description: The answer's claims that cite this source, with their verdicts (empty without SystemOne citation checks)
+          items: { $ref: "#/components/schemas/Claim" }
+        documentTeam:
+          type: string
+          description: "The source's team (slug), when the caller may open the whole document (its editors, admins and owners)"
+    DocumentText:
+      type: object
+      required: [documentId, sourceId, title, kind, items, total, from]
+      properties:
+        documentId: { type: string, format: uuid }
+        sourceId: { type: string, format: uuid }
+        title: { type: string }
+        kind: { type: string }
+        url: { type: string, description: The web page (web sources) }
+        filename: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ContextPassage" }
+        total: { type: integer, format: int32, description: All passages of the document }
+        from: { type: integer, format: int32, description: The first passage's ordinal }
     DocumentPassagePage:
       type: object
       required: [items, total]
@@ -11067,6 +11250,13 @@ components:
         pageStart: { type: integer, format: int32 }
         pageEnd: { type: integer, format: int32 }
         url: { type: string }
+        chunkId:
+          type: string
+          format: uuid
+          description: >-
+            The cited passage (absent for MCP tools' results and answers from
+            before v0.4.0). It may be gone since: a re-fetched or re-embedded
+            document gets new passages.
         verification:
           type: string
           enum: [verified, unsupported, contradicted, unchecked]

@@ -25,6 +25,9 @@ type Citation struct {
 	// Filename is the uploaded file of a passage from an upload (the MCP
 	// server's ask shows it, like search does).
 	Filename string `json:"filename,omitempty"`
+	// ChunkID is the cited passage, for the source viewer (viewer.go); nil
+	// for tools' results and answers from before v0.4.0.
+	ChunkID *uuid.UUID `json:"chunkId,omitempty"`
 	// Verification and Confidence are set by SystemOne citation checks
 	// (docs/systemone.md §3): verified, unsupported, contradicted or
 	// unchecked, with the model's confidence.
@@ -199,8 +202,14 @@ func citationOf(h numberedHit, mode string) Citation {
 	}
 	if h.Tool != nil {
 		c.Kind, c.Server, c.Tool, c.Truncated = SourceTool, h.Tool.ServerName, h.Tool.Tool, h.Tool.Truncated
-	} else if !isWebURL(h.URL) {
+		return c
+	}
+	if !isWebURL(h.URL) {
 		c.Filename = h.Filename
+	}
+	if h.ChunkID != uuid.Nil {
+		id := h.ChunkID
+		c.ChunkID = &id
 	}
 	return c
 }

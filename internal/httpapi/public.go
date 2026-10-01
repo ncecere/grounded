@@ -30,6 +30,7 @@ func (a *api) publicRoutes() []route {
 		{"POST", "/v1/public/sessions", a.anonymous(a.createPublicSession)},
 		{"GET", "/v1/public/sessions/current", a.anonymous(a.getPublicSession)},
 		{"POST", "/v1/public/agents/{agentId}/chat", a.anonymous(a.publicChat)},
+		{"GET", "/v1/public/agents/{agentId}/messages/{messageId}/sources/{n}", a.anonymous(a.getPublicCitedPassage)},
 	}
 }
 

@@ -1668,6 +1668,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/text": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: string;
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * A document's text as passages, for the team's editors, admins and owners
+         * @description The whole document for the source viewer (docs/v0.4.0.md §5): its passages in order from the passage at ordinal from (limit at a time), with the text a passage repeats from the one before it (chunk overlap) left out. With around (a passage ID), the passage with its neighbours (about a page) instead, marked cited; 404 passage_not_found when the document no longer has that passage. Members get 403: they see cited passages in context from their answers.
+         */
+        get: operations["getDocumentText"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}/sources/{sourceId}/documents/{documentId}/retry": {
         parameters: {
             query?: never;
@@ -2954,6 +2979,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/public/agents/{agentId}/messages/{messageId}/sources/{n}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentId: components["parameters"]["AgentIdParam"];
+                messageId: string;
+                /** @description The source's number in the answer ([n]) */
+                n: components["parameters"]["CitationNumberParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * A passage an answer cited, in context, for the anonymous session that asked (needs the session cookie)
+         * @description As GET /v1/messages/{messageId}/sources/{n}, for an answer in a conversation of the caller's anonymous session with the agent: 404 for any other conversation, 401 without a live session. documentTeam is never set.
+         */
+        get: operations["getPublicCitedPassage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/conversations": {
         parameters: {
             query?: never;
@@ -3030,6 +3080,30 @@ export interface paths {
         put?: never;
         /** Rate an answer in one of the caller's conversations (replaces earlier feedback) */
         post: operations["setMessageFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/messages/{messageId}/sources/{n}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                messageId: string;
+                /** @description The source's number in the answer ([n]) */
+                n: components["parameters"]["CitationNumberParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * A passage an answer cited, in its document's context (the answer's own conversation only)
+         * @description The passage cited as [n] by an answer in one of the caller's conversations, with its neighbours (about a page), the document's title, heading path and link, and the claims of the answer that cite it (docs/v0.4.0.md §5). Only passages the answer cited are served, so nobody can page through a knowledge base by its answers. 404 for anyone but the conversation's user (ADR-0010), for a number the answer didn't cite and for an MCP tool's result. A document deleted since the answer, or a passage no longer in it, is status document_deleted or passage_changed with no passages. documentTeam is set when the caller may open the whole document (the source's team editors, admins and owners; GET .../documents/{documentId}/text).
+         */
+        get: operations["getCitedPassage"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6895,6 +6969,67 @@ export interface components {
             /** Format: int32 */
             tokenCount: number;
         };
+        /** @description A passage of a document shown in the source viewer. content is Markdown without the text it repeats from the passage before it (chunk overlap); the cited passage is always whole. */
+        ContextPassage: {
+            /**
+             * Format: int32
+             * @description Position in the document, from 0
+             */
+            ordinal: number;
+            content: string;
+            headingPath: string[];
+            /**
+             * Format: int32
+             * @description First page (0 when the format has no pages)
+             */
+            pageStart: number;
+            /** Format: int32 */
+            pageEnd: number;
+            /** @description The passage the answer cited (or around named) */
+            cited: boolean;
+        };
+        /** @description A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none. */
+        CitedPassage: {
+            n: number;
+            /** @enum {string} */
+            status: "available" | "document_deleted" | "passage_changed";
+            /** Format: uuid */
+            documentId: string;
+            /** Format: uuid */
+            sourceId: string;
+            title: string;
+            headingPath: string[];
+            /** @description The web page, when the answer's citation links it (snippet_link mode) */
+            url?: string;
+            filename?: string;
+            passages: components["schemas"]["ContextPassage"][];
+            /** @description The answer's claims that cite this source, with their verdicts (empty without SystemOne citation checks) */
+            claims: components["schemas"]["Claim"][];
+            /** @description The source's team (slug), when the caller may open the whole document (its editors, admins and owners) */
+            documentTeam?: string;
+        };
+        DocumentText: {
+            /** Format: uuid */
+            documentId: string;
+            /** Format: uuid */
+            sourceId: string;
+            title: string;
+            kind: string;
+            /** @description The web page (web sources) */
+            url?: string;
+            filename?: string;
+            items: components["schemas"]["ContextPassage"][];
+            /**
+             * Format: int32
+             * @description All passages of the document
+             */
+            total: number;
+            /**
+             * Format: int32
+             * @description The first passage's ordinal
+             */
+            from: number;
+        };
         DocumentPassagePage: {
             items: components["schemas"]["DocumentPassage"][];
             /**
@@ -8329,6 +8464,11 @@ export interface components {
             /** Format: int32 */
             pageEnd?: number;
             url?: string;
+            /**
+             * Format: uuid
+             * @description The cited passage (absent for MCP tools' results and answers from before v0.4.0). It may be gone since: a re-fetched or re-embedded document gets new passages.
+             */
+            chunkId?: string;
             /**
              * @description Set by SystemOne citation checks: whether the source supports the claims citing it (the worst verdict of those claims wins); unchecked when the check failed or timed out. markers has the verdict of each [n] marker.
              * @enum {string}
@@ -9954,6 +10094,8 @@ export interface components {
         /** @description Agent slug */
         AgentSlugParam: string;
         BreakGlassSessionIdParam: string;
+        /** @description The source's number in the answer ([n]) */
+        CitationNumberParam: number;
         ConversationIdParam: string;
     };
     requestBodies: never;
@@ -13135,6 +13277,40 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
         };
     };
+    getDocumentText: {
+        parameters: {
+            query?: {
+                from?: number;
+                limit?: number;
+                around?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                sourceId: string;
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Passages of the document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocumentText"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
     retryDocument: {
         parameters: {
             query?: never;
@@ -15435,6 +15611,37 @@ export interface operations {
             503: components["responses"]["ErrorReply"];
         };
     };
+    getPublicCitedPassage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agentId: components["parameters"]["AgentIdParam"];
+                messageId: string;
+                /** @description The source's number in the answer ([n]) */
+                n: components["parameters"]["CitationNumberParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The cited passage */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CitedPassage"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            401: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            503: components["responses"]["ErrorReply"];
+        };
+    };
     listConversations: {
         parameters: {
             query?: {
@@ -15589,6 +15796,34 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["FeedbackResult"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    getCitedPassage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                messageId: string;
+                /** @description The source's number in the answer ([n]) */
+                n: components["parameters"]["CitationNumberParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The cited passage */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CitedPassage"];
                     };
                 };
             };

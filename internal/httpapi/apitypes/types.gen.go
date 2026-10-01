@@ -846,6 +846,27 @@ func (e CitationMode) Valid() bool {
 	}
 }
 
+// Defines values for CitedPassageStatus.
+const (
+	Available       CitedPassageStatus = "available"
+	DocumentDeleted CitedPassageStatus = "document_deleted"
+	PassageChanged  CitedPassageStatus = "passage_changed"
+)
+
+// Valid indicates whether the value is a known member of the CitedPassageStatus enum.
+func (e CitedPassageStatus) Valid() bool {
+	switch e {
+	case Available:
+		return true
+	case DocumentDeleted:
+		return true
+	case PassageChanged:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ClaimVerdict.
 const (
 	ClaimVerdictNotSupported ClaimVerdict = "not_supported"
@@ -5278,6 +5299,9 @@ type ChatUsage struct {
 
 // Citation A source referenced by [n] in the answer. Uploaded files are cited by title only; url is set only for web pages in snippet_link mode.
 type Citation struct {
+	// ChunkId The cited passage (absent for MCP tools' results and answers from before v0.4.0). It may be gone since: a re-fetched or re-embedded document gets new passages.
+	ChunkId *openapi_types.UUID `json:"chunkId,omitempty"`
+
 	// Confidence The model's confidence in the verification
 	Confidence  *float64           `json:"confidence,omitempty"`
 	DocumentId  openapi_types.UUID `json:"documentId"`
@@ -5370,6 +5394,29 @@ type CitationTotals struct {
 	Unsupported   int64 `json:"unsupported"`
 	Verified      int64 `json:"verified"`
 }
+
+// CitedPassage A passage an answer cited, in context (docs/v0.4.0.md §5). status available has the passage with its neighbours; document_deleted (the document was deleted since the answer) and passage_changed (the document no longer has that text, e.g. it was re-fetched and changed) have none.
+type CitedPassage struct {
+	// Claims The answer's claims that cite this source, with their verdicts (empty without SystemOne citation checks)
+	Claims     []Claim            `json:"claims"`
+	DocumentId openapi_types.UUID `json:"documentId"`
+
+	// DocumentTeam The source's team (slug), when the caller may open the whole document (its editors, admins and owners)
+	DocumentTeam *string            `json:"documentTeam,omitempty"`
+	Filename     *string            `json:"filename,omitempty"`
+	HeadingPath  []string           `json:"headingPath"`
+	N            int                `json:"n"`
+	Passages     []ContextPassage   `json:"passages"`
+	SourceId     openapi_types.UUID `json:"sourceId"`
+	Status       CitedPassageStatus `json:"status"`
+	Title        string             `json:"title"`
+
+	// Url The web page, when the answer's citation links it (snippet_link mode)
+	Url *string `json:"url,omitempty"`
+}
+
+// CitedPassageStatus defines model for CitedPassage.Status.
+type CitedPassageStatus string
 
 // Claim One claim of the answer: a factual sentence (a list item or a table data row counts as one), with one verdict (SystemOne citation checks, docs/systemone.md §3). supported - a source it cites supports it (sources lists which); not_supported - it cites sources and none supports it; uncited - it cites no source (counted as not supported); unchecked - no cited source supports it and at least one check failed or timed out (left out of the counts). start and end are offsets in the answer text in Unicode code points.
 type Claim struct {
@@ -5570,6 +5617,21 @@ type ConnectionUpdate struct {
 	// RequestsPerMinute Omit to keep; 0 removes the limit
 	RequestsPerMinute *int32 `json:"requestsPerMinute,omitempty"`
 	TimeoutSeconds    *int32 `json:"timeoutSeconds,omitempty"`
+}
+
+// ContextPassage A passage of a document shown in the source viewer. content is Markdown without the text it repeats from the passage before it (chunk overlap); the cited passage is always whole.
+type ContextPassage struct {
+	// Cited The passage the answer cited (or around named)
+	Cited       bool     `json:"cited"`
+	Content     string   `json:"content"`
+	HeadingPath []string `json:"headingPath"`
+
+	// Ordinal Position in the document, from 0
+	Ordinal int32 `json:"ordinal"`
+	PageEnd int32 `json:"pageEnd"`
+
+	// PageStart First page (0 when the format has no pages)
+	PageStart int32 `json:"pageStart"`
 }
 
 // Conversation defines model for Conversation.
@@ -6136,6 +6198,25 @@ type DocumentRetryResult struct {
 
 // DocumentStatus defines model for DocumentStatus.
 type DocumentStatus string
+
+// DocumentText defines model for DocumentText.
+type DocumentText struct {
+	DocumentId openapi_types.UUID `json:"documentId"`
+	Filename   *string            `json:"filename,omitempty"`
+
+	// From The first passage's ordinal
+	From     int32              `json:"from"`
+	Items    []ContextPassage   `json:"items"`
+	Kind     string             `json:"kind"`
+	SourceId openapi_types.UUID `json:"sourceId"`
+	Title    string             `json:"title"`
+
+	// Total All passages of the document
+	Total int32 `json:"total"`
+
+	// Url The web page (web sources)
+	Url *string `json:"url,omitempty"`
+}
 
 // DocumentUpdate defines model for DocumentUpdate.
 type DocumentUpdate struct {
@@ -10022,6 +10103,9 @@ type BoilerplateLimitParam = int
 // BreakGlassSessionIdParam defines model for BreakGlassSessionIdParam.
 type BreakGlassSessionIdParam = openapi_types.UUID
 
+// CitationNumberParam defines model for CitationNumberParam.
+type CitationNumberParam = int
+
 // ConversationIdParam defines model for ConversationIdParam.
 type ConversationIdParam = openapi_types.UUID
 
@@ -10873,6 +10957,13 @@ type UploadDocumentsMultipartBody struct {
 // ListDocumentPassagesParams defines parameters for ListDocumentPassages.
 type ListDocumentPassagesParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// GetDocumentTextParams defines parameters for GetDocumentText.
+type GetDocumentTextParams struct {
+	From   *int                `form:"from,omitempty" json:"from,omitempty"`
+	Limit  *int                `form:"limit,omitempty" json:"limit,omitempty"`
+	Around *openapi_types.UUID `form:"around,omitempty" json:"around,omitempty"`
 }
 
 // GetTeamSpendParams defines parameters for GetTeamSpend.
