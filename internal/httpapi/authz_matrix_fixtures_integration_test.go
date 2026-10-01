@@ -50,6 +50,8 @@ type teamFix struct {
 	conv, message  string // the owner's conversation and its answer
 	// An evaluation set on the knowledge base, a question and a run.
 	evalSet, evalQuestion, evalRun string
+	// A gap topic shown to editors (3 askers) and its shared question.
+	gapTopic, gapShared string
 	// ids are every object ID of the team, for the leak check.
 	ids []string
 }
@@ -254,6 +256,8 @@ func (e *matrixEnv) seedCommon(t *testing.T, f *teamFix, prefix string) {
 	f.ids = append(f.ids, f.id, f.source, f.doc, f.web, f.webDoc, f.crawl, f.kb, f.agent, f.serviceKey, f.pubKey, f.invite,
 		f.domainRequest, f.conv, f.message)
 	e.seedEvaluations(t, f, prefix)
+	f.gapTopic, f.gapShared = e.seedGapTopic(t, f, prefix)
+	f.ids = append(f.ids, f.gapTopic, f.gapShared)
 }
 
 type stringer string
