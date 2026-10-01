@@ -120,7 +120,7 @@ In priority order; the design is [`v0.4.0.md`](v0.4.0.md) (all five items are de
 | 2 | A1b | **Cross-encoder reranking** | Better retrieval, and fewer passages for SystemOne to judge (the slowest step before the first words). |
 | 3 | A8 | **Answer cache** | Repeated questions (public agents especially) answered at once, keyed by agent version and knowledge-base state. |
 | 4 | **New** | **Stream public answers safely:** moderate the answer in chunks as it's written instead of buffering it whole | Visitors see text in seconds while moderation still fails closed. |
-| 5 | B10 (+A13) | **Document viewer with highlights**, and citation marks per claim | A citation opens the passage, highlighted: the clearest proof that an answer is grounded. |
+| 5 **Done** (v0.4.0 M3) | B10 (+A13) | **Document viewer with highlights**, and citation marks per claim ([`source-viewer.md`](source-viewer.md)) | A citation opens the passage, highlighted: the clearest proof that an answer is grounded. |
 | — | C8, A14, B12, A12 | **Small wins**, as patch releases | Follow-up suggestions, warnings about expectations a KB can't meet, OCR follow-ups, SystemOne capacity. |
 | — | — | **Housekeeping** | The product name decision (ADR-0025) before more public exposure, a screenshot refresh (logo, v0.3 UI), the MCP threat-model update. |
 
@@ -143,7 +143,7 @@ Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector w
 | A10 | **Tables and figures** | Keep tables structured, and describe figures with a vision model at ingest. | M | Medium | a vision model |
 | A11 | **Near-duplicate boilerplate** | Boilerplate matching today is exact-hash, so a menu with one highlighted item isn't caught. Add fuzzy matching (shingles or MinHash) per source. | S | Medium | — |
 | A12 | **SystemOne capacity** | Batch judging was slower and worse on one GPU. Queue per GPU with priorities (interactive before ingest), and show the added latency per feature in the agent editor. | S | Medium | — |
-| A13 ★ | **Citation marks per claim** | A citation takes the worst verdict of every sentence that cites it, so one unsupported sentence marks a source that correctly supports the others as unsupported. Mark each claim instead, and show a source as "supported here, not there". | M | High | — |
+| A13 ★ **Done** (v0.2.1 I9, v0.4.0 M3) | **Citation marks per claim** | A citation takes the worst verdict of every sentence that cites it, so one unsupported sentence marks a source that correctly supports the others as unsupported. Mark each claim instead, and show a source as "supported here, not there". | M | High | — |
 | A14 **New** | **Warn about expectations the KB can't meet** | An evaluation question can expect a phrase or document that isn't in the knowledge base (v0.2.0 warns while typing); add a set-level check that lists them, and flag questions whose expected document keeps ranking beyond the top 50. | S | Medium | A2 |
 | A15 **New** | **Share a failed question on a thumbs-down** | Let the person rating an answer opt in to sharing just the question with the team's editors, for evaluations. Changes ADR-0010, so it needs an ADR update, retention and a per-agent switch (deferred by the owner, 2026-09-28). | M | Medium–High | A2, an ADR |
 
@@ -160,7 +160,7 @@ Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector w
 | B7 | **PII scanning at ingest** | Patterns (national ID numbers, institutional ID formats, card numbers), then model-based detection; block or flag documents. | M | High for compliance | — |
 | B8 | **Content health report** | Stale pages, broken links, duplicates across sources, pages never cited, parse failures. | M | Medium | — |
 | B9 | **Duplicate detection across teams** | Suggest shared sources when several teams crawl the same site. | S | Medium | — |
-| B10 | **Document viewer with highlights** | A citation opens the page or PDF at the cited passage. | M | Medium–High | viewer permissions |
+| B10 **Done** (v0.4.0 M3) | **Document viewer with highlights** | A citation opens the page or PDF at the cited passage. Done as the [source viewer](source-viewer.md): the passage in context beside the answer, "Open the page" with a text fragment, the whole document for editors. | M | Medium–High | viewer permissions |
 | B11 | **Crawl preview matches the crawl** | The preview lists pages in a different order from the crawl (QA F-14; the wording is fixed, the behaviour isn't). Share the frontier logic. | S | Medium | — |
 | B12 **New** | **OCR follow-ups** | Multi-page TIFF (only the first page is read); partly scanned PDFs uploaded while OCR was off joining the "Needs OCR" retry (today: delete and re-upload); the OCR sidecar in the kind smoke test. | S | Medium | B4 |
 

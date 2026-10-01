@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **The source viewer** (v0.4.0 M3, roadmap B10 and A13; [`docs/source-viewer.md`](docs/source-viewer.md)): a citation opens its passage, highlighted among its neighbours (about a page), under the document's title and heading path, beside the conversation: a resizable split on the chat page and the public page, one above the other in Try it, and a full-screen sheet on phones and in the widget. It lists the claims of the answer that cite the source with this source's verdict on each, has the answer's other sources one click away, and offers **Open the page** for web pages (with a text fragment that highlights the passage on the live site) and, for the team's editors, admins and owners, **Open full document**. A document deleted since the answer, or a passage no longer in it, says so and shows what the answer quoted. Opened by a chip card's **Show source n** or a source card (now a button, with the page as a separate link); Escape closes it and returns focus. Only cited passages are served: the asker's own answers, an anonymous session's own conversations; whole documents only to the source's team editors and above. API (additive): `GET /v1/messages/{messageId}/sources/{n}`, `GET /v1/public/agents/{agentId}/messages/{messageId}/sources/{n}`, `GET /v1/teams/{team}/sources/{sourceId}/documents/{documentId}/text`, and `chunkId` on citations. No migration.
+
+### Changed
+
+- Source cards under an answer with claim checks break down the claims citing the source in the verdict colours, "Supports 3 claims · 1 not supported", instead of "Supports 2 of 3 claims that cite it". (bitop-ui: `Sheet` `size="full"`, `Source` `onSelect`.)
+
 ## [0.3.1] - 2026-09-30
 
 The logo, and long answers that arrive whole shown from their start; no migrations. The release notes are [`docs/releases/v0.3.1.md`](docs/releases/v0.3.1.md).

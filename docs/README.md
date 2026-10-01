@@ -30,6 +30,7 @@ People who chat with agents in the web UI, the widget or the API. There's no sep
 | [DESIGN §7.2, Audience](DESIGN.md#72-audience) and [§7.6, Access paths](DESIGN.md#76-access-paths) | Who can use an agent, and through which channels |
 | [DESIGN §8, Conversations and analytics](DESIGN.md#8-conversations-and-analytics-adr-0010) | Who can read your conversations (only you, apart from audited break-glass), export and deletion, and what teams see |
 | [`../api/openapi.yaml`](../api/openapi.yaml) | The API contract, including the OpenAI-compatible `POST /v1/chat/completions` and API keys |
+| [`source-viewer.md`](source-viewer.md) | The source viewer: a citation's passage highlighted in its document, the claims citing it, who may open what |
 | [`mcp.md`](mcp.md) | The MCP server: connecting AI tools (Claude Code, OpenCode, VS Code, any Streamable HTTP client) with an API key, and what `search` and `ask` return |
 
 ## Team owners and editors
