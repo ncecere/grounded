@@ -69,6 +69,7 @@ export function sectionSummary(section: BuildSection, { c, model, kbName, system
         `${c.contextTokenBudget.toLocaleString()} source tokens`,
         c.queryRewrite ? "rewrites follow-ups" : "no rewriting",
         c.minSimilarity ? `similarity ≥ ${c.minSimilarity}` : null,
+        c.rerank === false ? "no reranking" : null,
       ]
         .filter(Boolean)
         .join(" · ");

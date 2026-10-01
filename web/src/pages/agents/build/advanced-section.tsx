@@ -1,7 +1,8 @@
-/* Build → Advanced: sampling, answer length, reasoning effort, retrieval budget and query rewriting. */
+/* Build → Advanced: sampling, answer length, reasoning effort, retrieval budget, query rewriting and reranking. */
 import { Field } from "@/components/ui/field/field";
 import { NativeSelect } from "@/components/ui/input/input";
 import { Switch } from "@/components/ui/switch/switch";
+import { useRerankStatus } from "@/lib/rerank";
 import s from "../../shared.module.css";
 import a from "../agents.module.css";
 import type { AgentConfig } from "../common";
@@ -102,6 +103,38 @@ export function AdvancedSection({ c, set, errorFor, model }: SectionProps) {
           onCheckedChange={(v) => set({ queryRewrite: v })}
         />
       </div>
+      <Reranking c={c} set={set} errorFor={errorFor} />
+    </div>
+  );
+}
+
+/** The agent's reranking (docs/v0.4.0.md §3), shown once the platform has a rerank model. */
+function Reranking({ c, set, errorFor }: Pick<SectionProps, "c" | "set" | "errorFor">) {
+  const status = useRerankStatus();
+  if (!status.data?.available) return null;
+  const on = c.rerank ?? true;
+  return (
+    <div className={s.grid2}>
+      <div id="agent-field-rerank">
+        <Switch
+          label="Rerank passages"
+          description="A rerank model reads the question with each passage found and keeps the best. More precise, and SystemOne judges fewer passages."
+          checked={on}
+          onCheckedChange={(v) => set({ rerank: v })}
+        />
+      </div>
+      {on && (
+        <NumberField
+          id="agent-field-rerankTopN"
+          label="Passages kept after reranking"
+          description={`The best passages of each search given to the model (1–20). The default is ${status.data.defaultTopN}.`}
+          value={c.rerankTopN ?? status.data.defaultTopN}
+          onChange={(v) => v !== undefined && set({ rerankTopN: v })}
+          min={1}
+          max={20}
+          error={errorFor("rerankTopN")}
+        />
+      )}
     </div>
   );
 }
