@@ -55,7 +55,8 @@ import (
 // "grounded-moderation-classifier" get moderation answers instead, and POST
 // /v1/moderations and /v1/systemone are served too (fakemoderation.go).
 // Vision models (fake-vision; AddVisionModel) transcribe an image part
-// (fakevision.go).
+// (fakevision.go). POST /v1/rerank scores passages with FakeRerankModel
+// by the query words they contain (fakererank.go).
 //
 // Usage is included in the final chunk when stream_options.include_usage is
 // set (and always in non-streamed responses): prompt tokens are the word
@@ -111,6 +112,11 @@ type FakeProxy struct {
 	scopeCalls int
 	scopeFail  int
 	scopeDelay time.Duration
+
+	// Rerank models (fakererank.go).
+	rerankFail  int
+	rerankDelay time.Duration
+	rerankReqs  []FakeRerankRequest
 }
 
 // FakeReasoning is the reasoning the fake streams before every reply.
@@ -135,6 +141,7 @@ func NewFakeProxyHandler(apiKey string) (*FakeProxy, http.Handler) {
 	mux.HandleFunc("POST /v1/chat/completions", p.completions)
 	mux.HandleFunc("POST /v1/moderations", p.moderations)
 	mux.HandleFunc("POST /v1/systemone", p.systemOne)
+	mux.HandleFunc("POST /v1/rerank", p.rerank)
 	return p, p.auth(mux)
 }
 
@@ -397,6 +404,7 @@ func (p *FakeProxy) models(w http.ResponseWriter, r *http.Request) {
 	for id := range fakeGuardModels {
 		data = append(data, map[string]string{"id": id, "object": "model"})
 	}
+	data = append(data, map[string]string{"id": FakeRerankModel, "object": "model"})
 	p.mu.Unlock()
 	_ = json.NewEncoder(w).Encode(map[string]any{"object": "list", "data": data})
 }

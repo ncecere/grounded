@@ -78,10 +78,11 @@ func (s *Service) LoadEvalTarget(ctx context.Context, agentID uuid.UUID, publish
 
 // EvalRetrieve searches the agent's knowledge bases for a question as its
 // search does (each KB with the agent's results per search, its filters and
-// minimum similarity, fused and trimmed to its context budget), without
-// judging. With depth > 0 each KB returns depth results and the fused list
-// is cut at depth, without the budget: an evaluation's search for an
-// expected document's rank beyond the agent's k. It counts as one query
+// minimum similarity, fused, reranked unless the configuration turns it off,
+// and trimmed to its context budget), without judging. With depth > 0 each
+// KB returns depth results and the fused list is cut at depth, without the
+// budget: an evaluation's search for an expected document's rank beyond the
+// agent's k. It counts as one query
 // under the team's query limits and is recorded as query usage with meta
 // (source: evaluation).
 func (s *Service) EvalRetrieve(ctx context.Context, a authz.Actor, t EvalTarget, question string, depth int, meta map[string]any) ([]kbs.Hit, error) {
@@ -102,8 +103,10 @@ func (s *Service) EvalRetrieve(ctx context.Context, a authz.Actor, t EvalTarget,
 			cfg.KBs[i] = ref
 		}
 		cfg.ContextTokenBudget = math.MaxInt32
+		cfg.RerankTopN = depth
 	}
 	r := newRetriever(s.KBs, resolved, cfg, llm.UserTag(t.Team.Slug, t.Agent.Slug))
+	r.planRerank(ctx, cfg)
 	found, _, err := r.search(ctx, question, depth)
 	if err != nil {
 		return nil, err
@@ -117,6 +120,7 @@ func (s *Service) EvalRetrieve(ctx context.Context, a authz.Actor, t EvalTarget,
 	for m, n := range r.embedTokens {
 		usage = append(usage, dbgen.InsertUsageParams{Kind: "embed_tokens", Quantity: int64(n), ModelID: uuid.NullUUID{UUID: m, Valid: true}})
 	}
+	usage = append(usage, r.rerankUsage(nil)...)
 	raw, _ := json.Marshal(base)
 	for _, u := range usage {
 		u.TeamID, u.AgentID, u.UserID = uuid.NullUUID{UUID: t.Team.ID, Valid: true}, uuid.NullUUID{UUID: t.Agent.ID, Valid: true}, nullUser(a)

@@ -36,6 +36,7 @@ import (
 	"github.com/ncecere/grounded/internal/platform"
 	"github.com/ncecere/grounded/internal/profilemig"
 	"github.com/ncecere/grounded/internal/public"
+	"github.com/ncecere/grounded/internal/rerank"
 	"github.com/ncecere/grounded/internal/retention"
 	"github.com/ncecere/grounded/internal/sources"
 	"github.com/ncecere/grounded/internal/ssogroups"
@@ -72,6 +73,8 @@ type Deps struct {
 	// SystemOne stores the platform SystemOne settings and tests SystemOne
 	// models (ADR-0020).
 	SystemOne *systemone.Service
+	// Rerank stores the platform's rerank model (docs/v0.4.0.md §3).
+	Rerank *rerank.Service
 	// OCR stores the parsing settings and tests OCR backends (docs/ocr.md).
 	OCR *ocr.Service
 	// Public serves public agents to anonymous visitors and the widget.
@@ -147,7 +150,7 @@ func apiRoutes(d Deps) []route {
 	routes := publicOpsRoutes(d)
 	for _, group := range [][]route{
 		a.authRoutes(), a.notificationRoutes(), a.teamRoutes(), a.sourceRoutes(), a.kbRoutes(), a.agentRoutes(), a.chatRoutes(),
-		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.analyticsRoutes(),
+		a.platformAdminRoutes(), a.catalogAdminRoutes(), a.sharedSourceAdminRoutes(), a.moderationAdminRoutes(), a.systemOneRoutes(), a.rerankRoutes(), a.analyticsRoutes(),
 		a.publicRoutes(), a.publishingRoutes(), a.maintenanceRoutes(),
 		a.keyRotationRoutes(), a.retentionRoutes(), a.breakGlassRoutes(),
 		a.profileMigrationRoutes(), a.searchRoutes(), a.groupMappingRoutes(), a.parsingRoutes(), a.documentProblemRoutes(), a.costsRoutes(), a.evaluationRoutes(),

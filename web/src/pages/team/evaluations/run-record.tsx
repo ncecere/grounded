@@ -74,6 +74,7 @@ function facts(run: EvalRun, legacy: boolean) {
     { label: "Tested", value: c.version ? (c.version === "published" && c.agentVersion ? `Published version ${c.agentVersion}` : "The draft") : undefined },
     // Names can hold parentheses themselves: "Help (Qwen3) · Qwen3 4B 768 (Spark) · 6 per search".
     { label: "Searched", value: c.kbs.map((k) => [k.name, k.profile, `${k.topK} per search`].filter(Boolean).join(" · ")).join("; ") || undefined },
+    { label: "Reranking", value: c.rerank === "on" ? `On, keeping ${c.resultsPerSearch} per search` : c.rerank === "off" ? "Off" : undefined },
     {
       label: "Score",
       value: active(run) ? undefined : unscored(run) ? (

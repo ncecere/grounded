@@ -9,7 +9,7 @@ Platform admins and platform auditors can see health; nobody else can. Only plat
 | Trigger | What it sends | Stored as |
 |---|---|---|
 | **Test connection** (an admin, on a connection's page) | `GET /models`, or one small SystemOne question for a SystemOne service ([`systemone.md`](../systemone.md)) | The connection's result, plus the result it implies for each enabled model on it (below) |
-| **Test model** (an admin, on a model's page or row menu) | One small real request to the model: a 16-token chat completion, one embedding, the moderation samples, the SystemOne sample questions or the OCR sample page. This costs a few tokens | The model's result |
+| **Test model** (an admin, on a model's page or row menu) | One small real request to the model: a 16-token chat completion, one embedding, the moderation samples, the SystemOne sample questions, the OCR sample page or two passages for a rerank model ([`rerank.md`](rerank.md)). This costs a few tokens | The model's result |
 | **The scheduled check** (the worker's `health.check` job) | For each enabled connection, `GET /models`. For a SystemOne service, only a `GET` of its SystemOne endpoint, to check that the service answers. It never asks a question | The connection's result, plus the result it implies for each enabled model on it |
 | **Test server** (an admin, on an MCP server's page) and the scheduled check of each enabled MCP server | Connect and read the tool list (`tools/list`); never a tool call | The MCP server's result (class `unavailable` for a timeout, `bad_response` for an oversized answer or an input request) |
 

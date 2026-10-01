@@ -236,6 +236,10 @@ var adminPolicies = map[string]policy{
 		cur := c.current("/v1/admin/systemone")
 		return put("/v1/admin/systemone", map[string]any{"modelId": nil, "judging": cur["judging"]}).h(c.rev("/v1/admin/systemone"))
 	}},
+	"adminGetRerank": adminRead("/v1/admin/rerank"),
+	"adminPutRerank": {own: padmin, build: func(c *mctx) request {
+		return put("/v1/admin/rerank", map[string]any{"modelId": nil, "candidates": 40, "timeLimitMs": 2000}).h(c.rev("/v1/admin/rerank"))
+	}},
 	"adminPutModerationPolicy": {own: padmin, build: func(c *mctx) request {
 		p := "/v1/admin/moderation/policies/team"
 		return put(p, map[string]any{"modelId": c.e.classifier.Id, "categories": map[string]any{}, "outputMode": "stream_retract",

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input/input";
 import { Popover } from "@/components/ui/popover/popover";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { Switch } from "@/components/ui/switch/switch";
+import { rerankScore, useRerankStatus } from "@/lib/rerank";
 import { useSystemOneStatus } from "@/lib/systemone";
 import { FilterFields, type MetadataFilter, cleanFilter, describeFilter } from "./filters";
 import { plural, useTeam } from "./common";
@@ -57,12 +58,21 @@ export function RetrievePlayground({ kbId, defaultTopK, sources = [], initialQue
   // SystemOne judging (docs/systemone.md §2): editors, once a SystemOne model is configured.
   const canJudge = Boolean(systemOne.data?.available) && (role === "owner" || role === "admin" || role === "editor");
   const [judge, setJudge] = useState(false);
+  // Reranking (docs/v0.4.0.md §3): on whenever the platform has a rerank model; off to compare with the usual order.
+  const canRerank = Boolean(useRerankStatus().data?.available);
+  const [rerank, setRerank] = useState(true);
   const run = useMutation({
     mutationFn: async () =>
       unwrap(
         await api.POST("/v1/teams/{team}/kbs/{kbId}/retrieve", {
           params: { path: { team: slug, kbId } },
-          body: { query: query.trim(), topK: topK ? Number(topK) : undefined, filters: cleanFilter(filters), judge: canJudge && judge ? true : undefined },
+          body: {
+            query: query.trim(),
+            topK: topK ? Number(topK) : undefined,
+            filters: cleanFilter(filters),
+            judge: canJudge && judge ? true : undefined,
+            rerank: canRerank && !rerank ? false : undefined,
+          },
         }),
       ),
   });
@@ -129,11 +139,21 @@ export function RetrievePlayground({ kbId, defaultTopK, sources = [], initialQue
             onCheckedChange={setJudge}
           />
         )}
+        {canRerank && (
+          <Switch
+            className={r.judge}
+            label="Rerank"
+            description="Put the passages that best answer the question first, as agents do. Turn it off to compare."
+            checked={rerank}
+            onCheckedChange={setRerank}
+          />
+        )}
       </form>
       <ApiErrorAlert error={run.error ? friendlyError(run.error) : null} />
       <p role="status" className={r.summary}>
         {run.data && `${plural(run.data.hits.length, "result")} in ${run.data.latencyMs.toLocaleString()} ms`}
       </p>
+      {run.data?.rerank && <RerankSummary rerank={run.data.rerank} />}
       {run.data?.judging && <JudgingSummary judging={run.data.judging} />}
       {run.data &&
         (run.data.hits.length === 0 ? (
@@ -148,6 +168,21 @@ export function RetrievePlayground({ kbId, defaultTopK, sources = [], initialQue
           </ol>
         ))}
     </div>
+  );
+}
+
+const rerankNotes: Record<Schemas["RetrieveRerank"]["status"], string> = {
+  ok: "",
+  timeout: "Reranking took too long, so the results keep the usual order.",
+  error: "Reranking failed, so the results keep the usual order.",
+  skipped: "The rerank model may not read this knowledge base's data, so the results keep the usual order.",
+};
+
+function RerankSummary({ rerank }: { rerank: Schemas["RetrieveRerank"] }) {
+  return (
+    <p className={r.summary}>
+      {rerank.status === "ok" ? `Reranked the best ${plural(rerank.candidates, "passage")} in ${rerank.latencyMs.toLocaleString()} ms.` : rerankNotes[rerank.status]}
+    </p>
   );
 }
 
@@ -214,6 +249,7 @@ function CitationCard({ hit, rank, top }: { hit: Hit; rank: number; top?: number
           </span>
         )}
         <span>
+          {hit.rerankScore != null && `Rerank ${rerankScore(hit.rerankScore)} · `}
           Score {hit.score.toFixed(4)}
           {detail && ` · ${detail}`}
         </span>

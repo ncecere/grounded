@@ -153,6 +153,7 @@ func (ru *run) recordUsage(ctx context.Context, q *dbgen.Queries, ans *Answer, m
 	if n, m := ru.mod.Requests(); n > 0 {
 		usage = append(usage, dbgen.InsertUsageParams{Kind: moderation.UsageKind, Quantity: n, ModelID: uuid.NullUUID{UUID: m, Valid: true}})
 	}
+	usage = append(usage, ru.retr.rerankUsage(nil)...)
 	for i := range usage {
 		usage[i].Metadata = meta
 	}

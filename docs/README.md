@@ -47,6 +47,7 @@ People who build sources, knowledge bases and agents for a team:
 | [`phase3-agents.md`](phase3-agents.md) | Agents, chat and the OpenAI-compatible API in detail |
 | [`phase4-publishing.md`](phase4-publishing.md) | Audiences, moderation, the directory, short names and the widget |
 | [`systemone.md`](systemone.md) | Optional SystemOne features: passage judging, citation checks and scope checks |
+| [`operations/rerank.md`](operations/rerank.md) | Cross-encoder reranking: the agent's setting, Try it's comparison and evaluation runs without reranking |
 
 ## Platform admins
 
@@ -67,6 +68,7 @@ People who run the admin portal: models, classifications, policies and governanc
 | [`operations/evaluations.md`](operations/evaluations.md) | Evaluation sets for knowledge bases and agents: building, running, reading results, automatic runs (team editors and platform admins) |
 | [`mcp.md`](mcp.md) | The MCP server: turning it on, the MCP key scope, limits, audit and metrics |
 | [`mcp-client.md`](mcp-client.md) | MCP tools in agents: registering MCP servers, approving tools, classification ceilings, what's sent, limits, costs, audit and security |
+| [`operations/rerank.md`](operations/rerank.md) | Cross-encoder reranking: deploying a reranker, adding it, choosing it in Admin → Models, fail-open, costs and metrics |
 | [`operations/health.md`](operations/health.md) | Stored health of connections and models: what Test and the scheduled check send, the schedule, error classes, retention, the metrics and alert |
 | [`benchmarks/`](benchmarks/README.md) | Measurements that inform model and setting choices: [scale](benchmarks/scale-10k.md), [vector store](benchmarks/vector-gate.md), [boilerplate](benchmarks/boilerplate.md), [self-hosted models](benchmarks/spark-models.md), [SystemOne](benchmarks/systemone.md), [load at 2× the sizing](benchmarks/load.md) |
 
@@ -87,7 +89,7 @@ People who deploy, upgrade and monitor an install:
 | [`operations/tracing.md`](operations/tracing.md) | OpenTelemetry tracing: turning it on, sampling, what's recorded and never recorded, trace context through MCP and jobs, Tempo and Jaeger |
 | [`operations/alerts.md`](operations/alerts.md) | A runbook for each alert |
 | [`../deploy/observability/README.md`](../deploy/observability/README.md) | The dashboards and alert rules |
-| [`operations/retention.md`](operations/retention.md), [`operations/break-glass.md`](operations/break-glass.md), [`operations/profile-migration.md`](operations/profile-migration.md), [`operations/sso-groups.md`](operations/sso-groups.md), [`operations/ocr.md`](operations/ocr.md), [`operations/costs.md`](operations/costs.md), [`operations/evaluations.md`](operations/evaluations.md), [`operations/health.md`](operations/health.md) | Runbooks shared with platform admins |
+| [`operations/retention.md`](operations/retention.md), [`operations/break-glass.md`](operations/break-glass.md), [`operations/profile-migration.md`](operations/profile-migration.md), [`operations/sso-groups.md`](operations/sso-groups.md), [`operations/ocr.md`](operations/ocr.md), [`operations/costs.md`](operations/costs.md), [`operations/evaluations.md`](operations/evaluations.md), [`operations/health.md`](operations/health.md), [`operations/rerank.md`](operations/rerank.md) | Runbooks shared with platform admins |
 | [DESIGN §15](DESIGN.md#15-architecture-deployment-and-operations-adr-0001-adr-0013-adr-0014) | Architecture, availability target, backups and delivery |
 
 ## Security reviewers

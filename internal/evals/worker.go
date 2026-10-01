@@ -130,7 +130,7 @@ type executor struct {
 // configuration on the run (automatic runs are queued before it is known).
 func (s *Service) executor(ctx context.Context, run dbgen.EvalRun, set dbgen.EvalSet) (*executor, error) {
 	cfg := DecodeRun(run).Config
-	t, err := s.loadTarget(ctx, set, cfg.Version)
+	t, err := s.loadTarget(ctx, set, cfg.Version, cfg.Rerank == RerankOff)
 	if err != nil {
 		return nil, err
 	}

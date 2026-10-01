@@ -18,6 +18,7 @@ import (
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/catalog"
 	"github.com/ncecere/grounded/internal/limits"
+	"github.com/ncecere/grounded/internal/rerank"
 	"github.com/ncecere/grounded/internal/sources"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -38,7 +39,9 @@ type Service struct {
 	Weights Weights
 	// SystemOne judges passages in the playground (nil: judge is refused).
 	SystemOne *systemone.Service
-	q         *dbgen.Queries
+	// Rerank is the platform's reranking (nil: searches aren't reranked).
+	Rerank *rerank.Service
+	q      *dbgen.Queries
 
 	countMu sync.Mutex
 	counts  map[uuid.UUID]cachedCount

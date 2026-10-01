@@ -48,6 +48,10 @@ type CompatOverrides struct {
 	// SupportsDimensionsParam applies to embedding models (catalog.EmbedTarget);
 	// chat ignores it.
 	SupportsDimensionsParam *bool `json:"supportsDimensionsParam,omitempty"`
+	// The rerank flags apply to rerank models (catalog.RerankRequest);
+	// chat ignores them.
+	RerankDocumentsField *string `json:"rerankDocumentsField,omitempty"`
+	SupportsRerankTopN   *bool   `json:"supportsRerankTopN,omitempty"`
 }
 
 // ResolveCompat applies the defaults to stored overrides.

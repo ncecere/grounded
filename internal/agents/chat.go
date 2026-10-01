@@ -381,6 +381,7 @@ func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 		return Answer{}, err
 	}
 	ru.retr = newRetriever(s.KBs, resolvedKBs, ru.cfg, ru.userTag())
+	ru.retr.planRerank(ctx, ru.cfg)
 	ru.planSystemOne(ctx)
 	ru.msgID = uuid.New()
 

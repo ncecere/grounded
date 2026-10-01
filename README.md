@@ -190,7 +190,7 @@ Grounded is **pre-1.0**. The current release is **v0.3.1** (2026-09-30). The who
 **Next: v0.4.0** (planned; [`docs/roadmap.md`](docs/roadmap.md) § K)
 
 - [ ] An unanswered-questions and gap report, with sharing a failed question on a thumbs-down (C2, A15)
-- [ ] Cross-encoder reranking (A1b)
+- [x] Cross-encoder reranking (A1b)
 - [ ] An answer cache (A8)
 - [ ] Public answers streamed while they're moderated
 - [ ] A document viewer with highlights, and citation marks per claim (B10, A13)

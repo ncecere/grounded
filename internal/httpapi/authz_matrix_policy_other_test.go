@@ -76,6 +76,7 @@ var globalPolicies = map[string]policy{
 	"listUsableMCPTools":          sessionGet("/v1/mcp-tools"),
 	"listSharedSources":           sessionGet("/v1/shared-sources"),
 	"getSystemOneStatus":          sessionGet("/v1/systemone/status"),
+	"getRerankStatus":             sessionGet("/v1/rerank/status"),
 	"checkWidgetOrigins": {own: signedIn, build: func(*mctx) request {
 		return post("/v1/widget-origins/check", map[string]any{"origins": []string{widgetOrigin}})
 	}},

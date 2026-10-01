@@ -829,6 +829,15 @@ type PublishableKey struct {
 	PepperID       []byte
 }
 
+type RerankSetting struct {
+	Singleton bool
+	ModelID   uuid.NullUUID
+	Settings  json.RawMessage
+	Revision  int64
+	UpdatedBy uuid.NullUUID
+	UpdatedAt time.Time
+}
+
 type RetentionRun struct {
 	ID          int64
 	Trigger     string

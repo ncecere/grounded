@@ -15,14 +15,15 @@ import (
 // applied here, exactly, per local day.
 
 // Categories of spend, in display order.
-var Categories = []string{"chat", "embedding", "systemone", "moderation", "ocr", "mcp"}
+// rerank comes last so the CSV's earlier columns keep their positions.
+var Categories = []string{"chat", "embedding", "systemone", "moderation", "ocr", "mcp", "rerank"}
 
 // Totals are spend and quantities.
 type Totals struct {
 	Spend      *big.Rat
 	ByCategory map[string]*big.Rat
-	Tokens     int64 // chat, embedding and SystemOne tokens
-	Requests   int64 // SystemOne and moderation requests
+	Tokens     int64 // chat, embedding, SystemOne, OCR and rerank tokens
+	Requests   int64 // SystemOne, moderation, rerank requests and MCP calls
 	// Unpriced: some usage had no price (it counts as zero).
 	Unpriced bool
 }

@@ -1629,6 +1629,24 @@ func (e EvaluationResultStatus) Valid() bool {
 	}
 }
 
+// Defines values for EvaluationRunConfigRerank.
+const (
+	EvaluationRunConfigRerankOff EvaluationRunConfigRerank = "off"
+	EvaluationRunConfigRerankOn  EvaluationRunConfigRerank = "on"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationRunConfigRerank enum.
+func (e EvaluationRunConfigRerank) Valid() bool {
+	switch e {
+	case EvaluationRunConfigRerankOff:
+		return true
+	case EvaluationRunConfigRerankOn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EvaluationRunConfigVersion.
 const (
 	EvaluationRunConfigVersionDraft     EvaluationRunConfigVersion = "draft"
@@ -2340,6 +2358,24 @@ func (e ModelCompatMaxTokensField) Valid() bool {
 	}
 }
 
+// Defines values for ModelCompatRerankDocumentsField.
+const (
+	ModelCompatRerankDocumentsFieldDocuments ModelCompatRerankDocumentsField = "documents"
+	ModelCompatRerankDocumentsFieldTexts     ModelCompatRerankDocumentsField = "texts"
+)
+
+// Valid indicates whether the value is a known member of the ModelCompatRerankDocumentsField enum.
+func (e ModelCompatRerankDocumentsField) Valid() bool {
+	switch e {
+	case ModelCompatRerankDocumentsFieldDocuments:
+		return true
+	case ModelCompatRerankDocumentsFieldTexts:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ModelCompatThinkingField.
 const (
 	Reasoning        ModelCompatThinkingField = "reasoning"
@@ -2980,6 +3016,8 @@ const (
 	EmbedTokens        PriceUnit = "embed_tokens"
 	McpCalls           PriceUnit = "mcp_calls"
 	ModerationRequests PriceUnit = "moderation_requests"
+	RerankRequests     PriceUnit = "rerank_requests"
+	RerankTokens       PriceUnit = "rerank_tokens"
 	SystemoneRequests  PriceUnit = "systemone_requests"
 	SystemoneTokens    PriceUnit = "systemone_tokens"
 	VisionTokensIn     PriceUnit = "vision_tokens_in"
@@ -2998,6 +3036,10 @@ func (e PriceUnit) Valid() bool {
 	case McpCalls:
 		return true
 	case ModerationRequests:
+		return true
+	case RerankRequests:
+		return true
+	case RerankTokens:
 		return true
 	case SystemoneRequests:
 		return true
@@ -3318,6 +3360,30 @@ func (e RetrieveJudgingMode) Valid() bool {
 	case RetrieveJudgingModeBatched:
 		return true
 	case RetrieveJudgingModePerPassage:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RetrieveRerankStatus.
+const (
+	RetrieveRerankStatusError   RetrieveRerankStatus = "error"
+	RetrieveRerankStatusOk      RetrieveRerankStatus = "ok"
+	RetrieveRerankStatusSkipped RetrieveRerankStatus = "skipped"
+	RetrieveRerankStatusTimeout RetrieveRerankStatus = "timeout"
+)
+
+// Valid indicates whether the value is a known member of the RetrieveRerankStatus enum.
+func (e RetrieveRerankStatus) Valid() bool {
+	switch e {
+	case RetrieveRerankStatusError:
+		return true
+	case RetrieveRerankStatusOk:
+		return true
+	case RetrieveRerankStatusSkipped:
+		return true
+	case RetrieveRerankStatusTimeout:
 		return true
 	default:
 		return false
@@ -4409,11 +4475,17 @@ type AgentConfig struct {
 	Moderation AgentModeration `json:"moderation"`
 
 	// QueryRewrite With history, rewrite the question as a query that stands on its own before retrieval
-	QueryRewrite     bool             `json:"queryRewrite"`
-	ReasoningEffort  *ReasoningEffort `json:"reasoningEffort,omitempty"`
-	RefusalMessage   string           `json:"refusalMessage"`
-	RetrievalMode    RetrievalMode    `json:"retrievalMode"`
-	StrictlyGrounded bool             `json:"strictlyGrounded"`
+	QueryRewrite    bool             `json:"queryRewrite"`
+	ReasoningEffort *ReasoningEffort `json:"reasoningEffort,omitempty"`
+	RefusalMessage  string           `json:"refusalMessage"`
+
+	// Rerank Rerank searches with the platform's rerank model (when one is set); absent in configurations saved before v0.4 (on)
+	Rerank *bool `json:"rerank,omitempty"`
+
+	// RerankTopN Passages each reranked search keeps, for judging or the model
+	RerankTopN       *int          `json:"rerankTopN,omitempty"`
+	RetrievalMode    RetrievalMode `json:"retrievalMode"`
+	StrictlyGrounded bool          `json:"strictlyGrounded"`
 
 	// SystemOne The agent's "SystemOne checks" (Configure, Advanced). Absent or empty follows the platform. Only takes effect when a SystemOne model is configured; thresholds are platform-only.
 	SystemOne   *AgentSystemOne `json:"systemOne,omitempty"`
@@ -4456,12 +4528,18 @@ type AgentConfigInput struct {
 	MinSimilarity   *float64        `json:"minSimilarity,omitempty"`
 
 	// Moderation An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode buffer buffers where the platform streams. The Phase 3 value "off" is still accepted as no override.
-	Moderation       *AgentModeration                 `json:"moderation,omitempty"`
-	QueryRewrite     *bool                            `json:"queryRewrite,omitempty"`
-	ReasoningEffort  *AgentConfigInputReasoningEffort `json:"reasoningEffort,omitempty"`
-	RefusalMessage   *string                          `json:"refusalMessage,omitempty"`
-	RetrievalMode    *RetrievalMode                   `json:"retrievalMode,omitempty"`
-	StrictlyGrounded *bool                            `json:"strictlyGrounded,omitempty"`
+	Moderation      *AgentModeration                 `json:"moderation,omitempty"`
+	QueryRewrite    *bool                            `json:"queryRewrite,omitempty"`
+	ReasoningEffort *AgentConfigInputReasoningEffort `json:"reasoningEffort,omitempty"`
+	RefusalMessage  *string                          `json:"refusalMessage,omitempty"`
+
+	// Rerank Rerank searches with the platform's rerank model (docs/v0.4.0.md §3); it only applies once a platform admin sets one
+	Rerank *bool `json:"rerank,omitempty"`
+
+	// RerankTopN Passages each reranked search keeps, for judging or the model
+	RerankTopN       *int           `json:"rerankTopN,omitempty"`
+	RetrievalMode    *RetrievalMode `json:"retrievalMode,omitempty"`
+	StrictlyGrounded *bool          `json:"strictlyGrounded,omitempty"`
 
 	// SystemOne The agent's "SystemOne checks" (Configure, Advanced). Absent or empty follows the platform. Only takes effect when a SystemOne model is configured; thresholds are platform-only.
 	SystemOne   *AgentSystemOne `json:"systemOne,omitempty"`
@@ -5751,6 +5829,11 @@ type CostByKind struct {
 	// Example: 12.500000
 	Ocr Money `json:"ocr"`
 
+	// Rerank An exact decimal amount in the platform currency (never a float), with six decimals
+	//
+	// Example: 12.500000
+	Rerank Money `json:"rerank"`
+
 	// Systemone An exact decimal amount in the platform currency (never a float), with six decimals
 	//
 	// Example: 12.500000
@@ -6739,13 +6822,19 @@ type EvaluationRunBrief struct {
 // EvaluationRunConfig What the run tested, for the markers on the score chart
 type EvaluationRunConfig struct {
 	// AgentVersion The published version tested
-	AgentVersion     *int32                      `json:"agentVersion,omitempty"`
-	ChatModelId      *openapi_types.UUID         `json:"chatModelId,omitempty"`
-	Kbs              []EvaluationRunKB           `json:"kbs"`
+	AgentVersion *int32              `json:"agentVersion,omitempty"`
+	ChatModelId  *openapi_types.UUID `json:"chatModelId,omitempty"`
+	Kbs          []EvaluationRunKB   `json:"kbs"`
+
+	// Rerank on: searches were reranked; off: the run or the agent turned reranking off; absent without a rerank model
+	Rerank           *EvaluationRunConfigRerank  `json:"rerank,omitempty"`
 	ResultsPerSearch int                         `json:"resultsPerSearch"`
 	RetrievalMode    *string                     `json:"retrievalMode,omitempty"`
 	Version          *EvaluationRunConfigVersion `json:"version,omitempty"`
 }
+
+// EvaluationRunConfigRerank on: searches were reranked; off: the run or the agent turned reranking off; absent without a rerank model
+type EvaluationRunConfigRerank string
 
 // EvaluationRunConfigVersion defines model for EvaluationRunConfig.Version.
 type EvaluationRunConfigVersion string
@@ -6776,6 +6865,9 @@ type EvaluationRunKind string
 type EvaluationRunStart struct {
 	// Kind retrieval checks retrieval only; answer asks the agent and scores the answer
 	Kind *EvaluationRunKind `json:"kind,omitempty"`
+
+	// Rerank Rerank as searches do when the platform has a rerank model (the default); false runs without reranking, to compare (docs/v0.4.0.md §3).
+	Rerank *bool `json:"rerank,omitempty"`
 
 	// Version The agent version to test (agent sets; default draft)
 	Version *EvaluationRunStartVersion `json:"version,omitempty"`
@@ -7750,6 +7842,9 @@ type ModelCompat struct {
 	ExtraBody      *map[string]interface{}    `json:"extraBody,omitempty"`
 	MaxTokensField *ModelCompatMaxTokensField `json:"maxTokensField,omitempty"`
 
+	// RerankDocumentsField Rerank: the request field carrying the passages. Default documents (Cohere and Jina shape: LiteLLM, vLLM, SGLang); texts for Hugging Face text embeddings inference.
+	RerankDocumentsField *ModelCompatRerankDocumentsField `json:"rerankDocumentsField,omitempty"`
+
 	// SupportsDeveloperRole Chat: send the system prompt with role developer. Default false.
 	SupportsDeveloperRole *bool `json:"supportsDeveloperRole,omitempty"`
 
@@ -7758,6 +7853,9 @@ type ModelCompat struct {
 
 	// SupportsReasoningEffort Chat: send reasoning_effort. Default false.
 	SupportsReasoningEffort *bool `json:"supportsReasoningEffort,omitempty"`
+
+	// SupportsRerankTopN Rerank: send top_n. Default true.
+	SupportsRerankTopN *bool `json:"supportsRerankTopN,omitempty"`
 
 	// SupportsStreamUsage Chat: send stream_options.include_usage. Default true.
 	SupportsStreamUsage *bool `json:"supportsStreamUsage,omitempty"`
@@ -7771,6 +7869,9 @@ type ModelCompat struct {
 
 // ModelCompatMaxTokensField defines model for ModelCompat.MaxTokensField.
 type ModelCompatMaxTokensField string
+
+// ModelCompatRerankDocumentsField Rerank: the request field carrying the passages. Default documents (Cohere and Jina shape: LiteLLM, vLLM, SGLang); texts for Hugging Face text embeddings inference.
+type ModelCompatRerankDocumentsField string
 
 // ModelCompatThinkingField Chat: the streamed reasoning field. Default: whichever is present.
 type ModelCompatThinkingField string
@@ -7881,6 +7982,9 @@ type ModelTestResult struct {
 	// Reply Start of the chat reply
 	Reply *string `json:"reply,omitempty"`
 
+	// Rerank Rerank models - the scores of a passage that answers a fixed question and one that doesn't (the first should be higher)
+	Rerank *RerankModelTest `json:"rerank,omitempty"`
+
 	// SystemOne SystemOne models - one fixed noul (yes/no) and one fixed score question
 	SystemOne *SystemOneModelTest `json:"systemOne,omitempty"`
 
@@ -7927,6 +8031,9 @@ type ModelUsage struct {
 
 	// PublishedAgents Agents whose published version answers with this model
 	PublishedAgents int64 `json:"publishedAgents"`
+
+	// Rerank The rerank settings use this model
+	Rerank bool `json:"rerank"`
 
 	// SystemOne SystemOne's settings use this model
 	SystemOne bool `json:"systemOne"`
@@ -9099,6 +9206,50 @@ type RequestTimings struct {
 	TlsMs float64 `json:"tlsMs"`
 }
 
+// RerankModelTest Rerank models - the scores of a passage that answers a fixed question and one that doesn't (the first should be higher)
+type RerankModelTest struct {
+	Irrelevant     float64 `json:"irrelevant"`
+	IrrelevantText string  `json:"irrelevantText"`
+	Query          string  `json:"query"`
+	Relevant       float64 `json:"relevant"`
+	RelevantText   string  `json:"relevantText"`
+}
+
+// RerankSettings defines model for RerankSettings.
+type RerankSettings struct {
+	// Agents Published agents that rerank (they don't turn it off)
+	Agents int `json:"agents"`
+
+	// Candidates Fused hits a search reranks (more when a search asks for more results)
+	Candidates int `json:"candidates"`
+
+	// ModelId The rerank model; null: searches aren't reranked
+	ModelId *openapi_types.UUID `json:"modelId"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision Revision `json:"revision"`
+
+	// TimeLimitMs The longest a search waits for the rerank call; then it keeps the fusion order
+	TimeLimitMs int        `json:"timeLimitMs"`
+	UpdatedAt   *time.Time `json:"updatedAt,omitempty"`
+}
+
+// RerankSettingsInput defines model for RerankSettingsInput.
+type RerankSettingsInput struct {
+	Candidates  int                 `json:"candidates"`
+	ModelId     *openapi_types.UUID `json:"modelId"`
+	TimeLimitMs int                 `json:"timeLimitMs"`
+}
+
+// RerankStatus defines model for RerankStatus.
+type RerankStatus struct {
+	// Available A usable rerank model is set
+	Available bool `json:"available"`
+
+	// DefaultTopN Passages an agent keeps after reranking unless it sets rerankTopN
+	DefaultTopN int `json:"defaultTopN"`
+}
+
 // RetentionGroup defines model for RetentionGroup.
 type RetentionGroup struct {
 	// Audience signed_in or anonymous for conversations; the channel or audience for events; empty otherwise
@@ -9293,6 +9444,9 @@ type RetrieveHit struct {
 	PageEnd     *int32           `json:"pageEnd,omitempty"`
 	PageStart   *int32           `json:"pageStart,omitempty"`
 
+	// RerankScore The rerank model's relevance score (reranked searches only); hits are ordered by it
+	RerankScore *float64 `json:"rerankScore,omitempty"`
+
 	// Score Weighted reciprocal rank fusion score (see FusionWeights); higher is better
 	Score      float64            `json:"score"`
 	SourceId   openapi_types.UUID `json:"sourceId"`
@@ -9326,15 +9480,32 @@ type RetrieveRequest struct {
 	Judge *bool  `json:"judge,omitempty"`
 	Query string `json:"query"`
 
+	// Rerank Rerank with the platform's rerank model when one is set (docs/v0.4.0.md §3; the default); false searches without it, to compare.
+	Rerank *bool `json:"rerank,omitempty"`
+
 	// TopK Defaults to the knowledge base's setting
 	TopK *int `json:"topK,omitempty"`
 }
+
+// RetrieveRerank How the search was reranked (present when the platform has a rerank model and the request didn't turn it off). timeout and error kept the fusion order; skipped: the rerank model may not read this knowledge base's classification.
+type RetrieveRerank struct {
+	// Candidates Fused hits sent to the rerank model
+	Candidates int                  `json:"candidates"`
+	LatencyMs  int64                `json:"latencyMs"`
+	Status     RetrieveRerankStatus `json:"status"`
+}
+
+// RetrieveRerankStatus defines model for RetrieveRerank.Status.
+type RetrieveRerankStatus string
 
 // RetrieveResult defines model for RetrieveResult.
 type RetrieveResult struct {
 	Hits      []RetrieveHit    `json:"hits"`
 	Judging   *RetrieveJudging `json:"judging,omitempty"`
 	LatencyMs int64            `json:"latencyMs"`
+
+	// Rerank How the search was reranked (present when the platform has a rerank model and the request didn't turn it off). timeout and error kept the fusion order; skipped: the rerank model may not read this knowledge base's classification.
+	Rerank *RetrieveRerank `json:"rerank,omitempty"`
 }
 
 // Revision Increases on every change. Send it back in If-Match.
@@ -10545,6 +10716,12 @@ type AdminSwitchBackProfileMigrationParams struct {
 	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
+// AdminPutRerankParams defines parameters for AdminPutRerank.
+type AdminPutRerankParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminPutRetentionParams defines parameters for AdminPutRetention.
 type AdminPutRetentionParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
@@ -11078,6 +11255,9 @@ type AdminStartProfileMigrationJSONRequestBody = ProfileMigrationStart
 
 // AdminPreflightProfileMigrationJSONRequestBody defines body for AdminPreflightProfileMigration for application/json ContentType.
 type AdminPreflightProfileMigrationJSONRequestBody = ProfileMigrationTarget
+
+// AdminPutRerankJSONRequestBody defines body for AdminPutRerank for application/json ContentType.
+type AdminPutRerankJSONRequestBody = RerankSettingsInput
 
 // AdminPutRetentionJSONRequestBody defines body for AdminPutRetention for application/json ContentType.
 type AdminPutRetentionJSONRequestBody = RetentionUpdate

@@ -41,6 +41,8 @@ const sectionOfField: Record<string, BuildSection> = {
   maxTurns: "advanced",
   minSimilarity: "advanced",
   queryRewrite: "advanced",
+  rerank: "advanced",
+  rerankTopN: "advanced",
 };
 
 /** The editor tab and Build section a problem's field lives in ("draft.kbs[0].topK", "agent-field-temperature"…). */

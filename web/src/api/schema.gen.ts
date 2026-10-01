@@ -3651,6 +3651,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/rerank": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The platform rerank settings (platform admins and auditors)
+         * @description The rerank model every search uses (docs/v0.4.0.md §3), how many candidates a search reranks and the time limit of the call. With no rerank model, retrieval is as without reranking.
+         */
+        get: operations["adminGetRerank"];
+        /**
+         * Replace the platform rerank settings (platform admins; audited)
+         * @description modelId null turns reranking off. 400 invalid_settings (details.problems lists {field, problem}) for values out of range; 400 invalid_model when modelId is not a rerank model.
+         */
+        put: operations["adminPutRerank"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/parsing": {
         parameters: {
             query?: never;
@@ -3767,6 +3791,26 @@ export interface paths {
          * @description Editors use it to decide whether to show the "SystemOne checks" override and the playground's judge switch. available is false when no SystemOne model is set or it (or its connection) is disabled.
          */
         get: operations["getSystemOneStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rerank/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether the platform reranks searches (any signed-in user)
+         * @description Editors use it to show the agent's reranking settings (Build, Advanced) and the Try it comparison. available is false when no rerank model is set or it (or its connection) is disabled.
+         */
+        get: operations["getRerankStatus"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4402,7 +4446,7 @@ export interface components {
          * @description The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)
          * @enum {string}
          */
-        PriceUnit: "chat_tokens_in" | "chat_tokens_out" | "embed_tokens" | "systemone_tokens" | "systemone_requests" | "moderation_requests" | "vision_tokens_in" | "vision_tokens_out" | "mcp_calls";
+        PriceUnit: "chat_tokens_in" | "chat_tokens_out" | "embed_tokens" | "systemone_tokens" | "systemone_requests" | "moderation_requests" | "vision_tokens_in" | "vision_tokens_out" | "mcp_calls" | "rerank_tokens" | "rerank_requests";
         CostSettings: {
             mode: components["schemas"]["CostMode"];
             /**
@@ -4495,6 +4539,7 @@ export interface components {
             moderation: components["schemas"]["Money"];
             ocr: components["schemas"]["Money"];
             mcp: components["schemas"]["Money"];
+            rerank: components["schemas"]["Money"];
         };
         CostTotals: {
             spend: components["schemas"]["Money"];
@@ -4725,6 +4770,8 @@ export interface components {
             moderationAudiences: components["schemas"]["Audience"][];
             /** @description SystemOne's settings use this model */
             systemOne: boolean;
+            /** @description The rerank settings use this model */
+            rerank: boolean;
         };
         ProfileUsage: {
             /** Format: uuid */
@@ -5927,6 +5974,13 @@ export interface components {
             /** @description Embedding: send the dimensions parameter when a profile stores fewer dimensions than the model's. Default false: Grounded truncates the vectors and L2-renormalises them itself (Matryoshka models only). */
             supportsDimensionsParam?: boolean;
             /**
+             * @description Rerank: the request field carrying the passages. Default documents (Cohere and Jina shape: LiteLLM, vLLM, SGLang); texts for Hugging Face text embeddings inference.
+             * @enum {string}
+             */
+            rerankDocumentsField?: "documents" | "texts";
+            /** @description Rerank: send top_n. Default true. */
+            supportsRerankTopN?: boolean;
+            /**
              * @description Chat and moderation: a JSON object merged into every chat completion request, for server extensions. At most 4096 bytes; it cannot set fields Grounded controls (model, messages, stream, stream_options, tools, tool_choice, parallel_tool_calls, functions, function_call, n, user, max_tokens, max_completion_tokens, temperature, reasoning_effort).
              * @example {
              *       "chat_template_kwargs": {
@@ -6064,8 +6118,19 @@ export interface components {
             usage?: components["schemas"]["TokenUsage"];
             moderation?: components["schemas"]["ModerationModelTest"];
             systemOne?: components["schemas"]["SystemOneModelTest"];
+            rerank?: components["schemas"]["RerankModelTest"];
             error?: components["schemas"]["ProxyError"];
             timings?: components["schemas"]["RequestTimings"];
+        };
+        /** @description Rerank models - the scores of a passage that answers a fixed question and one that doesn't (the first should be higher) */
+        RerankModelTest: {
+            query: string;
+            relevantText: string;
+            irrelevantText: string;
+            /** Format: double */
+            relevant: number;
+            /** Format: double */
+            irrelevant: number;
         };
         /** @description SystemOne models - one fixed noul (yes/no) and one fixed score question */
         SystemOneModelTest: {
@@ -7128,6 +7193,8 @@ export interface components {
             filters?: components["schemas"]["MetadataFilter"];
             /** @description Judge the platform's candidate count of fused hits with the SystemOne model and return every candidate with its scores and route: evidence, then conflicting, then dropped (team editors signed in; 409 systemone_unavailable without a SystemOne model). topK is ignored. */
             judge?: boolean;
+            /** @description Rerank with the platform's rerank model when one is set (docs/v0.4.0.md §3; the default); false searches without it, to compare. */
+            rerank?: boolean;
         };
         RetrieveHit: {
             /** Format: uuid */
@@ -7153,6 +7220,11 @@ export interface components {
             vectorRank?: number | null;
             lexicalRank?: number | null;
             judgment?: components["schemas"]["PassageJudgment"];
+            /**
+             * Format: double
+             * @description The rerank model's relevance score (reranked searches only); hits are ordered by it
+             */
+            rerankScore?: number | null;
         };
         /** @description A SystemOne model's answers about the passage and the query, and the route the thresholds give it (docs/systemone.md §2). skipped: the request failed or timed out, so the passage kept its rank as evidence. */
         PassageJudgment: {
@@ -7178,6 +7250,16 @@ export interface components {
             /** Format: int64 */
             latencyMs: number;
             judging?: components["schemas"]["RetrieveJudging"];
+            rerank?: components["schemas"]["RetrieveRerank"];
+        };
+        /** @description How the search was reranked (present when the platform has a rerank model and the request didn't turn it off). timeout and error kept the fusion order; skipped: the rerank model may not read this knowledge base's classification. */
+        RetrieveRerank: {
+            /** @enum {string} */
+            status: "ok" | "timeout" | "error" | "skipped";
+            /** @description Fused hits sent to the rerank model */
+            candidates: number;
+            /** Format: int64 */
+            latencyMs: number;
         };
         RetrieveJudging: {
             /** @enum {string} */
@@ -7710,6 +7792,10 @@ export interface components {
             systemOne?: components["schemas"]["AgentSystemOne"];
             /** @description Approved MCP server tools the agent may call (docs/mcp-client.md), by ID; absent in configurations saved before v0.3 */
             tools?: string[];
+            /** @description Rerank searches with the platform's rerank model (when one is set); absent in configurations saved before v0.4 (on) */
+            rerank?: boolean;
+            /** @description Passages each reranked search keeps, for judging or the model */
+            rerankTopN?: number;
         };
         /** @description A draft configuration. Every field is optional (defaults apply); types and ranges are checked (400 invalid_config with details.problems) but an incomplete draft (no model, no knowledge bases) can be saved. Unknown fields are rejected. */
         AgentConfigInput: {
@@ -7746,6 +7832,16 @@ export interface components {
             systemOne?: components["schemas"]["AgentSystemOne"];
             /** @description Approved MCP server tools the agent may call, by ID (listUsableMCPTools). Publishing checks each is approved and its server enabled and approved for the agent's data */
             tools?: string[];
+            /**
+             * @description Rerank searches with the platform's rerank model (docs/v0.4.0.md §3); it only applies once a platform admin sets one
+             * @default true
+             */
+            rerank: boolean;
+            /**
+             * @description Passages each reranked search keeps, for judging or the model
+             * @default 6
+             */
+            rerankTopN: number;
         };
         /** @description The agent's "SystemOne checks" (Configure, Advanced). Absent or empty follows the platform. Only takes effect when a SystemOne model is configured; thresholds are platform-only. */
         AgentSystemOne: {
@@ -7885,6 +7981,34 @@ export interface components {
                 /** @description The platform default */
                 enabled: boolean;
             };
+        };
+        RerankStatus: {
+            /** @description A usable rerank model is set */
+            available: boolean;
+            /** @description Passages an agent keeps after reranking unless it sets rerankTopN */
+            defaultTopN: number;
+        };
+        RerankSettings: {
+            /**
+             * Format: uuid
+             * @description The rerank model; null: searches aren't reranked
+             */
+            modelId: string | null;
+            /** @description Fused hits a search reranks (more when a search asks for more results) */
+            candidates: number;
+            /** @description The longest a search waits for the rerank call; then it keeps the fusion order */
+            timeLimitMs: number;
+            /** @description Published agents that rerank (they don't turn it off) */
+            agents: number;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            updatedAt?: string | null;
+        };
+        RerankSettingsInput: {
+            /** Format: uuid */
+            modelId: string | null;
+            candidates: number;
+            timeLimitMs: number;
         };
         AgentProblem: {
             /**
@@ -9625,6 +9749,8 @@ export interface components {
              * @enum {string}
              */
             version?: "draft" | "published";
+            /** @description Rerank as searches do when the platform has a rerank model (the default); false runs without reranking, to compare (docs/v0.4.0.md §3). */
+            rerank?: boolean;
         };
         EvaluationRunKB: {
             /** Format: uuid */
@@ -9651,6 +9777,11 @@ export interface components {
             chatModelId?: string;
             kbs: components["schemas"]["EvaluationRunKB"][];
             resultsPerSearch: number;
+            /**
+             * @description on: searches were reranked; off: the run or the agent turned reranking off; absent without a rerank model
+             * @enum {string}
+             */
+            rerank?: "on" | "off";
         };
         EvaluationRun: {
             /** Format: uuid */
@@ -16802,6 +16933,64 @@ export interface operations {
             428: components["responses"]["ErrorReply"];
         };
     };
+    adminGetRerank: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings (the defaults with revision 1 until saved) */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RerankSettings"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminPutRerank: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RerankSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RerankSettings"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
     adminGetParsing: {
         parameters: {
             query?: never;
@@ -16989,6 +17178,29 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["SystemOneStatus"];
+                    };
+                };
+            };
+            401: components["responses"]["ErrorReply"];
+        };
+    };
+    getRerankStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RerankStatus"];
                     };
                 };
             };
@@ -17306,8 +17518,8 @@ export interface operations {
                 };
                 content: {
                     /**
-                     * @example team,name,team,currency,spend,chat,embedding,systemone,moderation,tokens,requests,unpriced
-                     *     5b1d2c3e-6f7a-4b8c-9d0e-1f2a3b4c5d6e,Registrar,registrar,USD,12.500000,12.000000,0.500000,0.000000,0.000000,4100000,0,false
+                     * @example team_id,team_slug,team_name,currency,spend,chat,embedding,systemone,moderation,ocr,mcp,rerank,tokens,requests,unpriced
+                     *     5b1d2c3e-6f7a-4b8c-9d0e-1f2a3b4c5d6e,registrar,Registrar,USD,12.500000,12.000000,0.500000,0.000000,0.000000,0.000000,0.000000,0.000000,4100000,0,false
                      */
                     "text/csv": string;
                 };

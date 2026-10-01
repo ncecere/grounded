@@ -95,7 +95,7 @@ func newTestAppOn(t *testing.T, pool *pgxpool.Pool, mutate func(*config.Config),
 		Config: cfg, Pool: pool, KV: kvs, Metrics: metrics, Log: log, Health: httpapi.NewHealth(nil),
 		Teams: svc.Teams, Platform: svc.Platform, Catalog: svc.Catalog, Sources: svc.Sources, KBs: svc.KBs, APIKeys: svc.APIKeys,
 		WebSources: svc.Web, Limits: svc.Limits, Costs: svc.Costs, Agents: svc.Agents, Notify: svc.Notify, Moderation: svc.Moderation, SystemOne: svc.SystemOne,
-		OCR:    svc.OCR,
+		OCR: svc.OCR, Rerank: svc.Rerank,
 		Public: svc.Public, Retention: svc.Retention, BreakGlass: svc.BreakGlass, Web: testWeb, WebBuilt: true,
 	}
 	deps.ProfileMigrations, deps.Evaluations, deps.MCP, deps.OAuth = svc.ProfileMigrations, svc.Evaluations, svc.MCP, svc.OAuth

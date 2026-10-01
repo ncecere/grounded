@@ -138,6 +138,7 @@ function configParts(r: EvalRun) {
     version: c.version === "published" && c.agentVersion ? `v${c.agentVersion}` : c.version === "draft" ? "draft" : "",
     profiles: c.kbs.map((k) => k.profile).join(", "),
     k: c.resultsPerSearch,
+    rerank: c.rerank ?? "",
   };
 }
 
@@ -149,6 +150,7 @@ export function configChanges(prev: EvalRun, next: EvalRun): string[] {
   if (a.version !== b.version && a.version && b.version) out.push(`agent ${a.version} → ${b.version}`);
   if (a.profiles !== b.profiles && a.profiles && b.profiles) out.push(`embedding profile ${a.profiles} → ${b.profiles}`);
   if (a.k !== b.k && a.k && b.k) out.push(`results per search ${a.k} → ${b.k}`);
+  if (a.rerank !== b.rerank && b.rerank) out.push(b.rerank === "on" ? "reranked" : "not reranked");
   return out;
 }
 

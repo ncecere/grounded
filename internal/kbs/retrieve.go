@@ -14,6 +14,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
+	"github.com/ncecere/grounded/internal/rerank"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 	"github.com/ncecere/grounded/internal/systemone"
 	"github.com/ncecere/grounded/internal/tags"
@@ -31,6 +32,9 @@ type Query struct {
 	// Channel is recorded on the query's usage events (mcp for the MCP
 	// server's search tool; "" records none, as for REST).
 	Channel string
+	// NoRerank searches without the platform's rerank model (Try it's
+	// comparison; docs/v0.4.0.md §3).
+	NoRerank bool
 }
 
 // Hit is one retrieved chunk with its citation.
@@ -52,6 +56,9 @@ type Hit struct {
 	// Distance is the cosine distance between the query and the chunk's
 	// vector (-1 when the chunk has no vector). Similarity = 1 - Distance.
 	Distance float64
+	// RerankScore is the rerank model's relevance score (nil when the
+	// search wasn't reranked).
+	RerankScore *float64
 }
 
 // Similarity is 1 - cosine distance, or 0 when unknown.
@@ -68,6 +75,8 @@ type Result struct {
 	Latency time.Duration
 	// Judging is set when the query asked for judging.
 	Judging *Judging
+	// Rerank is set when the platform reranks searches.
+	Rerank *RerankInfo
 }
 
 // ErrModelUnavailable is returned when the embedding model cannot be reached.
@@ -210,7 +219,8 @@ func (s *Service) Retrieve(ctx context.Context, a authz.Actor, teamRef string, k
 	if in.Channel != "" {
 		meta = map[string]any{"channel": in.Channel}
 	}
-	return s.retrieve(ctx, a, kb, retrieval{text: text, k: k, filter: filter, plan: plan, meta: meta}, start)
+	return s.retrieve(ctx, a, kb, retrieval{text: text, k: k, filter: filter, plan: plan, meta: meta, noRerank: in.NoRerank,
+		caller: rerank.CallerRetrieve}, start)
 }
 
 // retrieval is one search of a knowledge base: k results (or the judging
@@ -221,6 +231,9 @@ type retrieval struct {
 	filter MetadataFilter
 	plan   *systemone.JudgePlan
 	meta   map[string]any
+	// noRerank turns reranking off; caller labels its metrics.
+	noRerank bool
+	caller   string
 }
 
 // retrieve applies the team's query limits, searches, judges when asked and
@@ -232,14 +245,25 @@ func (s *Service) retrieve(ctx context.Context, a authz.Actor, kb KB, r retrieva
 			return Result{}, err
 		}
 	}
-	res, err := s.Search(ctx, kb, SearchParams{Text: r.text, TopK: r.k, Filter: r.filter, User: "grounded-query:" + kb.TeamID.String()})
+	var rp *rerank.Plan
+	fetch := r.k
+	if !r.noRerank {
+		if rp = s.RerankPlan(ctx); rp != nil {
+			fetch = rp.Fetch(r.k)
+		}
+	}
+	res, err := s.Search(ctx, kb, SearchParams{Text: r.text, TopK: fetch, Filter: r.filter, User: "grounded-query:" + kb.TeamID.String()})
 	if err != nil {
 		return Result{}, err
 	}
 	out := Result{Hits: res.Hits}
+	rmeter := &rerank.Meter{}
+	if rp != nil {
+		out.Hits, out.Rerank = rerankHits(rerank.WithMeter(ctx, rmeter), rp, r.caller, kb.EffectiveClassification, r.text, res.Hits, r.k)
+	}
 	meter := &systemone.Meter{}
 	if r.plan != nil {
-		out.Hits, out.Judging = judgeHits(systemone.WithMeter(ctx, meter), r.plan, r.text, res.Hits)
+		out.Hits, out.Judging = judgeHits(systemone.WithMeter(ctx, meter), r.plan, r.text, out.Hits)
 	}
 	// Every retrieve is a query (even on an empty KB): it counts towards the
 	// team's usage and limits.
@@ -251,7 +275,8 @@ func (s *Service) retrieve(ctx context.Context, a authz.Actor, kb KB, r retrieva
 		})
 	}
 	extra = append(extra, meterUsage(meter)...)
-	if err := s.recordUsage(ctx, a, kb, len(res.Hits), extra, r.meta); err != nil {
+	extra = append(extra, rmeter.Usage(json.RawMessage(`{}`))...)
+	if err := s.recordUsage(ctx, a, kb, len(out.Hits), extra, r.meta); err != nil {
 		return Result{}, err
 	}
 	out.Latency = time.Since(start)
@@ -262,13 +287,15 @@ func (s *Service) retrieve(ctx context.Context, a authz.Actor, kb KB, r retrieva
 // evaluation question (docs/evaluations.md §2): the KB's top-k (k 0), or k
 // results (at most 50) when the check looks for an expected document's
 // rank beyond it, under the team's query limits, recorded as query usage
-// with meta (source: evaluation). The caller has checked access; kb comes
-// from ResolveKBs.
-func (s *Service) RetrieveForEvaluation(ctx context.Context, a authz.Actor, kb KB, text string, k int, meta map[string]any) (Result, error) {
+// with meta (source: evaluation). It reranks like any search unless
+// noRerank (a run comparing without reranking). The caller has checked
+// access; kb comes from ResolveKBs.
+func (s *Service) RetrieveForEvaluation(ctx context.Context, a authz.Actor, kb KB, text string, k int, noRerank bool, meta map[string]any) (Result, error) {
 	if k <= 0 {
 		k = int(kb.TopK)
 	}
-	return s.retrieve(ctx, a, kb, retrieval{text: strings.TrimSpace(text), k: min(k, 50), meta: meta}, time.Now())
+	return s.retrieve(ctx, a, kb, retrieval{text: strings.TrimSpace(text), k: min(k, 50), meta: meta, noRerank: noRerank,
+		caller: rerank.CallerEvaluation}, time.Now())
 }
 
 // recordUsage writes the query (and, when embedded, its embedding tokens) to

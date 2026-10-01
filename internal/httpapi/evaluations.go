@@ -380,6 +380,7 @@ func (a *api) startEvaluationRun(w http.ResponseWriter, r *http.Request) {
 	if in.Version != nil {
 		start.Version = string(*in.Version)
 	}
+	start.NoRerank = !deref(in.Rerank, true)
 	run, err := a.Evaluations.StartRun(r.Context(), a.actor(r), r.PathValue("team"), id, start)
 	if failed(w, r, err) {
 		return

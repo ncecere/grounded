@@ -60,6 +60,13 @@ type Compat struct {
 	// dimensions asks for them. Default false: Grounded truncates the vectors
 	// and L2-renormalises them itself (Matryoshka models; DESIGN.md §10).
 	SupportsDimensionsParam *bool `json:"supportsDimensionsParam,omitempty"`
+	// RerankDocumentsField (rerank models) is the request field carrying
+	// the documents: "documents" (the default; Cohere, Jina, LiteLLM, vLLM,
+	// SGLang) or "texts" (Hugging Face text embeddings inference).
+	RerankDocumentsField *string `json:"rerankDocumentsField,omitempty"`
+	// SupportsRerankTopN (rerank models): send top_n, the number of
+	// results wanted. Default true; false for servers that reject it.
+	SupportsRerankTopN *bool `json:"supportsRerankTopN,omitempty"`
 	// ExtraBody (chat and moderation models) is merged into every chat
 	// completion request, e.g. {"chat_template_kwargs": {"enable_thinking":
 	// false}}. It cannot set the fields Grounded controls
@@ -76,6 +83,9 @@ func (c Compat) validate() error {
 	}
 	if c.ThinkingField != nil && *c.ThinkingField != "reasoning_content" && *c.ThinkingField != "reasoning" {
 		return apperr.Invalid("invalid_compat", "thinkingField must be reasoning_content or reasoning")
+	}
+	if f := c.RerankDocumentsField; f != nil && *f != "documents" && *f != "texts" {
+		return apperr.Invalid("invalid_compat", "rerankDocumentsField must be documents or texts")
 	}
 	return validateExtraBody(c.ExtraBody)
 }
@@ -209,6 +219,9 @@ func clearKindFlags(kind string, s *ModelSpec) {
 	}
 	if kind != KindEmbedding {
 		s.Compat.SupportsDimensionsParam = nil
+	}
+	if kind != KindRerank {
+		s.Compat.RerankDocumentsField, s.Compat.SupportsRerankTopN = nil, nil
 	}
 }
 
@@ -423,7 +436,9 @@ type ModelTest struct {
 	// Chat models: the start of the reply.
 	Reply string
 	Usage gateway.Usage
-	Error *ProbeError
+	// Rerank models: the scores of the fixed test passages.
+	Rerank *RerankTest
+	Error  *ProbeError
 }
 
 // TestModel sends a small request so admins can confirm the model works
@@ -473,6 +488,8 @@ func (s *Service) TestModel(ctx context.Context, a authz.Actor, id uuid.UUID) (M
 			reply = reply[:200]
 		}
 		res.Reply, res.Usage, res.OK = reply, out.Usage, true
+	case KindRerank:
+		return testRerank(ctx, cl, m, user), nil
 	default:
 		return ModelTest{}, apperr.Invalid("test_unsupported", "Testing "+m.Kind+" models is not supported yet")
 	}

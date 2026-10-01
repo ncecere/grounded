@@ -115,7 +115,7 @@ func (x *executor) search(ctx context.Context, question string, depth int) ([]Do
 		var err error
 		if x.t.kb != nil {
 			var res kbs.Result
-			res, err = x.s.KBs.RetrieveForEvaluation(ctx, x.actor, *x.t.kb, question, depth, x.meta)
+			res, err = x.s.KBs.RetrieveForEvaluation(ctx, x.actor, *x.t.kb, question, depth, x.t.cfg.Rerank != RerankOn, x.meta)
 			hits = res.Hits
 		} else {
 			hits, err = x.s.Agents.EvalRetrieve(ctx, x.actor, *x.t.agent, question, depth, x.meta)

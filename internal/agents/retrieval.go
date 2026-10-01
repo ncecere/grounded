@@ -14,6 +14,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/agentloop"
 	"github.com/ncecere/grounded/internal/kbs"
+	"github.com/ncecere/grounded/internal/rerank"
 	"github.com/ncecere/grounded/internal/systemone"
 	"github.com/ncecere/grounded/internal/tracing"
 )
@@ -58,6 +59,14 @@ type retriever struct {
 	// judge is passage judging (nil: off); judging records it.
 	judge   *systemone.JudgePlan
 	judging *JudgingRecord
+
+	// rerank is the platform's reranking (nil: off; rerank.go), keeping
+	// the best topN of each search. rerankOK: the rerank model may read
+	// every KB's classification. rmeter counts its use.
+	rerank   *rerank.Plan
+	rerankOK bool
+	topN     int
+	rmeter   rerank.Meter
 }
 
 func newRetriever(svc *kbs.Service, resolved []kbs.KB, c Config, user string) *retriever {
@@ -90,23 +99,29 @@ func (r *retriever) startSearch(ctx context.Context) (context.Context, trace.Spa
 	return tracing.Start(ctx, "agent.retrieve", attribute.Int("grounded.retrieval.kbs", len(r.kbs)), attribute.Bool("grounded.retrieval.judged", r.judge != nil))
 }
 
-// candidates are a search's fused hits before judging.
+// candidates are a search's fused hits before judging, reranked when
+// reranked is set.
 type candidates struct {
-	query  string
-	merged []*fusedHit
-	total  int // the sum of the KBs' top-k
-	err    error
+	query    string
+	merged   []*fusedHit
+	total    int // the sum of the KBs' top-k
+	reranked bool
+	err      error
 }
 
-// fetch searches every KB and fuses the rankings, without judging: the
-// part of a search that may run before the input and scope checks have
-// answered (always mode). Embedding tokens are counted.
+// fetch searches every KB, fuses the rankings and reranks them, without
+// judging: the part of a search that may run before the input and scope
+// checks have answered (always mode). Embedding tokens are counted.
 func (r *retriever) fetch(ctx context.Context, query string) candidates {
 	results, total := r.searchKBs(ctx, query)
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	merged, err := r.fuse(results)
-	return candidates{query: query, merged: merged, total: total, err: err}
+	r.mu.Unlock()
+	c := candidates{query: query, merged: merged, total: total, err: err}
+	if err == nil && r.rerank != nil && len(merged) > 0 {
+		c.merged, c.reranked = r.rerankCandidates(ctx, query, merged)
+	}
+	return c
 }
 
 // finishSearch judges the candidates (when judging is on), numbers them
@@ -119,8 +134,12 @@ func (r *retriever) finishSearch(ctx context.Context, span trace.Span, c candida
 	if c.err != nil {
 		return nil, nil, c.err
 	}
-	if maxResults <= 0 || maxResults > c.total {
-		maxResults = c.total
+	limit := c.total
+	if c.reranked { // the reranked best few replace the results per search
+		limit = r.topN
+	}
+	if maxResults <= 0 || maxResults > limit {
+		maxResults = limit
 	}
 	merged := c.merged
 	var conflicting []*fusedHit
@@ -163,6 +182,9 @@ func (r *retriever) searchKBs(ctx context.Context, query string) ([]kbResult, in
 		total += topK
 		if r.judge != nil { // judging looks at more candidates than it keeps
 			topK = max(topK, r.judge.Candidates)
+		}
+		if r.rerank != nil { // and so does reranking
+			topK = max(topK, r.rerank.Candidates)
 		}
 		wg.Add(1)
 		go func() {

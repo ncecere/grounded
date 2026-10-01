@@ -38,6 +38,7 @@ import (
 	"github.com/ncecere/grounded/internal/profilemig"
 	"github.com/ncecere/grounded/internal/public"
 	"github.com/ncecere/grounded/internal/ratelimit"
+	"github.com/ncecere/grounded/internal/rerank"
 	"github.com/ncecere/grounded/internal/retention"
 	"github.com/ncecere/grounded/internal/sources"
 	"github.com/ncecere/grounded/internal/store/dbgen"
@@ -65,6 +66,8 @@ type Services struct {
 	Moderation *moderation.Service
 	// SystemOne stores the platform SystemOne settings (ADR-0020).
 	SystemOne *systemone.Service
+	// Rerank stores the platform's rerank model (docs/v0.4.0.md §3).
+	Rerank *rerank.Service
 	// Public serves public agents to anonymous visitors and the widget.
 	Public *public.Service
 	// BreakGlass runs break-glass sessions (ADR-0024).
@@ -213,6 +216,8 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	s.Agents.Moderation = s.Moderation
 	s.SystemOne = systemone.New(pool, s.Catalog, log)
 	s.Agents.SystemOne, s.KBs.SystemOne = s.SystemOne, s.SystemOne
+	s.Rerank = rerank.New(pool, s.Catalog, log)
+	s.KBs.Rerank = s.Rerank
 	s.Agents.PublicEnabled = s.Platform.PublicAgentsEnabled
 	guard := &public.Guard{}
 	if kvs != nil {

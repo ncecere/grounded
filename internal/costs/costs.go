@@ -65,6 +65,9 @@ const (
 	// per call per server: the price's and the usage's model_id is the
 	// server.
 	UnitMCPCalls = "mcp_calls"
+	// A rerank model scoring a search's candidates (docs/v0.4.0.md §3).
+	UnitRerankTokens   = "rerank_tokens"
+	UnitRerankRequests = "rerank_requests"
 )
 
 // CacheTTL is how long a team's month-to-date spend is reused by the budget

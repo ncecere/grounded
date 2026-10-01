@@ -82,6 +82,18 @@ var (
 		Buckets: modelBuckets,
 	}, []string{"feature"})
 
+	// RerankRequests counts searches' /rerank calls (docs/v0.4.0.md §3);
+	// timeout and error kept the fusion order (fail open).
+	RerankRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "grounded_rerank_requests_total",
+		Help: "Rerank calls by caller (agent, retrieve, evaluation) and status (ok, timeout, error, skipped).",
+	}, []string{"caller", "status"})
+	RerankDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "grounded_rerank_duration_seconds",
+		Help:    "Rerank call latency by caller, bounded by the platform's rerank time limit.",
+		Buckets: modelBuckets,
+	}, []string{"caller"})
+
 	ModerationDecisions = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "grounded_moderation_decisions_total",
 		Help: "Moderation checks by stage (input, output) and decision (pass, flag, block, support, error).",
@@ -171,7 +183,7 @@ var (
 func appCollectors() []prometheus.Collector {
 	return []prometheus.Collector{
 		BuildInfo, ChatAnswers, ChatFirstToken, ChatDuration, RetrievalDuration,
-		ModelRequests, ModelRequestDuration, SystemOneRequests, SystemOneDuration, ModerationDecisions,
+		ModelRequests, ModelRequestDuration, SystemOneRequests, SystemOneDuration, RerankRequests, RerankDuration, ModerationDecisions,
 		JobsWorked, JobDuration, IngestDocuments, IngestDuration, EmbeddingBatchInputs,
 		CrawlPages, CrawlFetchDuration, BreakGlassSessions, BreakGlassReads, MCPToolCalls, MCPClientCalls, MCPClientCallDuration, HealthChecks, HealthCheckDuration, ValkeyErrors,
 	}
@@ -216,6 +228,15 @@ func ModelObserver(connection, kind string) func(outcome string, elapsed time.Du
 func ObserveSystemOne(feature, outcome string, d time.Duration) {
 	SystemOneRequests.WithLabelValues(feature, outcome).Inc()
 	SystemOneDuration.WithLabelValues(feature).Observe(d.Seconds())
+}
+
+// ObserveRerank records one search's rerank call (status ok, timeout,
+// error or skipped; a skipped search sent nothing).
+func ObserveRerank(caller, status string, d time.Duration) {
+	RerankRequests.WithLabelValues(caller, status).Inc()
+	if status != "skipped" {
+		RerankDuration.WithLabelValues(caller).Observe(d.Seconds())
+	}
 }
 
 // ObserveMCPClientCall records an agent's call to an MCP server tool.

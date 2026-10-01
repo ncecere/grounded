@@ -5736,6 +5736,59 @@ paths:
         "403": { $ref: "#/components/responses/ErrorReply" }
         "412": { $ref: "#/components/responses/ErrorReply" }
         "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/rerank:
+    get:
+      tags: [admin]
+      operationId: adminGetRerank
+      summary: The platform rerank settings (platform admins and auditors)
+      description: >-
+        The rerank model every search uses (docs/v0.4.0.md §3), how many
+        candidates a search reranks and the time limit of the call. With no
+        rerank model, retrieval is as without reranking.
+      responses:
+        "200":
+          description: The settings (the defaults with revision 1 until saved)
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/RerankSettings" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [admin]
+      operationId: adminPutRerank
+      summary: Replace the platform rerank settings (platform admins; audited)
+      description: >-
+        modelId null turns reranking off. 400 invalid_settings
+        (details.problems lists {field, problem}) for values out of range; 400
+        invalid_model when modelId is not a rerank model.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RerankSettingsInput" }
+      responses:
+        "200":
+          description: Saved
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/RerankSettings" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/parsing:
     get:
       tags: [admin]
@@ -5918,6 +5971,26 @@ paths:
                 required: [data]
                 properties:
                   data: { $ref: "#/components/schemas/SystemOneStatus" }
+        "401": { $ref: "#/components/responses/ErrorReply" }
+  /v1/rerank/status:
+    get:
+      tags: [agents]
+      operationId: getRerankStatus
+      summary: Whether the platform reranks searches (any signed-in user)
+      description: >-
+        Editors use it to show the agent's reranking settings (Build,
+        Advanced) and the Try it comparison. available is false when no rerank
+        model is set or it (or its connection) is disabled.
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/RerankStatus" }
         "401": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/moderation/policies/{audience}:
     parameters:
@@ -6188,8 +6261,8 @@ paths:
             text/csv:
               schema: { type: string }
               example: |
-                team,name,team,currency,spend,chat,embedding,systemone,moderation,tokens,requests,unpriced
-                5b1d2c3e-6f7a-4b8c-9d0e-1f2a3b4c5d6e,Registrar,registrar,USD,12.500000,12.000000,0.500000,0.000000,0.000000,4100000,0,false
+                team_id,team_slug,team_name,currency,spend,chat,embedding,systemone,moderation,ocr,mcp,rerank,tokens,requests,unpriced
+                5b1d2c3e-6f7a-4b8c-9d0e-1f2a3b4c5d6e,registrar,Registrar,USD,12.500000,12.000000,0.500000,0.000000,0.000000,0.000000,0.000000,0.000000,4100000,0,false
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/costs/budgets:
@@ -7337,7 +7410,7 @@ components:
         or notifies anyone; a Track-only budget shows the same states as progress and nothing else.
     PriceUnit:
       type: string
-      enum: [chat_tokens_in, chat_tokens_out, embed_tokens, systemone_tokens, systemone_requests, moderation_requests, vision_tokens_in, vision_tokens_out, mcp_calls]
+      enum: [chat_tokens_in, chat_tokens_out, embed_tokens, systemone_tokens, systemone_requests, moderation_requests, vision_tokens_in, vision_tokens_out, mcp_calls, rerank_tokens, rerank_requests]
       description: "The usage ledger kind priced; tokens per million, requests per request, mcp_calls per MCP tool call (an MCP server's price, set on the server)"
     CostSettings:
       type: object
@@ -7435,7 +7508,7 @@ components:
           items: { $ref: "#/components/schemas/CostPriceItem" }
     CostByKind:
       type: object
-      required: [chat, embedding, systemone, moderation, ocr, mcp]
+      required: [chat, embedding, systemone, moderation, ocr, mcp, rerank]
       properties:
         chat: { $ref: "#/components/schemas/Money" }
         embedding: { $ref: "#/components/schemas/Money" }
@@ -7443,6 +7516,7 @@ components:
         moderation: { $ref: "#/components/schemas/Money" }
         ocr: { $ref: "#/components/schemas/Money" }
         mcp: { $ref: "#/components/schemas/Money" }
+        rerank: { $ref: "#/components/schemas/Money" }
     CostTotals:
       type: object
       required: [spend, byKind, tokens, requests, unpriced]
@@ -7674,7 +7748,7 @@ components:
           items: { $ref: "#/components/schemas/ProfileUsage" }
     ModelUsage:
       type: object
-      required: [modelId, publishedAgents, draftAgents, profiles, moderationAudiences, systemOne]
+      required: [modelId, publishedAgents, draftAgents, profiles, moderationAudiences, systemOne, rerank]
       properties:
         modelId: { type: string, format: uuid }
         publishedAgents: { type: integer, format: int64, description: Agents whose published version answers with this model }
@@ -7685,6 +7759,7 @@ components:
           description: Audiences whose moderation policy uses this model
           items: { $ref: "#/components/schemas/Audience" }
         systemOne: { type: boolean, description: SystemOne's settings use this model }
+        rerank: { type: boolean, description: The rerank settings use this model }
     ProfileUsage:
       type: object
       required: [profileId, sources, knowledgeBases]
@@ -8774,6 +8849,11 @@ components:
             Embedding: send the dimensions parameter when a profile stores fewer
             dimensions than the model's. Default false: Grounded truncates the vectors
             and L2-renormalises them itself (Matryoshka models only).
+        rerankDocumentsField:
+          type: string
+          enum: [documents, texts]
+          description: "Rerank: the request field carrying the passages. Default documents (Cohere and Jina shape: LiteLLM, vLLM, SGLang); texts for Hugging Face text embeddings inference."
+        supportsRerankTopN: { type: boolean, description: "Rerank: send top_n. Default true." }
         extraBody:
           type: object
           additionalProperties: true
@@ -8895,8 +8975,19 @@ components:
         usage: { $ref: "#/components/schemas/TokenUsage" }
         moderation: { $ref: "#/components/schemas/ModerationModelTest" }
         systemOne: { $ref: "#/components/schemas/SystemOneModelTest" }
+        rerank: { $ref: "#/components/schemas/RerankModelTest" }
         error: { $ref: "#/components/schemas/ProxyError" }
         timings: { $ref: "#/components/schemas/RequestTimings" }
+    RerankModelTest:
+      type: object
+      description: Rerank models - the scores of a passage that answers a fixed question and one that doesn't (the first should be higher)
+      required: [query, relevantText, irrelevantText, relevant, irrelevant]
+      properties:
+        query: { type: string }
+        relevantText: { type: string }
+        irrelevantText: { type: string }
+        relevant: { type: number, format: double }
+        irrelevant: { type: number, format: double }
     SystemOneModelTest:
       type: object
       description: SystemOne models - one fixed noul (yes/no) and one fixed score question
@@ -9795,6 +9886,12 @@ components:
             route: evidence, then conflicting, then dropped (team editors
             signed in; 409 systemone_unavailable without a SystemOne model).
             topK is ignored.
+        rerank:
+          type: boolean
+          description: >-
+            Rerank with the platform's rerank model when one is set
+            (docs/v0.4.0.md §3; the default); false searches without it, to
+            compare.
     RetrieveHit:
       type: object
       required: [chunkId, documentId, sourceId, content, headingPath, title, filename, url, score]
@@ -9815,6 +9912,7 @@ components:
         vectorRank: { type: integer, nullable: true }
         lexicalRank: { type: integer, nullable: true }
         judgment: { $ref: "#/components/schemas/PassageJudgment" }
+        rerankScore: { type: number, format: double, nullable: true, description: "The rerank model's relevance score (reranked searches only); hits are ordered by it" }
     PassageJudgment:
       type: object
       description: >-
@@ -9839,6 +9937,19 @@ components:
           items: { $ref: "#/components/schemas/RetrieveHit" }
         latencyMs: { type: integer, format: int64 }
         judging: { $ref: "#/components/schemas/RetrieveJudging" }
+        rerank: { $ref: "#/components/schemas/RetrieveRerank" }
+    RetrieveRerank:
+      type: object
+      description: >-
+        How the search was reranked (present when the platform has a rerank
+        model and the request didn't turn it off). timeout and error kept the
+        fusion order; skipped: the rerank model may not read this knowledge
+        base's classification.
+      required: [status, candidates, latencyMs]
+      properties:
+        status: { type: string, enum: [ok, timeout, error, skipped] }
+        candidates: { type: integer, description: Fused hits sent to the rerank model }
+        latencyMs: { type: integer, format: int64 }
     RetrieveJudging:
       type: object
       required: [mode, judged, kept, dropped, skipped, requests, latencyMs]
@@ -10440,6 +10551,8 @@ components:
           maxItems: 10
           description: "Approved MCP server tools the agent may call (docs/mcp-client.md), by ID; absent in configurations saved before v0.3"
           items: { type: string, format: uuid }
+        rerank: { type: boolean, description: "Rerank searches with the platform's rerank model (when one is set); absent in configurations saved before v0.4 (on)" }
+        rerankTopN: { type: integer, minimum: 1, maximum: 20, description: "Passages each reranked search keeps, for judging or the model" }
     AgentConfigInput:
       type: object
       description: >-
@@ -10479,6 +10592,8 @@ components:
           maxItems: 10
           description: "Approved MCP server tools the agent may call, by ID (listUsableMCPTools). Publishing checks each is approved and its server enabled and approved for the agent's data"
           items: { type: string, format: uuid }
+        rerank: { type: boolean, default: true, description: "Rerank searches with the platform's rerank model (docs/v0.4.0.md §3); it only applies once a platform admin sets one" }
+        rerankTopN: { type: integer, minimum: 1, maximum: 20, default: 6, description: "Passages each reranked search keeps, for judging or the model" }
     AgentSystemOne:
       type: object
       description: >-
@@ -10603,6 +10718,29 @@ components:
           required: [enabled]
           properties:
             enabled: { type: boolean, description: The platform default }
+    RerankStatus:
+      type: object
+      required: [available, defaultTopN]
+      properties:
+        available: { type: boolean, description: A usable rerank model is set }
+        defaultTopN: { type: integer, description: Passages an agent keeps after reranking unless it sets rerankTopN }
+    RerankSettings:
+      type: object
+      required: [modelId, candidates, timeLimitMs, agents, revision]
+      properties:
+        modelId: { type: string, format: uuid, nullable: true, description: "The rerank model; null: searches aren't reranked" }
+        candidates: { type: integer, minimum: 5, maximum: 50, description: "Fused hits a search reranks (more when a search asks for more results)" }
+        timeLimitMs: { type: integer, minimum: 200, maximum: 10000, description: "The longest a search waits for the rerank call; then it keeps the fusion order" }
+        agents: { type: integer, description: "Published agents that rerank (they don't turn it off)" }
+        revision: { $ref: "#/components/schemas/Revision" }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    RerankSettingsInput:
+      type: object
+      required: [modelId, candidates, timeLimitMs]
+      properties:
+        modelId: { type: string, format: uuid, nullable: true }
+        candidates: { type: integer, minimum: 5, maximum: 50 }
+        timeLimitMs: { type: integer, minimum: 200, maximum: 10000 }
     AgentProblem:
       type: object
       required: [field, problem]
@@ -12425,6 +12563,12 @@ components:
           type: string
           enum: [draft, published]
           description: The agent version to test (agent sets; default draft)
+        rerank:
+          type: boolean
+          description: >-
+            Rerank as searches do when the platform has a rerank model (the
+            default); false runs without reranking, to compare
+            (docs/v0.4.0.md §3).
     EvaluationRunKB:
       type: object
       required: [id, name, profileId, profile, topK]
@@ -12447,6 +12591,10 @@ components:
           type: array
           items: { $ref: "#/components/schemas/EvaluationRunKB" }
         resultsPerSearch: { type: integer }
+        rerank:
+          type: string
+          enum: ["on", "off"]
+          description: "on: searches were reranked; off: the run or the agent turned reranking off; absent without a rerank model"
     EvaluationRun:
       type: object
       required: [id, setId, kind, trigger, status, startedBy, config, summary, total, done, error, createdAt, startedAt, finishedAt]

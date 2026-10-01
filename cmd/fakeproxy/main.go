@@ -26,6 +26,10 @@
 // truncated by Grounded) and fake-matryoshka-2560 (2560; accepts "dimensions",
 // for models with supportsDimensionsParam).
 //
+// Rerank model: fake-reranker (POST /v1/rerank, the Cohere and Jina shape)
+// scores a passage by the share of the query's words it contains; a passage
+// containing FAKE-RERANK-TOP scores 1.
+//
 // Vision model: fake-vision transcribes a page image (an image_url part) as
 // "# Transcribed page" and the image's size, for the OCR vision backend.
 //
