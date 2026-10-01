@@ -460,8 +460,8 @@ type Record struct {
 	// provider is not calibrated (Decision.Downgraded).
 	Downgraded []string `json:"downgraded,omitempty"`
 	// Checks counts the output checks of an answer streamed in checked
-	// paragraphs (one per paragraph, each of the text so far); absent for
-	// a single check.
+	// paragraphs (one per paragraph, each of the text so far); absent when
+	// the answer was checked once, whole.
 	Checks int `json:"checks,omitempty"`
 }
 

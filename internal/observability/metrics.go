@@ -98,6 +98,19 @@ var (
 		Name: "grounded_moderation_decisions_total",
 		Help: "Moderation checks by stage (input, output) and decision (pass, flag, block, support, error).",
 	}, []string{"stage", "decision"})
+	// ModerationFirstRelease is how long after the question an answer
+	// streamed in checked paragraphs (docs/v0.4.0.md §4) showed its first
+	// paragraph; ModerationChunkChecks counts that mode's checks by
+	// decision.
+	ModerationFirstRelease = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "grounded_moderation_first_release_seconds",
+		Help:    "Time from the question to the first checked paragraph of an answer streamed in checked paragraphs, by channel.",
+		Buckets: modelBuckets,
+	}, []string{"channel"})
+	ModerationChunkChecks = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "grounded_moderation_paragraph_checks_total",
+		Help: "Output checks of answers streamed in checked paragraphs (one per paragraph, of the text so far), by decision.",
+	}, []string{"decision"})
 
 	JobsWorked = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "grounded_jobs_worked_total",
@@ -208,6 +221,7 @@ func appCollectors() []prometheus.Collector {
 	return []prometheus.Collector{
 		BuildInfo, ChatAnswers, ChatFirstToken, ChatDuration, RetrievalDuration,
 		ModelRequests, ModelRequestDuration, SystemOneRequests, SystemOneDuration, RerankRequests, RerankDuration, ModerationDecisions,
+		ModerationFirstRelease, ModerationChunkChecks,
 		JobsWorked, JobDuration, IngestDocuments, IngestDuration, EmbeddingBatchInputs,
 		CrawlPages, CrawlFetchDuration, BreakGlassSessions, BreakGlassReads, MCPToolCalls, MCPClientCalls, MCPClientCallDuration, HealthChecks, HealthCheckDuration,
 		GapQuestions, GapTopicChanges, AnswerCacheLookups, AnswerCacheTokensSaved, ValkeyErrors,

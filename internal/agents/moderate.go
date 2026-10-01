@@ -104,9 +104,17 @@ func (ru *run) blockInput(ctx context.Context) (Answer, error) {
 }
 
 // sendDelta streams model text, except in buffer mode, where the text is
-// sent by releaseBuffered once the answer passes (and thinking not at all).
+// sent by releaseBuffered once the answer passes, and in checked-paragraph
+// mode, where it is sent paragraph by paragraph once each passes
+// (streamcheck.go); thinking is not sent in either.
 func (ru *run) sendDelta(kind, delta string) {
-	if ru.mod.Buffered() {
+	switch {
+	case ru.mod.Buffered():
+		return
+	case ru.mod.Checked():
+		if ru.checked != nil && kind == "text_delta" {
+			ru.checked.write(delta)
+		}
 		return
 	}
 	ru.out.send(Event{kind, DeltaEvent{Delta: delta}})
@@ -117,6 +125,9 @@ func (ru *run) sendDelta(kind, delta string) {
 // withheld is true. The check runs even if the client left, so the stored
 // answer is moderated too; the moderation timeout bounds it.
 func (ru *run) moderateOutput(ctx context.Context, ans *Answer) (withheld bool) {
+	if ru.checked != nil { // checked paragraph by paragraph as it streamed
+		return ru.settleChecked(ans)
+	}
 	if !ru.mod.Active(moderation.StageOutput) || ans.Refused || strings.TrimSpace(ans.Text) == "" {
 		return false
 	}
@@ -126,7 +137,7 @@ func (ru *run) moderateOutput(ctx context.Context, ans *Answer) (withheld bool) 
 		return false
 	}
 	action := ModerationRetracted
-	if ru.mod.Buffered() {
+	if ru.mod.Buffered() || ru.mod.Checked() { // a checked answer is checked whole only when nothing streams
 		action = ModerationWithheld
 	}
 	ev := ru.moderationEvent(d, action)
@@ -163,14 +174,16 @@ func (ru *run) releaseBuffered(st *loopState, withheld bool, ans Answer) {
 // moderationRecords are the message_events columns (NULL when a stage was
 // not moderated).
 func (ru *run) moderationRecords() (in, out json.RawMessage) {
-	enc := func(d *moderation.Decision) json.RawMessage {
+	enc := func(d *moderation.Decision, checks int) json.RawMessage {
 		if d == nil {
 			return nil
 		}
-		b, _ := json.Marshal(d.Record())
+		rec := d.Record()
+		rec.Checks = checks
+		b, _ := json.Marshal(rec)
 		return b
 	}
-	return enc(ru.modIn), enc(ru.modOut)
+	return enc(ru.modIn, 0), enc(ru.modOut, ru.modChecks)
 }
 
 // moderationProblem is the publish problem of an override that cannot take

@@ -158,6 +158,12 @@ type run struct {
 
 	mod           *moderation.Plan // nil: nothing is moderated
 	modIn, modOut *moderation.Decision
+	// checked releases the answer in checked paragraphs (stream_checked,
+	// streamcheck.go); checkedEvent is the moderation event sent when one
+	// failed, and modChecks the number of checks.
+	checked      *checkedStream
+	checkedEvent *ModerationEvent
+	modChecks    int
 
 	// meter counts SystemOne tokens (judging, moderation) for the usage
 	// ledger; noContextReason is set by retrieveFirst.
@@ -355,7 +361,11 @@ func (ru *run) execute(ctx context.Context, emit func(Event)) (ans Answer, err e
 		span.SetAttributes(attribute.Int("grounded.agent_version", int(*v)))
 	}
 	defer func() {
-		ru.settleSearch() // a search left over by an early return
+		// A search or checked paragraphs left over by an early return.
+		ru.settleSearch()
+		if ru.checked != nil {
+			ru.checked.close()
+		}
 		tracing.End(span, err)
 	}()
 	return ru.answer(ctx, emit)
@@ -439,6 +449,7 @@ func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 	tools = append(tools, mcpTools...)
 
 	ru.status(StepAnswering)
+	ru.startChecked(ctx)
 	st := &loopState{}
 	loopCfg := agentloop.Config{
 		Provider: s.NewProvider(target.Client), Model: ru.model, SystemPrompt: sys, Tools: tools,

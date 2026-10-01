@@ -6,6 +6,7 @@ package agents
 import (
 	"encoding/json"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -67,6 +68,10 @@ type (
 		// Buffered: the answer's text is sent only after the output
 		// moderation check (no text or thinking deltas before).
 		Buffered bool `json:"buffered,omitempty"`
+		// Mode is the output moderation mode when answers are moderated
+		// (stream_retract, stream_checked, buffer); stream_checked sends
+		// checked paragraphs and no thinking (streamcheck.go).
+		Mode string `json:"mode,omitempty"`
 	}
 	// ModerationEvent says a message was blocked: the question (stage
 	// input: nothing was retrieved or generated) or the answer (stage
@@ -123,14 +128,18 @@ type (
 
 // streamer holds events back until the answer starts (the model responded
 // or a refusal needs no model), so failures before that are plain HTTP
-// errors.
+// errors. Events are sent one at a time: checked paragraphs are released
+// by their checker's goroutine (streamcheck.go).
 type streamer struct {
+	mu      sync.Mutex
 	emit    func(Event)
 	started bool
 	pending []Event
 }
 
 func (s *streamer) send(ev Event) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if !s.started {
 		s.pending = append(s.pending, ev)
 		return
@@ -141,6 +150,8 @@ func (s *streamer) send(ev Event) {
 }
 
 func (s *streamer) start() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.started {
 		return
 	}
@@ -173,7 +184,7 @@ func (ru *run) startAnswer(st *loopState) {
 	ru.out.start()
 	if !st.msgStarted {
 		st.msgStarted = true
-		ru.out.send(Event{"message_start", MessageStartEvent{MessageID: ru.msgID, Buffered: ru.mod.Buffered()}})
+		ru.out.send(Event{"message_start", MessageStartEvent{MessageID: ru.msgID, Buffered: ru.mod.Buffered(), Mode: ru.mod.OutputMode()}})
 	}
 }
 
