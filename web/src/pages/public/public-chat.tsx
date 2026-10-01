@@ -138,7 +138,10 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
         />
       )}
       {needsCaptcha && <Turnstile siteKey={agent.captcha.siteKey} onToken={setCaptchaToken} />}
-      <p className={p.privacy}>Conversations here are anonymous and kept only briefly. Don't share personal information.</p>
+      <p className={p.privacy}>
+        Conversations here are anonymous and kept only briefly. Don't share personal information. Questions the assistant can't answer may be grouped,
+        without your details, to improve it.
+      </p>
     </section>
   );
 }

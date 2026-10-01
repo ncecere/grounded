@@ -79,7 +79,7 @@ export type AssistantItem = {
   usage?: ChatUsage;
   latencyMs?: number;
   error?: { code: string; message: string };
-  feedback?: { rating: FeedbackRating; reason?: FeedbackReason };
+  feedback?: { rating: FeedbackRating; reason?: FeedbackReason; shared?: boolean };
   /** Output moderation buffers the answer: nothing streams until it passes. */
   buffered?: boolean;
   /** Moderation replaced the answer with a notice (text is the notice). */
@@ -241,7 +241,7 @@ export function itemsFromConversation(messages: ConversationMessage[]): ChatItem
       usage: m.usage,
       latencyMs: m.latencyMs,
       error: m.errorCode && !moderation ? { code: m.errorCode, message: "" } : undefined,
-      feedback: m.feedback ? { rating: m.feedback, reason: m.feedbackReason } : undefined,
+      feedback: m.feedback ? { rating: m.feedback, reason: m.feedbackReason, shared: m.feedbackShared } : undefined,
       moderation,
     };
   });
