@@ -40,7 +40,8 @@ LIMIT 500;
 
 -- What uses each catalog model (the admin catalog's "Used by", A5):
 -- published agents (their published version's chat model), agent drafts,
--- embedding profiles, moderation policies and the SystemOne settings.
+-- embedding profiles, moderation policies, the SystemOne settings and the
+-- rerank settings.
 -- name: ModelUsage :many
 SELECT m.id,
        (SELECT count(*) FROM agents ag JOIN agent_versions v ON v.id = ag.published_version_id
@@ -49,7 +50,8 @@ SELECT m.id,
          WHERE ag.deleted_at IS NULL AND ag.draft->>'chatModelId' = m.id::text)::bigint AS draft_agents,
        (SELECT count(*) FROM embedding_profiles p WHERE p.model_id = m.id)::bigint AS profiles,
        coalesce((SELECT array_agg(mp.audience ORDER BY mp.audience) FROM moderation_policies mp WHERE mp.model_id = m.id), '{}')::text[] AS moderation_audiences,
-       EXISTS (SELECT 1 FROM systemone_settings so WHERE so.model_id = m.id) AS systemone
+       EXISTS (SELECT 1 FROM systemone_settings so WHERE so.model_id = m.id) AS systemone,
+       EXISTS (SELECT 1 FROM rerank_settings rs WHERE rs.model_id = m.id) AS rerank
 FROM models m
 ORDER BY m.id;
 

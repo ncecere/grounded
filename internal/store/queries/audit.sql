@@ -92,6 +92,7 @@ CROSS JOIN LATERAL (
         WHEN 'cost_settings' THEN 'Cost settings'
         WHEN 'platform_keys' THEN 'Key rotation'
         WHEN 'systemone_settings' THEN 'SystemOne settings'
+        WHEN 'rerank_settings' THEN 'Rerank settings'
         WHEN 'parsing_settings' THEN 'Parsing settings'
         WHEN 'retention_settings' THEN 'Retention settings'
         WHEN 'retention' THEN 'Retention run'
