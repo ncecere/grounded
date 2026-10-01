@@ -28,7 +28,7 @@ const n = (v: number) => v.toLocaleString();
 /** The period shown for a kind: per level, at expiry, or its setting. */
 function periodOf(kind: Kind, settings?: Settings) {
   if (kind === "conversations") return "Per classification level";
-  if (kind === "anonymous_sessions") return "When they expire";
+  if (kind === "anonymous_sessions" || kind === "answer_cache") return "When they expire";
   const p = settings?.periods.find((x) => x.kind === kind);
   return p ? periodText(p.days) : "—";
 }

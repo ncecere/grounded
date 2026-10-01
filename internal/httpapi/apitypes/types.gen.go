@@ -3221,6 +3221,7 @@ const (
 	RetentionKindAccessLog            RetentionKind = "access_log"
 	RetentionKindAnalyticsEvents      RetentionKind = "analytics_events"
 	RetentionKindAnonymousSessions    RetentionKind = "anonymous_sessions"
+	RetentionKindAnswerCache          RetentionKind = "answer_cache"
 	RetentionKindAuditLog             RetentionKind = "audit_log"
 	RetentionKindConversations        RetentionKind = "conversations"
 	RetentionKindDeletedConversations RetentionKind = "deleted_conversations"
@@ -3238,6 +3239,8 @@ func (e RetentionKind) Valid() bool {
 	case RetentionKindAnalyticsEvents:
 		return true
 	case RetentionKindAnonymousSessions:
+		return true
+	case RetentionKindAnswerCache:
 		return true
 	case RetentionKindAuditLog:
 		return true
@@ -4452,7 +4455,8 @@ type AgentAnalyticsModel struct {
 
 // AgentAnalyticsTotals defines model for AgentAnalyticsTotals.
 type AgentAnalyticsTotals struct {
-	Answers int64 `json:"answers"`
+	Answers int64             `json:"answers"`
+	Cache   AnswerCacheTotals `json:"cache"`
 
 	// Citations SystemOne citation checks over the range, from the content-free records: answers and check times are of answers with cited sources, the pair counts of claim–source pairs, and the *Claims counts of claims, the units of the chat's summary (all zero when nothing was checked)
 	Citations CitationTotals `json:"citations"`
@@ -4482,6 +4486,47 @@ type AgentAnalyticsTotals struct {
 	// UniqueUsers Distinct pseudonymous users (service keys are not counted)
 	UniqueUsers int64 `json:"uniqueUsers"`
 	Up          int64 `json:"up"`
+}
+
+// AgentAnswerCache defines model for AgentAnswerCache.
+type AgentAnswerCache struct {
+	Audience Audience `json:"audience"`
+
+	// Enabled The agent's setting; null follows the default (on for agents published to the public)
+	Enabled *bool `json:"enabled"`
+
+	// Entries Stored answers that haven't expired
+	Entries int64 `json:"entries"`
+
+	// ExpiryHours How long a stored answer is reused (24 by default)
+	ExpiryHours int `json:"expiryHours"`
+
+	// Hits Times those answers were reused
+	Hits int64 `json:"hits"`
+
+	// NearIdentical Also reuse the answer of a near-identical question that SystemOne confirms asks the same thing
+	NearIdentical bool `json:"nearIdentical"`
+
+	// NearIdenticalAvailable A SystemOne model is set and usable (near-identical matching needs one)
+	NearIdenticalAvailable bool `json:"nearIdenticalAvailable"`
+
+	// On Whether the agent reuses answers: its setting, else the default for its audience (the platform switch aside)
+	On bool `json:"on"`
+
+	// PlatformEnabled The platform switch: while off, no agent reuses answers
+	PlatformEnabled bool `json:"platformEnabled"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision  Revision   `json:"revision"`
+	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
+}
+
+// AgentAnswerCacheUpdate defines model for AgentAnswerCacheUpdate.
+type AgentAnswerCacheUpdate struct {
+	// Enabled null returns to the default
+	Enabled       *bool `json:"enabled"`
+	ExpiryHours   int   `json:"expiryHours"`
+	NearIdentical bool  `json:"nearIdentical"`
 }
 
 // AgentCard A published agent's public profile
@@ -4844,6 +4889,39 @@ type AllowlistEntry struct {
 
 // AnalyticsChannel How an answer was requested (ui is the chat page, public the public chat page, widget the embed, mcp the MCP server)
 type AnalyticsChannel string
+
+// AnswerCacheCleared defines model for AnswerCacheCleared.
+type AnswerCacheCleared struct {
+	// Cleared Stored answers deleted
+	Cleared int64 `json:"cleared"`
+}
+
+// AnswerCacheSettings defines model for AnswerCacheSettings.
+type AnswerCacheSettings struct {
+	// Enabled On by default; off, no agent reuses answers (each agent also has its own setting)
+	Enabled bool `json:"enabled"`
+
+	// Revision Increases on every change. Send it back in If-Match.
+	Revision  Revision  `json:"revision"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// AnswerCacheSettingsUpdate defines model for AnswerCacheSettingsUpdate.
+type AnswerCacheSettingsUpdate struct {
+	Enabled bool `json:"enabled"`
+}
+
+// AnswerCacheTotals defines model for AnswerCacheTotals.
+type AnswerCacheTotals struct {
+	// HitRate Of answers
+	HitRate *float64 `json:"hitRate"`
+
+	// Hits Answers served from the answer cache
+	Hits int64 `json:"hits"`
+
+	// TokensSaved Model tokens the original answers spent, not spent again
+	TokensSaved int64 `json:"tokensSaved"`
+}
 
 // Audience defines model for Audience.
 type Audience string
@@ -10909,6 +10987,12 @@ type AdminListRetentionRunsParams struct {
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// AdminPutAnswerCacheSettingsParams defines parameters for AdminPutAnswerCacheSettings.
+type AdminPutAnswerCacheSettingsParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminPutBreakGlassSettingsParams defines parameters for AdminPutBreakGlassSettings.
 type AdminPutBreakGlassSettingsParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
@@ -11152,6 +11236,12 @@ type GetAgentAnalyticsParams struct {
 
 	// To Last UTC day, inclusive (default today); at most 366 days after from
 	To *AnalyticsToParam `form:"to,omitempty" json:"to,omitempty"`
+}
+
+// UpdateAgentAnswerCacheParams defines parameters for UpdateAgentAnswerCache.
+type UpdateAgentAnswerCacheParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
 // UpdatePublishableKeyParams defines parameters for UpdatePublishableKey.
@@ -11452,6 +11542,9 @@ type AdminPutRetentionJSONRequestBody = RetentionUpdate
 // AdminStartRetentionRunJSONRequestBody defines body for AdminStartRetentionRun for application/json ContentType.
 type AdminStartRetentionRunJSONRequestBody = RetentionRunRequest
 
+// AdminPutAnswerCacheSettingsJSONRequestBody defines body for AdminPutAnswerCacheSettings for application/json ContentType.
+type AdminPutAnswerCacheSettingsJSONRequestBody = AnswerCacheSettingsUpdate
+
 // AdminPutBreakGlassSettingsJSONRequestBody defines body for AdminPutBreakGlassSettings for application/json ContentType.
 type AdminPutBreakGlassSettingsJSONRequestBody = BreakGlassSettingsUpdate
 
@@ -11541,6 +11634,9 @@ type CreateAgentJSONRequestBody = AgentCreate
 
 // UpdateAgentJSONRequestBody defines body for UpdateAgent for application/json ContentType.
 type UpdateAgentJSONRequestBody = AgentUpdate
+
+// UpdateAgentAnswerCacheJSONRequestBody defines body for UpdateAgentAnswerCache for application/json ContentType.
+type UpdateAgentAnswerCacheJSONRequestBody = AgentAnswerCacheUpdate
 
 // PublishAgentJSONRequestBody defines body for PublishAgent for application/json ContentType.
 type PublishAgentJSONRequestBody = AgentPublish

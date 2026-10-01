@@ -59,6 +59,16 @@ type AnalyticsTotals struct {
 	Judging         analytics.JudgingTotals
 	Citations       analytics.CitationTotals
 	Scope           analytics.ScopeTotals
+	Cache           CacheTotals
+}
+
+// CacheTotals are the answers served from the answer cache
+// (docs/answer-cache.md): their share of answers and the model tokens
+// their originals spent.
+type CacheTotals struct {
+	Hits        int64
+	HitRate     *float64
+	TokensSaved int64
 }
 
 // DailyCount is one UTC day.
@@ -158,6 +168,10 @@ func (s *Service) analyticsTotals(ctx context.Context, t *AnalyticsTotals, id uu
 		return err
 	}
 	if t.Scope, err = analytics.QueryScope(ctx, s.Pool, liveEvents, id, from, end); err != nil {
+		return err
+	}
+	if err := s.Pool.QueryRow(ctx, `SELECT count(*) FILTER (WHERE cached), avg(cached::int)::float8, coalesce(sum(tokens_saved), 0)
+		FROM message_events WHERE `+liveEvents, id, from, end).Scan(&t.Cache.Hits, &t.Cache.HitRate, &t.Cache.TokensSaved); err != nil {
 		return err
 	}
 	if t.Up+t.Down > 0 {

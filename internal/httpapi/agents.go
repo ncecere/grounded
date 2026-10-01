@@ -287,6 +287,7 @@ func (a *api) getAgentAnalytics(w http.ResponseWriter, r *http.Request) {
 			LatencyP50Ms: t.LatencyP50Ms, LatencyP95Ms: t.LatencyP95Ms, FirstTokenP50Ms: t.FirstTokenP50Ms,
 			Moderation: moderationTotals(t.Moderation), Judging: judgingTotals(t.Judging),
 			Citations: citationTotals(t.Citations), Scope: scopeTotals(t.Scope),
+			Cache: apitypes.AnswerCacheTotals{Hits: t.Cache.Hits, HitRate: t.Cache.HitRate, TokensSaved: t.Cache.TokensSaved},
 		},
 		Daily: make([]apitypes.AgentAnalyticsDay, len(an.Daily)), Models: make([]apitypes.AgentAnalyticsModel, len(an.Models)),
 		TopDocuments: make([]apitypes.AgentAnalyticsDocument, len(an.TopDocs)),

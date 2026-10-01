@@ -36,6 +36,7 @@ func Rules() []Rule {
 		{Kind: ExpiredInvites, candidates: periodic(ExpiredInvites, expiredInvitesDue), purge: deleteFrom("team_invites", "id")},
 		{Kind: AnonymousSessions, candidates: func(Periods) (string, bool) { return anonymousSessionsDue, true }, purge: deleteFrom("anon_sessions", "id")},
 		{Kind: EvaluationRuns, candidates: periodic(EvaluationRuns, evaluationRunsDue), purge: deleteFrom("eval_runs", "id")},
+		{Kind: AnswerCache, candidates: func(Periods) (string, bool) { return answerCacheDue, true }, purge: deleteFrom("answer_cache", "id")},
 	}
 }
 
@@ -198,3 +199,24 @@ WHERE s.expires_at < $1::timestamptz`
 const evaluationRunsDue = `SELECT r.id AS key, r.team_id, NULL::int AS rank, ''::text AS audience, 'retention'::text AS reason, false AS held
 FROM eval_runs r
 WHERE r.created_at < $1::timestamptz - make_interval(days => %d) AND r.status NOT IN ('queued', 'running')`
+
+// ---- the answer cache --------------------------------------------------------------------
+
+// Stored answers past their expiry, or past the transcript retention of
+// their agent version's classification (anonymous visitors' for public
+// agents, as their conversations), from when they were stored. A hold on
+// the team or agent keeps them (an expired answer is never served).
+const answerCacheDue = `SELECT c.id AS key, c.team_id, v.effective_rank AS rank, c.audience,
+       (CASE WHEN c.expires_at < $1::timestamptz THEN 'expired' ELSE 'retention' END)::text AS reason,
+       legal_hold_covers(ARRAY[c.team_id, c.agent_id], c.created_at, c.created_at) AS held
+FROM answer_cache c
+JOIN agent_versions v ON v.id = c.agent_version_id
+LEFT JOIN LATERAL (
+    SELECT l.conversation_retention_days, l.anonymous_retention_hours FROM classification_levels l
+    WHERE l.rank <= v.effective_rank ORDER BY l.rank DESC LIMIT 1
+) lvl ON true
+WHERE c.expires_at < $1::timestamptz
+   OR (CASE WHEN c.audience = 'public'
+       THEN c.created_at + make_interval(hours => coalesce(lvl.anonymous_retention_hours, 24)) < $1::timestamptz
+       ELSE lvl.conversation_retention_days IS NOT NULL
+            AND c.created_at + make_interval(days => lvl.conversation_retention_days) < $1::timestamptz END)`

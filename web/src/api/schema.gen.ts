@@ -2662,6 +2662,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/teams/{team}/agents/{agentId}/answer-cache": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                agentId: components["parameters"]["AgentIdParam"];
+            };
+            cookie?: never;
+        };
+        /** The agent's answer cache settings, whether it is on and its stored answers (editors, admins and owners; docs/answer-cache.md) */
+        get: operations["getAgentAnswerCache"];
+        /** Change the agent's answer cache settings (editors, admins and owners; audited). Not versioned: applies to the next question. */
+        put: operations["updateAgentAnswerCache"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/agents/{agentId}/answer-cache/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                agentId: components["parameters"]["AgentIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete every stored answer of the agent, so the next questions get fresh ones (editors, admins and owners; audited) */
+        post: operations["clearAgentAnswerCache"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}/agents/{agentId}/sharing": {
         parameters: {
             query?: never;
@@ -4548,6 +4591,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/settings/answer-cache": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the answer cache is on for the platform (platform admins and auditors) */
+        get: operations["adminGetAnswerCacheSettings"];
+        /** Turn the answer cache on or off for every agent (platform admins; audited). Off reuses nothing; stored answers expire as usual. */
+        put: operations["adminPutAnswerCacheSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/settings/mcp": {
         parameters: {
             query?: never;
@@ -4961,7 +5022,7 @@ export interface components {
          * @description A kind of data with its own retention (docs/operations/retention.md)
          * @enum {string}
          */
-        RetentionKind: "conversations" | "deleted_conversations" | "access_log" | "analytics_events" | "usage_events" | "audit_log" | "deleted_files" | "expired_invites" | "anonymous_sessions" | "evaluation_runs";
+        RetentionKind: "conversations" | "deleted_conversations" | "access_log" | "analytics_events" | "usage_events" | "audit_log" | "deleted_files" | "expired_invites" | "anonymous_sessions" | "evaluation_runs" | "answer_cache";
         RetentionPeriod: {
             kind: components["schemas"]["RetentionKind"];
             /** @description The effective period in days; null keeps the data */
@@ -9112,6 +9173,7 @@ export interface components {
             judging: components["schemas"]["JudgingTotals"];
             citations: components["schemas"]["CitationTotals"];
             scope: components["schemas"]["ScopeTotals"];
+            cache: components["schemas"]["AnswerCacheTotals"];
         };
         AgentAnalyticsDay: {
             /** Format: date */
@@ -10170,6 +10232,74 @@ export interface components {
             worse: number;
             same: number;
             items: components["schemas"]["EvaluationComparisonItem"][];
+        };
+        AnswerCacheSettings: {
+            /** @description On by default; off, no agent reuses answers (each agent also has its own setting) */
+            enabled: boolean;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AnswerCacheSettingsUpdate: {
+            enabled: boolean;
+        };
+        AgentAnswerCache: {
+            /** @description The agent's setting; null follows the default (on for agents published to the public) */
+            enabled: boolean | null;
+            /** @description Whether the agent reuses answers: its setting, else the default for its audience (the platform switch aside) */
+            on: boolean;
+            audience: components["schemas"]["Audience"];
+            /** @description Also reuse the answer of a near-identical question that SystemOne confirms asks the same thing */
+            nearIdentical: boolean;
+            /** @description A SystemOne model is set and usable (near-identical matching needs one) */
+            nearIdenticalAvailable: boolean;
+            /** @description How long a stored answer is reused (24 by default) */
+            expiryHours: number;
+            /** @description The platform switch: while off, no agent reuses answers */
+            platformEnabled: boolean;
+            /**
+             * Format: int64
+             * @description Stored answers that haven't expired
+             */
+            entries: number;
+            /**
+             * Format: int64
+             * @description Times those answers were reused
+             */
+            hits: number;
+            revision: components["schemas"]["Revision"];
+            /** Format: date-time */
+            updatedAt?: string | null;
+        };
+        AgentAnswerCacheUpdate: {
+            /** @description null returns to the default */
+            enabled: boolean | null;
+            nearIdentical: boolean;
+            expiryHours: number;
+        };
+        AnswerCacheCleared: {
+            /**
+             * Format: int64
+             * @description Stored answers deleted
+             */
+            cleared: number;
+        };
+        AnswerCacheTotals: {
+            /**
+             * Format: int64
+             * @description Answers served from the answer cache
+             */
+            hits: number;
+            /**
+             * Format: double
+             * @description Of answers
+             */
+            hitRate: number | null;
+            /**
+             * Format: int64
+             * @description Model tokens the original answers spent, not spent again
+             */
+            tokensSaved: number;
         };
         EvaluationSettings: {
             /** @description On by default; off hides the tabs and answers 404 on the evaluation API */
@@ -15498,6 +15628,104 @@ export interface operations {
             404: components["responses"]["ErrorReply"];
         };
     };
+    getAgentAnswerCache: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                agentId: components["parameters"]["AgentIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AgentAnswerCache"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    updateAgentAnswerCache: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                agentId: components["parameters"]["AgentIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentAnswerCacheUpdate"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AgentAnswerCache"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    clearAgentAnswerCache: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                agentId: components["parameters"]["AgentIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cleared */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AnswerCacheCleared"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
     getAgentSharing: {
         parameters: {
             query?: never;
@@ -18825,6 +19053,64 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["EvaluationSettings"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetAnswerCacheSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AnswerCacheSettings"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminPutAnswerCacheSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerCacheSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AnswerCacheSettings"];
                     };
                 };
             };

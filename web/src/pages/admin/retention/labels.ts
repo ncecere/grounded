@@ -23,6 +23,10 @@ export const kindLabels: Record<Kind, { label: string; description: string }> = 
   expired_invites: { label: "Expired invites", description: "Invites that expired or were revoked (accepted invites are kept)." },
   anonymous_sessions: { label: "Anonymous sessions", description: "Public visitors' sessions, removed when they expire. They hold no content." },
   evaluation_runs: { label: "Evaluation runs", description: "Evaluation runs and their results (180 days unless set). Legal holds don't apply: they hold only test questions and answers." },
+  answer_cache: {
+    label: "Saved answers",
+    description: "The answer cache: removed when they expire, or sooner past their classification level's conversation retention.",
+  },
 };
 
 export const kindLabel = (k: Kind) => kindLabels[k]?.label ?? k;

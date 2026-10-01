@@ -4177,6 +4177,78 @@ paths:
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/agents/{agentId}/answer-cache:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/AgentIdParam"
+    get:
+      tags: [agents]
+      operationId: getAgentAnswerCache
+      summary: "The agent's answer cache settings, whether it is on and its stored answers (editors, admins and owners; docs/answer-cache.md)"
+      responses:
+        "200":
+          description: Settings
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AgentAnswerCache" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [agents]
+      operationId: updateAgentAnswerCache
+      summary: "Change the agent's answer cache settings (editors, admins and owners; audited). Not versioned: applies to the next question."
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentAnswerCacheUpdate" }
+      responses:
+        "200":
+          description: Saved
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AgentAnswerCache" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/agents/{agentId}/answer-cache/clear:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/AgentIdParam"
+    post:
+      tags: [agents]
+      operationId: clearAgentAnswerCache
+      summary: "Delete every stored answer of the agent, so the next questions get fresh ones (editors, admins and owners; audited)"
+      responses:
+        "200":
+          description: Cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AnswerCacheCleared" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/agents/{agentId}/sharing:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -7131,6 +7203,51 @@ paths:
         "403": { $ref: "#/components/responses/ErrorReply" }
         "412": { $ref: "#/components/responses/ErrorReply" }
         "428": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/settings/answer-cache:
+    get:
+      tags: [admin]
+      operationId: adminGetAnswerCacheSettings
+      summary: Whether the answer cache is on for the platform (platform admins and auditors)
+      responses:
+        "200":
+          description: Settings
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AnswerCacheSettings" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [admin]
+      operationId: adminPutAnswerCacheSettings
+      summary: "Turn the answer cache on or off for every agent (platform admins; audited). Off reuses nothing; stored answers expire as usual."
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnswerCacheSettingsUpdate" }
+      responses:
+        "200":
+          description: Saved
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AnswerCacheSettings" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/settings/mcp:
     get:
       tags: [admin]
@@ -7973,7 +8090,7 @@ components:
     RetentionKind:
       type: string
       description: A kind of data with its own retention (docs/operations/retention.md)
-      enum: [conversations, deleted_conversations, access_log, analytics_events, usage_events, audit_log, deleted_files, expired_invites, anonymous_sessions, evaluation_runs]
+      enum: [conversations, deleted_conversations, access_log, analytics_events, usage_events, audit_log, deleted_files, expired_invites, anonymous_sessions, evaluation_runs, answer_cache]
     RetentionPeriod:
       type: object
       required: [kind, days, source, platformSet, platformDays, environmentDays, minDays, maxDays]
@@ -12024,7 +12141,7 @@ components:
         shared: { type: boolean }
     AgentAnalyticsTotals:
       type: object
-      required: [conversations, answers, uniqueUsers, up, down, satisfaction, noContextRate, refusalRate, errorRate, latencyP50Ms, latencyP95Ms, firstTokenP50Ms, moderation, judging, citations, scope]
+      required: [conversations, answers, uniqueUsers, up, down, satisfaction, noContextRate, refusalRate, errorRate, latencyP50Ms, latencyP95Ms, firstTokenP50Ms, moderation, judging, citations, scope, cache]
       properties:
         conversations: { type: integer, format: int64, description: Stored conversations started }
         answers: { type: integer, format: int64 }
@@ -12042,6 +12159,7 @@ components:
         judging: { $ref: "#/components/schemas/JudgingTotals" }
         citations: { $ref: "#/components/schemas/CitationTotals" }
         scope: { $ref: "#/components/schemas/ScopeTotals" }
+        cache: { $ref: "#/components/schemas/AnswerCacheTotals" }
     AgentAnalyticsDay:
       type: object
       required: [date, conversations, answers]
@@ -13036,6 +13154,53 @@ components:
         items:
           type: array
           items: { $ref: "#/components/schemas/EvaluationComparisonItem" }
+    AnswerCacheSettings:
+      type: object
+      required: [enabled, revision, updatedAt]
+      properties:
+        enabled: { type: boolean, description: "On by default; off, no agent reuses answers (each agent also has its own setting)" }
+        revision: { $ref: "#/components/schemas/Revision" }
+        updatedAt: { type: string, format: date-time }
+    AnswerCacheSettingsUpdate:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+    AgentAnswerCache:
+      type: object
+      required: [enabled, on, audience, nearIdentical, nearIdenticalAvailable, expiryHours, platformEnabled, entries, hits, revision]
+      properties:
+        enabled: { type: boolean, nullable: true, description: "The agent's setting; null follows the default (on for agents published to the public)" }
+        on: { type: boolean, description: "Whether the agent reuses answers: its setting, else the default for its audience (the platform switch aside)" }
+        audience: { $ref: "#/components/schemas/Audience" }
+        nearIdentical: { type: boolean, description: "Also reuse the answer of a near-identical question that SystemOne confirms asks the same thing" }
+        nearIdenticalAvailable: { type: boolean, description: A SystemOne model is set and usable (near-identical matching needs one) }
+        expiryHours: { type: integer, minimum: 1, maximum: 720, description: "How long a stored answer is reused (24 by default)" }
+        platformEnabled: { type: boolean, description: "The platform switch: while off, no agent reuses answers" }
+        entries: { type: integer, format: int64, description: Stored answers that haven't expired }
+        hits: { type: integer, format: int64, description: Times those answers were reused }
+        revision: { $ref: "#/components/schemas/Revision" }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    AgentAnswerCacheUpdate:
+      type: object
+      required: [enabled, nearIdentical, expiryHours]
+      additionalProperties: false
+      properties:
+        enabled: { type: boolean, nullable: true, description: "null returns to the default" }
+        nearIdentical: { type: boolean }
+        expiryHours: { type: integer, minimum: 1, maximum: 720 }
+    AnswerCacheCleared:
+      type: object
+      required: [cleared]
+      properties:
+        cleared: { type: integer, format: int64, description: Stored answers deleted }
+    AnswerCacheTotals:
+      type: object
+      required: [hits, hitRate, tokensSaved]
+      properties:
+        hits: { type: integer, format: int64, description: Answers served from the answer cache }
+        hitRate: { type: number, format: double, nullable: true, description: Of answers }
+        tokensSaved: { type: integer, format: int64, description: "Model tokens the original answers spent, not spent again" }
     EvaluationSettings:
       type: object
       required: [enabled, revision, updatedAt]
