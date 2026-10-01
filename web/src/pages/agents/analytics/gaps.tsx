@@ -6,6 +6,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { TextLink } from "@/components/ui/text-link/text-link";
+import { plural } from "../../team/common";
 import { gapTopicsQuery } from "../../team/gaps/queries";
 import { GapTopicsTable } from "../../team/gaps/topics-table";
 import an from "./analytics.module.css";
@@ -27,7 +28,7 @@ export function GapsView({ team, agentId, agentName }: { team: string; agentId: 
         hideAgent
         emptyTitle="No open topics."
         emptyDescription={
-          q.data?.pending ? `${q.data.pending} failed questions in the last 30 days aren't in a topic yet.` : "When several people ask something this agent can't answer, the topic shows here."
+          q.data?.pending ? `${plural(q.data.pending, "failed question")} in the last 30 days ${q.data.pending === 1 ? "isn't" : "aren't"} in a topic yet.` : "When several people ask something this agent can't answer, the topic shows here."
         }
       />
     </section>

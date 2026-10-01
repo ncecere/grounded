@@ -53,7 +53,7 @@ function Topics({ team, state }: { team: string; state: GapFilter }) {
   return (
     <Stack gap={4}>
       {state === "open" && pending > 0 && (
-        <Alert tone="info" title={`${plural(pending, "failed question")} in the last 30 days aren't in a topic yet.`}>
+        <Alert tone="info" title={`${plural(pending, "failed question")} in the last 30 days ${pending === 1 ? "isn't" : "aren't"} in a topic yet.`}>
           Questions are grouped every hour, and a topic shows once {q.data?.minAskers ?? 3} different people asked about it.
         </Alert>
       )}
