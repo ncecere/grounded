@@ -44,14 +44,15 @@ export async function chatModel(api: Api) {
   return m;
 }
 
-/** An upload source with the handbook indexed, a KB over it, and a published agent. */
-export async function publishedAgent(api: Api, team: string, opts: { name: string; audience?: Schemas["Audience"] }) {
+/** An upload source with the handbook (or docs) indexed, a KB over it, and a published agent. */
+export async function publishedAgent(api: Api, team: string, opts: { name: string; audience?: Schemas["Audience"]; docs?: { name: string; body: string }[] }) {
   const base = `/v1/teams/${team}`;
+  const docs = opts.docs ?? [handbook];
   const src = await api.post<Schemas["DataSource"]>(`${base}/sources`, { name: `${opts.name} files`, classification: "open" });
-  await api.upload(team, src.id, [handbook]);
+  await api.upload(team, src.id, docs);
   await expect
     .poll(async () => (await api.get<Schemas["DocumentPage"]>(`${base}/sources/${src.id}/documents`)).items.map((d) => d.status), { timeout: 30_000 })
-    .toEqual(["ready"]);
+    .toEqual(docs.map(() => "ready"));
   const kb = await api.post<Schemas["KnowledgeBase"]>(`${base}/kbs`, { name: `${opts.name} KB` });
   await api.put(`${base}/kbs/${kb.id}/sources/${src.id}`);
   const model = await chatModel(api);

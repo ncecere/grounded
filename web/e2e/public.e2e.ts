@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { Api, type Schemas } from "./support/api";
 import { createTeam, handbook, publishedAgent } from "./support/arrange";
 import { baseURL } from "./support/env";
+import { type Page } from "@playwright/test";
 import { expect, test } from "./support/fixtures";
 
 /*
@@ -35,12 +36,15 @@ async function hostSite(): Promise<Site> {
   };
 }
 
-async function publicAgent(admin: Api, name: string) {
+async function publicAgent(admin: Api, name: string, docs?: { name: string; body: string }[]) {
   const owner = await Api.signIn("alex");
   const team = await createTeam(admin, owner, { prefix: "public" });
-  const { agent } = await publishedAgent(owner, team, { name, audience: "public" });
+  const { agent } = await publishedAgent(owner, team, { name, audience: "public", docs });
   return { owner, team, agent };
 }
+
+/** The next chat stream's body (SSE), once it ends. */
+const chatStream = (page: Page) => page.waitForResponse((r) => r.url().endsWith("/chat") && r.request().method() === "POST").then((r) => r.text());
 
 test("the public page: a signed-out visitor chats with a public agent", async ({ page, admin, a11y }) => {
   const { owner, team } = await publicAgent(admin, "Public parking");
@@ -53,9 +57,15 @@ test("the public page: a signed-out visitor chats with a public agent", async ({
   await a11y(page, "public agent page");
 
   await composer.fill("How much is a student parking permit?");
+  const stream = chatStream(page);
   await composer.press("Enter");
   const answer = page.getByRole("article", { name: "Public parking said" });
   await expect(answer).toContainText(handbook.answer);
+  // Public answers stream in checked paragraphs (the seed's policy, the public default): no thinking.
+  const body = await stream;
+  expect(body).toContain('"mode":"stream_checked"');
+  expect(body).toContain("event: text_delta");
+  expect(body).not.toContain("event: thinking_delta");
   // The sources start collapsed.
   const sources = answer.getByRole("button", { name: "Used 1 source" });
   await expect(sources).toHaveAttribute("aria-expanded", "false");
@@ -70,6 +80,32 @@ test("the public page: a signed-out visitor chats with a public agent", async ({
   await a11y(page, "public source viewer");
   await viewer.getByRole("button", { name: "Close the source" }).click();
   await expect(viewer).toBeHidden();
+});
+
+test("the public page: a failing paragraph replaces the whole answer with the notice", async ({ page, admin, a11y }) => {
+  // The fake model answers "The sources say:" and, in a paragraph of its own, the document's first line, which fails.
+  const fines = { name: "fines.md", body: "FAKE-LIST Parking fines are paid at the UNSAFE-VIOLENCE window of the transportation office.\n" };
+  const { owner, team } = await publicAgent(admin, "Public fines", [fines]);
+  await owner.dispose();
+
+  await page.goto(`/a/${team}/public-fines`);
+  const composer = page.getByRole("textbox", { name: "Message Public fines" });
+  await composer.fill("Where are parking fines paid?");
+  const stream = chatStream(page);
+  await composer.press("Enter");
+  const answer = page.getByRole("article", { name: "Public fines said" });
+  await expect(answer).toContainText("Answer removed");
+  await expect(answer).toContainText("This message can't be answered because it may break the usage policy.");
+  await expect(answer).not.toContainText("The sources say");
+  await expect(answer).not.toContainText("Parking fines are paid");
+  // The first paragraph was shown, then retracted; the failing one never was.
+  const body = await stream;
+  expect(body).toContain('"action":"retracted"');
+  expect(body.indexOf("event: text_delta")).toBeLessThan(body.indexOf("event: moderation"));
+  const shown = body.split("\n\n").filter((e) => e.startsWith("event: text_delta")).join("\n");
+  expect(shown).toContain("The sources say");
+  expect(shown).not.toContain("UNSAFE-VIOLENCE");
+  await a11y(page, "public answer replaced by the notice");
 });
 
 test("the widget on an allowed origin, and nothing on another", async ({ page, admin, a11y }) => {
@@ -105,8 +141,10 @@ test("the widget on an allowed origin, and nothing on another", async ({ page, a
       await expect(composer).toBeEnabled();
       await a11y(page, "widget panel open");
       await composer.fill("How much is a student parking permit?");
+      const stream = chatStream(page);
       await composer.press("Enter");
       await expect(widget.getByRole("article", { name: "Widget parking said" })).toContainText(handbook.answer);
+      expect(await stream).toContain('"mode":"stream_checked"');
       await a11y(page, "widget answer");
 
       await panel.getByRole("button", { name: "Close chat" }).click();

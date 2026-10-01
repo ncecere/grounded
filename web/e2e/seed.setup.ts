@@ -65,7 +65,7 @@ setup("platform models, moderation and public access", async () => {
   const rule = { action: "block", threshold: 0.5 };
   await admin.putRevised("/v1/admin/moderation/policies/public", {
     modelId: classifier.id,
-    outputMode: "buffer",
+    outputMode: "stream_checked", // the public default: answers stream in checked paragraphs
     failClosed: true,
     categories: { violence: { input: rule, output: rule } },
   });
