@@ -8,7 +8,7 @@ Costs are **off** by default: nothing changes for anyone until a platform admin 
 
 Prices can be entered while the mode is still Off, so tracking starts with correct figures.
 
-1. Open **Admin → Costs → Prices**. It lists every chat, embedding, SystemOne and moderation model with its price today; a missing price shows **Unpriced**.
+1. Open **Admin → Costs → Prices**. It lists every chat, embedding, SystemOne, moderation, vision and rerank model with its price today; a missing price shows **Unpriced**.
 2. Open a model (**View details**), then **Change prices** in its **Pricing** section.
 3. Choose **Effective from** (a day in the platform time zone) and fill in the units you're changing. Units you leave empty keep their current price.
 
@@ -18,8 +18,7 @@ Prices can be entered while the mode is still Off, so tracking starts with corre
 | Embedding | tokens per 1M (characters per 1M, if your gateway reports characters: the ledger keeps whatever the gateway sends) |
 | SystemOne | input tokens per 1M, and per answered request |
 | Moderation | per answered request |
-
-Rerank models aren't priced.
+| Rerank | tokens per 1M (the server's count, or an estimate when it reports none), and per answered request ([`rerank.md`](rerank.md)) |
 
 - **Prices are dated, never edited.** A change adds rows; each day's usage is priced at the row in effect that day, so past spend doesn't change when a price does.
 - **Pricing past usage:** choose a date in the past. Usage already recorded from that day on is priced at once, since spend is always computed from the ledger.
