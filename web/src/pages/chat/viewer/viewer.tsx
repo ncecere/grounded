@@ -180,7 +180,7 @@ export function SourceViewer({ item, n, access, onClose, onOpen, bare = false }:
             </TextLink>
           )}
           {team && d?.status !== "document_deleted" && (
-            <Button variant="secondary" size="sm" aria-pressed={full} onClick={() => setFull((f) => !f)}>
+            <Button variant="secondary" size="sm" onClick={() => setFull((f) => !f)}>
               <FileText aria-hidden /> {full ? "Show the passage only" : "Open full document"}
             </Button>
           )}

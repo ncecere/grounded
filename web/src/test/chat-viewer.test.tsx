@@ -123,7 +123,7 @@ describe("source viewer", () => {
     const viewer = await openSource(1);
     const full = await within(viewer).findByRole("button", { name: "Open full document" });
     await userEvent.click(full);
-    expect(full).toHaveAttribute("aria-pressed", "true");
+    expect(full).toHaveTextContent("Show the passage only");
     expect(await within(viewer).findByText("Paragraph 6.")).toBeInTheDocument();
     expect(calls.find((c) => c.url.endsWith("/text"))!.search.get("from")).toBe("0");
     expect(within(viewer).getByTestId("cited-passage")).toHaveTextContent("Passage 1 about fees.");
