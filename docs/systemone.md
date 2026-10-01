@@ -19,7 +19,7 @@ Status: spec, 2026-09-26. Decision record: [ADR-0020](adr/0020-systemone-models.
 ## 2. Passage judging (re-rank and classify)
 
 - **Where:** after hybrid retrieval and fusion, before the prompt is built. It applies to `always` mode and to each `search_knowledge` call in tool mode.
-- **Candidates:** the top `candidates` fused hits (default 20, max 50) across the agent's KBs.
+- **Candidates:** the top `candidates` fused hits (default 20, max 50) across the agent's KBs. With a platform rerank model (v0.4, [`operations/rerank.md`](operations/rerank.md)), a search is reranked first and only the agent's reranked best few (`rerankTopN`, default 6) are judged.
 - **One request per candidate** (default) with state `{query, passage: {title, section, source_type, text}}` and four questions:
   - `relevant` (noul): does the passage contain information that helps answer the query?
   - `evidence` (noul): does it state something specific that could be used directly in an answer?
