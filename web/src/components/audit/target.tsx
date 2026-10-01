@@ -37,6 +37,8 @@ function teamLink(team: string, e: AuditEntry): ReactElement | null {
       return <Link to="/teams/$team/sources" params={{ team }} search={{ tab: "crawl-domains", record: id } as never} />;
     case "evaluation_set":
       return <Link to="/teams/$team/evaluations/$setId" params={{ team, setId: id }} />;
+    case "gap_topic":
+      return <Link to="/teams/$team/gaps" params={{ team }} search={{ record: id } as never} />;
     case "evaluation_run": {
       const setId = typeof e.metadata.setId === "string" ? e.metadata.setId : undefined;
       return setId ? <Link to="/teams/$team/evaluations/$setId" params={{ team, setId }} search={{ tab: "runs", record: id } as never} /> : null;

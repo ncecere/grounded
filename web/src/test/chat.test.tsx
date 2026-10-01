@@ -347,15 +347,25 @@ describe("chat page", () => {
             { id: "m1", seq: 2, role: "assistant", text: "Use the student portal [1].", thinking: "t", citations: [citation], stopReason: "stop", toolCalls: [], createdAt: "2026-09-26T10:00:01Z" },
           ],
         }),
-        "POST /v1/messages/m1/feedback": (b) => ({ messageId: "m1", ...(b as object) }),
+        "POST /v1/messages/m1/feedback": (b) => ({ messageId: "m1", shared: (b as { share?: boolean }).share === true, ...(b as object) }),
       }),
     );
     renderApp(chatPath + "?c=c1");
     expect(await screen.findByText(/Use the student portal/)).toBeInTheDocument();
     expect(screen.getByText(/How do I drop a class\?/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Bad answer" }));
+    // "Share this question with the team" is off by default (docs/gaps.md) and stays open when ticked.
+    const share = await screen.findByRole("menuitemcheckbox", { name: "Share this question with the team" });
+    expect(share).toHaveAttribute("aria-checked", "false");
     await userEvent.click(await screen.findByRole("menuitem", { name: "Outdated" }));
-    await waitFor(() => expect(calls.find((c) => c.url === "/v1/messages/m1/feedback")?.body).toEqual({ rating: "down", reason: "outdated" }));
+    await waitFor(() => expect(calls.find((c) => c.url === "/v1/messages/m1/feedback")?.body).toEqual({ rating: "down", reason: "outdated", share: false }));
+    await userEvent.click(screen.getByRole("button", { name: /Bad answer/ }));
+    await userEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Share this question with the team" }));
+    expect(screen.getByRole("menuitemcheckbox", { name: "Share this question with the team" })).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(screen.getByRole("menuitem", { name: "Missing sources" }));
+    await waitFor(() => expect(calls.filter((c) => c.url === "/v1/messages/m1/feedback").at(-1)?.body).toEqual({ rating: "down", reason: "missing_sources", share: true }));
+    await userEvent.click(screen.getByRole("button", { name: /Bad answer/ }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Outdated" }));
     expect(await screen.findByRole("button", { name: "Bad answer: Outdated" })).toHaveAttribute("aria-pressed", "true");
     // Both thumbs are toggle buttons (G16): exactly one is pressed.
     const good = screen.getByRole("button", { name: "Good answer" });

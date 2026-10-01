@@ -116,7 +116,7 @@ In priority order; the design is [`v0.4.0.md`](v0.4.0.md) (all five items are de
 
 | # | ID | Item | Why |
 |---|---|---|---|
-| 1 | C2 (+A15) | **Unanswered-questions and gap report**, with sharing a failed question on a thumbs-down | Teams see what their agents fail at (refusals, no context, thumbs-down), clustered into the sources to add. |
+| 1 | C2 (+A15) | **Unanswered-questions and gap report**, with sharing a failed question on a thumbs-down: **Done** (v0.4.0 M2, [`gaps.md`](gaps.md)) | Teams see what their agents fail at (refusals, no context, thumbs-down), clustered into the sources to add. |
 | 2 | A1b | **Cross-encoder reranking** | Better retrieval, and fewer passages for SystemOne to judge (the slowest step before the first words). |
 | 3 | A8 | **Answer cache** | Repeated questions (public agents especially) answered at once, keyed by agent version and knowledge-base state. |
 | 4 | **New** | **Stream public answers safely:** moderate the answer in chunks as it's written instead of buffering it whole | Visitors see text in seconds while moderation still fails closed. |

@@ -10,6 +10,7 @@ Grounded deletes data only when a retention period says so, and never what a leg
 |---|---|---|---|
 | Signed-in conversations (with messages) | **Keep** until the user deletes them | Per classification level: **Administration → Classifications**, "Conversation retention" | Counted from the last message. |
 | Anonymous conversations (public page, widget) | **24 hours** | Per classification level: "Anonymous retention" | The one period on by default (DESIGN.md §7.5). |
+| Failed questions (the gap report, [`../gaps.md`](../gaps.md)) | As their conversation | Follows the conversation's period | Deleted with their conversation (by retention, after a user's delete and its grace period), so legal holds on the conversation, its user, agent or team keep them. Counts leave out conversations users deleted at once. |
 | Conversations users deleted | **Keep** (hidden from the user at once) | Retention: *Conversations users deleted* (grace period, 0 = next run) | See "User deletes" below. |
 | Access log | **Keep** | Retention: *Access log* | |
 | Analytics events (per-answer metadata) | **Keep** | Retention: *Analytics events* | Dashboards show only what's kept. |
