@@ -185,6 +185,9 @@ type run struct {
 
 	// mcp is the answer's MCP tool calls (nil: the agent has none; tools.go).
 	mcp *mcpState
+
+	// cache is the answer cache's part (nil: not used; cache.go).
+	cache *cacheRun
 }
 
 // Chat answers a question with a published agent. Errors returned before
@@ -381,14 +384,20 @@ func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 		return Answer{}, err
 	}
 	ru.retr = newRetriever(s.KBs, resolvedKBs, ru.cfg, ru.userTag())
-	ru.retr.planRerank(ctx, ru.cfg)
-	ru.planSystemOne(ctx)
+	ru.lookupCache(ctx) // the answer cache (cache.go)
+	if !ru.cacheHitNow() {
+		ru.retr.planRerank(ctx, ru.cfg)
+		ru.planSystemOne(ctx)
+	}
 	ru.msgID = uuid.New()
 
 	if err := ru.prepareConversation(ctx); err != nil {
 		return Answer{}, err
 	}
 	ru.out.send(Event{"conversation", ConversationEvent{ConversationID: ru.convID(), UserMessageID: ru.userMsgPtr(), AgentVersion: ru.versionNum()}})
+	if ru.cacheHitNow() {
+		return ru.replayCached(ctx)
+	}
 
 	if err := ru.planModeration(ctx); err != nil {
 		return ru.failBeforeStart(ctx, err)

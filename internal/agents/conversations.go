@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/ncecere/grounded/internal/answercache"
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/llm"
@@ -418,6 +419,11 @@ func (s *Service) SetFeedback(ctx context.Context, a authz.Actor, messageID uuid
 		}
 		if n == 0 {
 			return errNoMessage
+		}
+		if rating == "down" { // the next person gets a fresh answer (docs/answer-cache.md)
+			if _, err := answercache.EvictMessage(ctx, tx, messageID); err != nil {
+				return err
+			}
 		}
 		return gapFeedback(ctx, tx, messageID, rating, reason, share, s.pseudonym(teamID, a))
 	})

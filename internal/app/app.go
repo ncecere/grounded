@@ -105,6 +105,7 @@ func Run(ctx context.Context, mode string, cfg config.Config, log *slog.Logger) 
 	}
 	deps.ProfileMigrations, deps.Evaluations, deps.MCP, deps.OAuth = svc.ProfileMigrations, svc.Evaluations, svc.MCP, svc.OAuth
 	deps.Gaps = svc.Gaps
+	deps.AnswerCache = svc.AnswerCache
 
 	worker, err := startWorker(ctx, mode, cfg, pool, svc, log)
 	if err != nil {

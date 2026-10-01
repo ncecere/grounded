@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/ncecere/grounded/internal/answercache"
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/breakglass"
@@ -78,7 +79,9 @@ type Service struct {
 	// OnPublished runs in the publish transaction (internal/evals queues
 	// the agent's automatic evaluation runs; nil: nothing).
 	OnPublished func(ctx context.Context, tx pgx.Tx, agentID uuid.UUID) error
-	q           *dbgen.Queries
+	// Cache reuses recent answers (docs/answer-cache.md; nil: never).
+	Cache *answercache.Service
+	q     *dbgen.Queries
 }
 
 // New returns a Service.

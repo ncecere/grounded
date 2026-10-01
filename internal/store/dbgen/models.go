@@ -66,6 +66,16 @@ type Agent struct {
 	DeletedAt          *time.Time
 }
 
+type AgentAnswerCache struct {
+	AgentID       uuid.UUID
+	Enabled       pgtype.Bool
+	NearIdentical bool
+	ExpiryHours   int32
+	Revision      int64
+	UpdatedBy     uuid.NullUUID
+	UpdatedAt     time.Time
+}
+
 type AgentAudienceGrant struct {
 	AgentID       uuid.UUID
 	PrincipalType string
@@ -115,6 +125,36 @@ type AnonSession struct {
 	CreatedAt        time.Time
 	LastSeenAt       time.Time
 	ExpiresAt        time.Time
+}
+
+type AnswerCache struct {
+	ID               uuid.UUID
+	TeamID           uuid.UUID
+	AgentID          uuid.UUID
+	AgentVersionID   uuid.UUID
+	Audience         string
+	Conditions       string
+	KbRevisions      json.RawMessage
+	SettingsRevision string
+	Question         string
+	QuestionHash     string
+	ProfileID        uuid.NullUUID
+	Embedding        pgvector.Vector
+	Answer           json.RawMessage
+	Tokens           int32
+	SourceMessageID  uuid.NullUUID
+	CreatedAt        time.Time
+	ExpiresAt        time.Time
+	Hits             int32
+	LastHitAt        *time.Time
+}
+
+type AnswerCacheSetting struct {
+	Singleton bool
+	Enabled   bool
+	Revision  int64
+	UpdatedBy uuid.NullUUID
+	UpdatedAt time.Time
 }
 
 type AuditLog struct {
@@ -520,6 +560,7 @@ type KnowledgeBase struct {
 	UpdatedAt          time.Time
 	VectorWeight       *float64
 	KeywordWeight      *float64
+	ContentRevision    int64
 }
 
 type LegalHold struct {
@@ -642,6 +683,9 @@ type MessageEvent struct {
 	Citations        json.RawMessage
 	Scope            json.RawMessage
 	FeedbackShared   bool
+	Cached           bool
+	CacheEntryID     uuid.NullUUID
+	TokensSaved      int32
 }
 
 type Model struct {

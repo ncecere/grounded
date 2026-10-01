@@ -57,7 +57,7 @@ func (q *Queries) DetachSource(ctx context.Context, arg DetachSourceParams) (int
 }
 
 const getKB = `-- name: GetKB :one
-SELECT id, team_id, name, description, embedding_profile_id, top_k, revision, created_by, created_at, updated_at, vector_weight, keyword_weight FROM knowledge_bases WHERE id = $1
+SELECT id, team_id, name, description, embedding_profile_id, top_k, revision, created_by, created_at, updated_at, vector_weight, keyword_weight, content_revision FROM knowledge_bases WHERE id = $1
 `
 
 func (q *Queries) GetKB(ctx context.Context, id uuid.UUID) (KnowledgeBase, error) {
@@ -76,6 +76,7 @@ func (q *Queries) GetKB(ctx context.Context, id uuid.UUID) (KnowledgeBase, error
 		&i.UpdatedAt,
 		&i.VectorWeight,
 		&i.KeywordWeight,
+		&i.ContentRevision,
 	)
 	return i, err
 }
@@ -83,7 +84,7 @@ func (q *Queries) GetKB(ctx context.Context, id uuid.UUID) (KnowledgeBase, error
 const insertKB = `-- name: InsertKB :one
 INSERT INTO knowledge_bases (team_id, name, description, embedding_profile_id, top_k, vector_weight, keyword_weight, created_by)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, team_id, name, description, embedding_profile_id, top_k, revision, created_by, created_at, updated_at, vector_weight, keyword_weight
+RETURNING id, team_id, name, description, embedding_profile_id, top_k, revision, created_by, created_at, updated_at, vector_weight, keyword_weight, content_revision
 `
 
 type InsertKBParams struct {
@@ -122,6 +123,7 @@ func (q *Queries) InsertKB(ctx context.Context, arg InsertKBParams) (KnowledgeBa
 		&i.UpdatedAt,
 		&i.VectorWeight,
 		&i.KeywordWeight,
+		&i.ContentRevision,
 	)
 	return i, err
 }
@@ -248,7 +250,7 @@ func (q *Queries) KBSources(ctx context.Context, kbID uuid.UUID) ([]DataSource, 
 }
 
 const listTeamKBs = `-- name: ListTeamKBs :many
-SELECT id, team_id, name, description, embedding_profile_id, top_k, revision, created_by, created_at, updated_at, vector_weight, keyword_weight FROM knowledge_bases WHERE team_id = $1 ORDER BY lower(name), id
+SELECT id, team_id, name, description, embedding_profile_id, top_k, revision, created_by, created_at, updated_at, vector_weight, keyword_weight, content_revision FROM knowledge_bases WHERE team_id = $1 ORDER BY lower(name), id
 `
 
 func (q *Queries) ListTeamKBs(ctx context.Context, teamID uuid.UUID) ([]KnowledgeBase, error) {
@@ -273,6 +275,7 @@ func (q *Queries) ListTeamKBs(ctx context.Context, teamID uuid.UUID) ([]Knowledg
 			&i.UpdatedAt,
 			&i.VectorWeight,
 			&i.KeywordWeight,
+			&i.ContentRevision,
 		); err != nil {
 			return nil, err
 		}
@@ -340,7 +343,7 @@ func (q *Queries) LoadChunks(ctx context.Context, ids []uuid.UUID) ([]LoadChunks
 }
 
 const lockKB = `-- name: LockKB :one
-SELECT id, team_id, name, description, embedding_profile_id, top_k, revision, created_by, created_at, updated_at, vector_weight, keyword_weight FROM knowledge_bases WHERE id = $1 FOR UPDATE
+SELECT id, team_id, name, description, embedding_profile_id, top_k, revision, created_by, created_at, updated_at, vector_weight, keyword_weight, content_revision FROM knowledge_bases WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockKB(ctx context.Context, id uuid.UUID) (KnowledgeBase, error) {
@@ -359,6 +362,7 @@ func (q *Queries) LockKB(ctx context.Context, id uuid.UUID) (KnowledgeBase, erro
 		&i.UpdatedAt,
 		&i.VectorWeight,
 		&i.KeywordWeight,
+		&i.ContentRevision,
 	)
 	return i, err
 }
@@ -368,7 +372,7 @@ UPDATE knowledge_bases
 SET name = $1, description = $2, top_k = $3,
     vector_weight = $4, keyword_weight = $5, revision = revision + 1, updated_at = now()
 WHERE id = $6
-RETURNING id, team_id, name, description, embedding_profile_id, top_k, revision, created_by, created_at, updated_at, vector_weight, keyword_weight
+RETURNING id, team_id, name, description, embedding_profile_id, top_k, revision, created_by, created_at, updated_at, vector_weight, keyword_weight, content_revision
 `
 
 type UpdateKBParams struct {
@@ -403,6 +407,7 @@ func (q *Queries) UpdateKB(ctx context.Context, arg UpdateKBParams) (KnowledgeBa
 		&i.UpdatedAt,
 		&i.VectorWeight,
 		&i.KeywordWeight,
+		&i.ContentRevision,
 	)
 	return i, err
 }

@@ -42,7 +42,7 @@ const (
 
 // planModeration resolves the audience's policy with the agent's override.
 func (ru *run) planModeration(ctx context.Context) error {
-	if ru.s.Moderation == nil {
+	if ru.s.Moderation == nil || ru.mod != nil { // planned already (the answer cache's near-identical lookup)
 		return nil
 	}
 	plan, err := ru.s.Moderation.Plan(ctx, ru.grant, ru.cfg.Moderation)
@@ -57,6 +57,10 @@ func (ru *run) startInputCheck(ctx context.Context) <-chan moderation.Decision {
 		return nil
 	}
 	ch := make(chan moderation.Decision, 1)
+	if ru.modIn != nil { // checked already (cache.go)
+		ch <- *ru.modIn
+		return ch
+	}
 	go func() {
 		ch <- ru.mod.Check(ctx, moderation.Input{Stage: moderation.StageInput, Text: ru.question})
 	}()

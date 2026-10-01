@@ -12,6 +12,7 @@ import (
 	"github.com/riverqueue/river"
 
 	"github.com/ncecere/grounded/internal/agents"
+	"github.com/ncecere/grounded/internal/answercache"
 	"github.com/ncecere/grounded/internal/apikeys"
 	"github.com/ncecere/grounded/internal/blob"
 	"github.com/ncecere/grounded/internal/breakglass"
@@ -103,6 +104,8 @@ type Services struct {
 	OAuth *oauth.Service
 	// Gaps is the unanswered-questions and gap report (docs/gaps.md).
 	Gaps *gaps.Service
+	// AnswerCache reuses recent answers (docs/answer-cache.md).
+	AnswerCache *answercache.Service
 	// jobs enqueues River jobs (may be insert-only).
 	jobs *jobs.Client
 	pool *pgxpool.Pool
@@ -247,6 +250,8 @@ func NewServices(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, job
 	// Automatic evaluation runs: after a publish and a profile switch.
 	s.Agents.OnPublished, s.ProfileMigrations.OnSwitched = s.Evaluations.QueueForAgent, s.Evaluations.QueueForKB
 	s.Gaps = gaps.New(pool, s.Teams, s.Evaluations, log)
+	s.AnswerCache = answercache.New(pool, log)
+	s.Agents.Cache = s.AnswerCache
 	return s, nil
 }
 

@@ -142,6 +142,7 @@ func (ru *run) finish(ctx context.Context, added []llm.Message, runErr error, st
 	} else if ru.citeRec != nil {
 		ru.out.send(ru.citationsChecked(ans))
 	}
+	ru.storeCached(ctx, &ans) // the answer cache (cache.go)
 	return ans, nil
 }
 

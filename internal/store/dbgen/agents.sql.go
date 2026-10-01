@@ -884,12 +884,12 @@ INSERT INTO message_events (team_id, agent_id, agent_version_id, message_id, cha
                             latency_ms, first_token_ms, input_tokens, output_tokens, reasoning_tokens,
                             hit_count, top_similarity, no_context, refused, tool_calls, cited_document_ids,
                             stop_reason, error_code, pseudonymous_user, moderation_input, moderation_output, judging,
-                            citations, scope)
+                            citations, scope, cached, cache_entry_id, tokens_saved)
 VALUES ($1, $2, $3, $4, $5, $6, $7,
         $8, $9, $10, $11, $12,
         $13, $14, $15, $16, $17, $18,
         $19, $20, $21, $22, $23, $24,
-        $25, $26)
+        $25, $26, $27, $28, $29)
 `
 
 type InsertMessageEventParams struct {
@@ -919,6 +919,9 @@ type InsertMessageEventParams struct {
 	Judging          json.RawMessage
 	Citations        json.RawMessage
 	Scope            json.RawMessage
+	Cached           bool
+	CacheEntryID     uuid.NullUUID
+	TokensSaved      int32
 }
 
 // ---- analytics events and access log ------------------------------------------------
@@ -950,6 +953,9 @@ func (q *Queries) InsertMessageEvent(ctx context.Context, arg InsertMessageEvent
 		arg.Judging,
 		arg.Citations,
 		arg.Scope,
+		arg.Cached,
+		arg.CacheEntryID,
+		arg.TokensSaved,
 	)
 	return err
 }

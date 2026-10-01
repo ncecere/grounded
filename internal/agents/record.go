@@ -138,7 +138,7 @@ func (ru *run) storeAnswer(ctx context.Context, q *dbgen.Queries, ans *Answer, m
 // recordUsage writes the usage ledger: the query, chat tokens, embedding
 // tokens, moderation requests and SystemOne use.
 func (ru *run) recordUsage(ctx context.Context, q *dbgen.Queries, ans *Answer, modelID uuid.NullUUID) error {
-	meta := ru.usageMetadata(nil)
+	meta := ru.usageMetadata(ru.cacheMeta())
 	team := uuid.NullUUID{UUID: ru.team.ID, Valid: true}
 	agent := uuid.NullUUID{UUID: ru.agent.ID, Valid: true}
 	usage := []dbgen.InsertUsageParams{{Kind: limits.UsageQuery, Quantity: 1}}
@@ -183,6 +183,9 @@ func (ru *run) messageEvent(ans *Answer, messageID, modelID uuid.NullUUID, laten
 	ev.ModerationInput, ev.ModerationOutput = ru.moderationRecords()
 	ev.Judging = ru.judgingJSON(ans)
 	ev.Citations, ev.Scope = ru.citationsJSON(), ru.scopeJSON()
+	if ru.cacheHitNow() { // served from the answer cache (cache.go)
+		ev.Cached, ev.CacheEntryID, ev.TokensSaved = true, uuid.NullUUID{UUID: ru.cache.entryID, Valid: true}, int32(ru.cache.tokens)
+	}
 	if ru.firstToken > 0 {
 		ft := int32(ru.firstToken.Milliseconds())
 		ev.FirstTokenMs = &ft

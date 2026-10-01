@@ -1081,7 +1081,7 @@ func (q *Queries) SetEmbeddingSetError(ctx context.Context, arg SetEmbeddingSetE
 const setKBProfile = `-- name: SetKBProfile :one
 UPDATE knowledge_bases SET embedding_profile_id = $1, revision = revision + 1, updated_at = now()
 WHERE id = $2
-RETURNING id, team_id, name, description, embedding_profile_id, top_k, revision, created_by, created_at, updated_at, vector_weight, keyword_weight
+RETURNING id, team_id, name, description, embedding_profile_id, top_k, revision, created_by, created_at, updated_at, vector_weight, keyword_weight, content_revision
 `
 
 type SetKBProfileParams struct {
@@ -1105,6 +1105,7 @@ func (q *Queries) SetKBProfile(ctx context.Context, arg SetKBProfileParams) (Kno
 		&i.UpdatedAt,
 		&i.VectorWeight,
 		&i.KeywordWeight,
+		&i.ContentRevision,
 	)
 	return i, err
 }

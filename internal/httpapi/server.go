@@ -14,6 +14,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/agents"
 	"github.com/ncecere/grounded/internal/analytics"
+	"github.com/ncecere/grounded/internal/answercache"
 	"github.com/ncecere/grounded/internal/apikeys"
 	"github.com/ncecere/grounded/internal/auth"
 	"github.com/ncecere/grounded/internal/breakglass"
@@ -104,6 +105,8 @@ type Deps struct {
 	OAuth *oauth.Service
 	// Gaps is the unanswered-questions and gap report (docs/gaps.md).
 	Gaps *gaps.Service
+	// AnswerCache reuses recent answers (docs/answer-cache.md).
+	AnswerCache *answercache.Service
 }
 
 type api struct {
