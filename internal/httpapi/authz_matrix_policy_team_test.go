@@ -87,6 +87,11 @@ var teamPolicies = map[string]policy{
 	"listDocumentPassages": {own: members.and(readKeys), build: func(c *mctx) request {
 		return get(c.src("/documents/" + c.tf.doc + "/passages"))
 	}},
+	// The whole document (the source viewer): editors and above, and keys
+	// acting as editors; members see only passages their answers cited.
+	"getDocumentText": {own: editors.and(ingestKeys), build: func(c *mctx) request {
+		return get(c.src("/documents/" + c.tf.doc + "/text?limit=5"))
+	}},
 	"listSourceTags": {own: members.and(readKeys), build: func(c *mctx) request { return get(c.src("/tags")) }},
 	"retryDocument": {own: editors, also: []string{"409"}, build: func(c *mctx) request {
 		return post(c.src("/documents/"+c.tf.doc+"/retry"), nil)

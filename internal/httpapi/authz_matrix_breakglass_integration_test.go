@@ -19,7 +19,7 @@ import (
 var breakGlassReads = map[string]map[string]bool{
 	"documents": {
 		"listSources": true, "getSource": true, "listDocuments": true, "getDocument": true, "listDocumentPassages": true,
-		"listSourceTags": true, "listCrawls": true, "listBoilerplateBlocks": true,
+		"getDocumentText": true, "listSourceTags": true, "listCrawls": true, "listBoilerplateBlocks": true,
 	},
 	"conversations": {"listTeamConversations": true, "getConversation": true},
 }

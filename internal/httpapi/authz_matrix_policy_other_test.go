@@ -3,6 +3,8 @@ package httpapi_test
 import (
 	"net/url"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // Classification of everything that is neither a team route nor platform
@@ -114,6 +116,10 @@ var userPolicies = map[string]policy{
 	"exportConversation": {own: signedIn.and(of(cKeyQuery)), build: func(c *mctx) request {
 		return get("/v1/conversations/" + c.own().conv + "/export")
 	}},
+	// A passage the answer cited, in context (the source viewer).
+	"getCitedPassage": {own: signedIn.and(of(cKeyQuery)), build: func(c *mctx) request {
+		return get("/v1/messages/" + c.own().message + "/sources/1")
+	}},
 	"setMessageFeedback": {own: signedIn.and(of(cKeyQuery)), build: func(c *mctx) request {
 		return post("/v1/messages/"+c.own().message+"/feedback", map[string]any{"rating": "up"})
 	}},
@@ -170,6 +176,14 @@ var publicPolicies = map[string]policy{
 			c.e.ensurePublicSession(c.t, c.who)
 		}
 		return post("/v1/public/agents/"+c.tf.agent+"/chat", map[string]any{"message": "Where do students buy a parking permit?", "stream": false}).anon()
+	}},
+	// A passage cited by an answer in the session's own conversation.
+	"getPublicCitedPassage": {own: noBearers, build: func(c *mctx) request {
+		msg := uuid.NewString()
+		if c.allowed {
+			msg = c.e.publicMessage(c.t, c.who)
+		}
+		return get("/v1/public/agents/" + c.tf.agent + "/messages/" + msg + "/sources/1").anon()
 	}},
 	// Agent profiles by ID and short name (signed in or with a key).
 	"getAgentProfileByID": {own: signedIn.and(readKeys), build: func(c *mctx) request { return get("/v1/agents/id/" + c.tf.agent) }},

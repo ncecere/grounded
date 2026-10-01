@@ -77,6 +77,8 @@ type matrixEnv struct {
 	// oauthClient is a registered OAuth client (MCP and OAuth sign-in are on).
 	oauthClient    string
 	publicSessions [numCallers]bool
+	// publicMessages: each anonymous caller's answer from team B's public agent.
+	publicMessages [numCallers]string
 	seq            atomic.Int64
 }
 
@@ -189,6 +191,9 @@ func (e *matrixEnv) seedTeamB(t *testing.T) *teamFix {
 	f.agent, f.agentSl = ag.Id.String(), ag.Slug
 	e.seedCommon(t, f, "B")
 	f.memberID = e.freshMember(t, f) // a member none of the callers is
+	// Every anonymous caller asks the public agent (publicChat, and an answer
+	// to read cited passages of), all from one address.
+	setTeamLimits(t, e.admin, f.slug, map[string]any{"public_queries_per_ip_per_minute": 1000})
 	return f
 }
 
@@ -449,6 +454,23 @@ func (e *matrixEnv) ensurePublicSession(t *testing.T, c caller) {
 		t.Fatalf("public session as %s = %d %s", c, code, raw)
 	}
 	e.publicSessions[c] = true
+}
+
+// publicMessage is the caller's answer from team B's public agent in its
+// anonymous session (asked on first use).
+func (e *matrixEnv) publicMessage(t *testing.T, c caller) string {
+	t.Helper()
+	if m := e.publicMessages[c]; m != "" {
+		return m
+	}
+	e.ensurePublicSession(t, c)
+	code, raw := e.send(t, c, post("/v1/public/agents/"+e.b.agent+"/chat", map[string]any{"message": "Where do students buy a parking permit?", "stream": false}).anon())
+	var env struct{ Data any }
+	if code != 200 || json.Unmarshal(raw, &env) != nil || field(env.Data, "messageId") == "" {
+		t.Fatalf("public chat as %s = %d %s", c, code, raw)
+	}
+	e.publicMessages[c] = field(env.Data, "messageId")
+	return e.publicMessages[c]
 }
 
 // notification is the team owner's latest notification ("" if none).
