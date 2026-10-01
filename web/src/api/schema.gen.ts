@@ -6416,10 +6416,10 @@ export interface components {
             output: components["schemas"]["ModerationRule"];
         };
         /**
-         * @description stream_retract: answers stream and a failing answer is replaced; buffer: answers are sent only after they pass
+         * @description stream_retract: answers stream and a failing answer is replaced; stream_checked (the Public default): answers are released paragraph by paragraph, each checked with all the text before it, and a failing paragraph replaces the whole answer with the notice; buffer: answers are sent only after they pass
          * @enum {string}
          */
-        ModerationOutputMode: "stream_retract" | "buffer";
+        ModerationOutputMode: "stream_retract" | "stream_checked" | "buffer";
         /** @description An audience's platform moderation policy (defaults until saved, with revision 1) */
         ModerationPolicy: {
             audience: components["schemas"]["Audience"];
@@ -6472,13 +6472,13 @@ export interface components {
              */
             uncalibratedBlockThreshold?: number;
         };
-        /** @description An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode buffer buffers where the platform streams. The Phase 3 value "off" is still accepted as no override. */
+        /** @description An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode stream_checked or buffer applies where the platform's mode is less strict (stream_retract, then stream_checked, then buffer). The Phase 3 value "off" is still accepted as no override. */
         AgentModeration: {
             categories?: {
                 [key: string]: components["schemas"]["ModerationCategoryRules"];
             };
             /** @enum {string} */
-            outputMode?: "" | "buffer";
+            outputMode?: "" | "stream_checked" | "buffer";
             /**
              * Format: double
              * @description Block at this severity or the platform's, whichever is lower
@@ -8964,8 +8964,13 @@ export interface components {
             messageId: string;
             /** @description Output moderation buffers the answer: no text or thinking deltas; the text arrives in one text_delta after it passes (show a waiting state) */
             buffered?: boolean;
+            /**
+             * @description The output moderation mode, when answers are moderated (absent otherwise). stream_checked: no thinking deltas, and text_delta events carry checked paragraphs (show a waiting state until the first one, then follow the answer as it grows); a failing paragraph sends a moderation event (retracted, or withheld when nothing was shown yet) and no more text.
+             * @enum {string}
+             */
+            mode?: "stream_retract" | "stream_checked" | "buffer";
         };
-        /** @description SSE event moderation: moderation replaced a message with the notice. blocked - the question was blocked (nothing was retrieved or generated); retracted - the streamed answer failed the output check (discard it); withheld - the buffered answer failed and was never sent; unavailable - the safety check could not run (the provider failed or timed out, after one retry) and the policy fails closed: the notice asks the user to try again, and the OpenAI-compatible endpoint answers 503 (or a stream error) with code moderation_unavailable. message_end.text is the notice. */
+        /** @description SSE event moderation: moderation replaced a message with the notice. blocked - the question was blocked (nothing was retrieved or generated); retracted - the streamed answer failed the output check (discard it; with stream_checked, a later paragraph failed and the whole answer is replaced); withheld - the buffered answer failed and was never sent (or, with stream_checked, its first paragraph failed); unavailable - the safety check could not run (the provider failed or timed out, after one retry) and the policy fails closed: the notice asks the user to try again, and the OpenAI-compatible endpoint answers 503 (or a stream error) with code moderation_unavailable. message_end.text is the notice. */
         ChatEventModeration: {
             /** @enum {string} */
             stage: "input" | "output";

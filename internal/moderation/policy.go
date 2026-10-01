@@ -34,11 +34,25 @@ const DefaultSupportMessage = "It sounds like you may be going through something
 // Severity levels are 0 (none) to 3 (severe).
 const maxSeverity = 3
 
-// Output modes (docs/phase4-publishing.md §2 decision 1).
+// Output modes (docs/phase4-publishing.md §2 decision 1, docs/v0.4.0.md §4),
+// from the least to the most strict.
 const (
 	ModeStreamRetract = "stream_retract" // stream live, retract a failing answer
-	ModeBuffer        = "buffer"         // send the answer only after it passes
+	// ModeStreamChecked releases the answer paragraph by paragraph, each
+	// checked with everything before it: nothing is shown unchecked.
+	ModeStreamChecked = "stream_checked"
+	ModeBuffer        = "buffer" // send the answer only after it passes
 )
+
+// modeRank orders the output modes by strictness (an override may only
+// raise it).
+var modeRank = map[string]int{ModeStreamRetract: 0, ModeStreamChecked: 1, ModeBuffer: 2}
+
+// ValidMode reports whether m is an output mode.
+func ValidMode(m string) bool {
+	_, ok := modeRank[m]
+	return ok
+}
 
 // DefaultNotice replaces a blocked message or answer.
 const DefaultNotice = "This message can't be answered because it may break the usage policy."
@@ -105,14 +119,14 @@ type Policy struct {
 }
 
 // DefaultPolicy is an audience's policy until an admin saves one: public
-// blocks every category at 0.5 on input and output, buffers and fails
-// closed; the others are off and stream.
+// blocks every category at 0.5 on input and output, streams checked
+// paragraphs and fails closed; the others are off and stream.
 func DefaultPolicy(audience string) Policy {
 	p := Policy{Categories: map[string]CategoryRules{}, OutputMode: ModeStreamRetract, Notice: DefaultNotice,
 		SupportMessage: DefaultSupportMessage, UncalibratedBlockThreshold: DefaultUncalibratedBlockThreshold}
 	action := ActionOff
 	if audience == authz.AudiencePublic {
-		action, p.OutputMode, p.FailClosed = ActionBlock, ModeBuffer, true
+		action, p.OutputMode, p.FailClosed = ActionBlock, ModeStreamChecked, true
 	}
 	for _, c := range Categories {
 		r := Rule{Action: action, Threshold: DefaultThreshold}
@@ -191,8 +205,8 @@ func (p Policy) Validate(audience string) []Problem {
 	if n := utf8.RuneCountInString(p.SupportMessage); n > 1000 || strings.TrimSpace(p.SupportMessage) == "" {
 		out = append(out, Problem{"supportMessage", "The support message must be 1-1000 characters"})
 	}
-	if p.OutputMode != ModeStreamRetract && p.OutputMode != ModeBuffer {
-		out = append(out, Problem{"outputMode", "Output mode must be stream_retract or buffer"})
+	if !ValidMode(p.OutputMode) {
+		out = append(out, Problem{"outputMode", "Output mode must be stream_retract, stream_checked or buffer"})
 	}
 	if audience == authz.AudiencePublic && !p.FailClosed {
 		out = append(out, Problem{"failClosed", "Moderation for public agents must fail closed"})
@@ -229,8 +243,8 @@ func (p Policy) Active(stage string) bool {
 // keeps the platform's rule.
 type Override struct {
 	Categories map[string]CategoryRules `json:"categories"`
-	// OutputMode "" keeps the platform's mode; buffer buffers even where
-	// the platform streams.
+	// OutputMode "" keeps the platform's mode; stream_checked and buffer
+	// apply where the platform's mode is less strict (modeRank).
 	OutputMode string `json:"outputMode"`
 	// SeverityBlock nil keeps the platform's; a value blocks at that
 	// severity or the platform's, whichever is lower.
@@ -277,7 +291,7 @@ func (o Override) Normalize() Override {
 
 // IsZero reports whether the override changes nothing.
 func (o Override) IsZero() bool {
-	if o.OutputMode == ModeBuffer || o.SeverityBlock != nil {
+	if o.OutputMode == ModeBuffer || o.OutputMode == ModeStreamChecked || o.SeverityBlock != nil {
 		return false
 	}
 	for _, r := range o.Categories {
@@ -301,8 +315,8 @@ func (o Override) Validate() []Problem {
 		out = append(out, checkRule("moderation.categories."+c+".output", c, r.Output)...)
 	}
 	out = append(out, checkSeverity("moderation.severityBlock", o.SeverityBlock)...)
-	if o.OutputMode != "" && o.OutputMode != ModeBuffer {
-		out = append(out, Problem{"moderation.outputMode", `The output mode override must be "" (the platform's) or buffer`})
+	if o.OutputMode != "" && o.OutputMode != ModeBuffer && o.OutputMode != ModeStreamChecked {
+		out = append(out, Problem{"moderation.outputMode", `The output mode override must be "" (the platform's), stream_checked or buffer`})
 	}
 	return out
 }
@@ -333,8 +347,8 @@ func (p Policy) Merge(o Override) Policy {
 		}
 		out.Categories[c] = r
 	}
-	if o.OutputMode == ModeBuffer {
-		out.OutputMode = ModeBuffer
+	if o.OutputMode != ModeStreamRetract && ValidMode(o.OutputMode) && modeRank[o.OutputMode] > modeRank[out.OutputMode] {
+		out.OutputMode = o.OutputMode
 	}
 	if a := o.SeverityBlock; a != nil && (out.SeverityBlock == nil || *a < *out.SeverityBlock) {
 		v := *a
@@ -445,6 +459,10 @@ type Record struct {
 	// Downgraded: triggered categories that only flagged because the
 	// provider is not calibrated (Decision.Downgraded).
 	Downgraded []string `json:"downgraded,omitempty"`
+	// Checks counts the output checks of an answer streamed in checked
+	// paragraphs (one per paragraph, each of the text so far); absent for
+	// a single check.
+	Checks int `json:"checks,omitempty"`
 }
 
 // Record returns the decision's analytics record.

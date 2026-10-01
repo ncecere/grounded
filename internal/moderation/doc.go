@@ -26,10 +26,10 @@
 //
 // Each audience (team, all_authenticated, public) has one platform Policy:
 // per category, a threshold and an action (off, flag, block) for input and
-// for output, the output mode (stream_retract or buffer), fail-closed, and
-// the notice shown instead of blocked content. Unsaved policies use
-// DefaultPolicy: public blocks everything at 0.5, buffers and fails
-// closed; the others moderate nothing. An agent's Override can only make
+// for output, the output mode (stream_retract, stream_checked or buffer),
+// fail-closed, and the notice shown instead of blocked content. Unsaved
+// policies use DefaultPolicy: public blocks everything at 0.5, streams
+// checked paragraphs and fails closed; the others moderate nothing. An agent's Override can only make
 // the policy stricter (Policy.Merge).
 //
 // # Chat pipeline

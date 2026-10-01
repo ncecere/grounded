@@ -151,7 +151,19 @@ func (s *Service) HasProvider(ctx context.Context, audience string) (bool, error
 func (p *Plan) Active(stage string) bool { return p != nil && p.Policy.Active(stage) }
 
 // Buffered reports whether answers are sent only after the output check.
-func (p *Plan) Buffered() bool { return p.Active(StageOutput) && p.Policy.OutputMode == ModeBuffer }
+func (p *Plan) Buffered() bool { return p.OutputMode() == ModeBuffer }
+
+// Checked reports whether answers are released in checked paragraphs
+// (ModeStreamChecked).
+func (p *Plan) Checked() bool { return p.OutputMode() == ModeStreamChecked }
+
+// OutputMode is the output mode when answers are moderated, else "".
+func (p *Plan) OutputMode() string {
+	if !p.Active(StageOutput) {
+		return ""
+	}
+	return p.Policy.OutputMode
+}
 
 func (p *Plan) resolve(ctx context.Context) (bound, error) {
 	p.once.Do(func() {

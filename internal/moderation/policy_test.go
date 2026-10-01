@@ -10,7 +10,7 @@ import (
 
 func TestDefaultPolicies(t *testing.T) {
 	pub := DefaultPolicy(authz.AudiencePublic)
-	if !pub.FailClosed || pub.OutputMode != ModeBuffer || !pub.Active(StageInput) || !pub.Active(StageOutput) {
+	if !pub.FailClosed || pub.OutputMode != ModeStreamChecked || !pub.Active(StageInput) || !pub.Active(StageOutput) {
 		t.Errorf("public = %+v", pub)
 	}
 	for _, c := range Categories {
@@ -78,10 +78,22 @@ func TestMergeIsStricterOnly(t *testing.T) {
 	if m.OutputMode != ModeBuffer {
 		t.Error("buffer override ignored")
 	}
-	// A stream override never un-buffers.
+	// A stream override never weakens the platform's mode; checked
+	// paragraphs tighten streaming but not buffering.
 	pub := DefaultPolicy(authz.AudiencePublic).Merge(Override{OutputMode: ModeStreamRetract})
-	if pub.OutputMode != ModeBuffer {
-		t.Error("override weakened buffering")
+	if pub.OutputMode != ModeStreamChecked {
+		t.Error("override weakened checked paragraphs")
+	}
+	buf := DefaultPolicy(authz.AudiencePublic)
+	buf.OutputMode = ModeBuffer
+	if m := buf.Merge(Override{OutputMode: ModeStreamChecked}); m.OutputMode != ModeBuffer {
+		t.Errorf("checked override un-buffered: %s", m.OutputMode)
+	}
+	if m := plat.Merge(Override{OutputMode: ModeStreamChecked}); m.OutputMode != ModeStreamChecked {
+		t.Errorf("checked override on a streaming platform = %s", m.OutputMode)
+	}
+	if m := DefaultPolicy(authz.AudiencePublic).Merge(Override{OutputMode: ModeBuffer}); m.OutputMode != ModeBuffer {
+		t.Errorf("buffer override on checked paragraphs = %s", m.OutputMode)
 	}
 	// The platform policy is not modified.
 	if plat.Categories[Violence].Input.Action != ActionFlag || plat.OutputMode != ModeStreamRetract {
@@ -142,6 +154,25 @@ func TestOverrideJSON(t *testing.T) {
 	}
 	if probs := (Override{OutputMode: ModeStreamRetract, Categories: map[string]CategoryRules{"x": {}}}).Validate(); len(probs) != 2 {
 		t.Errorf("problems = %v", probs)
+	}
+	if c := (Override{OutputMode: ModeStreamChecked}); len(c.Validate()) != 0 || c.IsZero() {
+		t.Errorf("a checked-paragraphs override: %v, zero %v", c.Validate(), c.IsZero())
+	}
+}
+
+// TestSavedPublicPolicyKeepsItsMode: a Public policy an admin saved keeps
+// its mode (buffer included); an unsaved one gets checked paragraphs.
+func TestSavedPublicPolicyKeepsItsMode(t *testing.T) {
+	if p := DecodePolicy(authz.AudiencePublic, json.RawMessage(`{"outputMode":"buffer","failClosed":true}`)); p.OutputMode != ModeBuffer {
+		t.Errorf("saved buffer = %s", p.OutputMode)
+	}
+	if p := DecodePolicy(authz.AudiencePublic, json.RawMessage(`{"failClosed":true}`)); p.OutputMode != ModeStreamChecked {
+		t.Errorf("no mode = %s", p.OutputMode)
+	}
+	p := DefaultPolicy(authz.AudienceTeam)
+	p.OutputMode = ModeStreamChecked
+	if probs := p.Validate(authz.AudienceTeam); len(probs) != 0 {
+		t.Errorf("checked paragraphs for a team = %v", probs)
 	}
 }
 

@@ -221,8 +221,9 @@ func (e AgentInvalidResponseErrorCode) Valid() bool {
 
 // Defines values for AgentModerationOutputMode.
 const (
-	AgentModerationOutputModeBuffer AgentModerationOutputMode = "buffer"
-	AgentModerationOutputModeEmpty  AgentModerationOutputMode = ""
+	AgentModerationOutputModeBuffer        AgentModerationOutputMode = "buffer"
+	AgentModerationOutputModeEmpty         AgentModerationOutputMode = ""
+	AgentModerationOutputModeStreamChecked AgentModerationOutputMode = "stream_checked"
 )
 
 // Valid indicates whether the value is a known member of the AgentModerationOutputMode enum.
@@ -231,6 +232,8 @@ func (e AgentModerationOutputMode) Valid() bool {
 	case AgentModerationOutputModeBuffer:
 		return true
 	case AgentModerationOutputModeEmpty:
+		return true
+	case AgentModerationOutputModeStreamChecked:
 		return true
 	default:
 		return false
@@ -669,6 +672,27 @@ func (e ChatEventMessageEndNoContextReason) Valid() bool {
 	case OutOfScope:
 		return true
 	case SmallTalk:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ChatEventMessageStartMode.
+const (
+	ChatEventMessageStartModeBuffer        ChatEventMessageStartMode = "buffer"
+	ChatEventMessageStartModeStreamChecked ChatEventMessageStartMode = "stream_checked"
+	ChatEventMessageStartModeStreamRetract ChatEventMessageStartMode = "stream_retract"
+)
+
+// Valid indicates whether the value is a known member of the ChatEventMessageStartMode enum.
+func (e ChatEventMessageStartMode) Valid() bool {
+	switch e {
+	case ChatEventMessageStartModeBuffer:
+		return true
+	case ChatEventMessageStartModeStreamChecked:
+		return true
+	case ChatEventMessageStartModeStreamRetract:
 		return true
 	default:
 		return false
@@ -2625,6 +2649,7 @@ func (e ModerationEventStage) Valid() bool {
 // Defines values for ModerationOutputMode.
 const (
 	ModerationOutputModeBuffer        ModerationOutputMode = "buffer"
+	ModerationOutputModeStreamChecked ModerationOutputMode = "stream_checked"
 	ModerationOutputModeStreamRetract ModerationOutputMode = "stream_retract"
 )
 
@@ -2632,6 +2657,8 @@ const (
 func (e ModerationOutputMode) Valid() bool {
 	switch e {
 	case ModerationOutputModeBuffer:
+		return true
+	case ModerationOutputModeStreamChecked:
 		return true
 	case ModerationOutputModeStreamRetract:
 		return true
@@ -4580,7 +4607,7 @@ type AgentConfig struct {
 	// MinSimilarity Hits whose vector similarity (1 - cosine distance) is lower are dropped; 0 = off
 	MinSimilarity float64 `json:"minSimilarity"`
 
-	// Moderation An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode buffer buffers where the platform streams. The Phase 3 value "off" is still accepted as no override.
+	// Moderation An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode stream_checked or buffer applies where the platform's mode is less strict (stream_retract, then stream_checked, then buffer). The Phase 3 value "off" is still accepted as no override.
 	Moderation AgentModeration `json:"moderation"`
 
 	// QueryRewrite With history, rewrite the question as a query that stands on its own before retrieval
@@ -4636,7 +4663,7 @@ type AgentConfigInput struct {
 	MaxTurns        *int            `json:"maxTurns,omitempty"`
 	MinSimilarity   *float64        `json:"minSimilarity,omitempty"`
 
-	// Moderation An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode buffer buffers where the platform streams. The Phase 3 value "off" is still accepted as no override.
+	// Moderation An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode stream_checked or buffer applies where the platform's mode is less strict (stream_retract, then stream_checked, then buffer). The Phase 3 value "off" is still accepted as no override.
 	Moderation      *AgentModeration                 `json:"moderation,omitempty"`
 	QueryRewrite    *bool                            `json:"queryRewrite,omitempty"`
 	ReasoningEffort *AgentConfigInputReasoningEffort `json:"reasoningEffort,omitempty"`
@@ -4699,7 +4726,7 @@ type AgentKB struct {
 	TopK *int `json:"topK,omitempty"`
 }
 
-// AgentModeration An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode buffer buffers where the platform streams. The Phase 3 value "off" is still accepted as no override.
+// AgentModeration An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode stream_checked or buffer applies where the platform's mode is less strict (stream_retract, then stream_checked, then buffer). The Phase 3 value "off" is still accepted as no override.
 type AgentModeration struct {
 	Categories *map[string]ModerationCategoryRules `json:"categories,omitempty"`
 	OutputMode *AgentModerationOutputMode          `json:"outputMode,omitempty"`
@@ -5321,7 +5348,7 @@ type ChatAnswer struct {
 	LatencyMs    int64              `json:"latencyMs"`
 	MessageId    openapi_types.UUID `json:"messageId"`
 
-	// Moderation SSE event moderation: moderation replaced a message with the notice. blocked - the question was blocked (nothing was retrieved or generated); retracted - the streamed answer failed the output check (discard it); withheld - the buffered answer failed and was never sent; unavailable - the safety check could not run (the provider failed or timed out, after one retry) and the policy fails closed: the notice asks the user to try again, and the OpenAI-compatible endpoint answers 503 (or a stream error) with code moderation_unavailable. message_end.text is the notice.
+	// Moderation SSE event moderation: moderation replaced a message with the notice. blocked - the question was blocked (nothing was retrieved or generated); retracted - the streamed answer failed the output check (discard it; with stream_checked, a later paragraph failed and the whole answer is replaced); withheld - the buffered answer failed and was never sent (or, with stream_checked, its first paragraph failed); unavailable - the safety check could not run (the provider failed or timed out, after one retry) and the policy fails closed: the notice asks the user to try again, and the OpenAI-compatible endpoint answers 503 (or a stream error) with code moderation_unavailable. message_end.text is the notice.
 	Moderation *ChatEventModeration `json:"moderation,omitempty"`
 	NoContext  bool                 `json:"noContext"`
 
@@ -5410,9 +5437,15 @@ type ChatEventMessageStart struct {
 	// Buffered Output moderation buffers the answer: no text or thinking deltas; the text arrives in one text_delta after it passes (show a waiting state)
 	Buffered  *bool              `json:"buffered,omitempty"`
 	MessageId openapi_types.UUID `json:"messageId"`
+
+	// Mode The output moderation mode, when answers are moderated (absent otherwise). stream_checked: no thinking deltas, and text_delta events carry checked paragraphs (show a waiting state until the first one, then follow the answer as it grows); a failing paragraph sends a moderation event (retracted, or withheld when nothing was shown yet) and no more text.
+	Mode *ChatEventMessageStartMode `json:"mode,omitempty"`
 }
 
-// ChatEventModeration SSE event moderation: moderation replaced a message with the notice. blocked - the question was blocked (nothing was retrieved or generated); retracted - the streamed answer failed the output check (discard it); withheld - the buffered answer failed and was never sent; unavailable - the safety check could not run (the provider failed or timed out, after one retry) and the policy fails closed: the notice asks the user to try again, and the OpenAI-compatible endpoint answers 503 (or a stream error) with code moderation_unavailable. message_end.text is the notice.
+// ChatEventMessageStartMode The output moderation mode, when answers are moderated (absent otherwise). stream_checked: no thinking deltas, and text_delta events carry checked paragraphs (show a waiting state until the first one, then follow the answer as it grows); a failing paragraph sends a moderation event (retracted, or withheld when nothing was shown yet) and no more text.
+type ChatEventMessageStartMode string
+
+// ChatEventModeration SSE event moderation: moderation replaced a message with the notice. blocked - the question was blocked (nothing was retrieved or generated); retracted - the streamed answer failed the output check (discard it; with stream_checked, a later paragraph failed and the whole answer is replaced); withheld - the buffered answer failed and was never sent (or, with stream_checked, its first paragraph failed); unavailable - the safety check could not run (the provider failed or timed out, after one retry) and the policy fails closed: the notice asks the user to try again, and the OpenAI-compatible endpoint answers 503 (or a stream error) with code moderation_unavailable. message_end.text is the notice.
 type ChatEventModeration struct {
 	// Action support: a support action replaced the question's answer or the answer with the support message (notice)
 	Action   ChatEventModerationAction `json:"action"`
@@ -8364,7 +8397,7 @@ type ModerationModelTest struct {
 	HarmfulText string           `json:"harmfulText"`
 }
 
-// ModerationOutputMode stream_retract: answers stream and a failing answer is replaced; buffer: answers are sent only after they pass
+// ModerationOutputMode stream_retract: answers stream and a failing answer is replaced; stream_checked (the Public default): answers are released paragraph by paragraph, each checked with all the text before it, and a failing paragraph replaces the whole answer with the notice; buffer: answers are sent only after they pass
 type ModerationOutputMode string
 
 // ModerationPolicy An audience's platform moderation policy (defaults until saved, with revision 1)
@@ -8383,7 +8416,7 @@ type ModerationPolicy struct {
 	// Notice Replaces a blocked question's answer or a blocked answer
 	Notice string `json:"notice"`
 
-	// OutputMode stream_retract: answers stream and a failing answer is replaced; buffer: answers are sent only after they pass
+	// OutputMode stream_retract: answers stream and a failing answer is replaced; stream_checked (the Public default): answers are released paragraph by paragraph, each checked with all the text before it, and a failing paragraph replaces the whole answer with the notice; buffer: answers are sent only after they pass
 	OutputMode ModerationOutputMode `json:"outputMode"`
 
 	// Revision Increases on every change. Send it back in If-Match.
@@ -8408,7 +8441,7 @@ type ModerationPolicyInput struct {
 	ModelId    *openapi_types.UUID                `json:"modelId"`
 	Notice     *string                            `json:"notice,omitempty"`
 
-	// OutputMode stream_retract: answers stream and a failing answer is replaced; buffer: answers are sent only after they pass
+	// OutputMode stream_retract: answers stream and a failing answer is replaced; stream_checked (the Public default): answers are released paragraph by paragraph, each checked with all the text before it, and a failing paragraph replaces the whole answer with the notice; buffer: answers are sent only after they pass
 	OutputMode     ModerationOutputMode `json:"outputMode"`
 	SeverityBlock  *float64             `json:"severityBlock,omitempty"`
 	SupportMessage *string              `json:"supportMessage,omitempty"`
