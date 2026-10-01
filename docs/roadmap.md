@@ -118,7 +118,7 @@ In priority order; the design is [`v0.4.0.md`](v0.4.0.md) (all five items are de
 |---|---|---|---|
 | 1 | C2 (+A15) | **Unanswered-questions and gap report**, with sharing a failed question on a thumbs-down: **Done** (v0.4.0 M2, [`gaps.md`](gaps.md)) | Teams see what their agents fail at (refusals, no context, thumbs-down), clustered into the sources to add. |
 | 2 | A1b **Done** (v0.4.0 M1) | **Cross-encoder reranking** | Better retrieval, and fewer passages for SystemOne to judge (the slowest step before the first words). |
-| 3 | A8 | **Answer cache** | Repeated questions (public agents especially) answered at once, keyed by agent version and knowledge-base state. |
+| 3 **Done** (v0.4.0 M4) | A8 | **Answer cache** ([`answer-cache.md`](answer-cache.md)) | Repeated questions (public agents especially) answered at once, keyed by agent version and knowledge-base state. |
 | 4 | **New** | **Stream public answers safely:** moderate the answer in chunks as it's written instead of buffering it whole | Visitors see text in seconds while moderation still fails closed. |
 | 5 **Done** (v0.4.0 M3) | B10 (+A13) | **Document viewer with highlights**, and citation marks per claim ([`source-viewer.md`](source-viewer.md)) | A citation opens the passage, highlighted: the clearest proof that an answer is grounded. |
 | — | C8, A14, B12, A12 | **Small wins**, as patch releases | Follow-up suggestions, warnings about expectations a KB can't meet, OCR follow-ups, SystemOne capacity. |
@@ -138,7 +138,7 @@ Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector w
 | A5 | **Parent/child retrieval** | Search small chunks, but give the model their larger parent section. | M | Medium | — |
 | A6 | **Query decomposition** | Split multi-part questions into sub-queries, retrieve for each, then merge. | S | Medium | — |
 | A7 | **Model-chosen filters** | In tool mode, the model passes metadata filters (source, tags, URL prefix, date) to `search_knowledge`. | S | Medium | — |
-| A8 | **Answer cache** | Cache answers per agent version for identical or near-identical questions, invalidated on publish or re-index. | M | Medium (High for public) | — |
+| A8 **Done** (v0.4.0) | **Answer cache** | Cache answers per agent version for identical or near-identical questions, invalidated on publish or re-index. | M | Medium (High for public) | — |
 | A9 | **Semantic chunking per profile** | Heading- and sentence-aware splitting tuned per source type. | M | Medium | P2 |
 | A10 | **Tables and figures** | Keep tables structured, and describe figures with a vision model at ingest. | M | Medium | a vision model |
 | A11 | **Near-duplicate boilerplate** | Boilerplate matching today is exact-hash, so a menu with one highlighted item isn't caught. Add fuzzy matching (shingles or MinHash) per source. | S | Medium | — |

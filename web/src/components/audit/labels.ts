@@ -7,6 +7,8 @@ type AuditEntry = Schemas["AuditEntry"];
 const actionLabels: Record<string, string> = {
   "agent.create": "Created agent",
   "agent.update": "Changed agent draft",
+  "agent.answer_cache_update": "Changed saved answers settings",
+  "agent.answer_cache_clear": "Cleared saved answers",
   "agent.publish": "Published agent",
   "agent.revert": "Reverted agent draft",
   "agent.status": "Changed agent status",
@@ -118,6 +120,7 @@ const actionLabels: Record<string, string> = {
   "platform.sso_rule_delete": "Deleted SSO group rule",
   "platform.evaluations": "Turned evaluations on or off",
   "platform.mcp": "Turned the MCP server on or off",
+  "platform.answer_cache": "Turned saved answers on or off",
   "platform.mcp_oauth": "Turned OAuth sign-in for MCP clients on or off",
   "oauth.consent": "Connected an app",
   "oauth.token_issue": "App signed in",
@@ -156,6 +159,7 @@ type Obj = Record<string, unknown>;
 const directedLabels: Record<string, (after: Obj, meta: Obj) => string | undefined> = {
   "platform.evaluations": (a) => (typeof a.enabled === "boolean" ? `Turned evaluations ${a.enabled ? "on" : "off"}` : undefined),
   "platform.mcp": (a) => (typeof a.enabled === "boolean" ? `Turned the MCP server ${a.enabled ? "on" : "off"}` : undefined),
+  "platform.answer_cache": (a) => (typeof a.enabled === "boolean" ? `Turned saved answers ${a.enabled ? "on" : "off"}` : undefined),
   "platform.mcp_oauth": (a) => (typeof a.oauthEnabled === "boolean" ? `Turned OAuth sign-in for MCP clients ${a.oauthEnabled ? "on" : "off"}` : undefined),
 };
 

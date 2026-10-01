@@ -67,6 +67,8 @@ Admin **Test connection** and **Test model** calls, the scheduled health check a
 | `grounded_health_check_duration_seconds` | histogram | `kind` | The latency of the test behind a stored check |
 | `grounded_gap_questions_total` | counter | `signal` (`no_context`, `refused`, `judged_out`, `out_of_scope`, `unsupported`, `uncited`, `thumbs_down`) | Failed questions kept for the gap report ([`../gaps.md`](../gaps.md)) |
 | `grounded_gap_topic_changes_total` | counter | `kind` (`embedded`, `assigned`, `new_topic`, `reopened`, `resolved`, `labelled`, `pruned`) | The hourly `gaps.topics` job's work |
+| `grounded_answer_cache_lookups_total` | counter | `result` (`hit`, `miss`), `reason` (`exact`, `near`; `no_entry`, `near_rejected`, `not_standalone`, `error`) | Answer cache lookups of agents with saved answers on ([`../answer-cache.md`](../answer-cache.md)) |
+| `grounded_answer_cache_tokens_saved_total` | counter | | Model tokens the originals of reused answers spent |
 
 ### Ingestion, crawling and jobs
 
@@ -92,6 +94,7 @@ The worker and `serve` processes read these from Postgres when scraped (cached f
 | `grounded_maintenance_mode` | gauge | | 1 while maintenance mode is on |
 | `grounded_maintenance_mode_started_timestamp_seconds` | gauge | | When it was turned on; absent while off |
 | `grounded_breakglass_open_sessions` | gauge | `status` (`active`, `pending`) | |
+| `grounded_answer_cache_entries` | gauge | | Saved answers that haven't expired ([`../answer-cache.md`](../answer-cache.md)) |
 | `grounded_health_failing` | gauge | `kind` (`connection`, `model`, `mcp_server`) | Enabled subjects whose latest stored health check failed ([`health.md`](health.md)) |
 | `grounded_health_failing_seconds` | gauge | `kind`, `name` | How long each failing enabled connection, model or MCP server has been failing (by its name); absent while healthy |
 | `grounded_state_up` | gauge | | 0 when the last read failed (the others are then absent) |

@@ -67,6 +67,7 @@ People who run the admin portal: models, classifications, policies and governanc
 | [`operations/costs.md`](operations/costs.md) | Prices, cost modes and monthly team budgets; handling a team whose budget is used up |
 | [`operations/evaluations.md`](operations/evaluations.md) | Evaluation sets for knowledge bases and agents: building, running, reading results, automatic runs (team editors and platform admins) |
 | [`gaps.md`](gaps.md) | The gap report: failed questions grouped into topics, shared questions, who sees what, the topics job, retention, API and metrics |
+| [`answer-cache.md`](answer-cache.md) | Saved answers (the answer cache): when an answer is reused, the agent's settings and Clear, the platform switch, invalidation, retention, analytics and metrics |
 | [`mcp.md`](mcp.md) | The MCP server: turning it on, the MCP key scope, limits, audit and metrics |
 | [`mcp-client.md`](mcp-client.md) | MCP tools in agents: registering MCP servers, approving tools, classification ceilings, what's sent, limits, costs, audit and security |
 | [`operations/rerank.md`](operations/rerank.md) | Cross-encoder reranking: deploying a reranker, adding it, choosing it in Admin → Models, fail-open, costs and metrics |

@@ -68,6 +68,14 @@ function fieldsFor(action: string, currency?: string): Fields | undefined {
       return { enabled: ["Evaluations", onOff] };
     case "platform.mcp":
       return { enabled: ["MCP server", onOff] };
+    case "platform.answer_cache":
+      return { enabled: ["Saved answers", onOff] };
+    case "agent.answer_cache_update":
+      return {
+        enabled: ["Reuse answers", (v) => (v === null ? "Default for its audience" : onOff(v))],
+        nearIdentical: ["Near-identical questions", onOff],
+        expiryHours: ["Reuse for (hours)"],
+      };
     case "platform.mcp_oauth":
       return { oauthEnabled: ["OAuth sign-in for MCP clients", onOff] };
     case "legal_hold.create":
