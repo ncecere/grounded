@@ -55,9 +55,20 @@ type RunConfig struct {
 	ChatModelID   *uuid.UUID `json:"chatModelId,omitempty"`
 	KBs           []RunKB    `json:"kbs"`
 	// ResultsPerSearch is k: the knowledge base's top-k, or the agent's
-	// results per search summed over its knowledge bases.
+	// results per search summed over its knowledge bases (its rerankTopN
+	// when it reranks).
 	ResultsPerSearch int `json:"resultsPerSearch"`
+	// Rerank is on when searches were reranked, off when the run (or the
+	// agent) turned reranking off, "" without a rerank model
+	// (docs/v0.4.0.md §3).
+	Rerank string `json:"rerank,omitempty"`
 }
+
+// Rerank states of a run (RunConfig.Rerank).
+const (
+	RerankOn  = "on"
+	RerankOff = "off"
+)
 
 // Run is a run with its summary and configuration decoded.
 type Run struct {
@@ -78,9 +89,11 @@ func DecodeRun(r dbgen.EvalRun) Run {
 }
 
 // StartInput starts a run: its kind and, for agent sets, the version.
+// NoRerank runs without the platform's rerank model, to compare.
 type StartInput struct {
-	Kind    string
-	Version string
+	Kind     string
+	Version  string
+	NoRerank bool
 }
 
 // target is what a run checks: a knowledge base, or an agent's draft or
@@ -91,8 +104,9 @@ type target struct {
 	cfg   RunConfig
 }
 
-// loadTarget resolves a set's knowledge base or agent configuration.
-func (s *Service) loadTarget(ctx context.Context, set dbgen.EvalSet, version string) (target, error) {
+// loadTarget resolves a set's knowledge base or agent configuration, with
+// reranking unless noRerank.
+func (s *Service) loadTarget(ctx context.Context, set dbgen.EvalSet, version string, noRerank bool) (target, error) {
 	var t target
 	var kbIDs []uuid.UUID
 	topK := map[uuid.UUID]int{}
@@ -138,7 +152,28 @@ func (s *Service) loadTarget(ctx context.Context, set dbgen.EvalSet, version str
 			t.kb = &resolved[i]
 		}
 	}
+	s.planRerank(ctx, &t, noRerank)
 	return t, nil
+}
+
+// planRerank records whether the run reranks: on when the platform has a
+// rerank model and neither the run nor the agent turned it off. An agent
+// that reranks keeps its rerankTopN per search.
+func (s *Service) planRerank(ctx context.Context, t *target, noRerank bool) {
+	if s.KBs.RerankPlan(ctx) == nil {
+		return
+	}
+	t.cfg.Rerank = RerankOn
+	if noRerank || (t.agent != nil && !t.agent.Config.Rerank) {
+		t.cfg.Rerank = RerankOff
+	}
+	if t.agent == nil {
+		return
+	}
+	t.agent.Config.Rerank = t.cfg.Rerank == RerankOn
+	if t.agent.Config.Rerank {
+		t.cfg.ResultsPerSearch = t.agent.Config.RerankTopN
+	}
 }
 
 func checkStart(set dbgen.EvalSet, in *StartInput) error {
@@ -178,7 +213,7 @@ func (s *Service) StartRun(ctx context.Context, a authz.Actor, teamRef string, s
 	if err := checkStart(set, &in); err != nil {
 		return Run{}, err
 	}
-	t, err := s.loadTarget(ctx, set, in.Version)
+	t, err := s.loadTarget(ctx, set, in.Version, in.NoRerank)
 	if err != nil {
 		return Run{}, err
 	}
@@ -192,7 +227,7 @@ func (s *Service) StartRun(ctx context.Context, a authz.Actor, teamRef string, s
 		}
 		e := a.Audit("evaluation.run_start", "evaluation_run", run.ID.String())
 		e.Metadata = mergeMeta(e.Metadata, map[string]any{"setId": set.ID, "setName": set.Name, "kind": in.Kind, "version": in.Version,
-			"questions": run.Total})
+			"questions": run.Total, "rerank": t.cfg.Rerank})
 		return audited(ctx, q, e, acc.Team.ID)
 	})
 	return DecodeRun(run), err

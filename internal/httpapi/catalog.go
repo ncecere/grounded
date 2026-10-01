@@ -40,6 +40,8 @@ func toAPICompat(c catalog.Compat) apitypes.ModelCompat {
 		SupportsToolChoice:      c.SupportsToolChoice,
 		ThinkingField:           (*apitypes.ModelCompatThinkingField)(c.ThinkingField),
 		SupportsDimensionsParam: c.SupportsDimensionsParam,
+		RerankDocumentsField:    (*apitypes.ModelCompatRerankDocumentsField)(c.RerankDocumentsField),
+		SupportsRerankTopN:      c.SupportsRerankTopN,
 	}
 	if len(c.ExtraBody) > 0 {
 		out.ExtraBody = &c.ExtraBody
@@ -59,6 +61,8 @@ func fromAPICompat(c *apitypes.ModelCompat) *catalog.Compat {
 		SupportsToolChoice:      c.SupportsToolChoice,
 		ThinkingField:           (*string)(c.ThinkingField),
 		SupportsDimensionsParam: c.SupportsDimensionsParam,
+		RerankDocumentsField:    (*string)(c.RerankDocumentsField),
+		SupportsRerankTopN:      c.SupportsRerankTopN,
 		ExtraBody:               deref(c.ExtraBody, nil),
 	}
 }
@@ -331,7 +335,7 @@ func (a *api) adminTestModel(w http.ResponseWriter, r *http.Request) {
 	}
 	out := apitypes.ModelTestResult{
 		Ok: res.OK, LatencyMs: res.Latency.Milliseconds(), Error: toAPIProxyError(res.Error),
-		Dimensions: res.Dimensions, DimensionsMatch: res.DimensionsMatch, Timings: probeTimings(r),
+		Dimensions: res.Dimensions, DimensionsMatch: res.DimensionsMatch, Timings: probeTimings(r), Rerank: toAPIRerankTest(res.Rerank),
 	}
 	if res.OK {
 		out.Usage = toAPIUsage(res.Usage)

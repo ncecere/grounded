@@ -105,7 +105,7 @@ func (a *api) adminGetCatalogUsage(w http.ResponseWriter, r *http.Request) {
 		}
 		out.Models[i] = apitypes.ModelUsage{
 			ModelId: m.ID, PublishedAgents: m.PublishedAgents, DraftAgents: m.DraftAgents, Profiles: m.Profiles,
-			ModerationAudiences: aud, SystemOne: m.Systemone,
+			ModerationAudiences: aud, SystemOne: m.Systemone, Rerank: m.Rerank,
 		}
 	}
 	for i, p := range profiles {

@@ -203,7 +203,9 @@ type MeterEntry struct {
 type meterKey struct{}
 
 // WithMeter returns ctx carrying m.
-func WithMeter(ctx context.Context, m *Meter) context.Context { return context.WithValue(ctx, meterKey{}, m) }
+func WithMeter(ctx context.Context, m *Meter) context.Context {
+	return context.WithValue(ctx, meterKey{}, m)
+}
 
 func meterFrom(ctx context.Context) *Meter {
 	m, _ := ctx.Value(meterKey{}).(*Meter)

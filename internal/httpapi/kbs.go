@@ -149,16 +149,16 @@ func (a *api) retrieve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res, err := a.KBs.Retrieve(r.Context(), a.actor(r), r.PathValue("team"), id, kbs.Query{Text: in.Query, TopK: deref(in.TopK, 0),
-		Filter: metadataFilter(in.Filters), Judge: deref(in.Judge, false)})
+		Filter: metadataFilter(in.Filters), Judge: deref(in.Judge, false), NoRerank: !deref(in.Rerank, true)})
 	if failed(w, r, err) {
 		return
 	}
 	out := apitypes.RetrieveResult{Hits: make([]apitypes.RetrieveHit, len(res.Hits)), LatencyMs: res.Latency.Milliseconds(),
-		Judging: toAPIRetrieveJudging(res.Judging)}
+		Judging: toAPIRetrieveJudging(res.Judging), Rerank: toAPIRetrieveRerank(res.Rerank)}
 	for i, h := range res.Hits {
 		hit := apitypes.RetrieveHit{
 			ChunkId: h.ChunkID, DocumentId: h.DocumentID, SourceId: h.SourceID, Content: h.Content,
-			HeadingPath: h.HeadingPath, Title: h.Title, Filename: h.Filename, Url: h.URL, Score: h.Score,
+			HeadingPath: h.HeadingPath, Title: h.Title, Filename: h.Filename, Url: h.URL, Score: h.Score, RerankScore: h.RerankScore,
 		}
 		if hit.HeadingPath == nil {
 			hit.HeadingPath = []string{}

@@ -27,7 +27,8 @@ type Settings struct {
 const (
 	DefaultCandidates = 40
 	MinCandidates     = 5
-	MaxCandidates     = 100
+	// MaxCandidates is a knowledge base search's own maximum.
+	MaxCandidates = 50
 	// DefaultTimeLimitMs: a reranker scores 40 passages in a few hundred
 	// milliseconds on one GPU; 2 s leaves room for a cold start.
 	DefaultTimeLimitMs = 2000
@@ -39,7 +40,7 @@ const (
 	MaxTopN     = 20
 	// MaxDocuments bounds one /rerank call (an evaluation's deep search
 	// asks for 50 results).
-	MaxDocuments = 100
+	MaxDocuments = 50
 )
 
 // DefaultSettings are the settings until an admin saves some.

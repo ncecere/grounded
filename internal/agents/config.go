@@ -15,6 +15,7 @@ import (
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/kbs"
 	"github.com/ncecere/grounded/internal/moderation"
+	"github.com/ncecere/grounded/internal/rerank"
 	"github.com/ncecere/grounded/internal/systemone"
 )
 
@@ -84,6 +85,11 @@ type Config struct {
 	// Tools are the approved MCP server tools the agent may call
 	// (docs/mcp-client.md), by ID, in the order the model is offered them.
 	Tools []uuid.UUID `json:"tools"`
+	// Rerank reranks searches with the platform's rerank model (on by
+	// default; it only applies once a platform admin sets one), keeping
+	// the best RerankTopN passages of each (docs/v0.4.0.md §3).
+	Rerank     bool `json:"rerank"`
+	RerankTopN int  `json:"rerankTopN"`
 }
 
 // configInput is Config with every field optional, so absent fields take
@@ -108,6 +114,8 @@ type configInput struct {
 	Audience           *string              `json:"audience"`
 	SystemOne          *systemone.Override  `json:"systemOne"`
 	Tools              []uuid.UUID          `json:"tools"`
+	Rerank             *bool                `json:"rerank"`
+	RerankTopN         *int                 `json:"rerankTopN"`
 }
 
 // Problem is one reason a configuration is invalid.
@@ -181,7 +189,7 @@ func normalize(in configInput) (Config, []Problem) {
 		RetrievalMode: ModeAlways, MaxTurns: DefaultMaxTurns, ContextTokenBudget: DefaultTokenBudget,
 		StrictlyGrounded: true, RefusalMessage: DefaultRefusal, CitationMode: CitationSnippetLink,
 		QueryRewrite: true, Moderation: moderation.Override{}.Normalize(), KBs: []KBRef{},
-		Audience: authz.AudienceTeam, Tools: []uuid.UUID{},
+		Audience: authz.AudienceTeam, Tools: []uuid.UUID{}, Rerank: true, RerankTopN: rerank.DefaultTopN,
 	}
 	c.normalizeModel(in, &p)
 	c.normalizeTools(in.Tools, &p)
@@ -286,6 +294,11 @@ func (c *Config) normalizeRetrieval(in configInput, p *problems) {
 	setIf(&c.MinSimilarity, in.MinSimilarity)
 	if math.IsNaN(c.MinSimilarity) || c.MinSimilarity < 0 || c.MinSimilarity > 1 {
 		p.bad("minSimilarity", "Minimum similarity must be between 0 and 1")
+	}
+	setIf(&c.Rerank, in.Rerank)
+	setIf(&c.RerankTopN, in.RerankTopN)
+	if c.RerankTopN < 1 || c.RerankTopN > rerank.MaxTopN {
+		p.bad("rerankTopN", "Passages kept after reranking must be between 1 and %d", rerank.MaxTopN)
 	}
 }
 
