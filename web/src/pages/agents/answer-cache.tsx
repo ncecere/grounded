@@ -36,9 +36,12 @@ export function expiryLabel(h: number) {
 export function cacheSummary(c: Cache) {
   if (!c.platformEnabled) return "A platform admin turned saved answers off for every agent, so each question is answered afresh.";
   if (!c.on) return "Each question is answered afresh.";
-  const saved = c.entries === 1 ? "1 saved answer" : `${c.entries.toLocaleString()} saved answers`;
+  // The reuse count is the current answers' own: it drops when one expires or is removed (own-14), so it says so.
+  if (c.entries === 0) return "No saved answers now.";
+  const saved = c.entries === 1 ? "1 saved answer now" : `${c.entries.toLocaleString()} saved answers now`;
+  if (c.hits === 0) return `${saved}, not reused yet.`;
   const reused = c.hits === 1 ? "reused once" : `reused ${c.hits.toLocaleString()} times`;
-  return `${saved}, ${reused}.`;
+  return `${saved}, ${reused} ${c.entries === 1 ? "so far" : "between them"}. Analytics counts every reuse.`;
 }
 
 function useAnswerCache(team: string, agentId: string) {
