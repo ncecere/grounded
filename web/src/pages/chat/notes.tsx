@@ -1,7 +1,7 @@
 /*
  * The parts of an answer around its text: the search steps, status notes
  * (stopped, refused, errors, moderation notices) with a Retry or the agent's
- * starter questions, and the feedback buttons.
+ * starter questions, the follow-up suggestions, and the feedback buttons.
  */
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
@@ -148,6 +148,20 @@ export function Notes({ item, onRetry, starters, onStarter }: NotesProps) {
         </Suggestions>
       )}
     </>
+  );
+}
+
+/** Follow-up questions under the last answer (docs/follow-ups.md), once it's complete: choosing one asks it. */
+export function FollowUps({ item, onAsk }: { item: AssistantItem; onAsk?: (q: string) => void }) {
+  const list = item.suggestions ?? [];
+  if (!onAsk || list.length === 0 || item.status !== "done" || !isAnswer(item)) return null;
+  return (
+    <Suggestions label="Suggested follow-up questions" className={a.offer}>
+      <span className={a.offerLabel}>You could also ask:</span>
+      {list.map((q) => (
+        <Suggestion key={q} suggestion={q} onSelect={onAsk} />
+      ))}
+    </Suggestions>
   );
 }
 

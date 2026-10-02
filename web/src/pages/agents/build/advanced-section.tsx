@@ -1,4 +1,4 @@
-/* Build → Advanced: sampling, answer length, reasoning effort, retrieval budget, query rewriting and reranking. */
+/* Build → Advanced: sampling, answer length, reasoning effort, retrieval budget, query rewriting, follow-up suggestions and reranking. */
 import { Field } from "@/components/ui/field/field";
 import { NativeSelect } from "@/components/ui/input/input";
 import { Switch } from "@/components/ui/switch/switch";
@@ -77,6 +77,14 @@ export function AdvancedSection({ c, set, errorFor, model }: SectionProps) {
           description="In a conversation, turn “what about summer?” into a question that stands on its own before searching. Adds a short model call."
           checked={c.queryRewrite}
           onCheckedChange={(v) => set({ queryRewrite: v })}
+        />
+      </div>
+      <div id="agent-field-followUpSuggestions">
+        <Switch
+          label="Suggest follow-up questions"
+          description="After an answer with sources, offer up to 3 questions its sources can answer. Adds a short model call after the answer."
+          checked={c.followUpSuggestions ?? true}
+          onCheckedChange={(v) => set({ followUpSuggestions: v })}
         />
       </div>
       <Reranking c={c} set={set} errorFor={errorFor} />

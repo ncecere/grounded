@@ -1,7 +1,10 @@
 /*
  * useChat: sends questions to a chat endpoint, streams the answer into the
  * message list, and handles Stop and errors. The chat page and the draft
- * test share it.
+ * test share it. The answer is complete at message_end (or citations_checked
+ * when its citations are being checked): the composer is free then, while the
+ * stream stays open for the follow-up suggestions (docs/follow-ups.md); the
+ * next question, a reset or leaving closes it.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/client";
@@ -17,6 +20,17 @@ import {
   pendingAssistant,
   streamChat,
 } from "./stream";
+
+/** Whether this event completes the answer (the stream may stay open for its suggestions only). */
+const completes = (event: string, item: AssistantItem) =>
+  event === "done" || event === "citations_checked" || (event === "message_end" && !item.citationsPending);
+
+/** How an answer ended, for ConversationAnnouncer. Errors and moderation notices aren't answers: say so (F-10). */
+function outcome(item: AssistantItem) {
+  if (item.moderation) return `Not answered. ${item.moderation.notice}`;
+  if (item.status === "error" && item.error) return `Error: ${chatErrorText(item.error.code, item.error.message).title}`;
+  return "Answer ready";
+}
 
 const lostMessage = "The connection was lost before the answer finished. Retry to ask again.";
 
@@ -41,13 +55,21 @@ export function useChat({ path, body, onConversation, onSettled }: UseChatOption
   /** How the last answer ended, for ConversationAnnouncer: "Answer ready", "Stopped…", or an error. */
   const [announcement, setAnnouncement] = useState("");
   const controller = useRef<AbortController | null>(null);
+  /** A complete answer's stream, still open for its suggestions. */
+  const tail = useRef<AbortController | null>(null);
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const opts = useRef({ path, body, onConversation, onSettled });
   opts.current = { path, body, onConversation, onSettled };
 
   // Stop a running answer when the component unmounts.
-  useEffect(() => () => controller.current?.abort(), []);
+  useEffect(
+    () => () => {
+      controller.current?.abort();
+      tail.current?.abort();
+    },
+    [],
+  );
 
   // Set in the same render as `streaming` turning false, so ConversationAnnouncer reads it on that transition.
   const announce = (text: string) => setAnnouncement(text);
@@ -59,6 +81,8 @@ export function useChat({ path, body, onConversation, onSettled }: UseChatOption
   const send = useCallback(async (message: string): Promise<boolean> => {
     const text = message.trim();
     if (!text || controller.current) return false;
+    tail.current?.abort(); // the previous answer's suggestions are no longer wanted
+    tail.current = null;
     const previous = itemsRef.current;
     const user: UserItem = { role: "user", key: newKey("u"), text };
     const pending = pendingAssistant();
@@ -76,6 +100,18 @@ export function useChat({ path, body, onConversation, onSettled }: UseChatOption
       local = next;
       update(pending.key, () => next);
     };
+    let released = false;
+    /** The answer is complete: settle it and free the composer; the stream stays open for the suggestions. */
+    const release = () => {
+      released = true;
+      const timed = { ...local, latencyMs: Date.now() - started };
+      set(timed.status === "streaming" ? { ...timed, status: "done" } : timed);
+      controller.current = null;
+      tail.current = ctrl;
+      announce(outcome(local));
+      setStreaming(false);
+      opts.current.onSettled?.();
+    };
     try {
       await streamChat(opts.current.path, opts.current.body(text, previous), {
         signal: ctrl.signal,
@@ -88,18 +124,19 @@ export function useChat({ path, body, onConversation, onSettled }: UseChatOption
           }
           if (event === "message_end" || event === "done" || event === "error") sawEnd = true;
           set(applyChatEvent(local, event, data));
+          if (!released && completes(event, local)) release();
         },
       });
+      if (released) return true;
       const timed = { ...local, latencyMs: Date.now() - started };
       if (timed.status !== "streaming") set(timed);
       else if (sawEnd) set({ ...timed, status: "done" });
       else set(settlePartial({ ...timed, status: "error", error: { code: "network_error", message: lostMessage } }));
-      // Errors and moderation notices aren't answers: say so (F-10).
-      if (local.moderation) announce(`Not answered. ${local.moderation.notice}`);
-      else if (local.status === "error" && local.error) announce(`Error: ${chatErrorText(local.error.code, local.error.message).title}`);
-      else announce("Answer ready");
+      announce(outcome(local));
       return true;
     } catch (err) {
+      // After the answer: the suggestions' wait was cut short (a new question, a reset or a lost connection).
+      if (released) return true;
       if (isAbort(err)) {
         // No message_end after Stop: settle the partial answer's markers and citations here (M4).
         set(settlePartial({ ...local, status: "aborted", stopReason: "aborted" }));
@@ -133,9 +170,12 @@ export function useChat({ path, body, onConversation, onSettled }: UseChatOption
       announce("Error: the connection was lost mid-answer");
       return true;
     } finally {
-      controller.current = null;
-      setStreaming(false);
-      opts.current.onSettled?.();
+      if (tail.current === ctrl) tail.current = null;
+      if (!released) {
+        controller.current = null;
+        setStreaming(false);
+        opts.current.onSettled?.();
+      }
     }
   }, []);
 
@@ -144,6 +184,7 @@ export function useChat({ path, body, onConversation, onSettled }: UseChatOption
   /** Starts over (or shows another conversation's items). */
   const reset = useCallback((next: ChatItem[] = []) => {
     controller.current?.abort();
+    tail.current?.abort();
     setItems(next);
     setError(null);
   }, []);
