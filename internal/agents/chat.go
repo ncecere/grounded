@@ -156,11 +156,11 @@ type run struct {
 	// step is the last status event's step.
 	step string
 
-	mod           *moderation.Plan // nil: nothing is moderated
+	mod *moderation.Plan // nil: nothing is moderated
 	// audienceEffort is the audience's reasoning effort (its moderation
 	// policy's; "" for the model's), used when the agent sets none.
 	audienceEffort string
-	modIn, modOut *moderation.Decision
+	modIn, modOut  *moderation.Decision
 	// checked releases the answer in checked paragraphs (stream_checked,
 	// streamcheck.go); checkedEvent is the moderation event sent when one
 	// failed, and modChecks the number of checks.

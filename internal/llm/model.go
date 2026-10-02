@@ -98,7 +98,9 @@ const (
 )
 
 // ValidThinkingOff reports a known way to turn thinking off.
-func ValidThinkingOff(v string) bool { return v == ThinkingOffEffortNone || v == ThinkingOffTemplateKwarg }
+func ValidThinkingOff(v string) bool {
+	return v == ThinkingOffEffortNone || v == ThinkingOffTemplateKwarg
+}
 
 // DecodeCompat resolves the stored compat JSON. Invalid JSON gives the
 // defaults.
