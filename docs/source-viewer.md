@@ -11,9 +11,9 @@ The viewer opens:
 
 - **Beside the conversation** on the chat page and the public page, as a split view you can resize (drag the handle, or focus it and use the arrow keys, Home and End).
 - **Under the conversation** where the chat is narrow, such as Try it beside an agent's Build sections.
-- **As a full-screen sheet** on a phone and inside the widget, with a close button.
+- **As a full-screen sheet** on a phone and inside the widget, with **Close the source** (an arrow back) at the start of its header. Focus goes to its title, and a long sheet can be scrolled with the keyboard.
 
-It is never an overlay drawer: the conversation stays where it was. **Escape** or **Close the source** closes it, and focus goes back to what opened it (or to the source's card under the answer when that was a chip's card).
+It is never an overlay drawer: the conversation stays where it was. **Escape** or **Close the source** closes it, and focus goes back to what opened it (or to the **Show source** button of the source's card under the answer when that was a chip's card). The cited passage scrolls into view when the viewer opens.
 
 ## What it shows
 
