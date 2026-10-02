@@ -41,6 +41,16 @@ export function judgedSummary(j: { judged: number; kept: number }) {
 
 export const pct = (p: number) => `${Math.round(p * 100)}%`;
 
+/**
+ * The agent editor's cost of a SystemOne check (docs/v0.4.1.md §4), from the platform's median added time over the
+ * last 14 days ("Adds about 0.4 s per answer (platform median, last 14 days)."); undefined without data.
+ */
+export function addedTime(ms: number | null | undefined) {
+  if (ms == null) return undefined;
+  const v = ms < 100 ? "under 0.1 s" : `about ${(ms / 1000).toFixed(1)} s`;
+  return `Adds ${v} per answer (platform median, last 14 days).`;
+}
+
 const verificationText: Record<CitationVerification, string> = {
   verified: "Verified: the source supports this",
   unsupported: "Not supported by this source",
