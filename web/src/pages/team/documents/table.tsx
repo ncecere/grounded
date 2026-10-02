@@ -23,7 +23,7 @@ import { useDebounced } from "../../admin/hooks";
 import { type DataSource, type DocKind, useSourceOwner } from "../../sources/owner";
 import { type Doc, type DocStatus, formatBytes, plural } from "../common";
 import d from "./documents.module.css";
-import { type DocumentMutations, canRetry, useDocumentMutations } from "./mutations";
+import { type DocumentMutations, canRetry, deleteWording, useDocumentMutations } from "./mutations";
 import { ocrStateOf, retryBlocked } from "./ocr-state";
 import { DocumentRecordPage } from "./record";
 import { DocStatusBadge, docKind, docName, docStatusLabels, documentError, isInProgress, isWaiting, kindLabel } from "./status";
@@ -215,12 +215,8 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
           }
         }}
         title={deleting?.length === 1 ? `Delete ${docName(deleting[0]!)}?` : `Delete ${plural(deleting?.length ?? 0, web ? "page" : "document")}?`}
-        description={
-          web
-            ? "The pages and their passages are removed from this source and every knowledge base that uses it. The next crawl adds them again if they're still on the site."
-            : "The documents and their passages are removed from this source and every knowledge base that uses it."
-        }
-        confirmLabel={deleting && deleting.length > 1 ? "Delete documents" : "Delete document"}
+        description={deleteWording(deleting?.length ?? 1, web).description}
+        confirmLabel={deleteWording(deleting?.length ?? 1, web).confirm}
         busy={mutations.remove.isPending}
         error={mutations.remove.error}
         onConfirm={() => deleting && mutations.remove.mutate(deleting, { onSuccess: () => setDeleting(null) })}
