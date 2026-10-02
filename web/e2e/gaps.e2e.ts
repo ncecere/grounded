@@ -56,8 +56,11 @@ test("gap report: share a question on a thumbs-down; editors see it pending, mem
 
   await test.step("the member can't open the Gaps page", async () => {
     await member.goto(`/teams/${team}/gaps`);
-    await expect(member.getByRole("link", { name: "Gaps" })).toHaveCount(0);
-    await expect(member.getByRole("heading", { level: 1, name: "Gaps" })).toHaveCount(0);
+    // Exact names: the team is called "E2E gaps-…", and role names match substrings.
+    const nav = member.getByRole("navigation", { name: "Main" });
+    await expect(nav.getByRole("link", { name: "Data sources", exact: true })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Gaps", exact: true })).toHaveCount(0);
+    await expect(member.getByRole("heading", { level: 1, name: "Gaps", exact: true })).toHaveCount(0);
   });
 
   const editor = await as("alex");

@@ -14,21 +14,29 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// assertSpaced checks that sorted timestamps are at least interval-slack apart.
-func assertSpaced(t *testing.T, times []time.Time, interval, slack time.Duration) {
+// assertPaced checks that the i-th grant (in time order) came at least i
+// intervals after start, less slack. Grant times are observed after Wait
+// returns, so a goroutine the scheduler wakes late can land right next to the
+// following grant even though their slots were an interval apart; comparing
+// neighbours would fail on a loaded run. Delay only makes an observation
+// later, so the i-th observation is never before the i-th slot, and slots
+// start at or after start: this bound holds however late the scheduler is,
+// and a pacing bug (grants together) still fails it.
+func assertPaced(t *testing.T, start time.Time, times []time.Time, interval, slack time.Duration) {
 	t.Helper()
 	slices.SortFunc(times, func(a, b time.Time) int { return a.Compare(b) })
-	for i := 1; i < len(times); i++ {
-		if gap := times[i].Sub(times[i-1]); gap < interval-slack {
-			t.Fatalf("slot %d only %v after previous (interval %v)", i, gap, interval)
+	for i, at := range times {
+		if want := time.Duration(i)*interval - slack; at.Sub(start) < want {
+			t.Fatalf("grant %d %v after start, want at least %v (interval %v)", i, at.Sub(start), want, interval)
 		}
 	}
 }
 
-// hammer runs workers x perWorker Wait calls on one origin and returns the
-// grant times.
-func hammer(t *testing.T, pacers []Pacer, perWorker int, origin string) []time.Time {
+// hammer runs workers x perWorker Wait calls on one origin and returns when
+// it started and the grant times.
+func hammer(t *testing.T, pacers []Pacer, perWorker int, origin string) (time.Time, []time.Time) {
 	t.Helper()
+	start := time.Now()
 	var mu sync.Mutex
 	var times []time.Time
 	var wg sync.WaitGroup
@@ -52,25 +60,23 @@ func hammer(t *testing.T, pacers []Pacer, perWorker int, origin string) []time.T
 		}
 	}
 	wg.Wait()
-	return times
+	return start, times
 }
 
 func TestLocalPacer(t *testing.T) {
 	const interval = 30 * time.Millisecond
 	p := NewLocalPacer(interval)
-	times := hammer(t, []Pacer{p, p}, 3, "https://www.example.edu:443")
+	start, times := hammer(t, []Pacer{p, p}, 3, "https://www.example.edu:443")
 	if len(times) != 12 {
 		t.Fatalf("got %d grants", len(times))
 	}
-	// Timestamps are taken after Wait returns, so scheduler delay on a loaded
-	// -race run can make one gap short by several milliseconds. Half an
-	// interval of slack absorbs that; a pacing bug shows gaps near 0.
-	assertSpaced(t, times, interval, interval/2)
+	// Slack covers only clock granularity: scheduler delay can't break the bound.
+	assertPaced(t, start, times, interval, time.Millisecond)
 	// Different origins do not wait on each other. A longer interval here
 	// keeps a wide margin: paced together, 5 origins would take at least
 	// 4 × 200 ms; independently they take microseconds, even on a loaded run.
 	slow := NewLocalPacer(200 * time.Millisecond)
-	start := time.Now()
+	start = time.Now()
 	for i := 0; i < 5; i++ {
 		if err := slow.Wait(context.Background(), "https://o"+string(rune('a'+i))+".example:443"); err != nil {
 			t.Fatal(err)
@@ -126,15 +132,12 @@ func TestValkeyPacerSharedAcrossWorkers(t *testing.T) {
 	// Two independent clients model two worker processes.
 	a := NewValkeyPacer(valkeyClient(t), prefix, interval)
 	b := NewValkeyPacer(valkeyClient(t), prefix, interval)
-	times := hammer(t, []Pacer{a, b}, 2, "https://www.example.edu:443")
+	start, times := hammer(t, []Pacer{a, b}, 2, "https://www.example.edu:443")
 	if len(times) != 8 {
 		t.Fatalf("got %d grants", len(times))
 	}
-	// Grants are observed after a network round trip; allow a little skew.
-	assertSpaced(t, times, interval, 25*time.Millisecond)
-	if total := times[len(times)-1].Sub(times[0]); total < 7*(interval-25*time.Millisecond) {
-		t.Fatalf("8 grants within %v", total)
-	}
+	// Slots follow Valkey's clock; allow a little skew from this machine's.
+	assertPaced(t, start, times, interval, 25*time.Millisecond)
 
 	// Keys use prefix + sha256(origin) and expire.
 	c := valkeyClient(t)
@@ -151,7 +154,7 @@ func TestValkeyPacerSharedAcrossWorkers(t *testing.T) {
 		}
 	}
 	// Another origin is independent; a different prefix is independent.
-	start := time.Now()
+	start = time.Now()
 	if err := a.Wait(context.Background(), "https://other.example:443"); err != nil {
 		t.Fatal(err)
 	}
