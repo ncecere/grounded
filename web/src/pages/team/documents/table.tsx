@@ -23,7 +23,7 @@ import { useDebounced } from "../../admin/hooks";
 import { type DataSource, type DocKind, useSourceOwner } from "../../sources/owner";
 import { type Doc, type DocStatus, formatBytes, plural } from "../common";
 import d from "./documents.module.css";
-import { type DocumentMutations, canRetry, deleteWording, useDocumentMutations } from "./mutations";
+import { type DocumentMutations, canRetry, deleteWording, isPartlyScanned, retryLabel, useDocumentMutations } from "./mutations";
 import { ocrStateOf, retryBlocked } from "./ocr-state";
 import { DocumentRecordPage } from "./record";
 import { DocStatusBadge, docKind, docName, docStatusLabels, documentError, isInProgress, isWaiting, kindLabel } from "./status";
@@ -31,7 +31,7 @@ import { DocStatusBadge, docKind, docName, docStatusLabels, documentError, isInP
 const pageSize = 50;
 const statuses: DocStatus[] = ["ready", "processing", "queued", "failed", "skipped"];
 const kinds: DocKind[] = ["pdf", "docx", "pptx", "html", "markdown", "text", "image"];
-/** The status filter's extra option: documents skipped as scanned (errorCode needs_ocr, docs/ocr.md §5). */
+/** The status filter's extra option: documents that need OCR (errorCode needs_ocr: skipped as scanned, or partly scanned; docs/ocr.md §5). */
 const needsOcr = "needs_ocr";
 
 /** "/assets/fees.pdf" for a page's URL (the host is on the page already); the text as is when it isn't a URL. */
@@ -129,6 +129,9 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
   const byId = new Map(items.map((doc) => [doc.id, doc]));
   const filtered = Boolean(query.status || query.errorCode || query.kind || query.tag || query.q);
   const ocr = ocrStateOf(source);
+  // A partly scanned PDF retried while OCR can't read the source would be indexed again without its scanned pages.
+  const ocrBlocked = ocr !== "on" ? retryBlocked[ocr] : undefined;
+  const blockedFor = (doc: Doc) => (isPartlyScanned(doc) ? ocrBlocked : undefined);
   const total = !filtered ? source.documents.total : query.status && !query.kind && !query.tag && !query.q ? countFor(source, query.status) : undefined;
 
   return (
@@ -151,12 +154,12 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
           { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(doc.id) },
           { label: "Edit tags", icon: <Tags aria-hidden />, onSelect: () => record.open(doc.id), hidden: !owner.canEdit },
           {
-            label: "Retry",
+            label: retryLabel(doc),
             icon: <RotateCcw aria-hidden />,
             onSelect: () => mutations.retry.mutate([doc]),
             hidden: !owner.canEdit || !canRetry(doc),
-            disabled: Boolean(maintenance),
-            disabledReason: maintenance ? maintenanceReason(maintenance, "Retrying") : undefined,
+            disabled: Boolean(maintenance || blockedFor(doc)),
+            disabledReason: maintenance ? maintenanceReason(maintenance, "Retrying") : blockedFor(doc),
           },
           { label: "Delete…", icon: <Trash2 aria-hidden />, danger: true, onSelect: () => setDeleting([doc]), hidden: !owner.canEdit },
         ]}
@@ -174,14 +177,14 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
         tableProps={{
           toolbar:
             query.errorCode && owner.canEdit && items.length > 0 ? (
-              <RetryNeedsOcr blocked={maintenance ? maintenanceReason(maintenance, "Retrying") : ocr !== "on" ? retryBlocked[ocr] : undefined} mutations={mutations} />
+              <RetryNeedsOcr blocked={maintenance ? maintenanceReason(maintenance, "Retrying") : ocrBlocked} mutations={mutations} />
             ) : undefined,
           selectable: owner.canEdit,
           selectedLabel: (n) => `${plural(n, web ? "page" : "document")} selected`,
           bulkActions: owner.canEdit
             ? (ids, clear) => {
                 const picked = ids.map((id) => byId.get(id)).filter((doc): doc is Doc => Boolean(doc));
-                const retryable = picked.filter(canRetry);
+                const retryable = picked.filter((doc) => canRetry(doc) && !blockedFor(doc));
                 return (
                   <>
                     <Button size="sm" variant="secondary" disabled={retryable.length === 0 || Boolean(maintenance)} loading={mutations.retry.isPending} onClick={() => mutations.retry.mutate(retryable, { onSuccess: clear })}>
@@ -205,7 +208,7 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
           facetCounts: false,
         }}
       />
-      <DocumentRecordPage sourceId={source.id} web={web} docId={record.id} onClose={record.close} mutations={mutations} />
+      <DocumentRecordPage sourceId={source.id} web={web} docId={record.id} onClose={record.close} mutations={mutations} ocrBlocked={ocrBlocked} />
       <AlertDialog
         open={deleting !== null}
         onOpenChange={(o) => {

@@ -208,6 +208,64 @@ describe("OCR on a source", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("retries a partly scanned PDF with OCR, from its row and its page", async () => {
+    const partly = doc("d4", {
+      title: "Handbook", errorCode: "needs_ocr", pages: 4,
+      errorMessage: "Page 2 has no text layer (it may be a scan) and wasn't read, because OCR is off for this document. Once OCR is on, retry it to read that page.",
+      warnings: ["1 of 4 pages (page 2) had no text layer (possibly scanned) and was skipped, because OCR is off for this document. Once OCR is on, retry the document to read it."],
+    });
+    const calls = mockApi({
+      ...routes(uploadSource({ ocrEnabled: true, ocrState: "on" }), [partly]),
+      "GET /v1/teams/registrar/sources/s1/documents/d4": () => partly,
+      "GET /v1/teams/registrar/sources/s1/documents/d4/passages": () => ({ items: [], total: 8 }),
+      "POST /v1/teams/registrar/sources/s1/documents/d4/retry": () => ({ ...partly, status: "pending", errorCode: "", errorMessage: "" }),
+    });
+    const { container } = renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
+    await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
+    const table = await screen.findByRole("table", { name: "Documents" });
+    // Indexed, with which pages need OCR next to its status.
+    expect(within(table).getByText("Ready")).toBeInTheDocument();
+    expect(within(table).getByText(/^Page 2 has no text layer/)).toBeInTheDocument();
+    await userEvent.click(within(table).getByRole("button", { name: "Actions for Handbook" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Retry with OCR" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/documents/d4/retry"))).toBe(true));
+
+    await userEvent.click(within(table).getByRole("button", { name: "Handbook" }));
+    const page = await screen.findByRole("region", { name: "Handbook" });
+    expect(within(page).getByRole("heading", { name: "Warnings" })).toBeInTheDocument();
+    expect(within(page).queryByText("Why it wasn't indexed")).not.toBeInTheDocument();
+    expect(within(page).getByText(/1 of 4 pages \(page 2\) had no text layer/)).toBeInTheDocument();
+    expect(within(page).getByRole("button", { name: "Retry with OCR" })).toBeEnabled();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("keeps a partly scanned PDF's retry until OCR is on for the source, and says why", async () => {
+    const partly = doc("d4", { title: "Handbook", errorCode: "needs_ocr", errorMessage: "Page 2 has no text layer (it may be a scan).", warnings: ["1 of 10 pages (page 2) had no text layer."] });
+    const broken = doc("d5", { title: "Broken", status: "failed", errorCode: "corrupt", errorMessage: "This PDF appears to be damaged.", chunkCount: 0 });
+    const calls = mockApi({
+      ...routes(uploadSource({ ocrEnabled: false, ocrState: "source_off" }), [partly, broken]),
+      "GET /v1/teams/registrar/sources/s1/documents/d4": () => partly,
+      "GET /v1/teams/registrar/sources/s1/documents/d4/passages": () => ({ items: [], total: 8 }),
+      "POST /v1/teams/registrar/sources/s1/documents/d5/retry": () => ({ ...broken, status: "pending" }),
+    });
+    const { container } = renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
+    await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
+    const table = await screen.findByRole("table", { name: "Documents" });
+    await userEvent.click(within(table).getByRole("button", { name: "Actions for Handbook" }));
+    expect(await screen.findByRole("menuitem", { name: /Retry with OCR/ })).toHaveAttribute("aria-disabled", "true");
+    await userEvent.keyboard("{Escape}");
+    // Selected with a failed document, only the failed one is retried.
+    await userEvent.click(within(table).getByRole("checkbox", { name: /Select all/ }));
+    await userEvent.click(await screen.findByRole("button", { name: "Retry 1" }));
+    await waitFor(() => expect(calls.filter((c) => c.method === "POST").map((c) => c.url)).toEqual(["/v1/teams/registrar/sources/s1/documents/d5/retry"]));
+
+    await userEvent.click(within(table).getByRole("button", { name: "Handbook" }));
+    const page = await screen.findByRole("region", { name: "Handbook" });
+    expect(within(page).getByRole("button", { name: "Retry with OCR" })).toBeDisabled();
+    expect(within(page).getByText(/OCR is off for this source\. Turn it on in the Settings tab first/)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("refuses images with OCR's reason when it is off, and offers the source's settings", async () => {
     mockApi(routes(uploadSource({ ocrEnabled: false, ocrState: "source_off" }), []));
     const { container } = renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });

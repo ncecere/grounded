@@ -25,14 +25,18 @@ import { useSourceOwner } from "../../sources/owner";
 import { type Doc, formatBytes } from "../common";
 import { pageRange } from "../retrieve";
 import d from "./documents.module.css";
-import { canRetry, deleteWording, type DocumentMutations } from "./mutations";
+import { canRetry, deleteWording, type DocumentMutations, isPartlyScanned, retryLabel } from "./mutations";
 import { DocStatusBadge, docKind, docName, documentError, isWaiting, kindLabel } from "./status";
 
 const previewSize = 5;
 
-type Props = { sourceId: string; web: boolean; docId: string | undefined; onClose: () => void; mutations: DocumentMutations };
+/** A document that wasn't indexed (a partly scanned PDF is indexed: its warning says which pages need OCR). */
+const notIndexed = (doc: Pick<Doc, "status">) => doc.status === "failed" || doc.status === "skipped";
 
-export function DocumentRecordPage({ sourceId, web, docId, onClose, mutations }: Props) {
+/** ocrBlocked: why a partly scanned PDF can't be retried yet (OCR can't read the source), if it can't. */
+type Props = { sourceId: string; web: boolean; docId: string | undefined; onClose: () => void; mutations: DocumentMutations; ocrBlocked?: string };
+
+export function DocumentRecordPage({ sourceId, web, docId, onClose, mutations, ocrBlocked }: Props) {
   const owner = useSourceOwner();
   const key = [...owner.keys.documents(sourceId), "one", docId];
   const doc = useQuery({
@@ -43,10 +47,12 @@ export function DocumentRecordPage({ sourceId, web, docId, onClose, mutations }:
   });
   const [deleting, setDeleting] = useState(false);
   const d0 = doc.data;
-  const failed = d0 ? canRetry(d0) : false;
+  const failed = d0 ? notIndexed(d0) : false;
+  const retryable = d0 ? canRetry(d0) : false;
+  const blocked = d0 && isPartlyScanned(d0) ? ocrBlocked : undefined;
   const { retry, refetch, remove } = mutations;
   const maintenance = useMaintenance(owner.canEdit);
-  const paused = Boolean(maintenance) && Boolean(d0) && ((web && Boolean(d0?.url)) || failed);
+  const paused = Boolean(maintenance) && Boolean(d0) && ((web && Boolean(d0?.url)) || retryable);
 
   return (
     <>
@@ -74,19 +80,24 @@ export function DocumentRecordPage({ sourceId, web, docId, onClose, mutations }:
                 <Trash2 aria-hidden /> Delete
               </Button>
               {web && d0.url && (
-                <Button variant={failed ? "secondary" : "primary"} loading={refetch.isPending} disabled={paused} onClick={() => refetch.mutate(d0)}>
+                <Button variant={retryable ? "secondary" : "primary"} loading={refetch.isPending} disabled={paused} onClick={() => refetch.mutate(d0)}>
                   <RefreshCw aria-hidden /> Re-fetch page
                 </Button>
               )}
-              {failed && (
-                <Button loading={retry.isPending} disabled={paused} onClick={() => retry.mutate([d0])}>
-                  <RotateCcw aria-hidden /> Retry
+              {retryable && (
+                <Button loading={retry.isPending} disabled={paused || Boolean(blocked)} onClick={() => retry.mutate([d0])}>
+                  <RotateCcw aria-hidden /> {retryLabel(d0)}
                 </Button>
               )}
             </>
           ) : undefined
         }
       >
+        {blocked && owner.canEdit && (
+          <Alert tone="info" title="Some pages need OCR">
+            {blocked}
+          </Alert>
+        )}
         {d0 && isWaiting(d0) && (
           <Alert tone="info" title="Waiting for the daily OCR page limit">
             {d0.errorMessage}
@@ -148,7 +159,7 @@ function documentFacts(doc: Doc, web: boolean) {
 
 /** The friendly error, the parser's text behind a disclosure, and warnings. */
 function DocumentProblems({ doc }: { doc: Doc }) {
-  const error = canRetry(doc) ? documentError(doc) : "";
+  const error = notIndexed(doc) ? documentError(doc) : "";
   return (
     <div className={d.problems}>
       {error && (
