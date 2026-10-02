@@ -1,6 +1,7 @@
 package httpapi_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -92,6 +93,19 @@ func TestRerankSettingsAndModel(t *testing.T) {
 	mustCode(t, "chat model", code, e, 400, "invalid_model")
 	code, e = admin.call("PUT", "/v1/admin/rerank", map[string]any{"modelId": r.Id, "candidates": 99, "timeLimitMs": 2000}, nil, ifMatch(1))
 	mustCode(t, "too many candidates", code, e, 400, "invalid_settings")
+	// Every problem is listed (adm-5), in the message and by field.
+	var bad struct {
+		Error struct {
+			Message string `json:"message"`
+			Details struct {
+				Problems []struct{ Field, Problem string } `json:"problems"`
+			} `json:"details"`
+		} `json:"error"`
+	}
+	_, raw := admin.raw("PUT", "/v1/admin/rerank", map[string]any{"modelId": r.Id, "candidates": 99, "timeLimitMs": 100}, ifMatch(1))
+	if json.Unmarshal(raw, &bad); len(bad.Error.Details.Problems) != 2 || !strings.Contains(bad.Error.Message, "time limit") || strings.Contains(bad.Error.Message, "candidates:") {
+		t.Errorf("both problems = %s", raw)
+	}
 	var status apitypes.RerankStatus
 	if env.member.get("/v1/rerank/status", &status); status.Available || status.DefaultTopN != 6 {
 		t.Errorf("status before = %+v", status)
@@ -104,6 +118,19 @@ func TestRerankSettingsAndModel(t *testing.T) {
 	}
 	if n := env.scalar(t, `SELECT count(*) FROM audit_log WHERE action = 'platform.rerank_settings_update'`); n != 1 {
 		t.Errorf("audits = %d", n)
+	}
+	// The audit entry names the model and each setting (adm-4).
+	if n := env.scalar(t, `SELECT count(*) FROM audit_log WHERE action = 'platform.rerank_settings_update'
+		AND after_state->>'model' = 'Reranker' AND (after_state->>'timeLimitMs')::int = 2000 AND after_state->>'candidates' = '40'
+		AND before_state->'model' IS NULL`); n != 1 {
+		t.Errorf("audit snapshot: %d", n)
+	}
+	// Saving the same settings writes nothing: no new revision (saved answers stay reachable), no audit entry (adm-5).
+	if same := env.putRerank(t, r.Id, 2000); same.Revision != 2 {
+		t.Errorf("unchanged save = revision %d", same.Revision)
+	}
+	if n := env.scalar(t, `SELECT count(*) FROM audit_log WHERE action = 'platform.rerank_settings_update'`); n != 1 {
+		t.Errorf("audits after an unchanged save = %d", n)
 	}
 	var usage apitypes.CatalogUsage
 	admin.get("/v1/admin/catalog-usage", &usage)

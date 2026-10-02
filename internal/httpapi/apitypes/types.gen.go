@@ -6264,7 +6264,7 @@ type CostSettingsUpdate struct {
 type CostTotals struct {
 	ByKind CostByKind `json:"byKind"`
 
-	// Requests SystemOne and moderation requests
+	// Requests SystemOne, moderation, rerank and MCP tool requests
 	Requests int64 `json:"requests"`
 
 	// Spend An exact decimal amount in the platform currency (never a float), with six decimals
@@ -6272,7 +6272,7 @@ type CostTotals struct {
 	// Example: 12.500000
 	Spend Money `json:"spend"`
 
-	// Tokens Chat, embedding, SystemOne and OCR (vision) tokens
+	// Tokens Chat, embedding, SystemOne, rerank and OCR (vision) tokens
 	Tokens int64 `json:"tokens"`
 
 	// Unpriced Some usage had no price and counts as zero

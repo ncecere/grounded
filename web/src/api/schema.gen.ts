@@ -3757,7 +3757,7 @@ export interface paths {
         get: operations["adminGetRerank"];
         /**
          * Replace the platform rerank settings (platform admins; audited)
-         * @description modelId null turns reranking off. 400 invalid_settings (details.problems lists {field, problem}) for values out of range; 400 invalid_model when modelId is not a rerank model.
+         * @description modelId null turns reranking off. 400 invalid_settings (details.problems lists every {field, problem}) for values out of range; 400 invalid_model when modelId is not a rerank model. Saving the settings already saved changes nothing (no new revision, no audit entry).
          */
         put: operations["adminPutRerank"];
         post?: never;
@@ -4829,12 +4829,12 @@ export interface components {
             byKind: components["schemas"]["CostByKind"];
             /**
              * Format: int64
-             * @description Chat, embedding, SystemOne and OCR (vision) tokens
+             * @description Chat, embedding, SystemOne, rerank and OCR (vision) tokens
              */
             tokens: number;
             /**
              * Format: int64
-             * @description SystemOne and moderation requests
+             * @description SystemOne, moderation, rerank and MCP tool requests
              */
             requests: number;
             /** @description Some usage had no price and counts as zero */

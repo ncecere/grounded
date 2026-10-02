@@ -21,6 +21,7 @@ import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ui/r
 import { LazyResponse } from "@/components/ui/response/response-lazy";
 import { Shimmer } from "@/components/ui/shimmer/shimmer";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ui/sources/sources";
+import { plainSnippet } from "@/lib/plain-text";
 import { verificationLabel } from "@/lib/systemone";
 import { citedSoFar, displayText, normalizePunctuation } from "./answer-text";
 import { displayNumbers, jumpBelow, useAnswerMarkers, withUncited } from "./citations";
@@ -52,8 +53,8 @@ const where = (s: Citation) =>
   s.kind === "tool"
     ? ["Tool result", s.truncated ? "cut to fit" : ""].filter(Boolean).join(" · ")
     : [s.headingPath.join(" › "), pages(s.pageStart, s.pageEnd)].filter(Boolean).join(" · ");
-/** Snippets are raw chunk text: drop Markdown heading and emphasis marks for display. */
-const plainSnippet = (t: string) => t.replace(/^#{1,6}\s+/gm, "").replace(/(\*\*|__)(.*?)\1/g, "$2").replace(/\s+/g, " ").trim();
+/** Snippets are raw chunk text: plain words for display, without a leading heading the card already shows. */
+const snippetOf = (s: Citation) => plainSnippet(s.snippet, [s.title, ...s.headingPath]);
 const webUrl = (s: Citation) => (s.url && /^https?:\/\//.test(s.url) ? s.url : undefined);
 /**
  * The source card's meta line, with the SystemOne citation check when there is one: with claims, the breakdown of
@@ -76,7 +77,7 @@ const sourceMeta = (s: Citation, claims?: Claim[]) => {
 /** The chip card's action where the viewer opens passages: "Show source 2" (tools' results keep the jump below). */
 const showSource = (s: Citation, shown: number) => (s.kind === "tool" ? jumpBelow(s, shown) : `Show source ${shown}`);
 /** What a citation chip's card shows about its source. */
-const chipSource = (s: Citation) => ({ title: sourceTitle(s), href: webUrl(s), siteName: where(s) || undefined, description: plainSnippet(s.snippet) });
+const chipSource = (s: Citation) => ({ title: sourceTitle(s), href: webUrl(s), siteName: where(s) || undefined, description: snippetOf(s) });
 
 type AssistantProps = {
   item: AssistantItem;
@@ -174,7 +175,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
                   title={sourceTitle(s)}
                   href={webUrl(s)}
                   meta={sourceMeta(s, item.claims)}
-                  description={plainSnippet(s.snippet)}
+                  description={snippetOf(s)}
                   onSelect={viewable(s) ? () => openSource(s.n) : undefined}
                   selectLabel={viewable(s) ? `Show source ${num(s.n)}: ${sourceTitle(s)}` : undefined}
                   linkLabel="Open the page"

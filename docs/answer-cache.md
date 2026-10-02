@@ -56,7 +56,7 @@ Nothing in an answer depends on who asked: the instructions name the agent, its 
 
 ## Analytics and metrics
 
-**Agent → Analytics → Usage** shows the share of answers given from saved answers and the model tokens their originals spent (tokens saved). Agent → Settings → Saved answers shows how many saved answers there are and how often they were reused.
+**Agent → Analytics → Usage** shows the share of answers given from saved answers and the model tokens their originals spent (tokens saved). Agent → Settings → Saved answers shows how many saved answers there are now and how often those were reused (the count drops when one expires or is removed; Usage counts every reuse).
 
 Metrics ([`operations/monitoring.md`](operations/monitoring.md)):
 

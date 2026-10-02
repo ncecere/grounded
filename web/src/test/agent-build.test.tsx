@@ -79,6 +79,11 @@ describe("pure helpers", () => {
     const live = { published: version, hasUnpublishedChanges: false };
     expect(publishBlocked({ agent: live, status: "saved", needsFix: false, audience: "team", isManager: true })).toBe("No changes since version 3");
     expect(publishBlocked({ agent: live, status: "dirty", needsFix: false, audience: "team", isManager: true })).toBeUndefined();
+    // A field that can't be saved (own-8): Publish would leave that change out.
+    expect(publishBlocked({ agent: live, status: "saved", needsFix: true, audience: "team", isManager: true })).toBe("Fix the highlighted field first.");
+    expect(publishBlocked({ agent: { ...live, hasUnpublishedChanges: true }, status: "dirty", needsFix: true, audience: "team", isManager: true })).toBe(
+      "Fix the highlighted field first.",
+    );
     expect(publishBlocked({ agent: { published: null, hasUnpublishedChanges: true }, status: "saved", needsFix: false, audience: "team", isManager: true })).toBeUndefined();
     // The draft's publish problems (draft.* warnings) disable Publish, with how many.
     const fresh = { published: null, hasUnpublishedChanges: true };

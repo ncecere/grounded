@@ -36,7 +36,9 @@ export function publishBlocked({ agent, status, needsFix, audience, isManager, p
   if (!isManager && audience !== "team")
     return `Only team admins and owners can publish to ${audienceLabel(audience)}. Choose Team under Share, or ask an admin to publish.`;
   if (problems > 0) return problems === 1 ? "Fix the problem listed under Build first." : `Fix the ${problems} problems listed under Build first.`;
-  const pending = status !== "saved" || needsFix;
+  // A field holding a value that can't be saved: publishing would leave that change out.
+  if (needsFix) return "Fix the highlighted field first.";
+  const pending = status !== "saved";
   if (agent.published && !agent.hasUnpublishedChanges && !pending) return `No changes since version ${agent.published.version}`;
   return undefined;
 }

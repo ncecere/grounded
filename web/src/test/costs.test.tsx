@@ -345,7 +345,7 @@ describe("the team's spend and banner", () => {
     expect(screen.getByRole("table", { name: "By model" })).toHaveTextContent("Unpriced");
     expect(screen.getByRole("table", { name: "By agent" })).toHaveTextContent(formatMoney("0.5", "USD"));
     expect(screen.getAllByRole("columnheader", { name: "Requests" })).toHaveLength(2);
-    expect(screen.getByText(/SystemOne, moderation and MCP tool calls, priced per request/)).toBeInTheDocument();
+    expect(screen.getByText(/SystemOne, moderation, rerank and MCP tool calls, priced per request/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 

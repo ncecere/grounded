@@ -56,8 +56,11 @@ async function openSource(n: number, title = `Fees ${n}`) {
   return screen.findByRole("region", { name: title });
 }
 
+const scrollIntoView = Element.prototype.scrollIntoView;
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  Element.prototype.scrollIntoView = scrollIntoView;
 });
 
 describe("text fragments", () => {
@@ -176,19 +179,48 @@ describe("source viewer", () => {
     expect(calls.some((c) => c.url === "/v1/public/agents/ag1/messages/m1/sources/1")).toBe(true);
   });
 
-  it("opens as a full-screen sheet with a close button on phones", async () => {
+  it("opens as a full-screen sheet on phones: focus on its title, the cited passage in view, the same close, keyboard scrolling", async () => {
     vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("max-width: 40rem"), addEventListener: () => {}, removeEventListener: () => {} }));
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(994);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(777);
+    // One source: no Sources buttons, so the sheet's scrolling body has nothing focusable (aud-5).
+    const one = answer([cite(1)]);
     mockApi({ "GET /v1/messages/m1/sources/1": () => cited(1) });
-    renderChat({ kind: "message" });
-    await userEvent.click(await screen.findByRole("button", { name: "Used 2 sources" }));
+    renderChat({ kind: "message" }, thread(one));
+    await userEvent.click(await screen.findByRole("button", { name: "Used 1 source" }));
     await userEvent.click(screen.getByRole("button", { name: "Show source 1: Fees 1" }));
     const sheet = await screen.findByRole("dialog", { name: "Fees 1" });
     expect(sheet).toHaveAttribute("data-size", "full");
-    expect(sheet).toHaveAccessibleDescription("Source 1 of 2, cited by this answer.");
-    expect(await within(sheet).findByTestId("cited-passage")).toBeInTheDocument();
+    expect(sheet).toHaveAccessibleDescription("Source 1 of 1");
+    // Focus on the title, as on the desktop (aud-6, mem-10).
+    await waitFor(() => expect(within(sheet).getByRole("heading", { name: "Fees 1" })).toHaveFocus());
+    const passage = await within(sheet).findByTestId("cited-passage");
+    // The cited passage is scrolled into view (mem-5, aud-5), and the body can be scrolled by keyboard.
+    await waitFor(() => expect(scrolled.mock.contexts).toContain(passage));
+    expect(await within(sheet).findByRole("region", { name: "Fees 1" })).toHaveAttribute("tabindex", "0");
     expect(await axe(sheet)).toHaveNoViolations();
-    await userEvent.click(within(sheet).getByRole("button", { name: "Close" }));
+    // The same close as the side panel's, first in the sheet (an arrow back, apart from the widget's own ×; mem-8).
+    const close = within(sheet).getByRole("button", { name: "Close the source" });
+    expect(within(sheet).getAllByRole("button")[0]).toBe(close);
+    await userEvent.click(close);
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("scrolls the side panel to the cited passage, and drops empty table headers and skipped heading levels from passages (mem-5, mem-9)", async () => {
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    const table = "## Hours\n\n|  |  |\n|---|---|\n| Mon | 9 to 5 |\n\n##### Contact\n\nCall the desk.";
+    mockApi({ "GET /v1/messages/m1/sources/1": () => cited(1, { passages: [passage(4, table), passage(5, "Passage 1 about fees.", true)] }) });
+    const { container } = renderChat({ kind: "message" });
+    const viewer = await openSource(1);
+    const cited1 = await within(viewer).findByTestId("cited-passage");
+    await waitFor(() => expect(scrolled.mock.contexts).toContain(cited1));
+    expect(scrolled).toHaveBeenCalledWith({ block: "nearest" });
+    expect(await within(viewer).findByRole("heading", { name: "Contact" })).toHaveProperty("tagName", "H3");
+    expect(within(viewer).getByRole("table").querySelector("thead")).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it("keeps sources under the answer where there is no viewer (a transcript)", async () => {

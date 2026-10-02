@@ -185,10 +185,11 @@ describe("chat page", () => {
     expect(within(cardEl).getByText("Registration › Drop/Add")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Searched the knowledge base for “drop a class”/ })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
-    // Escape closes it; focus goes to the source's card (the chip's card that opened it is gone).
+    // Escape closes it; focus goes to the source card's Show source button (the chip's card that opened it is gone),
+    // so Enter opens it again (mem-10).
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("region", { name: "Drop/Add" })).toBeNull());
-    await waitFor(() => expect(cardEl).toHaveFocus());
+    await waitFor(() => expect(within(cardEl).getByRole("button", { name: "Show source 1: Drop/Add" })).toHaveFocus());
   });
 
   it("shows a withheld answer as an alert, without copy or rating buttons, and announces it as not answered (F-10)", async () => {

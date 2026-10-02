@@ -25,7 +25,7 @@ test("saved answers: an editor turns them on, a repeated question is reused, the
     await expect(reuse).not.toBeChecked();
     await reuse.click();
     await expect(reuse).toBeChecked();
-    await expect(section.getByText("0 saved answers, reused 0 times.", { exact: false })).toBeVisible();
+    await expect(section.getByText("No saved answers now.", { exact: false })).toBeVisible();
     await a11y(editor, "agent settings with saved answers");
   });
 
@@ -49,12 +49,12 @@ test("saved answers: an editor turns them on, a repeated question is reused, the
   await test.step("the editor sees it counted and clears it", async () => {
     await editor.goto(settings);
     const section = editor.locator("#saved-answers");
-    await expect(section.getByText("1 saved answer, reused once.", { exact: false })).toBeVisible();
+    await expect(section.getByText("1 saved answer now, reused once so far.", { exact: false })).toBeVisible();
     await section.getByRole("button", { name: "Clear saved answers" }).click();
     const dialog = editor.getByRole("alertdialog", { name: "Clear this agent's saved answers?" });
     await a11y(editor, "clear saved answers dialog");
     await dialog.getByRole("button", { name: "Clear saved answers" }).click();
-    await expect(section.getByText("0 saved answers, reused 0 times.", { exact: false })).toBeVisible();
+    await expect(section.getByText("No saved answers now.", { exact: false })).toBeVisible();
     await expect(section.getByRole("button", { name: "Clear saved answers" })).toBeDisabled();
   });
 });

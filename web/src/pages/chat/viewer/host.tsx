@@ -10,6 +10,7 @@
  * Focus goes to the viewer's title when it opens and back to what opened it
  * when it closes.
  */
+import { ArrowLeft } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable/resizable";
 import { Sheet } from "@/components/ui/sheet/sheet";
@@ -75,10 +76,14 @@ export function ViewerHost({ access, items, children }: Props) {
     setOpen(null);
     const back = opener.current;
     opener.current = null;
-    // After the panel is gone. What opened it may be gone too (a chip's card closes as it goes): then the source's card.
+    // After the panel is gone. What opened it may be gone too (a chip's card closes as it goes): then the source
+    // card's own Show source button, so Enter opens it again (mem-10), or the card.
     setTimeout(() => {
       if (back?.isConnected) back.focus();
-      else if (at) document.getElementById(sourceElementId(at.key, at.n))?.focus();
+      else if (at) {
+        const card = document.getElementById(sourceElementId(at.key, at.n));
+        (card?.querySelector<HTMLElement>("button") ?? card)?.focus();
+      }
     }, 0);
   }, [open]);
   // The answer went away (a new chat): close.
@@ -113,7 +118,12 @@ export function ViewerHost({ access, items, children }: Props) {
           side="bottom"
           size="full"
           title={cited ? sourceTitle(cited) : "Source"}
-          description={target ? `${viewerCaption(target.item, target.n)}, cited by this answer.` : ""}
+          description={target ? viewerCaption(target.item, target.n) : ""}
+          // Like the side panel: focus on the title, the same close (an arrow back at the start, so it doesn't stack
+          // with the widget's own × above it; mem-8, mem-10, aud-6).
+          initialFocus="title"
+          closeLabel="Close the source"
+          closeIcon={<ArrowLeft aria-hidden />}
         >
           {viewer(true)}
         </Sheet>

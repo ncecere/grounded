@@ -18,8 +18,13 @@ const LEAD = 10;
 
 /** One passage; the cited one is marked for every reader: a bar and a background, and words for screen readers. */
 function Passage({ p, citedRef }: { p: ContextPassage; citedRef?: React.Ref<HTMLDivElement> }) {
-  // Passages quote team documents: never fetch image URLs from them.
-  const text = <LazyResponse images="alt">{p.content}</LazyResponse>;
+  // Passages quote team documents: never fetch image URLs from them. Their headings are all h3, under the viewer's
+  // title (h2): a passage's own outline (an h5 alone) would skip levels (axe heading-order; mem-9).
+  const text = (
+    <LazyResponse images="alt" headingLevel={3}>
+      {p.content}
+    </LazyResponse>
+  );
   if (!p.cited) return <div className={v.passage}>{text}</div>;
   return (
     <div className={v.cited} ref={citedRef} data-testid="cited-passage">
@@ -30,12 +35,17 @@ function Passage({ p, citedRef }: { p: ContextPassage; citedRef?: React.Ref<HTML
   );
 }
 
-/** The cited passage with its neighbours (about a page), in document order. */
+/** The cited passage with its neighbours (about a page), in document order, scrolled into view when it opens (mem-5). */
 export function PassageList({ passages }: { passages: ContextPassage[] }) {
+  const citedRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // "nearest": the panel scrolls only when the passage is out of view, and keeps the context above it when it fits.
+    citedRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [passages]);
   return (
     <div className={v.passages}>
       {passages.map((p) => (
-        <Passage key={p.ordinal} p={p} />
+        <Passage key={p.ordinal} p={p} citedRef={p.cited ? citedRef : undefined} />
       ))}
     </div>
   );

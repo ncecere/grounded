@@ -57,7 +57,7 @@ function InstanceMark() {
 function SignInButton({ href }: { href: string }) {
   return (
     <Button variant="secondary" size="sm" render={<a href={href} />}>
-      <LogIn aria-hidden /> Sign in
+      <LogIn aria-hidden /> <span className={p.barLabel}>Sign in</span>
     </Button>
   );
 }

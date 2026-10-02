@@ -43,7 +43,7 @@ describe("Agent → Settings › Saved answers", () => {
       [`POST ${path}/clear`]: () => ({ cleared: 12 }),
     });
     const { container } = wrap(<AnswerCacheSection team="registrar" agentId="ag1" />);
-    expect(await screen.findByText(/12 saved answers, reused 30 times/)).toBeInTheDocument();
+    expect(await screen.findByText(/12 saved answers now, reused 30 times between them. Analytics counts every reuse./)).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Reuse answers" })).toBeChecked();
     expect(screen.getByText(/On by default for public agents/)).toBeInTheDocument();
 
@@ -75,7 +75,10 @@ describe("Agent → Settings › Saved answers", () => {
     expect(expiryLabel(1)).toBe("1 hour");
     expect(expiryLabel(24)).toBe("24 hours");
     expect(expiryLabel(72)).toBe("3 days");
-    expect(cacheSummary(cache({ entries: 1, hits: 1 }))).toBe("1 saved answer, reused once.");
+    // The count is the current saved answers' (own-14): it says so, and where every reuse is counted.
+    expect(cacheSummary(cache({ entries: 1, hits: 1 }))).toBe("1 saved answer now, reused once so far. Analytics counts every reuse.");
+    expect(cacheSummary(cache({ entries: 10, hits: 0 }))).toBe("10 saved answers now, not reused yet.");
+    expect(cacheSummary(cache({ entries: 0, hits: 0 }))).toBe("No saved answers now.");
     expect(cacheSummary(cache({ on: false }))).toBe("Each question is answered afresh.");
   });
 });

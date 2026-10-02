@@ -1,4 +1,4 @@
-import { Archive, Blocks, CircleHelp, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet } from "lucide-react";
+import { Archive, ArrowDownWideNarrow, Blocks, BookmarkCheck, CircleHelp, BarChart3, Bot, ClipboardCheck, Cpu, Earth, ShieldCheck, Database, Gauge, Globe, Home, LayoutDashboard, Layers, Library, LockOpen, Network, Plug, Scale, ScanText, ScrollText, Settings, Share2, Shuffle, Sparkles, Tags, Users, UsersRound, Wrench, CircleDollarSign, ToggleRight, Wallet } from "lucide-react";
 import { type ReactNode } from "react";
 import { terms } from "../../lib/terms";
 import { type Me } from "../../session";
@@ -137,6 +137,22 @@ export const adminTabCommands: { id: string; label: string; to: AdminPath; tab?:
       "mcp", "mcp server", "model context protocol", "oauth", "oauth sign-in", "ai tools", "setup guide", "how it works",
     ],
   },
+  {
+    id: "saved-answers",
+    label: "Saved answers",
+    to: "/admin",
+    hash: "features",
+    icon: icon(BookmarkCheck),
+    keywords: ["saved", "saved answers", "answer cache", "cache", "reuse answers", "reused answers", "feature", "turn on", "turn off"],
+  },
+  {
+    id: "reranking",
+    label: "Reranking settings",
+    to: "/admin/models",
+    hash: "reranking",
+    icon: icon(ArrowDownWideNarrow),
+    keywords: ["rerank", "reranking", "re-rank", "reranker", "rerank model", "cross-encoder", "candidates", "time limit", "models"],
+  },
 ];
 
 export const adminNav = adminSections.flatMap((section) => section.items);
@@ -151,23 +167,26 @@ export function activeAdminGroup(pathname: string): string | undefined {
 export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
   "/admin": ["overview", "dashboard", "attention", "needs attention", "failing", "health", "home", "platform at a glance", "recent changes"],
   "/admin/connections": ["gateway", "health", "failing", "test connection"],
-  "/admin/models": ["health", "failing", "test model"],
+  "/admin/models": ["health", "failing", "test model", "rerank model", "reranker"],
   "/admin/mcp-servers": ["mcp", "tools", "model context protocol", "remote tools", "approve tools", "tool approval", "integrations", "health", "failing"],
   "/admin/group-mapping": ["sso", "groups", "identity provider", "idp", "oidc", "membership rules", "access"],
   "/admin/crawl-domains": ["allowlist", "domain requests", "web", "crawling"],
   "/admin/parsing": ["ocr", "scanned", "scan", "tesseract", "tika", "vision", "images", "pdf", "languages"],
   "/admin/limits": ["quota", "usage", "rate limit", "storage", "defaults", "ceilings", "evaluation limits", "questions per set"],
   "/admin/agents": ["kill switch", "disable", "chat", "assistant"],
-  "/admin/analytics": ["usage", "dashboard", "answers", "statistics", "report", "csv", "tokens"],
+  "/admin/analytics": ["usage", "dashboard", "answers", "statistics", "report", "csv", "tokens", "failed questions", "gap report", "gaps"],
   "/admin/costs": ["spend", "budget", "prices", "pricing", "money", "billing", "currency", "extension", "tokens"],
   "/admin/logs": ["audit log", "access log", "sensitive", "restricted", "who used", "history", "changes"],
-  "/admin/moderation": ["guardrail", "safety", "policy", "block", "public", "classifier"],
+  "/admin/moderation": [
+    "guardrail", "safety", "policy", "block", "public", "classifier", "output mode", "moderation mode", "stream checked paragraphs", "stream checked",
+    "checked paragraphs", "buffer", "stream", "retract", "stream then retract",
+  ],
   "/admin/public-access": ["public", "anonymous", "widget", "embed", "captcha", "turnstile", "switch"],
   "/admin/maintenance": ["maintenance mode", "pause", "ingestion", "downtime", "upgrade", "freeze"],
   "/admin/retention": ["records", "delete", "purge", "keep", "dry run", "transcripts", "period", "legal holds"],
   "/admin/break-glass": ["emergency access", "read team content", "transcripts", "approval", "investigate"],
   "/admin/embedding-profiles": ["embedding", "vectors", "chunking", "passages", "dimensions", "migrations"],
-  "/admin/systemone": ["judging", "passages", "rerank", "re-rank", "injection", "judgment", "jev", "typesafe"],
+  "/admin/systemone": ["judging", "passages", "injection", "judgment", "citation check", "jev", "typesafe"],
 };
 
 export type TeamPath =

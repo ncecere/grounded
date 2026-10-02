@@ -94,6 +94,40 @@ describe("⌘K ranks an exact name first", () => {
     expect(router.state.location.hash).toBe("features");
   });
 
+  // v0.4.0 walkthrough (adm-3): the new settings are found by their names, and "rerank" no longer leads to SystemOne.
+  it.each([
+    ["reranking", "/admin/models", "reranking", "Reranking settings"],
+    ["saved answers", "/admin", "features", "Saved answers"],
+    ["answer cache", "/admin", "features", "Saved answers"],
+  ])("opens “%s”", async (text, pathname, hash, first) => {
+    mockApi(adminRoutes());
+    const { router, user, dialog, input } = await openPalette("/");
+    await user.type(input, text);
+    await waitFor(() => expect(within(dialog).getAllByRole("option")[0]).toHaveTextContent(first));
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(router.state.location.pathname).toBe(pathname));
+    expect(router.state.location.hash).toBe(hash);
+  });
+
+  it.each([
+    ["stream checked", "Moderation"],
+    ["buffer", "Moderation"],
+    ["failed questions", "Analytics"],
+  ])("finds “%s” on %s", async (text, page) => {
+    mockApi(adminRoutes());
+    const { user, dialog, input } = await openPalette("/");
+    await user.type(input, text);
+    await waitFor(() => expect(within(dialog).getAllByRole("option").map((o) => o.textContent)).toContain(`${page}Admin`));
+  });
+
+  it("doesn't offer SystemOne for “rerank”", async () => {
+    mockApi(adminRoutes());
+    const { user, dialog, input } = await openPalette("/");
+    await user.type(input, "rerank");
+    await waitFor(() => expect(within(dialog).getAllByRole("option")[0]).toHaveTextContent("Reranking settings"));
+    expect(within(dialog).queryByRole("option", { name: /SystemOne/ })).toBeNull();
+  });
+
   it("names the usage command “Usage & spend” for an owner while cost tracking is on, and puts it first for “spend”", async () => {
     mockApi({ ...shellRoutes("none", "owner"), "GET /v1/agents": () => [], "GET /v1/search": () => [], "GET /v1/teams/registrar/spend": () => spend });
     const { router, user, dialog, input } = await openPalette("/teams/registrar");

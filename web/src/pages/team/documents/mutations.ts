@@ -5,6 +5,15 @@ import { useSourceOwner } from "../../sources/owner";
 import { type Doc, plural } from "../common";
 import { docName } from "./status";
 
+/** The delete dialog's description and button for n documents (or a website's pages), in the singular for one. */
+export function deleteWording(n: number, web: boolean): { description: string; confirm: string } {
+  const one = n === 1;
+  const noun = web ? (one ? "page" : "pages") : one ? "document" : "documents";
+  const what = one ? `The ${noun} and its passages are` : `The ${noun} and their passages are`;
+  const back = web ? (one ? " The next crawl adds it again if it's still on the site." : " The next crawl adds them again if they're still on the site.") : "";
+  return { description: `${what} removed from this source and every knowledge base that uses it.${back}`, confirm: `Delete ${noun}` };
+}
+
 /** Documents that Retry applies to. */
 export const canRetry = (doc: Pick<Doc, "status">) => doc.status === "failed" || doc.status === "skipped";
 

@@ -1,5 +1,6 @@
 /* One model in a RecordPage (A5): details and stored health (E11), a test with its result in place, its prices (E2), what uses it, and edit/delete. */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useId } from "react";
 import { FlaskConical, Pencil, Trash2 } from "lucide-react";
 import { api, unwrap } from "@/api/client";
 import { Time } from "@/components/ui/time/time";
@@ -13,7 +14,7 @@ import { ClassificationBadge, useClassificationLevels } from "../../team/common"
 import { ModerationSamples } from "../moderation/scores";
 import { SystemOneSample } from "../systemone/sample";
 import { RerankSample } from "./rerank-sample";
-import { EnabledBadge, kindLabels, type Model, type ModelUsage, modelUsedBy, ProxyErrorText, TimingsText } from "./common";
+import { deleteBlockedReason, EnabledBadge, kindLabels, type Model, type ModelUsage, modelUsedBy, ProxyErrorText, TimingsText } from "./common";
 import { type HealthCheck, healthFacts, refreshHealth } from "./health";
 import m from "./models.module.css";
 import { isPricedKind, ModelPricingSection } from "./pricing";
@@ -55,6 +56,10 @@ export function ModelTestResult({ test }: { test: ModelTest }) {
   );
 }
 
+/** What Test model does: a rerank model scores two passages; others answer one small request. */
+const testText = (model: Model) =>
+  model.kind === "rerank" ? "Scores a passage that answers a sample question and one that doesn't." : "Sends one small request through the connection.";
+
 type Props = {
   model?: Model;
   /** Its latest stored health check (none: not tested yet). */
@@ -75,6 +80,8 @@ type Props = {
 export function ModelRecordPage({ model, health, open, loading, onClose, connectionName, usage, isAdmin, test, onEdit, onDelete, back }: Props) {
   const levels = useClassificationLevels();
   const usedBy = modelUsedBy(usage);
+  const blocked = isAdmin ? deleteBlockedReason(usage) : undefined;
+  const blockedId = useId();
   const testedThis = test.variables?.id === model?.id;
   return (
     <RecordPage
@@ -118,7 +125,7 @@ export function ModelRecordPage({ model, health, open, loading, onClose, connect
                         <FlaskConical aria-hidden /> Test model
                       </Button>
                     )}
-                    {testedThis ? <ModelTestResult test={test} /> : <span className={s.muted}>Sends one small request through the connection.</span>}
+                    {testedThis ? <ModelTestResult test={test} /> : <span className={s.muted}>{testText(model)}</span>}
                   </div>
                 ),
               },
@@ -126,11 +133,18 @@ export function ModelRecordPage({ model, health, open, loading, onClose, connect
               {
                 title: "Used by",
                 content: usedBy.length ? (
-                  <ul className={m.usedBy}>
-                    {usedBy.map((u) => (
-                      <li key={u}>{u}</li>
-                    ))}
-                  </ul>
+                  <>
+                    <ul className={m.usedBy}>
+                      {usedBy.map((u) => (
+                        <li key={u}>{u}</li>
+                      ))}
+                    </ul>
+                    {blocked && (
+                      <p id={blockedId} className={s.muted}>
+                        {blocked}
+                      </p>
+                    )}
+                  </>
                 ) : (
                   <p className={s.muted}>Nothing uses this model yet.</p>
                 ),
@@ -142,7 +156,7 @@ export function ModelRecordPage({ model, health, open, loading, onClose, connect
         model &&
         isAdmin && (
           <>
-            <Button variant="danger" disabled={usedBy.length > 0} title={usedBy.length ? "Models in use can't be deleted; disable them instead." : undefined} onClick={() => onDelete(model)}>
+            <Button variant="danger" disabled={Boolean(blocked)} aria-describedby={blocked ? blockedId : undefined} onClick={() => onDelete(model)}>
               <Trash2 aria-hidden /> Delete
             </Button>
             <Button onClick={() => onEdit(model)}>

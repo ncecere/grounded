@@ -2,7 +2,7 @@
 
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
-import type { ReactElement, ReactNode } from "react";
+import { type ReactElement, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Button, IconButton, type ButtonProps } from "@/components/ui/button/button";
 import { cx } from "@/lib/bitop-utils";
 import styles from "./sheet.module.css";
@@ -25,7 +25,13 @@ import styles from "./sheet.module.css";
  *   </Sheet>
  *
  * On a phone, a split view's side panel can open as a full-screen sheet
- * instead: `size="full"` covers the viewport (no backdrop shows around it).
+ * instead: `size="full"` covers the viewport (no backdrop shows around it),
+ * with its close button at the start of the header, like a page's back
+ * button (`closeIcon` and `closeLabel` can say so). A sheet of text to read
+ * rather than fields to fill can take focus on its title
+ * (`initialFocus="title"`). When the body scrolls and holds nothing
+ * focusable, keyboard users can still scroll it: it then takes focus itself
+ * (a region named by the title).
  */
 
 export type SheetSide = "right" | "left" | "top" | "bottom";
@@ -53,8 +59,15 @@ export type SheetProps = {
   size?: SheetSize;
   /** Hide the × close button (Escape still closes). */
   hideClose?: boolean;
-  /** Element to focus when opened (default: first focusable). */
-  initialFocus?: BaseDialog.Popup.Props["initialFocus"];
+  /** The close button's accessible name (default "Close"), e.g. "Close the source". */
+  closeLabel?: string;
+  /** The close button's icon (default ×), e.g. an arrow back for a full-screen sheet. Mark it aria-hidden. */
+  closeIcon?: ReactNode;
+  /**
+   * Element to focus when opened (default: first focusable); `"title"`
+   * focuses the title, for a sheet of text to read rather than fields to fill.
+   */
+  initialFocus?: BaseDialog.Popup.Props["initialFocus"] | "title";
   /** Element to focus when closed (default: the trigger). */
   finalFocus?: BaseDialog.Popup.Props["finalFocus"];
   className?: string;
@@ -72,11 +85,21 @@ export function Sheet({
   side = "right",
   size = "md",
   hideClose,
+  closeLabel = "Close",
+  closeIcon,
   initialFocus,
   finalFocus,
   className,
   children,
 }: SheetProps) {
+  const titleId = useId();
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const [body, setBody] = useState<HTMLDivElement | null>(null);
+  const scrolls = useScrollsWithoutFocus(body);
+  const full = size === "full";
+  const close = !hideClose && (
+    <BaseDialog.Close render={<IconButton size="sm" icon={closeIcon ?? <X aria-hidden />} label={closeLabel} className={styles.close} />} />
+  );
   return (
     <BaseDialog.Root open={open} defaultOpen={defaultOpen} onOpenChange={onOpenChange ? (o) => onOpenChange(o) : undefined}>
       {trigger && <BaseDialog.Trigger render={trigger} />}
@@ -87,23 +110,56 @@ export function Sheet({
           data-side={side}
           data-size={size}
           data-closable={hideClose ? undefined : ""}
-          initialFocus={initialFocus}
+          initialFocus={initialFocus === "title" ? titleRef : initialFocus}
           finalFocus={finalFocus}
         >
+          {/* A full-screen sheet's close comes first, where it shows (a page's back button). */}
+          {full && close}
           <div className={styles.header}>
-            <BaseDialog.Title className={styles.title}>{title}</BaseDialog.Title>
+            <BaseDialog.Title id={titleId} ref={titleRef} tabIndex={initialFocus === "title" ? -1 : undefined} className={styles.title}>
+              {title}
+            </BaseDialog.Title>
             <BaseDialog.Description className={styles.description}>{description}</BaseDialog.Description>
           </div>
-          {children !== undefined && <div className={styles.body}>{children}</div>}
-          {footer && <div className={styles.footer}>{footer}</div>}
-          {/* Last in DOM order so initial focus lands on the first field, not on ×. */}
-          {!hideClose && (
-            <BaseDialog.Close render={<IconButton size="sm" icon={<X aria-hidden />} label="Close" className={styles.close} />} />
+          {children !== undefined && (
+            <div
+              ref={setBody}
+              className={styles.body}
+              {...(scrolls ? { tabIndex: 0, role: "region", "aria-labelledby": titleId } : {})}
+            >
+              {children}
+            </div>
           )}
+          {footer && <div className={styles.footer}>{footer}</div>}
+          {/* Otherwise last in DOM order so initial focus lands on the first field, not on ×. */}
+          {!full && close}
         </BaseDialog.Popup>
       </BaseDialog.Portal>
     </BaseDialog.Root>
   );
+}
+
+/**
+ * Whether the body scrolls with nothing focusable in it: keyboard users then
+ * couldn't scroll it (axe: scrollable-region-focusable), so it takes focus.
+ */
+function useScrollsWithoutFocus(el: HTMLElement | null) {
+  const [scrolls, setScrolls] = useState(false);
+  useEffect(() => {
+    if (!el) return;
+    const check = () =>
+      setScrolls(el.scrollHeight > el.clientHeight + 1 && !el.querySelector("a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex='-1'])"));
+    check();
+    const resize = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(check);
+    resize?.observe(el);
+    const mutation = typeof MutationObserver === "undefined" ? undefined : new MutationObserver(check);
+    mutation?.observe(el, { childList: true, subtree: true, characterData: true });
+    return () => {
+      resize?.disconnect();
+      mutation?.disconnect();
+    };
+  }, [el]);
+  return scrolls;
 }
 
 /** A button that closes the surrounding Sheet. Defaults to the secondary variant; takes Button props. */

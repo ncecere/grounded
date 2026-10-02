@@ -6,8 +6,9 @@
  * passage on the live site); the team's editors, admins and owners also
  * "Open full document". The answer's other sources are one click away.
  *
- * Keyboard: the title takes focus when a source opens (host.tsx), Escape
- * closes the panel and focus goes back to what opened it.
+ * Keyboard: the title takes focus when a source opens (host.tsx; the sheet's
+ * title on phones), the cited passage scrolls into view (passages.tsx),
+ * Escape closes the panel and focus goes back to what opened it.
  */
 import { useQuery } from "@tanstack/react-query";
 import { FileText, X } from "lucide-react";
@@ -157,7 +158,8 @@ export function SourceViewer({ item, n, access, onClose, onOpen, bare = false }:
   };
 
   return (
-    <section className={cx(v.viewer, bare && v.bare)} aria-labelledby={bare ? undefined : headingId} aria-label={bare ? sourceTitle(c) : undefined} onKeyDown={onKeyDown} data-testid="source-viewer">
+    // In the sheet, the sheet (and its scrolling body) is named by the title: no second region of the same name.
+    <section className={cx(v.viewer, bare && v.bare)} aria-labelledby={bare ? undefined : headingId} onKeyDown={onKeyDown} data-testid="source-viewer">
       {!bare && (
         <header className={v.head}>
           <div className={v.headText}>

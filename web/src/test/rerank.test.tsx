@@ -48,6 +48,48 @@ describe("Admin → Models reranking", () => {
     expect(await screen.findByText(/Searches rerank their best 30 passages with BGE reranker, waiting at most 2 s. 3 published agents rerank./)).toBeInTheDocument();
   });
 
+  it("checks every field before saving, shows each problem on its field, and offers Save only after a change (adm-5)", async () => {
+    const calls = mockApi({
+      ...shellRoutes("platform_admin"),
+      "GET /v1/admin/connections": () => [],
+      "GET /v1/admin/models": () => [reranker],
+      "GET /v1/admin/rerank": () => ({ ...off, modelId: "r1", agents: 1, revision: 2 }),
+    });
+    renderApp("/admin/models");
+    await userEvent.click(await screen.findByRole("button", { name: "Reranking settings" }, { timeout: 4000 }));
+    const dialog = await screen.findByRole("dialog", { name: "Reranking settings" });
+    const save = within(dialog).getByRole("button", { name: "Save settings" });
+    expect(save).toBeDisabled();
+    const candidates = within(dialog).getByRole("textbox", { name: /Candidates/ });
+    const limit = within(dialog).getByRole("textbox", { name: /Time limit/ });
+    await userEvent.clear(candidates);
+    await userEvent.type(candidates, "60");
+    await userEvent.clear(limit);
+    await userEvent.type(limit, "100");
+    expect(save).toBeEnabled();
+    await userEvent.click(save);
+    expect(await within(dialog).findByText("Enter a whole number from 5 to 50.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Enter a whole number of milliseconds from 200 to 10,000.")).toBeInTheDocument();
+    expect(candidates).toHaveAttribute("aria-invalid", "true");
+    expect(limit).toHaveAttribute("aria-invalid", "true");
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+    expect(await axe(dialog)).toHaveNoViolations();
+  });
+
+  it("shows the auditor the settings button disabled, with the reason (aud-8)", async () => {
+    mockApi({
+      ...shellRoutes("platform_auditor"),
+      "GET /v1/admin/connections": () => [],
+      "GET /v1/admin/models": () => [reranker],
+      "GET /v1/admin/rerank": () => ({ ...off, modelId: "r1", agents: 1, revision: 2 }),
+    });
+    const { container } = renderApp("/admin/models");
+    const button = await screen.findByRole("button", { name: "Reranking settings" }, { timeout: 4000 });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription("Only platform admins can change reranking.");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("shows nothing until a rerank model exists", async () => {
     mockApi({
       ...shellRoutes("platform_admin"),
@@ -75,6 +117,11 @@ describe("Admin → Models reranking", () => {
     renderApp("/admin/models?record=r1");
     const sheet = await screen.findByRole("region", { name: "BGE reranker" }, { timeout: 4000 });
     expect(within(sheet).getByText("Reranking")).toBeInTheDocument();
+    // Delete says why it's off, in words reachable without hovering, and what to do instead (adm-8).
+    const del = within(sheet).getByRole("button", { name: "Delete" });
+    expect(del).toBeDisabled();
+    expect(del).toHaveAccessibleDescription(/choose None or another model in Reranking settings first/);
+    expect(within(sheet).getByText("Scores a passage that answers a sample question and one that doesn't.")).toBeInTheDocument();
     await userEvent.click(within(sheet).getByRole("button", { name: "Test model" }));
     expect(await within(sheet).findByText(/The answer scored 0.982; the unrelated passage 0.004./)).toBeInTheDocument();
   });
@@ -113,10 +160,15 @@ describe("Try it reranking", () => {
     expect(cards[0]).toHaveTextContent("Rerank 0.973");
     expect(calls.at(-1)?.body).toEqual({ query: "transcript fee" });
     expect(await axe(container)).toHaveNoViolations();
+    // Switching Rerank searches again (own-13): no results from the other setting stay under the switch.
+    const searches = calls.filter((c) => c.method === "POST").length;
     await userEvent.click(screen.getByRole("switch", { name: /Rerank/ }));
-    await userEvent.click(screen.getByRole("button", { name: "Search" }));
     await waitFor(() => expect(calls.at(-1)?.body).toEqual({ query: "transcript fee", rerank: false }));
-    expect(screen.queryByText(/Reranked the best/)).toBeNull();
+    expect(calls.filter((c) => c.method === "POST")).toHaveLength(searches + 1);
+    await waitFor(() => expect(screen.queryByText(/Reranked the best/)).toBeNull());
+    await userEvent.click(screen.getByRole("switch", { name: /Rerank/ }));
+    await waitFor(() => expect(calls.at(-1)?.body).toEqual({ query: "transcript fee" }));
+    expect(await screen.findByText("Reranked the best 40 passages in 120 ms.")).toBeInTheDocument();
   });
 
   it("says when reranking failed and the usual order was kept", async () => {

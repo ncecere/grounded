@@ -25,7 +25,7 @@ import { useSourceOwner } from "../../sources/owner";
 import { type Doc, formatBytes } from "../common";
 import { pageRange } from "../retrieve";
 import d from "./documents.module.css";
-import { canRetry, type DocumentMutations } from "./mutations";
+import { canRetry, deleteWording, type DocumentMutations } from "./mutations";
 import { DocStatusBadge, docKind, docName, documentError, isWaiting, kindLabel } from "./status";
 
 const previewSize = 5;
@@ -105,12 +105,8 @@ export function DocumentRecordPage({ sourceId, web, docId, onClose, mutations }:
           if (!o) remove.reset();
         }}
         title={`Delete ${d0 ? docName(d0) : "this document"}?`}
-        description={
-          web
-            ? "The page and its passages are removed from this source and every knowledge base that uses it. The next crawl adds it again if it's still on the site."
-            : "The document and its passages are removed from this source and every knowledge base that uses it."
-        }
-        confirmLabel="Delete document"
+        description={deleteWording(1, web).description}
+        confirmLabel={deleteWording(1, web).confirm}
         busy={remove.isPending}
         error={remove.error}
         onConfirm={() =>

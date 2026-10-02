@@ -81,6 +81,8 @@ function platformLink(e: AuditEntry): ReactElement | null {
       return <Link to="/admin/public-access" />;
     case "systemone_settings":
       return <Link to="/admin/systemone" />;
+    case "rerank_settings":
+      return <Link to="/admin/models" hash="reranking" />;
     case "maintenance_mode":
       return <Link to="/admin/maintenance" />;
     case "legal_hold":
