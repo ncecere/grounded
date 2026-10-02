@@ -7817,8 +7817,8 @@ components:
       properties:
         spend: { $ref: "#/components/schemas/Money" }
         byKind: { $ref: "#/components/schemas/CostByKind" }
-        tokens: { type: integer, format: int64, description: "Chat, embedding, SystemOne and OCR (vision) tokens" }
-        requests: { type: integer, format: int64, description: "SystemOne and moderation requests" }
+        tokens: { type: integer, format: int64, description: "Chat, embedding, SystemOne, rerank and OCR (vision) tokens" }
+        requests: { type: integer, format: int64, description: "SystemOne, moderation, rerank and MCP tool requests" }
         unpriced: { type: boolean, description: "Some usage had no price and counts as zero" }
     CostReportRow:
       type: object

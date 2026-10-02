@@ -4752,12 +4752,12 @@ export interface components {
             byKind: components["schemas"]["CostByKind"];
             /**
              * Format: int64
-             * @description Chat, embedding, SystemOne and OCR (vision) tokens
+             * @description Chat, embedding, SystemOne, rerank and OCR (vision) tokens
              */
             tokens: number;
             /**
              * Format: int64
-             * @description SystemOne and moderation requests
+             * @description SystemOne, moderation, rerank and MCP tool requests
              */
             requests: number;
             /** @description Some usage had no price and counts as zero */

@@ -62,8 +62,8 @@ describe("MCP tool calls in Costs", () => {
     mockApi(routes());
     renderApp("/admin/costs");
     expect(await screen.findByText("Some models or MCP servers have no price. See Prices.", undefined, { timeout: 5000 })).toBeInTheDocument();
-    expect(screen.getByText("SystemOne, moderation and MCP tool calls, priced per request.")).toBeInTheDocument();
-    expect(screen.getByText(/Chat, embedding, SystemOne, moderation, OCR and MCP tool spend each day\./)).toBeInTheDocument();
+    expect(screen.getByText("SystemOne, moderation, rerank and MCP tool calls, priced per request.")).toBeInTheDocument();
+    expect(screen.getByText(/Chat, embedding, SystemOne, rerank, moderation, OCR and MCP tool spend each day\./)).toBeInTheDocument();
   });
 
   it("opens an MCP server's record from Top spenders → Models", async () => {

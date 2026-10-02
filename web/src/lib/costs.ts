@@ -148,7 +148,7 @@ export const modeSourceLabel = (override: Schemas["CostModeOverride"]) => (overr
 
 /** Names the per-request column: SystemOne, moderation and MCP tool calls are priced per request, not per token. */
 export const requestsColumn = "Requests";
-export const requestsHint = "SystemOne, moderation and MCP tool calls, priced per request.";
+export const requestsHint = "SystemOne, moderation, rerank and MCP tool calls, priced per request.";
 
 /** Today (YYYY-MM-DD) in a time zone such as the platform's, or the browser's day without one. */
 export function dayIn(timeZone?: string) {

@@ -79,7 +79,7 @@ export function CostOverviewTab({ settings }: { settings: CostSettings }) {
         <>
           <StatGroup id="cost-totals" title="Totals" columns={4}>
             <StatCard label="Spend" value={<Money amount={d.total.spend} currency={cur} />} icon={<CircleDollarSign />} hint={dayRangeLabel(d.from, d.to)} />
-            <StatCard label="Tokens" value={num(d.total.tokens)} icon={<Hash />} hint="Chat, embedding, SystemOne and OCR" />
+            <StatCard label="Tokens" value={num(d.total.tokens)} icon={<Hash />} hint="Chat, embedding, SystemOne, rerank and OCR" />
             <StatCard label={requestsColumn} value={num(d.total.requests)} icon={<Hash />} hint={requestsHint} />
             <StatCard
               label="Unpriced usage"
@@ -102,7 +102,7 @@ function DailySpend({ report, currency }: { report: Report; currency: string }) 
   return (
     <Card
       title="Spend per day"
-      description="Chat, embedding, SystemOne, moderation, OCR and MCP tool spend each day. Show data lists the days with spend."
+      description="Chat, embedding, SystemOne, rerank, moderation, OCR and MCP tool spend each day. Show data lists the days with spend."
       actions={<CsvButton from={report.from} to={report.to} groupBy="day" what="spend per day" />}
     >
       {spent.length === 0 ? (
