@@ -194,7 +194,7 @@ var (
 	}, []string{"signal"})
 	GapTopicChanges = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "grounded_gap_topic_changes_total",
-		Help: "The gap topics job's work by kind (embedded, assigned, new_topic, reopened, resolved, labelled, pruned).",
+		Help: "The gap topics job's work by kind (embedded, assigned, new_topic, merged, confirmed, reopened, resolved, labelled, pruned).",
 	}, []string{"kind"})
 
 	// AnswerCacheLookups counts the answer cache's lookups

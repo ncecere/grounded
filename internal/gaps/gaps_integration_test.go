@@ -101,7 +101,7 @@ func TestDismissReopenResolve(t *testing.T) {
 	f.run()
 	list, _ := f.svc.List(f.ctx, f.editor, f.slug, nil, "")
 	id := list.Topics[0].ID
-	top, err := f.svc.Dismiss(f.ctx, f.editor, f.slug, id, "We don't sell permits.")
+	top, err := f.svc.Dismiss(f.ctx, f.editor, f.slug, id, "", "We don't sell permits.")
 	if err != nil || top.State != gaps.StateDismissed || top.StateReason != "We don't sell permits." {
 		t.Fatalf("dismiss = %+v, %v", top, err)
 	}

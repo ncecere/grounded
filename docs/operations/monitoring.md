@@ -68,7 +68,7 @@ Admin **Test connection** and **Test model** calls, the scheduled health check a
 | `grounded_health_checks_total` | counter | `kind` (`connection`, `model`, `mcp_server`), `trigger` (`manual`, `scheduled`), `status` (`healthy`, `failing`) | Stored health checks ([`health.md`](health.md)) |
 | `grounded_health_check_duration_seconds` | histogram | `kind` | The latency of the test behind a stored check |
 | `grounded_gap_questions_total` | counter | `signal` (`no_context`, `refused`, `judged_out`, `out_of_scope`, `unsupported`, `uncited`, `thumbs_down`) | Failed questions kept for the gap report ([`../gaps.md`](../gaps.md)) |
-| `grounded_gap_topic_changes_total` | counter | `kind` (`embedded`, `assigned`, `new_topic`, `reopened`, `resolved`, `labelled`, `pruned`) | The hourly `gaps.topics` job's work |
+| `grounded_gap_topic_changes_total` | counter | `kind` (`embedded`, `assigned`, `new_topic`, `merged`, `confirmed`, `reopened`, `resolved`, `labelled`, `pruned`) | The hourly `gaps.topics` job's work |
 | `grounded_answer_cache_lookups_total` | counter | `result` (`hit`, `miss`), `reason` (`exact`, `near`; `no_entry`, `near_rejected`, `not_standalone`, `error`) | Answer cache lookups of agents with saved answers on ([`../answer-cache.md`](../answer-cache.md)) |
 | `grounded_answer_cache_tokens_saved_total` | counter | | Model tokens the originals of reused answers spent |
 

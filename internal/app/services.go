@@ -313,7 +313,8 @@ func IngestRegistration(cfg config.Config, pool *pgxpool.Pool, s *Services, log 
 			})
 			evals.Register(w, s.Evaluations)
 			registerHealth(w, cfg, pool, s, log)
-			gaps.Register(w, &gaps.Runner{Pool: pool, Catalog: s.Catalog, NewProvider: s.Agents.NewProvider, Budget: s.Costs.Check, Log: log})
+			gaps.Register(w, &gaps.Runner{Pool: pool, Catalog: s.Catalog, NewProvider: s.Agents.NewProvider, Budget: s.Costs.Check,
+				SystemOne: s.SystemOne.PlatformClient, Log: log})
 		},
 		Queues: map[string]river.QueueConfig{
 			ingest.Queue: {MaxWorkers: cfg.IngestConcurrency},

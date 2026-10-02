@@ -12,6 +12,15 @@ import (
 	"github.com/google/uuid"
 )
 
+const ensureGapSettings = `-- name: EnsureGapSettings :exec
+INSERT INTO gap_settings (team_id) VALUES ($1) ON CONFLICT DO NOTHING
+`
+
+func (q *Queries) EnsureGapSettings(ctx context.Context, teamID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, ensureGapSettings, teamID)
+	return err
+}
+
 const gapCountsByTeam = `-- name: GapCountsByTeam :many
 SELECT t.id AS team_id, t.slug, t.name, sig::text AS signal, count(*)::int AS n
 FROM gap_questions q
@@ -64,7 +73,7 @@ func (q *Queries) GapCountsByTeam(ctx context.Context, arg GapCountsByTeamParams
 }
 
 const gapPendingCount = `-- name: GapPendingCount :one
-SELECT count(*)::int
+SELECT count(*)::int AS pending, (count(*) FILTER (WHERE q.topic_id IS NULL))::int AS ungrouped
 FROM gap_questions q
 JOIN conversations c ON c.id = q.conversation_id AND c.deleted_at IS NULL
 JOIN agents a ON a.id = q.agent_id AND a.deleted_at IS NULL
@@ -81,13 +90,19 @@ type GapPendingCountParams struct {
 	MinAskers int32
 }
 
+type GapPendingCountRow struct {
+	Pending   int32
+	Ungrouped int32
+}
+
 // A team's failed questions of the last 30 days that aren't in a topic
-// shown yet (not grouped, or in a topic below the minimum of askers).
-func (q *Queries) GapPendingCount(ctx context.Context, arg GapPendingCountParams) (int32, error) {
+// shown yet: pending (all of them), and ungrouped, those the topics job
+// hasn't grouped yet (the rest are in topics below the minimum of askers).
+func (q *Queries) GapPendingCount(ctx context.Context, arg GapPendingCountParams) (GapPendingCountRow, error) {
 	row := q.db.QueryRow(ctx, gapPendingCount, arg.TeamID, arg.AgentID, arg.MinAskers)
-	var column_1 int32
-	err := row.Scan(&column_1)
-	return column_1, err
+	var i GapPendingCountRow
+	err := row.Scan(&i.Pending, &i.Ungrouped)
+	return i, err
 }
 
 const gapTopicReasons = `-- name: GapTopicReasons :many
@@ -243,6 +258,29 @@ func (q *Queries) GapTotalsByTeam(ctx context.Context, arg GapTotalsByTeamParams
 	return items, nil
 }
 
+const getGapSettings = `-- name: GetGapSettings :one
+SELECT team_id, confirm_similar, revision, updated_at FROM gap_settings WHERE team_id = $1
+`
+
+type GetGapSettingsRow struct {
+	TeamID         uuid.UUID
+	ConfirmSimilar bool
+	Revision       int64
+	UpdatedAt      time.Time
+}
+
+func (q *Queries) GetGapSettings(ctx context.Context, teamID uuid.UUID) (GetGapSettingsRow, error) {
+	row := q.db.QueryRow(ctx, getGapSettings, teamID)
+	var i GetGapSettingsRow
+	err := row.Scan(
+		&i.TeamID,
+		&i.ConfirmSimilar,
+		&i.Revision,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getSharedGapQuestion = `-- name: GetSharedGapQuestion :one
 SELECT q.id, q.question, q.feedback_reason, q.evaluation_question_id, q.created_at
 FROM gap_questions q
@@ -276,16 +314,90 @@ func (q *Queries) GetSharedGapQuestion(ctx context.Context, arg GetSharedGapQues
 	return i, err
 }
 
+const insertGapTopicEvent = `-- name: InsertGapTopicEvent :exec
+INSERT INTO gap_topic_events (topic_id, kind, dismiss_kind, reason, actor_id)
+VALUES ($1, $2, $3, $4, $5)
+`
+
+type InsertGapTopicEventParams struct {
+	TopicID     uuid.UUID
+	Kind        string
+	DismissKind *string
+	Reason      string
+	ActorID     uuid.NullUUID
+}
+
+// A line of a topic's history (shown to the team's editors, admins and
+// owners; never erased when the topic reopens).
+func (q *Queries) InsertGapTopicEvent(ctx context.Context, arg InsertGapTopicEventParams) error {
+	_, err := q.db.Exec(ctx, insertGapTopicEvent,
+		arg.TopicID,
+		arg.Kind,
+		arg.DismissKind,
+		arg.Reason,
+		arg.ActorID,
+	)
+	return err
+}
+
+const listGapTopicEvents = `-- name: ListGapTopicEvents :many
+SELECT e.id, e.kind, e.dismiss_kind, e.reason, e.created_at, u.display_name AS actor_name
+FROM gap_topic_events e
+LEFT JOIN users u ON u.id = e.actor_id
+WHERE e.topic_id = $1
+ORDER BY e.created_at DESC, e.id
+LIMIT 50
+`
+
+type ListGapTopicEventsRow struct {
+	ID          uuid.UUID
+	Kind        string
+	DismissKind *string
+	Reason      string
+	CreatedAt   time.Time
+	ActorName   *string
+}
+
+// A topic's history, newest first, with who acted (the topics job when
+// actor_name is NULL).
+func (q *Queries) ListGapTopicEvents(ctx context.Context, topicID uuid.UUID) ([]ListGapTopicEventsRow, error) {
+	rows, err := q.db.Query(ctx, listGapTopicEvents, topicID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListGapTopicEventsRow{}
+	for rows.Next() {
+		var i ListGapTopicEventsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.DismissKind,
+			&i.Reason,
+			&i.CreatedAt,
+			&i.ActorName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGapTopics = `-- name: ListGapTopics :many
 
 SELECT t.id, t.team_id, t.agent_id, a.name AS agent_name, t.label, t.state, t.state_reason, t.state_changed_at, t.created_at,
-       s.questions, s.askers, s.shared, s.recent, s.first_seen, s.last_seen
+       t.dismiss_kind, s.questions, s.askers, s.shared, s.recent, s.since_closed, s.first_seen, s.last_seen
 FROM gap_topics t
 JOIN agents a ON a.id = t.agent_id AND a.deleted_at IS NULL
 JOIN LATERAL (
     SELECT count(*)::int AS questions, count(DISTINCT q.asker_key)::int AS askers,
            (count(*) FILTER (WHERE q.shared))::int AS shared,
            (count(*) FILTER (WHERE q.created_at >= now() - interval '30 days'))::int AS recent,
+           (count(*) FILTER (WHERE t.state <> 'open' AND q.created_at > t.state_changed_at))::int AS since_closed,
            coalesce(min(q.created_at), t.created_at)::timestamptz AS first_seen,
            coalesce(max(q.created_at), t.created_at)::timestamptz AS last_seen
     FROM gap_questions q JOIN conversations c ON c.id = q.conversation_id AND c.deleted_at IS NULL
@@ -317,10 +429,12 @@ type ListGapTopicsRow struct {
 	StateReason    string
 	StateChangedAt time.Time
 	CreatedAt      time.Time
+	DismissKind    *string
 	Questions      int32
 	Askers         int32
 	Shared         int32
 	Recent         int32
+	SinceClosed    int32
 	FirstSeen      time.Time
 	LastSeen       time.Time
 }
@@ -356,10 +470,12 @@ func (q *Queries) ListGapTopics(ctx context.Context, arg ListGapTopicsParams) ([
 			&i.StateReason,
 			&i.StateChangedAt,
 			&i.CreatedAt,
+			&i.DismissKind,
 			&i.Questions,
 			&i.Askers,
 			&i.Shared,
 			&i.Recent,
+			&i.SinceClosed,
 			&i.FirstSeen,
 			&i.LastSeen,
 		); err != nil {
@@ -417,8 +533,31 @@ func (q *Queries) ListSharedGapQuestions(ctx context.Context, topicID uuid.NullU
 	return items, nil
 }
 
+const lockGapSettings = `-- name: LockGapSettings :one
+SELECT team_id, confirm_similar, revision, updated_at FROM gap_settings WHERE team_id = $1 FOR UPDATE
+`
+
+type LockGapSettingsRow struct {
+	TeamID         uuid.UUID
+	ConfirmSimilar bool
+	Revision       int64
+	UpdatedAt      time.Time
+}
+
+func (q *Queries) LockGapSettings(ctx context.Context, teamID uuid.UUID) (LockGapSettingsRow, error) {
+	row := q.db.QueryRow(ctx, lockGapSettings, teamID)
+	var i LockGapSettingsRow
+	err := row.Scan(
+		&i.TeamID,
+		&i.ConfirmSimilar,
+		&i.Revision,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const lockGapTopic = `-- name: LockGapTopic :one
-SELECT id, team_id, agent_id, label, state, state_reason FROM gap_topics WHERE id = $1 AND team_id = $2 FOR UPDATE
+SELECT id, team_id, agent_id, label, state, state_reason, dismiss_kind FROM gap_topics WHERE id = $1 AND team_id = $2 FOR UPDATE
 `
 
 type LockGapTopicParams struct {
@@ -433,6 +572,7 @@ type LockGapTopicRow struct {
 	Label       string
 	State       string
 	StateReason string
+	DismissKind *string
 }
 
 func (q *Queries) LockGapTopic(ctx context.Context, arg LockGapTopicParams) (LockGapTopicRow, error) {
@@ -445,6 +585,7 @@ func (q *Queries) LockGapTopic(ctx context.Context, arg LockGapTopicParams) (Loc
 		&i.Label,
 		&i.State,
 		&i.StateReason,
+		&i.DismissKind,
 	)
 	return i, err
 }
@@ -464,26 +605,60 @@ func (q *Queries) SetGapQuestionEvaluation(ctx context.Context, arg SetGapQuesti
 }
 
 const setGapTopicState = `-- name: SetGapTopicState :exec
-UPDATE gap_topics SET state = $1, state_reason = $2, state_changed_at = now(), state_changed_by = $3,
-    answered_since = 0, updated_at = now()
-WHERE id = $4
+UPDATE gap_topics SET state = $1, state_reason = $2, dismiss_kind = $3, state_changed_at = now(),
+    state_changed_by = $4, answered_since = 0, updated_at = now()
+WHERE id = $5
 `
 
 type SetGapTopicStateParams struct {
 	State          string
 	StateReason    string
+	DismissKind    *string
 	StateChangedBy uuid.NullUUID
 	ID             uuid.UUID
 }
 
-// A person's action: dismissed (with an optional reason) or fixed. The
-// topic reopens when a newer failure joins it (internal/gaps).
+// A person's action: dismissed (for now or not for this agent, with an
+// optional reason), fixed, or reopened. A topic dismissed for now or fixed
+// reopens when a newer failure joins it (internal/gaps).
 func (q *Queries) SetGapTopicState(ctx context.Context, arg SetGapTopicStateParams) error {
 	_, err := q.db.Exec(ctx, setGapTopicState,
 		arg.State,
 		arg.StateReason,
+		arg.DismissKind,
 		arg.StateChangedBy,
 		arg.ID,
 	)
 	return err
+}
+
+const updateGapSettings = `-- name: UpdateGapSettings :one
+UPDATE gap_settings SET confirm_similar = $1, revision = revision + 1, updated_by = $2, updated_at = now()
+WHERE team_id = $3
+RETURNING team_id, confirm_similar, revision, updated_at
+`
+
+type UpdateGapSettingsParams struct {
+	ConfirmSimilar bool
+	UpdatedBy      uuid.NullUUID
+	TeamID         uuid.UUID
+}
+
+type UpdateGapSettingsRow struct {
+	TeamID         uuid.UUID
+	ConfirmSimilar bool
+	Revision       int64
+	UpdatedAt      time.Time
+}
+
+func (q *Queries) UpdateGapSettings(ctx context.Context, arg UpdateGapSettingsParams) (UpdateGapSettingsRow, error) {
+	row := q.db.QueryRow(ctx, updateGapSettings, arg.ConfirmSimilar, arg.UpdatedBy, arg.TeamID)
+	var i UpdateGapSettingsRow
+	err := row.Scan(
+		&i.TeamID,
+		&i.ConfirmSimilar,
+		&i.Revision,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

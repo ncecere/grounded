@@ -94,3 +94,89 @@ func TestGapCaptureFeedbackAndReport(t *testing.T) {
 		t.Fatalf("admin counts = %d %+v", code, counts)
 	}
 }
+
+// TestGapTextNeverReachesPlatformStaff (aud-1, aud-2, adm-2 of the v0.4.0
+// walkthrough): adding a shared question to evaluations and dismissing a
+// topic with a reason leave neither text in anything platform staff read:
+// the platform and team audit logs (the CSV export is built from them),
+// search, notifications. The team's editors still see both on the topic.
+func TestGapTextNeverReachesPlatformStaff(t *testing.T) {
+	env := newAgentEnv(t)
+	cfg := env.agentConfig(env.kb.Id.String())
+	cfg["minSimilarity"] = 0.99
+	picky := env.publishAgent(t, "Picky", cfg)
+	const question, reason = "Where do visitors buy a parking permit?", "Visitors park free at the stadium lot."
+	var shared apitypes.ChatAnswer
+	for i, s := range []*session{env.member, env.editor, env.tadmin} {
+		var ans apitypes.ChatAnswer
+		code, e := s.call("POST", env.chatPath(picky.Slug), map[string]any{"message": question, "stream": false}, &ans, nil)
+		mustCode(t, "chat", code, e, 200, "")
+		if i == 0 {
+			shared = ans
+		}
+	}
+	code, e := env.member.call("POST", "/v1/messages/"+shared.MessageId.String()+"/feedback",
+		map[string]any{"rating": "down", "reason": "missing_sources", "share": true}, nil, nil)
+	mustCode(t, "share", code, e, 200, "")
+	runner := &gaps.Runner{Pool: env.app.Pool, Catalog: env.app.Svc.Catalog}
+	if _, err := runner.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	var list apitypes.GapTopicList
+	env.editor.get(env.base+"/gap-topics?agentId="+picky.Id.String(), &list)
+	if len(list.Topics) != 1 {
+		t.Fatalf("topics = %+v", list)
+	}
+	top := list.Topics[0].Id.String()
+	var detail apitypes.GapTopicDetail
+	env.editor.get(env.base+"/gap-topics/"+top, &detail)
+	if len(detail.SharedQuestions) != 1 || detail.SharedQuestions[0].Question != question {
+		t.Fatalf("shared questions = %+v", detail.SharedQuestions)
+	}
+	set := env.newEvalSet(t, map[string]any{"agentId": picky.Id, "name": "Picky answers"})
+	var added apitypes.GapEvaluationAdded
+	code, e = env.editor.call("POST", env.base+"/gap-topics/"+top+"/evaluations", map[string]any{"setId": set.Id,
+		"sharedQuestionId": detail.SharedQuestions[0].Id, "expected": map[string]any{"filenames": []string{"parking.md"}}}, &added, nil)
+	mustCode(t, "add to evaluations", code, e, 201, "")
+	code, e = env.editor.call("POST", env.base+"/gap-topics/"+top+"/dismiss", map[string]any{"reason": reason, "kind": "not_for_agent"}, nil, nil)
+	mustCode(t, "dismiss", code, e, 200, "")
+
+	// The team's editors see the reason and who gave it in the topic's history.
+	env.editor.get(env.base+"/gap-topics/"+top, &detail)
+	if len(detail.History) != 1 || detail.History[0].Reason != reason || detail.History[0].By == nil ||
+		detail.Topic.DismissKind == nil || *detail.Topic.DismissKind != apitypes.NotForAgent {
+		t.Fatalf("history = %+v, topic %+v", detail.History, detail.Topic)
+	}
+	leaks := func(what string, raw []byte) {
+		t.Helper()
+		for _, text := range []string{"parking permit", "stadium lot"} {
+			if strings.Contains(strings.ToLower(string(raw)), text) {
+				t.Errorf("%s carries %q: %s", what, text, raw)
+			}
+		}
+	}
+	for _, s := range []*session{env.admin, env.auditor} {
+		code, raw := s.raw("GET", "/v1/admin/audit?limit=200", nil, nil)
+		if code != 200 || !strings.Contains(string(raw), "fromSharedQuestion") || !strings.Contains(string(raw), `"hasReason":true`) {
+			t.Fatalf("platform audit log = %d %s", code, raw)
+		}
+		leaks("the platform audit log", raw)
+		code, raw = s.raw("GET", "/v1/search?q=parking", nil, nil)
+		if code == 200 {
+			leaks("search", raw)
+		}
+	}
+	code, raw := env.admin.raw("GET", env.base+"/audit?limit=200", nil, nil)
+	if code != 200 {
+		t.Fatalf("team audit log as a platform admin = %d", code)
+	}
+	leaks("the team audit log", raw)
+	if n := env.scalar(t, `SELECT count(*) FROM audit_log WHERE concat(before_state::text, after_state::text, metadata::text)
+		ILIKE ANY (ARRAY['%parking permit%', '%stadium lot%'])`); n != 0 {
+		t.Errorf("%d audit entries carry the question or the reason", n)
+	}
+	if n := env.scalar(t, `SELECT (SELECT count(*) FROM notifications n WHERE n::text ILIKE ANY (ARRAY['%parking permit%', '%stadium lot%']))
+		+ (SELECT count(*) FROM notification_events n WHERE n::text ILIKE ANY (ARRAY['%parking permit%', '%stadium lot%']))`); n != 0 {
+		t.Errorf("%d notifications carry the question or the reason", n)
+	}
+}

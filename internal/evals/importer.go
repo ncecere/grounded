@@ -18,6 +18,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/google/uuid"
+
 	"github.com/ncecere/grounded/internal/apperr"
 )
 
@@ -39,12 +41,15 @@ type CaseInput struct {
 	Expected    Expected
 	MustMention []string
 	Note        string
+	// FromSharedQuestion is the gap report's shared question it was added
+	// from (audited by ID only; uuid.Nil: typed or imported).
+	FromSharedQuestion uuid.UUID
 }
 
 // Normalize checks a question: 1-4,000 characters, expected documents, at
 // most 20 must-mention phrases and a note of at most 2000 characters.
 func (in CaseInput) Normalize() (CaseInput, error) {
-	out := CaseInput{Question: strings.TrimSpace(in.Question), Note: strings.TrimSpace(in.Note)}
+	out := CaseInput{Question: strings.TrimSpace(in.Question), Note: strings.TrimSpace(in.Note), FromSharedQuestion: in.FromSharedQuestion}
 	if out.Question == "" {
 		return out, apperr.Invalid("invalid_question", "The question is empty.")
 	}

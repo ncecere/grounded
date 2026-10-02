@@ -7,13 +7,14 @@
 -- A team's topics with at least min_askers different askers (one topic
 -- with topic_id), open first, then by recent activity.
 SELECT t.id, t.team_id, t.agent_id, a.name AS agent_name, t.label, t.state, t.state_reason, t.state_changed_at, t.created_at,
-       s.questions, s.askers, s.shared, s.recent, s.first_seen, s.last_seen
+       t.dismiss_kind, s.questions, s.askers, s.shared, s.recent, s.since_closed, s.first_seen, s.last_seen
 FROM gap_topics t
 JOIN agents a ON a.id = t.agent_id AND a.deleted_at IS NULL
 JOIN LATERAL (
     SELECT count(*)::int AS questions, count(DISTINCT q.asker_key)::int AS askers,
            (count(*) FILTER (WHERE q.shared))::int AS shared,
            (count(*) FILTER (WHERE q.created_at >= now() - interval '30 days'))::int AS recent,
+           (count(*) FILTER (WHERE t.state <> 'open' AND q.created_at > t.state_changed_at))::int AS since_closed,
            coalesce(min(q.created_at), t.created_at)::timestamptz AS first_seen,
            coalesce(max(q.created_at), t.created_at)::timestamptz AS last_seen
     FROM gap_questions q JOIN conversations c ON c.id = q.conversation_id AND c.deleted_at IS NULL
@@ -53,8 +54,9 @@ GROUP BY 1, 2;
 
 -- name: GapPendingCount :one
 -- A team's failed questions of the last 30 days that aren't in a topic
--- shown yet (not grouped, or in a topic below the minimum of askers).
-SELECT count(*)::int
+-- shown yet: pending (all of them), and ungrouped, those the topics job
+-- hasn't grouped yet (the rest are in topics below the minimum of askers).
+SELECT count(*)::int AS pending, (count(*) FILTER (WHERE q.topic_id IS NULL))::int AS ungrouped
 FROM gap_questions q
 JOIN conversations c ON c.id = q.conversation_id AND c.deleted_at IS NULL
 JOIN agents a ON a.id = q.agent_id AND a.deleted_at IS NULL
@@ -83,14 +85,45 @@ WHERE q.id = @id AND q.topic_id = @topic_id AND q.shared;
 UPDATE gap_questions SET evaluation_question_id = @evaluation_question_id, updated_at = now() WHERE id = @id;
 
 -- name: LockGapTopic :one
-SELECT id, team_id, agent_id, label, state, state_reason FROM gap_topics WHERE id = @id AND team_id = @team_id FOR UPDATE;
+SELECT id, team_id, agent_id, label, state, state_reason, dismiss_kind FROM gap_topics WHERE id = @id AND team_id = @team_id FOR UPDATE;
 
 -- name: SetGapTopicState :exec
--- A person's action: dismissed (with an optional reason) or fixed. The
--- topic reopens when a newer failure joins it (internal/gaps).
-UPDATE gap_topics SET state = @state, state_reason = @state_reason, state_changed_at = now(), state_changed_by = @state_changed_by,
-    answered_since = 0, updated_at = now()
+-- A person's action: dismissed (for now or not for this agent, with an
+-- optional reason), fixed, or reopened. A topic dismissed for now or fixed
+-- reopens when a newer failure joins it (internal/gaps).
+UPDATE gap_topics SET state = @state, state_reason = @state_reason, dismiss_kind = sqlc.narg(dismiss_kind), state_changed_at = now(),
+    state_changed_by = @state_changed_by, answered_since = 0, updated_at = now()
 WHERE id = @id;
+
+-- name: InsertGapTopicEvent :exec
+-- A line of a topic's history (shown to the team's editors, admins and
+-- owners; never erased when the topic reopens).
+INSERT INTO gap_topic_events (topic_id, kind, dismiss_kind, reason, actor_id)
+VALUES (@topic_id, @kind, sqlc.narg(dismiss_kind), @reason, sqlc.narg(actor_id));
+
+-- name: ListGapTopicEvents :many
+-- A topic's history, newest first, with who acted (the topics job when
+-- actor_name is NULL).
+SELECT e.id, e.kind, e.dismiss_kind, e.reason, e.created_at, u.display_name AS actor_name
+FROM gap_topic_events e
+LEFT JOIN users u ON u.id = e.actor_id
+WHERE e.topic_id = @topic_id
+ORDER BY e.created_at DESC, e.id
+LIMIT 50;
+
+-- name: GetGapSettings :one
+SELECT team_id, confirm_similar, revision, updated_at FROM gap_settings WHERE team_id = @team_id;
+
+-- name: EnsureGapSettings :exec
+INSERT INTO gap_settings (team_id) VALUES (@team_id) ON CONFLICT DO NOTHING;
+
+-- name: LockGapSettings :one
+SELECT team_id, confirm_similar, revision, updated_at FROM gap_settings WHERE team_id = @team_id FOR UPDATE;
+
+-- name: UpdateGapSettings :one
+UPDATE gap_settings SET confirm_similar = @confirm_similar, revision = revision + 1, updated_by = @updated_by, updated_at = now()
+WHERE team_id = @team_id
+RETURNING team_id, confirm_similar, revision, updated_at;
 
 -- name: GapCountsByTeam :many
 -- Platform admins and auditors: failed questions per team and signal in a

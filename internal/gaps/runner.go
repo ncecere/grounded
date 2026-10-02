@@ -1,8 +1,10 @@
-// The topics job (docs/v0.4.0.md §2, owner decision 3): every hour it
-// embeds failed questions that have no vector yet, groups each agent's new
-// questions into topics by cosine similarity (pgvector) with the topics'
-// centroids, so topic IDs stay stable between runs, reopens closed topics
-// that newer failures joined, resolves open topics whose questions are now
+// The topics job (docs/v0.4.0.md §2, owner decisions 3 and 4): every hour
+// it embeds failed questions that have no vector yet, groups each agent's
+// new questions into topics by cosine similarity (pgvector) with their
+// nearest questions and the topics' centroids, so topic IDs stay stable
+// between runs (grouping.go), merges topics that grew alike (merge.go),
+// reopens closed topics that newer failures joined (not those dismissed as
+// not for the agent), resolves open topics whose questions are now
 // answered well, labels topics that reached MinAskers with the agent's chat
 // model (label.go), and prunes topics whose questions are all gone.
 
@@ -12,7 +14,6 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -23,6 +24,7 @@ import (
 	"github.com/ncecere/grounded/internal/gateway"
 	"github.com/ncecere/grounded/internal/llm"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/systemone"
 )
 
 // ResolveAfter is how many good answers to a topic's questions, after its
@@ -49,12 +51,17 @@ type Runner struct {
 	NewProvider func(*gateway.Client) llm.Provider
 	// Budget refuses labels while the team's budget is used up (nil: none).
 	Budget func(ctx context.Context, teamID uuid.UUID) error
-	Log    *slog.Logger
+	// SystemOne returns the platform's SystemOne client, or nil without a
+	// usable model (nil: borderline pairs are never confirmed).
+	SystemOne func(ctx context.Context) (*systemone.Client, error)
+	Log       *slog.Logger
 }
 
 // Summary is one run's counts.
 type Summary struct {
-	Embedded, Assigned, NewTopics, Reopened, Resolved, Labelled, Pruned int
+	Embedded, Assigned, NewTopics, Merged, Reopened, Resolved, Labelled, Pruned int
+	// Confirmed counts the SystemOne same-subject checks answered.
+	Confirmed int
 }
 
 func (r *Runner) log() *slog.Logger {
@@ -81,7 +88,13 @@ func (r *Runner) Run(ctx context.Context) (Summary, error) {
 	if sum.Embedded, err = r.embedPending(ctx); err != nil {
 		return sum, err
 	}
-	if err := r.assign(ctx, &sum); err != nil {
+	cf := r.confirmer()
+	err = r.assign(ctx, &sum, cf)
+	if err == nil {
+		err = r.merge(ctx, &sum, cf)
+	}
+	sum.Confirmed = cf.Asked
+	if err != nil {
 		return sum, err
 	}
 	if sum.Resolved, err = r.resolve(ctx); err != nil {
@@ -194,103 +207,15 @@ func usage(kind string, n int64, teamID, agentID, modelID uuid.UUID) dbgen.Inser
 		AgentID: uuid.NullUUID{UUID: agentID, Valid: true}, ModelID: uuid.NullUUID{UUID: modelID, Valid: true}, Metadata: meta}
 }
 
-// toAssign lists embedded questions in no topic, oldest first.
-const toAssign = `
-SELECT q.id, q.created_at FROM gap_questions q
-JOIN conversations c ON c.id = q.conversation_id AND c.deleted_at IS NULL
-WHERE q.topic_id IS NULL AND q.embedding IS NOT NULL AND q.profile_id IS NOT NULL
-ORDER BY q.created_at, q.id
-LIMIT $1`
-
-// nearestTopic is the agent's topic nearest to the question in its profile,
-// within agents.GapSimilarity.
-const nearestTopic = `
-SELECT t.id FROM gap_topics t, gap_questions q
-WHERE q.id = $1 AND t.agent_id = q.agent_id AND t.profile_id = q.profile_id AND t.centroid IS NOT NULL
-  AND 1 - (t.centroid <=> q.embedding) >= $2
-ORDER BY t.centroid <=> q.embedding
-LIMIT 1`
-
-// assign puts each new question in its nearest topic, or a new one.
-func (r *Runner) assign(ctx context.Context, sum *Summary) error {
-	rows, err := r.Pool.Query(ctx, toAssign, assignBatch)
-	if err != nil {
-		return err
-	}
-	type question struct {
-		id      uuid.UUID
-		created time.Time
-	}
-	list, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (question, error) {
-		var q question
-		return q, row.Scan(&q.id, &q.created)
-	})
-	if err != nil {
-		return err
-	}
-	for _, q := range list {
-		reopened, created, err := r.assignOne(ctx, q.id, q.created)
-		if err != nil {
-			return err
-		}
-		sum.Assigned++
-		if created {
-			sum.NewTopics++
-		}
-		if reopened {
-			sum.Reopened++
-		}
-	}
-	return nil
-}
-
-// assignOne assigns one question in a transaction and refreshes its topic.
-func (r *Runner) assignOne(ctx context.Context, id uuid.UUID, created time.Time) (reopened, isNew bool, err error) {
-	err = pgx.BeginFunc(ctx, r.Pool, func(tx pgx.Tx) error {
-		var topic uuid.UUID
-		err := tx.QueryRow(ctx, nearestTopic, id, agents.GapSimilarity).Scan(&topic)
-		if err == pgx.ErrNoRows {
-			isNew = true
-			err = tx.QueryRow(ctx, `INSERT INTO gap_topics (team_id, agent_id, profile_id, centroid, last_failed_at)
-				SELECT team_id, agent_id, profile_id, embedding, created_at FROM gap_questions WHERE id = $1 RETURNING id`, id).Scan(&topic)
-		}
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `UPDATE gap_questions SET topic_id = $2 WHERE id = $1`, id, topic); err != nil {
-			return err
-		}
-		return tx.QueryRow(ctx, refreshTopic, topic, created).Scan(&reopened)
-	})
-	return reopened, isNew, err
-}
-
-// refreshTopic moves a topic's centroid to the mean of its questions and
-// records a failure at $2: a dismissed, fixed or resolved topic reopens
-// when the failure is newer than its closing, and good answers counted
-// before it no longer count. It returns whether the topic reopened.
-const refreshTopic = `
-WITH old AS (SELECT state, state_changed_at FROM gap_topics WHERE id = $1 FOR UPDATE)
-UPDATE gap_topics t SET
-    centroid = (SELECT avg(q.embedding) FROM gap_questions q JOIN conversations c ON c.id = q.conversation_id AND c.deleted_at IS NULL
-                WHERE q.topic_id = t.id AND q.embedding IS NOT NULL),
-    last_failed_at = greatest(coalesce(t.last_failed_at, $2::timestamptz), $2::timestamptz),
-    state = CASE WHEN old.state <> 'open' AND $2::timestamptz > old.state_changed_at THEN 'open' ELSE t.state END,
-    state_reason = CASE WHEN old.state <> 'open' AND $2::timestamptz > old.state_changed_at THEN '' ELSE t.state_reason END,
-    state_changed_by = CASE WHEN old.state <> 'open' AND $2::timestamptz > old.state_changed_at THEN NULL ELSE t.state_changed_by END,
-    state_changed_at = CASE WHEN old.state <> 'open' AND $2::timestamptz > old.state_changed_at THEN now() ELSE t.state_changed_at END,
-    answered_since = CASE WHEN t.last_answered_at IS NULL OR $2::timestamptz > t.last_answered_at THEN 0 ELSE t.answered_since END,
-    updated_at = now()
-FROM old
-WHERE t.id = $1
-RETURNING old.state <> 'open' AND t.state = 'open'`
-
 // resolve closes open topics answered well ResolveAfter times since their
 // last failure.
 func (r *Runner) resolve(ctx context.Context) (int, error) {
-	tag, err := r.Pool.Exec(ctx, `UPDATE gap_topics SET state = 'resolved', state_reason = '', state_changed_at = now(), state_changed_by = NULL,
-		updated_at = now()
-		WHERE state = 'open' AND answered_since >= $1 AND last_answered_at > coalesce(last_failed_at, '-infinity'::timestamptz)`, ResolveAfter)
+	tag, err := r.Pool.Exec(ctx, `WITH done AS (
+		UPDATE gap_topics SET state = 'resolved', state_reason = '', dismiss_kind = NULL, state_changed_at = now(), state_changed_by = NULL,
+			updated_at = now()
+		WHERE state = 'open' AND answered_since >= $1 AND last_answered_at > coalesce(last_failed_at, '-infinity'::timestamptz)
+		RETURNING id)
+		INSERT INTO gap_topic_events (topic_id, kind) SELECT id, 'resolved' FROM done`, ResolveAfter)
 	return int(tag.RowsAffected()), err
 }
 

@@ -34,7 +34,15 @@ var gapPolicies = map[string]policy{
 	"fixGapTopic": {own: editors, build: func(c *mctx) request {
 		return post(c.team("/gap-topics/"+c.pick(c.tf.gapTopic, c.e.freshGapTopic)+"/fix"), nil)
 	}},
+	"reopenGapTopic": {own: editors, build: func(c *mctx) request {
+		return post(c.team("/gap-topics/"+c.pick(c.tf.gapTopic, c.e.closedGapTopic)+"/reopen"), nil)
+	}},
 	"addGapTopicSource": {own: editors, build: func(c *mctx) request { return post(c.gapTopic("/add-source"), nil) }},
+	"getGapSettings":    {own: editors, build: func(c *mctx) request { return get(c.team("/gap-settings")) }},
+	"updateGapSettings": {own: editors, build: func(c *mctx) request {
+		p := c.team("/gap-settings")
+		return put(p, map[string]any{"confirmSimilar": false}).h(c.rev(p))
+	}},
 	"addGapQuestionToEvaluations": {own: editors, build: func(c *mctx) request {
 		return post(c.gapTopic("/evaluations"), map[string]any{"setId": c.tf.evalSet, "sharedQuestionId": c.tf.gapShared,
 			"expected": map[string]any{"filenames": []string{"parking.md"}}})
@@ -51,6 +59,16 @@ func (e *matrixEnv) seedGapTopic(t *testing.T, f *teamFix, prefix string) (topic
 // freshGapTopic is a new open topic of the team.
 func (e *matrixEnv) freshGapTopic(t *testing.T, f *teamFix) string {
 	topic, _ := insertGapTopic(t, e, f, fmt.Sprintf("Fresh topic %d", e.next()), "Is the pool open on holidays?")
+	return topic
+}
+
+// closedGapTopic is a new topic of the team, dismissed as not for its agent.
+func (e *matrixEnv) closedGapTopic(t *testing.T, f *teamFix) string {
+	topic := e.freshGapTopic(t, f)
+	if _, err := e.app.Pool.Exec(context.Background(), `UPDATE gap_topics SET state = 'dismissed', dismiss_kind = 'not_for_agent' WHERE id = $1`,
+		topic); err != nil {
+		t.Fatalf("close gap topic: %v", err)
+	}
 	return topic
 }
 

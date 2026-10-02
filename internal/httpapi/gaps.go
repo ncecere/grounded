@@ -22,8 +22,11 @@ func (a *api) gapRoutes() []route {
 		{"GET", topic, a.session(a.getGapTopic)},
 		{"POST", topic + "/dismiss", a.session(a.dismissGapTopic)},
 		{"POST", topic + "/fix", a.session(a.fixGapTopic)},
+		{"POST", topic + "/reopen", a.session(a.reopenGapTopic)},
 		{"POST", topic + "/add-source", a.session(a.addGapTopicSource)},
 		{"POST", topic + "/evaluations", a.session(a.addGapQuestionToEvaluations)},
+		{"GET", "/v1/teams/{team}/gap-settings", a.session(a.getGapSettings)},
+		{"PUT", "/v1/teams/{team}/gap-settings", a.session(a.updateGapSettings)},
 		{"GET", "/v1/admin/analytics/gaps", a.admin(a.adminGetGapCounts)},
 	}
 }
@@ -37,7 +40,8 @@ func (a *api) listGapTopics(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
-	out := apitypes.GapTopicList{Topics: make([]apitypes.GapTopic, len(list.Topics)), Pending: list.Pending, MinAskers: gaps.MinAskers}
+	out := apitypes.GapTopicList{Topics: make([]apitypes.GapTopic, len(list.Topics)), Pending: list.Pending, Ungrouped: list.Ungrouped,
+		MinAskers: gaps.MinAskers}
 	for i, t := range list.Topics {
 		out.Topics[i] = toAPIGapTopic(t)
 	}
@@ -53,9 +57,14 @@ func (a *api) getGapTopic(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
-	out := apitypes.GapTopicDetail{Topic: toAPIGapTopic(d.Topic), SharedQuestions: make([]apitypes.GapSharedQuestion, len(d.Shared))}
+	out := apitypes.GapTopicDetail{Topic: toAPIGapTopic(d.Topic), SharedQuestions: make([]apitypes.GapSharedQuestion, len(d.Shared)),
+		History: make([]apitypes.GapTopicEvent, len(d.History))}
 	for i, q := range d.Shared {
 		out.SharedQuestions[i] = toAPISharedQuestion(q)
+	}
+	for i, e := range d.History {
+		out.History[i] = apitypes.GapTopicEvent{Id: e.ID, Kind: apitypes.GapTopicEventKind(e.Kind), DismissKind: dismissKind(e.DismissKind),
+			Reason: e.Reason, By: e.ActorName, At: e.CreatedAt}
 	}
 	httpx.JSON(w, http.StatusOK, out)
 }
@@ -69,8 +78,42 @@ func (a *api) dismissGapTopic(w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength != 0 && !httpx.Decode(w, r, &in) {
 		return
 	}
-	t, err := a.Gaps.Dismiss(r.Context(), a.actor(r), r.PathValue("team"), id, deref(in.Reason, ""))
+	kind := ""
+	if in.Kind != nil {
+		kind = string(*in.Kind)
+	}
+	t, err := a.Gaps.Dismiss(r.Context(), a.actor(r), r.PathValue("team"), id, kind, deref(in.Reason, ""))
 	writeGapTopic(w, r, t, err)
+}
+
+func (a *api) reopenGapTopic(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r, "topicId")
+	if !ok {
+		return
+	}
+	t, err := a.Gaps.Reopen(r.Context(), a.actor(r), r.PathValue("team"), id)
+	writeGapTopic(w, r, t, err)
+}
+
+func (a *api) getGapSettings(w http.ResponseWriter, r *http.Request) {
+	st, err := a.Gaps.Settings(r.Context(), a.actor(r), r.PathValue("team"))
+	writeGapSettings(w, r, st, err)
+}
+
+func (a *api) updateGapSettings(w http.ResponseWriter, r *http.Request) {
+	in, rev, ok := decodeRevised[apitypes.GapSettingsUpdate](w, r)
+	if !ok {
+		return
+	}
+	st, err := a.Gaps.SetSettings(r.Context(), a.actor(r), r.PathValue("team"), in.ConfirmSimilar, rev)
+	writeGapSettings(w, r, st, err)
+}
+
+func writeGapSettings(w http.ResponseWriter, r *http.Request, st gaps.Settings, err error) {
+	if failed(w, r, err) {
+		return
+	}
+	writeRevised(w, http.StatusOK, st.Revision, apitypes.GapSettings{ConfirmSimilar: st.ConfirmSimilar, Revision: st.Revision, UpdatedAt: st.UpdatedAt})
 }
 
 func (a *api) fixGapTopic(w http.ResponseWriter, r *http.Request) {
@@ -149,9 +192,18 @@ func (a *api) adminGetGapCounts(w http.ResponseWriter, r *http.Request) {
 func toAPIGapTopic(t gaps.Topic) apitypes.GapTopic {
 	return apitypes.GapTopic{
 		Id: t.ID, AgentId: t.AgentID, AgentName: t.AgentName, Label: t.Label, State: apitypes.GapTopicState(t.State),
-		StateReason: t.StateReason, StateChangedAt: t.StateChangedAt, Questions: t.Questions, Askers: t.Askers, Shared: t.Shared,
-		Last30Days: t.Recent, FirstSeen: t.FirstSeen, LastSeen: t.LastSeen, Signals: t.Signals, Reasons: t.Reasons, Trend: t.Trend,
+		DismissKind: dismissKind(t.DismissKind), StateReason: t.StateReason, StateChangedAt: t.StateChangedAt, Questions: t.Questions,
+		Askers: t.Askers, Shared: t.Shared, Last30Days: t.Recent, SinceClosed: t.SinceClosed, FirstSeen: t.FirstSeen, LastSeen: t.LastSeen,
+		Signals: t.Signals, Reasons: t.Reasons, Trend: t.Trend,
 	}
+}
+
+func dismissKind(k *string) *apitypes.GapDismissKind {
+	if k == nil {
+		return nil
+	}
+	out := apitypes.GapDismissKind(*k)
+	return &out
 }
 
 func toAPISharedQuestion(q gaps.SharedQuestion) apitypes.GapSharedQuestion {

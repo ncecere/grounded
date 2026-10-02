@@ -4502,8 +4502,53 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Dismiss a topic, with an optional reason; it reopens on new failures (audited) */
+        /**
+         * Dismiss a topic for now (it reopens on new failures) or as not for this agent (it stays closed), with an optional reason (audited)
+         * @description The reason is kept in the topic's history, which only the team's editors, admins and owners see; the audit entry carries the kind and whether there was a reason, never its text.
+         */
         post: operations["dismissGapTopic"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/gap-topics/{topicId}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                topicId: components["parameters"]["GapTopicIdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reopen a closed topic, undoing a dismissal or a fix (audited) */
+        post: operations["reopenGapTopic"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/teams/{team}/gap-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        /** The team's gap report settings (editors, admins and owners) */
+        get: operations["getGapSettings"];
+        /** Change the team's gap report settings (editors, admins and owners; If-Match; audited) */
+        put: operations["updateGapSettings"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -9856,11 +9901,12 @@ export interface components {
              */
             label: string;
             /**
-             * @description open; dismissed or fixed by an editor; resolved when its questions started being answered well. A closed topic reopens on new failures.
+             * @description open; dismissed or fixed by an editor; resolved when its questions started being answered well. A closed topic reopens on new failures, except one dismissed as not for this agent.
              * @enum {string}
              */
             state: "open" | "dismissed" | "fixed" | "resolved";
-            /** @description The optional reason of a dismissal */
+            dismissKind?: components["schemas"]["GapDismissKind"];
+            /** @description The optional reason of the current dismissal (earlier ones are in the topic's history) */
             stateReason: string;
             /** Format: date-time */
             stateChangedAt: string;
@@ -9878,6 +9924,11 @@ export interface components {
             shared: number;
             /** Format: int32 */
             last30Days: number;
+            /**
+             * Format: int32
+             * @description Questions that joined a closed topic since it closed (0 while open)
+             */
+            sinceClosed: number;
             /** Format: date-time */
             firstSeen: string;
             /** Format: date-time */
@@ -9897,6 +9948,11 @@ export interface components {
              * @description Failed questions of the last 30 days not in a topic shown yet (not grouped yet, or fewer than minAskers askers)
              */
             pending: number;
+            /**
+             * Format: int32
+             * @description Of pending, the questions the hourly topics job hasn't grouped yet
+             */
+            ungrouped: number;
             /** Format: int32 */
             minAskers: number;
         };
@@ -9912,9 +9968,41 @@ export interface components {
         GapTopicDetail: {
             topic: components["schemas"]["GapTopic"];
             sharedQuestions: components["schemas"]["GapSharedQuestion"][];
+            /** @description The topic's dismissals, fixes, reopenings, resolutions and merges, newest first (at most 50) */
+            history: components["schemas"]["GapTopicEvent"][];
+        };
+        /**
+         * @description for_now: the topic reopens when newer questions about it fail; not_for_agent: it stays closed, and new questions are still counted
+         * @enum {string}
+         */
+        GapDismissKind: "for_now" | "not_for_agent";
+        GapTopicEvent: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "dismissed" | "fixed" | "reopened" | "resolved" | "merged";
+            dismissKind?: components["schemas"]["GapDismissKind"];
+            /** @description A dismissal's reason (empty: none) */
+            reason: string;
+            /** @description Who acted; absent when the hourly topics job did */
+            by?: string;
+            /** Format: date-time */
+            at: string;
         };
         GapTopicDismiss: {
             reason?: string;
+            kind?: components["schemas"]["GapDismissKind"];
+        };
+        GapSettings: {
+            /** @description The hourly topics job asks SystemOne whether borderline questions and topics are about the same subject (metered to the team; needs a SystemOne model). Off by default. */
+            confirmSimilar: boolean;
+            /** Format: int64 */
+            revision: number;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        GapSettingsUpdate: {
+            confirmSimilar: boolean;
         };
         GapEvaluationAdd: {
             /** Format: uuid */
@@ -18917,6 +19005,97 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+        };
+    };
+    reopenGapTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                topicId: components["parameters"]["GapTopicIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reopened */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GapTopic"];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+        };
+    };
+    getGapSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings (the defaults when never saved); the ETag is the revision */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GapSettings"];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    updateGapSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GapSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GapSettings"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
         };
     };
     fixGapTopic: {

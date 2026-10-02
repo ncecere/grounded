@@ -45,7 +45,8 @@ func (w *Worker) Work(ctx context.Context, _ *river.Job[Args]) error {
 	observe(sum)
 	if sum != (Summary{}) {
 		w.Runner.log().InfoContext(ctx, "gap topics", "embedded", sum.Embedded, "assigned", sum.Assigned, "newTopics", sum.NewTopics,
-			"reopened", sum.Reopened, "resolved", sum.Resolved, "labelled", sum.Labelled, "pruned", sum.Pruned)
+			"merged", sum.Merged, "confirmed", sum.Confirmed, "reopened", sum.Reopened, "resolved", sum.Resolved, "labelled", sum.Labelled,
+			"pruned", sum.Pruned)
 	}
 	return nil
 }
@@ -64,8 +65,8 @@ func Periodic() *river.PeriodicJob {
 
 // observe exports a run's counts (grounded_gap_topic_changes_total).
 func observe(sum Summary) {
-	for kind, n := range map[string]int{"embedded": sum.Embedded, "assigned": sum.Assigned, "new_topic": sum.NewTopics, "reopened": sum.Reopened,
-		"resolved": sum.Resolved, "labelled": sum.Labelled, "pruned": sum.Pruned} {
+	for kind, n := range map[string]int{"embedded": sum.Embedded, "assigned": sum.Assigned, "new_topic": sum.NewTopics, "merged": sum.Merged,
+		"confirmed": sum.Confirmed, "reopened": sum.Reopened, "resolved": sum.Resolved, "labelled": sum.Labelled, "pruned": sum.Pruned} {
 		if n > 0 {
 			observability.GapTopicChanges.WithLabelValues(kind).Add(float64(n))
 		}
