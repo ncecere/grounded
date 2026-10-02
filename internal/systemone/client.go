@@ -22,8 +22,8 @@ import (
 const DefaultMaxConcurrent = 8
 
 // Client asks one SystemOne model questions. It is cheap to build; the
-// concurrency cap is shared by every client of the same connection in this
-// process.
+// concurrency cap (with its interactive and background priorities) is shared
+// by every client of the same connection in this process.
 type Client struct {
 	GW      *gateway.Client
 	Model   string    // upstream model, e.g. openjev-latest
@@ -41,7 +41,8 @@ func NewClient(gw *gateway.Client, model string, modelID, connectionID uuid.UUID
 
 // Call describes one request: the feature it serves (usage events and
 // logs) and its timeout, which starts once a concurrency slot is free
-// (0 = none beyond ctx and the connection timeout).
+// (0 = none beyond ctx and the connection timeout). Its priority comes from
+// the context (WithPriority; interactive by default).
 type Call struct {
 	Feature string
 	Timeout time.Duration
@@ -79,10 +80,13 @@ const (
 )
 
 // Ask sends the state and questions and returns the validated answers.
-// Waiting for a slot is bounded by ctx; the call itself by c.Timeout.
+// Waiting for a slot is bounded by ctx (and measured, by feature and
+// priority); the call itself by c.Timeout.
 func (cl *Client) Ask(ctx context.Context, c Call, state any, qs map[string]Question) (res Response, err error) {
+	prio := PriorityFrom(ctx)
 	ctx, span := tracing.StartKind(ctx, "systemone "+c.Feature, trace.SpanKindClient, attribute.String("grounded.systemone.feature", c.Feature),
-		attribute.String("gen_ai.request.model", cl.Model), attribute.Int("grounded.systemone.questions", len(qs)))
+		attribute.String("gen_ai.request.model", cl.Model), attribute.Int("grounded.systemone.questions", len(qs)),
+		attribute.String("grounded.systemone.priority", prio.String()))
 	defer func() {
 		span.SetAttributes(attribute.Int("gen_ai.usage.input_tokens", res.Usage.InputTokens))
 		if err != nil {
@@ -90,7 +94,11 @@ func (cl *Client) Ask(ctx context.Context, c Call, state any, qs map[string]Ques
 		}
 		span.End()
 	}()
-	release, err := cl.slots.acquire(ctx)
+	waitStart := time.Now()
+	release, err := cl.slots.acquire(ctx, prio)
+	waited := time.Since(waitStart)
+	observability.ObserveSystemOneWait(c.Feature, prio.String(), waited)
+	span.SetAttributes(attribute.Int64("grounded.systemone.wait_ms", waited.Milliseconds()))
 	if err != nil {
 		return Response{}, err
 	}
@@ -110,43 +118,6 @@ func (cl *Client) Ask(ctx context.Context, c Call, state any, qs map[string]Ques
 		m.add(cl.ModelID, c.Feature, res.Usage.InputTokens, err == nil)
 	}
 	return res, err
-}
-
-// ---- per-connection concurrency ------------------------------------------------
-
-// slots is a connection's concurrency cap within this process.
-type slots struct {
-	ch chan struct{}
-}
-
-var (
-	slotsMu sync.Mutex
-	slotMap = map[uuid.UUID]*slots{}
-)
-
-// slotsFor returns the connection's cap, replacing it when the configured
-// size changed (requests holding an old slot release it to the old cap).
-func slotsFor(conn uuid.UUID, n int) *slots {
-	if n <= 0 {
-		n = DefaultMaxConcurrent
-	}
-	slotsMu.Lock()
-	defer slotsMu.Unlock()
-	s, ok := slotMap[conn]
-	if !ok || cap(s.ch) != n {
-		s = &slots{ch: make(chan struct{}, n)}
-		slotMap[conn] = s
-	}
-	return s
-}
-
-func (s *slots) acquire(ctx context.Context) (func(), error) {
-	select {
-	case s.ch <- struct{}{}:
-		return func() { <-s.ch }, nil
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
 }
 
 // ---- usage -------------------------------------------------------------------------

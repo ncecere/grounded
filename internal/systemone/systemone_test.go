@@ -172,8 +172,8 @@ func TestConcurrencyCapPerConnection(t *testing.T) {
 		t.Errorf("peak concurrency = %d, want 2", p)
 	}
 	// Waiting for a slot is bounded by the caller's context.
-	hold, _ := a.slots.acquire(context.Background())
-	hold2, _ := a.slots.acquire(context.Background())
+	hold, _ := a.slots.acquire(context.Background(), Interactive)
+	hold2, _ := a.slots.acquire(context.Background(), Interactive)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 	if _, err := a.Ask(ctx, Call{}, "x", map[string]Question{"a": Noul("?", "", "")}); !errors.Is(err, context.DeadlineExceeded) {
