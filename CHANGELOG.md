@@ -1,9 +1,5 @@
 # Changelog
 
-- On a phone, the public page's bar keeps the agent's name (New chat and Sign in show only their icons), and the widget hides its launcher while its panel fills the screen.
-- Publish is off while a field holds a value that can't be saved ("Fix the highlighted field first."), instead of publishing the draft without that change.
-- Source-card snippets no longer show Markdown backticks or code fences. Answers' tables with an empty header row no longer render a blank header.
-- The delete dialog says "The document and its passages" for one document, and "Delete pages" for a website's pages.
 All notable changes to Grounded are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Before 1.0, minor releases may include breaking changes; the release notes say how to adapt.
@@ -26,6 +22,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The public audience's moderation streams checked paragraphs by default instead of buffering whole answers, so visitors see the first paragraph in seconds. A public policy an admin saved keeps its mode.
 - Source cards under an answer with claim checks break down the claims citing the source in the verdict colours, "Supports 3 claims · 1 not supported", instead of "Supports 2 of 3 claims that cite it". (bitop-ui: `Sheet` `size="full"`, `initialFocus="title"`, `closeLabel`, `closeIcon` and a keyboard-scrollable body; `Source` `onSelect`; `Response` `headingLevel`.)
 - Cost report CSVs have a `rerank` column after `mcp`, before `tokens`.
+
+### Fixed
+
+- On a phone, the public page's bar keeps the agent's name (New chat and Sign in show only their icons), and the widget hides its launcher while its panel fills the screen.
+- Publish is off while a field holds a value that can't be saved ("Fix the highlighted field first."), instead of publishing the draft without that change.
+- Source-card snippets no longer show Markdown backticks or code fences. Answers' tables with an empty header row no longer render a blank header.
+- The delete dialog says "The document and its passages" for one document, and "Delete pages" for a website's pages.
 
 ## [0.3.1] - 2026-09-30
 
