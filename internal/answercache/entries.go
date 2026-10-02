@@ -101,7 +101,9 @@ type StoreInput struct {
 }
 
 // Store keeps an answer, replacing an entry with the same key. It returns
-// the entry's ID.
+// the entry's ID, or uuid.Nil when the platform switch is off by now (read
+// in the statement, not the switch's short cache: an answer that started
+// before an admin turned saved answers off isn't saved after).
 func (s *Service) Store(ctx context.Context, in StoreInput) (uuid.UUID, error) {
 	life := in.Expiry
 	if in.Retention > 0 && in.Retention < life {
@@ -116,7 +118,8 @@ func (s *Service) Store(ctx context.Context, in StoreInput) (uuid.UUID, error) {
 	var id uuid.UUID
 	err := s.pool.QueryRow(ctx, `INSERT INTO answer_cache (team_id, agent_id, agent_version_id, audience, conditions, kb_revisions, settings_revision,
 			question, question_hash, profile_id, embedding, answer, tokens, source_message_id, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::text::vector, $12, $13, $14, now() + make_interval(secs => $15))
+		SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::text::vector, $12, $13, $14, now() + make_interval(secs => $15)
+		WHERE coalesce((SELECT enabled FROM answer_cache_settings), true)
 		ON CONFLICT ON CONSTRAINT answer_cache_key DO UPDATE SET agent_version_id = EXCLUDED.agent_version_id, audience = EXCLUDED.audience,
 			kb_revisions = EXCLUDED.kb_revisions, settings_revision = EXCLUDED.settings_revision, question = EXCLUDED.question,
 			profile_id = EXCLUDED.profile_id, embedding = EXCLUDED.embedding, answer = EXCLUDED.answer, tokens = EXCLUDED.tokens,
@@ -124,6 +127,9 @@ func (s *Service) Store(ctx context.Context, in StoreInput) (uuid.UUID, error) {
 		RETURNING id`,
 		in.TeamID, in.AgentID, in.AgentVersionID, in.Audience, in.Conditions, revs, in.SettingsRevision, in.Question, in.QuestionHash(),
 		in.Profile, vec, in.Answer, in.Tokens, in.SourceMessageID, life.Seconds()).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, nil // switched off meanwhile
+	}
 	return id, err
 }
 

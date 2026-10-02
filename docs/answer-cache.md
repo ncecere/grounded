@@ -7,7 +7,7 @@ Design: [`v0.4.0.md`](v0.4.0.md) §1 (roadmap A8). Code: `internal/answercache` 
 ## Who turns it on
 
 - **Each agent** has its own setting under **Agent → Settings → Saved answers**: on by default for agents published to the **public**, off by default for the others. Team editors, admins and owners change it. It isn't part of versions: a change applies to the next question.
-- **Platform admins** can turn saved answers off for every agent under **Admin → Overview → Features → Saved answers** (auditors see the switch read-only). While it's off nothing is reused and nothing is saved; saved answers stay until they expire.
+- **Platform admins** can turn saved answers off for every agent under **Admin → Overview → Features → Saved answers** (auditors see the switch read-only). While it's off nothing is reused and nothing is saved, including answers that were being written when it was turned off; saved answers stay until they expire. The same holds for the agent's own setting.
 
 The agent's section also sets:
 
@@ -26,7 +26,7 @@ All of these must hold:
 - **The same answering settings:** the moderation policy of the agent's audience, the platform's SystemOne settings and the reranking settings (their revisions), and the agent's own settings (its version).
 - **The same audience** the agent is published to.
 - **The same question.** By default the match is exact after normalising: case, runs of spaces and trailing punctuation don't matter. With near-identical matching on, a question whose embedding is within cosine similarity 0.92 of a saved one is reused only when SystemOne confirms that both ask for the same information, so "hours on Saturday" never gets the answer about Sunday.
-- **A question that stands on its own:** the first message of a conversation, or a follow-up that doesn't lean on it (the same test as the query rewrite: no "it", "that one", "what about…", and more than a few words).
+- **The first question of a conversation.** Follow-ups are always answered live and never saved, whatever their wording: no word test can tell reliably whether "How much does that cost?" leans on the conversation, and a follow-up's answer was written with one person's earlier turns. For the OpenAI-compatible API, service keys and MCP `ask`, a question sent with earlier turns (`history`) is a follow-up.
 - **The same day, for questions about relative dates.** The agent's instructions tell the model today's date, so a question with words such as *today*, *tomorrow*, *this week*, *open*, *hours* or *deadline* has the date (UTC) in its key.
 - **Not expired:** within the agent's time limit, measured with its current setting.
 
@@ -60,7 +60,7 @@ Nothing in an answer depends on who asked: the instructions name the agent, its 
 
 Metrics ([`operations/monitoring.md`](operations/monitoring.md)):
 
-- `grounded_answer_cache_lookups_total{result, reason}`: `hit` (`exact`, `near`) and `miss` (`no_entry`, `near_rejected`, `not_standalone`, `error`). Agents with saved answers off aren't counted.
+- `grounded_answer_cache_lookups_total{result, reason}`: `hit` (`exact`, `near`) and `miss` (`no_entry`, `near_rejected`, `follow_up`, `error`). Agents with saved answers off aren't counted.
 - `grounded_answer_cache_tokens_saved_total`: model tokens hits didn't spend.
 - `grounded_answer_cache_entries`: saved answers that haven't expired.
 

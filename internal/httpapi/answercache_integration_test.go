@@ -60,8 +60,8 @@ func newCacheEnv(t *testing.T, base *agentEnv) *cacheEnv {
 // TestAnswerCacheHitAndReplay: the same question (after normalising) gets
 // the stored answer without the model, with the same text and citations,
 // recorded as cached with no model tokens; a stream replays the live
-// events; a follow-up leaning on the conversation and Try it never use
-// the cache.
+// events; follow-ups (any later message of a conversation) and Try it
+// never use the cache.
 func TestAnswerCacheHitAndReplay(t *testing.T) {
 	env := newCacheEnv(t, newAgentEnv(t))
 	first, called := env.ask(t, env.member, cacheQuestion)
@@ -117,13 +117,32 @@ func TestAnswerCacheHitAndReplay(t *testing.T) {
 	if len(env.proxy.ChatRequests()) == before {
 		t.Error("a follow-up leaning on the conversation was served from the cache")
 	}
-	// A standalone question in a conversation may use it.
+	// Any later message of a conversation is answered live, even one that
+	// reads as standalone ("that" mid-sentence passed the old word test), and
+	// it isn't saved.
+	entries := env.entries(t)
+	for _, q := range []string{cacheQuestion, "How much does that cost for students?"} {
+		before = len(env.proxy.ChatRequests())
+		code, e = env.member.call("POST", env.chatPath(env.agent.Slug), map[string]any{"message": q, "stream": false,
+			"conversationId": first.ConversationId}, &follow, nil)
+		mustCode(t, "a later message", code, e, 200, "")
+		if len(env.proxy.ChatRequests()) == before {
+			t.Errorf("a later message %q was served from the cache", q)
+		}
+	}
+	if n := env.entries(t); n != entries {
+		t.Errorf("entries after follow-ups = %d, want %d (follow-ups are never saved)", n, entries)
+	}
+	// A stateless caller's question with history is a follow-up too.
+	var key apitypes.APIKeyCreated
+	code, e = env.owner.call("POST", env.base+"/api-keys", map[string]any{"name": "bot", "kind": "service", "scopes": []string{"query"}}, &key, nil)
+	mustCode(t, "service key", code, e, 201, "")
 	before = len(env.proxy.ChatRequests())
-	code, e = env.member.call("POST", env.chatPath(env.agent.Slug), map[string]any{"message": cacheQuestion, "stream": false,
-		"conversationId": first.ConversationId}, &follow, nil)
-	mustCode(t, "standalone in a conversation", code, e, 200, "")
-	if len(env.proxy.ChatRequests()) > before {
-		t.Error("the standalone question was answered live")
+	code, e = keyCall(t, env.app.URL, "POST", env.chatPath(env.agent.Slug), key.Secret, map[string]any{"message": cacheQuestion, "stream": false,
+		"history": []map[string]string{{"role": "user", "content": "Hello"}, {"role": "assistant", "content": "Hi."}}}, nil)
+	mustCode(t, "stateless follow-up", code, e, 200, "")
+	if len(env.proxy.ChatRequests()) == before {
+		t.Error("a stateless caller's follow-up was served from the cache")
 	}
 
 	// Try it never reads the cache.
@@ -136,11 +155,11 @@ func TestAnswerCacheHitAndReplay(t *testing.T) {
 	// Analytics: the hits and the tokens they saved.
 	var an apitypes.AgentAnalytics
 	env.editor.get(env.base+"/agents/"+env.agent.Id.String()+"/analytics", &an)
-	if c := an.Totals.Cache; c.Hits != 3 || c.TokensSaved <= 0 || c.HitRate == nil {
+	if c := an.Totals.Cache; c.Hits != 2 || c.TokensSaved <= 0 || c.HitRate == nil {
 		t.Errorf("analytics cache = %+v", c)
 	}
 	var st apitypes.AgentAnswerCache
-	if env.editor.get(env.cachePath(), &st); st.Entries != 1 || st.Hits != 3 {
+	if env.editor.get(env.cachePath(), &st); st.Entries != 1 || st.Hits != 2 {
 		t.Errorf("cache state = %+v", st)
 	}
 }
@@ -221,6 +240,18 @@ func TestAnswerCacheInvalidation(t *testing.T) {
 	live("with the platform switch off")
 	code, e = env.admin.call("PUT", "/v1/admin/settings/answer-cache", map[string]any{"enabled": true}, &ps, ifMatch(ps.Revision))
 	mustCode(t, "platform on", code, e, 200, "")
+	// Switched off while an answer is in progress (here: behind the switch's
+	// short cache in this process): the answer isn't saved.
+	if _, err := env.app.Pool.Exec(t.Context(), `UPDATE answer_cache_settings SET enabled = false`); err != nil {
+		t.Fatal(err)
+	}
+	before := env.entries(t)
+	env.ask(t, env.member, "Where do staff buy a parking permit?")
+	if n := env.entries(t); n != before {
+		t.Errorf("entries after the switch went off = %d, want %d", n, before)
+	}
+	code, e = env.admin.call("PUT", "/v1/admin/settings/answer-cache", map[string]any{"enabled": true}, &ps, ifMatch(ps.Revision))
+	mustCode(t, "platform on again", code, e, 200, "")
 
 	// The agent's switch.
 	env.putCache(t, map[string]any{"enabled": false, "nearIdentical": false, "expiryHours": 24})

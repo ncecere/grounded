@@ -203,7 +203,7 @@ var (
 	// grounded_answer_cache_entries (state.go) is the live entries.
 	AnswerCacheLookups = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "grounded_answer_cache_lookups_total",
-		Help: "Answer cache lookups by result (hit, miss) and reason (exact, near; no_entry, near_rejected, not_standalone, error).",
+		Help: "Answer cache lookups by result (hit, miss) and reason (exact, near; no_entry, near_rejected, follow_up, error).",
 	}, []string{"result", "reason"})
 	AnswerCacheTokensSaved = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "grounded_answer_cache_tokens_saved_total",
