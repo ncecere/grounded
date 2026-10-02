@@ -70,6 +70,7 @@ People who run the admin portal: models, classifications, policies and governanc
 | [`gaps.md`](gaps.md) | The gap report: failed questions grouped into topics, shared questions, who sees what, the topics job, retention, API and metrics |
 | [`moderation-streaming.md`](moderation-streaming.md) | Answers streamed in checked paragraphs: the three output modes, the public default, how paragraphs are checked, channels, costs and metrics |
 | [`answer-cache.md`](answer-cache.md) | Saved answers (the answer cache): when an answer is reused, the agent's settings and Clear, the platform switch, invalidation, retention, analytics and metrics |
+| [`follow-ups.md`](follow-ups.md) | Follow-up suggestions: when an answer gets them, how they're written and moderated, the agent's setting, saved answers, costs and the `suggestions` event |
 | [`mcp.md`](mcp.md) | The MCP server: turning it on, the MCP key scope, limits, audit and metrics |
 | [`mcp-client.md`](mcp-client.md) | MCP tools in agents: registering MCP servers, approving tools, classification ceilings, what's sent, limits, costs, audit and security |
 | [`operations/rerank.md`](operations/rerank.md) | Cross-encoder reranking: deploying a reranker, adding it, choosing it in Admin → Models, fail-open, costs and metrics |

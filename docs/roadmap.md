@@ -175,7 +175,7 @@ Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector w
 | C5 | **Router agent** | One front-door agent routes each question to the best specialised agent. It could use SystemOne's scope check. | M | Medium–High | — |
 | C6 | **Voice** | Speech to text and text to speech in the chat and the widget, through models the gateway serves. | M | Medium (accessibility) | — |
 | C7 | **Image input** | Users attach a screenshot for vision-capable models. | M | Medium | a vision model |
-| C8 | **Follow-up suggestions** | 2–3 grounded follow-up questions after each answer. | S | Medium | — |
+| C8 **Done** (v0.4.1) | **Follow-up suggestions** | 2–3 grounded follow-up questions after each answer: **done** (v0.4.1 M1, [`follow-ups.md`](follow-ups.md)): up to 3 chips under an answer with citations, from a separate small call after it, moderated, saved with saved answers, on by default (Build → Advanced). | S | Medium | — |
 | C9 | **Reasoning display and answer-length presets** | Per-agent control. | S | Medium | — |
 | C10 | **Structured outputs and forms** | Agents return checklists, forms or JSON. | M | Medium | — |
 | C11 | **Version A/B tests** | Split traffic between two published versions. | M | Medium | — |

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Follow-up suggestions** (v0.4.1 M1, roadmap C8; [`docs/follow-ups.md`](docs/follow-ups.md)). After an answer with citations, the chat, the public page, the widget and Try it offer up to 3 follow-up questions under the last answer, as chips; choosing one asks it. A separate, small call to the agent's chat model after the answer has ended writes them from the question, the answer and the titles and headings of the passages found (not their text or the conversation), in the question's language (reasoning effort low, or off when the answer's is off and the model can turn thinking off); the reply is parsed defensively (empty, over-long or duplicate lines and the question asked are dropped). The answer, its citations and checks are untouched, and the chat treats the answer as complete at once, so nobody waits; a failed call shows none. Not after a refusal, an answer without citations, a moderated or failed answer. With output moderation, the suggestions are checked like an answer (one check for all) and dropped silently if it fails. Saved answers store and replay them. Metered as chat tokens with `"feature": "suggestions"` (and the moderation check as moderation requests). On by default for every agent, new and existing; editors turn them off under **Build → Advanced → Suggest follow-up questions** (versioned). Not on the OpenAI-compatible endpoint, MCP `ask` or JSON replies. API (additive): `followUpSuggestions` in agent configurations, the SSE event `suggestions` (after `message_end` and `citations_checked`, before `done`) and `citationsPending` on `message_end` (the citations are being checked: `citations_checked` follows). No migration.
+
 ## [0.4.0] - 2026-10-02
 
 Answers people trust and teams can improve: cross-encoder reranking, the gap report, the source viewer, saved answers and answers streamed in checked paragraphs. The release notes are [`docs/releases/v0.4.0.md`](docs/releases/v0.4.0.md).
