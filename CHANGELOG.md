@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Every page of a multi-page TIFF** (v0.4.1 M3, roadmap B12; [`docs/ocr.md`](docs/ocr.md) §5a). A TIFF upload has a page for each of its pages, each read with OCR like a scanned PDF page under its own page marker, up to the PDF page limit (5,000) and within the OCR caps; before, only the first page was read, with a warning. Each page is decoded by reading the file as if its header pointed at that page's directory (the chain is walked with bounds and loop checks), so there is no new decoder. A page that can't be read is a warning.
+- **Partly scanned PDFs join "Retry all that need OCR"** (v0.4.1 M3, roadmap B12). A PDF indexed while OCR was off with some pages lacking a text layer now also needs OCR: it stays **Ready** with the error code `needs_ocr` and a message naming the pages, appears under the documents list's **Needs OCR** filter and in the needs-OCR counts (Admin → Parsing, documents that need attention), and is parsed again once OCR can read its source, by **Retry all that need OCR**, its own **Retry with OCR** (the retry's label for every document that needs OCR) or an admin's **Retry these**: only the pages without text go to OCR, and its passages stay until then. While OCR can't read the source the bulk retry leaves it out and its own retry answers 409 `ocr_off` with the reason (the button is disabled with it). The warning says to retry instead of deleting and uploading again. API (additive, descriptions): the retry endpoints and the needs-OCR counts include these documents. No migration; documents processed before keep the old warning.
+
+### Changed
+
+- `make k8s-smoke` also builds the `grounded-ocr` image, deploys `components/ocr-tesseract` with the fake model gateway (`deploy/kubernetes/test/smoke`, with the gateway moved to `test/fake-models` for `test/load` too), turns OCR on, uploads a one-page scanned sample and waits for its text. It needs `jq`.
+
 ## [0.4.0] - 2026-10-02
 
 Answers people trust and teams can improve: cross-encoder reranking, the gap report, the source viewer, saved answers and answers streamed in checked paragraphs. The release notes are [`docs/releases/v0.4.0.md`](docs/releases/v0.4.0.md).

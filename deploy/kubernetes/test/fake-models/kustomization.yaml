@@ -1,0 +1,11 @@
+# The fake model gateway for the kind fixtures (test/smoke and test/load):
+# `grounded demo --serve-fake-models` seeds the Demo team with the built-in
+# fake models once, then serves an OpenAI-compatible gateway for every
+# answer and embedding, so documents are indexed without model keys. With
+# the NetworkPolicies it needs. Not an example install: see ../../overlays.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - fake-models.yaml
+  - access.yaml

@@ -1,0 +1,49 @@
+# Test fixture for `make k8s-smoke` (scripts/kind-smoke.sh): the test/kind
+# shape (example-small on a throwaway kind cluster) plus
+#   - components/ocr-tesseract, with the grounded-ocr image the smoke test
+#     builds (grounded-ocr:smoke);
+#   - the fake model gateway (../fake-models), so a document can be indexed
+#     without model keys: the smoke test turns OCR on, uploads a scanned
+#     page and waits for its text.
+# Not an example install: see ../../overlays.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: grounded-smoke
+
+resources:
+  - ../kind
+  - ../fake-models
+
+components:
+  - ../../components/ocr-tesseract
+
+# The images the smoke test builds (the fake gateway runs grounded too).
+images:
+  - name: ghcr.io/ncecere/grounded
+    newName: grounded
+    newTag: smoke
+  - name: ghcr.io/ncecere/grounded-ocr
+    newName: grounded-ocr
+    newTag: smoke
+
+patches:
+  # Token CPU on the 2-vCPU CI runners, like test/kind. Limits are unchanged.
+  - target:
+      kind: Deployment
+      name: grounded-ocr
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 25m
+  # The demo's documentation source points at a site that doesn't resolve:
+  # its crawl fails at once instead of fetching go.dev during the test.
+  - target:
+      kind: Deployment
+      name: grounded-fake-models
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: DEMO_SITE_URL
+          value: https://docs.example.edu/doc/

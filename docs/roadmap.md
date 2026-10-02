@@ -162,7 +162,7 @@ Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector w
 | B9 | **Duplicate detection across teams** | Suggest shared sources when several teams crawl the same site. | S | Medium | — |
 | B10 **Done** (v0.4.0 M3) | **Document viewer with highlights** | A citation opens the page or PDF at the cited passage. Done as the [source viewer](source-viewer.md): the passage in context beside the answer, "Open the page" with a text fragment, the whole document for editors. | M | Medium–High | viewer permissions |
 | B11 | **Crawl preview matches the crawl** | The preview lists pages in a different order from the crawl (QA F-14; the wording is fixed, the behaviour isn't). Share the frontier logic. | S | Medium | — |
-| B12 **New** | **OCR follow-ups** | Multi-page TIFF (only the first page is read); partly scanned PDFs uploaded while OCR was off joining the "Needs OCR" retry (today: delete and re-upload); the OCR sidecar in the kind smoke test. | S | Medium | B4 |
+| B12 **Done** (v0.4.1) | **OCR follow-ups** | Multi-page TIFF (only the first page was read); partly scanned PDFs uploaded while OCR was off joining the "Needs OCR" retry (before: delete and re-upload); the OCR sidecar in the kind smoke test. Done: every TIFF page read with OCR, partly scanned PDFs need OCR and are retried with the scans, `make k8s-smoke` reads a scanned page with the sidecar ([`ocr.md`](ocr.md)). | S | Medium | B4 |
 
 ## C. Agents and chat
 

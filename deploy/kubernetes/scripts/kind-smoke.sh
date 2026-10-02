@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 # End-to-end smoke test of the manifests on a throwaway kind cluster:
-# builds the image, deploys test/kind (the example-small shape) with random
-# dev-only secrets, waits for everything to become ready, runs the backup
-# CronJob once, checks /readyz, /healthz and the UI through port-forwards,
-# runs `grounded doctor` in the pods, checks that a configuration change
-# rolls the Deployments, then deletes the cluster.
+# builds the images (grounded and the grounded-ocr sidecar), deploys
+# test/smoke (the example-small shape, components/ocr-tesseract and the fake
+# model gateway) with random dev-only secrets, waits for everything to
+# become ready, runs the backup CronJob once, checks /readyz, /healthz and
+# the UI through port-forwards, runs `grounded doctor` in the pods, turns
+# OCR on and waits for an uploaded scanned page's text, checks that a
+# configuration change rolls the Deployments, then deletes the cluster.
 #
 # The cluster's kubeconfig lives in a temporary file and every kubectl call
 # names it explicitly: your ~/.kube/config and current context are never
 # read or changed. KEEP=1 keeps the cluster for debugging.
 #
-# Needs docker, kind, kubectl, openssl, curl. Used by `make k8s-smoke`.
+# Needs docker, kind, kubectl, openssl, curl, jq. Used by `make k8s-smoke`.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -20,6 +22,8 @@ KUSTOMIZE="${KUSTOMIZE:-kustomize}"
 cluster="${CLUSTER:-grounded-smoke}"
 ns=grounded-smoke
 image=grounded:smoke
+ocr_image=grounded-ocr:smoke
+fixture="${root}/test/smoke"
 
 kubeconfig="$(mktemp -t grounded-smoke-kubeconfig.XXXXXX)"
 pids=()
@@ -28,13 +32,13 @@ cleanup() {
   for p in "${pids[@]:-}"; do
     if [ -n "$p" ]; then kill "$p" 2>/dev/null || true; wait "$p" 2>/dev/null || true; fi
   done
-  rm -f "${kubeconfig}".pf.*
+  rm -f "${kubeconfig}".pf.* "${kubeconfig}".ocr-build "${kubeconfig}".jar
   if [ -n "${overlay:-}" ]; then rm -rf "$overlay"; fi
   if [ "$status" -ne 0 ] && [ -s "$kubeconfig" ]; then
     echo "--- failure diagnostics"
     kc get pods,jobs,pvc -o wide || true
     kc get events --sort-by=.lastTimestamp | tail -n 30 || true
-    for d in grounded-api grounded-worker; do kc logs "deploy/${d}" --all-containers --tail=40 || true; done
+    for d in grounded-api grounded-worker grounded-ocr grounded-fake-models; do kc logs "deploy/${d}" --all-containers --tail=40 || true; done
   fi
   if [ "${KEEP:-0}" = 1 ]; then
     echo "kept cluster ${cluster}; kubeconfig: ${kubeconfig}"
@@ -53,15 +57,22 @@ kc() {
   kubectl --kubeconfig "$kubeconfig" --context "kind-${cluster}" --namespace "$ns" "$@"
 }
 
-echo "--- building ${image}"
-docker build -q --build-arg VERSION=smoke --build-arg COMMIT="$(git -C "$repo" rev-parse --short HEAD)" -t "$image" "$repo"
+echo "--- building ${image} and ${ocr_image}"
+commit="$(git -C "$repo" rev-parse --short HEAD)"
+# The sidecar builds alongside (its own Dockerfile, mostly Tesseract's packages).
+docker build -q -f "${repo}/Dockerfile.ocr" --build-arg VERSION=smoke --build-arg COMMIT="$commit" -t "$ocr_image" "$repo" >"${kubeconfig}.ocr-build" 2>&1 &
+ocr_build=$!
+pids+=("$ocr_build")
+docker build -q --build-arg VERSION=smoke --build-arg COMMIT="$commit" -t "$image" "$repo"
+wait "$ocr_build" || { cat "${kubeconfig}.ocr-build" >&2; exit 1; }
+rm -f "${kubeconfig}.ocr-build"
 
 echo "--- creating kind cluster ${cluster}"
 "$KIND" create cluster --name "$cluster" --kubeconfig "$kubeconfig" --wait 180s
-"$KIND" load docker-image "$image" --name "$cluster"
+"$KIND" load docker-image "$image" "$ocr_image" --name "$cluster"
 
 echo "--- namespace and dev-only secrets (random, never real)"
-"$KUSTOMIZE" build "${root}/test/kind" >"${kubeconfig}.yaml"
+"$KUSTOMIZE" build "$fixture" >"${kubeconfig}.yaml"
 kc apply -f "${root}/test/kind/namespace.yaml"
 pg_password="$(openssl rand -hex 24)"
 valkey_password="$(openssl rand -hex 24)"
@@ -76,7 +87,7 @@ kc create secret generic grounded-s3 \
   --from-literal=access_key="smoke$(openssl rand -hex 6)" \
   --from-literal=secret_key="$(openssl rand -hex 24)"
 
-echo "--- applying test/kind"
+echo "--- applying test/smoke"
 kc apply -f "${kubeconfig}.yaml"
 rm -f "${kubeconfig}.yaml"
 
@@ -86,6 +97,8 @@ kc rollout status statefulset/grounded-postgres --timeout=300s
 kc rollout status statefulset/grounded-valkey --timeout=300s
 kc rollout status deployment/grounded-api --timeout=300s
 kc rollout status deployment/grounded-worker --timeout=300s
+kc rollout status deployment/grounded-ocr --timeout=300s
+kc rollout status deployment/grounded-fake-models --timeout=300s
 
 echo "--- running the backup CronJob once"
 kc create job --from=cronjob/grounded-postgres-backup grounded-smoke-backup
@@ -140,6 +153,10 @@ echo "--- grounded doctor in the api and worker pods"
 kc exec deploy/grounded-api -c api -- /grounded doctor
 kc exec deploy/grounded-worker -c worker -- /grounded doctor --mode worker --json >/dev/null
 
+# shellcheck source=kind-smoke-ocr.sh
+. "${root}/scripts/kind-smoke-ocr.sh"
+smoke_ocr
+
 echo "--- a ConfigMap change rolls the pods"
 before="$(kc get deploy/grounded-api -o jsonpath='{.spec.template.spec.containers[0].envFrom[0].configMapRef.name}')"
 # kustomize wants relative paths: the overlay lives next to test/.
@@ -148,7 +165,7 @@ cat >"${overlay}/kustomization.yaml" <<EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ../test/kind
+  - ../test/smoke
 configMapGenerator:
   - name: grounded-config
     behavior: merge

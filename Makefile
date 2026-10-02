@@ -138,7 +138,7 @@ $(KIND):
 k8s-validate: $(KUSTOMIZE) $(KUBECONFORM) ## Render every Kubernetes overlay and component set; validate with kubeconform
 	GO=$(GO) KUSTOMIZE=$(KUSTOMIZE) KUBECONFORM=$(KUBECONFORM) deploy/kubernetes/scripts/validate.sh
 
-k8s-smoke: $(KIND) $(KUSTOMIZE) ## Deploy the manifests on a throwaway kind cluster and check readiness (needs docker)
+k8s-smoke: $(KIND) $(KUSTOMIZE) ## Deploy the manifests on a throwaway kind cluster; check readiness and OCR (needs docker, jq)
 	KIND=$(KIND) KUSTOMIZE=$(KUSTOMIZE) deploy/kubernetes/scripts/kind-smoke.sh
 
 k8s-load: $(KIND) $(KUSTOMIZE) ## Load tests (k6, fake models) on a throwaway kind cluster; SCENARIOS="chat retrieve openai ingest mixed"
