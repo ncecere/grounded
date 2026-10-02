@@ -68,14 +68,14 @@ func TestCheckedParagraphs(t *testing.T) {
 		a.end.Text != got || len(a.end.Citations) == 0 || len(a.evs.all("moderation")) != 0 {
 		t.Fatalf("passed: deltas %d %q, end %+v", len(a.evs.all("text_delta")), got, a.end)
 	}
-	if a.calls != 5 { // the question, then one check per paragraph
-		t.Errorf("moderation calls = %d, want 5", a.calls)
+	if a.calls != 6 { // the question, one check per paragraph, then the follow-up suggestions
+		t.Errorf("moderation calls = %d, want 6", a.calls)
 	}
 	if rec := lastRecord(t, env.agentEnv, "moderation_output", ag.Id.String()); !strings.Contains(rec, `"checks": 4`) || !strings.Contains(rec, `"decision": "pass"`) {
 		t.Errorf("output record = %s", rec)
 	}
-	if n := env.scalar(t, `SELECT coalesce(sum(quantity), 0) FROM usage_events WHERE agent_id = $1 AND kind = 'moderation_requests'`, ag.Id); n != 5 {
-		t.Errorf("metered moderation requests = %d, want 5", n)
+	if n := env.scalar(t, `SELECT coalesce(sum(quantity), 0) FROM usage_events WHERE agent_id = $1 AND kind = 'moderation_requests'`, ag.Id); n != 6 {
+		t.Errorf("metered moderation requests = %d, want 6", n)
 	}
 
 	// Paragraph 3 fails: paragraphs 1 and 2 were shown, then the notice replaces the whole answer; the 4th is never

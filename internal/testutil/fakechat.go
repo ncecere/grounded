@@ -318,7 +318,11 @@ func (p *FakeProxy) completions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok := p.chat[in.Model]
-	p.chatBodies = append(p.chatBodies, raw)
+	if isFakeSuggestions(&in) { // kept apart, so tests of the answer's requests read those only
+		p.suggestBodies = append(p.suggestBodies, raw)
+	} else {
+		p.chatBodies = append(p.chatBodies, raw)
+	}
 	delay, answer, script, first, suggestions := p.chunkDelay, p.answer, p.toolScript, p.replyDelay, p.suggestions
 	if isFakeRewrite(&in) {
 		first = p.rewriteDelay

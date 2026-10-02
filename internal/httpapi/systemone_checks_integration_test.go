@@ -123,11 +123,14 @@ func TestCitationChecksStreaming(t *testing.T) {
 	code, evs, e := env.member.stream(env.chatPath("fees"), map[string]any{"message": "What does a transcript cost?"})
 	mustCode(t, "chat", code, e, 200, "")
 	names := strings.Join(evs.names(), ",")
-	if !strings.HasSuffix(names, "message_end,citations_checked,done") {
+	if !strings.HasSuffix(names, "message_end,citations_checked,suggestions,done") {
 		t.Fatalf("events = %s", names)
 	}
 	var end apitypes.ChatEventMessageEnd
 	evs.one(t, "message_end", &end)
+	if end.CitationsPending == nil || !*end.CitationsPending {
+		t.Errorf("message_end of a streamed answer whose citations are checked: citationsPending = %v", end.CitationsPending)
+	}
 	var checked apitypes.ChatEventCitationsChecked
 	evs.one(t, "citations_checked", &checked)
 	if len(end.Citations) != 3 || end.Citations[0].Verification != nil {

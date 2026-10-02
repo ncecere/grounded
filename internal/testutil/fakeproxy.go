@@ -84,7 +84,9 @@ type FakeProxy struct {
 	suggestions  string          // SetSuggestions: the reply to the suggestions call
 	toolScript   []FakeToolCall  // SetToolCalls
 	chatBodies   []json.RawMessage
-	Requests     []string // "METHOD /path model" log
+	// suggestBodies are the follow-up suggestions calls' requests.
+	suggestBodies []json.RawMessage
+	Requests      []string // "METHOD /path model" log
 
 	// Embedding load simulation (see RejectEmbeddings, LimitEmbeddingRate).
 	rejectN          int
@@ -369,11 +371,20 @@ func (p *FakeProxy) admitEmbedding(now time.Time) (int, string) {
 	return 0, ""
 }
 
-// ChatRequests returns the raw bodies of the chat completion requests so far.
+// ChatRequests returns the raw bodies of the chat completion requests so
+// far, except the follow-up suggestions calls (SuggestionRequests).
 func (p *FakeProxy) ChatRequests() []json.RawMessage {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return append([]json.RawMessage(nil), p.chatBodies...)
+}
+
+// SuggestionRequests returns the bodies of the follow-up suggestions calls
+// (not in ChatRequests).
+func (p *FakeProxy) SuggestionRequests() []json.RawMessage {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return append([]json.RawMessage(nil), p.suggestBodies...)
 }
 
 func (p *FakeProxy) auth(next http.Handler) http.Handler {
