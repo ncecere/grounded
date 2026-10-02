@@ -1592,7 +1592,7 @@ export interface paths {
         put?: never;
         /**
          * Queue a source's documents with one error code again (team editors)
-         * @description Queues the source's failed or skipped documents with the error code again, for example every document skipped as scanned (needs_ocr) once OCR is on. 400 invalid_error_code for other codes. Audited (document.retry_bulk).
+         * @description Queues the source's failed or skipped documents with the error code again, for example every document skipped as scanned (needs_ocr) once OCR is on. While OCR can read the source, partly scanned PDFs indexed without their scanned pages (ready, needs_ocr) are queued too and parsed again with OCR for those pages. 400 invalid_error_code for other codes. Audited (document.retry_bulk).
          */
         post: operations["retryDocuments"];
         delete?: never;
@@ -1707,7 +1707,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Queue a failed or skipped document again */
+        /**
+         * Queue a failed or skipped document again
+         * @description Queues a failed or skipped document again, or a partly scanned PDF indexed without its scanned pages (ready, needs_ocr), which is parsed again with OCR for those pages; that needs OCR to read the source (409 ocr_off, saying why). Other documents: 409 not_retryable.
+         */
         post: operations["retryDocument"];
         delete?: never;
         options?: never;
@@ -2274,7 +2277,7 @@ export interface paths {
         put?: never;
         /**
          * Queue a shared source's documents with one error code again (platform admins)
-         * @description Queues the source's failed or skipped documents with the error code again, for example every document skipped as scanned (needs_ocr) once OCR is on. 400 invalid_error_code for other codes. Audited (document.retry_bulk).
+         * @description Queues the source's failed or skipped documents with the error code again, for example every document skipped as scanned (needs_ocr) once OCR is on. While OCR can read the source, partly scanned PDFs indexed without their scanned pages (ready, needs_ocr) are queued too and parsed again with OCR for those pages. 400 invalid_error_code for other codes. Audited (document.retry_bulk).
          */
         post: operations["adminRetrySharedDocuments"];
         delete?: never;
@@ -2356,7 +2359,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Queue a failed or skipped document of a shared source again */
+        /**
+         * Queue a failed or skipped document of a shared source again
+         * @description Queues a failed or skipped document again, or a partly scanned PDF indexed without its scanned pages (ready, needs_ocr), which is parsed again with OCR for those pages; that needs OCR to read the source (409 ocr_off, saying why). Other documents: 409 not_retryable.
+         */
         post: operations["adminRetrySharedDocument"];
         delete?: never;
         options?: never;
@@ -3776,7 +3782,7 @@ export interface paths {
         };
         /**
          * The platform's parsing settings, OCR for scanned documents (platform admins and auditors)
-         * @description OCR is off until an admin turns it on (docs/ocr.md). backends says which backends are configured (only those can be chosen); needsOcr counts the documents per team skipped as scanned, which OCR could now read.
+         * @description OCR is off until an admin turns it on (docs/ocr.md). backends says which backends are configured (only those can be chosen); needsOcr counts the documents per team that need OCR (skipped as scanned, or partly scanned PDFs indexed without their scanned pages), which OCR could now read.
          */
         get: operations["adminGetParsing"];
         /**
@@ -3820,7 +3826,7 @@ export interface paths {
         };
         /**
          * Documents that failed or need OCR, by team, source and reason, without names or text (platform admins and auditors)
-         * @description Admin, Parsing & OCR (owner decision 3 of docs/v0.2.0.md section 7). Counts per team, source and reason class with the oldest date: no document file names, titles, URLs or text. A document that failed or was skipped as scanned (needs_ocr) is counted; documents that are waiting or were skipped as empty are not.
+         * @description Admin, Parsing & OCR (owner decision 3 of docs/v0.2.0.md section 7). Counts per team, source and reason class with the oldest date: no document file names, titles, URLs or text. A document that failed or needs OCR (needs_ocr: skipped as scanned, or a partly scanned PDF indexed without its scanned pages) is counted; documents that are waiting or were skipped as empty are not.
          */
         get: operations["adminListDocumentProblems"];
         put?: never;
@@ -7128,7 +7134,7 @@ export interface components {
             version: number;
             status: components["schemas"]["DocumentStatus"];
             errorCode: string;
-            /** @description Why the document wasn't indexed, for people (e.g. "This PDF appears to be damaged or password-protected…") */
+            /** @description Why the document wasn't indexed, for people (e.g. "This PDF appears to be damaged or password-protected…"); for a ready document with errorCode needs_ocr (a partly scanned PDF), the pages that need OCR */
             errorMessage: string;
             /** @description The technical detail behind errorMessage (the parser's own text), shown on demand; '' when there is none */
             errorDetail: string;
@@ -7169,7 +7175,7 @@ export interface components {
         };
         DocumentRetryInput: {
             /**
-             * @description needs_ocr: documents skipped as scanned
+             * @description needs_ocr: documents that need OCR (skipped as scanned, and partly scanned PDFs while OCR can read the source)
              * @enum {string}
              */
             errorCode: "needs_ocr";
@@ -7208,7 +7214,7 @@ export interface components {
              * @description Pages read at once per worker (OCR_CONCURRENCY)
              */
             concurrency: number;
-            /** @description Documents skipped as scanned (needs_ocr), per team; teamId null for platform-shared sources */
+            /** @description Documents that need OCR (needs_ocr: skipped as scanned, or partly scanned), per team; teamId null for platform-shared sources */
             needsOcr: components["schemas"]["NeedsOcrCount"][];
             revision: components["schemas"]["Revision"];
             /** Format: date-time */
@@ -7222,7 +7228,7 @@ export interface components {
             configuredBy: string;
         };
         /**
-         * @description needs_ocr: skipped as scanned with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
+         * @description needs_ocr: skipped as scanned, or partly scanned and indexed without the scanned pages, with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
          * @enum {string}
          */
         DocumentProblemReason: "needs_ocr" | "ocr_error" | "damaged" | "other";
@@ -10739,7 +10745,7 @@ export interface components {
         LimitParam: number;
         /** @description Only documents of this kind: pdf, docx, pptx, html, markdown, text or image */
         DocumentKindParam: "pdf" | "docx" | "pptx" | "html" | "markdown" | "text" | "image";
-        /** @description Only documents with this error code, e.g. needs_ocr (skipped as scanned) */
+        /** @description Only documents with this error code, e.g. needs_ocr (documents that need OCR: skipped as scanned, or partly scanned and ready) */
         DocumentErrorCodeParam: string;
         /** @description Only documents with this tag (case-insensitive) */
         DocumentTagParam: string;
@@ -13699,7 +13705,7 @@ export interface operations {
                 kind?: components["parameters"]["DocumentKindParam"];
                 /** @description Only documents with this tag (case-insensitive) */
                 tag?: components["parameters"]["DocumentTagParam"];
-                /** @description Only documents with this error code, e.g. needs_ocr (skipped as scanned) */
+                /** @description Only documents with this error code, e.g. needs_ocr (documents that need OCR: skipped as scanned, or partly scanned and ready) */
                 errorCode?: components["parameters"]["DocumentErrorCodeParam"];
                 /** @description nextCursor from the previous page */
                 cursor?: components["parameters"]["CursorParam"];
@@ -15014,7 +15020,7 @@ export interface operations {
                 kind?: components["parameters"]["DocumentKindParam"];
                 /** @description Only documents with this tag (case-insensitive) */
                 tag?: components["parameters"]["DocumentTagParam"];
-                /** @description Only documents with this error code, e.g. needs_ocr (skipped as scanned) */
+                /** @description Only documents with this error code, e.g. needs_ocr (documents that need OCR: skipped as scanned, or partly scanned and ready) */
                 errorCode?: components["parameters"]["DocumentErrorCodeParam"];
                 /** @description nextCursor from the previous page */
                 cursor?: components["parameters"]["CursorParam"];
