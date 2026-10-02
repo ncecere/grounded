@@ -18,6 +18,7 @@ package agents
 import (
 	"context"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -216,7 +217,7 @@ func parseSuggestions(reply, question string) []string {
 		switch {
 		case n < suggestMinChars, n > MaxSuggestionChars, !strings.ContainsFunc(q, unicode.IsLetter),
 			strings.EqualFold(strings.TrimRight(q, ".!"), suggestNoneReply), strings.HasSuffix(q, ":"),
-			sameQuery(q, question), containsQuery(out, q):
+			sameSuggestion(q, question), containsQuery(out, q):
 			continue
 		}
 		out = append(out, q)
@@ -236,14 +237,18 @@ func cleanSuggestion(line string) string {
 	return strings.Join(strings.Fields(NormalizePunctuation(q)), " ")
 }
 
-// containsQuery reports a suggestion already in list (sameQuery).
-func containsQuery(list []string, q string) bool {
-	for _, s := range list {
-		if sameQuery(s, q) {
-			return true
-		}
+// sameSuggestion reports two questions that differ only in case, spacing
+// or the final punctuation (also full-width).
+func sameSuggestion(a, b string) bool {
+	norm := func(s string) string {
+		return strings.ToLower(strings.Join(strings.Fields(strings.TrimRight(s, "?.!？。！ ")), " "))
 	}
-	return false
+	return norm(a) == norm(b)
+}
+
+// containsQuery reports a suggestion already in list.
+func containsQuery(list []string, q string) bool {
+	return slices.ContainsFunc(list, func(s string) bool { return sameSuggestion(s, q) })
 }
 
 // recordSuggestionUsage writes the call's usage events (chat tokens, and
