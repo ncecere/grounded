@@ -136,3 +136,55 @@ test("evaluation set: create, import a CSV, run, see a failure, fix, run again, 
   });
   await owner.dispose();
 });
+
+/*
+ * Expectations the knowledge base can't meet (A14, docs/v0.4.1.md §2): the
+ * set's page counts the questions that need attention, filters the
+ * Questions tab to them, and the run dialog says how many can't pass
+ * without blocking the run.
+ */
+test("evaluation set: questions that need attention", async ({ as, admin, a11y }) => {
+  test.setTimeout(120_000);
+  const owner = await Api.signIn("user");
+  const team = await createTeam(admin, owner, { prefix: "evals-attention", members: { alex: "editor" } });
+  const base = `/v1/teams/${team}`;
+  const src = await owner.post<Schemas["DataSource"]>(`${base}/sources`, { name: "Student files", classification: "open" });
+  await owner.upload(team, src.id, [handbook]);
+  await expect
+    .poll(async () => (await owner.get<Schemas["DocumentPage"]>(`${base}/sources/${src.id}/documents`)).items.map((d) => d.status), { timeout: 30_000 })
+    .toEqual(["ready"]);
+  const kb = await owner.post<Schemas["KnowledgeBase"]>(`${base}/kbs`, { name: "Student help", topK: 4 });
+  await owner.put(`${base}/kbs/${kb.id}/sources/${src.id}`);
+  const set = await owner.post<Schemas["EvaluationSet"]>(`${base}/evaluation-sets`, { kbId: kb.id, name: "Student questions" });
+  const questions = `${base}/evaluation-sets/${set.id}/questions`;
+  await owner.post(questions, { question: "Where do students buy parking permits?", expected: { documentIds: [], urls: [], filenames: [handbook.name] } });
+  await owner.post(questions, { question: "Where is graduate housing?", expected: { documentIds: [], urls: [], filenames: ["grad-housing-faq.pdf"] } });
+  const page = await as("alex");
+
+  await test.step("the set's page counts them and filters the questions", async () => {
+    await page.goto(`/teams/${team}/evaluations/${set.id}`);
+    const count = page.getByRole("link", { name: "1 question needs attention" });
+    await expect(count).toBeVisible();
+    const table = page.getByRole("table", { name: "Questions" });
+    await expect(table.getByRole("row", { name: /graduate housing/ })).toContainText("No document in Student help matches “grad-housing-faq.pdf” yet.");
+    await a11y(page, "needs attention");
+    await count.click();
+    await expect(page).toHaveURL(/attention=needs/);
+    await expect(table.getByRole("row", { name: /parking permits/ })).toHaveCount(0);
+    await expect(table.getByRole("row", { name: /graduate housing/ })).toBeVisible();
+    await page.getByRole("button", { name: "All questions" }).click();
+    await expect(table.getByRole("row", { name: /parking permits/ })).toBeVisible();
+  });
+
+  await test.step("the run dialog says how many can't pass, and still runs", async () => {
+    await page.getByRole("button", { name: "Run", exact: true }).first().click();
+    const dialog = page.getByRole("dialog", { name: "Run Student questions" });
+    await expect(dialog.getByText("1 question can't pass: none of its expected pages is indexed. You can still start the run.")).toBeVisible();
+    await a11y(page, "run dialog with a warning");
+    await dialog.getByRole("button", { name: "Start run" }).click();
+    const run = page.getByRole("region", { name: "Run" });
+    await expect(run.getByText("Completed", { exact: true })).toBeVisible({ timeout: 60_000 });
+    await expect(run.getByRole("table", { name: "Results" }).getByRole("row", { name: /graduate housing/ })).toContainText("Not in this knowledge base");
+  });
+  await owner.dispose();
+});
