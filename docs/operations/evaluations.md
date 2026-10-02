@@ -25,6 +25,14 @@ Each **question** says what a good result is:
 
 As you fill the form in, it warns (without blocking) about an expected document that no document of the knowledge base matches yet ("No document in Student help matches “grad-housing-faq.pdf” yet. It'll count once one is added."): usually a typo, or a document not added yet. It also warns about a must-mention phrase whose words appear in none of the knowledge bases' passages ("“Parchment” isn't in Helper's knowledge bases, so the answer can't contain it from the sources"). Enter in the document picker picks a document; it never submits the form.
 
+Documents change after questions are written, so the set's page runs the same check for every question each time it opens (v0.4.1). When some questions can't be met today, the header says so ("3 questions need attention", a link), and the Questions tab gets a **Needs attention** column, which says what's wrong in the form's words, and a **Show: All questions · Needs attention** filter (`?attention=needs`). A question needs attention when:
+
+- an expected document matches no document of the knowledge base (or a picked one was deleted). When none of its expected documents is there, it **can't pass**: runs mark it **Not scored**;
+- a must-mention phrase appears in no passage (agent sets: only full-answer runs check phrases);
+- it's **out of reach**: "Expected page not found in the top 50 (last 3 runs)". The page is in the knowledge base, but each of the question's last 3 retrieval runs missed it, even in the second search of 50 results. That usually means a chunking or wording problem, not a model one. **See the latest result** opens that result's diagnosis. A run whose deeper search didn't happen, or a run from before the question's expected documents changed, doesn't count.
+
+The question's own page shows the same warnings. They're warnings only: **Run** still runs every question, and its dialog says how many can't pass ("4 questions can't pass: their expected pages aren't indexed. You can still start the run."; for a full-answer run, phrases in no source count too).
+
 Questions can also be:
 
 - **Imported** (Questions tab → **Import questions**) from a CSV file, `question,expected,must_mention` with an optional `note` column and `|` between several values, or from a URL-judged JSONL file (`{"id","question","urls":[...]}` per line, the format `cmd/sparkbench` reads). The preview lists the rows that can't be used, by line (no expected document, a bad URL, a picked document that isn't in the knowledge base, a question already in the set), and the usable rows whose expected documents match nothing in the knowledge base yet; **Add** adds all the usable rows. An import that would pass the questions-per-set limit adds nothing.
