@@ -11906,7 +11906,7 @@ components:
       required: [messageId]
       properties:
         messageId: { type: string, format: uuid }
-        buffered: { type: boolean, description: "Output moderation buffers the answer: no text or thinking deltas; the text arrives in one text_delta after it passes (show a waiting state)" }
+        buffered: { type: boolean, description: "The text arrives whole: no text or thinking deltas before one text_delta (show a waiting state, then the answer from its start). Set when output moderation buffers the answer and for a saved answer's replay" }
         mode:
           type: string
           enum: [stream_retract, stream_checked, buffer]

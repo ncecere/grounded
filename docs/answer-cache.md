@@ -44,7 +44,7 @@ Nothing in an answer depends on who asked: the instructions name the agent, its 
 - The access log of Sensitive and Restricted agents.
 - The conversation: the question and the answer are stored as usual (the analytics event is marked `cached`).
 - The usage ledger: one `query` event with `cached: true` in its metadata, and no model tokens. With near-identical matching, the question's embedding and the SystemOne check (feature `cache`) are metered as usual.
-- The same streamed events as a live answer (`conversation`, `retrieval`, `message_start`, the text, `message_end` with the citations and claims, `done`), so the web chat, the widget, the public page, the OpenAI-compatible API and MCP `ask` work unchanged.
+- The same streamed events as a live answer (`conversation`, `retrieval`, `message_start`, the text, `message_end` with the citations and claims, `done`), so the web chat, the widget, the public page, the OpenAI-compatible API and MCP `ask` work unchanged. The search step shows this person's question, never the wording of the person whose answer was saved, and `message_start` has `buffered: true`: the text arrives whole, so the chat shows it from its start.
 
 ## When a saved answer goes away
 

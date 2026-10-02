@@ -65,8 +65,9 @@ type (
 	}
 	MessageStartEvent struct {
 		MessageID uuid.UUID `json:"messageId"`
-		// Buffered: the answer's text is sent only after the output
-		// moderation check (no text or thinking deltas before).
+		// Buffered: the answer's text arrives whole (no text or thinking
+		// deltas before): sent only after the output moderation check, or
+		// a saved answer's replay (cache.go).
 		Buffered bool `json:"buffered,omitempty"`
 		// Mode is the output moderation mode when answers are moderated
 		// (stream_retract, stream_checked, buffer); stream_checked sends

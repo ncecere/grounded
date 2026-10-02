@@ -8962,7 +8962,7 @@ export interface components {
         ChatEventMessageStart: {
             /** Format: uuid */
             messageId: string;
-            /** @description Output moderation buffers the answer: no text or thinking deltas; the text arrives in one text_delta after it passes (show a waiting state) */
+            /** @description The text arrives whole: no text or thinking deltas before one text_delta (show a waiting state, then the answer from its start). Set when output moderation buffers the answer and for a saved answer's replay */
             buffered?: boolean;
             /**
              * @description The output moderation mode, when answers are moderated (absent otherwise). stream_checked: no thinking deltas, and text_delta events carry checked paragraphs (show a waiting state until the first one, then follow the answer as it grows); a failing paragraph sends a moderation event (retracted, or withheld when nothing was shown yet) and no more text.

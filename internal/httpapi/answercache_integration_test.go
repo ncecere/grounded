@@ -107,6 +107,23 @@ func TestAnswerCacheHitAndReplay(t *testing.T) {
 	if evs.text("text_delta") != first.Text {
 		t.Errorf("streamed text = %q", evs.text("text_delta"))
 	}
+	// The step shows this person's wording, never the first asker's, and the
+	// replay arrives whole (shown from its start).
+	var step struct{ Query string }
+	var start struct{ Buffered bool }
+	if evs.one(t, "retrieval", &step); step.Query != cacheQuestion+"!" {
+		t.Errorf("replayed search = %q, want this person's question", step.Query)
+	}
+	if evs.one(t, "message_start", &start); !start.Buffered {
+		t.Error("a replay's message_start isn't buffered")
+	}
+	var conv struct{ ConversationID string }
+	evs.one(t, "conversation", &conv)
+	var stored string
+	if err := env.app.Pool.QueryRow(t.Context(), `SELECT retrieval->>'query' FROM messages WHERE conversation_id = $1 AND role = 'assistant'`,
+		conv.ConversationID).Scan(&stored); err != nil || stored != cacheQuestion+"!" {
+		t.Errorf("stored search step = %q (%v)", stored, err)
+	}
 
 	// A follow-up that leans on the conversation is answered live.
 	var follow apitypes.ChatAnswer

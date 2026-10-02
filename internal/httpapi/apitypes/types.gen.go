@@ -5434,7 +5434,7 @@ type ChatEventMessageEndNoContextReason string
 
 // ChatEventMessageStart SSE event message_start
 type ChatEventMessageStart struct {
-	// Buffered Output moderation buffers the answer: no text or thinking deltas; the text arrives in one text_delta after it passes (show a waiting state)
+	// Buffered The text arrives whole: no text or thinking deltas before one text_delta (show a waiting state, then the answer from its start). Set when output moderation buffers the answer and for a saved answer's replay
 	Buffered  *bool              `json:"buffered,omitempty"`
 	MessageId openapi_types.UUID `json:"messageId"`
 

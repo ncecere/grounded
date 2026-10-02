@@ -247,14 +247,21 @@ func (ru *run) cacheKey(ctx context.Context, c *cacheRun) error {
 // citations and claims), recorded like a live answer with no model tokens.
 func (ru *run) replayCached(ctx context.Context) (Answer, error) {
 	a := ru.cache.hit
-	ru.firstSearch = a.Retrieval
 	ru.citeRec = a.CitationCheck
 	ru.retr.topSim = a.TopSimilarity
 	if a.Retrieval != nil {
-		ru.out.send(Event{"retrieval", RetrievalEvent{Query: a.Retrieval.Query, Hits: a.Sources, Judging: a.Retrieval.Judging}})
+		// The step shows this person's question, never the wording of the
+		// person whose answer was saved (a first question is searched as
+		// it was asked, so this is what a live answer would show).
+		view := *a.Retrieval
+		view.Query = ru.question
+		ru.firstSearch = &view
+		ru.out.send(Event{"retrieval", RetrievalEvent{Query: view.Query, Hits: a.Sources, Judging: view.Judging}})
 	}
-	st := &loopState{}
-	ru.startAnswer(st)
+	// The text arrives whole, as a buffered answer's does: clients show it
+	// from its start rather than following the bottom.
+	ru.out.start()
+	ru.out.send(Event{"message_start", MessageStartEvent{MessageID: ru.msgID, Buffered: true}})
 	ru.markFirstToken()
 	ru.out.send(Event{"text_delta", DeltaEvent{Delta: a.Text}})
 	ans := ru.baseAnswer()

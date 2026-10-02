@@ -29,12 +29,12 @@ The platform policy of each audience sets the mode (**Admin → Moderation**, th
 
 ## Channels
 
-- **The web chat, the public page and the widget** show "Writing and checking the answer…" until the first paragraph, then follow the answer as it grows. Only buffered answers, which arrive whole, are shown from their start.
+- **The web chat, the public page and the widget** show "Writing and checking the answer…" until the first paragraph, then follow the answer as it grows. A released paragraph taller than the view is shown from its start (the first one with its question), and the view stops following there, so the reader isn't pulled past it. Citation markers show as chips of the sources they cite as soon as their paragraph is released (the verdicts follow after the last one). Buffered answers and saved answers, which arrive whole, are shown from their start.
 - **The streamed chat API** (SSE): `message_start` carries `mode: stream_checked`; each `text_delta` is a checked paragraph; there are no `thinking_delta` events.
 - **The OpenAI-compatible endpoint, streamed:** each content chunk is a checked paragraph. A failing paragraph adds the notice and ends with `finish_reason: content_filter`; an unavailable provider sends the `moderation_unavailable` error.
 - **Answers that don't stream** (`stream: false`, the OpenAI-compatible endpoint without streaming, MCP `ask`) are checked once, whole, before they're returned.
 - **Try it** uses the draft audience's policy, so a public draft streams checked paragraphs too.
-- **Saved answers** ([`answer-cache.md`](answer-cache.md)): only answers that passed are saved, and a saved answer is sent whole without being checked again.
+- **Saved answers** ([`answer-cache.md`](answer-cache.md)): only answers that passed are saved, and a saved answer is sent whole without being checked again (its `message_start` has `buffered: true` and no `mode`).
 
 ## Costs and records
 

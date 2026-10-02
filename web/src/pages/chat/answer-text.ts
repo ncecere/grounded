@@ -65,11 +65,30 @@ export function settlePartial(item: AssistantItem): AssistantItem {
     kept.forEach((n) => cited.add(n));
     return kept.length ? `${lead}${kept.map((n) => `[${n}]`).join("")}` : "";
   });
-  const citations: Citation[] = [...cited]
+  return { ...item, text: text.trimEnd(), citations: asCitations(cited, byN) };
+}
+
+type Hit = AssistantItem["sources"][number];
+
+/** The sources of these numbers as citations, in order (the stream's hits carry no document IDs). */
+function asCitations(numbers: Set<number>, byN: Map<number, Hit>): Citation[] {
+  return [...numbers]
     .sort((a, b) => a - b)
     .map((n) => {
       const s = byN.get(n)!;
       return { n, documentId: "", sourceId: "", title: s.title, snippet: s.snippet, headingPath: [], ...(s.url ? { url: s.url } : {}) };
     });
-  return { ...item, text: text.trimEnd(), citations };
+}
+
+/**
+ * The sources the markers so far cite, before message_end brings the checked citations: checked paragraphs
+ * (stream_checked) arrive whole, so their markers show as chips at once rather than as raw "[1]" that reflows later.
+ */
+export function citedSoFar(item: AssistantItem): Citation[] {
+  const byN = new Map(item.sources.map((s) => [s.n, s]));
+  const cited = new Set<number>();
+  for (const m of normalizeMarkers(item.text).matchAll(MARKER)) {
+    for (const n of m[2]!.split(/\s*,\s*/).map(Number)) if (byN.has(n)) cited.add(n);
+  }
+  return asCitations(cited, byN);
 }
