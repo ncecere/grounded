@@ -48,6 +48,48 @@ describe("Admin → Models reranking", () => {
     expect(await screen.findByText(/Searches rerank their best 30 passages with BGE reranker, waiting at most 2 s. 3 published agents rerank./)).toBeInTheDocument();
   });
 
+  it("checks every field before saving, shows each problem on its field, and offers Save only after a change (adm-5)", async () => {
+    const calls = mockApi({
+      ...shellRoutes("platform_admin"),
+      "GET /v1/admin/connections": () => [],
+      "GET /v1/admin/models": () => [reranker],
+      "GET /v1/admin/rerank": () => ({ ...off, modelId: "r1", agents: 1, revision: 2 }),
+    });
+    renderApp("/admin/models");
+    await userEvent.click(await screen.findByRole("button", { name: "Reranking settings" }, { timeout: 4000 }));
+    const dialog = await screen.findByRole("dialog", { name: "Reranking settings" });
+    const save = within(dialog).getByRole("button", { name: "Save settings" });
+    expect(save).toBeDisabled();
+    const candidates = within(dialog).getByRole("textbox", { name: /Candidates/ });
+    const limit = within(dialog).getByRole("textbox", { name: /Time limit/ });
+    await userEvent.clear(candidates);
+    await userEvent.type(candidates, "60");
+    await userEvent.clear(limit);
+    await userEvent.type(limit, "100");
+    expect(save).toBeEnabled();
+    await userEvent.click(save);
+    expect(await within(dialog).findByText("Enter a whole number from 5 to 50.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Enter a whole number of milliseconds from 200 to 10,000.")).toBeInTheDocument();
+    expect(candidates).toHaveAttribute("aria-invalid", "true");
+    expect(limit).toHaveAttribute("aria-invalid", "true");
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+    expect(await axe(dialog)).toHaveNoViolations();
+  });
+
+  it("shows the auditor the settings button disabled, with the reason (aud-8)", async () => {
+    mockApi({
+      ...shellRoutes("platform_auditor"),
+      "GET /v1/admin/connections": () => [],
+      "GET /v1/admin/models": () => [reranker],
+      "GET /v1/admin/rerank": () => ({ ...off, modelId: "r1", agents: 1, revision: 2 }),
+    });
+    const { container } = renderApp("/admin/models");
+    const button = await screen.findByRole("button", { name: "Reranking settings" }, { timeout: 4000 });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription("Only platform admins can change reranking.");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("shows nothing until a rerank model exists", async () => {
     mockApi({
       ...shellRoutes("platform_admin"),

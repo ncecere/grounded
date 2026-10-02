@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -93,22 +94,40 @@ type Input struct {
 	Settings Settings
 }
 
+// invalidSettings lists every problem, in the message and by field.
 func invalidSettings(p []Problem) error {
 	list := make([]map[string]string, len(p))
+	texts := make([]string, len(p))
 	for i, pr := range p {
 		list[i] = map[string]string{"field": pr.Field, "problem": pr.Problem}
+		texts[i] = pr.Problem + "."
 	}
-	return &apperr.Error{Status: 400, Code: "invalid_settings", Message: "The rerank settings are invalid: " + p[0].String(),
+	return &apperr.Error{Status: 400, Code: "invalid_settings", Message: "The rerank settings are invalid. " + strings.Join(texts, " "),
 		Details: map[string]any{"problems": list}}
 }
 
-func snapshot(st Stored) map[string]any {
-	return map[string]any{"modelId": st.ModelID, "settings": st.Settings}
+// snapshot is one side of the audit entry: the model by name (and ID) and
+// each setting, so the change reads "Time limit 200 ms → 2,000 ms".
+func snapshot(ctx context.Context, q *dbgen.Queries, st Stored) map[string]any {
+	out := map[string]any{"modelId": st.ModelID, "candidates": st.Settings.Candidates, "timeLimitMs": st.Settings.TimeLimitMs}
+	if st.ModelID != nil {
+		if m, err := q.GetModel(ctx, *st.ModelID); err == nil {
+			out["model"] = m.DisplayName
+		}
+	}
+	return out
+}
+
+// unchanged: the input is what is saved already.
+func unchanged(cur Stored, in Input) bool {
+	same := (cur.ModelID == nil) == (in.ModelID == nil) && (cur.ModelID == nil || *cur.ModelID == *in.ModelID)
+	return same && cur.Settings == in.Settings
 }
 
 // Put replaces the settings (platform admins), audited in the same
 // transaction. expectedRevision is the If-Match revision (1 for defaults
-// never saved).
+// never saved). Saving the same settings changes nothing: a new revision
+// would retire every saved answer for no reason.
 func (s *Service) Put(ctx context.Context, a authz.Actor, in Input, expectedRevision int64) (Stored, error) {
 	if a.Key != nil || !a.IsPlatformAdmin() {
 		return Stored{}, errAdminOnly
@@ -125,13 +144,17 @@ func (s *Service) Put(ctx context.Context, a authz.Actor, in Input, expectedRevi
 		if cur.Revision != expectedRevision {
 			return apperr.Stale()
 		}
+		if unchanged(cur, in) {
+			out = cur
+			return nil
+		}
 		row, err := save(ctx, q, cur, in, a)
 		if err != nil {
 			return err
 		}
 		out = Stored{ModelID: in.ModelID, Settings: in.Settings, Revision: row.Revision, UpdatedAt: &row.UpdatedAt}
 		e := a.Audit("platform.rerank_settings_update", "rerank_settings", "platform")
-		e.Before, e.After = snapshot(cur), snapshot(out)
+		e.Before, e.After = snapshot(ctx, q, cur), snapshot(ctx, q, out)
 		return audit.Record(ctx, q, e)
 	})
 	return out, err

@@ -5862,8 +5862,9 @@ paths:
       summary: Replace the platform rerank settings (platform admins; audited)
       description: >-
         modelId null turns reranking off. 400 invalid_settings
-        (details.problems lists {field, problem}) for values out of range; 400
-        invalid_model when modelId is not a rerank model.
+        (details.problems lists every {field, problem}) for values out of range; 400
+        invalid_model when modelId is not a rerank model. Saving the settings
+        already saved changes nothing (no new revision, no audit entry).
       parameters:
         - $ref: "#/components/parameters/IfMatchHeader"
       requestBody:

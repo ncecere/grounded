@@ -25,6 +25,22 @@ describe("audit changes", () => {
     expect(auditMoney("0.200000")).toBe("0.20");
   });
 
+  it("names reranking settings changes in words, with the model by name and the time limit in ms (adm-4)", () => {
+    const e = {
+      action: "platform.rerank_settings_update",
+      before: { modelId: null, candidates: 40, timeLimitMs: 200 },
+      after: { modelId: "r1", model: "Reranker", candidates: 40, timeLimitMs: 2000 },
+    };
+    expect(changedRows(auditChange(e))).toEqual([
+      { field: "Time limit", before: "200 ms", after: `${(2000).toLocaleString()} ms` },
+      { field: "Rerank model", before: undefined, after: "Reranker" },
+    ]);
+    expect(entryTitle({ ...e, targetType: "rerank_settings", targetLabel: "Reranking settings" })).toBe("Changed reranking settings");
+    // Entries recorded with the values under "settings" read the same.
+    const nested = { action: e.action, before: { modelId: null, settings: { candidates: 40, timeLimitMs: 200 } }, after: { modelId: null, settings: { candidates: 30, timeLimitMs: 200 } } };
+    expect(changeSummary(nested)).toBe("Candidates 40 \u2192 30");
+  });
+
   it("shows a revoked API key as revoked, not as removed fields", () => {
     const c = auditChange({ action: "apikey.revoke", before: { name: "Sync", prefix: "gr_ab", kbIds: null }, after: null });
     expect(c.before).toEqual({ Status: "Active", Name: "Sync", Prefix: "gr_ab" });

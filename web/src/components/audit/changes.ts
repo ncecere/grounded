@@ -37,6 +37,7 @@ function dateText(value: unknown): unknown {
 }
 
 const percent: Format = (v) => (typeof v === "number" ? `${v}%` : v);
+const milliseconds: Format = (v) => (typeof v === "number" ? `${v.toLocaleString()} ms` : v);
 /** A switch's value in words: "On", "Off". */
 export const onOff = (v: unknown) => (typeof v === "boolean" ? (v ? "On" : "Off") : v);
 const label =
@@ -70,6 +71,8 @@ function fieldsFor(action: string, currency?: string): Fields | undefined {
       return { enabled: ["MCP server", onOff] };
     case "platform.answer_cache":
       return { enabled: ["Saved answers", onOff] };
+    case "platform.rerank_settings_update":
+      return { modelId: null, model: ["Rerank model"], candidates: ["Candidates"], timeLimitMs: ["Time limit", milliseconds] };
     case "agent.answer_cache_update":
       return {
         enabled: ["Reuse answers", (v) => (v === null ? "Default for its audience" : onOff(v))],
@@ -128,6 +131,14 @@ function readable(side: unknown, fields: Fields): Record<string, unknown> {
   return out;
 }
 
+/** Reranking settings recorded during v0.4.0's development kept the values under "settings": read them flat. */
+function flatSettings(action: string, side: object): object {
+  const nested = (side as { settings?: unknown }).settings;
+  if (action !== "platform.rerank_settings_update" || !nested || typeof nested !== "object") return side;
+  const { settings: _settings, ...rest } = side as Record<string, unknown>;
+  return { ...rest, ...nested };
+}
+
 /** Added prices: the model, the day they start and each unit's price, by label. */
 function pricesAdded(after: unknown, currency?: string): Record<string, unknown> {
   const a = (after ?? {}) as { model?: unknown; effectiveFrom?: unknown; prices?: Record<string, unknown> };
@@ -147,7 +158,7 @@ export function auditChange(e: Pick<AuditEntry, "action" | "before" | "after">, 
     return { before: { Status: "Active", ...key }, after: { Status: "Revoked", ...key } };
   }
   const fields = fieldsFor(e.action, currency) ?? {};
-  const side = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? readable(v, fields) : (v ?? {}));
+  const side = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? readable(flatSettings(e.action, v), fields) : (v ?? {}));
   return { before: side(e.before) as object, after: side(e.after) as object };
 }
 
