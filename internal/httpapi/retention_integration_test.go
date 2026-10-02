@@ -3,6 +3,7 @@ package httpapi_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 )
@@ -23,6 +24,26 @@ func waitRun(t *testing.T, admin *session, id int64) apitypes.RetentionRun {
 		return false
 	})
 	return run
+}
+
+// deletedSince sums kind's deletions over every finished retention run from
+// id onwards and the scheduled runs before it that finished later: the
+// worker's run on start can begin late on a busy machine (after a test aged
+// its rows) and delete them before the run the test asked for, which then
+// deletes nothing. Requested runs wait for a run in progress, so once id has
+// finished, any scheduled run that started before it has too.
+func deletedSince(t *testing.T, admin *session, id int64, kind apitypes.RetentionKind, since time.Time) int64 {
+	t.Helper()
+	var runs []apitypes.RetentionRun
+	admin.get("/v1/admin/retention/runs", &runs)
+	var n int64
+	for _, r := range runs {
+		finished := r.Status == "ok" || r.Status == "error"
+		if finished && (r.Id == id || (r.FinishedAt != nil && r.FinishedAt.After(since))) {
+			n += runResult(r, kind).Deleted
+		}
+	}
+	return n
 }
 
 func runResult(run apitypes.RetentionRun, kind apitypes.RetentionKind) apitypes.RetentionRunResult {
@@ -121,6 +142,7 @@ func TestRetentionAndLegalHolds(t *testing.T) {
 	}
 
 	// Released: the next run deletes it.
+	since := time.Now()
 	code, e = env.admin.call("POST", "/v1/admin/legal-holds/"+hold.Id.String()+"/release", map[string]any{"reason": ""}, nil, nil)
 	mustCode(t, "release without reason", code, e, 400, "invalid_reason")
 	code, e = env.admin.call("POST", "/v1/admin/legal-holds/"+hold.Id.String()+"/release", map[string]any{"reason": "Request fulfilled"}, &hold, nil)
@@ -131,8 +153,8 @@ func TestRetentionAndLegalHolds(t *testing.T) {
 	code, e = env.admin.call("POST", "/v1/admin/retention/runs", map[string]any{"kinds": []string{"deleted_conversations"}}, &run, nil)
 	mustCode(t, "run deleted conversations", code, e, 202, "")
 	run = waitRun(t, env.admin, run.Id)
-	if r := runResult(run, "deleted_conversations"); r.Deleted != 1 || len(run.Results) != 1 {
-		t.Fatalf("after release = %+v", run)
+	if n := deletedSince(t, env.admin, run.Id, "deleted_conversations", since); n != 1 || len(run.Results) != 1 {
+		t.Fatalf("after release: %d deleted; run %+v", n, run)
 	}
 	var list []apitypes.LegalHold
 	if code := env.auditor.get("/v1/admin/legal-holds?status=all", &list); code != 200 || len(list) != 1 {

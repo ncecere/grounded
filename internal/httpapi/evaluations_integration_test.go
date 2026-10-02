@@ -582,6 +582,7 @@ func TestEvaluationRetentionAndCancel(t *testing.T) {
 	}
 
 	// Runs older than 180 days go at the next retention run, with their results.
+	since := time.Now()
 	if _, err := env.app.Pool.Exec(context.Background(), `UPDATE eval_runs SET created_at = now() - interval '181 days' WHERE id = $1`, d.Run.Id); err != nil {
 		t.Fatal(err)
 	}
@@ -589,8 +590,8 @@ func TestEvaluationRetentionAndCancel(t *testing.T) {
 	code, e = env.admin.call("POST", "/v1/admin/retention/runs", map[string]any{"kinds": []string{"evaluation_runs"}}, &rr, nil)
 	mustCode(t, "retention run", code, e, 202, "")
 	done := waitRun(t, env.admin, rr.Id)
-	if r := runResult(done, "evaluation_runs"); r.Deleted != 1 {
-		t.Errorf("retention = %+v", done)
+	if n := deletedSince(t, env.admin, rr.Id, "evaluation_runs", since); n != 1 {
+		t.Errorf("evaluation runs deleted = %d; requested run %+v", n, done)
 	}
 	if n := env.scalar(t, `SELECT count(*) FROM eval_results WHERE run_id = $1`, d.Run.Id); n != 0 {
 		t.Errorf("results left = %d", n)
