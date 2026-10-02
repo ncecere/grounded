@@ -9208,6 +9208,15 @@ components:
         maxTokensField: { type: string, enum: [max_tokens, max_completion_tokens] }
         supportsToolChoice: { type: boolean, description: "Chat: the server honours tool_choice (e.g. required). Default false." }
         thinkingField: { type: string, enum: [reasoning_content, reasoning], description: "Chat: the streamed reasoning field. Default: whichever is present." }
+        thinkingOff:
+          type: string
+          enum: [reasoning_effort_none, enable_thinking_false]
+          description: >-
+            Chat: how to turn thinking off when an answer's reasoning effort is
+            off. reasoning_effort_none sends reasoning_effort "none";
+            enable_thinking_false sends chat_template_kwargs {"enable_thinking":
+            false} (Qwen3 on vLLM or SGLang). Default: not supported (off sends
+            nothing, so the model thinks as by default).
         supportsDimensionsParam:
           type: boolean
           description: >-
@@ -9437,7 +9446,7 @@ components:
     ModerationPolicy:
       type: object
       description: An audience's platform moderation policy (defaults until saved, with revision 1)
-      required: [audience, modelId, categories, outputMode, failClosed, notice, severityBlock, supportMessage, uncalibratedBlockThreshold, revision, updatedAt]
+      required: [audience, modelId, categories, outputMode, failClosed, notice, severityBlock, supportMessage, uncalibratedBlockThreshold, reasoningEffort, revision, updatedAt]
       properties:
         audience: { $ref: "#/components/schemas/Audience" }
         modelId: { type: string, format: uuid, nullable: true, description: The provider (a moderation or SystemOne model) }
@@ -9468,8 +9477,19 @@ components:
             threshold but below this one flags instead (default 0.95; 0 treats
             uncalibrated scores like calibrated ones). Support actions are not
             affected.
+        reasoningEffort: { $ref: "#/components/schemas/AudienceReasoningEffort" }
         revision: { $ref: "#/components/schemas/Revision" }
         updatedAt: { type: string, format: date-time, nullable: true }
+    AudienceReasoningEffort:
+      type: string
+      enum: [default, off, low, medium, high]
+      description: >-
+        The reasoning effort of this audience's answers when the agent doesn't
+        set its own (default: the model's). Public's is low until an admin
+        chooses another (also in a policy saved before v0.4.0). off and low,
+        medium and high apply as the agent setting does (ReasoningEffort).
+        Query rewrites ask for low, or off when this is off and the model can
+        turn thinking off.
     ModerationPolicyInput:
       type: object
       required: [modelId, categories, outputMode, failClosed]
@@ -9485,6 +9505,9 @@ components:
         severityBlock: { type: number, format: double, nullable: true, minimum: 0, maximum: 3 }
         supportMessage: { type: string, maxLength: 1000 }
         uncalibratedBlockThreshold: { type: number, format: double, minimum: 0, maximum: 1, description: "Default 0.95 when absent" }
+        reasoningEffort:
+          description: "Absent: the audience's default (low for public, the model's for the others)"
+          allOf: [{ $ref: "#/components/schemas/AudienceReasoningEffort" }]
     AgentModeration:
       type: object
       description: >-
@@ -9777,7 +9800,7 @@ components:
         revision: { $ref: "#/components/schemas/Revision" }
     ChatModelOption:
       type: object
-      required: [id, key, displayName, description, maxClassification, supportsTools, supportsReasoningEffort]
+      required: [id, key, displayName, description, maxClassification, supportsTools, supportsReasoningEffort, supportsThinkingOff]
       properties:
         id: { type: string, format: uuid }
         key: { type: string }
@@ -9787,7 +9810,8 @@ components:
         contextWindow: { type: integer, format: int32, nullable: true }
         maxOutputTokens: { type: integer, format: int32, nullable: true }
         supportsTools: { type: boolean, description: "Required for retrieval mode tool" }
-        supportsReasoningEffort: { type: boolean }
+        supportsReasoningEffort: { type: boolean, description: "Reasoning effort low, medium and high can be chosen" }
+        supportsThinkingOff: { type: boolean, description: "Reasoning effort off can be chosen (the model's compatibility says how to turn thinking off)" }
     EmbeddingProfileOption:
       type: object
       required: [id, key, name, description, dimensions, chunkSize, maxClassification, isDefault]
@@ -10875,7 +10899,14 @@ components:
       enum: [none, snippet, snippet_link]
     ReasoningEffort:
       type: string
-      enum: [low, medium, high]
+      description: >-
+        How long the model thinks before answering. off turns thinking off in
+        the way the model's compatibility setting thinkingOff says (nothing is
+        sent when it has none); low, medium and high are sent as
+        reasoning_effort when the model accepts it (supportsReasoningEffort).
+        Absent: the audience's reasoning effort (the moderation policy's), else
+        the model's default.
+      enum: [off, low, medium, high]
     AgentKB:
       type: object
       required: [kbId]
@@ -10937,7 +10968,7 @@ components:
         chatModelId: { type: string, format: uuid, nullable: true }
         temperature: { type: number, format: double, minimum: 0, maximum: 2, nullable: true }
         maxOutputTokens: { type: integer, minimum: 1, nullable: true }
-        reasoningEffort: { type: string, enum: [low, medium, high, ""] }
+        reasoningEffort: { type: string, enum: [off, low, medium, high, ""] }
         kbs:
           type: array
           maxItems: 5
@@ -11967,10 +11998,13 @@ components:
         follow-up that depends on the conversation into a search query;
         searching: searching the knowledge bases; checking: SystemOne passage
         judging; answering: the model is writing (until the first token).
+        When the answer's thinking isn't streamed (buffered and checked
+        answers), thinking says the model is reasoning, and answering follows
+        once it starts writing (v0.4.0).
         Clients should ignore steps they don't know.
       required: [step]
       properties:
-        step: { type: string, enum: [rewriting, searching, checking, answering] }
+        step: { type: string, enum: [rewriting, searching, checking, thinking, answering] }
     ChatEventMessageStart:
       type: object
       description: "SSE event message_start"

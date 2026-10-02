@@ -40,7 +40,7 @@ const (
 type Options struct {
 	Temperature     *float64
 	MaxTokens       int    // clamped to the model's MaxOutputTokens when known
-	ReasoningEffort string // low | medium | high; sent only when compat allows
+	ReasoningEffort string // off | low | medium | high; sent only when compat allows (off: Compat.ThinkingOff)
 	User            string // OpenAI "user" tag, see UserTag
 	ToolChoice      string // auto | none | required; sent only when compat allows and tools are present
 }

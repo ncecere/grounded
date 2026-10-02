@@ -30,6 +30,7 @@ func toAPIModerationPolicy(st moderation.Stored) apitypes.ModerationPolicy {
 		Notice: st.Policy.Notice, Revision: st.Revision, UpdatedAt: st.UpdatedAt,
 		SeverityBlock: st.Policy.SeverityBlock, SupportMessage: st.Policy.SupportMessage,
 		UncalibratedBlockThreshold: st.Policy.UncalibratedBlockThreshold,
+		ReasoningEffort:            apitypes.AudienceReasoningEffort(st.Policy.ReasoningEffort),
 	}
 }
 
@@ -62,6 +63,7 @@ func (a *api) adminPutModerationPolicy(w http.ResponseWriter, r *http.Request) {
 		OutputMode: string(in.OutputMode), FailClosed: in.FailClosed, Notice: deref(in.Notice, ""),
 		SeverityBlock: in.SeverityBlock, SupportMessage: deref(in.SupportMessage, ""),
 		UncalibratedBlockThreshold: deref(in.UncalibratedBlockThreshold, moderation.DefaultUncalibratedBlockThreshold),
+		ReasoningEffort:            string(deref(in.ReasoningEffort, "")),
 	}
 	st, err := a.Moderation.PutPolicy(r.Context(), a.actor(r), r.PathValue("audience"),
 		moderation.PolicyInput{ModelID: in.ModelId, Policy: pol}, rev)

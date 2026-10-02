@@ -44,7 +44,7 @@ func (ru *run) rewrite(ctx context.Context) string {
 	defer cancel()
 	msg, err := llm.Complete(rctx, ru.s.NewProvider(ru.target.Client), ru.model,
 		llm.Context{SystemPrompt: rewritePrompt, Messages: rewriteContext(ru.history, ru.question)},
-		llm.Options{MaxTokens: rewriteMaxTokens, ReasoningEffort: "low", User: ru.userTag()})
+		llm.Options{MaxTokens: rewriteMaxTokens, ReasoningEffort: ru.rewriteEffort(), User: ru.userTag()})
 	addUsage(&ru.extraUsage, msg.Usage)
 	q := cleanRewrite(msg.Text())
 	switch {

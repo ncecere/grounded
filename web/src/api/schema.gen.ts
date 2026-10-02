@@ -6209,6 +6209,11 @@ export interface components {
              * @enum {string}
              */
             thinkingField?: "reasoning_content" | "reasoning";
+            /**
+             * @description Chat: how to turn thinking off when an answer's reasoning effort is off. reasoning_effort_none sends reasoning_effort "none"; enable_thinking_false sends chat_template_kwargs {"enable_thinking": false} (Qwen3 on vLLM or SGLang). Default: not supported (off sends nothing, so the model thinks as by default).
+             * @enum {string}
+             */
+            thinkingOff?: "reasoning_effort_none" | "enable_thinking_false";
             /** @description Embedding: send the dimensions parameter when a profile stores fewer dimensions than the model's. Default false: Grounded truncates the vectors and L2-renormalises them itself (Matryoshka models only). */
             supportsDimensionsParam?: boolean;
             /**
@@ -6481,10 +6486,16 @@ export interface components {
              * @description The effective floor of block thresholds when the provider is not calibrated (chat classifiers, guardrails without log-probabilities): a block rule scoring at or above its own threshold but below this one flags instead (default 0.95; 0 treats uncalibrated scores like calibrated ones). Support actions are not affected.
              */
             uncalibratedBlockThreshold: number;
+            reasoningEffort: components["schemas"]["AudienceReasoningEffort"];
             revision: components["schemas"]["Revision"];
             /** Format: date-time */
             updatedAt: string | null;
         };
+        /**
+         * @description The reasoning effort of this audience's answers when the agent doesn't set its own (default: the model's). Public's is low until an admin chooses another (also in a policy saved before v0.4.0). off and low, medium and high apply as the agent setting does (ReasoningEffort). Query rewrites ask for low, or off when this is off and the model can turn thinking off.
+         * @enum {string}
+         */
+        AudienceReasoningEffort: "default" | "off" | "low" | "medium" | "high";
         ModerationPolicyInput: {
             /** Format: uuid */
             modelId: string | null;
@@ -6503,6 +6514,8 @@ export interface components {
              * @description Default 0.95 when absent
              */
             uncalibratedBlockThreshold?: number;
+            /** @description Absent: the audience's default (low for public, the model's for the others) */
+            reasoningEffort?: components["schemas"]["AudienceReasoningEffort"];
         };
         /** @description An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode stream_checked or buffer applies where the platform's mode is less strict (stream_retract, then stream_checked, then buffer). The Phase 3 value "off" is still accepted as no override. */
         AgentModeration: {
@@ -6865,7 +6878,10 @@ export interface components {
             maxOutputTokens?: number | null;
             /** @description Required for retrieval mode tool */
             supportsTools: boolean;
+            /** @description Reasoning effort low, medium and high can be chosen */
             supportsReasoningEffort: boolean;
+            /** @description Reasoning effort off can be chosen (the model's compatibility says how to turn thinking off) */
+            supportsThinkingOff: boolean;
         };
         EmbeddingProfileOption: {
             /** Format: uuid */
@@ -7990,8 +8006,11 @@ export interface components {
          * @enum {string}
          */
         CitationMode: "none" | "snippet" | "snippet_link";
-        /** @enum {string} */
-        ReasoningEffort: "low" | "medium" | "high";
+        /**
+         * @description How long the model thinks before answering. off turns thinking off in the way the model's compatibility setting thinkingOff says (nothing is sent when it has none); low, medium and high are sent as reasoning_effort when the model accepts it (supportsReasoningEffort). Absent: the audience's reasoning effort (the moderation policy's), else the model's default.
+         * @enum {string}
+         */
+        ReasoningEffort: "off" | "low" | "medium" | "high";
         AgentKB: {
             /** Format: uuid */
             kbId: string;
@@ -8044,7 +8063,7 @@ export interface components {
             temperature?: number | null;
             maxOutputTokens?: number | null;
             /** @enum {string} */
-            reasoningEffort?: "low" | "medium" | "high" | "";
+            reasoningEffort?: "off" | "low" | "medium" | "high" | "";
             kbs?: components["schemas"]["AgentKB"][];
             retrievalMode?: components["schemas"]["RetrievalMode"];
             /** @default 4 */
@@ -8985,10 +9004,10 @@ export interface components {
             kept: number;
             dropped: number;
         };
-        /** @description SSE event status: what the agent is doing before the answer's first words, once per step (v0.3.0 and later). rewriting: turning a follow-up that depends on the conversation into a search query; searching: searching the knowledge bases; checking: SystemOne passage judging; answering: the model is writing (until the first token). Clients should ignore steps they don't know. */
+        /** @description SSE event status: what the agent is doing before the answer's first words, once per step (v0.3.0 and later). rewriting: turning a follow-up that depends on the conversation into a search query; searching: searching the knowledge bases; checking: SystemOne passage judging; answering: the model is writing (until the first token). When the answer's thinking isn't streamed (buffered and checked answers), thinking says the model is reasoning, and answering follows once it starts writing (v0.4.0). Clients should ignore steps they don't know. */
         ChatEventStatus: {
             /** @enum {string} */
-            step: "rewriting" | "searching" | "checking" | "answering";
+            step: "rewriting" | "searching" | "checking" | "thinking" | "answering";
         };
         /** @description SSE event message_start */
         ChatEventMessageStart: {

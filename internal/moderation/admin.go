@@ -107,6 +107,9 @@ func (s *Service) PutPolicy(ctx context.Context, a authz.Actor, audience string,
 		if cur.Revision != expectedRevision {
 			return apperr.Stale()
 		}
+		if in.Policy.ReasoningEffort == "" { // not sent (an older client): keep the current one
+			in.Policy.ReasoningEffort = cur.Policy.ReasoningEffort
+		}
 		if in.ModelID != nil {
 			m, err := q.GetModel(ctx, *in.ModelID)
 			if errors.Is(store.NotFound(err), store.ErrNotFound) || (err == nil && !catalog.IsModerationProvider(m.Kind)) {

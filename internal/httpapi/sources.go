@@ -196,6 +196,7 @@ func (a *api) listUsableChatModels(w http.ResponseWriter, r *http.Request) {
 			Id: m.ID, Key: m.Key, DisplayName: m.DisplayName, Description: m.Description,
 			MaxClassification: m.MaxClassification, ContextWindow: m.ContextWindow, MaxOutputTokens: m.MaxOutputTokens,
 			SupportsTools: m.SupportsTools, SupportsReasoningEffort: c.SupportsReasoningEffort != nil && *c.SupportsReasoningEffort,
+			SupportsThinkingOff: c.ThinkingOff != nil,
 		}
 	}
 	httpx.JSON(w, http.StatusOK, out)

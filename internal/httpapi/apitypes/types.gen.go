@@ -186,6 +186,7 @@ const (
 	AgentConfigInputReasoningEffortHigh   AgentConfigInputReasoningEffort = "high"
 	AgentConfigInputReasoningEffortLow    AgentConfigInputReasoningEffort = "low"
 	AgentConfigInputReasoningEffortMedium AgentConfigInputReasoningEffort = "medium"
+	AgentConfigInputReasoningEffortOff    AgentConfigInputReasoningEffort = "off"
 )
 
 // Valid indicates whether the value is a known member of the AgentConfigInputReasoningEffort enum.
@@ -198,6 +199,8 @@ func (e AgentConfigInputReasoningEffort) Valid() bool {
 	case AgentConfigInputReasoningEffortLow:
 		return true
 	case AgentConfigInputReasoningEffortMedium:
+		return true
+	case AgentConfigInputReasoningEffortOff:
 		return true
 	default:
 		return false
@@ -411,6 +414,33 @@ func (e Audience) Valid() bool {
 	case AudiencePublic:
 		return true
 	case AudienceTeam:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AudienceReasoningEffort.
+const (
+	AudienceReasoningEffortDefault AudienceReasoningEffort = "default"
+	AudienceReasoningEffortHigh    AudienceReasoningEffort = "high"
+	AudienceReasoningEffortLow     AudienceReasoningEffort = "low"
+	AudienceReasoningEffortMedium  AudienceReasoningEffort = "medium"
+	AudienceReasoningEffortOff     AudienceReasoningEffort = "off"
+)
+
+// Valid indicates whether the value is a known member of the AudienceReasoningEffort enum.
+func (e AudienceReasoningEffort) Valid() bool {
+	switch e {
+	case AudienceReasoningEffortDefault:
+		return true
+	case AudienceReasoningEffortHigh:
+		return true
+	case AudienceReasoningEffortLow:
+		return true
+	case AudienceReasoningEffortMedium:
+		return true
+	case AudienceReasoningEffortOff:
 		return true
 	default:
 		return false
@@ -750,6 +780,7 @@ const (
 	Checking  ChatEventStatusStep = "checking"
 	Rewriting ChatEventStatusStep = "rewriting"
 	Searching ChatEventStatusStep = "searching"
+	Thinking  ChatEventStatusStep = "thinking"
 )
 
 // Valid indicates whether the value is a known member of the ChatEventStatusStep enum.
@@ -762,6 +793,8 @@ func (e ChatEventStatusStep) Valid() bool {
 	case Rewriting:
 		return true
 	case Searching:
+		return true
+	case Thinking:
 		return true
 	default:
 		return false
@@ -2442,6 +2475,24 @@ func (e ModelCompatThinkingField) Valid() bool {
 	}
 }
 
+// Defines values for ModelCompatThinkingOff.
+const (
+	EnableThinkingFalse ModelCompatThinkingOff = "enable_thinking_false"
+	ReasoningEffortNone ModelCompatThinkingOff = "reasoning_effort_none"
+)
+
+// Valid indicates whether the value is a known member of the ModelCompatThinkingOff enum.
+func (e ModelCompatThinkingOff) Valid() bool {
+	switch e {
+	case EnableThinkingFalse:
+		return true
+	case ReasoningEffortNone:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ModelKind.
 const (
 	ModelKindChat       ModelKind = "chat"
@@ -3206,6 +3257,7 @@ const (
 	ReasoningEffortHigh   ReasoningEffort = "high"
 	ReasoningEffortLow    ReasoningEffort = "low"
 	ReasoningEffortMedium ReasoningEffort = "medium"
+	ReasoningEffortOff    ReasoningEffort = "off"
 )
 
 // Valid indicates whether the value is a known member of the ReasoningEffort enum.
@@ -3216,6 +3268,8 @@ func (e ReasoningEffort) Valid() bool {
 	case ReasoningEffortLow:
 		return true
 	case ReasoningEffortMedium:
+		return true
+	case ReasoningEffortOff:
 		return true
 	default:
 		return false
@@ -3350,19 +3404,19 @@ func (e RetentionRunTrigger) Valid() bool {
 
 // Defines values for RetentionUpdatePeriodsMode.
 const (
-	Days    RetentionUpdatePeriodsMode = "days"
-	Default RetentionUpdatePeriodsMode = "default"
-	Keep    RetentionUpdatePeriodsMode = "keep"
+	RetentionUpdatePeriodsModeDays    RetentionUpdatePeriodsMode = "days"
+	RetentionUpdatePeriodsModeDefault RetentionUpdatePeriodsMode = "default"
+	RetentionUpdatePeriodsModeKeep    RetentionUpdatePeriodsMode = "keep"
 )
 
 // Valid indicates whether the value is a known member of the RetentionUpdatePeriodsMode enum.
 func (e RetentionUpdatePeriodsMode) Valid() bool {
 	switch e {
-	case Days:
+	case RetentionUpdatePeriodsModeDays:
 		return true
-	case Default:
+	case RetentionUpdatePeriodsModeDefault:
 		return true
-	case Keep:
+	case RetentionUpdatePeriodsModeKeep:
 		return true
 	default:
 		return false
@@ -4647,7 +4701,9 @@ type AgentConfig struct {
 	Moderation AgentModeration `json:"moderation"`
 
 	// QueryRewrite With history, rewrite the question as a query that stands on its own before retrieval
-	QueryRewrite    bool             `json:"queryRewrite"`
+	QueryRewrite bool `json:"queryRewrite"`
+
+	// ReasoningEffort How long the model thinks before answering. off turns thinking off in the way the model's compatibility setting thinkingOff says (nothing is sent when it has none); low, medium and high are sent as reasoning_effort when the model accepts it (supportsReasoningEffort). Absent: the audience's reasoning effort (the moderation policy's), else the model's default.
 	ReasoningEffort *ReasoningEffort `json:"reasoningEffort,omitempty"`
 	RefusalMessage  string           `json:"refusalMessage"`
 
@@ -4998,6 +5054,9 @@ type AudienceOption struct {
 	// Reasons Why not (role, classification, public access, moderation)
 	Reasons []string `json:"reasons"`
 }
+
+// AudienceReasoningEffort The reasoning effort of this audience's answers when the agent doesn't set its own (default: the model's). Public's is low until an admin chooses another (also in a policy saved before v0.4.0). off and low, medium and high apply as the agent setting does (ReasoningEffort). Query rewrites ask for low, or off when this is off and the model can turn thinking off.
+type AudienceReasoningEffort string
 
 // AuditActor Who made the change, resolved when the log is read
 type AuditActor struct {
@@ -5509,7 +5568,7 @@ type ChatEventRetrieval struct {
 	Query string `json:"query"`
 }
 
-// ChatEventStatus SSE event status: what the agent is doing before the answer's first words, once per step (v0.3.0 and later). rewriting: turning a follow-up that depends on the conversation into a search query; searching: searching the knowledge bases; checking: SystemOne passage judging; answering: the model is writing (until the first token). Clients should ignore steps they don't know.
+// ChatEventStatus SSE event status: what the agent is doing before the answer's first words, once per step (v0.3.0 and later). rewriting: turning a follow-up that depends on the conversation into a search query; searching: searching the knowledge bases; checking: SystemOne passage judging; answering: the model is writing (until the first token). When the answer's thinking isn't streamed (buffered and checked answers), thinking says the model is reasoning, and answering follows once it starts writing (v0.4.0). Clients should ignore steps they don't know.
 type ChatEventStatus struct {
 	Step ChatEventStatusStep `json:"step"`
 }
@@ -5555,9 +5614,14 @@ type ChatModelOption struct {
 	Key           string             `json:"key"`
 
 	// MaxClassification Most sensitive data the model may process; an agent's knowledge bases must not exceed it
-	MaxClassification       string `json:"maxClassification"`
-	MaxOutputTokens         *int32 `json:"maxOutputTokens,omitempty"`
-	SupportsReasoningEffort bool   `json:"supportsReasoningEffort"`
+	MaxClassification string `json:"maxClassification"`
+	MaxOutputTokens   *int32 `json:"maxOutputTokens,omitempty"`
+
+	// SupportsReasoningEffort Reasoning effort low, medium and high can be chosen
+	SupportsReasoningEffort bool `json:"supportsReasoningEffort"`
+
+	// SupportsThinkingOff Reasoning effort off can be chosen (the model's compatibility says how to turn thinking off)
+	SupportsThinkingOff bool `json:"supportsThinkingOff"`
 
 	// SupportsTools Required for retrieval mode tool
 	SupportsTools bool `json:"supportsTools"`
@@ -8176,6 +8240,9 @@ type ModelCompat struct {
 
 	// ThinkingField Chat: the streamed reasoning field. Default: whichever is present.
 	ThinkingField *ModelCompatThinkingField `json:"thinkingField,omitempty"`
+
+	// ThinkingOff Chat: how to turn thinking off when an answer's reasoning effort is off. reasoning_effort_none sends reasoning_effort "none"; enable_thinking_false sends chat_template_kwargs {"enable_thinking": false} (Qwen3 on vLLM or SGLang). Default: not supported (off sends nothing, so the model thinks as by default).
+	ThinkingOff *ModelCompatThinkingOff `json:"thinkingOff,omitempty"`
 }
 
 // ModelCompatMaxTokensField defines model for ModelCompat.MaxTokensField.
@@ -8186,6 +8253,9 @@ type ModelCompatRerankDocumentsField string
 
 // ModelCompatThinkingField Chat: the streamed reasoning field. Default: whichever is present.
 type ModelCompatThinkingField string
+
+// ModelCompatThinkingOff Chat: how to turn thinking off when an answer's reasoning effort is off. reasoning_effort_none sends reasoning_effort "none"; enable_thinking_false sends chat_template_kwargs {"enable_thinking": false} (Qwen3 on vLLM or SGLang). Default: not supported (off sends nothing, so the model thinks as by default).
+type ModelCompatThinkingOff string
 
 // ModelCreate defines model for ModelCreate.
 type ModelCreate struct {
@@ -8455,6 +8525,9 @@ type ModerationPolicy struct {
 	// OutputMode stream_retract: answers stream and a failing answer is replaced; stream_checked (the Public default): answers are released paragraph by paragraph, each checked with all the text before it, and a failing paragraph replaces the whole answer with the notice; buffer: answers are sent only after they pass
 	OutputMode ModerationOutputMode `json:"outputMode"`
 
+	// ReasoningEffort The reasoning effort of this audience's answers when the agent doesn't set its own (default: the model's). Public's is low until an admin chooses another (also in a policy saved before v0.4.0). off and low, medium and high apply as the agent setting does (ReasoningEffort). Query rewrites ask for low, or off when this is off and the model can turn thinking off.
+	ReasoningEffort AudienceReasoningEffort `json:"reasoningEffort"`
+
 	// Revision Increases on every change. Send it back in If-Match.
 	Revision Revision `json:"revision"`
 
@@ -8478,9 +8551,12 @@ type ModerationPolicyInput struct {
 	Notice     *string                            `json:"notice,omitempty"`
 
 	// OutputMode stream_retract: answers stream and a failing answer is replaced; stream_checked (the Public default): answers are released paragraph by paragraph, each checked with all the text before it, and a failing paragraph replaces the whole answer with the notice; buffer: answers are sent only after they pass
-	OutputMode     ModerationOutputMode `json:"outputMode"`
-	SeverityBlock  *float64             `json:"severityBlock,omitempty"`
-	SupportMessage *string              `json:"supportMessage,omitempty"`
+	OutputMode ModerationOutputMode `json:"outputMode"`
+
+	// ReasoningEffort Absent: the audience's default (low for public, the model's for the others)
+	ReasoningEffort *AudienceReasoningEffort `json:"reasoningEffort,omitempty"`
+	SeverityBlock   *float64                 `json:"severityBlock,omitempty"`
+	SupportMessage  *string                  `json:"supportMessage,omitempty"`
 
 	// UncalibratedBlockThreshold Default 0.95 when absent
 	UncalibratedBlockThreshold *float64 `json:"uncalibratedBlockThreshold,omitempty"`
@@ -9496,7 +9572,7 @@ type PublishableKeyLimits struct {
 	PerSessionPerMinute *int64 `json:"perSessionPerMinute,omitempty"`
 }
 
-// ReasoningEffort defines model for ReasoningEffort.
+// ReasoningEffort How long the model thinks before answering. off turns thinking off in the way the model's compatibility setting thinkingOff says (nothing is sent when it has none); low, medium and high are sent as reasoning_effort when the model accepts it (supportsReasoningEffort). Absent: the audience's reasoning effort (the moderation policy's), else the model's default.
 type ReasoningEffort string
 
 // RequestTimings Phases of the test's first request, which opens a new connection. A slow dns points at name resolution (for example search domains or ndots in a cluster), connect at the network path, tls at the handshake, and firstByte at the proxy and model themselves.

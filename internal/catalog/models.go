@@ -16,6 +16,7 @@ import (
 	"github.com/ncecere/grounded/internal/audit"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/gateway"
+	"github.com/ncecere/grounded/internal/llm"
 	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
@@ -55,6 +56,11 @@ type Compat struct {
 	// ThinkingField is the streamed delta field carrying reasoning:
 	// "reasoning_content" or "reasoning". Default: whichever is present.
 	ThinkingField *string `json:"thinkingField,omitempty"`
+	// ThinkingOff (chat models) is how to turn thinking off when an
+	// answer's reasoning effort is off: "reasoning_effort_none" or
+	// "enable_thinking_false" (Qwen3 on vLLM or SGLang). Default: not
+	// supported.
+	ThinkingOff *string `json:"thinkingOff,omitempty"`
 	// SupportsDimensionsParam (embedding models): the server accepts the
 	// OpenAI "dimensions" parameter, so a profile with fewer output
 	// dimensions asks for them. Default false: Grounded truncates the vectors
@@ -83,6 +89,9 @@ func (c Compat) validate() error {
 	}
 	if c.ThinkingField != nil && *c.ThinkingField != "reasoning_content" && *c.ThinkingField != "reasoning" {
 		return apperr.Invalid("invalid_compat", "thinkingField must be reasoning_content or reasoning")
+	}
+	if c.ThinkingOff != nil && !llm.ValidThinkingOff(*c.ThinkingOff) {
+		return apperr.Invalid("invalid_compat", "thinkingOff must be reasoning_effort_none or enable_thinking_false")
 	}
 	if f := c.RerankDocumentsField; f != nil && *f != "documents" && *f != "texts" {
 		return apperr.Invalid("invalid_compat", "rerankDocumentsField must be documents or texts")

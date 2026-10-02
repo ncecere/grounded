@@ -116,14 +116,48 @@ type Policy struct {
 	// 0 treats uncalibrated scores like calibrated ones. Support actions
 	// are not lowered (a missed crisis costs more than a support message).
 	UncalibratedBlockThreshold float64 `json:"uncalibratedBlockThreshold"`
+	// ReasoningEffort is the reasoning effort of the audience's answers
+	// when the agent sets none (docs/v0.4.0.md §4, owner decision 4):
+	// EffortDefault (the model's), off, low, medium or high.
+	ReasoningEffort string `json:"reasoningEffort,omitempty"`
+}
+
+// Reasoning efforts of a policy (ReasoningEffort).
+const (
+	EffortDefault = "default"
+	EffortOff     = "off"
+	EffortLow     = "low"
+)
+
+var validEfforts = map[string]bool{EffortDefault: true, EffortOff: true, EffortLow: true, "medium": true, "high": true}
+
+// DefaultEffort is an audience's reasoning effort until an admin chooses
+// one: low for public (visitors wait for checked answers; a policy saved
+// before the field existed gets it too), the model's for the others.
+func DefaultEffort(audience string) string {
+	if audience == authz.AudiencePublic {
+		return EffortLow
+	}
+	return EffortDefault
+}
+
+// Effort is the reasoning effort the policy asks for: "" for the model's
+// default, else off, low, medium or high.
+func (p Policy) Effort() string {
+	if p.ReasoningEffort == EffortDefault {
+		return ""
+	}
+	return p.ReasoningEffort
 }
 
 // DefaultPolicy is an audience's policy until an admin saves one: public
 // blocks every category at 0.5 on input and output, streams checked
-// paragraphs and fails closed; the others are off and stream.
+// paragraphs, fails closed and reasons at low effort; the others are off
+// and stream.
 func DefaultPolicy(audience string) Policy {
 	p := Policy{Categories: map[string]CategoryRules{}, OutputMode: ModeStreamRetract, Notice: DefaultNotice,
-		SupportMessage: DefaultSupportMessage, UncalibratedBlockThreshold: DefaultUncalibratedBlockThreshold}
+		SupportMessage: DefaultSupportMessage, UncalibratedBlockThreshold: DefaultUncalibratedBlockThreshold,
+		ReasoningEffort: DefaultEffort(audience)}
 	action := ActionOff
 	if audience == authz.AudiencePublic {
 		action, p.OutputMode, p.FailClosed = ActionBlock, ModeStreamChecked, true
@@ -158,6 +192,9 @@ func DecodePolicy(audience string, raw json.RawMessage) Policy {
 		p.SupportMessage = in.SupportMessage
 	}
 	p.SeverityBlock = in.SeverityBlock
+	if validEfforts[in.ReasoningEffort] { // saved before v0.4.0: the audience's default
+		p.ReasoningEffort = in.ReasoningEffort
+	}
 	// Policies saved before the floor existed keep the default.
 	var floor struct {
 		V *float64 `json:"uncalibratedBlockThreshold"`
@@ -204,6 +241,9 @@ func (p Policy) Validate(audience string) []Problem {
 	}
 	if n := utf8.RuneCountInString(p.SupportMessage); n > 1000 || strings.TrimSpace(p.SupportMessage) == "" {
 		out = append(out, Problem{"supportMessage", "The support message must be 1-1000 characters"})
+	}
+	if p.ReasoningEffort != "" && !validEfforts[p.ReasoningEffort] {
+		out = append(out, Problem{"reasoningEffort", "Reasoning effort must be default, off, low, medium or high"})
 	}
 	if !ValidMode(p.OutputMode) {
 		out = append(out, Problem{"outputMode", "Output mode must be stream_retract, stream_checked or buffer"})

@@ -193,7 +193,10 @@ func buildRequest(m Model, c Context, o Options, stream bool) map[string]any {
 			body["tool_choice"] = o.ToolChoice
 		}
 	}
-	if o.ReasoningEffort != "" && m.Compat.SupportsReasoningEffort {
+	switch {
+	case o.ReasoningEffort == EffortOff:
+		thinkingOff(body, m.Compat)
+	case o.ReasoningEffort != "" && m.Compat.SupportsReasoningEffort:
 		body["reasoning_effort"] = o.ReasoningEffort
 	}
 	if o.User != "" {
@@ -201,4 +204,24 @@ func buildRequest(m Model, c Context, o Options, stream bool) map[string]any {
 	}
 	gateway.MergeExtra(body, m.Compat.ExtraBody)
 	return body
+}
+
+// thinkingOff turns thinking off the way the model's compatibility says
+// (nothing when it has no way): reasoning_effort "none", or
+// chat_template_kwargs.enable_thinking false, kept with the other template
+// arguments of its extraBody.
+func thinkingOff(body map[string]any, c Compat) {
+	switch c.ThinkingOff {
+	case ThinkingOffEffortNone:
+		body["reasoning_effort"] = "none"
+	case ThinkingOffTemplateKwarg:
+		kw := map[string]any{}
+		if extra, ok := c.ExtraBody["chat_template_kwargs"].(map[string]any); ok {
+			for k, v := range extra {
+				kw[k] = v
+			}
+		}
+		kw["enable_thinking"] = false
+		body["chat_template_kwargs"] = kw
+	}
 }
