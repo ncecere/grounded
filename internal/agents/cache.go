@@ -33,14 +33,14 @@ import (
 
 // Lookup outcomes (grounded_answer_cache_lookups_total).
 const (
-	cacheHit           = "hit"
-	cacheMiss          = "miss"
-	cacheExact         = "exact"
-	cacheNear          = "near"
-	cacheNoEntry       = "no_entry"
-	cacheNearRejected  = "near_rejected"
-	cacheFollowUp      = "follow_up"
-	cacheError         = "error"
+	cacheHit          = "hit"
+	cacheMiss         = "miss"
+	cacheExact        = "exact"
+	cacheNear         = "near"
+	cacheNoEntry      = "no_entry"
+	cacheNearRejected = "near_rejected"
+	cacheFollowUp     = "follow_up"
+	cacheError        = "error"
 )
 
 // cachedAnswer is what an entry stores: everything the replay sends and
