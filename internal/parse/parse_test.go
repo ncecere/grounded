@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -212,8 +213,21 @@ func TestPDFMetadataTitleAndScannedPages(t *testing.T) {
 	if doc.Title != "Official Catalog 2026" {
 		t.Errorf("title = %q", doc.Title)
 	}
-	if len(doc.Warnings) != 1 || !strings.Contains(doc.Warnings[0], "1 of 2 pages had no text layer (possibly scanned) and was skipped") {
+	if len(doc.Warnings) != 1 || !strings.Contains(doc.Warnings[0], "1 of 2 pages (page 2) had no text layer (possibly scanned) and was skipped") ||
+		!strings.Contains(doc.Warnings[0], "Once OCR is on, retry the document to read it.") {
 		t.Errorf("warnings = %v", doc.Warnings)
+	}
+	// The pages that need OCR are recorded, so the document can be retried.
+	if !slices.Equal(doc.NeedsOCR, []int{2}) {
+		t.Errorf("needs OCR = %v", doc.NeedsOCR)
+	}
+	if got := scannedPagesWarning([]int{2, 3, 4, 7}, 9); !strings.HasPrefix(got, "4 of 9 pages (pages 2-4, 7) had no text layer") || !strings.HasSuffix(got, "to read them.") {
+		t.Errorf("warning = %q", got)
+	}
+	// With OCR on, nothing is left to retry.
+	doc, err := builtin().Parse(context.Background(), Input{Name: "catalog.pdf", Kind: KindPDF, Data: data, OCR: ocrOn(&fakeOCR{})})
+	if err != nil || doc.NeedsOCR != nil || doc.OCR == nil {
+		t.Errorf("with OCR: %+v %v", doc, err)
 	}
 }
 

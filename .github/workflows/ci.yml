@@ -218,9 +218,11 @@ jobs:
         run: make obs-validate
 
   # End-to-end smoke test of the manifests on a throwaway kind cluster
-  # (deploy/kubernetes/scripts/kind-smoke.sh): builds the image, deploys the
-  # example-small shape with random dev-only secrets, waits for readiness,
-  # runs the backup job once and checks the API, worker and UI.
+  # (deploy/kubernetes/scripts/kind-smoke.sh): builds the grounded and
+  # grounded-ocr images, deploys the example-small shape with the OCR sidecar
+  # and the fake model gateway and random dev-only secrets, waits for
+  # readiness, runs the backup job once, checks the API, worker and UI, and
+  # waits for an uploaded scanned page's OCR text.
   k8s-smoke:
     needs: [k8s]
     if: github.event_name == 'push'

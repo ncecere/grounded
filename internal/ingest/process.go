@@ -88,7 +88,7 @@ func classify(err error) outcome {
 	var ge *gateway.Error
 	switch {
 	case errors.Is(err, parse.ErrNeedsOCR):
-		return outcome{status: StatusSkipped, code: "needs_ocr", message: err.Error()}
+		return outcome{status: StatusSkipped, code: ErrorNeedsOCR, message: err.Error()}
 	case errors.Is(err, parse.ErrEmpty):
 		return outcome{status: StatusSkipped, code: "empty", message: err.Error()}
 	case errors.Is(err, parse.ErrUnsupported):

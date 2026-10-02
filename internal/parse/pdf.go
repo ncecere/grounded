@@ -108,8 +108,10 @@ func (e *pdfEngine) parse(ctx context.Context, in Input, lim Limits) (Document, 
 		}
 		return Document{Pages: pages}, ErrNeedsOCR
 	}
+	var needsOCR []int
 	if in.OCR == nil && len(empty) > 0 {
-		warnings = append(warnings, scannedPagesWarning(len(empty), pages))
+		needsOCR = empty
+		warnings = append(warnings, scannedPagesWarning(empty, pages))
 	}
 
 	md := renderPDF(removeRunningHeaders(lines, pages), pages, ocrTexts)
@@ -117,19 +119,20 @@ func (e *pdfEngine) parse(ctx context.Context, in Input, lim Limits) (Document, 
 		return Document{}, fmt.Errorf("%w: converted text exceeds the limit", ErrTooLarge)
 	}
 	title := pdfTitle(inst, opened.Document, md, in.Name)
-	return Document{Title: title, Markdown: md, Pages: pages, Parser: parserName("builtin:pdf", info), Warnings: warnings, OCR: info}, nil
+	return Document{Title: title, Markdown: md, Pages: pages, Parser: parserName("builtin:pdf", info), Warnings: warnings, OCR: info, NeedsOCR: needsOCR}, nil
 }
 
-// scannedPagesWarning says that n of pages had no text layer and were
-// skipped because OCR is off for the document, and how to read them: a
-// document with text is ready, so it can't be retried; it is uploaded again.
-func scannedPagesWarning(n, pages int) string {
-	if n == 1 {
-		return fmt.Sprintf("1 of %d pages had no text layer (possibly scanned) and was skipped, because OCR is off for this document. "+
-			"To read it, turn OCR on, then delete the document and upload it again.", pages)
+// scannedPagesWarning says which pages had no text layer and were skipped
+// because OCR is off for the document, and how to read them: the document
+// needs OCR (Document.NeedsOCR), so once OCR is on it is retried with the
+// others that need it, or on its own.
+func scannedPagesWarning(empty []int, pages int) string {
+	if len(empty) == 1 {
+		return fmt.Sprintf("1 of %d pages (page %d) had no text layer (possibly scanned) and was skipped, because OCR is off for this document. "+
+			"Once OCR is on, retry the document to read it.", pages, empty[0])
 	}
-	return fmt.Sprintf("%d of %d pages had no text layer (possibly scanned) and were skipped, because OCR is off for this document. "+
-		"To read them, turn OCR on, then delete the document and upload it again.", n, pages)
+	return fmt.Sprintf("%d of %d pages (pages %s) had no text layer (possibly scanned) and were skipped, because OCR is off for this document. "+
+		"Once OCR is on, retry the document to read them.", len(empty), pages, PageList(empty))
 }
 
 // pdfTitle is the document's Title metadata, unless it is missing or looks

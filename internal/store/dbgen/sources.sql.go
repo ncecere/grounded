@@ -788,10 +788,12 @@ func (q *Queries) RequeueDocument(ctx context.Context, arg RequeueDocumentParams
 
 const retryDocument = `-- name: RetryDocument :one
 UPDATE documents SET status = 'pending', error_code = '', error_message = '', attempts = 0, waiting_until = NULL, updated_at = now()
-WHERE id = $1 AND status IN ('failed', 'skipped')
+WHERE id = $1 AND (status IN ('failed', 'skipped') OR (status = 'ready' AND error_code = 'needs_ocr'))
 RETURNING id, source_id, team_id, external_id, title, filename, url, kind, content_type, size_bytes, sha256, version, blob_key, status, error_code, error_message, parser, pages, warnings, chunk_count, token_count, metadata, tags, acl, attempts, uploaded_by, created_at, updated_at, processed_at, http_etag, http_last_modified, last_seen_crawl_id, waiting_until
 `
 
+// A failed or skipped document, or a partly scanned PDF (ready, needs_ocr:
+// parsed again with OCR for its pages without text), queued again.
 func (q *Queries) RetryDocument(ctx context.Context, id uuid.UUID) (Document, error) {
 	row := q.db.QueryRow(ctx, retryDocument, id)
 	var i Document

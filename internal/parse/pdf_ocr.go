@@ -43,31 +43,10 @@ func ocrPDF(ctx context.Context, inst pdfium.Pdfium, doc references.FPDF_DOCUMEN
 	if err != nil || len(pages) == 0 {
 		return nil, nil, warnings, err
 	}
-	ctx, stop := context.WithCancel(ctx)
-	defer stop()
-	images := make(chan pageImage, max(o.Concurrency, 1))
-	done := make(chan struct{})
-	var (
-		results map[int]pageText
-		ocrErr  error
-	)
-	go func() {
-		defer close(done)
-		results, ocrErr = recognizeAll(ctx, stop, o, images)
-	}()
-	for _, p := range pages {
-		if ctx.Err() != nil {
-			break // a fatal OCR error, or cancelled
-		}
-		img, err := renderPage(inst, doc, p-1)
-		images <- pageImage{page: p, png: img, err: err}
+	texts, info, more, err := ocrPages(ctx, o, pages, func(p int) ([]byte, error) { return renderPage(inst, doc, p-1) })
+	if err != nil {
+		return nil, nil, nil, err
 	}
-	close(images)
-	<-done
-	if ocrErr != nil {
-		return nil, nil, nil, ocrErr
-	}
-	texts, info, more := collectOCR(o.Backend, pages, results)
 	return texts, info, append(warnings, more...), nil
 }
 

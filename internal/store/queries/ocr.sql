@@ -20,7 +20,9 @@ SET ocr_enabled = @ocr_enabled, ocr_backend = @ocr_backend, vision_model_id = @v
 WHERE singleton
 RETURNING *;
 
--- Documents skipped as scanned, per team (NULL: platform-shared sources).
+-- Documents that need OCR, per team (NULL: platform-shared sources): those
+-- skipped as scanned and partly scanned PDFs indexed without their scanned
+-- pages (ready, needs_ocr).
 -- name: CountNeedsOCRByTeam :many
 SELECT d.team_id, coalesce(t.slug, '')::text AS team_slug, coalesce(t.name, '')::text AS team_name, count(*)::bigint AS documents
 FROM documents d LEFT JOIN teams t ON t.id = d.team_id
@@ -57,11 +59,15 @@ SET metadata = CASE WHEN @ocr::jsonb = 'null'::jsonb THEN metadata - 'ocr' ELSE 
 WHERE id = @id;
 
 -- Retry of a source's failed or skipped documents with one error code
--- (e.g. needs_ocr, once OCR is on).
+-- (e.g. needs_ocr, once OCR is on). With include_ready, the source's ready
+-- documents with the code are queued too: a partly scanned PDF (ready,
+-- needs_ocr) is parsed again, with OCR for its pages without text, and
+-- keeps its passages until then.
 -- name: RetryDocumentsByError :many
 UPDATE documents
 SET status = 'pending', error_code = '', error_message = '', attempts = 0, waiting_until = NULL, updated_at = now()
-WHERE source_id = @source_id AND error_code = @error_code AND status IN ('failed', 'skipped')
+WHERE source_id = @source_id AND error_code = @error_code
+  AND (status IN ('failed', 'skipped') OR (@include_ready::bool AND status = 'ready'))
 RETURNING id;
 
 -- name: SetSourceOCR :exec

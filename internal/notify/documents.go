@@ -24,7 +24,7 @@ type DocumentProblems struct {
 }
 
 var problemText = map[string]string{
-	"needs_ocr": "have no text to read and need OCR",
+	"needs_ocr": "have pages without text that need OCR",
 	"ocr_error": "couldn't be read with OCR",
 	"damaged":   "are damaged, password-protected, too large or not a supported type",
 	"other":     "failed to index",

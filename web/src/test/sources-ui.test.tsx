@@ -166,7 +166,8 @@ describe("documents table and sheet (Q4, W3)", () => {
     expect(within(sheet).queryByText("pdf: no text layer on page 1")).toBeNull();
     await userEvent.click(within(sheet).getByRole("button", { name: /Technical details/ }));
     expect(within(sheet).getByText("pdf: no text layer on page 1")).toBeInTheDocument();
-    await userEvent.click(within(sheet).getByRole("button", { name: "Retry" }));
+    // A scan that needs OCR is retried to read it with OCR.
+    await userEvent.click(within(sheet).getByRole("button", { name: "Retry with OCR" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/d2/retry"))).toBe(true));
   });
 

@@ -14,8 +14,14 @@ export function deleteWording(n: number, web: boolean): { description: string; c
   return { description: `${what} removed from this source and every knowledge base that uses it.${back}`, confirm: `Delete ${noun}` };
 }
 
-/** Documents that Retry applies to. */
-export const canRetry = (doc: Pick<Doc, "status">) => doc.status === "failed" || doc.status === "skipped";
+/** A partly scanned PDF: indexed, but its pages without text were skipped while OCR was off (docs/ocr.md §5). */
+export const isPartlyScanned = (doc: Pick<Doc, "status" | "errorCode">) => doc.status === "ready" && doc.errorCode === "needs_ocr";
+
+/** Documents that Retry applies to: failed or skipped ones, and partly scanned PDFs (read again with OCR). */
+export const canRetry = (doc: Pick<Doc, "status" | "errorCode">) => doc.status === "failed" || doc.status === "skipped" || isPartlyScanned(doc);
+
+/** Retry's label: documents that need OCR are retried to read them with OCR. */
+export const retryLabel = (doc: Pick<Doc, "errorCode">) => (doc.errorCode === "needs_ocr" ? "Retry with OCR" : "Retry");
 
 export function useDocumentMutations(sourceId: string) {
   const owner = useSourceOwner();
@@ -33,7 +39,7 @@ export function useDocumentMutations(sourceId: string) {
     onSuccess: (docs) => toast.info(docs.length === 1 ? `${docName(docs[0]!)} was queued again` : `${plural(docs.length, "document")} were queued again`),
     onSettled: invalidate,
   });
-  // Every document of the source skipped as scanned, queued again (docs/ocr.md §5).
+  // Every document of the source that needs OCR, queued again (docs/ocr.md §5): skipped scans, and partly scanned PDFs while OCR is on.
   const retryNeedsOcr = useMutation({
     mutationFn: () => owner.api.retryDocuments(sourceId, "needs_ocr"),
     onSuccess: (r) =>

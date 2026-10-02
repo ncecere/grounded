@@ -27,7 +27,7 @@ const maxFilesPerUpload = 100
 func toAPIDocument(d dbgen.Document) apitypes.Document {
 	warnings := []string{}
 	_ = json.Unmarshal(d.Warnings, &warnings)
-	msg, detail := documentError(d.ErrorCode, d.ErrorMessage, d.Kind, d.Filename)
+	msg, detail := documentError(d.Status, d.ErrorCode, d.ErrorMessage, d.Kind, d.Filename)
 	return apitypes.Document{
 		Id: d.ID, SourceId: d.SourceID, Title: d.Title, Filename: d.Filename, Url: d.URL, Kind: d.Kind,
 		SizeBytes: d.SizeBytes, Version: d.Version, Status: apitypes.DocumentStatus(d.Status),

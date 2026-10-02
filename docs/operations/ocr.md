@@ -5,7 +5,7 @@ Grounded reads PDF, Word, PowerPoint, HTML, Markdown and text itself. **OCR** re
 ## How it works
 
 - Only pages **without a text layer** are read with OCR. Grounded renders each such page to a greyscale PNG (300 DPI) and sends it to one backend; the text goes in under the page's marker, so page numbers and citations work as for any page. Pages with text are never OCR'd.
-- An image upload is a one-page document read with OCR. Only the first page of a multi-page TIFF is read, with a warning.
+- A PNG or JPEG upload is a one-page document read with OCR. A TIFF has a page for each of its pages (up to 5,000, the PDF limit), each read with OCR under its own page marker.
 - The document's page in the UI says which pages were read, e.g. "Pages 3–7 were read with OCR (Tesseract)." The API has them in `Document.ocr`, and the parser name says so (`builtin:pdf+ocr:tesseract`).
 - The crawler still ignores images.
 
@@ -90,7 +90,7 @@ Give it more memory (the `-full` image is larger). Grounded sends each page imag
 
 ## Retrying scanned documents
 
-Documents uploaded before OCR was on were skipped as "Needs OCR" (error code `needs_ocr`). A team retries them from the source's **Documents** tab: filter **Needs OCR**, then **Retry all that need OCR** (API: `POST /v1/teams/{team}/sources/{id}/documents/retry` with `{"errorCode": "needs_ocr"}`; shared sources under `/v1/admin/shared-sources/{id}/documents/retry`). The retry is audited (`document.retry_bulk`). The button is disabled, with the reason next to it, while OCR is off for the source or the platform (a source's `ocrState` in `GET …/sources/{id}` says which), since a retry would only skip them again.
+Documents uploaded before OCR was on were skipped as "Needs OCR" (error code `needs_ocr`), and PDFs with only some pages scanned were indexed without those pages and need OCR too (below). A team retries them from the source's **Documents** tab: filter **Needs OCR**, then **Retry all that need OCR** (API: `POST /v1/teams/{team}/sources/{id}/documents/retry` with `{"errorCode": "needs_ocr"}`; shared sources under `/v1/admin/shared-sources/{id}/documents/retry`). The retry is audited (`document.retry_bulk`). The button is disabled, with the reason next to it, while OCR is off for the source or the platform (a source's `ocrState` in `GET …/sources/{id}` says which), since a retry would only skip them again.
 
 **As a platform admin**, Admin → **Parsing & OCR** → **Documents that failed or need OCR** lists them, with every failed document, by team and source: the count, the reason (needs OCR, OCR error, damaged or unsupported file, other failure) and the oldest date, but no file names or text. Each group's menu has:
 - **Retry these:** queues them again (`POST /v1/admin/parsing/document-problems/retry` with `{"sourceId", "reason"}`, audited `platform.documents_retry` with the count). Needs OCR and OCR errors are refused with the reason while OCR is off for the platform or the source, or the vision model isn't approved for the source's classification. Damaged files usually fail again: the team has to fix and upload them.
@@ -98,7 +98,7 @@ Documents uploaded before OCR was on were skipped as "Needs OCR" (error code `ne
 
 Auditors see the list but not the actions.
 
-A PDF with only some pages lacking a text layer is indexed (ready) with a warning such as "1 of 2 pages had no text layer (possibly scanned) and was skipped, because OCR is off for this document". It isn't "Needs OCR" and isn't retried with them: once OCR is on, delete the document and upload it again to read those pages (uploading the same file over it changes nothing, as its content is unchanged).
+A PDF with only some pages lacking a text layer, processed while OCR was off for it, is indexed (ready) with its typed pages and the warning "1 of 2 pages (page 2) had no text layer (possibly scanned) and was skipped, because OCR is off for this document. Once OCR is on, retry the document to read it." It also needs OCR: it keeps the error code `needs_ocr` with a message naming the pages, shows **Ready** with that message in the documents list, and is counted and filtered with the other documents that need OCR. Once OCR can read the source, **Retry all that need OCR** (or the document's own **Retry with OCR**, or an admin's **Retry these**) parses it again and sends only the pages without text to OCR; it keeps its passages until then. While OCR can't read the source, the bulk retry leaves it out and its own retry is refused with the reason (409 `ocr_off`), since it would be indexed again without those pages. If the retry then fails (for example the OCR service stays unavailable), the document is failed like any other and retried the same way. Partly scanned PDFs processed before v0.4.1 have only the old warning ("…delete the document and upload it again") and aren't marked: delete them and upload them again (uploading the same file over one changes nothing, as its content is unchanged).
 
 ## Bounds and costs
 

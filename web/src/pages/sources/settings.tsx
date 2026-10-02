@@ -168,7 +168,7 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
             description={
               form.ocrEnabled
                 ? "Turn it off where scanned pages are noise: they are skipped, and images can't be uploaded. Documents already processed keep their text."
-                : "Scanned pages are skipped and images can't be uploaded. After turning it on, retry the documents skipped as scanned (Documents tab, Needs OCR). A document indexed with only some pages skipped isn't retried: delete it and upload it again."
+                : "Scanned pages are skipped and images can't be uploaded. After turning it on, retry the documents that need OCR (Documents tab, Needs OCR), including those indexed with only some pages skipped."
             }
             checked={form.ocrEnabled}
             onCheckedChange={(v) => set({ ocrEnabled: v })}

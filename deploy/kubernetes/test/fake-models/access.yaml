@@ -1,0 +1,92 @@
+# The NetworkPolicies the fake model gateway needs (the base denies
+# everything else). Test-only: never add these to a real install.
+# api and worker call the fake gateway.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-test-app-egress-fake-models
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [grounded]
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [api, worker]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: grounded-fake-models
+      ports:
+        - protocol: TCP
+          port: 8090
+---
+# The fake gateway: called by api and worker; seeds through Postgres and
+# Valkey.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-test-fake-models
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: grounded-fake-models
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [grounded]
+              - key: app.kubernetes.io/component
+                operator: In
+                values: [api, worker]
+      ports:
+        - protocol: TCP
+          port: 8090
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: grounded
+              app.kubernetes.io/component: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: grounded
+              app.kubernetes.io/component: valkey
+      ports:
+        - protocol: TCP
+          port: 6379
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grounded-test-datastores-from-fake-models
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [grounded]
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [postgres, valkey]
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: grounded-fake-models
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379

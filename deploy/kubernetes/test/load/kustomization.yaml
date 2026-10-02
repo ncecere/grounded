@@ -19,7 +19,7 @@ namespace: grounded-smoke
 
 resources:
   - ../kind
-  - fake-models.yaml
+  - ../fake-models
   - access.yaml
 
 # The objects backup (off until the restore rehearsal sets a target).

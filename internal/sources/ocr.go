@@ -53,12 +53,14 @@ func (u *Uploader) checkType(ctx context.Context, name, ext string) (UploadResul
 }
 
 // retryableCodes are the error codes documents can be retried by together.
-var retryableCodes = map[string]bool{"needs_ocr": true}
+var retryableCodes = map[string]bool{ingest.ErrorNeedsOCR: true}
 
 // RetryDocuments queues a source's failed or skipped documents with the
 // error code again, e.g. every document skipped as scanned once OCR is on.
-// It returns how many were queued; the retry is audited
-// (document.retry_bulk).
+// While OCR can read the source, partly scanned PDFs (ready, needs_ocr)
+// are queued too, to read their pages without text; they aren't while it
+// can't, since they would only be indexed again without them. It returns
+// how many were queued; the retry is audited (document.retry_bulk).
 func (s *Service) RetryDocuments(ctx context.Context, a authz.Actor, o Owner, sourceID uuid.UUID, errorCode string) (int, error) {
 	errorCode = strings.TrimSpace(errorCode)
 	if !retryableCodes[errorCode] {
@@ -75,9 +77,14 @@ func (s *Service) RetryDocuments(ctx context.Context, a authz.Actor, o Owner, so
 	if err := s.Maintenance.Check(ctx); err != nil {
 		return 0, err
 	}
+	state, err := s.OCR.State(ctx, src)
+	if err != nil {
+		return 0, err
+	}
 	var n int
 	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
-		ids, err := q.RetryDocumentsByError(ctx, dbgen.RetryDocumentsByErrorParams{SourceID: src.ID, ErrorCode: errorCode})
+		ids, err := q.RetryDocumentsByError(ctx, dbgen.RetryDocumentsByErrorParams{SourceID: src.ID, ErrorCode: errorCode,
+			IncludeReady: state == ocr.StateOn})
 		if err != nil || len(ids) == 0 {
 			return err
 		}
@@ -91,4 +98,25 @@ func (s *Service) RetryDocuments(ctx context.Context, a authz.Actor, o Owner, so
 		return ingest.Kick(ctx, s.Jobs, tx)
 	})
 	return n, err
+}
+
+// checkPartlyScannedRetry refuses (409 ocr_off, saying why) to retry a
+// partly scanned PDF (ready, needs_ocr) while OCR can't read its source:
+// it would only be indexed again without its scanned pages.
+func (s *Service) checkPartlyScannedRetry(ctx context.Context, src dbgen.DataSource, doc dbgen.Document) error {
+	if doc.Status != ingest.StatusReady || doc.ErrorCode != ingest.ErrorNeedsOCR {
+		return nil
+	}
+	state, err := s.OCR.State(ctx, src)
+	if err != nil || state == ocr.StateOn {
+		return err
+	}
+	return apperr.Conflict("ocr_off", retryOCROff[state])
+}
+
+// retryOCROff explains why a partly scanned PDF can't be retried yet.
+var retryOCROff = map[string]string{
+	ocr.StateSourceOff:   "OCR is off for this source, so the pages without text would be skipped again. Turn it on in the source's settings first.",
+	ocr.StatePlatformOff: "OCR is off for the platform, so the pages without text would be skipped again. A platform admin can turn it on.",
+	ocr.StateNotApproved: "The OCR vision model isn't approved for this source's classification, so the pages without text would be skipped again.",
 }

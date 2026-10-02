@@ -247,7 +247,7 @@ func TestDocumentsAttentionEvent(t *testing.T) {
 	ev := DocumentsAttentionEvent(team, DocumentProblems{SourceID: src, SourceName: "Scans", Reason: "needs_ocr", Documents: 12, Oldest: oldest})
 	if ev.Type != DocumentsAttention || ev.Title != "12 documents in Scans need attention (Registrar)" ||
 		ev.Link != "/teams/registrar/sources/"+src.String()+"?status=needs_ocr&tab=documents" ||
-		!strings.Contains(ev.Body, "12 documents in the data source Scans that have no text to read and need OCR, the oldest since 3 August 2026") {
+		!strings.Contains(ev.Body, "12 documents in the data source Scans that have pages without text that need OCR, the oldest since 3 August 2026") {
 		t.Fatalf("event = %+v", ev)
 	}
 	one := DocumentsAttentionEvent(team, DocumentProblems{SourceID: src, SourceName: "Scans", Reason: "damaged", Documents: 1, Oldest: oldest})

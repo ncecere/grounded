@@ -6480,7 +6480,7 @@ type Document struct {
 	// ErrorDetail The technical detail behind errorMessage (the parser's own text), shown on demand; '' when there is none
 	ErrorDetail string `json:"errorDetail"`
 
-	// ErrorMessage Why the document wasn't indexed, for people (e.g. "This PDF appears to be damaged or password-protected…")
+	// ErrorMessage Why the document wasn't indexed, for people (e.g. "This PDF appears to be damaged or password-protected…"); for a ready document with errorCode needs_ocr (a partly scanned PDF), the pages that need OCR
 	ErrorMessage string             `json:"errorMessage"`
 	Filename     string             `json:"filename"`
 	Id           openapi_types.UUID `json:"id"`
@@ -6559,7 +6559,7 @@ type DocumentPassagePage struct {
 
 // DocumentProblemAction defines model for DocumentProblemAction.
 type DocumentProblemAction struct {
-	// Reason needs_ocr: skipped as scanned with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
+	// Reason needs_ocr: skipped as scanned, or partly scanned and indexed without the scanned pages, with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
 	Reason   DocumentProblemReason `json:"reason"`
 	SourceId openapi_types.UUID    `json:"sourceId"`
 }
@@ -6574,7 +6574,7 @@ type DocumentProblemGroup struct {
 	// OldestAt When the oldest of these documents last changed (failed or was skipped)
 	OldestAt time.Time `json:"oldestAt"`
 
-	// Reason needs_ocr: skipped as scanned with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
+	// Reason needs_ocr: skipped as scanned, or partly scanned and indexed without the scanned pages, with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
 	Reason     DocumentProblemReason `json:"reason"`
 	SourceId   openapi_types.UUID    `json:"sourceId"`
 	SourceName string                `json:"sourceName"`
@@ -6602,16 +6602,16 @@ type DocumentProblemNotifyResult struct {
 	Owners int `json:"owners"`
 }
 
-// DocumentProblemReason needs_ocr: skipped as scanned with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
+// DocumentProblemReason needs_ocr: skipped as scanned, or partly scanned and indexed without the scanned pages, with OCR off; ocr_error: OCR failed (for example the OCR service stayed unavailable); damaged: a damaged, password-protected, too large or unsupported file; other: any other failure
 type DocumentProblemReason string
 
 // DocumentRetryInput defines model for DocumentRetryInput.
 type DocumentRetryInput struct {
-	// ErrorCode needs_ocr: documents skipped as scanned
+	// ErrorCode needs_ocr: documents that need OCR (skipped as scanned, and partly scanned PDFs while OCR can read the source)
 	ErrorCode DocumentRetryInputErrorCode `json:"errorCode"`
 }
 
-// DocumentRetryInputErrorCode needs_ocr: documents skipped as scanned
+// DocumentRetryInputErrorCode needs_ocr: documents that need OCR (skipped as scanned, and partly scanned PDFs while OCR can read the source)
 type DocumentRetryInputErrorCode string
 
 // DocumentRetryResult defines model for DocumentRetryResult.
@@ -9076,7 +9076,7 @@ type ParsingSettings struct {
 	// MaxPagesPerDocument Pages read with OCR per document at most (OCR_MAX_PAGES_PER_DOCUMENT)
 	MaxPagesPerDocument int32 `json:"maxPagesPerDocument"`
 
-	// NeedsOcr Documents skipped as scanned (needs_ocr), per team; teamId null for platform-shared sources
+	// NeedsOcr Documents that need OCR (needs_ocr: skipped as scanned, or partly scanned), per team; teamId null for platform-shared sources
 	NeedsOcr []NeedsOcrCount `json:"needsOcr"`
 
 	// OcrEnabled Read pages without a text layer (and image uploads) with OCR
@@ -11365,7 +11365,7 @@ type AdminListSharedDocumentsParams struct {
 	// Tag Only documents with this tag (case-insensitive)
 	Tag *DocumentTagParam `form:"tag,omitempty" json:"tag,omitempty"`
 
-	// ErrorCode Only documents with this error code, e.g. needs_ocr (skipped as scanned)
+	// ErrorCode Only documents with this error code, e.g. needs_ocr (documents that need OCR: skipped as scanned, or partly scanned and ready)
 	ErrorCode *DocumentErrorCodeParam `form:"errorCode,omitempty" json:"errorCode,omitempty"`
 
 	// Cursor nextCursor from the previous page
@@ -11727,7 +11727,7 @@ type ListDocumentsParams struct {
 	// Tag Only documents with this tag (case-insensitive)
 	Tag *DocumentTagParam `form:"tag,omitempty" json:"tag,omitempty"`
 
-	// ErrorCode Only documents with this error code, e.g. needs_ocr (skipped as scanned)
+	// ErrorCode Only documents with this error code, e.g. needs_ocr (documents that need OCR: skipped as scanned, or partly scanned and ready)
 	ErrorCode *DocumentErrorCodeParam `form:"errorCode,omitempty" json:"errorCode,omitempty"`
 
 	// Cursor nextCursor from the previous page

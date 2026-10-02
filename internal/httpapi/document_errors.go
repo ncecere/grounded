@@ -25,10 +25,12 @@ var friendlyDocumentErrors = map[string]string{
 
 // documentError returns the message to show and the technical detail (""
 // when the message is the stored one). Documents that failed before their
-// kind was known are named by their file extension.
-func documentError(code, message, kind, filename string) (friendly, detail string) {
+// kind was known are named by their file extension. A ready document's
+// message is already for people (a partly scanned PDF's pages that need
+// OCR, written by ingestion).
+func documentError(status, code, message, kind, filename string) (friendly, detail string) {
 	tmpl, ok := friendlyDocumentErrors[code]
-	if !ok || code == "" {
+	if !ok || code == "" || status == "ready" {
 		return message, ""
 	}
 	if kind == "" {
