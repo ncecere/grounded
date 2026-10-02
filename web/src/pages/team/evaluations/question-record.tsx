@@ -5,6 +5,7 @@
  * runs. Edit question is the header's action; Delete is in the "…" menu
  * (destructive actions aren't header buttons, Q12).
  */
+import { useQuery } from "@tanstack/react-query";
 import { Pencil, Trash2 } from "lucide-react";
 import { ActionMenu } from "@/components/templates/action-menu";
 import { RecordPage, useRecordParam } from "@/components/templates/record-page";
@@ -15,25 +16,37 @@ import { Stack } from "@/components/ui/layout/layout";
 import { Time } from "@/components/ui/time/time";
 import s from "../../shared.module.css";
 import { useTeam } from "../common";
+import { LatestResultLink, outOfReachText } from "./attention";
 import { ResultDetail } from "./result-detail";
 import { expectedList, kindLabels, resultLabel, triggerLabels } from "./labels";
-import { type EvalQuestion, type EvalSet, useEvalQuestion, useQuestionCheck } from "./queries";
+import { type EvalQuestion, type EvalSet, evalProblemsQuery, useEvalQuestion, useQuestionCheck } from "./queries";
 import { Warnings, checkWarnings } from "./question-fields";
 import { setWhere } from "./question-form";
 import e from "./evaluations.module.css";
 
 type Props = { set: EvalSet; onEdit: (q: EvalQuestion) => void; onDelete: (q: EvalQuestion) => void };
 
-/** The question's expected documents, and what the knowledge bases don't hold of them (and of its phrases). */
+/**
+ * The question's expected documents, what the knowledge bases don't hold of
+ * them (and of its phrases), and whether the last 3 retrieval runs missed it
+ * in the top 50 (with a link to the latest result).
+ */
 function Expected({ set, question }: { set: EvalSet; question: EvalQuestion }) {
   const { slug } = useTeam();
   const answers = set.target.type === "agent";
   const check = useQuestionCheck(slug, { setId: set.id }, { expected: question.expected, mustMention: answers ? question.mustMention : [] });
+  const reach = useQuery(evalProblemsQuery(slug, set.id)).data?.find((p) => p.questionId === question.id)?.outOfReach;
   const w = checkWarnings(check.data, setWhere(set), answers);
   return (
     <>
       {expectedList(question).join(", ")}
       <Warnings items={[...w.expected, ...w.phrases]} label="Not in the knowledge base" />
+      {reach && (
+        <div className={e.outOfReach}>
+          <Warnings items={[outOfReachText(reach)]} label="Out of reach" />
+          <LatestResultLink outOfReach={reach} />
+        </div>
+      )}
     </>
   );
 }

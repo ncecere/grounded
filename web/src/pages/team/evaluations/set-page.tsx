@@ -19,7 +19,7 @@ import { evaluationSetTabs } from "@/lib/tabs";
 import { plural, useTeam } from "../common";
 import { ArchivedNotice, PageSkeleton } from "../layout";
 import { scoreText } from "./labels";
-import { type EvalSet, evalSetQuery, useEvaluationsOn } from "./queries";
+import { type EvalSet, evalProblemsQuery, evalSetQuery, useEvaluationsOn } from "./queries";
 import { QuestionsTab } from "./questions";
 import { RunDialog } from "./run-dialog";
 import { RunsTab } from "./runs";
@@ -74,10 +74,21 @@ function RunButton({ set, onRun }: { set: EvalSet; onRun: () => void }) {
   );
 }
 
+/** "3 questions need attention": a link to the Questions tab's Needs attention filter (checked when the page opens). */
+function NeedsAttention({ n }: { n: number }) {
+  const search = ((prev: Record<string, unknown>) => ({ ...prev, tab: "questions", attention: "needs", record: undefined, result: undefined })) as never;
+  return (
+    <TextLink render={<Link to="." search={search} />}>
+      {plural(n, "question")} {n === 1 ? "needs" : "need"} attention
+    </TextLink>
+  );
+}
+
 function SetPage({ set }: { set: EvalSet }) {
   const { slug, archived } = useTeam();
   const [running, setRunning] = useState(false);
   const last = set.lastRun;
+  const problems = useQuery(evalProblemsQuery(slug, set.id)).data ?? [];
   return (
     <>
       <DetailPage
@@ -88,6 +99,7 @@ function SetPage({ set }: { set: EvalSet }) {
           { id: "questions", label: "Questions", value: plural(set.questionCount, "question") },
           { id: "score", label: "Latest score", value: last && last.status === "completed" ? scoreText(last) : undefined },
           { id: "auto", label: "Automatic runs", value: set.autoRun ? "Automatic runs on" : "Automatic runs off" },
+          { id: "attention", label: "Needs attention", value: problems.length > 0 ? <NeedsAttention n={problems.length} /> : undefined },
         ]}
         primaryAction={<RunButton set={set} onRun={() => setRunning(true)} />}
         menuActions={[

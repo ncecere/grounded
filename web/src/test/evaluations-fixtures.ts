@@ -137,6 +137,7 @@ export const evalRoutes = (teamRole = "editor", extra: Record<string, Handler> =
   "GET /v1/teams/registrar/evaluation-sets/set1/questions": () => questions,
   "GET /v1/teams/registrar/evaluation-sets/set1/documents": () => [{ id: "d1", title: "Transcript policy", filename: "transcripts.pdf", url: "", sourceName: "Policies" }],
   "GET /v1/teams/registrar/evaluation-sets/set1/runs": () => runs,
+  "GET /v1/teams/registrar/evaluation-sets/set1/problems": () => [],
   "POST /v1/teams/registrar/evaluation-question-check": checkReply(),
   ...extra,
 });

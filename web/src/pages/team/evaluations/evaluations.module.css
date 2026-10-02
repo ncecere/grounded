@@ -80,6 +80,25 @@
   color: var(--color-warning-text);
 }
 
+/* A question's out-of-reach warning, then the link to its latest result. */
+.outOfReach {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+/* The Questions tab's Needs attention column: one line per problem. */
+.attention {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .warnings li {
   display: flex;
   align-items: flex-start;

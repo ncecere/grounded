@@ -2,9 +2,11 @@
  * Run a set (docs/evaluations.md §2-§4): a retrieval run (the default, no
  * model calls) or, for an agent's set, a full-answer run of its draft
  * or published version, with the number of answers it asks for and, when
- * the team's budget is enforced, that they count against it.
+ * the team's budget is enforced, that they count against it. When some
+ * questions can't pass (attention.tsx), it says how many, without blocking
+ * the run.
  */
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { ApiErrorAlert } from "@/components/errors";
@@ -19,7 +21,8 @@ import { toast } from "@/components/ui/toast/toast";
 import { useBudgetStatus } from "@/lib/costs";
 import { useRerankStatus } from "@/lib/rerank";
 import { plural, useTeam } from "../common";
-import { type EvalSet, evalRunsKey, evalSetKey, evalSetsKey } from "./queries";
+import { cantPassText } from "./attention";
+import { type EvalSet, evalProblemsQuery, evalRunsKey, evalSetKey, evalSetsKey } from "./queries";
 
 type Kind = "retrieval" | "answer";
 type Version = "draft" | "published";
@@ -45,6 +48,7 @@ export function RunDialog({ set, onClose }: { set: EvalSet; onClose: () => void 
   const [rerank, setRerank] = useState(true);
   // "none" unless the budget is enforced; the amounts are for owners and admins only.
   const budget = useBudgetStatus(agentSet ? slug : undefined).data?.state;
+  const cantPass = cantPassText(useQuery(evalProblemsQuery(slug, set.id)).data, agentSet ? kind : "retrieval");
   const start = useMutation({
     mutationFn: async () =>
       unwrap(
@@ -98,6 +102,7 @@ export function RunDialog({ set, onClose }: { set: EvalSet; onClose: () => void 
           onCheckedChange={setRerank}
         />
       )}
+      {cantPass && <Alert tone="warning">{cantPass}</Alert>}
       {kind === "answer" && (
         <Alert tone={budget === "warning" || budget === "exhausted" ? "warning" : "info"}>
           {answerEstimate(set.questionCount, Boolean(budget && budget !== "none"))}

@@ -1,7 +1,9 @@
 /*
  * A set's Questions tab: the questions on a ListPage, each opening as a
  * record page (?record=) with its results across runs; "New question" (a
- * dialog) and "Import questions" (a form page, ?form=import).
+ * dialog) and "Import questions" (a form page, ?form=import). When some
+ * need attention (attention.tsx), a Needs attention column and filter
+ * (?attention=needs) show which and why.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, ListChecks, Pencil, Plus, Trash2, Upload } from "lucide-react";
@@ -17,11 +19,12 @@ import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { toast } from "@/components/ui/toast/toast";
 import { useTeam } from "../common";
+import { AttentionCell, attentionFacet, problemTexts, problemsById } from "./attention";
 import { ImportPage } from "./import";
 import { expectedList, smallList } from "./labels";
-import { QuestionDialog } from "./question-form";
+import { QuestionDialog, setWhere } from "./question-form";
 import { QuestionRecord } from "./question-record";
-import { type EvalQuestion, type EvalSet, evalQuestionsKey, evalQuestionsQuery, evalSetKey, evalSetsKey } from "./queries";
+import { type EvalQuestion, type EvalSet, evalProblemsQuery, evalQuestionsKey, evalQuestionsQuery, evalSetKey, evalSetsKey } from "./queries";
 
 export function QuestionsTab({ set }: { set: EvalSet }) {
   const { slug, canEdit } = useTeam();
@@ -30,6 +33,7 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
   const [editing, setEditing] = useState<EvalQuestion | "new" | null>(null);
   const [deleting, setDeleting] = useState<EvalQuestion | null>(null);
   const questions = useQuery(evalQuestionsQuery(slug, set.id));
+  const problems = problemsById(useQuery(evalProblemsQuery(slug, set.id)).data);
   const qc = useQueryClient();
   const remove = useMutation({
     mutationFn: async (q: EvalQuestion) =>
@@ -53,6 +57,7 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
   ) : undefined;
   // Must-mention phrases are checked in full-answer runs, which only an agent's sets have.
   const answers = set.target.type === "agent";
+  const where = setWhere(set);
 
   const columns: DataTableColumn<EvalQuestion>[] = [
     {
@@ -65,6 +70,20 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
     },
     { id: "expected", header: "Expected", accessor: (q) => expectedList(q).join(", "), muted: true },
     ...(answers ? [{ id: "mention", header: "Must mention", accessor: (q: EvalQuestion) => q.mustMention.join(", ") || "—", muted: true }] : []),
+    ...(problems.size > 0
+      ? [
+          {
+            id: "attention",
+            header: "Needs attention",
+            sortable: true,
+            accessor: (q: EvalQuestion) => {
+              const p = problems.get(q.id);
+              return p ? problemTexts(p, where, answers).join(" ") : "";
+            },
+            cell: (q: EvalQuestion) => <AttentionCell problem={problems.get(q.id)} where={where} answers={answers} />,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -95,6 +114,7 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
         data={questions.data ?? []}
         getRowId={(q) => q.id}
         rowLabel={(q) => q.question}
+        facets={problems.size > 0 ? [attentionFacet(problems)] : undefined}
         search={{ label: "Search questions", showLabel: true }}
         rowActions={(q) => [
           { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(q.id) },

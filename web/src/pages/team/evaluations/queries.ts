@@ -12,11 +12,14 @@ export type EvalDocument = Schemas["EvaluationDocument"];
 export type EvalExpected = Schemas["EvaluationExpected"];
 export type EvalExpectedItem = Schemas["EvaluationExpectedItem"];
 export type EvalQuestionCheck = Schemas["EvaluationQuestionCheck"];
+export type EvalProblem = Schemas["EvaluationQuestionProblem"];
 
 export const evalSetsKey = (team: string) => ["team", team, "evaluation-sets"];
 export const evalSetKey = (team: string, setId: string) => ["team", team, "evaluation-set", setId];
 export const evalQuestionsKey = (team: string, setId: string) => [...evalSetKey(team, setId), "questions"];
 export const evalRunsKey = (team: string, setId: string) => [...evalSetKey(team, setId), "runs"];
+/** Under the set's key: whatever refreshes the set (a question saved or deleted, a run started) checks again. */
+export const evalProblemsKey = (team: string, setId: string) => [...evalSetKey(team, setId), "problems"];
 
 /** Evaluations are on for the platform (from /v1/me). */
 export function useEvaluationsOn() {
@@ -47,6 +50,13 @@ export const evalQuestionsQuery = (team: string, setId: string) =>
   queryOptions({
     queryKey: evalQuestionsKey(team, setId),
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/evaluation-sets/{setId}/questions", { params: { path: { team, setId } } })),
+  });
+
+/** The questions that need attention, checked by the server each time it's asked (when the set's page opens). */
+export const evalProblemsQuery = (team: string, setId: string) =>
+  queryOptions({
+    queryKey: evalProblemsKey(team, setId),
+    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/evaluation-sets/{setId}/problems", { params: { path: { team, setId } } })),
   });
 
 /**
