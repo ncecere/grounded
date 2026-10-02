@@ -18,6 +18,8 @@ export type PolicyForm = {
   supportMessage: string;
   /** The block floor for uncalibrated providers, in percent as typed. */
   uncalibratedBlock: string;
+  /** The audience's reasoning effort, for agents that don't set their own. */
+  reasoningEffort: Schemas["AudienceReasoningEffort"];
   rules: Record<ModerationCategory, { input: RuleForm; output: RuleForm }>;
 };
 
@@ -36,6 +38,7 @@ export function policyForm(p: Policy): PolicyForm {
     severityBlock: p.severityBlock == null ? "" : String(p.severityBlock),
     supportMessage: p.supportMessage ?? "",
     uncalibratedBlock: String(Math.round((p.uncalibratedBlockThreshold ?? 0.95) * 100)),
+    reasoningEffort: p.reasoningEffort ?? (p.audience === "public" ? "low" : "default"),
     rules,
   };
 }
@@ -73,6 +76,7 @@ export function policyInput(f: PolicyForm): PolicyInput {
     severityBlock: f.severityBlock === "" ? null : Number(f.severityBlock),
     supportMessage: f.supportMessage.trim(),
     uncalibratedBlockThreshold: parseThreshold(f.uncalibratedBlock) ?? 0.95,
+    reasoningEffort: f.reasoningEffort,
   };
 }
 
@@ -88,6 +92,7 @@ export function changedCount(saved: Policy, f: PolicyForm) {
   if (a.severityBlock !== b.severityBlock) n++;
   if (a.supportMessage !== b.supportMessage) n++;
   if (a.uncalibratedBlockThreshold !== b.uncalibratedBlockThreshold) n++;
+  if (a.reasoningEffort !== b.reasoningEffort) n++;
   for (const c of Object.keys(a.categories)) {
     for (const stage of ["input", "output"] as const) {
       const x = a.categories[c]![stage];

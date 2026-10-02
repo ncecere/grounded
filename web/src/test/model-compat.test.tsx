@@ -43,6 +43,10 @@ describe("admin model compatibility fields", () => {
     await userEvent.click(compat);
     expect(compat).toHaveAttribute("aria-expanded", "true");
     await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Honours tool_choice" }), "yes");
+    // How to turn thinking off (reasoning effort Off): not supported by default.
+    const off = within(dialog).getByRole("combobox", { name: "How to turn thinking off" });
+    expect(off).toHaveValue("");
+    await userEvent.selectOptions(off, "enable_thinking_false");
     const extra = within(dialog).getByRole("textbox", { name: /Extra request fields/ });
     await userEvent.click(extra);
     await userEvent.paste('{"stream": false}');
@@ -57,7 +61,12 @@ describe("admin model compatibility fields", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Save model" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true));
     const body = calls.find((c) => c.method === "PATCH")!.body as Schemas["ModelUpdate"];
-    expect(body.compat).toEqual({ thinkingField: "reasoning_content", supportsToolChoice: true, extraBody: { chat_template_kwargs: { enable_thinking: false } } });
+    expect(body.compat).toEqual({
+      thinkingField: "reasoning_content",
+      supportsToolChoice: true,
+      thinkingOff: "enable_thinking_false",
+      extraBody: { chat_template_kwargs: { enable_thinking: false } },
+    });
   });
 
   it("offers the dimensions parameter for embedding models", async () => {

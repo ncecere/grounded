@@ -77,7 +77,7 @@ instructions         string ≤ 20000
 chatModelId          uuid (kind chat, enabled)
 temperature          number 0–2, optional
 maxOutputTokens      int, optional (≤ model max)
-reasoningEffort      low | medium | high, optional (sent only if the model's compat allows)
+reasoningEffort      off | low | medium | high, optional (sent only if the model's compat allows; off since v0.4.0, with the model's thinkingOff). Absent: the audience's reasoning effort from its moderation policy (public: low by default), else the model's
 kbs                  [{kbId, topK 1–20 or null}], 1–5 entries, all in the agent's team; null (since v0.2) inherits the KB's top-k
 retrievalMode        always | tool                       (default always)
 maxTurns             1–8 (default 4; tool mode)

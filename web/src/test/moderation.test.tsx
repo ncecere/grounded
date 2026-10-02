@@ -22,7 +22,7 @@ const policy = (audience: Schemas["Audience"], extra: Partial<Schemas["Moderatio
   return {
     audience, modelId: null, categories, outputMode: audience === "public" ? "stream_checked" : "stream_retract", failClosed: audience === "public",
     notice: "This message can't be answered because it may break the usage policy.", severityBlock: null, supportMessage: "Please reach out for support.", uncalibratedBlockThreshold: 0.95,
-    revision: 1, updatedAt: null, ...extra,
+    reasoningEffort: audience === "public" ? "low" : "default", revision: 1, updatedAt: null, ...extra,
   };
 };
 
@@ -108,6 +108,12 @@ describe("admin moderation page", () => {
     await userEvent.clear(threshold);
     await userEvent.type(threshold, "30");
     expect(screen.getByText("2 unsaved changes")).toBeInTheDocument();
+    // The audience's reasoning effort: Public uses Low until an admin chooses (owner decision, 2026-10-01).
+    const effort = screen.getByRole("combobox", { name: "Reasoning effort" });
+    expect(effort).toHaveValue("low");
+    expect(within(effort).getAllByRole("option").map((o) => o.textContent)).toEqual(["Model default", "Off", "Low", "Medium", "High"]);
+    await userEvent.selectOptions(effort, "off");
+    expect(screen.getByText("3 unsaved changes")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Save policy" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     const put = calls.find((c) => c.method === "PUT")!;
@@ -115,6 +121,7 @@ describe("admin moderation page", () => {
     const body = put.body as Schemas["ModerationPolicyInput"];
     expect(body.modelId).toBe("m9");
     expect(body.failClosed).toBe(true);
+    expect(body.reasoningEffort).toBe("off");
     expect(body.categories.violence).toEqual({ input: { action: "block", threshold: 0.3 }, output: { action: "block", threshold: 0.5 } });
     expect(await screen.findByText("Moderation policy saved")).toBeInTheDocument();
 

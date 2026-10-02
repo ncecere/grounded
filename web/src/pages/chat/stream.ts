@@ -49,7 +49,7 @@ export type AssistantStatus = "streaming" | "done" | "aborted" | "error";
 
 /** What the agent is doing before the answer's first words (status events). */
 export type ChatStep = Schemas["ChatEventStatus"]["step"];
-const chatSteps = new Set<string>(["rewriting", "searching", "checking", "answering"] satisfies ChatStep[]);
+const chatSteps = new Set<string>(["rewriting", "searching", "checking", "thinking", "answering"] satisfies ChatStep[]);
 
 export type AssistantItem = {
   role: "assistant";
