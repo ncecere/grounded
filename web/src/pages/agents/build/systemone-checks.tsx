@@ -2,12 +2,13 @@
  * Build → SystemOne checks (docs/systemone.md §2-§4): the
  * agent's overrides of passage judging, citation checks and the scope
  * check. Shown only when a SystemOne model is configured; thresholds stay
- * platform-only.
+ * platform-only. Each switch shows the check's median added time on the
+ * platform (docs/v0.4.1.md §4), the admin SystemOne page's numbers.
  */
 import { Field } from "@/components/ui/field/field";
 import { NativeSelect } from "@/components/ui/input/input";
 import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
-import { useSystemOneStatus } from "@/lib/systemone";
+import { addedTime, useSystemOneStatus } from "@/lib/systemone";
 import s from "../../shared.module.css";
 import type { AgentConfig } from "../common";
 import cf from "./build.module.css";
@@ -23,9 +24,12 @@ function compact(o: Override): Override | undefined {
   return Object.keys(out).length ? out : undefined;
 }
 
-function OnOff({ id, label, value, platform, error, onChange }: { id: string; label: string; value?: string; platform: boolean; error?: string; onChange: (v?: Switch) => void }) {
+type OnOffProps = { id: string; label: string; value?: string; platform: boolean; latencyMs?: number | null; error?: string; onChange: (v?: Switch) => void };
+
+/** A check's switch, with its median added time on this platform when there is one. */
+function OnOff({ id, label, value, platform, latencyMs, error, onChange }: OnOffProps) {
   return (
-    <Field label={label} error={error}>
+    <Field label={label} description={addedTime(latencyMs)} error={error}>
       <NativeSelect id={id} value={value ?? ""} onChange={(e) => onChange((e.target.value || undefined) as Switch | undefined)}>
         <option value="">Platform default ({platform ? "on" : "off"})</option>
         <option value="on">On</option>
@@ -48,7 +52,8 @@ export function SystemOneChecks({ c, set, errorFor }: Pick<SectionProps, "c" | "
       </legend>
       <p className={s.settingDescription}>
         A SystemOne model can judge each retrieved passage (re-rank, keep conflicting passages apart, drop prompt injections), check each citation against its source after the
-        answer, and spot small talk and questions outside this agent's subject before searching. Each adds a little time per answer.
+        answer, and spot small talk and questions outside this agent's subject before searching. Each adds a little time per answer, shown under it once
+        this platform has checked answers.
       </p>
       <div className={s.grid2}>
         <OnOff
@@ -56,6 +61,7 @@ export function SystemOneChecks({ c, set, errorFor }: Pick<SectionProps, "c" | "
           label="Passage judging"
           value={o.judging}
           platform={platform.judging.enabled}
+          latencyMs={platform.judging.latencyP50Ms}
           error={errorFor("systemOne.judging")}
           onChange={(v) => update({ judging: v })}
         />
@@ -75,6 +81,7 @@ export function SystemOneChecks({ c, set, errorFor }: Pick<SectionProps, "c" | "
           label="Citation checks"
           value={o.citations}
           platform={platform.citations.enabled}
+          latencyMs={platform.citations.latencyP50Ms}
           error={errorFor("systemOne.citations")}
           onChange={(v) => update({ citations: v })}
         />
@@ -98,6 +105,7 @@ export function SystemOneChecks({ c, set, errorFor }: Pick<SectionProps, "c" | "
           label="Scope check"
           value={o.scope}
           platform={platform.scope.enabled}
+          latencyMs={platform.scope.latencyP50Ms}
           error={errorFor("systemOne.scope")}
           onChange={(v) => update({ scope: v })}
         />

@@ -20,6 +20,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/store/dbgen"
+	"github.com/ncecere/grounded/internal/systemone"
 )
 
 // Queue is the River queue of evaluation runs.
@@ -63,8 +64,10 @@ func (w *RunWorker) Work(ctx context.Context, job *river.Job[RunArgs]) error {
 // Execute works a run until it ends or the deadline passes (more: call
 // again). A run that can't go on (a limit or budget refused it, its agent
 // can't answer) ends as failed with the reason; other errors are returned
-// for River to retry.
+// for River to retry. Its SystemOne calls (through the agent pipeline) run at
+// background priority (docs/v0.4.1.md §4), behind answers people wait for.
 func (s *Service) Execute(ctx context.Context, runID uuid.UUID, deadline time.Time) (more bool, err error) {
+	ctx = systemone.WithPriority(ctx, systemone.Background)
 	run, err := s.q.GetEvalRunByID(ctx, runID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil // the set (or the run) was deleted

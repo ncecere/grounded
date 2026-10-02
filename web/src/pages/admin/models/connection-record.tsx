@@ -225,7 +225,7 @@ export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onC
         <Field label="Timeout (seconds)">
           <Input type="number" min={1} max={600} value={form.timeoutSeconds} onChange={(e) => set("timeoutSeconds", Number(e.target.value))} />
         </Field>
-        <Field label="Maximum concurrent requests" description="Per Grounded process (1–256). SystemOne models use it: a GPU serves them largely one after another.">
+        <Field label="Maximum concurrent requests" description="Per Grounded process (1–256), for SystemOne models: what the SystemOne service serves at once, divided by the Grounded pods calling it. Answers get a free slot first; evaluations and the gap job use at most half.">
           <Input type="number" min={1} max={256} value={form.maxConcurrentRequests} onChange={(e) => set("maxConcurrentRequests", Number(e.target.value))} />
         </Field>
       </FormSection>

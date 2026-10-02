@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
-import { judgedSummary, settingsChanges, settingsForm, settingsInput, settingsProblems } from "../lib/systemone";
+import { addedTime, judgedSummary, settingsChanges, settingsForm, settingsInput, settingsProblems } from "../lib/systemone";
 import { applyChatEvent, pendingAssistant, type ChatItem } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
 import { TeamContext, teamCtx } from "../pages/team/common";
@@ -79,6 +79,14 @@ describe("admin SystemOne page", () => {
 });
 
 describe("SystemOne settings form", () => {
+  it("words a check's median added time for the agent editor", () => {
+    expect(addedTime(412)).toBe("Adds about 0.4 s per answer (platform median, last 14 days).");
+    expect(addedTime(2340)).toBe("Adds about 2.3 s per answer (platform median, last 14 days).");
+    expect(addedTime(40)).toBe("Adds under 0.1 s per answer (platform median, last 14 days).");
+    expect(addedTime(null)).toBeUndefined();
+    expect(addedTime(undefined)).toBeUndefined();
+  });
+
   it("round-trips, validates and counts changes", () => {
     const f = settingsForm({ ...defaults, modelId: "s1" });
     expect(f.thresholds).toEqual({ injection: "70", relevant: "45", contradicts: "70", evidence: "55" });

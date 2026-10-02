@@ -72,9 +72,11 @@ func (r *Runner) log() *slog.Logger {
 }
 
 // Run runs every step once, under a cross-worker lock (a run that finds the
-// lock taken does nothing).
+// lock taken does nothing). Its SystemOne checks run at background priority
+// (docs/v0.4.1.md §4), behind answers waiting for the same connection.
 func (r *Runner) Run(ctx context.Context) (Summary, error) {
 	var sum Summary
+	ctx = systemone.WithPriority(ctx, systemone.Background)
 	conn, err := r.Pool.Acquire(ctx)
 	if err != nil {
 		return sum, err

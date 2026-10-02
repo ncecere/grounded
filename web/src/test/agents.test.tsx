@@ -265,7 +265,12 @@ describe("agent editor", () => {
   it("SystemOne checks: a Build section only with a SystemOne model, saved as the agent's override", async () => {
     const calls = mockApi(
       agentRoutes({
-        "GET /v1/systemone/status": () => ({ available: true, judging: { enabled: false, candidates: 20 }, citations: { enabled: true, mode: "annotate" }, scope: { enabled: false } }),
+        "GET /v1/systemone/status": () => ({
+          available: true,
+          judging: { enabled: false, candidates: 20, latencyP50Ms: 412 },
+          citations: { enabled: true, mode: "annotate", latencyP50Ms: 1250 },
+          scope: { enabled: false, latencyP50Ms: null },
+        }),
         "PATCH /v1/teams/registrar/agents/ag1": (b) => agent({ revision: 3, draft: { ...config, ...(b as { config: Schemas["AgentConfig"] }).config }, hasUnpublishedChanges: true }),
       }),
     );
@@ -275,6 +280,10 @@ describe("agent editor", () => {
     const judging = within(checks).getByRole("combobox", { name: "Passage judging" });
     expect(judging).toHaveValue("");
     expect(within(judging).getByRole("option", { name: "Platform default (off)" })).toBeInTheDocument();
+    // Each check's median added time on the platform (docs/v0.4.1.md §4); none without data.
+    expect(judging).toHaveAccessibleDescription("Adds about 0.4 s per answer (platform median, last 14 days).");
+    expect(within(checks).getByRole("combobox", { name: "Citation checks" })).toHaveAccessibleDescription(/^Adds about 1\.3 s per answer/);
+    expect(within(checks).getByRole("combobox", { name: "Scope check" })).not.toHaveAccessibleDescription(/Adds/);
     expect(await axe(container)).toHaveNoViolations();
     expect(within(checks).getByRole("combobox", { name: "Citation checks" })).toHaveValue("");
     expect(within(checks).getByRole("option", { name: "Platform default (on)" })).toBeInTheDocument();

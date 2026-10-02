@@ -47,7 +47,7 @@ People who build sources, knowledge bases and agents for a team:
 | [`phase2-web-sources.md`](phase2-web-sources.md) | The web source in detail: crawl modes, scheduling, repeated-block suppression |
 | [`phase3-agents.md`](phase3-agents.md) | Agents, chat and the OpenAI-compatible API in detail |
 | [`phase4-publishing.md`](phase4-publishing.md) | Audiences, moderation, the directory, short names and the widget |
-| [`systemone.md`](systemone.md) | Optional SystemOne features: passage judging, citation checks and scope checks |
+| [`systemone.md`](systemone.md) | Optional SystemOne features: passage judging, citation checks and scope checks, and sizing a connection's capacity |
 | [`operations/rerank.md`](operations/rerank.md) | Cross-encoder reranking: the agent's setting, Try it's comparison and evaluation runs without reranking |
 
 ## Platform admins

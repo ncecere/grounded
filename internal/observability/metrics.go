@@ -26,6 +26,10 @@ var (
 	modelBuckets = []float64{.05, .1, .25, .5, 1, 2, 5, 10, 20, 30, 60, 120, 300}
 	// jobBuckets suit background jobs (a crawl runs for minutes).
 	jobBuckets = []float64{.01, .05, .1, .5, 1, 5, 15, 60, 300, 900, 1800, 3600}
+	// waitBuckets suit waiting for a SystemOne slot: none on the fast path
+	// (the first bucket), up to minutes for background work behind a busy
+	// connection.
+	waitBuckets = []float64{.001, .01, .05, .1, .25, .5, 1, 2.5, 5, 10, 30, 60, 300}
 )
 
 var (
@@ -74,13 +78,21 @@ var (
 
 	SystemOneRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "grounded_systemone_requests_total",
-		Help: "SystemOne requests by feature (moderation, judging, citations, scope, test) and outcome (ok, timeout, error).",
+		Help: "SystemOne requests by feature (moderation, judging, citations, scope, cache, gaps, test) and outcome (ok, timeout, error).",
 	}, []string{"feature", "outcome"})
 	SystemOneDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "grounded_systemone_request_duration_seconds",
 		Help:    "SystemOne request latency by feature, after a concurrency slot is free.",
 		Buckets: modelBuckets,
 	}, []string{"feature"})
+	// SystemOneWait is how long SystemOne calls waited for one of their
+	// connection's slots (docs/v0.4.1.md §4); interactive waits mean the
+	// connection's limit (or the service behind it) is too small.
+	SystemOneWait = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "grounded_systemone_wait_seconds",
+		Help:    "Time SystemOne calls waited for a concurrency slot of their connection in this process, by feature and priority (interactive, background).",
+		Buckets: waitBuckets,
+	}, []string{"feature", "priority"})
 
 	// RerankRequests counts searches' /rerank calls (docs/v0.4.0.md §3);
 	// timeout and error kept the fusion order (fail open).
@@ -220,7 +232,7 @@ var (
 func appCollectors() []prometheus.Collector {
 	return []prometheus.Collector{
 		BuildInfo, ChatAnswers, ChatFirstToken, ChatDuration, RetrievalDuration,
-		ModelRequests, ModelRequestDuration, SystemOneRequests, SystemOneDuration, RerankRequests, RerankDuration, ModerationDecisions,
+		ModelRequests, ModelRequestDuration, SystemOneRequests, SystemOneDuration, SystemOneWait, RerankRequests, RerankDuration, ModerationDecisions,
 		ModerationFirstRelease, ModerationChunkChecks,
 		JobsWorked, JobDuration, IngestDocuments, IngestDuration, EmbeddingBatchInputs,
 		CrawlPages, CrawlFetchDuration, BreakGlassSessions, BreakGlassReads, MCPToolCalls, MCPClientCalls, MCPClientCallDuration, HealthChecks, HealthCheckDuration,
@@ -267,6 +279,12 @@ func ModelObserver(connection, kind string) func(outcome string, elapsed time.Du
 func ObserveSystemOne(feature, outcome string, d time.Duration) {
 	SystemOneRequests.WithLabelValues(feature, outcome).Inc()
 	SystemOneDuration.WithLabelValues(feature).Observe(d.Seconds())
+}
+
+// ObserveSystemOneWait records how long a SystemOne call waited for a slot
+// (zero when one was free), including waits its context cut short.
+func ObserveSystemOneWait(feature, priority string, d time.Duration) {
+	SystemOneWait.WithLabelValues(feature, priority).Observe(d.Seconds())
 }
 
 // ObserveRerank records one search's rerank call (status ok, timeout,
