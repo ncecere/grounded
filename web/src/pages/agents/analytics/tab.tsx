@@ -61,7 +61,7 @@ export function AnalyticsTab({ agent }: { agent: Agent }) {
   const data = useQuery({
     queryKey: [...agentKey(slug, agent.id), "analytics", from, to],
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/agents/{agentId}/analytics", { params: { path: { team: slug, agentId: agent.id }, query: { from, to } } })),
-    enabled: Boolean(from && to),
+    enabled: Boolean(from && to) && view !== "gaps",
   });
 
   return (
@@ -74,7 +74,8 @@ export function AnalyticsTab({ agent }: { agent: Agent }) {
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-        <DateRangeFilter range={range} label="Analytics period" />
+        {/* The gap topics aren't by period (they show the last 8 weeks and the last 30 days): no range there (own-10). */}
+        {view !== "gaps" && <DateRangeFilter range={range} label="Analytics period" />}
       </div>
       {view === "gaps" ? (
         <GapsView team={slug} agentId={agent.id} agentName={agent.name} />

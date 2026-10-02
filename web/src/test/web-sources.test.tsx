@@ -182,6 +182,18 @@ describe("creating a web source", () => {
     });
   });
 
+  it("shows the Gaps page's topic as a hint that isn't saved with the source (aud-3)", async () => {
+    const calls = mockApi({ ...common, "POST /v1/teams/registrar/sources": () => new ApiFailure(400, "invalid", "stop here") });
+    const hint = "For “Parking permits”: people asked Helper about it and got no good answer. This note isn't saved.";
+    renderWith(<CreateSourcePage type="upload" hint={hint} onClose={() => {}} />, { role: "editor" });
+    const page = await screen.findByRole("region", { name: "New upload source" });
+    expect(await within(page).findByText(hint)).toBeInTheDocument();
+    expect(within(page).getByRole("textbox", { name: /Description/ })).toHaveValue("");
+    await userEvent.type(within(page).getByRole("textbox", { name: "Name" }), "Parking");
+    await userEvent.click(within(page).getByRole("button", { name: "Create data source" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "POST")?.body).toMatchObject({ name: "Parking", description: "" }));
+  });
+
   it("names the team's pending request instead of offering another (P-15)", async () => {
     mockApi({
       ...common,

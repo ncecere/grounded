@@ -11,7 +11,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useRef, useState } from "react";
-import { ErrorAlert } from "@/components/ui/alert/alert";
+import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { Dialog, DialogClose } from "@/components/ui/dialog/dialog";
 import { FormPage, useFormParam } from "@/components/templates/form-page";
@@ -44,8 +44,11 @@ export function useOwnerLevels() {
 
 const typeOf = (value: string | undefined): SourceType | undefined => (value === "new-upload" ? "upload" : value === "new-web" ? "web" : undefined);
 
-/** The "New data source" flow: `start()` opens the type dialog; `element` renders it and the form page. */
-export function useCreateSource(defaults?: { description?: string }): { start: () => void; element: ReactNode } {
+/**
+ * The "New data source" flow: `start()` opens the type dialog; `element` renders it and the form page.
+ * `hint` is a note shown on the form and never saved (the Gaps page's topic, aud-3).
+ */
+export function useCreateSource(defaults?: { hint?: string }): { start: () => void; element: ReactNode } {
   const owner = useSourceOwner();
   const form = useFormParam();
   const [picking, setPicking] = useState(false);
@@ -67,7 +70,7 @@ export function useCreateSource(defaults?: { description?: string }): { start: (
           <CreateSourcePage
             key={type}
             type={type}
-            description={defaults?.description}
+            hint={defaults?.hint}
             onBack={() => {
               form.close();
               setPicking(true);
@@ -112,14 +115,16 @@ export function SourceTypeDialog({ onClose, onPick }: { onClose: () => void; onP
 }
 
 /** Step 2: the form page. */
-export function CreateSourcePage({ type, description = "", onBack, onClose }: { type: SourceType; description?: string; onBack?: () => void; onClose: () => void }) {
+type CreateProps = { type: SourceType; hint?: string; onBack?: () => void; onClose: () => void };
+
+export function CreateSourcePage({ type, hint, onBack, onClose }: CreateProps) {
   const owner = useSourceOwner();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
   const { levels, usable } = useOwnerLevels();
   const profiles = useEmbeddingProfiles();
-  const [form, setForm] = useState({ type, name: "", description, classification: "", embeddingProfileId: "" });
+  const [form, setForm] = useState({ type, name: "", description: "", classification: "", embeddingProfileId: "" });
   const [web, setWeb] = useState<WebFormState>(webDefaults);
   const [submitted, setSubmitted] = useState(false);
   const classification = form.classification || usable[0]?.key || "";
@@ -188,6 +193,7 @@ export function CreateSourcePage({ type, description = "", onBack, onClose }: { 
       }
     >
       <ErrorAlert error={levels.error || profiles.error} />
+      {hint && <Alert tone="info">{hint}</Alert>}
       <Field label="Name" error={submitted ? nameError : undefined}>
         <Input aria-required maxLength={100} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
       </Field>

@@ -5,7 +5,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { api, unwrap } from "@/api/client";
+import { api, unwrap, type Schemas } from "@/api/client";
 import { num } from "@/components/analytics/format";
 import type { Range } from "@/components/analytics/range-picker";
 import { ErrorAlert } from "@/components/ui/alert/alert";
@@ -16,10 +16,11 @@ import { Table, Td, Tr } from "@/components/ui/table/table";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { topSignals } from "../../team/gaps/queries";
 
-export function FailedQuestions({ range, team }: { range: Range; team?: string }) {
+/** The card follows the page's range and its Team and Audience filters. */
+export function FailedQuestions({ range, team, audience }: { range: Range; team?: string; audience?: Schemas["Audience"] }) {
   const q = useQuery({
-    queryKey: ["admin", "analytics", "gaps", range.from, range.to],
-    queryFn: async () => unwrap(await api.GET("/v1/admin/analytics/gaps", { params: { query: { from: range.from, to: range.to } } })),
+    queryKey: ["admin", "analytics", "gaps", range.from, range.to, audience ?? ""],
+    queryFn: async () => unwrap(await api.GET("/v1/admin/analytics/gaps", { params: { query: { from: range.from, to: range.to, audience } } })),
     enabled: Boolean(range.from && range.to),
   });
   const teams = (q.data?.teams ?? []).filter((t) => !team || t.slug === team);
@@ -30,7 +31,7 @@ export function FailedQuestions({ range, team }: { range: Range; team?: string }
       ) : q.error ? (
         <ErrorAlert error={q.error} title="Couldn't load failed questions" />
       ) : teams.length === 0 ? (
-        <EmptyState size="compact" title="No failed questions in this range." />
+        <EmptyState size="compact" title={team || audience ? "No failed questions for these filters in this range." : "No failed questions in this range."} />
       ) : (
         <Table caption="Failed questions per team" columns={["Team", { label: "Failed questions", numeric: true }, "Main reasons"]}>
           {teams.map((t) => (

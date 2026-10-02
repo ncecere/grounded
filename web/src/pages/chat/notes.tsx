@@ -151,28 +151,53 @@ export function Notes({ item, onRetry, starters, onStarter }: NotesProps) {
   );
 }
 
-export function Feedback({ item, onChange }: { item: AssistantItem; onChange: (f: AssistantItem["feedback"]) => void }) {
-  const send = useMutation({
-    mutationFn: async (body: { rating: FeedbackRating; reason?: FeedbackReason; share?: boolean }) =>
-      unwrap(await api.POST("/v1/messages/{messageId}/feedback", { params: { path: { messageId: item.id! } }, body })),
-    onSuccess: (res) => {
+/** What a rating sends: the signed-in endpoint's body (the public one takes the same, docs/gaps.md). */
+export type FeedbackBody = { rating: FeedbackRating; reason?: FeedbackReason; share?: boolean };
+type FeedbackSaved = { rating: FeedbackRating; reason?: FeedbackReason; shared?: boolean };
+/** Sends a rating of the answer and returns what was saved; the default is the signed-in endpoint. */
+export type SendFeedback = (messageId: string, body: FeedbackBody) => Promise<FeedbackSaved>;
+
+const sendSignedIn: SendFeedback = async (messageId, body) =>
+  unwrap(await api.POST("/v1/messages/{messageId}/feedback", { params: { path: { messageId } }, body }));
+
+type FeedbackProps = { item: AssistantItem; onChange: (f: AssistantItem["feedback"]) => void; send?: SendFeedback };
+
+/**
+ * Thumbs up and down, the reasons, and "Share this question with the team"
+ * (off by default; docs/gaps.md). The tick can be changed after rating: it
+ * saves at once (mem-4). The buttons are never disabled while saving, so
+ * focus stays on them when the menu closes (aud-4).
+ */
+export function Feedback({ item, onChange, send = sendSignedIn }: FeedbackProps) {
+  const save = useMutation({
+    mutationFn: ({ body }: { body: FeedbackBody; shareOnly?: boolean }) => send(item.id!, body),
+    onSuccess: (res, { shareOnly }) => {
       onChange({ rating: res.rating, reason: res.reason, shared: res.shared });
-      toast.success("Thanks for the feedback");
+      setShare(res.shared === true);
+      if (shareOnly) toast.success(res.shared ? "Your question is shared with the team" : "Your question is no longer shared");
+      else toast.success("Thanks for the feedback");
     },
-    onError: (err) => toast.error("Couldn't save your feedback", err instanceof Error ? err.message : undefined),
+    onError: (err) => {
+      setShare(item.feedback?.shared === true);
+      toast.error("Couldn't save your feedback", err instanceof Error ? err.message : undefined);
+    },
   });
   const rating = item.feedback?.rating;
-  // "Share this question with the team" (off by default; docs/gaps.md): ticked before choosing what was wrong.
   const [share, setShare] = useState(item.feedback?.shared === true);
   const reason = feedbackReasons.find((r) => r.value === item.feedback?.reason)?.label;
+  const submit = (body: FeedbackBody, shareOnly = false) => !save.isPending && save.mutate({ body, shareOnly });
+  const changeShare = (v: boolean) => {
+    setShare(v);
+    // Already rated down: the change is saved now, not with the next reason.
+    if (rating === "down") submit({ rating: "down", reason: item.feedback?.reason, share: v }, true);
+  };
   return (
     <>
       <MessageAction
         label="Good answer"
         pressed={rating === "up"}
-        disabled={send.isPending}
         className={c.feedbackAction}
-        onClick={() => rating !== "up" && send.mutate({ rating: "up" })}
+        onClick={() => rating !== "up" && submit({ rating: "up" })}
       >
         <ThumbsUp aria-hidden />
       </MessageAction>
@@ -185,19 +210,18 @@ export function Feedback({ item, onChange }: { item: AssistantItem; onChange: (f
             icon={<ThumbsDown aria-hidden />}
             label={rating === "down" ? `Bad answer${reason ? `: ${reason}` : ""}` : "Bad answer"}
             aria-pressed={rating === "down"}
-            data-pressed={rating === "down" ? "" : undefined}
-            disabled={send.isPending}
+                data-pressed={rating === "down" ? "" : undefined}
             className={c.feedbackAction}
           />
         }
       >
-        <MenuCheckboxItem checked={share} onCheckedChange={setShare}>
+        <MenuCheckboxItem checked={share} onCheckedChange={changeShare} className={c.shareItem}>
           Share this question with the team
         </MenuCheckboxItem>
         <MenuSeparator />
         <MenuGroup label="What was wrong?">
           {feedbackReasons.map((r) => (
-            <MenuItem key={r.value} onClick={() => send.mutate({ rating: "down", reason: r.value, share })}>
+            <MenuItem key={r.value} onClick={() => submit({ rating: "down", reason: r.value, share })}>
               {r.label}
             </MenuItem>
           ))}

@@ -377,3 +377,11 @@
   width: 100%;
   margin-inline: auto;
 }
+
+/* "Share this question with the team": a visible box while unticked too
+   (aud-7). The menu's checkbox item shows only a tick; its indicator column
+   gets the box here (component follow-up in bitop-ui). */
+.shareItem > span:first-child {
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-1);
+}
