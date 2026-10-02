@@ -12,6 +12,7 @@
 import { useCallback, useId, useMemo, useState } from "react";
 import { LazyResponse } from "@/components/ui/response/response-lazy";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ui/sources/sources";
+import { plainSnippet } from "@/lib/plain-text";
 import { displayNumbers, useAnswerMarkers, withUncited } from "../../chat/citations";
 import { ClaimSummary, uncitedOfClaims } from "../../chat/claims";
 import { revealSource } from "../../chat/reveal";
@@ -31,7 +32,7 @@ const pages = (start?: number, end?: number) => (!start ? "" : !end || end === s
 const where = (h: Pick<Hit, "headingPath" | "pageStart" | "pageEnd">) =>
   [(h.headingPath ?? []).join(" › "), pages(h.pageStart, h.pageEnd)].filter(Boolean).join(" · ");
 /** Snippets are raw passage text: drop Markdown heading and emphasis marks for display (as chat does). */
-export const plainSnippet = (t = "") => t.replace(/^#{1,6}\s+/gm, "").replace(/(\*\*|__)(.*?)\1/g, "$2").replace(/\s+/g, " ").trim();
+export { plainSnippet };
 const titleOf = (h: Hit) => h.title || h.filename || "Untitled document";
 
 /** A cited hit in chat's citation shape, for the marker renderer. */
