@@ -4320,6 +4320,30 @@ export interface paths {
         patch: operations["updateEvaluationQuestion"];
         trace?: never;
     };
+    "/v1/teams/{team}/evaluation-sets/{setId}/problems": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * The set's questions whose expectations the knowledge bases can't meet today (editors, admins and owners; changes nothing)
+         * @description The set page's "Needs attention" (docs/evaluations.md §1). The question form's check, run for every question of the set in a few batched queries: expected documents that no document of the set's knowledge bases matches (not_indexed) or picked documents that are gone (deleted), and, for an agent's set, must-mention phrases in no passage. A question is also out of reach when its expected document was in the knowledge base but not found in the top 50 results in each of its last 3 retrieval runs. Warnings only: nothing blocks a run. Questions without a problem are left out.
+         */
+        get: operations["listEvaluationSetProblems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}/evaluation-sets/{setId}/documents": {
         parameters: {
             query?: never;
@@ -10200,6 +10224,38 @@ export interface components {
             expected: components["schemas"]["EvaluationExpectedItem"][];
             /** @description The phrases; found: its words appear in a passage of the knowledge bases */
             mustMention: components["schemas"]["EvaluationMention"][];
+        };
+        /** @description What a set's check found about one question. Any problem is a warning; runs still check the question. */
+        EvaluationQuestionProblem: {
+            /** Format: uuid */
+            questionId: string;
+            /** @description The expected documents the knowledge bases don't hold (not_indexed or deleted) */
+            expected: components["schemas"]["EvaluationExpectedItem"][];
+            /**
+             * @description Set when none of the expected documents is held: the question can't pass, and a run doesn't score it. not_indexed (none is) or deleted (a picked document is gone). Null when one is held.
+             * @enum {string|null}
+             */
+            missingReason: "not_indexed" | "deleted" | null;
+            /** @description Must-mention phrases whose words appear in no passage (an agent's sets): a full answer can't take them from the sources */
+            mustMention: string[];
+            /** @description The expected document is in the knowledge base but wasn't found in the top 50 results in each of the question's last 3 retrieval runs (a chunking or wording problem, not a model one). Null otherwise. */
+            outOfReach: components["schemas"]["EvaluationOutOfReach"] | null;
+        };
+        EvaluationOutOfReach: {
+            /** @description The retrieval runs looked at (3) */
+            runs: number;
+            /** @description How many results each searched (50) */
+            depth: number;
+            /**
+             * Format: uuid
+             * @description The latest of those runs
+             */
+            runId: string;
+            /**
+             * Format: uuid
+             * @description The question's result in it (its diagnosis)
+             */
+            resultId: string;
         };
         /**
          * @description retrieval checks retrieval only; answer asks the agent and scores the answer
@@ -18775,6 +18831,33 @@ export interface operations {
             409: components["responses"]["ErrorReply"];
             412: components["responses"]["ErrorReply"];
             428: components["responses"]["ErrorReply"];
+        };
+    };
+    listEvaluationSetProblems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                setId: components["parameters"]["EvaluationSetIdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The questions that need attention, in the set's order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EvaluationQuestionProblem"][];
+                    };
+                };
+            };
+            404: components["responses"]["ErrorReply"];
         };
     };
     listEvaluationDocuments: {
