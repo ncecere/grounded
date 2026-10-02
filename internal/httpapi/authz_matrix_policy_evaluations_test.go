@@ -67,6 +67,7 @@ var evaluationPolicies = map[string]policy{
 	}},
 	"exportEvaluationQuestions": {own: editors, build: func(c *mctx) request { return get(c.evalSet("/questions.csv")) }},
 	"listEvaluationDocuments":   {own: editors, build: func(c *mctx) request { return get(c.evalSet("/documents?q=a")) }},
+	"listEvaluationSetProblems": {own: editors, build: func(c *mctx) request { return get(c.evalSet("/problems")) }},
 	"listEvaluationTargetDocuments": {own: editors, build: func(c *mctx) request {
 		return get(c.team("/evaluation-documents?q=a&kbId=" + c.tf.kb))
 	}},

@@ -182,29 +182,51 @@ SELECT EXISTS (
            OR (d.filename <> '' AND lower(d.filename) = ANY(@filenames::text[])))
 )::boolean;
 
--- The first document of the sources that matches expected documents (the
--- conditions of ExpectedDocumentExists), for a question's diagnosis: one
--- row or none.
--- name: MatchExpectedDocument :many
-SELECT d.id, d.source_id, d.title, d.filename, d.url FROM documents d
-WHERE d.source_id = ANY(@source_ids::uuid[])
-  AND (d.id = ANY(@document_ids::uuid[])
-       OR (d.url <> '' AND rtrim(d.url, '/') = ANY(@urls::text[]))
-       OR (d.url <> '' AND EXISTS (SELECT 1 FROM unnest(@url_prefixes::text[]) p WHERE starts_with(d.url, p)))
-       OR (d.filename <> '' AND lower(d.filename) = ANY(@filenames::text[])))
-ORDER BY d.created_at, d.id
-LIMIT 1;
+-- The first document of the sources (oldest first) matching each expected
+-- item (the conditions of ExpectedDocumentExists), for a question's
+-- diagnosis, the question form's check and a whole set's check, in one
+-- query. Item n (1-based) is the n-th element of the four parallel arrays,
+-- exactly one of which is set: a document ID (uuid.Nil otherwise), a URL
+-- without its trailing slash, a URL prefix, or a lower-cased filename.
+-- Items nothing matches have no row. The four matches are separate joins,
+-- so each is a hash or index join over the sources' documents rather than
+-- one scan per item (sets hold a few hundred questions).
+-- name: MatchExpectedItems :many
+WITH items AS (
+    SELECT n AS idx, (@document_ids::uuid[])[n] AS doc_id, (@urls::text[])[n] AS url,
+           (@url_prefixes::text[])[n] AS prefix, (@filenames::text[])[n] AS filename
+    FROM generate_subscripts(@document_ids::uuid[], 1) AS n
+), docs AS (
+    SELECT d.id, d.source_id, d.title, d.filename, d.url, d.created_at FROM documents d
+    WHERE d.source_id = ANY(@source_ids::uuid[])
+), hits AS (
+    SELECT i.idx, d.id, d.source_id, d.title, d.filename, d.url, d.created_at
+    FROM items i JOIN docs d ON d.id = i.doc_id
+    UNION ALL
+    SELECT i.idx, d.id, d.source_id, d.title, d.filename, d.url, d.created_at
+    FROM items i JOIN docs d ON i.url <> '' AND d.url <> '' AND rtrim(d.url, '/') = i.url
+    UNION ALL
+    SELECT i.idx, d.id, d.source_id, d.title, d.filename, d.url, d.created_at
+    FROM items i JOIN docs d ON i.prefix <> '' AND d.url <> '' AND starts_with(d.url, i.prefix)
+    UNION ALL
+    SELECT i.idx, d.id, d.source_id, d.title, d.filename, d.url, d.created_at
+    FROM items i JOIN docs d ON i.filename <> '' AND d.filename <> '' AND lower(d.filename) = i.filename
+)
+SELECT DISTINCT ON (h.idx) h.idx::int AS idx, h.id::uuid AS id, h.source_id::uuid AS source_id, h.title::text AS title,
+       h.filename::text AS filename, h.url::text AS url
+FROM hits h
+ORDER BY h.idx, h.created_at, h.id;
 
--- Whether a must-mention phrase's words (stemmed, in order, as
+-- Whether each must-mention phrase's words (stemmed, in order, as
 -- phraseto_tsquery reads them) appear in a passage of the sources, for the
--- question form's warning. A phrase of stopwords only has no words to look
--- for and counts as found.
--- name: PhraseInSources :one
-WITH q AS (SELECT phraseto_tsquery('english', @phrase::text) AS query)
-SELECT (numnode(q.query) = 0 OR EXISTS (
-    SELECT 1 FROM chunks c WHERE c.source_id = ANY(@source_ids::uuid[]) AND c.content_tsv @@ q.query
+-- question form's warnings and a whole set's check: one statement for all
+-- the phrases, each an index lookup (chunks_source_tsv_idx). A phrase of
+-- stopwords only has no words to look for and counts as found.
+-- name: PhrasesInSources :many
+SELECT p.phrase::text AS phrase, (numnode(phraseto_tsquery('english', p.phrase)) = 0 OR EXISTS (
+    SELECT 1 FROM chunks c WHERE c.source_id = ANY(@source_ids::uuid[]) AND c.content_tsv @@ phraseto_tsquery('english', p.phrase)
 ))::boolean AS found
-FROM q;
+FROM unnest(@phrases::text[]) AS p(phrase);
 
 -- Documents of the sources whose title, filename or URL matches, for the
 -- expected-documents picker.
@@ -290,6 +312,23 @@ JOIN eval_runs run ON run.id = r.run_id
 WHERE r.case_id = @case_id
 ORDER BY run.created_at DESC, run.id DESC
 LIMIT @lim;
+
+-- The latest results (at most @per_case each, newest first) of each of a
+-- set's questions in retrieval runs, for "out of reach" (expected document
+-- not in the top 50 in each of the last 3 runs). One index walk per
+-- question (eval_results_case_idx).
+-- name: LatestRetrievalResults :many
+SELECT c.id AS case_id, x.id, x.run_id, x.status, x.scores
+FROM eval_cases c
+CROSS JOIN LATERAL (
+    SELECT r.id, r.run_id, r.status, r.scores, r.created_at FROM eval_results r
+    JOIN eval_runs run ON run.id = r.run_id AND run.kind = 'retrieval'
+    WHERE r.case_id = c.id
+    ORDER BY r.created_at DESC, r.id DESC
+    LIMIT @per_case
+) x
+WHERE c.set_id = @set_id
+ORDER BY c.created_at, c.id, x.created_at DESC, x.id DESC;
 
 -- ---- search (⌘K) --------------------------------------------------------------------------
 

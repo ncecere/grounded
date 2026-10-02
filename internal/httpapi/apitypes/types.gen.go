@@ -1602,6 +1602,24 @@ func (e EvaluationImportRequestFormat) Valid() bool {
 	}
 }
 
+// Defines values for EvaluationQuestionProblemMissingReason.
+const (
+	EvaluationQuestionProblemMissingReasonDeleted    EvaluationQuestionProblemMissingReason = "deleted"
+	EvaluationQuestionProblemMissingReasonNotIndexed EvaluationQuestionProblemMissingReason = "not_indexed"
+)
+
+// Valid indicates whether the value is a known member of the EvaluationQuestionProblemMissingReason enum.
+func (e EvaluationQuestionProblemMissingReason) Valid() bool {
+	switch e {
+	case EvaluationQuestionProblemMissingReasonDeleted:
+		return true
+	case EvaluationQuestionProblemMissingReasonNotIndexed:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EvaluationQuestionResultMissingReason.
 const (
 	EvaluationQuestionResultMissingReasonDeleted    EvaluationQuestionResultMissingReason = "deleted"
@@ -6942,6 +6960,21 @@ type EvaluationMention struct {
 	Phrase string `json:"phrase"`
 }
 
+// EvaluationOutOfReach defines model for EvaluationOutOfReach.
+type EvaluationOutOfReach struct {
+	// Depth How many results each searched (50)
+	Depth int `json:"depth"`
+
+	// ResultId The question's result in it (its diagnosis)
+	ResultId openapi_types.UUID `json:"resultId"`
+
+	// RunId The latest of those runs
+	RunId openapi_types.UUID `json:"runId"`
+
+	// Runs The retrieval runs looked at (3)
+	Runs int `json:"runs"`
+}
+
 // EvaluationQuestion defines model for EvaluationQuestion.
 type EvaluationQuestion struct {
 	CreatedAt time.Time `json:"createdAt"`
@@ -7003,6 +7036,25 @@ type EvaluationQuestionInput struct {
 	Note        *string            `json:"note,omitempty"`
 	Question    string             `json:"question"`
 }
+
+// EvaluationQuestionProblem What a set's check found about one question. Any problem is a warning; runs still check the question.
+type EvaluationQuestionProblem struct {
+	// Expected The expected documents the knowledge bases don't hold (not_indexed or deleted)
+	Expected []EvaluationExpectedItem `json:"expected"`
+
+	// MissingReason Set when none of the expected documents is held: the question can't pass, and a run doesn't score it. not_indexed (none is) or deleted (a picked document is gone). Null when one is held.
+	MissingReason *EvaluationQuestionProblemMissingReason `json:"missingReason"`
+
+	// MustMention Must-mention phrases whose words appear in no passage (an agent's sets): a full answer can't take them from the sources
+	MustMention []string `json:"mustMention"`
+
+	// OutOfReach The expected document is in the knowledge base but wasn't found in the top 50 results in each of the question's last 3 retrieval runs (a chunking or wording problem, not a model one). Null otherwise.
+	OutOfReach *EvaluationOutOfReach `json:"outOfReach"`
+	QuestionId openapi_types.UUID    `json:"questionId"`
+}
+
+// EvaluationQuestionProblemMissingReason Set when none of the expected documents is held: the question can't pass, and a run doesn't score it. not_indexed (none is) or deleted (a picked document is gone). Null when one is held.
+type EvaluationQuestionProblemMissingReason string
 
 // EvaluationQuestionResult defines model for EvaluationQuestionResult.
 type EvaluationQuestionResult struct {

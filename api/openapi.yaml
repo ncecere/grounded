@@ -6841,6 +6841,37 @@ paths:
         "200": { $ref: "#/components/responses/OkReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/evaluation-sets/{setId}/problems:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/EvaluationSetIdParam"
+    get:
+      tags: [evaluations]
+      operationId: listEvaluationSetProblems
+      summary: The set's questions whose expectations the knowledge bases can't meet today (editors, admins and owners; changes nothing)
+      description: >-
+        The set page's "Needs attention" (docs/evaluations.md §1). The
+        question form's check, run for every question of the set in a few
+        batched queries: expected documents that no document of the set's
+        knowledge bases matches (not_indexed) or picked documents that are
+        gone (deleted), and, for an agent's set, must-mention phrases in no
+        passage. A question is also out of reach when its expected document
+        was in the knowledge base but not found in the top 50 results in
+        each of its last 3 retrieval runs. Warnings only: nothing blocks a
+        run. Questions without a problem are left out.
+      responses:
+        "200":
+          description: The questions that need attention, in the set's order
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/EvaluationQuestionProblem" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/evaluation-sets/{setId}/documents:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -13181,6 +13212,44 @@ components:
           type: array
           description: "The phrases; found: its words appear in a passage of the knowledge bases"
           items: { $ref: "#/components/schemas/EvaluationMention" }
+    EvaluationQuestionProblem:
+      type: object
+      description: What a set's check found about one question. Any problem is a warning; runs still check the question.
+      required: [questionId, expected, missingReason, mustMention, outOfReach]
+      properties:
+        questionId: { type: string, format: uuid }
+        expected:
+          type: array
+          description: The expected documents the knowledge bases don't hold (not_indexed or deleted)
+          items: { $ref: "#/components/schemas/EvaluationExpectedItem" }
+        missingReason:
+          type: string
+          nullable: true
+          description: >-
+            Set when none of the expected documents is held: the question
+            can't pass, and a run doesn't score it. not_indexed (none is) or
+            deleted (a picked document is gone). Null when one is held.
+          enum: [not_indexed, deleted]
+        mustMention:
+          type: array
+          description: "Must-mention phrases whose words appear in no passage (an agent's sets): a full answer can't take them from the sources"
+          items: { type: string }
+        outOfReach:
+          nullable: true
+          description: >-
+            The expected document is in the knowledge base but wasn't found
+            in the top 50 results in each of the question's last 3 retrieval
+            runs (a chunking or wording problem, not a model one). Null
+            otherwise.
+          allOf: [{ $ref: "#/components/schemas/EvaluationOutOfReach" }]
+    EvaluationOutOfReach:
+      type: object
+      required: [runs, depth, runId, resultId]
+      properties:
+        runs: { type: integer, description: The retrieval runs looked at (3) }
+        depth: { type: integer, description: How many results each searched (50) }
+        runId: { type: string, format: uuid, description: The latest of those runs }
+        resultId: { type: string, format: uuid, description: The question's result in it (its diagnosis) }
     EvaluationRunKind:
       type: string
       description: retrieval checks retrieval only; answer asks the agent and scores the answer

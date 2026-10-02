@@ -164,24 +164,51 @@ func rankItems(items []ExpectedItem, docs []Doc) {
 	}
 }
 
-// match finds a document of the sources matching each item: found[i]
-// says whether one does, and the item gets its ID, source and title.
+// match finds a document of the sources matching each item, in one query
+// for all of them (a whole set's items too): found[i] says whether one
+// does, and the item gets its ID, source and title.
 func (s *Service) match(ctx context.Context, sources []uuid.UUID, items []ExpectedItem) ([]bool, error) {
 	found := make([]bool, len(items))
-	for i := range items {
-		docs, urls, prefixes, names := items[i].want().existence()
-		rows, err := s.q.MatchExpectedDocument(ctx, dbgen.MatchExpectedDocumentParams{SourceIds: sources, DocumentIds: docs,
-			Urls: urls, UrlPrefixes: prefixes, Filenames: names})
-		if err != nil {
-			return nil, err
+	if len(items) == 0 {
+		return found, nil
+	}
+	p := dbgen.MatchExpectedItemsParams{SourceIds: sources, DocumentIds: make([]uuid.UUID, len(items)),
+		Urls: make([]string, len(items)), UrlPrefixes: make([]string, len(items)), Filenames: make([]string, len(items))}
+	for i, it := range items {
+		p.DocumentIds[i], p.Urls[i], p.UrlPrefixes[i], p.Filenames[i] = it.matchKey()
+	}
+	rows, err := s.q.MatchExpectedItems(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		i := int(r.Idx) - 1
+		if i < 0 || i >= len(items) {
+			continue
 		}
-		if len(rows) > 0 {
-			r := rows[0]
-			found[i] = true
-			items[i].DocumentID, items[i].SourceID, items[i].Title = &r.ID, &r.SourceID, firstOf(r.Title, r.Filename, r.URL)
-		}
+		found[i] = true
+		items[i].DocumentID, items[i].SourceID, items[i].Title = &r.ID, &r.SourceID, firstOf(r.Title, r.Filename, r.URL)
 	}
 	return found, nil
+}
+
+// matchKey is the item as MatchExpectedItems takes it: exactly one of a
+// document ID, an exact URL (no trailing slash), a URL prefix or a
+// lower-cased filename (the others zero). An item that can't match (a
+// malformed document ID) has none.
+func (it ExpectedItem) matchKey() (doc uuid.UUID, url, prefix, filename string) {
+	docs, urls, prefixes, names := it.want().existence()
+	switch {
+	case len(docs) > 0:
+		doc = docs[0]
+	case len(urls) > 0:
+		url = urls[0]
+	case len(prefixes) > 0:
+		prefix = prefixes[0]
+	case len(names) > 0:
+		filename = names[0]
+	}
+	return doc, url, prefix, filename
 }
 
 // seenBefore are the items the question's earlier results found in the

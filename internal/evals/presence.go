@@ -62,12 +62,29 @@ func (s *Service) CheckQuestion(ctx context.Context, a authz.Actor, teamRef stri
 	if err := s.stateItems(ctx, sources, out.Expected); err != nil {
 		return out, err
 	}
+	found, err := s.phrasesFound(ctx, sources, phrases)
+	if err != nil {
+		return out, err
+	}
 	for _, p := range phrases {
-		found, err := s.q.PhraseInSources(ctx, dbgen.PhraseInSourcesParams{Phrase: p, SourceIds: sources})
-		if err != nil {
-			return out, err
-		}
-		out.Mentions = append(out.Mentions, Mention{Phrase: p, Found: found})
+		out.Mentions = append(out.Mentions, Mention{Phrase: p, Found: found[p]})
+	}
+	return out, nil
+}
+
+// phrasesFound says, in one query, which phrases' words appear in a passage
+// of the sources, by phrase.
+func (s *Service) phrasesFound(ctx context.Context, sources []uuid.UUID, phrases []string) (map[string]bool, error) {
+	out := make(map[string]bool, len(phrases))
+	if len(phrases) == 0 {
+		return out, nil
+	}
+	rows, err := s.q.PhrasesInSources(ctx, dbgen.PhrasesInSourcesParams{SourceIds: sources, Phrases: phrases})
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		out[r.Phrase] = r.Found
 	}
 	return out, nil
 }
@@ -127,15 +144,24 @@ func (s *Service) importWarnings(ctx context.Context, set dbgen.EvalSet, rows []
 	if err != nil {
 		return nil, err
 	}
-	for _, r := range rows {
-		items := r.Expected.Items()
-		found, err := s.match(ctx, sources, items)
-		if err != nil {
-			return nil, err
+	// Every row's items in one query.
+	per := make([][]ExpectedItem, len(rows))
+	all := []ExpectedItem{}
+	for i, r := range rows {
+		per[i] = r.Expected.Items()
+		all = append(all, per[i]...)
+	}
+	found, err := s.match(ctx, sources, all)
+	if err != nil {
+		return nil, err
+	}
+	at := 0
+	for i, r := range rows {
+		n := len(per[i])
+		if !anyTrue(found[at : at+n]) {
+			out = append(out, ImportProblem{Line: r.Line, Message: notInKBText(where, per[i])})
 		}
-		if !anyTrue(found) {
-			out = append(out, ImportProblem{Line: r.Line, Message: notInKBText(where, items)})
-		}
+		at += n
 	}
 	return out, nil
 }

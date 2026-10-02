@@ -729,6 +729,63 @@ func (q *Queries) InsertEvalSet(ctx context.Context, arg InsertEvalSetParams) (E
 	return i, err
 }
 
+const latestRetrievalResults = `-- name: LatestRetrievalResults :many
+SELECT c.id AS case_id, x.id, x.run_id, x.status, x.scores
+FROM eval_cases c
+CROSS JOIN LATERAL (
+    SELECT r.id, r.run_id, r.status, r.scores, r.created_at FROM eval_results r
+    JOIN eval_runs run ON run.id = r.run_id AND run.kind = 'retrieval'
+    WHERE r.case_id = c.id
+    ORDER BY r.created_at DESC, r.id DESC
+    LIMIT $1
+) x
+WHERE c.set_id = $2
+ORDER BY c.created_at, c.id, x.created_at DESC, x.id DESC
+`
+
+type LatestRetrievalResultsParams struct {
+	PerCase int32
+	SetID   uuid.UUID
+}
+
+type LatestRetrievalResultsRow struct {
+	CaseID uuid.UUID
+	ID     uuid.UUID
+	RunID  uuid.UUID
+	Status string
+	Scores json.RawMessage
+}
+
+// The latest results (at most @per_case each, newest first) of each of a
+// set's questions in retrieval runs, for "out of reach" (expected document
+// not in the top 50 in each of the last 3 runs). One index walk per
+// question (eval_results_case_idx).
+func (q *Queries) LatestRetrievalResults(ctx context.Context, arg LatestRetrievalResultsParams) ([]LatestRetrievalResultsRow, error) {
+	rows, err := q.db.Query(ctx, latestRetrievalResults, arg.PerCase, arg.SetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LatestRetrievalResultsRow{}
+	for rows.Next() {
+		var i LatestRetrievalResultsRow
+		if err := rows.Scan(
+			&i.CaseID,
+			&i.ID,
+			&i.RunID,
+			&i.Status,
+			&i.Scores,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCaseResults = `-- name: ListCaseResults :many
 SELECT r.id, r.run_id, r.case_id, r.question, r.status, r.rank, r.hits, r.answer, r.scores, r.error, r.latency_ms, r.created_at, run.kind AS run_kind, run.trigger AS run_trigger, run.created_at AS run_created_at, run.config AS run_config
 FROM eval_results r
@@ -1112,26 +1169,43 @@ func (q *Queries) MarkEvalRunRunning(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const matchExpectedDocument = `-- name: MatchExpectedDocument :many
-SELECT d.id, d.source_id, d.title, d.filename, d.url FROM documents d
-WHERE d.source_id = ANY($1::uuid[])
-  AND (d.id = ANY($2::uuid[])
-       OR (d.url <> '' AND rtrim(d.url, '/') = ANY($3::text[]))
-       OR (d.url <> '' AND EXISTS (SELECT 1 FROM unnest($4::text[]) p WHERE starts_with(d.url, p)))
-       OR (d.filename <> '' AND lower(d.filename) = ANY($5::text[])))
-ORDER BY d.created_at, d.id
-LIMIT 1
+const matchExpectedItems = `-- name: MatchExpectedItems :many
+WITH items AS (
+    SELECT n AS idx, ($1::uuid[])[n] AS doc_id, ($2::text[])[n] AS url,
+           ($3::text[])[n] AS prefix, ($4::text[])[n] AS filename
+    FROM generate_subscripts($1::uuid[], 1) AS n
+), docs AS (
+    SELECT d.id, d.source_id, d.title, d.filename, d.url, d.created_at FROM documents d
+    WHERE d.source_id = ANY($5::uuid[])
+), hits AS (
+    SELECT i.idx, d.id, d.source_id, d.title, d.filename, d.url, d.created_at
+    FROM items i JOIN docs d ON d.id = i.doc_id
+    UNION ALL
+    SELECT i.idx, d.id, d.source_id, d.title, d.filename, d.url, d.created_at
+    FROM items i JOIN docs d ON i.url <> '' AND d.url <> '' AND rtrim(d.url, '/') = i.url
+    UNION ALL
+    SELECT i.idx, d.id, d.source_id, d.title, d.filename, d.url, d.created_at
+    FROM items i JOIN docs d ON i.prefix <> '' AND d.url <> '' AND starts_with(d.url, i.prefix)
+    UNION ALL
+    SELECT i.idx, d.id, d.source_id, d.title, d.filename, d.url, d.created_at
+    FROM items i JOIN docs d ON i.filename <> '' AND d.filename <> '' AND lower(d.filename) = i.filename
+)
+SELECT DISTINCT ON (h.idx) h.idx::int AS idx, h.id::uuid AS id, h.source_id::uuid AS source_id, h.title::text AS title,
+       h.filename::text AS filename, h.url::text AS url
+FROM hits h
+ORDER BY h.idx, h.created_at, h.id
 `
 
-type MatchExpectedDocumentParams struct {
-	SourceIds   []uuid.UUID
+type MatchExpectedItemsParams struct {
 	DocumentIds []uuid.UUID
 	Urls        []string
 	UrlPrefixes []string
 	Filenames   []string
+	SourceIds   []uuid.UUID
 }
 
-type MatchExpectedDocumentRow struct {
+type MatchExpectedItemsRow struct {
+	Idx      int32
 	ID       uuid.UUID
 	SourceID uuid.UUID
 	Title    string
@@ -1139,25 +1213,32 @@ type MatchExpectedDocumentRow struct {
 	URL      string
 }
 
-// The first document of the sources that matches expected documents (the
-// conditions of ExpectedDocumentExists), for a question's diagnosis: one
-// row or none.
-func (q *Queries) MatchExpectedDocument(ctx context.Context, arg MatchExpectedDocumentParams) ([]MatchExpectedDocumentRow, error) {
-	rows, err := q.db.Query(ctx, matchExpectedDocument,
-		arg.SourceIds,
+// The first document of the sources (oldest first) matching each expected
+// item (the conditions of ExpectedDocumentExists), for a question's
+// diagnosis, the question form's check and a whole set's check, in one
+// query. Item n (1-based) is the n-th element of the four parallel arrays,
+// exactly one of which is set: a document ID (uuid.Nil otherwise), a URL
+// without its trailing slash, a URL prefix, or a lower-cased filename.
+// Items nothing matches have no row. The four matches are separate joins,
+// so each is a hash or index join over the sources' documents rather than
+// one scan per item (sets hold a few hundred questions).
+func (q *Queries) MatchExpectedItems(ctx context.Context, arg MatchExpectedItemsParams) ([]MatchExpectedItemsRow, error) {
+	rows, err := q.db.Query(ctx, matchExpectedItems,
 		arg.DocumentIds,
 		arg.Urls,
 		arg.UrlPrefixes,
 		arg.Filenames,
+		arg.SourceIds,
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []MatchExpectedDocumentRow{}
+	items := []MatchExpectedItemsRow{}
 	for rows.Next() {
-		var i MatchExpectedDocumentRow
+		var i MatchExpectedItemsRow
 		if err := rows.Scan(
+			&i.Idx,
 			&i.ID,
 			&i.SourceID,
 			&i.Title,
@@ -1284,28 +1365,46 @@ func (q *Queries) PendingEvalCases(ctx context.Context, arg PendingEvalCasesPara
 	return items, nil
 }
 
-const phraseInSources = `-- name: PhraseInSources :one
-WITH q AS (SELECT phraseto_tsquery('english', $2::text) AS query)
-SELECT (numnode(q.query) = 0 OR EXISTS (
-    SELECT 1 FROM chunks c WHERE c.source_id = ANY($1::uuid[]) AND c.content_tsv @@ q.query
+const phrasesInSources = `-- name: PhrasesInSources :many
+SELECT p.phrase::text AS phrase, (numnode(phraseto_tsquery('english', p.phrase)) = 0 OR EXISTS (
+    SELECT 1 FROM chunks c WHERE c.source_id = ANY($1::uuid[]) AND c.content_tsv @@ phraseto_tsquery('english', p.phrase)
 ))::boolean AS found
-FROM q
+FROM unnest($2::text[]) AS p(phrase)
 `
 
-type PhraseInSourcesParams struct {
+type PhrasesInSourcesParams struct {
 	SourceIds []uuid.UUID
-	Phrase    string
+	Phrases   []string
 }
 
-// Whether a must-mention phrase's words (stemmed, in order, as
+type PhrasesInSourcesRow struct {
+	Phrase string
+	Found  bool
+}
+
+// Whether each must-mention phrase's words (stemmed, in order, as
 // phraseto_tsquery reads them) appear in a passage of the sources, for the
-// question form's warning. A phrase of stopwords only has no words to look
-// for and counts as found.
-func (q *Queries) PhraseInSources(ctx context.Context, arg PhraseInSourcesParams) (bool, error) {
-	row := q.db.QueryRow(ctx, phraseInSources, arg.SourceIds, arg.Phrase)
-	var found bool
-	err := row.Scan(&found)
-	return found, err
+// question form's warnings and a whole set's check: one statement for all
+// the phrases, each an index lookup (chunks_source_tsv_idx). A phrase of
+// stopwords only has no words to look for and counts as found.
+func (q *Queries) PhrasesInSources(ctx context.Context, arg PhrasesInSourcesParams) ([]PhrasesInSourcesRow, error) {
+	rows, err := q.db.Query(ctx, phrasesInSources, arg.SourceIds, arg.Phrases)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PhrasesInSourcesRow{}
+	for rows.Next() {
+		var i PhrasesInSourcesRow
+		if err := rows.Scan(&i.Phrase, &i.Found); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const previousCompletedRun = `-- name: PreviousCompletedRun :one

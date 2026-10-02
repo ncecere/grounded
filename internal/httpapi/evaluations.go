@@ -36,6 +36,7 @@ func (a *api) evaluationRoutes() []route {
 		{"PATCH", set + "/questions/{questionId}", a.session(a.updateEvaluationQuestion)},
 		{"DELETE", set + "/questions/{questionId}", a.session(a.deleteEvaluationQuestion)},
 		{"GET", set + "/documents", a.session(a.listEvaluationDocuments)},
+		{"GET", set + "/problems", a.session(a.listEvaluationSetProblems)},
 		{"GET", set + "/runs", a.session(a.listEvaluationRuns)},
 		{"POST", set + "/runs", a.session(a.startEvaluationRun)},
 		{"GET", set + "/runs/compare", a.session(a.compareEvaluationRuns)},
