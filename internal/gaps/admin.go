@@ -22,13 +22,18 @@ type TeamCounts struct {
 	Signals    map[string]int32
 }
 
-// Counts returns failed questions per team in [from, to), most first
-// (platform admins and auditors).
-func (s *Service) Counts(ctx context.Context, a authz.Actor, from, to time.Time) ([]TeamCounts, error) {
+// Counts returns failed questions per team in [from, to), most first,
+// optionally of answers to one audience ("": all; platform admins and
+// auditors).
+func (s *Service) Counts(ctx context.Context, a authz.Actor, from, to time.Time, audience string) ([]TeamCounts, error) {
 	if a.Key != nil || !a.CanReadPlatform() {
 		return nil, apperr.Forbidden("Only platform admins and auditors can see this")
 	}
-	totals, err := s.q.GapTotalsByTeam(ctx, dbgen.GapTotalsByTeamParams{FromAt: from, ToAt: to})
+	var aud *string
+	if audience != "" {
+		aud = &audience
+	}
+	totals, err := s.q.GapTotalsByTeam(ctx, dbgen.GapTotalsByTeamParams{FromAt: from, ToAt: to, Audience: aud})
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +43,7 @@ func (s *Service) Counts(ctx context.Context, a authz.Actor, from, to time.Time)
 		out[i] = TeamCounts{TeamID: t.TeamID, Slug: t.Slug, Name: t.Name, Questions: t.Questions, Signals: map[string]int32{}}
 		byTeam[t.TeamID] = &out[i]
 	}
-	rows, err := s.q.GapCountsByTeam(ctx, dbgen.GapCountsByTeamParams{FromAt: from, ToAt: to})
+	rows, err := s.q.GapCountsByTeam(ctx, dbgen.GapCountsByTeamParams{FromAt: from, ToAt: to, Audience: aud})
 	if err != nil {
 		return nil, err
 	}

@@ -177,7 +177,7 @@ func (a *api) adminGetGapCounts(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "invalid_range", "from must not be after to")
 		return
 	}
-	teams, err := a.Gaps.Counts(r.Context(), a.actor(r), from, to.AddDate(0, 0, 1))
+	teams, err := a.Gaps.Counts(r.Context(), a.actor(r), from, to.AddDate(0, 0, 1), r.URL.Query().Get("audience"))
 	if failed(w, r, err) {
 		return
 	}

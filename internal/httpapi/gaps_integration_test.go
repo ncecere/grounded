@@ -93,6 +93,16 @@ func TestGapCaptureFeedbackAndReport(t *testing.T) {
 		counts.Teams[0].Signals["refused"] != 3 {
 		t.Fatalf("admin counts = %d %+v", code, counts)
 	}
+	// The Audience filter (aud-10): the questions were answers to the team, none to the public.
+	var public apitypes.AdminGapCounts
+	if code := env.auditor.get("/v1/admin/analytics/gaps?audience=public", &public); code != 200 || public.Questions != 0 {
+		t.Fatalf("public counts = %d %+v", code, public)
+	}
+	var audience string
+	env.app.Pool.QueryRow(context.Background(), `SELECT audience_type FROM message_events WHERE agent_id = $1 LIMIT 1`, picky.Id).Scan(&audience)
+	if code := env.auditor.get("/v1/admin/analytics/gaps?audience="+audience, &public); code != 200 || public.Questions != 3 {
+		t.Fatalf("%s counts = %d %+v", audience, code, public)
+	}
 }
 
 // TestGapTextNeverReachesPlatformStaff (aud-1, aud-2, adm-2 of the v0.4.0

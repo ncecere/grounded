@@ -124,6 +124,7 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
         ...(isNotFound(agent.error) ? [] : [{ label: agent.data?.name ?? "Agent" }]),
       );
     else if (sub === "/evaluations") crumbs.push({ label: "Evaluations" });
+    else if (sub === "/gaps") crumbs.push({ label: "Gaps" });
     else if (sub === "/evaluations/$setId") crumbs.push(...evalSetCrumbs(slug, evalSet.data));
     else if (sub === "/settings") crumbs.push({ label: terms.teamSettings });
     return crumbs;

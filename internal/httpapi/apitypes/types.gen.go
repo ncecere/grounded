@@ -10869,6 +10869,9 @@ type AdminGetGapCountsParams struct {
 
 	// To Last UTC day, inclusive (default today); at most 366 days after from
 	To *AnalyticsToParam `form:"to,omitempty" json:"to,omitempty"`
+
+	// Audience Only answers to this audience
+	Audience *AnalyticsAudienceParam `form:"audience,omitempty" json:"audience,omitempty"`
 }
 
 // AdminListModerationEventsParams defines parameters for AdminListModerationEvents.

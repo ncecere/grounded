@@ -17395,6 +17395,8 @@ export interface operations {
                 from?: components["parameters"]["AnalyticsFromParam"];
                 /** @description Last UTC day, inclusive (default today); at most 366 days after from */
                 to?: components["parameters"]["AnalyticsToParam"];
+                /** @description Only answers to this audience */
+                audience?: components["parameters"]["AnalyticsAudienceParam"];
             };
             header?: never;
             path?: never;

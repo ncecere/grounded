@@ -148,10 +148,10 @@ func TestPermissions(t *testing.T) {
 			t.Errorf("%s: list = %v, want 404", name, err)
 		}
 	}
-	if _, err := f.svc.Counts(f.ctx, f.editor, time.Now().Add(-time.Hour), time.Now().Add(time.Hour)); !isStatus(err, 403) {
+	if _, err := f.svc.Counts(f.ctx, f.editor, time.Now().Add(-time.Hour), time.Now().Add(time.Hour), ""); !isStatus(err, 403) {
 		t.Errorf("editor counts = %v, want 403", err)
 	}
-	counts, err := f.svc.Counts(f.ctx, f.admin, time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
+	counts, err := f.svc.Counts(f.ctx, f.admin, time.Now().Add(-time.Hour), time.Now().Add(time.Hour), "")
 	if err != nil || len(counts) != 1 || counts[0].Questions != 3 || counts[0].Signals["uncited"] != 3 {
 		t.Fatalf("counts = %+v, %v", counts, err)
 	}

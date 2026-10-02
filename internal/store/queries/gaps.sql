@@ -127,13 +127,16 @@ RETURNING team_id, confirm_similar, revision, updated_at;
 
 -- name: GapCountsByTeam :many
 -- Platform admins and auditors: failed questions per team and signal in a
--- period (counts only, never topics or questions).
+-- period, optionally of answers to one audience (counts only, never topics
+-- or questions).
 SELECT t.id AS team_id, t.slug, t.name, sig::text AS signal, count(*)::int AS n
 FROM gap_questions q
 JOIN teams t ON t.id = q.team_id
 JOIN conversations c ON c.id = q.conversation_id AND c.deleted_at IS NULL
 CROSS JOIN LATERAL unnest(q.signals) AS sig
 WHERE q.created_at >= @from_at AND q.created_at < @to_at
+  AND (sqlc.narg(audience)::text IS NULL
+       OR EXISTS (SELECT 1 FROM message_events me WHERE me.message_id = q.message_id AND me.audience_type = sqlc.narg(audience)::text))
 GROUP BY 1, 2, 3, 4;
 
 -- name: GapTotalsByTeam :many
@@ -142,5 +145,7 @@ FROM gap_questions q
 JOIN teams t ON t.id = q.team_id
 JOIN conversations c ON c.id = q.conversation_id AND c.deleted_at IS NULL
 WHERE q.created_at >= @from_at AND q.created_at < @to_at
+  AND (sqlc.narg(audience)::text IS NULL
+       OR EXISTS (SELECT 1 FROM message_events me WHERE me.message_id = q.message_id AND me.audience_type = sqlc.narg(audience)::text))
 GROUP BY 1, 2, 3
 ORDER BY 4 DESC, 2;

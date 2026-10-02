@@ -5703,6 +5703,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AnalyticsFromParam"
         - $ref: "#/components/parameters/AnalyticsToParam"
+        - $ref: "#/components/parameters/AnalyticsAudienceParam"
       responses:
         "200":
           description: Counts per team, most failed questions first

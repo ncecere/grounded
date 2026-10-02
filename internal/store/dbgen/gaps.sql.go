@@ -28,12 +28,15 @@ JOIN teams t ON t.id = q.team_id
 JOIN conversations c ON c.id = q.conversation_id AND c.deleted_at IS NULL
 CROSS JOIN LATERAL unnest(q.signals) AS sig
 WHERE q.created_at >= $1 AND q.created_at < $2
+  AND ($3::text IS NULL
+       OR EXISTS (SELECT 1 FROM message_events me WHERE me.message_id = q.message_id AND me.audience_type = $3::text))
 GROUP BY 1, 2, 3, 4
 `
 
 type GapCountsByTeamParams struct {
-	FromAt time.Time
-	ToAt   time.Time
+	FromAt   time.Time
+	ToAt     time.Time
+	Audience *string
 }
 
 type GapCountsByTeamRow struct {
@@ -45,9 +48,10 @@ type GapCountsByTeamRow struct {
 }
 
 // Platform admins and auditors: failed questions per team and signal in a
-// period (counts only, never topics or questions).
+// period, optionally of answers to one audience (counts only, never topics
+// or questions).
 func (q *Queries) GapCountsByTeam(ctx context.Context, arg GapCountsByTeamParams) ([]GapCountsByTeamRow, error) {
-	rows, err := q.db.Query(ctx, gapCountsByTeam, arg.FromAt, arg.ToAt)
+	rows, err := q.db.Query(ctx, gapCountsByTeam, arg.FromAt, arg.ToAt, arg.Audience)
 	if err != nil {
 		return nil, err
 	}
@@ -217,13 +221,16 @@ FROM gap_questions q
 JOIN teams t ON t.id = q.team_id
 JOIN conversations c ON c.id = q.conversation_id AND c.deleted_at IS NULL
 WHERE q.created_at >= $1 AND q.created_at < $2
+  AND ($3::text IS NULL
+       OR EXISTS (SELECT 1 FROM message_events me WHERE me.message_id = q.message_id AND me.audience_type = $3::text))
 GROUP BY 1, 2, 3
 ORDER BY 4 DESC, 2
 `
 
 type GapTotalsByTeamParams struct {
-	FromAt time.Time
-	ToAt   time.Time
+	FromAt   time.Time
+	ToAt     time.Time
+	Audience *string
 }
 
 type GapTotalsByTeamRow struct {
@@ -234,7 +241,7 @@ type GapTotalsByTeamRow struct {
 }
 
 func (q *Queries) GapTotalsByTeam(ctx context.Context, arg GapTotalsByTeamParams) ([]GapTotalsByTeamRow, error) {
-	rows, err := q.db.Query(ctx, gapTotalsByTeam, arg.FromAt, arg.ToAt)
+	rows, err := q.db.Query(ctx, gapTotalsByTeam, arg.FromAt, arg.ToAt, arg.Audience)
 	if err != nil {
 		return nil, err
 	}
