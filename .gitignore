@@ -19,7 +19,7 @@ coverage.*
 
 # Local model gateway credentials (never commit)
 ai.env
-# Any local credentials file (oidc.env, uf.env, …); examples are tracked explicitly.
+# Any local credentials file (oidc.env, gateway.env, …); examples are tracked explicitly.
 *.env
 !deploy/examples/*.env
 # Non-secret Kubernetes config (configMapGenerator env files) is tracked.
@@ -32,3 +32,11 @@ coverage.out
 
 # Playwright end-to-end output (web/e2e): report, traces, server log, signed-in states
 /web/e2e-output/
+
+# Screenshots and scratch images at the repository root (screenshots live in the
+# private assets repository; docs images under docs/ are tracked explicitly).
+/*.png
+/*.jpg
+/*.jpeg
+/*.gif
+/*.webp
