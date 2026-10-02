@@ -119,9 +119,11 @@ LIMIT @page_size;
 -- name: DeleteDocument :one
 DELETE FROM documents WHERE id = $1 RETURNING *;
 
+-- A failed or skipped document, or a partly scanned PDF (ready, needs_ocr:
+-- parsed again with OCR for its pages without text), queued again.
 -- name: RetryDocument :one
 UPDATE documents SET status = 'pending', error_code = '', error_message = '', attempts = 0, waiting_until = NULL, updated_at = now()
-WHERE id = $1 AND status IN ('failed', 'skipped')
+WHERE id = $1 AND (status IN ('failed', 'skipped') OR (status = 'ready' AND error_code = 'needs_ocr'))
 RETURNING *;
 
 -- ---- ingestion dispatcher -------------------------------------------------

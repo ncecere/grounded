@@ -199,18 +199,27 @@ func TestOCRIngestionAndRetry(t *testing.T) {
 	if d := got["scan.pdf"]; d.Status != "skipped" || d.ErrorCode != "needs_ocr" || d.Ocr != nil || d.Kind != "pdf" {
 		t.Fatalf("scan.pdf without OCR = %+v", d)
 	}
-	if d := got["mixed.pdf"]; d.Status != "ready" || !strings.Contains(strings.Join(d.Warnings, " "), "1 of 2 pages had no text layer (possibly scanned) and was skipped") {
-		t.Errorf("mixed.pdf without OCR = %+v", d)
+	// A partly scanned PDF is indexed and needs OCR for its scanned page.
+	mixed := got["mixed.pdf"]
+	if mixed.Status != "ready" || mixed.ErrorCode != "needs_ocr" || !strings.HasPrefix(mixed.ErrorMessage, "Page 2 has no text layer") ||
+		!strings.Contains(strings.Join(mixed.Warnings, " "), "1 of 2 pages (page 2) had no text layer (possibly scanned) and was skipped") {
+		t.Errorf("mixed.pdf without OCR = %+v", mixed)
 	}
 	var page apitypes.DocumentPage
-	if code := owner.get(docs+"?errorCode=needs_ocr", &page); code != 200 || len(page.Items) != 1 || page.Items[0].Filename != "scan.pdf" {
+	if code := owner.get(docs+"?errorCode=needs_ocr", &page); code != 200 || len(page.Items) != 2 {
 		t.Fatalf("needs OCR filter = %d %+v", code, page.Items)
 	}
 	st := getParsing(t, env.admin)
-	if len(st.NeedsOcr) != 1 || st.NeedsOcr[0].TeamSlug != env.team || st.NeedsOcr[0].Documents != 1 {
+	if len(st.NeedsOcr) != 1 || st.NeedsOcr[0].TeamSlug != env.team || st.NeedsOcr[0].Documents != 2 {
 		t.Errorf("needs OCR counts = %+v", st.NeedsOcr)
 	}
+	if groups, _ := problemGroups(t, env.admin); len(groups) != 1 || groups[0].Reason != "needs_ocr" || groups[0].Documents != 2 {
+		t.Errorf("document problems = %+v", groups)
+	}
 	ocrState(t, owner, base+"/sources/"+src.Id.String(), apitypes.DataSourceOcrStatePlatformOff)
+	// Its own retry waits for OCR (it would be indexed again without the page).
+	code, e = owner.call("POST", docs+"/"+mixed.Id.String()+"/retry", nil, nil, nil)
+	mustCode(t, "retry a partly scanned PDF with OCR off", code, e, 409, "ocr_off")
 
 	// OCR on: retry the scanned documents together.
 	putParsing(t, env.admin, map[string]any{"ocrEnabled": true, "backend": "tesseract", "visionModelId": nil, "languages": "eng"})
@@ -220,14 +229,25 @@ func TestOCRIngestionAndRetry(t *testing.T) {
 	mustCode(t, "retry by another code", code, e, 400, "")
 	code, e = owner.call("POST", docs+"/retry", map[string]any{"errorCode": "needs_ocr"}, &retried, nil)
 	mustCode(t, "bulk retry", code, e, 200, "")
-	if retried.Retried != 1 {
+	if retried.Retried != 2 {
 		t.Fatalf("retried = %d", retried.Retried)
 	}
-	code, results, e = owner.uploadFiles(docs, []upload{{"receipt.png", receipt}}, "")
-	if code != 200 || results[0].Status != "created" {
+	pages := testutil.MultiPageTIFF(t, false, "FIRST PAGE", "SECOND\nPAGE")
+	code, results, e = owner.uploadFiles(docs, []upload{{"receipt.png", receipt}, {"pages.tiff", pages}}, "")
+	if code != 200 || results[0].Status != "created" || results[1].Status != "created" {
 		t.Fatalf("image upload with OCR on = %d %s %+v", code, e, results)
 	}
 	got = byName(owner.waitForDocuments(t, docs))
+	// The partly scanned PDF now has its scanned page, read with OCR.
+	if m := got["mixed.pdf"]; m.Status != "ready" || m.ErrorCode != "" || m.Ocr == nil || !slices.Equal(m.Ocr.Pages, []int32{2}) || len(m.Warnings) != 0 {
+		t.Fatalf("mixed.pdf with OCR = %+v", m)
+	} else if text := passagesOf(t, owner, docs, m); !strings.Contains(text, "A typed introduction page.") || !strings.Contains(text, "Scanned text read by OCR") {
+		t.Errorf("mixed.pdf passages = %s", text)
+	}
+	// Every page of a multi-page TIFF.
+	if tf := got["pages.tiff"]; tf.Status != "ready" || tf.Kind != "image" || tf.Pages != 2 || tf.Ocr == nil || !slices.Equal(tf.Ocr.Pages, []int32{1, 2}) {
+		t.Fatalf("pages.tiff = %+v", tf)
+	}
 	d := got["scan.pdf"]
 	if d.Status != "ready" || d.Ocr == nil || d.Ocr.Backend != "tesseract" || !slices.Equal(d.Ocr.Pages, []int32{1, 2}) {
 		t.Fatalf("scan.pdf with OCR = %+v", d)
@@ -239,7 +259,7 @@ func TestOCRIngestionAndRetry(t *testing.T) {
 	if img.Status != "ready" || img.Kind != "image" || img.Pages != 1 || img.Ocr == nil || !slices.Equal(img.Ocr.Pages, []int32{1}) {
 		t.Fatalf("receipt.png = %+v", img)
 	}
-	if pages, backend := ledger(t, env.app, "ocr_pages"); pages != 3 || backend != "tesseract" || sidecar.Calls() != 3 {
+	if pages, backend := ledger(t, env.app, "ocr_pages"); pages != 6 || backend != "tesseract" || sidecar.Calls() != 6 {
 		t.Errorf("ocr_pages = %d (%s), sidecar calls %d", pages, backend, sidecar.Calls())
 	}
 	var parser string
@@ -259,7 +279,7 @@ func TestOCRIngestionAndRetry(t *testing.T) {
 	if code != 200 || results[0].Error == nil || results[0].Error.Code != "ocr_off" || results[1].Status != "created" {
 		t.Fatalf("uploads with the source's OCR off = %+v", results)
 	}
-	if d := byName(owner.waitForDocuments(t, docs))["scan2.pdf"]; d.ErrorCode != "needs_ocr" || sidecar.Calls() != 3 {
+	if d := byName(owner.waitForDocuments(t, docs))["scan2.pdf"]; d.ErrorCode != "needs_ocr" || sidecar.Calls() != 6 {
 		t.Errorf("scan2.pdf = %+v, sidecar calls %d", d, sidecar.Calls())
 	}
 	var audited int

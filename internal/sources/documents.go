@@ -545,20 +545,25 @@ func (s *Service) SetDocumentTags(ctx context.Context, a authz.Actor, o Owner, s
 	return doc, err
 }
 
-// RetryDocument re-queues a failed or skipped document.
+// RetryDocument re-queues a failed or skipped document, or a partly scanned
+// PDF (ready, needs_ocr) while OCR can read its source.
 func (s *Service) RetryDocument(ctx context.Context, a authz.Actor, o Owner, sourceID, docID uuid.UUID) (dbgen.Document, error) {
-	if _, _, _, err := s.document(ctx, a, o, sourceID, docID, true); err != nil {
+	_, src, cur, err := s.document(ctx, a, o, sourceID, docID, true)
+	if err != nil {
 		return dbgen.Document{}, err
 	}
 	if err := s.Maintenance.Check(ctx); err != nil {
 		return dbgen.Document{}, err
 	}
+	if err := s.checkPartlyScannedRetry(ctx, src, cur); err != nil {
+		return dbgen.Document{}, err
+	}
 	var doc dbgen.Document
-	err := pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
+	err = pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
 		var err error
 		doc, err = dbgen.New(tx).RetryDocument(ctx, docID)
 		if errors.Is(store.NotFound(err), store.ErrNotFound) {
-			return apperr.Conflict("not_retryable", "Only failed or skipped documents can be retried")
+			return apperr.Conflict("not_retryable", "Only failed or skipped documents, and documents that need OCR, can be retried")
 		} else if err != nil {
 			return err
 		}

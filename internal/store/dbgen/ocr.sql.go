@@ -28,7 +28,9 @@ type CountNeedsOCRByTeamRow struct {
 	Documents int64
 }
 
-// Documents skipped as scanned, per team (NULL: platform-shared sources).
+// Documents that need OCR, per team (NULL: platform-shared sources): those
+// skipped as scanned and partly scanned PDFs indexed without their scanned
+// pages (ready, needs_ocr).
 func (q *Queries) CountNeedsOCRByTeam(ctx context.Context) ([]CountNeedsOCRByTeamRow, error) {
 	rows, err := q.db.Query(ctx, countNeedsOCRByTeam)
 	if err != nil {
@@ -137,19 +139,24 @@ func (q *Queries) LockParsingSettings(ctx context.Context) (ParsingSetting, erro
 const retryDocumentsByError = `-- name: RetryDocumentsByError :many
 UPDATE documents
 SET status = 'pending', error_code = '', error_message = '', attempts = 0, waiting_until = NULL, updated_at = now()
-WHERE source_id = $1 AND error_code = $2 AND status IN ('failed', 'skipped')
+WHERE source_id = $1 AND error_code = $2
+  AND (status IN ('failed', 'skipped') OR ($3::bool AND status = 'ready'))
 RETURNING id
 `
 
 type RetryDocumentsByErrorParams struct {
-	SourceID  uuid.UUID
-	ErrorCode string
+	SourceID     uuid.UUID
+	ErrorCode    string
+	IncludeReady bool
 }
 
 // Retry of a source's failed or skipped documents with one error code
-// (e.g. needs_ocr, once OCR is on).
+// (e.g. needs_ocr, once OCR is on). With include_ready, the source's ready
+// documents with the code are queued too: a partly scanned PDF (ready,
+// needs_ocr) is parsed again, with OCR for its pages without text, and
+// keeps its passages until then.
 func (q *Queries) RetryDocumentsByError(ctx context.Context, arg RetryDocumentsByErrorParams) ([]uuid.UUID, error) {
-	rows, err := q.db.Query(ctx, retryDocumentsByError, arg.SourceID, arg.ErrorCode)
+	rows, err := q.db.Query(ctx, retryDocumentsByError, arg.SourceID, arg.ErrorCode, arg.IncludeReady)
 	if err != nil {
 		return nil, err
 	}

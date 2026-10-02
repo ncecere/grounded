@@ -89,6 +89,10 @@ type Document struct {
 	// OCR lists the pages read with OCR; nil when none were. It is also
 	// set with ErrEmpty when OCR ran and found no text, so its usage counts.
 	OCR *OCRInfo
+	// NeedsOCR lists the pages without a text layer that were skipped
+	// because OCR is off (1-based, ascending): a partly scanned PDF. Parsed
+	// again with OCR on, those pages are read (docs/ocr.md §5).
+	NeedsOCR []int
 }
 
 // Errors callers act on. Wrap them with context; test with errors.Is.

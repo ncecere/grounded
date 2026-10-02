@@ -66,6 +66,28 @@ func (p *Processor) recordOCRUsage(ctx context.Context, doc dbgen.Document, info
 	return nil
 }
 
+// ErrorNeedsOCR is the error code of documents that need OCR: skipped as
+// scanned (no text at all), or indexed (ready) with pages skipped because
+// OCR was off, a partly scanned PDF. Both are retried with "Retry all that
+// need OCR" once OCR is on, and counted as "Needs OCR".
+const ErrorNeedsOCR = "needs_ocr"
+
+// readyError is the error code and message an indexed document keeps: a
+// partly scanned PDF needs OCR for the pages listed in its message (also in
+// its warning); others have none.
+func readyError(parsed parse.Document) (code, message string) {
+	p := parsed.NeedsOCR
+	switch len(p) {
+	case 0:
+		return "", ""
+	case 1:
+		return ErrorNeedsOCR, fmt.Sprintf("Page %d has no text layer (it may be a scan) and wasn't read, because OCR is off for this document. "+
+			"Once OCR is on, retry it to read that page.", p[0])
+	}
+	return ErrorNeedsOCR, clip(fmt.Sprintf("Pages %s have no text layer (they may be scans) and weren't read, because OCR is off for this document. "+
+		"Once OCR is on, retry it to read those pages.", parse.PageList(p)), 1000)
+}
+
 // ocrRecord is metadata.ocr: the pages read with OCR and the backend.
 type ocrRecord struct {
 	Backend string `json:"backend"`
