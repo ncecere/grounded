@@ -62,7 +62,8 @@ export function RetrievePlayground({ kbId, defaultTopK, sources = [], initialQue
   const canRerank = Boolean(useRerankStatus().data?.available);
   const [rerank, setRerank] = useState(true);
   const run = useMutation({
-    mutationFn: async () =>
+    // `opts` carries a switch's new value: switching Rerank re-runs the search shown (own-13), before the state updates.
+    mutationFn: async (opts?: { rerank?: boolean }) =>
       unwrap(
         await api.POST("/v1/teams/{team}/kbs/{kbId}/retrieve", {
           params: { path: { team: slug, kbId } },
@@ -71,7 +72,7 @@ export function RetrievePlayground({ kbId, defaultTopK, sources = [], initialQue
             topK: topK ? Number(topK) : undefined,
             filters: cleanFilter(filters),
             judge: canJudge && judge ? true : undefined,
-            rerank: canRerank && !rerank ? false : undefined,
+            rerank: canRerank && !(opts?.rerank ?? rerank) ? false : undefined,
           },
         }),
       ),
@@ -83,7 +84,7 @@ export function RetrievePlayground({ kbId, defaultTopK, sources = [], initialQue
   useEffect(() => {
     if (asked.current || !initialQuery?.trim()) return;
     asked.current = true;
-    mutate();
+    mutate({});
   }, [initialQuery, mutate]);
 
   const active = cleanFilter(filters);
@@ -95,7 +96,7 @@ export function RetrievePlayground({ kbId, defaultTopK, sources = [], initialQue
         className={r.form}
         onSubmit={(e) => {
           e.preventDefault();
-          if (query.trim()) run.mutate();
+          if (query.trim()) run.mutate({});
         }}
       >
         <div className={r.queryRow}>
@@ -145,7 +146,11 @@ export function RetrievePlayground({ kbId, defaultTopK, sources = [], initialQue
             label="Rerank"
             description="Put the passages that best answer the question first, as agents do. Turn it off to compare."
             checked={rerank}
-            onCheckedChange={setRerank}
+            onCheckedChange={(on) => {
+              setRerank(on);
+              // The results shown would otherwise be from the other setting: search again.
+              if (run.data && query.trim()) run.mutate({ rerank: on });
+            }}
           />
         )}
       </form>

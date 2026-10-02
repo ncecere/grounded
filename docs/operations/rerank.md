@@ -42,7 +42,7 @@ A rerank model in use can't be deleted (choose **None** first; its record page s
 
 ## For editors: the agent's setting
 
-**Build → Advanced** shows **Rerank passages** (on by default) and **Passages kept after reranking** (1 to 20, default 6) once the platform has a rerank model. Turn reranking off for an agent whose knowledge base is small or already precise, or to compare. In **Try it** on a knowledge base, the **Rerank** switch compares the reranked order with the usual one, and each passage shows its rerank score.
+**Build → Advanced** shows **Rerank passages** (on by default) and **Passages kept after reranking** (1 to 20, default 6) once the platform has a rerank model. Turn reranking off for an agent whose knowledge base is small or already precise, or to compare. In **Try it** on a knowledge base, the **Rerank** switch compares the reranked order with the usual one (switching it searches again), and each passage shows its rerank score.
 
 **Evaluations** rerank like searches do. To measure what reranking changes, start a run with **Rerank** turned off and compare it with a run with it on: the run's details say whether it reranked, and the score chart marks the change ([`evaluations.md`](evaluations.md)). For an agent's set, a reranked retrieval run keeps the agent's passages kept after reranking as its k.
 

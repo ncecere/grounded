@@ -160,10 +160,15 @@ describe("Try it reranking", () => {
     expect(cards[0]).toHaveTextContent("Rerank 0.973");
     expect(calls.at(-1)?.body).toEqual({ query: "transcript fee" });
     expect(await axe(container)).toHaveNoViolations();
+    // Switching Rerank searches again (own-13): no results from the other setting stay under the switch.
+    const searches = calls.filter((c) => c.method === "POST").length;
     await userEvent.click(screen.getByRole("switch", { name: /Rerank/ }));
-    await userEvent.click(screen.getByRole("button", { name: "Search" }));
     await waitFor(() => expect(calls.at(-1)?.body).toEqual({ query: "transcript fee", rerank: false }));
-    expect(screen.queryByText(/Reranked the best/)).toBeNull();
+    expect(calls.filter((c) => c.method === "POST")).toHaveLength(searches + 1);
+    await waitFor(() => expect(screen.queryByText(/Reranked the best/)).toBeNull());
+    await userEvent.click(screen.getByRole("switch", { name: /Rerank/ }));
+    await waitFor(() => expect(calls.at(-1)?.body).toEqual({ query: "transcript fee" }));
+    expect(await screen.findByText("Reranked the best 40 passages in 120 ms.")).toBeInTheDocument();
   });
 
   it("says when reranking failed and the usual order was kept", async () => {
