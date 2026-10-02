@@ -640,7 +640,7 @@
     {
       "type": "timeseries",
       "title": "SystemOne wait for a slot by feature and priority",
-      "description": "How long SystemOne calls waited for one of their connection's slots (max_concurrent_requests, per process) before being sent. Interactive calls are served first and background ones (evaluation runs, the gap topics job) may hold at most half the slots, so background waits are expected; sustained interactive waits mean the limit or the SystemOne service is too small (docs/systemone.md, Capacity).",
+      "description": "How long SystemOne calls waited for one of their connection's slots (max_concurrent_requests, per process) before being sent. Interactive calls are served first and background ones (evaluation runs, the gap topics job) may hold at most half the slots, so background waits are expected; sustained interactive waits mean the limit or the SystemOne service is too small (docs/systemone.md §8).",
       "fieldConfig": {
         "defaults": {
           "unit": "s",

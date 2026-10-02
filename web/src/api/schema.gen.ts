@@ -5954,7 +5954,7 @@ export interface components {
             requestsPerMinute: number | null;
             /**
              * Format: int32
-             * @description Most requests each Grounded process sends through this connection at once. Applies to SystemOne models, whose GPU serves requests largely one after another (default 8).
+             * @description Most requests each Grounded process sends through this connection at once. Applies to SystemOne models, whose GPU serves requests largely one after another (default 8). When every slot is busy, answers are served first and background work (evaluation runs, the gap topics job) holds at most half the slots (at least one).
              */
             maxConcurrentRequests: number;
             enabled: boolean;

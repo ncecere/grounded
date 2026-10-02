@@ -5943,7 +5943,7 @@ type Connection struct {
 	HasApiKey bool               `json:"hasApiKey"`
 	Id        openapi_types.UUID `json:"id"`
 
-	// MaxConcurrentRequests Most requests each Grounded process sends through this connection at once. Applies to SystemOne models, whose GPU serves requests largely one after another (default 8).
+	// MaxConcurrentRequests Most requests each Grounded process sends through this connection at once. Applies to SystemOne models, whose GPU serves requests largely one after another (default 8). When every slot is busy, answers are served first and background work (evaluation runs, the gap topics job) holds at most half the slots (at least one).
 	MaxConcurrentRequests int32 `json:"maxConcurrentRequests"`
 	ModelCount            int64 `json:"modelCount"`
 
