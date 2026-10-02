@@ -38,6 +38,9 @@
 // cached_question}): same_question 0.95, or 0.05 when the question carries
 // DIFFERENT.
 //
+// The gap report's same-subject check (state {question, other_question}):
+// same_subject 0.95, or 0.05 when either question carries DIFFERENT.
+//
 // Other noul questions answer FakeSafeScore, other score questions 0 and
 // choice questions their first option (sorted).
 
@@ -141,6 +144,7 @@ type fakeS1State struct {
 	Passages map[string]fakePassage `json:"passages"`
 	Question *string                `json:"question"`
 	Cached   *string                `json:"cached_question"`
+	Other    *string                `json:"other_question"`
 }
 
 func (p *FakeProxy) systemOne(w http.ResponseWriter, r *http.Request) {
@@ -233,6 +237,12 @@ func fakeNoul(id, text string, st fakeS1State) float64 {
 	}
 	if st.Question != nil && st.Cached != nil {
 		if strings.Contains(strings.ToUpper(*st.Question), "DIFFERENT") {
+			return 0.05
+		}
+		return 0.95
+	}
+	if st.Question != nil && st.Other != nil {
+		if strings.Contains(strings.ToUpper(*st.Question+*st.Other), "DIFFERENT") {
 			return 0.05
 		}
 		return 0.95

@@ -42,7 +42,10 @@ export function SourcesPage() {
   const owner = useSourceOwner();
   const [tab, setTab] = useUrlTab(dataSourceTabs);
   const gap = useGapNote();
-  const newSource = useCreateSource(gap ? { description: `Covers ${gap.topic}: questions to ${gap.agent} it couldn't answer (the gap report).` } : undefined);
+  // The topic's label is only a hint on the form, never a saved description: members read sources' descriptions (aud-3).
+  const newSource = useCreateSource(
+    gap ? { hint: `For “${gap.topic}”: people asked ${gap.agent} about it and got no good answer. This note isn't saved. Every team member can read a source's description.` } : undefined,
+  );
   useIntent("new-source", () => {
     if (!canEdit) return;
     if (tab !== "sources") setTab("sources");

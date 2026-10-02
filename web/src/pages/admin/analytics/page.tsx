@@ -144,7 +144,7 @@ export function AdminAnalyticsPage() {
                 <Stack gap={6}>
                   <TopAgents agents={d.topAgents} />
                   {!f.team && <TopTeams teams={d.topTeams} />}
-                  <FailedQuestions range={range} team={f.team} />
+                  <FailedQuestions range={range} team={f.team} audience={f.audience} />
                 </Stack>
               ),
             },

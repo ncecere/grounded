@@ -498,6 +498,14 @@ type GapQuestion struct {
 	UpdatedAt            time.Time
 }
 
+type GapSetting struct {
+	TeamID         uuid.UUID
+	ConfirmSimilar bool
+	Revision       int64
+	UpdatedBy      uuid.NullUUID
+	UpdatedAt      time.Time
+}
+
 type GapTopic struct {
 	ID                uuid.UUID
 	TeamID            uuid.UUID
@@ -516,6 +524,23 @@ type GapTopic struct {
 	LastFailedAt      *time.Time
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	DismissKind       *string
+}
+
+type GapTopicEvent struct {
+	ID          uuid.UUID
+	TopicID     uuid.UUID
+	Kind        string
+	DismissKind *string
+	Reason      string
+	ActorID     uuid.NullUUID
+	CreatedAt   time.Time
+}
+
+type GapTopicPair struct {
+	TopicA    uuid.UUID
+	TopicB    uuid.UUID
+	CreatedAt time.Time
 }
 
 type HealthCheck struct {

@@ -16,6 +16,7 @@ test("gap report: share a question on a thumbs-down; editors see it pending, mem
   const { agent } = await publishedAgent(owner, team, { name: "Parking helper" });
 
   const member = await as("blair");
+  const answer = (p: typeof member) => p.getByRole("article", { name: "Parking helper said" });
   await test.step("a member rates an answer down and shares the question", async () => {
     await member.goto(`/a/${team}/parking-helper`);
     const composer = member.getByRole("textbox", { name: "Message Parking helper" });
@@ -33,6 +34,24 @@ test("gap report: share a question on a thumbs-down; editors see it pending, mem
     await member.getByRole("menuitem", { name: "Missing sources" }).click();
     expect((await sent).postDataJSON()).toEqual({ rating: "down", reason: "missing_sources", share: true });
     await expect(member.getByText("Thanks for the feedback")).toBeVisible();
+    // Focus stays on the button after choosing a reason (aud-4).
+    const bad = answer.getByRole("button", { name: "Bad answer: Missing sources" });
+    await expect(bad).toBeFocused();
+  });
+
+  await test.step("unticking Share on the rated answer takes the question back at once", async () => {
+    await answer(member).getByRole("button", { name: "Bad answer: Missing sources" }).click();
+    const share = member.getByRole("menuitemcheckbox", { name: "Share this question with the team" });
+    await expect(share).toHaveAttribute("aria-checked", "true");
+    const sent = member.waitForRequest((r) => r.url().includes("/feedback") && r.method() === "POST");
+    await share.click();
+    expect((await sent).postDataJSON()).toEqual({ rating: "down", reason: "missing_sources", share: false });
+    await expect(member.getByText("Your question is no longer shared")).toBeVisible();
+    await member.keyboard.press("Escape");
+    await member.reload();
+    await answer(member).getByRole("button", { name: "Bad answer: Missing sources" }).click();
+    await expect(member.getByRole("menuitemcheckbox", { name: "Share this question with the team" })).toHaveAttribute("aria-checked", "false");
+    await member.keyboard.press("Escape");
   });
 
   await test.step("the member can't open the Gaps page", async () => {
@@ -48,12 +67,14 @@ test("gap report: share a question on a thumbs-down; editors see it pending, mem
     await a11y(editor, "team overview");
     await editor.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Gaps" }).click();
     await expect(editor.getByRole("heading", { level: 1, name: "Gaps" })).toBeVisible();
-    await expect(editor.getByText("1 failed question in the last 30 days isn't in a topic yet.")).toBeVisible();
+    await expect(editor.getByText("1 failed question from the last 30 days isn't shown.")).toBeVisible();
+    await expect(editor.getByText(/isn't grouped yet: questions are grouped every hour\./)).toBeVisible();
     await expect(editor.getByText("No open topics.")).toBeVisible();
     await expect(editor.getByText("Can visitors park in Lot 4 on weekends?")).toHaveCount(0);
     await a11y(editor);
     await editor.goto(`/teams/${team}/agents/${agent.id}?tab=analytics&view=gaps`);
-    await expect(editor.getByText("1 failed question in the last 30 days isn't in a topic yet.")).toBeVisible();
+    await expect(editor.getByText(/1 failed question from the last 30 days isn't shown\./)).toBeVisible();
+    await expect(editor.getByLabel("Analytics period")).toHaveCount(0);
     await a11y(editor, "agent gaps");
   });
 });

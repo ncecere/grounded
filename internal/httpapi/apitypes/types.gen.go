@@ -1878,6 +1878,24 @@ func (e FeedbackReason) Valid() bool {
 	}
 }
 
+// Defines values for GapDismissKind.
+const (
+	ForNow      GapDismissKind = "for_now"
+	NotForAgent GapDismissKind = "not_for_agent"
+)
+
+// Valid indicates whether the value is a known member of the GapDismissKind enum.
+func (e GapDismissKind) Valid() bool {
+	switch e {
+	case ForNow:
+		return true
+	case NotForAgent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GapTopicState.
 const (
 	GapTopicStateDismissed GapTopicState = "dismissed"
@@ -1896,6 +1914,33 @@ func (e GapTopicState) Valid() bool {
 	case GapTopicStateOpen:
 		return true
 	case GapTopicStateResolved:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GapTopicEventKind.
+const (
+	GapTopicEventKindDismissed GapTopicEventKind = "dismissed"
+	GapTopicEventKindFixed     GapTopicEventKind = "fixed"
+	GapTopicEventKindMerged    GapTopicEventKind = "merged"
+	GapTopicEventKindReopened  GapTopicEventKind = "reopened"
+	GapTopicEventKindResolved  GapTopicEventKind = "resolved"
+)
+
+// Valid indicates whether the value is a known member of the GapTopicEventKind enum.
+func (e GapTopicEventKind) Valid() bool {
+	switch e {
+	case GapTopicEventKindDismissed:
+		return true
+	case GapTopicEventKindFixed:
+		return true
+	case GapTopicEventKindMerged:
+		return true
+	case GapTopicEventKindReopened:
+		return true
+	case GapTopicEventKindResolved:
 		return true
 	default:
 		return false
@@ -7292,6 +7337,9 @@ type FusionWeights struct {
 	Vector  float64 `json:"vector"`
 }
 
+// GapDismissKind for_now: the topic reopens when newer questions about it fail; not_for_agent: it stays closed, and new questions are still counted
+type GapDismissKind string
+
 // GapEvaluationAdd defines model for GapEvaluationAdd.
 type GapEvaluationAdd struct {
 	// Expected What a good result is: any of these documents. urls are http(s) pages; one ending in * is a prefix (https://example.edu/registrar/transcripts*). filenames match uploaded files' names, case aside.
@@ -7312,6 +7360,19 @@ type GapEvaluationAdded struct {
 	SharedQuestion       GapSharedQuestion  `json:"sharedQuestion"`
 }
 
+// GapSettings defines model for GapSettings.
+type GapSettings struct {
+	// ConfirmSimilar The hourly topics job asks SystemOne whether borderline questions and topics are about the same subject (metered to the team; needs a SystemOne model). Off by default.
+	ConfirmSimilar bool       `json:"confirmSimilar"`
+	Revision       int64      `json:"revision"`
+	UpdatedAt      *time.Time `json:"updatedAt,omitempty"`
+}
+
+// GapSettingsUpdate defines model for GapSettingsUpdate.
+type GapSettingsUpdate struct {
+	ConfirmSimilar bool `json:"confirmSimilar"`
+}
+
 // GapSharedQuestion defines model for GapSharedQuestion.
 type GapSharedQuestion struct {
 	AddedToEvaluations bool               `json:"addedToEvaluations"`
@@ -7330,9 +7391,12 @@ type GapTopic struct {
 	AgentName string             `json:"agentName"`
 
 	// Askers Different askers (pseudonymous; an anonymous session counts as one)
-	Askers    int32              `json:"askers"`
-	FirstSeen time.Time          `json:"firstSeen"`
-	Id        openapi_types.UUID `json:"id"`
+	Askers int32 `json:"askers"`
+
+	// DismissKind for_now: the topic reopens when newer questions about it fail; not_for_agent: it stays closed, and new questions are still counted
+	DismissKind *GapDismissKind    `json:"dismissKind,omitempty"`
+	FirstSeen   time.Time          `json:"firstSeen"`
+	Id          openapi_types.UUID `json:"id"`
 
 	// Label 2-5 words written by the agent's chat model from the topic's questions; empty until the topics job labels it
 	//
@@ -7351,30 +7415,56 @@ type GapTopic struct {
 	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down
 	Signals GapSignalCounts `json:"signals"`
 
-	// State open; dismissed or fixed by an editor; resolved when its questions started being answered well. A closed topic reopens on new failures.
+	// SinceClosed Questions that joined a closed topic since it closed (0 while open)
+	SinceClosed int32 `json:"sinceClosed"`
+
+	// State open; dismissed or fixed by an editor; resolved when its questions started being answered well. A closed topic reopens on new failures, except one dismissed as not for this agent.
 	State          GapTopicState `json:"state"`
 	StateChangedAt time.Time     `json:"stateChangedAt"`
 
-	// StateReason The optional reason of a dismissal
+	// StateReason The optional reason of the current dismissal (earlier ones are in the topic's history)
 	StateReason string `json:"stateReason"`
 
 	// Trend Questions per week over the last 8 weeks, oldest first
 	Trend []int32 `json:"trend"`
 }
 
-// GapTopicState open; dismissed or fixed by an editor; resolved when its questions started being answered well. A closed topic reopens on new failures.
+// GapTopicState open; dismissed or fixed by an editor; resolved when its questions started being answered well. A closed topic reopens on new failures, except one dismissed as not for this agent.
 type GapTopicState string
 
 // GapTopicDetail defines model for GapTopicDetail.
 type GapTopicDetail struct {
+	// History The topic's dismissals, fixes, reopenings, resolutions and merges, newest first (at most 50)
+	History         []GapTopicEvent     `json:"history"`
 	SharedQuestions []GapSharedQuestion `json:"sharedQuestions"`
 	Topic           GapTopic            `json:"topic"`
 }
 
 // GapTopicDismiss defines model for GapTopicDismiss.
 type GapTopicDismiss struct {
-	Reason *string `json:"reason,omitempty"`
+	// Kind for_now: the topic reopens when newer questions about it fail; not_for_agent: it stays closed, and new questions are still counted
+	Kind   *GapDismissKind `json:"kind,omitempty"`
+	Reason *string         `json:"reason,omitempty"`
 }
+
+// GapTopicEvent defines model for GapTopicEvent.
+type GapTopicEvent struct {
+	At time.Time `json:"at"`
+
+	// By Who acted; absent when the hourly topics job did
+	By *string `json:"by,omitempty"`
+
+	// DismissKind for_now: the topic reopens when newer questions about it fail; not_for_agent: it stays closed, and new questions are still counted
+	DismissKind *GapDismissKind    `json:"dismissKind,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+	Kind        GapTopicEventKind  `json:"kind"`
+
+	// Reason A dismissal's reason (empty: none)
+	Reason string `json:"reason"`
+}
+
+// GapTopicEventKind defines model for GapTopicEvent.Kind.
+type GapTopicEventKind string
 
 // GapTopicList defines model for GapTopicList.
 type GapTopicList struct {
@@ -7383,6 +7473,9 @@ type GapTopicList struct {
 	// Pending Failed questions of the last 30 days not in a topic shown yet (not grouped yet, or fewer than minAskers askers)
 	Pending int32      `json:"pending"`
 	Topics  []GapTopic `json:"topics"`
+
+	// Ungrouped Of pending, the questions the hourly topics job hasn't grouped yet
+	Ungrouped int32 `json:"ungrouped"`
 }
 
 // GroupMappingStatus defines model for GroupMappingStatus.
@@ -10891,6 +10984,9 @@ type AdminGetGapCountsParams struct {
 
 	// To Last UTC day, inclusive (default today); at most 366 days after from
 	To *AnalyticsToParam `form:"to,omitempty" json:"to,omitempty"`
+
+	// Audience Only answers to this audience
+	Audience *AnalyticsAudienceParam `form:"audience,omitempty" json:"audience,omitempty"`
 }
 
 // AdminListModerationEventsParams defines parameters for AdminListModerationEvents.
@@ -11512,6 +11608,12 @@ type CompareEvaluationRunsParams struct {
 	B openapi_types.UUID `form:"b" json:"b"`
 }
 
+// UpdateGapSettingsParams defines parameters for UpdateGapSettings.
+type UpdateGapSettingsParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // ListGapTopicsParams defines parameters for ListGapTopics.
 type ListGapTopicsParams struct {
 	AgentId *openapi_types.UUID `form:"agentId,omitempty" json:"agentId,omitempty"`
@@ -11863,6 +11965,9 @@ type UpdateEvaluationQuestionJSONRequestBody = EvaluationQuestionInput
 
 // StartEvaluationRunJSONRequestBody defines body for StartEvaluationRun for application/json ContentType.
 type StartEvaluationRunJSONRequestBody = EvaluationRunStart
+
+// UpdateGapSettingsJSONRequestBody defines body for UpdateGapSettings for application/json ContentType.
+type UpdateGapSettingsJSONRequestBody = GapSettingsUpdate
 
 // DismissGapTopicJSONRequestBody defines body for DismissGapTopic for application/json ContentType.
 type DismissGapTopicJSONRequestBody = GapTopicDismiss

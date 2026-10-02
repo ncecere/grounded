@@ -31,6 +31,8 @@ type fixture struct {
 	runner                *gaps.Runner
 	labels                *fakeLabeler
 	team, agent, kb       uuid.UUID
+	profile, systemOne    uuid.UUID
+	cat                   *catalog.Service
 	owner, editor, member authz.Actor
 	admin                 authz.Actor
 	slug                  string
@@ -58,9 +60,13 @@ func newFixture(t *testing.T) *fixture {
 		VALUES ($1, 'bow', 'bow-64', 'BoW', 'embedding', 'restricted', 64) RETURNING id`, conn.ID)
 	chat := f.id(`INSERT INTO models (connection_id, key, upstream_model, display_name, kind, max_classification)
 		VALUES ($1, 'chat', 'chat', 'Chat', 'chat', 'restricted') RETURNING id`, conn.ID)
+	f.systemOne = f.id(`INSERT INTO models (connection_id, key, upstream_model, display_name, kind, max_classification)
+		VALUES ($1, 's1', 'systemone-1', 'SystemOne', 'systemone', 'restricted') RETURNING id`, conn.ID)
+	f.cat = cat
 	profile := f.id(`INSERT INTO embedding_profiles (key, name, model_id, dimensions, storage_type, chunk_size, chunk_overlap)
 		VALUES ('bow', 'BoW', $1, 64, 'vector', 128, 0) RETURNING id`, embed)
 	f.team = f.id(`INSERT INTO teams (slug, name, max_classification) VALUES ('registrar', 'Registrar', 'restricted') RETURNING id`)
+	f.profile = profile
 	f.kb = f.id(`INSERT INTO knowledge_bases (team_id, name, embedding_profile_id) VALUES ($1, 'Handbook', $2) RETURNING id`, f.team, profile)
 	f.agent = f.id(`INSERT INTO agents (team_id, slug, name) VALUES ($1, 'helper', 'Helper') RETURNING id`, f.team)
 	version := f.id(`INSERT INTO agent_versions (agent_id, version, config, chat_model_id, effective_rank) VALUES ($1, 1, '{}', $2, 0) RETURNING id`, f.agent, chat)

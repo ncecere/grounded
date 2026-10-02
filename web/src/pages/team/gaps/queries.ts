@@ -6,6 +6,9 @@ export type GapTopic = Schemas["GapTopic"];
 export type GapTopicList = Schemas["GapTopicList"];
 export type GapSharedQuestion = Schemas["GapSharedQuestion"];
 export type GapState = GapTopic["state"];
+export type GapDismissKind = Schemas["GapDismissKind"];
+export type GapTopicEvent = Schemas["GapTopicEvent"];
+export type GapSettings = Schemas["GapSettings"];
 export type GapFilter = "open" | "closed";
 
 export const gapTopicsKey = (team: string) => ["team", team, "gap-topics"];
@@ -23,6 +26,14 @@ export const gapTopicQuery = (team: string, topicId: string) =>
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/gap-topics/{topicId}", { params: { path: { team, topicId } } })),
   });
 
+export const gapSettingsKey = (team: string) => ["team", team, "gap-settings"];
+
+export const gapSettingsQuery = (team: string) =>
+  queryOptions({
+    queryKey: gapSettingsKey(team),
+    queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/gap-settings", { params: { path: { team } } })),
+  });
+
 /** Why questions count as failed, in plain words. */
 export const signalLabels: Record<string, string> = {
   no_context: "Nothing found",
@@ -34,6 +45,34 @@ export const signalLabels: Record<string, string> = {
 };
 
 export const stateLabels: Record<GapState, string> = { open: "Open", dismissed: "Dismissed", fixed: "Fixed", resolved: "Answered now" };
+
+export const dismissKindLabels: Record<GapDismissKind, string> = { for_now: "Dismissed for now", not_for_agent: "Not for this agent" };
+
+/** A topic's state in words: a dismissal says which kind. */
+export const stateLabel = (t: Pick<GapTopic, "state" | "dismissKind">) => (t.state === "dismissed" && t.dismissKind ? dismissKindLabels[t.dismissKind] : stateLabels[t.state]);
+
+/** Questions that joined a closed topic since it closed: "3 more since dismissed" (undefined while open or with none). */
+export function sinceClosedLabel(t: Pick<GapTopic, "state" | "sinceClosed">): string | undefined {
+  if (t.state === "open" || t.sinceClosed === 0) return undefined;
+  const since = { dismissed: "dismissed", fixed: "marked fixed", resolved: "answered" }[t.state];
+  return `${t.sinceClosed.toLocaleString()} more since ${since}`;
+}
+
+/**
+ * Why some failed questions of the last 30 days show in no topic: in topics
+ * fewer than minAskers people asked about, or not grouped yet (hourly).
+ */
+export function pendingNote(l: Pick<GapTopicList, "pending" | "ungrouped" | "minAskers">): { title: string; detail: string } | undefined {
+  if (l.pending <= 0) return undefined;
+  const few = l.pending - l.ungrouped;
+  const n = (x: number) => x.toLocaleString();
+  const parts = [
+    few > 0 && `${n(few)} ${few === 1 ? "is in a topic" : "are in topics"} fewer than ${l.minAskers} people asked about.`,
+    l.ungrouped > 0 && `${n(l.ungrouped)} ${l.ungrouped === 1 ? "isn't" : "aren't"} grouped yet: questions are grouped every hour.`,
+  ].filter(Boolean);
+  const all = l.pending === 1 ? "1 failed question" : `${n(l.pending)} failed questions`;
+  return { title: `${all} from the last 30 days ${l.pending === 1 ? "isn't" : "aren't"} shown.`, detail: parts.join(" ") };
+}
 
 export const stateTones: Record<GapState, "warning" | "neutral" | "success"> = { open: "warning", dismissed: "neutral", fixed: "success", resolved: "success" };
 

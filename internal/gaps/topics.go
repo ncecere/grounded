@@ -1,19 +1,14 @@
-// Topics for the team's editors, admins and owners, and their actions.
+// Topics for the team's editors, admins and owners (the actions are in
+// actions.go).
 
 package gaps
 
 import (
 	"context"
-	"errors"
-	"strings"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
 	"github.com/ncecere/grounded/internal/authz"
-	"github.com/ncecere/grounded/internal/evals"
-	"github.com/ncecere/grounded/internal/store"
 	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
@@ -43,17 +38,22 @@ type Topic struct {
 type TopicList struct {
 	Topics []Topic
 	// Pending counts the last 30 days' failed questions not in a topic
-	// shown yet.
-	Pending int32
+	// shown yet; Ungrouped, those of them the topics job hasn't grouped
+	// yet (the rest are in topics below MinAskers).
+	Pending, Ungrouped int32
 }
 
 // SharedQuestion is a question its asker shared with the team.
 type SharedQuestion = dbgen.ListSharedGapQuestionsRow
 
-// TopicDetail is a topic with its shared questions.
+// Event is a line of a topic's history.
+type Event = dbgen.ListGapTopicEventsRow
+
+// TopicDetail is a topic with its shared questions and its history.
 type TopicDetail struct {
-	Topic  Topic
-	Shared []SharedQuestion
+	Topic   Topic
+	Shared  []SharedQuestion
+	History []Event
 }
 
 // states maps the list filter to topic states (nil: all).
@@ -90,7 +90,7 @@ func (s *Service) List(ctx context.Context, a authz.Actor, teamRef string, agent
 		return TopicList{}, err
 	}
 	pending, err := s.q.GapPendingCount(ctx, dbgen.GapPendingCountParams{TeamID: acc.Team.ID, AgentID: agent, MinAskers: MinAskers})
-	return TopicList{Topics: topics, Pending: pending}, err
+	return TopicList{Topics: topics, Pending: pending.Pending, Ungrouped: pending.Ungrouped}, err
 }
 
 // Get returns a topic shown to editors with its shared questions.
@@ -104,7 +104,11 @@ func (s *Service) Get(ctx context.Context, a authz.Actor, teamRef string, id uui
 		return TopicDetail{}, err
 	}
 	shared, err := s.q.ListSharedGapQuestions(ctx, uuid.NullUUID{UUID: id, Valid: true})
-	return TopicDetail{Topic: t, Shared: shared}, err
+	if err != nil {
+		return TopicDetail{}, err
+	}
+	history, err := s.q.ListGapTopicEvents(ctx, id)
+	return TopicDetail{Topic: t, Shared: shared, History: history}, err
 }
 
 // topic loads one visible topic (404 below MinAskers).
@@ -161,125 +165,4 @@ func (s *Service) decorate(ctx context.Context, rows []dbgen.ListGapTopicsRow) (
 		}
 	}
 	return out, nil
-}
-
-// Dismiss closes a topic with an optional reason (audited).
-func (s *Service) Dismiss(ctx context.Context, a authz.Actor, teamRef string, id uuid.UUID, reason string) (Topic, error) {
-	reason = strings.TrimSpace(reason)
-	if utf8.RuneCountInString(reason) > 500 {
-		return Topic{}, errLongNote
-	}
-	return s.setState(ctx, a, teamRef, id, StateDismissed, reason)
-}
-
-// Fix marks a topic fixed (audited).
-func (s *Service) Fix(ctx context.Context, a authz.Actor, teamRef string, id uuid.UUID) (Topic, error) {
-	return s.setState(ctx, a, teamRef, id, StateFixed, "")
-}
-
-// setState records a person's dismissal or fix of an open topic.
-func (s *Service) setState(ctx context.Context, a authz.Actor, teamRef string, id uuid.UUID, state, reason string) (Topic, error) {
-	acc, err := s.access(ctx, a, teamRef, true)
-	if err != nil {
-		return Topic{}, err
-	}
-	if _, err := s.topic(ctx, acc.Team.ID, id); err != nil {
-		return Topic{}, err
-	}
-	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		cur, err := q.LockGapTopic(ctx, dbgen.LockGapTopicParams{ID: id, TeamID: acc.Team.ID})
-		if errors.Is(store.NotFound(err), store.ErrNotFound) {
-			return errNoTopic
-		} else if err != nil {
-			return err
-		}
-		if cur.State != StateOpen {
-			return errClosedNow
-		}
-		if err := q.SetGapTopicState(ctx, dbgen.SetGapTopicStateParams{ID: id, State: state, StateReason: reason,
-			StateChangedBy: uuid.NullUUID{UUID: a.UserID, Valid: true}}); err != nil {
-			return err
-		}
-		meta := map[string]any{"agentId": cur.AgentID, "from": cur.State, "to": state}
-		if reason != "" {
-			meta["reason"] = reason
-		}
-		return audited(ctx, q, a, "gap_topic."+map[string]string{StateDismissed: "dismiss", StateFixed: "fix"}[state], acc.Team.ID, id, meta)
-	})
-	if err != nil {
-		return Topic{}, err
-	}
-	return s.topic(ctx, acc.Team.ID, id)
-}
-
-// AddSource records that an editor went to add a source for the topic
-// (audited); the app opens Data sources with the topic as a note.
-func (s *Service) AddSource(ctx context.Context, a authz.Actor, teamRef string, id uuid.UUID) (Topic, error) {
-	acc, err := s.access(ctx, a, teamRef, true)
-	if err != nil {
-		return Topic{}, err
-	}
-	t, err := s.topic(ctx, acc.Team.ID, id)
-	if err != nil {
-		return Topic{}, err
-	}
-	err = audited(ctx, s.q, a, "gap_topic.add_source", acc.Team.ID, id, map[string]any{"agentId": t.AgentID})
-	return t, err
-}
-
-// EvaluationInput adds a shared question to an evaluation set.
-type EvaluationInput struct {
-	SetID, SharedQuestionID uuid.UUID
-	// Question is the text as added ("": the shared text).
-	Question    string
-	Expected    evals.Expected
-	MustMention []string
-	Note        string
-}
-
-// AddToEvaluations adds one of the topic's shared questions to an
-// evaluation set of the team (evaluations must be on; audited as
-// evaluation.question_create by internal/evals and gap_topic.add_to_evaluations).
-func (s *Service) AddToEvaluations(ctx context.Context, a authz.Actor, teamRef string, id uuid.UUID, in EvaluationInput) (SharedQuestion, uuid.UUID, error) {
-	acc, err := s.access(ctx, a, teamRef, true)
-	if err != nil {
-		return SharedQuestion{}, uuid.Nil, err
-	}
-	if s.Evals == nil {
-		return SharedQuestion{}, uuid.Nil, errNoEvals
-	}
-	if _, err := s.topic(ctx, acc.Team.ID, id); err != nil {
-		return SharedQuestion{}, uuid.Nil, err
-	}
-	sq, err := s.q.GetSharedGapQuestion(ctx, dbgen.GetSharedGapQuestionParams{ID: in.SharedQuestionID, TopicID: uuid.NullUUID{UUID: id, Valid: true}})
-	if errors.Is(store.NotFound(err), store.ErrNotFound) {
-		return SharedQuestion{}, uuid.Nil, errNoShared
-	} else if err != nil {
-		return SharedQuestion{}, uuid.Nil, err
-	}
-	text := strings.TrimSpace(in.Question)
-	if text == "" {
-		text = sq.Question
-	}
-	c, err := s.Evals.CreateQuestion(ctx, a, teamRef, in.SetID, evals.CaseInput{Question: text, Expected: in.Expected, MustMention: in.MustMention, Note: in.Note})
-	if err != nil {
-		return SharedQuestion{}, uuid.Nil, err
-	}
-	err = store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {
-		if err := q.SetGapQuestionEvaluation(ctx, dbgen.SetGapQuestionEvaluationParams{ID: sq.ID,
-			EvaluationQuestionID: uuid.NullUUID{UUID: c.ID, Valid: true}}); err != nil {
-			return err
-		}
-		return audited(ctx, q, a, "gap_topic.add_to_evaluations", acc.Team.ID, id,
-			map[string]any{"sharedQuestionId": sq.ID, "evaluationSetId": in.SetID, "evaluationQuestionId": c.ID})
-	})
-	sq.EvaluationQuestionID = uuid.NullUUID{UUID: c.ID, Valid: true}
-	return SharedQuestion(sq), c.ID, err
-}
-
-func nullID(id *uuid.UUID) uuid.NullUUID {
-	if id == nil {
-		return uuid.NullUUID{}
-	}
-	return uuid.NullUUID{UUID: *id, Valid: true}
 }

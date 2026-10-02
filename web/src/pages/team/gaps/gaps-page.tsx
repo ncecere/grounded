@@ -4,10 +4,11 @@
  * Closed (dismissed, fixed or answered now). A topic shows once at least 3
  * different people asked about it, with its label, signals and trend, never
  * a question's text unless its asker shared it; ?record= opens a topic.
+ * Settings (?tab=settings): confirming similar questions with SystemOne.
  * Editors, admins and owners; others get the not-found page.
  */
 import { useQuery } from "@tanstack/react-query";
-import { CircleAlert, CircleCheck } from "lucide-react";
+import { CircleAlert, CircleCheck, Settings } from "lucide-react";
 import { NotFoundState } from "@/components/not-found";
 import { PageTabs, useUrlTab } from "@/components/page-tabs";
 import { useRecordParam } from "@/components/templates/record-page";
@@ -16,8 +17,9 @@ import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { gapTabs } from "@/lib/tabs";
 import sh from "../../shared.module.css";
-import { plural, useTeam } from "../common";
-import { type GapFilter, gapTopicsQuery } from "./queries";
+import { useTeam } from "../common";
+import { type GapFilter, gapTopicsQuery, pendingNote } from "./queries";
+import { GapSettingsTab } from "./settings";
 import { GapTopicRecord } from "./topic-record";
 import { GapTopicsTable } from "./topics-table";
 
@@ -40,6 +42,7 @@ export function TeamGapsPage() {
         tabs={[
           { value: "open", label: "Open", icon: <CircleAlert aria-hidden />, content: <Topics team={slug} state="open" /> },
           { value: "closed", label: "Closed", icon: <CircleCheck aria-hidden />, content: <Topics team={slug} state="closed" /> },
+          { value: "settings", label: "Settings", icon: <Settings aria-hidden />, content: <GapSettingsTab team={slug} /> },
         ]}
       />
       <GapTopicRecord team={slug} topicId={record.id} onClose={record.close} />
@@ -49,12 +52,12 @@ export function TeamGapsPage() {
 
 function Topics({ team, state }: { team: string; state: GapFilter }) {
   const q = useQuery(gapTopicsQuery(team, { state }));
-  const pending = q.data?.pending ?? 0;
+  const note = state === "open" && q.data ? pendingNote(q.data) : undefined;
   return (
     <Stack gap={4}>
-      {state === "open" && pending > 0 && (
-        <Alert tone="info" title={`${plural(pending, "failed question")} in the last 30 days ${pending === 1 ? "isn't" : "aren't"} in a topic yet.`}>
-          Questions are grouped every hour, and a topic shows once {q.data?.minAskers ?? 3} different people asked about it.
+      {note && (
+        <Alert tone="info" title={note.title}>
+          {note.detail}
         </Alert>
       )}
       <GapTopicsTable
@@ -69,7 +72,7 @@ function Topics({ team, state }: { team: string; state: GapFilter }) {
         emptyDescription={
           state === "open"
             ? "When several people ask your agents something they can't answer, the topic shows here."
-            : "Topics you dismiss or mark fixed, and topics whose questions are answered now, show here."
+            : "Topics you dismiss or mark fixed, and topics whose questions are answered now, show here. You can reopen them."
         }
       />
     </Stack>

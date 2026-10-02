@@ -5760,6 +5760,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AnalyticsFromParam"
         - $ref: "#/components/parameters/AnalyticsToParam"
+        - $ref: "#/components/parameters/AnalyticsAudienceParam"
       responses:
         "200":
           description: Counts per team, most failed questions first
@@ -7129,7 +7130,10 @@ paths:
     post:
       tags: [gaps]
       operationId: dismissGapTopic
-      summary: Dismiss a topic, with an optional reason; it reopens on new failures (audited)
+      summary: Dismiss a topic for now (it reopens on new failures) or as not for this agent (it stays closed), with an optional reason (audited)
+      description: >-
+        The reason is kept in the topic's history, which only the team's editors, admins and owners
+        see; the audit entry carries the kind and whether there was a reason, never its text.
       requestBody:
         required: false
         content:
@@ -7148,6 +7152,70 @@ paths:
         "400": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/gap-topics/{topicId}/reopen:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - $ref: "#/components/parameters/GapTopicIdParam"
+    post:
+      tags: [gaps]
+      operationId: reopenGapTopic
+      summary: Reopen a closed topic, undoing a dismissal or a fix (audited)
+      responses:
+        "200":
+          description: Reopened
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/GapTopic" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+  /v1/teams/{team}/gap-settings:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+    get:
+      tags: [gaps]
+      operationId: getGapSettings
+      summary: The team's gap report settings (editors, admins and owners)
+      responses:
+        "200":
+          description: The settings (the defaults when never saved); the ETag is the revision
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/GapSettings" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+    put:
+      tags: [gaps]
+      operationId: updateGapSettings
+      summary: Change the team's gap report settings (editors, admins and owners; If-Match; audited)
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GapSettingsUpdate" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/GapSettings" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/gap-topics/{topicId}/fix:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -12850,7 +12918,7 @@ components:
       additionalProperties: { type: integer, format: int32 }
     GapTopic:
       type: object
-      required: [id, agentId, agentName, label, state, stateReason, stateChangedAt, questions, askers, shared, last30Days, firstSeen, lastSeen, signals, reasons, trend]
+      required: [id, agentId, agentName, label, state, stateReason, stateChangedAt, questions, askers, shared, last30Days, sinceClosed, firstSeen, lastSeen, signals, reasons, trend]
       properties:
         id: { type: string, format: uuid }
         agentId: { type: string, format: uuid }
@@ -12858,14 +12926,16 @@ components:
         label: { type: string, description: "2-5 words written by the agent's chat model from the topic's questions; empty until the topics job labels it", example: "Parking permits" }
         state:
           type: string
-          description: "open; dismissed or fixed by an editor; resolved when its questions started being answered well. A closed topic reopens on new failures."
+          description: "open; dismissed or fixed by an editor; resolved when its questions started being answered well. A closed topic reopens on new failures, except one dismissed as not for this agent."
           enum: [open, dismissed, fixed, resolved]
-        stateReason: { type: string, description: "The optional reason of a dismissal" }
+        dismissKind: { $ref: "#/components/schemas/GapDismissKind" }
+        stateReason: { type: string, description: "The optional reason of the current dismissal (earlier ones are in the topic's history)" }
         stateChangedAt: { type: string, format: date-time }
         questions: { type: integer, format: int32 }
         askers: { type: integer, format: int32, description: Different askers (pseudonymous; an anonymous session counts as one) }
         shared: { type: integer, format: int32, description: Questions their askers shared }
         last30Days: { type: integer, format: int32 }
+        sinceClosed: { type: integer, format: int32, description: "Questions that joined a closed topic since it closed (0 while open)" }
         firstSeen: { type: string, format: date-time }
         lastSeen: { type: string, format: date-time }
         signals: { $ref: "#/components/schemas/GapSignalCounts" }
@@ -12879,12 +12949,13 @@ components:
           items: { type: integer, format: int32 }
     GapTopicList:
       type: object
-      required: [topics, pending, minAskers]
+      required: [topics, pending, ungrouped, minAskers]
       properties:
         topics:
           type: array
           items: { $ref: "#/components/schemas/GapTopic" }
         pending: { type: integer, format: int32, description: "Failed questions of the last 30 days not in a topic shown yet (not grouped yet, or fewer than minAskers askers)" }
+        ungrouped: { type: integer, format: int32, description: "Of pending, the questions the hourly topics job hasn't grouped yet" }
         minAskers: { type: integer, format: int32 }
     GapSharedQuestion:
       type: object
@@ -12897,16 +12968,51 @@ components:
         createdAt: { type: string, format: date-time }
     GapTopicDetail:
       type: object
-      required: [topic, sharedQuestions]
+      required: [topic, sharedQuestions, history]
       properties:
         topic: { $ref: "#/components/schemas/GapTopic" }
         sharedQuestions:
           type: array
           items: { $ref: "#/components/schemas/GapSharedQuestion" }
+        history:
+          type: array
+          description: The topic's dismissals, fixes, reopenings, resolutions and merges, newest first (at most 50)
+          items: { $ref: "#/components/schemas/GapTopicEvent" }
+    GapDismissKind:
+      type: string
+      description: "for_now: the topic reopens when newer questions about it fail; not_for_agent: it stays closed, and new questions are still counted"
+      enum: [for_now, not_for_agent]
+    GapTopicEvent:
+      type: object
+      required: [id, kind, reason, at]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [dismissed, fixed, reopened, resolved, merged] }
+        dismissKind: { $ref: "#/components/schemas/GapDismissKind" }
+        reason: { type: string, description: "A dismissal's reason (empty: none)" }
+        by: { type: string, description: "Who acted; absent when the hourly topics job did" }
+        at: { type: string, format: date-time }
     GapTopicDismiss:
       type: object
       properties:
         reason: { type: string, maxLength: 500 }
+        kind: { $ref: "#/components/schemas/GapDismissKind" }
+    GapSettings:
+      type: object
+      required: [confirmSimilar, revision]
+      properties:
+        confirmSimilar:
+          type: boolean
+          description: >-
+            The hourly topics job asks SystemOne whether borderline questions and topics are about the same subject
+            (metered to the team; needs a SystemOne model). Off by default.
+        revision: { type: integer, format: int64 }
+        updatedAt: { type: string, format: date-time }
+    GapSettingsUpdate:
+      type: object
+      required: [confirmSimilar]
+      properties:
+        confirmSimilar: { type: boolean }
     GapEvaluationAdd:
       type: object
       required: [setId, sharedQuestionId, expected]

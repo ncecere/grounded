@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -33,8 +34,33 @@ func DecodeCase(c dbgen.EvalCase) Case {
 	return out
 }
 
+// caseSnapshot is what an audit entry keeps of a question: never its text,
+// its phrases or its note. Team audit logs are readable by platform staff,
+// and a question may be a person's failed question shared with the team
+// (the gap report, docs/gaps.md: added in one click, or copied by hand),
+// which platform staff must never read (ADR-0010 as amended for v0.4.0).
+// The expected documents are references to the team's own sources.
 func caseSnapshot(c dbgen.EvalCase) map[string]any {
-	return map[string]any{"question": clip(c.Question, 200), "expected": json.RawMessage(c.Expected), "mustMention": c.MustMention, "note": clip(c.Note, 200)}
+	return map[string]any{"expected": json.RawMessage(c.Expected), "mustMention": len(c.MustMention), "hasNote": c.Note != ""}
+}
+
+// caseChanges names the fields an update changed (the audit entry has no
+// text to compare).
+func caseChanges(cur, next dbgen.EvalCase) []string {
+	out := []string{}
+	if cur.Question != next.Question {
+		out = append(out, "question")
+	}
+	if !bytes.Equal(cur.Expected, next.Expected) {
+		out = append(out, "expected")
+	}
+	if strings.Join(cur.MustMention, "\x00") != strings.Join(next.MustMention, "\x00") {
+		out = append(out, "mustMention")
+	}
+	if cur.Note != next.Note {
+		out = append(out, "note")
+	}
+	return out
 }
 
 // Questions lists a set's questions.
@@ -111,7 +137,11 @@ func (s *Service) CreateQuestion(ctx context.Context, a authz.Actor, teamRef str
 		}
 		e := a.Audit("evaluation.question_create", "evaluation_set", setID.String())
 		e.After = caseSnapshot(c)
-		e.Metadata = mergeMeta(e.Metadata, map[string]any{"questionId": c.ID})
+		meta := map[string]any{"questionId": c.ID}
+		if in.FromSharedQuestion != uuid.Nil {
+			meta["fromSharedQuestion"] = in.FromSharedQuestion
+		}
+		e.Metadata = mergeMeta(e.Metadata, meta)
 		return audited(ctx, q, e, acc.Team.ID)
 	})
 	return DecodeCase(c), err
@@ -183,7 +213,7 @@ func (s *Service) UpdateQuestion(ctx context.Context, a authz.Actor, teamRef str
 		}
 		e := a.Audit("evaluation.question_update", "evaluation_set", setID.String())
 		e.Before, e.After = caseSnapshot(cur), caseSnapshot(next)
-		e.Metadata = mergeMeta(e.Metadata, map[string]any{"questionId": id})
+		e.Metadata = mergeMeta(e.Metadata, map[string]any{"questionId": id, "changed": caseChanges(cur, next)})
 		return audited(ctx, q, e, acc.Team.ID)
 	})
 	return DecodeCase(next), err
