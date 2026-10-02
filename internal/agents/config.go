@@ -90,6 +90,10 @@ type Config struct {
 	// the best RerankTopN passages of each (docs/v0.4.0.md §3).
 	Rerank     bool `json:"rerank"`
 	RerankTopN int  `json:"rerankTopN"`
+	// FollowUpSuggestions offers up to 3 follow-up questions under an
+	// answer with citations (docs/follow-ups.md): on by default, and for
+	// configurations saved before v0.4.1 (owner decision, 2026-10-02).
+	FollowUpSuggestions bool `json:"followUpSuggestions"`
 }
 
 // configInput is Config with every field optional, so absent fields take
@@ -116,6 +120,7 @@ type configInput struct {
 	Tools              []uuid.UUID          `json:"tools"`
 	Rerank             *bool                `json:"rerank"`
 	RerankTopN         *int                 `json:"rerankTopN"`
+	FollowUps          *bool                `json:"followUpSuggestions"`
 }
 
 // Problem is one reason a configuration is invalid.
@@ -190,6 +195,7 @@ func normalize(in configInput) (Config, []Problem) {
 		StrictlyGrounded: true, RefusalMessage: DefaultRefusal, CitationMode: CitationSnippetLink,
 		QueryRewrite: true, Moderation: moderation.Override{}.Normalize(), KBs: []KBRef{},
 		Audience: authz.AudienceTeam, Tools: []uuid.UUID{}, Rerank: true, RerankTopN: rerank.DefaultTopN,
+		FollowUpSuggestions: true,
 	}
 	c.normalizeModel(in, &p)
 	c.normalizeTools(in.Tools, &p)
@@ -322,6 +328,7 @@ func (c *Config) normalizeAnswer(in configInput, p *problems) {
 		p.bad("citationMode", "Citation mode must be none, snippet or snippet_link")
 	}
 	setIf(&c.QueryRewrite, in.QueryRewrite)
+	setIf(&c.FollowUpSuggestions, in.FollowUps)
 	setIf(&c.Audience, in.Audience)
 	if !authz.ValidAudience(c.Audience) {
 		p.bad("audience", "Audience must be team, all_authenticated or public")

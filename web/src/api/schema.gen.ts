@@ -3016,7 +3016,7 @@ export interface paths {
         put?: never;
         /**
          * Ask an agent (session, or an API key with the query scope)
-         * @description Sessions and personal API keys store the conversation (send conversationId to continue one). Service keys are stateless: send prior turns in history; conversationId is rejected. With stream true (the default) the reply is Server-Sent Events: named events whose data is JSON (see ChatEvent* schemas), in this order: conversation, status (what the agent is doing before the answer's first words: rewriting, searching, checking, answering; one event per step, and clients should ignore steps they don't know), retrieval (always mode), message_start, then thinking_delta / text_delta / tool_call / retrieval / tool_result as they happen, moderation (only when moderation replaced the question's answer or the answer with a notice), message_end, citations_checked (only when SystemOne citation checks are on and the answer has citations: it follows message_end and replaces the answer's citations, and in enforce mode its text), error (only on failure), done. A blocked question gets conversation, status, message_start, moderation, message_end. A ": ping" comment is sent every 15 s. Errors before the stream starts (agent_disabled, agent_policy_violation, rate_limited, quota_exceeded, budget_exhausted, and model_unavailable when the agent's model is unusable) are plain HTTP errors; a failure after the first status event (model_unavailable or model_busy when the model is called) is an error event. 429 budget_exhausted (details budget, spent, currency, resetsAt) means the team's enforced monthly budget is used up (docs/costs.md). text_delta carries the raw model text; message_end.text is the final text (unknown [n] markers removed, [1, 2] written as [1][2], markers removed in citation mode none). Closing the connection stops the answer; the partial answer is saved with stopReason aborted.
+         * @description Sessions and personal API keys store the conversation (send conversationId to continue one). Service keys are stateless: send prior turns in history; conversationId is rejected. With stream true (the default) the reply is Server-Sent Events: named events whose data is JSON (see ChatEvent* schemas), in this order: conversation, status (what the agent is doing before the answer's first words: rewriting, searching, checking, answering; one event per step, and clients should ignore steps they don't know), retrieval (always mode), message_start, then thinking_delta / text_delta / tool_call / retrieval / tool_result as they happen, moderation (only when moderation replaced the question's answer or the answer with a notice), message_end, citations_checked (only when SystemOne citation checks are on and the answer has citations: it follows message_end and replaces the answer's citations, and in enforce mode its text), error (only on failure), suggestions (follow-up questions, v0.4.1 and later: only after an answer with citations, when the agent offers them; it follows message_end and citations_checked, and the answer is complete before it), done. A blocked question gets conversation, status, message_start, moderation, message_end. A ": ping" comment is sent every 15 s. Errors before the stream starts (agent_disabled, agent_policy_violation, rate_limited, quota_exceeded, budget_exhausted, and model_unavailable when the agent's model is unusable) are plain HTTP errors; a failure after the first status event (model_unavailable or model_busy when the model is called) is an error event. 429 budget_exhausted (details budget, spent, currency, resetsAt) means the team's enforced monthly budget is used up (docs/costs.md). text_delta carries the raw model text; message_end.text is the final text (unknown [n] markers removed, [1, 2] written as [1][2], markers removed in citation mode none). Closing the connection stops the answer; the partial answer is saved with stopReason aborted.
          */
         post: operations["chat"];
         delete?: never;
@@ -8098,6 +8098,8 @@ export interface components {
             rerank?: boolean;
             /** @description Passages each reranked search keeps, for judging or the model */
             rerankTopN?: number;
+            /** @description Suggest up to 3 follow-up questions under an answer with citations (docs/follow-ups.md); absent in configurations saved before v0.4.1 (on) */
+            followUpSuggestions?: boolean;
         };
         /** @description A draft configuration. Every field is optional (defaults apply); types and ranges are checked (400 invalid_config with details.problems) but an incomplete draft (no model, no knowledge bases) can be saved. Unknown fields are rejected. */
         AgentConfigInput: {
@@ -8144,6 +8146,11 @@ export interface components {
              * @default 6
              */
             rerankTopN: number;
+            /**
+             * @description Suggest up to 3 follow-up questions the retrieved passages answer, under an answer with citations (docs/follow-ups.md): a small chat-model call after the answer, metered as chat tokens
+             * @default true
+             */
+            followUpSuggestions: boolean;
         };
         /** @description The agent's "SystemOne checks" (Configure, Advanced). Absent or empty follows the platform. Only takes effect when a SystemOne model is configured; thresholds are platform-only. */
         AgentSystemOne: {
@@ -9118,6 +9125,14 @@ export interface components {
             uncited?: components["schemas"]["UncitedSentence"][];
             /** @description Set when citations were checked before the answer was released (buffered and JSON answers): the answer's claims with their verdicts (docs/systemone.md §3). */
             claims?: components["schemas"]["Claim"][];
+            /** @description The citations are checked now (SystemOne citation checks on a streamed answer): wait for citations_checked (or done) before treating the answer as final (v0.4.1 and later). */
+            citationsPending?: boolean;
+        };
+        /** @description SSE event suggestions (v0.4.1 and later; docs/follow-ups.md): up to 3 follow-up questions the answer's passages can answer, written by the agent's chat model after the answer ended. Follows message_end and citations_checked, before done; sent only when there is at least one (never after a refusal, an answer without citations, a moderated answer or an error), and not on the OpenAI-compatible endpoint or MCP ask. Choosing one asks it as the next question. */
+        ChatEventSuggestions: {
+            /** Format: uuid */
+            messageId: string;
+            suggestions: string[];
         };
         /** @description SSE event citations_checked (SystemOne citation checks, streaming modes): follows message_end. citations replace the answer's; text is the final text (changed in enforce mode, where unsupported markers are removed or, with refused, the answer is replaced by the refusal). */
         ChatEventCitationsChecked: {

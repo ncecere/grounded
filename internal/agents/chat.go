@@ -120,6 +120,10 @@ type Answer struct {
 	// storedCode is the stored message's error code when it differs from
 	// ErrorCode (moderation notices).
 	storedCode string
+	// Suggestions are the follow-up questions (suggest.go); citePending:
+	// message_end says citations_checked follows.
+	Suggestions []string
+	citePending bool
 }
 
 // run is one answer in progress.

@@ -92,6 +92,8 @@ func decideFakeReply(in *fakeChatRequest, answer string, script []FakeToolCall) 
 	switch {
 	case isFakeRewrite(in):
 		out.text = question
+	case isFakeSuggestions(in):
+		out.text = fakeSuggestions(question)
 	case len(script) > 0:
 		if call, ok := scriptedCall(in, choice, script, toolResults); ok {
 			out.toolName, out.toolArgs = call.Name, call.Args
@@ -126,6 +128,50 @@ func isFakeRewrite(in *fakeChatRequest) bool {
 	}
 	return false
 }
+
+// isFakeSuggestions recognises the follow-up suggestions call: no tools
+// and a system prompt asking to "suggest follow-up questions".
+func isFakeSuggestions(in *fakeChatRequest) bool {
+	if len(in.Tools) > 0 {
+		return false
+	}
+	for _, m := range in.Messages {
+		if (m.Role == "system" || m.Role == "developer") && strings.Contains(strings.ToLower(fakeText(m.Content)), "suggest follow-up questions") {
+			return true
+		}
+	}
+	return false
+}
+
+// FakeNoSuggestions in the question makes the suggestions call reply NONE.
+const FakeNoSuggestions = "FAKE-NO-SUGGESTIONS"
+
+// fakeSuggestions answers the suggestions call: one question per passage
+// line ("- Title › Heading"), about its deepest heading, as a numbered
+// list (at most 3), or NONE.
+func fakeSuggestions(input string) string {
+	if strings.Contains(input, FakeNoSuggestions) {
+		return "NONE"
+	}
+	_, passages, _ := strings.Cut(input, "Passages")
+	var lines []string
+	for _, line := range strings.Split(passages, "\n") {
+		line, ok := strings.CutPrefix(strings.TrimSpace(line), "- ")
+		if !ok || len(lines) == 3 {
+			continue
+		}
+		parts := strings.Split(line, " › ")
+		lines = append(lines, fmt.Sprintf("%d. %s", len(lines)+1, FakeSuggestion(parts[len(parts)-1])))
+	}
+	if len(lines) == 0 {
+		return "NONE"
+	}
+	return strings.Join(lines, "\n")
+}
+
+// FakeSuggestion is the fake's follow-up question about a passage's title
+// or deepest heading.
+func FakeSuggestion(topic string) string { return "What else should I know about " + topic + "?" }
 
 // scriptedCall is the scripted call for this turn, when it is offered.
 func scriptedCall(in *fakeChatRequest, choice string, script []FakeToolCall, done int) (FakeToolCall, bool) {
@@ -273,7 +319,7 @@ func (p *FakeProxy) completions(w http.ResponseWriter, r *http.Request) {
 	}
 	ok := p.chat[in.Model]
 	p.chatBodies = append(p.chatBodies, raw)
-	delay, answer, script, first := p.chunkDelay, p.answer, p.toolScript, p.replyDelay
+	delay, answer, script, first, suggestions := p.chunkDelay, p.answer, p.toolScript, p.replyDelay, p.suggestions
 	if isFakeRewrite(&in) {
 		first = p.rewriteDelay
 	}
@@ -287,6 +333,9 @@ func (p *FakeProxy) completions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	reply := decideFakeReply(&in, answer, script)
+	if isFakeSuggestions(&in) && suggestions != "" {
+		reply.text = suggestions
+	}
 	completion := len(strings.Fields(reply.text)) + len(strings.Fields(reply.toolArgs)) + len(FakeReasoning)
 	usage := map[string]any{
 		"prompt_tokens": reply.promptTokens, "completion_tokens": completion,
