@@ -43,8 +43,25 @@ async function publicAgent(admin: Api, name: string, docs?: { name: string; body
   return { owner, team, agent };
 }
 
-/** The next chat stream's body (SSE), once it ends. */
-const chatStream = (page: Page) => page.waitForResponse((r) => r.url().endsWith("/chat") && r.request().method() === "POST").then((r) => r.text());
+/**
+ * The next chat stream's body (SSE), once it ends. The browser can't hand an event stream's body back, so the request
+ * goes through a route that reads it and passes it on (the page then gets the events at once).
+ */
+async function chatStream(page: Page): Promise<{ body: Promise<string> }> {
+  let done!: (body: string) => void;
+  const body = new Promise<string>((resolve) => (done = resolve));
+  await page.route(
+    (url) => url.pathname.endsWith("/chat"),
+    async (route) => {
+      const res = await route.fetch();
+      const text = await res.text();
+      await route.fulfill({ response: res, body: text });
+      done(text);
+    },
+    { times: 1 },
+  );
+  return { body };
+}
 
 test("the public page: a signed-out visitor chats with a public agent", async ({ page, admin, a11y }) => {
   const { owner, team } = await publicAgent(admin, "Public parking");
@@ -57,12 +74,12 @@ test("the public page: a signed-out visitor chats with a public agent", async ({
   await a11y(page, "public agent page");
 
   await composer.fill("How much is a student parking permit?");
-  const stream = chatStream(page);
+  const stream = await chatStream(page);
   await composer.press("Enter");
   const answer = page.getByRole("article", { name: "Public parking said" });
   await expect(answer).toContainText(handbook.answer);
   // Public answers stream in checked paragraphs (the seed's policy, the public default): no thinking.
-  const body = await stream;
+  const body = await stream.body;
   expect(body).toContain('"mode":"stream_checked"');
   expect(body).toContain("event: text_delta");
   expect(body).not.toContain("event: thinking_delta");
@@ -91,7 +108,7 @@ test("the public page: a failing paragraph replaces the whole answer with the no
   await page.goto(`/a/${team}/public-fines`);
   const composer = page.getByRole("textbox", { name: "Message Public fines" });
   await composer.fill("Where are parking fines paid?");
-  const stream = chatStream(page);
+  const stream = await chatStream(page);
   await composer.press("Enter");
   const answer = page.getByRole("article", { name: "Public fines said" });
   await expect(answer).toContainText("Answer removed");
@@ -99,7 +116,7 @@ test("the public page: a failing paragraph replaces the whole answer with the no
   await expect(answer).not.toContainText("The sources say");
   await expect(answer).not.toContainText("Parking fines are paid");
   // The first paragraph was shown, then retracted; the failing one never was.
-  const body = await stream;
+  const body = await stream.body;
   expect(body).toContain('"action":"retracted"');
   expect(body.indexOf("event: text_delta")).toBeLessThan(body.indexOf("event: moderation"));
   const shown = body.split("\n\n").filter((e) => e.startsWith("event: text_delta")).join("\n");
@@ -141,10 +158,10 @@ test("the widget on an allowed origin, and nothing on another", async ({ page, a
       await expect(composer).toBeEnabled();
       await a11y(page, "widget panel open");
       await composer.fill("How much is a student parking permit?");
-      const stream = chatStream(page);
+      const stream = await chatStream(page);
       await composer.press("Enter");
       await expect(widget.getByRole("article", { name: "Widget parking said" })).toContainText(handbook.answer);
-      expect(await stream).toContain('"mode":"stream_checked"');
+      expect(await stream.body).toContain('"mode":"stream_checked"');
       await a11y(page, "widget answer");
 
       await panel.getByRole("button", { name: "Close chat" }).click();
