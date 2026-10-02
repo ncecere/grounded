@@ -43,8 +43,9 @@ Route groups (`group`): `ops` (`/healthz`, `/readyz`, `/metrics`), `chat` (strea
 | `grounded_chat_first_token_seconds` | histogram | `channel` | Question to the first streamed token (absent when nothing streamed) |
 | `grounded_chat_duration_seconds` | histogram | `channel` | Question to the end of the answer (before a streamed answer's citation check) |
 | `grounded_retrieval_duration_seconds` | histogram | `outcome` (`ok`, `error`) | One hybrid search over one knowledge base, including the query embedding |
-| `grounded_systemone_requests_total` | counter | `feature`, `outcome` | Features: `moderation`, `judging`, `citations`, `scope`, `test`. Outcomes: `ok`, `timeout`, `error` |
+| `grounded_systemone_requests_total` | counter | `feature`, `outcome` | Features: `moderation`, `judging`, `citations`, `scope`, `cache` (the answer cache's same-question check), `gaps` (the gap topics job's same-subject check), `test` (Test model). Outcomes: `ok`, `timeout`, `error` |
 | `grounded_systemone_request_duration_seconds` | histogram | `feature` | After a concurrency slot is free |
+| `grounded_systemone_wait_seconds` | histogram | `feature`, `priority` | Time waiting for a slot of the connection's `max_concurrent_requests` in this process (zero below the limit), including waits cut short. `priority`: `interactive` (answers, Try it, Test model) or `background` (evaluation runs, the gap topics job). Waiting at `interactive` means the limit, or the SystemOne service, is too small ([`systemone.md`](../systemone.md#capacity)) |
 | `grounded_rerank_requests_total` | counter | `caller`, `status` | Rerank calls of searches ([`rerank.md`](rerank.md)). Callers: `agent`, `retrieve` (Try it, the retrieval API, MCP `search`), `evaluation`. Statuses: `ok`, `timeout` and `error` (the search kept the fusion order), `skipped` (the rerank model may not read the knowledge base's classification; nothing was sent) |
 | `grounded_rerank_duration_seconds` | histogram | `caller` | Bounded by the platform's rerank time limit |
 | `grounded_moderation_decisions_total` | counter | `stage` (`input`, `output`), `decision` | Decisions: `pass`, `flag`, `block`, `support`, `error` (the provider failed; the policy decides whether that blocks) |
@@ -131,7 +132,7 @@ The worker and `serve` processes read these from Postgres when scraped (cached f
 | **Grounded / API** (`grounded-api`) | Traffic, errors and latency by route group, the slowest and most failing routes, requests in flight, the Postgres pool, Valkey errors, break-glass reads, CPU, memory, goroutines and versions |
 | **Grounded / Chat & retrieval** (`grounded-chat`) | Answers by channel and outcome, time to first token and answer time by channel, retrieval latency and errors, SystemOne latency by feature |
 | **Grounded / Ingest & jobs** (`grounded-ingest`) | The River queue (depth, oldest waiting and running job, failures, run time, discarded jobs), documents by outcome, embedding batch sizes, crawled pages, maintenance mode, break-glass and retention |
-| **Grounded / Models & moderation** (`grounded-models`) | Requests, failures, 429s and latency per connection and model kind, SystemOne, moderation decisions and block rates, and the time to the first checked paragraph |
+| **Grounded / Models & moderation** (`grounded-models`) | Requests, failures, 429s and latency per connection and model kind, SystemOne requests, latency and waiting for a slot by priority, moderation decisions and block rates, and the time to the first checked paragraph |
 
 Every dashboard picks its data source through the `DS_PROMETHEUS` variable (any Prometheus-type data source, Mimir included), filters by `namespace`, and links to the others. Nothing is hard-coded, so they import into any Grafana 10.4 or later.
 
