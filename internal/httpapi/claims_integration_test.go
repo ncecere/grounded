@@ -229,3 +229,29 @@ func TestClaimsInEvaluations(t *testing.T) {
 		t.Errorf("summary = %+v", s)
 	}
 }
+
+// TestUncitedIsNotAFailure: an answer whose only issue is an uncited
+// sentence isn't a failed question for the gap report and may be saved
+// (owner decision, 2026-10-01); the chat still shows the uncited claim.
+func TestUncitedIsNotAFailure(t *testing.T) {
+	env, ag := claimsEnv(t)
+	env.proxy.SetAnswer("Official transcripts cost ten dollars per copy [1][2]. Pick them up at the front desk.")
+	cachePath := env.base + "/agents/" + ag.Id.String() + "/answer-cache"
+	var st apitypes.AgentAnswerCache
+	env.editor.get(cachePath, &st)
+	code, e := env.editor.call("PUT", cachePath, map[string]any{"enabled": true, "nearIdentical": false, "expiryHours": 24}, nil, ifMatch(st.Revision))
+	mustCode(t, "cache on", code, e, 200, "")
+	code, evs, e := env.member.stream(env.chatPath("fees"), map[string]any{"message": "What does a transcript cost?"})
+	mustCode(t, "chat", code, e, 200, "")
+	var checked apitypes.ChatEventCitationsChecked
+	evs.one(t, "citations_checked", &checked)
+	if got := claimView(checked.Claims); !slicesEqual(got, []string{wantClaims[0], wantClaims[2]}) {
+		t.Fatalf("claims = %q", got)
+	}
+	if n := env.scalar(t, `SELECT count(*) FROM gap_questions WHERE agent_id = $1`, ag.Id); n != 0 {
+		t.Errorf("failed questions = %d, want 0", n)
+	}
+	if n := env.scalar(t, `SELECT count(*) FROM answer_cache WHERE agent_id = $1`, ag.Id); n != 1 {
+		t.Errorf("saved answers = %d, want 1", n)
+	}
+}

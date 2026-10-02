@@ -4266,7 +4266,7 @@ type AdminGapTeam struct {
 	Name      string `json:"name"`
 	Questions int32  `json:"questions"`
 
-	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down
+	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down
 	Signals GapSignalCounts    `json:"signals"`
 	Slug    string             `json:"slug"`
 	TeamId  openapi_types.UUID `json:"teamId"`
@@ -7221,7 +7221,7 @@ type GapSharedQuestion struct {
 	Question           string             `json:"question"`
 }
 
-// GapSignalCounts Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down
+// GapSignalCounts Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down
 type GapSignalCounts map[string]int32
 
 // GapTopic defines model for GapTopic.
@@ -7248,7 +7248,7 @@ type GapTopic struct {
 	// Shared Questions their askers shared
 	Shared int32 `json:"shared"`
 
-	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down
+	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down
 	Signals GapSignalCounts `json:"signals"`
 
 	// State open; dismissed or fixed by an editor; resolved when its questions started being answered well. A closed topic reopens on new failures.

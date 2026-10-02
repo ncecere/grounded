@@ -34,7 +34,7 @@ Only the agent's **always** search mode is cached; agents that search with a too
 
 ## What is saved
 
-An answer is saved only when it's clean: it passed moderation, has no error, isn't a refusal or a "nothing found" answer, found sources, called **no MCP tool** (tools return live data and may act for the person), and has nothing the gap report counts as a failure (unsupported, contradicted or uncited claims). So a failed question is never hidden behind a saved answer: the gap report keeps recording it, and the next person gets a live attempt.
+An answer is saved only when it's clean: it passed moderation, has no error, isn't a refusal or a "nothing found" answer, found sources, called **no MCP tool** (tools return live data and may act for the person), and has nothing the gap report counts as a failure (unsupported or contradicted claims; an uncited sentence isn't one, [`gaps.md`](gaps.md)). So a failed question is never hidden behind a saved answer: the gap report keeps recording it, and the next person gets a live attempt.
 
 Nothing in an answer depends on who asked: the instructions name the agent, its team and the date, never the person; searches use the agent's knowledge bases and filters, not the person's access; and answers that used a tool aren't saved.
 

@@ -9840,7 +9840,7 @@ export interface components {
             url: string;
             sourceName?: string;
         };
-        /** @description Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down */
+        /** @description Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down */
         GapSignalCounts: {
             [key: string]: number;
         };

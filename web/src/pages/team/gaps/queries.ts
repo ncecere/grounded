@@ -30,7 +30,6 @@ export const signalLabels: Record<string, string> = {
   judged_out: "No relevant passage",
   out_of_scope: "Out of scope",
   unsupported: "Unsupported claims",
-  uncited: "Uncited claims",
   thumbs_down: "Thumbs-down",
 };
 

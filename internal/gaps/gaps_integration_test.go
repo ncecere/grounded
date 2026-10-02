@@ -140,7 +140,7 @@ func TestDismissReopenResolve(t *testing.T) {
 func TestPermissions(t *testing.T) {
 	f := newFixture(t)
 	for _, a := range []string{"a1", "a2", "a3"} {
-		f.ask(a, parking, false, "no_context", "uncited")
+		f.ask(a, parking, false, "no_context", "unsupported")
 	}
 	f.run()
 	for name, actor := range map[string]authz.Actor{"member": f.member, "platform admin": f.admin} {
@@ -152,7 +152,7 @@ func TestPermissions(t *testing.T) {
 		t.Errorf("editor counts = %v, want 403", err)
 	}
 	counts, err := f.svc.Counts(f.ctx, f.admin, time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
-	if err != nil || len(counts) != 1 || counts[0].Questions != 3 || counts[0].Signals["uncited"] != 3 {
+	if err != nil || len(counts) != 1 || counts[0].Questions != 3 || counts[0].Signals["unsupported"] != 3 {
 		t.Fatalf("counts = %+v, %v", counts, err)
 	}
 	if _, err := f.svc.List(f.ctx, f.editor, f.slug, nil, "sideways"); !isCode(err, "invalid_state") {

@@ -12741,7 +12741,7 @@ components:
         sourceName: { type: string }
     GapSignalCounts:
       type: object
-      description: "Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down"
+      description: "Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down"
       additionalProperties: { type: integer, format: int32 }
     GapTopic:
       type: object
