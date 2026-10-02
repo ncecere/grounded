@@ -1,6 +1,6 @@
 # ADR-0022: The product is named Grounded
 
-- Status: Accepted
+- Status: Accepted; confirmed 2026-10-02 (the rename proposed in ADR-0025 was withdrawn: the project stays Grounded and fully open source)
 - Date: 2026-09-27
 
 ## Context

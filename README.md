@@ -195,7 +195,6 @@ Grounded is **pre-1.0**. The current release is **v0.4.0** (2026-10-02). The who
 - [ ] Microsoft Teams and Slack bots (D1)
 - [ ] Microsoft 365 connector: SharePoint and OneDrive (B1), with document ACLs (B6)
 - [ ] SCIM provisioning (E4) and audit export to a SIEM (E5)
-- [ ] Community and Enterprise editions ([ADR-0025](docs/adr/0025-community-and-enterprise-editions.md), a draft)
 
 ## Development
 

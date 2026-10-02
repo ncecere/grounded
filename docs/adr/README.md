@@ -64,3 +64,4 @@ Once an ADR is accepted, leave its substance alone. To reverse or replace a deci
 | [0022](0022-name-grounded.md) | The product is named Grounded | Accepted | 2026-09-27 |
 | [0023](0023-no-institution-data-in-the-repository.md) | No institution-specific data in the repository | Accepted | 2026-09-27 |
 | [0024](0024-break-glass-scope-and-approval.md) | Break-glass as built: transcripts in scope, approval as a setting | Accepted | 2026-09-27 |
+| [0025](0025-community-and-enterprise-editions.md) | Community and Enterprise editions | Rejected: one MIT project named Grounded (2026-10-02) | 2026-09-30 |

@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-10-02. **v0.4.0 is released** (2026-10-02: reranking, the gap report, the source viewer, saved answers, answers streamed in checked paragraphs; [`releases/v0.4.0.md`](releases/v0.4.0.md)), after **v0.3.1** (2026-09-30: the logo) and **v0.3.0** (2026-09-30): Grounded as an MCP server and client (C1), stored health (E11), OpenTelemetry tracing (F1), OAuth sign-in for MCP clients (experimental) and faster answers ([`releases/v0.3.0.md`](releases/v0.3.0.md)). The project has a website ([`ncecere/grounded-website`](https://github.com/ncecere/grounded-website)) and a documentation site ([`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs)). The Community/Enterprise edition plumbing (ADR-0025, a draft) was deferred from v0.3.0. **Next (owner, 2026-09-30): v0.4.0 "answers people trust and teams can improve"** (§ K below); Teams/Slack bots (D1), the Microsoft 365 connector with document ACLs (B1, B6), and SCIM with SIEM export (E4, E5) wait until much later.
+Status: refreshed 2026-10-02. **v0.4.0 is released** (2026-10-02: reranking, the gap report, the source viewer, saved answers, answers streamed in checked paragraphs; [`releases/v0.4.0.md`](releases/v0.4.0.md)), after **v0.3.1** (2026-09-30: the logo) and **v0.3.0** (2026-09-30): Grounded as an MCP server and client (C1), stored health (E11), OpenTelemetry tracing (F1), OAuth sign-in for MCP clients (experimental) and faster answers ([`releases/v0.3.0.md`](releases/v0.3.0.md)). The project has a website ([`ncecere/grounded-website`](https://github.com/ncecere/grounded-website)) and a documentation site ([`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs)). Grounded stays **one project, fully open source under MIT, named Grounded** (owner, 2026-10-02; the editions in ADR-0025 were rejected). **Next:** v0.4.x small wins, then a v0.5.0 theme to be chosen; Teams/Slack bots (D1), the Microsoft 365 connector with document ACLs (B1, B6), and SCIM with SIEM export (E4, E5) wait until much later.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -95,7 +95,7 @@ Small fixes after v0.2.1 (§ J); the release notes are [`releases/v0.2.2.md`](re
 
 ## Done in v0.3.0 (released 2026-09-30)
 
-The plan and the owner's decisions are in [`v0.3.0.md`](v0.3.0.md); the release notes are [`releases/v0.3.0.md`](releases/v0.3.0.md). The Community/Enterprise edition plumbing (ADR-0025) was deferred.
+The plan and the owner's decisions are in [`v0.3.0.md`](v0.3.0.md); the release notes are [`releases/v0.3.0.md`](releases/v0.3.0.md). The Community/Enterprise edition plumbing (ADR-0025) was deferred, and the editions were later rejected: Grounded stays one MIT project (owner, 2026-10-02).
 
 | ID | Item | Where |
 |---|---|---|
@@ -122,7 +122,7 @@ In priority order; the design is [`v0.4.0.md`](v0.4.0.md) (all five items are de
 | 4 **Done** (v0.4.0 M5) | **New** | **Stream public answers safely:** moderate the answer in chunks as it's written instead of buffering it whole ([`moderation-streaming.md`](moderation-streaming.md)) | Visitors see text in seconds while moderation still fails closed. |
 | 5 **Done** (v0.4.0 M3) | B10 (+A13) | **Document viewer with highlights**, and citation marks per claim ([`source-viewer.md`](source-viewer.md)) | A citation opens the passage, highlighted: the clearest proof that an answer is grounded. |
 | — | C8, A14, B12, A12 | **Small wins**, as patch releases | Follow-up suggestions, warnings about expectations a KB can't meet, OCR follow-ups, SystemOne capacity. |
-| — | — | **Housekeeping** | The product name decision (ADR-0025) before more public exposure, a screenshot refresh (logo, v0.3 UI), the MCP threat-model update. |
+| — | — | **Housekeeping** | ~~The product name decision (ADR-0025)~~ decided 2026-10-02: the name stays Grounded and the project stays fully open source (ADR-0025 rejected); a screenshot refresh (**done** in v0.4.0) (logo, v0.3 UI), the MCP threat-model update. |
 
 Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector with B6 document ACLs; E4 SCIM and E5 SIEM export.
 

@@ -1,12 +1,25 @@
 # ADR-0025: Community and Enterprise editions
 
-Status: **proposed** (2026-09-30). Decisions are recorded as the owner makes them; open items are listed at the end.
+Status: **Rejected** (owner, 2026-10-02). Grounded stays **one project, fully open source under MIT**, named **Grounded** ([ADR-0022](0022-name-grounded.md)).
 
-## Context
+## Outcome (2026-10-02)
+
+- **No editions.** There is no Enterprise edition, no `ee/` directory, no source-available licence, no licence keys and no feature gating. Every feature, including organisation-scale ones (SCIM, SIEM export, document permissions, connectors), is built in the MIT core.
+- **No paid tiers.** The pricing model below (annual, tiers of monthly active users) is withdrawn.
+- **The name stays Grounded.** The rename planned for before a first sale (decision 6 below) is withdrawn; ADR-0022 stands. "Grounded" is a common word used by other companies and products, which matters less for an open-source project that isn't sold under it.
+- **Contributions** come under the MIT licence of the repository (inbound = outbound), with no contributor licence agreement.
+
+The proposal is kept below as it was, for the record.
+
+## The proposal (2026-09-30, not adopted)
+
+Status then: proposed. Decisions were recorded as the owner made them; open items were listed at the end.
+
+### Context
 
 Grounded is MIT-licensed and public. The owner intends to sell it later. Any licence check placed in MIT code can be removed by a fork, and every released version stays MIT forever, so a licence key alone protects nothing: what protects commercial features is where their code lives and under which licence.
 
-## Decision
+### Decision
 
 1. **Two editions.**
    - **Grounded Community** — everything released so far and the core going forward, under **MIT** (owner, 2026-09-30: stay MIT; adoption matters more than protection at this stage).
@@ -18,12 +31,12 @@ Grounded is MIT-licensed and public. The owner intends to sell it later. Any lic
 6. **The name** (owner, 2026-09-30): rename the project before the first sale, to a distinctive name cleared by a trademark attorney, and decide it soon (ideally before v0.3.0 ships). "Grounded" is crowded: a UK company, Grounded AI Ltd, sells automated citation verification; Grounded Intelligence (grounded.ai) builds agent-improvement software; several open-source RAG projects share the name. The rename follows ADR-0022's approach (one step across repositories, images, docs, the website and hostnames, with a notice).
 7. **Contributions.** A contributor licence agreement (Apache ICLA, via CLA Assistant) before outside pull requests are accepted, so contributions can ship in both editions.
 
-## Consequences
+### Consequences
 
 - New organisation-scale features are designed as `ee/` modules behind core interfaces; the core gains extension points (feature registry, hooks) that Community leaves empty.
 - CI builds and tests both editions; the authorization matrix and E2E run against both.
 - The first Enterprise features follow the plumbing milestone at the start of v0.3 ([`v0.3.0.md`](../v0.3.0.md)).
 
-## Open
+### Open (closed by the outcome above)
 
 - The new name (a shortlist, then an attorney's clearance).
