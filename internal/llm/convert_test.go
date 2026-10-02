@@ -122,6 +122,33 @@ func TestBuildRequestCompat(t *testing.T) {
 	}
 }
 
+// Reasoning effort off turns thinking off the way the model's compatibility
+// says, and sends nothing without one.
+func TestBuildRequestThinkingOff(t *testing.T) {
+	off := Options{ReasoningEffort: EffortOff}
+	m := testModel()
+	m.Compat.SupportsReasoningEffort = true
+	body := buildRequest(m, Context{}, off, true)
+	for _, k := range []string{"reasoning_effort", "chat_template_kwargs"} {
+		if _, ok := body[k]; ok {
+			t.Errorf("%s sent for off without a way to turn thinking off: %v", k, body)
+		}
+	}
+	m.Compat.ThinkingOff = ThinkingOffEffortNone
+	if body = buildRequest(m, Context{}, off, true); body["reasoning_effort"] != "none" || body["chat_template_kwargs"] != nil {
+		t.Errorf("reasoning_effort none = %v", body)
+	}
+	m.Compat = Compat{ThinkingOff: ThinkingOffTemplateKwarg, ExtraBody: map[string]any{"chat_template_kwargs": map[string]any{"enable_thinking": true, "x": 1}}}
+	body = buildRequest(m, Context{}, off, true)
+	if got := toJSON(t, body["chat_template_kwargs"]); got != `{"enable_thinking":false,"x":1}` || body["reasoning_effort"] != nil {
+		t.Errorf("enable_thinking false = %v", body)
+	}
+	// Other efforts are unchanged by the way to turn thinking off.
+	if body = buildRequest(m, Context{}, Options{ReasoningEffort: "low"}, true); body["chat_template_kwargs"] == nil || body["reasoning_effort"] != nil {
+		t.Errorf("low without reasoning effort support = %v", body)
+	}
+}
+
 func TestWireArguments(t *testing.T) {
 	for in, want := range map[string]string{
 		"":            "{}",

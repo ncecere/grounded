@@ -111,16 +111,16 @@ func TestResolveCompat(t *testing.T) {
 		t.Error("invalid JSON must give defaults")
 	}
 	all := DecodeCompat(json.RawMessage(`{"supportsDeveloperRole":true,"supportsReasoningEffort":true,"supportsStreamUsage":false,
-		"maxTokensField":"max_completion_tokens","supportsToolChoice":true,"thinkingField":"reasoning",
+		"maxTokensField":"max_completion_tokens","supportsToolChoice":true,"thinkingField":"reasoning","thinkingOff":"enable_thinking_false",
 		"extraBody":{"chat_template_kwargs":{"enable_thinking":false}}}`))
-	want = Compat{true, true, false, "max_completion_tokens", true, "reasoning",
+	want = Compat{true, true, false, "max_completion_tokens", true, "reasoning", "enable_thinking_false",
 		map[string]any{"chat_template_kwargs": map[string]any{"enable_thinking": false}}}
 	if !reflect.DeepEqual(all, want) {
 		t.Fatalf("all = %+v", all)
 	}
 	// Unknown enum values fall back to the defaults.
-	odd := DecodeCompat(json.RawMessage(`{"maxTokensField":"nope","thinkingField":"nope"}`))
-	if odd.MaxTokensField != "max_tokens" || odd.ThinkingField != "" {
+	odd := DecodeCompat(json.RawMessage(`{"maxTokensField":"nope","thinkingField":"nope","thinkingOff":"nope"}`))
+	if odd.MaxTokensField != "max_tokens" || odd.ThinkingField != "" || odd.ThinkingOff != "" {
 		t.Fatalf("odd = %+v", odd)
 	}
 }

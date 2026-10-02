@@ -271,4 +271,11 @@ func TestRerankInChatAndEvaluations(t *testing.T) {
 	if d.Run.Config.Rerank == nil || *d.Run.Config.Rerank != "on" || d.Run.Config.ResultsPerSearch != 2 {
 		t.Errorf("agent run = %+v", d.Run.Config)
 	}
+	// Turned off for the run, the agent set is scored at the same k (its
+	// rerankTopN, in the fusion order), not its knowledge bases' top-k.
+	d = env.runEval(t, agentSet, map[string]any{"kind": "retrieval", "rerank": false})
+	r := resultFor(d, "transcript fee")
+	if d.Run.Config.Rerank == nil || *d.Run.Config.Rerank != "off" || d.Run.Config.ResultsPerSearch != 2 || r.K == nil || *r.K != 2 || len(r.Hits) > 2 {
+		t.Errorf("agent run without reranking = %+v, result k %v, %d hits", d.Run.Config, r.K, len(r.Hits))
+	}
 }

@@ -27,7 +27,12 @@ const (
 	StepSearching = "searching"
 	// StepChecking: SystemOne passage judging.
 	StepChecking = "checking"
-	// StepAnswering: the model is writing, until its first token.
+	// StepThinking: the model is reasoning, in answers whose thinking isn't
+	// streamed (buffered and checked answers): a step without content,
+	// so the visitor sees progress (docs/v0.4.0.md §4, owner decision 4).
+	StepThinking = "thinking"
+	// StepAnswering: the model is writing, until its first token (or, in
+	// buffered and checked answers, once it stops thinking).
 	StepAnswering = "answering"
 )
 

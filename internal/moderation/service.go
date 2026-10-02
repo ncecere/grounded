@@ -129,15 +129,22 @@ func (p *Plan) Requests() (int64, uuid.UUID) {
 // Plan returns the effective moderation for an audience and an agent's
 // override. It is nil when nothing is moderated.
 func (s *Service) Plan(ctx context.Context, audience string, o Override) (*Plan, error) {
+	p, _, err := s.PlanEffort(ctx, audience, o)
+	return p, err
+}
+
+// PlanEffort is Plan with the audience's reasoning effort (Policy.Effort),
+// read with the policy.
+func (s *Service) PlanEffort(ctx context.Context, audience string, o Override) (*Plan, string, error) {
 	st, err := load(ctx, s.q, audience, false)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	pol := st.Policy.Merge(o)
 	if !pol.Active(StageInput) && !pol.Active(StageOutput) {
-		return nil, nil
+		return nil, st.Policy.Effort(), nil
 	}
-	return &Plan{Policy: pol, ModelID: st.ModelID, s: s}, nil
+	return &Plan{Policy: pol, ModelID: st.ModelID, s: s}, st.Policy.Effort(), nil
 }
 
 // HasProvider reports whether an audience's policy names a provider (an

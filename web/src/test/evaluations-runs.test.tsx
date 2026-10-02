@@ -121,7 +121,12 @@ describe("a set's runs", () => {
     expect(within(results).getAllByRole("row")).toHaveLength(4);
     await userEvent.click(within(page).getByRole("button", { name: /^Failures/ }));
     await waitFor(() => expect(within(results).getAllByRole("row")).toHaveLength(2));
-    expect(await within(page).findByText("Since that run: 0 better, 1 worse, 2 the same.")).toBeInTheDocument();
+    // The runs checked a different k (4, then 1): Compare says so (own-7).
+    expect(
+      await within(page).findByText(
+        "Since that run: 0 better, 1 worse, 2 the same. The runs checked a different number of results per search (4, then 1), so the ranks aren't directly comparable.",
+      ),
+    ).toBeInTheDocument();
     expect(within(page).getByRole("table", { name: "Questions compared with the other run" })).toHaveTextContent("Worse");
     expect(calls.find((c) => c.url.endsWith("/compare"))!.search.toString()).toBe("a=r1&b=r2");
     expect(await axe(container)).toHaveNoViolations();

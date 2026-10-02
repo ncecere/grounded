@@ -156,8 +156,11 @@ type run struct {
 	// step is the last status event's step.
 	step string
 
-	mod           *moderation.Plan // nil: nothing is moderated
-	modIn, modOut *moderation.Decision
+	mod *moderation.Plan // nil: nothing is moderated
+	// audienceEffort is the audience's reasoning effort (its moderation
+	// policy's; "" for the model's), used when the agent sets none.
+	audienceEffort string
+	modIn, modOut  *moderation.Decision
 	// checked releases the answer in checked paragraphs (stream_checked,
 	// streamcheck.go); checkedEvent is the moderation event sent when one
 	// failed, and modChecks the number of checks.
@@ -501,9 +504,27 @@ func (ru *run) admit(ctx context.Context) (release func(), err error) {
 	return release, nil
 }
 
+// effort is the answer's reasoning effort: the agent's own, else its
+// audience's (docs/v0.4.0.md §4, owner decision 4).
+func (ru *run) effort() string {
+	if ru.cfg.ReasoningEffort != "" {
+		return ru.cfg.ReasoningEffort
+	}
+	return ru.audienceEffort
+}
+
+// rewriteEffort is the query rewrite's: low, or off when the answer's is
+// off and the model can turn thinking off.
+func (ru *run) rewriteEffort() string {
+	if ru.effort() == llm.EffortOff && ru.model.Compat.ThinkingOff != "" {
+		return llm.EffortOff
+	}
+	return "low"
+}
+
 // options are the model options of the answer.
 func (ru *run) options(withTools bool) llm.Options {
-	opts := llm.Options{Temperature: ru.cfg.Temperature, ReasoningEffort: ru.cfg.ReasoningEffort, User: ru.userTag()}
+	opts := llm.Options{Temperature: ru.cfg.Temperature, ReasoningEffort: ru.effort(), User: ru.userTag()}
 	if ru.cfg.MaxOutputTokens != nil {
 		opts.MaxTokens = *ru.cfg.MaxOutputTokens
 	}

@@ -31,6 +31,7 @@ func (a *api) publicRoutes() []route {
 		{"GET", "/v1/public/sessions/current", a.anonymous(a.getPublicSession)},
 		{"POST", "/v1/public/agents/{agentId}/chat", a.anonymous(a.publicChat)},
 		{"GET", "/v1/public/agents/{agentId}/messages/{messageId}/sources/{n}", a.anonymous(a.getPublicCitedPassage)},
+		{"POST", "/v1/public/agents/{agentId}/messages/{messageId}/feedback", a.anonymous(a.setPublicMessageFeedback)},
 	}
 }
 
@@ -112,17 +113,36 @@ func (a *api) publicMessageLimit(ctx context.Context, teamID uuid.UUID) int {
 	return n
 }
 
-// anonCookie names an agent's anonymous session cookie: one per agent, so
-// a visitor of two public agents keeps both sessions.
-func anonCookie(agentID uuid.UUID) string {
-	return "grounded_anon_" + strings.ReplaceAll(agentID.String(), "-", "")
+// channelHeader says which of the visitor's sessions a request uses
+// (public, the default, or widget: the embed page sends it).
+const channelHeader = "Grounded-Channel"
+
+// requestChannel is the channel a public request is for.
+func requestChannel(r *http.Request) string {
+	if r.Header.Get(channelHeader) == agents.ChannelWidget {
+		return agents.ChannelWidget
+	}
+	return agents.ChannelPublic
+}
+
+// anonCookie names an agent's anonymous session cookie: one per agent and
+// channel, so a visitor of two public agents keeps both sessions, and the
+// widget never continues the public page's session (one without a key, so
+// the key's limits, switch and origins wouldn't apply) or the other way
+// round, even when both are on the same site.
+func anonCookie(agentID uuid.UUID, channel string) string {
+	prefix := "grounded_anon_"
+	if channel == agents.ChannelWidget {
+		prefix = "grounded_widget_"
+	}
+	return prefix + strings.ReplaceAll(agentID.String(), "-", "")
 }
 
 // setAnonCookie sets the session cookie: SameSite=None; Secure; Partitioned
 // for the widget's third-party iframe on HTTPS, Lax otherwise.
 func (a *api) setAnonCookie(w http.ResponseWriter, sess public.Session, token string) {
 	secure := a.Config.SecureCookies()
-	c := &http.Cookie{Name: anonCookie(sess.AgentID), Value: token, Path: "/v1/public", HttpOnly: true, Secure: secure,
+	c := &http.Cookie{Name: anonCookie(sess.AgentID, sess.Channel), Value: token, Path: "/v1/public", HttpOnly: true, Secure: secure,
 		MaxAge: int(a.Public.SessionTTL.Seconds()), SameSite: http.SameSiteLaxMode}
 	if sess.Channel == agents.ChannelWidget && secure {
 		c.SameSite, c.Partitioned = http.SameSiteNoneMode, true
@@ -152,14 +172,18 @@ func (a *api) createPublicSession(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusCreated, toAPIPublicSession(sess))
 }
 
-// resume loads the caller's session for an agent from its cookie and
-// refreshes the cookie.
+// resume loads the caller's session for an agent from the cookie of the
+// request's channel and refreshes the cookie.
 func (a *api) resume(w http.ResponseWriter, r *http.Request, agentID uuid.UUID) (public.Session, bool) {
+	return a.resumeAs(w, r, agentID, requestChannel(r))
+}
+
+func (a *api) resumeAs(w http.ResponseWriter, r *http.Request, agentID uuid.UUID, channel string) (public.Session, bool) {
 	token := ""
-	if c, err := r.Cookie(anonCookie(agentID)); err == nil {
+	if c, err := r.Cookie(anonCookie(agentID, channel)); err == nil {
 		token = c.Value
 	}
-	sess, err := a.Public.Resume(r.Context(), token, agentID)
+	sess, err := a.Public.Resume(r.Context(), token, agentID, channel)
 	if failed(w, r, err) {
 		return sess, false
 	}
@@ -176,9 +200,23 @@ func (a *api) getPublicSession(w http.ResponseWriter, r *http.Request) {
 	if _, err := a.Agents.PublicProfile(r.Context(), agentID.String()); failed(w, r, err) {
 		return
 	}
-	sess, ok := a.resume(w, r, agentID)
+	key, channel := strings.TrimSpace(r.URL.Query().Get("key")), requestChannel(r)
+	if key != "" {
+		channel = agents.ChannelWidget
+	}
+	sess, ok := a.resumeAs(w, r, agentID, channel)
 	if !ok {
 		return
+	}
+	if key != "" {
+		// The embed page continues only a session started with its own key.
+		same, err := a.Public.StartedWithKey(r.Context(), sess, key)
+		if failed(w, r, err) {
+			return
+		} else if !same {
+			failed(w, r, public.ErrNoSession)
+			return
+		}
 	}
 	v, err := a.Public.Current(r.Context(), sess)
 	if failed(w, r, err) {
@@ -212,6 +250,41 @@ func (a *api) publicChat(w http.ResponseWriter, r *http.Request) {
 	a.runChat(w, r, in.Stream == nil || *in.Stream, func(ctx context.Context, emit func(agents.Event)) (agents.Answer, error) {
 		return a.Public.Chat(ctx, sess, req, emit)
 	})
+}
+
+// setPublicMessageFeedback rates an answer in the anonymous session's own
+// conversation (the public page's and the widget's thumbs).
+func (a *api) setPublicMessageFeedback(w http.ResponseWriter, r *http.Request) {
+	agentID, ok := pathUUID(w, r, "agentId")
+	if !ok {
+		return
+	}
+	id, ok := pathUUID(w, r, "messageId")
+	if !ok {
+		return
+	}
+	var in apitypes.Feedback
+	if !httpx.Decode(w, r, &in) {
+		return
+	}
+	if _, err := a.Agents.PublicProfile(r.Context(), agentID.String()); failed(w, r, err) {
+		return
+	}
+	sess, ok := a.resume(w, r, agentID)
+	if !ok {
+		return
+	}
+	var reason *string
+	if in.Reason != nil {
+		s := string(*in.Reason)
+		reason = &s
+	}
+	share := in.Share != nil && *in.Share && in.Rating == apitypes.Down
+	req := public.FeedbackRequest{MessageID: id, Rating: string(in.Rating), Reason: reason, Share: share}
+	if failed(w, r, a.Public.Feedback(r.Context(), sess, req)) {
+		return
+	}
+	httpx.JSON(w, http.StatusOK, apitypes.FeedbackResult{MessageId: id, Rating: in.Rating, Reason: in.Reason, Shared: share})
 }
 
 // errPublicUnavailable is the embed page's error when the public service

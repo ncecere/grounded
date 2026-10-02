@@ -1107,7 +1107,7 @@
     {
       "type": "timeseries",
       "title": "Answer cache lookups by result and reason",
-      "description": "hit: exact or near (near-identical, confirmed by SystemOne); miss: no_entry, near_rejected, not_standalone or error. Agents with the cache off aren't counted.",
+      "description": "hit: exact or near (near-identical, confirmed by SystemOne); miss: no_entry, near_rejected, follow_up or error. Agents with the cache off aren't counted.",
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",

@@ -35,7 +35,7 @@ const agent = (extra: Partial<Schemas["Agent"]> = {}): Schemas["Agent"] => ({
 });
 
 const models = [
-  { id: "mod1", key: "gpt-oss-120b", displayName: "GPT-OSS 120B (Campus gateway)", description: "", maxClassification: "sensitive", contextWindow: 131072, maxOutputTokens: 8192, supportsTools: true, supportsReasoningEffort: false },
+  { id: "mod1", key: "gpt-oss-120b", displayName: "GPT-OSS 120B (Campus gateway)", description: "", maxClassification: "sensitive", contextWindow: 131072, maxOutputTokens: 8192, supportsTools: true, supportsReasoningEffort: false, supportsThinkingOff: false },
 ];
 const kb = { id: "kb1", name: "Registrar help", description: "", embeddingProfileId: "p1", topK: 8, effectiveClassification: "open", sources: [], revision: 1, createdAt: "", updatedAt: "" };
 
@@ -127,7 +127,28 @@ describe("Build", () => {
     await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: 5000 }));
     const effort = screen.getByRole("combobox", { name: /Reasoning effort/ });
     expect(effort).toBeDisabled();
-    expect(effort).toHaveAccessibleDescription(/turn on "Accepts reasoning effort" for it in Admin → Models/);
+    expect(effort).toHaveAccessibleDescription(/Low, Medium and High need "Accepts reasoning effort" turned on for .* in Admin → Models/);
+    expect(effort).toHaveAccessibleDescription(/Off needs "How to turn thinking off" set for/);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("Reasoning effort offers Off once the model can turn thinking off, and the levels once it accepts an effort", async () => {
+    const ready = { ...models[0]!, supportsThinkingOff: true };
+    mockApi(routes(agent(), { "GET /v1/chat-models": () => [ready] }));
+    const { container } = renderApp("/teams/registrar/agents/ag1");
+    await userEvent.click(await screen.findByRole("button", { name: /^Advanced/ }, { timeout: 5000 }));
+    const effort = screen.getByRole("combobox", { name: /Reasoning effort/ });
+    expect(effort).toBeEnabled();
+    expect(within(effort).getAllByRole("option").map((o) => [o.textContent, (o as HTMLOptionElement).disabled])).toEqual([
+      ["Default", false],
+      ["Off", false],
+      ["Low", true],
+      ["Medium", true],
+      ["High", true],
+    ]);
+    expect(effort).not.toHaveAccessibleDescription(/Off needs/);
+    await userEvent.selectOptions(effort, "off");
+    expect(effort).toHaveValue("off");
     expect(await axe(container)).toHaveNoViolations();
   });
 

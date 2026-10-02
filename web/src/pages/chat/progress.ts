@@ -18,6 +18,9 @@ export function stepLabel(step: ChatStep, agentName: string) {
       return `Searching ${possessive(agentName)} knowledge…`;
     case "checking":
       return "Checking the passages…";
+    case "thinking":
+      // Buffered and checked answers don't show the model's reasoning: only that it's happening.
+      return "Thinking about your question…";
     case "answering":
       return "Writing the answer…";
   }
@@ -33,6 +36,7 @@ const checksFirst = (item: AssistantItem) => Boolean(item.buffered || item.check
 /** Waiting text before the answer's first words. */
 export function waitingText(item: AssistantItem, thinking: boolean, agentName: string) {
   if (thinking) return "Thinking…";
+  if (item.step === "thinking") return stepLabel("thinking", agentName);
   if (checksFirst(item) && (!item.step || item.step === "answering")) return bufferedLabel;
   if (item.step) return stepLabel(item.step, agentName);
   return item.steps.length > 0 ? "Reading the sources…" : "Working on it…";

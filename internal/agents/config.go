@@ -230,9 +230,9 @@ func (c *Config) normalizeModel(in configInput, p *problems) {
 	}
 	setIf(&c.ReasoningEffort, in.ReasoningEffort)
 	switch c.ReasoningEffort {
-	case "", "low", "medium", "high":
+	case "", "off", "low", "medium", "high":
 	default:
-		p.bad("reasoningEffort", "Reasoning effort must be low, medium or high")
+		p.bad("reasoningEffort", "Reasoning effort must be off, low, medium or high")
 	}
 }
 

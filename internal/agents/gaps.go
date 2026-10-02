@@ -1,7 +1,7 @@
 // Failed questions for the gap report (docs/v0.4.0.md §2, ADR-0010 as
 // amended for v0.4.0). When an answer in a stored conversation fails (no
 // context, a strict refusal, every passage judged out, out of scope,
-// unsupported or uncited claims), its question is kept apart from the
+// unsupported or contradicted claims), its question is kept apart from the
 // transcript in gap_questions, with the vector the search already computed
 // (no extra model call: a question without one is embedded by the topics
 // job) and a pseudonymous asker key; a thumbs-down adds the question too
@@ -32,7 +32,6 @@ const (
 	GapJudgedOut   = "judged_out"
 	GapOutOfScope  = "out_of_scope"
 	GapUnsupported = "unsupported"
-	GapUncited     = "uncited"
 	GapThumbsDown  = "thumbs_down"
 )
 
@@ -43,7 +42,11 @@ const GapSimilarity = 0.8
 
 // gapSignals says why an answer failed; nil for a good answer and for an
 // answer that says nothing about the agent's knowledge (an error, a
-// moderation notice, small talk).
+// moderation notice, small talk). An uncited sentence isn't a failure
+// (owner decision, 2026-10-01): models often leave a lead-in or a list item
+// without a marker in an answer that is fine, so an answer whose only issue
+// is uncited sentences counts as answered well (and may be saved); the
+// chat and the claim-check analytics still show them.
 func (ru *run) gapSignals(ans *Answer) []string {
 	if ans.ErrorCode != "" || ans.Moderation != nil || ans.noContextReason == NoContextSmallTalk {
 		return nil
@@ -64,9 +67,6 @@ func (ru *run) gapSignals(ans *Answer) []string {
 	if r := ru.citeRec; r != nil && !ans.Refused {
 		if r.Unsupported+r.Contradicted > 0 {
 			out = append(out, GapUnsupported)
-		}
-		if r.Uncited > 0 {
-			out = append(out, GapUncited)
 		}
 	}
 	return out

@@ -2869,7 +2869,7 @@ export interface paths {
         put?: never;
         /**
          * Start an anonymous session with a public agent (sets the session cookie)
-         * @description The cookie (grounded_anon_{agentId without dashes}, HttpOnly, path /v1/public) holds a random secret stored only as a digest, with the agent, the caller's /24 (IPv4) or /48 (IPv6) prefix and a user-agent hash. It is SameSite=None; Secure; Partitioned for the widget (on HTTPS) and SameSite=Lax for the public page, and lasts ANON_SESSION_TTL after the last use. With a publishable key (the widget) the request's Origin (when cross-origin) and embedOrigin must be allowed by the key (403 origin_not_allowed), and at least one must be given. CAPTCHA runs when configured (403 captcha_failed). Errors: 503 public_disabled, 404 for agents that are not public, 403 agent_disabled (kill switch), 403 invalid_publishable_key, 429/503 from the guardrails.
+         * @description The cookie (grounded_anon_{agentId without dashes} for the public page, grounded_widget_{agentId without dashes} for a session started with a publishable key; HttpOnly, path /v1/public) holds a random secret stored only as a digest, with the agent, the caller's /24 (IPv4) or /48 (IPv6) prefix and a user-agent hash. It is SameSite=None; Secure; Partitioned for the widget (on HTTPS) and SameSite=Lax for the public page, and lasts ANON_SESSION_TTL after the last use. With a publishable key (the widget) the request's Origin (when cross-origin) and embedOrigin must be allowed by the key (403 origin_not_allowed), and at least one must be given. CAPTCHA runs when configured (403 captcha_failed). Errors: 503 public_disabled, 404 for agents that are not public, 403 agent_disabled (kill switch), 403 invalid_publishable_key, 429/503 from the guardrails.
          */
         post: operations["createPublicSession"];
         delete?: never;
@@ -2898,7 +2898,10 @@ export interface paths {
     "/v1/public/agents/{agentId}/chat": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+                "Grounded-Channel"?: components["parameters"]["PublicChannelHeader"];
+            };
             path: {
                 agentId: components["parameters"]["AgentIdParam"];
             };
@@ -3025,7 +3028,10 @@ export interface paths {
     "/v1/public/agents/{agentId}/messages/{messageId}/sources/{n}": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+                "Grounded-Channel"?: components["parameters"]["PublicChannelHeader"];
+            };
             path: {
                 agentId: components["parameters"]["AgentIdParam"];
                 messageId: string;
@@ -3041,6 +3047,32 @@ export interface paths {
         get: operations["getPublicCitedPassage"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/agents/{agentId}/messages/{messageId}/feedback": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+                "Grounded-Channel"?: components["parameters"]["PublicChannelHeader"];
+            };
+            path: {
+                agentId: components["parameters"]["AgentIdParam"];
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rate an answer in the anonymous session's own conversation (replaces earlier feedback; needs the session cookie)
+         * @description As POST /v1/messages/{messageId}/feedback, for an answer in a conversation of the caller's anonymous session with the agent: 404 for any other message, 401 without a live session. A thumbs-down removes a saved answer it came from and keeps the question for the gap report (each anonymous session counts as one person); with share, the team's editors see the question (never who asked). Rate-limited like public questions (per address and session per minute, with a publishable key's overrides, counted apart from questions): 429 rate_limited, 503 limits_unavailable. Errors: 503 public_disabled, 404 for agents that are not public, 403 agent_disabled (kill switch), 403 invalid_publishable_key.
+         */
+        post: operations["setPublicMessageFeedback"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6177,6 +6209,11 @@ export interface components {
              * @enum {string}
              */
             thinkingField?: "reasoning_content" | "reasoning";
+            /**
+             * @description Chat: how to turn thinking off when an answer's reasoning effort is off. reasoning_effort_none sends reasoning_effort "none"; enable_thinking_false sends chat_template_kwargs {"enable_thinking": false} (Qwen3 on vLLM or SGLang). Default: not supported (off sends nothing, so the model thinks as by default).
+             * @enum {string}
+             */
+            thinkingOff?: "reasoning_effort_none" | "enable_thinking_false";
             /** @description Embedding: send the dimensions parameter when a profile stores fewer dimensions than the model's. Default false: Grounded truncates the vectors and L2-renormalises them itself (Matryoshka models only). */
             supportsDimensionsParam?: boolean;
             /**
@@ -6449,10 +6486,16 @@ export interface components {
              * @description The effective floor of block thresholds when the provider is not calibrated (chat classifiers, guardrails without log-probabilities): a block rule scoring at or above its own threshold but below this one flags instead (default 0.95; 0 treats uncalibrated scores like calibrated ones). Support actions are not affected.
              */
             uncalibratedBlockThreshold: number;
+            reasoningEffort: components["schemas"]["AudienceReasoningEffort"];
             revision: components["schemas"]["Revision"];
             /** Format: date-time */
             updatedAt: string | null;
         };
+        /**
+         * @description The reasoning effort of this audience's answers when the agent doesn't set its own (default: the model's). Public's is low until an admin chooses another (also in a policy saved before v0.4.0). off and low, medium and high apply as the agent setting does (ReasoningEffort). Query rewrites ask for low, or off when this is off and the model can turn thinking off.
+         * @enum {string}
+         */
+        AudienceReasoningEffort: "default" | "off" | "low" | "medium" | "high";
         ModerationPolicyInput: {
             /** Format: uuid */
             modelId: string | null;
@@ -6471,6 +6514,8 @@ export interface components {
              * @description Default 0.95 when absent
              */
             uncalibratedBlockThreshold?: number;
+            /** @description Absent: the audience's default (low for public, the model's for the others) */
+            reasoningEffort?: components["schemas"]["AudienceReasoningEffort"];
         };
         /** @description An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode stream_checked or buffer applies where the platform's mode is less strict (stream_retract, then stream_checked, then buffer). The Phase 3 value "off" is still accepted as no override. */
         AgentModeration: {
@@ -6833,7 +6878,10 @@ export interface components {
             maxOutputTokens?: number | null;
             /** @description Required for retrieval mode tool */
             supportsTools: boolean;
+            /** @description Reasoning effort low, medium and high can be chosen */
             supportsReasoningEffort: boolean;
+            /** @description Reasoning effort off can be chosen (the model's compatibility says how to turn thinking off) */
+            supportsThinkingOff: boolean;
         };
         EmbeddingProfileOption: {
             /** Format: uuid */
@@ -7958,8 +8006,11 @@ export interface components {
          * @enum {string}
          */
         CitationMode: "none" | "snippet" | "snippet_link";
-        /** @enum {string} */
-        ReasoningEffort: "low" | "medium" | "high";
+        /**
+         * @description How long the model thinks before answering. off turns thinking off in the way the model's compatibility setting thinkingOff says (nothing is sent when it has none); low, medium and high are sent as reasoning_effort when the model accepts it (supportsReasoningEffort). Absent: the audience's reasoning effort (the moderation policy's), else the model's default.
+         * @enum {string}
+         */
+        ReasoningEffort: "off" | "low" | "medium" | "high";
         AgentKB: {
             /** Format: uuid */
             kbId: string;
@@ -8012,7 +8063,7 @@ export interface components {
             temperature?: number | null;
             maxOutputTokens?: number | null;
             /** @enum {string} */
-            reasoningEffort?: "low" | "medium" | "high" | "";
+            reasoningEffort?: "off" | "low" | "medium" | "high" | "";
             kbs?: components["schemas"]["AgentKB"][];
             retrievalMode?: components["schemas"]["RetrievalMode"];
             /** @default 4 */
@@ -8953,16 +9004,16 @@ export interface components {
             kept: number;
             dropped: number;
         };
-        /** @description SSE event status: what the agent is doing before the answer's first words, once per step (v0.3.0 and later). rewriting: turning a follow-up that depends on the conversation into a search query; searching: searching the knowledge bases; checking: SystemOne passage judging; answering: the model is writing (until the first token). Clients should ignore steps they don't know. */
+        /** @description SSE event status: what the agent is doing before the answer's first words, once per step (v0.3.0 and later). rewriting: turning a follow-up that depends on the conversation into a search query; searching: searching the knowledge bases; checking: SystemOne passage judging; answering: the model is writing (until the first token). When the answer's thinking isn't streamed (buffered and checked answers), thinking says the model is reasoning, and answering follows once it starts writing (v0.4.0). Clients should ignore steps they don't know. */
         ChatEventStatus: {
             /** @enum {string} */
-            step: "rewriting" | "searching" | "checking" | "answering";
+            step: "rewriting" | "searching" | "checking" | "thinking" | "answering";
         };
         /** @description SSE event message_start */
         ChatEventMessageStart: {
             /** Format: uuid */
             messageId: string;
-            /** @description Output moderation buffers the answer: no text or thinking deltas; the text arrives in one text_delta after it passes (show a waiting state) */
+            /** @description The text arrives whole: no text or thinking deltas before one text_delta (show a waiting state, then the answer from its start). Set when output moderation buffers the answer and for a saved answer's replay */
             buffered?: boolean;
             /**
              * @description The output moderation mode, when answers are moderated (absent otherwise). stream_checked: no thinking deltas, and text_delta events carry checked paragraphs (show a waiting state until the first one, then follow the answer as it grows); a failing paragraph sends a moderation event (retracted, or withheld when nothing was shown yet) and no more text.
@@ -9840,7 +9891,7 @@ export interface components {
             url: string;
             sourceName?: string;
         };
-        /** @description Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down */
+        /** @description Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down */
         GapSignalCounts: {
             [key: string]: number;
         };
@@ -10564,6 +10615,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+        PublicChannelHeader: "public" | "widget";
         /** @description The first day (in the platform time zone) */
         CostFromParam: string;
         /** @description The last day, inclusive (at most 366 days after from) */
@@ -16049,8 +16102,13 @@ export interface operations {
         parameters: {
             query: {
                 agentId: string;
+                /** @description The widget's publishable key: only a session started with this key is returned (401 session_required otherwise), so the embed page starts its own. Implies the widget channel. */
+                key?: string;
             };
-            header?: never;
+            header?: {
+                /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+                "Grounded-Channel"?: components["parameters"]["PublicChannelHeader"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -16076,7 +16134,10 @@ export interface operations {
     publicChat: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+                "Grounded-Channel"?: components["parameters"]["PublicChannelHeader"];
+            };
             path: {
                 agentId: components["parameters"]["AgentIdParam"];
             };
@@ -16241,7 +16302,10 @@ export interface operations {
     getPublicCitedPassage: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+                "Grounded-Channel"?: components["parameters"]["PublicChannelHeader"];
+            };
             path: {
                 agentId: components["parameters"]["AgentIdParam"];
                 messageId: string;
@@ -16266,6 +16330,44 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             401: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            503: components["responses"]["ErrorReply"];
+        };
+    };
+    setPublicMessageFeedback: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+                "Grounded-Channel"?: components["parameters"]["PublicChannelHeader"];
+            };
+            path: {
+                agentId: components["parameters"]["AgentIdParam"];
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Feedback"];
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FeedbackResult"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            401: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            429: components["responses"]["RateLimitedReply"];
             503: components["responses"]["ErrorReply"];
         };
     };

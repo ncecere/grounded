@@ -42,11 +42,15 @@ const (
 
 // planModeration resolves the audience's policy with the agent's override.
 func (ru *run) planModeration(ctx context.Context) error {
-	if ru.s.Moderation == nil || ru.mod != nil { // planned already (the answer cache's near-identical lookup)
+	if ru.s.Moderation == nil {
+		ru.audienceEffort = moderation.DefaultPolicy(ru.grant).Effort()
 		return nil
 	}
-	plan, err := ru.s.Moderation.Plan(ctx, ru.grant, ru.cfg.Moderation)
-	ru.mod = plan
+	if ru.mod != nil { // planned already (the answer cache's near-identical lookup)
+		return nil
+	}
+	plan, effort, err := ru.s.Moderation.PlanEffort(ctx, ru.grant, ru.cfg.Moderation)
+	ru.mod, ru.audienceEffort = plan, effort
 	return err
 }
 

@@ -22,7 +22,7 @@ import { LazyResponse } from "@/components/ui/response/response-lazy";
 import { Shimmer } from "@/components/ui/shimmer/shimmer";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ui/sources/sources";
 import { verificationLabel } from "@/lib/systemone";
-import { displayText, normalizePunctuation } from "./answer-text";
+import { citedSoFar, displayText, normalizePunctuation } from "./answer-text";
 import { displayNumbers, jumpBelow, useAnswerMarkers, withUncited } from "./citations";
 import { type Claim, ClaimSummary, SourceBreakdown, sourceBreakdown, uncitedOfClaims } from "./claims";
 import { Feedback, Notes, Steps, isAnswer } from "./notes";
@@ -115,14 +115,17 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
     [viewer, item, goToSource],
   );
   // [n] markers: chips whose card (hover, click, Enter) shows the claim and offers the source; unknown numbers stay text.
-  const markers = useAnswerMarkers(item.citations, openSource, chipSource, item.claims, viewer ? showSource : jumpBelow);
+  // Checked paragraphs show chips of the sources they cite until message_end brings the checked citations.
+  const early = streaming && item.checked && item.citations.length === 0;
+  const chips = useMemo(() => (early ? citedSoFar(item) : item.citations), [early, item]);
+  const markers = useAnswerMarkers(chips, openSource, chipSource, item.claims, viewer ? showSource : jumpBelow);
   const num = useMemo(() => displayNumbers(item.citations), [item.citations]);
   const thinking = Boolean(item.thinking) && !item.moderation;
   // Answers without sources already say so: no "Uncited" marks or claim summary for them.
   const uncited = item.noContext ? undefined : item.claims ? uncitedOfClaims(item.claims) : item.uncited;
 
   return (
-    <Message from="assistant" label={`${agent.name} said`}>
+    <Message from="assistant" label={`${agent.name} said`} data-chat-answer="">
       <AgentAvatar agent={agent} size="md" />
       <MessageContent>
         <Steps item={item} />

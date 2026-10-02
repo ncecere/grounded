@@ -171,8 +171,11 @@ func originsAllowed(origin, embed string, allowed []string) bool {
 	return true
 }
 
-// Resume loads the session behind a cookie for an agent and extends it.
-func (s *Service) Resume(ctx context.Context, token string, agentID uuid.UUID) (Session, error) {
+// Resume loads the session behind a cookie for an agent and extends it. A
+// session of another channel (the widget's on the public page, or the
+// other way round) is refused: each channel has its own cookie, and a
+// widget session alone carries its key's limits and switch.
+func (s *Service) Resume(ctx context.Context, token string, agentID uuid.UUID, channel string) (Session, error) {
 	if token == "" || len(token) > 256 {
 		return Session{}, errNoSession
 	}
@@ -181,6 +184,9 @@ func (s *Service) Resume(ctx context.Context, token string, agentID uuid.UUID) (
 		return Session{}, apperr.New(401, "session_expired", "Your session has ended. Start a new chat.")
 	} else if err != nil {
 		return Session{}, err
+	}
+	if sess.Channel != channel {
+		return Session{}, errNoSession
 	}
 	if time.Since(sess.LastSeenAt) > time.Minute {
 		sess.ExpiresAt = time.Now().Add(s.SessionTTL)
@@ -213,19 +219,9 @@ func (s *Service) Chat(ctx context.Context, sess Session, req ChatRequest, emit 
 		return agents.Answer{}, &apperr.Error{Status: 400, Code: "message_too_long",
 			Message: "Your message is too long. Keep it under " + strconv.FormatInt(*max, 10) + " characters.", Details: map[string]any{"max": *max}}
 	}
-	adm := Admission{AgentID: sess.AgentID, IPPrefix: sess.IPPrefix, SessionID: sess.ID, Limits: set,
-		Usage: func(ctx context.Context) (int64, int64, error) {
-			u, err := s.q.AgentPublicUsageSince(ctx, dbgen.AgentPublicUsageSinceParams{AgentID: uuid.NullUUID{UUID: sess.AgentID, Valid: true}, Since: limits.StartOfDay(time.Now())})
-			return u.Queries, u.Tokens, err
-		}}
-	if sess.PublishableKeyID.Valid {
-		k, err := s.q.GetPublishableKey(ctx, sess.PublishableKeyID.UUID)
-		if err != nil || !k.Enabled {
-			return agents.Answer{}, errKey
-		}
-		_ = json.Unmarshal(k.RateLimits, &adm.Key)
-	} else if sess.Channel == agents.ChannelWidget {
-		return agents.Answer{}, errKey // the key was deleted
+	adm, err := s.admission(ctx, sess, set)
+	if err != nil {
+		return agents.Answer{}, err
 	}
 	release, err := s.Guard.Admit(ctx, adm)
 	if err != nil {
@@ -238,6 +234,74 @@ func (s *Service) Chat(ctx context.Context, sess Session, req ChatRequest, emit 
 		caller.ConversationID = &id
 	}
 	return s.Agents.PublicChat(ctx, caller, sess.AgentID, req.Message, req.NewConversation, emit)
+}
+
+// StartedWithKey reports whether a widget session was started with this
+// publishable key (the embed page only continues its own key's session).
+func (s *Service) StartedWithKey(ctx context.Context, sess Session, rawKey string) (bool, error) {
+	k, err := s.checkKey(ctx, rawKey, sess.AgentID)
+	if errors.Is(err, errKey) {
+		return false, nil
+	}
+	return err == nil && sess.PublishableKeyID.Valid && sess.PublishableKeyID.UUID == k.ID, err
+}
+
+// ErrNoSession: the caller has no live session (of the request's channel).
+var ErrNoSession = errNoSession
+
+// admission is what the guardrails check for the session: the team's
+// limits, the widget key's overrides (errKey once the key is disabled or
+// deleted) and the agent's usage today.
+func (s *Service) admission(ctx context.Context, sess Session, set limits.Set) (Admission, error) {
+	adm := Admission{AgentID: sess.AgentID, IPPrefix: sess.IPPrefix, SessionID: sess.ID, Limits: set,
+		Usage: func(ctx context.Context) (int64, int64, error) {
+			u, err := s.q.AgentPublicUsageSince(ctx, dbgen.AgentPublicUsageSinceParams{AgentID: uuid.NullUUID{UUID: sess.AgentID, Valid: true}, Since: limits.StartOfDay(time.Now())})
+			return u.Queries, u.Tokens, err
+		}}
+	if sess.PublishableKeyID.Valid {
+		k, err := s.q.GetPublishableKey(ctx, sess.PublishableKeyID.UUID)
+		if err != nil || !k.Enabled {
+			return adm, errKey
+		}
+		_ = json.Unmarshal(k.RateLimits, &adm.Key)
+	} else if sess.Channel == agents.ChannelWidget {
+		return adm, errKey // the key was deleted
+	}
+	return adm, nil
+}
+
+// FeedbackRequest is a visitor's rating of an answer.
+type FeedbackRequest struct {
+	MessageID uuid.UUID
+	Rating    string
+	Reason    *string
+	Share     bool
+}
+
+// Feedback rates an answer in the session's own conversations (the
+// public page's and the widget's thumbs): the agent must be public and
+// live, the widget's key still enabled, and the per-minute guardrails
+// allow it (counted apart from questions).
+func (s *Service) Feedback(ctx context.Context, sess Session, req FeedbackRequest) error {
+	t, err := s.Agents.PublicProfile(ctx, sess.AgentID.String())
+	if err != nil {
+		return err
+	}
+	if t.Agent.Status != agents.StatusActive {
+		return errDisabled
+	}
+	set, err := s.Limits.Effective(ctx, nil, t.TeamID)
+	if err != nil {
+		return err
+	}
+	adm, err := s.admission(ctx, sess, set)
+	if err != nil {
+		return err
+	}
+	if err := s.Guard.AdmitFeedback(ctx, adm); err != nil {
+		return err
+	}
+	return s.Agents.PublicFeedback(ctx, sess.ID, sess.AgentID, req.MessageID, req.Rating, req.Reason, req.Share)
 }
 
 // Current is the session's current conversation (nil when none).

@@ -36,31 +36,7 @@ export function AdvancedSection({ c, set, errorFor, model }: SectionProps) {
           optional
           error={errorFor("maxOutputTokens")}
         />
-        {model && (
-          <Field
-            label="Reasoning effort"
-            labelHint="Optional"
-            description={
-              model.supportsReasoningEffort
-                ? "How long the model thinks before answering. Lower starts answering sooner."
-                : `${model.displayName} isn't set up to take a reasoning effort. A platform admin can turn on "Accepts reasoning effort" for it in Admin → Models.`
-            }
-            disabled={!model.supportsReasoningEffort}
-            error={errorFor("reasoningEffort")}
-          >
-            <NativeSelect
-              id="agent-field-reasoningEffort"
-              value={c.reasoningEffort ?? ""}
-              disabled={!model.supportsReasoningEffort}
-              onChange={(e) => set({ reasoningEffort: (e.target.value || undefined) as AgentConfig["reasoningEffort"] })}
-            >
-              <option value="">Model default</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </NativeSelect>
-          </Field>
-        )}
+        {model && <ReasoningEffortField c={c} set={set} errorFor={errorFor} model={model} />}
         <NumberField
           id="agent-field-contextTokenBudget"
           label="Source token budget"
@@ -136,5 +112,44 @@ function Reranking({ c, set, errorFor }: Pick<SectionProps, "c" | "set" | "error
         />
       )}
     </div>
+  );
+}
+
+/** Why an effort can't be chosen with this model ("" when it can), naming the Admin → Models setting it needs. */
+function effortReasons(model: { displayName: string; supportsReasoningEffort: boolean; supportsThinkingOff: boolean }) {
+  const off = model.supportsThinkingOff ? "" : `Off needs "How to turn thinking off" set for ${model.displayName} in Admin → Models.`;
+  const levels = model.supportsReasoningEffort ? "" : `Low, Medium and High need "Accepts reasoning effort" turned on for ${model.displayName} in Admin → Models.`;
+  return { off, levels };
+}
+
+/**
+ * Model default (the audience's effort when a platform admin set one, Public: Low), Off, Low, Medium or High. Off and the
+ * levels each need the model set up for them; options that can't be chosen are disabled and the description says why.
+ */
+type EffortProps = Pick<SectionProps, "c" | "set" | "errorFor"> & { model: NonNullable<SectionProps["model"]> };
+
+function ReasoningEffortField({ c, set, errorFor, model }: EffortProps) {
+  const why = effortReasons(model);
+  const none = !model.supportsReasoningEffort && !model.supportsThinkingOff;
+  const intro = "How long the model thinks before answering. Lower starts answering sooner. Default uses the audience's setting (Low for public agents unless a platform admin changed it), else the model's.";
+  return (
+    <Field label="Reasoning effort" labelHint="Optional" description={[intro, why.off, why.levels].filter(Boolean).join(" ")} disabled={none} error={errorFor("reasoningEffort")}>
+      <NativeSelect
+        id="agent-field-reasoningEffort"
+        value={c.reasoningEffort ?? ""}
+        disabled={none}
+        onChange={(e) => set({ reasoningEffort: (e.target.value || undefined) as AgentConfig["reasoningEffort"] })}
+      >
+        <option value="">Default</option>
+        <option value="off" disabled={Boolean(why.off)}>
+          Off
+        </option>
+        {(["low", "medium", "high"] as const).map((v) => (
+          <option key={v} value={v} disabled={Boolean(why.levels)}>
+            {v[0]!.toUpperCase() + v.slice(1)}
+          </option>
+        ))}
+      </NativeSelect>
+    </Field>
   );
 }

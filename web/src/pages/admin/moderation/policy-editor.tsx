@@ -31,6 +31,14 @@ const modeOptions = [
   { value: "buffer" as const, label: "Buffer", description: "Answers are checked before anyone sees them. Meanwhile people see what the agent is doing, then the whole answer at once." },
 ];
 
+const effortOptions = [
+  { value: "default", label: "Model default" },
+  { value: "off", label: "Off" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+] as const;
+
 const modeSummary = { stream_retract: "Streams, then retracts", stream_checked: "Streams checked paragraphs", buffer: "Buffers answers" } as const;
 
 function useSavePolicy(policy: Policy, onSaved: (p: Policy) => void) {
@@ -135,6 +143,20 @@ export function PolicyEditor({ policy, providers, isAdmin }: { policy: Policy; p
             </>
           )}
         </div>
+      </Card>
+      <Card title="Reasoning" description="Applies whether or not answers are moderated.">
+        <Field
+          label="Reasoning effort"
+          description={`How long the model thinks before answering, for agents that don't set their own (Build → Advanced). Lower starts answers sooner. Off needs a model set up to turn thinking off, and Low, Medium and High one that accepts reasoning effort (Admin → Models); otherwise the model's default applies.${isPublic ? " Public answers use Low until you choose." : ""}`}
+        >
+          <NativeSelect disabled={!isAdmin} value={form.reasoningEffort} onChange={(e) => set({ reasoningEffort: e.target.value as PolicyForm["reasoningEffort"] })}>
+            {effortOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
       </Card>
       {form.modelId !== "" && (
         <SystemOneExtras form={form} set={set} isAdmin={isAdmin} systemOne={providers.find((m) => m.id === form.modelId)?.kind === "systemone"} problems={submitted ? problems : {}} />

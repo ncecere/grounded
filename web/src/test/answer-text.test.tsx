@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { axe } from "vitest-axe";
-import { displayText, normalizeMarkers, normalizePunctuation, settlePartial } from "../pages/chat/answer-text";
+import { citedSoFar, displayText, normalizeMarkers, normalizePunctuation, settlePartial } from "../pages/chat/answer-text";
 import { type AssistantItem, type ChatItem, pendingAssistant } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
 import { renderBare } from "./harness";
@@ -56,6 +56,28 @@ describe("answers with model punctuation", () => {
     expect(link).toHaveAttribute("href", "mailto:military-benefits@example.edu");
     expect(container.textContent).toContain("since Jan 1 1975.");
     expect(container.textContent).not.toMatch(/[\u2011\u202f]/);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe("checked paragraphs before message_end (mem-11)", () => {
+  const sources = [
+    { n: 1, title: "Fees", snippet: "Ten dollars." },
+    { n: 3, title: "Hours", snippet: "Open 9-5." },
+  ];
+  it("cites the known sources of the markers so far", () => {
+    const a = { ...pendingAssistant(), sources, text: "Ten dollars [1]. Open late\u30103\u3011 and [7] and arr[1]." };
+    expect(citedSoFar(a).map((c) => c.n)).toEqual([1, 3]);
+  });
+
+  it("shows chips, not raw markers, while a checked answer streams", async () => {
+    const items: ChatItem[] = [
+      { role: "user", key: "u1", text: "How much?" },
+      { ...pendingAssistant(), key: "a1", checked: true, sources, text: "It costs ten dollars [1].\n\n" },
+    ];
+    const { container } = renderBare(<ChatMessages items={items} agent={{ name: "Helper" }} />);
+    await screen.findByText(/It costs ten dollars/);
+    expect(container.textContent).not.toContain("[1]");
     expect(await axe(container)).toHaveNoViolations();
   });
 });

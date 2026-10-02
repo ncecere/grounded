@@ -19,13 +19,14 @@ export const publicAgentQuery = (ref: string) =>
 /** Whether a public ref is a team address ("{team}/{agent}"), which may also be a signed-in-only agent. */
 export const isTeamAddress = (ref: string) => ref.includes("/");
 
-/** The visitor's session with an agent and its current conversation; null without one. */
-export const publicSessionQuery = (agentId: string) =>
+/** The visitor's session with an agent and its current conversation; null without one. The widget passes its key: only a
+ * session started with it counts. */
+export const publicSessionQuery = (agentId: string, key?: string) =>
   queryOptions({
-    queryKey: ["public-session", agentId],
+    queryKey: ["public-session", agentId, key ?? ""],
     queryFn: async () => {
       try {
-        return unwrap(await api.GET("/v1/public/sessions/current", { params: { query: { agentId } } }));
+        return unwrap(await api.GET("/v1/public/sessions/current", { params: { query: { agentId, ...(key ? { key } : {}) } } }));
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) return null;
         throw err;

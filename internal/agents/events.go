@@ -65,8 +65,9 @@ type (
 	}
 	MessageStartEvent struct {
 		MessageID uuid.UUID `json:"messageId"`
-		// Buffered: the answer's text is sent only after the output
-		// moderation check (no text or thinking deltas before).
+		// Buffered: the answer's text arrives whole (no text or thinking
+		// deltas before): sent only after the output moderation check, or
+		// a saved answer's replay (cache.go).
 		Buffered bool `json:"buffered,omitempty"`
 		// Mode is the output moderation mode when answers are moderated
 		// (stream_retract, stream_checked, buffer); stream_checked sends
@@ -199,29 +200,8 @@ func (ru *run) onEvent(ev agentloop.Event, st *loopState) {
 			}
 		}
 	case agentloop.MessageUpdate:
-		le := ev.LLMEvent
-		if le == nil {
-			return
-		}
-		switch le.Type {
-		case llm.EventTextDelta:
-			ru.markFirstToken()
-			if st.newText && st.textSoFar.Len() > 0 && !strings.HasSuffix(st.textSoFar.String(), "\n") {
-				st.textSoFar.WriteString("\n\n")
-				ru.sendDelta("text_delta", "\n\n")
-			}
-			st.newText = false
-			st.textSoFar.WriteString(le.Delta)
-			ru.sendDelta("text_delta", le.Delta)
-		case llm.EventThinkingDelta:
-			ru.markFirstToken()
-			if st.newThinking && st.thinkSoFar.Len() > 0 {
-				st.thinkSoFar.WriteString("\n\n")
-				ru.sendDelta("thinking_delta", "\n\n")
-			}
-			st.newThinking = false
-			st.thinkSoFar.WriteString(le.Delta)
-			ru.sendDelta("thinking_delta", le.Delta)
+		if ev.LLMEvent != nil {
+			ru.onDelta(ev.LLMEvent, st)
 		}
 	case agentloop.ToolExecutionStart:
 		st.toolCalls++
@@ -240,6 +220,36 @@ func (ru *run) onEvent(ev agentloop.Event, st *loopState) {
 			}
 		}
 		ru.out.send(Event{"tool_result", res})
+	}
+}
+
+// onDelta handles the model's text and thinking as they stream.
+func (ru *run) onDelta(le *llm.Event, st *loopState) {
+	switch le.Type {
+	case llm.EventTextDelta:
+		ru.markFirstToken()
+		if st.newText && st.textSoFar.Len() > 0 && !strings.HasSuffix(st.textSoFar.String(), "\n") {
+			st.textSoFar.WriteString("\n\n")
+			ru.sendDelta("text_delta", "\n\n")
+		}
+		st.newText = false
+		st.textSoFar.WriteString(le.Delta)
+		if ru.step == StepThinking {
+			ru.status(StepAnswering) // writing now (the text is held until checked)
+		}
+		ru.sendDelta("text_delta", le.Delta)
+	case llm.EventThinkingDelta:
+		ru.markFirstToken()
+		if ru.mod.Buffered() || ru.mod.Checked() {
+			ru.status(StepThinking) // thinking isn't shown in these modes: say it's happening
+		}
+		if st.newThinking && st.thinkSoFar.Len() > 0 {
+			st.thinkSoFar.WriteString("\n\n")
+			ru.sendDelta("thinking_delta", "\n\n")
+		}
+		st.newThinking = false
+		st.thinkSoFar.WriteString(le.Delta)
+		ru.sendDelta("thinking_delta", le.Delta)
 	}
 }
 

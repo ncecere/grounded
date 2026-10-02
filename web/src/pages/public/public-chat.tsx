@@ -14,9 +14,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SquarePen } from "lucide-react";
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
-import { ApiError } from "../../api/client";
+import { ApiError, setPublicChannel } from "../../api/client";
 import { Button } from "@/components/ui/button/button";
 import { Loading } from "@/components/ui/spinner/spinner";
+import { FeedbackSenderContext, publicFeedback } from "../chat/feedback-sender";
 import { ChatPanel } from "../chat/panel";
 import { itemsFromConversation } from "../chat/stream";
 import { useChat } from "../chat/useChat";
@@ -43,7 +44,10 @@ const sessionEnded = (code?: string) => code === "session_expired" || code === "
 
 export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions }: Props) {
   const qc = useQueryClient();
-  const session = useQuery(publicSessionQuery(agent.id));
+  // The widget uses its own session (its cookie, started with its key), never the public page's, and the other way
+  // round: set before the first request.
+  useState(() => setPublicChannel(widgetKey ? "widget" : "public"));
+  const session = useQuery(publicSessionQuery(agent.id, widgetKey));
   const [hasSession, setHasSession] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const [text, setText] = useState("");
@@ -59,8 +63,9 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
     },
   });
   const { reset } = chat;
-  // Cited passages of the session's own answers (docs/v0.4.0.md §5).
+  // Cited passages of the session's own answers (docs/v0.4.0.md §5), and their thumbs.
   const viewer = useMemo(() => ({ kind: "public" as const, agentId: agent.id }), [agent.id]);
+  const rate = useMemo(() => publicFeedback(agent.id), [agent.id]);
 
   // Restore the session's current conversation once.
   const restored = useRef(false);
@@ -127,18 +132,21 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
       {session.isLoading ? (
         <Loading label="Loading…" />
       ) : (
-        <ChatPanel
-          chat={{ ...chat, send }}
-          agent={look}
-          text={text}
-          onTextChange={setText}
-          fullPage
-          viewer={viewer}
-          inputRef={ref}
-          maxLength={agent.maxMessageChars}
-          disabledReason={disabledReason}
-          label={`Conversation with ${agent.name}`}
-        />
+        <FeedbackSenderContext.Provider value={rate}>
+          <ChatPanel
+            chat={{ ...chat, send }}
+            agent={look}
+            text={text}
+            onTextChange={setText}
+            feedback
+            fullPage
+            viewer={viewer}
+            inputRef={ref}
+            maxLength={agent.maxMessageChars}
+            disabledReason={disabledReason}
+            label={`Conversation with ${agent.name}`}
+          />
+        </FeedbackSenderContext.Provider>
       )}
       {needsCaptcha && <Turnstile siteKey={agent.captcha.siteKey} onToken={setCaptchaToken} />}
       <p className={p.privacy}>

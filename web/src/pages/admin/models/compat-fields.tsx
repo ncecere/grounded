@@ -18,7 +18,7 @@ type Props = { form: ModelForm; set: SetField; extraBodyError?: string };
 /** Chat completion quirks, for chat models and chat-classifier moderation models. */
 export function ChatCompatFields({ form, set, extraBodyError }: Props) {
   // Open when something is set; always open while a field is invalid, so its error is visible.
-  const [open, setOpen] = useState(() => Boolean(form.extraBody || form.supportsToolChoice || form.supportsReasoningEffort));
+  const [open, setOpen] = useState(() => Boolean(form.extraBody || form.supportsToolChoice || form.supportsReasoningEffort || form.thinkingOff));
   return (
     <Disclosure title="Compatibility" open={open || Boolean(extraBodyError)} onOpenChange={setOpen}>
       <div className={s.grid2}>
@@ -48,7 +48,7 @@ export function ChatCompatFields({ form, set, extraBodyError }: Props) {
         </Field>
         <Field
           label="Accepts reasoning effort"
-          description="Send reasoning_effort (low, medium or high) for a reasoning model. Agents can then choose it under Build → Advanced, and query rewrites ask for low."
+          description="Send reasoning_effort (low, medium or high) for a reasoning model. Agents and audiences can then choose it, and query rewrites ask for low."
         >
           <NativeSelect value={tri(form.supportsReasoningEffort)} onChange={(e) => set("supportsReasoningEffort", fromTri(e.target.value))}>
             <option value="">Default (not sent)</option>
@@ -56,6 +56,18 @@ export function ChatCompatFields({ form, set, extraBodyError }: Props) {
             <option value="no">No</option>
           </NativeSelect>
         </Field>
+        {form.kind === "chat" && (
+          <Field
+            label="How to turn thinking off"
+            description="Lets agents and audiences choose reasoning effort Off, so answers start sooner. Qwen3 on vLLM or SGLang takes enable_thinking."
+          >
+            <NativeSelect value={form.thinkingOff} onChange={(e) => set("thinkingOff", e.target.value as ModelForm["thinkingOff"])}>
+              <option value="">Not supported (default)</option>
+              <option value="reasoning_effort_none">reasoning_effort: &quot;none&quot;</option>
+              <option value="enable_thinking_false">chat_template_kwargs: {"{"}&quot;enable_thinking&quot;: false{"}"}</option>
+            </NativeSelect>
+          </Field>
+        )}
         <Field
           label="Extra request fields (JSON)"
           labelHint="Optional"

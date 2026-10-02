@@ -18,7 +18,10 @@ func TestGapSignals(t *testing.T) {
 		{name: "judged out", ans: Answer{Refused: true, NoContext: true, noContextReason: NoContextJudgedOut}, want: []string{GapRefused, GapJudgedOut}},
 		{name: "out of scope", ans: Answer{Refused: true, NoContext: true, noContextReason: NoContextOutOfScope},
 			scope: &ScopeRecord{Decision: "out_of_scope"}, want: []string{GapRefused, GapOutOfScope}},
-		{name: "unsupported and uncited", ans: Answer{}, cite: &CitationsRecord{Unsupported: 1, Uncited: 2}, want: []string{GapUnsupported, GapUncited}},
+		{name: "unsupported and uncited", ans: Answer{}, cite: &CitationsRecord{Unsupported: 1, Uncited: 2}, want: []string{GapUnsupported}},
+		{name: "contradicted", ans: Answer{}, cite: &CitationsRecord{Contradicted: 1}, want: []string{GapUnsupported}},
+		// An uncited sentence alone isn't a failure (owner decision, 2026-10-01).
+		{name: "only uncited", ans: Answer{Citations: []Citation{{N: 1}}}, cite: &CitationsRecord{Verified: 3, Uncited: 1}},
 		{name: "small talk", ans: Answer{NoContext: true, noContextReason: NoContextSmallTalk}},
 		{name: "error", ans: Answer{NoContext: true, ErrorCode: ErrCodeModelUnavailable}},
 		{name: "moderated", ans: Answer{NoContext: true, Moderation: &ModerationEvent{}}},

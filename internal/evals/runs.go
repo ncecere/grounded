@@ -102,6 +102,9 @@ type target struct {
 	kb    *kbs.KB
 	agent *agents.EvalTarget
 	cfg   RunConfig
+	// depth is the results a retrieval check's search asks for (0: the
+	// configuration's own).
+	depth int
 }
 
 // loadTarget resolves a set's knowledge base or agent configuration, with
@@ -158,7 +161,9 @@ func (s *Service) loadTarget(ctx context.Context, set dbgen.EvalSet, version str
 
 // planRerank records whether the run reranks: on when the platform has a
 // rerank model and neither the run nor the agent turned it off. An agent
-// that reranks keeps its rerankTopN per search.
+// that reranks keeps its rerankTopN per search; a run that turns its
+// reranking off searches for as many results in the fusion order, so runs
+// with and without reranking are scored at the same k.
 func (s *Service) planRerank(ctx context.Context, t *target, noRerank bool) {
 	if s.KBs.RerankPlan(ctx) == nil {
 		return
@@ -170,9 +175,13 @@ func (s *Service) planRerank(ctx context.Context, t *target, noRerank bool) {
 	if t.agent == nil {
 		return
 	}
+	reranks := t.agent.Config.Rerank // the agent's own setting
 	t.agent.Config.Rerank = t.cfg.Rerank == RerankOn
-	if t.agent.Config.Rerank {
+	if reranks {
 		t.cfg.ResultsPerSearch = t.agent.Config.RerankTopN
+		if !t.agent.Config.Rerank {
+			t.depth = t.agent.Config.RerankTopN
+		}
 	}
 }
 

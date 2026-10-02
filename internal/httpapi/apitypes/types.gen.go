@@ -186,6 +186,7 @@ const (
 	AgentConfigInputReasoningEffortHigh   AgentConfigInputReasoningEffort = "high"
 	AgentConfigInputReasoningEffortLow    AgentConfigInputReasoningEffort = "low"
 	AgentConfigInputReasoningEffortMedium AgentConfigInputReasoningEffort = "medium"
+	AgentConfigInputReasoningEffortOff    AgentConfigInputReasoningEffort = "off"
 )
 
 // Valid indicates whether the value is a known member of the AgentConfigInputReasoningEffort enum.
@@ -198,6 +199,8 @@ func (e AgentConfigInputReasoningEffort) Valid() bool {
 	case AgentConfigInputReasoningEffortLow:
 		return true
 	case AgentConfigInputReasoningEffortMedium:
+		return true
+	case AgentConfigInputReasoningEffortOff:
 		return true
 	default:
 		return false
@@ -411,6 +414,33 @@ func (e Audience) Valid() bool {
 	case AudiencePublic:
 		return true
 	case AudienceTeam:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AudienceReasoningEffort.
+const (
+	AudienceReasoningEffortDefault AudienceReasoningEffort = "default"
+	AudienceReasoningEffortHigh    AudienceReasoningEffort = "high"
+	AudienceReasoningEffortLow     AudienceReasoningEffort = "low"
+	AudienceReasoningEffortMedium  AudienceReasoningEffort = "medium"
+	AudienceReasoningEffortOff     AudienceReasoningEffort = "off"
+)
+
+// Valid indicates whether the value is a known member of the AudienceReasoningEffort enum.
+func (e AudienceReasoningEffort) Valid() bool {
+	switch e {
+	case AudienceReasoningEffortDefault:
+		return true
+	case AudienceReasoningEffortHigh:
+		return true
+	case AudienceReasoningEffortLow:
+		return true
+	case AudienceReasoningEffortMedium:
+		return true
+	case AudienceReasoningEffortOff:
 		return true
 	default:
 		return false
@@ -750,6 +780,7 @@ const (
 	Checking  ChatEventStatusStep = "checking"
 	Rewriting ChatEventStatusStep = "rewriting"
 	Searching ChatEventStatusStep = "searching"
+	Thinking  ChatEventStatusStep = "thinking"
 )
 
 // Valid indicates whether the value is a known member of the ChatEventStatusStep enum.
@@ -762,6 +793,8 @@ func (e ChatEventStatusStep) Valid() bool {
 	case Rewriting:
 		return true
 	case Searching:
+		return true
+	case Thinking:
 		return true
 	default:
 		return false
@@ -2442,6 +2475,24 @@ func (e ModelCompatThinkingField) Valid() bool {
 	}
 }
 
+// Defines values for ModelCompatThinkingOff.
+const (
+	EnableThinkingFalse ModelCompatThinkingOff = "enable_thinking_false"
+	ReasoningEffortNone ModelCompatThinkingOff = "reasoning_effort_none"
+)
+
+// Valid indicates whether the value is a known member of the ModelCompatThinkingOff enum.
+func (e ModelCompatThinkingOff) Valid() bool {
+	switch e {
+	case EnableThinkingFalse:
+		return true
+	case ReasoningEffortNone:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ModelKind.
 const (
 	ModelKindChat       ModelKind = "chat"
@@ -3206,6 +3257,7 @@ const (
 	ReasoningEffortHigh   ReasoningEffort = "high"
 	ReasoningEffortLow    ReasoningEffort = "low"
 	ReasoningEffortMedium ReasoningEffort = "medium"
+	ReasoningEffortOff    ReasoningEffort = "off"
 )
 
 // Valid indicates whether the value is a known member of the ReasoningEffort enum.
@@ -3216,6 +3268,8 @@ func (e ReasoningEffort) Valid() bool {
 	case ReasoningEffortLow:
 		return true
 	case ReasoningEffortMedium:
+		return true
+	case ReasoningEffortOff:
 		return true
 	default:
 		return false
@@ -3350,19 +3404,19 @@ func (e RetentionRunTrigger) Valid() bool {
 
 // Defines values for RetentionUpdatePeriodsMode.
 const (
-	Days    RetentionUpdatePeriodsMode = "days"
-	Default RetentionUpdatePeriodsMode = "default"
-	Keep    RetentionUpdatePeriodsMode = "keep"
+	RetentionUpdatePeriodsModeDays    RetentionUpdatePeriodsMode = "days"
+	RetentionUpdatePeriodsModeDefault RetentionUpdatePeriodsMode = "default"
+	RetentionUpdatePeriodsModeKeep    RetentionUpdatePeriodsMode = "keep"
 )
 
 // Valid indicates whether the value is a known member of the RetentionUpdatePeriodsMode enum.
 func (e RetentionUpdatePeriodsMode) Valid() bool {
 	switch e {
-	case Days:
+	case RetentionUpdatePeriodsModeDays:
 		return true
-	case Default:
+	case RetentionUpdatePeriodsModeDefault:
 		return true
-	case Keep:
+	case RetentionUpdatePeriodsModeKeep:
 		return true
 	default:
 		return false
@@ -3810,6 +3864,24 @@ func (e DocumentKindParam) Valid() bool {
 	}
 }
 
+// Defines values for PublicChannelHeader.
+const (
+	PublicChannelHeaderPublic PublicChannelHeader = "public"
+	PublicChannelHeaderWidget PublicChannelHeader = "widget"
+)
+
+// Valid indicates whether the value is a known member of the PublicChannelHeader enum.
+func (e PublicChannelHeader) Valid() bool {
+	switch e {
+	case PublicChannelHeaderPublic:
+		return true
+	case PublicChannelHeaderWidget:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetEmbedPageParamsPreview.
 const (
 	N1 GetEmbedPageParamsPreview = "1"
@@ -4032,6 +4104,24 @@ func (e ExportConversationParamsFormat) Valid() bool {
 	case ExportConversationParamsFormatJson:
 		return true
 	case ExportConversationParamsFormatMarkdown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetPublicSessionParamsGroundedChannel.
+const (
+	GetPublicSessionParamsGroundedChannelPublic GetPublicSessionParamsGroundedChannel = "public"
+	GetPublicSessionParamsGroundedChannelWidget GetPublicSessionParamsGroundedChannel = "widget"
+)
+
+// Valid indicates whether the value is a known member of the GetPublicSessionParamsGroundedChannel enum.
+func (e GetPublicSessionParamsGroundedChannel) Valid() bool {
+	switch e {
+	case GetPublicSessionParamsGroundedChannelPublic:
+		return true
+	case GetPublicSessionParamsGroundedChannelWidget:
 		return true
 	default:
 		return false
@@ -4266,7 +4356,7 @@ type AdminGapTeam struct {
 	Name      string `json:"name"`
 	Questions int32  `json:"questions"`
 
-	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down
+	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down
 	Signals GapSignalCounts    `json:"signals"`
 	Slug    string             `json:"slug"`
 	TeamId  openapi_types.UUID `json:"teamId"`
@@ -4611,7 +4701,9 @@ type AgentConfig struct {
 	Moderation AgentModeration `json:"moderation"`
 
 	// QueryRewrite With history, rewrite the question as a query that stands on its own before retrieval
-	QueryRewrite    bool             `json:"queryRewrite"`
+	QueryRewrite bool `json:"queryRewrite"`
+
+	// ReasoningEffort How long the model thinks before answering. off turns thinking off in the way the model's compatibility setting thinkingOff says (nothing is sent when it has none); low, medium and high are sent as reasoning_effort when the model accepts it (supportsReasoningEffort). Absent: the audience's reasoning effort (the moderation policy's), else the model's default.
 	ReasoningEffort *ReasoningEffort `json:"reasoningEffort,omitempty"`
 	RefusalMessage  string           `json:"refusalMessage"`
 
@@ -4962,6 +5054,9 @@ type AudienceOption struct {
 	// Reasons Why not (role, classification, public access, moderation)
 	Reasons []string `json:"reasons"`
 }
+
+// AudienceReasoningEffort The reasoning effort of this audience's answers when the agent doesn't set its own (default: the model's). Public's is low until an admin chooses another (also in a policy saved before v0.4.0). off and low, medium and high apply as the agent setting does (ReasoningEffort). Query rewrites ask for low, or off when this is off and the model can turn thinking off.
+type AudienceReasoningEffort string
 
 // AuditActor Who made the change, resolved when the log is read
 type AuditActor struct {
@@ -5434,7 +5529,7 @@ type ChatEventMessageEndNoContextReason string
 
 // ChatEventMessageStart SSE event message_start
 type ChatEventMessageStart struct {
-	// Buffered Output moderation buffers the answer: no text or thinking deltas; the text arrives in one text_delta after it passes (show a waiting state)
+	// Buffered The text arrives whole: no text or thinking deltas before one text_delta (show a waiting state, then the answer from its start). Set when output moderation buffers the answer and for a saved answer's replay
 	Buffered  *bool              `json:"buffered,omitempty"`
 	MessageId openapi_types.UUID `json:"messageId"`
 
@@ -5473,7 +5568,7 @@ type ChatEventRetrieval struct {
 	Query string `json:"query"`
 }
 
-// ChatEventStatus SSE event status: what the agent is doing before the answer's first words, once per step (v0.3.0 and later). rewriting: turning a follow-up that depends on the conversation into a search query; searching: searching the knowledge bases; checking: SystemOne passage judging; answering: the model is writing (until the first token). Clients should ignore steps they don't know.
+// ChatEventStatus SSE event status: what the agent is doing before the answer's first words, once per step (v0.3.0 and later). rewriting: turning a follow-up that depends on the conversation into a search query; searching: searching the knowledge bases; checking: SystemOne passage judging; answering: the model is writing (until the first token). When the answer's thinking isn't streamed (buffered and checked answers), thinking says the model is reasoning, and answering follows once it starts writing (v0.4.0). Clients should ignore steps they don't know.
 type ChatEventStatus struct {
 	Step ChatEventStatusStep `json:"step"`
 }
@@ -5519,9 +5614,14 @@ type ChatModelOption struct {
 	Key           string             `json:"key"`
 
 	// MaxClassification Most sensitive data the model may process; an agent's knowledge bases must not exceed it
-	MaxClassification       string `json:"maxClassification"`
-	MaxOutputTokens         *int32 `json:"maxOutputTokens,omitempty"`
-	SupportsReasoningEffort bool   `json:"supportsReasoningEffort"`
+	MaxClassification string `json:"maxClassification"`
+	MaxOutputTokens   *int32 `json:"maxOutputTokens,omitempty"`
+
+	// SupportsReasoningEffort Reasoning effort low, medium and high can be chosen
+	SupportsReasoningEffort bool `json:"supportsReasoningEffort"`
+
+	// SupportsThinkingOff Reasoning effort off can be chosen (the model's compatibility says how to turn thinking off)
+	SupportsThinkingOff bool `json:"supportsThinkingOff"`
 
 	// SupportsTools Required for retrieval mode tool
 	SupportsTools bool `json:"supportsTools"`
@@ -7221,7 +7321,7 @@ type GapSharedQuestion struct {
 	Question           string             `json:"question"`
 }
 
-// GapSignalCounts Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down
+// GapSignalCounts Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down
 type GapSignalCounts map[string]int32
 
 // GapTopic defines model for GapTopic.
@@ -7248,7 +7348,7 @@ type GapTopic struct {
 	// Shared Questions their askers shared
 	Shared int32 `json:"shared"`
 
-	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported, uncited, thumbs_down
+	// Signals Questions per signal: no_context, refused, judged_out, out_of_scope, unsupported (unsupported or contradicted claims), thumbs_down
 	Signals GapSignalCounts `json:"signals"`
 
 	// State open; dismissed or fixed by an editor; resolved when its questions started being answered well. A closed topic reopens on new failures.
@@ -8140,6 +8240,9 @@ type ModelCompat struct {
 
 	// ThinkingField Chat: the streamed reasoning field. Default: whichever is present.
 	ThinkingField *ModelCompatThinkingField `json:"thinkingField,omitempty"`
+
+	// ThinkingOff Chat: how to turn thinking off when an answer's reasoning effort is off. reasoning_effort_none sends reasoning_effort "none"; enable_thinking_false sends chat_template_kwargs {"enable_thinking": false} (Qwen3 on vLLM or SGLang). Default: not supported (off sends nothing, so the model thinks as by default).
+	ThinkingOff *ModelCompatThinkingOff `json:"thinkingOff,omitempty"`
 }
 
 // ModelCompatMaxTokensField defines model for ModelCompat.MaxTokensField.
@@ -8150,6 +8253,9 @@ type ModelCompatRerankDocumentsField string
 
 // ModelCompatThinkingField Chat: the streamed reasoning field. Default: whichever is present.
 type ModelCompatThinkingField string
+
+// ModelCompatThinkingOff Chat: how to turn thinking off when an answer's reasoning effort is off. reasoning_effort_none sends reasoning_effort "none"; enable_thinking_false sends chat_template_kwargs {"enable_thinking": false} (Qwen3 on vLLM or SGLang). Default: not supported (off sends nothing, so the model thinks as by default).
+type ModelCompatThinkingOff string
 
 // ModelCreate defines model for ModelCreate.
 type ModelCreate struct {
@@ -8419,6 +8525,9 @@ type ModerationPolicy struct {
 	// OutputMode stream_retract: answers stream and a failing answer is replaced; stream_checked (the Public default): answers are released paragraph by paragraph, each checked with all the text before it, and a failing paragraph replaces the whole answer with the notice; buffer: answers are sent only after they pass
 	OutputMode ModerationOutputMode `json:"outputMode"`
 
+	// ReasoningEffort The reasoning effort of this audience's answers when the agent doesn't set its own (default: the model's). Public's is low until an admin chooses another (also in a policy saved before v0.4.0). off and low, medium and high apply as the agent setting does (ReasoningEffort). Query rewrites ask for low, or off when this is off and the model can turn thinking off.
+	ReasoningEffort AudienceReasoningEffort `json:"reasoningEffort"`
+
 	// Revision Increases on every change. Send it back in If-Match.
 	Revision Revision `json:"revision"`
 
@@ -8442,9 +8551,12 @@ type ModerationPolicyInput struct {
 	Notice     *string                            `json:"notice,omitempty"`
 
 	// OutputMode stream_retract: answers stream and a failing answer is replaced; stream_checked (the Public default): answers are released paragraph by paragraph, each checked with all the text before it, and a failing paragraph replaces the whole answer with the notice; buffer: answers are sent only after they pass
-	OutputMode     ModerationOutputMode `json:"outputMode"`
-	SeverityBlock  *float64             `json:"severityBlock,omitempty"`
-	SupportMessage *string              `json:"supportMessage,omitempty"`
+	OutputMode ModerationOutputMode `json:"outputMode"`
+
+	// ReasoningEffort Absent: the audience's default (low for public, the model's for the others)
+	ReasoningEffort *AudienceReasoningEffort `json:"reasoningEffort,omitempty"`
+	SeverityBlock   *float64                 `json:"severityBlock,omitempty"`
+	SupportMessage  *string                  `json:"supportMessage,omitempty"`
 
 	// UncalibratedBlockThreshold Default 0.95 when absent
 	UncalibratedBlockThreshold *float64 `json:"uncalibratedBlockThreshold,omitempty"`
@@ -9460,7 +9572,7 @@ type PublishableKeyLimits struct {
 	PerSessionPerMinute *int64 `json:"perSessionPerMinute,omitempty"`
 }
 
-// ReasoningEffort defines model for ReasoningEffort.
+// ReasoningEffort How long the model thinks before answering. off turns thinking off in the way the model's compatibility setting thinkingOff says (nothing is sent when it has none); low, medium and high are sent as reasoning_effort when the model accepts it (supportsReasoningEffort). Absent: the audience's reasoning effort (the moderation policy's), else the model's default.
 type ReasoningEffort string
 
 // RequestTimings Phases of the test's first request, which opens a new connection. A slow dns points at name resolution (for example search domains or ndots in a cluster), connect at the network path, tls at the handshake, and firstByte at the proxy and model themselves.
@@ -10612,6 +10724,9 @@ type MCPServerParam = openapi_types.UUID
 // MigrationIdParam defines model for MigrationIdParam.
 type MigrationIdParam = openapi_types.UUID
 
+// PublicChannelHeader defines model for PublicChannelHeader.
+type PublicChannelHeader string
+
 // SearchParam defines model for SearchParam.
 type SearchParam = string
 
@@ -11234,6 +11349,24 @@ type GetOAuthConsentParams struct {
 	Scope               *string `form:"scope,omitempty" json:"scope,omitempty"`
 }
 
+// PublicChatParams defines parameters for PublicChat.
+type PublicChatParams struct {
+	// GroundedChannel Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required).
+	GroundedChannel *PublicChannelHeader `json:"Grounded-Channel,omitempty"`
+}
+
+// SetPublicMessageFeedbackParams defines parameters for SetPublicMessageFeedback.
+type SetPublicMessageFeedbackParams struct {
+	// GroundedChannel Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required).
+	GroundedChannel *PublicChannelHeader `json:"Grounded-Channel,omitempty"`
+}
+
+// GetPublicCitedPassageParams defines parameters for GetPublicCitedPassage.
+type GetPublicCitedPassageParams struct {
+	// GroundedChannel Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required).
+	GroundedChannel *PublicChannelHeader `json:"Grounded-Channel,omitempty"`
+}
+
 // WidgetCheckParams defines parameters for WidgetCheck.
 type WidgetCheckParams struct {
 	Key string `form:"key" json:"key"`
@@ -11245,7 +11378,16 @@ type WidgetCheckParams struct {
 // GetPublicSessionParams defines parameters for GetPublicSession.
 type GetPublicSessionParams struct {
 	AgentId openapi_types.UUID `form:"agentId" json:"agentId"`
+
+	// Key The widget's publishable key: only a session started with this key is returned (401 session_required otherwise), so the embed page starts its own. Implies the widget channel.
+	Key *string `form:"key,omitempty" json:"key,omitempty"`
+
+	// GroundedChannel Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required).
+	GroundedChannel *GetPublicSessionParamsGroundedChannel `json:"Grounded-Channel,omitempty"`
 }
+
+// GetPublicSessionParamsGroundedChannel defines parameters for GetPublicSession.
+type GetPublicSessionParamsGroundedChannel string
 
 // SearchObjectsParams defines parameters for SearchObjects.
 type SearchObjectsParams struct {
@@ -11658,6 +11800,9 @@ type DecideOAuthConsentJSONRequestBody = OAuthConsentDecision
 
 // PublicChatJSONRequestBody defines body for PublicChat for application/json ContentType.
 type PublicChatJSONRequestBody = PublicChatRequest
+
+// SetPublicMessageFeedbackJSONRequestBody defines body for SetPublicMessageFeedback for application/json ContentType.
+type SetPublicMessageFeedbackJSONRequestBody = Feedback
 
 // CreatePublicSessionJSONRequestBody defines body for CreatePublicSession for application/json ContentType.
 type CreatePublicSessionJSONRequestBody = PublicSessionCreate

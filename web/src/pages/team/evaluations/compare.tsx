@@ -19,6 +19,11 @@ const changeLabels = { better: "Better", worse: "Worse", same: "Same", only_a: "
 const changeTones = { better: "success", worse: "danger", same: "neutral", only_a: "neutral", only_b: "info" } as const;
 const order = { worse: 0, better: 1, only_b: 2, only_a: 3, same: 4 } as const;
 
+/** Says that two retrieval runs were scored at different k (an agent changed its results per search, for example). */
+export function differentK(then: number, now: number) {
+  return `The runs checked a different number of results per search (${then}, then ${now}), so the ranks aren't directly comparable.`;
+}
+
 /** Completed runs of the same kind other than this one, newest first; the default is the latest one before it. */
 export function comparable(run: EvalRun, runs: EvalRun[]) {
   const others = runs.filter((r) => r.id !== run.id && r.kind === run.kind && r.status === "completed").sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -59,6 +64,9 @@ export function Comparison({ set, run, runs }: { set: EvalSet; run: EvalRun; run
       {cmp.data && (
         <p role="status">
           Since that run: {cmp.data.better} better, {cmp.data.worse} worse, {cmp.data.same} the same.
+          {run.kind === "retrieval" && other.config.resultsPerSearch !== run.config.resultsPerSearch && (
+            <> {differentK(other.config.resultsPerSearch, run.config.resultsPerSearch)}</>
+          )}
         </p>
       )}
       {items.length > 0 && (

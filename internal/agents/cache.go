@@ -33,14 +33,14 @@ import (
 
 // Lookup outcomes (grounded_answer_cache_lookups_total).
 const (
-	cacheHit           = "hit"
-	cacheMiss          = "miss"
-	cacheExact         = "exact"
-	cacheNear          = "near"
-	cacheNoEntry       = "no_entry"
-	cacheNearRejected  = "near_rejected"
-	cacheNotStandalone = "not_standalone"
-	cacheError         = "error"
+	cacheHit          = "hit"
+	cacheMiss         = "miss"
+	cacheExact        = "exact"
+	cacheNear         = "near"
+	cacheNoEntry      = "no_entry"
+	cacheNearRejected = "near_rejected"
+	cacheFollowUp     = "follow_up"
+	cacheError        = "error"
 )
 
 // cachedAnswer is what an entry stores: everything the replay sends and
@@ -81,10 +81,13 @@ func (ru *run) cacheCandidate(ctx context.Context) bool {
 		ru.cfg.RetrievalMode == ModeAlways && len(ru.cfg.KBs) > 0 && s.Cache.Enabled(ctx)
 }
 
-// standalone: the first message of a conversation, or one that doesn't
-// lean on it (as for the query rewrite).
-func (ru *run) standalone() bool {
-	return (ru.conv == nil && len(ru.stateless) == 0) || !needsContext(ru.question)
+// firstQuestion: the first message of a conversation (a new one, and no
+// history from a stateless caller). Only first questions read or write the
+// cache (owner decision, 2026-10-01): a follow-up is always answered live,
+// since no word test can tell reliably whether it leans on the conversation,
+// and its answer was written with another person's earlier turns.
+func (ru *run) firstQuestion() bool {
+	return ru.conv == nil && len(ru.stateless) == 0
 }
 
 // lookupCache finds a stored answer for the question (sets ru.cache when the
@@ -111,8 +114,8 @@ func (ru *run) lookupCache(ctx context.Context) {
 // findCached computes the key and looks the question up: exactly, then
 // near-identical when the agent allows it.
 func (ru *run) findCached(ctx context.Context, settings answercache.AgentSettings) (result, reason string) {
-	if !ru.standalone() {
-		return cacheMiss, cacheNotStandalone
+	if !ru.firstQuestion() {
+		return cacheMiss, cacheFollowUp
 	}
 	c := &cacheRun{settings: settings}
 	if err := ru.cacheKey(ctx, c); err != nil {
@@ -244,14 +247,21 @@ func (ru *run) cacheKey(ctx context.Context, c *cacheRun) error {
 // citations and claims), recorded like a live answer with no model tokens.
 func (ru *run) replayCached(ctx context.Context) (Answer, error) {
 	a := ru.cache.hit
-	ru.firstSearch = a.Retrieval
 	ru.citeRec = a.CitationCheck
 	ru.retr.topSim = a.TopSimilarity
 	if a.Retrieval != nil {
-		ru.out.send(Event{"retrieval", RetrievalEvent{Query: a.Retrieval.Query, Hits: a.Sources, Judging: a.Retrieval.Judging}})
+		// The step shows this person's question, never the wording of the
+		// person whose answer was saved (a first question is searched as
+		// it was asked, so this is what a live answer would show).
+		view := *a.Retrieval
+		view.Query = ru.question
+		ru.firstSearch = &view
+		ru.out.send(Event{"retrieval", RetrievalEvent{Query: view.Query, Hits: a.Sources, Judging: view.Judging}})
 	}
-	st := &loopState{}
-	ru.startAnswer(st)
+	// The text arrives whole, as a buffered answer's does: clients show it
+	// from its start rather than following the bottom.
+	ru.out.start()
+	ru.out.send(Event{"message_start", MessageStartEvent{MessageID: ru.msgID, Buffered: true}})
 	ru.markFirstToken()
 	ru.out.send(Event{"text_delta", DeltaEvent{Delta: a.Text}})
 	ans := ru.baseAnswer()
@@ -283,10 +293,16 @@ func (ru *run) cacheMeta() map[string]any {
 // storeCached keeps a clean answer of a miss: passed moderation, no error,
 // no refusal and nothing that the gap report counts as a failure (so a
 // cached answer never hides a failed question), with sources, and no MCP
-// tool call.
+// tool call. The switches are read again (an answer takes seconds; one
+// turned off meanwhile saves nothing): the agent's here, the platform's in
+// the store's statement.
 func (ru *run) storeCached(ctx context.Context, ans *Answer) {
 	c := ru.cache
 	if c == nil || c.hit != nil || !ru.cleanAnswer(ans) {
+		return
+	}
+	ctx = context.WithoutCancel(ctx)
+	if st, err := ru.s.Cache.AgentSettings(ctx, ru.agent.ID); err != nil || !st.On(ru.grant) {
 		return
 	}
 	stored := cachedAnswer{Text: ans.Text, Citations: ans.Citations, Claims: ans.Claims, Uncited: ans.Uncited, Sources: ans.Sources,
@@ -306,7 +322,6 @@ func (ru *run) storeCached(ctx context.Context, ans *Answer) {
 		id := ans.MessageID
 		in.SourceMessageID = &id
 	}
-	ctx = context.WithoutCancel(ctx)
 	if in.Retention, err = ru.transcriptRetention(ctx); err == nil {
 		_, err = ru.s.Cache.Store(ctx, in)
 	}

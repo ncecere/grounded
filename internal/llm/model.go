@@ -29,6 +29,12 @@ type Compat struct {
 	// or "reasoning". Empty (the default) reads whichever is present, first
 	// non-empty of reasoning_content, reasoning, reasoning_text.
 	ThinkingField string
+	// ThinkingOff says how to turn thinking off for ReasoningEffort "off":
+	// ThinkingOffEffortNone sends reasoning_effort "none",
+	// ThinkingOffTemplateKwarg sends chat_template_kwargs
+	// {"enable_thinking": false}. "" (the default): not supported, so off
+	// sends nothing.
+	ThinkingOff string
 	// ExtraBody is merged into every request (gateway.MergeExtra): server
 	// extensions such as {"chat_template_kwargs": {"enable_thinking":
 	// false}}. It never overrides a field Grounded sets. Default none.
@@ -44,6 +50,7 @@ type CompatOverrides struct {
 	MaxTokensField          *string        `json:"maxTokensField,omitempty"`
 	SupportsToolChoice      *bool          `json:"supportsToolChoice,omitempty"`
 	ThinkingField           *string        `json:"thinkingField,omitempty"`
+	ThinkingOff             *string        `json:"thinkingOff,omitempty"`
 	ExtraBody               map[string]any `json:"extraBody,omitempty"`
 	// SupportsDimensionsParam applies to embedding models (catalog.EmbedTarget);
 	// chat ignores it.
@@ -75,8 +82,24 @@ func ResolveCompat(o CompatOverrides) Compat {
 	if o.ThinkingField != nil && (*o.ThinkingField == "reasoning_content" || *o.ThinkingField == "reasoning") {
 		c.ThinkingField = *o.ThinkingField
 	}
+	if o.ThinkingOff != nil && ValidThinkingOff(*o.ThinkingOff) {
+		c.ThinkingOff = *o.ThinkingOff
+	}
 	c.ExtraBody = o.ExtraBody
 	return c
+}
+
+// Ways to turn thinking off (Compat.ThinkingOff), and the reasoning effort
+// that asks for it.
+const (
+	ThinkingOffEffortNone    = "reasoning_effort_none"
+	ThinkingOffTemplateKwarg = "enable_thinking_false"
+	EffortOff                = "off"
+)
+
+// ValidThinkingOff reports a known way to turn thinking off.
+func ValidThinkingOff(v string) bool {
+	return v == ThinkingOffEffortNone || v == ThinkingOffTemplateKwarg
 }
 
 // DecodeCompat resolves the stored compat JSON. Invalid JSON gives the

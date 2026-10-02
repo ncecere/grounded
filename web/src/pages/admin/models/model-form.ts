@@ -68,6 +68,8 @@ export function initialModelForm(model: Model | null, connections: Connection[])
     supportsDeveloperRole: compat.supportsDeveloperRole,
     supportsToolChoice: compat.supportsToolChoice,
     supportsReasoningEffort: compat.supportsReasoningEffort,
+    /** Chat models: how to turn thinking off for reasoning effort Off; "" = not supported. */
+    thinkingOff: (compat.thinkingOff ?? "") as "" | NonNullable<Compat["thinkingOff"]>,
     supportsDimensionsParam: compat.supportsDimensionsParam ?? false,
     /** Rerank models: "" = the default (documents). */
     rerankDocumentsField: (compat.rerankDocumentsField ?? "") as "" | NonNullable<Compat["rerankDocumentsField"]>,
@@ -93,6 +95,7 @@ function compatOf(form: ModelForm): Compat {
   set("supportsDeveloperRole", form.supportsDeveloperRole);
   set("supportsToolChoice", form.supportsToolChoice);
   set("supportsReasoningEffort", form.supportsReasoningEffort);
+  set("thinkingOff", form.kind === "chat" && form.thinkingOff ? form.thinkingOff : undefined);
   set("supportsDimensionsParam", form.kind === "embedding" && form.supportsDimensionsParam ? true : undefined);
   set("rerankDocumentsField", form.kind === "rerank" && form.rerankDocumentsField ? form.rerankDocumentsField : undefined);
   set("supportsRerankTopN", form.kind === "rerank" ? form.supportsRerankTopN : undefined);

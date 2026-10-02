@@ -23,17 +23,18 @@ An answer in a stored conversation (the web chat, the public page, the widget, a
 | `refused` | Refused | A strictly grounded agent gave its refusal message. |
 | `judged_out` | No relevant passage | SystemOne passage judging dropped every passage. |
 | `out_of_scope` | Out of scope | The SystemOne scope check found the question outside the agent's subject. |
-| `unsupported` | Unsupported claims | SystemOne citation checks found a claim its source doesn't support. |
-| `uncited` | Uncited claims | SystemOne citation checks found a factual sentence without a citation. |
+| `unsupported` | Unsupported claims | SystemOne citation checks found a claim its source doesn't support, or contradicts. |
 | `thumbs_down` | Thumbs-down | The person rated the answer down (with its reason). |
 
-Errors (an unavailable model, a stopped answer), moderation notices and small talk aren't failures. Draft test chats (**Try it**), evaluation runs and stateless callers (service keys, the OpenAI-compatible endpoint, MCP) keep nothing: their questions have no conversation to belong to.
+Errors (an unavailable model, a stopped answer), moderation notices and small talk aren't failures. Neither is an **uncited sentence** (a factual sentence without a citation): models often leave a lead-in or a list item without a marker in an answer that is fine, so an answer whose only issue is uncited sentences counts as answered well (it can close a topic, and it can be a saved answer). The chat's Uncited marks and the claim counts in Agent → Analytics → Checks still show them. Draft test chats (**Try it**), evaluation runs and stateless callers (service keys, the OpenAI-compatible endpoint, MCP) keep nothing: their questions have no conversation to belong to.
 
 The question is kept apart from the transcript, with the vector the search already computed (no extra model call), the signals and a pseudonymous asker key (the same one analytics uses). A question without a vector (a thumbs-down, or an agent that searches with a tool) is embedded by the topics job.
 
 ## Sharing a question
 
 The thumbs-down menu has **Share this question with the team**, off by default. Tick it, then choose what was wrong. A shared question shows in full on its topic's page, and editors can add it to an evaluation set. Rating the answer up later takes the question back.
+
+Visitors of the **public page and the widget** have the same thumbs, reasons and tick (since v0.4.0). Their thumbs-down counts like anyone's, each anonymous session as one person, and a question they share shows like any other shared question, never linked to the visitor.
 
 ## Topics
 

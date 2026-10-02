@@ -67,7 +67,7 @@ func finished(p dbgen.InsertEvalResultParams, start time.Time) dbgen.InsertEvalR
 // came back and ranks the expected documents in the top k. When none is
 // there, a deeper search finds their rank beyond k.
 func (x *executor) retrieval(ctx context.Context, cs Case, p *dbgen.InsertEvalResultParams, d *Diagnosis) error {
-	docs, err := x.search(ctx, cs.Question, 0)
+	docs, err := x.search(ctx, cs.Question, x.t.depth)
 	if err != nil {
 		return err
 	}

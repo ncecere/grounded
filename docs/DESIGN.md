@@ -405,7 +405,7 @@ Each message event records the following, **without message content**:
 
 Teams never see who a user is. Unique-user counts use pseudonymous IDs.
 
-**Gap report (v0.4.0, ADR-0010 as amended; [`gaps.md`](gaps.md)).** The question of a failed answer (no context, a refusal, every passage judged out, out of scope, unsupported or uncited claims, a thumbs-down) is kept apart from the transcript with its embedding and a pseudonymous asker key, and deleted with its conversation. An hourly job groups each agent's questions into topics; the team's editors, admins and owners see a topic (a 2-5 word label by the agent's chat model, counts, signals, trend) once at least 3 different askers are in it, and a question's text only when its asker shared it on a thumbs-down. Platform admins and auditors see counts per team only.
+**Gap report (v0.4.0, ADR-0010 as amended; [`gaps.md`](gaps.md)).** The question of a failed answer (no context, a refusal, every passage judged out, out of scope, unsupported or contradicted claims, a thumbs-down; not uncited sentences alone) is kept apart from the transcript with its embedding and a pseudonymous asker key, and deleted with its conversation. An hourly job groups each agent's questions into topics; the team's editors, admins and owners see a topic (a 2-5 word label by the agent's chat model, counts, signals, trend) once at least 3 different askers are in it, and a question's text only when its asker shared it on a thumbs-down. Platform admins and auditors see counts per team only.
 
 **Dashboards:** conversations over time, satisfaction, how often no context was found, most-cited documents, and latency and tokens by model.
 
@@ -473,11 +473,12 @@ type VectorStore interface {
     | Flag | Kind | Default | Effect |
     |---|---|---|---|
     | `supportsDeveloperRole` | chat | false | Send the system prompt with role `developer` instead of `system`. SGLang rejects `developer` (`400 Unexpected message role`): leave it false there. |
-    | `supportsReasoningEffort` | chat | false | Send the agent's `reasoning_effort`. Unknown fields break some proxies. |
+    | `supportsReasoningEffort` | chat | false | Send the answer's `reasoning_effort` (low, medium or high: the agent's, else the audience's). Unknown fields break some proxies. |
     | `supportsStreamUsage` | chat | true | Send `stream_options.include_usage` so the last chunk carries usage. |
     | `maxTokensField` | chat | `max_tokens` | The output-limit field: `max_tokens` or `max_completion_tokens`. |
     | `supportsToolChoice` | chat | false | Send `tool_choice` (e.g. `required`). Only for servers that honour it: SGLang with Qwen3 does (a `required` turn always calls a tool); vLLM serving gpt-oss accepts it but ignores it. |
     | `thinkingField` | chat | either | The streamed reasoning field, `reasoning_content` or `reasoning`; empty reads whichever is present. |
+    | `thinkingOff` | chat | not supported | How to turn thinking off when an answer's reasoning effort is `off` (v0.4.0): `reasoning_effort_none` sends `reasoning_effort: "none"`, `enable_thinking_false` sends `chat_template_kwargs: {"enable_thinking": false}` (Qwen3 on vLLM or SGLang; kept with the other template arguments of `extraBody`). Without it, Off can't be chosen in the UI and sends nothing. |
     | `extraBody` | chat, moderation | none | A JSON object (at most 4096 bytes) merged into every chat completion request for server extensions, e.g. `{"chat_template_kwargs": {"enable_thinking": false}}` to turn off Qwen3 thinking on SGLang or vLLM. It can't set the fields Grounded controls (`model`, `messages`, `stream`, `stream_options`, `tools`, `tool_choice`, `parallel_tool_calls`, `functions`, `function_call`, `n`, `user`, `max_tokens`, `max_completion_tokens`, `temperature`, `reasoning_effort`): they are rejected on save and skipped when sending. Used by agent chat, query rewriting, model tests and chat-based moderation. |
     | `supportsDimensionsParam` | embedding | false | For profiles with `outputDimensions`: send the OpenAI `dimensions` parameter. When false, Grounded truncates and L2-renormalises the vectors itself. |
   - **Stream handling that needs no flag.** Reasoning tokens are read from `usage.completion_tokens_details.reasoning_tokens` or, as SGLang reports them, the top-level `usage.reasoning_tokens`. A whitespace-only text delta never opens a text block (Qwen3 streams `"\n\n"` before its answer and before tool calls), and the first text of a message loses its leading whitespace; whitespace inside the answer is kept.

@@ -6,7 +6,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Ban, CircleStop, RotateCcw, Search, ThumbsDown, ThumbsUp, TriangleAlert, Wrench } from "lucide-react";
-import { api, unwrap } from "../../api/client";
 import { Alert } from "@/components/ui/alert/alert";
 import { Button, IconButton } from "@/components/ui/button/button";
 import { Menu, MenuCheckboxItem, MenuGroup, MenuItem, MenuSeparator } from "@/components/ui/menu/menu";
@@ -15,6 +14,7 @@ import { Suggestion, Suggestions } from "@/components/ui/suggestion/suggestion";
 import { toast } from "@/components/ui/toast/toast";
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "@/components/ui/tool/tool";
 import { judgedSummary } from "@/lib/systemone";
+import { useFeedbackSender } from "./feedback-sender";
 import { type AssistantItem, type FeedbackRating, type FeedbackReason, type SearchStep, chatErrorText, feedbackReasons } from "./stream";
 import a from "./answer.module.css";
 import c from "./chat.module.css";
@@ -152,9 +152,9 @@ export function Notes({ item, onRetry, starters, onStarter }: NotesProps) {
 }
 
 export function Feedback({ item, onChange }: { item: AssistantItem; onChange: (f: AssistantItem["feedback"]) => void }) {
+  const post = useFeedbackSender(); // signed in, or the public page's and widget's anonymous session
   const send = useMutation({
-    mutationFn: async (body: { rating: FeedbackRating; reason?: FeedbackReason; share?: boolean }) =>
-      unwrap(await api.POST("/v1/messages/{messageId}/feedback", { params: { path: { messageId: item.id! } }, body })),
+    mutationFn: (body: { rating: FeedbackRating; reason?: FeedbackReason; share?: boolean }) => post(item.id!, body),
     onSuccess: (res) => {
       onChange({ rating: res.rating, reason: res.reason, shared: res.shared });
       toast.success("Thanks for the feedback");

@@ -52,6 +52,13 @@ describe("progress labels", () => {
     expect(waitingText(checked, false, "Fees")).toBe("Writing and checking the answer…");
     expect(progressAnnouncement([checked], "Fees")).toBe("Writing and checking the answer…");
     expect(applyChatEvent(item, "message_start", { messageId: "m1", mode: "stream_retract" }).checked).toBe(false);
+    // While the model reasons in a checked or buffered answer (its thinking hidden), it says so; then back to writing.
+    const thinking = applyChatEvent(checked, "status", { step: "thinking" });
+    expect(waitingText(thinking, false, "Fees")).toBe("Thinking about your question…");
+    expect(progressAnnouncement([thinking], "Fees")).toBe("Thinking about your question…");
+    const writing = applyChatEvent(thinking, "status", { step: "answering" });
+    expect(waitingText(writing, false, "Fees")).toBe("Writing and checking the answer…");
+    expect(waitingText({ ...thinking, checked: false, buffered: true }, false, "Fees")).toBe("Thinking about your question…");
     // Nothing to announce once words arrive, or for a finished answer.
     expect(progressAnnouncement([item], "Fees")).toBe("Searching Fees' knowledge…");
     expect(progressAnnouncement([{ ...item, text: "Use" }], "Fees")).toBe("");
