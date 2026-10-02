@@ -4749,10 +4749,13 @@ type AgentConfig struct {
 	ContextTokenBudget int `json:"contextTokenBudget"`
 
 	// Filters Restricts retrieval by document metadata. Empty lists do not filter. sourceIds is intersected with the knowledge base's sources.
-	Filters         *MetadataFilter `json:"filters,omitempty"`
-	Instructions    string          `json:"instructions"`
-	Kbs             []AgentKB       `json:"kbs"`
-	MaxOutputTokens *int            `json:"maxOutputTokens,omitempty"`
+	Filters *MetadataFilter `json:"filters,omitempty"`
+
+	// FollowUpSuggestions Suggest up to 3 follow-up questions under an answer with citations (docs/follow-ups.md); absent in configurations saved before v0.4.1 (on)
+	FollowUpSuggestions *bool     `json:"followUpSuggestions,omitempty"`
+	Instructions        string    `json:"instructions"`
+	Kbs                 []AgentKB `json:"kbs"`
+	MaxOutputTokens     *int      `json:"maxOutputTokens,omitempty"`
 
 	// MaxTurns Tool mode: turns that may search
 	MaxTurns int `json:"maxTurns"`
@@ -4811,12 +4814,15 @@ type AgentConfigInput struct {
 	ContextTokenBudget *int          `json:"contextTokenBudget,omitempty"`
 
 	// Filters Restricts retrieval by document metadata. Empty lists do not filter. sourceIds is intersected with the knowledge base's sources.
-	Filters         *MetadataFilter `json:"filters,omitempty"`
-	Instructions    *string         `json:"instructions,omitempty"`
-	Kbs             *[]AgentKB      `json:"kbs,omitempty"`
-	MaxOutputTokens *int            `json:"maxOutputTokens,omitempty"`
-	MaxTurns        *int            `json:"maxTurns,omitempty"`
-	MinSimilarity   *float64        `json:"minSimilarity,omitempty"`
+	Filters *MetadataFilter `json:"filters,omitempty"`
+
+	// FollowUpSuggestions Suggest up to 3 follow-up questions the retrieved passages answer, under an answer with citations (docs/follow-ups.md): a small chat-model call after the answer, metered as chat tokens
+	FollowUpSuggestions *bool      `json:"followUpSuggestions,omitempty"`
+	Instructions        *string    `json:"instructions,omitempty"`
+	Kbs                 *[]AgentKB `json:"kbs,omitempty"`
+	MaxOutputTokens     *int       `json:"maxOutputTokens,omitempty"`
+	MaxTurns            *int       `json:"maxTurns,omitempty"`
+	MinSimilarity       *float64   `json:"minSimilarity,omitempty"`
 
 	// Moderation An agent's moderation override. It can only make the audience's platform policy stricter: a rule's action and threshold combine with the platform's (the stronger action, the lower threshold), off keeps the platform's rule, and outputMode stream_checked or buffer applies where the platform's mode is less strict (stream_retract, then stream_checked, then buffer). The Phase 3 value "off" is still accepted as no override.
 	Moderation      *AgentModeration                 `json:"moderation,omitempty"`
@@ -5571,6 +5577,9 @@ type ChatEventError struct {
 type ChatEventMessageEnd struct {
 	Citations []Citation `json:"citations"`
 
+	// CitationsPending The citations are checked now (SystemOne citation checks on a streamed answer): wait for citations_checked (or done) before treating the answer as final (v0.4.1 and later).
+	CitationsPending *bool `json:"citationsPending,omitempty"`
+
 	// Claims Set when citations were checked before the answer was released (buffered and JSON answers): the answer's claims with their verdicts (docs/systemone.md §3).
 	Claims    *[]Claim           `json:"claims,omitempty"`
 	MessageId openapi_types.UUID `json:"messageId"`
@@ -5638,6 +5647,12 @@ type ChatEventStatus struct {
 
 // ChatEventStatusStep defines model for ChatEventStatus.Step.
 type ChatEventStatusStep string
+
+// ChatEventSuggestions SSE event suggestions (v0.4.1 and later; docs/follow-ups.md): up to 3 follow-up questions the answer's passages can answer, written by the agent's chat model after the answer ended. Follows message_end and citations_checked, before done; sent only when there is at least one (never after a refusal, an answer without citations, a moderated answer or an error), and not on the OpenAI-compatible endpoint or MCP ask. Choosing one asks it as the next question.
+type ChatEventSuggestions struct {
+	MessageId   openapi_types.UUID `json:"messageId"`
+	Suggestions []string           `json:"suggestions"`
+}
 
 // ChatEventToolCall SSE event tool_call
 type ChatEventToolCall struct {

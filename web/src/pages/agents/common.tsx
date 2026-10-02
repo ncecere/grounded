@@ -62,6 +62,7 @@ export function problemTarget(field: string): { id: string; label: string } {
     refusalMessage: "Refusal message",
     citationMode: "Citations",
     queryRewrite: "Rewrite follow-up questions",
+    followUpSuggestions: "Suggest follow-up questions",
     temperature: "Temperature",
     maxOutputTokens: "Maximum output tokens",
     reasoningEffort: "Reasoning effort",
@@ -100,6 +101,7 @@ export const defaultConfig: AgentConfigInput = {
   queryRewrite: true,
   rerank: true,
   rerankTopN: 6,
+  followUpSuggestions: true,
 };
 
 /** A draft config ready to send: the server rejects unknown fields; optional values are cleared with null / "". */
@@ -130,6 +132,8 @@ export function configInput(c: AgentConfig): AgentConfigInput {
     // Reranking (docs/v0.4.0.md §3); absent in configurations saved before v0.4: on, keeping 6.
     rerank: c.rerank ?? true,
     rerankTopN: c.rerankTopN ?? 6,
+    // Follow-up suggestions (docs/follow-ups.md); absent in configurations saved before v0.4.1: on.
+    followUpSuggestions: c.followUpSuggestions ?? true,
   };
 }
 

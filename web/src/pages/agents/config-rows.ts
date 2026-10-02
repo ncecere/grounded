@@ -68,6 +68,7 @@ export function configRows(c: AgentConfig, names: ConfigNames): ConfigRow[] {
     { key: "budget", label: "Source token budget", value: c.contextTokenBudget.toLocaleString() },
     { key: "similarity", label: "Minimum similarity", value: c.minSimilarity ? String(c.minSimilarity) : "Off" },
     { key: "rewrite", label: "Rewrite follow-up questions", value: c.queryRewrite ? "Yes" : "No" },
+    { key: "followUps", label: "Suggest follow-up questions", value: c.followUpSuggestions === false ? "No" : "Yes" },
     { key: "reasoning", label: "Reasoning effort", value: c.reasoningEffort ? c.reasoningEffort[0]!.toUpperCase() + c.reasoningEffort.slice(1) : "Default" },
     { key: "safety", label: "Safety", value: safetyText(c.moderation) },
     { key: "systemOne", label: "SystemOne checks", value: systemOneText(c.systemOne) },

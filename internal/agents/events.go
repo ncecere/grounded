@@ -18,7 +18,8 @@ import (
 // Event is one step of an answer, for the SSE stream (docs/phase3-agents.md
 // §7): conversation, status (progress.go), retrieval, message_start, thinking_delta, text_delta,
 // tool_call, tool_result, moderation (docs/phase4-publishing.md §4),
-// message_end, citations_checked (docs/systemone.md §3), error.
+// message_end, citations_checked (docs/systemone.md §3), error, suggestions
+// (suggest.go).
 type Event struct {
 	Type string
 	Data any
@@ -120,6 +121,14 @@ type (
 		// (buffer, JSON).
 		Uncited []UncitedSentence `json:"uncited,omitempty"`
 		Claims  []Claim           `json:"claims,omitempty"`
+		// CitationsPending: the citations are checked now, and
+		// citations_checked follows (a streamed answer's checks).
+		CitationsPending bool `json:"citationsPending,omitempty"`
+	}
+	// SuggestionsEvent: follow-up questions under the answer (suggest.go).
+	SuggestionsEvent struct {
+		MessageID   uuid.UUID `json:"messageId"`
+		Suggestions []string  `json:"suggestions"`
 	}
 	ErrorEvent struct {
 		Code    string `json:"code"`
@@ -280,5 +289,5 @@ func stepOutcome(isError bool, d toolDetails) (errText, result string) {
 func (ru *run) sendEnd(ans Answer) {
 	ru.out.send(Event{"message_end", MessageEndEvent{MessageID: ans.MessageID, StopReason: ans.StopReason, Text: ans.Text,
 		Citations: ans.Citations, Usage: ans.Usage, Refused: ans.Refused, NoContext: ans.NoContext,
-		NoContextReason: ans.noContextReason, Uncited: ans.Uncited, Claims: ans.Claims}})
+		NoContextReason: ans.noContextReason, Uncited: ans.Uncited, Claims: ans.Claims, CitationsPending: ans.citePending}})
 }

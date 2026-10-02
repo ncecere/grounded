@@ -29,6 +29,11 @@ import (
 //
 //  1. Query rewrite: no tools offered and the system prompt contains the word
 //     "standalone" (any case) → the last user message text, unchanged.
+//     Follow-up suggestions: no tools offered and the system prompt
+//     contains "suggest follow-up questions" → a numbered list of up to 3
+//     questions, FakeSuggestion of each passage line's deepest heading
+//     ("- Title › Heading"), or NONE when the question contains
+//     FakeNoSuggestions; SetSuggestions scripts the reply instead.
 //  2. Tools offered, tool_choice is not "none", and no "tool" message follows
 //     the last user message → one call to search_knowledge (or the first
 //     offered tool if that is absent) with arguments {"query": <last user
@@ -76,9 +81,12 @@ type FakeProxy struct {
 	replyDelay   time.Duration   // pause before a chat completion's first byte
 	rewriteDelay time.Duration   // pause before a query rewrite's
 	answer       string          // SetAnswer: the reply to a question with sources
+	suggestions  string          // SetSuggestions: the reply to the suggestions call
 	toolScript   []FakeToolCall  // SetToolCalls
 	chatBodies   []json.RawMessage
-	Requests     []string // "METHOD /path model" log
+	// suggestBodies are the follow-up suggestions calls' requests.
+	suggestBodies []json.RawMessage
+	Requests      []string // "METHOD /path model" log
 
 	// Embedding load simulation (see RejectEmbeddings, LimitEmbeddingRate).
 	rejectN          int
@@ -188,6 +196,14 @@ func (p *FakeProxy) SetAnswer(text string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.answer = text
+}
+
+// SetSuggestions makes text the reply to the follow-up suggestions call
+// (rule 1), until it is set to "" again.
+func (p *FakeProxy) SetSuggestions(text string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.suggestions = text
 }
 
 // FakeToolCall is a scripted tool call (SetToolCalls).
@@ -355,11 +371,20 @@ func (p *FakeProxy) admitEmbedding(now time.Time) (int, string) {
 	return 0, ""
 }
 
-// ChatRequests returns the raw bodies of the chat completion requests so far.
+// ChatRequests returns the raw bodies of the chat completion requests so
+// far, except the follow-up suggestions calls (SuggestionRequests).
 func (p *FakeProxy) ChatRequests() []json.RawMessage {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return append([]json.RawMessage(nil), p.chatBodies...)
+}
+
+// SuggestionRequests returns the bodies of the follow-up suggestions calls
+// (not in ChatRequests).
+func (p *FakeProxy) SuggestionRequests() []json.RawMessage {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return append([]json.RawMessage(nil), p.suggestBodies...)
 }
 
 func (p *FakeProxy) auth(next http.Handler) http.Handler {

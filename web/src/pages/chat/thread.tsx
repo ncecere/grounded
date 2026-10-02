@@ -26,7 +26,7 @@ import { verificationLabel } from "@/lib/systemone";
 import { citedSoFar, displayText, normalizePunctuation } from "./answer-text";
 import { displayNumbers, jumpBelow, useAnswerMarkers, withUncited } from "./citations";
 import { type Claim, ClaimSummary, SourceBreakdown, sourceBreakdown, uncitedOfClaims } from "./claims";
-import { Feedback, Notes, Steps, isAnswer } from "./notes";
+import { Feedback, FollowUps, Notes, Steps, isAnswer } from "./notes";
 import { waitingText } from "./progress";
 import { revealSource } from "./reveal";
 import type { AssistantItem, ChatItem, Citation } from "./stream";
@@ -184,6 +184,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
             </SourcesContent>
           </Sources>
         )}
+        <FollowUps item={item} onAsk={onStarter} />
       </MessageContent>
       {!streaming && isAnswer(item) && (
         <MessageActions label="Answer actions">
@@ -225,7 +226,7 @@ type ChatMessagesProps = {
   added?: (item: AssistantItem) => boolean;
   /** Ask a question again (the last answer, when the connection was lost mid-answer). */
   onRetry?: (question: string) => void;
-  /** Ask one of the agent's starter questions (offered under the last answer when it's a refusal). */
+  /** Ask one of the agent's starter questions (under the last answer when it's a refusal) or a follow-up suggestion (under the last answer). */
   onStarter?: (question: string) => void;
 };
 

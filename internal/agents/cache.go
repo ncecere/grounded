@@ -54,6 +54,8 @@ type cachedAnswer struct {
 	Retrieval     *RetrievalView    `json:"retrieval,omitempty"`
 	CitationCheck *CitationsRecord  `json:"citationCheck,omitempty"`
 	TopSimilarity float64           `json:"topSimilarity,omitempty"`
+	// Suggestions are the follow-up questions sent with it (suggest.go).
+	Suggestions []string `json:"suggestions,omitempty"`
 }
 
 // cacheRun is the cache's part of one answer (nil: the answer can't use
@@ -244,7 +246,7 @@ func (ru *run) cacheKey(ctx context.Context, c *cacheRun) error {
 
 // replayCached answers with the stored answer: the same events a live
 // answer sends (retrieval, message_start, the text, message_end with the
-// citations and claims), recorded like a live answer with no model tokens.
+// citations and claims, the suggestions), recorded like a live answer with no model tokens.
 func (ru *run) replayCached(ctx context.Context) (Answer, error) {
 	a := ru.cache.hit
 	ru.citeRec = a.CitationCheck
@@ -275,6 +277,7 @@ func (ru *run) replayCached(ctx context.Context) (Answer, error) {
 	msg := llm.AssistantMessage{Content: []llm.Block{llm.Text{Text: a.Text}}, Model: ru.model.ID, StopReason: llm.StopReasonStop}
 	ru.record(ctx, &ans, &msg, nil)
 	ru.sendEnd(ans)
+	ru.replaySuggestions(&ans, a.Suggestions)
 	observability.AnswerCacheTokensSaved.Add(float64(ru.cache.tokens))
 	if err := ru.s.Cache.Hit(context.WithoutCancel(ctx), ru.cache.entryID); err != nil {
 		ru.s.Log.Warn("answer cache: count a hit", "err", err, "agent", ru.agent.ID)
@@ -306,7 +309,7 @@ func (ru *run) storeCached(ctx context.Context, ans *Answer) {
 		return
 	}
 	stored := cachedAnswer{Text: ans.Text, Citations: ans.Citations, Claims: ans.Claims, Uncited: ans.Uncited, Sources: ans.Sources,
-		Retrieval: ru.firstSearch, CitationCheck: ru.citeRec, TopSimilarity: ru.retr.topSim}
+		Retrieval: ru.firstSearch, CitationCheck: ru.citeRec, TopSimilarity: ru.retr.topSim, Suggestions: ans.Suggestions}
 	raw, err := json.Marshal(stored)
 	if err != nil {
 		return

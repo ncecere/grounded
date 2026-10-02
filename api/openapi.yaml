@@ -4711,7 +4711,10 @@ paths:
         notice), message_end, citations_checked (only when SystemOne citation
         checks are on and the answer has citations: it follows message_end and
         replaces the answer's citations, and in enforce mode its text), error
-        (only on failure), done. A blocked
+        (only on failure), suggestions (follow-up questions, v0.4.1 and
+        later: only after an answer with citations, when the agent offers
+        them; it follows message_end and citations_checked, and the answer
+        is complete before it), done. A blocked
         question gets conversation, status, message_start, moderation, message_end. A ": ping" comment is sent every 15 s. Errors before the
         stream starts (agent_disabled, agent_policy_violation, rate_limited,
         quota_exceeded, budget_exhausted, and model_unavailable when the agent's
@@ -11075,6 +11078,7 @@ components:
           items: { type: string, format: uuid }
         rerank: { type: boolean, description: "Rerank searches with the platform's rerank model (when one is set); absent in configurations saved before v0.4 (on)" }
         rerankTopN: { type: integer, minimum: 1, maximum: 20, description: "Passages each reranked search keeps, for judging or the model" }
+        followUpSuggestions: { type: boolean, description: "Suggest up to 3 follow-up questions under an answer with citations (docs/follow-ups.md); absent in configurations saved before v0.4.1 (on)" }
     AgentConfigInput:
       type: object
       description: >-
@@ -11116,6 +11120,7 @@ components:
           items: { type: string, format: uuid }
         rerank: { type: boolean, default: true, description: "Rerank searches with the platform's rerank model (docs/v0.4.0.md §3); it only applies once a platform admin sets one" }
         rerankTopN: { type: integer, minimum: 1, maximum: 20, default: 6, description: "Passages each reranked search keeps, for judging or the model" }
+        followUpSuggestions: { type: boolean, default: true, description: "Suggest up to 3 follow-up questions the retrieved passages answer, under an answer with citations (docs/follow-ups.md): a small chat-model call after the answer, metered as chat tokens" }
     AgentSystemOne:
       type: object
       description: >-
@@ -12226,6 +12231,30 @@ components:
             (buffered and JSON answers): the answer's claims with their
             verdicts (docs/systemone.md §3).
           items: { $ref: "#/components/schemas/Claim" }
+        citationsPending:
+          type: boolean
+          description: >-
+            The citations are checked now (SystemOne citation checks on a
+            streamed answer): wait for citations_checked (or done) before
+            treating the answer as final (v0.4.1 and later).
+    ChatEventSuggestions:
+      type: object
+      description: >-
+        SSE event suggestions (v0.4.1 and later; docs/follow-ups.md): up to 3
+        follow-up questions the answer's passages can answer, written by the
+        agent's chat model after the answer ended. Follows message_end and
+        citations_checked, before done; sent only when there is at least one
+        (never after a refusal, an answer without citations, a moderated
+        answer or an error), and not on the OpenAI-compatible endpoint or
+        MCP ask. Choosing one asks it as the next question.
+      required: [messageId, suggestions]
+      properties:
+        messageId: { type: string, format: uuid }
+        suggestions:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items: { type: string, maxLength: 150 }
     ChatEventCitationsChecked:
       type: object
       description: >-

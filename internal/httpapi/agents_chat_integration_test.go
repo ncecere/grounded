@@ -157,7 +157,8 @@ func TestAgentLifecycleAndChat(t *testing.T) {
 	if steps := statusSteps(evs); strings.Join(steps, ",") != "searching,answering" {
 		t.Fatalf("status steps = %v", steps)
 	}
-	if names[len(names)-1] != "done" || names[len(names)-2] != "message_end" {
+	// Follow-up suggestions come after the answer, before done (suggestions_integration_test.go).
+	if names[len(names)-1] != "done" || names[len(names)-2] != "suggestions" || names[len(names)-3] != "message_end" {
 		t.Fatalf("event order = %v", names)
 	}
 	if evs.text("thinking_delta") == "" {

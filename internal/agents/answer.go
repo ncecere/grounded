@@ -95,7 +95,7 @@ func (ru *run) refuseWithoutModel(ctx context.Context) (Answer, error) {
 
 // finish turns the loop result into the answer: citations, refusals,
 // incomplete answers and errors; then checks the citations (when on),
-// stores and reports it.
+// stores and reports it, and suggests follow-up questions.
 func (ru *run) finish(ctx context.Context, added []llm.Message, runErr error, st *loopState) (Answer, error) {
 	ans := ru.baseAnswer()
 	final, blocks, results := collectLoop(added, &ans.Usage)
@@ -125,7 +125,9 @@ func (ru *run) finish(ctx context.Context, added []llm.Message, runErr error, st
 	ru.releaseBuffered(st, withheld, ans)
 	if timing == checkAfter {
 		ru.answeredAt = time.Now()
+		ans.citePending = true
 		ru.sendEnd(ans)
+		ans.citePending = false
 		ru.checkCitations(ctx, &ans, sources, ru.citationMode(timing))
 	}
 	if ans.Text != "" {
@@ -142,7 +144,8 @@ func (ru *run) finish(ctx context.Context, added []llm.Message, runErr error, st
 	} else if ru.citeRec != nil {
 		ru.out.send(ru.citationsChecked(ans))
 	}
-	ru.storeCached(ctx, &ans) // the answer cache (cache.go)
+	ru.suggest(ctx, &ans, sources) // follow-up questions (suggest.go)
+	ru.storeCached(ctx, &ans)      // the answer cache (cache.go)
 	return ans, nil
 }
 

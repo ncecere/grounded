@@ -70,6 +70,7 @@ export function sectionSummary(section: BuildSection, { c, model, kbName, system
         c.queryRewrite ? "rewrites follow-ups" : "no rewriting",
         c.minSimilarity ? `similarity ≥ ${c.minSimilarity}` : null,
         c.rerank === false ? "no reranking" : null,
+        c.followUpSuggestions === false ? "no follow-up suggestions" : null,
       ]
         .filter(Boolean)
         .join(" · ");

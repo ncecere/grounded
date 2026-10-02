@@ -1,6 +1,6 @@
 # Saved answers (the answer cache)
 
-When someone asks an agent a question it answered recently, under the same conditions, Grounded can send the saved answer again instead of running the whole pipeline (query rewrite, search, reranking, SystemOne judging, the chat model, citation checks and buffered moderation). The saved answer arrives in well under a second, costs no model tokens, and has the same citations and claim verdicts as the original. People chatting can't tell the difference: there's no "saved answer" note.
+When someone asks an agent a question it answered recently, under the same conditions, Grounded can send the saved answer again instead of running the whole pipeline (query rewrite, search, reranking, SystemOne judging, the chat model, citation checks and buffered moderation). The saved answer arrives in well under a second, costs no model tokens, and has the same citations, claim verdicts and follow-up suggestions ([`follow-ups.md`](follow-ups.md)) as the original. People chatting can't tell the difference: there's no "saved answer" note.
 
 Design: [`v0.4.0.md`](v0.4.0.md) §1 (roadmap A8). Code: `internal/answercache` (storage, settings) and `internal/agents/cache.go` (the chat pipeline).
 

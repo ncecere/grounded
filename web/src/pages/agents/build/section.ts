@@ -41,6 +41,7 @@ const sectionOfField: Record<string, BuildSection> = {
   maxTurns: "advanced",
   minSimilarity: "advanced",
   queryRewrite: "advanced",
+  followUpSuggestions: "advanced",
   rerank: "advanced",
   rerankTopN: "advanced",
 };

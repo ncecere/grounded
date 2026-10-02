@@ -9,8 +9,9 @@
 // deterministic: a few reasoning_content deltas, then a search_knowledge
 // tool call when tools are offered and no tool result exists yet, otherwise
 // the first line of the `<source id="1">` block plus " [1]", otherwise the
-// text of a system-prompt line `Refusal message: "<text>"`. The full rules
-// are documented on testutil.FakeProxy.
+// text of a system-prompt line `Refusal message: "<text>"`. The follow-up
+// suggestions call gets up to 3 questions, one per passage it lists. The
+// full rules are documented on testutil.FakeProxy.
 //
 // Moderation providers (ADR-0019) are deterministic too: POST /v1/moderations,
 // POST /v1/systemone (model e.g. jev-latest), the guardrail chat models
