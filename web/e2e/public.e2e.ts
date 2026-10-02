@@ -188,3 +188,59 @@ test("the widget on an allowed origin, and nothing on another", async ({ page, a
     await Promise.all([allowed.close(), other.close()]);
   }
 });
+
+test("on a phone: the agent's name fits the bar, the source sheet focuses its title, and the widget's launcher hides while it fills the screen", async ({ page, admin, a11y }) => {
+  const { owner, team, agent } = await publicAgent(admin, "Phone parking");
+  const site = await hostSite();
+  try {
+    const { key } = await owner.post<Schemas["PublishableKeyCreated"]>(`/v1/teams/${team}/agents/${agent.id}/publishable-keys`, {
+      name: "Phone site",
+      allowedOrigins: [site.origin],
+    });
+    await owner.dispose();
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    await test.step("the public page (mem-7, aud-6, mem-8)", async () => {
+      await page.goto(`/a/${team}/phone-parking`);
+      const composer = page.getByRole("textbox", { name: "Message Phone parking" });
+      await composer.fill("How much is a student parking permit?");
+      await composer.press("Enter");
+      const answer = page.getByRole("article", { name: "Phone parking said" });
+      await expect(answer).toContainText(handbook.answer);
+      // With New chat and Sign in in the bar, the name isn't cut short (their words stay for screen readers).
+      await expect(page.getByRole("button", { name: "New chat" })).toBeVisible();
+      const title = page.getByRole("heading", { level: 1, name: "Phone parking" });
+      expect(await title.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+      await a11y(page, "public answer on a phone");
+      await answer.getByRole("button", { name: "Used 1 source" }).click();
+      await answer.getByRole("button", { name: /^Show source 1: / }).click();
+      const sheet = page.getByRole("dialog").filter({ has: page.getByTestId("source-viewer") });
+      await expect(sheet.getByTestId("cited-passage")).toContainText(handbook.answer);
+      await expect(sheet.getByRole("heading", { level: 2 })).toBeFocused();
+      await a11y(page, "source sheet on a phone");
+      await sheet.getByRole("button", { name: "Close the source" }).click();
+      await expect(sheet).toBeHidden();
+    });
+
+    await test.step("the widget (mem-8)", async () => {
+      await page.addInitScript(() => {
+        const attach = Element.prototype.attachShadow;
+        Element.prototype.attachShadow = function (init: ShadowRootInit) {
+          return attach.call(this, { ...init, mode: "open" });
+        };
+      });
+      await page.goto(site.url(agent.id, key));
+      const launcher = page.getByRole("button", { name: "Chat with Phone parking" });
+      await launcher.click();
+      const panel = page.getByRole("dialog", { name: "Chat with Phone parking" });
+      await expect(panel).toBeVisible();
+      await expect(launcher).toBeHidden();
+      await a11y(page, "widget full screen on a phone");
+      await panel.getByRole("button", { name: "Close chat" }).click();
+      await expect(launcher).toBeVisible();
+      await expect(launcher).toBeFocused();
+    });
+  } finally {
+    await site.close();
+  }
+});

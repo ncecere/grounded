@@ -28,7 +28,12 @@ import styles from "./response.module.css";
  *   - Links to other sites open in a new tab (rel="noreferrer noopener",
  *     announced as such); code blocks use CodeBlock; wide tables scroll.
  *   - Markdown headings are demoted (# → h3 by default) so an answer never
- *     competes with the page's own h1/h2.
+ *     competes with the page's own h1/h2. Quoted text whose own outline
+ *     doesn't fit the page's (a document's passage) can render every heading
+ *     at one level (`headingLevel`), so no level is skipped.
+ *   - A table header cell with no text is a plain cell, and a header row with
+ *     no text at all is left out (documents converted from other formats
+ *     often have one), so every header names its column.
  *   - With `citations`, markers like [1] or [1, 3] become InlineCitation
  *     chips for those (1-based) sources. Markers inside code (inline or
  *     block) or links, brackets attached to an identifier (a[3], m[i][2],
@@ -63,6 +68,12 @@ export type ResponseProps = Omit<ComponentPropsWithRef<"div">, "children"> & {
   highlight?: CodeBlockHighlighter;
   /** Heading levels to add: 2 renders "#" as h3 (default). */
   headingOffset?: number;
+  /**
+   * Render every Markdown heading at this level (1–6) instead, keeping its
+   * size: for quoted text (a document's passage) whose outline isn't the
+   * page's, so headings never skip a level. Overrides `headingOffset`.
+   */
+  headingLevel?: number;
   /** Drop raw HTML instead of showing it as text. */
   skipHtml?: boolean;
   /** Extra remark plugins, after remark-gfm. */
@@ -238,9 +249,11 @@ function makeComponents(
   highlight: CodeBlockHighlighter | undefined,
   cite: ((indices: number[]) => ReactNode) | undefined,
   images: ResponseImages,
+  headingLevel?: number,
 ): Components {
   const heading = (level: number) => {
-    const Tag = `h${Math.min(6, level + headingOffset)}` as "h3";
+    const at = headingLevel ? Math.min(6, Math.max(1, Math.round(headingLevel))) : Math.min(6, level + headingOffset);
+    const Tag = `h${at}` as "h3";
     return function Heading({ node: _node, ...props }: ComponentPropsWithRef<"h3"> & ExtraProps) {
       return <Tag {...props} data-level={level} className={styles.heading} />;
     };
@@ -278,6 +291,15 @@ function makeComponents(
           <table {...props} className={styles.table} />
         </div>
       );
+    },
+    // An empty header row says nothing (axe: empty-table-header); an empty header cell is a plain cell.
+    thead({ node, ...props }) {
+      if (node && !hastText(node as HastNode).trim()) return null;
+      return <thead {...props} />;
+    },
+    th({ node, ...props }) {
+      if (node && !hastText(node as HastNode).trim()) return <td {...(props as ComponentPropsWithRef<"td">)} />;
+      return <th {...props} />;
     },
     input({ node: _node, type, checked, ...props }) {
       // GFM task-list boxes are read-only: show a mark and say the state in words
@@ -319,6 +341,7 @@ function ResponseImpl({
   renderCitation,
   highlight,
   headingOffset = 2,
+  headingLevel,
   skipHtml = false,
   remarkPlugins,
   images = "click",
@@ -340,8 +363,8 @@ function ResponseImpl({
   }, [citations, renderCitation]);
 
   const merged = useMemo(
-    () => ({ ...makeComponents(headingOffset, highlight, cite, images), ...components }),
-    [headingOffset, highlight, cite, images, components],
+    () => ({ ...makeComponents(headingOffset, highlight, cite, images, headingLevel), ...components }),
+    [headingOffset, headingLevel, highlight, cite, images, components],
   );
   const plugins = useMemo(
     () => [remarkGfm, remarkTableCellBreaks, ...(cite ? [remarkCitationMarkers] : []), ...(remarkPlugins ?? [])],

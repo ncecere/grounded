@@ -8,7 +8,9 @@
  * It adds a launcher button in a shadow root (nothing leaks into the page's
  * CSS, and the page's CSS can't reach it) that opens an iframe panel with
  * Grounded's embed page. Esc closes the panel (the embed page forwards Esc from
- * inside the frame) and focus returns to the launcher. Optional attributes:
+ * inside the frame) and focus returns to the launcher. On a phone the panel
+ * fills the screen and the launcher hides meanwhile (it would cover the chat;
+ * the panel's header closes it). Optional attributes:
  * data-name and data-accent (otherwise read from the public profile), and
  * data-position="bottom-left".
  *
@@ -39,7 +41,7 @@ const css = (accent: string, left: boolean) => `
 .x{border:0;background:transparent;color:#fff;width:32px;height:32px;border-radius:6px;cursor:pointer;display:grid;place-items:center}
 .x svg{width:18px;height:18px}
 iframe{border:0;width:100%;flex:1}
-@media (max-width:480px){.p{${left ? "left" : "right"}:0;bottom:0;width:100vw;max-width:100vw;height:100%;max-height:100%;border-radius:0}}
+@media (max-width:480px){.p{${left ? "left" : "right"}:0;bottom:0;width:100vw;max-width:100vw;height:100%;max-height:100%;border-radius:0}.p:not([hidden])+.l{display:none}}
 @media (prefers-reduced-motion:no-preference){.p{transition:opacity .15s}}`;
 
 const chatIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;

@@ -6,10 +6,8 @@
  * same session; there is no history across sessions (docs/phase4-publishing.md §5).
  * On the public page the chat header is the page's only bar (W12): the
  * instance mark, the agent, New chat (once there is a conversation) and
- * Sign in.
- * On the public page the chat header is the page's only bar (W12): the
- * instance mark, the agent, New chat (once there is a conversation) and
- * Sign in.
+ * Sign in. On a phone its buttons show only their icons (their names stay
+ * for screen readers), so the agent's name keeps the room it needs (mem-7).
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SquarePen } from "lucide-react";
@@ -109,7 +107,11 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
     <section className={p.chat} aria-labelledby="public-chat-title">
       <header className={compact ? p.compactHead : `${c.header} ${p.bar}`}>
         {brand}
-        {!compact && <AgentAvatar agent={agent} size="md" />}
+        {!compact && (
+          <span className={p.avatar}>
+            <AgentAvatar agent={agent} size="md" />
+          </span>
+        )}
         <div className={c.headerText}>
           <h1 id="public-chat-title" className={compact ? p.compactTitle : c.title}>
             {agent.name}
@@ -119,7 +121,7 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
         {/* Nothing to start over from before the first question. */}
         {(compact || chat.items.length > 0) && (
           <Button variant="ghost" size="sm" onClick={newChat} disabled={chat.streaming || chat.items.length === 0}>
-            <SquarePen aria-hidden /> New chat
+            <SquarePen aria-hidden /> <span className={p.barLabel}>New chat</span>
           </Button>
         )}
         {actions}

@@ -62,9 +62,12 @@
     outline: none;
   }
 
+  /* The title takes focus when a source opens: an underline marks it, not a box over the panel's edge (mem-10). */
   &:focus-visible {
-    outline: 2px solid var(--color-focus-ring);
-    outline-offset: 2px;
+    text-decoration: underline;
+    text-decoration-color: var(--color-focus-ring);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.2em;
   }
 }
 
