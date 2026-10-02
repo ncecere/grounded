@@ -18,7 +18,8 @@ import (
 
 // Service reads platform analytics.
 type Service struct {
-	Pool *pgxpool.Pool
+	Pool    *pgxpool.Pool
+	latency latencyCache // CheckLatency's last result
 }
 
 // New returns a Service.

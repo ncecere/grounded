@@ -3880,7 +3880,7 @@ export interface paths {
         };
         /**
          * Whether a SystemOne model is configured, and the platform's feature defaults (any signed-in user)
-         * @description Editors use it to decide whether to show the "SystemOne checks" override and the playground's judge switch. available is false when no SystemOne model is set or it (or its connection) is disabled.
+         * @description Editors use it to decide whether to show the "SystemOne checks" override and the playground's judge switch, and to show each check's median added time. available is false when no SystemOne model is set or it (or its connection) is disabled.
          */
         get: operations["getSystemOneStatus"];
         put?: never;
@@ -8272,16 +8272,31 @@ export interface components {
                 /** @description The platform default */
                 enabled: boolean;
                 candidates: number;
+                /**
+                 * Format: double
+                 * @description The platform's median time this check added to an answer over the last 14 UTC days (as on the admin SystemOne page); null without checked answers or when no SystemOne model is available
+                 */
+                latencyP50Ms?: number | null;
             };
             citations: {
                 /** @description The platform default */
                 enabled: boolean;
                 /** @enum {string} */
                 mode: "annotate" | "enforce";
+                /**
+                 * Format: double
+                 * @description The platform's median time this check added to an answer over the last 14 UTC days (as on the admin SystemOne page); null without checked answers or when no SystemOne model is available
+                 */
+                latencyP50Ms?: number | null;
             };
             scope: {
                 /** @description The platform default */
                 enabled: boolean;
+                /**
+                 * Format: double
+                 * @description The platform's median time this check added to an answer over the last 14 UTC days (as on the admin SystemOne page); null without checked answers or when no SystemOne model is available
+                 */
+                latencyP50Ms?: number | null;
             };
         };
         RerankStatus: {

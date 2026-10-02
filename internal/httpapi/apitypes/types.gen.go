@@ -10236,18 +10236,27 @@ type SystemOneStatus struct {
 	Available bool `json:"available"`
 	Citations struct {
 		// Enabled The platform default
-		Enabled bool                         `json:"enabled"`
-		Mode    SystemOneStatusCitationsMode `json:"mode"`
+		Enabled bool `json:"enabled"`
+
+		// LatencyP50Ms The platform's median time this check added to an answer over the last 14 UTC days (as on the admin SystemOne page); null without checked answers or when no SystemOne model is available
+		LatencyP50Ms *float64                     `json:"latencyP50Ms,omitempty"`
+		Mode         SystemOneStatusCitationsMode `json:"mode"`
 	} `json:"citations"`
 	Judging struct {
 		Candidates int `json:"candidates"`
 
 		// Enabled The platform default
 		Enabled bool `json:"enabled"`
+
+		// LatencyP50Ms The platform's median time this check added to an answer over the last 14 UTC days (as on the admin SystemOne page); null without checked answers or when no SystemOne model is available
+		LatencyP50Ms *float64 `json:"latencyP50Ms,omitempty"`
 	} `json:"judging"`
 	Scope struct {
 		// Enabled The platform default
 		Enabled bool `json:"enabled"`
+
+		// LatencyP50Ms The platform's median time this check added to an answer over the last 14 UTC days (as on the admin SystemOne page); null without checked answers or when no SystemOne model is available
+		LatencyP50Ms *float64 `json:"latencyP50Ms,omitempty"`
 	} `json:"scope"`
 }
 

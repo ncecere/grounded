@@ -77,6 +77,15 @@ func (a *api) getSystemOneStatus(w http.ResponseWriter, r *http.Request) {
 	out.Judging.Enabled, out.Judging.Candidates = st.JudgingEnabled, st.JudgingCandidates
 	out.Citations.Enabled, out.Citations.Mode = st.Citations.Enabled, apitypes.SystemOneStatusCitationsMode(st.Citations.Mode)
 	out.Scope.Enabled = st.Scope.Enabled
+	if st.Available {
+		// Each check's median added time, for the agent editor
+		// (docs/v0.4.1.md §4); without it the editor shows no estimate.
+		lat, err := a.analytics.CheckLatency(r.Context())
+		if err != nil {
+			a.Log.WarnContext(r.Context(), "SystemOne status: could not read the checks' median latency", "err", err)
+		}
+		out.Judging.LatencyP50Ms, out.Citations.LatencyP50Ms, out.Scope.LatencyP50Ms = lat.JudgingMs, lat.CitationsMs, lat.ScopeMs
+	}
 	httpx.JSON(w, http.StatusOK, out)
 }
 
