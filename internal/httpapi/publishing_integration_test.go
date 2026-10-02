@@ -124,6 +124,8 @@ type visitor struct {
 	base   string
 	client *http.Client
 	origin string // sent on writes (Grounded's own pages by default)
+	// channel is the Grounded-Channel header ("": none, the public page).
+	channel string
 }
 
 func newVisitor(t *testing.T, base string) *visitor {
@@ -144,6 +146,9 @@ func (v *visitor) do(method, path string, body any, headers map[string]string) (
 	}
 	if method != http.MethodGet && v.origin != "" {
 		req.Header.Set("Origin", v.origin)
+	}
+	if v.channel != "" {
+		req.Header.Set("Grounded-Channel", v.channel)
 	}
 	for k, val := range headers {
 		req.Header.Set(k, val)
@@ -188,6 +193,9 @@ func (v *visitor) chat(agentID uuid.UUID, body map[string]any) (int, sseEvents, 
 	req, _ := http.NewRequest("POST", v.base+"/v1/public/agents/"+agentID.String()+"/chat", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", v.origin)
+	if v.channel != "" {
+		req.Header.Set("Grounded-Channel", v.channel)
+	}
 	res, err := v.client.Do(req)
 	if err != nil {
 		v.t.Fatal(err)

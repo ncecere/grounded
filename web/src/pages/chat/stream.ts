@@ -10,7 +10,7 @@
  * checks, citations_checked follows message_end and replaces the citations
  * (and, in enforce mode, the text) in place.
  */
-import { ApiError, csrfHeader, type Schemas } from "../../api/client";
+import { ApiError, channelHeader, csrfHeader, type Schemas } from "../../api/client";
 import { readSSE } from "../../lib/sse";
 
 export type Citation = Schemas["Citation"];
@@ -306,7 +306,7 @@ export async function streamChat(path: string, body: unknown, opts: { signal?: A
   const res = await globalThis.fetch(new URL(path, globalThis.location?.origin ?? "http://localhost").toString(), {
     method: "POST",
     credentials: "same-origin",
-    headers: { "Content-Type": "application/json", Accept: "text/event-stream", ...csrfHeader() },
+    headers: { "Content-Type": "application/json", Accept: "text/event-stream", ...csrfHeader(), ...channelHeader(path) },
     body: JSON.stringify(body),
     signal: opts.signal,
   });

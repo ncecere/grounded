@@ -171,8 +171,11 @@ func originsAllowed(origin, embed string, allowed []string) bool {
 	return true
 }
 
-// Resume loads the session behind a cookie for an agent and extends it.
-func (s *Service) Resume(ctx context.Context, token string, agentID uuid.UUID) (Session, error) {
+// Resume loads the session behind a cookie for an agent and extends it. A
+// session of another channel (the widget's on the public page, or the
+// other way round) is refused: each channel has its own cookie, and a
+// widget session alone carries its key's limits and switch.
+func (s *Service) Resume(ctx context.Context, token string, agentID uuid.UUID, channel string) (Session, error) {
 	if token == "" || len(token) > 256 {
 		return Session{}, errNoSession
 	}
@@ -181,6 +184,9 @@ func (s *Service) Resume(ctx context.Context, token string, agentID uuid.UUID) (
 		return Session{}, apperr.New(401, "session_expired", "Your session has ended. Start a new chat.")
 	} else if err != nil {
 		return Session{}, err
+	}
+	if sess.Channel != channel {
+		return Session{}, errNoSession
 	}
 	if time.Since(sess.LastSeenAt) > time.Minute {
 		sess.ExpiresAt = time.Now().Add(s.SessionTTL)
@@ -239,6 +245,19 @@ func (s *Service) Chat(ctx context.Context, sess Session, req ChatRequest, emit 
 	}
 	return s.Agents.PublicChat(ctx, caller, sess.AgentID, req.Message, req.NewConversation, emit)
 }
+
+// StartedWithKey reports whether a widget session was started with this
+// publishable key (the embed page only continues its own key's session).
+func (s *Service) StartedWithKey(ctx context.Context, sess Session, rawKey string) (bool, error) {
+	k, err := s.checkKey(ctx, rawKey, sess.AgentID)
+	if errors.Is(err, errKey) {
+		return false, nil
+	}
+	return err == nil && sess.PublishableKeyID.Valid && sess.PublishableKeyID.UUID == k.ID, err
+}
+
+// ErrNoSession: the caller has no live session (of the request's channel).
+var ErrNoSession = errNoSession
 
 // Current is the session's current conversation (nil when none).
 func (s *Service) Current(ctx context.Context, sess Session) (*agents.ConversationView, error) {

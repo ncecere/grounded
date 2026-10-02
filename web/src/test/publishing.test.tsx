@@ -151,6 +151,7 @@ describe("public page", () => {
     const order = calls.filter((c) => c.method === "POST").map((c) => c.url);
     expect(order).toEqual(["/v1/public/sessions", `/v1/public/agents/${publicAgent.id}/chat`]);
     expect(calls.find((c) => c.url === "/v1/public/sessions")!.body).toEqual({ agentId: publicAgent.id });
+    expect(calls.find((c) => c.url.endsWith("/chat"))!.headers.get("Grounded-Channel")).toBeNull();
     expect(screen.getByText("0 / 2,000")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -194,6 +195,11 @@ describe("embed page", () => {
     await userEvent.click(screen.getByRole("button", { name: "How do I order a transcript?" }));
     expect(await screen.findByText(/Order it online/)).toBeInTheDocument();
     expect(calls.find((c) => c.url === "/v1/public/sessions")!.body).toMatchObject({ agentId: publicAgent.id, key: "pk_abc" });
+    // Its own session (mem-6): only one started with its key, through the widget's cookie.
+    const current = calls.find((c) => c.url === "/v1/public/sessions/current")!;
+    expect(current.search.get("key")).toBe("pk_abc");
+    expect(current.headers.get("Grounded-Channel")).toBe("widget");
+    expect(calls.find((c) => c.url.endsWith("/chat"))!.headers.get("Grounded-Channel")).toBe("widget");
   });
 
   it("shows the server's error for a refused embed", async () => {

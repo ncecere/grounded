@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- The widget always uses its own anonymous session, started with its publishable key, so the key's limits, switch and allowed origins apply: before, a widget on the same site as Grounded continued the visitor's public page session (and conversation), which has no key. Each channel has its own cookie (`grounded_widget_<agent>` for the widget), and the embed page sends `Grounded-Channel: widget`; widget visitors start a new session once after the upgrade. API (additive): the `Grounded-Channel` header and `key` on `GET /v1/public/sessions/current`.
 - The public audience's moderation streams checked paragraphs by default instead of buffering whole answers, so visitors see the first paragraph in seconds. A public policy an admin saved keeps its mode.
 - Source cards under an answer with claim checks break down the claims citing the source in the verdict colours, "Supports 3 claims · 1 not supported", instead of "Supports 2 of 3 claims that cite it". (bitop-ui: `Sheet` `size="full"`, `Source` `onSelect`.)
 - Cost report CSVs have a `rerank` column after `mcp`, before `tokens`.

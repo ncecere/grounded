@@ -2869,7 +2869,7 @@ export interface paths {
         put?: never;
         /**
          * Start an anonymous session with a public agent (sets the session cookie)
-         * @description The cookie (grounded_anon_{agentId without dashes}, HttpOnly, path /v1/public) holds a random secret stored only as a digest, with the agent, the caller's /24 (IPv4) or /48 (IPv6) prefix and a user-agent hash. It is SameSite=None; Secure; Partitioned for the widget (on HTTPS) and SameSite=Lax for the public page, and lasts ANON_SESSION_TTL after the last use. With a publishable key (the widget) the request's Origin (when cross-origin) and embedOrigin must be allowed by the key (403 origin_not_allowed), and at least one must be given. CAPTCHA runs when configured (403 captcha_failed). Errors: 503 public_disabled, 404 for agents that are not public, 403 agent_disabled (kill switch), 403 invalid_publishable_key, 429/503 from the guardrails.
+         * @description The cookie (grounded_anon_{agentId without dashes} for the public page, grounded_widget_{agentId without dashes} for a session started with a publishable key; HttpOnly, path /v1/public) holds a random secret stored only as a digest, with the agent, the caller's /24 (IPv4) or /48 (IPv6) prefix and a user-agent hash. It is SameSite=None; Secure; Partitioned for the widget (on HTTPS) and SameSite=Lax for the public page, and lasts ANON_SESSION_TTL after the last use. With a publishable key (the widget) the request's Origin (when cross-origin) and embedOrigin must be allowed by the key (403 origin_not_allowed), and at least one must be given. CAPTCHA runs when configured (403 captcha_failed). Errors: 503 public_disabled, 404 for agents that are not public, 403 agent_disabled (kill switch), 403 invalid_publishable_key, 429/503 from the guardrails.
          */
         post: operations["createPublicSession"];
         delete?: never;
@@ -2898,7 +2898,10 @@ export interface paths {
     "/v1/public/agents/{agentId}/chat": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+                "Grounded-Channel"?: components["parameters"]["PublicChannelHeader"];
+            };
             path: {
                 agentId: components["parameters"]["AgentIdParam"];
             };
@@ -3025,7 +3028,10 @@ export interface paths {
     "/v1/public/agents/{agentId}/messages/{messageId}/sources/{n}": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+                "Grounded-Channel"?: components["parameters"]["PublicChannelHeader"];
+            };
             path: {
                 agentId: components["parameters"]["AgentIdParam"];
                 messageId: string;
@@ -10564,6 +10570,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+        PublicChannelHeader: "public" | "widget";
         /** @description The first day (in the platform time zone) */
         CostFromParam: string;
         /** @description The last day, inclusive (at most 366 days after from) */
@@ -16049,8 +16057,13 @@ export interface operations {
         parameters: {
             query: {
                 agentId: string;
+                /** @description The widget's publishable key: only a session started with this key is returned (401 session_required otherwise), so the embed page starts its own. Implies the widget channel. */
+                key?: string;
             };
-            header?: never;
+            header?: {
+                /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+                "Grounded-Channel"?: components["parameters"]["PublicChannelHeader"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -16076,7 +16089,10 @@ export interface operations {
     publicChat: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+                "Grounded-Channel"?: components["parameters"]["PublicChannelHeader"];
+            };
             path: {
                 agentId: components["parameters"]["AgentIdParam"];
             };
@@ -16241,7 +16257,10 @@ export interface operations {
     getPublicCitedPassage: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+                "Grounded-Channel"?: components["parameters"]["PublicChannelHeader"];
+            };
             path: {
                 agentId: components["parameters"]["AgentIdParam"];
                 messageId: string;

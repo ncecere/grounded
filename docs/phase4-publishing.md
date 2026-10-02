@@ -81,7 +81,7 @@ Out:
 
 - **Chat page.** `/a/{…}` for a public agent works without signing in. It renders a minimal, branded chat page outside the app shell (instance name, agent header, conversation), with a "Sign in" link.
 - **Anonymous session:**
-  - Created by `POST /v1/public/sessions {agentId, captchaToken?}`. The session is a random ID, stored hashed with its agent, IP /24 (or /48) prefix, user-agent hash and expiry, and set as an HttpOnly, Secure, SameSite=None cookie for the widget iframe (Lax for the page).
+  - Created by `POST /v1/public/sessions {agentId, captchaToken?}`. The session is a random ID, stored hashed with its agent, IP /24 (or /48) prefix, user-agent hash and expiry, and set as an HttpOnly, Secure, SameSite=None cookie for the widget iframe (Lax for the page). Each channel has its own cookie (`grounded_anon_<agent>` for the public page, `grounded_widget_<agent>` for a session started with a publishable key), and the embed page sends `Grounded-Channel: widget` and asks for the session started with its own key (`GET /v1/public/sessions/current?key=`): the widget never continues the public page's session, even on the same site, so the key's limits, switch and allowed origins always apply (fixed in v0.4.0; before, a widget on the same site as Grounded reused the public page's keyless session).
   - Sessions expire after 24 h idle by default (`ANON_SESSION_TTL`).
   - One conversation per session at a time; "New chat" starts a new one within the session.
   - There is no history list across sessions.

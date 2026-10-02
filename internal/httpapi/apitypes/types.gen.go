@@ -3810,6 +3810,24 @@ func (e DocumentKindParam) Valid() bool {
 	}
 }
 
+// Defines values for PublicChannelHeader.
+const (
+	PublicChannelHeaderPublic PublicChannelHeader = "public"
+	PublicChannelHeaderWidget PublicChannelHeader = "widget"
+)
+
+// Valid indicates whether the value is a known member of the PublicChannelHeader enum.
+func (e PublicChannelHeader) Valid() bool {
+	switch e {
+	case PublicChannelHeaderPublic:
+		return true
+	case PublicChannelHeaderWidget:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetEmbedPageParamsPreview.
 const (
 	N1 GetEmbedPageParamsPreview = "1"
@@ -4032,6 +4050,24 @@ func (e ExportConversationParamsFormat) Valid() bool {
 	case ExportConversationParamsFormatJson:
 		return true
 	case ExportConversationParamsFormatMarkdown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetPublicSessionParamsGroundedChannel.
+const (
+	GetPublicSessionParamsGroundedChannelPublic GetPublicSessionParamsGroundedChannel = "public"
+	GetPublicSessionParamsGroundedChannelWidget GetPublicSessionParamsGroundedChannel = "widget"
+)
+
+// Valid indicates whether the value is a known member of the GetPublicSessionParamsGroundedChannel enum.
+func (e GetPublicSessionParamsGroundedChannel) Valid() bool {
+	switch e {
+	case GetPublicSessionParamsGroundedChannelPublic:
+		return true
+	case GetPublicSessionParamsGroundedChannelWidget:
 		return true
 	default:
 		return false
@@ -10612,6 +10648,9 @@ type MCPServerParam = openapi_types.UUID
 // MigrationIdParam defines model for MigrationIdParam.
 type MigrationIdParam = openapi_types.UUID
 
+// PublicChannelHeader defines model for PublicChannelHeader.
+type PublicChannelHeader string
+
 // SearchParam defines model for SearchParam.
 type SearchParam = string
 
@@ -11234,6 +11273,18 @@ type GetOAuthConsentParams struct {
 	Scope               *string `form:"scope,omitempty" json:"scope,omitempty"`
 }
 
+// PublicChatParams defines parameters for PublicChat.
+type PublicChatParams struct {
+	// GroundedChannel Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required).
+	GroundedChannel *PublicChannelHeader `json:"Grounded-Channel,omitempty"`
+}
+
+// GetPublicCitedPassageParams defines parameters for GetPublicCitedPassage.
+type GetPublicCitedPassageParams struct {
+	// GroundedChannel Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required).
+	GroundedChannel *PublicChannelHeader `json:"Grounded-Channel,omitempty"`
+}
+
 // WidgetCheckParams defines parameters for WidgetCheck.
 type WidgetCheckParams struct {
 	Key string `form:"key" json:"key"`
@@ -11245,7 +11296,16 @@ type WidgetCheckParams struct {
 // GetPublicSessionParams defines parameters for GetPublicSession.
 type GetPublicSessionParams struct {
 	AgentId openapi_types.UUID `form:"agentId" json:"agentId"`
+
+	// Key The widget's publishable key: only a session started with this key is returned (401 session_required otherwise), so the embed page starts its own. Implies the widget channel.
+	Key *string `form:"key,omitempty" json:"key,omitempty"`
+
+	// GroundedChannel Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required).
+	GroundedChannel *GetPublicSessionParamsGroundedChannel `json:"Grounded-Channel,omitempty"`
 }
+
+// GetPublicSessionParamsGroundedChannel defines parameters for GetPublicSession.
+type GetPublicSessionParamsGroundedChannel string
 
 // SearchObjectsParams defines parameters for SearchObjects.
 type SearchObjectsParams struct {

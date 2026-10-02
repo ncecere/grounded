@@ -4488,8 +4488,9 @@ paths:
       operationId: createPublicSession
       summary: Start an anonymous session with a public agent (sets the session cookie)
       description: >-
-        The cookie (grounded_anon_{agentId without dashes}, HttpOnly, path
-        /v1/public) holds a random secret stored only as a digest, with the
+        The cookie (grounded_anon_{agentId without dashes} for the public
+        page, grounded_widget_{agentId without dashes} for a session started
+        with a publishable key; HttpOnly, path /v1/public) holds a random secret stored only as a digest, with the
         agent, the caller's /24 (IPv4) or /48 (IPv6) prefix and a user-agent
         hash. It is SameSite=None; Secure; Partitioned for the widget (on
         HTTPS) and SameSite=Lax for the public page, and lasts ANON_SESSION_TTL
@@ -4529,6 +4530,15 @@ paths:
           in: query
           required: true
           schema: { type: string, format: uuid }
+        - name: key
+          in: query
+          required: false
+          description: >-
+            The widget's publishable key: only a session started with this key
+            is returned (401 session_required otherwise), so the embed page
+            starts its own. Implies the widget channel.
+          schema: { type: string }
+        - $ref: "#/components/parameters/PublicChannelHeader"
       responses:
         "200":
           description: Session
@@ -4546,6 +4556,7 @@ paths:
   /v1/public/agents/{agentId}/chat:
     parameters:
       - $ref: "#/components/parameters/AgentIdParam"
+      - $ref: "#/components/parameters/PublicChannelHeader"
     post:
       tags: [public]
       operationId: publicChat
@@ -4722,6 +4733,7 @@ paths:
         required: true
         schema: { type: string, format: uuid }
       - $ref: "#/components/parameters/CitationNumberParam"
+      - $ref: "#/components/parameters/PublicChannelHeader"
     get:
       tags: [public]
       operationId: getPublicCitedPassage
@@ -7299,6 +7311,20 @@ components:
       description: Quoted revision, for If-Match on the next update
       schema: { type: string }
   parameters:
+    PublicChannelHeader:
+      name: Grounded-Channel
+      in: header
+      required: false
+      description: >-
+        Which of the visitor's sessions with the agent the request uses:
+        public (the default, the public page's session cookie) or widget (the
+        embed page's: grounded_widget_{agentId without dashes}). Each channel
+        has its own cookie, so the widget never continues a public page
+        session (which has no publishable key, so the key's limits and
+        switch wouldn't apply), and the public page never continues a
+        widget's. A session of another channel behind the cookie is refused
+        (401 session_required).
+      schema: { type: string, enum: [public, widget] }
     CostFromParam:
       name: from
       in: query

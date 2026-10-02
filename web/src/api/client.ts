@@ -30,6 +30,25 @@ export function csrfHeader(): Record<string, string> {
   return csrfToken ? { "X-CSRF-Token": csrfToken } : {};
 }
 
+// The anonymous session a public request uses: the widget's embed page sets "widget", so its requests never continue
+// the public page's session (each channel has its own cookie; docs/phase4-publishing.md §5).
+let publicChannel: "public" | "widget" = "public";
+export function setPublicChannel(channel: "public" | "widget") {
+  publicChannel = channel;
+}
+
+/** The Grounded-Channel header of a request to the public API made without the API client (streams). */
+export function channelHeader(path: string): Record<string, string> {
+  return publicChannel === "widget" && path.startsWith("/v1/public/") ? { "Grounded-Channel": "widget" } : {};
+}
+
+const channel: Middleware = {
+  onRequest({ request }) {
+    if (publicChannel === "widget" && new URL(request.url).pathname.startsWith("/v1/public/")) request.headers.set("Grounded-Channel", "widget");
+    return request;
+  },
+};
+
 const csrf: Middleware = {
   onRequest({ request }) {
     if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && csrfToken) {
@@ -46,7 +65,7 @@ export const api = createClient<paths>({
   // Look fetch up per call (not at import) so it can be replaced in tests.
   fetch: (request) => globalThis.fetch(request),
 });
-api.use(csrf);
+api.use(csrf, channel);
 
 type Result<T> = { data?: { data: T }; error?: unknown; response: Response };
 

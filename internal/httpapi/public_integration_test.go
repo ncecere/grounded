@@ -211,6 +211,7 @@ func TestWidgetEmbedAndGuardrails(t *testing.T) {
 	}
 
 	// Sessions with a key: the embedding origin must be allowed.
+	anon.channel = agents.ChannelWidget
 	if code, e := anon.start(pub.Id, created.Key, "https://evil.example"); code != 403 || e != "origin_not_allowed" {
 		t.Fatalf("disallowed embed origin = %d %s", code, e)
 	}
@@ -397,5 +398,75 @@ func TestWidgetCheck(t *testing.T) {
 		map[string]any{"name": "Bad", "allowedOrigins": []string{"https://example.edu/page"}}, nil, nil)
 	if code != 400 || !strings.Contains(e, "invalid_origin") {
 		t.Errorf("bad origin = %d %s", code, e)
+	}
+}
+
+// The widget's session is its own (walkthrough mem-6): it never continues
+// the public page's session in the same browser (which has no key, so the
+// key's limits and switch wouldn't apply), nor another key's, and the
+// public page keeps its own.
+func TestWidgetSessionIsItsOwn(t *testing.T) {
+	env := newPublishEnv(t)
+	pub := env.publicAgent(t, "Open help")
+	keys := env.base + "/agents/" + pub.Id.String() + "/publishable-keys"
+	var key, other apitypes.PublishableKeyCreated
+	code, e := env.tadmin.call("POST", keys, map[string]any{"name": "Main site", "allowedOrigins": []string{"https://www.example.edu"}}, &key, nil)
+	mustCode(t, "key", code, e, 201, "")
+	code, e = env.tadmin.call("POST", keys, map[string]any{"name": "Other site", "allowedOrigins": []string{"https://www.example.edu"}}, &other, nil)
+	mustCode(t, "other key", code, e, 201, "")
+	current := "/v1/public/sessions/current?agentId=" + pub.Id.String()
+
+	// The public page's session and conversation.
+	v := newVisitor(t, env.app.URL)
+	v.start(pub.Id, "", "")
+	avoidMinuteBoundary()
+	if code, _, e := v.ask(pub.Id, "Where do students buy a parking permit?"); code != 200 {
+		t.Fatalf("public chat = %d %s", code, e)
+	}
+	// The widget doesn't see or use it.
+	v.channel = agents.ChannelWidget
+	for _, path := range []string{current, current + "&key=" + url.QueryEscape(key.Key)} {
+		if code, e := v.call("GET", path, nil, nil); code != 401 || e != "session_required" {
+			t.Fatalf("widget current with only a public session = %d %s", code, e)
+		}
+	}
+	if code, _, e := v.ask(pub.Id, "Hello"); code != 401 || e != "session_required" {
+		t.Fatalf("widget chat with only a public session = %d %s", code, e)
+	}
+	// It starts its own, in its own cookie, with the key's limits.
+	res, raw := v.do("POST", "/v1/public/sessions", map[string]any{"agentId": pub.Id, "key": key.Key, "embedOrigin": "https://www.example.edu"}, nil)
+	if res.StatusCode != 201 || !strings.HasPrefix(res.Header.Get("Set-Cookie"), "grounded_widget_"+strings.ReplaceAll(pub.Id.String(), "-", "")+"=") {
+		t.Fatalf("widget session = %d %s %s", res.StatusCode, raw, res.Header.Get("Set-Cookie"))
+	}
+	var st apitypes.PublicSessionState
+	if code, e := v.call("GET", current+"&key="+url.QueryEscape(key.Key), nil, &st); code != 200 || st.Session.Channel != "widget" || st.Conversation != nil {
+		t.Fatalf("widget current = %d %s %+v", code, e, st)
+	}
+	if code, e := v.call("GET", current+"&key="+url.QueryEscape(other.Key), nil, nil); code != 401 || e != "session_required" {
+		t.Fatalf("current with another key = %d %s", code, e)
+	}
+	var upd apitypes.PublishableKey
+	code, e = env.tadmin.call("PATCH", keys+"/"+key.Id.String(), map[string]any{"rateLimits": map[string]any{"perSessionPerMinute": 1}}, &upd, ifMatch(key.Revision))
+	mustCode(t, "key limits", code, e, 200, "")
+	if code, _, e := v.ask(pub.Id, "Where do students buy a parking permit?"); code != 200 {
+		t.Fatalf("widget chat = %d %s", code, e)
+	}
+	if code, _, e := v.ask(pub.Id, "And housing?"); code != 429 || e != "rate_limited" {
+		t.Fatalf("widget chat past the key's limit = %d %s", code, e)
+	}
+	if n := env.scalar(t, `SELECT count(*) FROM message_events WHERE agent_id = $1 AND channel = 'widget'`, pub.Id); n != 1 {
+		t.Fatalf("widget events = %d", n)
+	}
+	// The public page still has its own session and conversation.
+	v.channel = ""
+	if code, e := v.call("GET", current, nil, &st); code != 200 || st.Session.Channel != "public" || st.Conversation == nil || len(st.Conversation.Messages) != 2 {
+		t.Fatalf("public current = %d %s %+v", code, e, st)
+	}
+	// The key's switch stops the widget, not the public page.
+	code, e = env.tadmin.call("PATCH", keys+"/"+key.Id.String(), map[string]any{"enabled": false}, nil, ifMatch(upd.Revision))
+	mustCode(t, "disable key", code, e, 200, "")
+	v.channel = agents.ChannelWidget
+	if code, _, e := v.ask(pub.Id, "Hello"); code != 403 || e != "invalid_publishable_key" {
+		t.Fatalf("widget chat with a disabled key = %d %s", code, e)
 	}
 }

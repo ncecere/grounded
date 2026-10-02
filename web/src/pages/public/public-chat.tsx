@@ -14,7 +14,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SquarePen } from "lucide-react";
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
-import { ApiError } from "../../api/client";
+import { ApiError, setPublicChannel } from "../../api/client";
 import { Button } from "@/components/ui/button/button";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { ChatPanel } from "../chat/panel";
@@ -43,7 +43,10 @@ const sessionEnded = (code?: string) => code === "session_expired" || code === "
 
 export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions }: Props) {
   const qc = useQueryClient();
-  const session = useQuery(publicSessionQuery(agent.id));
+  // The widget uses its own session (its cookie, started with its key), never the public page's, and the other way
+  // round: set before the first request.
+  useState(() => setPublicChannel(widgetKey ? "widget" : "public"));
+  const session = useQuery(publicSessionQuery(agent.id, widgetKey));
   const [hasSession, setHasSession] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const [text, setText] = useState("");
