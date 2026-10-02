@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **SystemOne capacity: answers first** (v0.4.1 M4, roadmap A12; [`docs/systemone.md` §8](docs/systemone.md#8-capacity)). When every slot of a SystemOne connection (`maxConcurrentRequests`, per process) is busy, a freed slot goes to a request an answer waits for (judging, scope, claim checks, moderation, the saved-answer check, Try it) before background work, and evaluation runs and the gap topics job may hold at most half the slots (at least one), so they can't hold up answers. Below the limit nothing changes. A new metric `grounded_systemone_wait_seconds{feature, priority}` measures the wait for a slot, with panels on the Models and moderation dashboard; `grounded_systemone_requests_total`'s help lists every feature (`cache`, `gaps` too). Each check in an agent's **Build → SystemOne checks** shows the platform's median added time ("Adds about 0.4 s per answer"), and the docs explain how to size the limit on large installs. API (additive): `latencyP50Ms` on each feature of `GET /v1/systemone/status`. No migration.
+
 ## [0.4.0] - 2026-10-02
 
 Answers people trust and teams can improve: cross-encoder reranking, the gap report, the source viewer, saved answers and answers streamed in checked paragraphs. The release notes are [`docs/releases/v0.4.0.md`](docs/releases/v0.4.0.md).
