@@ -107,6 +107,17 @@ export function modelUsedBy(u?: ModelUsage): string[] {
   ].filter(Boolean);
 }
 
+/** Why a model in use can't be deleted, and what to do instead (in words on its record page; adm-8). */
+export function deleteBlockedReason(u?: ModelUsage): string | undefined {
+  const uses = modelUsedBy(u);
+  if (!u || uses.length === 0) return undefined;
+  if (u.rerank && uses.length === 1) {
+    return "Reranking uses this model. To delete it, choose None or another model in Reranking settings first. Disabling it turns reranking off for every search.";
+  }
+  if (u.systemOne && uses.length === 1) return "SystemOne uses this model. To delete it, choose another model in SystemOne settings first.";
+  return "Models in use can't be deleted. Move what uses it to another model first, or disable it instead.";
+}
+
 export function profileUsedBy(u?: ProfileUsage): string[] {
   if (!u) return [];
   return [u.sources ? count(u.sources, "data source", "data sources") : "", u.knowledgeBases ? count(u.knowledgeBases, "knowledge base", "knowledge bases") : ""].filter(Boolean);

@@ -117,6 +117,11 @@ describe("Admin → Models reranking", () => {
     renderApp("/admin/models?record=r1");
     const sheet = await screen.findByRole("region", { name: "BGE reranker" }, { timeout: 4000 });
     expect(within(sheet).getByText("Reranking")).toBeInTheDocument();
+    // Delete says why it's off, in words reachable without hovering, and what to do instead (adm-8).
+    const del = within(sheet).getByRole("button", { name: "Delete" });
+    expect(del).toBeDisabled();
+    expect(del).toHaveAccessibleDescription(/choose None or another model in Reranking settings first/);
+    expect(within(sheet).getByText("Scores a passage that answers a sample question and one that doesn't.")).toBeInTheDocument();
     await userEvent.click(within(sheet).getByRole("button", { name: "Test model" }));
     expect(await within(sheet).findByText(/The answer scored 0.982; the unrelated passage 0.004./)).toBeInTheDocument();
   });

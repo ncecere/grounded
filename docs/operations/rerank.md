@@ -38,7 +38,7 @@ A reranker is small: bge-reranker-v2-m3 scores 40 passages in a few hundred mill
 3. **Test model** scores a passage that answers a fixed question and one that doesn't; the test passes when the first scores higher, and is stored as the model's health like other tests. The scheduled health check derives a rerank model's health from its connection's model list (`GET /models`), so it sends nothing to the reranker ([`health.md`](health.md)).
 4. **Admin → Models → Reranking settings** (above the list): choose the rerank model, the candidate count (5 to 50) and the time limit (200 to 10,000 ms). Saving is audited (`platform.rerank_settings_update`, "Changed reranking settings", with the model by name and each value); the dialog checks each field before saving, and **Save settings** stays off until something changed (saving the same settings would start a new revision, which retires every saved answer). Auditors see the button disabled. The API is `GET` and `PUT /v1/admin/rerank` (platform admins; auditors read), and any signed-in user can read `GET /v1/rerank/status`.
 
-A rerank model in use can't be deleted (choose **None** first); a disabled model, or one on a disabled connection, turns reranking off until it is enabled again.
+A rerank model in use can't be deleted (choose **None** first; its record page says so beside the disabled **Delete**); a disabled model, or one on a disabled connection, turns reranking off until it is enabled again.
 
 ## For editors: the agent's setting
 
