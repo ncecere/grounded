@@ -140,6 +140,39 @@ type pageText struct {
 	err  error
 }
 
+// ocrPages reads the pages (1-based, already planned) with OCR and returns
+// their text by page, the OCR record and warnings. render makes one page's
+// image; pages are rendered one at a time as the engine takes them, so at
+// most Concurrency page images are held in memory.
+func ocrPages(ctx context.Context, o *OCROptions, pages []int, render func(page int) ([]byte, error)) (map[int]string, *OCRInfo, []string, error) {
+	ctx, stop := context.WithCancel(ctx)
+	defer stop()
+	images := make(chan pageImage, max(o.Concurrency, 1))
+	done := make(chan struct{})
+	var (
+		results map[int]pageText
+		ocrErr  error
+	)
+	go func() {
+		defer close(done)
+		results, ocrErr = recognizeAll(ctx, stop, o, images)
+	}()
+	for _, p := range pages {
+		if ctx.Err() != nil {
+			break // a fatal OCR error, or cancelled
+		}
+		img, err := render(p)
+		images <- pageImage{page: p, png: img, err: err}
+	}
+	close(images)
+	<-done
+	if ocrErr != nil {
+		return nil, nil, nil, ocrErr
+	}
+	texts, info, warnings := collectOCR(o.Backend, pages, results)
+	return texts, info, warnings, nil
+}
+
 // recognizeAll reads rendered pages from images with up to o.Concurrency
 // requests at once, until images is closed. The first error that makes the
 // whole document retry (ErrOCRUnavailable, a cancelled context, or an error

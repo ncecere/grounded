@@ -227,12 +227,13 @@ func TestImageUploads(t *testing.T) {
 	if _, err := builtin().Parse(context.Background(), Input{Name: "a.png", Kind: KindImage, Data: encodeImage(t, "png", "x")}); !errors.Is(err, ErrNeedsOCR) {
 		t.Errorf("OCR off: %v", err)
 	}
-	// Only a multi-page TIFF's first page is read.
-	doc, err := builtin().Parse(context.Background(), Input{Name: "a.tiff", Kind: KindImage, Data: twoPageTIFF(t), OCR: ocrOn(&fakeOCR{})})
-	if err != nil {
-		t.Fatal(err)
+	// A TIFF whose directory chain loops back to itself is one page, read
+	// once (multi-page TIFFs: tiff_test.go).
+	f := &fakeOCR{}
+	doc, err := builtin().Parse(context.Background(), Input{Name: "a.tiff", Kind: KindImage, Data: loopedTIFF(t), OCR: ocrOn(f)})
+	if err != nil || doc.Pages != 1 || len(f.calls()) != 1 || len(doc.Warnings) != 0 {
+		t.Fatalf("looped TIFF: %+v %v, calls %v", doc, err, f.calls())
 	}
-	contains(t, strings.Join(doc.Warnings, "\n"), "only the first page of this multi-page TIFF was read")
 	// A renamed text file is not an image.
 	if _, err := Detect("notes.png", []byte("just text")); !errors.Is(err, ErrCorrupt) {
 		t.Errorf("renamed: %v", err)

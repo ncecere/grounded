@@ -34,9 +34,9 @@ func encodeImage(t testing.TB, format, text string) []byte {
 	return testutil.EncodeImage(t, format, text)
 }
 
-// twoPageTIFF makes a TIFF whose first directory links to a second one
-// (itself), which is how a multi-page TIFF looks to tiffPages.
-func twoPageTIFF(t testing.TB) []byte {
+// loopedTIFF makes a one-page TIFF whose directory links to itself as the
+// next page: a loop tiffDirectories must stop.
+func loopedTIFF(t testing.TB) []byte {
 	data := encodeImage(t, "tiff", "page one")
 	off := int(data[4]) | int(data[5])<<8 | int(data[6])<<16 | int(data[7])<<24
 	entries := int(data[off]) | int(data[off+1])<<8
