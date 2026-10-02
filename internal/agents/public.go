@@ -172,16 +172,22 @@ func (ru *run) pseudonym() *string {
 	if ru.anon == nil {
 		return ru.s.pseudonym(ru.team.ID, ru.a)
 	}
-	if len(ru.s.Pepper) == 0 {
+	return ru.s.anonPseudonym(ru.agent.ID, ru.anon.SessionID)
+}
+
+// anonPseudonym is an anonymous session's pseudonymous key for an agent
+// (nil without a pepper): one person for analytics and the gap report.
+func (s *Service) anonPseudonym(agentID, sessionID uuid.UUID) *string {
+	if len(s.Pepper) == 0 {
 		return nil
 	}
-	kd := hmac.New(sha256.New, ru.s.Pepper)
+	kd := hmac.New(sha256.New, s.Pepper)
 	// "ragd-anon-pseudonym:" is a historical derivation label from before the
 	// rename to Grounded. It must not change: it would re-key every stored
 	// anonymous pseudonym.
-	kd.Write([]byte("ragd-anon-pseudonym:" + ru.agent.ID.String()))
+	kd.Write([]byte("ragd-anon-pseudonym:" + agentID.String()))
 	m := hmac.New(sha256.New, kd.Sum(nil))
-	m.Write([]byte(ru.anon.SessionID.String()))
+	m.Write([]byte(sessionID.String()))
 	out := hex.EncodeToString(m.Sum(nil)[:16])
 	return &out
 }

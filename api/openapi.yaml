@@ -4757,6 +4757,51 @@ paths:
         "401": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "503": { $ref: "#/components/responses/ErrorReply" }
+  /v1/public/agents/{agentId}/messages/{messageId}/feedback:
+    parameters:
+      - $ref: "#/components/parameters/AgentIdParam"
+      - name: messageId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/PublicChannelHeader"
+    post:
+      tags: [public]
+      operationId: setPublicMessageFeedback
+      summary: Rate an answer in the anonymous session's own conversation (replaces earlier feedback; needs the session cookie)
+      description: >-
+        As POST /v1/messages/{messageId}/feedback, for an answer in a
+        conversation of the caller's anonymous session with the agent: 404
+        for any other message, 401 without a live session. A thumbs-down
+        removes a saved answer it came from and keeps the question for the
+        gap report (each anonymous session counts as one person); with
+        share, the team's editors see the question (never who asked).
+        Rate-limited like public questions (per address and session per
+        minute, with a publishable key's overrides, counted apart from
+        questions): 429 rate_limited, 503 limits_unavailable. Errors: 503
+        public_disabled, 404 for agents that are not public, 403
+        agent_disabled (kill switch), 403 invalid_publishable_key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Feedback" }
+      responses:
+        "200":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/FeedbackResult" }
+        "400": { $ref: "#/components/responses/ErrorReply" }
+        "401": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "429": { $ref: "#/components/responses/RateLimitedReply" }
+        "503": { $ref: "#/components/responses/ErrorReply" }
   /v1/conversations:
     get:
       tags: [chat]

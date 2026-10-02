@@ -292,6 +292,9 @@ func (e *matrixEnv) send(t *testing.T, c caller, r request) (int, []byte) {
 	if act.bearer != "" && !(r.public && c == cPublishable) {
 		req.Header.Set("Authorization", "Bearer "+act.bearer)
 	}
+	if r.public && c == cPublishable {
+		req.Header.Set("Grounded-Channel", "widget") // the embed page's session (its own cookie)
+	}
 	for k, v := range r.headers {
 		req.Header.Set(k, v)
 	}

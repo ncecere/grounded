@@ -11279,6 +11279,12 @@ type PublicChatParams struct {
 	GroundedChannel *PublicChannelHeader `json:"Grounded-Channel,omitempty"`
 }
 
+// SetPublicMessageFeedbackParams defines parameters for SetPublicMessageFeedback.
+type SetPublicMessageFeedbackParams struct {
+	// GroundedChannel Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required).
+	GroundedChannel *PublicChannelHeader `json:"Grounded-Channel,omitempty"`
+}
+
 // GetPublicCitedPassageParams defines parameters for GetPublicCitedPassage.
 type GetPublicCitedPassageParams struct {
 	// GroundedChannel Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required).
@@ -11718,6 +11724,9 @@ type DecideOAuthConsentJSONRequestBody = OAuthConsentDecision
 
 // PublicChatJSONRequestBody defines body for PublicChat for application/json ContentType.
 type PublicChatJSONRequestBody = PublicChatRequest
+
+// SetPublicMessageFeedbackJSONRequestBody defines body for SetPublicMessageFeedback for application/json ContentType.
+type SetPublicMessageFeedbackJSONRequestBody = Feedback
 
 // CreatePublicSessionJSONRequestBody defines body for CreatePublicSession for application/json ContentType.
 type CreatePublicSessionJSONRequestBody = PublicSessionCreate

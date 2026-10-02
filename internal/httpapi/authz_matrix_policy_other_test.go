@@ -186,6 +186,15 @@ var publicPolicies = map[string]policy{
 		}
 		return get("/v1/public/agents/" + c.tf.agent + "/messages/" + msg + "/sources/1").anon()
 	}},
+	// A rating of an answer in the session's own conversation (up: nothing
+	// else changes).
+	"setPublicMessageFeedback": {own: noBearers, build: func(c *mctx) request {
+		msg := uuid.NewString()
+		if c.allowed {
+			msg = c.e.publicMessage(c.t, c.who)
+		}
+		return post("/v1/public/agents/"+c.tf.agent+"/messages/"+msg+"/feedback", map[string]any{"rating": "up"}).anon()
+	}},
 	// Agent profiles by ID and short name (signed in or with a key).
 	"getAgentProfileByID": {own: signedIn.and(readKeys), build: func(c *mctx) request { return get("/v1/agents/id/" + c.tf.agent) }},
 	"getAgentProfileByShortName": {own: signedIn.and(readKeys), build: func(c *mctx) request {

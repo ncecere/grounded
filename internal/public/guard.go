@@ -68,21 +68,8 @@ const slotTTL = 10 * time.Minute
 func (g *Guard) Admit(ctx context.Context, in Admission) (release func(), err error) {
 	release = func() {}
 	agent := in.AgentID.String()
-	rates := []struct {
-		key     limits.Key
-		counter string
-		max     *int64
-	}{
-		{limits.PublicQueriesPerIPPerMinute, "pub:ip:" + agent + ":" + in.IPPrefix, pick(in.Key.PerIPPerMinute, in.Limits.Get(limits.PublicQueriesPerIPPerMinute))},
-		{limits.PublicQueriesPerSessionPerMinute, "pub:sess:" + in.SessionID.String(), pick(in.Key.PerSessionPerMinute, in.Limits.Get(limits.PublicQueriesPerSessionPerMinute))},
-	}
-	for _, r := range rates {
-		if r.max == nil {
-			continue
-		}
-		if err := g.rate(ctx, r.key, r.counter, *r.max); err != nil {
-			return nil, err
-		}
+	if err := g.perMinute(ctx, in, "pub:"); err != nil {
+		return nil, err
 	}
 	if err := g.daily(ctx, in); err != nil {
 		return nil, err
@@ -107,6 +94,35 @@ func (g *Guard) Admit(ctx context.Context, in Admission) (release func(), err er
 		return nil, busy(*maxChats)
 	}
 	return func() { g.Counters.Release(ctx, slot) }, nil
+}
+
+// AdmitFeedback checks a visitor's rating against the per-minute limits of
+// questions (per address and session, with a key's overrides), counted
+// apart from questions so rating an answer never costs the next question.
+func (g *Guard) AdmitFeedback(ctx context.Context, in Admission) error {
+	return g.perMinute(ctx, in, "pub:fb:")
+}
+
+// perMinute applies the per-address and per-session limits, with counters
+// under prefix.
+func (g *Guard) perMinute(ctx context.Context, in Admission, prefix string) error {
+	rates := []struct {
+		key     limits.Key
+		counter string
+		max     *int64
+	}{
+		{limits.PublicQueriesPerIPPerMinute, prefix + "ip:" + in.AgentID.String() + ":" + in.IPPrefix, pick(in.Key.PerIPPerMinute, in.Limits.Get(limits.PublicQueriesPerIPPerMinute))},
+		{limits.PublicQueriesPerSessionPerMinute, prefix + "sess:" + in.SessionID.String(), pick(in.Key.PerSessionPerMinute, in.Limits.Get(limits.PublicQueriesPerSessionPerMinute))},
+	}
+	for _, r := range rates {
+		if r.max == nil {
+			continue
+		}
+		if err := g.rate(ctx, r.key, r.counter, *r.max); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func pick(override, team *int64) *int64 {

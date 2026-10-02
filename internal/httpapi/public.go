@@ -31,6 +31,7 @@ func (a *api) publicRoutes() []route {
 		{"GET", "/v1/public/sessions/current", a.anonymous(a.getPublicSession)},
 		{"POST", "/v1/public/agents/{agentId}/chat", a.anonymous(a.publicChat)},
 		{"GET", "/v1/public/agents/{agentId}/messages/{messageId}/sources/{n}", a.anonymous(a.getPublicCitedPassage)},
+		{"POST", "/v1/public/agents/{agentId}/messages/{messageId}/feedback", a.anonymous(a.setPublicMessageFeedback)},
 	}
 }
 
@@ -249,6 +250,41 @@ func (a *api) publicChat(w http.ResponseWriter, r *http.Request) {
 	a.runChat(w, r, in.Stream == nil || *in.Stream, func(ctx context.Context, emit func(agents.Event)) (agents.Answer, error) {
 		return a.Public.Chat(ctx, sess, req, emit)
 	})
+}
+
+// setPublicMessageFeedback rates an answer in the anonymous session's own
+// conversation (the public page's and the widget's thumbs).
+func (a *api) setPublicMessageFeedback(w http.ResponseWriter, r *http.Request) {
+	agentID, ok := pathUUID(w, r, "agentId")
+	if !ok {
+		return
+	}
+	id, ok := pathUUID(w, r, "messageId")
+	if !ok {
+		return
+	}
+	var in apitypes.Feedback
+	if !httpx.Decode(w, r, &in) {
+		return
+	}
+	if _, err := a.Agents.PublicProfile(r.Context(), agentID.String()); failed(w, r, err) {
+		return
+	}
+	sess, ok := a.resume(w, r, agentID)
+	if !ok {
+		return
+	}
+	var reason *string
+	if in.Reason != nil {
+		s := string(*in.Reason)
+		reason = &s
+	}
+	share := in.Share != nil && *in.Share && in.Rating == apitypes.Down
+	req := public.FeedbackRequest{MessageID: id, Rating: string(in.Rating), Reason: reason, Share: share}
+	if failed(w, r, a.Public.Feedback(r.Context(), sess, req)) {
+		return
+	}
+	httpx.JSON(w, http.StatusOK, apitypes.FeedbackResult{MessageId: id, Rating: in.Rating, Reason: in.Reason, Shared: share})
 }
 
 // errPublicUnavailable is the embed page's error when the public service

@@ -3053,6 +3053,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/public/agents/{agentId}/messages/{messageId}/feedback": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+                "Grounded-Channel"?: components["parameters"]["PublicChannelHeader"];
+            };
+            path: {
+                agentId: components["parameters"]["AgentIdParam"];
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rate an answer in the anonymous session's own conversation (replaces earlier feedback; needs the session cookie)
+         * @description As POST /v1/messages/{messageId}/feedback, for an answer in a conversation of the caller's anonymous session with the agent: 404 for any other message, 401 without a live session. A thumbs-down removes a saved answer it came from and keeps the question for the gap report (each anonymous session counts as one person); with share, the team's editors see the question (never who asked). Rate-limited like public questions (per address and session per minute, with a publishable key's overrides, counted apart from questions): 429 rate_limited, 503 limits_unavailable. Errors: 503 public_disabled, 404 for agents that are not public, 403 agent_disabled (kill switch), 403 invalid_publishable_key.
+         */
+        post: operations["setPublicMessageFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/conversations": {
         parameters: {
             query?: never;
@@ -16285,6 +16311,44 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             401: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
+            503: components["responses"]["ErrorReply"];
+        };
+    };
+    setPublicMessageFeedback: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Which of the visitor's sessions with the agent the request uses: public (the default, the public page's session cookie) or widget (the embed page's: grounded_widget_{agentId without dashes}). Each channel has its own cookie, so the widget never continues a public page session (which has no publishable key, so the key's limits and switch wouldn't apply), and the public page never continues a widget's. A session of another channel behind the cookie is refused (401 session_required). */
+                "Grounded-Channel"?: components["parameters"]["PublicChannelHeader"];
+            };
+            path: {
+                agentId: components["parameters"]["AgentIdParam"];
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Feedback"];
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FeedbackResult"];
+                    };
+                };
+            };
+            400: components["responses"]["ErrorReply"];
+            401: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            429: components["responses"]["RateLimitedReply"];
             503: components["responses"]["ErrorReply"];
         };
     };

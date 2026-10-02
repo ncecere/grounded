@@ -34,6 +34,8 @@ The question is kept apart from the transcript, with the vector the search alrea
 
 The thumbs-down menu has **Share this question with the team**, off by default. Tick it, then choose what was wrong. A shared question shows in full on its topic's page, and editors can add it to an evaluation set. Rating the answer up later takes the question back.
 
+Visitors of the **public page and the widget** have the same thumbs, reasons and tick (since v0.4.0). Their thumbs-down counts like anyone's, each anonymous session as one person, and a question they share shows like any other shared question, never linked to the visitor.
+
 ## Topics
 
 A worker job (`gaps.topics`) runs every hour and once at start:

@@ -383,14 +383,9 @@ var feedbackReasons = map[string]bool{
 // keeps the question for the gap report, shown in full to the team's
 // editors only when share is set (gaps.go, ADR-0010 as amended).
 func (s *Service) SetFeedback(ctx context.Context, a authz.Actor, messageID uuid.UUID, rating string, reason *string, share bool) error {
-	if rating != "up" && rating != "down" {
-		return apperr.Invalid("invalid_rating", "Rating must be up or down")
-	}
-	if reason != nil && *reason == "" {
-		reason = nil
-	}
-	if reason != nil && !feedbackReasons[*reason] {
-		return apperr.Invalid("invalid_reason", "Reason must be one of incorrect, not_helpful, missing_sources, wrong_sources, outdated, harmful_or_unsafe or other")
+	reason, err := checkFeedback(rating, reason)
+	if err != nil {
+		return err
 	}
 	errNoMessage := apperr.NotFound("message_not_found", "Message not found")
 	if err := ownerOnly(a); err != nil {
@@ -405,11 +400,30 @@ func (s *Service) SetFeedback(ctx context.Context, a authz.Actor, messageID uuid
 	if ok, err := s.keyReaches(ctx, a, m.AgentID); err != nil || !ok {
 		return notFoundAs(err, errNoMessage)
 	}
-	share = share && rating == "down"
 	var teamID uuid.UUID
 	if err := s.Pool.QueryRow(ctx, `SELECT team_id FROM agents WHERE id = $1`, m.AgentID).Scan(&teamID); err != nil {
 		return err
 	}
+	return s.recordFeedback(ctx, messageID, rating, reason, share && rating == "down", s.pseudonym(teamID, a), errNoMessage)
+}
+
+// checkFeedback validates a rating and its reason ("" is none).
+func checkFeedback(rating string, reason *string) (*string, error) {
+	if rating != "up" && rating != "down" {
+		return nil, apperr.Invalid("invalid_rating", "Rating must be up or down")
+	}
+	if reason != nil && *reason == "" {
+		reason = nil
+	}
+	if reason != nil && !feedbackReasons[*reason] {
+		return nil, apperr.Invalid("invalid_reason", "Reason must be one of incorrect, not_helpful, missing_sources, wrong_sources, outdated, harmful_or_unsafe or other")
+	}
+	return reason, nil
+}
+
+// recordFeedback stores a rating on the answer's analytics event and acts on
+// it (afterFeedback); errNoMessage when the answer has no event.
+func (s *Service) recordFeedback(ctx context.Context, messageID uuid.UUID, rating string, reason *string, share bool, asker *string, errNoMessage error) error {
 	return store.InTx(ctx, s.Pool, func(q *dbgen.Queries, tx pgx.Tx) error {
 		n, err := q.SetMessageFeedback(ctx, dbgen.SetMessageFeedbackParams{
 			MessageID: uuid.NullUUID{UUID: messageID, Valid: true}, Feedback: &rating, FeedbackReason: reason, FeedbackShared: share,
@@ -420,7 +434,7 @@ func (s *Service) SetFeedback(ctx context.Context, a authz.Actor, messageID uuid
 		if n == 0 {
 			return errNoMessage
 		}
-		return afterFeedback(ctx, tx, messageID, rating, reason, share, s.pseudonym(teamID, a))
+		return afterFeedback(ctx, tx, messageID, rating, reason, share, asker)
 	})
 }
 

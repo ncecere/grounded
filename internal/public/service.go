@@ -219,19 +219,9 @@ func (s *Service) Chat(ctx context.Context, sess Session, req ChatRequest, emit 
 		return agents.Answer{}, &apperr.Error{Status: 400, Code: "message_too_long",
 			Message: "Your message is too long. Keep it under " + strconv.FormatInt(*max, 10) + " characters.", Details: map[string]any{"max": *max}}
 	}
-	adm := Admission{AgentID: sess.AgentID, IPPrefix: sess.IPPrefix, SessionID: sess.ID, Limits: set,
-		Usage: func(ctx context.Context) (int64, int64, error) {
-			u, err := s.q.AgentPublicUsageSince(ctx, dbgen.AgentPublicUsageSinceParams{AgentID: uuid.NullUUID{UUID: sess.AgentID, Valid: true}, Since: limits.StartOfDay(time.Now())})
-			return u.Queries, u.Tokens, err
-		}}
-	if sess.PublishableKeyID.Valid {
-		k, err := s.q.GetPublishableKey(ctx, sess.PublishableKeyID.UUID)
-		if err != nil || !k.Enabled {
-			return agents.Answer{}, errKey
-		}
-		_ = json.Unmarshal(k.RateLimits, &adm.Key)
-	} else if sess.Channel == agents.ChannelWidget {
-		return agents.Answer{}, errKey // the key was deleted
+	adm, err := s.admission(ctx, sess, set)
+	if err != nil {
+		return agents.Answer{}, err
 	}
 	release, err := s.Guard.Admit(ctx, adm)
 	if err != nil {
@@ -258,6 +248,61 @@ func (s *Service) StartedWithKey(ctx context.Context, sess Session, rawKey strin
 
 // ErrNoSession: the caller has no live session (of the request's channel).
 var ErrNoSession = errNoSession
+
+// admission is what the guardrails check for the session: the team's
+// limits, the widget key's overrides (errKey once the key is disabled or
+// deleted) and the agent's usage today.
+func (s *Service) admission(ctx context.Context, sess Session, set limits.Set) (Admission, error) {
+	adm := Admission{AgentID: sess.AgentID, IPPrefix: sess.IPPrefix, SessionID: sess.ID, Limits: set,
+		Usage: func(ctx context.Context) (int64, int64, error) {
+			u, err := s.q.AgentPublicUsageSince(ctx, dbgen.AgentPublicUsageSinceParams{AgentID: uuid.NullUUID{UUID: sess.AgentID, Valid: true}, Since: limits.StartOfDay(time.Now())})
+			return u.Queries, u.Tokens, err
+		}}
+	if sess.PublishableKeyID.Valid {
+		k, err := s.q.GetPublishableKey(ctx, sess.PublishableKeyID.UUID)
+		if err != nil || !k.Enabled {
+			return adm, errKey
+		}
+		_ = json.Unmarshal(k.RateLimits, &adm.Key)
+	} else if sess.Channel == agents.ChannelWidget {
+		return adm, errKey // the key was deleted
+	}
+	return adm, nil
+}
+
+// FeedbackRequest is a visitor's rating of an answer.
+type FeedbackRequest struct {
+	MessageID uuid.UUID
+	Rating    string
+	Reason    *string
+	Share     bool
+}
+
+// Feedback rates an answer in the session's own conversations (the
+// public page's and the widget's thumbs): the agent must be public and
+// live, the widget's key still enabled, and the per-minute guardrails
+// allow it (counted apart from questions).
+func (s *Service) Feedback(ctx context.Context, sess Session, req FeedbackRequest) error {
+	t, err := s.Agents.PublicProfile(ctx, sess.AgentID.String())
+	if err != nil {
+		return err
+	}
+	if t.Agent.Status != agents.StatusActive {
+		return errDisabled
+	}
+	set, err := s.Limits.Effective(ctx, nil, t.TeamID)
+	if err != nil {
+		return err
+	}
+	adm, err := s.admission(ctx, sess, set)
+	if err != nil {
+		return err
+	}
+	if err := s.Guard.AdmitFeedback(ctx, adm); err != nil {
+		return err
+	}
+	return s.Agents.PublicFeedback(ctx, sess.ID, sess.AgentID, req.MessageID, req.Rating, req.Reason, req.Share)
+}
 
 // Current is the session's current conversation (nil when none).
 func (s *Service) Current(ctx context.Context, sess Session) (*agents.ConversationView, error) {

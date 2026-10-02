@@ -86,7 +86,7 @@ Out:
   - One conversation per session at a time; "New chat" starts a new one within the session.
   - There is no history list across sessions.
 - **Retention.** Anonymous conversations are deleted after `anonymous_retention` from the classification level (default 24 h) by a periodic River job. It skips anything under legal hold, and legal holds arrive in Phase 5, so this is only a hook for now. It's the first retention job and is designed to be reused by Phase 5.
-- **Public chat API:** `POST /v1/public/agents/{agentId}/chat` (SSE, same events plus `moderation`) and `GET /v1/public/sessions/current` (the current conversation's messages). No other API is available anonymously.
+- **Public chat API:** `POST /v1/public/agents/{agentId}/chat` (SSE, same events plus `moderation`) and `GET /v1/public/sessions/current` (the current conversation's messages). Since v0.4.0 also a cited passage (`GET …/messages/{messageId}/sources/{n}`) and **feedback** (`POST /v1/public/agents/{agentId}/messages/{messageId}/feedback`, the same body as signed-in feedback: `up` or `down`, a reason, `share`), both only for answers in the session's own conversations (404 otherwise). Feedback is refused for a killed agent and while public agents are off, and limited like questions (per address and session per minute, with a publishable key's overrides, counted apart from questions). The public page and the widget show the same thumbs, reasons and **Share this question with the team** tick (off by default) as the signed-in chat; a thumbs-down removes a saved answer and feeds the gap report ([`gaps.md`](gaps.md)). No other API is available anonymously.
 - **Analytics:** `pseudonymous_user` is a per-agent HMAC of the session; channel is `public` or `widget`.
 
 ## 6. Widget

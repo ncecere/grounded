@@ -99,6 +99,30 @@ test("the public page: a signed-out visitor chats with a public agent", async ({
   await expect(viewer).toBeHidden();
 });
 
+test("the public page: a visitor rates an answer, with a reason and the share tick", async ({ page, admin, a11y }) => {
+  const { owner, team } = await publicAgent(admin, "Public permits");
+  await owner.dispose();
+
+  await page.goto(`/a/${team}/public-permits`);
+  const composer = page.getByRole("textbox", { name: "Message Public permits" });
+  await composer.fill("How much is a student parking permit?");
+  await composer.press("Enter");
+  const answer = page.getByRole("article", { name: "Public permits said" });
+  await expect(answer).toContainText(handbook.answer);
+  await answer.getByRole("button", { name: "Bad answer" }).click();
+  const share = page.getByRole("menuitemcheckbox", { name: "Share this question with the team" });
+  await expect(share).toHaveAttribute("aria-checked", "false");
+  await share.click();
+  await a11y(page, "public feedback menu");
+  const saved = page.waitForResponse((r) => r.url().includes("/v1/public/agents/") && r.url().endsWith("/feedback"));
+  await page.getByRole("menuitem", { name: "Missing sources" }).click();
+  const res = await saved;
+  expect(res.status()).toBe(200);
+  expect(((await res.json()) as { data: { shared: boolean; rating: string } }).data).toMatchObject({ rating: "down", shared: true });
+  await expect(answer.getByRole("button", { name: "Bad answer: Missing sources" })).toHaveAttribute("aria-pressed", "true");
+  await a11y(page, "public answer rated");
+});
+
 test("the public page: a failing paragraph replaces the whole answer with the notice", async ({ page, admin, a11y }) => {
   // The fake model answers "The sources say:" and, in a paragraph of its own, the document's first line, which fails.
   const fines = { name: "fines.md", body: "FAKE-LIST Parking fines are paid at the UNSAFE-VIOLENCE window of the transportation office.\n" };

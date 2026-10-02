@@ -156,6 +156,30 @@ describe("public page", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("rates answers through the anonymous session, with the reasons and the share tick (public feedback)", async () => {
+    const path = `/v1/public/agents/${publicAgent.id}/messages/m1/feedback`;
+    const calls = mockApi({
+      ...signedOut,
+      "GET /v1/public/agents/registrar-help": () => publicAgent,
+      "GET /v1/public/sessions/current": () => Reply.error(401, "session_required"),
+      "POST /v1/public/sessions": () => new Reply(201, { data: { agentId: publicAgent.id, channel: "public", expiresAt: "2026-09-27T10:00:00Z" } }),
+      [`POST /v1/public/agents/${publicAgent.id}/chat`]: () => sse(answer()),
+      [`POST ${path}`]: (b) => ({ messageId: "m1", shared: (b as { share?: boolean }).share === true, ...(b as object) }),
+    });
+    const { container } = renderApp("/a/registrar-help");
+    await userEvent.type(await screen.findByRole("textbox", { name: "Message Registrar help" }), "How do I order a transcript?{Enter}");
+    expect(await screen.findByText(/Order it online/)).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: "Bad answer" }));
+    const share = await screen.findByRole("menuitemcheckbox", { name: "Share this question with the team" });
+    expect(share).toHaveAttribute("aria-checked", "false");
+    await userEvent.click(share);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Missing sources" }));
+    await waitFor(() => expect(calls.find((c) => c.url === path)?.body).toEqual({ rating: "down", reason: "missing_sources", share: true }));
+    expect(await screen.findByRole("button", { name: "Bad answer: Missing sources" })).toHaveAttribute("aria-pressed", "true");
+    expect(calls.some((c) => c.url === "/v1/messages/m1/feedback")).toBe(false);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("serves a public agent's team address to signed-out visitors, and the sign-in page otherwise (F-07)", async () => {
     mockApi({
       ...signedOut,
@@ -188,6 +212,7 @@ describe("embed page", () => {
       "GET /v1/public/sessions/current": () => Reply.error(401, "session_required"),
       "POST /v1/public/sessions": () => new Reply(201, { data: { agentId: publicAgent.id, channel: "widget", expiresAt: "2026-09-27T10:00:00Z" } }),
       [`POST /v1/public/agents/${publicAgent.id}/chat`]: () => sse(answer()),
+      [`POST /v1/public/agents/${publicAgent.id}/messages/m1/feedback`]: (b) => ({ messageId: "m1", shared: false, ...(b as object) }),
     });
     const { container } = renderApp(`/embed/${publicAgent.id}?key=pk_abc`);
     expect(await screen.findByRole("heading", { level: 1, name: "Registrar help" })).toBeInTheDocument();
@@ -200,6 +225,10 @@ describe("embed page", () => {
     expect(current.search.get("key")).toBe("pk_abc");
     expect(current.headers.get("Grounded-Channel")).toBe("widget");
     expect(calls.find((c) => c.url.endsWith("/chat"))!.headers.get("Grounded-Channel")).toBe("widget");
+    // Thumbs in the widget go to the anonymous session's endpoint, through the widget's session.
+    await userEvent.click(screen.getByRole("button", { name: "Good answer" }));
+    await waitFor(() => expect(calls.find((c) => c.url.endsWith("/messages/m1/feedback"))?.body).toEqual({ rating: "up" }));
+    expect(calls.find((c) => c.url.endsWith("/messages/m1/feedback"))!.headers.get("Grounded-Channel")).toBe("widget");
   });
 
   it("shows the server's error for a refused embed", async () => {
