@@ -106,6 +106,7 @@ CROSS JOIN LATERAL (
         WHEN 'evaluation_settings' THEN 'Evaluations'
         -- A gap topic is never named: its label is written from people's questions, and platform staff read team audit logs.
         WHEN 'gap_topic' THEN (SELECT 'Gap topic' FROM gap_topics gt WHERE gt.id = ids.target_uuid)
+        WHEN 'gap_settings' THEN 'Gap report settings'
         WHEN 'mcp_settings' THEN 'MCP server'
         WHEN 'answer_cache_settings' THEN 'Saved answers'
         WHEN 'mcp_server' THEN (SELECT ms.name FROM mcp_servers ms WHERE ms.id = ids.target_uuid)
