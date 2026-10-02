@@ -38,7 +38,7 @@ func (s *Service) CheckLatency(ctx context.Context) (CheckLatency, error) {
 	if !c.at.IsZero() && time.Since(c.at) < checkLatencyTTL {
 		return c.val, nil
 	}
-	from, to, err := Range(time.Now().AddDate(0, 0, -(CheckLatencyDays - 1)), time.Time{})
+	from, to, err := Range(time.Now().AddDate(0, 0, -(CheckLatencyDays-1)), time.Time{})
 	if err != nil {
 		return CheckLatency{}, err
 	}
