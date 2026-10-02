@@ -44,7 +44,7 @@ const (
 	MaxSuggestions       = 3
 	MaxSuggestionChars   = 150
 	suggestMaxTokens     = 1024
-	suggestTimeout       = 20 * time.Second
+	suggestTimeout       = 10 * time.Second
 	suggestAnswerChars   = 2000
 	suggestPassageLines  = 12
 	suggestMinChars      = 3
@@ -114,15 +114,14 @@ func (ru *run) replaySuggestions(ans *Answer, saved []string) {
 	ru.out.send(Event{"suggestions", SuggestionsEvent{MessageID: ans.MessageID, Suggestions: saved}})
 }
 
-// writeSuggestions is the model call: low reasoning effort (off when the
-// answer's is off and the model can turn thinking off, as for the query
-// rewrite), bounded in tokens and time.
+// writeSuggestions is the model call, bounded in tokens and time, with
+// thinking off whenever the model can turn it off (suggestEffort).
 func (ru *run) writeSuggestions(ctx context.Context, answer string, passages []string) ([]string, llm.Usage, error) {
 	sctx, cancel := context.WithTimeout(ctx, suggestTimeout)
 	defer cancel()
 	msg, err := llm.Complete(sctx, ru.s.NewProvider(ru.target.Client), ru.model,
 		llm.Context{SystemPrompt: suggestPrompt, Messages: []llm.Message{llm.UserMessage{Content: suggestionInput(ru.question, answer, passages)}}},
-		llm.Options{MaxTokens: suggestMaxTokens, ReasoningEffort: ru.rewriteEffort(), User: ru.userTag()})
+		llm.Options{MaxTokens: suggestMaxTokens, ReasoningEffort: suggestEffort(ru.model.Compat.ThinkingOff), User: ru.userTag()})
 	if err != nil {
 		if ctx.Err() == nil {
 			ru.s.Log.Warn("follow-up suggestions failed; none are shown", "err", err, "agent", ru.agent.ID)
@@ -286,4 +285,16 @@ func (ru *run) recordSuggestionUsage(ctx context.Context, u llm.Usage, modReqs i
 	if ru.s.Limits != nil {
 		ru.s.Limits.Recorded(ru.team.ID, usage)
 	}
+}
+
+// suggestEffort is the suggestion call's reasoning effort: off whenever the
+// model can turn thinking off, whatever the answer's effort (three short
+// questions gain nothing from reasoning, and a reasoning model thinking at
+// length would use the call's tokens and time up), otherwise low. Low is
+// sent only to models that accept a reasoning effort.
+func suggestEffort(thinkingOff string) string {
+	if thinkingOff != "" {
+		return llm.EffortOff
+	}
+	return "low"
 }

@@ -131,3 +131,14 @@ func TestOffersSuggestions(t *testing.T) {
 		t.Error("an agent with suggestions off offers them")
 	}
 }
+
+// TestSuggestEffort: the suggestion call turns thinking off whenever the model
+// can, whatever the answer's effort, and asks for low effort otherwise.
+func TestSuggestEffort(t *testing.T) {
+	if got := suggestEffort("enable_thinking_false"); got != llm.EffortOff {
+		t.Errorf("with thinking off = %q", got)
+	}
+	if got := suggestEffort(""); got != "low" {
+		t.Errorf("without = %q", got)
+	}
+}

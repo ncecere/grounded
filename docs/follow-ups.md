@@ -19,7 +19,7 @@ Only after an answer that:
 - wasn't replaced by a moderation notice, and
 - finished normally (not stopped, cut off at the length limit or failed).
 
-An answer with none of these problems may still get no suggestions: the model can reply that no follow-up qualifies, the call can fail or time out (20 seconds), or every suggestion can be dropped (see below). Nothing is shown then, and nothing tells the reader that suggestions were expected.
+An answer with none of these problems may still get no suggestions: the model can reply that no follow-up qualifies, the call can fail or time out (10 seconds), or every suggestion can be dropped (see below). Nothing is shown then, and nothing tells the reader that suggestions were expected.
 
 ## How they're written
 
@@ -28,7 +28,7 @@ A separate, small call to the agent's chat model, once the answer has ended:
 1. **After the answer.** The call starts after `message_end` and, when SystemOne checks the citations, after `citations_checked`. The answer, its citations and its checks are never changed by it, and the reader doesn't wait for it: the chat treats the answer as complete at once (the composer is free, "Answer ready" is announced), and the chips appear a moment later.
 2. **What the model reads:** the question, the answer (without citation markers, at most 2,000 characters) and the title and heading path of each passage, cited ones first, at most 12 lines such as `Transcripts › Fees`. Not the passages' text, the conversation, the agent's instructions or the person's details. MCP tools' results and conflicting passages are left out; with no passage line, no call is made.
 3. **What it's asked:** up to 3 short questions the passages answer, in the language of the question, never the question already asked or one the answer already answers; or `NONE`.
-4. **Reasoning effort:** low, or off when the answer's effort is off and the chat model can turn thinking off (**How to turn thinking off** in Admin → Models), as for the query rewrite. At most 1,024 output tokens, reasoning included.
+4. **Reasoning effort:** thinking off whenever the chat model can turn it off (**How to turn thinking off** in Admin → Models), whatever the answer's effort; otherwise low. Set **How to turn thinking off** on a reasoning chat model: without it, the model can reason past the call's time limit and no suggestions show. At most 1,024 output tokens, reasoning included.
 5. **Reading the reply:** one question per line. List markers, numbering, emphasis, quotes and citation markers are removed. Blank lines, labels ("Follow-up questions:"), `NONE`, lines without letters, lines over 150 characters, duplicates (ignoring case, spacing and the final punctuation) and the question just asked are dropped; the first 3 that remain are kept.
 
 ## Moderation
