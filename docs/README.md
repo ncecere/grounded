@@ -16,6 +16,7 @@ This index lists every document, grouped by who it's for. New to Grounded? Start
 |---|---|
 | [`../README.md`](../README.md) | What Grounded is, how to try it and deploy it, and the project status |
 | [`demo.md`](demo.md) | The demo: `make demo` with Docker only, fake and real models, and what `grounded demo` creates |
+| [`releases/v0.4.0.md`](releases/v0.4.0.md) | Release notes for v0.4.0 (the latest): highlights, upgrading from v0.3.1, known limitations. Earlier releases: [`releases/`](releases/) |
 | [`releases/v0.1.0.md`](releases/v0.1.0.md) | Release notes for v0.1.0: requirements, installing, known limitations, verifying images |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | Every release's changes |
 | [`roadmap.md`](roadmap.md) | Candidates for future work, by ID |

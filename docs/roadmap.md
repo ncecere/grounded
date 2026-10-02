@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-09-30. **v0.3.1 is released** (2026-09-30: the logo, and answers that arrive whole shown from their start), after **v0.3.0** (2026-09-30): Grounded as an MCP server and client (C1), stored health (E11), OpenTelemetry tracing (F1), OAuth sign-in for MCP clients (experimental) and faster answers ([`releases/v0.3.0.md`](releases/v0.3.0.md)). The project has a website ([`ncecere/grounded-website`](https://github.com/ncecere/grounded-website)) and a documentation site ([`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs)). The Community/Enterprise edition plumbing (ADR-0025, a draft) was deferred from v0.3.0. **Next (owner, 2026-09-30): v0.4.0 "answers people trust and teams can improve"** (§ K below); Teams/Slack bots (D1), the Microsoft 365 connector with document ACLs (B1, B6), and SCIM with SIEM export (E4, E5) wait until much later.
+Status: refreshed 2026-10-02. **v0.4.0 is released** (2026-10-02: reranking, the gap report, the source viewer, saved answers, answers streamed in checked paragraphs; [`releases/v0.4.0.md`](releases/v0.4.0.md)), after **v0.3.1** (2026-09-30: the logo) and **v0.3.0** (2026-09-30): Grounded as an MCP server and client (C1), stored health (E11), OpenTelemetry tracing (F1), OAuth sign-in for MCP clients (experimental) and faster answers ([`releases/v0.3.0.md`](releases/v0.3.0.md)). The project has a website ([`ncecere/grounded-website`](https://github.com/ncecere/grounded-website)) and a documentation site ([`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs)). The Community/Enterprise edition plumbing (ADR-0025, a draft) was deferred from v0.3.0. **Next (owner, 2026-09-30): v0.4.0 "answers people trust and teams can improve"** (§ K below); Teams/Slack bots (D1), the Microsoft 365 connector with document ACLs (B1, B6), and SCIM with SIEM export (E4, E5) wait until much later.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -110,7 +110,7 @@ The plan and the owner's decisions are in [`v0.3.0.md`](v0.3.0.md); the release 
 
 ---
 
-## K. v0.4.0: answers people trust and teams can improve (owner, 2026-09-30; to be designed)
+## K. v0.4.0: answers people trust and teams can improve — **Done** (v0.4.0, [`releases/v0.4.0.md`](releases/v0.4.0.md))
 
 In priority order; the design is [`v0.4.0.md`](v0.4.0.md) (all five items are decided; milestones in § 6).
 

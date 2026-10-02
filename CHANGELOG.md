@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-02
+
+Answers people trust and teams can improve: cross-encoder reranking, the gap report, the source viewer, saved answers and answers streamed in checked paragraphs. The release notes are [`docs/releases/v0.4.0.md`](docs/releases/v0.4.0.md).
+
 ### Added
 
 - **Reasoning effort Off, and a reasoning effort per audience.** Agents' **Build → Advanced → Reasoning effort** gains **Off**, available once a platform admin sets the chat model's new **How to turn thinking off** (Admin → Models → Compatibility: `reasoning_effort: "none"`, or `chat_template_kwargs: {"enable_thinking": false}` for Qwen3 on vLLM or SGLang). Each audience's moderation policy gains a **Reasoning effort** (Admin → Safety → Moderation → Reasoning) for agents that don't set their own; **public answers use Low by default**, so they start sooner. Buffered and checked answers say "Thinking about your question…" while the model reasons (a new `thinking` status step), instead of one static line. API (additive): `off` in `ReasoningEffort`, `thinkingOff` in `ModelCompat`, `supportsThinkingOff` on chat model options, `reasoningEffort` on moderation policies, the `thinking` status step.
@@ -343,7 +347,8 @@ Development before this release happened in a private repository. The public rep
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
 
-[Unreleased]: https://github.com/ncecere/grounded/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/ncecere/grounded/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ncecere/grounded/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/ncecere/grounded/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/ncecere/grounded/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/ncecere/grounded/compare/v0.2.1...v0.2.2
