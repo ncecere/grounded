@@ -8,7 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
+	"github.com/ncecere/grounded/internal/observability"
 )
 
 // Per-claim verification (docs/v0.2.1.md I9, docs/systemone.md §3): each
@@ -205,9 +208,11 @@ func TestClaimsOverOpenAI(t *testing.T) {
 
 // TestClaimsInEvaluations: a full-answer run's share of supported claims
 // counts the claims chat shows (1 of 3: the uncited sentence counts as not
-// supported), and the result carries them.
+// supported), and the result carries them. Its SystemOne checks ran at
+// background priority (docs/v0.4.1.md §4).
 func TestClaimsInEvaluations(t *testing.T) {
 	env, ag := claimsEnv(t)
+	waits := systemOneWaits(t, "citations", "background")
 	set := env.newEvalSet(t, map[string]any{"agentId": ag.Id, "name": "Fees"})
 	question := "What does a transcript cost?"
 	env.addQuestion(t, set, question, map[string]any{"filenames": []string{"fee.txt"}})
@@ -228,6 +233,33 @@ func TestClaimsInEvaluations(t *testing.T) {
 	if s := d.Run.Summary; s.SupportedShare == nil || *s.SupportedShare != 1.0/3 {
 		t.Errorf("summary = %+v", s)
 	}
+	if n := systemOneWaits(t, "citations", "background"); n <= waits {
+		t.Errorf("background citation checks = %d, want more than %d", n, waits)
+	}
+}
+
+// systemOneWaits is how many SystemOne slot waits this process recorded for
+// a feature and priority (grounded_systemone_wait_seconds).
+func systemOneWaits(t *testing.T, feature, priority string) uint64 {
+	t.Helper()
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(observability.SystemOneWait)
+	mfs, err := reg.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mf := range mfs {
+		for _, m := range mf.GetMetric() {
+			labels := map[string]string{}
+			for _, l := range m.GetLabel() {
+				labels[l.GetName()] = l.GetValue()
+			}
+			if labels["feature"] == feature && labels["priority"] == priority {
+				return m.GetHistogram().GetSampleCount()
+			}
+		}
+	}
+	return 0
 }
 
 // TestUncitedIsNotAFailure: an answer whose only issue is an uncited

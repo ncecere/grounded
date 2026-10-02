@@ -113,11 +113,16 @@ func TestMergeKeepsOlderTopic(t *testing.T) {
 // TestConfirmWithSystemOne: with the team's setting on, a borderline
 // question (0.65-0.72 from its nearest) joins its topic when SystemOne says
 // it's the same subject, and the check is metered to the team; a "no"
-// keeps it apart, and the setting off never asks.
+// keeps it apart, and the setting off never asks. The checks run at
+// background priority (docs/v0.4.1.md §4).
 func TestConfirmWithSystemOne(t *testing.T) {
 	f := newFixture(t)
 	s1 := systemone.New(f.pool, f.cat, testutil.Logger())
-	f.runner.SystemOne = func(ctx context.Context) (*systemone.Client, error) { return s1.Client(ctx, f.systemOne) }
+	var priority []systemone.Priority
+	f.runner.SystemOne = func(ctx context.Context) (*systemone.Client, error) {
+		priority = append(priority, systemone.PriorityFrom(ctx))
+		return s1.Client(ctx, f.systemOne)
+	}
 	a := f.askAt("a1", parking, 0)
 	f.run()
 	b := f.askAt("a2", "Can visitors park by the library?", deg(0.68))
@@ -142,6 +147,9 @@ func TestConfirmWithSystemOne(t *testing.T) {
 	}
 	if f.topicOf(d) == f.topicOf(a) {
 		t.Fatal("SystemOne said different, but the question joined")
+	}
+	if len(priority) == 0 || priority[len(priority)-1] != systemone.Background {
+		t.Fatalf("the gap job's SystemOne priority = %v, want background", priority)
 	}
 	if n := f.count(`SELECT count(*) FROM usage_events WHERE team_id = $1 AND kind = 'systemone_requests' AND metadata->>'source' = 'gaps'`, f.team); n < 1 {
 		t.Fatalf("metered SystemOne checks = %d", n)
