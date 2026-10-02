@@ -26,7 +26,9 @@ type RerankRequest struct {
 	// "documents" (the default) or "texts" (Hugging Face text embeddings
 	// inference).
 	DocumentsField string
-	User           string
+	// User is the caller's tag. It is not sent: rerank APIs don't define it,
+	// and strict servers refuse unknown fields.
+	User string
 }
 
 // RerankScore is one document's relevance score; Index is its position in
@@ -102,9 +104,7 @@ func (c *Client) Rerank(ctx context.Context, r RerankRequest) (res RerankResult,
 	if field == "documents" {
 		body["return_documents"] = false
 	}
-	if r.User != "" {
-		body["user"] = r.User
-	}
+	// No "user": rerank APIs don't define it, and strict servers refuse the request (422).
 	var out rerankBody
 	if err := c.do(ctx, http.MethodPost, "/rerank", body, &out); err != nil {
 		return RerankResult{}, err

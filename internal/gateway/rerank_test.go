@@ -16,8 +16,9 @@ func TestRerankAgainstFakeProxy(t *testing.T) {
 	p := testutil.NewFakeProxy(t)
 	c := gateway.New(p.BaseURL(), p.APIKey, 5*time.Second)
 	docs := []string{"Parking permits are sold online.", "The library opens at 8 am on weekdays.", testutil.FakeRerankTop + " Hours."}
+	// The caller's tag is not sent (the fake refuses unknown fields, like strict servers).
 	res, err := c.Rerank(context.Background(), gateway.RerankRequest{Model: testutil.FakeRerankModel, Query: "When does the library open?",
-		Documents: docs, TopN: 2, SendTopN: true})
+		Documents: docs, TopN: 2, SendTopN: true, User: "grounded:user"})
 	if err != nil {
 		t.Fatal(err)
 	}

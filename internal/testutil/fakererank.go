@@ -21,11 +21,12 @@ const (
 
 // FakeRerankRequest is a /rerank request the fake received.
 type FakeRerankRequest struct {
-	Model     string   `json:"model"`
-	Query     string   `json:"query"`
-	Documents []string `json:"documents"`
-	Texts     []string `json:"texts"`
-	TopN      *int     `json:"top_n"`
+	Model           string   `json:"model"`
+	Query           string   `json:"query"`
+	Documents       []string `json:"documents"`
+	Texts           []string `json:"texts"`
+	TopN            *int     `json:"top_n"`
+	ReturnDocuments *bool    `json:"return_documents"`
 }
 
 // SetRerankDelay pauses before answering a /rerank request (0 = none),
@@ -90,9 +91,12 @@ func FakeRerankScore(query, doc string) float64 {
 // rerank serves POST /v1/rerank in the Cohere and Jina shape (documents)
 // or the text embeddings inference shape (texts), best first, cut to top_n.
 func (p *FakeProxy) rerank(w http.ResponseWriter, r *http.Request) {
+	// Strict, like real rerank servers that refuse fields they don't know (a 422 for "user").
 	var in FakeRerankRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		writeErr(w, 400, "bad json")
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&in); err != nil {
+		writeErr(w, 422, "invalid rerank request: "+err.Error())
 		return
 	}
 	p.log(r, in.Model)
