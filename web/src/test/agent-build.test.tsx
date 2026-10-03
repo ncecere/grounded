@@ -66,7 +66,7 @@ describe("pure helpers", () => {
     expect(sectionSummary("knowledge", { ...input, c: { ...config, kbs: [] } })).toMatch(/can't answer yet/);
     expect(sectionSummary("answering", input)).toBe("Search before every answer · only from sources · title, snippet and link");
     expect(sectionSummary("safety", input)).toBe("Platform policy only");
-    expect(sectionSummary("advanced", input)).toBe("model's temperature · 6,000 source tokens · rewrites follow-ups");
+    expect(sectionSummary("advanced", input)).toBe("model's temperature · 6,000 source tokens · rewrites follow-up questions into searches · suggests follow-up questions");
     expect(sectionSummary("systemone", { ...input, systemOne: { judging: true, citations: false, citationMode: "annotate", scope: false } })).toBe(
       "Platform defaults: judging on, citations off, scope off",
     );

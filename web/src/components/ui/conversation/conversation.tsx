@@ -32,7 +32,10 @@ import styles from "./conversation.module.css";
  * message. Scrolling up (wheel, touch, keyboard, scrollbar) releases it and
  * shows "Scroll to latest"; reaching the bottom again re-pins it.
  * `scrollToElement(el)` (from useConversation) releases it too, to show a
- * message from its start (an answer that arrived whole). No
+ * message from its start (an answer that arrived whole).
+ * `scrollToBottom("smooth")` follows content that grows during the next
+ * 600 ms smoothly too (a row added under the last message glides into view
+ * instead of jumping). No
  * dependency: a ResizeObserver + MutationObserver on the content and the
  * pure `nextStickState()` below.
  *
@@ -100,6 +103,9 @@ export function useStickToBottom({ threshold = 64, enabled = true }: UseStickToB
   // After scrollToElement: until then, nothing re-pins (a scroll event from an earlier pin, still at the bottom, arrives
   // while a smooth scroll is only starting). A pin (scrollToBottom, reaching the bottom by hand later) ends it.
   const holdUntil = useRef(0);
+  // After scrollToBottom("smooth"): until then, content that grows (a row added at the end) is followed smoothly too,
+  // instead of a jump that would cut the smooth scroll short.
+  const smoothUntil = useRef(0);
   const [atBottom, setAtBottom] = useState(true);
 
   const measure = useCallback((el: HTMLElement): ScrollMetrics => ({ scrollTop: el.scrollTop, scrollHeight: el.scrollHeight, clientHeight: el.clientHeight }), []);
@@ -128,6 +134,7 @@ export function useStickToBottom({ threshold = 64, enabled = true }: UseStickToB
     (behavior: ScrollBehavior = "smooth") => {
       if (!viewport) return;
       pin(viewport, behavior);
+      smoothUntil.current = behavior === "smooth" ? Date.now() + 600 : 0;
       sync(viewport);
     },
     [viewport, pin, sync],
@@ -191,7 +198,7 @@ export function useStickToBottom({ threshold = 64, enabled = true }: UseStickToB
       state.current = { ...state.current, stuck: true };
     }
     const onChange = () => {
-      if (enabled && state.current.stuck) pin(viewport);
+      if (enabled && state.current.stuck) pin(viewport, Date.now() < smoothUntil.current ? "smooth" : "auto");
       sync(viewport);
     };
     onChange();

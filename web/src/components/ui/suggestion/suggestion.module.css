@@ -6,6 +6,10 @@
   &[data-layout="wrap"] {
     flex-wrap: wrap;
     justify-content: center;
+
+    &[data-align="start"] {
+      justify-content: flex-start;
+    }
   }
 
   &[data-layout="scroll"] {
@@ -31,6 +35,17 @@
     flex: none;
   }
 
+  /* Wrapping: a chip is never wider than the group; a long suggestion wraps onto more lines inside its chip. */
+  .suggestions[data-layout="wrap"] & {
+    max-width: 100%;
+    height: auto;
+    min-height: var(--control-height-sm);
+    padding-block: var(--space-1);
+    white-space: normal;
+    line-height: var(--line-height-snug);
+    text-align: start;
+  }
+
   & svg {
     color: var(--color-text-muted);
   }
@@ -39,4 +54,9 @@
 .text {
   overflow: hidden;
   text-overflow: ellipsis;
+
+  .suggestions[data-layout="wrap"] & {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
 }

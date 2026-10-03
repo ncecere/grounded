@@ -1,11 +1,13 @@
 /* Follow-up suggestions (docs/follow-ups.md): the suggestions event, chips under the last answer that ask the question, the answer complete before them, the Build → Advanced switch. */
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { sectionSummary } from "../pages/agents/build/summaries";
 import { configInput, defaultConfig } from "../pages/agents/common";
-import { applyChatEvent, pendingAssistant } from "../pages/chat/stream";
+import { Conversation, ConversationContent } from "../components/ui/conversation/conversation";
+import { ShowSuggestions, suggestionsArrived } from "../pages/chat/show-suggestions";
+import { type ChatItem, applyChatEvent, pendingAssistant } from "../pages/chat/stream";
 import { type Handler, mockApi, openSSE, renderApp, shellRoutes, sse } from "./harness";
 
 const card = {
@@ -71,6 +73,8 @@ describe("chips under the answer", () => {
 
     const group = await screen.findByRole("group", { name: "Suggested follow-up questions" });
     expect(within(group).getByText("You could also ask:")).toBeInTheDocument();
+    // Lined up with the answer's text, not centred under it (walkthrough, 2026-10-02).
+    expect(group).toHaveAttribute("data-align", "start");
     expect(within(group).getAllByRole("button").map((b) => b.textContent)).toEqual(follow);
     expect(await axe(container)).toHaveNoViolations();
 
@@ -120,6 +124,67 @@ describe("chips under the answer", () => {
   });
 });
 
+describe("chips arriving after the answer (walkthrough, 2026-10-02)", () => {
+  const done = (suggestions?: string[], status = "done"): ChatItem =>
+    ({ role: "assistant", key: "a1", text: "Yes [1].", status, steps: [], citations: [citation], suggestions }) as unknown as ChatItem;
+  const seen = (suggested: boolean, complete = true) => ({ key: "a1", complete, suggested });
+
+  it("are an arrival only after the answer was shown complete without them", () => {
+    expect(suggestionsArrived(seen(false), done(follow))).toBe(true);
+    // With the answer (a saved answer replayed), already shown, another answer, or nothing seen: not an arrival.
+    expect(suggestionsArrived(seen(false, false), done(follow))).toBe(false);
+    expect(suggestionsArrived(seen(true), done(follow))).toBe(false);
+    expect(suggestionsArrived({ key: "a0", complete: true, suggested: false }, done(follow))).toBe(false);
+    expect(suggestionsArrived(undefined, done(follow))).toBe(false);
+    expect(suggestionsArrived(seen(false), done())).toBe(false);
+  });
+
+  function View({ item }: { item: ChatItem }) {
+    const list = item.role === "assistant" ? (item.suggestions ?? []) : [];
+    return (
+      <Conversation>
+        <ConversationContent>
+          <p>Yes.</p>
+          {list.length > 0 && <div data-chat-suggestions="">{list.join(" ")}</div>}
+        </ConversationContent>
+        <ShowSuggestions items={[item]} />
+      </Conversation>
+    );
+  }
+  /** The conversation 1,000 px tall in a 400 px view, scrolled to `top`. */
+  function setup(top: number) {
+    const view = render(<View item={done()} />);
+    const log = screen.getByRole("log");
+    Object.defineProperty(log, "scrollHeight", { configurable: true, get: () => 1000 });
+    Object.defineProperty(log, "clientHeight", { configurable: true, get: () => 400 });
+    const scrollTo = vi.fn();
+    log.scrollTo = scrollTo as unknown as typeof log.scrollTo;
+    act(() => {
+      log.scrollTop = 600;
+      fireEvent.scroll(log);
+    });
+    act(() => {
+      log.scrollTop = top;
+      fireEvent.scroll(log);
+    });
+    return { ...view, log, scrollTo };
+  }
+
+  it("glide into view when the reader was at the bottom, though the view had stopped following", () => {
+    // 40 px from the bottom, after the view moved up to show a whole answer from its question.
+    const { rerender, scrollTo } = setup(560);
+    rerender(<View item={done(follow)} />);
+    expect(scrollTo).toHaveBeenCalledWith({ top: 1000, behavior: "smooth" });
+  });
+
+  it("don't move a reader who scrolled up", () => {
+    const { rerender, scrollTo, log } = setup(200);
+    rerender(<View item={done(follow)} />);
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(log.scrollTop).toBe(200);
+  });
+});
+
 describe("the agent's setting", () => {
   const config = { ...(defaultConfig as Schemas["AgentConfig"]), moderation: { categories: {}, outputMode: "" }, audience: "team" } as Schemas["AgentConfig"];
 
@@ -130,7 +195,9 @@ describe("the agent's setting", () => {
     expect(configInput({ ...config, followUpSuggestions: false }).followUpSuggestions).toBe(false);
     const summary = (c: Schemas["AgentConfig"]) => sectionSummary("advanced", { c, kbName: () => "" } as never);
     expect(summary({ ...config, followUpSuggestions: false })).toMatch(/no follow-up suggestions/);
-    expect(summary(config)).not.toMatch(/follow-up suggestions/);
+    expect(summary(config)).toMatch(/suggests follow-up questions/);
+    // The query rewrite reads as a different thing (walkthrough, 2026-10-02).
+    expect(summary({ ...config, queryRewrite: true })).toMatch(/rewrites follow-up questions into searches · suggests follow-up questions/);
   });
 
   it("Build → Advanced has the switch, saved with the draft", async () => {

@@ -113,7 +113,7 @@
     "conversation": {
       "files": {
         "src/components/ui/conversation/conversation.module.css": "0451c6290e56c2f3fc9afe584f79463a238335d3e3aa8d79ca497c14b74b754a",
-        "src/components/ui/conversation/conversation.tsx": "6eb979ec85b772f346a803cb19f3768531d15d8b353ee146917aad33b756902b"
+        "src/components/ui/conversation/conversation.tsx": "d574402684a0a7101c7489735d7f2779cae361ceaeeb72ed170afb836f043835"
       }
     },
     "copy-button": {
@@ -423,8 +423,8 @@
     },
     "suggestion": {
       "files": {
-        "src/components/ui/suggestion/suggestion.module.css": "e8e7991543a00870ee9aab0345c4d183dbcb1e54be52ffb53f74b699cbc52392",
-        "src/components/ui/suggestion/suggestion.tsx": "62e9506a35e1df99ab02c1b170a68839edce573a4c95e0c388c16c15cacad542"
+        "src/components/ui/suggestion/suggestion.module.css": "7d5867359c0341347230484567e63ccd0c4231494d31d5d75b1ee179b11bd0f2",
+        "src/components/ui/suggestion/suggestion.tsx": "60e1f8549f58b1a41f0710d2087d555a732467f69efc92393dc9f1030b08fffd"
       }
     },
     "switch": {

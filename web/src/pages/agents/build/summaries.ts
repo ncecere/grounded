@@ -67,10 +67,10 @@ export function sectionSummary(section: BuildSection, { c, model, kbName, system
       return [
         c.temperature !== undefined ? `temperature ${c.temperature}` : "model's temperature",
         `${c.contextTokenBudget.toLocaleString()} source tokens`,
-        c.queryRewrite ? "rewrites follow-ups" : "no rewriting",
+        c.queryRewrite ? "rewrites follow-up questions into searches" : "no query rewriting",
         c.minSimilarity ? `similarity ≥ ${c.minSimilarity}` : null,
         c.rerank === false ? "no reranking" : null,
-        c.followUpSuggestions === false ? "no follow-up suggestions" : null,
+        c.followUpSuggestions === false ? "no follow-up suggestions" : "suggests follow-up questions",
       ]
         .filter(Boolean)
         .join(" · ");

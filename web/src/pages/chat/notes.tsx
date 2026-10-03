@@ -141,7 +141,7 @@ export function Notes({ item, onRetry, starters, onStarter }: NotesProps) {
         </ul>
       )}
       {offer.length > 0 && (
-        <Suggestions label="You can ask" className={a.offer}>
+        <Suggestions label="You can ask" align="start" className={a.offer}>
           <span className={a.offerLabel}>You can ask:</span>
           {offer.map((q) => (
             <Suggestion key={q} suggestion={q} onSelect={onStarter} />
@@ -157,7 +157,7 @@ export function FollowUps({ item, onAsk }: { item: AssistantItem; onAsk?: (q: st
   const list = item.suggestions ?? [];
   if (!onAsk || list.length === 0 || item.status !== "done" || !isAnswer(item)) return null;
   return (
-    <Suggestions label="Suggested follow-up questions" className={a.offer}>
+    <Suggestions label="Suggested follow-up questions" align="start" className={a.offer} data-chat-suggestions="">
       <span className={a.offerLabel}>You could also ask:</span>
       {list.map((q) => (
         <Suggestion key={q} suggestion={q} onSelect={onAsk} />
