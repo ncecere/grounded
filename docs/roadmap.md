@@ -1,6 +1,6 @@
 # Roadmap candidates
 
-Status: refreshed 2026-10-02. **v0.4.0 is released** (2026-10-02: reranking, the gap report, the source viewer, saved answers, answers streamed in checked paragraphs; [`releases/v0.4.0.md`](releases/v0.4.0.md)), after **v0.3.1** (2026-09-30: the logo) and **v0.3.0** (2026-09-30): Grounded as an MCP server and client (C1), stored health (E11), OpenTelemetry tracing (F1), OAuth sign-in for MCP clients (experimental) and faster answers ([`releases/v0.3.0.md`](releases/v0.3.0.md)). The project has a website ([`ncecere/grounded-website`](https://github.com/ncecere/grounded-website)) and a documentation site ([`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs)). Grounded stays **one project, fully open source under MIT, named Grounded** (owner, 2026-10-02; the editions in ADR-0025 were rejected). **Next:** v0.4.x small wins, then a v0.5.0 theme to be chosen; Teams/Slack bots (D1), the Microsoft 365 connector with document ACLs (B1, B6), and SCIM with SIEM export (E4, E5) wait until much later.
+Status: refreshed 2026-10-02. **v0.4.1 is released** (2026-10-02: follow-up suggestions, evaluation questions that need attention, OCR follow-ups, SystemOne capacity, reasoning in order; [`releases/v0.4.1.md`](releases/v0.4.1.md)), after **v0.4.0** (2026-10-02: reranking, the gap report, the source viewer, saved answers, answers streamed in checked paragraphs; [`releases/v0.4.0.md`](releases/v0.4.0.md)), after **v0.3.1** (2026-09-30: the logo) and **v0.3.0** (2026-09-30): Grounded as an MCP server and client (C1), stored health (E11), OpenTelemetry tracing (F1), OAuth sign-in for MCP clients (experimental) and faster answers ([`releases/v0.3.0.md`](releases/v0.3.0.md)). The project has a website ([`ncecere/grounded-website`](https://github.com/ncecere/grounded-website)) and a documentation site ([`ncecere/grounded-docs`](https://github.com/ncecere/grounded-docs)). Grounded stays **one project, fully open source under MIT, named Grounded** (owner, 2026-10-02; the editions in ADR-0025 were rejected). **Next:** v0.4.x small wins, then a v0.5.0 theme to be chosen; Teams/Slack bots (D1), the Microsoft 365 connector with document ACLs (B1, B6), and SCIM with SIEM export (E4, E5) wait until much later.
 
 **How to read this:**
 - Each item has an ID so you can pick by number. IDs are stable: finished items keep theirs and are marked **Done**.
@@ -121,7 +121,7 @@ In priority order; the design is [`v0.4.0.md`](v0.4.0.md) (all five items are de
 | 3 **Done** (v0.4.0 M4) | A8 | **Answer cache** ([`answer-cache.md`](answer-cache.md)) | Repeated questions (public agents especially) answered at once, keyed by agent version and knowledge-base state. |
 | 4 **Done** (v0.4.0 M5) | **New** | **Stream public answers safely:** moderate the answer in chunks as it's written instead of buffering it whole ([`moderation-streaming.md`](moderation-streaming.md)) | Visitors see text in seconds while moderation still fails closed. |
 | 5 **Done** (v0.4.0 M3) | B10 (+A13) | **Document viewer with highlights**, and citation marks per claim ([`source-viewer.md`](source-viewer.md)) | A citation opens the passage, highlighted: the clearest proof that an answer is grounded. |
-| — | C8, A14, B12, A12 | **Small wins**, as patch releases | Follow-up suggestions, warnings about expectations a KB can't meet, OCR follow-ups, SystemOne capacity. |
+| — | C8, A14, B12, A12 | **Small wins**: **Done** (v0.4.1, [`releases/v0.4.1.md`](releases/v0.4.1.md)) | Follow-up suggestions, warnings about expectations a KB can't meet, OCR follow-ups, SystemOne capacity. |
 | — | — | **Housekeeping** | ~~The product name decision (ADR-0025)~~ decided 2026-10-02: the name stays Grounded and the project stays fully open source (ADR-0025 rejected); a screenshot refresh (**done** in v0.4.0) (logo, v0.3 UI), the MCP threat-model update. |
 
 Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector with B6 document ACLs; E4 SCIM and E5 SIEM export.
@@ -234,7 +234,7 @@ Later (owner, 2026-09-30): D1 Teams and Slack bots; B1 Microsoft 365 connector w
 
 ## G. Small fixes and polish
 
-All of G1–G18 are **Done** in v0.2.0.
+All of G1–G18 are **Done** in v0.2.0; G21 is open.
 
 | ID | Item | Size |
 |---|---|---|
@@ -256,6 +256,7 @@ All of G1–G18 are **Done** in v0.2.0.
 | G18 **Done** | The widget key form opens with `?record=new`; every other form page uses `?form=`. | S |
 | G19 **Done** | bitop-ui follow-ups. **Done in v0.2.1:** the collapsed breadcrumb item and LineChart's fixed range (0–100% score chart). **Done in v0.2.2 (J5):** Combobox no longer submits a form or dialog on Enter (Grounded's wrapper is gone); `TooltipText`, an accessible tooltip on plain text (the evaluation Score cell); LineChart `ticks` (0%, 50%, 100% on the score chart); DataTable `columnsMenuMin` and `showFilterLabel` (the evaluation lists); no FilterBar chip for single-choice toggles (Legal holds' duplicated "Status: Active ×"); Menu popups portalled into their trigger's landmark (axe `region`; Popover popups are dialogs, which axe already accepts); InlineCitation `sourceAction` (the chat citation card); column hiding on the team spend tables (DataTable with `defaultHiddenNarrow`). **Noticed, not scheduled:** Select, Combobox, Tooltip and ContextMenu popups still open at the end of `<body>` (axe `region`, a best-practice rule outside the WCAG A/AA set the tests enforce); they can use the same `useLandmarkContainer`. | S |
 | G20 **Done** | Evaluation run links read "Retrieval , Sep 28…" (a stray space before the comma). | S |
+| G21 **New** | A document's passages list cuts a long passage off after about 6 lines with no way to expand it (a multi-page TIFF's single passage hides its later pages; v0.4.1 walkthrough). Let a passage expand, or open it in the source viewer. | S |
 
 ## H. Next release housekeeping
 

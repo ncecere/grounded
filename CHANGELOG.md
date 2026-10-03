@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-02
+
+Small wins: follow-up suggestions, evaluation questions that need attention, OCR for every TIFF page and partly scanned PDFs, SystemOne capacity that keeps answers first, and reasoning shown in order. The release notes are [`docs/releases/v0.4.1.md`](docs/releases/v0.4.1.md).
+
 ### Added
 
 - **Follow-up suggestions** (v0.4.1 M1, roadmap C8; [`docs/follow-ups.md`](docs/follow-ups.md)). After an answer with citations, the chat, the public page, the widget and Try it offer up to 3 follow-up questions under the last answer, as chips; choosing one asks it. A separate, small call to the agent's chat model after the answer has ended writes them from the question, the answer and the titles and headings of the passages found (not their text or the conversation), in the question's language (reasoning effort low, or off when the answer's is off and the model can turn thinking off); the reply is parsed defensively (empty, over-long or duplicate lines and the question asked are dropped). The answer, its citations and checks are untouched, and the chat treats the answer as complete at once, so nobody waits; a failed call shows none. Not after a refusal, an answer without citations, a moderated or failed answer. With output moderation, the suggestions are checked like an answer (one check for all) and dropped silently if it fails. Saved answers store and replay them. Metered as chat tokens with `"feature": "suggestions"` (and the moderation check as moderation requests). On by default for every agent, new and existing; editors turn them off under **Build → Advanced → Suggest follow-up questions** (versioned). Not on the OpenAI-compatible endpoint, MCP `ask` or JSON replies. API (additive): `followUpSuggestions` in agent configurations, the SSE event `suggestions` (after `message_end` and `citations_checked`, before `done`) and `citationsPending` on `message_end` (the citations are being checked: `citations_checked` follows). No migration.
@@ -369,7 +373,8 @@ Development before this release happened in a private repository. The public rep
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
 
-[Unreleased]: https://github.com/ncecere/grounded/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/ncecere/grounded/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/ncecere/grounded/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/ncecere/grounded/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/ncecere/grounded/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/ncecere/grounded/compare/v0.2.2...v0.3.0
