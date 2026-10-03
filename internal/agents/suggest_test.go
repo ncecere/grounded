@@ -37,6 +37,21 @@ func TestParseSuggestions(t *testing.T) {
 	}
 }
 
+// TestSuggestPrompt: the rules that keep suggestions useful (walkthrough, 2026-10-02), and the phrase the fake gateway
+// recognises the call by.
+func TestSuggestPrompt(t *testing.T) {
+	for _, want := range []string{"suggest follow-up questions", "be answered by one listed passage",
+		"never combine topics, names or terms from different passages", "something the answer doesn't already say",
+		"not repeat the question asked", "or with NONE"} {
+		if !strings.Contains(suggestPrompt, want) {
+			t.Errorf("prompt lacks %q:\n%s", want, suggestPrompt)
+		}
+	}
+	if strings.Contains(suggestPrompt, "standalone") || strings.Contains(suggestPrompt, "latest message is small talk") {
+		t.Error("the prompt uses another call's word the fake gateway matches")
+	}
+}
+
 func TestSuggestionPassages(t *testing.T) {
 	cites := []Citation{
 		{N: 2, Title: "Transcripts", HeadingPath: []string{"Transcripts", "Fees"}},

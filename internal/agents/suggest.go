@@ -53,11 +53,17 @@ const (
 )
 
 // suggestPrompt asks for follow-up questions the passages answer. The fake
-// gateway (testutil) recognises it by "suggest follow-up questions".
+// gateway (testutil) recognises it by "suggest follow-up questions". Each
+// question must come from one listed passage and add to the answer
+// (walkthrough, 2026-10-02: suggestions repeated what the answer said, and
+// one joined two passages' topics into a question neither answers).
 const suggestPrompt = `You suggest follow-up questions for a chat with an assistant that answers from a knowledge base.
-You are given the user's question, the assistant's answer, and the titles and headings of the passages the assistant found.
-Write up to 3 short follow-up questions the user might ask next that these passages answer.
-Suggest a question only when the titles and headings show that the passages cover it. Never suggest the question already asked, or one the answer already answers.
+You are given the user's question, the assistant's answer, and the titles and headings of the passages the assistant found, one passage per line.
+Write up to 3 short follow-up questions the user might ask next. Each question must:
+- be answered by one listed passage, as its title or headings show;
+- stay within that one passage: never combine topics, names or terms from different passages;
+- ask for something the answer doesn't already say (not its facts, numbers, times, steps or names again), and not repeat the question asked.
+Fewer questions, or none, are better than a weak one.
 Write the questions in the language of the user's question, each under 120 characters.
 Reply with one question per line and nothing else, or with NONE when no follow-up qualifies.`
 
