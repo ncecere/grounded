@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf16"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -115,6 +116,10 @@ type ToolCallView struct {
 	// tool returned (its source's snippet) or a note (stepOutcome).
 	Error  string `json:"error,omitempty"`
 	Result string `json:"result,omitempty"`
+	// ThinkingBefore is the length, in UTF-16 code units, of the message's
+	// joined thinking that came before this call, so the browser can show
+	// reasoning and tool steps in the order they happened.
+	ThinkingBefore int `json:"thinkingBefore"`
 }
 
 // RetrievalView is the search an answer ran before the model (always
@@ -258,18 +263,23 @@ func assistantView(r dbgen.ListMessagesRow) MessageView {
 		Citations: []Citation{}}
 	blocks, _ := llm.UnmarshalBlocks(r.Content)
 	var think []string
+	thought := 0 // UTF-16 length of strings.Join(think, "\n\n")
 	for _, b := range blocks {
 		switch v := b.(type) {
 		case llm.Text:
 			m.Text += v.Text
 		case llm.Thinking:
+			if len(think) > 0 {
+				thought += 2
+			}
 			think = append(think, v.Text)
+			thought += utf16Len(v.Text)
 		case llm.ToolCall:
 			args := v.Arguments
 			if len(args) == 0 {
 				args = json.RawMessage("null")
 			}
-			m.ToolCalls = append(m.ToolCalls, ToolCallView{ID: v.ID, Name: v.Name, Arguments: args})
+			m.ToolCalls = append(m.ToolCalls, ToolCallView{ID: v.ID, Name: v.Name, Arguments: args, ThinkingBefore: thought})
 		}
 	}
 	m.Thinking = strings.Join(think, "\n\n")
@@ -299,6 +309,16 @@ func assistantView(r dbgen.ListMessagesRow) MessageView {
 		}
 	}
 	return m
+}
+
+// utf16Len is the length of s in UTF-16 code units, as a browser counts a
+// string (invalid UTF-8 counts as U+FFFD, as JSON encodes it).
+func utf16Len(s string) int {
+	n := 0
+	for _, r := range s {
+		n += utf16.RuneLen(r)
+	}
+	return n
 }
 
 // RenameConversation changes the title of the actor's conversation.

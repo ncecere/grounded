@@ -6151,6 +6151,9 @@ type ConversationToolCall struct {
 
 	// Result What an MCP tool returned (the start of its source's text), or a note when it gave no source
 	Result *string `json:"result,omitempty"`
+
+	// ThinkingBefore How much of the message's thinking came before this call, in UTF-16 code units (the length of thinking's start), so reasoning and tool steps can be shown in the order they happened (v0.4.1 and later)
+	ThinkingBefore *int `json:"thinkingBefore,omitempty"`
 }
 
 // ConversationUpdate defines model for ConversationUpdate.

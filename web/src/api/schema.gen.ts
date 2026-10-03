@@ -9234,6 +9234,8 @@ export interface components {
             error?: string;
             /** @description What an MCP tool returned (the start of its source's text), or a note when it gave no source */
             result?: string;
+            /** @description How much of the message's thinking came before this call, in UTF-16 code units (the length of thinking's start), so reasoning and tool steps can be shown in the order they happened (v0.4.1 and later) */
+            thinkingBefore?: number;
         };
         /** @description The search an answer ran before the model (retrieval mode always) */
         ConversationRetrieval: {
