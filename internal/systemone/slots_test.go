@@ -149,8 +149,8 @@ func TestLimitOfOneServesBackgroundWhenNothingInteractiveWaits(t *testing.T) {
 func TestBackgroundWaitsBehindItsCapNotBehindInteractive(t *testing.T) {
 	s := newSlots(4)
 	bg1, bg2 := mustAcquire(t, s, Background), mustAcquire(t, s, Background)
-	got := make(chan struct{})
-	go func() { r := mustAcquire(t, s, Background); close(got); r() }()
+	got, released := make(chan struct{}), make(chan struct{})
+	go func() { r := mustAcquire(t, s, Background); close(got); r(); close(released) }()
 	waitQueued(t, s, 0, 1)
 	// Two slots are free: interactive calls take them past the queued background call.
 	i1, i2 := mustAcquire(t, s, Interactive), mustAcquire(t, s, Interactive)
@@ -164,6 +164,7 @@ func TestBackgroundWaitsBehindItsCapNotBehindInteractive(t *testing.T) {
 	<-got
 	i2()
 	bg2()
+	<-released // the queued call's own release, after it signalled
 	if h, b, i, w := s.state(); h != 0 || b != 0 || i != 0 || w != 0 {
 		t.Errorf("leaked state %d %d %d %d", h, b, i, w)
 	}
