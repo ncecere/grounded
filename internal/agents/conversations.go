@@ -294,16 +294,7 @@ func assistantView(r dbgen.ListMessagesRow) MessageView {
 	if len(r.Citations) > 0 {
 		_ = json.Unmarshal(r.Citations, &m.Citations)
 	}
-	// Uncited sentences are found again in the stored text, for answers whose citations were checked.
-	if len(r.CitationCheck) > 0 && !r.AnswerRefused && !r.AnswerNoContext && r.ErrorCode == "" {
-		m.Uncited = UncitedSentences(m.Text)
-	}
-	if len(r.CitationCheck) > 0 && !r.AnswerRefused && r.ErrorCode == "" {
-		var rec CitationsRecord
-		if json.Unmarshal(r.CitationCheck, &rec) == nil {
-			m.Claims = FillClaimText(m.Text, rec.ClaimList)
-		}
-	}
+	checkedView(&m, r)
 	if len(r.Usage) > 0 {
 		var u llm.Usage
 		if json.Unmarshal(r.Usage, &u) == nil {
@@ -311,6 +302,21 @@ func assistantView(r dbgen.ListMessagesRow) MessageView {
 		}
 	}
 	return m
+}
+
+// checkedView adds what an answer's citation check found: its uncited
+// sentences (found again in the stored text) and its claims.
+func checkedView(m *MessageView, r dbgen.ListMessagesRow) {
+	if len(r.CitationCheck) == 0 || r.AnswerRefused || r.ErrorCode != "" {
+		return
+	}
+	if !r.AnswerNoContext {
+		m.Uncited = UncitedSentences(m.Text)
+	}
+	var rec CitationsRecord
+	if json.Unmarshal(r.CitationCheck, &rec) == nil {
+		m.Claims = FillClaimText(m.Text, rec.ClaimList)
+	}
 }
 
 // utf16Len is the length of s in UTF-16 code units, as a browser counts a
