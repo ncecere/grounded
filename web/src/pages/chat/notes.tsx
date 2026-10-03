@@ -1,5 +1,5 @@
 /*
- * The parts of an answer around its text: the search steps, status notes
+ * The parts of an answer around its text: the search and tool steps, status notes
  * (stopped, refused, errors, moderation notices) with a Retry or the agent's
  * starter questions, the follow-up suggestions, and the feedback buttons.
  */
@@ -34,12 +34,13 @@ function searchSummary(s: SearchStep) {
 /** Why a step failed or wasn't made, as the server says it. */
 const failure = (s: SearchStep) => (s.isError ? (s.error ?? (s.name ? "The call failed." : "The search failed.")) : undefined);
 
-export function Steps({ item }: { item: AssistantItem }) {
-  if (item.steps.length === 0) return null;
+/** Steps of an answer (all of them, or a group between two parts of its reasoning: timeline.ts); running until their result while streaming. */
+export function Steps({ steps, streaming }: { steps: SearchStep[]; streaming: boolean }) {
+  if (steps.length === 0) return null;
   return (
     <div className={c.steps}>
-      {item.steps.map((s, i) => {
-        const state = s.isError ? "error" : s.hitCount !== undefined ? "completed" : item.status === "streaming" ? "running" : "completed";
+      {steps.map((s, i) => {
+        const state = s.isError ? "error" : s.hitCount !== undefined ? "completed" : streaming ? "running" : "completed";
         // An MCP tool shows its arguments and what it returned; a search, its query and hit count.
         const tool = Boolean(s.name);
         const reason = failure(s);

@@ -9,8 +9,9 @@
  * n" and a source card open the passage there; each card breaks down how the
  * source fared with the claims citing it ("Supports 3 claims · 1 not supported").
  *
- * The model's thinking is shown to editors testing a draft (showThinking);
- * everyone else sees "Thinking…" while the model thinks, never its reasoning.
+ * The model's thinking is shown to editors testing a draft (showThinking), in
+ * order with the answer's steps (timeline.ts); everyone else sees the steps and
+ * "Thinking…" while the model thinks, never its reasoning.
  */
 import { Check, ClipboardPlus } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
@@ -30,6 +31,7 @@ import { Feedback, FollowUps, Notes, Steps, isAnswer } from "./notes";
 import { waitingText } from "./progress";
 import { revealSource } from "./reveal";
 import type { AssistantItem, ChatItem, Citation } from "./stream";
+import { timeline } from "./timeline";
 import { UserMessage } from "./user-message";
 import { useSourceViewer } from "./viewer/data";
 import { AgentAvatar, type AgentLook } from "./welcome";
@@ -78,6 +80,27 @@ const sourceMeta = (s: Citation, claims?: Claim[]) => {
 const showSource = (s: Citation, shown: number) => (s.kind === "tool" ? jumpBelow(s, shown) : `Show source ${shown}`);
 /** What a citation chip's card shows about its source. */
 const chipSource = (s: Citation) => ({ title: sourceTitle(s), href: webUrl(s), siteName: where(s) || undefined, description: snippetOf(s) });
+
+/**
+ * The answer's steps and its reasoning in the order they happened (timeline.ts): in tool mode and with MCP tools the
+ * model reasons, calls a tool, then reasons again. Only the last part streams, until the answer's text starts.
+ */
+function StepsAndReasoning({ item }: { item: AssistantItem }) {
+  const streaming = item.status === "streaming";
+  const parts = timeline(item.thinking, item.steps);
+  return parts.map((p, i) =>
+    p.kind === "steps" ? (
+      <Steps key={p.key} steps={p.steps} streaming={streaming} />
+    ) : (
+      <Reasoning key={p.key} streaming={streaming && !item.text && i === parts.length - 1}>
+        <ReasoningTrigger />
+        <ReasoningContent>
+          <p className={c.thinking}>{p.text}</p>
+        </ReasoningContent>
+      </Reasoning>
+    ),
+  );
+}
 
 type AssistantProps = {
   item: AssistantItem;
@@ -129,15 +152,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
     <Message from="assistant" label={`${agent.name} said`} data-chat-answer="">
       <AgentAvatar agent={agent} size="md" />
       <MessageContent>
-        <Steps item={item} />
-        {thinking && showThinking && (
-          <Reasoning streaming={streaming && !item.text}>
-            <ReasoningTrigger />
-            <ReasoningContent>
-              <p className={c.thinking}>{item.thinking}</p>
-            </ReasoningContent>
-          </Reasoning>
-        )}
+        {thinking && showThinking ? <StepsAndReasoning item={item} /> : <Steps steps={item.steps} streaming={streaming} />}
         {item.moderation ? null : streaming && !item.text ? (
           // While thinking, the editor's Reasoning trigger already shimmers "Thinking…". Buffered answers arrive whole.
           !(thinking && showThinking) && (

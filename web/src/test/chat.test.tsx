@@ -82,7 +82,7 @@ describe("chat stream reducer", () => {
     expect(a.text).toBe("You can drop a class in the student portal [1].");
     expect(a.thinking).toBe("The user asks about dropping.");
     expect(a.citations).toHaveLength(1);
-    expect(a.steps).toEqual([{ kind: "retrieval", query: "drop a class", hitCount: 1 }]);
+    expect(a.steps).toEqual([{ kind: "retrieval", query: "drop a class", hitCount: 1, thinkingAt: 0 }]);
     expect(a.status).toBe("done");
     expect(a.id).toBe("m1");
   });
@@ -92,9 +92,21 @@ describe("chat stream reducer", () => {
     a = applyChatEvent(a, "tool_call", { id: "t1", name: "search_knowledge", arguments: { query: "transcript fee" } });
     a = applyChatEvent(a, "retrieval", { query: "transcript fee", hits: [{ n: 1, title: "Fees", snippet: "" }] });
     a = applyChatEvent(a, "tool_result", { id: "t1", isError: false, hitCount: 1 });
-    expect(a.steps).toEqual([{ kind: "tool", id: "t1", name: undefined, query: "transcript fee", hitCount: 1, isError: false }]);
+    expect(a.steps).toEqual([{ kind: "tool", id: "t1", name: undefined, query: "transcript fee", hitCount: 1, isError: false, thinkingAt: 0 }]);
     a = applyChatEvent(a, "error", { code: "incomplete_answer", message: "x" });
     expect(a.status).toBe("error");
+  });
+
+  it("records how much thinking came before each tool call", () => {
+    let a = pendingAssistant();
+    a = applyChatEvent(a, "thinking_delta", { delta: "Look up the café’s fee." });
+    a = applyChatEvent(a, "tool_call", { id: "t1", name: "search_knowledge", arguments: { query: "fee" } });
+    a = applyChatEvent(a, "tool_call", { id: "t2", name: "check_outage", arguments: {} });
+    a = applyChatEvent(a, "tool_result", { id: "t1", isError: false, hitCount: 1 });
+    a = applyChatEvent(a, "thinking_delta", { delta: "\n\n" });
+    a = applyChatEvent(a, "thinking_delta", { delta: "Found it." });
+    a = applyChatEvent(a, "tool_call", { id: "t3", name: "search_knowledge", arguments: { query: "hours" } });
+    expect(a.steps.map((s) => [s.id, s.thinkingAt])).toEqual([["t1", 23], ["t2", 23], ["t3", 34]]);
   });
 });
 

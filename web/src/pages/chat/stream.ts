@@ -43,6 +43,8 @@ export type SearchStep = {
   result?: string;
   /** SystemOne passage judging of this search: candidates checked, passages used, dropped. */
   judging?: { judged: number; kept: number; dropped: number };
+  /** How much of the thinking came before this step (UTF-16 code units; timeline.ts): 0 for always-mode retrieval. */
+  thinkingAt?: number;
 };
 
 export type UserItem = { role: "user"; key: string; id?: string; text: string };
@@ -178,10 +180,11 @@ export function applyChatEvent(item: AssistantItem, event: string, data: unknown
       const open = [...item.steps].reverse().find((s) => s.kind === "tool" && !s.name && s.hitCount === undefined && s.query === query);
       if (open) return { ...item, sources, steps: item.steps.map((s) => (s === open ? { ...s, hitCount: hits.length, judging } : s)) };
       if (item.steps.some((s) => s.kind === "tool")) return { ...item, sources };
-      return { ...item, sources, steps: [...item.steps, { kind: "retrieval", query, hitCount: hits.length, judging }] };
+      return { ...item, sources, steps: [...item.steps, { kind: "retrieval", query, hitCount: hits.length, judging, thinkingAt: 0 }] };
     }
     case "tool_call":
-      return { ...item, steps: [...item.steps, toolStep(str(d.id), str(d.name), d.arguments)] };
+      // The model may have reasoned before calling: the step goes after that thinking.
+      return { ...item, steps: [...item.steps, { ...toolStep(str(d.id), str(d.name), d.arguments), thinkingAt: item.thinking.length }] };
     case "tool_result":
       return {
         ...item,
@@ -261,13 +264,13 @@ export function itemsFromConversation(messages: ConversationMessage[]): ChatItem
   });
 }
 
-/** A stored answer's steps: the search before the model (always mode), then its tool calls. */
+/** A stored answer's steps: the search before the model (always mode), then its tool calls, each after the thinking before it. */
 function storedSteps(m: ConversationMessage): SearchStep[] {
   const r = m.retrieval;
-  const first: SearchStep[] = r ? [{ kind: "retrieval", query: r.query, hitCount: r.hitCount, judging: r.judging }] : [];
+  const first: SearchStep[] = r ? [{ kind: "retrieval", query: r.query, hitCount: r.hitCount, judging: r.judging, thinkingAt: 0 }] : [];
   const calls = (m.toolCalls ?? []).map((t): SearchStep => {
     const step = toolStep(t.id, t.name, t.arguments);
-    return { ...step, query: t.query || step.query, hitCount: t.hitCount, isError: t.isError, ...outcomeOf(t) };
+    return { ...step, query: t.query || step.query, hitCount: t.hitCount, isError: t.isError, ...outcomeOf(t), thinkingAt: t.thinkingBefore };
   });
   return [...first, ...calls];
 }
