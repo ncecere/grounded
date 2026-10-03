@@ -73,13 +73,17 @@
   max-width: 16rem;
 }
 
-.statusError {
+.statusNote {
   max-width: 100%;
   overflow: hidden;
   font-size: var(--font-size-xs);
-  color: var(--color-danger-text);
+  color: var(--color-warning-text);
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  &[data-tone="danger"] {
+    color: var(--color-danger-text);
+  }
 }
 
 /* ---- sheet ---- */

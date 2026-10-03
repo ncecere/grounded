@@ -225,7 +225,8 @@ describe("OCR on a source", () => {
     const table = await screen.findByRole("table", { name: "Documents" });
     // Indexed, with which pages need OCR next to its status.
     expect(within(table).getByText("Ready")).toBeInTheDocument();
-    expect(within(table).getByText(/^Page 2 has no text layer/)).toBeInTheDocument();
+    // A warning under the green Ready, not an error (walkthrough, 2026-10-02).
+    expect(within(table).getByText(/^Page 2 has no text layer/)).toHaveAttribute("data-tone", "warning");
     await userEvent.click(within(table).getByRole("button", { name: "Actions for Handbook" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Retry with OCR" }));
     await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/documents/d4/retry"))).toBe(true));
@@ -251,6 +252,7 @@ describe("OCR on a source", () => {
     const { container } = renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
     await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
     const table = await screen.findByRole("table", { name: "Documents" });
+    expect(within(table).getByText("This PDF appears to be damaged.")).toHaveAttribute("data-tone", "danger");
     await userEvent.click(within(table).getByRole("button", { name: "Actions for Handbook" }));
     expect(await screen.findByRole("menuitem", { name: /Retry with OCR/ })).toHaveAttribute("aria-disabled", "true");
     await userEvent.keyboard("{Escape}");
@@ -261,8 +263,13 @@ describe("OCR on a source", () => {
 
     await userEvent.click(within(table).getByRole("button", { name: "Handbook" }));
     const page = await screen.findByRole("region", { name: "Handbook" });
-    expect(within(page).getByRole("button", { name: "Retry with OCR" })).toBeDisabled();
-    expect(within(page).getByText(/OCR is off for this source\. Turn it on in the Settings tab first/)).toBeInTheDocument();
+    // The reason is at the top of the page, under the disabled button, and is the button's description.
+    const retry = within(page).getByRole("button", { name: "Retry with OCR" });
+    expect(retry).toBeDisabled();
+    expect(retry).toHaveAccessibleDescription(/OCR is off for this source\. Turn it on in the Settings tab first/);
+    const reason = within(page).getByText(/OCR is off for this source\. Turn it on in the Settings tab first/);
+    const details = within(page).getByRole("heading", { name: "Details" });
+    expect(reason.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(await axe(container)).toHaveNoViolations();
   });
 

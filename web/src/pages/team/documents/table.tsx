@@ -75,7 +75,8 @@ function columns(web: boolean): DataTableColumn<Doc>[] {
         <span className={d.status}>
           <DocStatusBadge status={doc.status} waiting={isWaiting(doc)} />
           {(canRetry(doc) || isWaiting(doc)) && documentError(doc) && (
-            <span className={d.statusError} title={documentError(doc)}>
+            // In the badge's tone: a failure is an error; a skipped, waiting or partly scanned (Ready) document a warning.
+            <span className={d.statusNote} data-tone={doc.status === "failed" ? "danger" : "warning"} title={documentError(doc)}>
               {documentError(doc)}
             </span>
           )}

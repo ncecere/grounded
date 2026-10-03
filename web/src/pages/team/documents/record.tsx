@@ -7,7 +7,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw, RotateCcw, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { RecordPage } from "@/components/templates/record-page";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
@@ -53,6 +53,12 @@ export function DocumentRecordPage({ sourceId, web, docId, onClose, mutations, o
   const { retry, refetch, remove } = mutations;
   const maintenance = useMaintenance(owner.canEdit);
   const paused = Boolean(maintenance) && Boolean(d0) && ((web && Boolean(d0?.url)) || retryable);
+  // Why Retry or Re-fetch is disabled, shown at the top of the page right under them and named as their description.
+  const blockedId = useId();
+  const pausedId = useId();
+  const showBlocked = Boolean(blocked) && owner.canEdit;
+  const showPaused = paused && owner.canEdit && Boolean(maintenance);
+  const describedBy = (ids: [boolean, string][]) => ids.filter(([on]) => on).map(([, id]) => id).join(" ") || undefined;
 
   return (
     <>
@@ -80,35 +86,49 @@ export function DocumentRecordPage({ sourceId, web, docId, onClose, mutations, o
                 <Trash2 aria-hidden /> Delete
               </Button>
               {web && d0.url && (
-                <Button variant={retryable ? "secondary" : "primary"} loading={refetch.isPending} disabled={paused} onClick={() => refetch.mutate(d0)}>
+                <Button
+                  variant={retryable ? "secondary" : "primary"}
+                  loading={refetch.isPending}
+                  disabled={paused}
+                  aria-describedby={describedBy([[showPaused, pausedId]])}
+                  onClick={() => refetch.mutate(d0)}
+                >
                   <RefreshCw aria-hidden /> Re-fetch page
                 </Button>
               )}
               {retryable && (
-                <Button loading={retry.isPending} disabled={paused || Boolean(blocked)} onClick={() => retry.mutate([d0])}>
+                <Button
+                  loading={retry.isPending}
+                  disabled={paused || Boolean(blocked)}
+                  aria-describedby={describedBy([[showBlocked, blockedId], [showPaused, pausedId]])}
+                  onClick={() => retry.mutate([d0])}
+                >
                   <RotateCcw aria-hidden /> {retryLabel(d0)}
                 </Button>
               )}
             </>
           ) : undefined
         }
-      >
-        {blocked && owner.canEdit && (
-          <Alert tone="info" title="Some pages need OCR">
-            {blocked}
-          </Alert>
-        )}
-        {d0 && isWaiting(d0) && (
-          <Alert tone="info" title="Waiting for the daily OCR page limit">
-            {d0.errorMessage}
-          </Alert>
-        )}
-        {paused && owner.canEdit && maintenance && (
-          <Alert tone="warning" title="Paused for maintenance">
-            {maintenanceReason(maintenance, web ? "Re-fetching" : "Retrying")}
-          </Alert>
-        )}
-      </RecordPage>
+        notice={
+          <>
+            {showBlocked && (
+              <Alert id={blockedId} tone="info" title="Some pages need OCR">
+                {blocked}
+              </Alert>
+            )}
+            {d0 && isWaiting(d0) && (
+              <Alert tone="info" title="Waiting for the daily OCR page limit">
+                {d0.errorMessage}
+              </Alert>
+            )}
+            {showPaused && maintenance && (
+              <Alert id={pausedId} tone="warning" title="Paused for maintenance">
+                {maintenanceReason(maintenance, web ? "Re-fetching" : "Retrying")}
+              </Alert>
+            )}
+          </>
+        }
+      />
       <AlertDialog
         open={deleting && Boolean(d0)}
         onOpenChange={(o) => {

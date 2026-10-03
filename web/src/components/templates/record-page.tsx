@@ -111,6 +111,8 @@ export type RecordPageProps = {
   actions?: ReactNode;
   loading?: boolean;
   error?: unknown;
+  /** Shown first, above the facts: why a header action is disabled or waiting (give the button aria-describedby its id). */
+  notice?: ReactNode;
   /** Extra content after the sections. */
   children?: ReactNode;
   /**
@@ -129,7 +131,7 @@ export function RecordPage({ open, ...props }: RecordPageProps) {
 }
 
 function OpenRecordPage(props: Omit<RecordPageProps, "open">) {
-  const { onClose, title, label, description, meta, facts, sections, actions, loading, error, children, dirty = false, back, param = RECORD_PARAM } = props;
+  const { onClose, title, label, description, meta, facts, sections, actions, loading, error, notice, children, dirty = false, back, param = RECORD_PARAM } = props;
   const guard = useCloseGuard(dirty, onClose);
   const name = label ?? (typeof title === "string" ? title : "Details");
   return (
@@ -148,6 +150,7 @@ function OpenRecordPage(props: Omit<RecordPageProps, "open">) {
         </div>
       ) : (
         <>
+          {notice}
           {facts && facts.length > 0 && (
             <Card title="Details" titleAs="h2">
               <DescriptionList items={facts} dividers />
