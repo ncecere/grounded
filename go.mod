@@ -13,9 +13,9 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.113.4
 	github.com/aws/smithy-go v1.28.2
 	github.com/coreos/go-oidc/v3 v3.21.0
-	github.com/dlclark/regexp2 v1.11.4
+	github.com/dlclark/regexp2 v1.12.0
 	github.com/getkin/kin-openapi v0.149.0
-	github.com/go-jose/go-jose/v4 v4.1.4
+	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/google/jsonschema-go v0.4.3
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
@@ -41,7 +41,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.46.0
 	golang.org/x/image v0.46.0
 	golang.org/x/net v0.59.0
-	golang.org/x/oauth2 v0.36.0
+	golang.org/x/oauth2 v0.37.0
 	golang.org/x/text v0.42.0
 	gopkg.in/yaml.v3 v3.0.1
 )
