@@ -179,7 +179,7 @@ test("evaluation set: questions that need attention", async ({ as, admin, a11y }
   await test.step("the run dialog says how many can't pass, and still runs", async () => {
     await page.getByRole("button", { name: "Run", exact: true }).first().click();
     const dialog = page.getByRole("dialog", { name: "Run Student questions" });
-    await expect(dialog.getByText("1 question can't pass: none of its expected pages is indexed. You can still start the run.")).toBeVisible();
+    await expect(dialog.getByText("1 question can't pass: none of its expected documents is indexed. You can still start the run.")).toBeVisible();
     await a11y(page, "run dialog with a warning");
     await dialog.getByRole("button", { name: "Start run" }).click();
     const run = page.getByRole("region", { name: "Run" });

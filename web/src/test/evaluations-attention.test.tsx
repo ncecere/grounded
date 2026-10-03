@@ -42,12 +42,12 @@ describe("the words", () => {
     const phrase = problem("q1", { mustMention: ["Parchment"] });
     const reach = problem("q3", { outOfReach });
     expect(cantPassText([phrase, reach], "retrieval")).toBeUndefined();
-    expect(cantPassText([notIndexed, phrase, reach], "retrieval")).toBe("1 question can't pass: none of its expected pages is indexed. You can still start the run.");
+    expect(cantPassText([notIndexed, phrase, reach], "retrieval")).toBe("1 question can't pass: none of its expected documents is indexed. You can still start the run.");
     expect(cantPassText([notIndexed, { ...notIndexed, questionId: "q4" }], "retrieval")).toBe(
-      "2 questions can't pass: their expected pages aren't indexed. You can still start the run.",
+      "2 questions can't pass: their expected documents aren't indexed. You can still start the run.",
     );
     expect(cantPassText([notIndexed, phrase], "answer")).toBe(
-      "2 questions can't pass: their expected pages aren't indexed, or a must-mention phrase is in no source. You can still start the run.",
+      "2 questions can't pass: their expected documents aren't indexed, or a must-mention phrase is in no source. You can still start the run.",
     );
   });
 });
@@ -115,7 +115,7 @@ describe("a set that needs attention", () => {
     renderApp("/teams/registrar/evaluations/set1");
     await userEvent.click(await screen.findByRole("button", { name: "Run" }, T));
     const dialog = await screen.findByRole("dialog", { name: "Run Transcript questions" });
-    expect(await within(dialog).findByText("1 question can't pass: none of its expected pages is indexed. You can still start the run.")).toBeInTheDocument();
+    expect(await within(dialog).findByText("1 question can't pass: none of its expected documents is indexed. You can still start the run.")).toBeInTheDocument();
     expect(await axe(dialog)).toHaveNoViolations();
     const start = within(dialog).getByRole("button", { name: "Start run" });
     expect(start).toBeEnabled();

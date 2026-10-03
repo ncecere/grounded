@@ -31,15 +31,15 @@ export function problemTexts(p: EvalProblem, where: string, answers: boolean): s
 /** A question that can't pass a run of this kind: no expected document is indexed, or (full answers) a must-mention phrase is in no source. */
 export const cantPass = (p: EvalProblem, kind: EvalRun["kind"]) => p.missingReason !== null || (kind === "answer" && p.mustMention.length > 0);
 
-/** The run dialog's warning: "4 questions can't pass: their expected pages aren't indexed. …", or undefined when every question can. */
+/** The run dialog's warning: "4 questions can't pass: their expected documents aren't indexed. …", or undefined when every question can. */
 export function cantPassText(list: EvalProblem[] | undefined, kind: EvalRun["kind"]) {
   const blocked = (list ?? []).filter((p) => cantPass(p, kind));
   if (blocked.length === 0) return undefined;
   const one = blocked.length === 1;
-  const pages = blocked.some((p) => p.missingReason !== null);
+  const docs = blocked.some((p) => p.missingReason !== null);
   const phrases = kind === "answer" && blocked.some((p) => p.missingReason === null);
   const why = [
-    pages ? (one ? "none of its expected pages is indexed" : "their expected pages aren't indexed") : "",
+    docs ? (one ? "none of its expected documents is indexed" : "their expected documents aren't indexed") : "",
     phrases ? "a must-mention phrase is in no source" : "",
   ]
     .filter(Boolean)

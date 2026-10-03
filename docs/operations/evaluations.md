@@ -31,7 +31,7 @@ Documents change after questions are written, so the set's page runs the same ch
 - a must-mention phrase appears in no passage (agent sets: only full-answer runs check phrases);
 - it's **out of reach**: "Expected page not found in the top 50 (last 3 runs)". The page is in the knowledge base, but each of the question's last 3 retrieval runs missed it, even in the second search of 50 results. That usually means a chunking or wording problem, not a model one. **See the latest result** opens that result's diagnosis. A run whose deeper search didn't happen, or a run from before the question's expected documents changed, doesn't count.
 
-The question's own page shows the same warnings. They're warnings only: **Run** still runs every question, and its dialog says how many can't pass ("4 questions can't pass: their expected pages aren't indexed. You can still start the run."; for a full-answer run, phrases in no source count too).
+The question's own page shows the same warnings. They're warnings only: **Run** still runs every question, and its dialog says how many can't pass ("4 questions can't pass: their expected documents aren't indexed. You can still start the run."; for a full-answer run, phrases in no source count too).
 
 Questions can also be:
 
