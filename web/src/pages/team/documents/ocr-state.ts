@@ -24,11 +24,11 @@ export const ocrFix: Record<Exclude<OcrState, "on">, string> = {
   not_approved: "A platform admin can choose another OCR backend under Admin → Parsing.",
 };
 
-/** Why "Retry all that need OCR" is disabled: a retry would skip the documents again. */
+/** Why "Retry all that need OCR" (or a document's Retry with OCR) is disabled: a retry couldn't read the scanned pages. */
 export const retryBlocked: Record<Exclude<OcrState, "on">, string> = {
-  source_off: "OCR is off for this source. Turn it on in the Settings tab first, or the documents are skipped again.",
-  platform_off: "OCR is off for the platform. A platform admin can turn it on; until then, the documents would be skipped again.",
-  not_approved: "The OCR vision model isn't approved for this source's classification, so the documents would be skipped again.",
+  source_off: "OCR is off for this source. Turn it on in the Settings tab first; until then, scanned pages can't be read.",
+  platform_off: "OCR is off for the platform. A platform admin can turn it on; until then, scanned pages can't be read.",
+  not_approved: "The OCR vision model isn't approved for this source's classification, so scanned pages can't be read.",
 };
 
 /** Images are one-page documents read with OCR (docs/ocr.md §5a). */
