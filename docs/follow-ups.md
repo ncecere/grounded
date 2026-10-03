@@ -53,4 +53,4 @@ A failed call is logged as a warning (`follow-up suggestions failed; none are sh
 
 ## Limits
 
-Suggestions are at most 3 per answer and 150 characters each. The call has a 20-second limit and holds the person's concurrent-chat slot until it ends (the stream ends with `done` after it).
+Suggestions are at most 3 per answer and 150 characters each. The call has a 10-second limit and holds the person's concurrent-chat slot until it ends (the stream ends with `done` after it).
