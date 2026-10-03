@@ -89,6 +89,8 @@ export function useAgentDraft(team: string, agent: Agent, delay = 800) {
   const qc = useQueryClient();
   const [draft, setDraftState] = useState<DraftState>(() => draftOf(agent));
   const [status, setStatus] = useState<SaveStatus>("saved");
+  /** Edited since the editor opened: until then nothing was saved, so the header doesn't say "Draft saved". */
+  const [edited, setEdited] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [problems, setProblems] = useState<AgentProblem[]>([]);
   /** After a 412 with local edits: the user's draft, the latest version and where both started. */
@@ -209,6 +211,7 @@ export function useAgentDraft(team: string, agent: Agent, delay = 800) {
   const update = useCallback(
     (fn: (d: DraftState) => DraftState) => {
       replace(fn(draftRef.current));
+      setEdited(true);
       setStatus("dirty");
       clearTimeout(timer.current);
       timer.current = setTimeout(() => void save(), delay);
@@ -263,6 +266,7 @@ export function useAgentDraft(team: string, agent: Agent, delay = 800) {
     draft,
     epoch,
     status,
+    edited,
     error,
     problems,
     held,

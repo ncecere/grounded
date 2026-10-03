@@ -74,6 +74,9 @@ describe("pure helpers", () => {
 
   it("never says Draft saved while a field can't be saved, and says why Publish is off", () => {
     expect(saveView("saved", false).text).toBe("Draft saved");
+    // Just opened, nothing edited: nothing was saved, so it says nothing (walkthrough, 2026-10-02).
+    expect(saveView("saved", false, false).text).toBe("");
+    expect(saveView("dirty", false, true).text).toBe("Unsaved changes");
     expect(saveView("saved", true).text).toBe("Not saved: fix the highlighted field");
     expect(saveView("dirty", true).text).toBe("Not saved: fix the highlighted field");
     const live = { published: version, hasUnpublishedChanges: false };

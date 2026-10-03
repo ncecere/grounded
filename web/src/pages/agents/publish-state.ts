@@ -9,14 +9,17 @@ type DraftStatus = "saved" | "dirty" | "saving" | "error" | "conflict";
 
 export type SaveView = { text: string; tone: "muted" | "success" | "warning" | "danger"; busy?: boolean };
 
-/** The save state shown next to the title. Never "Draft saved" while a field holds text that can't be saved (F-26). */
-export function saveView(status: DraftStatus, needsFix: boolean): SaveView {
+/**
+ * The save state shown next to the title. Never "Draft saved" while a field holds text that can't be saved (F-26), nor
+ * before anything was edited since the editor opened (nothing was saved then: empty).
+ */
+export function saveView(status: DraftStatus, needsFix: boolean, edited = true): SaveView {
   if (status === "saving") return { text: "Saving…", tone: "muted", busy: true };
   if (status === "conflict") return { text: "Not saved: changed elsewhere", tone: "warning" };
   if (status === "error") return { text: "Couldn't save", tone: "danger" };
   if (needsFix) return { text: "Not saved: fix the highlighted field", tone: "warning" };
   if (status === "dirty") return { text: "Unsaved changes", tone: "muted" };
-  return { text: "Draft saved", tone: "success" };
+  return edited ? { text: "Draft saved", tone: "success" } : { text: "", tone: "muted" };
 }
 
 type PublishInput = {

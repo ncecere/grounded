@@ -183,6 +183,8 @@ describe("agent editor", () => {
     const { container } = renderApp("/teams/registrar/agents/ag1");
     const instructions = await screen.findByRole("textbox", { name: "Instructions" }, { timeout: 5000 });
     expect(await axe(container)).toHaveNoViolations();
+    // Opening the editor saves nothing, so it doesn't say "Draft saved".
+    expect(screen.queryByText("Draft saved")).toBeNull();
     await userEvent.type(instructions, " Be brief.");
     expect(screen.getByText(/Unsaved changes|Saving…/)).toBeInTheDocument();
     await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true), { timeout: 3000 });
