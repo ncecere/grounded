@@ -150,6 +150,7 @@ type run struct {
 	out        *streamer
 	started    time.Time
 	firstToken time.Duration
+	clock      time.Time // now in the platform's zone, read once (today.go)
 	retr       *retriever
 	extraUsage llm.Usage // query rewrite
 	// early is always mode's search while the input and scope checks run
@@ -434,7 +435,7 @@ func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 			return ru.refuseOutOfScope(ctx)
 		}
 	}
-	sys := systemPromptJudged(ru.agent.Name, ru.team.Name, ru.s.OrgName, ru.cfg, ru.retr.judge != nil, time.Now())
+	sys := systemPromptJudged(ru.agent.Name, ru.team.Name, ru.s.OrgName, ru.cfg, ru.retr.judge != nil, ru.now(ctx))
 	msgs := append([]llm.Message(nil), ru.history...)
 	var tools []agentloop.Tool
 	mcpTools := ru.mcpTools(ctx)

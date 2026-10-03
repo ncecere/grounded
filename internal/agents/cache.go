@@ -237,7 +237,7 @@ func (ru *run) cacheKey(ctx context.Context, c *cacheRun) error {
 	q := answercache.Normalize(ru.question)
 	day := ""
 	if answercache.DependsOnDay(q) {
-		day = time.Now().UTC().Format(time.DateOnly)
+		day = ru.now(ctx).Format(time.DateOnly) // the platform zone's day, as the prompt's (today.go)
 	}
 	c.key = answercache.Key{AgentID: ru.agent.ID, Question: q, Expiry: c.settings.Expiry(),
 		Conditions: answercache.Hash("v1", ru.version.ID.String(), ru.grant, strings.Join(ids, ","), c.settingsRev, day)}

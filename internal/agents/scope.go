@@ -117,7 +117,7 @@ func (ru *run) refuseOutOfScope(ctx context.Context) (Answer, error) {
 // retrieval, no tools, no sources block.
 func (ru *run) smallTalk(ctx context.Context) (Answer, error) {
 	ru.noContextReason = NoContextSmallTalk
-	sys := smallTalkPrompt(ru.agent.Name, ru.team.Name, ru.s.OrgName, ru.agent.Description, time.Now())
+	sys := smallTalkPrompt(ru.agent.Name, ru.team.Name, ru.s.OrgName, ru.agent.Description, ru.now(ctx))
 	msgs := append([]llm.Message(nil), ru.history...)
 	msgs = append(msgs, llm.UserMessage{Content: ru.question})
 	opts := ru.options(false)
@@ -140,7 +140,7 @@ func smallTalkPrompt(agentName, teamName, orgName, description string, now time.
 	if org := strings.TrimSpace(orgName); org != "" {
 		provider += " at " + org
 	}
-	fmt.Fprintf(&b, "You are %s, an assistant provided by %s. Today is %s.\n", agentName, provider, now.UTC().Format("Monday, January 2, 2006"))
+	fmt.Fprintf(&b, "You are %s, an assistant provided by %s. Today is %s.\n", agentName, provider, now.Format("Monday, January 2, 2006"))
 	if d := strings.TrimSpace(description); d != "" {
 		fmt.Fprintf(&b, "What you help with: %s\n", d)
 	}

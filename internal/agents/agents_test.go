@@ -186,6 +186,22 @@ func TestSystemPrompt(t *testing.T) {
 	}
 	// With ORG_NAME the organisation follows the team; the refusal line the
 	// fake proxy reads is unchanged.
+	// The date is the given time's own (the platform's zone, today.go), not UTC's: 00:12 UTC on Saturday is Friday evening in New York.
+	ny, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := systemPrompt("Helper", "Registrar", "", c, time.Date(2026, 10, 3, 0, 12, 0, 0, time.UTC).In(ny)); !strings.Contains(p, "Today is Friday, October 2, 2026.") {
+		t.Errorf("prompt in New York's zone:\n%s", p)
+	}
+	if p := smallTalkPrompt("Helper", "Registrar", "", "", time.Date(2026, 10, 3, 0, 12, 0, 0, time.UTC).In(ny)); !strings.Contains(p, "Today is Friday, October 2, 2026.") {
+		t.Errorf("small talk prompt in New York's zone:\n%s", p)
+	}
+	for name, want := range map[string]string{"America/New_York": "America/New_York", "UTC": "UTC", "": "UTC", "Nowhere/Unknown": "UTC", "Local": "UTC"} {
+		if got := zoneOf(name).String(); got != want {
+			t.Errorf("zoneOf(%q) = %s, want %s", name, got, want)
+		}
+	}
 	p = systemPrompt("Helper", "Registrar", " Example University ", c, time.Now())
 	if !strings.Contains(p, "an assistant provided by Registrar at Example University. Today is") ||
 		!strings.Contains(p, "\nRefusal message: \""+DefaultRefusal+"\"\n") {
