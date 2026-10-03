@@ -45,3 +45,40 @@ test("follow-up suggestions: chips under the answer ask the question when chosen
     await expect(composer).toHaveValue("");
   });
 });
+
+/*
+ * On a phone (walkthrough, 2026-10-02): a long suggestion wraps inside its chip instead of running past the screen,
+ * the chips line up with the answer's text (from the start, not centred), and they come into view when they arrive.
+ */
+test("follow-up suggestions on a phone: long chips wrap, start at the answer's edge and come into view", async ({ as, admin, a11y }) => {
+  test.setTimeout(120_000);
+  const owner = await Api.signIn("user");
+  const team = await createTeam(admin, owner, { prefix: "followphone" });
+  const heading = "How long an interlibrary loan item takes to arrive at the branch you picked for pickup";
+  const loans = { name: "interlibrary-loans.md", body: `# ${heading}\n\nInterlibrary loan items usually arrive within 5 to 7 days.\n` };
+  await publishedAgent(owner, team, { name: "Phone helper", docs: [handbook, loans] });
+  await owner.dispose();
+  const page = await as("user");
+  await page.setViewportSize({ width: 390, height: 640 });
+
+  await page.goto(`/a/${team}/phone-helper`);
+  const composer = page.getByRole("textbox", { name: "Message Phone helper" });
+  await composer.fill("How much does a parking permit cost?");
+  await composer.press("Enter");
+  const answer = page.getByRole("article", { name: "Phone helper said" }).first();
+  await expect(answer).toContainText(handbook.answer);
+  const group = answer.getByRole("group", { name: "Suggested follow-up questions" });
+  const chip = group.getByRole("button", { name: new RegExp(`about ${heading}\\?$`) });
+  await expect(chip).toBeVisible();
+  // Brought into view as they arrive.
+  await expect(chip).toBeInViewport({ ratio: 1 });
+
+  const box = (await group.boundingBox())!;
+  const chipBox = (await chip.boundingBox())!;
+  const label = (await group.getByText("You could also ask:").boundingBox())!;
+  expect(chipBox.x + chipBox.width).toBeLessThanOrEqual(box.x + box.width + 0.5); // never wider than the group…
+  expect(chipBox.x + chipBox.width).toBeLessThanOrEqual(390); // …or the screen
+  expect(chipBox.height).toBeGreaterThan(40); // its text wrapped onto more lines
+  expect(Math.abs(label.x - box.x)).toBeLessThan(1); // rows start at the answer's left edge
+  await a11y(page, "follow-up suggestions on a phone");
+});

@@ -15,7 +15,7 @@ Design: [`v0.4.1.md`](v0.4.1.md) §1 (roadmap C8). Code: `internal/agents/sugges
 Only after an answer that:
 
 - has at least one citation,
-- isn't a refusal (the agent's starter questions show there instead, "You can ask:"), "nothing found", small talk or out of scope,
+- isn't a refusal (the agent's starter questions show there instead, "You can ask:", also after a reload), "nothing found", small talk or out of scope,
 - wasn't replaced by a moderation notice, and
 - finished normally (not stopped, cut off at the length limit or failed).
 
