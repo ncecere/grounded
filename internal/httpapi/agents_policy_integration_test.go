@@ -40,6 +40,14 @@ func TestAgentGroundingAndMultiKB(t *testing.T) {
 	if n := env.scalar(t, `SELECT count(*) FROM message_events WHERE agent_id = $1 AND refused AND no_context AND input_tokens = 0`, strict.Id); n != 1 {
 		t.Errorf("refusal events = %d", n)
 	}
+	// The stored conversation says it was a refusal, so a reloaded chat offers the starters again.
+	var conv struct{ ConversationId string }
+	evs.one(t, "conversation", &conv)
+	var detail apitypes.ConversationDetail
+	if code := env.member.get("/v1/conversations/"+conv.ConversationId, &detail); code != 200 || len(detail.Messages) != 2 ||
+		detail.Messages[1].Refused == nil || !*detail.Messages[1].Refused || detail.Messages[0].Refused != nil {
+		t.Fatalf("stored refusal = %d %+v", code, detail.Messages)
+	}
 
 	// The model's own refusal (tool mode, nothing found) is detected too.
 	cfg["retrievalMode"] = "tool"

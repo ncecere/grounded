@@ -75,6 +75,8 @@ export type AssistantItem = {
   step?: ChatStep;
   stopReason?: StopReason;
   refused?: boolean;
+  /** Read back from a stored conversation: a refusal's reason isn't stored, so it gets the starters without the note. */
+  restored?: boolean;
   noContext?: boolean;
   /** Why nothing was retrieved: judged_out, small_talk or out_of_scope (SystemOne). */
   noContextReason?: "judged_out" | "small_talk" | "out_of_scope";
@@ -260,6 +262,8 @@ export function itemsFromConversation(messages: ConversationMessage[]): ChatItem
       error: m.errorCode && !moderation ? { code: m.errorCode, message: "" } : undefined,
       feedback: m.feedback ? { rating: m.feedback, reason: m.feedbackReason, shared: m.feedbackShared } : undefined,
       moderation,
+      refused: m.refused === true && !moderation,
+      restored: true,
     };
   });
 }

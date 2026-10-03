@@ -237,7 +237,7 @@ func TestAgentLifecycleAndChat(t *testing.T) {
 	}
 	m1 := detail.Messages[1]
 	if m1.Role != "assistant" || m1.Citations == nil || len(*m1.Citations) != 1 || m1.Thinking == nil || *m1.Thinking == "" ||
-		m1.Usage == nil || m1.StopReason == nil || *m1.StopReason != "stop" || detail.Conversation.Title != "Where do students buy a parking permit?" {
+		m1.Usage == nil || m1.StopReason == nil || *m1.StopReason != "stop" || detail.Conversation.Title != "Where do students buy a parking permit?" || m1.Refused != nil {
 		t.Fatalf("assistant message = %+v", m1)
 	}
 	// The search before the model (always mode) is stored, so a reload shows its step.

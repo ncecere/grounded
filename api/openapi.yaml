@@ -12369,6 +12369,7 @@ components:
         feedback: { $ref: "#/components/schemas/FeedbackRating" }
         feedbackReason: { $ref: "#/components/schemas/FeedbackReason" }
         feedbackShared: { type: boolean, description: "The asker shared the question with the team with a thumbs-down (the gap report, docs/gaps.md)" }
+        refused: { type: boolean, description: "The answer is the agent's refusal (nothing in its sources answers the question, or it's out of scope): the chat offers the agent's starter questions under it, as it did live" }
         uncited:
           type: array
           description: >-

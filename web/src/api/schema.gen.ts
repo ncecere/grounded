@@ -9271,6 +9271,8 @@ export interface components {
             feedbackReason?: components["schemas"]["FeedbackReason"];
             /** @description The asker shared the question with the team with a thumbs-down (the gap report, docs/gaps.md) */
             feedbackShared?: boolean;
+            /** @description The answer is the agent's refusal (nothing in its sources answers the question, or it's out of scope): the chat offers the agent's starter questions under it, as it did live */
+            refused?: boolean;
             /** @description Set by SystemOne citation checks: the answer's factual sentences without a citation (docs/systemone.md §3). Not set for refusals or answers without sources. */
             uncited?: components["schemas"]["UncitedSentence"][];
             /** @description Set for answers whose citations were checked by v0.2.1 or later: the answer's claims with their verdicts (docs/systemone.md §3). Answers checked before have per-marker verdicts (citations[].markers) only. */

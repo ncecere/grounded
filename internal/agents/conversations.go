@@ -148,6 +148,8 @@ type MessageView struct {
 	FeedbackReason *string        `json:"feedbackReason,omitempty"`
 	// FeedbackShared: the asker shared the question with the team (gaps.go).
 	FeedbackShared bool `json:"feedbackShared,omitempty"`
+	// Refused: the answer is the agent's refusal (message_events.refused), so a reloaded chat offers the starters again.
+	Refused bool `json:"refused,omitempty"`
 	// Uncited: the answer's citations were checked (verdicts.go).
 	Uncited []UncitedSentence `json:"uncited,omitempty"`
 	// Claims: the answer's citations were checked by v0.2.1 or later
@@ -260,7 +262,7 @@ func messageViews(rows []dbgen.ListMessagesRow) []MessageView {
 func assistantView(r dbgen.ListMessagesRow) MessageView {
 	m := MessageView{ID: r.ID, Seq: r.Seq, Role: "assistant", StopReason: r.StopReason, ErrorCode: r.ErrorCode,
 		LatencyMs: r.LatencyMs, Feedback: r.Feedback, FeedbackReason: r.FeedbackReason, FeedbackShared: r.FeedbackShared, CreatedAt: r.CreatedAt,
-		Citations: []Citation{}}
+		Refused: r.AnswerRefused && r.ErrorCode == "", Citations: []Citation{}}
 	blocks, _ := llm.UnmarshalBlocks(r.Content)
 	var think []string
 	thought := 0 // UTF-16 length of strings.Join(think, "\n\n")

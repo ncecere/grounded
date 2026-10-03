@@ -6103,6 +6103,9 @@ type ConversationMessage struct {
 	Id             openapi_types.UUID `json:"id"`
 	LatencyMs      *int32             `json:"latencyMs,omitempty"`
 
+	// Refused The answer is the agent's refusal (nothing in its sources answers the question, or it's out of scope): the chat offers the agent's starter questions under it, as it did live
+	Refused *bool `json:"refused,omitempty"`
+
 	// Retrieval The search the answer ran before the model (retrieval mode always); absent for answers stored before v0.3.0
 	Retrieval  *ConversationRetrieval  `json:"retrieval,omitempty"`
 	Role       ConversationMessageRole `json:"role"`

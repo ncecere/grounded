@@ -7,8 +7,9 @@ import { sectionSummary } from "../pages/agents/build/summaries";
 import { configInput, defaultConfig } from "../pages/agents/common";
 import { Conversation, ConversationContent } from "../components/ui/conversation/conversation";
 import { ShowSuggestions, suggestionsArrived } from "../pages/chat/show-suggestions";
-import { type ChatItem, applyChatEvent, pendingAssistant } from "../pages/chat/stream";
-import { type Handler, mockApi, openSSE, renderApp, shellRoutes, sse } from "./harness";
+import { type ChatItem, applyChatEvent, itemsFromConversation, pendingAssistant } from "../pages/chat/stream";
+import { ChatMessages } from "../pages/chat/thread";
+import { type Handler, mockApi, openSSE, renderApp, renderBare, shellRoutes, sse } from "./harness";
 
 const card = {
   id: "ag1", teamSlug: "registrar", teamName: "Office of the Registrar", slug: "registrar-assistant", name: "Registrar assistant",
@@ -182,6 +183,31 @@ describe("chips arriving after the answer (walkthrough, 2026-10-02)", () => {
     rerender(<View item={done(follow)} />);
     expect(scrollTo).not.toHaveBeenCalled();
     expect(log.scrollTop).toBe(200);
+  });
+});
+
+describe("a refusal read back from a stored conversation (walkthrough, 2026-10-02)", () => {
+  const stored = (refused?: boolean): Schemas["ConversationMessage"][] => [
+    { id: "u1", seq: 1, role: "user", text: "What's on the cafeteria menu?", createdAt: "2026-10-02T20:00:00Z" },
+    { id: "m1", seq: 2, role: "assistant", text: "I couldn't find that in my sources.", refused, createdAt: "2026-10-02T20:00:05Z" },
+  ];
+
+  it("offers the starters again after a reload, without saying why it refused (that isn't stored)", async () => {
+    const asked: string[] = [];
+    const { container } = renderBare(
+      <ChatMessages items={itemsFromConversation(stored(true))} agent={{ name: "Helper", starterQuestions: card.starterQuestions }} onStarter={(q) => asked.push(q)} />,
+    );
+    const group = await screen.findByRole("group", { name: "You can ask" });
+    await userEvent.click(within(group).getByRole("button", { name: "How do I drop a class?" }));
+    expect(asked).toEqual(["How do I drop a class?"]);
+    expect(screen.queryByText(/searched its sources and found nothing/)).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("offers none under an answer that wasn't a refusal (or one stored before the flag)", async () => {
+    renderBare(<ChatMessages items={itemsFromConversation(stored())} agent={{ name: "Helper", starterQuestions: card.starterQuestions }} onStarter={() => {}} />);
+    expect(await screen.findByText("I couldn't find that in my sources.")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "You can ask" })).toBeNull();
   });
 });
 
