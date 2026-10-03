@@ -303,7 +303,7 @@ With `stream = false`, the endpoint returns the final message as JSON.
 - **Message list:**
   - Markdown via `react-markdown` + `remark-gfm`, with raw HTML disabled.
   - `[n]` markers render as superscript buttons that focus the matching source card.
-  - Thinking: readers see "Thinking…" while the model thinks, never its reasoning; editors testing a draft (the Test panel) can open a collapsed "Reasoning" disclosure.
+  - Thinking: readers see "Thinking…" while the model thinks, never its reasoning; editors testing a draft (the Test panel) can open a collapsed "Reasoning" disclosure. Since v0.4.1 the reasoning and the answer's steps (searches, tool calls) are shown in the order they happened: in tool mode and with MCP tools, the reasoning before a tool call, the call, then the reasoning after it, each part of the reasoning its own disclosure (`thinkingBefore` on stored tool calls).
   - Source cards: title, heading path or page, snippet, external link for web pages.
   - Feedback (thumbs plus a reason menu), copy.
 - **Composer:** Enter sends, Shift+Enter adds a newline, a Stop button while streaming, a character limit.
