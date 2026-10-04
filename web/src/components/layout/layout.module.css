@@ -77,7 +77,8 @@
   height: 1.5rem;
   border-radius: var(--radius-2);
   background-color: var(--color-primary-subtle);
-  color: var(--color-primary);
+  /* The tint's own text colour: --color-primary is under 3:1 on it in dark. */
+  color: var(--color-primary-subtle-text);
 
   & svg {
     width: 0.875rem;
