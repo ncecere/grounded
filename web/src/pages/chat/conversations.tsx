@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input/input";
 import { Stack } from "@/components/ui/layout/layout";
 import { Menu, MenuItem, MenuLinkItem, MenuSeparator } from "@/components/ui/menu/menu";
 import { Skeleton } from "@/components/ui/skeleton/skeleton";
-import { Time } from "@/components/ui/time/time";
+import { RelativeTime } from "../../components/templates/list-page";
 import { toast } from "@/components/ui/toast/toast";
 import { groupByDay } from "../../lib/group-by-day";
 import c from "./chat.module.css";
@@ -45,6 +45,14 @@ export function ConversationMenu({ conversation, onDeleted, label }: { conversat
       qc.invalidateQueries({ queryKey: conversationsKey });
       toast.success("Conversation deleted");
       onDeleted();
+      // The menu's row is gone: focus the page's heading rather than leaving it on the page itself (US-17).
+      requestAnimationFrame(() => {
+        if (document.activeElement && document.activeElement !== document.body) return;
+        const heading = document.querySelector<HTMLElement>("main h1");
+        if (!heading) return;
+        heading.tabIndex = -1;
+        heading.focus();
+      });
     },
   });
   return (
@@ -185,9 +193,12 @@ export function ConversationList({ card, conversations, selected, onNew, onPick,
                 <ul className={c.convList}>
                   {g.items.map((conv) => (
                     <li key={conv.id} className={c.conv} data-current={conv.id === selected ? "" : undefined}>
-                      <Link to="." search={{ c: conv.id }} className={c.convLink} aria-current={conv.id === selected ? "page" : undefined} onClick={onPick}>
+                      <Link to="." search={{ c: conv.id }} className={c.convLink} aria-current={conv.id === selected ? "page" : undefined} onClick={onPick} title={conv.title || undefined}>
                         <span className={c.convTitle}>{conv.title || "Untitled conversation"}</span>
-                        <Time value={conv.updatedAt} format="time" className={c.convDate} />
+                        {/* Lists are relative, with the exact time on hover (VI-16). */}
+                        <span className={c.convDate}>
+                          <RelativeTime value={conv.updatedAt} />
+                        </span>
                       </Link>
                       <ConversationMenu conversation={conv} onDeleted={() => conv.id === selected && onNew()} />
                     </li>

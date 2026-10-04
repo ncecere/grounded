@@ -79,7 +79,8 @@ function RecentConversationsNav() {
           label={c.title || c.agentName}
           // Titles repeat ("How do I request a transcript?"): the agent tells them apart.
           description={c.title ? c.agentName : undefined}
-          render={<Link to="/a/$team/$agent" params={{ team: c.teamSlug, agent: c.agentSlug }} search={{ c: c.id }} activeOptions={{ includeSearch: true }} />}
+          // Long titles are cut off: the whole title on hover (VI-15b).
+          render={<Link to="/a/$team/$agent" params={{ team: c.teamSlug, agent: c.agentSlug }} search={{ c: c.id }} activeOptions={{ includeSearch: true }} title={c.title ? `${c.title} · ${c.agentName}` : c.agentName} />}
         />
       ))}
     </SidebarSection>
