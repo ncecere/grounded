@@ -12,6 +12,7 @@
 import { useLayoutEffect, useRef } from "react";
 import { useConversation } from "@/components/ui/conversation/conversation";
 import type { ChatItem } from "./stream";
+import c from "./chat.module.css";
 
 /** Space left above the question or the chunk, in px. */
 const GAP = 16;
@@ -40,6 +41,13 @@ function span(viewport: HTMLElement, el: Element) {
   return { top, bottom: top + r.height };
 }
 
+/** Where an answer's text starts: after its last group of steps (search, tools), or at its top. */
+function textStart(viewport: HTMLElement, answer: HTMLElement) {
+  const steps = answer.querySelectorAll(`.${c.steps}`);
+  const last = steps[steps.length - 1];
+  return last ? span(viewport, last).bottom : span(viewport, answer).top;
+}
+
 export function RevealBufferedAnswer({ items }: { items: ChatItem[] }) {
   const { viewport, scrollToElement, isStuck } = useConversation();
   const last = items[items.length - 1];
@@ -59,8 +67,13 @@ export function RevealBufferedAnswer({ items }: { items: ChatItem[] }) {
     const chunk = isStuck() ? releasedChunk(seen, last) : "";
     if ((arrivedWhole(seen, last) || chunk === "first") && question) {
       // The answer (and the rows that render right after it) fits below its question: leave the view at the bottom.
-      const fromQuestion = viewport.scrollHeight - span(viewport, question).top;
-      if (fromQuestion + TRAILING > viewport.clientHeight) scrollToElement(question, { offset: GAP });
+      const questionTop = span(viewport, question).top;
+      const fromQuestion = viewport.scrollHeight - questionTop;
+      // In a small window (the widget) the question and the answer's steps can fill it: show the text's start then (BU-20).
+      const textTop = answer ? textStart(viewport, answer) : questionTop;
+      if (fromQuestion + TRAILING <= viewport.clientHeight) return;
+      if (answer && textTop - questionTop > viewport.clientHeight / 2) scrollToElement(answer, { offset: span(viewport, answer).top - textTop + GAP });
+      else scrollToElement(question, { offset: GAP });
     } else if (chunk === "next" && answer && seen) {
       // The chunk starts where the answer ended before it; bring that to the top when the chunk can't be read whole.
       if (bottom - seen.bottom + TRAILING > viewport.clientHeight) scrollToElement(answer, { offset: span(viewport, answer).top - seen.bottom + GAP });

@@ -228,8 +228,8 @@ Conversations (owner only)
   GET    /v1/conversations/{id}                           with messages and citations
   PATCH  /v1/conversations/{id}                           {title}
   DELETE /v1/conversations/{id}                           soft delete; hidden at once
-  GET    /v1/conversations/{id}/export?format=markdown|json
-  POST   /v1/messages/{id}/feedback                       {rating: up|down, reason?}
+  GET    /v1/conversations/{id}/export?format=markdown|json&tz=   (numbered as the chat shows answers; times in tz, v0.4.2)
+  POST   /v1/messages/{id}/feedback                       {rating: up|down|none, reason?}   (none takes it back, v0.4.2)
 
 OpenAI-compatible
   GET    /v1/models                                       agents as "agent:{team}/{slug}"
