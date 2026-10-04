@@ -6,7 +6,9 @@
  * Errors before the stream starts (policy, limits) are plain JSON responses
  * (spec §12 deviation 3); later ones are error events. status events say
  * what the agent is doing until the first token. text_delta is the raw model
- * text; message_end.text replaces it (deviation 4). With SystemOne citation
+ * text; message_end.text replaces it (deviation 4). text_reset discards the
+ * text so far: the turn that wrote it called a tool, and only the model's
+ * final turn is the answer (v0.4.2 BU2-01). With SystemOne citation
  * checks, citations_checked follows message_end and replaces the citations
  * (and, in enforce mode, the text) in place. suggestions (follow-up
  * questions, docs/follow-ups.md) may come after the answer is complete,
@@ -167,6 +169,9 @@ export function applyChatEvent(item: AssistantItem, event: string, data: unknown
       return item.moderation ? item : { ...item, thinking: item.thinking + str(d.delta) };
     case "text_delta":
       return item.moderation ? item : { ...item, text: item.text + str(d.delta) };
+    case "text_reset":
+      // A tool turn's narration or draft: the answer starts again with the next text_delta.
+      return item.moderation ? item : { ...item, text: "" };
     case "moderation": {
       // The notice replaces whatever streamed: text, thinking and citations are dropped.
       const moderation = { stage: str(d.stage) === "output" ? "output" : "input", action: str(d.action), notice: str(d.notice) } as Moderation;

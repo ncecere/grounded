@@ -801,6 +801,21 @@ func (e ChatEventStatusStep) Valid() bool {
 	}
 }
 
+// Defines values for ChatEventTextResetReason.
+const (
+	ToolCall ChatEventTextResetReason = "tool_call"
+)
+
+// Valid indicates whether the value is a known member of the ChatEventTextResetReason enum.
+func (e ChatEventTextResetReason) Valid() bool {
+	switch e {
+	case ToolCall:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ChatHistoryMessageRole.
 const (
 	ChatHistoryMessageRoleAssistant ChatHistoryMessageRole = "assistant"
@@ -5753,6 +5768,14 @@ type ChatEventSuggestions struct {
 	MessageId   openapi_types.UUID `json:"messageId"`
 	Suggestions []string           `json:"suggestions"`
 }
+
+// ChatEventTextReset SSE event text_reset (v0.4.2): discard the answer's text received so far; the next text_delta starts the answer again. Sent when the model's turn that wrote it turned out to call a tool: the answer is the model's final turn only, so that text (narration or a first draft) is neither shown nor stored. Thinking, steps and sources are kept. Only streamed text is reset: a buffered answer never sends it. Clients that ignore it show that text until message_end.text replaces it.
+type ChatEventTextReset struct {
+	Reason ChatEventTextResetReason `json:"reason"`
+}
+
+// ChatEventTextResetReason defines model for ChatEventTextReset.Reason.
+type ChatEventTextResetReason string
 
 // ChatEventToolCall SSE event tool_call
 type ChatEventToolCall struct {
