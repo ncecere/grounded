@@ -1,8 +1,10 @@
-/* The documents table's selection follows the filters (BU-04), and a filtered list refreshes when a retried document fails again (BU-11). */
+/* The documents table's selection follows the filters (BU-04), a filtered list refreshes when a retried document fails again (BU-11), and encoded titles read plainly (VI-10). */
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Schemas } from "../api/client";
 import { SourceDetail } from "../pages/sources/detail";
+import { decodeForDisplay } from "../pages/team/documents/status";
+import { urlPath } from "../pages/team/documents/table";
 import { common, counts, mockApi, renderWith, webSource } from "./web-harness";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -98,4 +100,13 @@ describe("a retried document that fails again (BU-11)", () => {
     state = "failed-again";
     expect(await screen.findByRole("checkbox", { name: "Select Broken scan" }, { timeout: 8000 })).not.toBeChecked();
   }, 12_000);
+});
+
+describe("web page titles (VI-10)", () => {
+  it("decodes percent-encoded titles and paths for display, leaving real text alone", () => {
+    expect(decodeForDisplay("doc%2Fcodewalk%2Furlpoll")).toBe("doc/codewalk/urlpoll");
+    expect(decodeForDisplay("100% sure")).toBe("100% sure");
+    expect(decodeForDisplay("50%zz")).toBe("50%zz");
+    expect(urlPath("https://go.dev/doc/codewalk/?fileprint=/doc%2Fcodewalk%2Furlpoll.go&hi=1")).toBe("/doc/codewalk/?fileprint=/doc/codewalk/urlpoll.go&hi=1");
+  });
 });

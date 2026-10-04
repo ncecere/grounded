@@ -27,7 +27,7 @@ import { type DocumentMutations, canRetry, deleteWording, isPartlyScanned, retry
 import { ocrStateOf, retryBlocked } from "./ocr-state";
 import { DocumentRecordPage } from "./record";
 import { countsSignature, useRefreshOnChange, useVisibleSelection } from "./selection";
-import { DocStatusBadge, docKind, docName, docStatusLabels, documentError, isInProgress, isWaiting, kindLabel } from "./status";
+import { DocStatusBadge, decodeForDisplay, docKind, docName, docStatusLabels, documentError, isInProgress, isWaiting, kindLabel } from "./status";
 
 const pageSize = 50;
 const statuses: DocStatus[] = ["ready", "processing", "queued", "failed", "skipped"];
@@ -39,7 +39,7 @@ const needsOcr = "needs_ocr";
 export function urlPath(url: string) {
   try {
     const u = new URL(url);
-    return `${u.pathname}${u.search}` || "/";
+    return decodeForDisplay(`${u.pathname}${u.search}`) || "/";
   } catch {
     return url;
   }

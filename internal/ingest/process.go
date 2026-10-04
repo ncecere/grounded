@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"math/rand/v2"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -320,6 +321,7 @@ func (p *Processor) parse(ctx context.Context, src dbgen.DataSource, doc dbgen.D
 		}
 		in.Kind = webKind(in.Kind, doc.ContentType)
 		in.WebPage, in.BaseURL = true, doc.URL
+		in.Name = webPageName(name)
 	} else if in.Kind, err = parse.Detect(name, data); err != nil {
 		return parse.Document{}, "", err
 	}
@@ -335,6 +337,17 @@ func (p *Processor) parse(ctx context.Context, src dbgen.DataSource, doc dbgen.D
 		return parsed, in.Kind, errors.Join(err, uerr)
 	}
 	return parsed, in.Kind, err
+}
+
+// webPageName is the name a web page's title falls back to when the page
+// has none (plain text, a heading-less page): its URL decoded, so
+// "?fileprint=/doc%2Fcodewalk%2Fpig.go" reads "pig", not
+// "doc%2Fcodewalk%2Fpig" (VI-10).
+func webPageName(rawURL string) string {
+	if s, err := url.QueryUnescape(rawURL); err == nil {
+		return s
+	}
+	return rawURL
 }
 
 // split chunks parsed Markdown with the profile's sizes, leaving out the
