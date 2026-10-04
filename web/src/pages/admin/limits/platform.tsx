@@ -21,7 +21,8 @@ import { Table, Td, Tr } from "@/components/ui/table/table";
 import { toast } from "@/components/ui/toast/toast";
 import { formatDate } from "@/lib/format";
 import { PageTabs, useUrlTab } from "@/components/page-tabs";
-import { formatLimit, formatLimitMax, limitGroups, platformLimitsQuery } from "@/lib/limits";
+import { formatLimit, formatLimitMax, limitGroups, platformLimitsQuery, toInput } from "@/lib/limits";
+import { Button } from "@/components/ui/button/button";
 import { limitTabs } from "@/lib/tabs";
 import { adminOnly } from "@/lib/terms";
 import { useCurrentUser } from "@/session";
@@ -148,7 +149,7 @@ export function LimitsPage() {
                 error={save.error}
                 hideError
                 message={invalid ? "Not saved: fix the highlighted limits" : unsaved(changes.length)}
-                saveLabel="Save limits"
+                saveLabel="Save settings"
                 onSave={() => save.mutate()}
                 onDiscard={discard}
               />
@@ -167,11 +168,24 @@ type RowProps = { it: PlatformLimit; f: PlatformRow; isAdmin: boolean; submitted
 function PlatformLimitRow({ it, f, isAdmin, submitted, onChange }: RowProps) {
   // Errors show as you type (F-05), not only after Save.
   const errs = submitted || invalidTyped(f) ? platformErrors(it, f) : {};
+  // The built-in value, while the default differs from it (not merely because a ceiling was saved), with a way back
+  // to it: emptying the field means unlimited (AD2-15).
+  const builtIn = toInput(it.unit, it.builtInDefault);
+  const differs = isAdmin ? f.def.trim() !== builtIn : it.default !== it.builtInDefault;
   return (
     <Tr>
       <Td>
         <LimitName label={it.label} description={it.description}>
-          {it.custom && <span className={s.secondary}>Built-in default: {formatLimit(it.unit, it.period, it.builtInDefault)}</span>}
+          {differs && (
+            <span className={`${s.secondary} ${l.builtIn}`}>
+              Built-in default: {formatLimit(it.unit, it.period, it.builtInDefault)}
+              {isAdmin && (
+                <Button size="sm" variant="ghost" aria-label={`Use the built-in default for ${it.label}`} onClick={() => onChange({ ...f, def: builtIn })}>
+                  Use it
+                </Button>
+              )}
+            </span>
+          )}
         </LimitName>
       </Td>
       <Td>

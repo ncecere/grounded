@@ -38,7 +38,7 @@ export type SettingsPageProps = {
   saving?: boolean;
   /** The save failed. Shown above the save bar. */
   error?: unknown;
-  /** Save button text (default "Save changes"). */
+  /** Save button text (default "Save settings": one rule for settings pages; dialogs say "Save <thing>", AD2-16). */
   saveLabel?: string;
   /** Save bar text (default "Unsaved changes"); e.g. "Not saved: fix the highlighted field". */
   message?: ReactNode;
@@ -61,7 +61,7 @@ export function SettingsPage({
   onDiscard,
   saving = false,
   error,
-  saveLabel = "Save changes",
+  saveLabel = "Save settings",
   message,
   canEdit = true,
   readOnlyNote = "You can view these settings. Your role can't change them.",

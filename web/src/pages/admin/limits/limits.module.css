@@ -53,3 +53,11 @@
 .usage {
   min-width: 9rem;
 }
+
+/* "Built-in default: 100 · Use it" under a limit's name (AD2-15). */
+.builtIn {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

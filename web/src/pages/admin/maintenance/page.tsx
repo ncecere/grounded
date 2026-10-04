@@ -136,7 +136,7 @@ function MaintenanceEditor({ saved, isAdmin }: { saved: Settings; isAdmin: boole
       canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={save.isPending && !confirming}
       error={confirming ? undefined : save.error}
-      saveLabel={turningOn ? "Turn on maintenance mode" : turningOff ? "Turn off maintenance mode" : "Save changes"}
+      saveLabel={turningOn ? "Turn on maintenance mode" : turningOff ? "Turn off maintenance mode" : "Save settings"}
       message={submitted && Object.keys(problems).length ? `Not saved: ${Object.values(problems)[0]}` : undefined}
       onSave={() => {
         setSubmitted(true);

@@ -100,7 +100,7 @@ test("limits: save, and the unsaved-changes guard", async ({ as, admin, a11y }) 
   const field = page.getByRole("textbox", { name: "Default for Agents" });
   const next = String(agents + 1);
   await field.fill(next);
-  await expect(page.getByRole("button", { name: "Save limits" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save settings" })).toBeVisible();
   await a11y(page, "limits with unsaved changes");
 
   // Leaving asks first; keep editing stays on the page with the change.
@@ -112,9 +112,9 @@ test("limits: save, and the unsaved-changes guard", async ({ as, admin, a11y }) 
   await expect(page).toHaveURL("/admin/limits");
   await expect(field).toHaveValue(next);
 
-  await page.getByRole("button", { name: "Save limits" }).click();
+  await page.getByRole("button", { name: "Save settings" }).click();
   await expect(page.getByText("Limits saved").filter({ visible: true }).first()).toBeVisible(); // a toast (visible copy)
-  await expect(page.getByRole("button", { name: "Save limits" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Save settings" })).toBeHidden();
 
   // Saved: leaving no longer asks.
   await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Overview" }).click();

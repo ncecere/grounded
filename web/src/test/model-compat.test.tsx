@@ -201,7 +201,7 @@ describe("embedding profile output dimensions and fusion defaults", () => {
     const dialog = await screen.findByRole("dialog");
     await userEvent.click(within(dialog).getByRole("switch", { name: /platform fusion weights/ }));
     expect(await axe(dialog)).toHaveNoViolations();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save fusion defaults" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true));
     const patch = calls.find((c) => c.method === "PATCH")!;
     expect(patch.body).toEqual({ usePlatformFusionWeights: true });

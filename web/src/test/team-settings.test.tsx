@@ -104,7 +104,7 @@ describe("general tab", () => {
     expect(await screen.findByText("Enter a name.")).toBeInTheDocument();
     expect(screen.getByText("Not saved: fix the highlighted field")).toBeInTheDocument();
     await userEvent.type(name, "Registrar");
-    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true));
     const patch = calls.find((c) => c.method === "PATCH")!;
     expect(patch.body).toEqual({ name: "Registrar", description: "" });

@@ -137,12 +137,12 @@ describe("SettingsPage", () => {
     const onSave = vi.fn();
     const { container } = renderAt(() => <Settings onSave={onSave} />);
     const name = await screen.findByRole("textbox", { name: "Name" });
-    expect(screen.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save settings" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
     expect(screen.getByText("You're the only owner.")).toBeInTheDocument();
     await user.type(name, "!");
     expect(screen.getByRole("status")).toHaveTextContent("Unsaved changes");
-    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await user.click(screen.getByRole("button", { name: "Save settings" }));
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(await axe(container)).toHaveNoViolations();
   });

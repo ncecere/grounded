@@ -254,7 +254,7 @@ export function ProfileFusionDialog({ profile, onClose }: { profile: Profile; on
         setSubmitted(true);
         if (Object.keys(errors).length === 0) save.mutate();
       }}
-      submitLabel="Save"
+      submitLabel="Save fusion defaults"
       busy={save.isPending}
     >
       <FusionDefaultsFields value={fusion} onChange={setFusion} errors={submitted ? errors : {}} />

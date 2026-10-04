@@ -173,6 +173,20 @@ describe("limit values", () => {
 });
 
 describe("admin limits page", () => {
+  it("offers the built-in default where the default differs from it, and goes back to it (AD2-15)", async () => {
+    mockApi({ "GET /v1/admin/limits": platform });
+    renderWith(<LimitsPage />, { platformRole: "platform_admin" });
+    const resources = await screen.findByRole("table", { name: "Team resources: defaults and ceilings" });
+    // Data sources is at its built-in 100: no hint, whatever the ceiling.
+    expect(within(resources).queryByRole("button", { name: "Use the built-in default for Data sources" })).toBeNull();
+    const back = within(resources).getByRole("button", { name: "Use the built-in default for Knowledge bases" });
+    expect(within(resources).getByText(/Built-in default: 100/)).toBeInTheDocument();
+    await userEvent.click(back);
+    expect(within(resources).getByRole("textbox", { name: "Default for Knowledge bases" })).toHaveValue("100");
+    expect(within(resources).queryByRole("button", { name: "Use the built-in default for Knowledge bases" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Save settings" })).toBeInTheDocument();
+  });
+
   it("edits defaults with If-Match and validates against the ceiling", async () => {
     const calls = mockApi({
       "GET /v1/admin/limits": platform,
@@ -185,7 +199,7 @@ describe("admin limits page", () => {
     expect(tabs.map((t) => t.textContent)).toEqual(["Team resources", "Ingestion", "Queries & chat", "Public agents", "Evaluations"]);
     expect(screen.queryByRole("table", { name: "Queries & chat: defaults and ceilings" })).toBeNull();
     // The sticky save bar only appears with unsaved changes.
-    expect(screen.queryByRole("button", { name: "Save limits" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save settings" })).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
 
     const sources = within(resources).getByRole("textbox", { name: "Default for Data sources" });
@@ -193,7 +207,7 @@ describe("admin limits page", () => {
     await userEvent.type(sources, "250");
     // Above the ceiling: the save bar says it can't save yet, and the field says why (F-05, F-26).
     expect(screen.getByRole("status")).toHaveTextContent("Not saved: fix the highlighted limits");
-    const save = screen.getByRole("button", { name: "Save limits" });
+    const save = screen.getByRole("button", { name: "Save settings" });
     expect(await axe(container)).toHaveNoViolations();
 
     // An invalid value on another tab is named in the error.
@@ -218,7 +232,7 @@ describe("admin limits page", () => {
     const storage = within(resources2).getByRole("textbox", { name: "Default for Storage (GiB)" });
     await userEvent.clear(storage);
     await userEvent.type(storage, "20");
-    await userEvent.click(screen.getByRole("button", { name: "Save limits" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     const put = calls.find((c) => c.method === "PUT")!;
     expect(put.headers.get("If-Match")).toBe('"1"');
@@ -241,7 +255,7 @@ describe("admin limits page", () => {
     await userEvent.type(sources, "120");
     await userEvent.click(screen.getByRole("button", { name: "Discard" }));
     expect(sources).toHaveValue("100");
-    expect(screen.queryByRole("button", { name: "Save limits" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save settings" })).toBeNull();
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
@@ -251,7 +265,7 @@ describe("admin limits page", () => {
     const resources = await screen.findByRole("table", { name: "Team resources: defaults and ceilings" });
     expect(within(resources).getByText("10 GiB")).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Save limits" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save settings" })).toBeNull();
   });
 
   it("names the teams a ceiling caps, on the row and after saving (AD-14)", async () => {
