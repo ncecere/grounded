@@ -438,12 +438,39 @@ func (s *Service) notifyNewRequest(ctx context.Context, q *dbgen.Queries, tx pgx
 }
 
 // PendingRequests counts pending domain requests (platform admins and
-// auditors), for the admin badge.
+// auditors), for the admin badge and Needs attention. A request the
+// platform allowlist already covers isn't waiting for anyone: approving it
+// changes nothing (AD2-19), so it isn't counted.
 func (s *Service) PendingRequests(ctx context.Context, a authz.Actor) (int64, error) {
 	if err := requirePlatformRead(a); err != nil {
 		return 0, err
 	}
-	return s.q.CountPendingDomainRequests(ctx)
+	pending := "pending"
+	reqs, err := s.q.ListDomainRequests(ctx, &pending)
+	if err != nil {
+		return 0, err
+	}
+	allow, err := s.q.ListAllowlist(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var n int64
+	for _, r := range reqs {
+		if !coveredBy(allow, r.Pattern) {
+			n++
+		}
+	}
+	return n, nil
+}
+
+// coveredBy reports whether an allowlist pattern covers every host pattern allows.
+func coveredBy(allow []dbgen.CrawlAllowlist, pattern string) bool {
+	for _, e := range allow {
+		if Covers(e.Pattern, pattern) {
+			return true
+		}
+	}
+	return false
 }
 
 // notifyDecision tells the person who asked for a domain that it was

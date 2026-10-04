@@ -4417,7 +4417,7 @@ type AdminAgentStatusChangeStatus string
 
 // AdminAttention defines model for AdminAttention.
 type AdminAttention struct {
-	// PendingDomainRequests Domain requests waiting for review
+	// PendingDomainRequests Domain requests waiting for review (pending, and not already covered by the platform allowlist)
 	PendingDomainRequests int64 `json:"pendingDomainRequests"`
 }
 

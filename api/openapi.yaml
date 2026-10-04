@@ -8650,7 +8650,7 @@ components:
       type: object
       required: [pendingDomainRequests]
       properties:
-        pendingDomainRequests: { type: integer, format: int64, description: Domain requests waiting for review }
+        pendingDomainRequests: { type: integer, format: int64, description: "Domain requests waiting for review (pending, and not already covered by the platform allowlist)" }
     NotificationType:
       type: string
       enum:

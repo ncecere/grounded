@@ -9,13 +9,17 @@ import { crawlDomainTabs } from "@/lib/tabs";
 import { terms } from "@/lib/terms";
 import s from "../../shared.module.css";
 import { useIsPlatformAdmin } from "../hooks";
-import { AllowlistCard } from "./allowlist";
-import { DomainRequestsCard, pendingDomainRequestsQuery } from "./requests";
+import { AllowlistCard, allowlistQuery } from "./allowlist";
+import { alreadyAllowed, DomainRequestsCard, pendingDomainRequestsQuery } from "./requests";
 
 export function CrawlingPage() {
   const isAdmin = useIsPlatformAdmin();
   const [tab, setTab] = useUrlTab(crawlDomainTabs);
   const pending = useQuery(pendingDomainRequestsQuery());
+  const allowlist = useQuery(allowlistQuery());
+  // Requests the allowlist already covers aren't waiting for anyone (AD2-19), as the sidebar's count says.
+  const covered = alreadyAllowed(pending.data ?? [], (allowlist.data ?? []).map((e) => e.pattern)).length;
+  const waiting = (pending.data?.length ?? 0) - covered;
   return (
     <Stack gap={6} className={s.page}>
       <PageHeader
@@ -32,7 +36,7 @@ export function CrawlingPage() {
             value: "requests",
             label: "Requests",
             icon: <Inbox aria-hidden />,
-            count: pending.data?.length || undefined,
+            count: waiting || undefined,
             content: <DomainRequestsCard isAdmin={isAdmin} />,
           },
           { value: "allowlist", label: "Allowlist", icon: <Globe aria-hidden />, content: <AllowlistCard isAdmin={isAdmin} /> },

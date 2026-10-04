@@ -5484,7 +5484,7 @@ export interface components {
         AdminAttention: {
             /**
              * Format: int64
-             * @description Domain requests waiting for review
+             * @description Domain requests waiting for review (pending, and not already covered by the platform allowlist)
              */
             pendingDomainRequests: number;
         };
