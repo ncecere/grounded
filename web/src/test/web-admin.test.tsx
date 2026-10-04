@@ -5,6 +5,7 @@ import type { Schemas } from "../api/client";
 import { CrawlingPage } from "../pages/admin/crawling/page";
 import { PlatformSources } from "../pages/admin/shared";
 import { SourceDetail } from "../pages/sources/detail";
+import { sharedWith } from "../pages/sources/overview";
 import { KBDetail } from "../pages/team/kbs/detail";
 import { ApiFailure, common, counts, mockApi, renderWith, request, webSource } from "./web-harness";
 
@@ -115,6 +116,15 @@ describe("admin crawling page", () => {
 /* ---------- shared sources ---------- */
 
 describe("shared sources", () => {
+  it("says which teams may attach a classified shared source (AD-25)", () => {
+    const levels = [
+      { key: "open", name: "Open", rank: 0 },
+      { key: "restricted", name: "Restricted", rank: 2 },
+    ];
+    expect(sharedWith("open", levels)).toBe("Shared with every team");
+    expect(sharedWith("restricted", levels)).toBe("Shared with teams approved for Restricted");
+  });
+
   it("blocks raising the classification when team knowledge bases would be affected", async () => {
     const shared = { ...webSource({ id: "sh1", name: "Campus academic calendar" }), activeCrawl: null };
     const calls = mockApi({

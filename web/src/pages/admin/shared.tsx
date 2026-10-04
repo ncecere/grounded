@@ -58,7 +58,7 @@ function SharedSourcesList() {
         data={list}
         getRowId={(x) => x.id}
         rowLabel={(x) => x.name}
-        search={{ label: "Search shared sources" }}
+        search={{ label: "Search shared sources", placeholder: "Name or description" }}
         loading={sources.isLoading}
         error={sources.error}
         onRetry={() => void sources.refetch()}
@@ -66,7 +66,8 @@ function SharedSourcesList() {
           { label: "Open", icon: <Database aria-hidden />, render: owner.sourceLink(x.id) },
           { label: "Where it's used", icon: <Network aria-hidden />, onSelect: () => record.open(x.id) },
         ]}
-        empty={{ icon: <Share2 />, title: "No shared sources yet.", description: "Create one for content many teams need, such as the academic calendar.", action: create || undefined }}
+        // The header's button is the one action (VI-21): the empty state doesn't repeat it.
+        empty={{ icon: <Share2 />, title: "No shared sources yet.", description: "Create one for content many teams need, such as the academic calendar." }}
       />
       <SharedUsagePage
         source={open}
