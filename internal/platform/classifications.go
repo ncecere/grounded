@@ -110,13 +110,13 @@ func checkOrdering(levels []dbgen.ClassificationLevel, changed dbgen.Classificat
 			continue
 		}
 		if !inserted && changed.Rank < l.Rank {
-			out = append(out, authz.Level{Key: changed.Key, Rank: changed.Rank, MaxAudience: changed.MaxAudience})
+			out = append(out, authz.Level{Key: changed.Key, Rank: changed.Rank, MaxAudience: changed.MaxAudience, Name: changed.Name})
 			inserted = true
 		}
-		out = append(out, authz.Level{Key: l.Key, Rank: l.Rank, MaxAudience: l.MaxAudience})
+		out = append(out, authz.Level{Key: l.Key, Rank: l.Rank, MaxAudience: l.MaxAudience, Name: l.Name})
 	}
 	if !inserted {
-		out = append(out, authz.Level{Key: changed.Key, Rank: changed.Rank, MaxAudience: changed.MaxAudience})
+		out = append(out, authz.Level{Key: changed.Key, Rank: changed.Rank, MaxAudience: changed.MaxAudience, Name: changed.Name})
 	}
 	return authz.CheckLevelOrdering(out)
 }
@@ -158,7 +158,7 @@ func (s *Service) CreateClassification(ctx context.Context, a authz.Actor, in Cl
 				return apperr.Conflict("rank_taken", "Another level already has that rank")
 			}
 		}
-		candidate := dbgen.ClassificationLevel{Key: in.Key, Rank: in.Rank, MaxAudience: in.MaxAudience}
+		candidate := dbgen.ClassificationLevel{Key: in.Key, Name: in.Name, Rank: in.Rank, MaxAudience: in.MaxAudience}
 		if err := checkOrdering(levels, candidate); err != nil {
 			return err
 		}

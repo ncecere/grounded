@@ -82,3 +82,8 @@
 .levelCell {
   min-width: 14rem;
 }
+
+/* Table cells that read better on one line (Classifications' Retention and Source types, VI-24). */
+.nowrap {
+  white-space: nowrap;
+}

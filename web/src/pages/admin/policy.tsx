@@ -1,15 +1,17 @@
 /*
  * Admin → Classifications (A8, DESIGN §4): each level with its settings
  * (widest audience, retention, allowed source types, direct /retrieve) and
- * its effect (models allowed, teams approved). Levels are edited on a form page (?form=).
+ * its effect (models allowed, teams approved). Levels are edited on a form page (?form=); an unused level can be
+ * deleted (AD-05; the server refuses one in use and says what uses it).
  */
 import { useFormParam } from "@/components/templates/form-page";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Lock, Pencil, Plus, Tags } from "lucide-react";
+import { Lock, Pencil, Plus, Tags, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "../../api/client";
+import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import { ListPage } from "@/components/templates/list-page";
-import { ErrorAlert } from "@/components/ui/alert/alert";
+import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { Checkbox } from "@/components/ui/checkbox/checkbox";
@@ -39,6 +41,22 @@ const sourceTypeLabels: Record<SourceType, string> = { upload: "Uploads", web: "
 /** "24 hours", "3 days". */
 export const hoursText = (h: number) => (h % 24 === 0 && h >= 48 ? `${h / 24} days` : `${h} ${h === 1 ? "hour" : "hours"}`);
 
+/** "24 h", "3 days": short enough for a table cell. */
+const hoursShort = (h: number) => (h % 24 === 0 && h >= 48 ? `${h / 24} days` : `${h} h`);
+
+function useDeleteLevel(onDone: () => void) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (l: Classification) =>
+      unwrap(await api.DELETE("/v1/admin/classifications/{key}", { params: { path: { key: l.key }, header: ifMatch(l.revision) } })),
+    onSuccess: (_, l) => {
+      onDone();
+      toast.success(`${l.name} was deleted`);
+      void qc.invalidateQueries({ queryKey: ["classifications"] });
+    },
+  });
+}
+
 /** Per level: enabled models allowed to process it, and active teams approved up to it. */
 export function levelCounts(levels: Classification[], models: { maxClassification: string; enabled: boolean }[], teams: { maxClassification: string }[]) {
   const rank = new Map(levels.map((l) => [l.key, l.rank]));
@@ -61,6 +79,8 @@ export function ClassificationsPage() {
   const list = levels.data ?? [];
   const editing: Classification | "new" | null = form.id === "new" ? "new" : (list.find((l) => l.key === form.id) ?? null);
   const setEditing = (l: Classification | "new") => form.open(l === "new" ? "new" : l.key);
+  const [deleting, setDeleting] = useState<Classification | null>(null);
+  const del = useDeleteLevel(() => setDeleting(null));
   const counts = levelCounts(
     list,
     models.data ?? [],
@@ -91,11 +111,21 @@ export function ClassificationsPage() {
       id: "retention",
       header: "Retention",
       accessor: (l) => l.conversationRetentionDays ?? 0,
+      // Short and unwrapped (VI-24): "Until deleted" over "Anonymous 24 h", not four lines.
       cell: (l) => (
-        <CellText primary={l.conversationRetentionDays ? `${l.conversationRetentionDays} days` : "Until deleted"} secondary={`Anonymous: ${hoursText(l.anonymousRetentionHours)}`} />
+        <CellText
+          className={m.nowrap}
+          primary={l.conversationRetentionDays ? `${l.conversationRetentionDays} days` : "Until deleted"}
+          secondary={`Anonymous ${hoursShort(l.anonymousRetentionHours)}`}
+        />
       ),
     },
-    { id: "sources", header: "Source types", accessor: (l) => l.allowedSourceTypes.join(", "), cell: (l) => l.allowedSourceTypes.map((t) => sourceTypeLabels[t]).join(", ") },
+    {
+      id: "sources",
+      header: "Source types",
+      accessor: (l) => l.allowedSourceTypes.join(", "),
+      cell: (l) => <span className={m.nowrap}>{l.allowedSourceTypes.map((t) => sourceTypeLabels[t]).join(", ")}</span>,
+    },
     { id: "retrieve", header: "API /retrieve", accessor: (l) => (l.directRetrieve ? "Allowed" : "Agents only"), muted: true },
     { id: "models", header: "Models allowed", accessor: (l) => counts.get(l.key)?.models ?? 0, numeric: true },
     { id: "teams", header: "Teams approved", accessor: (l) => counts.get(l.key)?.teams ?? 0, numeric: true },
@@ -120,11 +150,23 @@ export function ClassificationsPage() {
         loading={levels.isLoading}
         error={levels.error}
         onRetry={() => void levels.refetch()}
-        rowActions={(l) => [{ label: "Edit", icon: <Pencil aria-hidden />, hidden: !isAdmin, onSelect: () => setEditing(l) }]}
+        rowActions={(l) => [
+          { label: "Edit", icon: <Pencil aria-hidden />, hidden: !isAdmin, onSelect: () => setEditing(l) },
+          { label: "Delete…", icon: <Trash2 aria-hidden />, danger: true, hidden: !isAdmin, onSelect: () => setDeleting(l) },
+        ]}
         empty={{ icon: <Tags />, title: "No classification levels yet." }}
         tableProps={{ defaultSort: { columnId: "rank", direction: "ascending" } }}
       />
       {isAdmin && editing && <ClassificationForm level={editing === "new" ? null : editing} onClose={form.close} />}
+      <ConfirmMutationDialog
+        target={deleting}
+        onClose={() => setDeleting(null)}
+        mutation={del}
+        onConfirm={(l) => del.mutate(l)}
+        title={`Delete ${deleting?.name ?? "this level"}?`}
+        description="Only a level nothing uses can be deleted: no team approved for it, no model or MCP server allowed up to it, and no data source classified at it."
+        confirmLabel="Delete level"
+      />
     </>
   );
 }
@@ -186,11 +228,16 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
       <FormSection title="Level">
         {!level && (
           <>
+            {/* AD-05: what adding a level does, before it's added. */}
+            <Alert tone="info" title="A new level applies to every team at once" className={m.wide}>
+              It appears in team approvals, source classifications, model and MCP server ceilings and retention. Until an enabled chat model may process it,
+              the Overview's setup checklist lists it. You can delete it again while nothing uses it.
+            </Alert>
             <Field label="Key" description="Lowercase letters, digits and underscores. Fixed once created.">
               <Input required pattern="[a-z][a-z0-9_]{1,31}" value={form.key} onChange={(e) => set("key", e.target.value)} />
             </Field>
             <Field label="Rank" description="Higher is more sensitive. Fixed once created.">
-              <Input type="number" min={0} max={1000} required value={form.rank} onChange={(e) => set("rank", Number(e.target.value))} />
+              <NumberInput maximumFractionDigits={0} min={0} max={1000} value={String(form.rank)} onValueChange={(v) => set("rank", Number(v))} />
             </Field>
           </>
         )}

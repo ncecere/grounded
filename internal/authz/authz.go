@@ -222,6 +222,15 @@ type Level struct {
 	Key         string
 	Rank        int32
 	MaxAudience string
+	// Name is shown in the error (the key when empty; AD-20: names, not raw keys).
+	Name string
+}
+
+func (l Level) label() string {
+	if l.Name != "" {
+		return l.Name
+	}
+	return l.Key
 }
 
 // CheckLevelOrdering verifies that a more sensitive level never allows a more
@@ -231,7 +240,7 @@ func CheckLevelOrdering(levels []Level) error {
 		prev, cur := levels[i-1], levels[i]
 		if !AudienceAllowed(cur.MaxAudience, prev.MaxAudience) {
 			return apperr.Invalid("classification_order",
-				"A more sensitive level ("+cur.Key+") cannot allow a wider audience than a less sensitive one ("+prev.Key+")")
+				"A more sensitive level ("+cur.label()+") can't allow a wider audience than a less sensitive one ("+prev.label()+")")
 		}
 	}
 	return nil

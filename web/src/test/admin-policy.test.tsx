@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { hoursText, levelCounts } from "../pages/admin/policy";
-import { mockApi, renderApp, shellRoutes } from "./harness";
+import { Reply, mockApi, renderApp, shellRoutes } from "./harness";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -65,6 +65,39 @@ describe("admin classifications", () => {
       directRetrieve: false,
       anonymousRetentionHours: 24,
     });
+  });
+
+  it("deletes an unused level, and says what uses one that can't be deleted (AD-05)", async () => {
+    const calls = mockApi({
+      ...shellRoutes("platform_admin"),
+      "GET /v1/classifications": () => levels,
+      "GET /v1/admin/models": () => [],
+      "GET /v1/admin/teams": () => ({ items: [], nextCursor: null }),
+      "DELETE /v1/admin/classifications/sensitive": () =>
+        Reply.error(409, "classification_in_use", "This level is in use by 1 team, 3 data sources. Move them to another level first."),
+      "DELETE /v1/admin/classifications/restricted": () => ({ ok: true }),
+    });
+    renderApp("/admin/classifications");
+    const table = await screen.findByRole("table", { name: "Classifications" }, { timeout: 4000 });
+    await userEvent.click(await within(table).findByRole("button", { name: "Actions for Sensitive" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Delete…" }));
+    let dialog = await screen.findByRole("alertdialog", { name: "Delete Sensitive?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete level" }));
+    expect(await within(dialog).findByText(/in use by 1 team, 3 data sources/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await userEvent.click(within(table).getByRole("button", { name: "Actions for Restricted" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Delete…" }));
+    dialog = await screen.findByRole("alertdialog", { name: "Delete Restricted?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete level" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "DELETE" && c.url.endsWith("/restricted"))?.headers.get("If-Match")).toBe('"1"'));
+  });
+
+  it("says what adding a level does before it's added (AD-05)", async () => {
+    mockApi({ ...shellRoutes("platform_admin"), "GET /v1/classifications": () => levels, "GET /v1/admin/models": () => [], "GET /v1/admin/teams": () => ({ items: [] }) });
+    const { container } = renderApp("/admin/classifications?form=new");
+    expect(await screen.findByText("A new level applies to every team at once", undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByText(/You can delete it again while nothing uses it/)).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it("counts models and teams per level", () => {
