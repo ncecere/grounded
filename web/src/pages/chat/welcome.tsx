@@ -3,6 +3,7 @@ import { ConversationEmptyState } from "@/components/ui/conversation/conversatio
 import { MessageAvatar } from "@/components/ui/message/message";
 import { Suggestion, Suggestions } from "@/components/ui/suggestion/suggestion";
 import c from "./chat.module.css";
+import pm from "./panel.module.css";
 
 export type AgentLook = {
   name: string;
@@ -21,12 +22,14 @@ export function AgentAvatar({ agent, size = "sm" }: { agent: Pick<AgentLook, "na
   return <MessageAvatar name={agent.name} color={agentColor(agent.accentColor)} size={size} shape="square" />;
 }
 
-export function ChatWelcome({ agent, onStarter, disabled }: { agent: AgentLook; onStarter?: (q: string) => void; disabled?: boolean }) {
+type WelcomeProps = { agent: AgentLook; onStarter?: (q: string) => void; disabled?: boolean; compact?: boolean };
+
+export function ChatWelcome({ agent, onStarter, disabled, compact }: WelcomeProps) {
   const starters = (agent.starterQuestions ?? []).map((q) => q.trim()).filter(Boolean);
   return (
     <ConversationEmptyState
-      className={c.welcome}
-      media={<AgentAvatar agent={agent} size="xl" />}
+      className={compact ? `${c.welcome} ${pm.compactWelcome}` : c.welcome}
+      media={<AgentAvatar agent={agent} size={compact ? "lg" : "xl"} />}
       title={<span className={c.welcomeName}>{agent.name}</span>}
       description={<span className={c.welcomeText}>{agent.welcomeMessage || agent.description || `Ask ${agent.name} a question.`}</span>}
     >

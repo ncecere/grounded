@@ -24,6 +24,7 @@ import type { useChat } from "./useChat";
 import { type AgentLook, ChatWelcome } from "./welcome";
 import a from "./answer.module.css";
 import c from "./chat.module.css";
+import pm from "./panel.module.css";
 import { RevealBufferedAnswer } from "./reveal-answer";
 import { ShowSuggestions } from "./show-suggestions";
 
@@ -56,6 +57,8 @@ type ChatPanelProps = {
   showThinking?: boolean;
   /** How the source viewer reads cited passages (docs/v0.4.0.md §5); without it, sources open under the answer only. */
   viewer?: ViewerAccess;
+  /** The widget's small panel: a smaller welcome and less padding, so the starters show (US-16). */
+  compact?: boolean;
 };
 
 /** Sending scrolls to your new message (and follows the answer), even after you scrolled up to read. */
@@ -124,17 +127,17 @@ function ChatColumn(props: ColumnProps) {
   const { chat, agent, text, onTextChange, feedback, disabledReason, errorExtra, loading, inputRef: ref, label = "Conversation", fullPage, send, ask, over } = props;
   const maxLength = props.maxLength ?? defaultMaxLength;
   return (
-    <div className={fullPage ? c.pagePanel : c.panel}>
+    <div className={cx(fullPage ? c.pagePanel : c.panel, props.compact && pm.compactPanel)}>
       <Conversation
         aria-label={label}
         className={fullPage ? c.pageConversation : c.conversation}
-        viewportClassName={fullPage ? c.pageViewport : undefined}
+        viewportClassName={fullPage ? cx(c.pageViewport, pm.scrollShadows) : undefined}
         // The welcome starts at its top (the avatar in view, Q14); answers are followed.
         stickToBottom={chat.items.length > 0}
       >
         <ConversationContent className={c.content}>
           {chat.items.length === 0 ? (
-            (loading ?? <ChatWelcome agent={agent} disabled={Boolean(disabledReason) || chat.streaming} onStarter={(q) => void send(q)} />)
+            (loading ?? <ChatWelcome agent={agent} compact={props.compact} disabled={Boolean(disabledReason) || chat.streaming} onStarter={(q) => void send(q)} />)
           ) : (
             <ChatMessages
               items={chat.items}
@@ -153,7 +156,7 @@ function ChatColumn(props: ColumnProps) {
         <ScrollOnSend questions={chat.items.filter((i) => i.role === "user").length} />
         <RevealBufferedAnswer items={chat.items} />
         <ShowSuggestions items={chat.items} />
-        {chat.items.length > 0 && <ConversationScrollButton />}
+        {chat.items.length > 0 && <ConversationScrollButton className={props.compact ? pm.compactScroll : undefined} />}
       </Conversation>
       {disabledReason && (
         <Alert tone="warning" title="Chat is unavailable" className={c.errorBox}>

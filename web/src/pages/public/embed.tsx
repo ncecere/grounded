@@ -33,29 +33,44 @@ export type EmbedSearch = { key?: string; preview?: "1"; team?: string };
  * Esc closes the widget's panel, unless it closes something open inside it first (a citation's card, the source
  * viewer's sheet); the loader's "focus" puts the cursor in the composer.
  */
-function useWidgetBridge(input: React.RefObject<HTMLTextAreaElement | null>) {
+function useWidgetBridge(input: React.RefObject<HTMLTextAreaElement | null>, autoFocus: boolean) {
   useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | undefined;
+    /** Focus the composer once it's there: the loader's first "focus" comes before the frame has loaded (US-16). */
+    const focusWhenReady = () => {
+      clearInterval(timer);
+      let tries = 0;
+      const attempt = () => {
+        if (input.current) input.current.focus();
+        if (input.current || ++tries > 50) clearInterval(timer);
+      };
+      timer = setInterval(attempt, 100);
+      attempt();
+    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || window.parent === window || e.defaultPrevented || document.querySelector(openLayer)) return;
       window.parent.postMessage({ type: "grounded-widget:close" }, "*");
     };
     const onMessage = (e: MessageEvent) => {
-      if (e.source === window.parent && (e.data as { type?: string } | null)?.type === "grounded-widget:focus") input.current?.focus();
+      if (e.source === window.parent && (e.data as { type?: string } | null)?.type === "grounded-widget:focus") focusWhenReady();
     };
     document.addEventListener("keydown", onKey);
     window.addEventListener("message", onMessage);
+    // The loader creates the frame when the panel first opens: the person is about to type. (Not the editor's preview.)
+    if (autoFocus && window.parent !== window) focusWhenReady();
     return () => {
+      clearInterval(timer);
       document.removeEventListener("keydown", onKey);
       window.removeEventListener("message", onMessage);
     };
-  }, [input]);
+  }, [input, autoFocus]);
 }
 
 export function EmbedPage() {
   const { agentId } = useParams({ from: "/embed/$agentId" });
   const search = useSearch({ from: "/embed/$agentId" }) as EmbedSearch;
   const input = useRef<HTMLTextAreaElement | null>(null);
-  useWidgetBridge(input);
+  useWidgetBridge(input, search.preview !== "1");
   const [error] = useState(() => document.querySelector('meta[name="grounded-embed-error"]')?.getAttribute("content") ?? "");
   let body;
   if (search.preview === "1" && search.team) body = <EmbedPreview team={search.team} agentId={agentId} input={input} />;

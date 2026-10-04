@@ -1,0 +1,45 @@
+/* The chat panel's extras: scroll shadows, and the widget's compact panel (v0.4.2 US-16). */
+
+/*
+ * Scroll shadows: a soft edge where there's more above or below (the widget's starters, a long answer). The covers
+ * scroll with the content and hide the shadows at the ends.
+ */
+.scrollShadows {
+  background:
+    linear-gradient(var(--color-bg) 30%, transparent) center top,
+    linear-gradient(transparent, var(--color-bg) 70%) center bottom,
+    radial-gradient(farthest-side at 50% 0, color-mix(in srgb, var(--color-text) 14%, transparent), transparent) center top,
+    radial-gradient(farthest-side at 50% 100%, color-mix(in srgb, var(--color-text) 14%, transparent), transparent) center bottom;
+  background-repeat: no-repeat;
+  background-size:
+    100% 2.5rem,
+    100% 2.5rem,
+    100% 0.75rem,
+    100% 0.75rem;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* The widget's panel (about 380 by 600): less padding (doubled: wins over the page panel's own gutter). */
+.compactPanel.compactPanel {
+  --reading-gutter: var(--space-3);
+  --chat-content-pad: var(--space-3);
+  --chat-composer-gap: var(--space-2);
+}
+
+.compactWelcome {
+  --welcome-gap: var(--space-2);
+  --welcome-name-size: var(--font-size-lg);
+  --welcome-starters-gap: var(--space-1);
+}
+
+/* The scroll button at the panel's end, not over the middle of the answer. */
+.compactScroll.compactScroll {
+  inset-inline: auto var(--space-3);
+  translate: none;
+}
+
+/* A menu taller than the widget's panel scrolls instead of being cut off (the feedback reasons). */
+.fitMenu {
+  max-height: var(--available-height, 100dvh);
+  overflow-y: auto;
+}

@@ -19,6 +19,7 @@ import { useFeedbackSender } from "./feedback-sender";
 import { type AssistantItem, type FeedbackRating, type FeedbackReason, type SearchStep, chatErrorText, feedbackReasons } from "./stream";
 import a from "./answer.module.css";
 import c from "./chat.module.css";
+import pm from "./panel.module.css";
 
 /**
  * A step's title. A follow-up searched together with the earlier question (the server joins them when it can't
@@ -235,6 +236,7 @@ export function Feedback({ item, onChange, send: sendProp }: FeedbackProps) {
       <VisuallyHidden role="status">{said}</VisuallyHidden>
       <Menu
         side="top"
+        className={pm.fitMenu}
         trigger={
           // A menu trigger, so a plain IconButton (MessageAction adds a tooltip trigger of its own).
           <IconButton
