@@ -69,3 +69,10 @@ WHERE team_id = $1 AND status IN ('queued', 'running') AND waiting_reason <> 'co
 
 -- name: CountTeamInflight :one
 SELECT count(*) FROM documents WHERE team_id = $1 AND status IN ('queued', 'processing');
+
+-- Active teams with their own limits (Admin → Limits names those a ceiling caps, AD-14).
+-- name: ListTeamOverrides :many
+SELECT t.slug, t.name, tl.overrides
+FROM team_limits tl JOIN teams t ON t.id = tl.team_id
+WHERE t.status = 'active' AND tl.overrides <> '{}'::jsonb
+ORDER BY t.name;

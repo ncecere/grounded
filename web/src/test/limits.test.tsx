@@ -8,7 +8,7 @@ import { axe } from "vitest-axe";
 import { ApiError, limitError, type Schemas } from "../api/client";
 import { ApiErrorAlert } from "../components/errors";
 import { fromInput, formatLimit, toInput } from "../lib/limits";
-import { LimitsPage } from "../pages/admin/limits/platform";
+import { LimitsPage, savedText } from "../pages/admin/limits/platform";
 import { AdminTeamLimitsCard } from "../pages/admin/limits/team-card";
 import { TeamContext, teamCtx, type Team } from "../pages/team/common";
 import { DomainRequestsPage } from "../pages/team/domains";
@@ -54,6 +54,7 @@ const platform = (): Schemas["PlatformLimits"] => ({
     ...d,
     default: d.key === "storage_bytes" ? 10 * GiB : d.key === "data_sources" ? 100 : 50,
     ceiling: d.key === "data_sources" ? 200 : null,
+    capped: [],
     builtInDefault: d.key === "storage_bytes" ? 10 * GiB : 100,
     custom: false,
   })),
@@ -253,10 +254,20 @@ describe("admin limits page", () => {
     expect(screen.queryByRole("button", { name: "Save limits" })).toBeNull();
   });
 
+  it("names the teams a ceiling caps, on the row and after saving (AD-14)", async () => {
+    const p = platform();
+    const ds = p.items.find((i) => i.key === "data_sources")!;
+    ds.capped = [{ teamSlug: "beta", teamName: "Beta team", override: 999999 }];
+    mockApi({ "GET /v1/admin/limits": () => p });
+    renderWith(<LimitsPage />, { platformRole: "platform_auditor" });
+    expect(await screen.findByText("Caps Beta team")).toBeInTheDocument();
+    expect(savedText(1, p.items)).toBe("1 limit changed for every team without its own value. Capped by the ceiling: Data sources: Beta team.");
+  });
+
   it("shows a limit's built-in maximum instead of No ceiling", async () => {
     const mcp = { key: "mcp_calls_per_answer", group: "queries", unit: "count", period: "none", label: "MCP tool calls per answer", description: "Calls." } as const;
     const p = platform();
-    p.items.push({ ...mcp, default: 5, ceiling: null, builtInDefault: 5, custom: false, max: 25 });
+    p.items.push({ ...mcp, default: 5, ceiling: null, builtInDefault: 5, custom: false, max: 25, capped: [] });
     mockApi({ "GET /v1/admin/limits": () => p });
     renderWith(<LimitsPage />, { platformRole: "platform_auditor" });
     await userEvent.click(await screen.findByRole("tab", { name: /Queries & chat/ }));

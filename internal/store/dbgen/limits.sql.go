@@ -118,6 +118,40 @@ func (q *Queries) InsertTeamLimits(ctx context.Context, arg InsertTeamLimitsPara
 	return result.RowsAffected(), nil
 }
 
+const listTeamOverrides = `-- name: ListTeamOverrides :many
+SELECT t.slug, t.name, tl.overrides
+FROM team_limits tl JOIN teams t ON t.id = tl.team_id
+WHERE t.status = 'active' AND tl.overrides <> '{}'::jsonb
+ORDER BY t.name
+`
+
+type ListTeamOverridesRow struct {
+	Slug      string
+	Name      string
+	Overrides json.RawMessage
+}
+
+// Active teams with their own limits (Admin → Limits names those a ceiling caps, AD-14).
+func (q *Queries) ListTeamOverrides(ctx context.Context) ([]ListTeamOverridesRow, error) {
+	rows, err := q.db.Query(ctx, listTeamOverrides)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTeamOverridesRow{}
+	for rows.Next() {
+		var i ListTeamOverridesRow
+		if err := rows.Scan(&i.Slug, &i.Name, &i.Overrides); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockPlatformLimits = `-- name: LockPlatformLimits :one
 SELECT singleton, settings, revision, updated_by, updated_at FROM platform_limits WHERE singleton FOR UPDATE
 `

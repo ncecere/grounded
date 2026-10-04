@@ -8001,6 +8001,17 @@ export interface components {
              * @description The most Grounded allows for this limit, whatever the ceiling: an empty default or ceiling means it, and higher values are refused. Absent when there is none.
              */
             max?: number;
+            /** @description Active teams whose own value is above the ceiling, so the ceiling applies to them */
+            capped: components["schemas"]["CappedTeam"][];
+        };
+        CappedTeam: {
+            teamSlug: string;
+            teamName: string;
+            /**
+             * Format: int64
+             * @description The team's own value
+             */
+            override: number;
         };
         PlatformLimits: {
             revision: components["schemas"]["Revision"];

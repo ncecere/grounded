@@ -5548,6 +5548,14 @@ type Capabilities struct {
 	PlatformAuditor bool  `json:"platformAuditor"`
 }
 
+// CappedTeam defines model for CappedTeam.
+type CappedTeam struct {
+	// Override The team's own value
+	Override int64  `json:"override"`
+	TeamName string `json:"teamName"`
+	TeamSlug string `json:"teamSlug"`
+}
+
 // CaptchaInfo defines model for CaptchaInfo.
 type CaptchaInfo struct {
 	Provider CaptchaInfoProvider `json:"provider"`
@@ -9401,6 +9409,9 @@ type PlatformAnalyticsTotals struct {
 type PlatformLimit struct {
 	// BuiltInDefault The default before any platform admin changed it
 	BuiltInDefault *LimitValue `json:"builtInDefault"`
+
+	// Capped Active teams whose own value is above the ceiling, so the ceiling applies to them
+	Capped []CappedTeam `json:"capped"`
 
 	// Ceiling The most a team override (and the default) may be; null = no ceiling
 	Ceiling *LimitValue `json:"ceiling"`

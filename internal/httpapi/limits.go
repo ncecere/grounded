@@ -15,17 +15,30 @@ func period(d limits.Def) apitypes.LimitPeriod {
 	return apitypes.LimitPeriod(d.Period)
 }
 
-func toAPIPlatformLimits(svc *limits.Service, p limits.Platform) apitypes.PlatformLimits {
+func toAPIPlatformLimits(svc *limits.Service, p limits.Platform, capped map[limits.Key][]limits.CappedTeam) apitypes.PlatformLimits {
 	out := apitypes.PlatformLimits{Revision: p.Revision, UpdatedAt: p.UpdatedAt, Items: []apitypes.PlatformLimit{}}
 	for _, d := range limits.Defs() {
 		st := p.Settings[d.Key]
-		out.Items = append(out.Items, apitypes.PlatformLimit{
+		item := apitypes.PlatformLimit{
 			Key: apitypes.LimitKey(d.Key), Group: apitypes.LimitGroup(d.Group), Unit: apitypes.LimitUnit(d.Unit), Period: period(d),
 			Label: d.Label, Description: d.Description, Default: st.Default, Ceiling: st.Ceiling,
-			BuiltInDefault: svc.BuiltIn(d.Key), Custom: p.Custom[d.Key], Max: d.Max,
-		})
+			BuiltInDefault: svc.BuiltIn(d.Key), Custom: p.Custom[d.Key], Max: d.Max, Capped: []apitypes.CappedTeam{},
+		}
+		for _, c := range capped[d.Key] {
+			item.Capped = append(item.Capped, apitypes.CappedTeam{TeamSlug: c.Slug, TeamName: c.Name, Override: c.Override})
+		}
+		out.Items = append(out.Items, item)
 	}
 	return out
+}
+
+// writePlatformLimits writes the limits with the teams each ceiling caps (AD-14).
+func (a *api) writePlatformLimits(w http.ResponseWriter, r *http.Request, p limits.Platform) {
+	capped, err := a.Limits.Capped(r.Context(), p)
+	if failed(w, r, err) {
+		return
+	}
+	writeRevised(w, http.StatusOK, p.Revision, toAPIPlatformLimits(a.Limits, p, capped))
 }
 
 func toAPITeamOverrides(c limits.TeamConfig) apitypes.TeamLimitOverrides {
@@ -50,7 +63,7 @@ func (a *api) adminGetLimits(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
-	writeRevised(w, http.StatusOK, p.Revision, toAPIPlatformLimits(a.Limits, p))
+	a.writePlatformLimits(w, r, p)
 }
 
 func (a *api) adminUpdateLimits(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +79,7 @@ func (a *api) adminUpdateLimits(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
-	writeRevised(w, http.StatusOK, p.Revision, toAPIPlatformLimits(a.Limits, p))
+	a.writePlatformLimits(w, r, p)
 }
 
 func (a *api) adminGetTeamLimits(w http.ResponseWriter, r *http.Request) {
