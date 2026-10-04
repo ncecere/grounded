@@ -68,8 +68,9 @@ test("only platform staff open the admin portal", async ({ as, a11y }) => {
   const features = auditor.getByRole("region", { name: "Features" });
   const evaluations = features.getByRole("switch", { name: "Allow evaluations" });
   await expect(evaluations).toHaveAttribute("aria-disabled", "true");
+  // The row's link comes before its switch, so the switches line up (VI2-09).
   await features.getByRole("link", { name: /Evaluation limits/ }).focus();
-  await auditor.keyboard.press("Shift+Tab");
+  await auditor.keyboard.press("Tab");
   await expect(evaluations).toBeFocused();
   const checked = (await evaluations.getAttribute("aria-checked"))!;
   await auditor.keyboard.press("Space");

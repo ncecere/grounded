@@ -64,13 +64,17 @@ test("reranking: an admin sets it up on Admin → Models → Reranking, tests it
   });
 
   await test.step("choosing a model that was never tested asks first, then searches rerank", async () => {
-    await expect(adminPage.getByRole("region", { name: "Set up reranking" })).toHaveCount(0);
+    // The guide stays until a model is chosen, its last step now current (AD2-06).
+    const guide = adminPage.getByRole("region", { name: "Set up reranking" });
+    await expect(guide.getByText("2 of 3 done")).toBeVisible();
+    await expect(guide.getByRole("link", { name: "Choose the model" })).toBeVisible();
     await adminPage.getByLabel("Rerank model").selectOption({ label: "E2E reranker (fake-reranker) · Not tested" });
     await expect(adminPage.getByText(/E2E reranker hasn't been tested/)).toBeVisible();
     await a11y(adminPage, "reranking settings");
     await adminPage.getByRole("button", { name: "Save settings" }).click();
     await adminPage.getByRole("alertdialog", { name: "Rerank with E2E reranker?" }).getByRole("button", { name: "Save anyway" }).click();
     await expect(adminPage.getByRole("region", { name: "Status" }).getByText("On", { exact: true })).toBeVisible();
+    await expect(guide).toHaveCount(0);
   });
 
   await test.step("the page's test compares the usual order with the reranked one", async () => {
