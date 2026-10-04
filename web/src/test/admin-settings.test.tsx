@@ -85,7 +85,7 @@ describe("Admin → Settings", () => {
   });
 
   it("checks the fields and labels the budget with a valid currency only (AD-34)", () => {
-    expect(generalErrors({ currency: "US", timeZone: "", defaultBudget: "abc" })).toEqual({
+    expect(generalErrors({ currency: "US", timeZone: "", defaultBudget: "abc", mode: "off", warnPercent: 80 })).toEqual({
       currency: "Enter a three-letter ISO 4217 code, such as USD or EUR.",
       timeZone: "Choose a time zone.",
       defaultBudget: expect.stringMatching(/default budget/),

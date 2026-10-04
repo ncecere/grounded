@@ -18,11 +18,15 @@ import { costSettingsQuery, type CostMode, type CostSettings, modeDescriptions, 
 import { adminOnly } from "@/lib/terms";
 import { useCurrentUser } from "@/session";
 
-export type SettingsForm = { mode: CostMode; warnPercent: string };
+/** The fields shown here, and the record's other three (Admin → Settings edits them; the save sends them as they are). */
+export type SettingsForm = { mode: CostMode; warnPercent: string; currency: string; timeZone: string; defaultBudget: string | null };
 
 export const settingsForm = (st: CostSettings): SettingsForm => ({
   mode: st.mode,
   warnPercent: String(st.warnPercent),
+  currency: st.currency,
+  timeZone: st.timeZone,
+  defaultBudget: st.defaultBudget ?? null,
 });
 
 /** Field errors of the settings form (empty when valid). */
@@ -33,13 +37,20 @@ export function settingsErrors(f: SettingsForm): Partial<Record<keyof SettingsFo
   return out;
 }
 
-const costLabels = { mode: "Cost tracking", warnPercent: "Warning threshold" };
+const costLabels = { mode: "Cost tracking", warnPercent: "Warning threshold (%)", currency: "Currency", timeZone: "Time zone", defaultBudget: "Default monthly budget" };
+const settingsPage = "Admin → Settings";
+const revisionOptions = {
+  labels: costLabels,
+  choices: { mode: modeLabels },
+  elsewhere: { currency: settingsPage, timeZone: settingsPage, defaultBudget: settingsPage },
+};
 
 export function CostSettingsTab({ settings }: { settings: CostSettings }) {
   const isAdmin = useCurrentUser().capabilities.platformAdmin;
   const qc = useQueryClient();
-  // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
-  const [form, setForm, revision] = useRevisionForm(settingsForm(settings), settings.revision, { labels: costLabels });
+  // Edits survive a change made elsewhere; SettingsPage lists it and asks whose to keep (AD-01). Admin → Settings writes
+  // the same record: its fields are in the form too, so a change there is listed as well (AD2-08).
+  const [form, setForm, revision] = useRevisionForm(settingsForm(settings), settings.revision, revisionOptions);
   const [submitted, setSubmitted] = useState(false);
   const saved = settingsForm(settings);
   const dirty = (Object.keys(form) as (keyof SettingsForm)[]).some((k) => form[k] !== saved[k]);
@@ -55,9 +66,9 @@ export function CostSettingsTab({ settings }: { settings: CostSettings }) {
           body: {
             mode: form.mode,
             warnPercent: Number(form.warnPercent),
-            currency: settings.currency,
-            timeZone: settings.timeZone,
-            defaultBudget: settings.defaultBudget,
+            currency: form.currency,
+            timeZone: form.timeZone,
+            defaultBudget: form.defaultBudget,
           },
         }),
       ),

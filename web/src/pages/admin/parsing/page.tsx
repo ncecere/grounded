@@ -71,7 +71,10 @@ function useSave(saved: ParsingSettings, onSaved: (st: ParsingSettings) => void)
 
 function ParsingEditor({ saved, visionModels, isAdmin }: { saved: ParsingSettings; visionModels: Model[]; isAdmin: boolean }) {
   // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
-  const [form, setForm, revision] = useRevisionForm(parsingForm(saved), saved.revision);
+  const [form, setForm, revision] = useRevisionForm(parsingForm(saved), saved.revision, {
+    labels: { ocrEnabled: "OCR", backend: "Backend", visionModelId: "Vision model", languages: "Languages" },
+    choices: { backend: backendLabels, visionModelId: { "": "None", ...Object.fromEntries(visionModels.map((m) => [m.id, m.displayName])) } },
+  });
   const [submitted, setSubmitted] = useState(false);
   const save = useSave(saved, (st) => setForm(parsingForm(st)));
   const problems = parsingProblems(form, saved);

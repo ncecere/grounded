@@ -41,6 +41,13 @@ const effortOptions = [
   { value: "high", label: "High" },
 ] as const;
 
+const policyLabels = {
+  modelId: "Provider", outputMode: "Answers", failClosed: "Fail closed", notice: "Notice", severityBlock: "Block by severity",
+  supportMessage: "Support message", uncalibratedBlock: "Block floor (%)", reasoningEffort: "Reasoning effort", rules: "Category rules",
+};
+const optionLabels = (list: readonly { value: string; label: string }[]) => Object.fromEntries(list.map((o) => [o.value, o.label]));
+const policyChoices = { outputMode: optionLabels(modeOptions), reasoningEffort: optionLabels(effortOptions), severityBlock: optionLabels(severityOptions) };
+
 /**
  * Why the chosen effort does nothing (AD-13): no enabled chat model accepts reasoning effort (Low, Medium, High) or
  * knows how to turn thinking off (Off).
@@ -78,7 +85,11 @@ function useSavePolicy(policy: Policy, onSaved: (p: Policy) => void) {
 
 export function PolicyEditor({ policy, providers, isAdmin }: { policy: Policy; providers: Model[]; isAdmin: boolean }) {
   // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
-  const [form, setForm, revision] = useRevisionForm(policyForm(policy), policy.revision);
+  const [form, setForm, revision] = useRevisionForm(policyForm(policy), policy.revision, {
+    labels: policyLabels,
+    // The list of changes reads like the form: a select's label, not its stored value (AD2-17).
+    choices: { ...policyChoices, modelId: { "": "None", ...Object.fromEntries(providers.map((m) => [m.id, m.displayName])) } },
+  });
   const [submitted, setSubmitted] = useState(false);
   const save = useSavePolicy(policy, (p) => setForm(policyForm(p)));
   const problems = formProblems(form);

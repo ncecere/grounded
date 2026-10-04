@@ -23,7 +23,7 @@ import { PageHeader } from "@/components/ui/page-header/page-header";
 import { useRevisionForm } from "@/components/templates/revision-form";
 import { SettingsPage, SettingsSection } from "@/components/templates/settings-page";
 import { toast } from "@/components/ui/toast/toast";
-import { settingsChanges, settingsForm, settingsInput, settingsProblems, type SettingsForm, type SystemOneSettings } from "@/lib/systemone";
+import { modeLabels, settingsChanges, settingsForm, settingsInput, settingsProblems, type SettingsForm, type SystemOneSettings } from "@/lib/systemone";
 import s from "../../shared.module.css";
 import { useIsPlatformAdmin } from "../hooks";
 import { useModels, type Model } from "../models/common";
@@ -86,7 +86,10 @@ function useSave(saved: SystemOneSettings, onSaved: (st: SystemOneSettings) => v
 
 function SettingsEditor({ saved, models, isAdmin }: { saved: SystemOneSettings; models: Model[]; isAdmin: boolean }) {
   // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
-  const [form, setForm, revision] = useRevisionForm(settingsForm(saved), saved.revision);
+  const [form, setForm, revision] = useRevisionForm(settingsForm(saved), saved.revision, {
+    labels: { modelId: "Model", enabled: "Passage judging", candidates: "Candidates", mode: "Judging mode", timeoutMs: "Time limit per call (ms)", timeLimit: "Time limit (s)" },
+    choices: { modelId: { "": "None", ...Object.fromEntries(models.map((m) => [m.id, m.displayName])) }, mode: modeLabels },
+  });
   const [submitted, setSubmitted] = useState(false);
   const save = useSave(saved, (st) => setForm(settingsForm(st)));
   const analytics = useQuery(recentAnalyticsQuery());

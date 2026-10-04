@@ -39,7 +39,7 @@ export function RerankingPage() {
             {rerankModels.length === 0 && (
               <RerankGuide connections={conns.data?.length ?? 0} rerankModels={0} chosen={Boolean(st.modelId)} isAdmin={isAdmin} />
             )}
-            <RerankSettingsForm key={st.revision} saved={st} models={rerankModels} health={health.get} isAdmin={isAdmin} />
+            <RerankSettingsForm saved={st} models={rerankModels} health={health.get} isAdmin={isAdmin} />
             <RerankTestCard on={!offReason(st, model, connection)} />
           </>
         )}

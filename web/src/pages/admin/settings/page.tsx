@@ -71,7 +71,8 @@ export function AdminSettingsPage() {
       {costs.isLoading ? (
         <Loading label="Loading settings…" />
       ) : costs.data ? (
-        <GeneralSettings key={costs.data.revision} settings={costs.data} isAdmin={isAdmin} />
+        // Not keyed by the revision: a remount would throw the edits away on a save conflict (AD2-01).
+        <GeneralSettings settings={costs.data} isAdmin={isAdmin} />
       ) : (
         <ErrorAlert error={costs.error} title="Couldn't load the settings" onRetry={() => void costs.refetch()} />
       )}

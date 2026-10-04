@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ApiError, api, ifMatch, unwrap, type Schemas } from "@/api/client";
+import { isRevisionConflict, useRevisionForm } from "@/components/templates/revision-form";
 import { SettingsPage, SettingsSection } from "@/components/templates/settings-page";
 import { Alert } from "@/components/ui/alert/alert";
 import { AlertDialog } from "@/components/ui/dialog/dialog";
@@ -89,18 +90,26 @@ function useSave(saved: RerankSettings) {
       void qc.invalidateQueries({ queryKey: ["rerank", "status"] });
       toast.success("Reranking settings saved");
     },
+    // A conflict loads the latest version, which the form compares with its edits.
+    onError: () => void qc.invalidateQueries({ queryKey: rerankSettingsKey }),
   });
 }
 
 type Props = { saved: RerankSettings; models: Model[]; health: (id: string) => HealthCheck | undefined; isAdmin: boolean };
 
-/** The settings form; keyed by the saved revision, so a save (or someone else's) starts it again from what's saved. */
+const labels = { modelId: "Rerank model", candidates: "Candidates", timeLimit: "Time limit (ms)" };
+
+/**
+ * The settings form. Edits survive a change made elsewhere and a 412: SettingsPage lists what changed and asks whose
+ * to keep (AD2-02). Don't key it by the revision (a remount throws the edits away).
+ */
 export function RerankSettingsForm({ saved, models, health, isAdmin }: Props) {
-  const [form, setForm] = useState(() => formOf(saved));
+  const choices = { modelId: { "": "None", ...Object.fromEntries(models.map((m) => [m.id, m.displayName])) } };
+  const [form, setForm, revision] = useRevisionForm(formOf(saved), saved.revision, { labels, choices });
   const [submitted, setSubmitted] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const save = useSave(saved);
-  const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
+  const set = (patch: Partial<Form>) => setForm((f: Form) => ({ ...f, ...patch }));
   const own = rerankProblems(form.candidates, form.timeLimit);
   const fromServer = serverProblems(save.error);
   const problems = { ...fromServer, ...(submitted ? own : {}) };
@@ -119,6 +128,7 @@ export function RerankSettingsForm({ saved, models, health, isAdmin }: Props) {
   const invalid = submitted && Object.keys(own).length > 0;
   return (
     <SettingsPage
+      revision={revision}
       dirty={changes > 0}
       canEdit={isAdmin}
       readOnlyNote={rerankLockedReason}
@@ -171,7 +181,8 @@ export function RerankSettingsForm({ saved, models, health, isAdmin }: Props) {
         confirmLabel="Save anyway"
         busy={save.isPending}
         error={save.error}
-        onConfirm={() => save.mutate(form, { onSuccess: () => setConfirming(false) })}
+        // A save conflict closes the dialog: the page lists what changed and asks whose to keep.
+        onConfirm={() => save.mutate(form, { onSuccess: () => setConfirming(false), onError: (e) => isRevisionConflict(e) && setConfirming(false) })}
       />
     </SettingsPage>
   );

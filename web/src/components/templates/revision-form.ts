@@ -6,14 +6,18 @@
  * SettingsPage shows what changed with two choices: "Overwrite with mine" or
  * "Discard mine and load theirs".
  *
- *   const [form, setForm, revision] = useRevisionForm(formOf(team), team.revision, { labels });
+ *   const [form, setForm, revision] = useRevisionForm(formOf(team), team.revision, { labels, choices });
+ *
+ * `choices` gives selects' display labels for the list of changes; a record
+ * shared by two pages (the cost settings) carries every field in both forms
+ * and names the other page's in `elsewhere`, so a change there is listed too.
  *   <SettingsPage revision={revision} dirty=… onSave=… onDiscard=…>
  *
  * Don't key the editor by the revision (that remounts it and loses the
  * edits). A 412 refetches every query (main.tsx), so the latest version
  * arrives here.
  */
-import { type SetStateAction, useCallback, useMemo, useState } from "react";
+import { type SetStateAction, useCallback, useState } from "react";
 import { ApiError } from "../../api/client";
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
@@ -33,11 +37,28 @@ export function isRevisionConflict(err: unknown): boolean {
   return err instanceof ApiError && err.status === 412;
 }
 
-/** One field another person changed: their value, the person's own, and whether the person changed it too (differently). */
-export type ServerChange = { key: string; label: string; theirs: string; mine: string; clash: boolean };
+/**
+ * One field another person changed: their value, the person's own, and whether the person changed it too
+ * (differently). `where` names the page that edits a field this form carries but doesn't show (AD2-08).
+ */
+export type ServerChange = { key: string; label: string; theirs: string; mine: string; clash: boolean; where?: string };
 
 export type FieldLabels<T> = Partial<Record<keyof T & string, string>>;
 export type FieldFormat<T> = (key: keyof T & string, value: unknown) => string;
+/** A select's or radio group's display labels by stored value ("high" → "High"), so the list of changes reads like the form (AD2-17). */
+export type FieldChoices<T> = Partial<Record<keyof T & string, Record<string, string>>>;
+/** Fields of the record that this form carries but another page edits, with that page ("Costs → Settings"). */
+export type FieldsElsewhere<T> = Partial<Record<keyof T & string, string>>;
+
+export type RevisionOptions<T> = { labels?: FieldLabels<T>; format?: FieldFormat<T>; choices?: FieldChoices<T>; elsewhere?: FieldsElsewhere<T> };
+
+/** The format that shows a choice's label, else the value as short text. */
+export const choiceFormat =
+  <T>(choices: FieldChoices<T> = {}): FieldFormat<T> =>
+  (key, value) => {
+    const label = choices[key]?.[String(value ?? "")];
+    return label ?? formatValue(value);
+  };
 
 /** "maxClassification" → "Max classification". */
 export const humanize = (key: string) => {
@@ -56,12 +77,21 @@ export function formatValue(value: unknown): string {
 }
 
 /** The fields of `base` that `theirs` changed, with the person's values beside them. */
-export function serverChanges<T extends object>(base: T, mine: T, theirs: T, labels: FieldLabels<T> = {}, format: FieldFormat<T> = (_k, v) => formatValue(v)) {
+export function serverChanges<T extends object>(
+  base: T,
+  mine: T,
+  theirs: T,
+  labels: FieldLabels<T> = {},
+  format: FieldFormat<T> = (_k, v) => formatValue(v),
+  elsewhere: FieldsElsewhere<T> = {},
+) {
   const keys = new Set([...Object.keys(base), ...Object.keys(theirs)]) as Set<keyof T & string>;
   const out: ServerChange[] = [];
   for (const key of keys) {
     if (same(base[key], theirs[key])) continue;
-    out.push({ key, label: labels[key] ?? humanize(key), theirs: format(key, theirs[key]), mine: format(key, mine[key]), clash: !same(mine[key], theirs[key]) });
+    const change: ServerChange = { key, label: labels[key] ?? humanize(key), theirs: format(key, theirs[key]), mine: format(key, mine[key]), clash: !same(mine[key], theirs[key]) };
+    if (elsewhere[key]) change.where = elsewhere[key];
+    out.push(change);
   }
   return out;
 }
@@ -141,7 +171,7 @@ export type RevisionControl = {
   discardMine: () => void;
 };
 
-export function useRevisionForm<T extends object>(saved: T, revision: number | undefined, opts: { labels?: FieldLabels<T>; format?: FieldFormat<T> } = {}) {
+export function useRevisionForm<T extends object>(saved: T, revision: number | undefined, opts: RevisionOptions<T> = {}) {
   const [stored, setState] = useState(() => initialRevisionState(saved, revision));
   // Reconciled while rendering (not in an effect), so the page never renders the new data with the old form.
   const savedKey = JSON.stringify(saved);
@@ -154,11 +184,9 @@ export function useRevisionForm<T extends object>(saved: T, revision: number | u
   }
 
   const setForm = useCallback((next: SetStateAction<T>) => setState((s) => ({ ...s, form: typeof next === "function" ? (next as (p: T) => T)(s.form) : next })), []);
-  const { labels, format } = opts;
-  const changes = useMemo(
-    () => (state.theirs ? serverChanges(state.base, state.form, state.theirs.values, labels, format) : null),
-    [state.theirs, state.base, state.form, labels, format],
-  );
+  const { labels, format, choices, elsewhere } = opts;
+  // Cheap, and the options may be built each render (a model list's names), so not memoised.
+  const changes = state.theirs ? serverChanges(state.base, state.form, state.theirs.values, labels, format ?? choiceFormat(choices), elsewhere) : null;
   const control: RevisionControl = {
     changes,
     waiting: state.waiting,

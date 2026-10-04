@@ -19,7 +19,8 @@ export function TeamSettingsTab({ team, isAdmin, onArchive, status }: Props) {
   const levels = useClassificationLevels();
   const saved = formOf(team);
   // Edits survive a change made elsewhere (another tab or admin): SettingsPage asks whose to keep (AD-01).
-  const [form, setForm, revision] = useRevisionForm(saved, team.revision, { labels });
+  const choices = { maxClassification: Object.fromEntries((levels.data ?? []).map((l) => [l.key, l.name])) };
+  const [form, setForm, revision] = useRevisionForm(saved, team.revision, { labels, choices });
   const dirty = (Object.keys(form) as (keyof Form)[]).some((k) => form[k] !== saved[k]);
   const nameError = form.name.trim() === "" ? "Enter a name." : undefined;
   const lowered = (levels.data?.find((l) => l.key === form.maxClassification)?.rank ?? 0) < (levels.data?.find((l) => l.key === saved.maxClassification)?.rank ?? 0);

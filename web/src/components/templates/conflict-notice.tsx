@@ -36,7 +36,7 @@ export function ConflictNotice({ changes }: { changes: ServerChange[] | null }) 
             {changes.map((c) => (
               <li key={c.key}>
                 <span className={styles.conflictField}>{c.label}:</span> now “{c.theirs}”
-                {c.clash ? <> (yours: “{c.mine}”)</> : " (you didn't change it, so the form shows theirs)"}
+                {c.where ? <> (changed on {c.where}; your save keeps it)</> : c.clash ? <> (yours: “{c.mine}”)</> : " (you didn't change it, so the form shows theirs)"}
               </li>
             ))}
           </ul>

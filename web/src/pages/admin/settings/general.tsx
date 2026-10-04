@@ -12,16 +12,19 @@ import { Combobox } from "@/components/ui/combobox/combobox";
 import { Field } from "@/components/ui/field/field";
 import { Input } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
-import { amountError, costSettingsQuery, type CostSettings } from "@/lib/costs";
+import { amountError, type CostMode, costSettingsQuery, type CostSettings, modeLabels } from "@/lib/costs";
 import { adminOnly } from "@/lib/terms";
 import c from "../costs/costs.module.css";
 
-export type GeneralForm = { currency: string; timeZone: string; defaultBudget: string };
+/** The fields shown here, and the cost settings record's other two (Costs → Settings edits them; the save sends them as they are). */
+export type GeneralForm = { currency: string; timeZone: string; defaultBudget: string; mode: CostMode; warnPercent: number };
 
 export const generalForm = (st: CostSettings): GeneralForm => ({
   currency: st.currency,
   timeZone: st.timeZone,
   defaultBudget: st.defaultBudget ? String(Number(st.defaultBudget)) : "",
+  mode: st.mode,
+  warnPercent: st.warnPercent,
 });
 
 const currencyCode = /^[A-Z]{3}$/;
@@ -49,12 +52,15 @@ function zones(current: string): string[] {
   return list.includes(current) ? list : [current, ...list];
 }
 
-const generalLabels = { currency: "Currency", timeZone: "Time zone", defaultBudget: "Default monthly budget" };
+const generalLabels = { currency: "Currency", timeZone: "Time zone", defaultBudget: "Default monthly budget", mode: "Cost tracking", warnPercent: "Warning threshold (%)" };
+const costsPage = "Costs → Settings";
+const revisionOptions = { labels: generalLabels, choices: { mode: modeLabels }, elsewhere: { mode: costsPage, warnPercent: costsPage } };
 
 export function GeneralSettings({ settings, isAdmin }: { settings: CostSettings; isAdmin: boolean }) {
   const qc = useQueryClient();
-  // Edits survive a change made elsewhere (Costs → Settings writes the same record); SettingsPage asks whose to keep (AD-01).
-  const [form, setForm, revision] = useRevisionForm(generalForm(settings), settings.revision, { labels: generalLabels });
+  // Edits survive a change made elsewhere; SettingsPage lists it and asks whose to keep (AD-01, AD2-01). Costs → Settings
+  // writes the same record: its fields are in the form too, so a change there is listed and the save sends the latest.
+  const [form, setForm, revision] = useRevisionForm(generalForm(settings), settings.revision, revisionOptions);
   const [submitted, setSubmitted] = useState(false);
   const saved = generalForm(settings);
   const dirty = (Object.keys(form) as (keyof GeneralForm)[]).some((k) => form[k] !== saved[k]);
@@ -68,8 +74,8 @@ export function GeneralSettings({ settings, isAdmin }: { settings: CostSettings;
         await api.PUT("/v1/admin/costs/settings", {
           params: { header: ifMatch(settings.revision) },
           body: {
-            mode: settings.mode,
-            warnPercent: settings.warnPercent,
+            mode: form.mode,
+            warnPercent: form.warnPercent,
             currency: form.currency.trim(),
             timeZone: form.timeZone,
             defaultBudget: form.defaultBudget.trim() || null,

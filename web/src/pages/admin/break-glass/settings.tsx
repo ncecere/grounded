@@ -28,6 +28,11 @@ const withValue = (list: number[], v: number) => [...new Set([...list, v])].sort
 
 const timeoutText = (m: number) => (m >= 1440 && m % 1440 === 0 ? `${m / 1440} day${m === 1440 ? "" : "s"}` : durationText(m));
 
+const breakGlassLabels = { approvalRequired: "Require a second admin's approval", maxDurationMinutes: "Longest session", approvalTimeoutMinutes: "Requests lapse after" };
+/** The list of changes in the selects' words ("8 hours", not "480"). */
+const breakGlassFormat = (key: keyof Form, v: unknown) =>
+  key === "approvalRequired" ? (v ? "On" : "Off") : key === "approvalTimeoutMinutes" ? timeoutText(Number(v)) : durationText(Number(v));
+
 const formOf = (st: Settings): Form => ({
   approvalRequired: st.approvalRequired,
   maxDurationMinutes: st.maxDurationMinutes,
@@ -37,7 +42,7 @@ const formOf = (st: Settings): Form => ({
 export function BreakGlassSettingsForm({ saved, isAdmin }: { saved: Settings; isAdmin: boolean }) {
   const qc = useQueryClient();
   // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
-  const [form, setForm, revision] = useRevisionForm(formOf(saved), saved.revision);
+  const [form, setForm, revision] = useRevisionForm(formOf(saved), saved.revision, { labels: breakGlassLabels, format: breakGlassFormat });
   const initial = formOf(saved);
   const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
