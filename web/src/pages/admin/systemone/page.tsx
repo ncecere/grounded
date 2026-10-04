@@ -20,6 +20,7 @@ import { Field } from "@/components/ui/field/field";
 import { NativeSelect } from "@/components/ui/input/input";
 import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
+import { useRevisionForm } from "@/components/templates/revision-form";
 import { SettingsPage, SettingsSection } from "@/components/templates/settings-page";
 import { toast } from "@/components/ui/toast/toast";
 import { settingsChanges, settingsForm, settingsInput, settingsProblems, type SettingsForm, type SystemOneSettings } from "@/lib/systemone";
@@ -64,7 +65,7 @@ export function SystemOnePage() {
           )
         }
       >
-        {settings.data && <SettingsEditor key={settings.data.revision} saved={settings.data} models={systemOneModels} isAdmin={isAdmin} />}
+        {settings.data && <SettingsEditor saved={settings.data} models={systemOneModels} isAdmin={isAdmin} />}
       </QueryView>
     </Stack>
   );
@@ -84,7 +85,8 @@ function useSave(saved: SystemOneSettings, onSaved: (st: SystemOneSettings) => v
 }
 
 function SettingsEditor({ saved, models, isAdmin }: { saved: SystemOneSettings; models: Model[]; isAdmin: boolean }) {
-  const [form, setForm] = useState(() => settingsForm(saved));
+  // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
+  const [form, setForm, revision] = useRevisionForm(settingsForm(saved), saved.revision);
   const [submitted, setSubmitted] = useState(false);
   const save = useSave(saved, (st) => setForm(settingsForm(st)));
   const analytics = useQuery(recentAnalyticsQuery());
@@ -98,6 +100,7 @@ function SettingsEditor({ saved, models, isAdmin }: { saved: SystemOneSettings; 
   const off = !isAdmin || !form.modelId;
   return (
     <SettingsPage
+      revision={revision}
       dirty={changes > 0}
       canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={save.isPending}

@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
+import { useRevisionForm } from "@/components/templates/revision-form";
 import { DangerAction, DangerZone, SettingsPage, SettingsSection } from "@/components/templates/settings-page";
 import { Button } from "@/components/ui/button/button";
 import { AlertDialog } from "@/components/ui/dialog/dialog";
@@ -20,7 +21,8 @@ export function SetSettings({ set }: { set: EvalSet }) {
   const { slug } = useTeam();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [form, setForm] = useState(() => formOf(set));
+  // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
+  const [form, setForm, revision] = useRevisionForm(formOf(set), set.revision);
   const [deleting, setDeleting] = useState(false);
   const nameError = form.name.trim() ? undefined : "Enter a name.";
   const dirty = form.name.trim() !== set.name || form.description !== set.description || form.autoRun !== set.autoRun;
@@ -51,6 +53,7 @@ export function SetSettings({ set }: { set: EvalSet }) {
   });
   return (
     <SettingsPage
+      revision={revision}
       dirty={dirty}
       saving={save.isPending}
       error={save.error}

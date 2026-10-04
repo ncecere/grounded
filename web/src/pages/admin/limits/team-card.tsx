@@ -2,12 +2,13 @@
 import { adminOnly } from "@/lib/terms";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Field } from "@/components/ui/field/field";
 import { NativeSelect } from "@/components/ui/input/input";
+import { useRevisionForm } from "@/components/templates/revision-form";
 import { SettingsPage } from "@/components/templates/settings-page";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { Table, Td, Tr } from "@/components/ui/table/table";
@@ -23,16 +24,13 @@ import l from "./limits.module.css";
 
 type TeamOverride = Schemas["TeamLimitOverride"];
 
-/** The team's editable overrides: form state (reset when the team or revision changes), validation and save. */
+/** The team's editable overrides: form state (kept through a change made elsewhere, AD-01), validation and save. */
 function useTeamLimitsForm(team: string, teamName: string) {
   const qc = useQueryClient();
   const overrides = useQuery(teamOverridesQuery(team));
-  const [form, setForm] = useState<OverrideForm | null>(null);
-  const [submitted, setSubmitted] = useState(false);
   const revision = overrides.data?.revision;
-  useEffect(() => {
-    if (overrides.data) setForm(overrideForm(overrides.data.items));
-  }, [team, revision]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [form, setForm, control] = useRevisionForm<OverrideForm>(overrideForm(overrides.data?.items ?? []), revision);
+  const [submitted, setSubmitted] = useState(false);
 
   const items = overrides.data?.items ?? [];
   const changes = overrideChanges(items, form);
@@ -58,19 +56,20 @@ function useTeamLimitsForm(team: string, teamName: string) {
     setSubmitted(false);
     save.reset();
   };
-  return { overrides, items, form, setForm, submitted, setSubmitted, changes, invalid, save, discard };
+  return { overrides, items, form, setForm, control, submitted, setSubmitted, changes, invalid, save, discard };
 }
 
 /** A team's limits (D7): the four groups as an accordion with Effective and Usage; inherit the default, set a value, or block. */
 export function AdminTeamLimitsCard({ team, teamName }: { team: string; teamName: string }) {
   const isAdmin = useCurrentUser().capabilities.platformAdmin;
   const usage = useQuery(teamLimitsQuery(team));
-  const { overrides, items, form, setForm, submitted, setSubmitted, changes, invalid, save, discard } = useTeamLimitsForm(team, teamName);
+  const { overrides, items, form, setForm, control, submitted, setSubmitted, changes, invalid, save, discard } = useTeamLimitsForm(team, teamName);
   const used = new Map((usage.data?.items ?? []).map((u) => [u.key, u]));
 
-  if (overrides.isLoading || !form) return overrides.error ? <ErrorAlert error={overrides.error} /> : <Loading label="Loading team limits…" />;
+  if (overrides.isLoading || !overrides.data) return overrides.error ? <ErrorAlert error={overrides.error} /> : <Loading label="Loading team limits…" />;
   return (
     <SettingsPage
+      revision={control}
       dirty={changes.length > 0 || invalid}
       canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={save.isPending}

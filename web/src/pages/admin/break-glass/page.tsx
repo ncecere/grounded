@@ -64,7 +64,7 @@ export function BreakGlassPage() {
             icon: <Settings2 aria-hidden />,
             content: (
               <QueryView query={settings} loadingLabel="Loading break-glass settings…">
-                {settings.data && <BreakGlassSettingsForm key={settings.data.revision} saved={settings.data} isAdmin={isAdmin} />}
+                {settings.data && <BreakGlassSettingsForm saved={settings.data} isAdmin={isAdmin} />}
               </QueryView>
             ),
           },

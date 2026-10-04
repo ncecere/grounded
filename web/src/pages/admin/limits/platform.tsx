@@ -5,17 +5,17 @@
  */
 import { Boxes, ClipboardCheck, Globe, MessagesSquare, Upload } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
 import { ApiErrorAlert } from "@/components/errors";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
-import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { Form } from "@/components/ui/field/field";
 import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { UnsavedChangesGuard } from "@/components/templates/unsaved-guard";
-import { SaveBar } from "@/components/ui/save-bar/save-bar";
+import { conflictOpen, RevisionSaveBar } from "@/components/templates/conflict-notice";
+import { useRevisionForm } from "@/components/templates/revision-form";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { toast } from "@/components/ui/toast/toast";
@@ -34,18 +34,16 @@ import { EvaluationsNote } from "./evaluations-note";
 
 type PlatformLimit = Schemas["PlatformLimit"];
 
-/** The editable platform limits: form state (reset when the server revision changes), validation and save. */
+/** A limit's row for the list of changes made elsewhere: "default 5000, ceiling 10000". */
+const rowText = (r: PlatformRow) => `default ${r.def.trim() || "unlimited"}, ceiling ${r.ceil.trim() || "none"}`;
+
+/** The editable platform limits: form state (kept through a change made elsewhere, AD-01), validation and save. */
 function usePlatformLimitsForm() {
   const qc = useQueryClient();
   const limits = useQuery(platformLimitsQuery());
-  const [form, setForm] = useState<PlatformForm | null>(null);
-  const [submitted, setSubmitted] = useState(false);
   const revision = limits.data?.revision;
-  useEffect(() => {
-    if (limits.data) setForm(platformForm(limits.data.items));
-    // Reset only when the server's revision changes (after a save or a
-    // conflict), not on every background refetch.
-  }, [revision]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [form, setForm, control] = useRevisionForm<PlatformForm>(platformForm(limits.data?.items ?? []), revision, { format: (_k, row) => rowText(row as PlatformRow) });
+  const [submitted, setSubmitted] = useState(false);
 
   const items = limits.data?.items ?? [];
   const changes = platformChanges(items, form);
@@ -65,7 +63,8 @@ function usePlatformLimitsForm() {
     setSubmitted(false);
     save.reset();
   };
-  return { limits, items, form, setForm, submitted, setSubmitted, changes, invalid, save, discard };
+  const labels = Object.fromEntries(items.map((it) => [it.key, it.label]));
+  return { limits, items, form, setForm, control: { ...control, changes: control.changes?.map((c) => ({ ...c, label: labels[c.key] ?? c.label })) ?? null }, submitted, setSubmitted, changes, invalid, save, discard };
 }
 
 const limitGroupIcons = {
@@ -80,7 +79,8 @@ export function LimitsPage() {
   const isAdmin = useCurrentUser().capabilities.platformAdmin;
   const formId = useId();
   const [tab, setTab] = useUrlTab(limitTabs);
-  const { limits, items, form, setForm, submitted, setSubmitted, changes, invalid, save, discard } = usePlatformLimitsForm();
+  const { limits, items, form, setForm, control, submitted, setSubmitted, changes, invalid, save, discard } = usePlatformLimitsForm();
+  const barOpen = changes.length > 0 || invalid || conflictOpen(control);
   // Groups (tabs) holding a limit that doesn't validate, named in the error so hidden tabs aren't missed.
   const badGroups = form && submitted ? limitGroups.filter((g) => items.some((it) => it.group === g.key && Object.keys(platformErrors(it, form[it.key]!)).length > 0)) : [];
 
@@ -96,7 +96,7 @@ export function LimitsPage() {
           {adminOnly}
         </Alert>
       )}
-      {limits.isLoading || !form ? (
+      {limits.isLoading || !limits.data ? (
         limits.error ? (
           <ErrorAlert error={limits.error} title="Couldn't load limits" />
         ) : (
@@ -108,12 +108,13 @@ export function LimitsPage() {
           noValidate
           onSubmit={(e) => {
             e.preventDefault();
+            if (conflictOpen(control)) return;
             setSubmitted(true);
             if (!invalid && changes.length > 0) save.mutate();
           }}
         >
           <div className={l.saveAlerts}>
-            <ApiErrorAlert error={save.error} />
+            {!conflictOpen(control) && <ApiErrorAlert error={save.error} />}
             {badGroups.length > 0 && <Alert tone="danger">Fix the highlighted limits in {badGroups.map((g) => g.label).join(", ")}, then save.</Alert>}
           </div>
           <PageTabs
@@ -139,16 +140,21 @@ export function LimitsPage() {
             }))}
           />
           {isAdmin && (
-            <SaveBar open={changes.length > 0 || invalid} message={invalid ? "Not saved: fix the highlighted limits" : unsaved(changes.length)}>
-              <Button variant="ghost" disabled={save.isPending} onClick={discard}>
-                Discard
-              </Button>
-              <Button type="submit" loading={save.isPending}>
-                Save limits
-              </Button>
+            <>
+              <RevisionSaveBar
+                open={barOpen}
+                revision={control}
+                saving={save.isPending}
+                error={save.error}
+                hideError
+                message={invalid ? "Not saved: fix the highlighted limits" : unsaved(changes.length)}
+                saveLabel="Save limits"
+                onSave={() => save.mutate()}
+                onDiscard={discard}
+              />
               {/* Asks before leaving with unsaved changes (the dialog is portalled). */}
-              <UnsavedChangesGuard dirty={changes.length > 0 || invalid} />
-            </SaveBar>
+              <UnsavedChangesGuard dirty={barOpen} />
+            </>
           )}
         </Form>
       )}

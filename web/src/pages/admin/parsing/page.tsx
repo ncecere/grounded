@@ -12,6 +12,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
 import { QueryView } from "@/components/query-view";
+import { useRevisionForm } from "@/components/templates/revision-form";
 import { SettingsPage, SettingsSection } from "@/components/templates/settings-page";
 import { Alert } from "@/components/ui/alert/alert";
 import { StatusBadge } from "@/components/ui/badge/badge";
@@ -48,7 +49,7 @@ export function ParsingPage() {
         }`}
       />
       <QueryView query={settings} loadingLabel="Loading parsing settings…">
-        {settings.data && <ParsingEditor key={settings.data.revision} saved={settings.data} visionModels={vision} isAdmin={isAdmin} />}
+        {settings.data && <ParsingEditor saved={settings.data} visionModels={vision} isAdmin={isAdmin} />}
       </QueryView>
       <DocumentProblemsSection isAdmin={isAdmin} />
     </Stack>
@@ -69,7 +70,8 @@ function useSave(saved: ParsingSettings, onSaved: (st: ParsingSettings) => void)
 }
 
 function ParsingEditor({ saved, visionModels, isAdmin }: { saved: ParsingSettings; visionModels: Model[]; isAdmin: boolean }) {
-  const [form, setForm] = useState(() => parsingForm(saved));
+  // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
+  const [form, setForm, revision] = useRevisionForm(parsingForm(saved), saved.revision);
   const [submitted, setSubmitted] = useState(false);
   const save = useSave(saved, (st) => setForm(parsingForm(st)));
   const problems = parsingProblems(form, saved);
@@ -79,6 +81,7 @@ function ParsingEditor({ saved, visionModels, isAdmin }: { saved: ParsingSetting
   const set = (patch: Partial<ParsingForm>) => setForm((f) => ({ ...f, ...patch }));
   return (
     <SettingsPage
+      revision={revision}
       dirty={changes > 0}
       canEdit={isAdmin}
       readOnlyNote={adminOnly}

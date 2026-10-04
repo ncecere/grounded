@@ -13,7 +13,7 @@
  * edits). A 412 refetches every query (main.tsx), so the latest version
  * arrives here.
  */
-import { type SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
+import { type SetStateAction, useCallback, useMemo, useState } from "react";
 import { ApiError } from "../../api/client";
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
@@ -142,12 +142,16 @@ export type RevisionControl = {
 };
 
 export function useRevisionForm<T extends object>(saved: T, revision: number | undefined, opts: { labels?: FieldLabels<T>; format?: FieldFormat<T> } = {}) {
-  const [state, setState] = useState(() => initialRevisionState(saved, revision));
+  const [stored, setState] = useState(() => initialRevisionState(saved, revision));
+  // Reconciled while rendering (not in an effect), so the page never renders the new data with the old form.
   const savedKey = JSON.stringify(saved);
-  useEffect(() => {
-    setState((s) => reconcile(s, saved, revision));
-    // `saved` is rebuilt on every render; its content is what matters.
-  }, [savedKey, revision, state.saving]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [seen, setSeen] = useState({ key: savedKey, revision, saving: stored.saving });
+  let state = stored;
+  if (seen.key !== savedKey || seen.revision !== revision || seen.saving !== stored.saving) {
+    state = reconcile(stored, saved, revision);
+    setSeen({ key: savedKey, revision, saving: stored.saving });
+    if (state !== stored) setState(state);
+  }
 
   const setForm = useCallback((next: SetStateAction<T>) => setState((s) => ({ ...s, form: typeof next === "function" ? (next as (p: T) => T)(s.form) : next })), []);
   const { labels, format } = opts;

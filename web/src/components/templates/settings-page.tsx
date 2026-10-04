@@ -21,16 +21,14 @@
  * offers "Overwrite with mine" and "Discard mine and load theirs" (AD-01).
  */
 import { type FormEvent, type ReactNode, useEffect } from "react";
-import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
-import { Button } from "@/components/ui/button/button";
+import { Alert } from "@/components/ui/alert/alert";
 import { Card } from "@/components/ui/card/card";
 import { Form } from "@/components/ui/field/field";
-import { SaveBar } from "@/components/ui/save-bar/save-bar";
 import { terms } from "@/lib/terms";
 import styles from "./templates.module.css";
 import { type UnsavedGuardOptions, useUnsavedChangesGuard } from "./unsaved-guard";
-import { ConflictNotice, conflictLabels } from "./conflict-notice";
-import { isRevisionConflict, type RevisionControl } from "./revision-form";
+import { conflictOpen, RevisionSaveBar } from "./conflict-notice";
+import type { RevisionControl } from "./revision-form";
 
 export type SettingsPageProps = {
   /** The form differs from what's saved: shows the save bar and arms the guard. */
@@ -73,19 +71,15 @@ export function SettingsPage({
   children,
   className,
 }: SettingsPageProps) {
-  const conflict = Boolean(revision && (revision.changes || revision.waiting));
+  const conflict = conflictOpen(revision);
   const open = canEdit && (dirty || conflict);
   // A settings page is one form: switching its page's tabs (?tab=) leaves it too.
   const dialog = useUnsavedChangesGuard(open, { samePath: true, ...guard });
-  const status = revision?.status;
-  useEffect(() => status?.(saving, error), [status, saving, error]);
-  const save = () => {
-    revision?.submitting();
-    onSave();
-  };
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (open && !saving && !saveDisabled && !conflict) save();
+    if (!open || saving || saveDisabled || conflict) return;
+    revision?.submitting();
+    onSave();
   };
   return (
     <Form noValidate onSubmit={submit} className={className ?? styles.settings}>
@@ -95,34 +89,17 @@ export function SettingsPage({
         </Alert>
       )}
       {children}
-      {open && conflict && <ConflictNotice changes={revision?.changes ?? null} />}
-      {open && Boolean(error) && !(conflict && isRevisionConflict(error)) && <ErrorAlert error={error} title="Couldn't save the changes" />}
-      {conflict && revision ? (
-        <SaveBar open={open} message="Changed elsewhere while you were editing">
-          <Button variant="ghost" disabled={saving || !revision.changes} onClick={revision.discardMine}>
-            {conflictLabels.discard}
-          </Button>
-          <Button
-            loading={saving}
-            disabled={saveDisabled || !revision.changes}
-            onClick={() => {
-              revision.overwrite();
-              save();
-            }}
-          >
-            {conflictLabels.overwrite}
-          </Button>
-        </SaveBar>
-      ) : (
-        <SaveBar open={open} message={message}>
-          <Button variant="ghost" disabled={saving} onClick={onDiscard}>
-            Discard
-          </Button>
-          <Button type="submit" loading={saving} disabled={saveDisabled}>
-            {saveLabel}
-          </Button>
-        </SaveBar>
-      )}
+      <RevisionSaveBar
+        open={open}
+        revision={revision}
+        saving={saving}
+        error={error}
+        message={message}
+        saveLabel={saveLabel}
+        saveDisabled={saveDisabled}
+        onSave={onSave}
+        onDiscard={onDiscard}
+      />
       {dialog}
     </Form>
   );

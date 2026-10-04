@@ -1,10 +1,15 @@
 /*
- * What changed elsewhere while the person edited a settings form (AD-01),
- * above SettingsPage's save bar. Their edits are still in the form; the save
- * bar offers "Overwrite with mine" and "Discard mine and load theirs".
+ * A settings form's save bar that knows about save conflicts (AD-01): when
+ * the object changed elsewhere while the person edited, a notice lists what
+ * changed (their edits are still in the form) and the bar offers "Overwrite
+ * with mine" and "Discard mine and load theirs" instead of Save and Discard.
+ * SettingsPage uses it; a form with its own layout can too.
  */
-import { Alert } from "@/components/ui/alert/alert";
-import type { ServerChange } from "./revision-form";
+import { type ReactNode, useEffect } from "react";
+import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
+import { Button } from "@/components/ui/button/button";
+import { SaveBar } from "@/components/ui/save-bar/save-bar";
+import { isRevisionConflict, type RevisionControl, type ServerChange } from "./revision-form";
 import styles from "./templates.module.css";
 
 export const conflictLabels = { overwrite: "Overwrite with mine", discard: "Discard mine and load theirs" } as const;
@@ -31,5 +36,66 @@ export function ConflictNotice({ changes }: { changes: ServerChange[] | null }) 
         </>
       )}
     </Alert>
+  );
+}
+
+type RevisionSaveBarProps = {
+  /** The bar is shown (the form is edited, or a conflict waits for a choice). */
+  open: boolean;
+  revision?: RevisionControl;
+  saving: boolean;
+  error: unknown;
+  message?: ReactNode;
+  saveLabel: string;
+  saveDisabled?: boolean;
+  /** Saves (the Save button submits the form; Overwrite calls this). */
+  onSave: () => void;
+  onDiscard: () => void;
+  /** The error alert's title. */
+  errorTitle?: string;
+  /** The page shows the save error itself (it still counts for the conflict). */
+  hideError?: boolean;
+};
+
+/** Whether a conflict waits for the person's choice. */
+export const conflictOpen = (revision?: RevisionControl) => Boolean(revision && (revision.changes || revision.waiting));
+
+/** The conflict notice, the save error and the sticky save bar (its Save button submits the surrounding form). */
+export function RevisionSaveBar({ open, revision, saving, error, message, saveLabel, saveDisabled = false, onSave, onDiscard, errorTitle = "Couldn't save the changes", hideError = false }: RevisionSaveBarProps) {
+  const conflict = conflictOpen(revision);
+  const status = revision?.status;
+  useEffect(() => status?.(saving, error), [status, saving, error]);
+  return (
+    <>
+      {open && conflict && <ConflictNotice changes={revision?.changes ?? null} />}
+      {open && !hideError && Boolean(error) && !(conflict && isRevisionConflict(error)) && <ErrorAlert error={error} title={errorTitle} />}
+      {conflict && revision ? (
+        <SaveBar open={open} message="Changed elsewhere while you were editing">
+          <Button variant="ghost" disabled={saving || !revision.changes} onClick={revision.discardMine}>
+            {conflictLabels.discard}
+          </Button>
+          <Button
+            loading={saving}
+            disabled={saveDisabled || !revision.changes}
+            onClick={() => {
+              revision.overwrite();
+              revision.submitting();
+              onSave();
+            }}
+          >
+            {conflictLabels.overwrite}
+          </Button>
+        </SaveBar>
+      ) : (
+        <SaveBar open={open} message={message}>
+          <Button variant="ghost" disabled={saving} onClick={onDiscard}>
+            Discard
+          </Button>
+          <Button type="submit" loading={saving} disabled={saveDisabled}>
+            {saveLabel}
+          </Button>
+        </SaveBar>
+      )}
+    </>
   );
 }
