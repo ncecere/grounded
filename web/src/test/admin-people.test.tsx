@@ -188,6 +188,24 @@ describe("admin users and teams", () => {
     expect(screen.queryByRole("tab", { name: /Budget/ })).toBeNull();
   });
 
+  it("titles the page after the tab it lands on when changes are discarded (AD-38)", async () => {
+    const kb = { key: "knowledge_bases", group: "resources", unit: "count", period: "none", label: "Knowledge bases", description: "KBs." } as const;
+    mockApi(
+      routes("platform_admin", {
+        "GET /v1/admin/teams/registrar/limits": () => ({ teamId: "t1", revision: 1, items: [{ ...kb, default: 10, ceiling: null, override: null, effective: 10 }] }),
+      }),
+    );
+    renderApp("/admin/teams/registrar?tab=limits");
+    const table = await screen.findByRole("table", { name: "Team resources limits for Office of the Registrar" }, { timeout: 4000 });
+    await waitFor(() => expect(document.title).toMatch(/^Limits \u00b7 Office of the Registrar/));
+    await userEvent.selectOptions(within(table).getByRole("combobox", { name: "Knowledge bases: team setting" }), "blocked");
+    await userEvent.click(screen.getByRole("tab", { name: "Settings" }));
+    const guard = await screen.findByRole("alertdialog", { name: "Leave without saving?" });
+    await userEvent.click(within(guard).getByRole("button", { name: "Discard changes" }));
+    expect(await screen.findByRole("tab", { name: "Settings", selected: true })).toBeInTheDocument();
+    await waitFor(() => expect(document.title).toMatch(/^Settings \u00b7 Office of the Registrar/));
+  });
+
   it("puts Archive in the Settings danger zone", async () => {
     mockApi(routes());
     renderApp("/admin/teams/registrar?tab=settings");
