@@ -28,9 +28,13 @@
   scrollbar-gutter: stable;
 }
 
+/* A short split (a save-conflict banner above it) shrinks the conversation first, so the composer and
+   Send stay whole; shorter still, the pane scrolls instead of clipping them (BU2-05). */
 .testPane {
+  --test-panel-min: 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
   padding: var(--space-4);
   background-color: var(--color-surface-sunken);
 }
