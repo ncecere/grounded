@@ -1,11 +1,12 @@
 /* The model dialog's "Compatibility" disclosure: per-server quirks of the chat completions and embeddings APIs (DESIGN.md §10). */
 import { useState } from "react";
+import { Alert } from "@/components/ui/alert/alert";
 import { Checkbox } from "@/components/ui/checkbox/checkbox";
 import { Disclosure } from "@/components/ui/disclosure/disclosure";
 import { Field } from "@/components/ui/field/field";
 import { NativeSelect, Textarea } from "@/components/ui/input/input";
 import s from "../../shared.module.css";
-import { extraBodyExample, type ModelForm } from "./model-form";
+import { extraBodyExample, thinkingConflict, type ModelForm } from "./model-form";
 
 type SetField = <K extends keyof ModelForm>(k: K, v: ModelForm[K]) => void;
 
@@ -19,6 +20,7 @@ type Props = { form: ModelForm; set: SetField; extraBodyError?: string };
 export function ChatCompatFields({ form, set, extraBodyError }: Props) {
   // Open when something is set; always open while a field is invalid, so its error is visible.
   const [open, setOpen] = useState(() => Boolean(form.extraBody || form.supportsToolChoice || form.supportsReasoningEffort || form.thinkingOff));
+  const conflict = extraBodyError ? undefined : thinkingConflict(form);
   return (
     <Disclosure title="Compatibility" open={open || Boolean(extraBodyError)} onOpenChange={setOpen}>
       <div className={s.grid2}>
@@ -82,6 +84,11 @@ export function ChatCompatFields({ form, set, extraBodyError }: Props) {
         >
           <Textarea className={s.mono} rows={3} spellCheck={false} placeholder={extraBodyExample} value={form.extraBody} onChange={(e) => set("extraBody", e.target.value)} />
         </Field>
+        {conflict && (
+          <Alert tone="warning" title="Thinking is set in two places" className={s.span2}>
+            {conflict}
+          </Alert>
+        )}
       </div>
     </Disclosure>
   );

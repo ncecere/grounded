@@ -87,14 +87,14 @@ export function ConnectionRecordPage({ conn, health, open, loading, onClose, mod
                     {test.error ? (
                       <ErrorAlert error={test.error} />
                     ) : test.data?.ok && test.data.probe === "systemone" ? (
-                      <Alert tone="success" title={`Connected in ${test.data.latencyMs} ms`}>
+                      <Alert tone="success" title={`Connected in ${test.data.latencyMs.toLocaleString()} ms`}>
                         The SystemOne service answered a test question (model <code className={s.mono}>{test.data.systemOneModel}</code>). It doesn't
                         list its models.
                         <TimingsText timings={test.data.timings} />
                       </Alert>
                     ) : test.data?.ok ? (
                       <>
-                        <Alert tone="success" title={`Connected in ${test.data.latencyMs} ms`}>
+                        <Alert tone="success" title={`Connected in ${test.data.latencyMs.toLocaleString()} ms`}>
                           The proxy offers {plural(test.data.models.length, "model")}. Nothing is added until you add it.
                           <TimingsText timings={test.data.timings} />
                         </Alert>

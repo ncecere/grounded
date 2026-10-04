@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
+import { thinkingConflict } from "../pages/admin/models/model-form";
 import { initialProfileForm, missingPrefixes, prefillPrefixes, profileBody, profileErrors, profileFusionForm, profileFusionPatch, recommendedPrefixes } from "../pages/admin/models/profile-form";
 import { TeamContext, teamCtx } from "../pages/team/common";
 import { KBSettings } from "../pages/team/kbs/settings";
@@ -67,6 +68,26 @@ describe("admin model compatibility fields", () => {
       thinkingOff: "enable_thinking_false",
       extraBody: { chat_template_kwargs: { enable_thinking: false } },
     });
+  });
+
+  it("shows a model's compatibility on its record, auditors included (AD-09)", async () => {
+    const qwen = { ...chat, compat: { thinkingOff: "enable_thinking_false", supportsReasoningEffort: false, extraBody: { top_k: 20 } } };
+    mockApi({ ...shellRoutes("platform_auditor"), "GET /v1/admin/connections": () => [connection], "GET /v1/admin/models": () => [qwen] });
+    const { container } = renderApp("/admin/models?record=m1");
+    const sheet = await screen.findByRole("region", { name: "Qwen" }, { timeout: 4000 });
+    expect(within(sheet).getByRole("heading", { name: "Compatibility" })).toBeInTheDocument();
+    expect(within(sheet).getByText('chat_template_kwargs: {"enable_thinking": false}')).toBeInTheDocument();
+    expect(within(sheet).getByText('{"top_k":20}')).toBeInTheDocument();
+    expect(within(sheet).getByText("Tool calling").nextSibling).toHaveTextContent("Supported");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("warns when extra request fields set thinking too (AD-10)", () => {
+    const base = { kind: "chat" as const, thinkingOff: "enable_thinking_false" as const };
+    expect(thinkingConflict({ ...base, extraBody: '{"chat_template_kwargs": {"enable_thinking": true}}' })).toMatch(/turn thinking on for every request; agents and audiences set to Off still turn it off/);
+    expect(thinkingConflict({ ...base, extraBody: '{"chat_template_kwargs": {"enable_thinking": false}}' })).toMatch(/can't turn it on/);
+    expect(thinkingConflict({ ...base, thinkingOff: "", extraBody: '{"chat_template_kwargs": {"enable_thinking": true}}' })).toMatch(/Off does nothing/);
+    expect(thinkingConflict({ ...base, extraBody: '{"top_k": 20}' })).toBeUndefined();
   });
 
   it("offers the dimensions parameter for embedding models", async () => {

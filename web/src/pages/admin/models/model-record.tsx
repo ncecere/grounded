@@ -14,6 +14,7 @@ import { ClassificationBadge, useClassificationLevels } from "../../team/common"
 import { ModerationSamples } from "../moderation/scores";
 import { SystemOneSample } from "../systemone/sample";
 import { RerankSample } from "./rerank-sample";
+import { CompatSection, compatFacts } from "./compat-facts";
 import { deleteBlockedReason, EnabledBadge, kindLabels, type Model, type ModelUsage, modelUsedBy, ProxyErrorText, TimingsText } from "./common";
 import { type HealthCheck, healthFacts, refreshHealth } from "./health";
 import m from "./models.module.css";
@@ -43,8 +44,8 @@ export function ModelTestResult({ test }: { test: ModelTest }) {
     );
   }
   return (
-    <Alert tone="success" title={`Answered in ${test.data.latencyMs} ms`}>
-      {test.data.dimensions != null && `Returned ${test.data.dimensions} dimensions`}
+    <Alert tone="success" title={`Answered in ${test.data.latencyMs.toLocaleString()} ms`}>
+      {test.data.dimensions != null && `Returned ${test.data.dimensions.toLocaleString()} dimensions`}
       {test.data.dimensionsMatch === false && " (this does not match the configured dimensions; edit the model)"}
       {test.data.reply != null && `Reply: “${test.data.reply}”`}
       {test.data.moderation && <ModerationSamples test={test.data.moderation} />}
@@ -129,6 +130,8 @@ export function ModelRecordPage({ model, health, open, loading, onClose, connect
                   </div>
                 ),
               },
+              // Read-only, for everyone who can open the record, auditors included (AD-09).
+              { title: "Compatibility", hidden: compatFacts(model).length === 0, content: <CompatSection model={model} /> },
               { title: "Pricing", hidden: !isPricedKind(model.kind), content: <ModelPricingSection modelId={model.id} isAdmin={isAdmin} /> },
               {
                 title: "Used by",

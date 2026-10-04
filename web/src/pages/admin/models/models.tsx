@@ -59,7 +59,7 @@ function useRecordBack(close: () => void) {
 
 function kindDetail(x: Model) {
   if (x.kind === "moderation") return providerName(x.moderationProvider, x.moderationFamily);
-  if (x.kind === "embedding" && x.dimensions != null) return `${x.dimensions} dimensions`;
+  if (x.kind === "embedding" && x.dimensions != null) return `${x.dimensions.toLocaleString()} dimensions`;
   if (x.kind === "chat" && x.contextWindow != null) return `${x.contextWindow.toLocaleString()} tokens`;
   return undefined;
 }
