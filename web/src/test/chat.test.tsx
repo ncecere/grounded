@@ -3,10 +3,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import { applyChatEvent, chatErrorText, pendingAssistant } from "../pages/chat/stream";
-import { Reply, mockApi, openSSE, renderApp, shellRoutes, sse } from "./harness";
-
-/** An answer's paragraph by its text (a chip takes the word before it into its span, US-10). */
-const paragraph = (re: RegExp) => screen.findByText((_, el) => el?.tagName === "P" && re.test(el.textContent ?? ""));
+import { Reply, findParagraph, mockApi, openSSE, renderApp, shellRoutes, sse } from "./harness";
 
 const card = {
   id: "ag1",
@@ -168,7 +165,7 @@ describe("chat page", () => {
     const box = await screen.findByRole("textbox", { name: "Message Registrar assistant" });
     await userEvent.type(box, "How do I drop a class?{Enter}");
 
-    expect(await paragraph(/You can drop a class in the student portal/)).toBeInTheDocument();
+    expect(await findParagraph(/You can drop a class in the student portal/)).toBeInTheDocument();
     expect(screen.queryByText(/RAW streamed draft/)).toBeNull();
     const post = calls.find((c) => c.method === "POST" && c.url.endsWith("/chat"))!;
     expect(post.body).toEqual({ message: "How do I drop a class?", stream: true });
@@ -293,7 +290,7 @@ describe("chat page", () => {
     const note = (await screen.findByText("Stopped. The answer may be incomplete.")).closest("li")!;
     expect(screen.getByText(/software request/).textContent).not.toMatch(/\[1/);
     await userEvent.click(within(note).getByRole("button", { name: "Ask again" }));
-    expect(await paragraph(/Use the portal/)).toBeInTheDocument();
+    expect(await findParagraph(/Use the portal/)).toBeInTheDocument();
     expect(calls.filter((c) => c.method === "POST").map((c) => (c.body as { message: string }).message)).toEqual(["Can I use the VPN?", "Can I use the VPN?"]);
   });
 
@@ -332,7 +329,7 @@ describe("chat page", () => {
     );
     const { container } = renderApp(chatPath);
     await userEvent.type(await screen.findByRole("textbox", { name: "Message Registrar assistant" }), "How do I drop?{Enter}");
-    await paragraph(/Drop it in the portal/);
+    await findParagraph(/Drop it in the portal/);
     await userEvent.click(screen.getByRole("button", { name: "Stop generating" }));
     expect(await screen.findByText("Stopped. The answer may be incomplete.")).toBeInTheDocument();
     expect(container.textContent).not.toMatch(/[【】]|\[9\]/);
@@ -385,7 +382,7 @@ describe("chat page", () => {
     expect(screen.queryByRole("article", { name: "You said" })).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(within(alert).getByRole("button", { name: "Retry" }));
-    expect(await paragraph(/Use the portal/)).toBeInTheDocument();
+    expect(await findParagraph(/Use the portal/)).toBeInTheDocument();
     expect(box).toHaveValue("");
     expect(calls.filter((c) => c.method === "POST")).toHaveLength(2);
   });
@@ -405,7 +402,7 @@ describe("chat page", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Connection lost mid-answer");
     await userEvent.click(within(alert).getByRole("button", { name: "Retry" }));
-    expect(await paragraph(/Use the portal/)).toBeInTheDocument();
+    expect(await findParagraph(/Use the portal/)).toBeInTheDocument();
     expect(screen.getAllByRole("article", { name: "You said" })).toHaveLength(2);
   });
 
@@ -449,7 +446,7 @@ describe("chat page", () => {
       }),
     );
     renderApp(chatPath + "?c=c1");
-    expect(await paragraph(/Use the student portal/)).toBeInTheDocument();
+    expect(await findParagraph(/Use the student portal/)).toBeInTheDocument();
     expect(screen.getByText(/How do I drop a class\?/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Bad answer" }));
     // "Share this question with the team" is off by default (docs/gaps.md) and stays open when ticked.

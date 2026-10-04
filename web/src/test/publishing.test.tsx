@@ -5,7 +5,7 @@ import { axe } from "vitest-axe";
 import { type Schemas, setCsrfToken } from "../api/client";
 import { embedSnippet, originProblem } from "../pages/agents/share/snippet";
 import { publicRef } from "../pages/public/session";
-import { type Handler, Reply, mockApi, renderApp, shellRoutes, sse } from "./harness";
+import { type Handler, Reply, findParagraph, mockApi, renderApp, shellRoutes, sse } from "./harness";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -147,7 +147,7 @@ describe("public page", () => {
     expect(screen.getByText(/can't answer may be grouped,\s+without your details, to improve it\./)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.type(screen.getByRole("textbox", { name: "Message Registrar help" }), "How do I order a transcript?{Enter}");
-    expect(await screen.findByText(/Order it online/)).toBeInTheDocument();
+    expect(await findParagraph(/Order it online/)).toBeInTheDocument();
     expect(within(bar).getByRole("button", { name: "New chat" })).toBeInTheDocument();
     const order = calls.filter((c) => c.method === "POST").map((c) => c.url);
     expect(order).toEqual(["/v1/public/sessions", `/v1/public/agents/${publicAgent.id}/chat`]);
@@ -169,7 +169,7 @@ describe("public page", () => {
     });
     const { container } = renderApp("/a/registrar-help");
     await userEvent.type(await screen.findByRole("textbox", { name: "Message Registrar help" }), "How do I order a transcript?{Enter}");
-    expect(await screen.findByText(/Order it online/)).toBeInTheDocument();
+    expect(await findParagraph(/Order it online/)).toBeInTheDocument();
     await userEvent.click(await screen.findByRole("button", { name: "Bad answer" }));
     const share = await screen.findByRole("menuitemcheckbox", { name: "Share this question with the team" });
     expect(share).toHaveAttribute("aria-checked", "false");
@@ -219,7 +219,7 @@ describe("embed page", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Registrar help" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(screen.getByRole("button", { name: "How do I order a transcript?" }));
-    expect(await screen.findByText(/Order it online/)).toBeInTheDocument();
+    expect(await findParagraph(/Order it online/)).toBeInTheDocument();
     expect(calls.find((c) => c.url === "/v1/public/sessions")!.body).toMatchObject({ agentId: publicAgent.id, key: "pk_abc" });
     // Its own session (mem-6): only one started with its key, through the widget's cookie.
     const current = calls.find((c) => c.url === "/v1/public/sessions/current")!;
@@ -251,7 +251,7 @@ describe("embed page", () => {
     expect(screen.queryByRole("button", { name: "New chat" })).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.type(box, "How do I order a transcript?{Enter}");
-    expect(await screen.findByText(/Order it online/)).toBeInTheDocument();
+    expect(await findParagraph(/Order it online/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New chat" })).toBeInTheDocument();
   });
 
@@ -359,7 +359,7 @@ describe("widget preview", () => {
     const { container } = renderApp("/embed/ag1?preview=1&team=registrar");
     const box = await screen.findByRole("textbox", { name: "Message Registrar help" });
     await userEvent.type(box, "How do I order a transcript?{Enter}");
-    expect(await screen.findByText(/Order it online/)).toBeInTheDocument();
+    expect(await findParagraph(/Order it online/)).toBeInTheDocument();
     const post = calls.find((c) => c.method === "POST" && c.url.endsWith("/test"))!;
     expect(post.headers.get("X-CSRF-Token")).toBe("csrf-123");
     expect(await axe(container)).toHaveNoViolations();
@@ -449,7 +449,8 @@ describe("agent editor sharing", () => {
     await userEvent.type(origins, "localhost:8095{Enter}");
     expect(await within(dialog).findByText(/Add the scheme to be sure: localhost:8095 will be saved as http:\/\/localhost:8095/)).toBeInTheDocument();
     await userEvent.type(origins, "https://example.edu/page{Enter}");
-    expect(await within(dialog).findByText(/https:\/\/example.edu\/page: an origin has no path/)).toBeInTheDocument();
+    // Shown on the field, and said in a status after "Added origin" (BU2-08).
+    expect((await within(dialog).findAllByText(/https:\/\/example.edu\/page: an origin has no path/))[0]).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole("button", { name: /Remove origin https:\/\/example.edu\/page/ }));
     await userEvent.click(within(dialog).getByRole("button", { name: /Remove origin localhost:8095/ }));
     await userEvent.type(origins, "http://127.0.0.1:8095{Enter}");
