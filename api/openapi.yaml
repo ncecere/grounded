@@ -6577,6 +6577,33 @@ paths:
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/teams/{team}/budget/extensions/{extensionId}:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - name: extensionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [costs, admin]
+      operationId: adminRevokeBudgetExtension
+      summary: Revoke one of this month's extensions of a team's budget (platform admins; audited as costs.extension_revoke)
+      description: >-
+        To correct an extension, revoke it and grant the right amount. Only
+        the current month's extensions can be revoked (404 otherwise); the
+        audit log keeps the revoked one.
+      responses:
+        "200":
+          description: The team's budget
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/TeamBudget" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/spend:
     parameters:
       - $ref: "#/components/parameters/TeamParam"

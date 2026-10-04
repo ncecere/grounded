@@ -74,7 +74,7 @@ Figures come from an hourly rollup of the ledger plus the last hour or so read l
 
 1. Check **Admin → Costs → Budgets** (or the team's Budget card): the spend, the budget and the projection. The Overview, filtered to the month, shows which agents and models used it.
 2. Decide:
-   - **Grant an extension** (**Grant extension** on the Budget card): an amount added to this month only, with a reason. It lapses when the month ends. Audited as `costs.extension_grant`.
+   - **Grant an extension** (**Grant extension** on the Budget card): an amount added to this month only, with a reason. It lapses when the month ends, and adds to this month whatever the budget is changed to. Audited as `costs.extension_grant`. An extension granted by mistake is revoked with **Revoke** on its row (audited as `costs.extension_revoke`); to correct one, revoke it and grant the right amount.
    - **Raise the budget** (**Change budget**): for this and later months. Audited as `costs.budget_update`.
    - **Do nothing:** the team resumes next month.
 3. Either change takes effect at once: waiting documents are queued and paused crawls continue within seconds, and chats and searches are admitted again.

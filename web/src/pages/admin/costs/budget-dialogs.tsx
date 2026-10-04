@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
+import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import { FormDialog } from "@/components/form-dialog";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Field } from "@/components/ui/field/field";
@@ -18,6 +19,7 @@ import c from "./costs.module.css";
 
 type TeamBudget = Schemas["TeamBudget"];
 type Override = Schemas["CostModeOverride"];
+type Extension = Schemas["BudgetExtension"];
 
 export const teamBudgetQuery = (team: string) => ({
   queryKey: ["admin", "team", team, "budget"],
@@ -67,6 +69,9 @@ export function BudgetDialog({ team, budget, onClose }: { team: string; budget: 
   const fallback = budget.defaultBudget
     ? `Leave empty to use the platform default budget, ${formatMoney(budget.defaultBudget, cur)} a month.`
     : "Leave empty for no budget: the platform has no default budget.";
+  // Extensions add to this month whatever the budget is (AD-35): say so where it changes.
+  const extended = budget.status.extensions && Number(budget.status.extensions) > 0 ? budget.status.extensions : null;
+  const extensionNote = extended ? ` This month's extensions (${formatMoney(extended, cur)}) are added to it until the month ends.` : "";
   return (
     <FormDialog
       title={`Budget of ${budget.teamName}`}
@@ -104,7 +109,7 @@ export function BudgetDialog({ team, budget, onClose }: { team: string; budget: 
             <strong>Enforce:</strong> chats, searches and ingestion stop at 100%; raising the budget lets them continue at once.
           </li>
         </ul>
-        <Field label={`Monthly budget (${cur})`} description={fallback} error={submitted ? amountErr : undefined}>
+        <Field label={`Monthly budget (${cur})`} description={fallback + extensionNote} error={submitted ? amountErr : undefined}>
           <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </Field>
         <Field label="Warning threshold (%)" description="Leave empty to use the platform threshold." error={submitted ? warnErr : undefined}>
@@ -156,6 +161,30 @@ export function ExtensionDialog({ team, budget, onClose }: { team: string; budge
         <ErrorAlert error={save.error} />
       </div>
     </FormDialog>
+  );
+}
+
+/**
+ * Revoking one of this month's extensions (AD-35): the limit drops by its amount at once. To correct one, revoke it and
+ * grant the right amount. The audit log keeps the revoked one.
+ */
+export function RevokeExtensionDialog({ team, extension, currency, onClose }: { team: string; extension: Extension | null; currency: string; onClose: () => void }) {
+  const saved = useSaved(team, onClose, "Extension revoked");
+  const revoke = useMutation({
+    mutationFn: async (e: Extension) =>
+      unwrap(await api.DELETE("/v1/admin/teams/{team}/budget/extensions/{extensionId}", { params: { path: { team, extensionId: e.id } } })),
+    onSuccess: saved,
+  });
+  return (
+    <ConfirmMutationDialog
+      target={extension}
+      onClose={onClose}
+      mutation={revoke}
+      onConfirm={(e) => revoke.mutate(e)}
+      title={`Revoke the ${extension ? formatMoney(extension.amount, currency) : ""} extension?`}
+      description="This month's budget drops by its amount at once. To correct an extension, revoke it and grant the right amount."
+      confirmLabel="Revoke extension"
+    />
   );
 }
 

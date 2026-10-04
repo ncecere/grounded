@@ -82,6 +82,19 @@ func (a *api) adminGrantBudgetExtension(w http.ResponseWriter, r *http.Request) 
 	httpx.JSON(w, http.StatusCreated, toAPITeamBudget(tb))
 }
 
+func (a *api) adminRevokeBudgetExtension(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r, "extensionId")
+	if !ok {
+		return
+	}
+	tb, err := a.Costs.RevokeExtension(r.Context(), a.actor(r), r.PathValue("team"), id)
+	if failed(w, r, err) {
+		return
+	}
+	setETag(w, tb.Revision)
+	httpx.JSON(w, http.StatusOK, toAPITeamBudget(tb))
+}
+
 func (a *api) getTeamSpend(w http.ResponseWriter, r *http.Request) {
 	var from, to *costs.Day
 	for name, dst := range map[string]**costs.Day{"from": &from, "to": &to} {

@@ -4169,6 +4169,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/teams/{team}/budget/extensions/{extensionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                extensionId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke one of this month's extensions of a team's budget (platform admins; audited as costs.extension_revoke)
+         * @description To correct an extension, revoke it and grant the right amount. Only the current month's extensions can be revoked (404 otherwise); the audit log keeps the revoked one.
+         */
+        delete: operations["adminRevokeBudgetExtension"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}/spend": {
         parameters: {
             query?: never;
@@ -18606,6 +18630,34 @@ export interface operations {
                 };
             };
             400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminRevokeBudgetExtension: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                extensionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The team's budget */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TeamBudget"];
+                    };
+                };
+            };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
         };

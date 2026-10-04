@@ -61,6 +61,7 @@ function fieldsFor(action: string, currency?: string): Fields | undefined {
     case "costs.budget_update":
       return { mode: ["Mode", label(overrideLabels)], amount: ["Monthly budget", money], warnPercent: ["Warn at", percent] };
     case "costs.extension_grant":
+    case "costs.extension_revoke":
       return { extensionId: null, month: ["Month", dateText], amount: ["Extension", money], reason: ["Reason"] };
     case "costs.settings_update":
       return {

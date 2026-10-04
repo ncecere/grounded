@@ -280,7 +280,12 @@ describe("a team's Budget card", () => {
     expect(choices).toHaveTextContent("Track only: progress against the budget, never blocks.");
     expect(choices).toHaveTextContent("Enforce: chats, searches and ingestion stop at 100%");
     expect(within(dialog).getByRole("combobox", { name: "Cost tracking" })).toHaveValue("enforce");
-    expect(within(dialog).getByText("Leave empty for no budget: the platform has no default budget.")).toBeInTheDocument();
+    // Extensions add to this month whatever the budget becomes (AD-35).
+    expect(
+      within(dialog).getByText(
+        `Leave empty for no budget: the platform has no default budget. This month's extensions (${formatMoney("20", "USD")}) are added to it until the month ends.`,
+      ),
+    ).toBeInTheDocument();
     const amount = within(dialog).getByRole("textbox", { name: /Monthly budget/ });
     await userEvent.clear(amount);
     await userEvent.type(amount, "150");
@@ -296,6 +301,32 @@ describe("a team's Budget card", () => {
     await userEvent.type(within(ext).getByRole("textbox", { name: /Reason/ }), "Admissions week");
     await userEvent.click(within(ext).getByRole("button", { name: "Grant extension" }));
     await waitFor(() => expect(calls.find((c) => c.method === "POST")?.body).toEqual({ amount: "50", reason: "Admissions week" }));
+  });
+
+  it("revokes an extension granted by mistake (AD-35)", async () => {
+    const calls = mockApi({
+      "GET /v1/admin/costs/settings": () => settings("enforce"),
+      "GET /v1/admin/teams/registrar/budget": () => teamBudget(status("ok", { extensions: "20.000000", limit: "120.000000" })),
+      "DELETE /v1/admin/teams/registrar/budget/extensions/e1": () => ({ ...teamBudget(status("ok")), extensions: [] }),
+    });
+    const { container } = renderBare(<AdminTeamBudgetCard team="registrar" />, meFor("platform_admin"));
+    await userEvent.click(await screen.findByRole("button", { name: /^Revoke the extension of .*: Exam period$/ }));
+    const dialog = await screen.findByRole("alertdialog", { name: `Revoke the ${formatMoney("20", "USD")} extension?` });
+    expect(dialog).toHaveTextContent("To correct an extension, revoke it and grant the right amount.");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Revoke extension" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "DELETE")).toBe(true));
+    await waitFor(() => expect(screen.queryByRole("table", { name: "Extensions this month" })).toBeNull());
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("doesn't offer auditors Revoke", async () => {
+    mockApi({
+      "GET /v1/admin/costs/settings": () => settings("enforce"),
+      "GET /v1/admin/teams/registrar/budget": () => teamBudget(status("ok", { extensions: "20.000000", limit: "120.000000" })),
+    });
+    renderBare(<AdminTeamBudgetCard team="registrar" />, meFor("platform_auditor"));
+    expect(await screen.findByRole("table", { name: "Extensions this month" })).toHaveTextContent("Exam period");
+    expect(screen.queryByRole("button", { name: /^Revoke/ })).toBeNull();
   });
 
   it("labels extensions as history when no budget is in force", async () => {

@@ -68,6 +68,7 @@ const actionLabels: Record<string, string> = {
   "costs.price_delete": "Deleted a price",
   "costs.budget_update": "Changed a team budget",
   "costs.extension_grant": "Granted a budget extension",
+  "costs.extension_revoke": "Revoked a budget extension",
   "platform.bootstrap_role": "Granted first admin role",
   "platform.classification_create": "Added classification level",
   "platform.classification_delete": "Deleted classification level",
