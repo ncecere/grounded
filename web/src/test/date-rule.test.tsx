@@ -16,7 +16,13 @@ beforeAll(() => {
 });
 
 const ago = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
-const ahead = (days: number) => new Date(Date.now() + days * 86_400_000 + 3_600_000).toISOString();
+/** Noon, `days` calendar days from today: relative dates count calendar days, so a time of day near midnight can't add one. */
+const ahead = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(12, 0, 0, 0);
+  return d.toISOString();
+};
 
 /** A relative <time> with the full date as its title. */
 function expectRelative(el: HTMLElement, text: RegExp) {
