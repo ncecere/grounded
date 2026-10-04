@@ -7,7 +7,7 @@
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { PanelLeft } from "lucide-react";
+import { MessagesSquare } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { api, unwrap, type Schemas } from "../../api/client";
 import { agentProfileQuery, conversationsKey, conversationsQuery } from "../../api/queries";
@@ -161,7 +161,8 @@ function AgentChat({ card }: { card: Card }) {
             size="sm"
             title="Conversations"
             description={`Your conversations with ${card.name}.`}
-            trigger={<IconButton icon={<PanelLeft aria-hidden />} label="Show conversations" className={c.sheetToggle} />}
+            // Not the navigation's icon: on a phone both buttons show, one above the other (US-18).
+            trigger={<IconButton icon={<MessagesSquare aria-hidden />} label="Show conversations" className={c.sheetToggle} />}
           >
             <ConversationList {...list} onPick={() => setSheetOpen(false)} className={c.sheetList} />
           </Sheet>

@@ -94,11 +94,16 @@
   }
 }
 
-/* The composer's keyboard hint, on devices without a keyboard. */
-@media (hover: none) and (pointer: coarse) {
+/* The composer's keyboard hint, on devices without a keyboard, and on phone widths (VI-33). */
+@media (hover: none) and (pointer: coarse), (max-width: 40rem) {
   .keyHint {
     display: none;
   }
+}
+
+/* A source card's buttons draw their focus ring inside: the sources list clips anything outside it (US-17). */
+.sourceCard :focus-visible {
+  outline-offset: -2px;
 }
 
 /* The answer's claims (SystemOne citation checks): "9 of 10 claims supported · 1 uncited", above its sources. */

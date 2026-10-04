@@ -42,7 +42,7 @@ Status: spec, 2026-09-26. Decision record: [ADR-0020](adr/0020-systemone-models.
   - `/retrieve` accepts `judge: true` to show the results in the KB playground (editors).
 - **Events and analytics** (`message_events.judging` JSON, no text): candidates, kept, dropped by reason, conflicts, skipped, latency. Team and platform analytics show "passages judged / kept / dropped by reason" and the added latency.
 - **UI:**
-  - The chat tool/sources area shows "20 passages checked, 5 used".
+  - The chat tool/sources area shows "20 passages checked, 5 kept" (v0.4.2; "used" read as a contradiction beside "Used 1 source").
   - The KB playground shows each hit's judged scores and route when `judge` is on.
   - The SSE `retrieval` event carries `{judged, kept, dropped}` counts.
 
