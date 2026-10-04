@@ -230,11 +230,14 @@ FROM unnest(@phrases::text[]) AS p(phrase);
 
 -- Documents of the sources whose title, filename or URL matches, for the
 -- expected-documents picker.
+-- Failed and skipped documents are left out: no search finds them, so a
+-- question can't expect them (BU-20).
 -- name: SearchEvalDocuments :many
 SELECT d.id, d.title, d.filename, d.url, s.name AS source_name
 FROM documents d
 JOIN data_sources s ON s.id = d.source_id
 WHERE d.source_id = ANY(@source_ids::uuid[])
+  AND d.status NOT IN ('failed', 'skipped')
   AND (@pattern::text = '' OR d.title ILIKE @pattern::text OR d.filename ILIKE @pattern::text OR d.url ILIKE @pattern::text)
 ORDER BY lower(coalesce(nullif(d.title, ''), nullif(d.filename, ''), d.url)), d.id
 LIMIT @lim;

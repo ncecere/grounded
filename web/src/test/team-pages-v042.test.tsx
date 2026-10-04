@@ -3,9 +3,11 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Schemas } from "../api/client";
 import { TeamContext, teamCtx } from "../pages/team/common";
+import { runOptionLabel } from "../pages/team/evaluations/labels";
 import { sliderText } from "../pages/team/kbs/fusion";
 import { KBSettings } from "../pages/team/kbs/settings";
 import { axe } from "vitest-axe";
+import { run } from "./evaluations-fixtures";
 import { meFor, mockApi, renderApp, renderBare, shellRoutes, team } from "./harness";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -130,5 +132,15 @@ describe("tab content without a second page header (VI-12)", () => {
     expect(await screen.findByRole("dialog", { name: "Request a domain" })).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
     expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe("Compare runs (BU-20)", () => {
+  it("labels each run to the second, with its score and what it ran with", () => {
+    const a = run("r1", "2026-10-04T14:48:05Z", { summary: { ...run("x", "2026-10-04T14:48:05Z").summary, recall: 0.8 } });
+    const b = { ...a, id: "r2", createdAt: "2026-10-04T14:48:40Z", config: { ...a.config, rerank: "off" as const } };
+    expect(runOptionLabel(a)).not.toBe(runOptionLabel(b));
+    expect(runOptionLabel(a)).toMatch(/:48:05.*80%/);
+    expect(runOptionLabel(b)).toMatch(/not reranked/);
   });
 });
