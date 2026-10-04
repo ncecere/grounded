@@ -4,7 +4,7 @@
  * run shows as due, and is audited. The list refreshes while a run waits.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, History, Play } from "lucide-react";
+import { History, Play } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
@@ -79,7 +79,6 @@ export function RetentionRunsTab({ isAdmin }: { isAdmin: boolean }) {
         error={runs.error}
         onRetry={() => void runs.refetch()}
         onRowClick={(x) => record.open(String(x.id))}
-        rowActions={(x) => [{ label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(String(x.id)) }]}
         empty={{ icon: <History />, title: "No runs yet.", description: "Retention runs every 10 minutes on a worker." }}
         tableProps={{
           toolbar: (

@@ -6,7 +6,7 @@
  * a RecordPage with a before/after diff.
  */
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { Eye, FileClock } from "lucide-react";
+import { FileClock } from "lucide-react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { changeSummary } from "@/components/audit/changes";
 import { actedVia, actionLabel, actorName, areaOptions, groupMappingPersonOption, personFilter, targetTypeLabel, targetTypeLabels } from "@/components/audit/labels";
@@ -145,7 +145,6 @@ export function AuditLogTab() {
         error={log.error}
         onRetry={() => void log.refetch()}
         onRowClick={(e) => record.open(String(e.id))}
-        rowActions={(e) => [{ label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(String(e.id)) }]}
         empty={{ icon: <FileClock />, title: Object.values(query).some(Boolean) ? "No entries match these filters." : "No audit entries yet." }}
         tableProps={{
           facetCounts: false,

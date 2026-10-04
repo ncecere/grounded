@@ -103,8 +103,8 @@ describe("admin logs", () => {
       ).toBeNull(),
     );
 
-    await userEvent.click(within(table).getByRole("button", { name: /Actions for Changed model/ }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
+    // The row opens the entry (no one-item menu repeating it, AD-19).
+    await userEvent.click(within(table).getByRole("button", { name: /^Changed model/ }));
     const sheet = await screen.findByRole("region", { name: "Changed model" });
     expect(within(sheet).getByRole("heading", { name: "Changes" })).toBeInTheDocument();
     expect(within(sheet).getByText("req-1")).toBeInTheDocument();
@@ -154,8 +154,7 @@ describe("admin logs", () => {
     for (const link of within(budgetRow).getAllByRole("link", { name: "Academic Advising" })) expect(link).toHaveAttribute("href", "/admin/teams/advising");
     const settingsRow = within(table).getByText("Changed cost settings").closest("tr")!;
     expect(within(settingsRow).getAllByText("Cost settings")).toHaveLength(1);
-    await userEvent.click(within(table).getByRole("button", { name: /Actions for Changed member role/ }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
+    await userEvent.click(within(table).getByRole("button", { name: /^Changed member role/ }));
     const page = await screen.findByRole("region", { name: "Changed member role" });
     expect(within(page).getByText("Academic Advising")).toBeInTheDocument();
     expect(within(page).getByText(/Sep 26, 2026/)).toBeInTheDocument();

@@ -6,7 +6,7 @@
  * header ("Add profile") are in profiles-page.tsx.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, ArchiveRestore, Eye, Layers, SlidersHorizontal, Star, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Layers, SlidersHorizontal, Star, Trash2 } from "lucide-react";
 import { type ReactNode, useId, useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
@@ -72,7 +72,6 @@ export function ProfilesTab({ isAdmin, add }: { isAdmin: boolean; add?: ReactNod
   const open = list.find((p) => p.id === record.id);
 
   const actions = (p: Profile): ActionItem[] => [
-    { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(p.id) },
     { label: "Make default", icon: <Star aria-hidden />, hidden: !isAdmin || p.isDefault || p.status !== "active", onSelect: () => update.mutate({ p, body: { isDefault: true } }) },
     { label: "Fusion defaults", icon: <SlidersHorizontal aria-hidden />, hidden: !isAdmin, onSelect: () => setFusion(p) },
     {

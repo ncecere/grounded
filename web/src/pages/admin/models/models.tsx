@@ -5,7 +5,7 @@
  * (?form=new or ?form=<id>).
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Cpu, Eye, FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
+import { Cpu, FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
@@ -175,7 +175,6 @@ export function ModelsPage() {
         onRetry={() => void models.refetch()}
         onRowClick={(x) => record.open(x.id)}
         rowActions={(x) => [
-          { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(x.id) },
           {
             label: "Test",
             icon: <FlaskConical aria-hidden />,

@@ -4,7 +4,7 @@
  * last signed in instead); there's no Who column since it's always them.
  */
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { Eye, FileClock } from "lucide-react";
+import { FileClock } from "lucide-react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { actionLabel, targetTypeLabel } from "@/components/audit/labels";
 import { AuditTarget } from "@/components/audit/target";
@@ -63,7 +63,6 @@ export function UserActivity({ user }: { user: Schemas["User"] }) {
         error={log.error}
         onRetry={() => void log.refetch()}
         onRowClick={(e) => record.open(String(e.id))}
-        rowActions={(e) => [{ label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(String(e.id)) }]}
         empty={{ icon: <FileClock />, title: show ? "No activity recorded." : "No changes recorded.", description: show ? undefined : "Sign-ins are hidden." }}
         tableProps={{
           loadMore: { hasMore: Boolean(log.hasNextPage), loading: log.isFetchingNextPage, onLoadMore: () => void log.fetchNextPage() },
