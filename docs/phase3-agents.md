@@ -243,7 +243,7 @@ Admin
 
 **SSE for chat and test.** Named events, each with a JSON `data` payload. A `: ping` comment is sent every 15 s.
 - `conversation {conversationId, userMessageId, agentVersion}`
-- `status {step}` (v0.3.0): what the agent is doing before the first token, once per step: `rewriting` (a follow-up that depends on the conversation), `searching` (always mode), `checking` (SystemOne passage judging), `answering` (the model is writing). Clients ignore steps they don't know; the chat shows "Understanding the question…", "Searching <agent>'s knowledge…", "Checking the passages…" and "Writing the answer…", announced politely once per step.
+- `status {step}` (v0.3.0): what the agent is doing before the first token, once per step: `rewriting` (a follow-up that depends on the conversation), `searching` (always mode), `checking` (SystemOne passage judging), `thinking` (from v0.4.2 the model's start: it has the question and may reason), `answering` (its first words arrived). Clients ignore steps they don't know; the chat shows "Understanding the question…", "Searching <agent>'s knowledge…", "Checking the passages…", "Thinking about your question…" and "Writing the answer…", announced politely once per step.
 - `retrieval {query, hits: [{n, title, url?, snippet}]}` (always mode, and after each search in tool mode)
 - `message_start {messageId}`
 - `thinking_delta {delta}`

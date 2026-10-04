@@ -35,8 +35,8 @@ const checksFirst = (item: AssistantItem) => Boolean(item.buffered || item.check
 
 /** Waiting text before the answer's first words. */
 export function waitingText(item: AssistantItem, thinking: boolean, agentName: string) {
-  if (thinking) return "Thinking…";
-  if (item.step === "thinking") return stepLabel("thinking", agentName);
+  // One wording for thinking on every page (US-08).
+  if (thinking || item.step === "thinking") return stepLabel("thinking", agentName);
   if (checksFirst(item) && (!item.step || item.step === "answering")) return bufferedLabel;
   if (item.step) return stepLabel(item.step, agentName);
   return item.steps.length > 0 ? "Reading the sources…" : "Working on it…";

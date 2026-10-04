@@ -78,9 +78,10 @@ describe("uncited sentences", () => {
 describe("the thinking panel", () => {
   const thinkingItem = (): AssistantItem => ({ ...pendingAssistant(), key: "a1", thinking: "The rules say to answer only from sources." });
 
-  it("shows readers only “Thinking…”, never the reasoning", async () => {
+  it("shows readers only “Thinking about your question…”, never the reasoning", async () => {
     renderBare(<ChatMessages items={thread(thinkingItem())} agent={{ name: "Helper" }} />);
-    expect(await screen.findByText("Thinking…")).toBeInTheDocument();
+    // One wording on every page (v0.4.2 US-08).
+    expect(await screen.findByText("Thinking about your question…")).toBeInTheDocument();
     expect(screen.queryByText(/answer only from sources/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Thinking|Thought/ })).toBeNull();
   });

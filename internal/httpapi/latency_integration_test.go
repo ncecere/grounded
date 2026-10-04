@@ -186,7 +186,7 @@ func TestSearchOverlapsTheScopeCheck(t *testing.T) {
 	}
 	names := strings.Join(evs.events().names(), ",")
 	if !strings.HasPrefix(names, "conversation,status,status,retrieval,status,message_start,") ||
-		strings.Join(statusSteps(evs.events()), ",") != "searching,checking,answering" || env.proxy.JudgingRequests() == judged {
+		strings.Join(statusSteps(evs.events()), ",") != "searching,checking,thinking,answering" || env.proxy.JudgingRequests() == judged {
 		t.Errorf("events = %s, steps = %v", names, statusSteps(evs.events()))
 	}
 
@@ -195,7 +195,7 @@ func TestSearchOverlapsTheScopeCheck(t *testing.T) {
 	}
 	for _, tc := range []struct{ message, steps, reason string }{
 		{"OFFTOPIC Which car should I buy?", "searching", "out_of_scope"},
-		{"Hello!", "searching,answering", "small_talk"},
+		{"Hello!", "searching,thinking,answering", "small_talk"},
 	} {
 		judged, chats, rows := env.proxy.JudgingRequests(), len(env.proxy.ChatRequests()), embedRows()
 		code, evs, e := env.member.stream(env.chatPath("fees"), map[string]any{"message": tc.message})

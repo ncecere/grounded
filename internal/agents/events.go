@@ -253,9 +253,7 @@ func (ru *run) onDelta(le *llm.Event, st *loopState) {
 		ru.sendDelta("text_delta", le.Delta)
 	case llm.EventThinkingDelta:
 		ru.markFirstToken()
-		if ru.mod.Buffered() || ru.mod.Checked() {
-			ru.status(StepThinking) // thinking isn't shown in these modes: say it's happening
-		}
+		ru.status(StepThinking) // thinking isn't shown to most readers: say it's happening
 		if st.newThinking && st.thinkSoFar.Len() > 0 {
 			st.thinkSoFar.WriteString("\n\n")
 			ru.sendDelta("thinking_delta", "\n\n")

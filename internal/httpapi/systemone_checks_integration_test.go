@@ -417,7 +417,7 @@ func TestScopeCheck(t *testing.T) {
 	var end apitypes.ChatEventMessageEnd
 	evs.one(t, "message_end", &end)
 	if end.Text != testutil.FakeSmallTalk || end.NoContextReason == nil || *end.NoContextReason != "small_talk" || end.Refused ||
-		len(evs.all("retrieval")) != 0 || len(env.proxy.ChatRequests()) != chats+1 || strings.Join(statusSteps(evs), ",") != "searching,answering" {
+		len(evs.all("retrieval")) != 0 || len(env.proxy.ChatRequests()) != chats+1 || strings.Join(statusSteps(evs), ",") != "searching,thinking,answering" {
 		t.Fatalf("small talk = %v %+v", evs.names(), end)
 	}
 	if n := env.scalar(t, `SELECT count(*) FROM usage_events WHERE kind = 'embed_tokens' AND agent_id = $1`, ag.Id); n != 1 {

@@ -456,7 +456,8 @@ func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 	}
 	tools = append(tools, mcpTools...)
 
-	ru.status(StepAnswering)
+	// The model starts: "Thinking…" until its first words ("Writing…" before it read backwards, v0.4.2 US-08).
+	ru.status(StepThinking)
 	ru.startChecked(ctx)
 	st := &loopState{}
 	loopCfg := agentloop.Config{

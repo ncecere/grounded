@@ -124,7 +124,7 @@ func (ru *run) smallTalk(ctx context.Context) (Answer, error) {
 	if opts.MaxTokens == 0 || opts.MaxTokens > smallTalkMaxTokens {
 		opts.MaxTokens = smallTalkMaxTokens
 	}
-	ru.status(StepAnswering)
+	ru.status(StepThinking)
 	st := &loopState{}
 	cfg := agentloop.Config{Provider: ru.s.NewProvider(ru.target.Client), Model: ru.model, SystemPrompt: sys, MaxTurns: 1, Options: opts}
 	added, runErr := agentloop.Run(ctx, cfg, msgs, func(ev agentloop.Event) { ru.onEvent(ev, st) })
