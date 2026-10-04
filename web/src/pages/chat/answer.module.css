@@ -54,21 +54,24 @@
   font-size: var(--font-size-sm);
 }
 
-/* A search step's title wraps on narrow screens instead of being cut off. */
 /*
  * A step's header: the icon beside its title (a long query wraps under the title, never under the icon, US-09), the
  * chevron at the end of the first line, the state and summary on a line under the title.
+ * Doubled class: bitop-ui's trigger (display: flex) is bundled after this file in a build, and a flex row squeezed
+ * the summary into a column one syllable wide (US2-02).
  */
-.step {
+.step.step {
   display: grid;
   grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   column-gap: var(--space-2);
   row-gap: var(--space-1);
 
+  /* Lines break between words; only a word longer than the line (a URL in a query) breaks inside. */
   & > span {
+    min-width: 0;
     white-space: normal;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   & > span:nth-of-type(1) {

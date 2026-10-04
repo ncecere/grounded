@@ -89,33 +89,92 @@ export function remarkUncitedMarks() {
 /** Punctuation that belongs with the chip before it ("…refunded [3]." never leaves the "." alone on a line). */
 const TRAIL = /^[.,;:!?)\]\u201d\u2019"']+/;
 
+/** The longest word kept on one line with the chip after it: a longer one (a URL) may still break. */
+const MAX_GLUED = 24;
+const plain = (n: MdNode): string => n.value ?? n.children?.map(plain).join("") ?? "";
+const gluable = (n: MdNode | undefined) => Boolean(n && n.type !== "text" && n.children && plain(n) && !/\s/.test(plain(n)) && plain(n).length <= MAX_GLUED);
+
+/**
+ * Takes the word before a chip off the end of `out`, to go in the chip's no-wrap span: a no-break space alone doesn't
+ * keep a chip (an inline block) with the word before it, browsers may break around it anyway (US-10). A short inline
+ * node without spaces (a link, bold or code) goes too when nothing but a space separates it from the chip.
+ */
+function takeWordBefore(out: MdNode[]): MdNode[] {
+  const prev = out[out.length - 1];
+  if (prev?.type !== "text" || !prev.value) return gluable(prev) ? [out.pop()!] : [];
+  const m = /(\S*)([ \t\u00a0]*)$/.exec(prev.value)!;
+  const word = m[1] ?? "";
+  if (word.length > MAX_GLUED || (!word && !m[2])) return [];
+  prev.value = prev.value.slice(0, prev.value.length - m[0].length);
+  if (!prev.value) out.pop();
+  const taken = { type: "text", value: word + (m[2] ? "\u00a0" : "") };
+  if (word || !gluable(out[out.length - 1])) return [taken];
+  return [out.pop()!, taken];
+}
+
+/** A paragraph of nothing but markers and punctuation ("[1]." after a list). */
+const markersOnly = (n: MdNode) =>
+  n.type === "paragraph" &&
+  Boolean(n.children?.some((c) => c.type === "citationMarker")) &&
+  Boolean(n.children?.every((c) => c.type === "citationMarker" || (c.type === "text" && /^[\s.,;:!?)\]]*$/.test(c.value ?? ""))));
+
+/** The last paragraph inside a list (its last item's), or the node itself when it's a paragraph. */
+function lastParagraph(n: MdNode | undefined): MdNode | undefined {
+  if (!n) return undefined;
+  if (n.type === "paragraph") return n;
+  if (n.type !== "list" && n.type !== "listItem") return undefined;
+  return lastParagraph(n.children?.[n.children.length - 1]);
+}
+
+/** A chip the model put on a line of its own after a list or paragraph joins the end of it (US-10). */
+function joinLoneMarkers(tree: MdNode) {
+  walk(tree, (n) => {
+    if (!n.children?.some(markersOnly)) return;
+    const out: MdNode[] = [];
+    for (const c of n.children) {
+      const host = markersOnly(c) ? lastParagraph(out[out.length - 1]) : undefined;
+      if (host?.children) host.children.push({ type: "text", value: " " }, ...c.children!);
+      else out.push(c);
+    }
+    n.children = out;
+  });
+}
+
 /** Wraps markers and the punctuation right after them in a span that doesn't break (data-chip-tail). */
 export function remarkChipPunctuation() {
-  return (tree: MdNode) =>
-    walk(tree, (n) => {
-      if (n.type === "chipTail" || !n.children?.some((c) => c.type === "citationMarker")) return;
-      const out: MdNode[] = [];
-      const kids = n.children;
-      for (let i = 0; i < kids.length; i++) {
-        const c = kids[i]!;
-        const next = kids[i + 1];
-        const m = c.type === "citationMarker" && next?.type === "text" ? TRAIL.exec(next.value ?? "") : null;
-        if (!m || !next) {
-          out.push(c);
-          continue;
-        }
-        // A group [1][2] stays together with it, and the space before it doesn't break: a wrapped line never starts
-        // with a chip and its full stop (US-10).
-        const group: MdNode[] = [c];
-        while (out[out.length - 1]?.type === "citationMarker") group.unshift(out.pop()!);
-        const prev = out[out.length - 1];
-        if (prev?.type === "text" && prev.value) prev.value = prev.value.replace(/[ \t]+$/, "\u00a0");
-        out.push({ type: "chipTail", data: { hName: "span", hProperties: { dataChipTail: "" } }, children: [...group, { type: "text", value: m[0] }] });
+  return (tree: MdNode) => {
+    joinLoneMarkers(tree);
+    wrapChipTails(tree);
+  };
+}
+
+function wrapChipTails(tree: MdNode) {
+  walk(tree, (n) => {
+    if (n.type === "chipTail" || !n.children?.some((c) => c.type === "citationMarker")) return;
+    const out: MdNode[] = [];
+    const kids = n.children;
+    for (let i = 0; i < kids.length; i++) {
+      const c = kids[i]!;
+      const next = kids[i + 1];
+      // The last marker of a group [1][2]: the group, the word before it and the punctuation after it stay on one
+      // line, so a wrapped line never starts with a chip or its full stop (US-10).
+      if (c.type !== "citationMarker" || next?.type === "citationMarker") {
+        out.push(c);
+        continue;
+      }
+      const m = next?.type === "text" ? TRAIL.exec(next.value ?? "") : null;
+      const group: MdNode[] = [c];
+      while (out[out.length - 1]?.type === "citationMarker") group.unshift(out.pop()!);
+      const word = takeWordBefore(out);
+      const tail = m ? [{ type: "text", value: m[0] }] : [];
+      out.push({ type: "chipTail", data: { hName: "span", hProperties: { dataChipTail: "" } }, children: [...word, ...group, ...tail] });
+      if (m && next) {
         next.value = next.value!.slice(m[0].length);
         if (!next.value) i++;
       }
-      n.children = out;
-    });
+    }
+    n.children = out;
+  });
 }
 
 export { displayNumbers } from "./answer-text";
