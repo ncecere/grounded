@@ -249,6 +249,8 @@ function claimChip(props: ChipProps, indices: number[], occurrences: number[], c
     <InlineCitation
       index={indices.map(num)}
       className={a.chip}
+      // Below the chip when there is room, not up over the top bar (VI2-12); it turns up near the bottom.
+      side="bottom"
       verification={verification}
       verificationLabel={verification && at >= 0 ? claimLabel(found[at]!, indices[at]!, num) : undefined}
       sources={sources}
@@ -271,6 +273,8 @@ function chip(props: ChipProps, indices: number[], occurrences: number[]): React
     <InlineCitation
       index={indices.map(num)}
       className={a.chip}
+      // Below the chip when there is room, not up over the top bar (VI2-12); it turns up near the bottom.
+      side="bottom"
       verification={verification}
       verificationLabel={verification ? verificationLabel(verification, deciding?.confidence) : undefined}
       sources={cited.map((s) => sourceProps(s!))}

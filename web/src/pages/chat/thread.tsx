@@ -51,10 +51,12 @@ function pages(start?: number, end?: number) {
 export const sourceElementId = (itemKey: string, n: number) => `${itemKey}-source-${n}`;
 /** An MCP tool's result (docs/mcp-client.md) reads "From Service status · check_outage"; a passage by its document's title. */
 export const sourceTitle = (s: Citation) => (s.kind === "tool" ? `From ${s.server ?? "a tool"} · ${s.tool ?? ""}` : s.title || "Untitled document");
+/** The passage's headings, without a first heading that only repeats the document's title (the card shows it: VI2-12). */
+const headings = (s: Citation) => (s.headingPath[0]?.trim().toLowerCase() === s.title.trim().toLowerCase() ? s.headingPath.slice(1) : s.headingPath);
 const where = (s: Citation) =>
   s.kind === "tool"
     ? ["Tool result", s.truncated ? "cut to fit" : ""].filter(Boolean).join(" · ")
-    : [s.headingPath.join(" › "), pages(s.pageStart, s.pageEnd)].filter(Boolean).join(" · ");
+    : [headings(s).join(" › "), pages(s.pageStart, s.pageEnd)].filter(Boolean).join(" · ");
 /**
  * A source in Copy answer's list, as the Markdown export names it: "Title — Heading › Subheading, p. 3", so sources
  * from one document's sections can be told apart (US2-07).
@@ -62,7 +64,7 @@ const where = (s: Citation) =>
 export const copySourceTitle = (s: Citation) =>
   s.kind === "tool"
     ? sourceTitle(s)
-    : `${sourceTitle(s)}${s.headingPath.length ? ` — ${s.headingPath.join(" › ")}` : ""}${s.pageStart ? `, p. ${s.pageStart}` : ""}`;
+    : `${sourceTitle(s)}${headings(s).length ? ` — ${headings(s).join(" › ")}` : ""}${s.pageStart ? `, p. ${s.pageStart}` : ""}`;
 /** A tool's result is named by the tool's title, as its step is ("From Service status · Check outage", US2-10). */
 function withToolTitles(item: AssistantItem): Citation[] {
   const titles = new Map(item.steps.flatMap((s) => (s.name && s.title ? [[s.name, s.title] as const] : [])));
