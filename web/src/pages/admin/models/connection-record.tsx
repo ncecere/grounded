@@ -6,6 +6,7 @@
  */
 import { plural } from "../../team/common";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useId } from "react";
 import { Link } from "@tanstack/react-router";
 import { FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
 import { api, ifMatch, unwrap } from "@/api/client";
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button/button";
 import { Checkbox } from "@/components/ui/checkbox/checkbox";
 import { Field } from "@/components/ui/field/field";
 import { Input, Textarea } from "@/components/ui/input/input";
+import { NumberInput } from "@/components/ui/number-input/number-input";
 import { Switch } from "@/components/ui/switch/switch";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
@@ -41,6 +43,7 @@ type RecordProps = {
 };
 
 export function ConnectionRecordPage({ conn, health, open, loading, onClose, models, isAdmin, onEdit, onDelete, onAddModel }: RecordProps) {
+  const blockedId = useId();
   const qc = useQueryClient();
   const test = useQuery({ ...connectionTestQuery(conn?.id ?? ""), enabled: false, gcTime: 0 });
   const onThis = models.filter((x) => x.connectionId === conn?.id);
@@ -62,6 +65,7 @@ export function ConnectionRecordPage({ conn, health, open, loading, onClose, mod
               { label: "Base URL", value: <code className={s.mono}>{conn.baseUrl}</code> },
               { label: "API key", value: conn.hasApiKey ? <code className={s.mono}>••••{conn.apiKeyHint}</code> : "None" },
               { label: "Timeout", value: `${conn.timeoutSeconds} s` },
+              { label: "Requests per minute", value: conn.requestsPerMinute ? conn.requestsPerMinute.toLocaleString() : "Unlimited" },
               { label: "Concurrent requests", value: `Up to ${conn.maxConcurrentRequests} per process` },
               { label: "Status", value: <EnabledBadge enabled={conn.enabled} /> },
               ...healthFacts(health),
@@ -130,13 +134,21 @@ export function ConnectionRecordPage({ conn, health, open, loading, onClose, mod
               {
                 title: `Models on this connection (${onThis.length})`,
                 content: onThis.length ? (
-                  <ul className={m.usedBy}>
-                    {onThis.map((x) => (
-                      <li key={x.id}>
-                        <TextLink render={<Link to="/admin/models" search={{ record: x.id } as never} />}>{x.displayName}</TextLink> <span className={s.muted}>({x.upstreamModel})</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    <ul className={m.usedBy}>
+                      {onThis.map((x) => (
+                        <li key={x.id}>
+                          <TextLink render={<Link to="/admin/models" search={{ record: x.id } as never} />}>{x.displayName}</TextLink> <span className={s.muted}>({x.upstreamModel})</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {/* Why Delete is off, in words everyone reaches (AD-33), not only a title. */}
+                    {isAdmin && (
+                      <p id={blockedId} className={s.muted}>
+                        Remove or move this connection's models to delete it.
+                      </p>
+                    )}
+                  </>
                 ) : (
                   <p className={s.muted}>No models yet.</p>
                 ),
@@ -148,7 +160,7 @@ export function ConnectionRecordPage({ conn, health, open, loading, onClose, mod
         conn &&
         isAdmin && (
           <>
-            <Button variant="danger" disabled={onThis.length > 0} title={onThis.length ? "Remove this connection's models first." : undefined} onClick={() => onDelete(conn)}>
+            <Button variant="danger" disabled={onThis.length > 0} aria-describedby={onThis.length ? blockedId : undefined} onClick={() => onDelete(conn)}>
               <Trash2 aria-hidden /> Delete
             </Button>
             <Button onClick={() => onEdit(conn)}>
@@ -170,8 +182,10 @@ export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onC
     baseUrl: conn?.baseUrl ?? "",
     apiKey: "",
     removeKey: false,
-    timeoutSeconds: conn?.timeoutSeconds ?? 60,
-    maxConcurrentRequests: conn?.maxConcurrentRequests ?? 8,
+    timeoutSeconds: String(conn?.timeoutSeconds ?? 60),
+    // "" = unlimited (AD-12: the setting docs/operations/alerts.md tells admins to raise).
+    requestsPerMinute: conn?.requestsPerMinute ? String(conn.requestsPerMinute) : "",
+    maxConcurrentRequests: String(conn?.maxConcurrentRequests ?? 8),
     enabled: conn?.enabled ?? true,
   });
   const save = useMutation({
@@ -180,8 +194,9 @@ export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onC
         name: form.name,
         description: form.description,
         baseUrl: form.baseUrl,
-        timeoutSeconds: form.timeoutSeconds,
-        maxConcurrentRequests: form.maxConcurrentRequests,
+        timeoutSeconds: Number(form.timeoutSeconds) || 60,
+        requestsPerMinute: Number(form.requestsPerMinute) || 0,
+        maxConcurrentRequests: Number(form.maxConcurrentRequests) || 8,
         enabled: form.enabled,
       };
       if (!conn) return unwrap(await api.POST("/v1/admin/connections", { body: { ...common, apiKey: form.apiKey || undefined } }));
@@ -222,11 +237,14 @@ export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onC
         {conn?.hasApiKey && <Checkbox label="Remove the stored key" checked={form.removeKey} onCheckedChange={(v) => set("removeKey", v)} />}
       </FormSection>
       <FormSection title="Limits">
-        <Field label="Timeout (seconds)">
-          <Input type="number" min={1} max={600} value={form.timeoutSeconds} onChange={(e) => set("timeoutSeconds", Number(e.target.value))} />
+        <Field label="Timeout (seconds)" description="1 to 600.">
+          <NumberInput maximumFractionDigits={0} min={1} max={600} value={form.timeoutSeconds} onValueChange={(v) => set("timeoutSeconds", v)} />
+        </Field>
+        <Field label="Requests per minute" labelHint="Optional" description="Requests above it wait their turn. Empty is unlimited; set it below the gateway's own limit for Grounded's key.">
+          <NumberInput maximumFractionDigits={0} min={0} max={1000000} placeholder="Unlimited" value={form.requestsPerMinute} onValueChange={(v) => set("requestsPerMinute", v)} />
         </Field>
         <Field label="Maximum concurrent requests" description="Per Grounded process (1–256), for SystemOne models: what the SystemOne service serves at once, divided by the Grounded pods calling it. Answers get a free slot first; evaluations and the gap job use at most half.">
-          <Input type="number" min={1} max={256} value={form.maxConcurrentRequests} onChange={(e) => set("maxConcurrentRequests", Number(e.target.value))} />
+          <NumberInput maximumFractionDigits={0} min={1} max={256} value={form.maxConcurrentRequests} onValueChange={(v) => set("maxConcurrentRequests", v)} />
         </Field>
       </FormSection>
       <FormSection title="Details">

@@ -82,6 +82,24 @@ describe("admin model compatibility fields", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("sets a connection's requests per minute (AD-12) and says in words why Delete is off (AD-33)", async () => {
+    const calls = mockApi({
+      ...shellRoutes("platform_admin"),
+      "GET /v1/admin/connections": () => [{ ...connection, requestsPerMinute: 0 }],
+      "GET /v1/admin/models": () => [chat],
+      "PATCH /v1/admin/connections/c1": (body) => ({ ...connection, ...(body as object) }),
+    });
+    renderApp("/admin/connections?record=c1");
+    const sheet = await screen.findByRole("region", { name: "Self-hosted" }, { timeout: 4000 });
+    expect(within(sheet).getByText("Unlimited")).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: /Delete/ })).toHaveAccessibleDescription("Remove or move this connection's models to delete it.");
+    await userEvent.click(within(sheet).getByRole("button", { name: /Edit/ }));
+    const form = await screen.findByRole("region", { name: "Edit Self-hosted" });
+    await userEvent.type(within(form).getByRole("textbox", { name: /Requests per minute/ }), "120");
+    await userEvent.click(within(form).getByRole("button", { name: "Save connection" }));
+    await waitFor(() => expect((calls.find((c) => c.method === "PATCH")?.body as { requestsPerMinute: number }).requestsPerMinute).toBe(120));
+  });
+
   it("warns when extra request fields set thinking too (AD-10)", () => {
     const base = { kind: "chat" as const, thinkingOff: "enable_thinking_false" as const };
     expect(thinkingConflict({ ...base, extraBody: '{"chat_template_kwargs": {"enable_thinking": true}}' })).toMatch(/turn thinking on for every request; agents and audiences set to Off still turn it off/);
