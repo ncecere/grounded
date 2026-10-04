@@ -32,6 +32,11 @@
   --welcome-starters-gap: var(--space-1);
 }
 
+/* Less space around it: the fourth starter question shows above the composer (US2-13, VI2-06). */
+.compactWelcome.compactWelcome {
+  padding-block: var(--space-2);
+}
+
 /* The scroll button at the panel's end, not over the middle of the answer. */
 .compactScroll.compactScroll {
   inset-inline: auto var(--space-3);

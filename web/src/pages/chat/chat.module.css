@@ -69,6 +69,24 @@
   gap: var(--welcome-gap, var(--space-3));
 }
 
+/*
+ * A short window (200% zoom, a phone on its side): the welcome without its avatar and with less space around it, so
+ * the starter questions show above the composer (US2-13).
+ */
+@media (max-height: 32rem) {
+  .welcome.welcome {
+    padding-block: var(--space-2);
+  }
+
+  .welcomeAvatar {
+    display: none;
+  }
+
+  .pagePanel .content.content {
+    padding-block: var(--space-3);
+  }
+}
+
 .welcomeName {
   margin: var(--space-1) 0 0;
   font-size: var(--welcome-name-size, var(--font-size-xl));
@@ -96,7 +114,7 @@
  * fullBleed): the conversation list flush against the app sidebar, and the
  * thread. Only the list and the messages scroll, never the page.
  */
-/* "Skip to message box": hidden until focused, like the shell's Skip to content (US2-04). Out of the grid's flow. */
+/* "Skip to message box": hidden until focused, then drawn like the shell's Skip to content (US2-04). Out of the grid's flow. */
 .skipToComposer {
   position: absolute;
   top: var(--space-2);
@@ -108,11 +126,14 @@
   box-shadow: var(--shadow-3);
   color: var(--color-link);
   font-weight: var(--font-weight-medium);
-  transform: translateY(-200%);
-  transition: transform var(--motion-duration-fast) var(--motion-ease-out);
 
-  &:focus {
-    transform: translateY(0);
+  &:not(:focus) {
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 

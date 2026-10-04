@@ -29,7 +29,8 @@ export function ChatWelcome({ agent, onStarter, disabled, compact, textId }: Wel
   return (
     <ConversationEmptyState
       className={compact ? `${c.welcome} ${pm.compactWelcome}` : c.welcome}
-      media={<AgentAvatar agent={agent} size={compact ? "lg" : "xl"} />}
+      // The widget's header already shows the agent: no avatar there, so the starters fit (US2-13, VI2-06).
+      media={compact ? undefined : <span className={c.welcomeAvatar}><AgentAvatar agent={agent} size="xl" /></span>}
       title={<span className={c.welcomeName}>{agent.name}</span>}
       description={<span id={textId} className={c.welcomeText}>{agent.welcomeMessage || agent.description || `Ask ${agent.name} a question.`}</span>}
     >
