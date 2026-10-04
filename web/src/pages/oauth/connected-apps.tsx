@@ -76,11 +76,14 @@ export function ConnectedApps({
   canDisconnect,
   hideWhenEmpty = false,
   title = "Connected apps",
+  description,
 }: {
   owner: ConnectedAppsOwner;
   canDisconnect: boolean;
   hideWhenEmpty?: boolean;
   title?: string;
+  /** The card's description, where the page already says what the apps are (default: what they are and do). */
+  description?: string;
 }) {
   const grants = useGrants(owner);
   const [target, setTarget] = useState<Grant | null>(null);
@@ -91,7 +94,7 @@ export function ConnectedApps({
   // A person's admin page is a record page: absolute dates there.
   const format = owner.self ? "relative" : "datetime";
   return (
-    <Card title={title} description={intro(owner, canDisconnect)}>
+    <Card title={title} description={description ?? intro(owner, canDisconnect)}>
       {grants.isLoading && <Loading label="Loading connected apps…" />}
       <ErrorAlert error={grants.error} title="Couldn't load connected apps" />
       {grants.isSuccess && list.length === 0 && <EmptyState size="compact" icon={<Plug />} title="No connected apps." description={empty} />}
