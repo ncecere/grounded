@@ -57,6 +57,20 @@ func (q *Queries) CountModelProfiles(ctx context.Context, modelID uuid.UUID) (in
 	return count, err
 }
 
+const countProfileMigrations = `-- name: CountProfileMigrations :one
+SELECT count(*)::bigint FROM profile_migrations
+WHERE from_profile_id = $1 OR to_profile_id = $1
+`
+
+// Profile migrations from or to a profile: deleting it would delete their
+// history (ON DELETE CASCADE), so it is retired instead (AD-15).
+func (q *Queries) CountProfileMigrations(ctx context.Context, profileID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countProfileMigrations, profileID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const deleteConnection = `-- name: DeleteConnection :exec
 DELETE FROM model_connections WHERE id = $1
 `

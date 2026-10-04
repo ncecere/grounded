@@ -366,6 +366,12 @@ func (s *Service) DeleteProfile(ctx context.Context, a authz.Actor, id uuid.UUID
 				return apperr.Conflict("default_required", "Make another profile the default before deleting this one")
 			}
 		}
+		// Deleting it would also delete the profile migrations from or to it (AD-15).
+		if n, err := q.CountProfileMigrations(ctx, id); err != nil {
+			return err
+		} else if n > 0 {
+			return apperr.Conflict("profile_in_migrations", "Profile migrations refer to this profile, and deleting it would delete their history. Retire it instead.")
+		}
 		if err := q.DeleteEmbeddingProfile(ctx, id); apperr.IsForeignKeyViolation(err, "") {
 			return apperr.Conflict("profile_in_use", "This profile is in use. Retire it instead.")
 		} else if err != nil {

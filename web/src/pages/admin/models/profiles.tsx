@@ -7,7 +7,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, ArchiveRestore, Eye, Layers, SlidersHorizontal, Star, Trash2 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import type { ActionItem } from "@/components/templates/action-menu";
@@ -146,6 +146,8 @@ export function ProfilesTab({ isAdmin, add }: { isAdmin: boolean; add?: ReactNod
         usage={open && usageById.get(open.id)}
         isAdmin={isAdmin}
         onFusion={setFusion}
+        onStatus={(pr) => update.mutate({ p: pr, body: { status: pr.status === "active" ? "retired" : "active" } })}
+        onDelete={setDeleting}
       />
       {fusion && <ProfileFusionDialog profile={fusion} onClose={() => setFusion(null)} />}
       <ConfirmMutationDialog
@@ -154,18 +156,30 @@ export function ProfilesTab({ isAdmin, add }: { isAdmin: boolean; add?: ReactNod
         mutation={del}
         onConfirm={(p) => del.mutate(p)}
         title={`Delete ${deleting?.name}?`}
-        description="Profiles in use can't be deleted; retire them instead."
+        description="Profiles in use, or that a profile migration refers to, can't be deleted (that would delete the migration's history); retire them instead."
         confirmLabel="Delete"
       />
     </>
   );
 }
 
-type RecordProps = { profile?: Profile; open: boolean; loading: boolean; onClose: () => void; usage?: ProfileUsage; isAdmin: boolean; onFusion: (p: Profile) => void };
+type RecordProps = {
+  profile?: Profile;
+  open: boolean;
+  loading: boolean;
+  onClose: () => void;
+  usage?: ProfileUsage;
+  isAdmin: boolean;
+  onFusion: (p: Profile) => void;
+  onStatus: (p: Profile) => void;
+  onDelete: (p: Profile) => void;
+};
 
-function ProfileRecordPage({ profile: p, open, loading, onClose, usage, isAdmin, onFusion }: RecordProps) {
+/** Delete and Retire are on the record too, like connections and models (AD-15). */
+function ProfileRecordPage({ profile: p, open, loading, onClose, usage, isAdmin, onFusion, onStatus, onDelete }: RecordProps) {
   const levelName = useLevelName();
   const usedBy = profileUsedBy(usage);
+  const blockedId = useId();
   return (
     <RecordPage
       open={open}
@@ -196,11 +210,18 @@ function ProfileRecordPage({ profile: p, open, loading, onClose, usage, isAdmin,
               {
                 title: "Used by",
                 content: usedBy.length ? (
-                  <ul className={m.usedBy}>
-                    {usedBy.map((u) => (
-                      <li key={u}>{u}</li>
-                    ))}
-                  </ul>
+                  <>
+                    <ul className={m.usedBy}>
+                      {usedBy.map((u) => (
+                        <li key={u}>{u}</li>
+                      ))}
+                    </ul>
+                    {isAdmin && (
+                      <p id={blockedId} className={s.muted}>
+                        A profile in use can't be deleted; retire it instead.
+                      </p>
+                    )}
+                  </>
                 ) : (
                   <p className={s.muted}>No source or knowledge base uses this profile.</p>
                 ),
@@ -211,9 +232,19 @@ function ProfileRecordPage({ profile: p, open, loading, onClose, usage, isAdmin,
       actions={
         p &&
         isAdmin && (
-          <Button variant="secondary" onClick={() => onFusion(p)}>
-            <SlidersHorizontal aria-hidden /> Fusion defaults
-          </Button>
+          <>
+            <Button variant="danger" disabled={usedBy.length > 0} aria-describedby={usedBy.length ? blockedId : undefined} onClick={() => onDelete(p)}>
+              <Trash2 aria-hidden /> Delete
+            </Button>
+            {!p.isDefault && (
+              <Button variant="secondary" onClick={() => onStatus(p)}>
+                {p.status === "active" ? <Archive aria-hidden /> : <ArchiveRestore aria-hidden />} {p.status === "active" ? "Retire" : "Reactivate"}
+              </Button>
+            )}
+            <Button variant="secondary" onClick={() => onFusion(p)}>
+              <SlidersHorizontal aria-hidden /> Fusion defaults
+            </Button>
+          </>
         )
       }
     />

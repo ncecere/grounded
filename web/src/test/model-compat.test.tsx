@@ -184,6 +184,8 @@ describe("embedding profile output dimensions and fusion defaults", () => {
     expect(within(sheet).getByText("Vector 1 · keyword 0.02")).toBeInTheDocument();
     expect(within(sheet).getByText(/shortened from the model's vectors/)).toBeInTheDocument();
     expect(await within(sheet).findByText("2 data sources")).toBeInTheDocument();
+    // Delete and Retire on the record (AD-15): Delete off while it's used, saying why.
+    expect(within(sheet).getByRole("button", { name: /Delete/ })).toHaveAccessibleDescription("A profile in use can't be deleted; retire it instead.");
   });
 
   it("edits a profile's fusion defaults", async () => {

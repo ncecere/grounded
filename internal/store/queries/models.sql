@@ -140,3 +140,9 @@ SELECT m.* FROM models m
 JOIN model_connections c ON c.id = m.connection_id
 WHERE m.kind = 'vision' AND m.enabled AND c.enabled
 ORDER BY m.display_name, m.key;
+
+-- name: CountProfileMigrations :one
+-- Profile migrations from or to a profile: deleting it would delete their
+-- history (ON DELETE CASCADE), so it is retired instead (AD-15).
+SELECT count(*)::bigint FROM profile_migrations
+WHERE from_profile_id = @profile_id OR to_profile_id = @profile_id;
