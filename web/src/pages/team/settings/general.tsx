@@ -18,7 +18,7 @@ import { ssoBlockedReason, ssoGroup } from "../../../components/member-list";
 import { leaveBlockedReason, membersKey } from "../../../components/members";
 import { RoleBadge } from "../../../components/role-badge";
 import { DangerAction, DangerZone, SettingsPage, SettingsSection } from "../../../components/templates/settings-page";
-import { lifecycleLabels } from "../../../lib/terms";
+import { adminOnly, lifecycleLabels } from "../../../lib/terms";
 import { useCurrentUser } from "../../../session";
 import { Button } from "@/components/ui/button/button";
 import { CopyField } from "@/components/ui/copy-field/copy-field";
@@ -63,6 +63,7 @@ export function GeneralTab() {
   return (
     <SettingsPage
       canEdit={isPlatformAdmin}
+      readOnlyNote={adminOnly}
       dirty={dirty}
       saving={save.isPending && !("status" in (save.variables ?? {}))}
       error={save.error}

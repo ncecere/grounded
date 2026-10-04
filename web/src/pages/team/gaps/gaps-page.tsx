@@ -17,6 +17,7 @@ import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import { gapTabs } from "@/lib/tabs";
 import sh from "../../shared.module.css";
+import { EditorsOnlyState } from "../access";
 import { useTeam } from "../common";
 import { type GapFilter, gapTopicsQuery, pendingNote } from "./queries";
 import { GapSettingsTab } from "./settings";
@@ -31,6 +32,7 @@ export function TeamGapsPage() {
   const [tab, setTab] = useUrlTab(gapTabs);
   const record = useRecordParam();
   const editor = role === "editor" || role === "admin" || role === "owner";
+  if (role === "member") return <EditorsOnlyState title="Gaps" what="gaps" />;
   if (!editor) return <NotFoundState />;
   return (
     <Stack gap={6} className={sh.page}>

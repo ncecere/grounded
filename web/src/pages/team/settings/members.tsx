@@ -6,6 +6,7 @@ import { useIntent } from "../../../lib/intents";
 import { useCurrentUser } from "../../../session";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
+import { ReadOnlyNotice } from "../access";
 import { useTeam } from "../common";
 
 export function MembersTab() {
@@ -16,6 +17,7 @@ export function MembersTab() {
   useIntent("add-member", () => canAdd && setAdding(true));
   return (
     <>
+      <ReadOnlyNotice what="the team's members" managers change="add, change and remove them" />
       <Card
         title="Members"
         actions={

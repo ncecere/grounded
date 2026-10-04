@@ -21,6 +21,7 @@ import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { TextLink } from "@/components/ui/text-link/text-link";
+import { EditorsOnlyState } from "../access";
 import { useTeam } from "../common";
 import { smallList } from "./labels";
 import { type EvalSet, evalSetsQuery, useEvaluationsOn } from "./queries";
@@ -49,10 +50,11 @@ const trendFacet: Facet<EvalSet>[] = [
 ];
 
 export function TeamEvaluationsPage() {
-  const { slug, team, canEdit } = useTeam();
+  const { slug, team, canEdit, role } = useTeam();
   const on = useEvaluationsOn();
   const sets = useQuery({ ...evalSetsQuery(slug), enabled: on && canEdit });
   const filters = useListFilters(trendFacet);
+  if (on && role === "member") return <EditorsOnlyState title="Evaluations" what="evaluations" />;
   if (!on || !canEdit) return <NotFoundState />;
 
   const c = setColumns(slug);

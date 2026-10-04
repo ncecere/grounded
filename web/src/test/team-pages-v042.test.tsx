@@ -6,7 +6,7 @@ import { TeamContext, teamCtx } from "../pages/team/common";
 import { sliderText } from "../pages/team/kbs/fusion";
 import { KBSettings } from "../pages/team/kbs/settings";
 import { axe } from "vitest-axe";
-import { mockApi, renderApp, renderBare, shellRoutes, team } from "./harness";
+import { meFor, mockApi, renderApp, renderBare, shellRoutes, team } from "./harness";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -62,5 +62,53 @@ describe("New API key: Expires on (BU-18)", () => {
     const expires = within(dialog).getByRole("button", { name: /^Expires on/ });
     expect(expires).toHaveTextContent("Never");
     expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe("what a member may do, said the same way (VI-20, VI-20b)", () => {
+  const memberRoutes = () => {
+    const shell = shellRoutes("none", "member");
+    return {
+      ...shell,
+      "GET /v1/me": () => ({ ...meFor("none", "member"), capabilities: { platformAdmin: false, platformAuditor: false, evaluations: true } }),
+      "GET /v1/teams/registrar/kbs": () => [],
+      "GET /v1/teams/registrar/agents": () => [],
+      "GET /v1/teams/registrar/members": () => [],
+      "GET /v1/teams/registrar/invites": () => [],
+    };
+  };
+
+  it("tells a member who opens Evaluations, an evaluation set or Gaps that only editors see them", async () => {
+    mockApi(memberRoutes());
+    const { container, unmount } = renderApp("/teams/registrar/evaluations");
+    expect(await screen.findByText("Only editors, admins and owners can see evaluations.")).toBeInTheDocument();
+    expect(screen.queryByText("Page not found")).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
+    unmount();
+    renderApp("/teams/registrar/evaluations/5f0c6a52-0000-4000-8000-000000000001");
+    expect(await screen.findByText("Only editors, admins and owners can see evaluations.")).toBeInTheDocument();
+    expect(screen.queryByText("Not found")).toBeNull();
+  });
+
+  it("tells a member who opens Gaps that only editors see them", async () => {
+    mockApi(memberRoutes());
+    renderApp("/teams/registrar/gaps");
+    expect(await screen.findByText("Only editors, admins and owners can see gaps.")).toBeInTheDocument();
+  });
+
+  it("shows one untitled notice on knowledge bases and members", async () => {
+    mockApi(memberRoutes());
+    const { unmount } = renderApp("/teams/registrar/kbs");
+    expect(await screen.findByText("Members can view knowledge bases. Editors, admins and owners can change them.")).toBeInTheDocument();
+    unmount();
+    renderApp("/teams/registrar/settings");
+    expect(await screen.findByText("Members can view the team's members. Admins and owners can add, change and remove them.")).toBeInTheDocument();
+  });
+
+  it("tells an owner that only platform admins change General (BU-16)", async () => {
+    mockApi({ ...shellRoutes("none", "owner"), "GET /v1/teams/registrar/members": () => [], "GET /v1/teams/registrar/invites": () => [] });
+    renderApp("/teams/registrar/settings?tab=general");
+    expect(await screen.findByText("You can view these settings. Only platform admins can change them.")).toBeInTheDocument();
+    expect(screen.queryByText(/your role can't change them/)).toBeNull();
   });
 });

@@ -12,6 +12,7 @@ import type { paths } from "../../api/schema.gen";
 import { sharedSourceKey } from "../../api/queries";
 import { Alert } from "@/components/ui/alert/alert";
 import { TeamContext, type TeamCtx, documentsKey, kbsKey, sourceKey, sourcesKey } from "../team/common";
+import { readOnlyText } from "../team/access";
 
 export type DataSource = Schemas["DataSource"];
 export type Crawl = Schemas["Crawl"];
@@ -98,7 +99,7 @@ function teamOwner(ctx: TeamCtx): SourceOwner {
       Its data sources are read-only.
     </Alert>
   ) : ctx.role === "member" ? (
-    <Alert tone="info">Members can view data sources. Editors, admins and owners can change them.</Alert>
+    <Alert tone="info">{readOnlyText("member", "data sources")}</Alert>
   ) : !ctx.role ? (
     // A platform admin reading under break-glass (ADR-0024).
     <Alert tone="info">You're reading this team's data sources under break-glass: read-only, and every read is recorded.</Alert>

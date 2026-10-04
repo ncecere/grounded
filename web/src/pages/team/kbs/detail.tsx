@@ -25,6 +25,7 @@ import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { StatCard } from "@/components/ui/stat-card/stat-card";
 import s from "../../shared.module.css";
 import { ClassificationBadge, type KB, kbQuery, plural, profileName, useClassificationLevels, useEmbeddingProfiles, useSharedSources, useSources, useTeam } from "../common";
+import { ReadOnlyNotice } from "../access";
 import { ArchivedNotice, PageSkeleton } from "../layout";
 import { RetrievePlayground } from "../retrieve";
 import { useIsPlatformAdmin } from "../../admin/hooks";
@@ -108,6 +109,7 @@ function KBPage({ kb: k }: { kb: KB }) {
         notices={
           <>
             <ArchivedNotice>Its knowledge bases are read-only.</ArchivedNotice>
+            <ReadOnlyNotice what="knowledge bases" />
             <KBMigrationNotice team={slug} kbId={k.id} isAdmin={isAdmin} />
           </>
         }
