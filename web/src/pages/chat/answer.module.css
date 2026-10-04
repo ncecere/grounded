@@ -120,6 +120,11 @@
 /* A chip and the punctuation right after it stay on one line ("…refunded 3✓." never leaves the "." alone). */
 .chipTail {
   white-space: nowrap;
+
+  /* The punctuation sits right after the chip, without the chip's outer margin (US-10). */
+  & > button:last-of-type {
+    margin-inline-end: 0;
+  }
 }
 
 /* A source card a chip leads to stays clear of the conversation's "Scroll to latest" button (WCAG 2.4.11). */

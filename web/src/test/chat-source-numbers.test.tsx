@@ -53,6 +53,8 @@ describe("source numbers", () => {
     expect(five!.parentElement).toBe(one!.parentElement);
     expect(one!.parentElement!.textContent).toBe("23.");
     expect(one!.closest("p")).toHaveTextContent("Transcripts cost $10 1. Orders take ten business days 23.");
+    // The space before a chip and its punctuation doesn't break either (US-10): "days" never ends a line alone.
+    expect(tail.previousSibling?.textContent).toMatch(/\$10\u00a0$/);
   });
 
   it("numbers a streaming answer's chips as the finished answer does, and hides an unfinished marker (US-03, US-05)", async () => {

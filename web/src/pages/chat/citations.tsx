@@ -104,9 +104,12 @@ export function remarkChipPunctuation() {
           out.push(c);
           continue;
         }
-        // A group [1][2] stays together with it.
+        // A group [1][2] stays together with it, and the space before it doesn't break: a wrapped line never starts
+        // with a chip and its full stop (US-10).
         const group: MdNode[] = [c];
         while (out[out.length - 1]?.type === "citationMarker") group.unshift(out.pop()!);
+        const prev = out[out.length - 1];
+        if (prev?.type === "text" && prev.value) prev.value = prev.value.replace(/[ \t]+$/, "\u00a0");
         out.push({ type: "chipTail", data: { hName: "span", hProperties: { dataChipTail: "" } }, children: [...group, { type: "text", value: m[0] }] });
         next.value = next.value!.slice(m[0].length);
         if (!next.value) i++;
