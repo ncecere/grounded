@@ -14,14 +14,14 @@ Nothing changes until a platform admin registers a server and approves a tool.
 |---|---|
 | Name | How editors and answers name it ("From *Service status* · check_outage") |
 | Description | Optional: what the server is for. Editors see it beside its tools in **Build → Tools** |
-| URL | The server's Streamable HTTP endpoint, for example `https://status.example.edu/mcp`. **https only**, at a public address (see [Security](#security)), with no user name, password, query (`?…`) or fragment (`#…`) |
+| URL | The server's Streamable HTTP endpoint, for example `https://status.example.edu/mcp`. **https only**, at a public address (see [Security](#security)), with no user name, password, query (`?…`) or fragment (`#…`). If another server already uses the URL the form says so (allowed, for different credentials, but its tools would be listed twice) |
 | Header and value | A static header sent with every request, such as `Authorization: Bearer …` or `X-API-Key: …`. The value is stored encrypted with `ENCRYPTION_KEY` (like connection keys), never shown again, and rotated by `grounded rotate-keys`. OAuth to outside servers is not in v0.3 |
 | Data up to | The **classification ceiling**: the most sensitive data the server may receive. An agent whose knowledge bases hold more can't use its tools |
 | Timeout | How long one call may take (1–120 s, default 30) |
 | Price per call | Optional, in the platform currency, from today (see [Costs](#costs)) |
 | Enabled | Turned off, no agent calls its tools and the health job skips it |
 
-Saving returns to the list. Then open the new server from the list and press **Read tools**: Grounded fetches its tool list (`tools/list`). Every new tool starts **not approved**.
+Adding a server reads its tool list (`tools/list`) at once and returns to the list, saying how many tools it read; if they couldn't be read (the server is down, or refuses the credentials), it says why, and **Read tools** on the server's page tries again. Every new tool starts **not approved**: open the server to review and approve them.
 
 Auditors see the servers and tools but change nothing. Everything is audited: `mcp_server.create`, `mcp_server.update` (with whether the header value changed, never the value), `mcp_server.delete`, `mcp_server.refresh` (counts, and the names of tools that lost their approval), `mcp_tool.approve` and `mcp_tool.unapprove`.
 

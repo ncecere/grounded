@@ -1,6 +1,6 @@
 /* Add or edit an MCP server on a form page (?form=new or ?form=<id>). The header value is stored encrypted and never shown again. */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, ifMatch, unwrap } from "@/api/client";
+import { api, errorMessage, ifMatch, unwrap } from "@/api/client";
 import { FormPage, FormSection } from "@/components/templates/form-page";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Checkbox } from "@/components/ui/checkbox/checkbox";
@@ -10,14 +10,29 @@ import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
 import { amountError, useCostSettings } from "@/lib/costs";
 import { useFormState } from "@/lib/use-form-state";
+import { useAuthConfig } from "@/session";
 import { useClassifications } from "../hooks";
 import m from "../models/models.module.css";
-import { type MCPServer, serversKey } from "./common";
+import { type MCPServer, serversKey, toolsKey, useMCPServers } from "./common";
+
+/** A URL compared the way servers are told apart: host in lower case, no trailing slash. */
+export function sameURL(a: string, b: string) {
+  const norm = (u: string) => {
+    try {
+      const x = new URL(u.trim());
+      return `${x.protocol}//${x.host.toLowerCase()}${x.pathname.replace(/\/+$/, "")}${x.search}`;
+    } catch {
+      return u.trim().replace(/\/+$/, "");
+    }
+  };
+  return a.trim() !== "" && norm(a) === norm(b);
+}
 
 export function ServerForm({ server, onClose }: { server: MCPServer | null; onClose: () => void }) {
   const qc = useQueryClient();
   const levels = useClassifications();
   const currency = useCostSettings().data?.currency;
+  const dev = Boolean(useAuthConfig().data?.devAuthEnabled);
   const [form, set] = useFormState({
     name: server?.name ?? "",
     description: server?.description ?? "",
@@ -30,6 +45,8 @@ export function ServerForm({ server, onClose }: { server: MCPServer | null; onCl
     enabled: server?.enabled ?? true,
     pricePerCall: server?.pricePerCall ?? "",
   });
+  // The same URL twice is allowed (different credentials), but say so (AD-37).
+  const twin = useMCPServers().data?.find((x) => x.id !== server?.id && sameURL(x.url, form.url));
   const priceError = form.pricePerCall ? amountError(form.pricePerCall, "price", false) : undefined;
   const price = form.pricePerCall.trim();
   const save = useMutation({
@@ -55,10 +72,23 @@ export function ServerForm({ server, onClose }: { server: MCPServer | null; onCl
         await api.PATCH("/v1/admin/mcp-servers/{serverId}", { params: { path: { serverId: server.id }, header: ifMatch(server.revision) }, body: { ...common, ...auth } }),
       );
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: serversKey });
-      toast.success(server ? "MCP server saved" : "MCP server added. Read its tools next.");
+    onSuccess: async (saved) => {
       onClose();
+      if (server) {
+        void qc.invalidateQueries({ queryKey: serversKey });
+        toast.success("MCP server saved");
+        return;
+      }
+      try {
+        // Read its tools at once, so its page lists them (AD-37).
+        const r = unwrap(await api.POST("/v1/admin/mcp-servers/{serverId}/refresh", { params: { path: { serverId: saved.id } } }));
+        qc.setQueryData(toolsKey(saved.id), r.tools);
+        toast.success("MCP server added", `Read ${r.listed} ${r.listed === 1 ? "tool" : "tools"}. Open it to approve the ones agents may use.`);
+      } catch (err) {
+        toast.warning("MCP server added, but its tools couldn't be read", `${errorMessage(err).replace(/\.?$/, ".")} Open it and press Read tools to try again.`);
+      } finally {
+        void qc.invalidateQueries({ queryKey: serversKey });
+      }
     },
   });
   return (
@@ -76,7 +106,18 @@ export function ServerForm({ server, onClose }: { server: MCPServer | null; onCl
         <Field label="Name">
           <Input required maxLength={100} value={form.name} onChange={(e) => set("name", e.target.value)} />
         </Field>
-        <Field label="URL" description="https only, at a public address, for example https://status.example.edu/mcp" className={m.wide}>
+        <Field
+          label="URL"
+          description={
+            <>
+              {dev
+                ? "https at a public address, for example https://status.example.edu/mcp. In development (DEV_AUTH) http on a loopback address and private addresses work too."
+                : "https only, at a public address, for example https://status.example.edu/mcp"}
+              {twin && ` ${twin.name} already uses this URL: its tools would be listed twice. Use one server per URL unless they need different credentials.`}
+            </>
+          }
+          className={m.wide}
+        >
           <Input type="url" required value={form.url} onChange={(e) => set("url", e.target.value)} />
         </Field>
         <Field label="Header" description="Sent with every request, for example Authorization or X-API-Key." disabled={form.removeAuth}>
