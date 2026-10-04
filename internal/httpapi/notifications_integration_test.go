@@ -137,13 +137,18 @@ func notificationSettings(t *testing.T, app *testApp, owner *session) {
 	alex := app.signIn("alex")
 	var st apitypes.NotificationSettings
 	// Admin-only events (new domain requests, break-glass approvals, profile migrations) are not listed for others.
-	adminOnly := 0
+	// Team events are listed for people with their role in some team (v0.4.2 US-14): alex is in none yet.
+	adminOnly, teamOnly := 0, 0
 	for _, d := range notify.Catalog() {
 		if d.PlatformAdmins {
 			adminOnly++
 		}
+		if d.TeamRole != "" {
+			teamOnly++
+		}
 	}
-	if code := alex.get("/v1/me/notification-settings", &st); code != 200 || !st.EmailEnabled || adminOnly != 4 || len(st.Items) != len(notify.Catalog())-adminOnly {
+	if code := alex.get("/v1/me/notification-settings", &st); code != 200 || !st.EmailEnabled || adminOnly != 4 ||
+		len(st.Items) != len(notify.Catalog())-adminOnly-teamOnly {
 		t.Fatalf("settings = %d %+v", code, st)
 	}
 	mandatory := map[apitypes.NotificationType]bool{"team.invited": true, "source.classification_lowered": true, "agent.disabled_by_platform": true,
@@ -181,6 +186,16 @@ func notificationSettings(t *testing.T, app *testApp, owner *session) {
 	}
 	if app.emailsTo(t, "alex@localhost") != 0 {
 		t.Error("email sent with email off")
+	}
+	// An editor now: editors' team events are listed, not admins' or owners'.
+	alex.get("/v1/me/notification-settings", &st)
+	listed := map[apitypes.NotificationType]bool{}
+	for _, it := range st.Items {
+		listed[it.Type] = true
+	}
+	if !listed["web.sync_failed"] || !listed["evaluation.regression"] || listed["team.daily_limit"] || listed["agent.published"] ||
+		listed["source.classification_lowered"] {
+		t.Errorf("an editor's settings = %v", listed)
 	}
 	inboxPaging(t, alex, owner)
 }

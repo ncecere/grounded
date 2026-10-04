@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/auth"
+	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/notify"
@@ -128,9 +129,25 @@ func (a *api) writeNotificationSettings(w http.ResponseWriter, r *http.Request, 
 	}
 	out := apitypes.NotificationSettings{EmailEnabled: a.Notify.Email, Items: make([]apitypes.NotificationSetting, 0, len(items))}
 	admin := a.actor(r).IsPlatformAdmin()
+	// A team event is listed for people with its role in some team: a member doesn't see owners' events (v0.4.2 US-14).
+	teams, err := a.Teams.ListMine(r.Context(), sessionUser(r))
+	if failed(w, r, err) {
+		return
+	}
+	reaches := func(role string) bool {
+		for _, t := range teams {
+			if authz.RoleAtLeast(t.MemberRole, role) {
+				return true
+			}
+		}
+		return false
+	}
 	for _, s := range items {
 		if s.PlatformAdmins && !admin {
 			continue // events only platform admins receive
+		}
+		if s.TeamRole != "" && !reaches(s.TeamRole) {
+			continue
 		}
 		out.Items = append(out.Items, apitypes.NotificationSetting{
 			Type: apitypes.NotificationType(s.Type), Label: s.Label, Description: s.Description,

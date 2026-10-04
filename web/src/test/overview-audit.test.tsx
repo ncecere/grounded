@@ -142,6 +142,17 @@ describe("team overview", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("shows the team's data level to editors and up, not to members (v0.4.2 US-14)", async () => {
+    mockApi(routes({ teamRole: "member" }));
+    const first = renderApp("/teams/registrar");
+    await screen.findByText("Your role: Member");
+    expect(screen.queryByText(/Approved up to/)).toBeNull();
+    first.unmount();
+    mockApi(routes({ teamRole: "editor" }));
+    renderApp("/teams/registrar");
+    expect(await screen.findByText(/Approved up to/)).toBeInTheDocument();
+  });
+
   it("shows no attention block when all is well", async () => {
     mockApi(routes({ sources: [{ id: "s1", name: "Policies", documents: { ...counts, failed: 0 } }] }));
     renderApp("/teams/registrar");
