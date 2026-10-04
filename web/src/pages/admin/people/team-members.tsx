@@ -79,7 +79,7 @@ export function TeamMembersTab({ team, isAdmin }: { team: string; isAdmin: boole
           data={members.data ?? []}
           getRowId={(m) => m.user.id}
           rowLabel={(m) => m.user.displayName || m.user.email}
-          search={{ label: "Search members" }}
+          search={{ label: "Search members", placeholder: "Name or email" }}
           loading={members.isLoading}
           error={members.error}
           onRetry={() => void members.refetch()}

@@ -98,6 +98,8 @@ describe("a team's SSO groups tab", () => {
     const calls = mockApi(routes("platform_admin", { "POST /v1/admin/group-mapping/rules": (body) => ({ ...rule, ...(body as object), team: rule.team }) }));
     const { container } = renderApp("/admin/teams/registrar?tab=group-mapping");
     await screen.findByRole("table", { name: "SSO group rules for Office of the Registrar" });
+    // A search with its own placeholder, as on Members, so Columns shares its row (VI-23).
+    expect(screen.getByRole("searchbox", { name: "Search rules" })).toHaveAttribute("placeholder", "Group");
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(screen.getAllByRole("button", { name: /Add rule/ })[0]!);
     const dialog = await screen.findByRole("dialog", { name: "Add SSO group rule" });
