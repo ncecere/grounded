@@ -79,7 +79,7 @@ const team: Schemas["Team"] = {
   createdAt: "",
   updatedAt: "",
 };
-const summary = (t: Schemas["Team"]): Schemas["TeamSummary"] => ({ team: t, memberCount: 3, ownerCount: 1, agentCount: 4, sourceCount: 2, kbCount: 1, documentCount: 40, storageBytes: 1 });
+const summary = (t: Schemas["Team"]): Schemas["TeamSummary"] => ({ team: t, memberCount: 3, ownerCount: 1, ownerInvites: 0, agentCount: 4, sourceCount: 2, kbCount: 1, documentCount: 40, storageBytes: 1 });
 
 /** The admin team page whose server copy can be changed "in another tab". */
 function server() {
@@ -105,7 +105,7 @@ describe("a settings form's save conflict (admin team settings)", () => {
     elsewhere({ description: "Desc B" });
     await user.clear(description);
     await user.type(description, "Desc A2 important");
-    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await user.click(screen.getByRole("button", { name: "Save settings" }));
 
     const list = await screen.findByRole("list", { name: "Changed elsewhere" });
     expect(within(list).getByText(/now “Desc B” \(yours: “Desc A2 important”\)/)).toBeInTheDocument();
@@ -119,7 +119,7 @@ describe("a settings form's save conflict (admin team settings)", () => {
     expect(patches).toHaveLength(2);
     expect(patches[1]!.headers.get("If-Match")).toBe('"3"');
     expect(patches[1]!.body).toMatchObject({ description: "Desc A2 important" });
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Save changes" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Save settings" })).toBeNull());
     expect(screen.getByRole("textbox", { name: /Description/ })).toHaveValue("Desc A2 important");
   });
 
@@ -130,7 +130,7 @@ describe("a settings form's save conflict (admin team settings)", () => {
     const description = await screen.findByRole("textbox", { name: /Description/ });
     elsewhere({ description: "Desc B", name: "Registrar" });
     await user.type(description, " mine");
-    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await user.click(screen.getByRole("button", { name: "Save settings" }));
     await user.click(await screen.findByRole("button", { name: "Discard mine and load theirs" }));
     expect(screen.getByRole("textbox", { name: /Description/ })).toHaveValue("Desc B");
     expect(screen.getByRole("textbox", { name: /Name/ })).toHaveValue("Registrar");
@@ -149,7 +149,7 @@ describe("a settings form's save conflict (admin team settings)", () => {
     expect(await screen.findByRole("list", { name: "Changed elsewhere" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Name/ })).toHaveValue("Registrar");
     expect(screen.getByRole("textbox", { name: /Description/ })).toHaveValue("Desc 1 mine");
-    expect(screen.queryByRole("button", { name: "Save changes" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save settings" })).toBeNull();
   });
 
   it("after a successful save, shows the saved (tidied) values with no conflict", async () => {
@@ -158,8 +158,8 @@ describe("a settings form's save conflict (admin team settings)", () => {
     renderApp("/admin/teams/registrar?tab=settings");
     const name = await screen.findByRole("textbox", { name: /Name/ });
     await user.type(name, " ");
-    await user.click(screen.getByRole("button", { name: "Save changes" }));
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Save changes" })).toBeNull());
+    await user.click(screen.getByRole("button", { name: "Save settings" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Save settings" })).toBeNull());
     expect(screen.queryByRole("list", { name: "Changed elsewhere" })).toBeNull();
     expect(screen.getByRole("textbox", { name: /Name/ })).toHaveValue("Office of the Registrar");
   });

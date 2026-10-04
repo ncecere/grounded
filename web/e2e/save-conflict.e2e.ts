@@ -22,11 +22,11 @@ test("a save conflict keeps what was typed and overwrites on purpose", async ({ 
   await a11y(tabA);
 
   await tabB.getByRole("textbox", { name: /Description/ }).fill("Desc B");
-  await tabB.getByRole("button", { name: "Save changes" }).click();
-  await expect(tabB.getByRole("button", { name: "Save changes" })).toBeHidden();
+  await tabB.getByRole("button", { name: "Save settings" }).click();
+  await expect(tabB.getByRole("button", { name: "Save settings" })).toBeHidden();
 
   await tabA.getByRole("textbox", { name: /Description/ }).fill("Desc A2 important");
-  await tabA.getByRole("button", { name: "Save changes" }).click();
+  await tabA.getByRole("button", { name: "Save settings" }).click();
   const changed = tabA.getByRole("list", { name: "Changed elsewhere" });
   await expect(changed).toContainText("now “Desc B” (yours: “Desc A2 important”)");
   await expect(tabA.getByRole("textbox", { name: /Description/ })).toHaveValue("Desc A2 important");
@@ -34,7 +34,7 @@ test("a save conflict keeps what was typed and overwrites on purpose", async ({ 
 
   await tabA.getByRole("button", { name: "Overwrite with mine" }).click();
   await expect(changed).toBeHidden();
-  await expect(tabA.getByRole("button", { name: "Save changes" })).toBeHidden();
+  await expect(tabA.getByRole("button", { name: "Save settings" })).toBeHidden();
   const saved = await admin.get<{ team: { description: string } }>(`/v1/admin/teams/${team}`);
   expect(saved.team.description).toBe("Desc A2 important");
 });

@@ -6,6 +6,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
+import { useRevisionForm } from "@/components/templates/revision-form";
 import { SettingsPage, SettingsSection } from "@/components/templates/settings-page";
 import { Combobox } from "@/components/ui/combobox/combobox";
 import { Field } from "@/components/ui/field/field";
@@ -48,9 +49,12 @@ function zones(current: string): string[] {
   return list.includes(current) ? list : [current, ...list];
 }
 
+const generalLabels = { currency: "Currency", timeZone: "Time zone", defaultBudget: "Default monthly budget" };
+
 export function GeneralSettings({ settings, isAdmin }: { settings: CostSettings; isAdmin: boolean }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState(() => generalForm(settings));
+  // Edits survive a change made elsewhere (Costs → Settings writes the same record); SettingsPage asks whose to keep (AD-01).
+  const [form, setForm, revision] = useRevisionForm(generalForm(settings), settings.revision, { labels: generalLabels });
   const [submitted, setSubmitted] = useState(false);
   const saved = generalForm(settings);
   const dirty = (Object.keys(form) as (keyof GeneralForm)[]).some((k) => form[k] !== saved[k]);
@@ -84,6 +88,7 @@ export function GeneralSettings({ settings, isAdmin }: { settings: CostSettings;
   });
   return (
     <SettingsPage
+      revision={revision}
       dirty={dirty}
       canEdit={isAdmin}
       readOnlyNote={adminOnly}
