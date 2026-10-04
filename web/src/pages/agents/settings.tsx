@@ -8,6 +8,7 @@
  * in Appearance.
  */
 import { DangerAction, DangerZone, SettingsSection } from "@/components/templates/settings-page";
+import { Alert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { Field } from "@/components/ui/field/field";
@@ -16,6 +17,7 @@ import { useTeam } from "../team/common";
 import type { Agent } from "./common";
 import { AnswerCacheSection } from "./answer-cache";
 import { type AgentDraft, profileErrors } from "./draft";
+import { liveProfileLocked } from "./publish-state";
 import a from "./agents.module.css";
 import ap from "./appearance.module.css";
 
@@ -28,6 +30,7 @@ export function AgentSettingsTab({ agent, d, onStatus, onDelete }: Props) {
   const errors = profileErrors(p);
   const active = agent.status === "active";
   const managersOnly = isManager ? undefined : "Only team admins and owners can do this.";
+  const locked = liveProfileLocked(agent, isManager);
   return (
     <div className={a.stack}>
       {/* These fields aren't versioned: "Live" only for an agent people can chat with (published). */}
@@ -41,14 +44,15 @@ export function AgentSettingsTab({ agent, d, onStatus, onDelete }: Props) {
         )}
       </p>
       <SettingsSection title="General">
+        {locked && <Alert tone="info">{locked}</Alert>}
         <Field label="Name" error={errors.name}>
-          <Input id="agent-field-name" maxLength={80} value={p.name} onChange={(e) => set({ name: e.target.value })} />
+          <Input id="agent-field-name" maxLength={80} disabled={Boolean(locked)} value={p.name} onChange={(e) => set({ name: e.target.value })} />
         </Field>
         <Field label="Address" description={`Chat link: /a/${team}/${p.slug || "…"}. Changing it breaks links people saved.`} error={errors.slug}>
-          <Input id="agent-field-slug" maxLength={63} spellCheck={false} value={p.slug} onChange={(e) => set({ slug: e.target.value.toLowerCase() })} />
+          <Input id="agent-field-slug" maxLength={63} spellCheck={false} disabled={Boolean(locked)} value={p.slug} onChange={(e) => set({ slug: e.target.value.toLowerCase() })} />
         </Field>
         <Field label="Description" labelHint="Optional" description="Shown in Discover agents.">
-          <Textarea id="agent-field-description" rows={2} maxLength={500} value={p.description} onChange={(e) => set({ description: e.target.value })} />
+          <Textarea id="agent-field-description" rows={2} maxLength={500} disabled={Boolean(locked)} value={p.description} onChange={(e) => set({ description: e.target.value })} />
         </Field>
       </SettingsSection>
       <AnswerCacheSection team={team} agentId={agent.id} />

@@ -6,7 +6,8 @@
  * are bitop-ui charts with "Show data". No message content or identities.
  */
 import { useQuery } from "@tanstack/react-query";
-import { MessageSquare, MessagesSquare, SearchX, ShieldCheck, ShieldOff, ThumbsUp } from "lucide-react";
+import { Activity, CircleHelp, FileText, ListChecks, MessageSquare, MessagesSquare, SearchX, Shield, ShieldCheck, ShieldOff, ThumbsUp } from "lucide-react";
+import type { ReactNode } from "react";
 import { api, unwrap } from "../../../api/client";
 import { num, pct } from "@/components/analytics/format";
 import { DateRangeFilter, useDateRangeParam } from "@/components/templates/date-range-filter";
@@ -23,14 +24,15 @@ import { AgentSpendCard } from "./spend";
 import { ChecksView, ContentView, ModerationView, QualityView, UsageView, type Analytics } from "./views";
 import an from "./analytics.module.css";
 
-const views = [
-  { value: "usage", label: "Usage" },
-  { value: "quality", label: "Quality" },
-  { value: "moderation", label: "Moderation" },
-  { value: "content", label: "Content" },
-  { value: "checks", label: "Checks" },
-  { value: "gaps", label: "Gaps" },
-] as const;
+// Icons like every other pill tab row (VI-08).
+const views: readonly { value: "usage" | "quality" | "moderation" | "content" | "checks" | "gaps"; label: string; icon: ReactNode }[] = [
+  { value: "usage", label: "Usage", icon: <Activity aria-hidden /> },
+  { value: "quality", label: "Quality", icon: <ThumbsUp aria-hidden /> },
+  { value: "moderation", label: "Moderation", icon: <Shield aria-hidden /> },
+  { value: "content", label: "Content", icon: <FileText aria-hidden /> },
+  { value: "checks", label: "Checks", icon: <ListChecks aria-hidden /> },
+  { value: "gaps", label: "Gaps", icon: <CircleHelp aria-hidden /> },
+];
 type View = (typeof views)[number]["value"];
 
 /** The section in ?view= (Usage by default, kept out of the URL); Checks only with SystemOne. */
@@ -70,7 +72,7 @@ export function AnalyticsTab({ agent }: { agent: Agent }) {
         <ToggleGroup aria-label="Analytics section" variant="outline" size="sm" value={[view]} onValueChange={(v) => v[0] && setView(v[0] as View)}>
           {shown.map((v) => (
             <ToggleGroupItem key={v.value} value={v.value}>
-              {v.label}
+              {v.icon} {v.label}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>

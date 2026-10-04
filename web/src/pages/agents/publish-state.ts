@@ -54,3 +54,13 @@ export const publishAudienceText: Record<Agent["audience"], string> = {
   all_authenticated: "Anyone who can sign in, from any team, will chat with this configuration. It's listed in the agent directory.",
   public: "Anyone, without signing in, will chat with this configuration: on its public page and in the widget on allowed sites.",
 };
+
+/**
+ * Why the viewer can't change the agent's name, address, description or look (BU-09): they aren't versioned, so while
+ * the agent is live beyond the team they reach those people at once, and only team admins and owners may publish there.
+ * The server refuses the same (403 live_profile_forbidden). Undefined when they can.
+ */
+export function liveProfileLocked(agent: Pick<Agent, "audience">, isManager: boolean): string | undefined {
+  if (isManager || agent.audience === "team") return undefined;
+  return `This agent is live for ${audienceLabel(agent.audience)}, so only team admins and owners can change what's here: changes reach people at once. You can still change its draft in Build.`;
+}

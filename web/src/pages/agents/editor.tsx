@@ -194,7 +194,7 @@ function Editor({ agent }: { agent: Agent }) {
             hidden: !evaluationsOn,
             content: <EvaluationsTab target={{ agentId: current.id, name: current.name }} />,
           },
-          { value: "appearance", label: "Appearance", icon: <Palette aria-hidden />, content: <AppearanceTab key={d.epoch} d={d} /> },
+          { value: "appearance", label: "Appearance", icon: <Palette aria-hidden />, content: <AppearanceTab key={d.epoch} agent={current} d={d} /> },
           { value: "share", label: "Share", icon: <Share2 aria-hidden />, content: <ShareTab key={d.epoch} agent={current} d={d} /> },
           {
             value: "analytics",

@@ -13,7 +13,7 @@ import { TextLink } from "@/components/ui/text-link/text-link";
 import s from "../../shared.module.css";
 import { FilterFields, cleanFilter, describeFilter } from "../../team/filters";
 import { type KB, useClassificationLevels, useKBs, useTeam } from "../../team/common";
-import { useChatModels } from "../common";
+import { modelHealthText, useChatModels } from "../common";
 import a from "../agents.module.css";
 import cf from "./build.module.css";
 import { type ChatModel, type SectionProps, useReportInvalid } from "./section";
@@ -24,13 +24,26 @@ export function modelOptions(models: ChatModel[], levelName: (key: string) => st
     id: m.id,
     name: m.displayName,
     provider: `Approved up to ${levelName(m.maxClassification)}`,
-    description: m.description || undefined,
+    // A failing model says so in the list (AD-02).
+    description: [m.health.status === "failing" ? "Failing its health checks" : "", m.description].filter(Boolean).join(". ") || undefined,
     contextWindow: m.contextWindow ?? undefined,
-    capabilities: [...(m.supportsTools ? ["tools"] : []), ...(m.supportsReasoningEffort ? ["reasoning"] : [])],
+    capabilities: [...(m.health.status === "failing" ? ["failing"] : []), ...(m.supportsTools ? ["tools"] : []), ...(m.supportsReasoningEffort ? ["reasoning"] : [])],
   }));
 }
 
-export const capabilityLabels = { tools: "Tools", reasoning: "Reasoning" };
+export const capabilityLabels = { failing: "Failing", tools: "Tools", reasoning: "Reasoning" };
+
+/** The chosen model in words, under the picker: its level, tools and context, and a warning when it is failing. */
+export function modelDescription(model: ChatModel, levelName: (key: string) => string) {
+  return [
+    modelHealthText(model),
+    `Approved up to ${levelName(model.maxClassification)}.`,
+    model.supportsTools ? "Supports tools." : "No tool support.",
+    model.contextWindow ? `Context window ${model.contextWindow.toLocaleString()} tokens.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
 
 export function ModelSection({ c, set, errorFor, model, levelName }: SectionProps) {
   const models = useChatModels();
@@ -40,11 +53,7 @@ export function ModelSection({ c, set, errorFor, model, levelName }: SectionProp
   return (
     <Field
       label="Chat model"
-      description={
-        model
-          ? `Approved up to ${levelName(model.maxClassification)}. ${model.supportsTools ? "Supports tools." : "No tool support."}${model.contextWindow ? ` Context window ${model.contextWindow.toLocaleString()} tokens.` : ""}`
-          : "The model that writes the answers from what the knowledge bases return."
-      }
+      description={model ? modelDescription(model, levelName) : "The model that writes the answers from what the knowledge bases return."}
       error={errorFor("chatModelId")}
     >
       <div id="agent-field-chatModelId" className={cf.modelPicker}>
@@ -54,6 +63,7 @@ export function ModelSection({ c, set, errorFor, model, levelName }: SectionProp
           models={options}
           value={c.chatModelId ?? null}
           capabilityLabels={capabilityLabels}
+          className={a.modelTrigger}
           onValueChange={(id) => set({ chatModelId: id })}
         />
       </div>

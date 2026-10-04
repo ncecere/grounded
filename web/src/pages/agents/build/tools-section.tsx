@@ -9,10 +9,12 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { CircleAlert } from "lucide-react";
 import { api, type Schemas, unwrap } from "@/api/client";
 import { Alert } from "@/components/ui/alert/alert";
 import { Checkbox } from "@/components/ui/checkbox/checkbox";
 import { Fieldset } from "@/components/ui/field/field";
+import { RelativeTime } from "@/components/templates/list-page";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { useCurrentUser } from "../../../session";
@@ -76,6 +78,9 @@ export function ToolsSection({ c, set, errorFor, model, levelName }: SectionProp
   const noToolModel = Boolean(models.data && !models.data.some((m) => m.supportsTools));
   const setOn = (id: string, on: boolean) => set({ tools: on ? [...chosen, id] : chosen.filter((x) => x !== id) });
   const unknown = chosen.filter((id) => !options.data?.some((t) => t.id === id));
+  // Two servers can offer a tool with the same name: those name their server, so each checkbox has its own name (BU-07).
+  const names = (options.data ?? []).map(toolName);
+  const shared = new Set(names.filter((n, i) => names.indexOf(n) !== i));
   return (
     <div className={a.stack}>
       <Fieldset
@@ -92,6 +97,7 @@ export function ToolsSection({ c, set, errorFor, model, levelName }: SectionProp
               <ToolRow
                 key={t.id}
                 tool={t}
+                label={shared.has(toolName(t)) ? `${toolName(t)}, from ${t.serverName}` : toolName(t)}
                 checked={chosen.includes(t.id)}
                 full={chosen.length >= maxTools || noToolModel}
                 aboveCeiling={rank > rankOf(t.maxClassification) ? rankName : undefined}
@@ -117,8 +123,11 @@ export function ToolsSection({ c, set, errorFor, model, levelName }: SectionProp
   );
 }
 
+const toolName = (t: ToolOption) => (t.title ? `${t.title} (${t.name})` : t.name);
+
 type RowProps = {
   tool: ToolOption;
+  label: string;
   checked: boolean;
   full: boolean;
   /** The agent's data level when it is above the server's ceiling. */
@@ -127,7 +136,8 @@ type RowProps = {
   onChange: (on: boolean) => void;
 };
 
-function ToolRow({ tool, checked, full, aboveCeiling, levelName, onChange }: RowProps) {
+function ToolRow({ tool, label, checked, full, aboveCeiling, levelName, onChange }: RowProps) {
+  const failing = tool.serverHealth.status === "failing";
   const ceiling = levelName(tool.maxClassification);
   const where = aboveCeiling
     ? `From ${tool.serverName}. Not available: this agent's knowledge is ${aboveCeiling}, and ${tool.serverName} may receive data up to ${ceiling}.`
@@ -135,8 +145,27 @@ function ToolRow({ tool, checked, full, aboveCeiling, levelName, onChange }: Row
   return (
     <div>
       <Checkbox
-        label={tool.title ? `${tool.title} (${tool.name})` : tool.name}
-        description={where}
+        label={label}
+        description={
+          failing ? (
+            <>
+              {where}
+              {/* The server's latest health check failed (Admin → MCP servers): calls will likely fail too (BU-07). */}
+              <span className={cf.toolHealth}>
+                <CircleAlert aria-hidden /> {tool.serverName} is failing its health checks
+                {tool.serverHealth.since && (
+                  <>
+                    {" "}
+                    (since <RelativeTime value={tool.serverHealth.since} />)
+                  </>
+                )}
+                : calls to this tool may fail.
+              </span>
+            </>
+          ) : (
+            where
+          )
+        }
         checked={checked}
         disabled={!checked && (full || Boolean(aboveCeiling))}
         onCheckedChange={onChange}

@@ -139,10 +139,11 @@ function VersionRecord({ agent, version, onClose, onRevert }: { agent: Agent; ve
 function VersionsTable({ agent, list, onView, onRevert }: { agent: Agent; list: AgentVersion[]; onView: (v: number) => void; onRevert: (v: number) => void }) {
   const levels = useClassificationLevels();
   return (
-    <Table caption="Published versions" columns={[{ label: "Version", numeric: true }, "Note", "Published", "Classification", "Model", ""]}>
+    <Table caption="Published versions" columns={["Version", "Note", "Published", "Classification", "Model", ""]}>
       {list.map((v) => (
         <Tr key={v.id}>
-          <Td numeric>
+          {/* Start-aligned like every table's first column (VI-09). */}
+          <Td>
             <span className={s.badges}>
               v{v.version}
               {agent.published?.id === v.id && (

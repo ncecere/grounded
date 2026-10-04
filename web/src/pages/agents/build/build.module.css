@@ -122,8 +122,11 @@
   font-size: var(--font-size-sm);
 }
 
+/* minmax(0, 1fr): the category table is wider than a narrow pane, so it scrolls in its own box
+   instead of widening the section, which clipped the text and the last column (BU-06). */
 .moderation {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
 }
 
@@ -147,4 +150,20 @@
   font-size: var(--font-size-sm);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* A tool whose server's health check is failing: its own line in the checkbox's description. */
+.toolHealth {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  color: var(--color-warning-text);
+  font-size: var(--font-size-sm);
+
+  & svg {
+    width: 0.875rem;
+    height: 0.875rem;
+    flex-shrink: 0;
+  }
 }

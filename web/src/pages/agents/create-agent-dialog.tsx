@@ -15,8 +15,8 @@ import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
 import s from "../shared.module.css";
 import { agentKey, agentsKey, useClassificationLevels, useKBs, useTeam } from "../team/common";
-import { capabilityLabels, modelOptions } from "./build/model-section";
-import { defaultConfig, slugify, useChatModels } from "./common";
+import { capabilityLabels, modelDescription, modelOptions } from "./build/model-section";
+import { defaultChatModel, defaultConfig, slugify, useChatModels } from "./common";
 import a from "./agents.module.css";
 
 type ChatModel = NonNullable<ReturnType<typeof useChatModels>["data"]>[number];
@@ -47,7 +47,8 @@ export function CreateAgentDialog({ onClose }: { onClose: () => void }) {
   const [picked, setPicked] = useState<Picked>({});
   const [submitted, setSubmitted] = useState(false);
   const shownSlug = slugEdited ? slug : slugify(name);
-  const model = models.data?.find((m) => m.id === (modelId || models.data?.[0]?.id));
+  // Until one is picked: the platform's first healthy model, not just the first by name (AD-02).
+  const model = modelId ? models.data?.find((m) => m.id === modelId) : defaultChatModel(models.data);
   const levelName = (key: string) => levels.data?.find((l) => l.key === key)?.name ?? key;
   const rankOf = (key?: string | null) => levels.data?.find((l) => l.key === key)?.rank;
   const chosen = Object.entries(picked);
@@ -145,9 +146,17 @@ function ModelPicker({ model, onChange, levelName }: { model: ChatModel | undefi
     );
   }
   return (
-    <Field label="Chat model" description={model ? `Approved up to ${levelName(model.maxClassification)}. ${model.supportsTools ? "Supports tools." : "No tool support."}` : undefined}>
+    <Field label="Chat model" description={model ? modelDescription(model, levelName) : undefined}>
       <div className={a.modelPicker}>
-        <ModelSelector label="Chat model" models={modelOptions(models.data ?? [], levelName)} value={model?.id ?? null} capabilityLabels={capabilityLabels} onValueChange={(id) => id && onChange(id)} />
+        <ModelSelector
+          label="Chat model"
+          models={modelOptions(models.data ?? [], levelName)}
+          value={model?.id ?? null}
+          capabilityLabels={capabilityLabels}
+          // Looks like the dialog's other fields (VI-34).
+          className={a.modelTrigger}
+          onValueChange={(id) => id && onChange(id)}
+        />
       </div>
     </Field>
   );

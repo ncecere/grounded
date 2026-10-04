@@ -38,3 +38,22 @@
   min-height: 20rem;
   padding-top: var(--space-2);
 }
+
+/* Send is the panel's own action, not the page's: secondary, so Publish stays the one primary
+   button (VI-06). The chat panel's PromptInputSubmit is primary everywhere else. */
+.testPanel button[data-variant="primary"][data-status] {
+  --btn-bg: var(--color-control);
+  --btn-bg-hover: var(--color-control-hover);
+  --btn-bg-active: var(--color-surface-sunken);
+  --btn-fg: var(--color-text);
+  --btn-shadow: var(--shadow-control);
+  --btn-shadow-hover: var(--shadow-control-hover);
+}
+
+/* A shadow at the conversation's bottom edge while more is below (the welcome's starters
+   behind the composer), gone at the end: the cover scrolls with the content (VI-05). */
+.testPanel [role="log"] {
+  background:
+    linear-gradient(transparent, var(--color-surface) 70%) center bottom / 100% 2.5rem no-repeat local,
+    radial-gradient(farthest-side at 50% 100%, color-mix(in srgb, var(--color-text) 18%, transparent), transparent) center bottom / 100% 0.75rem no-repeat scroll;
+}
