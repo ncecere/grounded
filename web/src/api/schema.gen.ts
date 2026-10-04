@@ -8354,9 +8354,18 @@ export interface components {
             timeLimitMs: number;
             /** @description Published agents that rerank (they don't turn it off) */
             agents: number;
+            /** @description Published agents whose published version turns reranking off (at most 100, by team and name) */
+            agentsOff: components["schemas"]["RerankOffAgent"][];
             revision: components["schemas"]["Revision"];
             /** Format: date-time */
             updatedAt?: string | null;
+        };
+        RerankOffAgent: {
+            /** Format: uuid */
+            agentId: string;
+            name: string;
+            teamSlug: string;
+            teamName: string;
         };
         RerankSettingsInput: {
             /** Format: uuid */

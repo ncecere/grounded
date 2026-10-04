@@ -11256,14 +11256,26 @@ components:
         defaultTopN: { type: integer, description: Passages an agent keeps after reranking unless it sets rerankTopN }
     RerankSettings:
       type: object
-      required: [modelId, candidates, timeLimitMs, agents, revision]
+      required: [modelId, candidates, timeLimitMs, agents, agentsOff, revision]
       properties:
         modelId: { type: string, format: uuid, nullable: true, description: "The rerank model; null: searches aren't reranked" }
         candidates: { type: integer, minimum: 5, maximum: 50, description: "Fused hits a search reranks (more when a search asks for more results)" }
         timeLimitMs: { type: integer, minimum: 200, maximum: 10000, description: "The longest a search waits for the rerank call; then it keeps the fusion order" }
         agents: { type: integer, description: "Published agents that rerank (they don't turn it off)" }
+        agentsOff:
+          type: array
+          description: "Published agents whose published version turns reranking off (at most 100, by team and name)"
+          items: { $ref: "#/components/schemas/RerankOffAgent" }
         revision: { $ref: "#/components/schemas/Revision" }
         updatedAt: { type: string, format: date-time, nullable: true }
+    RerankOffAgent:
+      type: object
+      required: [agentId, name, teamSlug, teamName]
+      properties:
+        agentId: { type: string, format: uuid }
+        name: { type: string }
+        teamSlug: { type: string }
+        teamName: { type: string }
     RerankSettingsInput:
       type: object
       required: [modelId, candidates, timeLimitMs]

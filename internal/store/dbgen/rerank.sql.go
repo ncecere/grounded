@@ -75,6 +75,51 @@ func (q *Queries) InsertRerankSettings(ctx context.Context, arg InsertRerankSett
 	return i, err
 }
 
+const listRerankOffAgents = `-- name: ListRerankOffAgents :many
+SELECT a.id, a.name, t.slug AS team_slug, t.name AS team_name
+FROM agents a
+JOIN teams t ON t.id = a.team_id
+JOIN agent_versions v ON v.id = a.published_version_id
+WHERE a.deleted_at IS NULL AND a.status = 'active' AND t.status = 'active'
+  AND NOT coalesce((v.config->>'rerank')::boolean, true)
+ORDER BY t.name, a.name
+LIMIT 100
+`
+
+type ListRerankOffAgentsRow struct {
+	ID       uuid.UUID
+	Name     string
+	TeamSlug string
+	TeamName string
+}
+
+// Published, active agents in active teams whose published version turns
+// reranking off (Admin → Models → Reranking lists them, docs/v0.4.2.md OW-2).
+func (q *Queries) ListRerankOffAgents(ctx context.Context) ([]ListRerankOffAgentsRow, error) {
+	rows, err := q.db.Query(ctx, listRerankOffAgents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRerankOffAgentsRow{}
+	for rows.Next() {
+		var i ListRerankOffAgentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.TeamSlug,
+			&i.TeamName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockRerankSettings = `-- name: LockRerankSettings :one
 SELECT singleton, model_id, settings, revision, updated_by, updated_at FROM rerank_settings WHERE singleton FOR UPDATE
 `

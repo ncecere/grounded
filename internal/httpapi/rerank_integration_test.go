@@ -260,6 +260,11 @@ func TestRerankInChatAndEvaluations(t *testing.T) {
 	if len(env.proxy.RerankRequests()) != before || len(ret.Hits) != 4 {
 		t.Errorf("reranked with rerank off: %d hits", len(ret.Hits))
 	}
+	// Admin > Models > Reranking lists the agents that turn it off (OW-2).
+	st = apitypes.RerankSettings{}
+	if env.admin.get("/v1/admin/rerank", &st); st.Agents != 1 || len(st.AgentsOff) != 1 || st.AgentsOff[0].Name != "Plain" || st.AgentsOff[0].TeamSlug == "" {
+		t.Errorf("agents off = %d %+v", st.Agents, st.AgentsOff)
+	}
 	code, raw := env.editor.raw("POST", env.base+"/agents", map[string]any{"name": "Bad", "config": map[string]any{"rerankTopN": 21}}, nil)
 	if pb := decodeProblems(t, raw); code != 400 || !hasField(pb.Error.Details.Problems, "rerankTopN") {
 		t.Errorf("invalid rerankTopN = %d %s", code, raw)

@@ -9768,10 +9768,21 @@ type RerankModelTest struct {
 	RelevantText   string  `json:"relevantText"`
 }
 
+// RerankOffAgent defines model for RerankOffAgent.
+type RerankOffAgent struct {
+	AgentId  openapi_types.UUID `json:"agentId"`
+	Name     string             `json:"name"`
+	TeamName string             `json:"teamName"`
+	TeamSlug string             `json:"teamSlug"`
+}
+
 // RerankSettings defines model for RerankSettings.
 type RerankSettings struct {
 	// Agents Published agents that rerank (they don't turn it off)
 	Agents int `json:"agents"`
+
+	// AgentsOff Published agents whose published version turns reranking off (at most 100, by team and name)
+	AgentsOff []RerankOffAgent `json:"agentsOff"`
 
 	// Candidates Fused hits a search reranks (more when a search asks for more results)
 	Candidates int `json:"candidates"`

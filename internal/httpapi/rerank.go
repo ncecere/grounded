@@ -22,14 +22,23 @@ func (a *api) rerankRoutes() []route {
 	}
 }
 
-// writeRerank writes the settings with how many published agents rerank.
+// writeRerank writes the settings with how many published agents rerank,
+// and which turn it off (Admin → Models → Reranking links them).
 func (a *api) writeRerank(w http.ResponseWriter, r *http.Request, st rerank.Stored) {
 	n, err := a.Rerank.AgentCount(r.Context())
 	if failed(w, r, err) {
 		return
 	}
+	rows, err := a.Rerank.AgentsOff(r.Context())
+	if failed(w, r, err) {
+		return
+	}
+	off := make([]apitypes.RerankOffAgent, len(rows))
+	for i, row := range rows {
+		off[i] = apitypes.RerankOffAgent{AgentId: row.ID, Name: row.Name, TeamSlug: row.TeamSlug, TeamName: row.TeamName}
+	}
 	writeRevised(w, http.StatusOK, st.Revision, apitypes.RerankSettings{ModelId: st.ModelID, Candidates: st.Settings.Candidates,
-		TimeLimitMs: st.Settings.TimeLimitMs, Agents: int(n), Revision: st.Revision, UpdatedAt: st.UpdatedAt})
+		TimeLimitMs: st.Settings.TimeLimitMs, Agents: int(n), AgentsOff: off, Revision: st.Revision, UpdatedAt: st.UpdatedAt})
 }
 
 func (a *api) adminGetRerank(w http.ResponseWriter, r *http.Request) {
