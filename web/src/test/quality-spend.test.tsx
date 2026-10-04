@@ -128,10 +128,10 @@ describe("the team's Evaluations page (I3)", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("is not found for members, who have no sidebar item", async () => {
+  it("tells members only editors see it, and has no sidebar item for them (VI-20b)", async () => {
     const calls = mockApi(routes({ teamRole: "member" }));
     renderApp("/teams/registrar/evaluations");
-    expect(await screen.findByRole("heading", { level: 1, name: "Page not found" }, T)).toBeInTheDocument();
+    expect(await screen.findByText("Only editors, admins and owners can see evaluations.", undefined, T)).toBeInTheDocument();
     expect(within(screen.getByRole("navigation", { name: "Main" })).queryByRole("link", { name: "Evaluations" })).toBeNull();
     expect(calls.some((c) => c.url.endsWith("/evaluation-sets"))).toBe(false);
   });

@@ -191,10 +191,10 @@ describe("a set's page", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("is not found for members", async () => {
+  it("tells members only editors see it (VI-20b)", async () => {
     mockApi(evalRoutes("member", { "GET /v1/teams/registrar/evaluation-sets/set1": () => Reply.error(404, "not_found") }));
     renderApp("/teams/registrar/evaluations/set1");
-    expect(await screen.findByRole("heading", { level: 1, name: /Not found|couldn't be found|not found/i }, T)).toBeInTheDocument();
+    expect(await screen.findByText("Only editors, admins and owners can see evaluations.", undefined, T)).toBeInTheDocument();
   });
 });
 

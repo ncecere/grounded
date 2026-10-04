@@ -187,7 +187,7 @@ describe("the Gaps page", () => {
   it("is not for members, and not in their sidebar", async () => {
     mockApi(gapRoutes("member", { "GET /v1/me": () => meFor("none", "member") }));
     renderApp("/teams/registrar/gaps");
-    expect(await screen.findByRole("heading", { name: /not found|can't find/i }, T)).toBeInTheDocument();
+    expect(await screen.findByText("Only editors, admins and owners can see gaps.", undefined, T)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Gaps" })).toBeNull();
   });
 });
