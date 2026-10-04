@@ -40,7 +40,7 @@ export const adminPageTabCommands: AdminTabCommand[] = [
     ["ingestion", "Ingestion", ["crawled pages", "documents per day", "concurrent crawls"]],
     ["queries", "Queries & chat", ["rate limit", "questions per day"]],
     ["public", "Public agents", ["anonymous", "widget"]],
-    ["evaluations", "Evaluations", ["questions per set"]],
+    // Not Evaluations: "evaluations" belongs to the Overview's switch (the Limits page lists "evaluation limits").
   ]),
 ];
 
