@@ -27,14 +27,16 @@
   min-width: 0;
 }
 
-/* The current page (usually the long name) gives up room first; the crumbs
-   before it keep theirs ("Demo › … › Go docum…"), up to a sane width. */
-.item:last-child {
-  flex-shrink: 8;
+/* The current page (usually the long name) gives up the room; the crumbs
+   before it keep theirs ("Demo › … › Go docum…"), each cut at 16rem or 40%
+   of the trail. */
+.item:not(:last-child) {
+  flex-shrink: 0;
+  max-width: min(16rem, 40%);
 }
 
-.item:not(:last-child) {
-  max-width: 16rem;
+.item:last-child {
+  min-width: 3rem;
 }
 
 /* Block boxes, so the icon and the text cut together with one ellipsis. */
