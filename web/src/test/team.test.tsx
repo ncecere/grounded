@@ -409,7 +409,27 @@ describe("knowledge base page", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("has Attach source as its primary action, and asks for a source on an empty Overview (C13)", async () => {
+  it("says how many agents use it once, with their names under the count (VI-13)", async () => {
+    mockApi({
+      ...common,
+      "GET /v1/teams/registrar/kbs/k1": () => kb,
+      "GET /v1/teams/registrar/sources": () => [source("s1", "Policies")],
+      "GET /v1/teams/registrar/agents": () => [
+        { id: "ag1", name: "Registrar assistant", draft: { kbs: [{ kbId: "k1" }] } },
+        { id: "ag2", name: "Staff helper", draft: { kbs: [{ kbId: "k1" }] } },
+      ],
+    });
+    renderTeam(<KBDetail kbId="k1" />, "editor");
+    const summary = await screen.findByRole("region", { name: "Knowledge base summary" });
+    expect(await within(summary).findByRole("link", { name: "Staff helper" })).toBeInTheDocument();
+    expect(within(summary).getByText("Used by agents")).toBeInTheDocument();
+    expect(within(summary).queryByText("2 agents")).toBeNull();
+    expect(within(summary).getByText("Searchable in its sources")).toBeInTheDocument();
+    // Attach source stays the Overview's primary once a source is attached (BU-20).
+    expect(screen.getByRole("button", { name: "Attach source" })).toBeInTheDocument();
+  });
+
+  it("has Attach source as its primary action, and asks for a source on an empty Overview without repeating it (C13, BU-20)", async () => {
     const empty = { ...kb, sources: [], effectiveClassification: null };
     mockApi({ ...common, "GET /v1/teams/registrar/kbs/k1": () => empty, "GET /v1/teams/registrar/sources": () => [source("s1", "Policies")] });
     const { container } = renderTeam(<KBDetail kbId="k1" />, "editor");
@@ -417,9 +437,9 @@ describe("knowledge base page", () => {
     expect(within(header).getByRole("button", { name: "Attach source" })).toBeInTheDocument();
     expect(screen.getByText("No data sources attached yet.")).toBeInTheDocument();
     const buttons = screen.getAllByRole("button", { name: "Attach source" });
-    expect(buttons).toHaveLength(2);
+    expect(buttons).toHaveLength(1);
     expect(await axe(container)).toHaveNoViolations();
-    await userEvent.click(buttons[1]!);
+    await userEvent.click(buttons[0]!);
     expect(await screen.findByRole("dialog", { name: /Attach a source/ })).toBeInTheDocument();
   });
 

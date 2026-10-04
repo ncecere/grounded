@@ -19,7 +19,7 @@ import { TextLink } from "@/components/ui/text-link/text-link";
 import s from "../../shared.module.css";
 import { impactSummary } from "../../sources/impact";
 import { ClassificationBadge, type KB, plural, useClassificationLevels, useTeam } from "../common";
-import { type AttachFlow, AttachSourceButton } from "./attach-flow";
+import type { AttachFlow } from "./attach-flow";
 import { DetachConfirm, useLiveAgentsUsing } from "./detach-confirm";
 
 type Attached = KB["sources"][number];
@@ -111,8 +111,8 @@ export function KBSources({ kb, flow }: { kb: KB; flow: AttachFlow }) {
           empty={{
             icon: <Database />,
             title: "No data sources attached yet.",
-            description: canEdit ? "Attach the sources this knowledge base should search." : undefined,
-            action: canEdit ? <AttachSourceButton flow={flow} variant="secondary" /> : undefined,
+            // The header's Attach source isn't repeated here (one primary per view).
+            description: canEdit ? "Use Attach source above to choose the sources it searches." : undefined,
           }}
         />
       </Stack>

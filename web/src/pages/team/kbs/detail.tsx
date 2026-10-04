@@ -34,7 +34,7 @@ import { KBMigrationNotice } from "./migration";
 import { KBSettings } from "./settings";
 import { type AttachFlow, AttachSourceButton, useAttachFlow } from "./attach-flow";
 import { KBSources } from "./sources";
-import { UsedByAgents, useAgentsByKB } from "./used-by";
+import { UsedByAgentLinks, useAgentsByKB } from "./used-by";
 import { useEvaluationsOn } from "../evaluations/queries";
 import { EvaluationsTab, NewSetButton } from "../evaluations/sets-tab";
 
@@ -76,7 +76,8 @@ function KBPage({ kb: k }: { kb: KB }) {
   const evaluationsOn = useEvaluationsOn();
   const search = useSearch({ strict: false }) as { tab?: string; q?: string };
   const primary: Partial<Record<string, ReactNode>> = {
-    overview: k.sources.length === 0 ? <AttachSourceButton flow={attach} /> : undefined,
+    // Overview keeps Attach source after the first one, like the Sources tab (BU-20).
+    overview: <AttachSourceButton flow={attach} />,
     sources: <AttachSourceButton flow={attach} />,
     evaluations: evaluationsOn ? <NewSetButton target={{ kbId: k.id, name: k.name }} /> : undefined,
   };
@@ -161,9 +162,15 @@ function KBOverview({ kb, counts, attach }: { kb: KB; counts: { ready: number; c
   const stats = (
     <section aria-label="Knowledge base summary" className={s.stats}>
       <StatCard label="Data sources" value={kb.sources.length.toLocaleString()} icon={<Database />} hint={kb.sources.map((src) => src.name).join(", ") || "None attached yet"} />
-      <StatCard label="Documents ready" value={value(counts?.ready)} icon={<FileCheck2 />} />
+      <StatCard label="Documents ready" value={value(counts?.ready)} icon={<FileCheck2 />} hint="Searchable in its sources" />
       <StatCard label={terms.Passages} value={value(counts?.chunks)} icon={<Layers />} hint={counts ? `${passagesCount(kb.topK)} per search` : undefined} />
-      <StatCard label="Used by" value={plural(uses.length, "agent")} icon={<Bot />} hint={uses.length ? <UsedByAgents uses={uses} team={slug} /> : "No agent answers from it yet"} />
+      {/* The count once, the agents' names under it (VI-13), like a source's "Used by knowledge bases". */}
+      <StatCard
+        label="Used by agents"
+        value={uses.length.toLocaleString()}
+        icon={<Bot />}
+        hint={uses.length ? <UsedByAgentLinks uses={uses} team={slug} /> : "No agent answers from it yet"}
+      />
     </section>
   );
   if (kb.sources.length > 0) return stats;
@@ -174,8 +181,8 @@ function KBOverview({ kb, counts, attach }: { kb: KB; counts: { ready: number; c
         <EmptyState
           icon={<Database />}
           title="No data sources attached yet."
-          description="Attach the sources this knowledge base should search. Agents can't answer from it until then."
-          action={attach ? <AttachSourceButton flow={attach} variant="secondary" /> : undefined}
+          // The header's Attach source isn't repeated here (one primary per view).
+          description={`${attach ? "Use Attach source above to choose the sources it searches." : "Editors, admins and owners attach the sources it searches."} Agents can't answer from it until then.`}
         />
       </Card>
       {stats}
