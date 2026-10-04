@@ -4,6 +4,8 @@ Grounded keeps the latest test result of every model connection, model and MCP s
 
 Platform admins and platform auditors can see health; nobody else can. Only platform admins can run a test.
 
+Team members see it too, without the message (v0.4.2): `GET /v1/chat-models` and `GET /v1/mcp-tools` carry each model's and MCP server's latest status (`health`, `serverHealth`: healthy, failing or untested, with when it began). The **New agent** dialog starts on the first healthy chat model (else one never tested, never a failing one while another exists), the model pickers mark a failing model **Failing** and say so under the picker, and **Build → Tools** says when a tool's server is failing its health checks.
+
 ## Where results come from
 
 | Trigger | What it sends | Stored as |

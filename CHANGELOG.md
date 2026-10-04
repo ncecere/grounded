@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Agent editor (v0.4.2 M2):** while an agent is live for signed-in users or the public, only team admins and owners change its name, address, description, accent colour, welcome message and starter questions, which reach people at once; editors see them read-only with the reason and still change the draft (BU-09; API: 403 `live_profile_forbidden`). A save of only those fields says "Saved", not "Draft saved", and the audit log calls it "Changed agent details". The model pickers show health: the **New agent** dialog starts on a healthy chat model instead of the first by name, and a failing model is marked **Failing** (AD-02). API (additive): `health` on `GET /v1/chat-models`, `serverHealth` on `GET /v1/mcp-tools`. No migration.
+
+### Fixed
+
+- **Agent editor (v0.4.2 M2; [`docs/v0.4.2.md`](docs/v0.4.2.md#as-built-m2)):**
+  - The **Build** tab no longer scrolls past its content (OW-1): the split fills the window from its own top whatever the header holds, the panes keep their hidden labels inside them (the SystemOne checks legend made the page up to 1,355 px taller), and the 34 px every Build page scrolled is gone.
+  - **Share** shows the new audience, links and widget right after publishing, without a reload (BU-03), and says "Both work without signing in" when there's no short address.
+  - A new widget key's one-time secret is no longer hidden by a false "Leave without saving?" after **Create key** or **Save key** (US-02).
+  - "Unsaved changes" no longer sticks after changing Citation checks or Citation mode (BU-05).
+  - Safety's category table scrolls in its own box instead of cutting off the section (BU-06); Tools names the server of tools with the same name and warns when a tool's server is failing its health checks (BU-07); Advanced's summary starts with reasoning effort and answer length and includes reranking (BU-15).
+  - Appearance says an invalid accent colour once, and it no longer disables Publish (BU-13); Try it's composer isn't clipped (BU-19), its Send is secondary (VI-06), its conversation shows when more is below (VI-05), and the Instructions placeholder is a short hint (VI-04).
+  - The agent's Evaluations tab doesn't repeat New set in its empty state (VI-07); Analytics' sub-tabs have icons (VI-08); Version history's first column is start-aligned (VI-09); the model picker looks like the other fields (VI-34).
+  - Admin → Agents: Back asks before leaving an unsaved short name (AD-23).
+
 ## [0.4.1] - 2026-10-02
 
 Small wins: follow-up suggestions, evaluation questions that need attention, OCR for every TIFF page and partly scanned PDFs, SystemOne capacity that keeps answers first, and reasoning shown in order. The release notes are [`docs/releases/v0.4.1.md`](docs/releases/v0.4.1.md).

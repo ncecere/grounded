@@ -314,6 +314,7 @@ Audiences are stored as grants: `agent_audience_grants(agent_id, principal_type,
 In the UI and elsewhere in this document, `authenticated` means the `all_authenticated` grant.
 
 - **Publishing.** Editors can publish to `team`. Team admins and owners can publish to `authenticated` or `public`, without platform approval.
+- **The live profile.** An agent's name, address, description, accent colour, welcome message and starter questions aren't versioned: saved changes reach people at once. So while the agent's live audience is `authenticated` or `public`, only team admins and owners change them (editors get 403 `live_profile_forbidden`, and the editor's Settings and Appearance tabs are read-only for them, saying why); editors still change the draft (v0.4.2, BU-09).
 - **Platform controls.** A global switch that turns off all public agents, and a kill switch per agent.
 - **Future grant types** can be added without redesign, using the stored OIDC claims: specific users, OIDC groups, affiliation (e.g. employees only), and other teams. The same rule applies to them: every grant must be allowed for the agent's effective rank.
 
