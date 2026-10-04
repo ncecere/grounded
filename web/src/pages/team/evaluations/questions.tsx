@@ -105,7 +105,6 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
             </>
           )
         }
-        flush
       >
         <ListPage<EvalQuestion>
           id="evaluation-questions"

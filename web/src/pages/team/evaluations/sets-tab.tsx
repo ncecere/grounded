@@ -84,7 +84,6 @@ export function EvaluationsTab({ target, newSetInHeader = false }: { target: Eva
         title="Evaluation sets"
         description={`Test questions for ${target.name}, with the documents a good result should find. Run them after sources or settings change to catch regressions.`}
         actions={newSet}
-        flush
       >
         <ListPage<EvalSet>
           id="evaluation-sets"

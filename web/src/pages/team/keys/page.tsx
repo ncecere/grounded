@@ -86,7 +86,7 @@ export function ApiKeysPage({ embedded = false }: { embedded?: boolean }) {
   const header = embedded ? undefined : <PageHeader title="API keys" description={description} actions={newKey} />;
   const frame = (content: ReactNode) =>
     embedded ? (
-      <Card title="API keys" description={description} actions={newKey} flush>
+      <Card title="API keys" description={description} actions={newKey}>
         {content}
       </Card>
     ) : (

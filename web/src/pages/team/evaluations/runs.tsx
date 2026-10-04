@@ -99,7 +99,6 @@ export function RunsTab({ set }: { set: EvalSet }) {
       <Card
         title="Runs"
         description={`${agentSet ? "Retrieval and full-answer runs" : "Retrieval runs"} of this set, newest first. Start one with Run above.`}
-        flush
       >
         <ListPage<EvalRun>
           id="evaluation-runs"
