@@ -27,7 +27,7 @@ const effortText: Record<NonNullable<AgentConfig["reasoningEffort"]>, string> = 
 
 /** Advanced's summary: what changes answers most first (reasoning, length), then the rest (BU-15). */
 function advancedSummary(c: AgentConfig, rerank?: { defaultTopN: number }) {
-  const reranking = !rerank ? null : c.rerank === false ? "no reranking" : `reranks, keeps ${c.rerankTopN ?? rerank.defaultTopN}`;
+  const reranking = c.rerank === false ? "no reranking" : rerank ? `reranks, keeps ${c.rerankTopN ?? rerank.defaultTopN}` : null;
   return [
     c.reasoningEffort ? effortText[c.reasoningEffort] : null,
     c.maxOutputTokens ? `answers up to ${c.maxOutputTokens.toLocaleString()} tokens` : null,
@@ -35,8 +35,8 @@ function advancedSummary(c: AgentConfig, rerank?: { defaultTopN: number }) {
     `${c.contextTokenBudget.toLocaleString()} source tokens`,
     c.minSimilarity ? `similarity ≥ ${c.minSimilarity}` : null,
     reranking,
-    c.queryRewrite ? "rewrites follow-ups" : "no query rewriting",
-    c.followUpSuggestions === false ? "no follow-up suggestions" : "suggests follow-ups",
+    c.queryRewrite ? "rewrites follow-up questions into searches" : "no query rewriting",
+    c.followUpSuggestions === false ? "no follow-up suggestions" : "suggests follow-up questions",
   ]
     .filter(Boolean)
     .join(" · ");
