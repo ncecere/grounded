@@ -56,11 +56,19 @@ export function mergeRefs<T>(...refs: (Ref<T> | undefined)[]): RefCallback<T> {
 /**
  * Horizontal overflow of a scroll container: whether its content is wider
  * than it (`overflowing`), and whether content is hidden before the inline
- * start (`start`) or after the inline end (`end`). Works in RTL.
+ * start (`start`) or after the inline end (`end`). Works in RTL. `wrapped`:
+ * the children of a container that wraps sit on more than one line.
  */
-export type ScrollEdges = { overflowing: boolean; start: boolean; end: boolean };
+export type ScrollEdges = { overflowing: boolean; start: boolean; end: boolean; wrapped?: boolean };
 
-const noEdges: ScrollEdges = { overflowing: false, start: false, end: false };
+const noEdges: ScrollEdges = { overflowing: false, start: false, end: false, wrapped: false };
+
+/** Whether an element's children sit on more than one line (a flex row that wrapped). */
+function childrenWrapped(node: HTMLElement) {
+  const items = Array.from(node.children).filter((c): c is HTMLElement => c instanceof HTMLElement && c.offsetParent !== null);
+  const first = items[0];
+  return Boolean(first && items.some((c) => c.offsetTop > first.offsetTop + 1));
+}
 
 /**
  * Tracks a container's horizontal overflow (scroll, resize, children added
@@ -82,8 +90,10 @@ export function useScrollEdges<T extends HTMLElement>(): [RefCallback<T>, Scroll
       const max = node.scrollWidth - node.clientWidth;
       const pos = Math.abs(node.scrollLeft);
       const overflowing = max > 1;
-      const next = { overflowing, start: overflowing && pos > 1, end: overflowing && pos < max - 1 };
-      setEdges((prev) => (prev.overflowing === next.overflowing && prev.start === next.start && prev.end === next.end ? prev : next));
+      const next = { overflowing, start: overflowing && pos > 1, end: overflowing && pos < max - 1, wrapped: childrenWrapped(node) };
+      setEdges((prev) =>
+        prev.overflowing === next.overflowing && prev.start === next.start && prev.end === next.end && prev.wrapped === next.wrapped ? prev : next,
+      );
     };
     check();
     node.addEventListener("scroll", check, { passive: true });
@@ -135,6 +145,7 @@ export function scrollEdgeAttrs(edges: ScrollEdges) {
     "data-overflowing": dataFlag(edges.overflowing),
     "data-overflow-start": dataFlag(edges.start),
     "data-overflow-end": dataFlag(edges.end),
+    "data-wrapped": dataFlag(edges.wrapped),
   };
 }
 

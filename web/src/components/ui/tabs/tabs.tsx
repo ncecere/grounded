@@ -14,9 +14,11 @@ import styles from "./tabs.module.css";
  * renders a <nav> of links and marks the current one with aria-current="page"
  * (TanStack Router's <Link> sets that automatically when active).
  *
- * A tab list wider than its container scrolls sideways (tabs and their icons
- * never shrink), and the edge where more tabs are hidden fades out as a
- * scroll cue. Arrow keys scroll the focused tab into view.
+ * A tab list wider than its container (a phone): pill tabs wrap onto more
+ * lines, so every tab stays visible; underline tabs (or `overflow="scroll"`)
+ * scroll sideways (tabs and their icons never shrink), and the edge where
+ * more tabs are hidden fades out as a scroll cue. Arrow keys scroll the
+ * focused tab into view.
  */
 
 export type TabsVariant = "underline" | "pills";
@@ -30,10 +32,12 @@ export function Tabs({ className, ...props }: TabsProps) {
 export type TabsListProps = Omit<BaseTabs.List.Props, "className"> & {
   className?: string;
   variant?: TabsVariant;
+  /** Too many tabs for the width: "wrap" onto more lines (pills' default) or "scroll" sideways with a fade (underline's default). */
+  overflow?: "wrap" | "scroll";
   ref?: Ref<HTMLDivElement>;
 };
 
-export function TabsList({ className, variant = "underline", children, ref, ...props }: TabsListProps) {
+export function TabsList({ className, variant = "underline", overflow = variant === "pills" ? "wrap" : "scroll", children, ref, ...props }: TabsListProps) {
   const [edgesRef, edges] = useScrollEdges<HTMLDivElement>();
   const listRef = useMemo(() => (ref ? mergeRefs(edgesRef, ref) : edgesRef), [edgesRef, ref]);
   return (
@@ -42,6 +46,7 @@ export function TabsList({ className, variant = "underline", children, ref, ...p
       {...scrollEdgeAttrs(edges)}
       ref={listRef}
       data-variant={variant}
+      data-overflow-mode={overflow}
       className={cx(styles.list, className)}
     >
       {children}

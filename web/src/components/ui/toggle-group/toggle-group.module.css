@@ -31,8 +31,8 @@
   flex-wrap: nowrap;
   gap: 0;
 
-  /* Too wide for its container (a phone): scroll sideways, and fade the
-     edge where more items are hidden so it's clear the control scrolls. */
+  /* overflow="scroll", too wide for its container (a phone): scroll sideways, and
+     fade the edge where more items are hidden so it's clear the control scrolls. */
   --toggle-group-fade-dir: to right;
   --toggle-group-fade-start: 0px;
   --toggle-group-fade-end: 0px;
@@ -112,5 +112,21 @@
     & > .item + .item {
       margin-block-start: -1px;
     }
+  }
+}
+
+/* overflow="wrap" (default): too wide for its container, the items wrap onto
+   more lines and stand apart (each with its own rounded border), so no
+   choice is cut off. Later than the joined rules, so it overrides them. */
+.group[data-joined][data-overflow-mode="wrap"] {
+  flex-wrap: wrap;
+}
+
+.group[data-joined][data-wrapped][data-orientation] {
+  gap: var(--space-1);
+
+  & > .item {
+    margin: 0;
+    border-radius: var(--radius-control);
   }
 }

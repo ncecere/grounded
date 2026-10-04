@@ -19,6 +19,15 @@ import styles from "./table.module.css";
  * measured with a ResizeObserver; a table that fits is not a tab stop.
  * While columns are hidden to the side, that edge shows a shadow so it's
  * clear the table scrolls (for example the actions column on a phone).
+ *
+ * - A column marked `stickyEnd` (with `<Td stickyEnd>` cells: row actions)
+ *   stays pinned to the end edge while the rest scrolls under it, so row
+ *   actions never sit off-screen.
+ * - `empty` content is centred on the visible width of the scroll box, not
+ *   on the full width of a table wider than it.
+ * - `stack`: below 600px each row becomes a block, the first cell on its own
+ *   line and the others under it, each with its column's name (for settings
+ *   tables whose columns would otherwise squash on a phone).
  */
 
 export type TableColumn =
@@ -31,6 +40,8 @@ export type TableColumn =
       width?: string;
       /** Sets aria-sort on the header cell (use on the one sorted column). */
       sort?: "ascending" | "descending" | "none" | "other";
+      /** Pin the column to the end edge while the table scrolls sideways (row actions); mark its cells `<Td stickyEnd>`. */
+      stickyEnd?: boolean;
     };
 
 export type TableProps = Omit<ComponentPropsWithRef<"table">, "children"> & {
@@ -49,7 +60,23 @@ export type TableProps = Omit<ComponentPropsWithRef<"table">, "children"> & {
   empty?: ReactNode;
   /** Wrap in a card-like surface with ring and radius. */
   framed?: boolean;
+  /** Below 600px, show each row as a block with its cells' column names (settings tables on a phone). */
+  stack?: boolean;
 };
+
+/** The header texts, as names for a stacked table's cells ("" for the first column and visually hidden headers). */
+function labelStackedCells(table: HTMLTableElement) {
+  const heads = [...(table.tHead?.rows[0]?.cells ?? [])].map((th, i) => (i === 0 || th.querySelector(".sr-only") ? "" : (th.textContent ?? "")));
+  for (const body of table.tBodies) {
+    for (const row of body.rows) {
+      [...row.cells].forEach((cell, i) => {
+        const label = cell.colSpan > 1 ? "" : (heads[i] ?? "");
+        if (label) cell.dataset.label = label;
+        else delete cell.dataset.label;
+      });
+    }
+  }
+}
 
 export function Table({
   caption,
@@ -61,6 +88,7 @@ export function Table({
   density = "comfortable",
   empty,
   framed = false,
+  stack = false,
   className,
   ...props
 }: TableProps) {
@@ -69,6 +97,9 @@ export function Table({
   const [edgesRef, edges] = useScrollEdges<HTMLDivElement>();
   const wrapRef = useMemo(() => mergeRefs(wrap, edgesRef), [edgesRef]);
   const [overflowing, setOverflowing] = useState(false);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const ref = useMemo(() => (props.ref ? mergeRefs(tableRef, props.ref) : tableRef), [props.ref]);
+  const stickyEnd = columns.some((c) => typeof c !== "string" && c.stickyEnd);
   const wrapStyle: CSSProperties | undefined = maxHeight ? { maxHeight } : undefined;
 
   // A scroll container must be keyboard-focusable (WCAG 2.1.1): track whether it scrolls.
@@ -83,8 +114,19 @@ export function Table({
     return () => ro.disconnect();
   }, []);
 
+  // A stacked table names each cell after its column (shown above the value on a phone).
+  useEffect(() => {
+    const table = tableRef.current;
+    if (!stack || !table) return;
+    labelStackedCells(table);
+    if (typeof MutationObserver === "undefined") return;
+    const mo = new MutationObserver(() => labelStackedCells(table));
+    mo.observe(table, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, [stack, columns]);
+
   return (
-    <div className={styles.frame} data-framed={dataFlag(framed)}>
+    <div className={styles.frame} data-framed={dataFlag(framed)} data-sticky-end={dataFlag(stickyEnd)}>
       <div
         ref={wrapRef}
         className={styles.wrap}
@@ -95,8 +137,10 @@ export function Table({
       >
         <table
           {...props}
+          ref={ref}
           data-density={density}
           data-sticky={dataFlag(stickyHeader)}
+          data-stack={dataFlag(stack)}
           className={cx(styles.table, className)}
         >
           <caption id={captionId} className={showCaption ? styles.caption : "sr-only"}>
@@ -113,6 +157,7 @@ export function Table({
                     scope="col"
                     aria-sort={"sort" in col ? col.sort : undefined}
                     data-numeric={dataFlag(col.numeric)}
+                    data-sticky-end={dataFlag("stickyEnd" in col && col.stickyEnd)}
                     style={col.width ? { width: col.width } : undefined}
                     className={styles.th}
                   >
@@ -126,7 +171,7 @@ export function Table({
             {empty ? (
               <tr className={styles.emptyRow}>
                 <td colSpan={columns.length} className={styles.emptyCell}>
-                  {empty}
+                  <div className={styles.emptyContent}>{empty}</div>
                 </td>
               </tr>
             ) : (
@@ -154,14 +199,17 @@ export type TdProps = ComponentPropsWithRef<"td"> & {
   muted?: boolean;
   /** Keep content on one line. */
   nowrap?: boolean;
+  /** A cell of a `stickyEnd` column: pinned to the end edge while the table scrolls sideways. */
+  stickyEnd?: boolean;
 };
 
-export function Td({ numeric, muted, nowrap, className, ...props }: TdProps) {
+export function Td({ numeric, muted, nowrap, stickyEnd, className, ...props }: TdProps) {
   return (
     <td
       data-numeric={dataFlag(numeric)}
       data-muted={dataFlag(muted)}
       data-nowrap={dataFlag(nowrap)}
+      data-sticky-end={dataFlag(stickyEnd)}
       className={cx(styles.td, className)}
       {...props}
     />

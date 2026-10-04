@@ -49,6 +49,11 @@
     box-shadow: inset 0 -1px 0 var(--color-border);
   }
 
+  /* overflow="wrap": every tab stays visible, on more lines. */
+  &[data-overflow-mode="wrap"] {
+    flex-wrap: wrap;
+  }
+
   &[data-variant="pills"] {
     display: inline-flex;
     align-self: flex-start;
