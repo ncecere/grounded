@@ -110,3 +110,24 @@ describe("web page titles (VI-10)", () => {
     expect(urlPath("https://go.dev/doc/codewalk/?fileprint=/doc%2Fcodewalk%2Furlpoll.go&hi=1")).toBe("/doc/codewalk/?fileprint=/doc/codewalk/urlpoll.go&hi=1");
   });
 });
+
+describe("deleting a source that knowledge bases use (BU-17)", () => {
+  it("names the knowledge bases up front, with no Delete button", async () => {
+    const calls = mockApi({
+      ...common,
+      "GET /v1/teams/registrar/sources/s1": () => upload(),
+      "GET /v1/teams/registrar/sources/s1/tags": () => [],
+      "GET /v1/teams/registrar/sources/s1/documents": () => ({ items: [], nextCursor: null }),
+      "GET /v1/teams/registrar/kbs": () => [{ id: "k1", name: "Policies KB", sources: [{ id: "s1", name: "Policies", classification: "open", shared: false }] }],
+    });
+    renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
+    await screen.findByText("Used by knowledge bases");
+    await userEvent.click(await screen.findByRole("button", { name: "More actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Delete source…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Policies can't be deleted yet" });
+    expect(dialog).toHaveTextContent("A knowledge base searches this source. Remove it from that knowledge base on its Sources tab first, then delete it.");
+    expect(within(dialog).getByRole("link", { name: "Policies KB" })).toHaveAttribute("href", "/teams/registrar/kbs/k1?tab=sources");
+    expect(within(dialog).queryByRole("button", { name: "Delete source" })).toBeNull();
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+  });
+});
