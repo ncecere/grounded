@@ -128,7 +128,7 @@ export function LimitsPage() {
               content: (
                 <Stack gap={4}>
                   <Card title={g.label} description={g.description} flush>
-                    <Table caption={`${g.label}: defaults and ceilings`} columns={["Limit", { label: "Default", width: "15rem" }, { label: "Ceiling", width: "15rem" }]}>
+                    <Table caption={`${g.label}: defaults and ceilings`} stack columns={["Limit", { label: "Default", width: "15rem" }, { label: "Ceiling", width: "15rem" }]}>
                       {inGroup(items, g.key).map((it) => (
                         <PlatformLimitRow key={it.key} it={it} f={form[it.key]!} isAdmin={isAdmin} submitted={submitted} onChange={(row) => setForm({ ...form, [it.key]: row })} />
                       ))}

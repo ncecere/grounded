@@ -94,6 +94,8 @@ export function PricesTab() {
       onRetry={() => void list.refetch()}
       rowActions={(r) => [{ label: "View details", icon: <Eye aria-hidden />, render: itemLink(r) }]}
       empty={{ icon: <Tags />, title: "No priced models or MCP servers yet." }}
+      // On a phone each row stacks, so the prices don't squash into a narrow column (VI-31).
+      tableProps={{ stack: true }}
     />
   );
 }

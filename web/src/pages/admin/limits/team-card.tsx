@@ -93,6 +93,7 @@ export function AdminTeamLimitsCard({ team, teamName }: { team: string; teamName
         render={(group, g) => (
           <Table
             caption={`${g.label} limits for ${teamName}`}
+            stack
             columns={["Limit", { label: "Default", width: "9rem" }, { label: "Team value", width: "19rem" }, { label: "Effective", width: "8rem" }, { label: "Usage", width: "12rem" }]}
           >
             {group.map((it) => (

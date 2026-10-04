@@ -15,6 +15,7 @@ import { StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { CodeBlock } from "@/components/ui/code-block/code-block";
 import { AlertDialog } from "@/components/ui/dialog/dialog";
+import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { Disclosure } from "@/components/ui/disclosure/disclosure";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { toast } from "@/components/ui/toast/toast";
@@ -107,7 +108,7 @@ function ToolRow({ server, tool, isAdmin, onChanged }: { server: MCPServer; tool
         <ToolState tool={tool} />
       </div>
       <p className={t.description}>{tool.description || <span className={s.muted}>No description.</span>}</p>
-      <Disclosure title="Input schema">
+      <Disclosure title={<>Input schema <VisuallyHidden>of {tool.name}</VisuallyHidden></>}>
         <CodeBlock code={JSON.stringify(tool.inputSchema, null, 2)} language="json" />
       </Disclosure>
       {uses.length > 0 && (

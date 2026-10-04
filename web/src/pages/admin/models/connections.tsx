@@ -47,7 +47,7 @@ const columns = (health: (id: string) => HealthCheck | undefined): DataTableColu
     accessor: "modelCount",
     numeric: true,
     sortable: true,
-    cell: (c) => (c.modelCount ? <TextLink render={<Link to="/admin/models" search={{ connection: c.id } as never} />}>{c.modelCount}</TextLink> : "0"),
+    cell: (c) => (c.modelCount ? <TextLink render={<Link to="/admin/models" search={{ connection: c.id } as never} />} aria-label={`${c.modelCount} ${c.modelCount === 1 ? "model" : "models"} on ${c.name}`}>{c.modelCount}</TextLink> : "0"),
   },
   { id: "timeout", header: "Timeout", accessor: "timeoutSeconds", numeric: true, muted: true, defaultHidden: true, cell: (c) => `${c.timeoutSeconds} s` },
   { id: "status", header: "Status", accessor: (c) => (c.enabled ? "Enabled" : "Disabled"), sortable: true, cell: (c) => <EnabledBadge enabled={c.enabled} /> },
