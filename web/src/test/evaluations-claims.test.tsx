@@ -33,7 +33,7 @@ describe("an evaluation result's answer", () => {
     expect(one).toHaveAttribute("data-verification", "verified");
     expect(one).toHaveAccessibleName("Source 1: Fees. Claim supported by this source (97% confidence)");
     expect(screen.getByRole("button", { name: /^Source 2: Rush/ })).toHaveAttribute("data-verification", "unsupported");
-    expect(screen.getByTestId("claim-summary")).toHaveTextContent("1 of 3 claims supported · 1 uncited");
+    expect(screen.getByTestId("claim-summary")).toHaveTextContent("1 of 3 claims supported · 1 not supported · 1 uncited");
     expect(screen.getByText("Uncited").closest("p")).toHaveTextContent(/front desk\. Uncited/);
     expect(await axe(container)).toHaveNoViolations();
   });

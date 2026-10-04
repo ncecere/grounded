@@ -39,11 +39,14 @@ const thread = (a: AssistantItem): ChatItem[] => [{ role: "user", key: "u1", tex
 
 describe("claims", () => {
   it("summarises claims: supported of scored, uncited and unchecked apart", () => {
-    expect(claimSummaryText(claims)).toBe("1 of 3 claims supported · 1 uncited");
+    expect(claimSummaryText(claims)).toBe("1 of 3 claims supported · 1 contradicted · 1 uncited");
     expect(claimSummaryText([...claims, { index: 3, start: 0, end: 1, text: "x", verdict: "unchecked", sources: [] }])).toBe(
-      "1 of 3 claims supported · 1 uncited · 1 not checked",
+      "1 of 3 claims supported · 1 contradicted · 1 uncited · 1 not checked",
     );
     expect(claimSummaryText([claims[0]!])).toBe("1 of 1 claim supported");
+    // Every mark is counted: a claim no source supports, without a contradiction, is "not supported" (v0.4.2 US2-03).
+    const unsupported: Claim = { ...claims[1]!, checks: [{ n: 2, occurrence: 1, verification: "unsupported", confidence: 0.9 }] };
+    expect(claimSummaryText([claims[0]!, unsupported, claims[1]!])).toBe("1 of 3 claims supported · 1 contradicted · 1 not supported");
     expect(claimSummaryText([])).toBe("");
   });
 
@@ -84,7 +87,7 @@ describe("claims", () => {
     expect(twos.map((c) => c.getAttribute("data-verification"))).toEqual(["verified", "contradicted"]);
     expect(twos[0]).toHaveAccessibleName("Source 2: Page 2. Claim supported by source 1. This source doesn't support it");
     expect(twos[1]).toHaveAccessibleName("Source 2: Page 2. Claim not supported. This source contradicts it (92% confidence)");
-    expect(screen.getByTestId("claim-summary")).toHaveTextContent("1 of 3 claims supported · 1 uncited");
+    expect(screen.getByTestId("claim-summary")).toHaveTextContent("1 of 3 claims supported · 1 contradicted · 1 uncited");
     const mark = screen.getByText("Uncited");
     expect(mark.closest("p")).toHaveTextContent(/Log in first with your account\. Uncited/);
     expect(await axe(container)).toHaveNoViolations();

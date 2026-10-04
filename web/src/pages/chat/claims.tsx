@@ -100,14 +100,19 @@ export function claimCounts(claims: Claim[]) {
   const supported = n("supported");
   const uncited = n("uncited");
   const unchecked = n("unchecked");
-  return { supported, uncited, unchecked, scored: supported + n("not_supported") + uncited };
+  // Not supported, split as the chips mark them: red when a source the claim cites contradicts it (v0.4.2 US2-03).
+  const contradicted = claims.filter((c) => c.verdict === "not_supported" && c.checks?.some((k) => k.verification === "contradicted")).length;
+  const notSupported = n("not_supported") - contradicted;
+  return { supported, contradicted, notSupported, uncited, unchecked, scored: supported + contradicted + notSupported + uncited };
 }
 
-/** "9 of 10 claims supported · 1 uncited · 1 not checked"; empty without scored claims. */
+/** "7 of 10 claims supported · 1 contradicted · 1 not supported · 1 uncited · 1 not checked": every mark counted; empty without scored claims. */
 export function claimSummaryText(claims: Claim[]) {
-  const { supported, uncited, unchecked, scored } = claimCounts(claims);
+  const { supported, contradicted, notSupported, uncited, unchecked, scored } = claimCounts(claims);
   if (scored === 0) return "";
   const parts = [`${supported} of ${scored} ${scored === 1 ? "claim" : "claims"} supported`];
+  if (contradicted) parts.push(`${contradicted} contradicted`);
+  if (notSupported) parts.push(`${notSupported} not supported`);
   if (uncited) parts.push(`${uncited} uncited`);
   if (unchecked) parts.push(`${unchecked} not checked`);
   return parts.join(" · ");
