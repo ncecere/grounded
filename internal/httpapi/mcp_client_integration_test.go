@@ -255,6 +255,12 @@ func TestMCPToolInAnswer(t *testing.T) {
 	if !strings.Contains(end.Text, "Service email: operating normally.") || len(end.Citations) != 1 {
 		t.Fatalf("answer = %q %+v", end.Text, end.Citations)
 	}
+	// The step names the tool by its title (US2-10).
+	var call apitypes.ChatEventToolCall
+	evs.one(t, "tool_call", &call)
+	if call.Name != "check_outage" || call.Title == nil || *call.Title != "Check outage" {
+		t.Fatalf("tool call = %+v", call)
+	}
 	// The step shows what the tool returned.
 	var res apitypes.ChatEventToolResult
 	evs.one(t, "tool_result", &res)
@@ -321,7 +327,7 @@ func TestMCPToolInAnswer(t *testing.T) {
 	}
 	// And the step: the arguments the model sent and the result.
 	if tc := last.ToolCalls; tc == nil || len(*tc) != 1 || fmt.Sprint((*tc)[0].Arguments) != "map[service:email]" ||
-		(*tc)[0].Result == nil || !strings.Contains(*(*tc)[0].Result, "operating normally") {
+		(*tc)[0].Result == nil || !strings.Contains(*(*tc)[0].Result, "operating normally") || (*tc)[0].Title == nil || *(*tc)[0].Title != "Check outage" {
 		t.Fatalf("stored tool calls = %+v", last.ToolCalls)
 	}
 

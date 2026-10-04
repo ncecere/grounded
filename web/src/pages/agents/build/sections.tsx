@@ -23,7 +23,7 @@ import { SafetySection } from "./safety-section";
 import { type BuildSection, FieldValidity, type SectionProps, fieldPlace } from "./section";
 import { sectionSummary } from "./summaries";
 import { SystemOneChecks } from "./systemone-checks";
-import { ToolsSection } from "./tools-section";
+import { ToolsSection, useMCPToolOptions } from "./tools-section";
 
 const maxInstructions = 20000;
 
@@ -54,6 +54,7 @@ export function BuildSections({ d, open, onOpenChange }: Props) {
   const kbs = useKBs(slug);
   const systemOne = useSystemOneStatus();
   const rerank = useRerankStatus();
+  const tools = useMCPToolOptions();
   const c = d.draft.config;
   const section: SectionProps = {
     c,
@@ -70,6 +71,7 @@ export function BuildSections({ d, open, onOpenChange }: Props) {
     kbName: (id: string) => kbs.data?.find((k) => k.id === id)?.name,
     systemOne: s1 && { judging: s1.judging.enabled, citations: s1.citations.enabled, citationMode: s1.citations.mode, scope: s1.scope.enabled },
     rerank: rerank.data?.available ? { defaultTopN: rerank.data.defaultTopN } : undefined,
+    toolName: (id: string) => tools.data?.find((t) => t.id === id)?.name,
   };
   const invalidIn = new Set(d.invalidFields.map((f) => fieldPlace(f).section));
   const problemIn = new Set([...d.problems, ...d.base.warnings.filter((w) => w.field.startsWith("draft."))].map((p) => fieldPlace(p.field).section));

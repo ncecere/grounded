@@ -64,31 +64,6 @@
   margin-top: 0.2em;
 }
 
-/* The widget's welcome is smaller (panel.module.css). */
-.welcome {
-  gap: var(--welcome-gap, var(--space-3));
-}
-
-.welcomeName {
-  margin: var(--space-1) 0 0;
-  font-size: var(--welcome-name-size, var(--font-size-xl));
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-tight);
-}
-
-.welcomeText {
-  max-width: 36rem;
-  margin: 0;
-  color: var(--color-text-muted);
-  line-height: var(--line-height-normal);
-  white-space: pre-wrap;
-}
-
-.starters {
-  max-width: 44rem;
-  margin-top: var(--welcome-starters-gap, var(--space-3));
-}
-
 /* ---------------- chat page ---------------- */
 
 /*
@@ -97,6 +72,7 @@
  * thread. Only the list and the messages scroll, never the page.
  */
 .page {
+  position: relative;
   display: grid;
   grid-template-columns: 17rem minmax(0, 1fr);
   flex: 1;
@@ -312,6 +288,13 @@
 
 .pageViewport {
   scrollbar-gutter: stable both-edges;
+}
+
+/* A short window (200% zoom): less padding around the welcome, so its starters show (US2-13, welcome.module.css). */
+@media (max-height: 32rem) {
+  .pagePanel .content.content {
+    padding-block: var(--space-3);
+  }
 }
 
 .pagePanel .content {

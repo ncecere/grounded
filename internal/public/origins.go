@@ -126,6 +126,9 @@ func defaultScheme(raw string) string {
 
 // checkHost accepts a DNS name, an IP address (not in patterns) or a
 // *.domain pattern with at least two labels after the star.
+// errLoneWildcard: a bare * would let any site embed the widget.
+var errLoneWildcard = errors.New("a lone * would allow every site; list each site, or use *.example.edu for a domain's subdomains")
+
 func checkHost(host string, pattern bool) error {
 	if host == "" || len(host) > 253 {
 		return errOriginHost
@@ -135,6 +138,10 @@ func checkHost(host string, pattern bool) error {
 			return errors.New("a wildcard needs a domain with at least two labels, such as *.example.edu")
 		}
 		return nil
+	}
+	if host == "*" {
+		// Not "goes at the start": it is at the start (v0.4.2 BU2-08).
+		return errLoneWildcard
 	}
 	if strings.Contains(host, "*") {
 		return errors.New("a wildcard goes at the start only, such as *.example.edu")

@@ -66,8 +66,15 @@ describe("pure helpers", () => {
     const healthy = model("c", "C healthy", "healthy");
     expect(defaultChatModel([failing, untested, healthy])?.id).toBe("c");
     expect(defaultChatModel([failing, untested])?.id).toBe("b");
-    expect(defaultChatModel([failing])?.id).toBe("a");
+    // Never a failing one: the builder picks (BU2-03).
+    expect(defaultChatModel([failing])).toBeUndefined();
     expect(defaultChatModel([])).toBeUndefined();
+    // A model with tools before one without, at the same health; health first (BU2-03: a stray model without tools,
+    // first by name, was chosen).
+    const noTools = (m: Model) => ({ ...m, supportsTools: false });
+    expect(defaultChatModel([noTools(model("x", "A stray", "healthy")), healthy])?.id).toBe("c");
+    expect(defaultChatModel([noTools(model("x", "A stray", "untested")), model("y", "B chat", "untested")])?.id).toBe("y");
+    expect(defaultChatModel([model("y", "A chat", "untested"), noTools(model("x", "B plain", "healthy"))])?.id).toBe("x");
     const [opt] = modelOptions([failing], (k) => k);
     expect(opt!.capabilities).toContain("failing");
     expect(opt!.description).toBe("Failing its health checks");

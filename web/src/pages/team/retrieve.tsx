@@ -167,13 +167,29 @@ export function RetrievePlayground({ kbId, defaultTopK, sources = [], initialQue
           <ol aria-label="Search results" className={r.results}>
             {run.data.hits.map((h, i) => (
               <li key={h.chunkId || i}>
-                <CitationCard hit={h} rank={i + 1} top={run.data.hits[0]?.score ?? 0} />
+                <CitationCard hit={h} rank={i + 1} relevance={relevanceBars(run.data!.hits)(h)} />
               </li>
             ))}
           </ol>
         ))}
     </div>
   );
+}
+
+/**
+ * Each passage's bar (0–1): its score against the best one's. With Rerank on, the rerank score the list is ordered by
+ * (BU2-09), not the fused score: as it is when the model gives 0–1, otherwise (logits) from the list's lowest to its best.
+ */
+export function relevanceBars(hits: Hit[]): (h: Hit) => number {
+  const reranked = hits.map((h) => h.rerankScore).filter((s): s is number => s != null);
+  if (reranked.length === hits.length && hits.length > 0) {
+    const top = Math.max(...reranked);
+    const low = Math.min(...reranked);
+    if (low >= 0 && top <= 1) return (h) => Math.max(0.04, h.rerankScore!);
+    return (h) => (top === low ? 1 : Math.max(0.04, (h.rerankScore! - low) / (top - low)));
+  }
+  const top = hits[0]?.score ?? 0;
+  return (h) => (top > 0 ? Math.max(0.04, Math.min(1, h.score / top)) : 0);
 }
 
 const rerankNotes: Record<Schemas["RetrieveRerank"]["status"], string> = {
@@ -191,13 +207,12 @@ function RerankSummary({ rerank }: { rerank: Schemas["RetrieveRerank"] }) {
   );
 }
 
-function CitationCard({ hit, rank, top }: { hit: Hit; rank: number; top?: number }) {
+function CitationCard({ hit, rank, relevance }: { hit: Hit; rank: number; relevance: number }) {
   const pages = pageRange(hit.pageStart, hit.pageEnd);
   const detail = rankDetail(hit);
   const title = hit.title || hit.filename || "Untitled document";
   const external = /^https?:\/\//.test(hit.url);
   const showFilename = hit.filename && hit.filename !== title;
-  const relevance = top && top > 0 ? Math.max(0.04, Math.min(1, hit.score / top)) : 0;
   const long = hit.content.length > 600 || hit.content.split("\n").length > 10;
   const [expanded, setExpanded] = useState(false);
   return (

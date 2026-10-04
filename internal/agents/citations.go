@@ -188,7 +188,7 @@ func rewriteMarkers(text string, keep func(n int) bool) string {
 
 // citationOf is the citation of a numbered source.
 func citationOf(h numberedHit, mode string) Citation {
-	c := Citation{N: h.N, DocumentID: h.DocumentID, SourceID: h.SourceID, Title: h.Title, Snippet: snippet(h.Content),
+	c := Citation{N: h.N, DocumentID: h.DocumentID, SourceID: h.SourceID, Title: h.Title, Snippet: hitSnippet(h.Hit),
 		HeadingPath: h.HeadingPath}
 	if c.HeadingPath == nil {
 		c.HeadingPath = []string{}

@@ -27,6 +27,7 @@ export function embedSnippet({ scriptUrl, agentId, key, integrity, position = "b
 export function originProblem(raw: string): string | undefined {
   const v = raw.trim();
   if (!v) return undefined;
+  if (v === "*" || /^https?:\/\/\*$/i.test(v)) return `${v}: a lone * would allow every site; list each site, or use *.example.edu for a domain's subdomains`;
   const withScheme = /^[a-z]+:\/\//i.test(v) ? v : `${/^(localhost|127\.|\[::1\])/i.test(v) ? "http" : "https"}://${v}`;
   let u: URL;
   try {

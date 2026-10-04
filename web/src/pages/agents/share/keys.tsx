@@ -20,6 +20,7 @@ import { Field } from "@/components/ui/field/field";
 import { Input } from "@/components/ui/input/input";
 import { TagInput } from "@/components/ui/tag-input/tag-input";
 import { toast } from "@/components/ui/toast/toast";
+import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { switchLabel } from "@/lib/terms";
 import { useFormState } from "@/lib/use-form-state";
 import s from "../../shared.module.css";
@@ -215,6 +216,8 @@ function WidgetKeyForm({ team, agentId, current, onClose, onRevoke, onSaved }: R
       >
         <TagInput value={form.origins} onValueChange={(v) => set("origins", v)} noun={{ one: "origin", other: "origins" }} maxTags={20} maxTagLength={253} placeholder="https://www.example.edu" />
       </Field>
+      {/* "Added origin *" is followed by its problem, so a screen reader doesn't hear only that it was added (BU2-08). */}
+      <VisuallyHidden role="status">{problems[0] ?? ""}</VisuallyHidden>
       <div className={s.grid2}>
         <Field label="Questions per minute per address" labelHint="Optional" description="Empty: the platform default.">
           <Input inputMode="numeric" value={form.perIp} onChange={(e) => set("perIp", e.target.value)} />

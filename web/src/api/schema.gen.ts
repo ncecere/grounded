@@ -9292,6 +9292,8 @@ export interface components {
         ChatEventToolCall: {
             id: string;
             name: string;
+            /** @description An MCP tool's title for people (its server's title for it); absent for search_knowledge and tools without one (v0.4.2 and later) */
+            title?: string;
             /** @description The model's JSON arguments */
             arguments: unknown;
         };
@@ -9379,6 +9381,8 @@ export interface components {
         ConversationToolCall: {
             id: string;
             name: string;
+            /** @description An MCP tool's title for people, stored with its result; absent for search_knowledge, tools without one and answers stored before v0.4.2 */
+            title?: string;
             /** @description The model's JSON arguments */
             arguments: unknown;
             isError: boolean;

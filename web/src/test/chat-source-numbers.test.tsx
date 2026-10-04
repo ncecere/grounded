@@ -48,13 +48,26 @@ describe("source numbers", () => {
     const [four, five, one] = await screen.findAllByRole("button", { name: /^Source \d/ });
     const tail = four!.parentElement!;
     expect(tail.className).toMatch(/chipTail/);
-    expect(tail.textContent).toBe("1.");
+    // The word before the chip goes in its no-wrap span (US-10): a no-break space alone doesn't keep an inline block
+    // with it, so a phone could still start a line with the chip and its full stop.
+    expect(tail.textContent).toBe("$10\u00a01.");
+    expect(tail.previousSibling?.textContent).toBe("Transcripts cost ");
     // [5][1] and the full stop after them.
     expect(five!.parentElement).toBe(one!.parentElement);
-    expect(one!.parentElement!.textContent).toBe("23.");
+    expect(one!.parentElement!.textContent).toBe("days\u00a023.");
     expect(one!.closest("p")).toHaveTextContent("Transcripts cost $10 1. Orders take ten business days 23.");
-    // The space before a chip and its punctuation doesn't break either (US-10): "days" never ends a line alone.
-    expect(tail.previousSibling?.textContent).toMatch(/\$10\u00a0$/);
+  });
+
+  it("keeps a chip with a short link before it, and joins a chip on its own line to the list above it (US-10)", async () => {
+    const text = "Check [status.example.edu](https://status.example.edu) [4] and then retry [1]\n\n- First step\n- Second step\n\n[5].";
+    renderBare(<ChatMessages items={answer(text, [cite(1), cite(4), cite(5)])} agent={{ name: "Helper" }} />);
+    const [four, one, five] = await screen.findAllByRole("button", { name: /^Source \d/ });
+    // A chip without punctuation after it keeps the word before it too.
+    expect(four!.parentElement!.textContent).toMatch(/^status\.example\.edu.*\u00a01$/);
+    expect(within(four!.parentElement!).getByRole("link")).toHaveAttribute("href", "https://status.example.edu");
+    expect(one!.parentElement!.textContent).toBe("retry\u00a02");
+    // "[5]." was a paragraph of its own: it ends the list's last item instead.
+    expect(five!.closest("li")).toHaveTextContent("Second step 3.");
   });
 
   it("numbers a streaming answer's chips as the finished answer does, and hides an unfinished marker (US-03, US-05)", async () => {

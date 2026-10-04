@@ -154,6 +154,8 @@ export function MemberList({ team, myRole, myUserId }: { team: string; myRole?: 
       ) : null}
       <DataTable<Member>
         caption="Team members"
+        // On a phone each member is a block: the person on its own line, the role and date under it (VI2-03).
+        stack
         columns={columns}
         data={list}
         getRowId={(m) => m.user.id}

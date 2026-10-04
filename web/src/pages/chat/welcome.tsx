@@ -2,7 +2,7 @@
 import { ConversationEmptyState } from "@/components/ui/conversation/conversation";
 import { MessageAvatar } from "@/components/ui/message/message";
 import { Suggestion, Suggestions } from "@/components/ui/suggestion/suggestion";
-import c from "./chat.module.css";
+import c from "./welcome.module.css";
 import pm from "./panel.module.css";
 
 export type AgentLook = {
@@ -22,16 +22,17 @@ export function AgentAvatar({ agent, size = "sm" }: { agent: Pick<AgentLook, "na
   return <MessageAvatar name={agent.name} color={agentColor(agent.accentColor)} size={size} shape="square" />;
 }
 
-type WelcomeProps = { agent: AgentLook; onStarter?: (q: string) => void; disabled?: boolean; compact?: boolean };
+type WelcomeProps = { agent: AgentLook; onStarter?: (q: string) => void; disabled?: boolean; compact?: boolean; /** The welcome text's id (it describes the message box). */ textId?: string };
 
-export function ChatWelcome({ agent, onStarter, disabled, compact }: WelcomeProps) {
+export function ChatWelcome({ agent, onStarter, disabled, compact, textId }: WelcomeProps) {
   const starters = (agent.starterQuestions ?? []).map((q) => q.trim()).filter(Boolean);
   return (
     <ConversationEmptyState
       className={compact ? `${c.welcome} ${pm.compactWelcome}` : c.welcome}
-      media={<AgentAvatar agent={agent} size={compact ? "lg" : "xl"} />}
+      // The widget's header already shows the agent: no avatar there, so the starters fit (US2-13, VI2-06).
+      media={compact ? undefined : <span className={c.welcomeAvatar}><AgentAvatar agent={agent} size="xl" /></span>}
       title={<span className={c.welcomeName}>{agent.name}</span>}
-      description={<span className={c.welcomeText}>{agent.welcomeMessage || agent.description || `Ask ${agent.name} a question.`}</span>}
+      description={<span id={textId} className={c.welcomeText}>{agent.welcomeMessage || agent.description || `Ask ${agent.name} a question.`}</span>}
     >
       {starters.length > 0 && (
         <Suggestions label="Suggested questions" className={c.starters}>

@@ -56,8 +56,9 @@ describe("documents selection (BU-04)", () => {
     await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
     await userEvent.click(await screen.findByRole("checkbox", { name: "Select Handbook" }));
     expect(screen.getByText("1 document selected")).toBeInTheDocument();
-    // Ready documents can't be retried, and the button says why.
-    expect(screen.getByRole("button", { name: "Retry" })).toHaveAttribute("title", "Only failed, skipped or partly scanned documents can be retried.");
+    // Ready documents can't be retried, and the bar says why in words anyone sees (BU2-12), not only a tooltip.
+    expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled();
+    expect(screen.getByText("Only failed, skipped or partly scanned documents can be retried.")).toBeVisible();
 
     // The Failed filter hides Handbook: nothing stays selected out of sight.
     await userEvent.click(screen.getByRole("button", { name: "Failed" }));
@@ -71,6 +72,27 @@ describe("documents selection (BU-04)", () => {
     const dialog = await screen.findByRole("alertdialog", { name: "Delete Broken scan?" });
     await userEvent.click(within(dialog).getByRole("button", { name: "Delete document" }));
     await waitFor(() => expect(calls.filter((c) => c.method === "DELETE").map((c) => c.url)).toEqual(["/v1/teams/registrar/sources/s1/documents/d2"]));
+  });
+});
+
+describe("bulk Delete (BU2-11)", () => {
+  it("names the documents it deletes", async () => {
+    const a = doc("d1", "Handbook");
+    const b = doc("d2", "Calendar");
+    mockApi({
+      ...common,
+      "GET /v1/teams/registrar/sources/s1": () => upload(),
+      "GET /v1/teams/registrar/sources/s1/tags": () => [],
+      "GET /v1/teams/registrar/kbs": () => [],
+      "GET /v1/teams/registrar/sources/s1/documents": () => ({ items: [a, b], nextCursor: null }),
+    });
+    renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
+    await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Select Handbook" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Select Calendar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Delete 2 documents?" });
+    expect(within(dialog).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Handbook", "Calendar"]);
   });
 });
 

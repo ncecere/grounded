@@ -29,6 +29,7 @@ import { useChat } from "./useChat";
 import { AgentAvatar } from "./welcome";
 import a from "./agent-info.module.css";
 import c from "./chat.module.css";
+import pm from "./panel.module.css";
 
 type Card = Schemas["AgentCard"];
 
@@ -135,6 +136,15 @@ function AgentChat({ card }: { card: Card }) {
     if (detail.data && detail.data.conversation.id === selected) reset(itemsFromConversation(detail.data.messages));
   }, [detail.data, selected, reset]);
 
+  // A new chat starts in the message box (US2-04): once, when the page opens, on a device with a keyboard, and only
+  // if nothing else has focus. The box's description reads the agent's welcome, so a screen reader hears where it is.
+  useEffect(() => {
+    if (selected || disabledReason || window.matchMedia?.("(hover: none) and (pointer: coarse)").matches) return;
+    const active = document.activeElement;
+    if (!active || active === document.body) inputRef.current?.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- on opening the page only, not when a conversation starts
+  }, []);
+
   const newChat = () => {
     current.current = undefined;
     void navigate({ to: ".", search: {}, replace: false });
@@ -150,6 +160,17 @@ function AgentChat({ card }: { card: Card }) {
 
   return (
     <div className={c.page}>
+      {/* After the shell's Skip to content: past the conversation list, straight to the box (US2-04). */}
+      <a
+        href="#chat-composer"
+        className={pm.skipToComposer}
+        onClick={(e) => {
+          e.preventDefault();
+          inputRef.current?.focus();
+        }}
+      >
+        Skip to message box
+      </a>
       <ConversationList {...list} className={c.side} />
 
       <section className={c.main} aria-labelledby="chat-title">
@@ -173,7 +194,7 @@ function AgentChat({ card }: { card: Card }) {
             </h1>
             <p className={c.subtitle}>
               <AgentInfo card={card} />
-              {currentSummary?.title && <span className={a.subtitleConv}> · {currentSummary.title}</span>}
+              {currentSummary?.title && <span className={a.subtitleConv} title={currentSummary.title}> · {currentSummary.title}</span>}
             </p>
           </div>
           {currentSummary && <ConversationMenu conversation={currentSummary} onDeleted={newChat} label="Conversation actions" />}
@@ -187,6 +208,7 @@ function AgentChat({ card }: { card: Card }) {
           fullPage
           viewer={ownAnswers}
           inputRef={inputRef}
+          composerId="chat-composer"
           disabledReason={disabledReason}
           label={`Conversation with ${card.name}`}
           onAddToEvaluations={canAdd ? (question, item) => setAdding(answerToAdd(question, item)) : undefined}

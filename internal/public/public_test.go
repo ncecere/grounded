@@ -53,6 +53,10 @@ func TestNormalizeAllowedOrigins(t *testing.T) {
 			t.Errorf("%q accepted", bad)
 		}
 	}
+	// A bare * is named for what it is (BU2-08).
+	if checks := CheckOrigins([]string{"*"}); len(checks) != 1 || !strings.Contains(checks[0].Problem, "a lone * would allow every site") {
+		t.Errorf("* = %+v", checks)
+	}
 	many := make([]string, 21)
 	for i := range many {
 		many[i] = "https://h" + string(rune('a'+i)) + ".example.edu"

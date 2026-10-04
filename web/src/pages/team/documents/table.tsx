@@ -206,11 +206,12 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
                       : `Only failed, skipped or partly scanned ${noun} can be retried.`;
                 return (
                   <>
+                    {/* Why Retry is off, as text: a disabled button's tooltip never shows to keyboard or touch (BU2-12). */}
+                    {noRetry && <span className={d.bulkNote}>{noRetry}</span>}
                     <Button
                       size="sm"
                       variant="secondary"
                       disabled={Boolean(noRetry)}
-                      title={noRetry}
                       loading={mutations.retry.isPending}
                       onClick={() => mutations.retry.mutate(retryable, { onSuccess: clear })}
                     >
@@ -248,6 +249,8 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
         confirmLabel={deleteWording(deleting?.length ?? 1, web).confirm}
         busy={mutations.remove.isPending}
         error={mutations.remove.error}
+        // Several: which ones (BU2-11), as the single delete names its document.
+        children={deleting && deleting.length > 1 ? <DeletingList docs={deleting} /> : undefined}
         onConfirm={() =>
           deleting &&
           mutations.remove.mutate(deleting, {
@@ -316,5 +319,18 @@ function DocumentName({ doc, web }: { doc: Doc; web: boolean }) {
         )}
       </span>
     </span>
+  );
+}
+
+/** The documents a bulk delete removes: up to 5 names, then how many more. */
+function DeletingList({ docs }: { docs: Doc[] }) {
+  const shown = docs.slice(0, 5);
+  return (
+    <ul className={d.deletingList}>
+      {shown.map((doc) => (
+        <li key={doc.id}>{docName(doc)}</li>
+      ))}
+      {docs.length > shown.length && <li>and {docs.length - shown.length} more</li>}
+    </ul>
   );
 }

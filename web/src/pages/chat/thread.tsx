@@ -51,10 +51,26 @@ function pages(start?: number, end?: number) {
 export const sourceElementId = (itemKey: string, n: number) => `${itemKey}-source-${n}`;
 /** An MCP tool's result (docs/mcp-client.md) reads "From Service status · check_outage"; a passage by its document's title. */
 export const sourceTitle = (s: Citation) => (s.kind === "tool" ? `From ${s.server ?? "a tool"} · ${s.tool ?? ""}` : s.title || "Untitled document");
+/** The passage's headings, without a first heading that only repeats the document's title (the card shows it: VI2-12). */
+const headings = (s: Citation) => (s.headingPath[0]?.trim().toLowerCase() === s.title.trim().toLowerCase() ? s.headingPath.slice(1) : s.headingPath);
 const where = (s: Citation) =>
   s.kind === "tool"
     ? ["Tool result", s.truncated ? "cut to fit" : ""].filter(Boolean).join(" · ")
-    : [s.headingPath.join(" › "), pages(s.pageStart, s.pageEnd)].filter(Boolean).join(" · ");
+    : [headings(s).join(" › "), pages(s.pageStart, s.pageEnd)].filter(Boolean).join(" · ");
+/**
+ * A source in Copy answer's list, as the Markdown export names it: "Title — Heading › Subheading, p. 3", so sources
+ * from one document's sections can be told apart (US2-07).
+ */
+export const copySourceTitle = (s: Citation) =>
+  s.kind === "tool"
+    ? sourceTitle(s)
+    : `${sourceTitle(s)}${headings(s).length ? ` — ${headings(s).join(" › ")}` : ""}${s.pageStart ? `, p. ${s.pageStart}` : ""}`;
+/** A tool's result is named by the tool's title, as its step is ("From Service status · Check outage", US2-10). */
+function withToolTitles(item: AssistantItem): Citation[] {
+  const titles = new Map(item.steps.flatMap((s) => (s.name && s.title ? [[s.name, s.title] as const] : [])));
+  if (titles.size === 0) return item.citations;
+  return item.citations.map((c) => (c.kind === "tool" && c.tool && titles.has(c.tool) ? { ...c, tool: titles.get(c.tool) } : c));
+}
 /** Snippets are raw chunk text: plain words for display, without a leading heading the card already shows. */
 const snippetOf = (s: Citation) => plainSnippet(s.snippet, [s.title, ...s.headingPath]);
 const webUrl = (s: Citation) => (s.url && /^https?:\/\//.test(s.url) ? s.url : undefined);
@@ -144,10 +160,11 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
   // While it streams, an answer's markers are chips of the sources they cite until message_end brings the citations,
   // numbered by first citation as the finished answer is: no number changes at the end (US-03).
   const early = streaming && item.citations.length === 0;
-  const chips = useMemo(() => (early ? citedSoFar(item) : item.citations), [early, item]);
+  const cited = useMemo(() => withToolTitles(item), [item]);
+  const chips = useMemo(() => (early ? citedSoFar(item) : cited), [early, item, cited]);
   const markers = useAnswerMarkers(chips, openSource, chipSource, item.claims, viewer ? showSource : jumpBelow, item.text);
   const num = useMemo(() => displayNumbers(item.citations, item.text), [item.citations, item.text]);
-  const listed = useMemo(() => [...item.citations].sort((x, y) => num(x.n) - num(y.n)), [item.citations, num]);
+  const listed = useMemo(() => [...cited].sort((x, y) => num(x.n) - num(y.n)), [cited, num]);
   const thinking = Boolean(item.thinking) && !item.moderation;
   // Answers without sources already say so: no "Uncited" marks or claim summary for them.
   const uncited = item.noContext ? undefined : item.claims ? uncitedOfClaims(item.claims) : item.uncited;
@@ -207,7 +224,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
       </MessageContent>
       {!streaming && isAnswer(item) && (
         <MessageActions label="Answer actions">
-          <MessageCopyAction value={copyText(item, sourceTitle)} label="Copy answer" />
+          <MessageCopyAction value={copyText({ ...item, citations: cited }, copySourceTitle)} label="Copy answer" />
           {feedback && item.id && <Feedback item={item} onChange={(f) => onPatch?.(item.key, (a) => ({ ...a, feedback: f }))} />}
           {/* A labelled button, and "Added" once added (remembered across reloads; docs/evaluations.md §1). */}
           {onAdd &&

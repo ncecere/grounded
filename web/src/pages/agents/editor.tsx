@@ -120,7 +120,7 @@ function Editor({ agent }: { agent: Agent }) {
     agent: current,
     status: d.status,
     // Only Build's fields: a held Appearance or Settings value isn't part of versions, so it doesn't block publishing (BU-13).
-    needsFix: d.invalidFields.length > 0,
+    needsFix: d.invalidFields.length,
     audience: c.audience,
     isManager,
     problems: draftWarnings.length,

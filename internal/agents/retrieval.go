@@ -303,7 +303,7 @@ func truncateRunes(s string, n int) string {
 func (ru *run) retrievalHits(hits []numberedHit) []RetrievalHit {
 	out := make([]RetrievalHit, len(hits))
 	for i, h := range hits {
-		out[i] = RetrievalHit{N: h.N, Title: h.Title, Snippet: snippet(h.Content), Conflicting: h.Conflicting}
+		out[i] = RetrievalHit{N: h.N, Title: h.Title, Snippet: hitSnippet(h.Hit), Conflicting: h.Conflicting}
 		if ru.cfg.CitationMode == CitationSnippetLink && isWebURL(h.URL) {
 			out[i].URL = h.URL
 		}
@@ -329,6 +329,8 @@ type toolDetails struct {
 	Judging *RetrievalJudging `json:"judging,omitempty"`
 	Reason  string            `json:"reason,omitempty"`
 	Note    string            `json:"note,omitempty"`
+	// Title is an MCP tool's title, stored with its result for the step (US2-10).
+	Title string `json:"title,omitempty"`
 }
 
 func (ru *run) searchTool() agentloop.Tool {

@@ -22,11 +22,12 @@ import c from "./chat.module.css";
 import pm from "./panel.module.css";
 
 /**
- * A step's title. A follow-up searched together with the earlier question (the server joins them when it can't
+ * A step's title. A tool by its title for people when it has one ("Used Check outage", not check_outage: US2-10).
+ * A follow-up searched together with the earlier question (the server joins them when it can't
  * rewrite it) reads as the question "with your earlier question", not as the two run together (US-09).
  */
 function stepTitle(step: SearchStep, question?: string) {
-  if (step.name) return `Used ${step.name}`;
+  if (step.name) return `Used ${step.title || step.name}`;
   const asked = question?.trim();
   const joined = Boolean(asked && step.query && step.query !== asked && step.query.endsWith(` ${asked}`));
   const q = joined ? `“${asked}” with your earlier question` : step.query ? `“${step.query}”` : "the knowledge base";

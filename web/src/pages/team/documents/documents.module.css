@@ -86,6 +86,19 @@
   }
 }
 
+/* Why the bulk bar's Retry is off, beside it (BU2-12). */
+.bulkNote {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+/* The names in the bulk Delete dialog. */
+.deletingList {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  overflow-wrap: anywhere;
+}
+
 /* ---- sheet ---- */
 
 .breakAll {

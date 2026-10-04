@@ -8,6 +8,7 @@ Design: [`v0.4.1.md`](v0.4.1.md) §1 (roadmap C8). Code: `internal/agents/sugges
 
 - **Every agent offers them by default**, new and existing (agents saved before v0.4.1 have them on). Editors turn them off per agent under **Build → Advanced → Suggest follow-up questions**. The setting is part of the agent's configuration, so it's published with a version and shows in **Compare versions**.
 - **Where they appear:** the signed-in chat, the public page, the widget and **Try it** (they share one chat panel). Only the last answer offers them; the next question removes them.
+- **After a reload:** suggestions aren't stored with the conversation, but the browser tab remembers the last answer's, so reloading the chat page, the public page or the widget offers them again under that answer (v0.4.2). Another tab or browser shows the answer without them.
 - **Not on** the OpenAI-compatible endpoint (`/v1/chat/completions`), MCP `ask`, chat requests with `stream: false`, or evaluation runs. None of these can show them, so no call is made.
 
 ## When an answer gets them

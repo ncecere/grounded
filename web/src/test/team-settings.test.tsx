@@ -40,7 +40,8 @@ describe("team settings tabs", () => {
   it("hides Usage & limits and the audit log from members (F-24)", async () => {
     mockApi(routes("none", "member"));
     renderApp("/teams/registrar/settings");
-    await screen.findByRole("table", { name: "Team members" });
+    // On a phone each member is a block (VI2-03).
+    expect(await screen.findByRole("table", { name: "Team members" })).toHaveAttribute("data-stack");
     expect(tabNames()).toEqual(["Members", "API keys", "General"]);
   });
 

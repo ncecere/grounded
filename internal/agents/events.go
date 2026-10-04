@@ -103,6 +103,7 @@ type (
 	ToolCallEvent struct {
 		ID        string          `json:"id"`
 		Name      string          `json:"name"`
+		Title     string          `json:"title,omitempty"`
 		Arguments json.RawMessage `json:"arguments"`
 	}
 	// ToolResultEvent: Error says why a call failed or wasn't made;
@@ -270,7 +271,7 @@ func (ru *run) onEvent(ev agentloop.Event, st *loopState) {
 		if len(args) == 0 {
 			args = json.RawMessage("null")
 		}
-		ru.out.send(Event{"tool_call", ToolCallEvent{ID: ev.ToolCallID, Name: ev.ToolName, Arguments: args}})
+		ru.out.send(Event{"tool_call", ToolCallEvent{ID: ev.ToolCallID, Name: ev.ToolName, Title: ru.mcp.titleOf(ev.ToolName), Arguments: args}})
 	case agentloop.ToolExecutionEnd:
 		res := ToolResultEvent{ID: ev.ToolCallID, IsError: ev.IsError}
 		if ev.Result != nil {

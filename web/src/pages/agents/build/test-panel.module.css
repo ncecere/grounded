@@ -29,13 +29,14 @@
   font-size: var(--font-size-sm);
 }
 
-/* Room above the welcome so its avatar isn't clipped by the scroll area (Q14). */
+/* Room above the welcome so its avatar isn't clipped by the scroll area (Q14). At least 20rem in the
+   drawer and dialog; in the Build split it takes what the split has (--test-panel-min, build.module.css). */
 .testPanel {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: var(--space-3);
-  min-height: 20rem;
+  min-height: var(--test-panel-min, 20rem);
   padding-top: var(--space-2);
 }
 

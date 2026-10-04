@@ -1,7 +1,7 @@
 /* Test helpers for the Phase 3 pages: a fetch mock with status codes and SSE bodies, and renderers. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from "@tanstack/react-router";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { routeTree } from "../router";
 import { withFeatures } from "./admin-features";
@@ -137,3 +137,9 @@ export function renderBare(ui: ReactNode, me: unknown = meFor()) {
   const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ["/"] }) });
   return { ...render(<QueryClientProvider client={qc}><RouterProvider router={router as never} /></QueryClientProvider>), qc };
 }
+
+/**
+ * An answer's paragraph by its text. A citation chip takes the word before it into its no-wrap span (v0.4.2 US-10),
+ * so a paragraph's own text nodes don't hold the whole sentence: match the paragraph's whole text instead.
+ */
+export const findParagraph = (re: RegExp) => screen.findByText((_, el) => el?.tagName === "P" && re.test(el.textContent ?? ""));

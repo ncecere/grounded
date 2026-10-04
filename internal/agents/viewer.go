@@ -117,7 +117,7 @@ func (s *Service) citedPassage(ctx context.Context, m dbgen.GetCitedMessageRow, 
 	} else if err != nil {
 		return out, doc, err
 	}
-	pq := sources.PassageQuery{Match: func(content string) bool { return snippet(content) == c.Snippet }}
+	pq := sources.PassageQuery{Match: func(content string) bool { return snippetMatches(content, *c) }}
 	if c.ChunkID != nil {
 		pq.ChunkID = *c.ChunkID
 	}

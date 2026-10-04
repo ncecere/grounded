@@ -12375,6 +12375,7 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
+        title: { type: string, description: "An MCP tool's title for people (its server's title for it); absent for search_knowledge and tools without one (v0.4.2 and later)" }
         arguments: { description: The model's JSON arguments }
     ChatEventToolResult:
       type: object
@@ -12513,6 +12514,7 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
+        title: { type: string, description: "An MCP tool's title for people, stored with its result; absent for search_knowledge, tools without one and answers stored before v0.4.2" }
         arguments: { description: The model's JSON arguments }
         isError: { type: boolean }
         hitCount: { type: integer }
