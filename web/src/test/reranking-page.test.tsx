@@ -52,7 +52,10 @@ describe("Admin → Models → Reranking", () => {
     renderApp("/admin/reranking");
     const select = await screen.findByRole("combobox", { name: /Rerank model/ }, { timeout: 4000 });
     expect(within(select).getByRole("option", { name: "BGE reranker (bge-reranker-v2-m3) · Not tested" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Set up reranking" })).toBeNull();
+    // Until a model is chosen the guide stays, its third step current (AD2-06).
+    const guide = screen.getByRole("heading", { name: "Set up reranking" }).closest("section")!;
+    expect(within(guide).getByText("2 of 3 done")).toBeInTheDocument();
+    expect(within(guide).getByRole("link", { name: "Choose the model" })).toHaveAttribute("href", "#settings");
     await userEvent.selectOptions(select, "r1");
     expect(await screen.findByText(/BGE reranker hasn't been tested\. Until it works, every search waits for it/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Save settings" }));

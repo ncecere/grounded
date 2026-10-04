@@ -208,7 +208,8 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
       );
       // The create takes no settings: send only those that differ from the new level's, and nothing (no audit entry for a
       // change that changes nothing) when none do (AD2-14).
-      const changed = Object.fromEntries(Object.entries(settings).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(created[k as keyof typeof settings])));
+      const current = { ...created, conversationRetentionDays: created.conversationRetentionDays ?? 0 };
+      const changed = Object.fromEntries(Object.entries(settings).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(current[k as keyof typeof settings])));
       if (Object.keys(changed).length === 0) return created;
       return unwrap(await api.PATCH("/v1/admin/classifications/{key}", { params: { path: { key: created.key }, header: ifMatch(created.revision) }, body: changed }));
     },
