@@ -176,7 +176,7 @@ function CreateKBDialog({ onClose }: { onClose: () => void }) {
           <Field label="Description" labelHint="Optional">
             <Textarea maxLength={2000} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </Field>
-          <Field label="Embedding profile" description="Can't be changed later. Only sources using this profile can be attached.">
+          <Field label="Embedding profile" description="Only sources using this profile can be attached. A platform admin can move the knowledge base to another profile later (a profile migration).">
             <NativeSelect required value={embeddingProfileId} onChange={(e) => setForm({ ...form, embeddingProfileId: e.target.value })}>
               {(profiles.data ?? []).map((pr) => (
                 <option key={pr.id} value={pr.id}>

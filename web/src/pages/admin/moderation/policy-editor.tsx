@@ -100,7 +100,7 @@ export function PolicyEditor({ policy, providers, isAdmin }: { policy: Policy; p
       canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={save.isPending}
       error={save.error}
-      saveLabel="Save policy"
+      saveLabel="Save settings"
       message={invalid ? `Not saved: ${Object.values(problems)[0]}` : changes === 1 ? "1 unsaved change" : `${changes} unsaved changes`}
       onSave={onSave}
       onDiscard={() => setForm(policyForm(policy))}

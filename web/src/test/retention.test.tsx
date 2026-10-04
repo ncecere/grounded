@@ -116,15 +116,15 @@ describe("Admin → Retention", () => {
     await userEvent.selectOptions(select, "days");
     const days = screen.getByRole("textbox", { name: "Audit log: days" });
     await userEvent.type(days, "10");
-    await userEvent.click(screen.getByRole("button", { name: "Save periods" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     expect(await screen.findByText("From 30 to 36500 days.")).toBeInTheDocument();
     await userEvent.clear(days);
     await userEvent.type(days, "400");
-    await userEvent.click(screen.getByRole("button", { name: "Save periods" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     const dialog = await screen.findByRole("alertdialog", { name: "Delete more data?" });
     expect(within(dialog).getByText("Audit log")).toBeInTheDocument();
     expect(await axe(container.ownerDocument.body)).toHaveNoViolations();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Save periods" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save settings" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     const put = calls.find((c) => c.method === "PUT")!;
     expect(put.headers.get("If-Match")).toBe('"3"');

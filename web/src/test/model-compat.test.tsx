@@ -150,8 +150,9 @@ describe("embedding profile output dimensions and fusion defaults", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Add profile" }));
     const dialog = await screen.findByRole("dialog");
-    await userEvent.type(within(dialog).getByRole("textbox", { name: "Name" }), "Qwen");
-    await userEvent.type(within(dialog).getByRole("textbox", { name: "Key" }), "qwen");
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Name" }), "Qwen 768");
+    // The key follows the name (AD-27).
+    expect(within(dialog).getByRole("textbox", { name: "Key" })).toHaveValue("qwen-768");
     const dims = within(dialog).getByRole("textbox", { name: /Output dimensions/ });
     await userEvent.type(dims, "3000");
     // Qwen3-Embedding: its query instruction is filled in (G7); an edit replaces it.

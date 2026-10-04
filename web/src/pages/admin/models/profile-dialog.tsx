@@ -5,6 +5,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
 import { FormDialog } from "@/components/form-dialog";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
+import { fieldError } from "@/lib/field-errors";
+import { slugKey } from "./model-dialog";
 import { Button } from "@/components/ui/button/button";
 import { Checkbox } from "@/components/ui/checkbox/checkbox";
 import { Dialog, DialogClose } from "@/components/ui/dialog/dialog";
@@ -94,28 +96,45 @@ export function ProfileDialog({ onClose }: { onClose: () => void }) {
             if (Object.keys(errors).length === 0) save.mutate();
           }}
         >
-          <ProfileFields form={form} set={set} embedding={embedding} selected={selected} errors={submitted ? errors : {}} />
+          <ProfileFields form={form} set={set} setForm={setForm} embedding={embedding} selected={selected} errors={submitted ? errors : {}} serverError={save.error} />
           <PrefixWarning form={form} hint={hint} onUse={() => setForm((f) => ({ ...f, documentPrefix: hint!.documentPrefix, queryPrefix: hint!.queryPrefix }))} />
           <FusionDefaultsFields value={form.fusion} onChange={(f) => set("fusion", f)} errors={submitted ? errors : {}} />
           <Checkbox label="Make this the default profile" checked={form.isDefault} onCheckedChange={(v) => set("isDefault", v)} />
-          <ErrorAlert error={save.error} />
+          {!fieldError(save.error, ["invalid_chunk_size", "invalid_chunk_overlap"]) && <ErrorAlert error={save.error} />}
         </Form>
       )}
     </Dialog>
   );
 }
 
-type FieldsProps = { form: ProfileForm; set: SetField; embedding: Model[]; selected?: Model; errors: Errors };
+type FieldsProps = {
+  form: ProfileForm;
+  set: SetField;
+  setForm: (f: (cur: ProfileForm) => ProfileForm) => void;
+  embedding: Model[];
+  selected?: Model;
+  errors: Errors;
+  serverError?: unknown;
+};
 
-function ProfileFields({ form, set, embedding, selected, errors }: FieldsProps) {
+function ProfileFields({ form, set, setForm, embedding, selected, errors, serverError }: FieldsProps) {
   const levelName = useLevelName();
+  // The key follows the name until it's typed (AD-27), as a team's slug does.
+  const [keyTyped, setKeyTyped] = useState(false);
   return (
     <div className={s.grid2}>
       <Field label="Name">
-        <Input required value={form.name} onChange={(e) => set("name", e.target.value)} />
+        <Input
+          required
+          value={form.name}
+          onChange={(e) => {
+            const name = e.target.value;
+            setForm((f) => ({ ...f, name, ...(keyTyped ? {} : { key: slugKey(name) }) }));
+          }}
+        />
       </Field>
-      <Field label="Key">
-        <Input required pattern="[a-z0-9][a-z0-9._\-]{0,62}" value={form.key} onChange={(e) => set("key", e.target.value)} />
+      <Field label="Key" description="Filled in from the name. Can't be changed later.">
+        <Input required pattern="[a-z0-9][a-z0-9._\-]{0,62}" value={form.key} onChange={(e) => (setKeyTyped(true), set("key", e.target.value))} />
       </Field>
       <Field label="Embedding model" description={selected ? `${selected.dimensions} dimensions; allowed up to ${levelName(selected.maxClassification)}` : undefined}>
         <NativeSelect value={selected?.id ?? ""} onChange={(e) => set("modelId", e.target.value)}>
@@ -146,10 +165,10 @@ function ProfileFields({ form, set, embedding, selected, errors }: FieldsProps) 
       <Field label="Query prefix" description='e.g. "search_query: " for nomic, or "Instruct: <task>\nQuery: " for Qwen3-Embedding. Filled in for models with known prefixes.'>
         <Textarea rows={2} value={form.queryPrefix} onChange={(e) => set("queryPrefix", e.target.value)} />
       </Field>
-      <Field label="Passage size (tokens)">
+      <Field label="Passage size (tokens)" error={fieldError(serverError, ["invalid_chunk_size"])}>
         <NumberInput maximumFractionDigits={0} value={String(form.chunkSize)} onValueChange={(v) => set("chunkSize", Number(v))} />
       </Field>
-      <Field label="Passage overlap (tokens)">
+      <Field label="Passage overlap (tokens)" error={fieldError(serverError, ["invalid_chunk_overlap"])}>
         <NumberInput maximumFractionDigits={0} value={String(form.chunkOverlap)} onValueChange={(v) => set("chunkOverlap", Number(v))} />
       </Field>
       <Field label="Description" labelHint="Optional" className={s.span2}>

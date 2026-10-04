@@ -246,7 +246,7 @@ function LevelAndProfileFields({ classification, embeddingProfileId, onChange }:
           ))}
         </NativeSelect>
       </Field>
-      <Field label="Embedding profile" description="The profile can't be changed later. Knowledge bases can only combine sources that use the same profile.">
+      <Field label="Embedding profile" description="Knowledge bases can only combine sources that use the same profile. A platform admin can move them to another profile later (a profile migration).">
         <NativeSelect required value={embeddingProfileId} onChange={(e) => onChange({ embeddingProfileId: e.target.value })}>
           {(profiles.data ?? []).map((pr) => {
             const ok = profileAllows(levels.data, pr, rank);

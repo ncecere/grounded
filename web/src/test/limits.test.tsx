@@ -298,7 +298,7 @@ describe("admin team limits card", () => {
     // The field explains itself as you type; the save bar stays so Save shows the problem too (F-05).
     expect(screen.getByRole("status")).toHaveTextContent("Not saved: fix the highlighted limit");
     expect(within(table).getByText("The platform ceiling is 200.")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Save team limits" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     expect(await within(table).findByText("The platform ceiling is 200.")).toBeInTheDocument();
 
     await userEvent.clear(value);
@@ -307,7 +307,7 @@ describe("admin team limits card", () => {
     await userEvent.click(screen.getByRole("button", { name: /Ingestion/ }));
     const ingestion = await screen.findByRole("table", { name: "Ingestion limits for Office of the Registrar" });
     await userEvent.selectOptions(within(ingestion).getByRole("combobox", { name: "Crawled pages per day: team setting" }), "inherit");
-    await userEvent.click(screen.getByRole("button", { name: "Save team limits" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     const put = calls.find((c) => c.method === "PUT")!;
     expect(put.headers.get("If-Match")).toBe('"3"');

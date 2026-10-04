@@ -187,11 +187,11 @@ describe("Admin → Costs", () => {
     await userEvent.selectOptions(mode, "track");
     const budget = screen.getByRole("textbox", { name: /Default monthly budget/ });
     await userEvent.type(budget, "abc");
-    await userEvent.click(screen.getByRole("button", { name: "Save cost settings" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     expect(await screen.findByText(/Enter the default budget as a number/)).toBeInTheDocument();
     await userEvent.clear(budget);
     await userEvent.type(budget, "250");
-    await userEvent.click(screen.getByRole("button", { name: "Save cost settings" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     await waitFor(() => expect(calls.find((c) => c.method === "PUT")).toBeDefined());
     const put = calls.find((c) => c.method === "PUT")!;
     expect(put.headers.get("If-Match")).toBe('"4"');

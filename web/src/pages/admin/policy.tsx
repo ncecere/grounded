@@ -21,6 +21,7 @@ import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
 import { NumberInput } from "@/components/ui/number-input/number-input";
 import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
+import { fieldError } from "@/lib/field-errors";
 import s from "../shared.module.css";
 import { useClassifications, useIsPlatformAdmin } from "./hooks";
 import { useModels } from "./models/common";
@@ -244,7 +245,7 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
         <Field label="Name">
           <Input required maxLength={64} value={form.name} onChange={(e) => set("name", e.target.value)} />
         </Field>
-        <Field label="Widest agent audience">
+        <Field label="Widest agent audience" error={fieldError(save.error, ["classification_order"])}>
           <NativeSelect value={form.maxAudience} onChange={(e) => set("maxAudience", e.target.value as Audience)}>
             {Object.entries(audienceLabels).map(([v, l]) => (
               <option key={v} value={v}>
@@ -258,7 +259,11 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
         </Field>
       </FormSection>
       <FormSection title="Retention">
-        <Field label="Signed-in conversations (days)" description="Deleted this long after their last activity. Empty keeps them until deleted.">
+        <Field
+          label="Signed-in conversations (days)"
+          description="Deleted this long after their last activity. Empty keeps them until deleted."
+          error={fieldError(save.error, ["invalid_retention"], "Conversation")}
+        >
           <NumberInput
             maximumFractionDigits={0}
             min={1}
@@ -268,7 +273,7 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
             onValueChange={(v) => set("conversationRetentionDays", v)}
           />
         </Field>
-        <Field label="Anonymous conversations (hours)" description="Public-page and widget conversations.">
+        <Field label="Anonymous conversations (hours)" description="Public-page and widget conversations." error={fieldError(save.error, ["invalid_retention"], "Anonymous")}>
           <NumberInput maximumFractionDigits={0} min={1} max={876000} value={form.anonymousRetentionHours} onValueChange={(v) => set("anonymousRetentionHours", v)} />
         </Field>
       </FormSection>
@@ -292,7 +297,7 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
           onCheckedChange={(v) => set("directRetrieve", v)}
         />
       </FormSection>
-      <ErrorAlert error={save.error} />
+      {!fieldError(save.error, ["invalid_retention", "classification_order"]) && <ErrorAlert error={save.error} />}
     </FormPage>
   );
 }

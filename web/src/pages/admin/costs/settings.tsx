@@ -85,7 +85,7 @@ export function CostSettingsTab({ settings }: { settings: CostSettings }) {
       readOnlyNote={adminOnly}
       saving={save.isPending}
       error={save.error}
-      saveLabel="Save cost settings"
+      saveLabel="Save settings"
       message={submitted && invalid ? "Not saved: fix the highlighted field" : undefined}
       saveDisabled={submitted && invalid}
       onSave={() => {

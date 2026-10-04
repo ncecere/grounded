@@ -68,7 +68,7 @@ describe("moderation with a SystemOne model", () => {
     await userEvent.clear(message);
     await userEvent.type(message, "You are not alone. Call your local crisis line.");
     expect(await axe(container)).toHaveNoViolations();
-    await userEvent.click(screen.getByRole("button", { name: "Save policy" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     const body = calls.find((c) => c.method === "PUT")!.body as Schemas["ModerationPolicyInput"];
     expect(body.severityBlock).toBe(2);
@@ -115,7 +115,7 @@ describe("admin moderation page", () => {
     expect(within(effort).getAllByRole("option").map((o) => o.textContent)).toEqual(["Model default", "Off", "Low", "Medium", "High"]);
     await userEvent.selectOptions(effort, "off");
     expect(screen.getByText("3 unsaved changes")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Save policy" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     const put = calls.find((c) => c.method === "PUT")!;
     expect(put.headers.get("If-Match")).toBe('"1"');

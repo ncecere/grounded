@@ -21,6 +21,7 @@ import { Switch } from "@/components/ui/switch/switch";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
 import { useFormState } from "@/lib/use-form-state";
+import { fieldError } from "@/lib/field-errors";
 import s from "../../shared.module.css";
 import { connectionTestQuery, type Connection, EnabledBadge, type Model, ProxyErrorText, TimingsText } from "./common";
 import { type HealthCheck, healthFacts, refreshHealth } from "./health";
@@ -223,7 +224,7 @@ export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onC
         <Field label="Name">
           <Input required maxLength={100} value={form.name} onChange={(e) => set("name", e.target.value)} />
         </Field>
-        <Field label="Base URL" description="Include the API version, for example https://ai-gateway.example.edu/v1" className={m.wide}>
+        <Field label="Base URL" description="Include the API version, for example https://ai-gateway.example.edu/v1" className={m.wide} error={fieldError(save.error, ["invalid_base_url"])}>
           <Input type="url" required value={form.baseUrl} onChange={(e) => set("baseUrl", e.target.value)} />
         </Field>
         <Field
@@ -253,7 +254,7 @@ export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onC
         </Field>
         <Switch label="Enabled" checked={form.enabled} onCheckedChange={(v) => set("enabled", v)} />
       </FormSection>
-      <ErrorAlert error={save.error} />
+      {!fieldError(save.error, ["invalid_base_url"]) && <ErrorAlert error={save.error} />}
     </FormPage>
   );
 }
