@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { usageRows } from "../pages/admin/people/team-overview";
-import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
+import { type Handler, Reply, mockApi, renderApp, shellRoutes } from "./harness";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -193,6 +193,23 @@ describe("admin users and teams", () => {
     renderApp("/admin/teams/registrar?tab=settings");
     expect(await screen.findByText("Danger zone")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Archive team" })).toBeInTheDocument();
+  });
+
+  it("speaks to you on your own record, and shows a refusal once (AD-18)", async () => {
+    mockApi(
+      routes("platform_admin", {
+        "GET /v1/admin/users/u1": () => ({ user: user("u1", { platformRole: "platform_admin" }), teams: [] }),
+        "GET /v1/admin/audit": () => ({ items: [], nextCursor: null }),
+        "PATCH /v1/admin/users/u1": () => Reply.error(409, "last_platform_admin", "The platform needs at least one platform admin."),
+      }),
+    );
+    renderApp("/admin/users/u1");
+    await userEvent.selectOptions(await screen.findByRole("combobox", { name: /Platform role/ }), "none");
+    const dialog = await screen.findByRole("alertdialog", { name: "Remove your platform role?" });
+    expect(within(dialog).getByText(/You'll lose access to the admin portal/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Remove platform role" }));
+    expect(await within(dialog).findByText("The platform needs at least one platform admin.")).toBeInTheDocument();
+    expect(screen.getAllByText("The platform needs at least one platform admin.")).toHaveLength(1);
   });
 
   it("shows the user page as sections with sign-ins hidden in Activity (Q6)", async () => {
