@@ -12,8 +12,14 @@
  *     onSubmit={() => save.mutate()} submitLabel="Create connection" busy={save.isPending}>…fields…</FormPage>}
  *
  * Mount it while the form is open; `onClose` after a successful save.
+ *
+ * Once a save started by Submit succeeds (a mutation run from `onSubmit`),
+ * the form counts as saved until the next edit: closing it afterwards (or a
+ * render landing before the page's own navigation) never asks "Leave without
+ * saving?" (US-02: a new key's one-time secret was hidden that way).
  */
-import { type ReactNode, type Ref, useEffect, useId, useRef, useState } from "react";
+import { type Mutation, useQueryClient } from "@tanstack/react-query";
+import { type FormEvent, type ReactNode, type Ref, useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button/button";
 import { Card, CardBody } from "@/components/ui/card/card";
 import { type DescriptionEntry, DescriptionList } from "@/components/ui/description-list/description-list";
@@ -70,7 +76,8 @@ export function FormPage({
 }: FormPageProps) {
   const formId = useId();
   const edits = useEditTracker();
-  const unsaved = (dirty ?? edits.edited) && !busy;
+  const saved = useSavedBySubmit();
+  const unsaved = (dirty ?? edits.edited) && !busy && !saved.saved;
   // Closing on purpose (Cancel, the back link, after "Discard changes") turns
   // the navigation guard off first, so it doesn't ask a second time.
   const [leaves, setLeaves] = useState(0);
@@ -97,7 +104,14 @@ export function FormPage({
             </div>
           ) : (
             <Form
-              {...edits.formProps}
+              onInput={(e: FormEvent) => {
+                edits.formProps.onInput(e);
+                saved.edited();
+              }}
+              onChange={(e: FormEvent) => {
+                edits.formProps.onChange(e);
+                saved.edited();
+              }}
               id={formId}
               ref={formRef}
               noValidate
@@ -106,7 +120,7 @@ export function FormPage({
                 e.preventDefault();
                 // Dialogs opened from inside the form bubble their submit here through the portal.
                 if (e.target !== e.currentTarget) return;
-                onSubmit();
+                saved.track(onSubmit);
               }}
             >
               {children}
@@ -137,4 +151,40 @@ export function FormSection({ title, children }: { title: string; children: Reac
       <div className={styles.formSectionBody}>{children}</div>
     </fieldset>
   );
+}
+
+/**
+ * Whether a save started by Submit has succeeded since the last edit: the
+ * mutations `onSubmit` starts (synchronously, as `save.mutate()` does) are
+ * watched in the query client's mutation cache.
+ */
+function useSavedBySubmit() {
+  const qc = useQueryClient();
+  const [started, setStarted] = useState<Mutation<unknown, unknown, unknown, unknown>[]>([]);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    if (started.length === 0) return;
+    const cache = qc.getMutationCache();
+    const check = () => {
+      if (started.some((m) => m.state.status === "success")) setSaved(true);
+    };
+    check();
+    return cache.subscribe(check);
+  }, [qc, started]);
+  return {
+    saved,
+    track(submit: () => void) {
+      const cache = qc.getMutationCache();
+      const before = new Set(cache.getAll());
+      submit();
+      const now = cache.getAll().filter((m) => !before.has(m));
+      if (now.length > 0) setStarted(now as Mutation<unknown, unknown, unknown, unknown>[]);
+    },
+    edited() {
+      if (saved || started.length > 0) {
+        setSaved(false);
+        setStarted([]);
+      }
+    },
+  };
 }

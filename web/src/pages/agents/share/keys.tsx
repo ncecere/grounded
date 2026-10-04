@@ -212,7 +212,7 @@ function WidgetKeyForm({ team, agentId, current, onClose, onRevoke, onSaved }: R
         }
         error={problems[0]}
       >
-        <TagInput value={form.origins} onValueChange={(v) => set("origins", v)} maxTags={20} maxTagLength={253} placeholder="https://www.example.edu" />
+        <TagInput value={form.origins} onValueChange={(v) => set("origins", v)} noun={{ one: "origin", other: "origins" }} maxTags={20} maxTagLength={253} placeholder="https://www.example.edu" />
       </Field>
       <div className={s.grid2}>
         <Field label="Questions per minute per address" labelHint="Optional" description="Empty: the platform default.">

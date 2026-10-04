@@ -64,7 +64,7 @@ export function SettingsPage({
   saveLabel = "Save changes",
   message,
   canEdit = true,
-  readOnlyNote = "You can view these settings, but your role can't change them.",
+  readOnlyNote = "You can view these settings. Your role can't change them.",
   saveDisabled = false,
   guard,
   revision,
@@ -83,11 +83,8 @@ export function SettingsPage({
   };
   return (
     <Form noValidate onSubmit={submit} className={className ?? styles.settings}>
-      {!canEdit && (
-        <Alert tone="info" title="Read-only">
-          {readOnlyNote}
-        </Alert>
-      )}
+      {/* One untitled info notice, worded like the team pages' (VI-20). */}
+      {!canEdit && <Alert tone="info">{readOnlyNote}</Alert>}
       {children}
       <RevisionSaveBar
         open={open}

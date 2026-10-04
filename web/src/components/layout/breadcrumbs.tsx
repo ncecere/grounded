@@ -196,7 +196,9 @@ function evalSetCrumbs(slug: string, set: EvalSet | undefined): BreadcrumbItem[]
  * long is cut with an ellipsis. Wider, every crumb shows. The document title
  * and the back links read the full trail.
  */
-export function fitCrumbs(crumbs: BreadcrumbItem[], narrow: boolean): BreadcrumbItem[] {
+export function fitCrumbs(trail: BreadcrumbItem[], narrow: boolean): BreadcrumbItem[] {
+  // A crumb without text (a tab whose name is still loading) never shows as an empty step (VI-09b).
+  const crumbs = trail.some((c) => c.label === "") ? trail.filter((c) => c.label !== "") : trail;
   if (!narrow || crumbs.length <= 2) return crumbs;
   const middle = crumbs.slice(1, -1);
   const labels = middle.map((c) => (typeof c.label === "string" ? c.label : "")).filter(Boolean);

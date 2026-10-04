@@ -27,6 +27,16 @@
   min-width: 0;
 }
 
+/* The current page (usually the long name) gives up room first; the crumbs
+   before it keep theirs ("Demo › … › Go docum…"), up to a sane width. */
+.item:last-child {
+  flex-shrink: 8;
+}
+
+.item:not(:last-child) {
+  max-width: 16rem;
+}
+
 /* Block boxes, so the icon and the text cut together with one ellipsis. */
 .link,
 .current {

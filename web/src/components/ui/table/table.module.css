@@ -6,6 +6,8 @@
   min-width: 0;
 
   &[data-framed] {
+    --table-background: var(--color-surface);
+
     border-radius: var(--radius-card);
     background-color: var(--color-surface);
     box-shadow: var(--shadow-2);
@@ -199,7 +201,8 @@
   position: sticky;
   inset-inline-end: 0;
   z-index: 1;
-  background-color: var(--table-background, var(--color-surface));
+  /* What the table sits on: the page, or a card, dialog or framed table (they set --table-background). */
+  background-color: var(--table-background, var(--color-bg));
 }
 
 .th[data-sticky-end] {

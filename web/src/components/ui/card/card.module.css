@@ -1,4 +1,7 @@
 .card {
+  /* A table in the card pins its row actions over this colour. */
+  --table-background: var(--color-surface);
+
   display: flex;
   flex-direction: column;
   min-width: 0;
