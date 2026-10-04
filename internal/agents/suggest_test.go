@@ -29,9 +29,13 @@ func TestParseSuggestions(t *testing.T) {
 		{"at most three", "One question?\nTwo questions?\nThree questions?\nFour questions?", []string{"One question?", "Two questions?", "Three questions?"}},
 		{"other languages", "¿Cuánto cuesta un certificado?\n証明書はいくらですか？", []string{"¿Cuánto cuesta un certificado?", "証明書はいくらですか？"}},
 		{"look-alike punctuation", "Can I call 555\u20110100\u00a0today?", []string{"Can I call 555-0100 today?"}},
+		// v0.4.2 US-04: a passage's title isn't a question; a question word without its mark still is.
+		{"not questions", "beta wifi guest\nGuest Wi-Fi passes.\nHow long does a pass last\nWo gibt es Pässe\nQuel est le tarif ?",
+			[]string{"How long does a pass last", "Wo gibt es Pässe", "Quel est le tarif ?"}},
+		{"a passage's title or heading", "Transcripts?\nFees?\nWhat about diplomas?", []string{"What about diplomas?"}},
 	}
 	for _, c := range cases {
-		if got := parseSuggestions(c.reply, asked); !slices.Equal(got, c.want) {
+		if got := parseSuggestions(c.reply, asked, []string{"Transcripts › Fees"}); !slices.Equal(got, c.want) {
 			t.Errorf("%s: %q, want %q", c.name, got, c.want)
 		}
 	}
@@ -42,7 +46,7 @@ func TestParseSuggestions(t *testing.T) {
 func TestSuggestPrompt(t *testing.T) {
 	for _, want := range []string{"suggest follow-up questions", "be answered by one listed passage",
 		"never combine topics, names or terms from different passages", "something the answer doesn't already say",
-		"not repeat the question asked", "or with NONE"} {
+		"not repeat or reword the question asked", "ending with a question mark, never a title", "or with NONE"} {
 		if !strings.Contains(suggestPrompt, want) {
 			t.Errorf("prompt lacks %q:\n%s", want, suggestPrompt)
 		}
@@ -78,6 +82,32 @@ func TestSuggestionPassages(t *testing.T) {
 	}
 	if got := suggestionPassages(nil, many); len(got) != suggestPassageLines {
 		t.Errorf("passage lines = %d, want %d", len(got), suggestPassageLines)
+	}
+}
+
+// TestIsQuestion: the check saved answers' suggestions pass on replay too.
+func TestIsQuestion(t *testing.T) {
+	for q, want := range map[string]bool{"beta wifi guest": false, "Can a sponsor extend a guest pass?": true, "¿Cuánto cuesta": true,
+		"証明書はいくらですか？": true, "هل يمكنني التسجيل؟": true, "Why not": true, "Guest passes.": false, "'": false, "": false} {
+		if got := isQuestion(q); got != want {
+			t.Errorf("isQuestion(%q) = %v", q, got)
+		}
+	}
+}
+
+// TestReplayDropsSavedNonQuestions: a saved answer's suggestions from before v0.4.2 (a title) aren't replayed.
+func TestReplayDropsSavedNonQuestions(t *testing.T) {
+	var sent []Event
+	ru := &run{cfg: Config{FollowUpSuggestions: true}, channel: ChannelPublic, out: &streamer{started: true, emit: func(e Event) { sent = append(sent, e) }}}
+	saved := []string{"beta wifi guest", "Can a sponsor extend a pass?"}
+	var ans Answer
+	ru.replaySuggestions(&ans, saved)
+	if !slices.Equal(ans.Suggestions, []string{"Can a sponsor extend a pass?"}) || len(sent) != 1 || saved[0] != "beta wifi guest" {
+		t.Fatalf("replayed %q, sent %d", ans.Suggestions, len(sent))
+	}
+	ru.replaySuggestions(&ans, []string{"beta wifi guest"})
+	if len(sent) != 1 {
+		t.Fatal("an empty list was sent")
 	}
 }
 

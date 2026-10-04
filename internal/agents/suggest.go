@@ -62,7 +62,8 @@ You are given the user's question, the assistant's answer, and the titles and he
 Write up to 3 short follow-up questions the user might ask next. Each question must:
 - be answered by one listed passage, as its title or headings show;
 - stay within that one passage: never combine topics, names or terms from different passages;
-- ask for something the answer doesn't already say (not its facts, numbers, times, steps or names again), and not repeat the question asked.
+- ask for something the answer doesn't already say (not its facts, numbers, times, steps or names again), and not repeat or reword the question asked;
+- be a complete question ending with a question mark, never a title, heading or topic on its own.
 Fewer questions, or none, are better than a weak one.
 Write the questions in the language of the user's question, each under 120 characters.
 Reply with one question per line and nothing else, or with NONE when no follow-up qualifies.`
@@ -111,8 +112,10 @@ func (ru *run) suggest(ctx context.Context, ans *Answer, sources []numberedHit) 
 	ru.out.send(Event{"suggestions", SuggestionsEvent{MessageID: ans.MessageID, Suggestions: list}})
 }
 
-// replaySuggestions sends a saved answer's suggestions (cache.go).
+// replaySuggestions sends a saved answer's suggestions (cache.go). Ones
+// saved before v0.4.2 checked they were questions are checked now.
 func (ru *run) replaySuggestions(ans *Answer, saved []string) {
+	saved = slices.DeleteFunc(slices.Clone(saved), func(q string) bool { return !isQuestion(q) })
 	if len(saved) == 0 || !ru.offersSuggestions() {
 		return
 	}
@@ -134,7 +137,7 @@ func (ru *run) writeSuggestions(ctx context.Context, answer string, passages []s
 		}
 		return nil, msg.Usage, err
 	}
-	return parseSuggestions(msg.Text(), ru.question), msg.Usage, nil
+	return parseSuggestions(msg.Text(), ru.question, passages), msg.Usage, nil
 }
 
 // suggestionsPass checks the suggestions like an answer when answers are
@@ -212,17 +215,19 @@ var listLead = regexp.MustCompile(`^(?:[-*•–]+|\d+[.)]|[Qq]\d+:)\s*`)
 
 // parseSuggestions reads the model's reply defensively: one question per
 // line, list markers, quotes, emphasis and citation markers removed;
-// empty, over-long or duplicate lines, labels, NONE and the question asked
-// are dropped; at most MaxSuggestions are kept.
-func parseSuggestions(reply, question string) []string {
+// empty, over-long or duplicate lines, labels, NONE, lines that aren't
+// questions (a passage's title, v0.4.2 US-04), a passage's title or
+// headings and the question asked are dropped; at most MaxSuggestions are
+// kept.
+func parseSuggestions(reply, question string, passages []string) []string {
 	var out []string
 	for _, line := range strings.Split(reply, "\n") {
 		q := cleanSuggestion(line)
 		n := utf8.RuneCountInString(q)
 		switch {
 		case n < suggestMinChars, n > MaxSuggestionChars, !strings.ContainsFunc(q, unicode.IsLetter),
-			strings.EqualFold(strings.TrimRight(q, ".!"), suggestNoneReply), strings.HasSuffix(q, ":"),
-			sameSuggestion(q, question), containsQuery(out, q):
+			strings.EqualFold(strings.TrimRight(q, ".!"), suggestNoneReply), strings.HasSuffix(q, ":"), !isQuestion(q),
+			sameSuggestion(q, question), containsQuery(out, q), namesPassage(q, passages):
 			continue
 		}
 		out = append(out, q)
@@ -231,6 +236,55 @@ func parseSuggestions(reply, question string) []string {
 		}
 	}
 	return out
+}
+
+// questionMarks end a question: ASCII, full-width (Chinese, Japanese),
+// Arabic and Greek.
+const questionMarks = "?？؟;"
+
+// questionWords start a question in the languages people ask in most
+// (English, Spanish, French, German, Portuguese, Italian, Dutch): a
+// question without its mark still counts.
+var questionWords = map[string]bool{}
+
+func init() {
+	for _, w := range strings.Fields(`how what when where which who whom whose why can could do does did is are was were will would should
+		shall may might
+		cómo como qué que cuándo cuando dónde donde cuál cual cuáles quién quien quiénes por puedo puede hay
+		comment quand où pourquoi qui quel quelle quels quelles quoi est-ce combien puis-je peut-on
+		wie was wann wo warum wer welche welcher welches wieso weshalb kann darf gibt muss
+		quando onde porque quem qual quais posso pode
+		dove perché chi quale quali cosa quanto quanti posso
+		hoe wat wanneer waar waarom wie welke kan mag`) {
+		questionWords[w] = true
+	}
+}
+
+// isQuestion reports a line that is a question: it ends with a question
+// mark, opens with ¿, or starts with a question word.
+func isQuestion(q string) bool {
+	q = strings.TrimSpace(q)
+	if q == "" {
+		return false
+	}
+	if last, _ := utf8.DecodeLastRuneInString(q); strings.ContainsRune(questionMarks, last) || strings.HasPrefix(q, "¿") {
+		return true
+	}
+	words := strings.FieldsFunc(q, func(r rune) bool { return unicode.IsSpace(r) || r == ',' || r == '\'' || r == '’' })
+	return len(words) > 0 && questionWords[strings.ToLower(words[0])]
+}
+
+// namesPassage reports a suggestion that is only a passage's title or one
+// of its headings.
+func namesPassage(q string, passages []string) bool {
+	for _, p := range passages {
+		for _, part := range strings.Split(p, " › ") {
+			if sameSuggestion(q, part) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // cleanSuggestion trims one line of the reply to its question.
