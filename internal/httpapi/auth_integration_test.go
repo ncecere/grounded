@@ -423,3 +423,30 @@ func TestAuthConfigInstance(t *testing.T) {
 		t.Errorf("config = %+v", c)
 	}
 }
+
+// The development sign-in list shows the personas as the dev data has them,
+// and signing in again keeps a renamed persona's name and email (VI-37).
+func TestDevPersonasKeepTheirNames(t *testing.T) {
+	app := newTestApp(t, nil)
+	app.devLogin("alex")
+	if _, err := app.Pool.Exec(context.Background(),
+		"UPDATE users SET display_name = 'Priya Shah', email = 'priya.shah@example.edu' WHERE oidc_issuer = 'grounded:development' AND oidc_subject = 'alex'"); err != nil {
+		t.Fatal(err)
+	}
+	code, body := app.do("GET", "/v1/auth/config", nil, nil)
+	var env struct{ Data apitypes.AuthConfig }
+	if code != 200 || json.Unmarshal(body, &env) != nil {
+		t.Fatalf("auth config = %d %s", code, body)
+	}
+	names := map[string]string{}
+	for _, a := range env.Data.DevAccounts {
+		names[a.Id] = a.Name + " <" + a.Email + ">"
+	}
+	if names["alex"] != "Priya Shah <priya.shah@example.edu>" || names["casey"] != "Casey Dev <casey@localhost>" {
+		t.Fatalf("dev accounts = %v", names)
+	}
+	app.devLogin("alex")
+	if _, me := app.me(); me.User.DisplayName != "Priya Shah" || me.User.Email != "priya.shah@example.edu" {
+		t.Fatalf("after signing in again: %s <%s>", me.User.DisplayName, me.User.Email)
+	}
+}

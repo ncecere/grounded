@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/ssogroups"
+	"github.com/ncecere/grounded/internal/store/dbgen"
 )
 
 // DevIssuer is the issuer recorded for development-login identities.
@@ -32,6 +34,31 @@ var devAccounts = []devAccount{
 	{ID: "alex", Name: "Alex Dev", Email: "alex@localhost", PlatformRole: RoleNone},
 	{ID: "blair", Name: "Blair Dev", Email: "blair@localhost", PlatformRole: RoleNone},
 	{ID: "casey", Name: "Casey Dev", Email: "casey@localhost", PlatformRole: RoleNone},
+}
+
+// devPersonas are the development accounts as the dev data has them: an
+// account that exists keeps its current name and email (the dev data may
+// rename the personas), so the sign-in list and the signed-in person agree
+// (VI-37), and signing in doesn't reset them. Without the database, the
+// fixed list.
+func (s *Service) devPersonas(ctx context.Context) []devAccount {
+	out := append([]devAccount(nil), devAccounts...)
+	if s.pool == nil {
+		return out
+	}
+	rows, err := dbgen.New(s.pool).ListIssuerUsers(ctx, DevIssuer)
+	if err != nil {
+		s.log.WarnContext(ctx, "could not read the development personas", "err", err)
+		return out
+	}
+	for i := range out {
+		for _, row := range rows {
+			if row.OIDCSubject == out[i].ID {
+				out[i].Name, out[i].Email = row.DisplayName, row.Email
+			}
+		}
+	}
+	return out
 }
 
 // DevPersona returns the subject and name of the development persona with
@@ -69,9 +96,10 @@ func (s *Service) DevLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var acct *devAccount
-	for i := range devAccounts {
-		if devAccounts[i].ID == in.Account {
-			acct = &devAccounts[i]
+	personas := s.devPersonas(r.Context())
+	for i := range personas {
+		if personas[i].ID == in.Account {
+			acct = &personas[i]
 		}
 	}
 	if acct == nil {

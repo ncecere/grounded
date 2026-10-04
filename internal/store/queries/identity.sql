@@ -43,3 +43,7 @@ DELETE FROM sessions WHERE user_id = @user_id;
 
 -- name: DeleteExpiredSessions :execrows
 DELETE FROM sessions WHERE expires_at <= now();
+
+-- name: ListIssuerUsers :many
+-- The accounts of one sign-in issuer by subject: the development personas as the dev data has them.
+SELECT oidc_subject, email, display_name FROM users WHERE oidc_issuer = @oidc_issuer;

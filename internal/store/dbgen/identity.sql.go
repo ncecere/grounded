@@ -156,6 +156,37 @@ func (q *Queries) InsertBootstrapMarker(ctx context.Context, arg InsertBootstrap
 	return result.RowsAffected(), nil
 }
 
+const listIssuerUsers = `-- name: ListIssuerUsers :many
+SELECT oidc_subject, email, display_name FROM users WHERE oidc_issuer = $1
+`
+
+type ListIssuerUsersRow struct {
+	OIDCSubject string
+	Email       string
+	DisplayName string
+}
+
+// The accounts of one sign-in issuer by subject: the development personas as the dev data has them.
+func (q *Queries) ListIssuerUsers(ctx context.Context, oidcIssuer string) ([]ListIssuerUsersRow, error) {
+	rows, err := q.db.Query(ctx, listIssuerUsers, oidcIssuer)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListIssuerUsersRow{}
+	for rows.Next() {
+		var i ListIssuerUsersRow
+		if err := rows.Scan(&i.OIDCSubject, &i.Email, &i.DisplayName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setPlatformRole = `-- name: SetPlatformRole :one
 UPDATE users
 SET platform_role = $1, updated_at = now()
