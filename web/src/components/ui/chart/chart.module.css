@@ -32,6 +32,12 @@
     --chart-color: var(--color-chart-neutral);
     --chart-color-soft: var(--color-chart-neutral-soft, var(--color-chart-neutral));
   }
+
+  /* Falls back to primary with a theme from before the accent tokens. */
+  &[data-tone="accent"] {
+    --chart-color: var(--color-chart-accent, var(--color-chart-primary));
+    --chart-color-soft: var(--color-chart-accent-soft, var(--color-chart-accent, var(--color-chart-primary)));
+  }
 }
 
 .legend {

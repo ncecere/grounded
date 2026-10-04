@@ -30,7 +30,8 @@ import styles from "./chart.module.css";
  * Point labels needn't be unique (rows are keyed by position).
  */
 
-export type ChartTone = "primary" | "info" | "success" | "warning" | "danger" | "neutral";
+/** Series colours; `accent` (magenta) is a seventh hue for a chart whose series would otherwise repeat one or put two blues side by side. */
+export type ChartTone = "primary" | "info" | "success" | "warning" | "danger" | "neutral" | "accent";
 
 /** Line pattern of a series; the second and third series get dashed and dotted lines by default. */
 export type ChartPattern = "solid" | "dashed" | "dotted";
@@ -50,7 +51,7 @@ export type ChartPoint<K extends string = string> = {
 };
 
 /** Series colours in order, for series without a tone. */
-export const chartTones: ChartTone[] = ["primary", "info", "success", "warning", "danger", "neutral"];
+export const chartTones: ChartTone[] = ["primary", "info", "success", "warning", "danger", "neutral", "accent"];
 const patterns: ChartPattern[] = ["solid", "dashed", "dotted"];
 
 /** Put on an element with `data-tone` to get `--chart-color` for that tone. */

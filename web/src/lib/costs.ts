@@ -92,9 +92,10 @@ export const categories = [
   { key: "embedding", label: "Embedding", tone: "success" },
   { key: "systemone", label: "SystemOne", tone: "warning" },
   { key: "moderation", label: "Moderation", tone: "neutral" },
-  { key: "ocr", label: "OCR", tone: "primary" },
+  // Magenta, not indigo beside Chat's blue (VI-26).
+  { key: "ocr", label: "OCR", tone: "accent" },
   { key: "mcp", label: "MCP tools", tone: "danger" },
-  // Six chart tones only: the chart draws rerank with embedding (chartSeries); the table names them apart.
+  // The chart draws rerank with embedding (chartSeries; the table names them apart), so no two series share a tone.
   { key: "rerank", label: "Rerank", tone: "success" },
 ] as const;
 

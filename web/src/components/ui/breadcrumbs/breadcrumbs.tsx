@@ -2,7 +2,7 @@
 
 import { useRender } from "@base-ui/react/use-render";
 import { ChevronRight } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, type RefObject, useLayoutEffect, useRef } from "react";
 import { Menu, MenuLinkItem, type MenuLinkItemProps } from "@/components/ui/menu/menu";
 import { cx, dataFlag } from "@/lib/bitop-utils";
 import styles from "./breadcrumbs.module.css";
@@ -20,10 +20,11 @@ import styles from "./breadcrumbs.module.css";
  * The collapsed item's `label` is the menu button's accessible name (it
  * shows "…"); its title lists the hidden crumbs as a path.
  *
- * The trail stays on one line: a crumb too long for the space left (a long
- * record name) is cut with an ellipsis, longer crumbs giving up more room,
- * and a text label shows in full on hover (`title`). `wrap` lets the trail
- * wrap onto more lines instead.
+ * The trail stays on one line. While it fits, every crumb shows in full;
+ * when it doesn't (a long record name, a phone), the crumbs before the
+ * current page are cut first, down to a readable floor, then the current
+ * page, with an ellipsis; a text label shows in full on hover (`title`).
+ * `wrap` lets the trail wrap onto more lines instead.
  */
 
 export type BreadcrumbLink = {
@@ -96,11 +97,39 @@ function Collapsed({ item }: { item: BreadcrumbItem & { collapsed: BreadcrumbLin
   );
 }
 
+/**
+ * Each crumb's full width (`--crumb-width`), the floor it may be cut to when
+ * shorter than 5.5rem: CSS can't say "5.5rem or my own width, whichever is
+ * smaller" for a nowrap text. Measured again when the trail's size changes.
+ */
+function useCrumbWidths(list: RefObject<HTMLOListElement | null>, key: string) {
+  useLayoutEffect(() => {
+    const ol = list.current;
+    if (!ol) return;
+    const measure = () => {
+      for (const li of Array.from(ol.children) as HTMLElement[]) {
+        const text = li.firstElementChild as HTMLElement | null;
+        if (!text) continue;
+        // The item's width with its text uncut: the text clips its overflow, so scrollWidth is its full width.
+        const full = li.getBoundingClientRect().width - text.clientWidth + text.scrollWidth;
+        if (full > 0) li.style.setProperty("--crumb-width", `${Math.ceil(full)}px`);
+      }
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(ol);
+    return () => ro.disconnect();
+  }, [list, key]);
+}
+
 /** A trail of links; the last item is the current page (aria-current="page"). */
 export function Breadcrumbs({ items, label = "Breadcrumb", wrap = false, className }: BreadcrumbsProps) {
+  const list = useRef<HTMLOListElement>(null);
+  useCrumbWidths(list, items.map((i) => (typeof i.label === "string" ? i.label : "·")).join("\u0000"));
   return (
     <nav aria-label={label} className={cx(styles.nav, className)} data-wrap={dataFlag(wrap)}>
-      <ol className={styles.list}>
+      <ol ref={list} className={styles.list}>
         {items.map((item, i) => {
           const last = i === items.length - 1;
           return (

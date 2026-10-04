@@ -1,6 +1,7 @@
 /*
  * Closed, the bar collapses to nothing but stays in the DOM, so its live
- * region exists before the message is inserted (and is announced).
+ * region exists before the message is inserted (and is announced). It is
+ * taken out of the flow, so a parent's gap leaves no hole where it sits.
  */
 .bar {
   position: sticky;
@@ -14,6 +15,8 @@
   margin-top: var(--space-4);
 
   &:not([data-open]) {
+    position: absolute;
+    width: 1px;
     height: 0;
     margin: 0;
     overflow: hidden;

@@ -40,7 +40,12 @@ export function Disclosure({ title, summary, open, defaultOpen, onOpenChange, ke
       <Collapsible.Trigger className={styles.trigger}>
         <ChevronRight aria-hidden className={styles.icon} />
         <span className={styles.title}>{title}</span>
-        {summary && <span className={styles.summary}>{summary}</span>}
+        {/* Cut with an ellipsis when long: a text summary shows in full on hover. */}
+        {summary && (
+          <span className={styles.summary} title={typeof summary === "string" ? summary : undefined}>
+            {summary}
+          </span>
+        )}
       </Collapsible.Trigger>
       <Collapsible.Panel keepMounted={keepMounted} className={styles.panel}>
         <div className={styles.content}>{children}</div>

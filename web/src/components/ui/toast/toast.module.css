@@ -165,16 +165,31 @@
   gap: 0.125rem;
 }
 
+/* A long name in a narrow toast (the sidebar's width) is cut after a few
+   lines instead of growing the toast down the screen; the text stays whole
+   for screen readers. */
 .title {
+  display: -webkit-box;
+  overflow: hidden;
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-medium);
   line-height: 1.25rem;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .description {
+  display: -webkit-box;
+  overflow: hidden;
   font-size: var(--font-size-sm);
   line-height: var(--line-height-snug);
   color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
 }
 
 .action {

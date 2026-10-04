@@ -159,6 +159,7 @@
   --color-chart-warning: var(--palette-amber-600); /* 4.31:1 / 4.06:1 */
   --color-chart-danger: var(--palette-red-600); /* 4.94:1 / 4.64:1 */
   --color-chart-neutral: var(--palette-neutral-500); /* 5.29:1 / 4.97:1 */
+  --color-chart-accent: #a21caf; /* 6.32:1 / 6.00:1, magenta: apart from primary and info */
   /*
    * Paler series colours (back series of an overlapping bar chart and its
    * legend swatch): still >= 3:1 on surface and bg, unlike an opacity.
@@ -169,6 +170,7 @@
   --color-chart-warning-soft: #bb7e2d; /* 3.42:1 / 3.22:1 */
   --color-chart-danger-soft: #dc665f; /* 3.44:1 / 3.23:1 */
   --color-chart-neutral-soft: #858b97; /* 3.42:1 / 3.22:1 */
+  --color-chart-accent-soft: #c65fcf; /* 3.54:1 / 3.36:1 */
 
   --color-focus-ring: var(--palette-accent-600); /* 5.83:1 on bg: always >= 3:1 */
   --color-focus-halo: rgba(75, 79, 214, 0.2); /* soft glow around the solid ring (decorative) */
@@ -271,6 +273,7 @@
   --color-chart-warning: #f5a524; /* 9.10:1 / 9.52:1 */
   --color-chart-danger: #f06a6a; /* 6.17:1 / 6.45:1 */
   --color-chart-neutral: #8a92a0; /* 5.92:1 / 6.20:1 */
+  --color-chart-accent: #e879f9; /* 7.55:1 / 7.90:1 */
   /* Dimmer series colours (overlapping bars' back series): >= 3:1 on surface and bg. */
   --color-chart-primary-soft: #5a5fa8; /* 3.22:1 / 3.37:1 */
   --color-chart-info-soft: #3e67a1; /* 3.24:1 / 3.39:1 */
@@ -278,6 +281,7 @@
   --color-chart-warning-soft: #865e1f; /* 3.21:1 / 3.36:1 */
   --color-chart-danger-soft: #a14b4d; /* 3.21:1 / 3.36:1 */
   --color-chart-neutral-soft: #606671; /* 3.22:1 / 3.37:1 */
+  --color-chart-accent-soft: #9a44a6; /* 3.32:1 / 3.47:1 */
 
   --color-focus-ring: #8f95f5; /* 6.45:1 on raised, 7.21:1 on bg */
   --color-focus-halo: rgba(143, 149, 245, 0.28);

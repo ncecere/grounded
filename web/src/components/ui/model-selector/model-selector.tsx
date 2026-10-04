@@ -5,7 +5,7 @@ import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge/badge";
 import popup from "@/components/ui/styles/popup.module.css";
-import { cx } from "@/lib/bitop-utils";
+import { cx, type Tone } from "@/lib/bitop-utils";
 import styles from "./model-selector.module.css";
 
 /*
@@ -44,6 +44,8 @@ export type ModelSelectorProps = {
   emptyText?: ReactNode;
   /** Display names for capability ids, e.g. { vision: "Vision" }. */
   capabilityLabels?: Record<string, string>;
+  /** Tones for capability badges that are warnings rather than features, e.g. { failing: "danger" } (default neutral outline). */
+  capabilityTones?: Record<string, Tone>;
   disabled?: boolean;
   size?: "sm" | "md";
   className?: string;
@@ -74,6 +76,7 @@ export function ModelSelector({
   searchPlaceholder = "Search models…",
   emptyText = "No models found.",
   capabilityLabels,
+  capabilityTones,
   disabled,
   size = "md",
   className,
@@ -143,7 +146,7 @@ export function ModelSelector({
                         {m.capabilities?.length ? (
                           <span className={styles.badges}>
                             {m.capabilities.map((c) => (
-                              <Badge key={c} size="sm" variant="outline">
+                              <Badge key={c} size="sm" variant={capabilityTones?.[c] ? "soft" : "outline"} tone={capabilityTones?.[c]}>
                                 {cap(c)}
                               </Badge>
                             ))}

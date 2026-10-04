@@ -32,6 +32,8 @@ export function modelOptions(models: ChatModel[], levelName: (key: string) => st
 }
 
 export const capabilityLabels = { failing: "Failing", tools: "Tools", reasoning: "Reasoning" };
+/** Failing in the error colour, not a neutral outline like a capability (AD2-24). */
+export const capabilityTones = { failing: "danger" } as const;
 
 /** The chosen model in words, under the picker: its level, tools and context, and a warning when it is failing. */
 export function modelDescription(model: ChatModel, levelName: (key: string) => string) {
@@ -63,6 +65,7 @@ export function ModelSection({ c, set, errorFor, model, levelName }: SectionProp
           models={options}
           value={c.chatModelId ?? null}
           capabilityLabels={capabilityLabels}
+          capabilityTones={capabilityTones}
           className={a.modelTrigger}
           onValueChange={(id) => set({ chatModelId: id })}
         />

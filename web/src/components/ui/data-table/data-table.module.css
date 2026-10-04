@@ -194,6 +194,14 @@
   overflow-wrap: break-word;
 }
 
+/* On a phone a name-and-description cell keeps a readable width and the
+   table scrolls sideways, instead of wrapping a word per line. */
+@media (max-width: 37.5rem) {
+  .cellText {
+    min-width: min(11rem, 70vw);
+  }
+}
+
 /* wrap="anywhere": long ids and URLs break instead of widening the column. */
 .cellText[data-wrap="anywhere"] :is(.cellPrimary, .cellSecondary) {
   overflow-wrap: anywhere;

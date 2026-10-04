@@ -15,7 +15,7 @@ import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
 import s from "../shared.module.css";
 import { agentKey, agentsKey, useClassificationLevels, useKBs, useTeam } from "../team/common";
-import { capabilityLabels, modelDescription, modelOptions } from "./build/model-section";
+import { capabilityLabels, capabilityTones, modelDescription, modelOptions } from "./build/model-section";
 import { defaultChatModel, defaultConfig, slugify, useChatModels } from "./common";
 import a from "./agents.module.css";
 
@@ -153,6 +153,7 @@ function ModelPicker({ model, onChange, levelName }: { model: ChatModel | undefi
           models={modelOptions(models.data ?? [], levelName)}
           value={model?.id ?? null}
           capabilityLabels={capabilityLabels}
+          capabilityTones={capabilityTones}
           // Looks like the dialog's other fields (VI-34).
           className={a.modelTrigger}
           onValueChange={(id) => id && onChange(id)}

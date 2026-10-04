@@ -3,7 +3,7 @@
 import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
 import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
 import { Check, ChevronsUpDown, X } from "lucide-react";
-import { type KeyboardEvent, type ReactNode, useMemo, useRef } from "react";
+import { type FocusEvent, type KeyboardEvent, type MouseEvent, type ReactNode, useMemo, useRef } from "react";
 import popup from "@/components/ui/styles/popup.module.css";
 import { cx } from "@/lib/bitop-utils";
 import styles from "./combobox.module.css";
@@ -227,12 +227,29 @@ function SelectCombobox<V extends string>(props: ComboboxSingleProps<V> | Combob
     </BaseCombobox.Item>
   );
 
+  // A single pick's input shows the chosen label: focusing it selects that text, so typing searches afresh
+  // instead of appending to it ("America/New_Yorkberl" found nothing). The mouseup after a click's focus
+  // would put the caret back, so it's skipped once.
+  const justFocused = useRef(false);
+  const selectOnFocus = props.multiple
+    ? {}
+    : {
+        onFocus: (e: FocusEvent<HTMLInputElement>) => {
+          e.currentTarget.select();
+          justFocused.current = true;
+        },
+        onMouseUp: (e: MouseEvent<HTMLInputElement>) => {
+          if (justFocused.current) e.preventDefault();
+          justFocused.current = false;
+        },
+      };
   const input = (hasChips: boolean) => (
     <BaseCombobox.Input
       id={id}
       aria-label={ariaLabel}
       placeholder={hasChips ? undefined : placeholder}
       className={cx(styles.input, props.multiple && styles.chipInput)}
+      {...selectOnFocus}
     />
   );
 
