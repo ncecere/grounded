@@ -87,7 +87,7 @@ minSimilarity        0–1, optional (0 = off). Hits whose best vector similarit
 strictlyGrounded     bool (default true)
 refusalMessage       string ≤ 500 (default "I couldn't find an answer to that in the sources I have.")
 citationMode         none | snippet | snippet_link (default snippet_link)
-queryRewrite         bool (default true): with history, a follow-up that depends on the conversation (a few words, led by a conjunction or "what about", or with a referring pronoun such as "it") is rewritten as a standalone query with the chat model (low reasoning effort, ≤ 1,024 output tokens) before retrieval; one that comes back empty or unchanged is searched with the previous question. A message that stands on its own is searched as it is (always mode only)
+queryRewrite         bool (default true): with history, a follow-up that depends on the conversation (a few words, led by a conjunction or "what about", or with a referring pronoun such as "it") is rewritten as a standalone query with the chat model (low reasoning effort, ≤ 1,024 output tokens) before retrieval; one that comes back empty or unchanged is searched with the previous question, and so is one that doesn't read as a search query (from v0.4.2: it has citation markers, more sentences than the message, ends as a statement when the message is a question, or is much longer than the message and the earlier questions it draws on; the model answered instead of rewriting), so the search step never shows it. A message that stands on its own is searched as it is (always mode only)
 moderation           off (reserved; Phase 4)
 ```
 
@@ -248,6 +248,7 @@ Admin
 - `message_start {messageId}`
 - `thinking_delta {delta}`
 - `text_delta {delta}`
+- `text_reset {reason}` (v0.4.2): discard the text so far; the next `text_delta` starts the answer. `tool_call`: the turn that wrote it called a tool (the answer is the model's final turn only: narration or a first draft before a call is neither shown nor stored); `thinking`: it was reasoning (a bare `</think>`), sent again as `thinking_delta`. Only text the reader got is reset (a checked answer's released paragraphs; never a buffered answer's). The OpenAI-compatible stream can't take text back, so for an agent with tools it holds the answer's text until the end and sends the final text at once.
 - `tool_call {id, name, arguments}`
 - `tool_result {id, isError, hitCount}`
 - `message_end {messageId, stopReason, citations, usage, refused, noContext}`
