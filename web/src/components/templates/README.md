@@ -6,6 +6,7 @@ Grounded's page shapes from the UI plan (`docs/ui-review/README.md`, D3–D5, Q1
 |---|---|---|
 | `DetailPage` | `detail-page.tsx` | A container's page: source, KB, agent, team, user (D3) |
 | `SettingsPage`, `SettingsSection`, `DangerZone`, `DangerAction` | `settings-page.tsx` | A Settings tab or settings page (D3, F-17) |
+| `useRevisionForm`, `RevisionSaveBar` | `revision-form.ts`, `conflict-notice.tsx` | A settings form over a revisioned object (If-Match): keeps the edits through a save conflict |
 | `useUnsavedChangesGuard` | `unsaved-guard.tsx` | Any other page with a `SaveBar` |
 | `ListPage`, `useListFilters`, `timeColumn`, `RelativeTime` | `list-page.tsx` | Every list and log (D5) |
 | `RecordPage`, `useRecordParam` | `record-page.tsx` | Leaf records: documents, keys, requests, audit entries, crawl runs, models… as a page over their list (D4) |
@@ -61,6 +62,20 @@ Words come from `src/lib/terms.ts` (D8): "Passages", not chunks; "Signed-in user
 - The unsaved-changes guard is built in. Leaving the page (a link, the sidebar or Back) asks "Leave without saving?", and closing the tab gets the browser prompt. Switching the page's tabs (`?tab=`) asks too, since the settings are one form (pass `guard={{ samePath: false }}` for a form that spans tabs).
 - Danger-zone actions aren't part of the save: each one opens its own confirmation (`AlertDialog` / `ConfirmMutationDialog`). Use `disabledReason` when an action can't run, for example "You're the only owner".
 - Field errors need text, not only a red border (F-05). Pass `error="…"` to `Field` and keep `invalid` in sync.
+
+### Save conflicts (If-Match)
+
+A form over an object with a revision holds its state in `useRevisionForm` and passes the control to the page (v0.4.2, AD-01):
+
+```tsx
+const [form, setForm, revision] = useRevisionForm(formOf(team), team.revision, { labels: { maxClassification: "Approved classification" } });
+<SettingsPage revision={revision} dirty={…} onSave={() => save.mutate(form)} onDiscard={() => setForm(formOf(team))}>…</SettingsPage>
+```
+
+- When the object changes elsewhere while the person edits (another tab, another admin), or a save comes back 412, the form keeps their edits and takes the other changes into the fields they didn't touch. A notice lists what changed ("Description: now “…” (yours: “…”)"), and the save bar offers **Overwrite with mine** (saves the form on the latest revision) and **Discard mine and load theirs**.
+- Their own save is told apart by its content (allowing for the server trimming text), so the form shows the saved values afterwards.
+- **Don't key the editor by the revision** (`key={x.revision}`): that remounts it and throws the edits away. The mutation's If-Match uses the latest loaded revision; a 412 refetches every query (`main.tsx`), so the latest version arrives.
+- A form with its own layout (not `SettingsPage`) renders `RevisionSaveBar` inside its `<form>` instead of a `SaveBar`.
 
 ## ListPage
 
