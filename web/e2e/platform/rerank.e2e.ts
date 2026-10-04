@@ -51,12 +51,14 @@ test("reranking: an admin sets it up on Admin → Models → Reranking, tests it
     await expect(guide.getByText("1 of 3 done")).toBeVisible();
     await a11y(adminPage, "reranking setup guide");
     await guide.getByRole("link", { name: "Add model" }).click();
-    await expect(adminPage.getByLabel("Kind")).toHaveValue("rerank");
+    // The form's sections (the list behind it has Kind and Connection filters too).
+    const source = adminPage.getByRole("group", { name: "Source" });
+    await expect(source.getByLabel("Kind")).toHaveValue("rerank");
     await a11y(adminPage, "add rerank model");
-    await adminPage.getByLabel("Connection").selectOption({ label: "E2E fake models" });
-    await adminPage.getByLabel("Upstream model ID").fill("fake-reranker");
-    await adminPage.getByLabel("Key").fill("e2e-rerank");
-    await adminPage.getByLabel("Display name").fill("E2E reranker");
+    await source.getByLabel("Connection").selectOption({ label: "E2E fake models" });
+    await source.getByLabel("Upstream model ID").fill("fake-reranker");
+    await source.getByLabel("Key").fill("e2e-rerank");
+    await adminPage.getByRole("group", { name: "Identity" }).getByLabel("Display name").fill("E2E reranker");
     await adminPage.getByRole("button", { name: "Add model" }).click();
     await expect(adminPage).toHaveURL(/\/admin\/reranking$/);
   });
