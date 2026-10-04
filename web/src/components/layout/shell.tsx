@@ -25,6 +25,7 @@ import { PALETTE_LABEL } from "./search-commands";
 import { type Mode, useRememberHref } from "./mode-switch";
 import { MaintenanceBanner } from "./maintenance-banner";
 import { BreakGlassBanner } from "./break-glass-banner";
+import { RateLimitBanner } from "./rate-limit-banner";
 import { AppSidebar } from "./sidebar";
 
 /* ---------------- shell ---------------- */
@@ -142,6 +143,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
           <Main>
             <BreakGlassBanner me={me} />
             <MaintenanceBanner me={me} />
+            <RateLimitBanner />
             <TakeoverHost backLabel={backLabel}>{children ?? <Outlet />}</TakeoverHost>
           </Main>
         )}

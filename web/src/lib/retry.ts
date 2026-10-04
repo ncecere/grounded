@@ -44,3 +44,41 @@ export function retryDelay(failureCount: number, err: unknown, random: () => num
   }
   return Math.min(1000 * 2 ** failureCount, 30_000);
 }
+
+/*
+ * While the app waits out a rate limit, the shell says so (AD2-09): a list
+ * that kept "Loading rows…" for 40 s looked hung. Every scheduled retry of a
+ * rate-limited query records when it fires; the banner counts down to it.
+ */
+let limitedUntil = 0;
+const listeners = new Set<() => void>();
+const emit = () => listeners.forEach((l) => l());
+
+/** When the next retry of a rate-limited query fires (ms since the epoch), or 0. */
+export const rateLimitedUntil = () => limitedUntil;
+
+export function subscribeRateLimit(listener: () => void) {
+  listeners.add(listener);
+  return () => void listeners.delete(listener);
+}
+
+/** A rate-limited query will try again in `ms`. */
+export function noteRateLimit(ms: number, now = Date.now()) {
+  if (now + ms <= limitedUntil) return;
+  limitedUntil = now + ms;
+  emit();
+}
+
+/** The wait is over (the retry fired, or the person chose Try again now). */
+export function clearRateLimit() {
+  if (!limitedUntil) return;
+  limitedUntil = 0;
+  emit();
+}
+
+/** The queries' retry delay (main.tsx): retryDelay, noting a rate limit's wait for the banner. */
+export function appRetryDelay(failureCount: number, err: unknown): number {
+  const ms = retryDelay(failureCount, err);
+  if (isRateLimited(err)) noteRateLimit(ms);
+  return ms;
+}

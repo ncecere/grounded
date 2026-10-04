@@ -4,7 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ApiError } from "./api/client";
 import { isMaintenanceError, maintenanceKey } from "./lib/maintenance";
-import { retryDelay, shouldRetry } from "./lib/retry";
+import { appRetryDelay, shouldRetry } from "./lib/retry";
 import { router } from "./router";
 // bitop-ui (installed with the bitop CLI, see README.md): font, tokens, the
 // neutral theme and base styles. Grounded sets <html data-brand> from UI_THEME
@@ -34,7 +34,8 @@ const queryClient: QueryClient = new QueryClient({
       refetchOnWindowFocus: false,
       // Client errors (4xx) will not fix themselves: retry server and network errors, and a rate limit after its Retry-After.
       retry: shouldRetry,
-      retryDelay,
+      // Also tells the shell's rate-limit banner when the next try is (AD2-09).
+      retryDelay: appRetryDelay,
     },
   },
 });

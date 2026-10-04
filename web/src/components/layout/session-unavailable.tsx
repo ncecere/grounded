@@ -7,7 +7,7 @@
  */
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, errorMessage } from "../../api/client";
 import { isRateLimited, MAX_RETRY_AFTER_S } from "../../lib/retry";
 import { useInstance } from "../../session";
@@ -52,6 +52,12 @@ export function SessionUnavailable({ error, retrying, onRetry }: Props) {
     return () => clearTimeout(t);
   }, [auto, wait, failedAt, onRetry]);
 
+  // After Try again now the page comes back as a new one: focus would fall to the body (AD2-22), so the heading takes it.
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (!document.activeElement || document.activeElement === document.body) heading.current?.focus();
+  }, []);
+
   const offline = !(error instanceof ApiError);
   const title = limited ? "Too many requests" : offline ? `Can't reach ${name}` : `${name} isn't responding`;
   const body = limited
@@ -64,7 +70,9 @@ export function SessionUnavailable({ error, retrying, onRetry }: Props) {
       <Card className={styles.card}>
         <CardBody className={styles.body}>
           {logoUrl ? <img src={logoUrl} alt="" className={styles.logo} /> : <ProductMark className={styles.mark} />}
-          <h1 className={styles.title}>{title}</h1>
+          <h1 ref={heading} tabIndex={-1} className={styles.title}>
+            {title}
+          </h1>
           <p className={styles.text}>{body}</p>
           {limited && <p className={styles.countdown}>{left > 0 ? `Trying again in ${left} s.` : "Trying again…"}</p>}
           <div className={styles.actions}>

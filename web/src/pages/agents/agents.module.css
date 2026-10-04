@@ -47,8 +47,9 @@
   gap: var(--space-4);
 }
 
+/* As wide as the form's other fields, like Name above it (VI-34). */
 .modelPicker {
-  max-width: 28rem;
+  width: 100%;
 }
 
 /* The model picker's button drawn like the form's other fields (an outlined control, the
