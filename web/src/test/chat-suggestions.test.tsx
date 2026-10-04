@@ -9,7 +9,7 @@ import { Conversation, ConversationContent } from "../components/ui/conversation
 import { ShowSuggestions, suggestionsArrived } from "../pages/chat/show-suggestions";
 import { type ChatItem, applyChatEvent, itemsFromConversation, pendingAssistant } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
-import { type Handler, mockApi, openSSE, renderApp, renderBare, shellRoutes, sse } from "./harness";
+import { type Handler, findParagraph, mockApi, openSSE, renderApp, renderBare, shellRoutes, sse } from "./harness";
 
 const card = {
   id: "ag1", teamSlug: "registrar", teamName: "Office of the Registrar", slug: "registrar-assistant", name: "Registrar assistant",
@@ -80,7 +80,7 @@ describe("chips under the answer", () => {
     expect(await axe(container)).toHaveNoViolations();
 
     await userEvent.click(within(group).getByRole("button", { name: follow[0] }));
-    expect(await screen.findByText("Dropping is free")).toBeInTheDocument();
+    expect(await findParagraph(/^Dropping is free/)).toBeInTheDocument();
     const posts = calls.filter((c) => c.method === "POST" && c.url.endsWith("/chat"));
     expect(posts.map((c) => (c.body as { message: string }).message)).toEqual(["How do I drop a class?", follow[0]]);
     expect((posts[1]!.body as { conversationId?: string }).conversationId).toBe("c1");
@@ -102,7 +102,7 @@ describe("chips under the answer", () => {
     renderApp(chatPath);
     const box = await screen.findByRole("textbox", { name: "Message Registrar assistant" });
     await userEvent.type(box, "How do I drop a class?{Enter}");
-    expect(await screen.findByText(/You can drop a class in the portal/)).toBeInTheDocument();
+    expect(await findParagraph(/You can drop a class in the portal/)).toBeInTheDocument();
     // No Stop: the answer is done although the stream is still open.
     await waitFor(() => expect(screen.getAllByRole("status").some((el) => el.textContent?.trim() === "Answer ready")).toBe(true));
     expect(screen.queryByRole("button", { name: /Stop/ })).toBeNull();

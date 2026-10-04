@@ -216,7 +216,7 @@ describe("Build → Tools", () => {
     await userEvent.click(await screen.findByRole("button", { name: /^Tools/ }, { timeout: 5000 }));
     expect(await screen.findByRole("checkbox", { name: "Check outage (check_outage), from Service status" })).toBeInTheDocument();
     const failing = screen.getByRole("checkbox", { name: "Check outage (check_outage), from Old status" });
-    expect(failing).toHaveAccessibleDescription(/Old status is failing its health checks \(since .+\): calls to this tool may fail\./);
+    expect(failing).toHaveAccessibleDescription(/Old status started failing its health checks \S.+ ago: calls to this tool may fail\./);
     // A tool whose name is unique keeps its plain name.
     expect(screen.getByRole("checkbox", { name: "forecast" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();

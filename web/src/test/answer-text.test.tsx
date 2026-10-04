@@ -3,7 +3,7 @@ import { axe } from "vitest-axe";
 import { citedSoFar, displayText, normalizeMarkers, normalizePunctuation, settlePartial } from "../pages/chat/answer-text";
 import { type AssistantItem, type ChatItem, pendingAssistant } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
-import { renderBare } from "./harness";
+import { findParagraph, renderBare } from "./harness";
 
 /* How an answer's text is shown: model punctuation (M2) and citation markers. */
 
@@ -76,7 +76,7 @@ describe("checked paragraphs before message_end (mem-11)", () => {
       { ...pendingAssistant(), key: "a1", checked: true, sources, text: "It costs ten dollars [1].\n\n" },
     ];
     const { container } = renderBare(<ChatMessages items={items} agent={{ name: "Helper" }} />);
-    await screen.findByText(/It costs ten dollars/);
+    await findParagraph(/It costs ten dollars/);
     expect(container.textContent).not.toContain("[1]");
     expect(await axe(container)).toHaveNoViolations();
   });
