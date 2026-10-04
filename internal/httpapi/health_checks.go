@@ -20,6 +20,16 @@ func (a *api) adminListHealthChecks(w http.ResponseWriter, r *http.Request) {
 	writeList(w, r, checks, err, toAPIHealthCheck)
 }
 
+// pickerHealth is a subject's health for a team picker: untested when it
+// was never checked.
+func pickerHealth(statuses map[uuid.UUID]healthcheck.Status, id uuid.UUID) apitypes.PickerHealth {
+	st, ok := statuses[id]
+	if !ok {
+		return apitypes.PickerHealth{Status: apitypes.PickerHealthStatusUntested}
+	}
+	return apitypes.PickerHealth{Status: apitypes.PickerHealthStatus(st.Status), Since: &st.Since}
+}
+
 func toAPIHealthCheck(c healthcheck.Latest) apitypes.HealthCheck {
 	out := apitypes.HealthCheck{
 		SubjectKind: apitypes.HealthSubjectKind(c.SubjectKind), SubjectId: c.SubjectID, SubjectName: c.SubjectName,

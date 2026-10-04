@@ -16,7 +16,7 @@ import a from "./agents.module.css";
 
 /** The draft's save state as small text next to the title (Q5, F-26). */
 export function SaveIndicator({ d }: { d: AgentDraft }) {
-  const v = saveView(d.status, d.held || d.invalidFields.length > 0, d.edited);
+  const v = saveView(d.status, d.held || d.invalidFields.length > 0, d.edited, d.savedLive);
   const Icon = v.busy ? Loader2 : v.tone === "success" ? CheckCircle2 : v.tone === "muted" ? Circle : CircleAlert;
   return (
     // An empty status before the first edit (kept in the page, so the first "Saving…" is announced).

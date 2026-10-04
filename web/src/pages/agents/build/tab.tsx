@@ -5,7 +5,7 @@
  * fill the width and Try it opens as a dialog from the header's Try it button
  * (?test=open, so Back closes it).
  */
-import { Suspense, lazy, useSyncExternalStore } from "react";
+import { type ReactNode, Suspense, lazy, useRef, useSyncExternalStore } from "react";
 import { Dialog } from "@/components/ui/dialog/dialog";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable/resizable";
 import { Loading } from "@/components/ui/spinner/spinner";
@@ -15,6 +15,7 @@ import { useTeam } from "../../team/common";
 import type { Agent } from "../common";
 import type { AgentDraft } from "../draft";
 import cf from "./build.module.css";
+import { useFillViewport } from "./fill-height";
 import type { BuildSection } from "./section";
 import { BuildSections } from "./sections";
 
@@ -71,20 +72,7 @@ export function BuildTab({ agent, d, sections, onSectionsChange, onProblem, test
     </Suspense>
   );
 
-  if (wide) {
-    return (
-      <ResizablePanelGroup className={cf.split} defaultLayout={savedLayout()} onLayoutChange={(l) => localStorage.setItem(layoutKey, JSON.stringify(l))}>
-        <ResizablePanel id="agent-build-config" defaultSize={58} minSize={40} className={cf.configPane}>
-          {config}
-        </ResizablePanel>
-        <ResizableHandle withHandle label="Resize the test chat" />
-        {/* Both sizes given, so the first render (before the group lays out) already has the right widths for the composer to measure. */}
-        <ResizablePanel id="agent-build-test" defaultSize={42} minSize={28} className={cf.testPane}>
-          {test(true)}
-        </ResizablePanel>
-      </ResizablePanelGroup>
-    );
-  }
+  if (wide) return <WideBuild config={config} test={test(true)} />;
   return (
     <div className={cf.narrow}>
       {config}
@@ -97,6 +85,29 @@ export function BuildTab({ agent, d, sections, onSectionsChange, onProblem, test
       >
         <div className={cf.testDialogBody}>{test(false)}</div>
       </Dialog>
+    </div>
+  );
+}
+
+/** Pixel sizes of the split: at least 20rem tall (a shorter window scrolls the page), 1.5rem above the window's bottom. */
+const fill = { min: 320, gap: 24 };
+
+/** The configuration beside Try it, in resizable panes that fill the window under the page header and scroll on their own. */
+function WideBuild({ config, test }: { config: ReactNode; test: ReactNode }) {
+  const frame = useRef<HTMLDivElement | null>(null);
+  useFillViewport(frame, fill);
+  return (
+    <div ref={frame} className={cf.splitFrame}>
+      <ResizablePanelGroup className={cf.split} defaultLayout={savedLayout()} onLayoutChange={(l) => localStorage.setItem(layoutKey, JSON.stringify(l))}>
+        <ResizablePanel id="agent-build-config" defaultSize={58} minSize={40} className={cf.configPane}>
+          {config}
+        </ResizablePanel>
+        <ResizableHandle withHandle label="Resize the test chat" />
+        {/* Both sizes given, so the first render (before the group lays out) already has the right widths for the composer to measure. */}
+        <ResizablePanel id="agent-build-test" defaultSize={42} minSize={28} className={cf.testPane}>
+          {test}
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/boilerplate"
 	"github.com/ncecere/grounded/internal/catalog"
+	"github.com/ncecere/grounded/internal/healthcheck"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/sources"
@@ -189,6 +190,10 @@ func (a *api) listUsableChatModels(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
+	health, err := a.health.Statuses(r.Context(), healthcheck.KindModel)
+	if failed(w, r, err) {
+		return
+	}
 	out := make([]apitypes.ChatModelOption, len(models))
 	for i, m := range models {
 		c := catalog.DecodeCompat(m.Compat)
@@ -196,7 +201,7 @@ func (a *api) listUsableChatModels(w http.ResponseWriter, r *http.Request) {
 			Id: m.ID, Key: m.Key, DisplayName: m.DisplayName, Description: m.Description,
 			MaxClassification: m.MaxClassification, ContextWindow: m.ContextWindow, MaxOutputTokens: m.MaxOutputTokens,
 			SupportsTools: m.SupportsTools, SupportsReasoningEffort: c.SupportsReasoningEffort != nil && *c.SupportsReasoningEffort,
-			SupportsThinkingOff: c.ThinkingOff != nil,
+			SupportsThinkingOff: c.ThinkingOff != nil, Health: pickerHealth(health, m.ID),
 		}
 	}
 	httpx.JSON(w, http.StatusOK, out)

@@ -64,6 +64,15 @@ describe("admin agents", () => {
     expect(within(page).queryByRole("alert", { name: /Something went wrong/ })).toBeNull();
   });
 
+  it("Back asks before leaving an unsaved short name, as other forms do (AD-23)", async () => {
+    mockApi(adminRoutes("platform_admin"));
+    renderApp("/admin/agents?record=ag1");
+    const page = await screen.findByRole("region", { name: "Registrar assistant" }, { timeout: 4000 });
+    await userEvent.type(within(page).getByRole("textbox", { name: "Short name" }), "x!");
+    await userEvent.click(screen.getByRole("link", { name: /^Back/ }));
+    expect(await screen.findByRole("alertdialog", { name: "Leave without saving?" })).toBeInTheDocument();
+  });
+
   it("auditors see agents read-only", async () => {
     mockApi(adminRoutes("platform_auditor"));
     renderApp("/admin/agents");

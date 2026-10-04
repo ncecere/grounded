@@ -51,6 +51,30 @@
   max-width: 28rem;
 }
 
+/* The model picker's button drawn like the form's other fields (an outlined control, the
+   chevron at the end), not a borderless text button (VI-34). Doubled: wins over the picker's own. */
+.modelTrigger.modelTrigger {
+  justify-content: space-between;
+  width: 100%;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-control);
+  box-shadow: var(--shadow-0);
+  font-weight: var(--font-weight-regular);
+
+  @media (hover: hover) {
+    &:hover {
+      border-color: var(--color-border-hover);
+      background-color: var(--color-control);
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--color-focus-ring);
+    box-shadow: var(--shadow-focus);
+  }
+}
+
 .topK {
   width: 6rem;
   flex-shrink: 0;

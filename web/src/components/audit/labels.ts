@@ -6,7 +6,7 @@ type AuditEntry = Schemas["AuditEntry"];
 
 const actionLabels: Record<string, string> = {
   "agent.create": "Created agent",
-  "agent.update": "Changed agent draft",
+  "agent.update": "Changed agent details",
   "agent.answer_cache_update": "Changed saved answers settings",
   "agent.answer_cache_clear": "Cleared saved answers",
   "agent.publish": "Published agent",

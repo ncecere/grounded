@@ -27,6 +27,21 @@ export function useChatModels() {
   });
 }
 
+type ChatModelOption = Schemas["ChatModelOption"];
+
+/**
+ * The model a new agent starts with (AD-02): the first that passed its latest health check, else the first never
+ * checked, never a failing one while another exists. The list comes by display name.
+ */
+export function defaultChatModel(models: ChatModelOption[] | undefined): ChatModelOption | undefined {
+  const list = models ?? [];
+  return list.find((m) => m.health.status === "healthy") ?? list.find((m) => m.health.status === "untested") ?? list[0];
+}
+
+/** A failing model's warning for the pickers ("" when it isn't failing). */
+export const modelHealthText = (m: Pick<ChatModelOption, "health">) =>
+  m.health.status === "failing" ? "Failing its health checks: answers may fail until a platform admin fixes it." : "";
+
 export function AgentStatusBadge({ agent }: { agent: Pick<Agent, "status" | "published"> }) {
   if (agent.status === "disabled_by_platform") return <StatusBadge tone="danger">Disabled by platform</StatusBadge>;
   if (agent.status === "disabled_by_team") return <StatusBadge tone="warning">Disabled</StatusBadge>;

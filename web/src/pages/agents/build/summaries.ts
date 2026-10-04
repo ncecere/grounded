@@ -19,9 +19,30 @@ type SummaryInput = {
   kbName: (id: string) => string | undefined;
   /** The SystemOne platform defaults, when a SystemOne model exists. */
   systemOne?: { judging: boolean; citations: boolean; citationMode: string; scope: boolean };
+  /** The platform's reranking, when a rerank model is set (the passages kept by default). */
+  rerank?: { defaultTopN: number };
 };
 
-export function sectionSummary(section: BuildSection, { c, model, kbName, systemOne }: SummaryInput): string {
+const effortText: Record<NonNullable<AgentConfig["reasoningEffort"]>, string> = { off: "reasoning off", low: "low reasoning", medium: "medium reasoning", high: "high reasoning" };
+
+/** Advanced's summary: what changes answers most first (reasoning, length), then the rest (BU-15). */
+function advancedSummary(c: AgentConfig, rerank?: { defaultTopN: number }) {
+  const reranking = c.rerank === false ? "no reranking" : rerank ? `reranks, keeps ${c.rerankTopN ?? rerank.defaultTopN}` : null;
+  return [
+    c.reasoningEffort ? effortText[c.reasoningEffort] : null,
+    c.maxOutputTokens ? `answers up to ${c.maxOutputTokens.toLocaleString()} tokens` : null,
+    c.temperature !== undefined ? `temperature ${c.temperature}` : "model's temperature",
+    `${c.contextTokenBudget.toLocaleString()} source tokens`,
+    c.minSimilarity ? `similarity ≥ ${c.minSimilarity}` : null,
+    reranking,
+    c.queryRewrite ? "rewrites follow-up questions into searches" : "no query rewriting",
+    c.followUpSuggestions === false ? "no follow-up suggestions" : "suggests follow-up questions",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+export function sectionSummary(section: BuildSection, { c, model, kbName, systemOne, rerank }: SummaryInput): string {
   switch (section) {
     case "instructions": {
       const text = c.instructions.trim().replace(/\s+/g, " ");
@@ -64,15 +85,6 @@ export function sectionSummary(section: BuildSection, { c, model, kbName, system
       return `${Object.keys(o).length ? "Custom" : "Platform defaults"}: ${parts.join(", ")}`;
     }
     case "advanced":
-      return [
-        c.temperature !== undefined ? `temperature ${c.temperature}` : "model's temperature",
-        `${c.contextTokenBudget.toLocaleString()} source tokens`,
-        c.queryRewrite ? "rewrites follow-up questions into searches" : "no query rewriting",
-        c.minSimilarity ? `similarity ≥ ${c.minSimilarity}` : null,
-        c.rerank === false ? "no reranking" : null,
-        c.followUpSuggestions === false ? "no follow-up suggestions" : "suggests follow-up questions",
-      ]
-        .filter(Boolean)
-        .join(" · ");
+      return advancedSummary(c, rerank);
   }
 }

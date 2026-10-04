@@ -174,6 +174,31 @@ func (s *Service) Latest(ctx context.Context, a authz.Actor, kind string) ([]Lat
 	return s.q.LatestHealthChecks(ctx, k)
 }
 
+// Status is a subject's latest health as team members see it: no message.
+type Status struct {
+	Status string    // StatusHealthy or StatusFailing
+	Since  time.Time // when the current status began
+}
+
+// Statuses returns the latest status of each subject of one kind, by ID
+// (subjects never checked are absent). There is no permission check: it is
+// for pickers any team member sees (a chat model, an MCP tool), and gives
+// only the status and its start, never the message.
+func (s *Service) Statuses(ctx context.Context, kind string) (map[uuid.UUID]Status, error) {
+	if !ValidKind(kind) {
+		return nil, errNoKind
+	}
+	rows, err := s.q.LatestHealthChecks(ctx, &kind)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[uuid.UUID]Status, len(rows))
+	for _, r := range rows {
+		out[r.SubjectID] = Status{Status: r.Status, Since: r.StatusSince}
+	}
+	return out, nil
+}
+
 // Prune removes checks older than keep (except each subject's latest) and
 // the checks of subjects that no longer exist.
 func (s *Service) Prune(ctx context.Context, keep time.Duration) (int64, error) {

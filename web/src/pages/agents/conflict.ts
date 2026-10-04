@@ -12,7 +12,15 @@ export type DraftLike<P, C> = { profile: P; config: C };
 /** A save conflict: the draft the user started from, their edits, and the latest version. */
 export type Conflict<P, C> = { from: DraftLike<P, C>; mine: DraftLike<P, C>; theirs: DraftLike<P, C> };
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+/** JSON with object keys sorted, so key order doesn't matter (the server returns its own order: BU-05). */
+function canonical(v: unknown): string {
+  return JSON.stringify(v, (_, x: unknown) =>
+    x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : x,
+  );
+}
+
+/** Equal values, whatever the order of object keys. */
+export const same = (a: unknown, b: unknown) => canonical(a) === canonical(b);
 
 /** The fields the user changed since `from`, as "profile.x" and "config.y". */
 export function changedFields<P extends object, C extends object>(from: DraftLike<P, C>, mine: DraftLike<P, C>): string[] {

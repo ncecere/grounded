@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -271,6 +272,9 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, teamRef string, id 
 		if err != nil {
 			return err
 		}
+		if err := checkLiveProfile(ctx, q, acc.Role, cur, pf); err != nil {
+			return err
+		}
 		draft, changed := cur.Draft, false
 		if in.Config != nil {
 			cfg, err := ParseConfig(in.Config)
@@ -301,6 +305,38 @@ func (s *Service) Update(ctx context.Context, a authz.Actor, teamRef string, id 
 		return View{}, err
 	}
 	return s.view(ctx, out, acc.Team, true)
+}
+
+// errLiveProfile: the profile isn't versioned, so on an agent published
+// beyond the team it is what those people see at once.
+func errLiveProfile() error {
+	return apperr.New(403, "live_profile_forbidden",
+		"Only team admins and owners can change the name, address, description or look of an agent published beyond the team. Editors can change its draft.")
+}
+
+// checkLiveProfile refuses an editor's change to the profile (name, slug,
+// description, accent, welcome, starters) of an agent whose live audience is
+// beyond the team: those reach people at once, and only admins and owners
+// may publish beyond the team (BU-09). The draft stays the editors'.
+func checkLiveProfile(ctx context.Context, q *dbgen.Queries, role string, cur dbgen.Agent, next profileFields) error {
+	if authz.RoleAtLeast(role, authz.RoleAdmin) || sameProfile(profileOf(cur), next) {
+		return nil
+	}
+	g, err := q.GetAudienceGrant(ctx, cur.ID)
+	if errors.Is(store.NotFound(err), store.ErrNotFound) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	if g.PrincipalType != authz.AudienceTeam {
+		return errLiveProfile()
+	}
+	return nil
+}
+
+func sameProfile(a, b profileFields) bool {
+	return a.name == b.name && a.slug == b.slug && a.description == b.description && a.accent == b.accent &&
+		a.welcome == b.welcome && slices.Equal(a.starters, b.starters)
 }
 
 func jsonEqual(a, b any) bool {

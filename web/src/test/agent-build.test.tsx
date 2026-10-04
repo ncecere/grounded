@@ -35,7 +35,7 @@ const agent = (extra: Partial<Schemas["Agent"]> = {}): Schemas["Agent"] => ({
 });
 
 const models = [
-  { id: "mod1", key: "gpt-oss-120b", displayName: "GPT-OSS 120B (Campus gateway)", description: "", maxClassification: "sensitive", contextWindow: 131072, maxOutputTokens: 8192, supportsTools: true, supportsReasoningEffort: false, supportsThinkingOff: false },
+  { id: "mod1", key: "gpt-oss-120b", displayName: "GPT-OSS 120B (Campus gateway)", description: "", maxClassification: "sensitive", contextWindow: 131072, maxOutputTokens: 8192, supportsTools: true, supportsReasoningEffort: false, supportsThinkingOff: false, health: { status: "healthy" as const } },
 ];
 const kb = { id: "kb1", name: "Registrar help", description: "", embeddingProfileId: "p1", topK: 8, effectiveClassification: "open", sources: [], revision: 1, createdAt: "", updatedAt: "" };
 
@@ -67,6 +67,12 @@ describe("pure helpers", () => {
     expect(sectionSummary("answering", input)).toBe("Search before every answer · only from sources · title, snippet and link");
     expect(sectionSummary("safety", input)).toBe("Platform policy only");
     expect(sectionSummary("advanced", input)).toBe("model's temperature · 6,000 source tokens · rewrites follow-up questions into searches · suggests follow-up questions");
+    // Reasoning and answer length first, and reranking once the platform has a rerank model (BU-15).
+    const tuned = { ...input, c: { ...config, reasoningEffort: "off" as const, maxOutputTokens: 600, rerankTopN: 4 }, rerank: { defaultTopN: 6 } };
+    expect(sectionSummary("advanced", tuned)).toBe(
+      "reasoning off · answers up to 600 tokens · model's temperature · 6,000 source tokens · reranks, keeps 4 · rewrites follow-up questions into searches · suggests follow-up questions",
+    );
+    expect(sectionSummary("advanced", { ...tuned, c: { ...tuned.c, rerank: false } })).toContain("no reranking");
     expect(sectionSummary("systemone", { ...input, systemOne: { judging: true, citations: false, citationMode: "annotate", scope: false } })).toBe(
       "Platform defaults: judging on, citations off, scope off",
     );
@@ -298,7 +304,7 @@ describe("Build", () => {
     });
     mockApi(routes(agent({ audience: "public", draft: { ...config, audience: "public" } }), { "GET /v1/teams/registrar/agents/ag1/sharing": () => sharing("public"), "GET /v1/teams/registrar/agents/ag1/publishable-keys": () => [] }));
     const v = renderApp("/teams/registrar/agents/ag1?tab=share");
-    expect(await screen.findByText("All three work without signing in.", {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText("Both work without signing in.", {}, { timeout: 5000 })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Embed code" })).toBeInTheDocument();
     v.unmount();
     mockApi(routes(agent(), { "GET /v1/teams/registrar/agents/ag1/sharing": () => sharing("team") }));

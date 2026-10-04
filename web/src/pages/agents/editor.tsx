@@ -118,7 +118,8 @@ function Editor({ agent }: { agent: Agent }) {
   const blocked = publishBlocked({
     agent: current,
     status: d.status,
-    needsFix: d.held || d.invalidFields.length > 0,
+    // Only Build's fields: a held Appearance or Settings value isn't part of versions, so it doesn't block publishing (BU-13).
+    needsFix: d.invalidFields.length > 0,
     audience: c.audience,
     isManager,
     problems: draftWarnings.length,
@@ -193,7 +194,7 @@ function Editor({ agent }: { agent: Agent }) {
             hidden: !evaluationsOn,
             content: <EvaluationsTab target={{ agentId: current.id, name: current.name }} />,
           },
-          { value: "appearance", label: "Appearance", icon: <Palette aria-hidden />, content: <AppearanceTab key={d.epoch} d={d} /> },
+          { value: "appearance", label: "Appearance", icon: <Palette aria-hidden />, content: <AppearanceTab key={d.epoch} agent={current} d={d} /> },
           { value: "share", label: "Share", icon: <Share2 aria-hidden />, content: <ShareTab key={d.epoch} agent={current} d={d} /> },
           {
             value: "analytics",

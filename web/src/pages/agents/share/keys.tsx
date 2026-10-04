@@ -187,7 +187,8 @@ function WidgetKeyForm({ team, agentId, current, onClose, onRevoke, onSaved }: R
           : undefined
       }
       onClose={onClose}
-      dirty={dirty}
+      // Saved: closing (history.back, after the save settles) mustn't ask "Leave without saving?", or the new key's secret is lost (US-02).
+      dirty={dirty && !save.isSuccess}
       onSubmit={() => save.mutate()}
       submitLabel={current ? "Save key" : "Create key"}
       busy={save.isPending}

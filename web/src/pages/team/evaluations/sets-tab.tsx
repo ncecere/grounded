@@ -93,8 +93,8 @@ export function EvaluationsTab({ target, newSetInHeader = false }: { target: Eva
         empty={{
           icon: <ClipboardCheck />,
           title: "No evaluation sets yet.",
-          description: `A set is a list of questions with the documents that should answer them.${newSetInHeader && canEdit ? " Create one with New set above." : ""}`,
-          action: newSet,
+          // New set is in the header above (the tab's or the page's): not repeated here (VI-07).
+          description: `A set is a list of questions with the documents that should answer them.${canEdit ? " Create one with New set above." : ""}`,
         }}
         tableProps={smallList}
         loading={sets.isLoading}

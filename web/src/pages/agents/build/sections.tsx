@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { Accordion, AccordionItem, AccordionPanel, AccordionTrigger } from "@/components/ui/accordion/accordion";
 import { Field } from "@/components/ui/field/field";
 import { Textarea } from "@/components/ui/input/input";
+import { useRerankStatus } from "@/lib/rerank";
 import { useSystemOneStatus } from "@/lib/systemone";
 import { useClassificationLevels, useKBs, useTeam } from "../../team/common";
 import { asSentence, problemTarget, useChatModels } from "../common";
@@ -52,6 +53,7 @@ export function BuildSections({ d, open, onOpenChange }: Props) {
   const levels = useClassificationLevels();
   const kbs = useKBs(slug);
   const systemOne = useSystemOneStatus();
+  const rerank = useRerankStatus();
   const c = d.draft.config;
   const section: SectionProps = {
     c,
@@ -67,6 +69,7 @@ export function BuildSections({ d, open, onOpenChange }: Props) {
     model: section.model,
     kbName: (id: string) => kbs.data?.find((k) => k.id === id)?.name,
     systemOne: s1 && { judging: s1.judging.enabled, citations: s1.citations.enabled, citationMode: s1.citations.mode, scope: s1.scope.enabled },
+    rerank: rerank.data?.available ? { defaultTopN: rerank.data.defaultTopN } : undefined,
   };
   const invalidIn = new Set(d.invalidFields.map((f) => fieldPlace(f).section));
   const problemIn = new Set([...d.problems, ...d.base.warnings.filter((w) => w.field.startsWith("draft."))].map((p) => fieldPlace(p.field).section));
@@ -97,7 +100,9 @@ export function BuildSections({ d, open, onOpenChange }: Props) {
                       <CircleAlert aria-hidden /> {invalidIn.has(key) ? "Not saved: fix the highlighted field" : "Needs fixing"}
                     </span>
                   ) : open.includes(key) ? undefined : (
-                    <span className={cf.summary}>{sectionSummary(key, summaryInput)}</span>
+                    <span className={cf.summary} title={sectionSummary(key, summaryInput)}>
+                      {sectionSummary(key, summaryInput)}
+                    </span>
                   )
                 }
               >
@@ -126,7 +131,8 @@ function InstructionsSection({ c, set, errorFor }: SectionProps) {
         rows={10}
         className={cf.instructions}
         value={c.instructions}
-        placeholder="You help students with questions about registration and records. Answer briefly, use numbered steps for procedures, and point to the right office when the sources don't cover something."
+        // A short hint that can't be mistaken for written instructions (VI-04).
+        placeholder="For example: Answer questions about registration. Keep answers short."
         onChange={(e) => set({ instructions: e.target.value })}
       />
     </Field>

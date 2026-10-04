@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ncecere/grounded/internal/costs"
+	"github.com/ncecere/grounded/internal/healthcheck"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/mcpclient"
@@ -246,8 +247,12 @@ func (a *api) adminSetMCPToolApproval(w http.ResponseWriter, r *http.Request) {
 
 func (a *api) listUsableMCPTools(w http.ResponseWriter, r *http.Request) {
 	tools, err := a.MCP.UsableTools(r.Context())
+	if failed(w, r, err) {
+		return
+	}
+	health, err := a.health.Statuses(r.Context(), healthcheck.KindMCPServer)
 	writeList(w, r, tools, err, func(t mcpclient.UsableTool) apitypes.MCPToolOption {
 		return apitypes.MCPToolOption{Id: t.ID, ServerId: t.ServerID, ServerName: t.ServerName, Name: t.Name, Title: t.Title,
-			Description: t.Description, MaxClassification: t.ServerMaxClassification}
+			Description: t.Description, MaxClassification: t.ServerMaxClassification, ServerHealth: pickerHealth(health, t.ServerID)}
 	})
 }

@@ -15,7 +15,8 @@ import { contrastRatio, normalizeHex } from "@/components/ui/color-field/color-f
 import { agentKey, agentQuery, agentsKey } from "../team/common";
 import { ACCENT_TEXT, DEFAULT_ACCENT } from "./accents.colors";
 import { type Agent, type AgentConfig, type AgentProblem, configInput } from "./common";
-import { type Conflict, changedFields, reapply } from "./conflict";
+import { type Conflict, changedFields, reapply, same } from "./conflict";
+import { sharingQuery } from "./share/sharing";
 
 type Profile = {
   name: string;
@@ -61,7 +62,6 @@ export function profileErrors(p: Profile): Partial<Record<keyof Profile, string>
   return e;
 }
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const starters = (list: string[]) => list.map((q) => q.trim()).filter(Boolean);
 
 /** The PATCH body for what changed (valid values only), and whether invalid values were held back. */
@@ -91,6 +91,8 @@ export function useAgentDraft(team: string, agent: Agent, delay = 800) {
   const [status, setStatus] = useState<SaveStatus>("saved");
   /** Edited since the editor opened: until then nothing was saved, so the header doesn't say "Draft saved". */
   const [edited, setEdited] = useState(false);
+  /** The last save changed only the profile, which isn't versioned: the header says "Saved", not "Draft saved" (BU-09). */
+  const [savedLive, setSavedLive] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [problems, setProblems] = useState<AgentProblem[]>([]);
   /** After a 412 with local edits: the user's draft, the latest version and where both started. */
@@ -124,6 +126,8 @@ export function useAgentDraft(team: string, agent: Agent, delay = 800) {
       base.current = next;
       qc.setQueryData(agentKey(team, next.id), next);
       qc.invalidateQueries({ queryKey: agentsKey(team) });
+      // The Share tab's audience, links and widget follow the live version (BU-03).
+      qc.invalidateQueries({ queryKey: sharingQuery(team, next.id).queryKey });
       if (resetDraft) {
         setConflict(null);
         replace(draftOf(next));
@@ -161,6 +165,7 @@ export function useAgentDraft(team: string, agent: Agent, delay = 800) {
           }),
         );
         base.current = res;
+        setSavedLive(!body.config);
         qc.setQueryData(agentKey(team, res.id), res);
         void qc.invalidateQueries({ queryKey: agentsKey(team), refetchType: "none" });
         setProblems([]);
@@ -267,6 +272,7 @@ export function useAgentDraft(team: string, agent: Agent, delay = 800) {
     epoch,
     status,
     edited,
+    savedLive,
     error,
     problems,
     held,
