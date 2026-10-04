@@ -10,7 +10,7 @@ import type { Tone } from "@/lib/bitop-utils";
 import { type CostMode, modeDescriptions, modeLabels } from "@/lib/costs";
 
 export type FeatureState = { label: string; tone: Tone };
-type Budget = Pick<Schemas["BudgetListItem"], "teamName" | "status">;
+type Budget = { teamName: string; status: Pick<Schemas["BudgetListItem"]["status"], "mode"> };
 
 export const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
@@ -67,5 +67,27 @@ export function systemOneFeature(st: Pick<Schemas["SystemOneSettings"], "modelId
   return {
     state: { label: `Configured · checks on ${plural(a.any, "agent")}`, tone: "success" },
     description: `Published agents use ${names(checks as string[], 3)}, by their own setting or the platform default.`,
+  };
+}
+
+/** The Reranking row (OW-2): "Off" with "Set up", or "On · <model>". */
+export function rerankFeature(
+  st: Pick<Schemas["RerankSettings"], "modelId" | "candidates" | "agents">,
+  model?: Schemas["AdminFeatureModel"],
+): { state: FeatureState; description: string; action: string } {
+  if (!st.modelId || !model) {
+    return {
+      state: { label: "Off", tone: "neutral" },
+      description: "Searches keep the usual order. A rerank model puts the passages that answer the question first.",
+      action: "Set up",
+    };
+  }
+  if (!model.enabled) {
+    return { state: { label: "Off", tone: "warning" }, description: `${model.displayName} or its connection is disabled, so searches aren't reranked.`, action: "Reranking" };
+  }
+  return {
+    state: { label: `On · ${model.displayName}`, tone: "success" },
+    description: `Searches rerank their best ${st.candidates} passages; ${plural(st.agents, "published agent reranks", "published agents rerank")}.`,
+    action: "Reranking",
   };
 }

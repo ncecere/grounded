@@ -96,7 +96,9 @@ describe("⌘K ranks an exact name first", () => {
 
   // v0.4.0 walkthrough (adm-3): the new settings are found by their names, and "rerank" no longer leads to SystemOne.
   it.each([
-    ["reranking", "/admin/models", "reranking", "Reranking settings"],
+    // Its own page since v0.4.2 (OW-2); "Reranking settings" goes to the page's settings.
+    ["reranking", "/admin/reranking", "", "Reranking"],
+    ["reranking settings", "/admin/reranking", "settings", "Reranking settings"],
     ["saved answers", "/admin", "features", "Saved answers"],
     ["answer cache", "/admin", "features", "Saved answers"],
   ])("opens “%s”", async (text, pathname, hash, first) => {
@@ -124,7 +126,7 @@ describe("⌘K ranks an exact name first", () => {
     mockApi(adminRoutes());
     const { user, dialog, input } = await openPalette("/");
     await user.type(input, "rerank");
-    await waitFor(() => expect(within(dialog).getAllByRole("option")[0]).toHaveTextContent("Reranking settings"));
+    await waitFor(() => expect(within(dialog).getAllByRole("option")[0]).toHaveTextContent("RerankingAdmin"));
     expect(within(dialog).queryByRole("option", { name: /SystemOne/ })).toBeNull();
   });
 

@@ -20,11 +20,8 @@ export function rerankSteps({ connections, rerankModels, chosen, isAdmin }: Inpu
       title: "Connect a server that serves /rerank",
       description: (
         <>
-          LiteLLM, vLLM and SGLang serve <code>/rerank</code> for reranker models such as bge-reranker.{" "}
-          <TextLink href={rerankDocsUrl} external>
-            How to deploy a reranker
-          </TextLink>
-          .
+          LiteLLM, vLLM and SGLang serve <code>/rerank</code> for reranker models such as bge-reranker. A connection you already have works if its server
+          does.
         </>
       ),
       // A rerank model proves its connection; otherwise any connection may be the one.
@@ -52,7 +49,15 @@ export function RerankGuide(props: Inputs) {
   return (
     <Checklist
       title="Set up reranking"
-      description="A rerank model needs a server that runs it. Until one is chosen, searches use the usual order."
+      description={
+        <>
+          A rerank model needs a server that runs it; until one is chosen, searches keep the usual order.{" "}
+          <TextLink href={rerankDocsUrl} external>
+            How to deploy a reranker
+          </TextLink>
+          .
+        </>
+      }
       steps={rerankSteps(props)}
     />
   );

@@ -3,7 +3,7 @@
  * admin, each linking to the filtered page. Hidden rows are simply absent;
  * with nothing to do it says so.
  */
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Blocks, CheckCircle2, CircleDollarSign, Cpu, FileWarning, Gauge, Globe, LogIn, Mail, Plug, PowerOff, ShieldAlert, ShieldOff, TriangleAlert } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
@@ -16,7 +16,7 @@ import { formatMoney, formatStorage as formatBytes } from "@/lib/format";
 import { adminAgentsQuery } from "../agents/agents";
 import { failingCount, healthChecksQuery } from "../models/health";
 import { useIsPlatformAdmin } from "../hooks";
-import { attentionQuery, overviewQuery, publicAccessQuery, publicPolicyQuery } from "./queries";
+import { attentionQuery, featuresQuery, overviewQuery } from "./queries";
 import o from "./overview.module.css";
 
 type Row = { id: string; icon: ReactNode; title: string; description: ReactNode; action?: string; link?: ReactElement; tone?: "danger" | "warning" };
@@ -50,8 +50,8 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
   const overview = useQuery(overviewQuery());
   const attention = useQuery(attentionQuery());
   const agents = useQuery(adminAgentsQuery());
-  const access = useQuery(publicAccessQuery());
-  const policy = useQuery(publicPolicyQuery());
+  // Public access and the public moderation provider come with the Features card's request (AD-03).
+  const features = useQuery(featuresQuery(useQueryClient()));
   const health = useQuery(healthChecksQuery());
   const rows: Row[] = [];
   const pending = attention.data?.pendingDomainRequests ?? 0;
@@ -123,7 +123,7 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
       link: <Link to="/admin/agents" search={{ status: "disabled_by_platform" }} />,
     });
   }
-  if (policy.data && !policy.data.modelId) {
+  if (features.data && !features.data.publicModeration) {
     rows.push({
       id: "moderation",
       icon: <ShieldAlert />,
@@ -139,7 +139,7 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
     if (w.code === "public_agents_without_moderation" && rows.some((r) => r.id === "moderation")) continue;
     rows.push(warningRow(w, isAdmin));
   }
-  if (access.data && !access.data.publicAgentsEnabled) {
+  if (features.data && !features.data.publicAccess.publicAgentsEnabled) {
     rows.push({
       id: "public-off",
       icon: <ShieldOff />,
@@ -183,7 +183,7 @@ function useRows(isAdmin: boolean): { rows: Row[]; loading: boolean } {
       tone: n.state === "exhausted" ? "danger" : "warning",
     });
   }
-  return { rows, loading: overview.isLoading || attention.isLoading || agents.isLoading || policy.isLoading || access.isLoading || health.isLoading };
+  return { rows, loading: overview.isLoading || attention.isLoading || agents.isLoading || features.isLoading || health.isLoading };
 }
 
 export function AttentionQueue() {

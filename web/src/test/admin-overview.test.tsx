@@ -302,7 +302,7 @@ describe("admin overview", () => {
     const steps = setupSteps({
       connections: 1,
       chatModels: [{ maxClassification: "sensitive" }],
-      profiles: [{ status: "active", isDefault: true }],
+      defaultProfile: true,
       levels: [
         { key: "open", rank: 0, name: "Open" },
         { key: "sensitive", rank: 1, name: "Sensitive" },

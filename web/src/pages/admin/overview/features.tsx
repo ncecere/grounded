@@ -2,33 +2,31 @@
  * Admin Overview › Features (docs/v0.2.1.md I2): one row per optional feature
  * with its state and a link to where it's set up. Evaluations, the MCP
  * server and saved answers (the answer cache) have their switches here (platform admins; auditors see them
- * disabled, with the reason); the MCP row links to its guide. Each row
- * reads the same query as the feature's own page, so one failure doesn't hide
- * the others, and shows its whole description (not clamped).
+ * disabled, with the reason); the MCP row links to its guide. The rows read
+ * one response (GET /v1/admin/features, AD-03), which also primes the
+ * switches' own queries; each row shows its whole description (not clamped).
  */
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, BookOpen, Cable, DatabaseZap, CircleDollarSign, ClipboardCheck, Earth, KeyRound, Network, ScanText, Sparkles, Wrench } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowRight, BookOpen, Cable, DatabaseZap, CircleDollarSign, ClipboardCheck, Earth, KeyRound, Network, ScanText, Sparkles, Wrench } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import type { UseQueryResult } from "@tanstack/react-query";
+import type { Schemas } from "@/api/client";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge, StatusBadge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item/item";
 import { cx } from "@/lib/bitop-utils";
-import { costSettingsQuery } from "@/lib/costs";
 import { backendLabels } from "@/lib/parsing";
 import { terms } from "@/lib/terms";
-import { budgetsQuery } from "../costs/budgets";
-import { groupMappingStatusQuery } from "../group-mapping/queries";
 import { useIsPlatformAdmin } from "../hooks";
 import { AnswerCacheSwitch, answerCacheText, useAnswerCacheSetting } from "./answer-cache-switch";
 import { EvaluationsSwitch, evaluationsText, useEvaluationsSetting } from "./evaluations-switch";
-import { costFeature, type FeatureState, plural, systemOneFeature } from "./feature-text";
+import { costFeature, type FeatureState, plural, rerankFeature, systemOneFeature } from "./feature-text";
 import { MCPSwitch, mcpDocsUrl, mcpText, useMCPSetting } from "./mcp-switch";
 import { OAuthSwitch, oauthDocsUrl, oauthFeature, useOAuthSave } from "./oauth-switch";
-import { maintenanceSettingsQuery, parsingSettingsQuery, publicAccessQuery, systemOneSettingsQuery } from "./queries";
+import { featuresQuery } from "./queries";
 import o from "./overview.module.css";
 
 type Row = {
@@ -62,15 +60,10 @@ type Switches = {
   cache: ReturnType<typeof useAnswerCacheSetting>;
 };
 
-function useRows(isAdmin: boolean, { evaluations, mcp, oauth, cache }: Switches): Row[] {
-  const costs = useQuery(costSettingsQuery());
-  // Teams whose own mode differs from the platform's (Costs → Budgets).
-  const budgets = useQuery(budgetsQuery());
-  const parsing = useQuery(parsingSettingsQuery());
-  const sso = useQuery(groupMappingStatusQuery());
-  const systemOne = useQuery(systemOneSettingsQuery());
-  const access = useQuery(publicAccessQuery());
-  const maintenance = useQuery(maintenanceSettingsQuery());
+type Features = Schemas["AdminFeatures"];
+
+function useRows(isAdmin: boolean, f: Features, { evaluations, mcp, oauth, cache }: Switches): Row[] {
+  const rerank = rerankFeature(f.rerank, f.rerankModel);
   return [
     fromQuery(
       evaluations.settings,
@@ -120,38 +113,86 @@ function useRows(isAdmin: boolean, { evaluations, mcp, oauth, cache }: Switches)
       { id: "answer-cache", icon: <DatabaseZap />, title: "Saved answers", control: <AnswerCacheSwitch setting={cache} isAdmin={isAdmin} /> },
       (d) => ({ state: d.enabled ? on : off, description: answerCacheText(d.enabled) }),
     ),
-    fromQuery(costs, { id: "costs", icon: <CircleDollarSign />, title: "Cost tracking", action: "Cost settings", link: <Link to="/admin/costs" search={{ tab: "settings" }} /> }, (d) =>
-      costFeature(d.mode, budgets.data?.items),
-    ),
-    fromQuery(parsing, { id: "ocr", icon: <ScanText />, title: "OCR", action: "Parsing & OCR", link: <Link to="/admin/parsing" /> }, (d) => ({
-      state: d.ocrEnabled ? { label: `On · ${backendLabels[d.backend]}`, tone: "success" } : off,
-      description: d.ocrEnabled ? `Scanned PDF pages and image uploads are read with ${backendLabels[d.backend]}; each source can turn it off.` : "Scanned PDF pages and images are not read.",
-    })),
-    fromQuery(sso, { id: "sso", icon: <Network />, title: terms.groupMapping, action: terms.groupMapping, link: <Link to="/admin/group-mapping" /> }, (d) => ({
-      state: { label: plural(d.ruleCount, "rule", "rules"), tone: d.ruleCount > 0 ? "info" : "neutral" },
-      description: d.ruleCount > 0 ? "People get team roles from their identity-provider groups when they sign in." : "No rules: team members are added by hand.",
-    })),
-    fromQuery(systemOne, { id: "systemone", icon: <Sparkles />, title: "SystemOne", action: "SystemOne", link: <Link to="/admin/systemone" /> }, systemOneFeature),
-    fromQuery(access, { id: "public", icon: <Earth />, title: "Public access", action: "Public access", link: <Link to="/admin/public-access" /> }, (d) => ({
-      state: d.publicAgentsEnabled ? on : off,
-      description: d.publicAgentsEnabled ? "Anonymous visitors can chat with agents published to the public." : "No agent answers anonymous visitors.",
-    })),
-    fromQuery(maintenance, { id: "maintenance", icon: <Wrench />, title: "Maintenance", action: "Maintenance", link: <Link to="/admin/maintenance" /> }, (d) => ({
-      state: d.enabled ? { label: "On", tone: "warning" } : off,
-      description: d.enabled ? `New ingestion is paused${d.reason ? `: ${d.reason}` : "."}` : "Ingestion runs as usual.",
-    })),
+    {
+      id: "costs",
+      icon: <CircleDollarSign />,
+      title: "Cost tracking",
+      action: "Cost settings",
+      link: <Link to="/admin/costs" search={{ tab: "settings" }} />,
+      ...costFeature(f.costs.settings.mode, f.costs.teams.map((x) => ({ teamName: x.teamName, status: { mode: x.mode } }))),
+    },
+    {
+      id: "ocr",
+      icon: <ScanText />,
+      title: "OCR",
+      action: "Parsing & OCR",
+      link: <Link to="/admin/parsing" />,
+      state: f.ocr.enabled ? { label: `On · ${backendLabels[f.ocr.backend]}`, tone: "success" } : off,
+      description: f.ocr.enabled
+        ? `Scanned PDF pages and image uploads are read with ${backendLabels[f.ocr.backend]}; each source can turn it off.`
+        : "Scanned PDF pages and images are not read.",
+    },
+    {
+      id: "sso",
+      icon: <Network />,
+      title: terms.groupMapping,
+      action: terms.groupMapping,
+      link: <Link to="/admin/group-mapping" />,
+      state: { label: plural(f.groupMappingRules, "rule", "rules"), tone: f.groupMappingRules > 0 ? "info" : "neutral" },
+      description: f.groupMappingRules > 0 ? "People get team roles from their identity-provider groups when they sign in." : "No rules: team members are added by hand.",
+    },
+    { id: "systemone", icon: <Sparkles />, title: "SystemOne", action: "SystemOne", link: <Link to="/admin/systemone" />, ...systemOneFeature(f.systemOne) },
+    // Reranking (OW-2): "Off · Set up" or "On · <model>", linking to its page.
+    { id: "reranking", icon: <ArrowDownWideNarrow />, title: "Reranking", link: <Link to="/admin/reranking" />, ...rerank },
+    {
+      id: "public",
+      icon: <Earth />,
+      title: "Public access",
+      action: "Public access",
+      link: <Link to="/admin/public-access" />,
+      state: f.publicAccess.publicAgentsEnabled ? on : off,
+      description: f.publicAccess.publicAgentsEnabled ? "Anonymous visitors can chat with agents published to the public." : "No agent answers anonymous visitors.",
+    },
+    {
+      id: "maintenance",
+      icon: <Wrench />,
+      title: "Maintenance",
+      action: "Maintenance",
+      link: <Link to="/admin/maintenance" />,
+      state: f.maintenance.enabled ? { label: "On", tone: "warning" } : off,
+      description: f.maintenance.enabled ? `New ingestion is paused${f.maintenance.reason ? `: ${f.maintenance.reason}` : "."}` : "Ingestion runs as usual.",
+    },
   ];
 }
 
+const cardProps = { id: "features", className: o.features, title: "Features", description: "Optional features: whether each is on, and where to set it up." };
+
 export function FeaturesCard() {
+  const features = useQuery(featuresQuery(useQueryClient()));
+  // One card in every state, so the #features anchor and the heading stay put while it loads.
+  return (
+    <Card {...cardProps} flush={Boolean(features.data)}>
+      {features.data ? (
+        <FeatureRows features={features.data} />
+      ) : features.error ? (
+        <ErrorAlert error={features.error} title="Couldn't load the features" onRetry={() => void features.refetch()} />
+      ) : (
+        <p className={o.fullText}>Loading…</p>
+      )}
+    </Card>
+  );
+}
+
+/** Mounted once the features have loaded (and primed the switches' queries). */
+function FeatureRows({ features }: { features: Features }) {
   const isAdmin = useIsPlatformAdmin();
   const evaluations = useEvaluationsSetting();
   const mcp = useMCPSetting();
   const oauth = useOAuthSave(mcp);
   const cache = useAnswerCacheSetting();
-  const rows = useRows(isAdmin, { evaluations, mcp, oauth, cache });
+  const rows = useRows(isAdmin, features, { evaluations, mcp, oauth, cache });
   return (
-    <Card id="features" className={o.features} title="Features" description="Optional features: whether each is on, and where to set it up." flush>
+    <>
       {evaluations.save.error != null && (
         <div className={o.cardAlert}>
           <ErrorAlert error={evaluations.save.error} title="Couldn't change evaluations" />
@@ -205,6 +246,6 @@ export function FeaturesCard() {
           </Item>
         ))}
       </ItemGroup>
-    </Card>
+    </>
   );
 }
