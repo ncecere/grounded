@@ -29,13 +29,17 @@ export function useChatModels() {
 
 type ChatModelOption = Schemas["ChatModelOption"];
 
+const healthRank = { healthy: 0, untested: 1, failing: 2 } as const;
+
 /**
- * The model a new agent starts with (AD-02): the first that passed its latest health check, else the first never
- * checked, never a failing one while another exists. The list comes by display name.
+ * The model a new agent starts with (AD-02, BU2-03): one whose latest stored check passed, else one never checked,
+ * never a failing one; among those, one that supports tools (Tools and the "when needed" search need them) before
+ * one that doesn't. Ties keep the list's order (by display name). None when every model is failing: the builder picks.
  */
 export function defaultChatModel(models: ChatModelOption[] | undefined): ChatModelOption | undefined {
-  const list = models ?? [];
-  return list.find((m) => m.health.status === "healthy") ?? list.find((m) => m.health.status === "untested") ?? list[0];
+  const rank = (m: ChatModelOption) => healthRank[m.health.status] * 2 + (m.supportsTools ? 0 : 1);
+  const usable = (models ?? []).filter((m) => m.health.status !== "failing");
+  return usable.reduce<ChatModelOption | undefined>((best, m) => (!best || rank(m) < rank(best) ? m : best), undefined);
 }
 
 /** A failing model's warning for the pickers ("" when it isn't failing). */
