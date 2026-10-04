@@ -11,9 +11,8 @@ import { Table, Td, Tr } from "@/components/ui/table/table";
 import { useSearchParams } from "@/lib/url-search";
 import s from "../../shared.module.css";
 import { useTeam } from "../common";
-import { resultStatus } from "./labels";
+import { resultStatus, runOptionLabel } from "./labels";
 import { type EvalRun, type EvalSet, useEvalComparison } from "./queries";
-import { formatDate } from "@/lib/format";
 
 const changeLabels = { better: "Better", worse: "Worse", same: "Same", only_a: "Only in the other run", only_b: "New in this run" } as const;
 const changeTones = { better: "success", worse: "danger", same: "neutral", only_a: "neutral", only_b: "info" } as const;
@@ -56,7 +55,7 @@ export function Comparison({ set, run, runs }: { set: EvalSet; run: EvalRun; run
         >
           {others.map((r) => (
             <option key={r.id} value={r.id}>
-              {formatDate(r.createdAt)}
+              {runOptionLabel(r)}
             </option>
           ))}
         </NativeSelect>

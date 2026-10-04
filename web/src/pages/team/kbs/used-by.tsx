@@ -37,3 +37,18 @@ export function UsedByAgents({ uses, team }: { uses: KBUse[]; team: string }) {
     </span>
   );
 }
+
+/** The agents' names, linked (the first three, then "and 2 more"): a stat card's caption under the count (VI-13). */
+export function UsedByAgentLinks({ uses, team }: { uses: KBUse[]; team: string }) {
+  return (
+    <span className={k.usedByLinks}>
+      {uses.slice(0, 3).map((u, i) => (
+        <span key={u.agent.id}>
+          {i > 0 && ", "}
+          <TextLink render={<Link to="/teams/$team/agents/$agentId" params={{ team, agentId: u.agent.id }} />}>{u.agent.name}</TextLink>
+        </span>
+      ))}
+      {uses.length > 3 && ` and ${uses.length - 3} more`}
+    </span>
+  );
+}

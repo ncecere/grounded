@@ -23,16 +23,21 @@ export function boilerplateHeadline(source: DataSource): string {
   const unit = source.type === "web" ? "page" : "document";
   if (!bp.enabled) return bp.repeatedBlocks > 0 ? "Turning off: repeated blocks are being restored." : "Off: repeated blocks are kept.";
   if (bp.repeatedBlocks === 0) return bp.pending ? "Checking for repeated blocks…" : "No repeated blocks found.";
-  return `${plural(bp.repeatedBlocks, "repeated block")} removed from ${plural(bp.pagesAffected, unit)}`;
+  const found = plural(bp.repeatedBlocks, "repeated block");
+  // Found but removed nowhere (VI-11): a page whose only text is repeated keeps it, so it stays searchable.
+  if (bp.pagesAffected === 0)
+    return bp.pending ? `${found} found; removing ${bp.repeatedBlocks === 1 ? "it" : "them"}…` : `${found} found, kept: ${bp.repeatedBlocks === 1 ? "it's" : "they're"} the only text on the ${unit}s that have ${bp.repeatedBlocks === 1 ? "it" : "them"}.`;
+  return `${found} removed from ${plural(bp.pagesAffected, unit)}`;
 }
 
-/** The rule in force, e.g. "Blocks in at least 40 of 200 pages (5 or 20%, whichever is more)". */
+/** The rule in force, e.g. "Blocks in at least 40 of 200 pages (5 pages or 20%, whichever is more)". */
 export function boilerplateRule(source: DataSource): string {
   const bp = source.boilerplate;
   const unit = source.type === "web" ? "pages" : "documents";
   const pct = `${Math.round(bp.ratio * 100)}%`;
-  const rule = `${bp.minDocs} or ${pct}, whichever is more`;
-  if (bp.documentsCounted === 0) return `Blocks repeated in at least ${rule} of the ${unit}; one copy is kept.`;
+  // "5 pages or 20%": the count names its unit (BU-16).
+  const rule = `${bp.minDocs} ${bp.minDocs === 1 ? unit.slice(0, -1) : unit} or ${pct}, whichever is more`;
+  if (bp.documentsCounted === 0) return `Blocks repeated in at least ${bp.minDocs} ${unit} or ${pct} of them, whichever is more; one copy is kept.`;
   // Too few to count anything as repeated yet.
   if (bp.threshold > bp.documentsCounted)
     return `Blocks repeated in at least ${bp.threshold} ${unit} (${rule}); with ${bp.documentsCounted} ${bp.documentsCounted === 1 ? unit.slice(0, -1) : unit} so far, none are removed yet.`;

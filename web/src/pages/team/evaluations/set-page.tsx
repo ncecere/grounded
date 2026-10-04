@@ -17,6 +17,7 @@ import { Tooltip } from "@/components/ui/tooltip/tooltip";
 import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { evaluationSetTabs } from "@/lib/tabs";
 import { plural, useTeam } from "../common";
+import { EditorsOnlyState } from "../access";
 import { ArchivedNotice, PageSkeleton } from "../layout";
 import { scoreText } from "./labels";
 import { type EvalSet, evalProblemsQuery, evalSetQuery, useEvaluationsOn } from "./queries";
@@ -27,9 +28,10 @@ import { SetSettings } from "./set-settings";
 
 export function EvaluationSetPage() {
   const { setId } = useParams({ from: "/app/teams/$team/evaluations/$setId" });
-  const { slug, canEdit } = useTeam();
+  const { slug, canEdit, role } = useTeam();
   const on = useEvaluationsOn();
   const set = useQuery({ ...evalSetQuery(slug, setId), enabled: on && canEdit });
+  if (on && role === "member") return <EditorsOnlyState title="Evaluation set" what="evaluations" />;
   if (!on || !canEdit || isNotFound(set.error)) return <NotFoundState what="object" />;
   if (set.isLoading) return <PageSkeleton />;
   if (set.error || !set.data) return <ErrorAlert error={set.error} title="Couldn't load this evaluation set" />;

@@ -174,12 +174,26 @@ function useWithdrawRequest(team: string, onDone: () => void) {
   });
 }
 
-/** The team's domain requests; `embedded` renders it as the Data sources page's Crawl domains tab. */
-export function DomainRequestsPage({ embedded = false }: { embedded?: boolean }) {
+/** "Request a domain": the page header's primary (the Data sources page's on its Crawl domains tab). */
+export function RequestDomainButton({ onClick }: { onClick: () => void }) {
+  return (
+    <Button onClick={onClick}>
+      <Plus aria-hidden /> Request a domain
+    </Button>
+  );
+}
+
+/**
+ * The team's domain requests. `embedded`, it is the Data sources page's Crawl domains tab: no heading of its
+ * own, and the page header holds "Request a domain" (VI-12), so the dialog's state comes from the page.
+ */
+export function DomainRequestsPage({ embedded = false, requesting: shown, onRequestingChange }: { embedded?: boolean; requesting?: boolean; onRequestingChange?: (open: boolean) => void }) {
   const { slug, canEdit, role, archived, isManager } = useTeam();
   const me = useCurrentUser();
   const requests = useDomainRequests(slug);
-  const [requesting, setRequesting] = useState(false);
+  const [ownRequesting, setOwnRequesting] = useState(false);
+  const requesting = shown ?? ownRequesting;
+  const setRequesting = onRequestingChange ?? setOwnRequesting;
   const [withdrawing, setWithdrawing] = useState<DomainRequest | null>(null);
   const withdraw = useWithdrawRequest(slug, () => setWithdrawing(null));
   // Mirrors the server: pending, on an active team, asked by the viewer or any as a team admin or owner.
@@ -189,19 +203,9 @@ export function DomainRequestsPage({ embedded = false }: { embedded?: boolean })
 
   return (
     <Stack gap={6} className={embedded ? undefined : s.page}>
-      <PageHeader
-        title={embedded ? terms.crawlDomains : terms.domainRequests}
-        titleAs={embedded ? "h2" : "h1"}
-        // Embedded, the Data sources page's header says it (crawlDomainsDescription).
-        description={embedded ? undefined : crawlDomainsDescription}
-        actions={
-          canEdit && (
-            <Button onClick={() => setRequesting(true)}>
-              <Plus aria-hidden /> Request a domain
-            </Button>
-          )
-        }
-      />
+      {!embedded && (
+        <PageHeader title={terms.domainRequests} description={crawlDomainsDescription} actions={canEdit && <RequestDomainButton onClick={() => setRequesting(true)} />} />
+      )}
       {!embedded && <ArchivedNotice>Its domain requests are read-only.</ArchivedNotice>}
       {role === "member" && <Alert tone="info">Members can view domain requests. Editors, admins and owners can request domains.</Alert>}
       <DomainRequestList

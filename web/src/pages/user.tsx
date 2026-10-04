@@ -5,8 +5,11 @@
  * (P-08), and "Request a new team" only when the instance has a request
  * address.
  */
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { agentDirectoryQuery, conversationsQuery } from "../api/queries";
 import { ArrowRight, Users } from "lucide-react";
+import { useState } from "react";
 import { roleLabels } from "../components/roles";
 import { terms } from "../lib/terms";
 import { useJoinTeamHelp } from "../components/layout/join-team";
@@ -28,6 +31,13 @@ export function HomePage() {
   const me = useCurrentUser();
   const firstName = me.user.displayName.split(" ")[0] || me.user.displayName;
   const hasTeam = me.teams.length > 0;
+  // The sections below the agents appear once the agents and conversations have loaded, so nothing jumps
+  // down when the agent cards arrive (VI-14b: layout shift 0.10). Same queries as the cards, from the cache.
+  const agents = useQuery(agentDirectoryQuery());
+  const recent = useQuery(conversationsQuery({ limit: 3 }));
+  // Once settled, it stays so: a failed query refetches when its card mounts, and hiding the cards again would loop.
+  const [settled, setSettled] = useState(false);
+  if (!settled && !agents.isLoading && !recent.isLoading) setSettled(true);
 
   return (
     <Stack gap={6} className={s.page}>
@@ -50,19 +60,23 @@ export function HomePage() {
       >
         <AgentList limit={6} />
       </Card>
-      <Card
-        title="Continue where you left off"
-        description="Your latest conversations. Only you can see them."
-        actions={
-          <Button size="sm" variant="ghost" render={<Link to="/conversations" />}>
-            All conversations <ArrowRight aria-hidden />
-          </Button>
-        }
-        flush
-      >
-        <RecentConversations limit={3} />
-      </Card>
-      <YourTeams me={me} />
+      {settled && (
+        <>
+          <Card
+            title="Continue where you left off"
+            description="Your latest conversations. Only you can see them."
+            actions={
+              <Button size="sm" variant="ghost" render={<Link to="/conversations" />}>
+                All conversations <ArrowRight aria-hidden />
+              </Button>
+            }
+            flush
+          >
+            <RecentConversations limit={3} />
+          </Card>
+          <YourTeams me={me} />
+        </>
+      )}
     </Stack>
   );
 }

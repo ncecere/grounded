@@ -130,7 +130,7 @@ type UploadAreaProps = {
   ocr?: OcrState;
   /** Opens the source's Settings tab, offered when the source's own OCR switch is what refuses images. */
   onOpenSettings?: () => void;
-  /** Something would be lost by closing: an upload is running, or tags were chosen and nothing uploaded yet. */
+  /** Something would be lost by closing: an upload is running. Tags alone apply only to the next upload, so they don't count (BU-12). */
   onPendingChange?: (pending: boolean) => void;
 };
 
@@ -190,7 +190,7 @@ export function UploadArea({ sourceId, disabledReason, onUploaded, onPendingChan
     }
   }
 
-  const pending = progress !== null || (tags.length > 0 && results === null);
+  const pending = progress !== null;
   useEffect(() => onPendingChange?.(pending), [pending, onPendingChange]);
 
   const percent = progress && progress.total > 0 ? Math.round((progress.loaded / progress.total) * 100) : 0;

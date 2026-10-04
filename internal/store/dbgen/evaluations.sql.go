@@ -1451,6 +1451,7 @@ SELECT d.id, d.title, d.filename, d.url, s.name AS source_name
 FROM documents d
 JOIN data_sources s ON s.id = d.source_id
 WHERE d.source_id = ANY($1::uuid[])
+  AND d.status NOT IN ('failed', 'skipped')
   AND ($2::text = '' OR d.title ILIKE $2::text OR d.filename ILIKE $2::text OR d.url ILIKE $2::text)
 ORDER BY lower(coalesce(nullif(d.title, ''), nullif(d.filename, ''), d.url)), d.id
 LIMIT $3
@@ -1472,6 +1473,8 @@ type SearchEvalDocumentsRow struct {
 
 // Documents of the sources whose title, filename or URL matches, for the
 // expected-documents picker.
+// Failed and skipped documents are left out: no search finds them, so a
+// question can't expect them (BU-20).
 func (q *Queries) SearchEvalDocuments(ctx context.Context, arg SearchEvalDocumentsParams) ([]SearchEvalDocumentsRow, error) {
 	rows, err := q.db.Query(ctx, searchEvalDocuments, arg.SourceIds, arg.Pattern, arg.Lim)
 	if err != nil {

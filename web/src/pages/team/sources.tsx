@@ -7,6 +7,7 @@
  * domain". The header's description follows the tab.
  */
 import { useParams } from "@tanstack/react-router";
+import { useState } from "react";
 import { Database, Globe, Plus } from "lucide-react";
 import { useIntent } from "../../lib/intents";
 import { useSearchParams } from "@/lib/url-search";
@@ -23,7 +24,7 @@ import { SourceDetail } from "../sources/detail";
 import { SourcesTable } from "../sources/list";
 import { useSourceOwner } from "../sources/owner";
 import { useClassificationLevels, useEmbeddingProfiles, useKBs, useSources, useTeam } from "./common";
-import { crawlDomainsDescription, DomainRequestsPage } from "./domains";
+import { crawlDomainsDescription, DomainRequestsPage, RequestDomainButton } from "./domains";
 import { ArchivedNotice } from "./layout";
 
 export { documentSummary, SourceStatusBadge } from "../sources/list";
@@ -51,11 +52,17 @@ export function SourcesPage() {
     if (tab !== "sources") setTab("sources");
     newSource.start();
   });
-  const create = canEdit && tab === "sources" && (
-    <Button onClick={() => newSource.start()}>
-      <Plus aria-hidden /> New data source
-    </Button>
-  );
+  // Each tab's primary in the page header: New data source, or Request a domain (VI-12).
+  const [requesting, setRequesting] = useState(false);
+  const primary =
+    canEdit &&
+    (tab === "sources" ? (
+      <Button onClick={() => newSource.start()}>
+        <Plus aria-hidden /> New data source
+      </Button>
+    ) : (
+      <RequestDomainButton onClick={() => setRequesting(true)} />
+    ));
 
   return (
     <Stack gap={6} className={s.page}>
@@ -67,7 +74,7 @@ export function SourcesPage() {
             ? crawlDomainsDescription
             : "Uploaded files or pages from a website, for your knowledge bases. Each source has one classification and one embedding profile."
         }
-        actions={create}
+        actions={primary}
       />
       {tab === "sources" || !role ? owner.readOnlyNote : <ArchivedNotice>Its domain requests are read-only.</ArchivedNotice>}
       {gap && tab === "sources" && (
@@ -80,9 +87,9 @@ export function SourcesPage() {
         value={tab}
         onValueChange={setTab}
         tabs={[
-          { value: "sources", label: "Sources", icon: <Database aria-hidden />, content: <SourcesList onCreate={canEdit ? () => newSource.start() : undefined} /> },
+          { value: "sources", label: "Sources", icon: <Database aria-hidden />, content: <SourcesList /> },
           // Members only: platform staff reading under break-glass see the sources alone.
-          { value: "crawl-domains", label: terms.crawlDomains, icon: <Globe aria-hidden />, hidden: !role, content: <DomainRequestsPage embedded /> },
+          { value: "crawl-domains", label: terms.crawlDomains, icon: <Globe aria-hidden />, hidden: !role, content: <DomainRequestsPage embedded requesting={requesting} onRequestingChange={setRequesting} /> },
         ]}
       />
       {newSource.element}
@@ -91,7 +98,7 @@ export function SourcesPage() {
 }
 
 /** The Sources tab: the team's sources, with the knowledge bases using each. */
-function SourcesList({ onCreate }: { onCreate?: () => void }) {
+function SourcesList() {
   const { slug, canEdit } = useTeam();
   const sources = useSources(slug);
   const kbs = useKBs(slug);
@@ -111,12 +118,8 @@ function SourcesList({ onCreate }: { onCreate?: () => void }) {
       empty={{
         icon: <Database />,
         title: "No data sources yet.",
-        description: canEdit ? "Create one to upload files or index a website." : "Editors, admins and owners can create data sources.",
-        action: onCreate && (
-          <Button variant="secondary" onClick={onCreate}>
-            <Plus aria-hidden /> New data source
-          </Button>
-        ),
+        // The header's New data source isn't repeated here (one primary per view).
+        description: canEdit ? "Create one with New data source above, to upload files or index a website." : "Editors, admins and owners can create data sources.",
       }}
     />
   );

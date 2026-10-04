@@ -13,7 +13,7 @@ import { Field } from "@/components/ui/field/field";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
 import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
-import { type Classification, plural, rankOf } from "../team/common";
+import { type Classification, notSavedText, plural, rankOf } from "../team/common";
 import { type SourceActions, pauseHelp } from "./actions";
 import { useOwnerLevels } from "./create";
 import { WebErrorAlert } from "./host-errors";
@@ -56,7 +56,8 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
     reason: lowering && form.reason.trim().length < 10 ? "Enter at least 10 characters." : undefined,
     web: form.web ? validateWeb(form.web) : {},
   };
-  const invalid = Boolean(errors.name || errors.reason || Object.keys(errors.web).length > 0);
+  const invalidCount = Number(Boolean(errors.name)) + Number(Boolean(errors.reason)) + Object.keys(errors.web).length;
+  const invalid = invalidCount > 0;
   const dirty =
     form.name.trim() !== source.name ||
     form.description !== source.description ||
@@ -104,7 +105,7 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
           save.reset();
         }}
         saveLabel="Save settings"
-        message={invalid ? "Not saved: fix the highlighted field" : undefined}
+        message={invalid ? notSavedText(invalidCount) : undefined}
         saveDisabled={invalid}
       >
         <SettingsSection title="General" description="How the source is named in lists and knowledge bases.">

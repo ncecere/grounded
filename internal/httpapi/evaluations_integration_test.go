@@ -102,6 +102,20 @@ func TestEvaluationRetrievalRun(t *testing.T) {
 	if len(docs) != 1 || docs[0].Filename != "parking.md" {
 		t.Fatalf("target documents = %+v", docs)
 	}
+	// A failed document isn't offered: no search finds it (BU-20).
+	setParkingStatus := func(status string) {
+		t.Helper()
+		if _, err := env.app.Pool.Exec(context.Background(), `UPDATE documents SET status = $1 WHERE source_id = $2 AND filename = 'parking.md'`, status, env.upload.Id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	setParkingStatus("failed")
+	docs = nil
+	env.editor.get(env.evalBase()+"/"+set.Id.String()+"/documents?q=park", &docs)
+	if len(docs) != 0 {
+		t.Errorf("failed document offered: %+v", docs)
+	}
+	setParkingStatus("ready")
 	code, e = env.editor.call("GET", env.base+"/evaluation-documents?q=park", nil, nil, nil)
 	mustCode(t, "no target", code, e, 400, "invalid_target")
 	if code, _ := env.member.call("GET", env.base+"/evaluation-documents?q=park&kbId="+kb.Id.String(), nil, nil, nil); code != 404 {

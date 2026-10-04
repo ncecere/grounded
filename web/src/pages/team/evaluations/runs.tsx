@@ -12,8 +12,8 @@ import { RecordLink, useRecordParam } from "@/components/templates/record-page";
 import { StatusBadge } from "@/components/ui/badge/badge";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import type { Facet } from "@/components/ui/filter-bar/filter-bar";
+import { Card } from "@/components/ui/card/card";
 import { Stack } from "@/components/ui/layout/layout";
-import { PageHeader } from "@/components/ui/page-header/page-header";
 import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { useTeam } from "../common";
 import { ScoreChart } from "./chart";
@@ -96,26 +96,26 @@ export function RunsTab({ set }: { set: EvalSet }) {
   ];
   return (
     <Stack gap={4}>
-      <PageHeader
+      <Card
         title="Runs"
-        titleAs="h2"
         description={`${agentSet ? "Retrieval and full-answer runs" : "Retrieval runs"} of this set, newest first. Start one with Run above.`}
-      />
-      <ListPage<EvalRun>
-        id="evaluation-runs"
-        caption="Runs"
-        columns={columns}
-        data={list}
-        getRowId={(r) => r.id}
-        rowLabel={runTitle}
-        facets={agentSet ? kindFacet : undefined}
-        tableProps={smallList}
-        rowActions={(r) => [{ label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(r.id) }]}
-        empty={{ icon: <History />, title: "No runs yet.", description: "A retrieval run puts each question through the search and needs no model." }}
-        loading={runs.isLoading}
-        error={runs.error}
-        onRetry={() => void runs.refetch()}
-      />
+      >
+        <ListPage<EvalRun>
+          id="evaluation-runs"
+          caption="Runs"
+          columns={columns}
+          data={list}
+          getRowId={(r) => r.id}
+          rowLabel={runTitle}
+          facets={agentSet ? kindFacet : undefined}
+          tableProps={smallList}
+          rowActions={(r) => [{ label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(r.id) }]}
+          empty={{ icon: <History />, title: "No runs yet.", description: "A retrieval run puts each question through the search and needs no model." }}
+          loading={runs.isLoading}
+          error={runs.error}
+          onRetry={() => void runs.refetch()}
+        />
+      </Card>
       <ScoreChart runs={list} />
       <RunRecord set={set} runs={list} />
     </Stack>

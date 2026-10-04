@@ -142,6 +142,17 @@ function configParts(r: EvalRun) {
   };
 }
 
+/**
+ * A run in the Compare picker: when, to the second, its score and what it ran with ("Oct 4, 2026, 10:48:12 AM ·
+ * 80% · v3 · reranked · 8 per search"), so two runs started in the same minute can be told apart (BU-20).
+ */
+export function runOptionLabel(r: EvalRun) {
+  const c = configParts(r);
+  const when = new Date(r.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "medium" });
+  const rerank = c.rerank === "on" ? "reranked" : c.rerank === "off" ? "not reranked" : "";
+  return [when, pct(runScore(r)), c.version, rerank, c.k ? `${c.k} per search` : ""].filter(Boolean).join(" · ");
+}
+
 /** What changed from one run to the next, e.g. ["agent v2 → v3", "results per search 4 → 1"]. */
 export function configChanges(prev: EvalRun, next: EvalRun): string[] {
   const a = configParts(prev);

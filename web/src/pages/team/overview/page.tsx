@@ -22,15 +22,26 @@ import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import s from "../../shared.module.css";
 import { useLevelName, useSources, useTeam } from "../common";
-import { ArchivedNotice } from "../layout";
+import { ArchivedNotice, PageSkeleton } from "../layout";
 import { NeedsAttention } from "./attention";
 import { GettingStarted, useChecklistDismissed, useChecklistShowing } from "./getting-started";
 import { MemberOverview } from "./member";
 import { QualityAndSpend } from "./quality";
+import { useOverviewReady } from "./ready";
 import { RecentChanges } from "./recent";
 import { QuickCounts } from "./stats";
 
 export function TeamOverviewPage() {
+  const { role } = useTeam();
+  // Editors and above: the dashboard shows once its cards' data is in, so nothing shifts as they load (VI-14b).
+  return role && role !== "member" ? <WhenReady /> : <Overview />;
+}
+
+function WhenReady() {
+  return useOverviewReady() ? <Overview /> : <PageSkeleton />;
+}
+
+function Overview() {
   const { slug, team, role, archived } = useTeam();
   const levelName = useLevelName();
   const checklist = useChecklistDismissed(slug);

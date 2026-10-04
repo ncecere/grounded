@@ -18,6 +18,7 @@ import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
 import s from "../../shared.module.css";
 import { ClassificationBadge, type KB, kbsKey, plural, profileName, useClassificationLevels, useEmbeddingProfiles, useKBs, useTeam } from "../common";
+import { ReadOnlyNotice } from "../access";
 import { ArchivedNotice } from "../layout";
 import k from "./kbs.module.css";
 import { UsedByAgents, useAgentsByKB } from "./used-by";
@@ -90,7 +91,12 @@ export function KBsPage() {
             </Button>
           )
         }
-        notices={<ArchivedNotice>Its knowledge bases are read-only.</ArchivedNotice>}
+        notices={
+          <>
+            <ArchivedNotice>Its knowledge bases are read-only.</ArchivedNotice>
+            <ReadOnlyNotice what="knowledge bases" />
+          </>
+        }
         caption="Knowledge bases"
         columns={columns}
         data={kbs.data ?? []}

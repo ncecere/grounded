@@ -80,6 +80,17 @@ describe("uploads (F-06)", () => {
     expect(withPendingTags([], "")).toEqual([]);
   });
 
+  it("closes with Done when only a tag was typed (BU-12)", async () => {
+    mockApi(routes(uploadSource()));
+    renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
+    await userEvent.click(await screen.findByRole("button", { name: "Upload files" }));
+    const sheet = await screen.findByRole("dialog", { name: "Upload files" });
+    await userEvent.type(within(sheet).getByRole("textbox", { name: /Tags for these files/ }), "beta2{Enter}");
+    await userEvent.click(within(sheet).getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Upload files" })).toBeNull());
+    expect(screen.queryByText("Leave without saving?")).toBeNull();
+  });
+
   it("sends the pending tag with a drop", async () => {
     mockApi(routes(uploadSource()));
     const sent: FormData[] = [];

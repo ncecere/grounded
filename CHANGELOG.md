@@ -22,6 +22,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - The agent's Evaluations tab doesn't repeat New set in its empty state (VI-07); Analytics' sub-tabs have icons (VI-08); Version history's first column is start-aligned (VI-09); the model picker looks like the other fields (VI-34).
   - Admin → Agents: Back asks before leaving an unsaved short name (AD-23).
 
+- **Team pages (v0.4.2 M3, [`docs/v0.4.2.md`](docs/v0.4.2.md#as-built-m3-team-pages)).**
+  - The documents table's selection follows its filters: a row a filter, search or other page hides is no longer selected, so the bulk bar, footer and Delete dialog agree and Delete deletes exactly the rows it names (was "1 document selected", then "Delete 0 documents?"). A filtered list refreshes when a retried document fails again.
+  - The web source preview says what the site answered ("That page returned 404 (not found). Check the address.") as a 422, not a 502 shown as "Something went wrong on our side".
+  - Deleting a source that knowledge bases search names them up front, with links, and offers no Delete button.
+  - Web pages without a title are named after their decoded URL, and encoded titles and paths read plainly on the Pages tab.
+  - Fusion weight sliders move in hundredths, so a default such as 0.02 shows and can be chosen again.
+  - The upload dialog's Done no longer asks "Leave without saving?" when only a tag was typed.
+  - A new API key's expiry is a calendar picker, named once (Chrome named the native date segments twice).
+  - Evaluation Compare names runs to the second with their score and settings; the expected-documents picker leaves out failed and skipped documents.
+  - Home and the team Overview no longer shift as they load; Overview cards in a row are the same height and every count card has a caption.
+  - Wording: read-only notices say who can change what in one way; members opening evaluation or gap pages are told only editors see them (was "Page not found"); Team settings → General names platform admins; the repeated-blocks card says when a block was found but kept, and names its rule's unit; the save bar counts invalid fields; the knowledge base's "Used by agents" card shows its count once.
+  - Tabs no longer open with a second page header (Crawl domains, API keys, evaluation sets, questions, runs), and empty states don't repeat the header's button.
+
 ## [0.4.1] - 2026-10-02
 
 Small wins: follow-up suggestions, evaluation questions that need attention, OCR for every TIFF page and partly scanned PDFs, SystemOne capacity that keeps answers first, and reasoning shown in order. The release notes are [`docs/releases/v0.4.1.md`](docs/releases/v0.4.1.md).

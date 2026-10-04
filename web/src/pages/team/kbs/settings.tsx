@@ -14,7 +14,7 @@ import { Field } from "@/components/ui/field/field";
 import { Input, Textarea } from "@/components/ui/input/input";
 import { Slider } from "@/components/ui/slider/slider";
 import { toast } from "@/components/ui/toast/toast";
-import { type KB, kbKey, kbsKey, useTeam } from "../common";
+import { type KB, kbKey, kbsKey, notSavedText, useTeam } from "../common";
 import { FusionSettings } from "./fusion";
 import { fusionErrors, fusionFormOf, fusionPatch } from "./fusion-form";
 
@@ -27,8 +27,10 @@ export function KBSettings({ kb, onDelete }: { kb: KB; onDelete: () => void }) {
   const [form, setForm] = useState<Form>(() => formOf(kb));
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
   const nameError = form.name.trim() ? undefined : "Enter a name.";
-  const fusionInvalid = Object.keys(fusionErrors(form.fusion)).length > 0;
+  const fusionProblems = fusionErrors(form.fusion);
+  const fusionInvalid = Object.keys(fusionProblems).length > 0;
   const invalid = Boolean(nameError) || fusionInvalid;
+  const invalidCount = (nameError ? 1 : 0) + (Number(Boolean(fusionProblems.vector)) + Number(Boolean(fusionProblems.keyword)) || Number(Boolean(fusionProblems.form)));
   const fusionBody = fusionInvalid ? {} : fusionPatch(form.fusion, kb);
   const dirty =
     form.name.trim() !== kb.name ||
@@ -65,7 +67,7 @@ export function KBSettings({ kb, onDelete }: { kb: KB; onDelete: () => void }) {
         update.reset();
       }}
       saveLabel="Save settings"
-      message={invalid ? "Not saved: fix the highlighted field" : undefined}
+      message={invalid ? notSavedText(invalidCount) : undefined}
       saveDisabled={invalid}
     >
       <SettingsSection title="General">

@@ -1,12 +1,16 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ncecere/grounded/internal/apperr"
+	"github.com/ncecere/grounded/internal/crawl"
 )
 
 func TestNormalizePattern(t *testing.T) {
@@ -181,5 +185,35 @@ func TestNextSync(t *testing.T) {
 	}
 	if w := NextSync(ScheduleWeekly, now); w == nil || !w.Equal(now.Add(7*24*time.Hour)) {
 		t.Errorf("weekly = %v", w)
+	}
+}
+
+// A remote page's failure is the person's to fix: a 422 that says what the
+// site answered, never a 5xx that reads as Grounded's own failure (BU-08).
+func TestMapFailureSaysWhatTheSiteAnswered(t *testing.T) {
+	cases := []struct {
+		err    error
+		status int
+		code   string
+		text   string
+	}{
+		{nil, 404, "fetch_failed", "That page returned 404 (not found). Check the address."},
+		{nil, 403, "fetch_failed", "That page returned 403 (access denied)"},
+		{nil, 503, "fetch_failed", "That site returned 503 (an error on the site's side)"},
+		{nil, 429, "fetch_failed", "That site returned 429 (too many requests)"},
+		{nil, 418, "fetch_failed", "That page returned HTTP 418. Check the address."},
+		{errors.New("dial tcp: no such host"), 0, "fetch_failed", "Couldn't reach that page."},
+		{fmt.Errorf("get: %w", context.DeadlineExceeded), 0, "fetch_failed", "That page took too long to answer."},
+		{crawl.ErrRobotsDisallowed, 0, "robots_disallowed", "robots.txt"},
+	}
+	for _, c := range cases {
+		err := mapFailure(c.err, c.status)
+		var ae *apperr.Error
+		if !errors.As(err, &ae) || ae.Status != 422 || ae.Code != c.code || !strings.Contains(ae.Message, c.text) {
+			t.Errorf("mapFailure(%v, %d) = %#v", c.err, c.status, err)
+		}
+	}
+	if err := mapFailure(nil, 200); err != nil {
+		t.Errorf("200 = %v", err)
 	}
 }

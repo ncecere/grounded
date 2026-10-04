@@ -43,8 +43,21 @@ export function documentError(d: Pick<Doc, "errorCode" | "errorMessage">) {
   return d.errorMessage || d.errorCode;
 }
 
+/**
+ * Percent-encoded text decoded for display ("doc%2Fcodewalk%2Fpig" reads "doc/codewalk/pig"): titles made from
+ * a URL before v0.4.2 (VI-10). Only text without spaces that holds %XX escapes is decoded, so "100% sure" stays.
+ */
+export function decodeForDisplay(text: string): string {
+  if (/\s/.test(text) || !/%[0-9a-f]{2}/i.test(text)) return text;
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    return text;
+  }
+}
+
 /** A document's display name: the page title or file name. */
-export const docName = (doc: Doc) => doc.title || doc.filename || doc.url || "Untitled document";
+export const docName = (doc: Doc) => decodeForDisplay(doc.title || doc.filename || doc.url) || "Untitled document";
 
 /** Document kinds as people say them ("PDF", "Word", "Markdown"), for tables and the kind filter. */
 export const kindLabels: Record<string, string> = {

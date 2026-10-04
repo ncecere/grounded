@@ -26,7 +26,8 @@ import d from "./documents.module.css";
 import { type DocumentMutations, canRetry, deleteWording, isPartlyScanned, retryLabel, useDocumentMutations } from "./mutations";
 import { ocrStateOf, retryBlocked } from "./ocr-state";
 import { DocumentRecordPage } from "./record";
-import { DocStatusBadge, docKind, docName, docStatusLabels, documentError, isInProgress, isWaiting, kindLabel } from "./status";
+import { countsSignature, useRefreshOnChange, useVisibleSelection } from "./selection";
+import { DocStatusBadge, decodeForDisplay, docKind, docName, docStatusLabels, documentError, isInProgress, isWaiting, kindLabel } from "./status";
 
 const pageSize = 50;
 const statuses: DocStatus[] = ["ready", "processing", "queued", "failed", "skipped"];
@@ -38,7 +39,7 @@ const needsOcr = "needs_ocr";
 export function urlPath(url: string) {
   try {
     const u = new URL(url);
-    return `${u.pathname}${u.search}` || "/";
+    return decodeForDisplay(`${u.pathname}${u.search}`) || "/";
   } catch {
     return url;
   }
@@ -124,10 +125,18 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
     placeholderData: keepPreviousData,
     refetchInterval: (qq) => (qq.state.data?.items.some((doc) => isInProgress(doc.status) && !isWaiting(doc)) ? 2000 : false),
   });
+  // A filtered view refreshes when the source's counts change: a document it hid (retried from Failed) may be back (BU-11).
+  const refetchDocs = docs.refetch;
+  useRefreshOnChange(countsSignature(source.documents), () => void refetchDocs());
   const mutations = useDocumentMutations(source.id);
   const [deleting, setDeleting] = useState<Doc[] | null>(null);
   const items = docs.data?.items ?? [];
   const byId = new Map(items.map((doc) => [doc.id, doc]));
+  // Only rows on screen stay selected (BU-04): the bar, the footer and the Delete dialog count the same rows.
+  const selection = useVisibleSelection(
+    items.map((doc) => doc.id),
+    `${signature}|${pager.cursor ?? ""}`,
+  );
   const filtered = Boolean(query.status || query.errorCode || query.kind || query.tag || query.q);
   const ocr = ocrStateOf(source);
   // A partly scanned PDF retried while OCR can't read the source would be indexed again without its scanned pages.
@@ -181,17 +190,33 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
               <RetryNeedsOcr blocked={maintenance ? maintenanceReason(maintenance, "Retrying") : ocrBlocked} mutations={mutations} />
             ) : undefined,
           selectable: owner.canEdit,
+          selectedIds: selection.selectedIds,
+          onSelectionChange: selection.onSelectionChange,
           selectedLabel: (n) => `${plural(n, web ? "page" : "document")} selected`,
           bulkActions: owner.canEdit
             ? (ids, clear) => {
                 const picked = ids.map((id) => byId.get(id)).filter((doc): doc is Doc => Boolean(doc));
                 const retryable = picked.filter((doc) => canRetry(doc) && !blockedFor(doc));
+                const noRetry = maintenance
+                  ? maintenanceReason(maintenance, "Retrying")
+                  : retryable.length > 0
+                    ? undefined
+                    : picked.some(canRetry)
+                      ? ocrBlocked
+                      : `Only failed, skipped or partly scanned ${noun} can be retried.`;
                 return (
                   <>
-                    <Button size="sm" variant="secondary" disabled={retryable.length === 0 || Boolean(maintenance)} loading={mutations.retry.isPending} onClick={() => mutations.retry.mutate(retryable, { onSuccess: clear })}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={Boolean(noRetry)}
+                      title={noRetry}
+                      loading={mutations.retry.isPending}
+                      onClick={() => mutations.retry.mutate(retryable, { onSuccess: clear })}
+                    >
                       <RotateCcw aria-hidden /> Retry{retryable.length > 0 && retryable.length < picked.length ? ` ${retryable.length}` : ""}
                     </Button>
-                    <Button size="sm" variant="danger" onClick={() => setDeleting(picked)}>
+                    <Button size="sm" variant="danger" disabled={picked.length === 0} onClick={() => setDeleting(picked)}>
                       <Trash2 aria-hidden /> Delete
                     </Button>
                   </>
@@ -223,7 +248,15 @@ export function DocumentsTable({ source, onUpload }: { source: DataSource; onUpl
         confirmLabel={deleteWording(deleting?.length ?? 1, web).confirm}
         busy={mutations.remove.isPending}
         error={mutations.remove.error}
-        onConfirm={() => deleting && mutations.remove.mutate(deleting, { onSuccess: () => setDeleting(null) })}
+        onConfirm={() =>
+          deleting &&
+          mutations.remove.mutate(deleting, {
+            onSuccess: (gone) => {
+              selection.drop(gone.map((doc) => doc.id));
+              setDeleting(null);
+            },
+          })
+        }
       />
     </>
   );

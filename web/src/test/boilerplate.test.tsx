@@ -22,8 +22,12 @@ describe("boilerplate helpers", () => {
     expect(boilerplateHeadline(webSource({ boilerplate: boilerplate({ pending: true }) }))).toBe("Checking for repeated blocks…");
     expect(boilerplateHeadline(webSource({ boilerplate: boilerplate() }))).toBe("No repeated blocks found.");
     expect(boilerplateHeadline(webSource({ boilerplate: boilerplate({ enabled: false }) }))).toBe("Off: repeated blocks are kept.");
-    expect(boilerplateRule(webSource({ boilerplate: found }))).toBe("Blocks in at least 40 of 200 pages (5 or 20%, whichever is more); one copy is kept.");
-    expect(boilerplateRule(webSource({ boilerplate: boilerplate() }))).toMatch(/at least 5 or 20%/);
+    expect(boilerplateRule(webSource({ boilerplate: found }))).toBe("Blocks in at least 40 of 200 pages (5 pages or 20%, whichever is more); one copy is kept.");
+    expect(boilerplateRule(webSource({ boilerplate: boilerplate() }))).toBe("Blocks repeated in at least 5 pages or 20% of them, whichever is more; one copy is kept.");
+    // Found but removed nowhere: the pages have no other text (VI-11).
+    const kept = boilerplate({ repeatedBlocks: 1, pagesAffected: 0, documentsCounted: 97, threshold: 20 });
+    expect(boilerplateHeadline(webSource({ boilerplate: kept }))).toBe("1 repeated block found, kept: it's the only text on the pages that have it.");
+    expect(boilerplateHeadline(webSource({ boilerplate: { ...kept, pending: true } }))).toBe("1 repeated block found; removing it…");
   });
 });
 

@@ -88,3 +88,8 @@
 .nowrap {
   white-space: nowrap;
 }
+
+/* A stat card's linked agent names (VI-13). */
+.usedByLinks {
+  overflow-wrap: anywhere;
+}

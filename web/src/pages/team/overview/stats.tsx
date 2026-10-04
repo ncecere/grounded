@@ -1,6 +1,7 @@
 /*
  * The team's counts at a glance (W5, Q10): data sources, knowledge bases,
- * agents and documents ready. Each card is a link to the page it counts.
+ * agents and documents ready. Each card is a link to the page it counts, and
+ * each has a caption, so the row's cards are the same height (VI-14).
  */
 import { Link } from "@tanstack/react-router";
 import { Bot, Database, FileCheck2, Library } from "lucide-react";
@@ -29,28 +30,28 @@ export function QuickCounts() {
         label="Data sources"
         value={show(sources, sources.data?.length)}
         icon={<Database />}
-        hint={sources.error ? "Couldn't load sources" : failing > 0 ? `${plural(failing, "source")} with failed documents` : undefined}
+        hint={sources.error ? "Couldn't load sources" : failing > 0 ? `${plural(failing, "source")} with failed documents` : sources.data?.length ? "No failed documents" : "None yet"}
         render={toSources}
       />
       <StatCard
         label="Knowledge bases"
         value={show(kbs, kbs.data?.length)}
         icon={<Library />}
-        hint={kbs.error ? "Couldn't load knowledge bases" : kbs.data?.length && agents.data ? `${kbsInUse.toLocaleString()} used by agents` : undefined}
+        hint={kbs.error ? "Couldn't load knowledge bases" : kbs.data?.length ? `${kbsInUse.toLocaleString()} used by agents` : "None yet"}
         render={<Link to="/teams/$team/kbs" params={{ team: slug }} />}
       />
       <StatCard
         label="Agents"
         value={show(agents, agents.data?.length)}
         icon={<Bot />}
-        hint={agents.error ? "Couldn't load agents" : agents.data?.length ? `${live.toLocaleString()} live` : undefined}
+        hint={agents.error ? "Couldn't load agents" : agents.data?.length ? `${live.toLocaleString()} live` : "None yet"}
         render={<Link to="/teams/$team/agents" params={{ team: slug }} />}
       />
       <StatCard
         label="Documents ready"
         value={show(sources, docs.ready)}
         icon={<FileCheck2 />}
-        hint={sources.data ? `of ${plural(docs.total, "document")}` : undefined}
+        hint={`of ${plural(docs.total, "document")}`}
         render={toSources}
       />
     </section>
