@@ -57,3 +57,10 @@
     linear-gradient(transparent, var(--color-surface) 70%) center bottom / 100% 2.5rem no-repeat local,
     radial-gradient(farthest-side at 50% 100%, color-mix(in srgb, var(--color-text) 18%, transparent), transparent) center bottom / 100% 0.75rem no-repeat scroll;
 }
+
+/* The composer's outline is a shadow just outside its box, and the chat panel around it clips
+   its overflow: inset it by the shadow's width so its bottom and sides aren't cut off (BU-19). */
+.testPanel form {
+  width: calc(100% - 4px);
+  margin-block-end: 2px;
+}

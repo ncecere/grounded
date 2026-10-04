@@ -53,7 +53,8 @@ test("the Build tab fits the window at every size, with every section open and s
       const config = page.locator("#agent-build-config");
       await expect(config).toBeVisible();
       if (width === 1440) await a11y(page);
-      expect(await overflow(page)).toEqual({ extra: 0, scrollY: 0, escaped: [] });
+      // Once the split has measured its place (a frame after the page settles).
+      await expect.poll(() => overflow(page)).toEqual({ extra: 0, scrollY: 0, escaped: [] });
 
       // Bottom up, with the pane scrolled to its top before each (the builder's worst case), then top down.
       for (const name of [...sections].reverse()) {
@@ -125,4 +126,41 @@ test("a widget key's secret shows after Create key, with origins added with Ente
   await expect(page.getByText("Shown once. It's already in the code below: copy the code now.")).toBeVisible();
   await expect(page.getByRole("alertdialog", { name: "Leave without saving?" })).toHaveCount(0);
   await a11y(page, "the new key's secret");
+});
+
+test("the Share tab follows publishing to Public at once, and editors can't change the public agent's name or look", async ({ as, admin, a11y }) => {
+  test.setTimeout(90_000);
+  const owner = await Api.signIn("alex");
+  const team = await createTeam(admin, owner, { prefix: "share-live", members: { casey: "editor" } });
+  const { agent } = await publishedAgent(owner, team, { name: "Share helper" });
+  await owner.dispose();
+  const page = await as("alex");
+  await page.goto(`/teams/${team}/agents/${agent.id}?tab=share`);
+  await expect(page.getByText("Sign-in needed")).toBeVisible();
+  await a11y(page);
+  await page.getByRole("radio", { name: "Team members" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("radio", { name: "Public", exact: true })).toBeChecked();
+  await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible();
+  await page.getByRole("button", { name: "Publish" }).click();
+  const publish = page.getByRole("dialog", { name: /^Publish version 2/ });
+  await publish.getByRole("button", { name: "Publish" }).click();
+  await expect(publish).toBeHidden({ timeout: 30_000 });
+  // Without a reload (BU-03).
+  await expect(page.getByText("Both work without signing in.")).toBeVisible();
+  await expect(page.getByText("Sign-in needed")).toHaveCount(0);
+  await expect(page.getByText("The widget works once the agent is published to the Public audience.")).toHaveCount(0);
+  await a11y(page, "share after publishing to Public");
+
+  // An editor sees the name, address and look read-only, with the reason (BU-09; the API refuses them too).
+  const editor = await as("casey");
+  await editor.goto(`/teams/${team}/agents/${agent.id}?tab=settings`);
+  await expect(editor.getByText(/This agent is live for Public, so only team admins and owners can change what's here/)).toBeVisible();
+  await expect(editor.getByRole("textbox", { name: "Name" })).toBeDisabled();
+  await expect(editor.getByRole("textbox", { name: "Address" })).toBeDisabled();
+  await a11y(editor);
+  await editor.goto(`/teams/${team}/agents/${agent.id}?tab=appearance`);
+  await expect(editor.getByRole("textbox", { name: /Welcome message/ })).toBeDisabled();
+  await a11y(editor);
 });
