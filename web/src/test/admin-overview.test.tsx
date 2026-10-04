@@ -158,7 +158,7 @@ describe("admin overview", () => {
     const systemOne = await featureRow("SystemOne");
     // What agents use, not only the platform defaults.
     expect(await within(systemOne).findByText("Configured · checks on 2 agents")).toBeInTheDocument();
-    expect(within(systemOne).getByText("Published agents use citation checks on 2 agents and passage judging on 1 agent, by their own setting or the platform default.")).toBeInTheDocument();
+    expect(within(systemOne).getByText("Citation checks on 2 published agents and passage judging on 1, by each agent's own setting or the platform default.")).toBeInTheDocument();
     expect(within(systemOne).getByRole("link", { name: /SystemOne/ })).toHaveAttribute("href", "/admin/systemone");
     const pub = await featureRow("Public access");
     expect(await within(pub).findByText("On")).toBeInTheDocument();

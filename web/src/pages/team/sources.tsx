@@ -92,7 +92,7 @@ export function SourcesPage() {
 
 /** The Sources tab: the team's sources, with the knowledge bases using each. */
 function SourcesList({ onCreate }: { onCreate?: () => void }) {
-  const { slug, canEdit } = useTeam();
+  const { slug, canEdit, archived } = useTeam();
   const sources = useSources(slug);
   const kbs = useKBs(slug);
   const levels = useClassificationLevels();
@@ -111,7 +111,11 @@ function SourcesList({ onCreate }: { onCreate?: () => void }) {
       empty={{
         icon: <Database />,
         title: "No data sources yet.",
-        description: canEdit ? "Create one to upload files or index a website." : "Editors, admins and owners can create data sources.",
+        description: canEdit
+          ? "Create one to upload files or index a website."
+          : archived
+            ? "This team is archived: nothing new can be added."
+            : "Editors, admins and owners can create data sources.",
         action: onCreate && (
           <Button variant="secondary" onClick={onCreate}>
             <Plus aria-hidden /> New data source

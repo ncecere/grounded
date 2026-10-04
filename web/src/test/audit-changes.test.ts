@@ -135,6 +135,10 @@ describe("audit filters", () => {
     expect(personFilter(undefined)).toEqual({});
   });
 
+  it("doesn't repeat a retention run after its action (AD-36)", () => {
+    expect(entryTitle({ action: "retention.purge", after: null, targetLabel: "Retention run", targetType: "retention" })).toBe("Retention deleted expired data");
+  });
+
   it("names statuses and roles in words, never their codes (AD-29)", () => {
     const status = { action: "agent.status", before: { status: "active" }, after: { status: "disabled_by_team", reason: "" } };
     expect(changeSummary(status)).toBe("Status Enabled → Disabled by team");

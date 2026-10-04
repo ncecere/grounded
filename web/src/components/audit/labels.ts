@@ -357,8 +357,11 @@ export const targetTypeLabels: Record<string, string> = {
   user: "User",
 };
 
-/** Target types that are a platform setting: an entry's action names it ("Turned OAuth sign-in for MCP clients on"). */
-const settingsTargets = new Set(["mcp_settings", "answer_cache_settings"]);
+/**
+ * Target types the action already names: platform settings ("Turned OAuth sign-in for MCP clients on") and a retention
+ * run ("Retention deleted expired data", not "…: Retention run", AD-36).
+ */
+const settingsTargets = new Set(["mcp_settings", "answer_cache_settings", "retention"]);
 
 /**
  * An entry's action and target in one line for a short list ("Changed a team budget: QA Team"), leaving out a target
