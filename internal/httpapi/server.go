@@ -314,6 +314,7 @@ func (a *api) platformAdminRoutes() []route {
 		{"PUT", "/v1/admin/limits", a.admin(a.adminUpdateLimits)},
 		{"POST", "/v1/admin/classifications", a.admin(a.adminCreateClassification)},
 		{"PATCH", "/v1/admin/classifications/{key}", a.admin(a.adminUpdateClassification)},
+		{"DELETE", "/v1/admin/classifications/{key}", a.admin(a.adminDeleteClassification)},
 		{"GET", "/v1/admin/audit", a.admin(a.adminListAudit)},
 		{"GET", "/v1/admin/audit/{entryId}", a.admin(a.adminGetAuditEntry)},
 		{"GET", "/v1/admin/agents", a.admin(a.adminListAgents)},

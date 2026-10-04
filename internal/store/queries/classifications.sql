@@ -25,3 +25,13 @@ RETURNING *;
 
 -- name: LockClassificationConfig :exec
 SELECT pg_advisory_xact_lock(7378431001);
+
+-- name: ClassificationUsage :one
+-- What refers to a level (AD-05: only an unused level can be deleted).
+SELECT (SELECT count(*) FROM teams t WHERE t.max_classification = @key::text)::bigint AS teams,
+       (SELECT count(*) FROM models m WHERE m.max_classification = @key::text)::bigint AS models,
+       (SELECT count(*) FROM data_sources ds WHERE ds.classification = @key::text)::bigint AS sources,
+       (SELECT count(*) FROM mcp_servers ms WHERE ms.max_classification = @key::text)::bigint AS mcp_servers;
+
+-- name: DeleteClassification :exec
+DELETE FROM classification_levels WHERE key = @key;

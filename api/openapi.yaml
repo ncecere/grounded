@@ -1182,6 +1182,23 @@ paths:
         "409": { $ref: "#/components/responses/ErrorReply" }
         "412": { $ref: "#/components/responses/ErrorReply" }
         "428": { $ref: "#/components/responses/ErrorReply" }
+    delete:
+      tags: [admin]
+      operationId: adminDeleteClassification
+      summary: Delete an unused classification level (platform admins; audited)
+      description: >-
+        409 classification_in_use when teams, models, data sources or MCP
+        servers use the level (details.uses counts each); 409
+        last_classification for the only level.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      responses:
+        "200": { $ref: "#/components/responses/OkReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/audit:
     get:
       tags: [admin]

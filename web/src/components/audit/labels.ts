@@ -70,6 +70,7 @@ const actionLabels: Record<string, string> = {
   "costs.extension_grant": "Granted a budget extension",
   "platform.bootstrap_role": "Granted first admin role",
   "platform.classification_create": "Added classification level",
+  "platform.classification_delete": "Deleted classification level",
   "platform.classification_update": "Changed classification level",
   "platform.connection_create": "Added model connection",
   "platform.connection_update": "Changed model connection",

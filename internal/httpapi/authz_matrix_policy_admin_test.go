@@ -88,6 +88,10 @@ var adminPolicies = map[string]policy{
 	"adminUpdateClassification": {own: padmin, build: func(c *mctx) request {
 		return patch("/v1/admin/classifications/open", map[string]any{"description": upd}).h(ifMatch(c.classificationRev("open")))
 	}},
+	// Open is used by the fixtures' teams and sources: refused for what uses it, past authorization.
+	"adminDeleteClassification": {own: padmin, also: []string{"409 classification_in_use"}, build: func(c *mctx) request {
+		return del("/v1/admin/classifications/open").h(ifMatch(c.classificationRev("open")))
+	}},
 
 	// Audit, key rotation, retention and legal holds.
 	"adminListAudit":          adminRead("/v1/admin/audit"),

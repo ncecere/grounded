@@ -11226,6 +11226,12 @@ type AdminListBreakGlassReadsParams struct {
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// AdminDeleteClassificationParams defines parameters for AdminDeleteClassification.
+type AdminDeleteClassificationParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // AdminUpdateClassificationParams defines parameters for AdminUpdateClassification.
 type AdminUpdateClassificationParams struct {
 	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.

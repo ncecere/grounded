@@ -782,7 +782,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete an unused classification level (platform admins; audited)
+         * @description 409 classification_in_use when teams, models, data sources or MCP servers use the level (details.uses counts each); 409 last_classification for the only level.
+         */
+        delete: operations["adminDeleteClassification"];
         options?: never;
         head?: never;
         /** Change a classification level's name, description or maximum audience */
@@ -12305,6 +12309,28 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+        };
+    };
+    adminDeleteClassification: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
         };
     };
     adminUpdateClassification: {

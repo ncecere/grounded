@@ -399,6 +399,25 @@ func TestClassificationLevels(t *testing.T) {
 	}
 	code, e = user.call("POST", "/v1/admin/classifications", map[string]any{"key": "x1", "name": "X", "rank": 9, "maxAudience": "team"}, nil, nil)
 	mustCode(t, "non-admin creates level", code, e, 403, "forbidden")
+
+	// AD-05: an unused level can be deleted; a used one is refused with what uses it.
+	createTeam(t, admin, "phi-team", "admin@localhost")
+	var team apitypes.TeamSummary
+	code, e = admin.call("PATCH", "/v1/admin/teams/phi-team", map[string]any{"maxClassification": "phi"}, &team, ifMatch(1))
+	mustCode(t, "approve the team for phi", code, e, 200, "")
+	code, raw := admin.raw("DELETE", "/v1/admin/classifications/phi", nil, ifMatch(created.Revision))
+	if code != 409 || !strings.Contains(string(raw), "classification_in_use") || !strings.Contains(string(raw), "1 team") {
+		t.Errorf("delete a used level = %d %s", code, raw)
+	}
+	code, e = admin.call("PATCH", "/v1/admin/teams/phi-team", map[string]any{"maxClassification": "sensitive"}, nil, ifMatch(team.Team.Revision))
+	mustCode(t, "move the team back", code, e, 200, "")
+	code, e = user.call("DELETE", "/v1/admin/classifications/phi", nil, nil, ifMatch(created.Revision))
+	mustCode(t, "non-admin deletes level", code, e, 403, "forbidden")
+	code, e = admin.call("DELETE", "/v1/admin/classifications/phi", nil, nil, ifMatch(created.Revision))
+	mustCode(t, "delete an unused level", code, e, 200, "")
+	if admin.get("/v1/classifications", &levels); len(levels) != 3 {
+		t.Errorf("levels after delete = %+v", levels)
+	}
 }
 
 // Two owners removing each other at the same moment must never leave the
