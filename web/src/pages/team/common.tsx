@@ -165,3 +165,7 @@ export function profileName(profiles: ProfileOption[] | undefined, id: string) {
 export const formatBytes = (n: number) => formatStorage(n);
 
 export const plural = (n: number, one: string, many = one + "s") => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+
+/** The save bar's text while fields are invalid: "Not saved: fix the highlighted field", or "… the 4 highlighted fields" (BU-16). */
+export const notSavedText = (invalidFields: number) =>
+  invalidFields > 1 ? `Not saved: fix the ${invalidFields} highlighted fields` : "Not saved: fix the highlighted field";

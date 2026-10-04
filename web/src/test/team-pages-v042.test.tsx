@@ -2,7 +2,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Schemas } from "../api/client";
-import { TeamContext, teamCtx } from "../pages/team/common";
+import { TeamContext, notSavedText, teamCtx } from "../pages/team/common";
 import { runOptionLabel } from "../pages/team/evaluations/labels";
 import { sliderText } from "../pages/team/kbs/fusion";
 import { KBSettings } from "../pages/team/kbs/settings";
@@ -188,5 +188,12 @@ describe("no layout shift as the overview loads (VI-14, VI-14b)", () => {
     release();
     expect(await screen.findByRole("heading", { name: "Your teams" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Continue where you left off" })).toBeInTheDocument();
+  });
+});
+
+describe("save bar wording (BU-16)", () => {
+  it("counts the invalid fields", () => {
+    expect(notSavedText(1)).toBe("Not saved: fix the highlighted field");
+    expect(notSavedText(4)).toBe("Not saved: fix the 4 highlighted fields");
   });
 });
