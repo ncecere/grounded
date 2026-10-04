@@ -179,6 +179,7 @@ type loopState struct {
 	textSoFar    strings.Builder
 	thinkSoFar   strings.Builder
 	newText      bool // the current assistant message has not produced text yet
+	msgText      int  // where the current assistant message's text starts in textSoFar
 	newThinking  bool
 	toolCalls    int
 	answerStarts bool // the model responded (streaming started)
@@ -237,6 +238,9 @@ func (ru *run) onDelta(le *llm.Event, st *loopState) {
 	switch le.Type {
 	case llm.EventTextDelta:
 		ru.markFirstToken()
+		if st.newText {
+			st.msgText = st.textSoFar.Len()
+		}
 		if st.newText && st.textSoFar.Len() > 0 && !strings.HasSuffix(st.textSoFar.String(), "\n") {
 			st.textSoFar.WriteString("\n\n")
 			ru.sendDelta("text_delta", "\n\n")
@@ -259,7 +263,32 @@ func (ru *run) onDelta(le *llm.Event, st *loopState) {
 		st.newThinking = false
 		st.thinkSoFar.WriteString(le.Delta)
 		ru.sendDelta("thinking_delta", le.Delta)
+	case llm.EventTextToThinking:
+		ru.textWasThinking(st)
 	}
+}
+
+// textWasThinking drops the current message's text: it was the model's
+// reasoning, ended by a bare </think> (v0.4.2 BU-02, llm/thinktags.go). A
+// streamed answer's message_end replaces what the reader saw; a buffered
+// one (public page, widget) never showed it.
+func (ru *run) textWasThinking(st *loopState) {
+	if st.newText {
+		return // nothing of this message's text was taken
+	}
+	all := st.textSoFar.String()
+	dropped := strings.TrimLeft(all[st.msgText:], "\n")
+	st.textSoFar.Reset()
+	st.textSoFar.WriteString(all[:st.msgText])
+	st.newText = true
+	if strings.TrimSpace(dropped) == "" {
+		return
+	}
+	if st.thinkSoFar.Len() > 0 {
+		dropped = "\n\n" + dropped
+	}
+	st.thinkSoFar.WriteString(dropped)
+	ru.sendDelta("thinking_delta", dropped)
 }
 
 // stepOutcome is a tool call's step in words: why it failed or wasn't made

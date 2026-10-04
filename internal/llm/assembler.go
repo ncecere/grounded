@@ -32,6 +32,11 @@ type assembler struct {
 	// pendingSpace holds whitespace-only text deltas that arrived while no
 	// text block was open (appendContent).
 	pendingSpace string
+	// Think tags in content (thinktags.go): a held partial tag, inside
+	// <think>, and just after a closing tag (the answer's leading
+	// whitespace is dropped).
+	tagHold             string
+	inThink, afterThink bool
 
 	calls     map[int]*callState // by stream index (synthetic negative keys when absent)
 	lastCall  *callState
@@ -247,7 +252,7 @@ func (a *assembler) handle(ch *chunk) bool {
 		a.appendText(true, t)
 	}
 	if d.Content != nil && *d.Content != "" {
-		a.appendContent(*d.Content)
+		a.content(*d.Content)
 	}
 	for _, tc := range d.ToolCalls {
 		a.appendToolCall(tc)
@@ -279,6 +284,7 @@ func (a *assembler) finish(sawDone bool) {
 		}
 		return
 	}
+	a.flushTags()
 	a.closeOpen()
 	hasCalls := false
 	for i, b := range a.msg.Content {
@@ -318,6 +324,7 @@ func (a *assembler) fail(reason StopReason, kind, message string, err error) {
 	if a.terminated {
 		return
 	}
+	a.flushTags()
 	for _, cs := range a.calls {
 		if !cs.ended {
 			a.finalizeCall(cs)
