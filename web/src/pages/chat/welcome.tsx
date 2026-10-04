@@ -2,7 +2,7 @@
 import { ConversationEmptyState } from "@/components/ui/conversation/conversation";
 import { MessageAvatar } from "@/components/ui/message/message";
 import { Suggestion, Suggestions } from "@/components/ui/suggestion/suggestion";
-import c from "./chat.module.css";
+import c from "./welcome.module.css";
 import pm from "./panel.module.css";
 
 export type AgentLook = {

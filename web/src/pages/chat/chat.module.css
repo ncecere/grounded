@@ -64,49 +64,6 @@
   margin-top: 0.2em;
 }
 
-/* The widget's welcome is smaller (panel.module.css). */
-.welcome {
-  gap: var(--welcome-gap, var(--space-3));
-}
-
-/*
- * A short window (200% zoom, a phone on its side): the welcome without its avatar and with less space around it, so
- * the starter questions show above the composer (US2-13).
- */
-@media (max-height: 32rem) {
-  .welcome.welcome {
-    padding-block: var(--space-2);
-  }
-
-  .welcomeAvatar {
-    display: none;
-  }
-
-  .pagePanel .content.content {
-    padding-block: var(--space-3);
-  }
-}
-
-.welcomeName {
-  margin: var(--space-1) 0 0;
-  font-size: var(--welcome-name-size, var(--font-size-xl));
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-tight);
-}
-
-.welcomeText {
-  max-width: 36rem;
-  margin: 0;
-  color: var(--color-text-muted);
-  line-height: var(--line-height-normal);
-  white-space: pre-wrap;
-}
-
-.starters {
-  max-width: 44rem;
-  margin-top: var(--welcome-starters-gap, var(--space-3));
-}
-
 /* ---------------- chat page ---------------- */
 
 /*
@@ -114,29 +71,6 @@
  * fullBleed): the conversation list flush against the app sidebar, and the
  * thread. Only the list and the messages scroll, never the page.
  */
-/* "Skip to message box": hidden until focused, then drawn like the shell's Skip to content (US2-04). Out of the grid's flow. */
-.skipToComposer {
-  position: absolute;
-  top: var(--space-2);
-  left: var(--space-2);
-  z-index: var(--z-toast);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-control);
-  background-color: var(--color-surface-raised);
-  box-shadow: var(--shadow-3);
-  color: var(--color-link);
-  font-weight: var(--font-weight-medium);
-
-  &:not(:focus) {
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-}
-
 .page {
   position: relative;
   display: grid;
@@ -354,6 +288,13 @@
 
 .pageViewport {
   scrollbar-gutter: stable both-edges;
+}
+
+/* A short window (200% zoom): less padding around the welcome, so its starters show (US2-13, welcome.module.css). */
+@media (max-height: 32rem) {
+  .pagePanel .content.content {
+    padding-block: var(--space-3);
+  }
 }
 
 .pagePanel .content {

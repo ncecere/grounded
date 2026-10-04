@@ -29,6 +29,7 @@ import { useChat } from "./useChat";
 import { AgentAvatar } from "./welcome";
 import a from "./agent-info.module.css";
 import c from "./chat.module.css";
+import pm from "./panel.module.css";
 
 type Card = Schemas["AgentCard"];
 
@@ -162,7 +163,7 @@ function AgentChat({ card }: { card: Card }) {
       {/* After the shell's Skip to content: past the conversation list, straight to the box (US2-04). */}
       <a
         href="#chat-composer"
-        className={c.skipToComposer}
+        className={pm.skipToComposer}
         onClick={(e) => {
           e.preventDefault();
           inputRef.current?.focus();
