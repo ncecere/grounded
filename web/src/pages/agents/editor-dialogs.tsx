@@ -36,7 +36,7 @@ export function StatusDialog({ agent, d, onClose }: { agent: Agent; d: AgentDraf
       open
       onOpenChange={(o) => !o && onClose()}
       title={enabling ? `Enable ${agent.name}?` : `Disable ${agent.name}?`}
-      description={enabling ? "Team members can chat with it again." : "Nobody can chat with it until it's enabled again. Conversations are kept."}
+      description={enabling ? "People who can use it can chat with it again." : "Nobody can chat with it until it's enabled again. Conversations are kept."}
       footer={
         <>
           <DialogClose>Cancel</DialogClose>

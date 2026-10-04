@@ -23,6 +23,7 @@ import { editorTabs } from "@/lib/tabs";
 import { audienceLabel } from "@/lib/terms";
 import { useSearchParams } from "@/lib/url-search";
 import s from "../shared.module.css";
+import { ReadOnlyNotice } from "../team/access";
 import { ArchivedNotice, PageSkeleton } from "../team/layout";
 import { agentQuery, useTeam } from "../team/common";
 import { AnalyticsTab } from "./analytics/tab";
@@ -107,7 +108,7 @@ function Editor({ agent }: { agent: Agent }) {
       <Stack gap={6} className={s.page}>
         <PageHeader title={current.name} description={current.description || undefined} meta={<AgentStatusBadge agent={current} />} actions={live ? <ChatButton agent={current} /> : undefined} />
         {/* The same reason every team page gives for an archived team (F-16). */}
-        {archived ? <ArchivedNotice>Its agents can be viewed but not changed.</ArchivedNotice> : <Alert tone="info">Only editors, admins and owners can configure agents.</Alert>}
+        {archived ? <ArchivedNotice>Its agents can be viewed but not changed.</ArchivedNotice> : <ReadOnlyNotice what="agents" />}
         {current.published && <ConfigSummary config={current.published.config} kbs={current.published.knowledgeBases} modelName={current.published.chatModelName} tools={current.published.tools} />}
       </Stack>
     );

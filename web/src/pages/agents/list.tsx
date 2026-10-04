@@ -104,8 +104,9 @@ export function AgentsPage() {
       sortable: true,
       cell: (ag) => (
         <span className={a.versionCell}>
+          {/* The live version and when it was published; an unpublished agent shows when it was last edited (BU-20). */}
           {ag.published ? `v${ag.published.version} · ` : ""}
-          <RelativeTime value={ag.updatedAt} />
+          <RelativeTime value={ag.published?.publishedAt ?? ag.updatedAt} />
         </span>
       ),
     },

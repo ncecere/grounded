@@ -86,7 +86,7 @@ function LinksCard({ sharing, published }: { sharing: Sharing; published: boolea
             <span className={sh.note}>Not published yet: the links work once a version is published.</span>
           ) : open ? (
             <>
-              <Badge tone="success">Public</Badge> {sharing.links.short ? "All three" : "Both"} work without signing in.
+              <Badge tone="success">Public</Badge> {signedOutLinks(sharing.links)}
             </>
           ) : (
             <>
@@ -151,4 +151,10 @@ function Preview({ team, agent }: { team: string; agent: Agent }) {
       </WebPreview>
     </section>
   );
+}
+
+/** Says how many of the shown addresses work signed out, counting the ones there are (BU-16). */
+function signedOutLinks(links: Sharing["links"]): string {
+  const n = [links.short, links.id, links.team].filter(Boolean).length;
+  return n >= 3 ? "All three work without signing in." : n === 2 ? "Both work without signing in." : "It works without signing in.";
 }
