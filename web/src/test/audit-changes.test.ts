@@ -147,4 +147,14 @@ describe("audit filters", () => {
     const user = { action: "platform.user_suspend", before: { platformRole: "none", status: "active" }, after: { platformRole: "none", status: "suspended" } };
     expect(changeSummary(user)).toBe("Status Active → Suspended");
   });
+
+  it("summarises limit changes in words (AD2-20)", () => {
+    const platform = { action: "limits.platform_update", before: { data_sources: { default: 100, ceiling: null } }, after: { data_sources: { default: 150, ceiling: null } } };
+    expect(changeSummary(platform)).toBe("Data sources default 100 → 150");
+    const ceiling = { action: "limits.platform_update", before: { agents: { default: 25, ceiling: 50 } }, after: { agents: { default: 25, ceiling: null } } };
+    expect(changeSummary(ceiling)).toBe("Agents ceiling 50 → No ceiling");
+    const team = { action: "limits.team_update", before: { data_sources: 999 }, after: { data_sources: null } };
+    expect(changeSummary(team)).toBe("Data sources 999 → Platform default");
+    expect(changeSummary({ action: "limits.team_update", before: { agents: null }, after: { agents: 0 } })).toBe("Agents Platform default → Blocked");
+  });
 });

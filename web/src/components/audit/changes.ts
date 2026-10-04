@@ -155,6 +155,28 @@ function flatSettings(action: string, side: object): object {
   return { ...rest, ...nested };
 }
 
+/**
+ * Limits in words (AD2-20). A platform change records each limit as { default, ceiling }: one field each, so a
+ * one-limit change gets a summary ("Data sources default 100 → 150"), empty reading as Unlimited and No ceiling. A
+ * team's change records the override, where empty is the platform's default (not "none") and 0 is blocked.
+ */
+function limitsSide(action: string, side: object): object {
+  const entries = Object.entries(side as Record<string, unknown>);
+  if (action === "limits.platform_update") {
+    return Object.fromEntries(
+      entries.flatMap(([key, v]) => {
+        const s = (v ?? {}) as { default?: unknown; ceiling?: unknown };
+        return [
+          [`${plainKey(key)} default`, s.default ?? "Unlimited"],
+          [`${plainKey(key)} ceiling`, s.ceiling ?? "No ceiling"],
+        ];
+      }),
+    );
+  }
+  if (action === "limits.team_update") return Object.fromEntries(entries.map(([key, v]) => [plainKey(key), v === null ? "Platform default" : v === 0 ? "Blocked" : v]));
+  return side;
+}
+
 /** Added prices: the model, the day they start and each unit's price, by label. */
 function pricesAdded(after: unknown, currency?: string): Record<string, unknown> {
   const a = (after ?? {}) as { model?: unknown; effectiveFrom?: unknown; prices?: Record<string, unknown> };
@@ -174,7 +196,7 @@ export function auditChange(e: Pick<AuditEntry, "action" | "before" | "after">, 
     return { before: { Status: "Active", ...key }, after: { Status: "Revoked", ...key } };
   }
   const fields = fieldsFor(e.action, currency) ?? {};
-  const side = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? readable(flatSettings(e.action, v), fields) : (v ?? {}));
+  const side = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? readable(limitsSide(e.action, flatSettings(e.action, v)), fields) : (v ?? {}));
   return { before: side(e.before) as object, after: side(e.after) as object };
 }
 
