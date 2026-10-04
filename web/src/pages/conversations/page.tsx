@@ -155,14 +155,19 @@ function ConversationLink({ item }: { item: ConversationSummary }) {
   if (item.agentDeleted) {
     return (
       <Link to="/conversations/$conversationId" params={{ conversationId: item.id }} className={c.link}>
-        <span className={c.title}>{title}</span>
+        <span className={c.title} title={title}>
+          {title}
+        </span>
         {meta}
       </Link>
     );
   }
   return (
     <Link to="/a/$team/$agent" params={{ team: item.teamSlug, agent: item.agentSlug }} search={{ c: item.id }} className={c.link}>
-      <span className={c.title}>{title}</span>
+      {/* Cut to one line on a phone: the whole title on hover (VI2-13). */}
+      <span className={c.title} title={title}>
+        {title}
+      </span>
       {meta}
     </Link>
   );

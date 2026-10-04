@@ -194,7 +194,7 @@ function AgentChat({ card }: { card: Card }) {
             </h1>
             <p className={c.subtitle}>
               <AgentInfo card={card} />
-              {currentSummary?.title && <span className={a.subtitleConv}> · {currentSummary.title}</span>}
+              {currentSummary?.title && <span className={a.subtitleConv} title={currentSummary.title}> · {currentSummary.title}</span>}
             </p>
           </div>
           {currentSummary && <ConversationMenu conversation={currentSummary} onDeleted={newChat} label="Conversation actions" />}

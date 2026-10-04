@@ -539,6 +539,8 @@ describe("a deleted agent's conversation (G2)", () => {
     renderApp("/conversations");
     const link = await screen.findByRole("link", { name: /Parking permits/ });
     expect(link).toHaveAttribute("href", "/conversations/c7");
+    // A title cut on a phone shows in full on hover (VI2-13).
+    expect(within(link).getByText("Parking permits")).toHaveAttribute("title", "Parking permits");
   });
 
   it("sends a conversation whose agent exists to its chat page", async () => {
