@@ -21,7 +21,7 @@ import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
 import { NumberInput } from "@/components/ui/number-input/number-input";
 import { Switch } from "@/components/ui/switch/switch";
 import { toast } from "@/components/ui/toast/toast";
-import { fieldError } from "@/lib/field-errors";
+import { fieldError, useCurrentError } from "@/lib/field-errors";
 import s from "../shared.module.css";
 import { useClassifications, useIsPlatformAdmin } from "./hooks";
 import { useModels } from "./models/common";
@@ -206,7 +206,11 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
       const created = unwrap(
         await api.POST("/v1/admin/classifications", { body: { key: form.key, name: form.name, description: form.description, rank: form.rank, maxAudience: form.maxAudience } }),
       );
-      return unwrap(await api.PATCH("/v1/admin/classifications/{key}", { params: { path: { key: created.key }, header: ifMatch(created.revision) }, body: settings }));
+      // The create takes no settings: send only those that differ from the new level's, and nothing (no audit entry for a
+      // change that changes nothing) when none do (AD2-14).
+      const changed = Object.fromEntries(Object.entries(settings).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(created[k as keyof typeof settings])));
+      if (Object.keys(changed).length === 0) return created;
+      return unwrap(await api.PATCH("/v1/admin/classifications/{key}", { params: { path: { key: created.key }, header: ifMatch(created.revision) }, body: changed }));
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["classifications"] });
@@ -214,6 +218,8 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
       onClose();
     },
   });
+  // Gone once the form changes, so a fixed field can be sent again (AD2-04).
+  const error = useCurrentError(save.error, form);
   const toggleType = (t: SourceType, on: boolean) => set("allowedSourceTypes", on ? [...form.allowedSourceTypes, t] : form.allowedSourceTypes.filter((x) => x !== t));
   return (
     <FormPage
@@ -245,7 +251,7 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
         <Field label="Name">
           <Input required maxLength={64} value={form.name} onChange={(e) => set("name", e.target.value)} />
         </Field>
-        <Field label="Widest agent audience" error={fieldError(save.error, ["classification_order"])}>
+        <Field label="Widest agent audience" error={fieldError(error, ["classification_order"])}>
           <NativeSelect value={form.maxAudience} onChange={(e) => set("maxAudience", e.target.value as Audience)}>
             {Object.entries(audienceLabels).map(([v, l]) => (
               <option key={v} value={v}>
@@ -262,7 +268,7 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
         <Field
           label="Signed-in conversations (days)"
           description="Deleted this long after their last activity. Empty keeps them until deleted."
-          error={fieldError(save.error, ["invalid_retention"], "Conversation")}
+          error={fieldError(error, ["invalid_retention"], "Conversation")}
         >
           <NumberInput
             maximumFractionDigits={0}
@@ -273,7 +279,7 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
             onValueChange={(v) => set("conversationRetentionDays", v)}
           />
         </Field>
-        <Field label="Anonymous conversations (hours)" description="Public-page and widget conversations." error={fieldError(save.error, ["invalid_retention"], "Anonymous")}>
+        <Field label="Anonymous conversations (hours)" description="Public-page and widget conversations." error={fieldError(error, ["invalid_retention"], "Anonymous")}>
           <NumberInput maximumFractionDigits={0} min={1} max={876000} value={form.anonymousRetentionHours} onValueChange={(v) => set("anonymousRetentionHours", v)} />
         </Field>
       </FormSection>
@@ -297,7 +303,7 @@ function ClassificationForm({ level, onClose }: { level: Classification | null; 
           onCheckedChange={(v) => set("directRetrieve", v)}
         />
       </FormSection>
-      {!fieldError(save.error, ["invalid_retention", "classification_order"]) && <ErrorAlert error={save.error} />}
+      {!fieldError(error, ["invalid_retention", "classification_order"]) && <ErrorAlert error={error} />}
     </FormPage>
   );
 }

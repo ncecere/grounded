@@ -207,6 +207,7 @@ export function ModelsPage() {
           model={editing === "new" ? null : editing}
           connections={conns.data ?? []}
           kind={presetKind && presetKind in kindLabels ? presetKind : undefined}
+          connectionId={params.get("connection") ?? undefined}
           onClose={backToReranking ? () => void navigate({ to: "/admin/reranking" }) : form.close}
         />}
       <ConfirmMutationDialog

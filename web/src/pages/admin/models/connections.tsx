@@ -5,7 +5,7 @@
  * (details, test with "Add as model", edit).
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Pencil, Plug, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
+import { useSearchParams } from "@/lib/url-search";
 import s from "../../shared.module.css";
 import { useIsPlatformAdmin } from "../hooks";
 import { type Connection, EnabledBadge, useConnections, useModels } from "./common";
@@ -85,6 +86,11 @@ export function ConnectionsPage() {
   const setEditing = (c: Connection | "new") => form.open(c === "new" ? "new" : c.id);
   const adding = presetOf(form.id);
   const setAdding = (p: ModelPreset) => form.open(`model:${p.connectionId}:${p.upstreamModel}`);
+  // Reranking's setup guide opens Add connection (?from=reranking) and gets the new connection back, to test it there (AD2-06).
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const backToReranking = params.get("from") === "reranking" && form.id === "new";
+  const closeToReranking = (added?: Connection) => void navigate({ to: "/admin/reranking", search: (added ? { connection: added.id } : {}) as never });
   const add = isAdmin && (
     <Button onClick={() => setEditing("new")}>
       <Plus aria-hidden /> Add connection
@@ -134,7 +140,7 @@ export function ConnectionsPage() {
         onDelete={setDeleting}
         onAddModel={setAdding}
       />
-      {isAdmin && editing && <ConnectionForm conn={editing === "new" ? null : editing} onClose={form.close} />}
+      {isAdmin && editing && <ConnectionForm conn={editing === "new" ? null : editing} onClose={backToReranking ? closeToReranking : form.close} />}
       {isAdmin && adding && <ModelDialog model={null} connections={list} preset={adding} onClose={form.close} />}
       <ConfirmMutationDialog
         target={deleting}

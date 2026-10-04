@@ -23,7 +23,7 @@ export type ModelPreset = { connectionId: string; upstreamModel: string };
 
 type SetField = <K extends keyof ModelForm>(k: K, v: ModelForm[K]) => void;
 
-function useSaveModel(model: Model | null, form: ModelForm, onClose: () => void) {
+function useSaveModel(model: Model | null, form: ModelForm, onClose: (added?: Model) => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
@@ -31,51 +31,86 @@ function useSaveModel(model: Model | null, form: ModelForm, onClose: () => void)
       if (!model) return unwrap(await api.POST("/v1/admin/models", { body: { ...spec, connectionId: form.connectionId, key: form.key, kind: form.kind } }));
       return unwrap(await api.PATCH("/v1/admin/models/{modelId}", { params: { path: { modelId: model.id }, header: ifMatch(model.revision) }, body: spec }));
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin"] });
+    onSuccess: (saved) => {
+      // Not the connection test behind the suggestions: re-run now, it would store a health check for the new model
+      // that the pages read before it lands ("Not tested" on Reranking, "Healthy" on its record; AD2-10).
+      void qc.invalidateQueries({ queryKey: ["admin"], predicate: (q) => q.queryKey[1] !== "connection-test" });
       toast.success(model ? "Model saved" : "Model added");
-      onClose();
+      onClose(model ? undefined : saved);
     },
   });
 }
 
-type Props = { model: Model | null; connections: Connection[]; preset?: ModelPreset; kind?: ModelKind; onClose: () => void };
+type Props = {
+  model: Model | null;
+  connections: Connection[];
+  preset?: ModelPreset;
+  kind?: ModelKind;
+  /** The connection to start on (the Reranking guide's, after adding one there). */
+  connectionId?: string;
+  /** Called with the new model after Add, and with nothing on Cancel or after Save. */
+  onClose: (added?: Model) => void;
+};
+
+/**
+ * The connection the form uses: the one chosen, else the one asked for, else the first. Derived, not stored once: a
+ * form opened by its address (a reload, a bookmark, a link in a new tab) renders before the connections load, and the
+ * select shows the first while the form held none (AD2-03).
+ */
+export function chosenConnection(chosen: string, connections: Pick<Connection, "id">[], wanted?: string) {
+  if (connections.some((c) => c.id === chosen)) return chosen;
+  if (wanted && connections.some((c) => c.id === wanted)) return wanted;
+  return connections[0]?.id ?? "";
+}
 
 /** Add or edit a model on a form page, the form in sections by kind (A5). */
-export function ModelDialog({ model, connections, preset, kind, onClose }: Props) {
+export function ModelDialog({ model, connections, preset, kind, connectionId, onClose }: Props) {
   const listId = useId();
-  const [form, set] = useFormState(() => ({
+  const [stored, set, setForm] = useFormState(() => ({
     ...initialModelForm(model, connections),
     // Chosen beforehand, e.g. Rerank from the Reranking page's setup guide (OW-2).
     ...(kind && !model ? { kind } : {}),
     ...(preset && !model ? { ...preset, displayName: preset.upstreamModel, key: slugKey(preset.upstreamModel) } : {}),
   }));
+  const form = { ...stored, connectionId: model ? stored.connectionId : chosenConnection(stored.connectionId, connections, connectionId) };
   // Upstream model IDs advertised by the chosen connection, for suggestions.
   const available = useQuery({ ...connectionTestQuery(form.connectionId), enabled: !model && form.connectionId !== "", staleTime: 60_000 });
   const save = useSaveModel(model, form, onClose);
   const [submitted, setSubmitted] = useState(false);
   const usesChatCompat = form.kind === "chat" || form.kind === "vision" || (form.kind === "moderation" && form.moderationProvider === "chat_classifier");
   const extraBodyError = usesChatCompat ? parseExtraBody(form.extraBody).error : undefined;
+  const noConnection = !model && form.connectionId === "";
+  // The key follows the display name until it's typed (AD2-24), as an embedding profile's and a team's slug do.
+  const keyFollows = !model && (stored.key === "" || stored.key === slugKey(stored.displayName) || stored.key === slugKey(stored.upstreamModel));
+  const setDisplayName = (displayName: string) => setForm((f) => ({ ...f, displayName, ...(keyFollows ? { key: slugKey(displayName) } : {}) }));
 
   return (
     <FormPage
       label={model ? `Edit ${model.displayName}` : "Add model"}
       title={model ? `Edit ${model.displayName}` : "Add model"}
       description={model ? "The connection, kind and key are fixed." : "Offer a model from a connection to teams."}
-      onClose={onClose}
+      onClose={() => onClose()}
       onSubmit={() => {
         setSubmitted(true);
-        if (!extraBodyError) save.mutate();
+        if (!extraBodyError && !noConnection) save.mutate();
       }}
       submitLabel={model ? "Save model" : "Add model"}
       busy={save.isPending}
     >
       <FormSection title="Source">
-        <SourceFields model={model} connections={connections} form={form} set={set} listId={listId} suggested={!!available.data?.models.length} />
+        <SourceFields
+          model={model}
+          connections={connections}
+          form={form}
+          set={set}
+          listId={listId}
+          suggested={!!available.data?.models.length}
+          connectionError={submitted && noConnection ? "Choose a connection." : undefined}
+        />
       </FormSection>
       <FormSection title="Identity">
         <Field label="Display name">
-          <Input required maxLength={100} value={form.displayName} onChange={(e) => set("displayName", e.target.value)} />
+          <Input required maxLength={100} value={form.displayName} onChange={(e) => setDisplayName(e.target.value)} />
         </Field>
         <Field label="Description" labelHint="Optional" className={m.wide}>
           <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} />
@@ -135,13 +170,13 @@ function PolicyFields({ form, set }: { form: ModelForm; set: SetField }) {
   );
 }
 
-type IdentityProps = { model: Model | null; connections: Connection[]; form: ModelForm; set: SetField; listId: string; suggested: boolean };
+type IdentityProps = { model: Model | null; connections: Connection[]; form: ModelForm; set: SetField; listId: string; suggested: boolean; connectionError?: string };
 
 /** Connection, kind, upstream ID and key (connection, kind and key are fixed after creation). */
-function SourceFields({ model, connections, form, set, listId, suggested }: IdentityProps) {
+function SourceFields({ model, connections, form, set, listId, suggested, connectionError }: IdentityProps) {
   return (
     <>
-      <Field label="Connection" disabled={!!model}>
+      <Field label="Connection" disabled={!!model} error={connectionError}>
         <NativeSelect disabled={!!model} value={form.connectionId} onChange={(e) => set("connectionId", e.target.value)}>
           {connections.map((c) => (
             <option key={c.id} value={c.id}>
@@ -162,7 +197,7 @@ function SourceFields({ model, connections, form, set, listId, suggested }: Iden
       <Field label="Upstream model ID" description={suggested ? "Suggestions come from the connection." : "The model ID the proxy expects."}>
         <Input required list={listId} value={form.upstreamModel} onChange={(e) => set("upstreamModel", e.target.value)} />
       </Field>
-      <Field label="Key" description="Stable platform name. Can't be changed later." disabled={!!model}>
+      <Field label="Key" description="Stable platform name, from the display name until you type one. Can't be changed later." disabled={!!model}>
         <Input required disabled={!!model} pattern="[a-z0-9][a-z0-9._\-]{0,62}" value={form.key} onChange={(e) => set("key", e.target.value)} />
       </Field>
     </>

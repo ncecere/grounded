@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
 import { FormDialog } from "@/components/form-dialog";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
-import { fieldError } from "@/lib/field-errors";
+import { fieldError, useCurrentError } from "@/lib/field-errors";
 import { slugKey } from "./model-dialog";
 import { Button } from "@/components/ui/button/button";
 import { Checkbox } from "@/components/ui/checkbox/checkbox";
@@ -64,6 +64,8 @@ export function ProfileDialog({ onClose }: { onClose: () => void }) {
       onClose();
     },
   });
+  // Gone once the form changes, so a fixed field can be sent again (AD2-04).
+  const serverError = useCurrentError(save.error, form);
   // Not a FormDialog: there is no form (and no submit button) until an embedding model exists.
   return (
     <Dialog
@@ -96,11 +98,11 @@ export function ProfileDialog({ onClose }: { onClose: () => void }) {
             if (Object.keys(errors).length === 0) save.mutate();
           }}
         >
-          <ProfileFields form={form} set={set} setForm={setForm} embedding={embedding} selected={selected} errors={submitted ? errors : {}} serverError={save.error} />
+          <ProfileFields form={form} set={set} setForm={setForm} embedding={embedding} selected={selected} errors={submitted ? errors : {}} serverError={serverError} />
           <PrefixWarning form={form} hint={hint} onUse={() => setForm((f) => ({ ...f, documentPrefix: hint!.documentPrefix, queryPrefix: hint!.queryPrefix }))} />
           <FusionDefaultsFields value={form.fusion} onChange={(f) => set("fusion", f)} errors={submitted ? errors : {}} />
           <Checkbox label="Make this the default profile" checked={form.isDefault} onCheckedChange={(v) => set("isDefault", v)} />
-          {!fieldError(save.error, ["invalid_chunk_size", "invalid_chunk_overlap"]) && <ErrorAlert error={save.error} />}
+          {!fieldError(serverError, ["invalid_chunk_size", "invalid_chunk_overlap"]) && <ErrorAlert error={serverError} />}
         </Form>
       )}
     </Dialog>

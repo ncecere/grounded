@@ -6,7 +6,7 @@
  */
 import { plural } from "../../team/common";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
 import { api, ifMatch, unwrap } from "@/api/client";
@@ -21,7 +21,7 @@ import { Switch } from "@/components/ui/switch/switch";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { toast } from "@/components/ui/toast/toast";
 import { useFormState } from "@/lib/use-form-state";
-import { fieldError } from "@/lib/field-errors";
+import { fieldError, useCurrentError } from "@/lib/field-errors";
 import s from "../../shared.module.css";
 import { connectionTestQuery, type Connection, EnabledBadge, type Model, ProxyErrorText, TimingsText } from "./common";
 import { type HealthCheck, healthFacts, refreshHealth } from "./health";
@@ -174,8 +174,21 @@ export function ConnectionRecordPage({ conn, health, open, loading, onClose, mod
   );
 }
 
-/** Add or edit a connection on a form page. */
-export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onClose: () => void }) {
+type ConnectionProblems = Partial<Record<"timeoutSeconds" | "maxConcurrentRequests" | "requestsPerMinute", string>>;
+
+const wholeIn = (v: string, min: number, max: number) => /^\d+$/.test(v.trim()) && Number(v) >= min && Number(v) <= max;
+
+/** The limits' problems, checked before sending (the server checks the same ranges; AD2-21). */
+export function connectionProblems(f: { timeoutSeconds: string; maxConcurrentRequests: string; requestsPerMinute: string }): ConnectionProblems {
+  const out: ConnectionProblems = {};
+  if (!wholeIn(f.timeoutSeconds, 1, 600)) out.timeoutSeconds = "Enter a whole number of seconds from 1 to 600.";
+  if (!wholeIn(f.maxConcurrentRequests, 1, 256)) out.maxConcurrentRequests = "Enter a whole number from 1 to 256.";
+  if (f.requestsPerMinute.trim() !== "" && !wholeIn(f.requestsPerMinute, 0, 1000000)) out.requestsPerMinute = "Enter a whole number, or leave it empty for unlimited.";
+  return out;
+}
+
+/** Add or edit a connection on a form page. `onClose` gets the new connection after Add. */
+export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onClose: (added?: Connection) => void }) {
   const qc = useQueryClient();
   const [form, set] = useFormState({
     name: conn?.name ?? "",
@@ -195,28 +208,37 @@ export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onC
         name: form.name,
         description: form.description,
         baseUrl: form.baseUrl,
-        timeoutSeconds: Number(form.timeoutSeconds) || 60,
+        timeoutSeconds: Number(form.timeoutSeconds),
         requestsPerMinute: Number(form.requestsPerMinute) || 0,
-        maxConcurrentRequests: Number(form.maxConcurrentRequests) || 8,
+        maxConcurrentRequests: Number(form.maxConcurrentRequests),
         enabled: form.enabled,
       };
       if (!conn) return unwrap(await api.POST("/v1/admin/connections", { body: { ...common, apiKey: form.apiKey || undefined } }));
       const apiKey = form.removeKey ? "" : form.apiKey || undefined;
       return unwrap(await api.PATCH("/v1/admin/connections/{connectionId}", { params: { path: { connectionId: conn.id }, header: ifMatch(conn.revision) }, body: { ...common, apiKey } }));
     },
-    onSuccess: () => {
+    onSuccess: (saved) => {
       void qc.invalidateQueries({ queryKey: ["admin", "connections"] });
       toast.success(conn ? "Connection saved" : "Connection added");
-      onClose();
+      onClose(conn ? undefined : saved);
     },
   });
+  const [submitted, setSubmitted] = useState(false);
+  const problems = connectionProblems(form);
+  const shown = submitted ? problems : {};
+  // The server's refusal of what was sent; gone once the form changes, so a fixed field can be sent again (AD2-04).
+  const error = useCurrentError(save.error, form);
+  const urlError = fieldError(error, ["invalid_base_url"]);
   return (
     <FormPage
       label={conn ? `Edit ${conn.name}` : "Add connection"}
       title={conn ? `Edit ${conn.name}` : "Add connection"}
       description="API keys are stored encrypted and are never shown again."
-      onClose={onClose}
-      onSubmit={() => save.mutate()}
+      onClose={() => onClose()}
+      onSubmit={() => {
+        setSubmitted(true);
+        if (Object.keys(problems).length === 0) save.mutate();
+      }}
       submitLabel={conn ? "Save connection" : "Add connection"}
       busy={save.isPending}
     >
@@ -224,7 +246,7 @@ export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onC
         <Field label="Name" className={m.wide}>
           <Input required maxLength={100} value={form.name} onChange={(e) => set("name", e.target.value)} />
         </Field>
-        <Field label="Base URL" description="Include the API version, for example https://ai-gateway.example.edu/v1" className={m.wide} error={fieldError(save.error, ["invalid_base_url"])}>
+        <Field label="Base URL" description="Include the API version, for example https://ai-gateway.example.edu/v1" className={m.wide} error={urlError}>
           <Input type="url" required value={form.baseUrl} onChange={(e) => set("baseUrl", e.target.value)} />
         </Field>
         <Field
@@ -238,13 +260,22 @@ export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onC
         {conn?.hasApiKey && <Checkbox label="Remove the stored key" checked={form.removeKey} onCheckedChange={(v) => set("removeKey", v)} />}
       </FormSection>
       <FormSection title="Limits">
-        <Field label="Timeout (seconds)" description="1 to 600.">
+        <Field label="Timeout (seconds)" description="1 to 600." error={shown.timeoutSeconds}>
           <NumberInput maximumFractionDigits={0} min={1} max={600} value={form.timeoutSeconds} onValueChange={(v) => set("timeoutSeconds", v)} />
         </Field>
-        <Field label="Requests per minute" labelHint="Optional" description="Requests above it wait their turn. Empty is unlimited; set it below the gateway's own limit for Grounded's key.">
+        <Field
+          label="Requests per minute"
+          labelHint="Optional"
+          description="Requests above it wait their turn. Empty is unlimited; set it below the gateway's own limit for Grounded's key."
+          error={shown.requestsPerMinute}
+        >
           <NumberInput maximumFractionDigits={0} min={0} max={1000000} placeholder="Unlimited" value={form.requestsPerMinute} onValueChange={(v) => set("requestsPerMinute", v)} />
         </Field>
-        <Field label="Maximum concurrent requests" description="Per Grounded process (1–256), for SystemOne models: what the SystemOne service serves at once, divided by the Grounded pods calling it. Answers get a free slot first; evaluations and the gap job use at most half.">
+        <Field
+          label="Maximum concurrent requests"
+          description="Requests one Grounded process sends at once, 1 to 256. Answers get a free slot first; evaluations and the gap job use at most half. For a SystemOne service: what it serves at once, divided by the Grounded pods calling it."
+          error={shown.maxConcurrentRequests}
+        >
           <NumberInput maximumFractionDigits={0} min={1} max={256} value={form.maxConcurrentRequests} onValueChange={(v) => set("maxConcurrentRequests", v)} />
         </Field>
       </FormSection>
@@ -254,7 +285,7 @@ export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onC
         </Field>
         <Switch label="Enabled" checked={form.enabled} onCheckedChange={(v) => set("enabled", v)} />
       </FormSection>
-      {!fieldError(save.error, ["invalid_base_url"]) && <ErrorAlert error={save.error} />}
+      {!urlError && <ErrorAlert error={error} />}
     </FormPage>
   );
 }

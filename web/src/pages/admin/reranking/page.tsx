@@ -4,6 +4,7 @@
  * Models page's dialog) and a test that compares a search's order without and with reranking. Auditors read it all.
  */
 import { QueryView } from "@/components/query-view";
+import { useSearchParams } from "@/lib/url-search";
 import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
 import s from "../../shared.module.css";
@@ -26,6 +27,9 @@ export function RerankingPage() {
   const model = st?.modelId ? models.data?.find((m) => m.id === st.modelId) : undefined;
   const connection = model ? conns.data?.find((c) => c.id === model.connectionId) : undefined;
   const loading = models.isLoading || conns.isLoading;
+  // Back from the guide's Add connection (?connection=<id>).
+  const [params] = useSearchParams();
+  const added = conns.data?.find((c) => c.id === params.get("connection"));
   return (
     <Stack gap={6} className={s.page}>
       <PageHeader
@@ -36,8 +40,9 @@ export function RerankingPage() {
         {st && (
           <>
             <RerankStatusCard saved={st} model={model} connection={connection} check={model && health.get(model.id)} />
-            {rerankModels.length === 0 && (
-              <RerankGuide connections={conns.data?.length ?? 0} rerankModels={0} chosen={Boolean(st.modelId)} isAdmin={isAdmin} />
+            {/* Until a model is chosen, so its third step (Choose it here) can show too (AD2-06). */}
+            {!st.modelId && (
+              <RerankGuide connections={conns.data?.length ?? 0} rerankModels={rerankModels.length} chosen={false} isAdmin={isAdmin} added={added} />
             )}
             <RerankSettingsForm saved={st} models={rerankModels} health={health.get} isAdmin={isAdmin} />
             <RerankTestCard on={!offReason(st, model, connection)} />
