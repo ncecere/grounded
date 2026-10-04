@@ -56,8 +56,9 @@ describe("documents selection (BU-04)", () => {
     await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
     await userEvent.click(await screen.findByRole("checkbox", { name: "Select Handbook" }));
     expect(screen.getByText("1 document selected")).toBeInTheDocument();
-    // Ready documents can't be retried, and the button says why.
-    expect(screen.getByRole("button", { name: "Retry" })).toHaveAttribute("title", "Only failed, skipped or partly scanned documents can be retried.");
+    // Ready documents can't be retried, and the bar says why in words anyone sees (BU2-12), not only a tooltip.
+    expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled();
+    expect(screen.getByText("Only failed, skipped or partly scanned documents can be retried.")).toBeVisible();
 
     // The Failed filter hides Handbook: nothing stays selected out of sight.
     await userEvent.click(screen.getByRole("button", { name: "Failed" }));
