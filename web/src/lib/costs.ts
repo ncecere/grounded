@@ -94,9 +94,19 @@ export const categories = [
   { key: "moderation", label: "Moderation", tone: "neutral" },
   { key: "ocr", label: "OCR", tone: "primary" },
   { key: "mcp", label: "MCP tools", tone: "danger" },
-  // Six chart tones only: reranking shares embedding's (both are retrieval); the legend and table name them apart.
+  // Six chart tones only: the chart draws rerank with embedding (chartSeries); the table names them apart.
   { key: "rerank", label: "Rerank", tone: "success" },
 ] as const;
+
+type CostKind = (typeof categories)[number]["key"];
+
+/**
+ * The spend chart's series: the kinds, with rerank added to embedding as "Embedding and rerank" (both are retrieval), so
+ * no two series share a colour (VI-26: six chart tones for seven kinds). The table under it keeps them apart.
+ */
+export const chartSeries = categories
+  .filter((k) => k.key !== "rerank")
+  .map((k) => ({ key: k.key, label: k.key === "embedding" ? "Embedding and rerank" : k.label, tone: k.tone, kinds: (k.key === "embedding" ? ["embedding", "rerank"] : [k.key]) as CostKind[] }));
 
 /** A decimal amount a person typed: up to 14 digits and 6 decimals. */
 export const amountPattern = /^[0-9]{1,14}(\.[0-9]{1,6})?$/;

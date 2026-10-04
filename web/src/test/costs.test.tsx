@@ -5,6 +5,7 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { AuditTarget } from "../components/audit/target";
 import { Money } from "../components/money";
+import { chartSeries } from "../lib/costs";
 import { formatMoney, formatMoneyExact } from "../lib/format";
 import { ModelPricingSection } from "../pages/admin/models/pricing";
 import { AdminTeamBudgetCard } from "../pages/admin/costs/team-budget-card";
@@ -95,6 +96,10 @@ describe("Admin → Costs", () => {
     expect(screen.queryByRole("table", { name: "Spend per day" })).toBeNull();
     await user.click(screen.getByRole("button", { name: /Show data/ }));
     expect(await screen.findByRole("table", { name: "Spend per day" })).toHaveTextContent(formatMoney("12.500000", "USD"));
+    // No two chart series share a colour: rerank is drawn with embedding, and the table keeps them apart (VI-26).
+    expect(new Set(chartSeries.map((x) => x.tone)).size).toBe(chartSeries.length);
+    expect(chartSeries.find((x) => x.key === "embedding")).toMatchObject({ label: "Embedding and rerank", kinds: ["embedding", "rerank"] });
+    expect(within(screen.getByRole("table", { name: "Spend per day" })).getByRole("columnheader", { name: "Rerank" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Download spend per day as CSV" }).getAttribute("href")).toMatch(/^\/v1\/admin\/costs\/report\.csv\?from=.*groupBy=day$/);
     // Top spenders: Teams first, one CSV that follows the grouping; only the grouping shown is fetched.
     const teams = await screen.findByRole("table", { name: "Top teams" });
