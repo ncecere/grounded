@@ -22,16 +22,16 @@ export function AgentAvatar({ agent, size = "sm" }: { agent: Pick<AgentLook, "na
   return <MessageAvatar name={agent.name} color={agentColor(agent.accentColor)} size={size} shape="square" />;
 }
 
-type WelcomeProps = { agent: AgentLook; onStarter?: (q: string) => void; disabled?: boolean; compact?: boolean };
+type WelcomeProps = { agent: AgentLook; onStarter?: (q: string) => void; disabled?: boolean; compact?: boolean; /** The welcome text's id (it describes the message box). */ textId?: string };
 
-export function ChatWelcome({ agent, onStarter, disabled, compact }: WelcomeProps) {
+export function ChatWelcome({ agent, onStarter, disabled, compact, textId }: WelcomeProps) {
   const starters = (agent.starterQuestions ?? []).map((q) => q.trim()).filter(Boolean);
   return (
     <ConversationEmptyState
       className={compact ? `${c.welcome} ${pm.compactWelcome}` : c.welcome}
       media={<AgentAvatar agent={agent} size={compact ? "lg" : "xl"} />}
       title={<span className={c.welcomeName}>{agent.name}</span>}
-      description={<span className={c.welcomeText}>{agent.welcomeMessage || agent.description || `Ask ${agent.name} a question.`}</span>}
+      description={<span id={textId} className={c.welcomeText}>{agent.welcomeMessage || agent.description || `Ask ${agent.name} a question.`}</span>}
     >
       {starters.length > 0 && (
         <Suggestions label="Suggested questions" className={c.starters}>

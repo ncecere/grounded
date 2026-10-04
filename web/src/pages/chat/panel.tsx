@@ -7,7 +7,7 @@
  * ConversationAnnouncer (polite status) says how each answer ended.
  */
 import { RotateCcw } from "lucide-react";
-import { type ReactNode, type RefObject, useEffect, useRef } from "react";
+import { type ReactNode, type RefObject, useEffect, useId, useRef } from "react";
 import { Alert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { Conversation, ConversationAnnouncer, ConversationContent, ConversationScrollButton, useConversation } from "@/components/ui/conversation/conversation";
@@ -44,6 +44,8 @@ type ChatPanelProps = {
   /** Shown instead of the welcome while a stored conversation loads. */
   loading?: ReactNode;
   inputRef?: RefObject<HTMLTextAreaElement | null>;
+  /** The message box's id (the chat page's "Skip to message box" link). */
+  composerId?: string;
   label?: string;
   /** The chat page's layout: no frame, messages and composer in one centred reading column. */
   fullPage?: boolean;
@@ -126,6 +128,10 @@ type ColumnProps = ChatPanelProps & {
 function ChatColumn(props: ColumnProps) {
   const { chat, agent, text, onTextChange, feedback, disabledReason, errorExtra, loading, inputRef: ref, label = "Conversation", fullPage, send, ask, over } = props;
   const maxLength = props.maxLength ?? defaultMaxLength;
+  // An empty chat's message box is described by the agent's welcome (focused on opening a new chat, US2-04).
+  const welcomeId = useId();
+  const welcomed = chat.items.length === 0 && !loading;
+  const describedBy = [over && "composer-count", welcomed && welcomeId].filter(Boolean).join(" ") || undefined;
   return (
     <div className={cx(fullPage ? c.pagePanel : c.panel, props.compact && pm.compactPanel)}>
       <Conversation
@@ -137,7 +143,7 @@ function ChatColumn(props: ColumnProps) {
       >
         <ConversationContent className={c.content}>
           {chat.items.length === 0 ? (
-            (loading ?? <ChatWelcome agent={agent} compact={props.compact} disabled={Boolean(disabledReason) || chat.streaming} onStarter={(q) => void send(q)} />)
+            (loading ?? <ChatWelcome agent={agent} textId={welcomeId} compact={props.compact} disabled={Boolean(disabledReason) || chat.streaming} onStarter={(q) => void send(q)} />)
           ) : (
             <ChatMessages
               items={chat.items}
@@ -199,12 +205,13 @@ function ChatColumn(props: ColumnProps) {
       >
         <PromptInputTextarea
           ref={ref}
+          id={props.composerId}
           value={text}
           aria-label={`Message ${agent.name}`}
           placeholder={disabledReason ?? `Ask ${agent.name}…`}
           disabled={Boolean(disabledReason)}
           aria-invalid={over || undefined}
-          aria-describedby={over ? "composer-count" : undefined}
+          aria-describedby={describedBy}
           onChange={(e) => onTextChange(e.target.value)}
         />
         <PromptInputToolbar>
