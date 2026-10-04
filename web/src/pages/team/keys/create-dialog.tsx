@@ -5,7 +5,9 @@ import { api, unwrap } from "@/api/client";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { Checkbox, CheckboxGroup } from "@/components/ui/checkbox/checkbox";
+import { parseISODate, toISODate } from "@/components/ui/calendar/calendar";
 import { CopyField } from "@/components/ui/copy-field/copy-field";
+import { DatePicker } from "@/components/ui/date-picker/date-picker";
 import { Dialog, DialogClose } from "@/components/ui/dialog/dialog";
 import { Field, Form } from "@/components/ui/field/field";
 import { Input, NativeSelect } from "@/components/ui/input/input";
@@ -101,7 +103,7 @@ function KeyFields({ form, onChange, chosen, kbs }: KeyFieldsProps) {
     enabled: isManager && form.kind === "service",
   });
   const allowed = allowedScopes(role, form.kind);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toISODate(new Date());
   return (
     <>
       <Field label="Name" description="What will use this key, for example “Course site search”.">
@@ -160,10 +162,14 @@ function KeyFields({ form, onChange, chosen, kbs }: KeyFieldsProps) {
           ))}
         </CheckboxGroup>
       )}
-      <Field label="Expires on" labelHint="Optional" description="The key stops working at the end of this day."
-        validate={(v) => (v && String(v) < today ? "Choose today or a later date: a key can't expire in the past." : null)}
-      >
-        <Input type="date" min={today} value={form.expires} onChange={(e) => onChange({ expires: e.target.value })} />
+      {/* A calendar, not a native date input: Chrome names its segments twice ("Month Month", BU-18). Past days can't be chosen. */}
+      <Field label="Expires on" labelHint="Optional" description="The key stops working at the end of this day. Choose the day again to clear it.">
+        <DatePicker
+          value={form.expires ? parseISODate(form.expires) : null}
+          onValueChange={(d) => onChange({ expires: d ? toISODate(d) : "" })}
+          min={parseISODate(today) ?? undefined}
+          placeholder="Never"
+        />
       </Field>
     </>
   );
