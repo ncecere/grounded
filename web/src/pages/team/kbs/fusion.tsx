@@ -15,10 +15,17 @@ type Props = { kb: KB; value: FusionForm; onChange: (next: FusionForm) => void }
 
 const fallback = { vector: 1, keyword: 1 };
 
+/** Weights are set in hundredths, so a default such as 0.02 can be shown and chosen again (BU-14); arrow keys move 0.01, Page Up/Down 0.1. */
+const step = 0.01;
+const hundredths = (n: number) => Math.round(n * 100) / 100;
+
 const num = (t: string) => {
   const n = Number(t);
-  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0;
+  return Number.isFinite(n) ? hundredths(Math.min(1, Math.max(0, n))) : 0;
 };
+
+/** The slider's value as the form's text, without floating-point noise ("0.02", not "0.019999999552965164"). */
+export const sliderText = (v: number | readonly number[]) => String(hundredths(Array.isArray(v) ? (v[0] ?? 0) : (v as number)));
 
 /** What the form would apply, or why it can't (F-26). */
 export function fusionSummary(kb: KB, value: FusionForm): string {
@@ -61,9 +68,10 @@ export function FusionSettings({ kb, value, onChange }: Props) {
             label="Vector weight"
             min={0}
             max={1}
-            step={0.05}
+            step={step}
+            largeStep={0.1}
             value={num(value.vector)}
-            onValueChange={(v) => set({ vector: String(Array.isArray(v) ? v[0] : v) })}
+            onValueChange={(v) => set({ vector: sliderText(v) })}
             showValue
             formatValue={(_, vals) => (vals[0] ?? 0).toFixed(2)}
           />
@@ -71,9 +79,10 @@ export function FusionSettings({ kb, value, onChange }: Props) {
             label="Keyword weight"
             min={0}
             max={1}
-            step={0.05}
+            step={step}
+            largeStep={0.1}
             value={num(value.keyword)}
-            onValueChange={(v) => set({ keyword: String(Array.isArray(v) ? v[0] : v) })}
+            onValueChange={(v) => set({ keyword: sliderText(v) })}
             showValue
             formatValue={(_, vals) => (vals[0] ?? 0).toFixed(2)}
           />
