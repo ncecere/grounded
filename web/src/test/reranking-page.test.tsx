@@ -39,7 +39,7 @@ describe("Admin → Models → Reranking", () => {
     const guide = (await screen.findByRole("heading", { name: "Set up reranking" }, { timeout: 4000 })).closest("section")!;
     expect(within(guide).getByText("1 of 3 done")).toBeInTheDocument();
     expect(within(guide).getByRole("link", { name: /How to deploy a reranker/ })).toHaveAttribute("href", expect.stringContaining("docs/operations/rerank.md"));
-    expect(within(guide).getByRole("link", { name: "Add model" })).toHaveAttribute("href", "/admin/models?form=new&kind=rerank");
+    expect(within(guide).getByRole("link", { name: "Add model" })).toHaveAttribute("href", "/admin/models?form=new&kind=rerank&from=reranking");
     const status = screen.getByRole("heading", { name: "Status" }).closest("section")!;
     expect(within(status).getByText("Off")).toBeInTheDocument();
     expect(within(status).getByText("No rerank model is chosen.")).toBeInTheDocument();

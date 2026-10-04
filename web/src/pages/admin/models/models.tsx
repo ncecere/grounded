@@ -112,6 +112,9 @@ export function ModelsPage() {
   // Reranking's setup guide opens Add model with kind Rerank chosen (?form=new&kind=rerank).
   const [params] = useSearchParams();
   const presetKind = params.get("kind") as ModelKind | null;
+  // ...and returns there afterwards (?from=reranking), saved or cancelled.
+  const navigate = useNavigate();
+  const backToReranking = params.get("from") === "reranking";
   const test = useModelTest();
   const form = useFormParam();
   const [deleting, setDeleting] = useState<Model | null>(null);
@@ -205,7 +208,7 @@ export function ModelsPage() {
           model={editing === "new" ? null : editing}
           connections={conns.data ?? []}
           kind={presetKind && presetKind in kindLabels ? presetKind : undefined}
-          onClose={form.close}
+          onClose={backToReranking ? () => void navigate({ to: "/admin/reranking" }) : form.close}
         />}
       <ConfirmMutationDialog
         target={deleting}

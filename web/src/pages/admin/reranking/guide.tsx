@@ -33,7 +33,7 @@ export function rerankSteps({ connections, rerankModels, chosen, isAdmin }: Inpu
       title: "Add a model of kind Rerank on it",
       description: "Then test it on its page: the test checks that it ranks a passage that answers a question above one that doesn't.",
       done: rerankModels > 0,
-      action: isAdmin ? { label: "Add model", render: <Link to="/admin/models" search={{ form: "new", kind: "rerank" } as never} /> } : undefined,
+      action: isAdmin ? { label: "Add model", render: <Link to="/admin/models" search={{ form: "new", kind: "rerank", from: "reranking" } as never} /> } : undefined,
     },
     {
       id: "choose",
