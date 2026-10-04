@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"unicode"
 
 	"github.com/google/uuid"
 
@@ -53,7 +54,8 @@ func (s *Service) Directory(ctx context.Context, a authz.Actor, f DirectoryFilte
 	p := dbgen.DirectoryAgentsParams{UserID: a.UserID, PublicEnabled: on}
 	if q := strings.TrimSpace(f.Search); q != "" {
 		esc := store.EscapeLike(q)
-		p.Search = &esc
+		loose := looseSearch(q)
+		p.Search, p.Loose = &esc, &loose
 	}
 	if t := strings.ToLower(strings.TrimSpace(f.Team)); t != "" {
 		p.Team = &t
@@ -86,7 +88,8 @@ func (s *Service) keyDirectory(ctx context.Context, a authz.Actor, f DirectoryFi
 	search := strings.ToLower(strings.TrimSpace(f.Search))
 	out := make([]Card, 0, len(rows))
 	for _, r := range rows {
-		if search != "" && !strings.Contains(strings.ToLower(r.Name+" "+r.Description+" "+r.TeamName), search) {
+		text := r.Name + " " + r.Description + " " + r.TeamName
+		if search != "" && !strings.Contains(strings.ToLower(text), search) && !matchesLoose(text, search) {
 			continue
 		}
 		if t := strings.ToLower(strings.TrimSpace(f.Team)); t != "" && t != r.TeamSlug && t != r.TeamID.String() {
@@ -229,4 +232,22 @@ func (s *Service) Profile(ctx context.Context, a authz.Actor, teamRef, agentRef 
 		return Card{}, err
 	}
 	return s.card(ctx, r), nil
+}
+
+// looseSearch is a search's letters and digits, lower case: "Wi-Fi" and
+// "wifi" both give "wifi" (v0.4.2 US-13).
+func looseSearch(q string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return unicode.ToLower(r)
+		}
+		return -1
+	}, q)
+}
+
+// matchesLoose reports text containing the search's letters and digits in
+// order, ignoring everything else.
+func matchesLoose(text, search string) bool {
+	l := looseSearch(search)
+	return l != "" && strings.Contains(looseSearch(text), l)
 }

@@ -1,10 +1,11 @@
-/* Chat polish from the v0.4.2 bug hunt: the search step's title (US-09), taking a rating back (US-11). */
+/* Chat polish from the v0.4.2 bug hunt: the search step's title (US-09), taking a rating back (US-11), Discover's filter chips (US-13). */
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { type AssistantItem, type ChatItem, applyChatEvent, pendingAssistant } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
-import { mockApi, renderBare } from "./harness";
+import { axe } from "vitest-axe";
+import { mockApi, renderApp, renderBare, shellRoutes } from "./harness";
 
 const answered = (query: string, question: string): ChatItem[] => {
   let a: AssistantItem = applyChatEvent(pendingAssistant(), "retrieval", { query, hits: [{ n: 1, title: "Wi-Fi", snippet: "…" }] });
@@ -42,5 +43,26 @@ describe("feedback (US-11)", () => {
     await waitFor(() => expect(calls.find((c) => c.url === "/v1/messages/m1/feedback")?.body).toEqual({ rating: "none" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Good answer" })).toHaveAttribute("aria-pressed", "false"));
     expect(screen.queryByText("Thanks for the feedback")).toBeNull();
+  });
+});
+
+describe("Discover's filters (US-13)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const card = (id: string, name: string, teamSlug: string, teamName: string) => ({
+    id, name, slug: id, teamSlug, teamName, description: "", accentColor: "#0021a5", welcomeMessage: "", starterQuestions: [],
+    citationMode: "snippet_link", status: "active", audience: "team", group: "team",
+  });
+
+  it("shows the search as a chip, and Clear all clears it with the team", async () => {
+    mockApi({ ...shellRoutes(), "GET /v1/agents": () => [card("a1", "Help Desk Assistant", "it", "IT Help Desk"), card("a2", "Library Guide", "library", "Library")] });
+    const { router, container } = renderApp("/agents?q=wifi&team=it");
+    const chips = await screen.findByRole("list", { name: "Active filters" });
+    expect(screen.getByRole("button", { name: "Remove search filter: “wifi”" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Remove team filter: IT Help Desk" })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    expect(chips).not.toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Search" })).toHaveValue("");
   });
 });

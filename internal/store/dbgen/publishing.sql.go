@@ -106,8 +106,11 @@ WHERE a.deleted_at IS NULL AND a.published_version_id IS NOT NULL AND a.status =
   AND ($3::text IS NULL
        OR a.name ILIKE '%' || $3::text || '%'
        OR a.description ILIKE '%' || $3::text || '%'
-       OR t.name ILIKE '%' || $3::text || '%')
-  AND ($4::text IS NULL OR t.slug = $4::text OR t.id::text = $4::text)
+       OR t.name ILIKE '%' || $3::text || '%'
+       -- "wifi" finds "Wi-Fi": letters and digits only, on both sides (v0.4.2 US-13).
+       OR ($4::text <> '' AND regexp_replace(lower(a.name || ' ' || a.description || ' ' || t.name), '[^[:alnum:]]+', '', 'g')
+           LIKE '%' || $4::text || '%'))
+  AND ($5::text IS NULL OR t.slug = $5::text OR t.id::text = $5::text)
 ORDER BY lower(a.name), a.id
 LIMIT 500
 `
@@ -116,6 +119,7 @@ type DirectoryAgentsParams struct {
 	UserID        uuid.UUID
 	PublicEnabled bool
 	Search        *string
+	Loose         *string
 	Team          *string
 }
 
@@ -156,6 +160,7 @@ func (q *Queries) DirectoryAgents(ctx context.Context, arg DirectoryAgentsParams
 		arg.UserID,
 		arg.PublicEnabled,
 		arg.Search,
+		arg.Loose,
 		arg.Team,
 	)
 	if err != nil {
