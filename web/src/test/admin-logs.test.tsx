@@ -67,6 +67,17 @@ describe("admin logs", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("says once, in the log's words, that a filter matches nothing (AD-29)", async () => {
+    mockApi({
+      ...shellRoutes("platform_admin"),
+      "GET /v1/admin/audit": () => ({ items: [], nextCursor: null }),
+      "GET /v1/admin/users": () => users,
+    });
+    renderApp("/admin/logs?action=platform.");
+    expect(await screen.findByText("No entries match these filters.", undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.queryByText("No rows match these filters.")).toBeNull();
+  });
+
   it("shows a missing linked entry as not found", async () => {
     mockApi({
       ...shellRoutes("platform_auditor"),

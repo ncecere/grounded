@@ -20,7 +20,7 @@ import { useCostSettings } from "@/lib/costs";
 import { useSearchParams } from "@/lib/url-search";
 import s from "../../shared.module.css";
 import { AuditEntryPage, AuditTeam } from "./audit-record";
-import { ExportButton, one, rangeWindow, usePeopleOptions } from "./common";
+import { dateFacet, ExportButton, noMatches, one, rangeWindow, usePeopleOptions } from "./common";
 import l from "./logs.module.css";
 
 type Entry = Schemas["AuditEntry"];
@@ -42,7 +42,7 @@ function useFacets(): Facet<Entry>[] {
         .map(([value, label]) => ({ value, label })),
     },
     { id: "person", label: "Person", type: "select", placeholder: "Anyone", options: [groupMappingPersonOption, ...people] },
-    { id: "range", label: "Date", type: "date-range" },
+    dateFacet<Entry>(),
   ];
 }
 
@@ -145,8 +145,9 @@ export function AuditLogTab() {
         error={log.error}
         onRetry={() => void log.refetch()}
         onRowClick={(e) => record.open(String(e.id))}
-        empty={{ icon: <FileClock />, title: Object.values(query).some(Boolean) ? "No entries match these filters." : "No audit entries yet." }}
+        empty={{ icon: <FileClock />, title: "No audit entries yet." }}
         tableProps={{
+          noResults: noMatches,
           facetCounts: false,
           loadMore: { hasMore: Boolean(log.hasNextPage), loading: log.isFetchingNextPage, onLoadMore: () => void log.fetchNextPage() },
           toolbar: (

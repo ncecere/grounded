@@ -1,10 +1,11 @@
 /* Shared by the Logs tabs: the person and agent options, the date facet's API window, and CSV export. */
 import { useQuery } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { Download, FileClock } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { Button } from "@/components/ui/button/button";
-import type { FacetOption, FilterValues } from "@/components/ui/filter-bar/filter-bar";
+import { EmptyState } from "@/components/ui/empty-state/empty-state";
+import type { DateRangeFacet, FacetOption, FilterValues } from "@/components/ui/filter-bar/filter-bar";
 import type { DateRangeSelection } from "@/components/ui/date-picker/date-picker";
 import { toast } from "@/components/ui/toast/toast";
 import { adminAgentsQuery } from "../agents/agents";
@@ -26,6 +27,14 @@ export function useAgentOptions(): FacetOption[] {
   const agents = useQuery({ ...adminAgentsQuery(), staleTime: 60_000 });
   return (agents.data ?? []).map((a) => ({ value: a.id, label: a.name, group: a.teamName }));
 }
+
+/** The Date facet: nothing after today can be picked, since nothing is logged there yet (AD-29). */
+export function dateFacet<T>(): DateRangeFacet<T> {
+  return { id: "range", label: "Date", type: "date-range", pickerProps: { max: new Date() } };
+}
+
+/** What a filter that matches nothing shows: one sentence in the log's own words (AD-29). */
+export const noMatches = <EmptyState size="compact" icon={<FileClock />} title="No entries match these filters." description="Clear a filter to see more." />;
 
 /** The date facet as an RFC 3339 window [from, to), local days. */
 export function rangeWindow(values: FilterValues, id = "range"): { from?: string; to?: string } {
