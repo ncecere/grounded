@@ -10690,6 +10690,9 @@ type TeamSummary struct {
 	MemberCount   int64 `json:"memberCount"`
 	OwnerCount    int64 `json:"ownerCount"`
 
+	// OwnerInvites Open owner invites (an owner invited by email who hasn't signed in yet)
+	OwnerInvites int64 `json:"ownerInvites"`
+
 	// SourceCount The team's own data sources (shared sources aren't counted)
 	SourceCount  int64 `json:"sourceCount"`
 	StorageBytes int64 `json:"storageBytes"`

@@ -63,10 +63,11 @@ function columns(levels: ReturnType<typeof useClassificationLevels>["data"]): Da
       cell: (r) => (
         <>
           {r.memberCount}
+          {/* An owner invited by email who hasn't signed in yet isn't "No owner" (AD-04). */}
           {r.ownerCount === 0 && (
             <span className={s.secondary}>
-              <Badge tone="warning" size="sm">
-                No owner
+              <Badge tone={r.ownerInvites > 0 ? "info" : "warning"} size="sm">
+                {r.ownerInvites > 0 ? "Owner invited" : "No owner"}
               </Badge>
             </span>
           )}

@@ -436,3 +436,28 @@ func TestConcurrentOwnerRemovalKeepsAnOwner(t *testing.T) {
 		}
 	}
 }
+
+// TestOwnerInviteOnAdminPages (AD-04): an owner invited by email counts as
+// an owner invite on the admin team list, and a platform admin who isn't a
+// member revokes it; an auditor can't.
+func TestOwnerInviteOnAdminPages(t *testing.T) {
+	app := newTestApp(t, nil)
+	admin := app.signIn("admin")
+	auditor := app.signIn("auditor")
+	createTeam(t, admin, "invited", "new.owner@example.edu")
+	var sum apitypes.TeamSummary
+	if code := admin.get("/v1/admin/teams/invited", &sum); code != 200 || sum.OwnerCount != 0 || sum.OwnerInvites != 1 {
+		t.Fatalf("summary = %d %+v", code, sum)
+	}
+	var invites []apitypes.Invite
+	if code := auditor.get("/v1/teams/invited/invites", &invites); code != 200 || len(invites) != 1 {
+		t.Fatalf("invites = %d %+v", code, invites)
+	}
+	code, e := auditor.call("DELETE", "/v1/teams/invited/invites/"+invites[0].Id.String(), nil, nil, nil)
+	mustCode(t, "auditor revokes", code, e, 403, "forbidden")
+	code, e = admin.call("DELETE", "/v1/teams/invited/invites/"+invites[0].Id.String(), nil, nil, nil)
+	mustCode(t, "platform admin revokes", code, e, 200, "")
+	if admin.get("/v1/admin/teams/invited", &sum); sum.OwnerInvites != 0 {
+		t.Errorf("owner invites after revoking = %d", sum.OwnerInvites)
+	}
+}

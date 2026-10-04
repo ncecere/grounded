@@ -44,7 +44,7 @@ const preview: Schemas["GroupRulePreview"] = {
   ],
 };
 
-const summary: Schemas["TeamSummary"] = { team: team as Schemas["Team"], memberCount: 3, ownerCount: 1, agentCount: 0, sourceCount: 0, kbCount: 0, documentCount: 0, storageBytes: 0 };
+const summary: Schemas["TeamSummary"] = { team: team as Schemas["Team"], memberCount: 3, ownerCount: 1, ownerInvites: 0, agentCount: 0, sourceCount: 0, kbCount: 0, documentCount: 0, storageBytes: 0 };
 
 function routes(role: "platform_admin" | "platform_auditor" = "platform_admin", extra: Record<string, Handler> = {}): Record<string, Handler> {
   return {

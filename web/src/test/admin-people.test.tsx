@@ -22,7 +22,7 @@ const team = {
   createdAt: "",
   updatedAt: "",
 } as Schemas["Team"];
-const summary: Schemas["TeamSummary"] = { team, memberCount: 3, ownerCount: 1, agentCount: 4, sourceCount: 2, kbCount: 1, documentCount: 40, storageBytes: 2_000_000 };
+const summary: Schemas["TeamSummary"] = { team, memberCount: 3, ownerCount: 1, ownerInvites: 0, agentCount: 4, sourceCount: 2, kbCount: 1, documentCount: 40, storageBytes: 2_000_000 };
 const user = (id: string, extra: Partial<Schemas["User"]> = {}): Schemas["User"] => ({
   id,
   email: `${id}@example.edu`,
@@ -106,6 +106,42 @@ describe("admin users and teams", () => {
     const row = (await within(table).findByText("Office of the Registrar")).closest("tr")!;
     expect(row).toHaveTextContent("4"); // agents
     expect(row).toHaveTextContent("1.9 MiB");
+  });
+
+  it("says Owner invited, not No owner, while the invited owner hasn't signed in (AD-04)", async () => {
+    const invited = { ...summary, memberCount: 0, ownerCount: 0, ownerInvites: 1 };
+    mockApi(routes("platform_admin", { "GET /v1/admin/teams": () => ({ items: [invited], nextCursor: null }) }));
+    renderApp("/admin/teams");
+    const table = await screen.findByRole("table", { name: "Teams" });
+    expect(await within(table).findByText("Owner invited")).toBeInTheDocument();
+    expect(within(table).queryByText("No owner")).toBeNull();
+  });
+
+  it("lists open invites on an admin team's Members tab, and platform admins revoke them (AD-04)", async () => {
+    const invite = { id: "i1", email: "new.owner@example.edu", role: "owner", createdAt: "2026-10-01T10:00:00Z", expiresAt: "2026-10-31T10:00:00Z" };
+    const calls = mockApi(
+      routes("platform_admin", {
+        "GET /v1/teams/registrar/members": () => [],
+        "GET /v1/teams/registrar/invites": () => [invite],
+        "DELETE /v1/teams/registrar/invites/i1": () => ({ ok: true }),
+      }),
+    );
+    const { container } = renderApp("/admin/teams/registrar?tab=members");
+    const invites = (await screen.findByRole("heading", { name: "Open invites" })).closest("section")!;
+    expect(within(invites).getByText("new.owner@example.edu")).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(within(invites).getByRole("button", { name: "Revoke" }));
+    await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Revoke invite" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "DELETE" && c.url === "/v1/teams/registrar/invites/i1")).toBe(true));
+  });
+
+  it("shows auditors open invites without Revoke (AD-04)", async () => {
+    const invite = { id: "i1", email: "new.owner@example.edu", role: "owner", createdAt: "2026-10-01T10:00:00Z", expiresAt: "2026-10-31T10:00:00Z" };
+    mockApi(routes("platform_auditor", { "GET /v1/teams/registrar/invites": () => [invite] }));
+    renderApp("/admin/teams/registrar?tab=members");
+    const invites = (await screen.findByRole("heading", { name: "Open invites" })).closest("section")!;
+    expect(within(invites).getByText("new.owner@example.edu")).toBeInTheDocument();
+    expect(within(invites).queryByRole("button", { name: "Revoke" })).toBeNull();
   });
 
   it("sums up budget changes in Recent changes, like the audit log", async () => {

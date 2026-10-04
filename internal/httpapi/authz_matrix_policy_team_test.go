@@ -42,7 +42,7 @@ var teamPolicies = map[string]policy{
 	}},
 	"removeMember":  {own: admins, build: func(c *mctx) request { return del(c.team("/members/" + c.pick(c.tf.memberID, c.e.freshMember))) }},
 	"listInvites":   {own: admins, foreign: platform, build: func(c *mctx) request { return get(c.team("/invites")) }},
-	"revokeInvite":  {own: admins, build: func(c *mctx) request { return del(c.team("/invites/" + c.pick(c.tf.invite, c.e.freshInvite))) }},
+	"revokeInvite":  {own: admins, foreign: padmin, build: func(c *mctx) request { return del(c.team("/invites/" + c.pick(c.tf.invite, c.e.freshInvite))) }},
 	"listTeamAudit": {own: editors, foreign: platform, build: func(c *mctx) request { return get(c.team("/audit")) }},
 	"getTeamAuditEntry": {own: editors, foreign: platform, build: func(c *mctx) request {
 		return get(c.team("/audit/" + c.tf.auditID))

@@ -546,6 +546,10 @@ paths:
       tags: [teams]
       operationId: revokeInvite
       summary: Revoke an open invite
+      description: >-
+        Team owners and admins (within their role's reach), and platform
+        admins for any open invite, such as an owner invite sent from Admin ->
+        Teams.
       responses:
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
@@ -8819,11 +8823,12 @@ components:
           allOf: [{ $ref: "#/components/schemas/TeamRole" }]
     TeamSummary:
       type: object
-      required: [team, memberCount, ownerCount, agentCount, sourceCount, kbCount, documentCount, storageBytes]
+      required: [team, memberCount, ownerCount, ownerInvites, agentCount, sourceCount, kbCount, documentCount, storageBytes]
       properties:
         team: { $ref: "#/components/schemas/Team" }
         memberCount: { type: integer, format: int64 }
         ownerCount: { type: integer, format: int64 }
+        ownerInvites: { type: integer, format: int64, description: "Open owner invites (an owner invited by email who hasn't signed in yet)" }
         agentCount: { type: integer, format: int64 }
         sourceCount: { type: integer, format: int64, description: The team's own data sources (shared sources aren't counted) }
         kbCount: { type: integer, format: int64 }

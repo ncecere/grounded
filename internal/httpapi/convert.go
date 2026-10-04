@@ -41,7 +41,7 @@ func toAPITeam(t dbgen.Team) apitypes.Team {
 
 func toAPISummary(s teams.Summary) apitypes.TeamSummary {
 	return apitypes.TeamSummary{
-		Team: toAPITeam(s.Team), MemberCount: s.MemberCount, OwnerCount: s.OwnerCount,
+		Team: toAPITeam(s.Team), MemberCount: s.MemberCount, OwnerCount: s.OwnerCount, OwnerInvites: s.OwnerInvites,
 		AgentCount: s.Content.Agents, SourceCount: s.Content.Sources, KbCount: s.Content.KBs,
 		DocumentCount: s.Content.Documents, StorageBytes: s.Content.StorageBytes,
 	}

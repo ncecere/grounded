@@ -414,7 +414,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Revoke an open invite */
+        /**
+         * Revoke an open invite
+         * @description Team owners and admins (within their role's reach), and platform admins for any open invite, such as an owner invite sent from Admin -> Teams.
+         */
         delete: operations["revokeInvite"];
         options?: never;
         head?: never;
@@ -5648,6 +5651,11 @@ export interface components {
             memberCount: number;
             /** Format: int64 */
             ownerCount: number;
+            /**
+             * Format: int64
+             * @description Open owner invites (an owner invited by email who hasn't signed in yet)
+             */
+            ownerInvites: number;
             /** Format: int64 */
             agentCount: number;
             /**

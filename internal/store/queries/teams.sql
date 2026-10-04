@@ -17,6 +17,8 @@ SELECT * FROM teams WHERE id = $1 FOR UPDATE;
 SELECT sqlc.embed(t),
        (SELECT count(*) FROM team_members m WHERE m.team_id = t.id)::bigint AS member_count,
        (SELECT count(*) FROM team_members m WHERE m.team_id = t.id AND m.role = 'owner')::bigint AS owner_count,
+       (SELECT count(*) FROM team_invites i WHERE i.team_id = t.id AND i.role = 'owner' AND i.accepted_at IS NULL AND i.revoked_at IS NULL
+          AND i.expires_at > now())::bigint AS owner_invites,
        (SELECT count(*) FROM agents ag WHERE ag.team_id = t.id AND ag.deleted_at IS NULL)::bigint AS agent_count,
        (SELECT count(*) FROM data_sources ds WHERE ds.team_id = t.id)::bigint AS source_count,
        (SELECT count(*) FROM knowledge_bases kb WHERE kb.team_id = t.id)::bigint AS kb_count,
@@ -34,6 +36,8 @@ LIMIT @page_size;
 -- name: TeamCounts :one
 SELECT (SELECT count(*) FROM team_members m WHERE m.team_id = @team_id)::bigint AS member_count,
        (SELECT count(*) FROM team_members m WHERE m.team_id = @team_id AND m.role = 'owner')::bigint AS owner_count,
+       (SELECT count(*) FROM team_invites i WHERE i.team_id = @team_id AND i.role = 'owner' AND i.accepted_at IS NULL AND i.revoked_at IS NULL
+          AND i.expires_at > now())::bigint AS owner_invites,
        (SELECT count(*) FROM agents ag WHERE ag.team_id = @team_id AND ag.deleted_at IS NULL)::bigint AS agent_count,
        (SELECT count(*) FROM data_sources ds WHERE ds.team_id = @team_id)::bigint AS source_count,
        (SELECT count(*) FROM knowledge_bases kb WHERE kb.team_id = @team_id)::bigint AS kb_count,
