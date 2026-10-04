@@ -162,7 +162,7 @@ function ChatColumn(props: ColumnProps) {
         <ScrollOnSend questions={chat.items.filter((i) => i.role === "user").length} />
         <RevealBufferedAnswer items={chat.items} />
         <ShowSuggestions items={chat.items} />
-        {chat.items.length > 0 && <ConversationScrollButton className={props.compact ? pm.compactScroll : undefined} />}
+        {chat.items.length > 0 && <ConversationScrollButton className={cx(pm.phoneScroll, props.compact && pm.compactScroll)} />}
       </Conversation>
       {disabledReason && (
         <Alert tone="warning" title="Chat is unavailable" className={c.errorBox}>

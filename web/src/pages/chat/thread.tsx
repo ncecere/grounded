@@ -55,6 +55,14 @@ const where = (s: Citation) =>
   s.kind === "tool"
     ? ["Tool result", s.truncated ? "cut to fit" : ""].filter(Boolean).join(" · ")
     : [s.headingPath.join(" › "), pages(s.pageStart, s.pageEnd)].filter(Boolean).join(" · ");
+/**
+ * A source in Copy answer's list, as the Markdown export names it: "Title — Heading › Subheading, p. 3", so sources
+ * from one document's sections can be told apart (US2-07).
+ */
+export const copySourceTitle = (s: Citation) =>
+  s.kind === "tool"
+    ? sourceTitle(s)
+    : `${sourceTitle(s)}${s.headingPath.length ? ` — ${s.headingPath.join(" › ")}` : ""}${s.pageStart ? `, p. ${s.pageStart}` : ""}`;
 /** Snippets are raw chunk text: plain words for display, without a leading heading the card already shows. */
 const snippetOf = (s: Citation) => plainSnippet(s.snippet, [s.title, ...s.headingPath]);
 const webUrl = (s: Citation) => (s.url && /^https?:\/\//.test(s.url) ? s.url : undefined);
@@ -207,7 +215,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
       </MessageContent>
       {!streaming && isAnswer(item) && (
         <MessageActions label="Answer actions">
-          <MessageCopyAction value={copyText(item, sourceTitle)} label="Copy answer" />
+          <MessageCopyAction value={copyText(item, copySourceTitle)} label="Copy answer" />
           {feedback && item.id && <Feedback item={item} onChange={(f) => onPatch?.(item.key, (a) => ({ ...a, feedback: f }))} />}
           {/* A labelled button, and "Added" once added (remembered across reloads; docs/evaluations.md §1). */}
           {onAdd &&

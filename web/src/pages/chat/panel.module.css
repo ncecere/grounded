@@ -38,6 +38,14 @@
   translate: none;
 }
 
+/* On a phone the reading column is the whole width: the button goes to its end too (the public page, US2-06). */
+@media (max-width: 40rem) {
+  .phoneScroll.phoneScroll {
+    inset-inline: auto var(--space-3);
+    translate: none;
+  }
+}
+
 /* A menu taller than the widget's panel scrolls instead of being cut off (the feedback reasons). */
 .fitMenu {
   max-height: var(--available-height, 100dvh);

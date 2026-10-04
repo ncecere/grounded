@@ -303,7 +303,7 @@ func truncateRunes(s string, n int) string {
 func (ru *run) retrievalHits(hits []numberedHit) []RetrievalHit {
 	out := make([]RetrievalHit, len(hits))
 	for i, h := range hits {
-		out[i] = RetrievalHit{N: h.N, Title: h.Title, Snippet: snippet(h.Content), Conflicting: h.Conflicting}
+		out[i] = RetrievalHit{N: h.N, Title: h.Title, Snippet: hitSnippet(h.Hit), Conflicting: h.Conflicting}
 		if ru.cfg.CitationMode == CitationSnippetLink && isWebURL(h.URL) {
 			out[i].URL = h.URL
 		}
