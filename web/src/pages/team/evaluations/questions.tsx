@@ -15,8 +15,8 @@ import { ListPage } from "@/components/templates/list-page";
 import { RecordLink, useRecordParam } from "@/components/templates/record-page";
 import { Button } from "@/components/ui/button/button";
 import { CellText, type DataTableColumn } from "@/components/ui/data-table/data-table";
+import { Card } from "@/components/ui/card/card";
 import { Stack } from "@/components/ui/layout/layout";
-import { PageHeader } from "@/components/ui/page-header/page-header";
 import { toast } from "@/components/ui/toast/toast";
 import { useTeam } from "../common";
 import { AttentionCell, attentionFacet, problemTexts, problemsById } from "./attention";
@@ -51,7 +51,7 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
   });
   // Secondary: Run is the set page's primary action.
   const newQuestion = canEdit ? (
-    <Button variant="secondary" onClick={() => setEditing("new")}>
+    <Button variant="secondary" size="sm" onClick={() => setEditing("new")}>
       <Plus aria-hidden /> New question
     </Button>
   ) : undefined;
@@ -88,9 +88,8 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
 
   return (
     <Stack gap={4}>
-      <PageHeader
+      <Card
         title="Questions"
-        titleAs="h2"
         description={
           answers
             ? "Each question names the documents a good result finds; must-mention phrases are checked in full-answer runs."
@@ -99,34 +98,36 @@ export function QuestionsTab({ set }: { set: EvalSet }) {
         actions={
           canEdit && (
             <>
-              <Button variant="secondary" onClick={() => form.open("import")}>
+              <Button variant="secondary" size="sm" onClick={() => form.open("import")}>
                 <Upload aria-hidden /> Import questions
               </Button>
               {newQuestion}
             </>
           )
         }
-      />
-      <ListPage<EvalQuestion>
-        id="evaluation-questions"
-        caption="Questions"
-        columns={columns}
-        data={questions.data ?? []}
-        getRowId={(q) => q.id}
-        rowLabel={(q) => q.question}
-        facets={problems.size > 0 ? [attentionFacet(problems)] : undefined}
-        search={{ label: "Search questions", showLabel: true }}
-        rowActions={(q) => [
-          { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(q.id) },
-          { label: "Edit question", icon: <Pencil aria-hidden />, onSelect: () => setEditing(q), hidden: !canEdit },
-          { label: "Delete question", icon: <Trash2 aria-hidden />, danger: true, onSelect: () => setDeleting(q), hidden: !canEdit },
-        ]}
-        empty={{ icon: <ListChecks />, title: "No questions yet.", description: "Add one with New question, or import a CSV or JSONL file." }}
-        tableProps={smallList}
-        loading={questions.isLoading}
-        error={questions.error}
-        onRetry={() => void questions.refetch()}
-      />
+        flush
+      >
+        <ListPage<EvalQuestion>
+          id="evaluation-questions"
+          caption="Questions"
+          columns={columns}
+          data={questions.data ?? []}
+          getRowId={(q) => q.id}
+          rowLabel={(q) => q.question}
+          facets={problems.size > 0 ? [attentionFacet(problems)] : undefined}
+          search={{ label: "Search questions", showLabel: true }}
+          rowActions={(q) => [
+            { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(q.id) },
+            { label: "Edit question", icon: <Pencil aria-hidden />, onSelect: () => setEditing(q), hidden: !canEdit },
+            { label: "Delete question", icon: <Trash2 aria-hidden />, danger: true, onSelect: () => setDeleting(q), hidden: !canEdit },
+          ]}
+          empty={{ icon: <ListChecks />, title: "No questions yet.", description: "Add one with New question, or import a CSV or JSONL file." }}
+          tableProps={smallList}
+          loading={questions.isLoading}
+          error={questions.error}
+          onRetry={() => void questions.refetch()}
+        />
+      </Card>
       <QuestionRecord set={set} onEdit={setEditing} onDelete={setDeleting} />
       {form.id === "import" && <ImportPage set={set} onClose={form.close} />}
       {editing && <QuestionDialog set={set} question={editing === "new" ? undefined : editing} onClose={() => setEditing(null)} />}

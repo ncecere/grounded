@@ -112,3 +112,23 @@ describe("what a member may do, said the same way (VI-20, VI-20b)", () => {
     expect(screen.queryByText(/your role can't change them/)).toBeNull();
   });
 });
+
+describe("tab content without a second page header (VI-12)", () => {
+  it("puts Request a domain in the Data sources header on Crawl domains, with no second heading", async () => {
+    mockApi({
+      ...shellRoutes("none", "owner"),
+      "GET /v1/teams/registrar/sources": () => [],
+      "GET /v1/teams/registrar/kbs": () => [],
+      "GET /v1/teams/registrar/domain-requests": () => [],
+    });
+    const { container } = renderApp("/teams/registrar/sources?tab=crawl-domains");
+    const header = (await screen.findByRole("heading", { level: 1, name: "Data sources" })).closest("header") ?? document.body;
+    expect(await within(header as HTMLElement).findByRole("button", { name: "Request a domain" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Request a domain" })).toHaveLength(1);
+    expect(screen.queryByRole("heading", { level: 2, name: "Crawl domains" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Request a domain" }));
+    expect(await screen.findByRole("dialog", { name: "Request a domain" })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});

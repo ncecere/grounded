@@ -9,7 +9,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, KeyRound, Lock, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
@@ -72,32 +72,35 @@ export function ApiKeysPage({ embedded = false }: { embedded?: boolean }) {
     },
     onSettled: () => qc.invalidateQueries({ queryKey: keysKey(slug) }),
   });
-  const header = (
-    <PageHeader
-      title="API keys"
-      titleAs={embedded ? "h2" : "h1"}
-      description={
-        role &&
-        (isManager
-          ? "Keys let programs call the API as this team. You can see every key on the team. Widget keys for embedding an agent are on the agent's Share tab."
-          : "Keys let your programs call the API for this team. You can see the personal keys you created.")
-      }
-      actions={
-        role &&
-        !archived && (
-          <Button onClick={() => setCreating(true)}>
-            <KeyRound aria-hidden /> New API key
-          </Button>
-        )
-      }
-    />
+  const description =
+    role &&
+    (isManager
+      ? "Keys let programs call the API as this team. You can see every key on the team. Widget keys for embedding an agent are on the agent's Share tab."
+      : "Keys let your programs call the API for this team. You can see the personal keys you created.");
+  const newKey = role && !archived && (
+    <Button size={embedded ? "sm" : "md"} onClick={() => setCreating(true)}>
+      <KeyRound aria-hidden /> New API key
+    </Button>
   );
+  // Embedded in Team settings, the tab is a titled card like Members, not a second page header (VI-12).
+  const header = embedded ? undefined : <PageHeader title="API keys" description={description} actions={newKey} />;
+  const frame = (content: ReactNode) =>
+    embedded ? (
+      <Card title="API keys" description={description} actions={newKey} flush>
+        {content}
+      </Card>
+    ) : (
+      <>
+        {header}
+        {content}
+      </>
+    );
 
   if (!role) {
     return (
       <Stack gap={6} className={embedded ? undefined : s.page}>
         {header}
-        <Card>
+        <Card title={embedded ? "API keys" : undefined}>
           <EmptyState icon={<Lock />} title="Only team members can see and create this team's API keys." />
         </Card>
       </Stack>
@@ -143,32 +146,33 @@ export function ApiKeysPage({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <Stack gap={6} className={embedded ? undefined : s.page}>
-      {header}
       {!embedded && <ArchivedNotice>New keys can't be created, but existing keys can be revoked.</ArchivedNotice>}
-      <ListPage<APIKey>
-        id="team-api-keys"
-        caption="API keys"
-        columns={columns}
-        data={list}
-        getRowId={(k) => k.id}
-        rowLabel={(k) => k.name}
-        facets={typeFacet}
-        search={{ label: "Search API keys", placeholder: "Name or key" }}
-        onRowClick={(k) => record.open(k.id)}
-        rowActions={(k) => [
-          { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(k.id) },
-          { label: "Revoke…", icon: <Trash2 aria-hidden />, danger: true, hidden: !canRevoke(k), onSelect: () => setRevoking(k) },
-        ]}
-        loading={keys.isLoading}
-        error={keys.error}
-        onRetry={() => void keys.refetch()}
-        empty={{
-          icon: <KeyRound />,
-          title: "No API keys yet.",
-          // The header's New API key is the one way to create one (no second button here).
-          description: "A key lets your programs call the API, or an AI tool connect over MCP.",
-        }}
-      />
+      {frame(
+        <ListPage<APIKey>
+          id="team-api-keys"
+          caption="API keys"
+          columns={columns}
+          data={list}
+          getRowId={(k) => k.id}
+          rowLabel={(k) => k.name}
+          facets={typeFacet}
+          search={{ label: "Search API keys", placeholder: "Name or key" }}
+          onRowClick={(k) => record.open(k.id)}
+          rowActions={(k) => [
+            { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(k.id) },
+            { label: "Revoke…", icon: <Trash2 aria-hidden />, danger: true, hidden: !canRevoke(k), onSelect: () => setRevoking(k) },
+          ]}
+          loading={keys.isLoading}
+          error={keys.error}
+          onRetry={() => void keys.refetch()}
+          empty={{
+            icon: <KeyRound />,
+            title: "No API keys yet.",
+            // The header's New API key is the one way to create one (no second button here).
+            description: "A key lets your programs call the API, or an AI tool connect over MCP.",
+          }}
+        />,
+      )}
       {/* The person's own OAuth apps (not the team's): shown while OAuth sign-in is on, or while any is connected. */}
       <ConnectedApps owner={{ self: true }} canDisconnect hideWhenEmpty={!me.capabilities.mcpOAuth} />
       <KeyRecordPage
