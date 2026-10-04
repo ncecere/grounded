@@ -134,7 +134,8 @@ describe("public page", () => {
     const { container } = renderApp("/a/registrar-help");
     expect(await screen.findByRole("heading", { level: 1, name: "Registrar help" })).toBeInTheDocument();
     expect(screen.getByText("Campus RAG")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Sign in" })).toBeInTheDocument();
+    // Without single sign-on, Sign in goes to the sign-in page and comes back here (US-06).
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/?next=%2Fa%2Fregistrar-help");
     expect(screen.queryByRole("navigation", { name: /main|primary/i })).toBeNull();
     // One header bar (W12): the instance, the agent and Sign in together; New chat once there's a conversation.
     const bar = screen.getByRole("heading", { level: 1, name: "Registrar help" }).closest("header")!;

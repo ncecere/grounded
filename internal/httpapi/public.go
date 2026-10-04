@@ -13,6 +13,7 @@ import (
 
 	"github.com/ncecere/grounded/internal/agents"
 	"github.com/ncecere/grounded/internal/apperr"
+	"github.com/ncecere/grounded/internal/auth"
 	"github.com/ncecere/grounded/internal/httpapi/apitypes"
 	"github.com/ncecere/grounded/internal/httpx"
 	"github.com/ncecere/grounded/internal/limits"
@@ -168,7 +169,7 @@ func (a *api) createPublicSession(w http.ResponseWriter, r *http.Request) {
 	if failed(w, r, err) {
 		return
 	}
-	a.setAnonCookie(w, sess, token)
+	a.setAnonCookie(w, sess, token+"."+auth.VisitBinding(r, a.Config.SecureCookies()))
 	httpx.JSON(w, http.StatusCreated, toAPIPublicSession(sess))
 }
 
@@ -179,16 +180,28 @@ func (a *api) resume(w http.ResponseWriter, r *http.Request, agentID uuid.UUID) 
 }
 
 func (a *api) resumeAs(w http.ResponseWriter, r *http.Request, agentID uuid.UUID, channel string) (public.Session, bool) {
-	token := ""
+	value := ""
 	if c, err := r.Cookie(anonCookie(agentID, channel)); err == nil {
-		token = c.Value
+		value = c.Value
 	}
-	sess, err := a.Public.Resume(r.Context(), token, agentID, channel)
+	sess, err := a.Public.Resume(r.Context(), anonToken(r, value, a.Config.SecureCookies()), agentID, channel)
 	if failed(w, r, err) {
 		return sess, false
 	}
-	a.setAnonCookie(w, sess, token)
+	a.setAnonCookie(w, sess, value)
 	return sess, true
+}
+
+// anonToken is the session token in an anonymous cookie ("token.binding"),
+// or "" when the browser signed in or out since the chat started (the
+// binding is the sign-in epoch's, see auth.VisitBinding): a shared computer's
+// next person doesn't see the previous visitor's conversation (US-06).
+func anonToken(r *http.Request, value string, secure bool) string {
+	token, binding, _ := strings.Cut(value, ".")
+	if binding != auth.VisitBinding(r, secure) {
+		return ""
+	}
+	return token
 }
 
 func (a *api) getPublicSession(w http.ResponseWriter, r *http.Request) {
