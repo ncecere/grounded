@@ -9280,10 +9280,13 @@ export interface components {
         ChatEventDelta: {
             delta: string;
         };
-        /** @description SSE event text_reset (v0.4.2): discard the answer's text received so far; the next text_delta starts the answer again. Sent when the model's turn that wrote it turned out to call a tool: the answer is the model's final turn only, so that text (narration or a first draft) is neither shown nor stored. Thinking, steps and sources are kept. Only streamed text is reset: a buffered answer never sends it. Clients that ignore it show that text until message_end.text replaces it. */
+        /** @description SSE event text_reset (v0.4.2): discard the answer's text received so far; the next text_delta starts the answer again. tool_call: the model's turn that wrote it turned out to call a tool, and the answer is the model's final turn only, so that text (narration or a first draft) is neither shown nor stored. thinking: the text was the model's reasoning (a bare </think>), and it follows as thinking_delta. Thinking, steps and sources are kept. Only text the reader got is reset: a buffered answer never sends it. Clients that ignore it show that text until message_end.text replaces it. */
         ChatEventTextReset: {
-            /** @enum {string} */
-            reason: "tool_call";
+            /**
+             * @description Clients should treat unknown reasons alike
+             * @enum {string}
+             */
+            reason: "tool_call" | "thinking";
         };
         /** @description SSE event tool_call */
         ChatEventToolCall: {

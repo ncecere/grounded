@@ -150,12 +150,17 @@ type (
 // streamer holds events back until the answer starts (the model responded
 // or a refusal needs no model), so failures before that are plain HTTP
 // errors. Events are sent one at a time: checked paragraphs are released
-// by their checker's goroutine (streamcheck.go).
+// by their checker's goroutine (streamcheck.go). shown is the answer text
+// the reader got (text_delta, less text_reset) while they were there
+// (gone: the request ended): a stopped answer is stored as shown (v0.4.2
+// US2-12).
 type streamer struct {
 	mu      sync.Mutex
 	emit    func(Event)
+	gone    func() bool
 	started bool
 	pending []Event
+	shown   strings.Builder
 }
 
 func (s *streamer) send(ev Event) {
@@ -165,9 +170,32 @@ func (s *streamer) send(ev Event) {
 		s.pending = append(s.pending, ev)
 		return
 	}
-	if s.emit != nil {
-		s.emit(ev)
+	s.deliver(ev)
+}
+
+// deliver emits an event and notes the text the reader got. s.mu is held.
+func (s *streamer) deliver(ev Event) {
+	if s.emit == nil {
+		return
 	}
+	if s.gone == nil || !s.gone() {
+		switch d := ev.Data.(type) {
+		case DeltaEvent:
+			if ev.Type == "text_delta" {
+				s.shown.WriteString(d.Delta)
+			}
+		case TextResetEvent:
+			s.shown.Reset()
+		}
+	}
+	s.emit(ev)
+}
+
+// shownText is the answer text the reader got before they left.
+func (s *streamer) shownText() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.shown.String()
 }
 
 func (s *streamer) start() {
@@ -178,9 +206,7 @@ func (s *streamer) start() {
 	}
 	s.started = true
 	for _, ev := range s.pending {
-		if s.emit != nil {
-			s.emit(ev)
-		}
+		s.deliver(ev)
 	}
 	s.pending = nil
 }
@@ -199,8 +225,11 @@ type loopState struct {
 	toolTurn bool
 }
 
-// textResetToolCall is the text_reset reason of a turn that called a tool.
-const textResetToolCall = "tool_call"
+// text_reset reasons: the turn called a tool, or its text was reasoning.
+const (
+	textResetToolCall = "tool_call"
+	textResetThinking = "thinking"
+)
 
 func (ru *run) markFirstToken() {
 	if ru.firstToken == 0 {
@@ -318,7 +347,15 @@ func (ru *run) dropTurnText(st *loopState) {
 	}
 	st.textSoFar.Reset()
 	st.newText = true
-	reset := Event{"text_reset", TextResetEvent{Reason: textResetToolCall}}
+	ru.resetText(textResetToolCall)
+	ru.status(StepThinking) // the tool's step and the model's next turn come before the answer
+}
+
+// resetText takes back the answer text the reader got so far (text_reset):
+// a streamed answer's, a checked answer's released paragraphs; a buffered
+// answer showed none.
+func (ru *run) resetText(reason string) {
+	reset := Event{"text_reset", TextResetEvent{Reason: reason}}
 	switch {
 	case ru.mod.Buffered():
 	case ru.mod.Checked():
@@ -328,22 +365,21 @@ func (ru *run) dropTurnText(st *loopState) {
 	default:
 		ru.out.send(reset)
 	}
-	ru.status(StepThinking) // the tool's step and the model's next turn come before the answer
 }
 
 // textWasThinking drops the current message's text: it was the model's
-// reasoning, ended by a bare </think> (v0.4.2 BU-02, llm/thinktags.go). A
-// streamed answer's message_end replaces what the reader saw; a buffered
-// one (public page, widget) never showed it.
+// reasoning, ended by a bare </think> (v0.4.2 BU-02, llm/thinktags.go), and
+// is kept as thinking. The reader's copy is reset (text_reset, BU2-01; it
+// was replaced at message_end before). Earlier turns' text was dropped when
+// they called a tool, so the message's text is all the text.
 func (ru *run) textWasThinking(st *loopState) {
 	if st.newText {
 		return // nothing of this message's text was taken
 	}
-	all := st.textSoFar.String()
-	dropped := strings.TrimLeft(all[st.msgText:], "\n")
+	dropped := strings.TrimLeft(st.textSoFar.String()[st.msgText:], "\n")
 	st.textSoFar.Reset()
-	st.textSoFar.WriteString(all[:st.msgText])
 	st.newText = true
+	ru.resetText(textResetThinking)
 	if strings.TrimSpace(dropped) == "" {
 		return
 	}

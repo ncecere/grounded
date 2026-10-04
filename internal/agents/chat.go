@@ -386,7 +386,7 @@ func (ru *run) execute(ctx context.Context, emit func(Event)) (ans Answer, err e
 func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 	s := ru.s
 	ru.started = time.Now()
-	ru.out = &streamer{emit: emit}
+	ru.out = &streamer{emit: emit, gone: func() bool { return ctx.Err() != nil }}
 	ru.meter = &systemone.Meter{}
 	ctx = systemone.WithMeter(ctx, ru.meter)
 	target, err := s.Catalog.ChatTarget(ctx, ru.chatModelID())

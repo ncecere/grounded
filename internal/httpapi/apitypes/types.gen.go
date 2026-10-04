@@ -776,25 +776,25 @@ func (e ChatEventModerationStage) Valid() bool {
 
 // Defines values for ChatEventStatusStep.
 const (
-	Answering ChatEventStatusStep = "answering"
-	Checking  ChatEventStatusStep = "checking"
-	Rewriting ChatEventStatusStep = "rewriting"
-	Searching ChatEventStatusStep = "searching"
-	Thinking  ChatEventStatusStep = "thinking"
+	ChatEventStatusStepAnswering ChatEventStatusStep = "answering"
+	ChatEventStatusStepChecking  ChatEventStatusStep = "checking"
+	ChatEventStatusStepRewriting ChatEventStatusStep = "rewriting"
+	ChatEventStatusStepSearching ChatEventStatusStep = "searching"
+	ChatEventStatusStepThinking  ChatEventStatusStep = "thinking"
 )
 
 // Valid indicates whether the value is a known member of the ChatEventStatusStep enum.
 func (e ChatEventStatusStep) Valid() bool {
 	switch e {
-	case Answering:
+	case ChatEventStatusStepAnswering:
 		return true
-	case Checking:
+	case ChatEventStatusStepChecking:
 		return true
-	case Rewriting:
+	case ChatEventStatusStepRewriting:
 		return true
-	case Searching:
+	case ChatEventStatusStepSearching:
 		return true
-	case Thinking:
+	case ChatEventStatusStepThinking:
 		return true
 	default:
 		return false
@@ -803,13 +803,16 @@ func (e ChatEventStatusStep) Valid() bool {
 
 // Defines values for ChatEventTextResetReason.
 const (
-	ToolCall ChatEventTextResetReason = "tool_call"
+	ChatEventTextResetReasonThinking ChatEventTextResetReason = "thinking"
+	ChatEventTextResetReasonToolCall ChatEventTextResetReason = "tool_call"
 )
 
 // Valid indicates whether the value is a known member of the ChatEventTextResetReason enum.
 func (e ChatEventTextResetReason) Valid() bool {
 	switch e {
-	case ToolCall:
+	case ChatEventTextResetReasonThinking:
+		return true
+	case ChatEventTextResetReasonToolCall:
 		return true
 	default:
 		return false
@@ -5769,12 +5772,13 @@ type ChatEventSuggestions struct {
 	Suggestions []string           `json:"suggestions"`
 }
 
-// ChatEventTextReset SSE event text_reset (v0.4.2): discard the answer's text received so far; the next text_delta starts the answer again. Sent when the model's turn that wrote it turned out to call a tool: the answer is the model's final turn only, so that text (narration or a first draft) is neither shown nor stored. Thinking, steps and sources are kept. Only streamed text is reset: a buffered answer never sends it. Clients that ignore it show that text until message_end.text replaces it.
+// ChatEventTextReset SSE event text_reset (v0.4.2): discard the answer's text received so far; the next text_delta starts the answer again. tool_call: the model's turn that wrote it turned out to call a tool, and the answer is the model's final turn only, so that text (narration or a first draft) is neither shown nor stored. thinking: the text was the model's reasoning (a bare </think>), and it follows as thinking_delta. Thinking, steps and sources are kept. Only text the reader got is reset: a buffered answer never sends it. Clients that ignore it show that text until message_end.text replaces it.
 type ChatEventTextReset struct {
+	// Reason Clients should treat unknown reasons alike
 	Reason ChatEventTextResetReason `json:"reason"`
 }
 
-// ChatEventTextResetReason defines model for ChatEventTextReset.Reason.
+// ChatEventTextResetReason Clients should treat unknown reasons alike
 type ChatEventTextResetReason string
 
 // ChatEventToolCall SSE event tool_call
