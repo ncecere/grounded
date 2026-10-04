@@ -19,9 +19,15 @@ import { type AssistantItem, type FeedbackRating, type FeedbackReason, type Sear
 import a from "./answer.module.css";
 import c from "./chat.module.css";
 
-function stepTitle(step: SearchStep) {
+/**
+ * A step's title. A follow-up searched together with the earlier question (the server joins them when it can't
+ * rewrite it) reads as the question "with your earlier question", not as the two run together (US-09).
+ */
+function stepTitle(step: SearchStep, question?: string) {
   if (step.name) return `Used ${step.name}`;
-  const q = step.query ? `“${step.query}”` : "the knowledge base";
+  const asked = question?.trim();
+  const joined = Boolean(asked && step.query && step.query !== asked && step.query.endsWith(` ${asked}`));
+  const q = joined ? `“${asked}” with your earlier question` : step.query ? `“${step.query}”` : "the knowledge base";
   return step.kind === "retrieval" ? `Searched the knowledge base for ${q}` : `Searched: ${q}`;
 }
 
@@ -35,7 +41,7 @@ function searchSummary(s: SearchStep) {
 const failure = (s: SearchStep) => (s.isError ? (s.error ?? (s.name ? "The call failed." : "The search failed.")) : undefined);
 
 /** Steps of an answer (all of them, or a group between two parts of its reasoning: timeline.ts); running until their result while streaming. */
-export function Steps({ steps, streaming }: { steps: SearchStep[]; streaming: boolean }) {
+export function Steps({ steps, streaming, question }: { steps: SearchStep[]; streaming: boolean; question?: string }) {
   if (steps.length === 0) return null;
   return (
     <div className={c.steps}>
@@ -54,7 +60,7 @@ export function Steps({ steps, streaming }: { steps: SearchStep[]; streaming: bo
               className={a.step}
               name={s.name ?? (s.kind === "retrieval" ? "retrieve" : "search_knowledge")}
               icon={tool ? <Wrench /> : <Search />}
-              title={stepTitle(s)}
+              title={stepTitle(s, question)}
               state={state}
               summary={summary}
             />

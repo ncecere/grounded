@@ -85,12 +85,12 @@ const chipSource = (s: Citation) => ({ title: sourceTitle(s), href: webUrl(s), s
  * The answer's steps and its reasoning in the order they happened (timeline.ts): in tool mode and with MCP tools the
  * model reasons, calls a tool, then reasons again. Only the last part streams, until the answer's text starts.
  */
-function StepsAndReasoning({ item }: { item: AssistantItem }) {
+function StepsAndReasoning({ item, question }: { item: AssistantItem; question?: string }) {
   const streaming = item.status === "streaming";
   const parts = timeline(item.thinking, item.steps);
   return parts.map((p, i) =>
     p.kind === "steps" ? (
-      <Steps key={p.key} steps={p.steps} streaming={streaming} />
+      <Steps key={p.key} steps={p.steps} streaming={streaming} question={question} />
     ) : (
       <Reasoning key={p.key} streaming={streaming && !item.text && i === parts.length - 1}>
         <ReasoningTrigger />
@@ -112,9 +112,11 @@ type AssistantProps = {
   added?: boolean;
   onRetry?: () => void;
   onStarter?: (q: string) => void;
+  /** The question it answers (a joined search query reads as it, US-09). */
+  question?: string;
 };
 
-function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd, added = false, onRetry, onStarter }: AssistantProps) {
+function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd, added = false, onRetry, onStarter, question }: AssistantProps) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const streaming = item.status === "streaming";
 
@@ -154,7 +156,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
     <Message from="assistant" label={`${agent.name} said`} data-chat-answer="">
       <AgentAvatar agent={agent} size="md" />
       <MessageContent>
-        {thinking && showThinking ? <StepsAndReasoning item={item} /> : <Steps steps={item.steps} streaming={streaming} />}
+        {thinking && showThinking ? <StepsAndReasoning item={item} question={question} /> : <Steps steps={item.steps} streaming={streaming} question={question} />}
         {item.moderation ? null : streaming && !item.text ? (
           // While thinking, the editor's Reasoning trigger already shimmers "Thinking…". Buffered answers arrive whole.
           !(thinking && showThinking) && (
@@ -281,6 +283,7 @@ export function ChatMessages({ items, agent, feedback = false, showThinking = fa
             added={added?.(item)}
             onRetry={item.key === lastKey && onRetry && asked.get(item.key) ? () => onRetry(asked.get(item.key)!) : undefined}
             onStarter={item.key === lastKey ? onStarter : undefined}
+            question={asked.get(item.key)}
           />
         ),
       )}
