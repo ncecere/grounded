@@ -49,7 +49,8 @@ import styles from "./filter-bar.module.css";
  * pressed item already shows the choice ("Status: Active ×" next to a
  * pressed Active said it twice); its "All" item (or pressing it again)
  * clears it. A facet's `chip` overrides either way. "Clear all" shows
- * with the chips.
+ * with the chips. A search box in `start` passes `search`: its text gets a
+ * chip too ("Search: wifi"), and "Clear all" clears it with the facets.
  *
  * Accessibility: the bar is a group named "Filters". Each facet is labelled
  * by its visible label; counts are read after the option ("Failed, 3").
@@ -141,6 +142,8 @@ export type FilterBarProps<T = unknown> = {
   end?: ReactNode;
   /** Show the active-filter chips and "Clear all" (default true). */
   chips?: boolean;
+  /** The text of a search box in `start`: a chip while it's not empty, cleared by its chip and by "Clear all". */
+  search?: { value: string; onClear: () => void; label?: string };
   /** Control size (default "sm"). */
   size?: "sm" | "md";
   labels?: Partial<FilterBarLabels>;
@@ -280,6 +283,7 @@ export function FilterBar<T>({
   start,
   end,
   chips = true,
+  search,
   size = "sm",
   labels: labelsProp,
   className,
@@ -304,6 +308,19 @@ export function FilterBar<T>({
   const [focusChip, setFocusChip] = useState<number | null>(null);
 
   const chipList: Chip[] = [];
+  const searchText = search?.value.trim() ?? "";
+  if (search && searchText) {
+    chipList.push({
+      key: "search",
+      facetId: "search",
+      facetLabel: search.label ?? "Search",
+      text: searchText,
+      remove: () => {
+        search.onClear();
+        return value;
+      },
+    });
+  }
   for (const facet of facets) {
     const v = value[facet.id];
     if (!isFacetActive(v) || !hasChip(facet)) continue;
@@ -457,6 +474,7 @@ export function FilterBar<T>({
                 onClick={() => {
                   const next = { ...value };
                   for (const f of facets) delete next[f.id];
+                  search?.onClear();
                   set(next);
                   setFocusChip(0);
                 }}

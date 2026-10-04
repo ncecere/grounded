@@ -814,6 +814,8 @@ export function DataTable<T>({
             counts={counts}
             labels={facetLabels}
             start={filterable ? searchBox : undefined}
+            // The search text is a filter too: a chip, and "Clear all" clears it.
+            search={filterable ? { value: filter, onClear: () => setFilter("") } : undefined}
             end={toolbar || showColumnsMenu ? tableActions : undefined}
           />
         </div>
