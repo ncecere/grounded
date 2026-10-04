@@ -86,6 +86,8 @@ describe("admin analytics page", () => {
     expect(await screen.findByRole("link", { name: "Download CSV" })).toHaveAttribute("href", "/v1/admin/analytics/daily.csv?from=2026-09-24&to=2026-09-26&team=registrar&audience=public");
     const filters = screen.getByRole("group", { name: "Analytics filters" });
     expect(within(filters).getByRole("combobox", { name: "Audience" })).toHaveTextContent("Public");
+    // The date range leads the filter row, as on Costs (VI-27), not in the page header.
+    expect(within(filters).getByRole("group", { name: "Analytics date range" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     await userEvent.click(within(filters).getByRole("combobox", { name: "Audience" }));
     await userEvent.click(await screen.findByRole("option", { name: "All audiences" }));
