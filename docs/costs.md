@@ -73,7 +73,7 @@ Spend = rollup quantities × the price in effect on each (local) day, per unit, 
 - `GET/PUT /v1/admin/costs/settings` (mode, currency, time zone, threshold, default budget; If-Match)
 - `GET /v1/admin/costs/prices` (every model's and MCP server's current prices) · `GET/POST /v1/admin/models/{modelId}/prices` · `DELETE /v1/admin/models/{modelId}/prices/{priceId}`
 - `GET /v1/admin/costs/report?from&to&groupBy=team|agent|model|day` and `…/report.csv`
-- `GET /v1/admin/costs/budgets` · `GET/PUT /v1/admin/teams/{team}/budget` (mode override, amount, threshold; If-Match) · `POST /v1/admin/teams/{team}/budget/extensions`
+- `GET /v1/admin/costs/budgets` · `GET/PUT /v1/admin/teams/{team}/budget` (mode override, amount, threshold; If-Match) · `POST /v1/admin/teams/{team}/budget/extensions` · `DELETE /v1/admin/teams/{team}/budget/extensions/{extensionId}` (revoke one of this month's, v0.4.2)
 - `GET /v1/teams/{team}/spend?from&to` (owners, admins; 404 while the effective mode is Off)
 - `GET /v1/teams/{team}/audit` and `…/audit/{entryId}` leave the cost entries out for editors (§5)
 

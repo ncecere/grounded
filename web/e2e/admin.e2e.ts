@@ -13,11 +13,18 @@ test("overview and logs (sign-ins hidden by default)", async ({ as, a11y }) => {
   await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Platform at a glance" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Recent changes" }).getByRole("listitem").first()).toBeVisible();
-  // The optional features and their states (v0.2.1 I2); the evaluations switch is platform-wide, so it isn't pressed here.
+  // The optional features and their states (v0.2.1 I2); the switches are on Admin → Settings (AD-39).
+  const overviewFeatures = page.getByRole("region", { name: "Features" });
+  await expect(overviewFeatures.getByRole("link", { name: /Cost settings/ })).toBeVisible();
+  await expect(overviewFeatures.getByRole("switch")).toHaveCount(0);
+  await a11y(page);
+  await page.goto("/admin/settings");
+  await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Currency" })).toBeVisible();
   const features = page.getByRole("region", { name: "Features" });
   await expect(features.getByRole("switch", { name: "Allow evaluations" })).toBeVisible();
-  await expect(features.getByRole("link", { name: /Cost settings/ })).toBeVisible();
   await expect(features.getByRole("link", { name: /Evaluation limits/ })).toHaveAttribute("href", "/admin/limits?tab=evaluations");
+  await a11y(page, "admin settings");
   // Turning evaluations off asks first; cancelled here, since the switch is platform-wide.
   await features.getByRole("switch", { name: "Allow evaluations" }).click();
   const confirm = page.getByRole("alertdialog", { name: "Turn evaluations off for every team?" });
@@ -28,6 +35,8 @@ test("overview and logs (sign-ins hidden by default)", async ({ as, a11y }) => {
   // The sidebar's groups (v0.2.1 I1).
   const nav = page.getByRole("navigation", { name: "Main" });
   for (const group of ["People", "Content", "Models", "Usage & spend", "Safety", "Records", "Operations"]) await expect(nav.getByRole("button", { name: group })).toBeVisible();
+  await page.goto("/admin");
+  await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
   await a11y(page);
 
   await page.getByRole("region", { name: "Recent changes" }).getByRole("link", { name: "All logs" }).click();
