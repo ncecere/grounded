@@ -10,10 +10,11 @@
  * for screen readers), so the agent's name keeps the room it needs (mem-7).
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { SquarePen } from "lucide-react";
+import { Bot, SquarePen } from "lucide-react";
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, setPublicChannel } from "../../api/client";
 import { Button } from "@/components/ui/button/button";
+import { EmptyState } from "@/components/ui/empty-state/empty-state";
 import { Loading } from "@/components/ui/spinner/spinner";
 import { FeedbackSenderContext, publicFeedback } from "../chat/feedback-sender";
 import { ChatPanel } from "../chat/panel";
@@ -39,6 +40,8 @@ type Props = {
 };
 
 const sessionEnded = (code?: string) => code === "session_expired" || code === "session_required";
+/** Widget refusals no retry fixes. */
+const widgetRefused = new Set(["origin_not_allowed", "invalid_publishable_key"]);
 
 export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions }: Props) {
   const qc = useQueryClient();
@@ -136,6 +139,9 @@ export function PublicChat({ agent, widgetKey, compact, inputRef, brand, actions
       </header>
       {session.isLoading ? (
         <Loading label="Loading…" />
+      ) : compact && chat.error && widgetRefused.has(chat.error.code) ? (
+        // The widget can't work here (this site isn't allowed, or the key is off): say so in place of the chat (US-16).
+        <EmptyState className={p.unavailable} icon={<Bot />} title={chat.error.title} description={chat.error.message} />
       ) : (
         <FeedbackSenderContext.Provider value={rate}>
           <ChatPanel

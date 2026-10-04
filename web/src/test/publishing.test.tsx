@@ -255,6 +255,19 @@ describe("embed page", () => {
     expect(screen.getByRole("button", { name: "New chat" })).toBeInTheDocument();
   });
 
+  it("replaces the chat with the refusal when this site may not embed it (US-16)", async () => {
+    mockApi({
+      [`GET /v1/public/agents/${publicAgent.id}`]: () => publicAgent,
+      "GET /v1/auth/config": signedOut["GET /v1/auth/config"]!,
+      "GET /v1/public/sessions/current": () => Reply.error(401, "session_required"),
+      "POST /v1/public/sessions": () => Reply.error(403, "origin_not_allowed", "This site is not allowed to embed this assistant."),
+    });
+    renderApp(`/embed/${publicAgent.id}?key=pk_abc`);
+    await userEvent.click(await screen.findByRole("button", { name: "How do I order a transcript?" }));
+    expect(await screen.findByText("This site is not allowed to embed this assistant.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "How do I order a transcript?" })).toBeNull();
+  });
+
   it("shows the server's error for a refused embed", async () => {
     const meta = document.createElement("meta");
     meta.name = "grounded-embed-error";
