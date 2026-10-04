@@ -52,7 +52,7 @@ Grounded runs on Kubernetes. [`deploy/kubernetes/`](deploy/kubernetes/README.md)
 
 ```yaml
 resources:
-  - https://github.com/ncecere/grounded//deploy/kubernetes/base?ref=v0.4.1
+  - https://github.com/ncecere/grounded//deploy/kubernetes/base?ref=v0.4.2
 images:
   - name: ghcr.io/ncecere/grounded
     digest: sha256:<digest from the release notes>
@@ -163,18 +163,18 @@ PostgreSQL is the system of record. It holds the vectors (pgvector, one table pe
 | Security reviewers | [`docs/security/`](docs/security/README.md), [`SECURITY.md`](SECURITY.md) |
 | API users | [`api/openapi.yaml`](api/openapi.yaml) (every route; a test enforces it) |
 | Contributors | [`CONTRIBUTING.md`](CONTRIBUTING.md), [`docs/DESIGN.md`](docs/DESIGN.md), [ADRs](docs/adr/README.md) |
-| Release notes | [`CHANGELOG.md`](CHANGELOG.md), [`docs/releases/`](docs/releases/) (latest: [`v0.4.1`](docs/releases/v0.4.1.md)) |
+| Release notes | [`CHANGELOG.md`](CHANGELOG.md), [`docs/releases/`](docs/releases/) (latest: [`v0.4.2`](docs/releases/v0.4.2.md)) |
 
 ## Project status
 
-Grounded is **pre-1.0**. The current release is **v0.4.1** (2026-10-02). The whole design through Phase 5 shipped in v0.1.0 ([`docs/DESIGN.md`](docs/DESIGN.md) §19), and every release since runs on a reference install before it is tagged, but Grounded hasn't yet had long production use. What to expect:
+Grounded is **pre-1.0**. The current release is **v0.4.2** (2026-10-04). The whole design through Phase 5 shipped in v0.1.0 ([`docs/DESIGN.md`](docs/DESIGN.md) §19), and every release since runs on a reference install before it is tagged, but Grounded hasn't yet had long production use. What to expect:
 
 - **Meant to stay stable through 0.x:** the OpenAI-compatible chat endpoint, the widget embed, the environment variables in `.env.example`, and the Kubernetes resource names that overlays patch. If one of these has to change, the release notes will say how to adapt.
 - **May change between minor releases:** the native REST API (`/v1/...`, described in [`api/openapi.yaml`](api/openapi.yaml)), metric names, the UI, and component defaults. Changes are listed in the [changelog](CHANGELOG.md).
 - **Upgrades** are forward-only and without downtime (expand/contract migrations). Don't skip a release that the release notes mark as required. Downgrading means restoring a backup.
 - **Supported versions:** the latest 0.4.x patch release gets fixes, including security fixes. See [`SECURITY.md`](SECURITY.md).
 
-[`docs/releases/v0.4.1.md`](docs/releases/v0.4.1.md) lists the known limitations, and [`docs/roadmap.md`](docs/roadmap.md) lists what may come next.
+[`docs/releases/v0.4.2.md`](docs/releases/v0.4.2.md) lists the known limitations, and [`docs/roadmap.md`](docs/roadmap.md) lists what may come next.
 
 ## Roadmap
 
@@ -188,6 +188,7 @@ Grounded is **pre-1.0**. The current release is **v0.4.1** (2026-10-02). The who
 - [x] **v0.3.1** (2026-09-30): the Grounded logo (the "Cited" mark), and long answers that arrive whole shown from their start.
 - [x] **v0.4.0** (2026-10-02): cross-encoder reranking, the gap report (unanswered questions grouped into topics), the source viewer and per-claim source cards, saved answers, answers streamed in checked paragraphs, reasoning effort Off, and feedback on public pages.
 - [x] **v0.4.1** (2026-10-02): follow-up suggestions, evaluation questions that need attention, OCR for every TIFF page and partly scanned PDFs, SystemOne capacity that keeps answers first, and reasoning shown in order.
+- [x] **v0.4.2** (2026-10-04): ready for a wider beta — every finding of a pre-beta bug hunt fixed, a Reranking page, an Admin Settings page, and dark mode.
 
 **Next:** v0.5.0, to be planned ([`docs/roadmap.md`](docs/roadmap.md)): first measuring v0.4 on the reference install (reranking on and off), then a theme (the recommendation is better knowledge in: contextual chunks, parent/child retrieval, a content health report).
 

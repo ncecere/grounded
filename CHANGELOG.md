@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-04
+
+Ready for a wider beta: every finding of a pre-beta bug hunt and its re-test fixed, a Reranking page, an Admin Settings page and dark mode. The release notes are [`docs/releases/v0.4.2.md`](docs/releases/v0.4.2.md).
+
 ### Added
 
 - **Dark mode (v0.4.2 M6, VI-38):** Grounded follows the device's light or dark setting, and the account menu's new **Theme** group sets **System**, **Light** or **Dark** (kept in this browser). The page is drawn in the right theme from the first paint (`/color-mode.js`, allowed by the CSP as a same-origin script). The public page and the widget follow the visitor's setting; in dark the widget's launcher gets a light ring so a dark accent colour still shows, and a white focus ring. A dark-mode pass over every page (every role, 1440x900 and 390x844, axe in dark) fixed: muted hints on a highlighted menu or palette item (4.44:1, now 4.8:1) and selected-option checks under 3:1 (bitop-ui theme and select, combobox and model selector), the default accent named as dark mode's colour in Appearance, the admin Analytics chart described by "paler" and "darker" bars (reversed in dark), and the admin header's icon. Also the sign-in page no longer runs off a phone's screen. Docs: [`docs/personal-settings.md`](docs/personal-settings.md). No API change, no migration.
@@ -481,7 +485,8 @@ Development before this release happened in a private repository. The public rep
 - Profile migrations and retention runs no longer hold a pooled database connection for their lock: with a small pool (4 connections on a 2-CPU host) several embedding jobs could each hold one and wait for another, stalling until their 15-minute timeout. Ingest reads the maintenance state before opening its commit transaction for the same reason. CI now runs the tests with a 3-connection pool.
 - "Send request" in the domain-request dialog opened from a new website source no longer loses the request.
 
-[Unreleased]: https://github.com/ncecere/grounded/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/ncecere/grounded/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/ncecere/grounded/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/ncecere/grounded/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/ncecere/grounded/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/ncecere/grounded/compare/v0.3.0...v0.3.1
