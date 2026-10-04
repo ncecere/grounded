@@ -21,9 +21,9 @@ import styles from "./breadcrumbs.module.css";
  * shows "…"); its title lists the hidden crumbs as a path.
  *
  * The trail stays on one line. While it fits, every crumb shows in full;
- * when it doesn't (a long record name, a phone), the crumbs before the
- * current page are cut first, down to a readable floor, then the current
- * page, with an ellipsis; a text label shows in full on hover (`title`).
+ * when it doesn't (a long record name, a phone), the current page is cut
+ * first down to a readable floor, then the crumbs before it down to theirs,
+ * with an ellipsis; a text label shows in full on hover (`title`).
  * `wrap` lets the trail wrap onto more lines instead.
  */
 

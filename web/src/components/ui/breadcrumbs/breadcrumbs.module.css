@@ -21,32 +21,29 @@
 }
 
 /* No width caps: a crumb is cut only when the trail overflows the room it
-   has. Then the crumbs before the current page give up room first (the
-   longer, the more), and the current page shrinks last: its shrink factor is
-   10,000 times smaller, so it gives up what's left only once the others
-   reached their floor (flexbox freezes an item at its minimum and hands the
-   rest to the others; the current page's factor stays 1, since factors
-   summing under 1 hand out only that share). A percentage cap resolved
-   against the trail itself cut "Admin" in a two-crumb trail with a thousand
-   pixels free. */
+   has (a percentage cap resolved against the trail itself cut "Admin" in a
+   two-crumb trail with a thousand pixels free). Then, in order: the current
+   page gives up room first (its shrink factor is 10,000 times the others'),
+   down to its floor; then the crumbs before it, down to theirs (flexbox
+   freezes an item at its minimum and hands the rest to the others). The
+   floors are a crumb's own width when it is shorter (measured into
+   --crumb-width, so nothing is stretched): 5.5rem for the crumbs before
+   ("Demo t…", never "D…"), and min(12rem, 25vw) for the current page. */
 .item {
   display: inline-flex;
-  flex: 0 10000 auto;
+  flex: 0 1 auto;
   align-items: center;
   gap: 0.25rem;
   min-width: 0;
 }
 
-/* The floor keeps a cut crumb readable ("Demo t…", never "D…"): 5.5rem, or
-   the crumb's own width when it is shorter (measured into --crumb-width, so a
-   short crumb is never stretched), and nothing before it's measured. */
 .item:not(:last-child) {
   min-width: min(var(--crumb-width, 0px), 5.5rem);
 }
 
 .item:last-child {
-  flex-shrink: 1;
-  min-width: 3rem;
+  flex-shrink: 10000;
+  min-width: min(var(--crumb-width, 0px), 12rem, 25vw);
 }
 
 /* Block boxes, so the icon and the text cut together with one ellipsis. */

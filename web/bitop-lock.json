@@ -46,8 +46,8 @@
     },
     "breadcrumbs": {
       "files": {
-        "src/components/ui/breadcrumbs/breadcrumbs.module.css": "68ca2388320b2ced301b26ba9d3628662d340789ecccc6e71c51aace45a522bf",
-        "src/components/ui/breadcrumbs/breadcrumbs.tsx": "dfafef2bb0c8ed10b450d23f6e5605f3e0b7283c308ae4ac92ff4da49ca5214a"
+        "src/components/ui/breadcrumbs/breadcrumbs.module.css": "ca7c5fb3c9bb3a2a1c5674148031bb09aa4acff00f961d27429aef7cc1a6b0df",
+        "src/components/ui/breadcrumbs/breadcrumbs.tsx": "eae13383058b0f112515fc5d7052e850104e60622a334c8fec6bda14616ccd36"
       }
     },
     "button": {

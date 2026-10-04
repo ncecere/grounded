@@ -6,7 +6,7 @@
 
 | Setting | Default | Meaning |
 |---|---|---|
-| Currency | `USD` | The ISO 4217 code amounts are shown in. It's a display code only: nothing is converted, so enter prices in it. The budget field's label follows it once it's a valid three-letter code. |
+| Currency | `USD` | The ISO 4217 code amounts are shown in (a code that names a currency: "XYZ" is refused). It's a display code only: nothing is converted, so enter prices in it. The budget field's label follows it once it's a valid code. |
 | Time zone | `UTC` | The budget month, cost report days, the date agents are told ("Today is …") and the day saved answers to questions about relative dates are kept for follow this zone (an IANA name such as `America/New_York`). Changing it needs no rebuild. Daily limits still reset at midnight UTC. |
 | Default monthly budget | none | The budget of teams without their own: enforced while cost tracking is Enforce, progress only in Track only. Without one, such teams are tracked but never refused. |
 
