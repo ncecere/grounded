@@ -5760,6 +5760,9 @@ type ChatEventToolCall struct {
 	Arguments interface{} `json:"arguments"`
 	Id        string      `json:"id"`
 	Name      string      `json:"name"`
+
+	// Title An MCP tool's title for people (its server's title for it); absent for search_knowledge and tools without one (v0.4.2 and later)
+	Title *string `json:"title,omitempty"`
 }
 
 // ChatEventToolResult SSE event tool_result
@@ -6262,6 +6265,9 @@ type ConversationToolCall struct {
 
 	// ThinkingBefore How much of the message's thinking came before this call, in UTF-16 code units (the length of thinking's start), so reasoning and tool steps can be shown in the order they happened (v0.4.1 and later)
 	ThinkingBefore *int `json:"thinkingBefore,omitempty"`
+
+	// Title An MCP tool's title for people, stored with its result; absent for search_knowledge, tools without one and answers stored before v0.4.2
+	Title *string `json:"title,omitempty"`
 }
 
 // ConversationUpdate defines model for ConversationUpdate.

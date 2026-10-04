@@ -59,6 +59,8 @@ type mcpState struct {
 	max   int
 	count int // calls attempted (the limit counts them)
 	calls []mcpCall
+	// titles are the tools' titles by the name the model calls them (US2-10).
+	titles map[string]string
 }
 
 var toolNameRE = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
@@ -105,13 +107,14 @@ func (ru *run) mcpTools(ctx context.Context) []agentloop.Tool {
 		}
 		t := agentloop.Tool{
 			Name: modelToolName(ref.Name, taken), Label: toolLabel(ref), Description: toolDescription(ref),
-			Parameters: ref.InputSchema, Mode: agentloop.Sequential, Execute: ru.callTool(ref),
+			Parameters: ref.InputSchema, Mode: agentloop.Sequential, Execute: titled(ref.Title, ru.callTool(ref)),
 		}
 		if err := agentloop.CheckTool(t); err != nil {
 			ru.s.Log.Warn("MCP tool has an input schema the agent loop can't use", "agent", ru.agent.ID, "tool", id, "err", err)
 			continue
 		}
 		out = append(out, t)
+		ru.mcp.title(t.Name, ref.Title)
 	}
 	return out
 }

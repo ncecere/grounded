@@ -108,6 +108,7 @@ func (s *Service) ListConversations(ctx context.Context, a authz.Actor, f Conver
 type ToolCallView struct {
 	ID        string          `json:"id"`
 	Name      string          `json:"name"`
+	Title     string          `json:"title,omitempty"`
 	Arguments json.RawMessage `json:"arguments"`
 	IsError   bool            `json:"isError"`
 	HitCount  int             `json:"hitCount"`
@@ -247,7 +248,7 @@ func messageViews(rows []dbgen.ListMessagesRow) []MessageView {
 			for i := range last.ToolCalls {
 				if last.ToolCalls[i].ID == tr.ToolCallID {
 					last.ToolCalls[i].IsError, last.ToolCalls[i].HitCount = tr.IsError, len(tr.Details.Hits)
-					last.ToolCalls[i].Query = tr.Details.Query
+					last.ToolCalls[i].Query, last.ToolCalls[i].Title = tr.Details.Query, tr.Details.Title
 					last.ToolCalls[i].Error, last.ToolCalls[i].Result = stepOutcome(tr.IsError, tr.Details)
 				}
 			}

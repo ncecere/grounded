@@ -63,6 +63,12 @@ export const copySourceTitle = (s: Citation) =>
   s.kind === "tool"
     ? sourceTitle(s)
     : `${sourceTitle(s)}${s.headingPath.length ? ` — ${s.headingPath.join(" › ")}` : ""}${s.pageStart ? `, p. ${s.pageStart}` : ""}`;
+/** A tool's result is named by the tool's title, as its step is ("From Service status · Check outage", US2-10). */
+function withToolTitles(item: AssistantItem): Citation[] {
+  const titles = new Map(item.steps.flatMap((s) => (s.name && s.title ? [[s.name, s.title] as const] : [])));
+  if (titles.size === 0) return item.citations;
+  return item.citations.map((c) => (c.kind === "tool" && c.tool && titles.has(c.tool) ? { ...c, tool: titles.get(c.tool) } : c));
+}
 /** Snippets are raw chunk text: plain words for display, without a leading heading the card already shows. */
 const snippetOf = (s: Citation) => plainSnippet(s.snippet, [s.title, ...s.headingPath]);
 const webUrl = (s: Citation) => (s.url && /^https?:\/\//.test(s.url) ? s.url : undefined);
@@ -152,10 +158,11 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
   // While it streams, an answer's markers are chips of the sources they cite until message_end brings the citations,
   // numbered by first citation as the finished answer is: no number changes at the end (US-03).
   const early = streaming && item.citations.length === 0;
-  const chips = useMemo(() => (early ? citedSoFar(item) : item.citations), [early, item]);
+  const cited = useMemo(() => withToolTitles(item), [item]);
+  const chips = useMemo(() => (early ? citedSoFar(item) : cited), [early, item, cited]);
   const markers = useAnswerMarkers(chips, openSource, chipSource, item.claims, viewer ? showSource : jumpBelow, item.text);
   const num = useMemo(() => displayNumbers(item.citations, item.text), [item.citations, item.text]);
-  const listed = useMemo(() => [...item.citations].sort((x, y) => num(x.n) - num(y.n)), [item.citations, num]);
+  const listed = useMemo(() => [...cited].sort((x, y) => num(x.n) - num(y.n)), [cited, num]);
   const thinking = Boolean(item.thinking) && !item.moderation;
   // Answers without sources already say so: no "Uncited" marks or claim summary for them.
   const uncited = item.noContext ? undefined : item.claims ? uncitedOfClaims(item.claims) : item.uncited;
@@ -215,7 +222,7 @@ function AssistantMessage({ item, agent, feedback, showThinking, onPatch, onAdd,
       </MessageContent>
       {!streaming && isAnswer(item) && (
         <MessageActions label="Answer actions">
-          <MessageCopyAction value={copyText(item, copySourceTitle)} label="Copy answer" />
+          <MessageCopyAction value={copyText({ ...item, citations: cited }, copySourceTitle)} label="Copy answer" />
           {feedback && item.id && <Feedback item={item} onChange={(f) => onPatch?.(item.key, (a) => ({ ...a, feedback: f }))} />}
           {/* A labelled button, and "Added" once added (remembered across reloads; docs/evaluations.md §1). */}
           {onAdd &&

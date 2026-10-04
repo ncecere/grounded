@@ -1,9 +1,12 @@
 package agents
 
 import (
+	"context"
+	"encoding/json"
 	"regexp"
 	"strings"
 
+	"github.com/ncecere/grounded/internal/agentloop"
 	"github.com/ncecere/grounded/internal/kbs"
 )
 
@@ -42,4 +45,44 @@ func shownHeading(shown []string, text string) bool {
 		}
 	}
 	return false
+}
+
+// titled stores the tool's title with each result it returns, so a stored
+// answer's step names the tool as the live one did (US2-10).
+func titled(title string, exec agentloop.ExecuteFunc) agentloop.ExecuteFunc {
+	if title == "" {
+		return exec
+	}
+	return func(ctx context.Context, id string, params json.RawMessage, update func(agentloop.ToolResult)) (agentloop.ToolResult, error) {
+		res, err := exec(ctx, id, params, update)
+		if d, ok := res.Details.(toolDetails); ok {
+			d.Title = title
+			res.Details = d
+		}
+		return res, err
+	}
+}
+
+// title records a tool's title under the name the model calls it.
+func (m *mcpState) title(name, title string) {
+	if title == "" {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.titles == nil {
+		m.titles = map[string]string{}
+	}
+	m.titles[name] = title
+}
+
+// titleOf is the title of the tool the model called by name ("" for
+// search_knowledge, untitled tools, and answers without MCP tools).
+func (m *mcpState) titleOf(name string) string {
+	if m == nil {
+		return ""
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.titles[name]
 }

@@ -32,6 +32,8 @@ export type SearchStep = {
   kind: "retrieval" | "tool";
   /** Tool name for tool calls other than search_knowledge. */
   name?: string;
+  /** An MCP tool's title for people ("Check outage"), when it has one (US2-10). */
+  title?: string;
   query: string;
   /** An MCP tool's arguments, as the model sent them. */
   args?: unknown;
@@ -135,9 +137,9 @@ function toolArgs(args: unknown): unknown {
 }
 
 /** The step of a tool call: a knowledge base search (its query) or an MCP tool (its arguments). */
-function toolStep(id: string, name: string, args: unknown): SearchStep {
+function toolStep(id: string, name: string, args: unknown, title?: string): SearchStep {
   if (name === "search_knowledge") return { kind: "tool", id, query: toolQuery(args) };
-  return { kind: "tool", id, name, query: "", args: toolArgs(args) };
+  return { kind: "tool", id, name, ...(title ? { title } : {}), query: "", args: toolArgs(args) };
 }
 
 /** A tool result's outcome fields, when set. */
@@ -186,7 +188,7 @@ export function applyChatEvent(item: AssistantItem, event: string, data: unknown
     }
     case "tool_call":
       // The model may have reasoned before calling: the step goes after that thinking.
-      return { ...item, steps: [...item.steps, { ...toolStep(str(d.id), str(d.name), d.arguments), thinkingAt: item.thinking.length }] };
+      return { ...item, steps: [...item.steps, { ...toolStep(str(d.id), str(d.name), d.arguments, str(d.title)), thinkingAt: item.thinking.length }] };
     case "tool_result":
       return {
         ...item,
@@ -273,7 +275,7 @@ function storedSteps(m: ConversationMessage): SearchStep[] {
   const r = m.retrieval;
   const first: SearchStep[] = r ? [{ kind: "retrieval", query: r.query, hitCount: r.hitCount, judging: r.judging, thinkingAt: 0 }] : [];
   const calls = (m.toolCalls ?? []).map((t): SearchStep => {
-    const step = toolStep(t.id, t.name, t.arguments);
+    const step = toolStep(t.id, t.name, t.arguments, t.title);
     return { ...step, query: t.query || step.query, hitCount: t.hitCount, isError: t.isError, ...outcomeOf(t), thinkingAt: t.thinkingBefore };
   });
   return [...first, ...calls];
