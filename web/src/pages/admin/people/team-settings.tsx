@@ -1,8 +1,8 @@
 /* Admin team › Settings (A4): name, description and approved classification in one form, and Archive in the Danger zone. */
 import { adminOnly } from "@/lib/terms";
-import { useState } from "react";
 import type { Schemas } from "@/api/client";
 import { DangerAction, DangerZone, SettingsPage, SettingsSection } from "@/components/templates/settings-page";
+import { useRevisionForm } from "@/components/templates/revision-form";
 import { Button } from "@/components/ui/button/button";
 import { Field } from "@/components/ui/field/field";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
@@ -11,19 +11,22 @@ import type { useTeamUpdate } from "./team";
 
 type Form = { name: string; description: string; maxClassification: string };
 const formOf = (t: Schemas["Team"]): Form => ({ name: t.name, description: t.description, maxClassification: t.maxClassification });
+const labels = { name: "Name", description: "Description", maxClassification: "Approved classification" };
 
 type Props = { team: Schemas["Team"]; isAdmin: boolean; onArchive: () => void; status: ReturnType<typeof useTeamUpdate> };
 
 export function TeamSettingsTab({ team, isAdmin, onArchive, status }: Props) {
   const levels = useClassificationLevels();
-  const [form, setForm] = useState(() => formOf(team));
   const saved = formOf(team);
+  // Edits survive a change made elsewhere (another tab or admin): SettingsPage asks whose to keep (AD-01).
+  const [form, setForm, revision] = useRevisionForm(saved, team.revision, { labels });
   const dirty = (Object.keys(form) as (keyof Form)[]).some((k) => form[k] !== saved[k]);
   const nameError = form.name.trim() === "" ? "Enter a name." : undefined;
   const lowered = (levels.data?.find((l) => l.key === form.maxClassification)?.rank ?? 0) < (levels.data?.find((l) => l.key === saved.maxClassification)?.rank ?? 0);
   const archived = team.status === "archived";
   return (
     <SettingsPage
+      revision={revision}
       dirty={dirty}
       canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={status.isPending}

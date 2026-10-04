@@ -17,6 +17,7 @@ import { ConfirmMutationDialog } from "../../../components/confirm-dialog";
 import { ssoBlockedReason, ssoGroup } from "../../../components/member-list";
 import { leaveBlockedReason, membersKey } from "../../../components/members";
 import { RoleBadge } from "../../../components/role-badge";
+import { useRevisionForm } from "../../../components/templates/revision-form";
 import { DangerAction, DangerZone, SettingsPage, SettingsSection } from "../../../components/templates/settings-page";
 import { adminOnly, lifecycleLabels } from "../../../lib/terms";
 import { useCurrentUser } from "../../../session";
@@ -39,13 +40,8 @@ export function GeneralTab() {
   const qc = useQueryClient();
   const levelName = useLevelName();
   const isPlatformAdmin = me.capabilities.platformAdmin;
-  const [form, setForm] = useState<Form>(() => formOf(team));
-  const [saved, setSaved] = useState(team.revision);
-  // A newer revision (saved here or elsewhere) resets the form.
-  if (team.revision !== saved) {
-    setSaved(team.revision);
-    setForm(formOf(team));
-  }
+  // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
+  const [form, setForm, revision] = useRevisionForm<Form>(formOf(team), team.revision);
   const save = useMutation({
     mutationFn: async (body: { name?: string; description?: string; status?: "active" | "archived" }) =>
       unwrap(await api.PATCH("/v1/admin/teams/{team}", { params: { path: { team: slug }, header: ifMatch(team.revision) }, body })),
@@ -62,6 +58,7 @@ export function GeneralTab() {
 
   return (
     <SettingsPage
+      revision={revision}
       canEdit={isPlatformAdmin}
       readOnlyNote={adminOnly}
       dirty={dirty}

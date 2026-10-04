@@ -2,9 +2,11 @@
   min-width: 0;
 }
 
+/* One line: crumbs shrink (the longest the most) and cut their text with an
+   ellipsis, so a long record name never wraps the trail out of a top bar. */
 .list {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.25rem;
   margin: 0;
@@ -13,27 +15,53 @@
   font-size: var(--font-size-sm);
 }
 
+.nav[data-wrap] .list {
+  flex-wrap: wrap;
+}
+
 .item {
   display: inline-flex;
+  flex: 0 1 auto;
   align-items: center;
   gap: 0.25rem;
   min-width: 0;
 }
 
+/* The current page (usually the long name) gives up the room; the crumbs
+   before it keep theirs ("Demo › … › Go docum…"), each cut at 16rem or 40%
+   of the trail. */
+.item:not(:last-child) {
+  flex-shrink: 0;
+  max-width: min(16rem, 40%);
+}
+
+.item:last-child {
+  min-width: 3rem;
+}
+
+/* Block boxes, so the icon and the text cut together with one ellipsis. */
 .link,
 .current {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
+  display: block;
+  min-width: 0;
   padding: 0.125rem 0.25rem;
   margin: -0.125rem -0.25rem;
+  overflow: hidden;
   border-radius: var(--radius-1);
+  text-overflow: ellipsis;
   white-space: nowrap;
 
   & svg {
+    display: inline-block;
     width: 0.875rem;
     height: 0.875rem;
+    margin-inline-end: 0.375rem;
+    vertical-align: -0.125em;
   }
+}
+
+.nav[data-wrap] :is(.link, .current) {
+  overflow: visible;
 }
 
 .link {
@@ -59,6 +87,7 @@
 }
 
 .separator {
+  flex: none;
   width: 0.875rem;
   height: 0.875rem;
   margin-inline: 0.125rem;
@@ -68,6 +97,7 @@
 /* A collapsed item: "…" opening a menu of the hidden crumbs. */
 .more {
   display: inline-flex;
+  flex: none;
   align-items: center;
   min-width: 1.5rem;
   min-height: 1.5rem;

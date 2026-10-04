@@ -35,6 +35,18 @@
   }
 }
 
+/* bottom-left while an AppShell sidebar is collapsed to its icon rail: too
+   narrow to hold a toast (which would cover the page beside it in a thin
+   box), so toasts take the bottom-right corner at their normal width. */
+@media (min-width: 48rem) {
+  :global(body:has(aside[data-collapsed])) .viewport[data-position="bottom-left"] {
+    right: var(--space-6);
+    bottom: var(--space-6);
+    left: auto;
+    width: min(24rem, calc(100vw - 2rem));
+  }
+}
+
 .toast {
   --gap: 0.625rem;
   --peek: 0.625rem;

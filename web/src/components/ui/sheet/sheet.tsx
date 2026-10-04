@@ -106,6 +106,7 @@ export function Sheet({
       <BaseDialog.Portal>
         <BaseDialog.Backdrop className={styles.backdrop} />
         <BaseDialog.Popup
+          aria-modal="true"
           className={cx(styles.popup, className)}
           data-side={side}
           data-size={size}

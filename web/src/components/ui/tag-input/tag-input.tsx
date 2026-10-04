@@ -19,6 +19,10 @@ import styles from "./tag-input.module.css";
  *   <Field label="Tags" description="Press Enter after each tag.">
  *     <TagInput value={tags} onValueChange={setTags} maxTags={20} />
  *   </Field>
+ *
+ * `noun` names what the tags are in the list's name and the announcements:
+ * noun={{ one: "origin", other: "origins" }} says "Added origin
+ * https://www.example.edu" and "Remove origin …" instead of "tag".
  */
 
 export type TagInputProps = Omit<ComponentPropsWithRef<"input">, "className" | "size" | "value" | "defaultValue" | "onChange"> & {
@@ -30,6 +34,8 @@ export type TagInputProps = Omit<ComponentPropsWithRef<"input">, "className" | "
   maxTagLength?: number;
   /** Cleans a typed tag; return "" to drop it. Default: trim and lower-case. */
   normalize?: (tag: string) => string;
+  /** What the tags are, for the list's name, the Remove buttons and the announcements (default "tag" / "tags"). */
+  noun?: { one: string; other: string };
   size?: "sm" | "md";
   className?: string;
 };
@@ -42,9 +48,10 @@ export function TagInput({
   maxTags,
   maxTagLength = 64,
   normalize = defaultNormalize,
+  noun = { one: "tag", other: "tags" },
   size = "md",
   disabled,
-  placeholder = "Add a tag…",
+  placeholder,
   className,
   onBlur,
   onKeyDown,
@@ -75,12 +82,12 @@ export function TagInput({
     setText("");
     if (added.length === 0) return;
     onValueChange(next);
-    setMessage(added.length === 1 ? `Added tag ${added[0]}` : `Added ${added.length} tags`);
+    setMessage(added.length === 1 ? `Added ${noun.one} ${added[0]}` : `Added ${added.length} ${noun.other}`);
   }
 
   function remove(tag: string) {
     onValueChange(value.filter((t) => t !== tag));
-    setMessage(`Removed tag ${tag}`);
+    setMessage(`Removed ${noun.one} ${tag}`);
     inputRef.current?.focus();
   }
 
@@ -104,7 +111,7 @@ export function TagInput({
   return (
     <div className={cx(styles.root, className)} data-size={size} data-disabled={dataFlag(disabled)} onClick={() => inputRef.current?.focus()}>
       {value.length > 0 && (
-        <ul className={styles.tags} aria-label="Tags">
+        <ul className={styles.tags} aria-label={noun.other.charAt(0).toUpperCase() + noun.other.slice(1)}>
           {value.map((tag) => (
             <li key={tag} className={styles.tag}>
               <span className={styles.tagText}>{tag}</span>
@@ -112,7 +119,7 @@ export function TagInput({
                 <button
                   type="button"
                   className={styles.remove}
-                  aria-label={`Remove tag ${tag}`}
+                  aria-label={`Remove ${noun.one} ${tag}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     remove(tag);
@@ -131,7 +138,7 @@ export function TagInput({
         value={text}
         disabled={disabled || full}
         maxLength={maxTagLength * 4}
-        placeholder={full ? `Limit of ${maxTags} tags reached` : placeholder}
+        placeholder={full ? `Limit of ${maxTags} ${noun.other} reached` : (placeholder ?? (noun.one === "tag" ? "Add a tag…" : `Add ${noun.other}…`))}
         autoComplete="off"
         spellCheck={false}
         className={styles.input}

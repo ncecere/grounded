@@ -6,6 +6,7 @@
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useRevisionForm } from "@/components/templates/revision-form";
 import { DangerAction, DangerZone, SettingsPage, SettingsSection } from "@/components/templates/settings-page";
 import { Alert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
@@ -41,7 +42,8 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
   const qc = useQueryClient();
   const { usable } = useOwnerLevels();
   const initial = formOf(source);
-  const [form, setForm] = useState<Form>(initial);
+  // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
+  const [form, setForm, revision] = useRevisionForm<Form>(initial, source.revision, { labels: { ocrEnabled: "OCR", web: "Crawling" } });
   const [impact, setImpact] = useState<ClassificationImpact | null>(null);
   const invalidate = useInvalidateSource(source);
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
@@ -97,6 +99,7 @@ export function SourceSettings({ source, levels, actions }: { source: DataSource
   return (
     <>
       <SettingsPage
+        revision={revision}
         dirty={dirty}
         saving={save.isPending}
         onSave={() => save.mutate()}

@@ -5,8 +5,8 @@
  */
 import { adminOnly } from "@/lib/terms";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
+import { useRevisionForm } from "@/components/templates/revision-form";
 import { SettingsPage, SettingsSection } from "@/components/templates/settings-page";
 import { Field } from "@/components/ui/field/field";
 import { NativeSelect } from "@/components/ui/input/input";
@@ -36,7 +36,8 @@ const formOf = (st: Settings): Form => ({
 
 export function BreakGlassSettingsForm({ saved, isAdmin }: { saved: Settings; isAdmin: boolean }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState(() => formOf(saved));
+  // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
+  const [form, setForm, revision] = useRevisionForm(formOf(saved), saved.revision);
   const initial = formOf(saved);
   const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
@@ -48,7 +49,7 @@ export function BreakGlassSettingsForm({ saved, isAdmin }: { saved: Settings; is
     },
   });
   return (
-    <SettingsPage dirty={dirty} canEdit={isAdmin} readOnlyNote={adminOnly} saving={save.isPending} error={save.error} saveLabel="Save settings" onSave={() => save.mutate(form)} onDiscard={() => setForm(initial)}>
+    <SettingsPage revision={revision} dirty={dirty} canEdit={isAdmin} readOnlyNote={adminOnly} saving={save.isPending} error={save.error} saveLabel="Save settings" onSave={() => save.mutate(form)} onDiscard={() => setForm(initial)}>
       <SettingsSection title="Approval" description="By default one platform admin starts a session alone, with a written reason. Every session is audited and the team's owners are notified either way.">
         <Switch
           label="Require a second admin's approval"

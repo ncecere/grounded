@@ -34,7 +34,7 @@ export function NotificationSettingsPage() {
       )}
       <Card flush>
         <QueryView query={q} loadingLabel="Loading settings…">
-          <Table caption="Notification settings" columns={["Notification", { label: "In the app", width: "8rem" }, { label: "Email", width: "8rem" }]}>
+          <Table caption="Notification settings" stack columns={["Notification", { label: "In the app", width: "8rem" }, { label: "Email", width: "8rem" }]}>
             {(q.data?.items ?? []).map((it) => (
               <SettingRow key={it.type} it={it} emailEnabled={emailEnabled} />
             ))}

@@ -64,6 +64,8 @@ export function Dialog({
         <BaseDialog.Backdrop className={styles.backdrop} />
         <BaseDialog.Viewport className={styles.viewport}>
           <BaseDialog.Popup
+            // Modal (focus is trapped, the page behind is inert to pointers): say so to screen readers too.
+            aria-modal="true"
             className={cx(styles.popup, className)}
             data-size={size}
             data-closable={hideClose ? undefined : ""}
@@ -152,7 +154,7 @@ export function AlertDialog({
       <BaseAlertDialog.Portal>
         <BaseAlertDialog.Backdrop className={styles.backdrop} />
         <BaseAlertDialog.Viewport className={styles.viewport}>
-          <BaseAlertDialog.Popup className={cx(styles.popup, className)} data-size="sm" finalFocus={finalFocus}>
+          <BaseAlertDialog.Popup aria-modal="true" className={cx(styles.popup, className)} data-size="sm" finalFocus={finalFocus}>
             <div className={styles.header}>
               <div className={styles.heading}>
                 <BaseAlertDialog.Title className={styles.title}>{title}</BaseAlertDialog.Title>

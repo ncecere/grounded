@@ -48,7 +48,7 @@ export function CostsPage() {
               { value: "overview", label: "Overview", icon: <LayoutDashboard aria-hidden />, hidden: off, content: <CostOverviewTab settings={st} /> },
               { value: "budgets", label: "Budgets", icon: <Wallet aria-hidden />, hidden: off, content: <BudgetsTab /> },
               { value: "prices", label: "Prices", icon: <Tags aria-hidden />, content: <PricesTab /> },
-              { value: "settings", label: "Settings", icon: <Settings2 aria-hidden />, content: <CostSettingsTab key={st.revision} settings={st} /> },
+              { value: "settings", label: "Settings", icon: <Settings2 aria-hidden />, content: <CostSettingsTab settings={st} /> },
             ]}
           />
         </>

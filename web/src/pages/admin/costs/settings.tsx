@@ -2,6 +2,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
+import { useRevisionForm } from "@/components/templates/revision-form";
 import { SettingsPage, SettingsSection } from "@/components/templates/settings-page";
 import { Link } from "@tanstack/react-router";
 import { Combobox } from "@/components/ui/combobox/combobox";
@@ -43,10 +44,13 @@ function zones(current: string): string[] {
   return list.includes(current) ? list : [current, ...list];
 }
 
+const costLabels = { mode: "Cost tracking", currency: "Currency", timeZone: "Time zone", warnPercent: "Warning threshold", defaultBudget: "Default monthly budget" };
+
 export function CostSettingsTab({ settings }: { settings: CostSettings }) {
   const isAdmin = useCurrentUser().capabilities.platformAdmin;
   const qc = useQueryClient();
-  const [form, setForm] = useState(() => settingsForm(settings));
+  // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
+  const [form, setForm, revision] = useRevisionForm(settingsForm(settings), settings.revision, { labels: costLabels });
   const [submitted, setSubmitted] = useState(false);
   const saved = settingsForm(settings);
   const dirty = (Object.keys(form) as (keyof SettingsForm)[]).some((k) => form[k] !== saved[k]);
@@ -80,6 +84,7 @@ export function CostSettingsTab({ settings }: { settings: CostSettings }) {
   });
   return (
     <SettingsPage
+      revision={revision}
       dirty={dirty}
       canEdit={isAdmin}
       readOnlyNote={adminOnly}

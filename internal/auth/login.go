@@ -159,7 +159,7 @@ func (s *Service) AuthConfig(w http.ResponseWriter, r *http.Request) {
 		"teamRequestUrl": nil,
 	}
 	if s.cfg.DevAuth {
-		out["devAccounts"] = devAccounts
+		out["devAccounts"] = s.devPersonas(r.Context())
 	}
 	if s.cfg.TeamRequestURL != "" {
 		out["teamRequestUrl"] = s.cfg.TeamRequestURL

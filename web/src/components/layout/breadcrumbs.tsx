@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
-import { Bell, Boxes, Compass, Home, MessageSquare, MessagesSquare, Shield } from "lucide-react";
+import { Bell, Boxes, Compass, Home, MessageSquare, MessagesSquare, Plug, Shield } from "lucide-react";
 import { adminTeamQuery, adminUserQuery, agentProfileQuery, sharedSourceQuery } from "../../api/queries";
 import { agentQuery, kbQuery, sourceQuery, teamQuery } from "../../pages/team/common";
 import { type EvalSet, evalSetQuery } from "../../pages/team/evaluations/queries";
@@ -90,6 +90,8 @@ function useTrail({ routeId, params }: Location, canAdmin: boolean): BreadcrumbI
   if (routeId === "/app/notifications") return [{ label: "Notifications", icon: icon(Bell) }];
   if (routeId === "/app/settings/notifications")
     return [{ label: "Notifications", icon: icon(Bell), render: <Link to="/notifications" /> }, { label: "Settings" }];
+  // From the account menu, like Notification settings: the page itself, not "Home" (VI-18).
+  if (routeId === "/app/settings/connected-apps") return [{ label: "Connected apps", icon: icon(Plug) }];
   if (chatRef)
     return [
       chatParent(profile.data, cameFrom === "/agents", myTeams),
@@ -187,13 +189,17 @@ function evalSetCrumbs(slug: string, set: EvalSet | undefined): BreadcrumbItem[]
 }
 
 /**
- * The trail as shown: on a phone (below 600px), a trail of more than three
+ * The trail as shown: on a phone (below 600px), a trail of more than two
  * crumbs keeps the first and the last and collapses the ones between into
- * "…", a menu of them in order, so it stays on one line. Wider, every crumb
- * shows. The document title and the back links read the full trail.
+ * "…", a menu of them in order, so every trail reads the same way ("Demo ›
+ * … › Go documentation") and stays on one line (VI-32); a crumb still too
+ * long is cut with an ellipsis. Wider, every crumb shows. The document title
+ * and the back links read the full trail.
  */
-export function fitCrumbs(crumbs: BreadcrumbItem[], narrow: boolean): BreadcrumbItem[] {
-  if (!narrow || crumbs.length <= 3) return crumbs;
+export function fitCrumbs(trail: BreadcrumbItem[], narrow: boolean): BreadcrumbItem[] {
+  // A crumb without text (a tab whose name is still loading) never shows as an empty step (VI-09b).
+  const crumbs = trail.some((c) => c.label === "") ? trail.filter((c) => c.label !== "") : trail;
+  if (!narrow || crumbs.length <= 2) return crumbs;
   const middle = crumbs.slice(1, -1);
   const labels = middle.map((c) => (typeof c.label === "string" ? c.label : "")).filter(Boolean);
   return [crumbs[0]!, { label: labels.length ? labels.join(", ") : "More pages", collapsed: middle }, crumbs[crumbs.length - 1]!];

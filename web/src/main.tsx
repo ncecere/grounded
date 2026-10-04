@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ApiError } from "./api/client";
 import { isMaintenanceError, maintenanceKey } from "./lib/maintenance";
+import { retryDelay, shouldRetry } from "./lib/retry";
 import { router } from "./router";
 // bitop-ui (installed with the bitop CLI, see README.md): font, tokens, the
 // neutral theme and base styles. Grounded sets <html data-brand> from UI_THEME
@@ -20,16 +21,20 @@ const queryClient: QueryClient = new QueryClient({
     },
   }),
   mutationCache: new MutationCache({
-    // Refused for maintenance: show the banner and disabled actions now, not at the next poll.
     onError: (err) => {
+      // Refused for maintenance: show the banner and disabled actions now, not at the next poll.
       if (isMaintenanceError(err)) void queryClient.invalidateQueries({ queryKey: maintenanceKey });
+      // A save conflict (412): load the latest version of whatever is on screen, so the form can show what
+      // changed and save over it on purpose (AD-01). Forms keep the person's edits (useRevisionForm).
+      if (err instanceof ApiError && err.status === 412) void queryClient.invalidateQueries();
     },
   }),
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      // Client errors (4xx) will not fix themselves; retry only server/network errors.
-      retry: (count, err) => !(err instanceof ApiError && err.status < 500) && count < 2,
+      // Client errors (4xx) will not fix themselves: retry server and network errors, and a rate limit after its Retry-After.
+      retry: shouldRetry,
+      retryDelay,
     },
   },
 });

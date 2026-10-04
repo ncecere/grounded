@@ -56,7 +56,7 @@ export function RetentionPage() {
             icon: <SlidersHorizontal aria-hidden />,
             content: (
               <QueryView query={settings} loadingLabel="Loading retention periods…">
-                {settings.data && <RetentionSettingsTab key={settings.data.revision} saved={settings.data} isAdmin={isAdmin} />}
+                {settings.data && <RetentionSettingsTab saved={settings.data} isAdmin={isAdmin} />}
               </QueryView>
             ),
           },

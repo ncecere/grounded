@@ -237,7 +237,7 @@ export type DataTableProps<T> = Omit<TableProps, "columns" | "children" | "empty
   cursor?: DataTableCursor;
   /** A "Load more" button after the table; the number of new rows is announced. */
   loadMore?: DataTableLoadMore;
-  /** Per-row actions in a trailing, right-aligned, unsortable column. */
+  /** Per-row actions in a trailing, right-aligned, unsortable column, pinned to the end edge while the table scrolls sideways. */
   rowActions?: (row: T) => ReactNode;
   /**
    * Makes each row open something (usually the record's detail sheet). The
@@ -697,7 +697,7 @@ export function DataTable<T>({
         sort: active,
       };
     }),
-    ...(rowActions ? [{ label: rowActionsLabel, hideLabel: true, width: "1%" }] : []),
+    ...(rowActions ? [{ label: rowActionsLabel, hideLabel: true, width: "1%", stickyEnd: true }] : []),
   ];
 
   const facetsActive = Boolean(facets?.length) && activeFilterCount(facetValues) > 0;
@@ -814,6 +814,8 @@ export function DataTable<T>({
             counts={counts}
             labels={facetLabels}
             start={filterable ? searchBox : undefined}
+            // The search text is a filter too: a chip, and "Clear all" clears it.
+            search={filterable ? { value: filter, onClear: () => setFilter("") } : undefined}
             end={toolbar || showColumnsMenu ? tableActions : undefined}
           />
         </div>
@@ -899,7 +901,7 @@ export function DataTable<T>({
                 );
               })}
               {rowActions && (
-                <Td nowrap>
+                <Td nowrap stickyEnd>
                   <TableActions>{rowActions(row)}</TableActions>
                 </Td>
               )}

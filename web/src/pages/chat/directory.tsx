@@ -32,7 +32,12 @@ function AgentTile({ a }: { a: Card }) {
       <span className={d.agentText}>
         <span className={d.agentName}>{a.name}</span>
         <span className={d.agentTeam}>{a.teamName}</span>
-        {a.description && <span className={d.agentDescription}>{a.description}</span>}
+        {/* Clamped to two lines: the full text on hover (VI-15). */}
+        {a.description && (
+          <span className={d.agentDescription} title={a.description}>
+            {a.description}
+          </span>
+        )}
         <span className={d.agentBadges}>
           <Badge variant="outline" size="sm">
             {audienceLabel(a.audience)}

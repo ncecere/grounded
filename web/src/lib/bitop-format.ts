@@ -147,13 +147,28 @@ export function relativeTimeUnit(seconds: number): [value: number, unit: Intl.Re
   return pick(YEAR, "year");
 }
 
-/** "3 hours ago", "yesterday", "in 2 weeks". Missing or invalid dates return `fallback` (""). */
+/** Whole calendar days from `now` to `date` in the local time zone (negative in the past). */
+export function calendarDayDiff(date: Date, now: Date): number {
+  const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return Math.round((midnight(date) - midnight(now)) / (DAY * 1000));
+}
+
+/**
+ * "3 hours ago", "yesterday", "in 2 weeks". Missing or invalid dates return
+ * `fallback` (""). From half a day to a week away it counts calendar days,
+ * so "yesterday" is always the day before today (10 PM two days ago is "2
+ * days ago", like that morning); closer, hours and minutes; further, weeks,
+ * months and years.
+ */
 export function formatRelativeTime(value: DateInput | null | undefined, options: FormatRelativeTimeOptions = {}): string {
   const { locale, numeric = "auto", fallback = "" } = options;
   const date = toDate(value);
   const now = options.now === undefined ? new Date() : toDate(options.now);
   if (!date || !now) return fallback;
-  const [n, unit] = relativeTimeUnit((date.getTime() - now.getTime()) / 1000);
+  const seconds = (date.getTime() - now.getTime()) / 1000;
+  const days = calendarDayDiff(date, now);
+  const byDay = Math.abs(seconds) >= DAY / 2 && days !== 0 && Math.abs(days) < 7;
+  const [n, unit] = byDay ? [days, "day" as const] : relativeTimeUnit(seconds);
   try {
     // `+ 0` turns -0 into 0 so "now" isn't rendered as "0 seconds ago".
     return new Intl.RelativeTimeFormat(locale, { numeric }).format(n + 0, unit);

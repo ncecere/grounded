@@ -77,14 +77,20 @@ export function unwrap<T>(res: Result<T>): T {
   if (res.data !== undefined) return res.data.data;
   const err = (res.error ?? {}) as { error?: { code?: string; message?: string; details?: Record<string, unknown> } };
   const retry = Number(res.response.headers?.get("Retry-After"));
+  // A save conflict: the app keeps the person's edits and loads the latest version (AD-01), so the server's
+  // "Reload and try again" (meant for API clients) would be wrong advice here.
+  const message = res.response.status === 412 ? staleMessage : err.error?.message;
   throw new ApiError(
     res.response.status,
     err.error?.code ?? "http_" + res.response.status,
-    err.error?.message ?? `Request failed (${res.response.status})`,
+    message ?? `Request failed (${res.response.status})`,
     err.error?.details,
     Number.isFinite(retry) && retry > 0 ? retry : undefined,
   );
 }
+
+/** A 412's message in the app (see unwrap). */
+export const staleMessage = "Someone else changed this while you were editing, so your changes weren't saved. They're still here.";
 
 /** Formats a revision for the If-Match header. */
 export const ifMatch = (revision: number) => ({ "If-Match": `"${revision}"` });

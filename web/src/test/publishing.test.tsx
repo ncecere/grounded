@@ -450,8 +450,8 @@ describe("agent editor sharing", () => {
     expect(await within(dialog).findByText(/Add the scheme to be sure: localhost:8095 will be saved as http:\/\/localhost:8095/)).toBeInTheDocument();
     await userEvent.type(origins, "https://example.edu/page{Enter}");
     expect(await within(dialog).findByText(/https:\/\/example.edu\/page: an origin has no path/)).toBeInTheDocument();
-    await userEvent.click(within(dialog).getByRole("button", { name: /Remove tag https:\/\/example.edu\/page/ }));
-    await userEvent.click(within(dialog).getByRole("button", { name: /Remove tag localhost:8095/ }));
+    await userEvent.click(within(dialog).getByRole("button", { name: /Remove origin https:\/\/example.edu\/page/ }));
+    await userEvent.click(within(dialog).getByRole("button", { name: /Remove origin localhost:8095/ }));
     await userEvent.type(origins, "http://127.0.0.1:8095{Enter}");
     await userEvent.click(within(dialog).getByRole("button", { name: "Create key" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());

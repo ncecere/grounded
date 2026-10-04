@@ -22,7 +22,9 @@ import styles from "./toggle-group.module.css";
  * Tabbing into the group lands on the pressed item (the first pressed one
  * with `multiple`), not on the first item, also after the value changed
  * from outside (a URL, a reset). A joined group too wide for its container
- * scrolls sideways and fades the edge where more items are hidden.
+ * (a phone) wraps onto more lines, its items then spaced apart, so every
+ * choice stays readable; with `overflow="scroll"` it scrolls sideways
+ * instead and fades the edge where more items are hidden.
  */
 
 type GroupContextValue = { variant: ToggleVariant; size: ToggleSize; pressed: readonly string[] };
@@ -44,6 +46,8 @@ type ToggleGroupBaseProps = Omit<BaseToggleGroup.Props, "className"> & {
   size?: ToggleSize;
   /** Join items into one segmented control (shared borders, no gaps). */
   joined?: boolean;
+  /** A joined group too wide for its container: "wrap" onto more lines (default) or "scroll" sideways with a fade. */
+  overflow?: "wrap" | "scroll";
   className?: string;
   ref?: Ref<HTMLDivElement>;
 };
@@ -55,6 +59,7 @@ export function ToggleGroup({
   variant = "ghost",
   size = "md",
   joined = false,
+  overflow = "wrap",
   orientation = "horizontal",
   className,
   children,
@@ -107,6 +112,7 @@ export function ToggleGroup({
       data-variant={variant}
       data-size={size}
       data-joined={dataFlag(joined)}
+      data-overflow-mode={joined ? overflow : undefined}
       className={cx(styles.group, className)}
     >
       <GroupContext.Provider value={context}>{children}</GroupContext.Provider>

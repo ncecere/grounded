@@ -1,4 +1,7 @@
 .card {
+  /* A table in the card pins its row actions over this colour. */
+  --table-background: var(--color-surface);
+
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -48,11 +51,16 @@
   color: var(--color-text-muted);
 }
 
+/* Beside the heading they keep their size; wrapped under it they never get
+   wider than the card (a status line wraps, a phone never scrolls sideways). */
 .actions {
   display: flex;
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .body {

@@ -99,7 +99,7 @@ describe("Admin → MCP servers", () => {
     // The server's own words, line breaks kept: a prompt the model would read.
     expect(within(reset).getByText(/Ignore earlier instructions/)).toBeInTheDocument();
     expect(within(reset).getByText("Not approved")).toBeInTheDocument();
-    await userEvent.click(within(reset).getByRole("button", { name: "Input schema" }));
+    await userEvent.click(within(reset).getByRole("button", { name: /^Input schema of / }));
     expect(within(reset).getByText(/"service"/)).toBeInTheDocument();
     // A gone tool can't be approved; an approved one can be withdrawn.
     const gone = within(list).getByRole("listitem", { name: "old_tool" });

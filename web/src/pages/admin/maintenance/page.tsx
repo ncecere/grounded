@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
 import { QueryView } from "@/components/query-view";
+import { useRevisionForm } from "@/components/templates/revision-form";
 import { SettingsPage, SettingsSection } from "@/components/templates/settings-page";
 import { Alert } from "@/components/ui/alert/alert";
 import { StatusBadge } from "@/components/ui/badge/badge";
@@ -52,7 +53,7 @@ export function MaintenancePage() {
         description="Pause new ingestion while you change models, migrate embeddings or upgrade. Chat and search keep working, and paused work continues by itself when you turn it off."
       />
       <QueryView query={settings} loadingLabel="Loading maintenance mode…">
-        {settings.data && <MaintenanceEditor key={settings.data.revision} saved={settings.data} isAdmin={isAdmin} />}
+        {settings.data && <MaintenanceEditor saved={settings.data} isAdmin={isAdmin} />}
       </QueryView>
       <Card title="While maintenance mode is on">
         <DescriptionList
@@ -100,7 +101,8 @@ function problemsOf(f: Form): { reason?: string; plannedEnd?: string } {
 
 function MaintenanceEditor({ saved, isAdmin }: { saved: Settings; isAdmin: boolean }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState(() => formOf(saved));
+  // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
+  const [form, setForm, revision] = useRevisionForm(formOf(saved), saved.revision, { labels: { enabled: "Maintenance mode", reason: "Reason", plannedEnd: "Planned end" } });
   const [submitted, setSubmitted] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
@@ -129,6 +131,7 @@ function MaintenanceEditor({ saved, isAdmin }: { saved: Settings; isAdmin: boole
 
   return (
     <SettingsPage
+      revision={revision}
       dirty={dirty}
       canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={save.isPending && !confirming}

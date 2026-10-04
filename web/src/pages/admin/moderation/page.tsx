@@ -77,6 +77,6 @@ export function ModerationPage() {
 
 function AudiencePolicy({ policy, providers, isAdmin }: { policy?: Policy; providers: Schemas["Model"][]; isAdmin: boolean }) {
   if (!policy) return <Loading label="Loading the policy…" />;
-  // Keyed by revision so a save or a reload starts a fresh form.
-  return <PolicyEditor key={policy.revision} policy={policy} providers={providers} isAdmin={isAdmin} />;
+  // One form per audience; it keeps edits through a change made elsewhere (AD-01).
+  return <PolicyEditor key={policy.audience} policy={policy} providers={providers} isAdmin={isAdmin} />;
 }

@@ -3,6 +3,7 @@ import { adminOnly } from "@/lib/terms";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
+import { useRevisionForm } from "@/components/templates/revision-form";
 import { SettingsPage } from "@/components/templates/settings-page";
 import { Alert } from "@/components/ui/alert/alert";
 import { Card } from "@/components/ui/card/card";
@@ -60,7 +61,8 @@ function useSavePolicy(policy: Policy, onSaved: (p: Policy) => void) {
 }
 
 export function PolicyEditor({ policy, providers, isAdmin }: { policy: Policy; providers: Model[]; isAdmin: boolean }) {
-  const [form, setForm] = useState(() => policyForm(policy));
+  // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
+  const [form, setForm, revision] = useRevisionForm(policyForm(policy), policy.revision);
   const [submitted, setSubmitted] = useState(false);
   const save = useSavePolicy(policy, (p) => setForm(policyForm(p)));
   const problems = formProblems(form);
@@ -78,6 +80,7 @@ export function PolicyEditor({ policy, providers, isAdmin }: { policy: Policy; p
 
   return (
     <SettingsPage
+      revision={revision}
       dirty={changes > 0}
       canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={save.isPending}

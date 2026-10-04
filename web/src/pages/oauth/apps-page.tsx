@@ -12,7 +12,8 @@ export function ConnectedAppsPage() {
   return (
     <Stack gap={6} className={s.page}>
       <PageHeader title="Connected apps" description="AI tools you connected to your account. They can search and ask as you in each of your teams." />
-      <ConnectedApps owner={{ self: true }} canDisconnect />
+      {/* The page is already "Connected apps": the card says whose they are (VI-18). */}
+      <ConnectedApps owner={{ self: true }} canDisconnect title="Your apps" />
     </Stack>
   );
 }

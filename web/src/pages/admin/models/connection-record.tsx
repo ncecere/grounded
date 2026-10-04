@@ -205,7 +205,7 @@ export function ConnectionForm({ conn, onClose }: { conn: Connection | null; onC
       busy={save.isPending}
     >
       <FormSection title="Endpoint">
-        <Field label="Name">
+        <Field label="Name" className={m.wide}>
           <Input required maxLength={100} value={form.name} onChange={(e) => set("name", e.target.value)} />
         </Field>
         <Field label="Base URL" description="Include the API version, for example https://ai-gateway.example.edu/v1" className={m.wide}>

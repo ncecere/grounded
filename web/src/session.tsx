@@ -3,6 +3,7 @@ import { ArrowRight, LifeBuoy, LogIn } from "lucide-react";
 import { useEffect } from "react";
 import { ApiError, api, errorMessage, setCsrfToken, unwrap, type Schemas } from "./api/client";
 import { applyInstance, instanceOf, tagline, type Instance } from "./lib/instance";
+import { retryDelay, shouldRetrySession } from "./lib/retry";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Avatar } from "@/components/ui/avatar/avatar";
 import { Badge } from "@/components/ui/badge/badge";
@@ -33,6 +34,9 @@ export function useMe() {
       }
     },
     staleTime: 60_000,
+    // Everything waits for the session: a rate limit is retried after its Retry-After until it lifts (AD-03).
+    retry: shouldRetrySession,
+    retryDelay,
   });
 }
 

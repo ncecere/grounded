@@ -6,8 +6,8 @@
  * field" (F-26).
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import { api, ifMatch, unwrap } from "@/api/client";
+import { useRevisionForm } from "@/components/templates/revision-form";
 import { DangerAction, DangerZone, SettingsPage, SettingsSection } from "@/components/templates/settings-page";
 import { Button } from "@/components/ui/button/button";
 import { Field } from "@/components/ui/field/field";
@@ -20,11 +20,13 @@ import { fusionErrors, fusionFormOf, fusionPatch } from "./fusion-form";
 
 const formOf = (kb: KB) => ({ name: kb.name, description: kb.description, topK: kb.topK, fusion: fusionFormOf(kb) });
 type Form = ReturnType<typeof formOf>;
+const kbLabels = { topK: "Passages per search", fusion: "Ranking weights" };
 
 export function KBSettings({ kb, onDelete }: { kb: KB; onDelete: () => void }) {
   const { slug } = useTeam();
   const qc = useQueryClient();
-  const [form, setForm] = useState<Form>(() => formOf(kb));
+  // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
+  const [form, setForm, revision] = useRevisionForm<Form>(formOf(kb), kb.revision, { labels: kbLabels });
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
   const nameError = form.name.trim() ? undefined : "Enter a name.";
   const fusionProblems = fusionErrors(form.fusion);
@@ -58,6 +60,7 @@ export function KBSettings({ kb, onDelete }: { kb: KB; onDelete: () => void }) {
 
   return (
     <SettingsPage
+      revision={revision}
       dirty={dirty}
       saving={update.isPending}
       error={update.error}

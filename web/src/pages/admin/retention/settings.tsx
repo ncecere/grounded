@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { api, ifMatch, unwrap, type Schemas } from "@/api/client";
+import { useRevisionForm } from "@/components/templates/revision-form";
 import { SettingsPage, SettingsSection } from "@/components/templates/settings-page";
 import { Alert } from "@/components/ui/alert/alert";
 import { AlertDialog } from "@/components/ui/dialog/dialog";
@@ -33,11 +34,16 @@ const sections: { title: string; description: string; kinds: Kind[] }[] = [
   { title: "Evaluations", description: "Runs of teams' evaluation sets, with their results and test answers.", kinds: ["evaluation_runs"] },
 ];
 
+const retentionLabels = Object.fromEntries(Object.entries(kindLabels).map(([k, v]) => [k, v.label]));
+/** A period form as text, for the list of changes made elsewhere. */
+const formText = (f: PeriodForm) => (f.mode === "default" ? "The default" : f.mode === "keep" ? periodText(null) : periodText(Number(f.days)));
+
 const formsOf = (st: Settings) => Object.fromEntries(st.periods.map((p) => [p.kind, formOf(p)])) as Record<string, PeriodForm>;
 
 export function RetentionSettingsTab({ saved, isAdmin }: { saved: Settings; isAdmin: boolean }) {
   const qc = useQueryClient();
-  const [forms, setForms] = useState(() => formsOf(saved));
+  // Edits survive a change made elsewhere; SettingsPage asks whose to keep (AD-01).
+  const [forms, setForms, revision] = useRevisionForm(formsOf(saved), saved.revision, { labels: retentionLabels, format: (_k, f) => formText(f as PeriodForm) });
   const [submitted, setSubmitted] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const periods = new Map(saved.periods.map((p) => [p.kind, p]));
@@ -58,6 +64,7 @@ export function RetentionSettingsTab({ saved, isAdmin }: { saved: Settings; isAd
 
   return (
     <SettingsPage
+      revision={revision}
       dirty={changes.length > 0}
       canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={save.isPending && !confirming}
