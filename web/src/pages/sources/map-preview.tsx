@@ -57,7 +57,7 @@ export function MapPreview({ form }: { form: WebFormState }) {
           Discovering pages…
         </p>
       )}
-      {map.error ? <WebErrorAlert error={map.error} urls={req ? [req.url] : []} /> : null}
+      {map.error ? <WebErrorAlert error={map.error} urls={req ? [req.url] : []} title="Couldn't preview pages" /> : null}
       {result && !map.isPending && (
         <div className={w.previewResult}>
           <p role="status" className={w.previewCount}>

@@ -75,8 +75,8 @@ function HostNotAllowed({ error, urls }: { error: ApiError; urls: string[] }) {
   );
 }
 
-/** ErrorAlert that explains host_not_allowed with a way forward. */
-export function WebErrorAlert({ error, urls }: { error: unknown; urls: string[] }) {
+/** ErrorAlert that explains host_not_allowed with a way forward; other errors under `title` when given. */
+export function WebErrorAlert({ error, urls, title }: { error: unknown; urls: string[]; title?: string }) {
   if (isHostNotAllowed(error)) return <HostNotAllowed error={error} urls={urls} />;
-  return <ApiErrorAlert error={error} />;
+  return <ApiErrorAlert error={error} title={title} />;
 }

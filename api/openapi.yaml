@@ -2896,6 +2896,7 @@ paths:
       tags: [web]
       operationId: mapSite
       summary: Preview the URLs a crawl would discover from one page (its links and, optionally, sitemaps). Synchronous, at most 30 s; nothing is stored. Editors and above, or an API key with the ingest scope.
+      description: "When the start page can't be read, the reply is a 422 that says what the site answered (fetch_failed: \"That page returned 404 (not found). Check the address.\"; robots_disallowed), not a 5xx."
       requestBody:
         required: true
         content:
@@ -2915,7 +2916,6 @@ paths:
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "422": { $ref: "#/components/responses/ErrorReply" }
-        "502": { $ref: "#/components/responses/ErrorReply" }
         "503": { $ref: "#/components/responses/MaintenanceReply" }
   /v1/teams/{team}/domain-requests:
     parameters:

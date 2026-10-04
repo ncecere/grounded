@@ -175,15 +175,40 @@ func (m *mapper) addPageLinks(pg crawl.Page, fetchErr error, seed, host string) 
 }
 
 // mapFailure explains why a map found nothing beyond the seed, when the
-// seed page could not be read.
+// seed page could not be read. The remote site's answer is the person's to
+// fix (an address, a site that refuses crawlers), so it is a 422 that says
+// what the site said, never a 5xx that reads as Grounded's own failure
+// (BU-08).
 func mapFailure(fetchErr error, status int) error {
 	switch {
 	case fetchErr != nil && errors.Is(fetchErr, crawl.ErrRobotsDisallowed):
-		return apperr.New(422, "robots_disallowed", "The site's robots.txt does not allow crawling this page")
+		return apperr.New(422, "robots_disallowed", "The site's robots.txt does not allow crawling this page.")
+	case fetchErr != nil && errors.Is(fetchErr, context.DeadlineExceeded):
+		return apperr.New(422, "fetch_failed", "That page took too long to answer. Check the address, or try again later.")
 	case fetchErr != nil:
-		return apperr.New(502, "fetch_failed", "The page could not be fetched. Check the URL and try again.")
+		return apperr.New(422, "fetch_failed", "Couldn't reach that page. Check the address and try again.")
 	case status < 200 || status >= 300:
-		return apperr.New(502, "fetch_failed", "The page returned HTTP "+strconv.Itoa(status))
+		return apperr.New(422, "fetch_failed", remoteStatusText(status))
 	}
 	return nil
+}
+
+// remoteStatusText says in plain words what a site's HTTP status means for
+// the person previewing it: "That page returned 404 (not found). Check the
+// address."
+func remoteStatusText(status int) string {
+	code := strconv.Itoa(status)
+	switch {
+	case status == 404 || status == 410:
+		return "That page returned " + code + " (not found). Check the address."
+	case status == 401 || status == 403:
+		return "That page returned " + code + " (access denied): the site doesn't let crawlers read it. Check the address, or use a public page."
+	case status == 429:
+		return "That site returned 429 (too many requests). Try again in a few minutes."
+	case status >= 500:
+		return "That site returned " + code + " (an error on the site's side). Try again later."
+	case status >= 300 && status < 400:
+		return "That page returned " + code + " (a redirect the crawler couldn't follow). Use the address it redirects to."
+	}
+	return "That page returned HTTP " + code + ". Check the address."
 }

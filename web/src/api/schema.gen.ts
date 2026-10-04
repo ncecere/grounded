@@ -1843,7 +1843,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Preview the URLs a crawl would discover from one page (its links and, optionally, sitemaps). Synchronous, at most 30 s; nothing is stored. Editors and above, or an API key with the ingest scope. */
+        /**
+         * Preview the URLs a crawl would discover from one page (its links and, optionally, sitemaps). Synchronous, at most 30 s; nothing is stored. Editors and above, or an API key with the ingest scope.
+         * @description When the start page can't be read, the reply is a 422 that says what the site answered (fetch_failed: "That page returned 404 (not found). Check the address."; robots_disallowed), not a 5xx.
+         */
         post: operations["mapSite"];
         delete?: never;
         options?: never;
@@ -14264,7 +14267,6 @@ export interface operations {
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
             422: components["responses"]["ErrorReply"];
-            502: components["responses"]["ErrorReply"];
             503: components["responses"]["MaintenanceReply"];
         };
     };

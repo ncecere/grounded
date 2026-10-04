@@ -982,6 +982,9 @@ func TestWebMapAndPermissions(t *testing.T) {
 	}
 	code, e = owner.call("POST", env.base+"/web/map", map[string]any{"url": "https://example.org/"}, nil, nil)
 	mustCode(t, "map off allowlist", code, e, 400, "host_not_allowed")
+	// A remote 404 is the address's problem, said plainly, not a 502 from Grounded (BU-08).
+	code, e = owner.call("POST", env.base+"/web/map", map[string]any{"url": site.url("/missing-page")}, nil, nil)
+	mustCode(t, "map of a missing page", code, e, 422, "fetch_failed")
 	var n int
 	_ = env.app.Pool.QueryRow(context.Background(), `SELECT count(*) FROM web_frontier`).Scan(&n)
 	if n != 0 {
