@@ -60,7 +60,9 @@ test("gap report: share a question on a thumbs-down; editors see it pending, mem
     const nav = member.getByRole("navigation", { name: "Main" });
     await expect(nav.getByRole("link", { name: "Data sources", exact: true })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Gaps", exact: true })).toHaveCount(0);
-    await expect(member.getByRole("heading", { level: 1, name: "Gaps", exact: true })).toHaveCount(0);
+    // Told why (v0.4.2 VI-20b), with none of the page's topics.
+    await expect(member.getByText("Only editors, admins and owners can see gaps.")).toBeVisible();
+    await expect(member.getByRole("tablist", { name: "Gap topics" })).toHaveCount(0);
   });
 
   const editor = await as("alex");
