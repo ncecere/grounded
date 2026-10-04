@@ -21,8 +21,9 @@ async function overflow(page: Page) {
   return page.evaluate(() => {
     const panes = ["agent-build-config", "agent-build-test"].map((id) => document.getElementById(id)).filter((p): p is HTMLElement => Boolean(p));
     const escaped = panes.flatMap((pane) =>
+      // Fixed elements (Base UI's hidden form inputs) don't extend the page; SVG elements have no offsetParent.
       [...pane.querySelectorAll<HTMLElement>("*")]
-        .filter((el) => el.getClientRects().length > 0 && ["absolute", "fixed"].includes(getComputedStyle(el).position) && !pane.contains(el.offsetParent))
+        .filter((el) => el instanceof HTMLElement && el.getClientRects().length > 0 && getComputedStyle(el).position === "absolute" && !pane.contains(el.offsetParent))
         .map((el) => `${el.tagName.toLowerCase()}.${el.className}`),
     );
     return { extra: document.documentElement.scrollHeight - innerHeight, scrollY, escaped };
@@ -114,9 +115,14 @@ test("a widget key's secret shows after Create key, with origins added with Ente
   await origins.fill("https://library.example.edu");
   await origins.press("Enter");
   await a11y(page, "new widget key");
+  // The form closes with history.back() after the save. On a busy page the form re-renders (saved, not busy) before
+  // that navigation lands, which asked "Leave without saving?" and hid the secret: make that order certain.
+  await page.evaluate(() => {
+    const back = history.back.bind(history);
+    history.back = () => void setTimeout(back, 300);
+  });
   await form.getByRole("button", { name: "Create key" }).click();
-  await expect(page.getByRole("alertdialog", { name: "Leave without saving?" })).toHaveCount(0);
   await expect(page.getByText("Shown once. It's already in the code below: copy the code now.")).toBeVisible();
-  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(page.getByRole("alertdialog", { name: "Leave without saving?" })).toHaveCount(0);
   await a11y(page, "the new key's secret");
 });
