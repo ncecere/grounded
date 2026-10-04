@@ -136,7 +136,7 @@ function ProfileFields({ form, set, setForm, embedding, selected, errors, server
       <Field label="Key" description="Filled in from the name. Can't be changed later.">
         <Input required pattern="[a-z0-9][a-z0-9._\-]{0,62}" value={form.key} onChange={(e) => (setKeyTyped(true), set("key", e.target.value))} />
       </Field>
-      <Field label="Embedding model" description={selected ? `${selected.dimensions} dimensions; allowed up to ${levelName(selected.maxClassification)}` : undefined}>
+      <Field label="Embedding model" description={selected ? `${selected.dimensions != null ? `${selected.dimensions.toLocaleString()} dimensions; allowed` : "Allowed"} up to ${levelName(selected.maxClassification)}` : undefined}>
         <NativeSelect value={selected?.id ?? ""} onChange={(e) => set("modelId", e.target.value)}>
           {embedding.map((x) => (
             <option key={x.id} value={x.id}>
