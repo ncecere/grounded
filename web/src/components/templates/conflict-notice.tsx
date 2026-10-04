@@ -5,7 +5,7 @@
  * with mine" and "Discard mine and load theirs" instead of Save and Discard.
  * SettingsPage uses it; a form with its own layout can too.
  */
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
 import { SaveBar } from "@/components/ui/save-bar/save-bar";
@@ -15,8 +15,12 @@ import styles from "./templates.module.css";
 export const conflictLabels = { overwrite: "Overwrite with mine", discard: "Discard mine and load theirs" } as const;
 
 export function ConflictNotice({ changes }: { changes: ServerChange[] | null }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const loaded = changes !== null;
+  // Brought into view above the sticky save bar when it appears and when the list arrives.
+  useEffect(() => ref.current?.scrollIntoView?.({ block: "nearest" }), [loaded]);
   return (
-    <Alert tone="warning" title="Someone else changed these settings while you were editing">
+    <Alert ref={ref} tone="warning" title="Someone else changed these settings while you were editing" className={styles.conflict}>
       {changes === null ? (
         <p>Your changes are still in the form. Loading the latest version…</p>
       ) : (
