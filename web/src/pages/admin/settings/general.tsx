@@ -29,10 +29,17 @@ export const generalForm = (st: CostSettings): GeneralForm => ({
 
 const currencyCode = /^[A-Z]{3}$/;
 
+/** The ISO 4217 codes the browser knows (empty where it can't list them: then the server's check decides). */
+const knownCurrencies = new Set(typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("currency") : []);
+
+/** A three-letter code that names a currency (AD2-07: "XYZ" was saved). The server checks the same list. */
+export const isCurrency = (code: string) => currencyCode.test(code) && (knownCurrencies.size === 0 || knownCurrencies.has(code));
+
 /** Field errors of the form (empty when valid). */
 export function generalErrors(f: GeneralForm): Partial<Record<keyof GeneralForm, string>> {
   const out: Partial<Record<keyof GeneralForm, string>> = {};
   if (!currencyCode.test(f.currency.trim())) out.currency = "Enter a three-letter ISO 4217 code, such as USD or EUR.";
+  else if (!isCurrency(f.currency.trim())) out.currency = `${f.currency.trim()} isn't an ISO 4217 currency code. Enter one such as USD or EUR.`;
   if (!f.timeZone.trim()) out.timeZone = "Choose a time zone.";
   const b = amountError(f.defaultBudget, "default budget", false);
   if (b) out.defaultBudget = b;
@@ -43,7 +50,7 @@ export function generalErrors(f: GeneralForm): Partial<Record<keyof GeneralForm,
  * The currency the budget field is labelled with: the one being typed once it's a valid code, else the saved one, so
  * "us" never relabels the field as "(US)" (AD-34).
  */
-export const labelCurrency = (typed: string, saved: string) => (currencyCode.test(typed.trim()) ? typed.trim() : saved);
+export const labelCurrency = (typed: string, saved: string) => (isCurrency(typed.trim()) ? typed.trim() : saved);
 
 /** Every IANA zone the browser knows, with the current value kept even if it doesn't. */
 function zones(current: string): string[] {

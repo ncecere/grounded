@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"golang.org/x/text/currency"
 
 	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/audit"
@@ -64,6 +65,16 @@ type SettingsInput struct {
 
 var currencyRE = regexp.MustCompile(`^[A-Z]{3}$`)
 
+// ValidCurrency reports an ISO 4217 code in capitals ("USD"): three letters that name a currency, not any three
+// letters ("XYZ" was saved and shown as "XYZ 0.26").
+func ValidCurrency(code string) bool {
+	if !currencyRE.MatchString(code) {
+		return false
+	}
+	_, err := currency.ParseISO(code)
+	return err == nil
+}
+
 // ValidMode reports a platform mode.
 func ValidMode(m string) bool { return m == ModeOff || m == ModeTrack || m == ModeEnforce }
 
@@ -78,7 +89,7 @@ func (in SettingsInput) validate() (*big.Rat, error) {
 	if !ValidMode(in.Mode) {
 		return nil, apperr.Invalid("invalid_mode", "The mode must be off, track or enforce")
 	}
-	if !currencyRE.MatchString(in.Currency) {
+	if !ValidCurrency(in.Currency) {
 		return nil, apperr.Invalid("invalid_currency", "The currency must be a three-letter ISO 4217 code, such as USD")
 	}
 	if _, err := LoadZone(in.TimeZone); err != nil {

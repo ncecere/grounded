@@ -269,3 +269,16 @@ func TestCSVColumnsAreUnique(t *testing.T) {
 		}
 	}
 }
+
+// AD2-07: a currency is an ISO 4217 code, not any three capital letters.
+func TestValidCurrency(t *testing.T) {
+	for code, want := range map[string]bool{"USD": true, "EUR": true, "JPY": true, "XYZ": false, "ABC": false, "usd": false, "US": false, "USDX": false} {
+		if got := ValidCurrency(code); got != want {
+			t.Errorf("ValidCurrency(%q) = %v, want %v", code, got, want)
+		}
+	}
+	in := SettingsInput{Mode: ModeTrack, Currency: "XYZ", TimeZone: "UTC", WarnPercent: 80}
+	if _, err := in.validate(); err == nil {
+		t.Fatal("XYZ was accepted as a currency")
+	}
+}

@@ -90,6 +90,11 @@ describe("Admin → Settings", () => {
       timeZone: "Choose a time zone.",
       defaultBudget: expect.stringMatching(/default budget/),
     });
+    // AD2-07: three letters that name no currency.
+    expect(generalErrors({ currency: "XYZ", timeZone: "UTC", defaultBudget: "", mode: "off", warnPercent: 80 })).toEqual({
+      currency: "XYZ isn't an ISO 4217 currency code. Enter one such as USD or EUR.",
+    });
+    expect(labelCurrency("XYZ", "USD")).toBe("USD");
     expect(labelCurrency("US", "USD")).toBe("USD");
     expect(labelCurrency("EUR", "USD")).toBe("EUR");
   });
