@@ -108,7 +108,7 @@ Repeated text that extraction keeps (for example a QUICKLINKS list inside `<main
 
 ## 6. Map (discovery preview)
 
-`POST /v1/teams/{team}/web/map` with body `{url, useSitemaps, limit ≤ 2000, includePrefixes, exclude, allowSubdomains}` runs a synchronous, bounded discovery (at most 30 s). It fetches the URL, reads its links and optionally the sitemaps, applies scope and the allowlist, and returns `{urls[], truncated, sitemapUrls}`. Nothing is stored. The UI uses it to preview a crawl and to "map a site, pick URLs, create a batch source".
+`POST /v1/teams/{team}/web/map` with body `{url, useSitemaps, limit ≤ 2000, includePrefixes, exclude, allowSubdomains}` runs a synchronous, bounded discovery (at most 30 s). It fetches the URL, reads its links and optionally the sitemaps, applies scope and the allowlist, and returns `{urls[], truncated, sitemapUrls}`. Nothing is stored. The UI uses it to preview a crawl and to "map a site, pick URLs, create a batch source". When the start page can't be read, the reply is a 422 that says what the site answered (`fetch_failed`, e.g. "That page returned 404 (not found). Check the address."; `robots_disallowed`), since the address is the person's to fix (v0.4.2).
 
 ## 7. API (all under /v1, OpenAPI updated, contract test enforced)
 
