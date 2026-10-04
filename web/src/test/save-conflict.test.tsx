@@ -9,6 +9,8 @@ import { mockApi, renderApp, Reply, shellRoutes } from "./harness";
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
   window.scrollTo = () => {};
+  // Browsers' scrollIntoView may return a promise (smooth scrolling): an effect returning it broke the page.
+  Element.prototype.scrollIntoView = () => Promise.resolve() as unknown as void;
 });
 
 type F = { name: string; description: string; level: string };

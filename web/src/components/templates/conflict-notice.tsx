@@ -18,7 +18,10 @@ export function ConflictNotice({ changes }: { changes: ServerChange[] | null }) 
   const ref = useRef<HTMLDivElement>(null);
   const loaded = changes !== null;
   // Brought into view above the sticky save bar when it appears and when the list arrives.
-  useEffect(() => ref.current?.scrollIntoView?.({ block: "nearest" }), [loaded]);
+  // In braces: scrollIntoView may return a promise, which React would take for a cleanup function.
+  useEffect(() => {
+    ref.current?.scrollIntoView?.({ block: "nearest" });
+  }, [loaded]);
   return (
     <Alert ref={ref} tone="warning" title="Someone else changed these settings while you were editing" className={styles.conflict}>
       {changes === null ? (
@@ -68,7 +71,9 @@ export const conflictOpen = (revision?: RevisionControl) => Boolean(revision && 
 export function RevisionSaveBar({ open, revision, saving, error, message, saveLabel, saveDisabled = false, onSave, onDiscard, errorTitle = "Couldn't save the changes", hideError = false }: RevisionSaveBarProps) {
   const conflict = conflictOpen(revision);
   const status = revision?.status;
-  useEffect(() => status?.(saving, error), [status, saving, error]);
+  useEffect(() => {
+    status?.(saving, error);
+  }, [status, saving, error]);
   return (
     <>
       {open && conflict && <ConflictNotice changes={revision?.changes ?? null} />}
