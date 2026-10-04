@@ -64,8 +64,8 @@ const agent = (extra: Partial<Schemas["Agent"]> = {}): Schemas["Agent"] => ({
 });
 
 const models = [
-  { id: "mod1", key: "gpt-oss-120b", displayName: "GPT-OSS 120B (Campus gateway)", description: "", maxClassification: "sensitive", contextWindow: 131072, maxOutputTokens: 8192, supportsTools: true, supportsReasoningEffort: false, supportsThinkingOff: false },
-  { id: "mod2", key: "small", displayName: "Small model", description: "", maxClassification: "open", contextWindow: 8192, maxOutputTokens: 1024, supportsTools: false, supportsReasoningEffort: false, supportsThinkingOff: false },
+  { id: "mod1", key: "gpt-oss-120b", displayName: "GPT-OSS 120B (Campus gateway)", description: "", maxClassification: "sensitive", contextWindow: 131072, maxOutputTokens: 8192, supportsTools: true, supportsReasoningEffort: false, supportsThinkingOff: false, health: { status: "healthy" as const } },
+  { id: "mod2", key: "small", displayName: "Small model", description: "", maxClassification: "open", contextWindow: 8192, maxOutputTokens: 1024, supportsTools: false, supportsReasoningEffort: false, supportsThinkingOff: false, health: { status: "healthy" as const } },
 ];
 
 const kb = (id: string, name: string) => ({

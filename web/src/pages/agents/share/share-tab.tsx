@@ -86,7 +86,7 @@ function LinksCard({ sharing, published }: { sharing: Sharing; published: boolea
             <span className={sh.note}>Not published yet: the links work once a version is published.</span>
           ) : open ? (
             <>
-              <Badge tone="success">Public</Badge> All three work without signing in.
+              <Badge tone="success">Public</Badge> {sharing.links.short ? "All three" : "Both"} work without signing in.
             </>
           ) : (
             <>

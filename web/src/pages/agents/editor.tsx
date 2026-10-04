@@ -118,7 +118,8 @@ function Editor({ agent }: { agent: Agent }) {
   const blocked = publishBlocked({
     agent: current,
     status: d.status,
-    needsFix: d.held || d.invalidFields.length > 0,
+    // Only Build's fields: a held Appearance or Settings value isn't part of versions, so it doesn't block publishing (BU-13).
+    needsFix: d.invalidFields.length > 0,
     audience: c.audience,
     isManager,
     problems: draftWarnings.length,

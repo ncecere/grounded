@@ -1,5 +1,6 @@
 /* Admin → Agents: one agent in a RecordPage (metadata, short name, kill switch, access log link). */
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { Power, PowerOff, ScrollText } from "lucide-react";
 import type { Schemas } from "@/api/client";
 import { Time } from "@/components/ui/time/time";
@@ -33,10 +34,13 @@ export function hasAccessLog(levels: Props["levels"], classification: string | n
 
 export function AgentRecordPage({ agent, open, loading, onClose, isAdmin, levels, onKillSwitch }: Props) {
   const disabled = agent?.status === "disabled_by_platform";
+  // An unsaved short name: Back and the breadcrumb ask first, like other forms (AD-23).
+  const [dirty, setDirty] = useState(false);
   return (
     <RecordPage
       open={open}
       onClose={onClose}
+      dirty={dirty}
       title={agent?.name ?? "Agent"}
       description="An agent's metadata. Its conversations stay private to the people who had them."
       loading={loading && !agent}
@@ -71,7 +75,7 @@ export function AgentRecordPage({ agent, open, loading, onClose, isAdmin, levels
               {
                 title: "Short name",
                 content: isAdmin ? (
-                  <ShortNameForm key={agent.id} agent={agent} />
+                  <ShortNameForm key={agent.id} agent={agent} onDirtyChange={setDirty} />
                 ) : (
                   <p className={s.settingDescription}>{agent.shortName ? <code className={s.mono}>/a/{agent.shortName}</code> : "No short name."}</p>
                 ),

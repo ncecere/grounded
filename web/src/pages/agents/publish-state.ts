@@ -13,13 +13,15 @@ export type SaveView = { text: string; tone: "muted" | "success" | "warning" | "
  * The save state shown next to the title. Never "Draft saved" while a field holds text that can't be saved (F-26), nor
  * before anything was edited since the editor opened (nothing was saved then: empty).
  */
-export function saveView(status: DraftStatus, needsFix: boolean, edited = true): SaveView {
+export function saveView(status: DraftStatus, needsFix: boolean, edited = true, live = false): SaveView {
   if (status === "saving") return { text: "Saving…", tone: "muted", busy: true };
   if (status === "conflict") return { text: "Not saved: changed elsewhere", tone: "warning" };
   if (status === "error") return { text: "Couldn't save", tone: "danger" };
   if (needsFix) return { text: "Not saved: fix the highlighted field", tone: "warning" };
   if (status === "dirty") return { text: "Unsaved changes", tone: "muted" };
-  return edited ? { text: "Draft saved", tone: "success" } : { text: "", tone: "muted" };
+  // Name, address and look aren't versioned: saving them changes what people see at once (BU-09).
+  if (!edited) return { text: "", tone: "muted" };
+  return { text: live ? "Saved" : "Draft saved", tone: "success" };
 }
 
 type PublishInput = {

@@ -1,6 +1,6 @@
 /* Admin → Agents: assign or remove an agent's short name, /a/{short} (platform admins; audited), on the agent's record page. */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ApiError, api, unwrap, type Schemas } from "@/api/client";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
@@ -11,14 +11,19 @@ import a from "./agents.module.css";
 
 const shortRE = /^[a-z0-9][a-z0-9-]{1,39}$/;
 
-export function ShortNameForm({ agent }: { agent: Schemas["AdminAgent"] }) {
+/** `onDirtyChange`: whether the field holds a name that isn't saved, so the record page asks before leaving (AD-23). */
+export function ShortNameForm({ agent, onDirtyChange }: { agent: Schemas["AdminAgent"]; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const [value, setValue] = useState(agent.shortName ?? "");
+  const [saved, setSaved] = useState(agent.shortName ?? "");
   const v = value.trim().toLowerCase();
   const invalid = v !== "" && !shortRE.test(v);
+  const dirty = v !== saved;
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
   const save = useMutation({
     mutationFn: async () => unwrap(await api.PUT("/v1/admin/agents/{agentId}/short-name", { params: { path: { agentId: agent.id } }, body: { shortName: v || null } })),
     onSuccess: (res) => {
+      setSaved(res.shortName ?? "");
       void qc.invalidateQueries({ queryKey: ["admin", "agents"] });
       toast.success(res.shortName ? `${agent.name} is at /a/${res.shortName}` : `${agent.name} has no short name`);
     },
@@ -29,7 +34,7 @@ export function ShortNameForm({ agent }: { agent: Schemas["AdminAgent"] }) {
     <Form
       onSubmit={(e) => {
         e.preventDefault();
-        if (!invalid && v !== (agent.shortName ?? "")) save.mutate();
+        if (!invalid && dirty) save.mutate();
       }}
     >
       <div className={a.shortForm}>
@@ -48,7 +53,7 @@ export function ShortNameForm({ agent }: { agent: Schemas["AdminAgent"] }) {
             }}
           />
         </Field>
-        <Button type="submit" variant="secondary" loading={save.isPending} disabled={invalid || v === (agent.shortName ?? "")}>
+        <Button type="submit" variant="secondary" loading={save.isPending} disabled={invalid || !dirty}>
           Save short name
         </Button>
       </div>

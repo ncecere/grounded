@@ -1,13 +1,26 @@
 /* The agent editor's Build tab: configuration sections beside the live Test chat (D2). */
 
-/* The split fills the window under the page header; each side scrolls on its own.
-   Doubled class: wins over the resizable group's own height: 100%. */
-.split.split {
-  height: calc(100dvh - var(--topbar-height) - 16rem);
-  min-height: 30rem;
+/* The split fills the window from its own top (fill-height.ts measures it, so a taller header
+   can't push the page past the window: OW-1); each side scrolls on its own. The fallback is
+   for the first paint. */
+.splitFrame {
+  height: var(--build-split-height, calc(100dvh - var(--topbar-height) - 16rem));
+  min-height: 20rem;
+}
+
+.split {
   border-radius: var(--radius-card);
   background-color: var(--color-surface);
   box-shadow: var(--shadow-ring);
+}
+
+/* Positioned: absolutely positioned descendants (.sr-only legends and labels) are laid out and
+   clipped inside the pane, not against the page, where they made it taller (BU-01). The wheel
+   at either end of a pane stays in it. */
+.configPane,
+.testPane {
+  position: relative;
+  overscroll-behavior: contain;
 }
 
 .configPane {

@@ -169,8 +169,8 @@ const agent = (draft: Schemas["AgentConfig"]): Schemas["Agent"] => ({
   warnings: [], revision: 2, createdAt: "2026-09-26T09:00:00Z", updatedAt: "2026-09-26T10:00:00Z",
 });
 const toolOptions: Schemas["MCPToolOption"][] = [
-  { id: "t1", serverId: "s1", serverName: "Service status", name: "check_outage", title: "Check outage", description: "Reports whether a campus service is down.", maxClassification: "sensitive" },
-  { id: "t9", serverId: "s2", serverName: "Public weather", name: "forecast", title: "", description: "Tomorrow's weather.", maxClassification: "open" },
+  { id: "t1", serverId: "s1", serverName: "Service status", name: "check_outage", title: "Check outage", description: "Reports whether a campus service is down.", maxClassification: "sensitive", serverHealth: { status: "healthy" } },
+  { id: "t9", serverId: "s2", serverName: "Public weather", name: "forecast", title: "", description: "Tomorrow's weather.", maxClassification: "open", serverHealth: { status: "untested" } },
 ];
 
 describe("Build → Tools", () => {
@@ -179,7 +179,7 @@ describe("Build → Tools", () => {
     "GET /v1/teams/registrar/agents/ag1": () => agent(config),
     "GET /v1/teams/registrar/agents/ag1/versions": () => [],
     "GET /v1/chat-models": () => [
-      { id: "mod1", key: "m", displayName: "Chat", description: "", maxClassification: "restricted", supportsTools: true, supportsReasoningEffort: false, supportsThinkingOff: false },
+      { id: "mod1", key: "m", displayName: "Chat", description: "", maxClassification: "restricted", supportsTools: true, supportsReasoningEffort: false, supportsThinkingOff: false, health: { status: "healthy" as const } },
     ],
     "GET /v1/teams/registrar/kbs": () => [
       { id: "kb1", name: "IT help", description: "", embeddingProfileId: "p1", topK: 6, effectiveClassification: kbLevel, sources: [], revision: 1, createdAt: "", updatedAt: "" },
@@ -207,7 +207,7 @@ describe("Build → Tools", () => {
     expect((calls.find((c) => c.method === "PATCH")!.body as { config: { tools: string[] } }).config.tools).toEqual(["t1"]);
   }, 15_000);
 
-  const noToolModels = { "GET /v1/chat-models": () => [{ id: "mod1", key: "m", displayName: "Chat", description: "", maxClassification: "restricted", supportsTools: false, supportsReasoningEffort: false, supportsThinkingOff: false }] };
+  const noToolModels = { "GET /v1/chat-models": () => [{ id: "mod1", key: "m", displayName: "Chat", description: "", maxClassification: "restricted", supportsTools: false, supportsReasoningEffort: false, supportsThinkingOff: false, health: { status: "healthy" as const } }] };
 
   it("says why no tool can be used when no chat model can call tools, and who turns support on", async () => {
     mockApi(routes("open", noToolModels));
