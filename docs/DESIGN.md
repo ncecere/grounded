@@ -672,7 +672,7 @@ Settings come from environment variables, optionally layered over a flat YAML fi
 |---|---|---|
 | `INSTANCE_NAME` | Product name shown in the UI | `Grounded` |
 | `ORG_NAME` | Organisation name, used in the UI and the agent preamble | empty (no organisation named) |
-| `UI_THEME` | bitop-ui theme. `neutral` is the only theme; the setting is kept for future generic themes | `neutral` |
+| `UI_THEME` | bitop-ui theme. `neutral` is the only theme; the setting is kept for future generic themes. Each theme has light and dark values: people choose System, Light or Dark in the account menu ([`personal-settings.md`](personal-settings.md)) | `neutral` |
 | `UI_LOGO_URL` | Logo shown in the UI: an https URL or a same-origin path such as `/logo.svg` | none |
 | `SUPPORT_URL` | Where users get help: an http(s) URL or a `mailto:` address | none |
 | `TEAM_REQUEST_URL` | Where people request a team (§3.2) | none |

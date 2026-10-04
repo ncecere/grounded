@@ -28,6 +28,7 @@ People who chat with agents in the web UI, the widget or the API. There's no sep
 | Document | What's in it |
 |---|---|
 | [DESIGN §2, Concepts](DESIGN.md#2-concepts) | Teams, sources, knowledge bases, agents and classification levels |
+| [`personal-settings.md`](personal-settings.md) | The account menu: notification settings, connected apps, and the theme (System, Light or Dark) |
 | [DESIGN §7.2, Audience](DESIGN.md#72-audience) and [§7.6, Access paths](DESIGN.md#76-access-paths) | Who can use an agent, and through which channels |
 | [DESIGN §8, Conversations and analytics](DESIGN.md#8-conversations-and-analytics-adr-0010) | Who can read your conversations (only you, apart from audited break-glass), export and deletion, and what teams see |
 | [`../api/openapi.yaml`](../api/openapi.yaml) | The API contract, including the OpenAI-compatible `POST /v1/chat/completions` and API keys |

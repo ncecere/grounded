@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **Dark mode (v0.4.2 M6, VI-38):** Grounded follows the device's light or dark setting, and the account menu's new **Theme** group sets **System**, **Light** or **Dark** (kept in this browser). The page is drawn in the right theme from the first paint (`/color-mode.js`, allowed by the CSP as a same-origin script). The public page and the widget follow the visitor's setting; in dark the widget's launcher gets a light ring so a dark accent colour still shows, and a white focus ring. A dark-mode pass over every page (every role, 1440x900 and 390x844, axe in dark) fixed: muted hints on a highlighted menu or palette item (4.44:1, now 4.8:1) and selected-option checks under 3:1 (bitop-ui theme and select, combobox and model selector), the default accent named as dark mode's colour in Appearance, the admin Analytics chart described by "paler" and "darker" bars (reversed in dark), and the admin header's icon. Also the sign-in page no longer runs off a phone's screen. Docs: [`docs/personal-settings.md`](docs/personal-settings.md). No API change, no migration.
+
 ### Changed
 
 - **Agent editor (v0.4.2 M2):** while an agent is live for signed-in users or the public, only team admins and owners change its name, address, description, accent colour, welcome message and starter questions, which reach people at once; editors see them read-only with the reason and still change the draft (BU-09; API: 403 `live_profile_forbidden`). A save of only those fields says "Saved", not "Draft saved", and the audit log calls it "Changed agent details". The model pickers show health: the **New agent** dialog starts on a healthy chat model instead of the first by name, and a failing model is marked **Failing** (AD-02). API (additive): `health` on `GET /v1/chat-models`, `serverHealth` on `GET /v1/mcp-tools`. No migration.
