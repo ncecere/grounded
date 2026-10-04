@@ -9,15 +9,20 @@ type DraftStatus = "saved" | "dirty" | "saving" | "error" | "conflict";
 
 export type SaveView = { text: string; tone: "muted" | "success" | "warning" | "danger"; busy?: boolean };
 
+/** How many highlighted fields need fixing (a flag counts as one). */
+const fixCount = (n: number | boolean) => (typeof n === "number" ? n : n ? 1 : 0);
+/** "the highlighted field", or "the 4 highlighted fields" (BU2-07). */
+const highlighted = (n: number) => (n > 1 ? `the ${n} highlighted fields` : "the highlighted field");
+
 /**
  * The save state shown next to the title. Never "Draft saved" while a field holds text that can't be saved (F-26), nor
  * before anything was edited since the editor opened (nothing was saved then: empty).
  */
-export function saveView(status: DraftStatus, needsFix: boolean, edited = true, live = false): SaveView {
+export function saveView(status: DraftStatus, needsFix: number | boolean, edited = true, live = false): SaveView {
   if (status === "saving") return { text: "Saving…", tone: "muted", busy: true };
   if (status === "conflict") return { text: "Not saved: changed elsewhere", tone: "warning" };
   if (status === "error") return { text: "Couldn't save", tone: "danger" };
-  if (needsFix) return { text: "Not saved: fix the highlighted field", tone: "warning" };
+  if (fixCount(needsFix) > 0) return { text: `Not saved: fix ${highlighted(fixCount(needsFix))}`, tone: "warning" };
   if (status === "dirty") return { text: "Unsaved changes", tone: "muted" };
   // Name, address and look aren't versioned: saving them changes what people see at once (BU-09).
   if (!edited) return { text: "", tone: "muted" };
@@ -27,7 +32,8 @@ export function saveView(status: DraftStatus, needsFix: boolean, edited = true, 
 type PublishInput = {
   agent: Pick<Agent, "published" | "hasUnpublishedChanges">;
   status: DraftStatus;
-  needsFix: boolean;
+  /** Fields holding values that can't be saved (how many, or whether any). */
+  needsFix: number | boolean;
   /** The draft's audience (it is published with the next version). */
   audience: Agent["audience"];
   /** Team admins and owners may publish beyond the team; editors only to it (P-03). */
@@ -42,7 +48,7 @@ export function publishBlocked({ agent, status, needsFix, audience, isManager, p
     return `Only team admins and owners can publish to ${audienceLabel(audience)}. Choose Team under Share, or ask an admin to publish.`;
   if (problems > 0) return problems === 1 ? "Fix the problem listed under Build first." : `Fix the ${problems} problems listed under Build first.`;
   // A field holding a value that can't be saved: publishing would leave that change out.
-  if (needsFix) return "Fix the highlighted field first.";
+  if (fixCount(needsFix) > 0) return `Fix ${highlighted(fixCount(needsFix))} first.`;
   const pending = status !== "saved";
   if (agent.published && !agent.hasUnpublishedChanges && !pending) return `No changes since version ${agent.published.version}`;
   return undefined;

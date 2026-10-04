@@ -85,7 +85,10 @@ describe("pure helpers", () => {
     expect(saveView("dirty", false, true).text).toBe("Unsaved changes");
     expect(saveView("saved", true).text).toBe("Not saved: fix the highlighted field");
     expect(saveView("dirty", true).text).toBe("Not saved: fix the highlighted field");
+    // Several fields say how many (BU2-07).
+    expect(saveView("dirty", 4).text).toBe("Not saved: fix the 4 highlighted fields");
     const live = { published: version, hasUnpublishedChanges: false };
+    expect(publishBlocked({ agent: live, status: "dirty", needsFix: 4, audience: "team", isManager: true })).toBe("Fix the 4 highlighted fields first.");
     expect(publishBlocked({ agent: live, status: "saved", needsFix: false, audience: "team", isManager: true })).toBe("No changes since version 3");
     expect(publishBlocked({ agent: live, status: "dirty", needsFix: false, audience: "team", isManager: true })).toBeUndefined();
     // A field that can't be saved (own-8): Publish would leave that change out.
