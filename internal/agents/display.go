@@ -21,6 +21,13 @@ func hitSnippet(h kbs.Hit) string {
 	return snippet(dropShownHeadings(h.Content, append([]string{h.Title}, h.HeadingPath...)))
 }
 
+// snippetMatches reports whether a passage is the one a citation's snippet
+// was made from: as snippets are made now, or as they were before v0.4.2
+// (with the leading headings).
+func snippetMatches(content string, c Citation) bool {
+	return snippet(content) == c.Snippet || snippet(dropShownHeadings(content, append([]string{c.Title}, c.HeadingPath...))) == c.Snippet
+}
+
 // dropShownHeadings removes the leading heading lines whose text is one of
 // shown (case and surrounding spaces ignored), never the whole text.
 func dropShownHeadings(s string, shown []string) string {
