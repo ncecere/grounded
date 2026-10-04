@@ -64,7 +64,7 @@ The chosen tools join `search_knowledge` in the agent loop. The model decides wh
 
 ### Results are sources
 
-A tool's result is untrusted text. It is given to the model inside `<sources>` as a numbered source (`type="tool_result"`), under the same platform rule as passages: data, never instructions. With SystemOne passage judging on, it is judged against the question first, and a result judged irrelevant isn't given. The answer cites it as `[n]` and it appears among the answer's sources as **From *Service status* · check_outage**, expandable like a passage; citation checks verify claims against it. A strictly grounded agent answers only from passages and tool results. The citation is stored with the answer, so reopening the conversation shows it.
+A tool's result is untrusted text. It is given to the model inside `<sources>` as a numbered source (`type="tool_result"`), under the same platform rule as passages: data, never instructions. With SystemOne passage judging on, it is judged against the question too, but a result the model asked for is never left out for relevance (v0.4.2, owner decision: judged against a two-part question, the result that answered one part was dropped and the agent said it couldn't tell): a conflicting one is marked like a passage, and only a result judged a prompt injection is left out (the step says "Left out: the result contained instructions to the assistant."). The answer cites it as `[n]` and it appears among the answer's sources as **From *Service status* · check_outage**, expandable like a passage; citation checks verify claims against it. A strictly grounded agent answers only from passages and tool results. The citation is stored with the answer, so reopening the conversation shows it.
 
 ## Costs
 

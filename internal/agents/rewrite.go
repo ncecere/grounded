@@ -12,7 +12,11 @@
 //     and leaves room for the reasoning;
 //   - long earlier answers are shortened in the rewrite's context;
 //   - a rewrite that comes back empty or unchanged is searched together
-//     with the user's earlier question, and a failed rewrite is logged.
+//     with the user's earlier question, and a failed rewrite is logged;
+//   - a rewrite that doesn't read as a search query (the model answered
+//     instead: citation markers, several sentences, a statement for a
+//     question, much longer than the question and its context) is not
+//     searched or shown either (v0.4.2 US2-01, rewritecheck.go).
 
 package agents
 
@@ -60,22 +64,31 @@ func (ru *run) rewrite(ctx context.Context) string {
 	case sameQuery(q, ru.question) && needsContext(ru.question):
 		// The model kept a follow-up as it was: it can't be searched alone.
 	default:
+		fallback := contextualQuery(ru.history, ru.question)
+		if why := notAQuery(q, ru.question, fallback); why != "" {
+			ru.s.Log.Warn("query rewrite didn't read as a search query; searching with the conversation's previous question",
+				"agent", ru.agent.ID, "reason", why)
+			return fallback
+		}
 		return q
 	}
 	return contextualQuery(ru.history, ru.question)
 }
 
 // rewriteContext is the conversation the rewrite reads: the last turns, with
-// long answers shortened (the question and its topic are what matter), then
-// the latest message.
+// long answers shortened (the question and its topic are what matter) and
+// without their citation markers (a rewrite copied them, US2-01), then the
+// latest message.
 func rewriteContext(history []llm.Message, question string) []llm.Message {
 	recent := history[max(0, len(history)-rewriteTurns):]
 	msgs := make([]llm.Message, 0, len(recent)+1)
 	for _, m := range recent {
 		if a, ok := m.(llm.AssistantMessage); ok {
-			if t := a.Text(); utf8.RuneCountInString(t) > rewriteAnswerChars {
-				m = llm.AssistantMessage{Content: []llm.Block{llm.Text{Text: truncateRunes(t, rewriteAnswerChars) + " …"}}, StopReason: a.StopReason}
+			t := stripMarkers(a.Text())
+			if utf8.RuneCountInString(t) > rewriteAnswerChars {
+				t = truncateRunes(t, rewriteAnswerChars) + " …"
 			}
+			m = llm.AssistantMessage{Content: []llm.Block{llm.Text{Text: t}}, StopReason: a.StopReason}
 		}
 		msgs = append(msgs, m)
 	}

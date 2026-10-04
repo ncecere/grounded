@@ -213,3 +213,24 @@ func mustJSON(v any) string {
 	b, _ := json.Marshal(v)
 	return string(b)
 }
+
+// A contradiction below auto-accept reads as unsupported (v0.4.2 US2-03).
+func TestSoftenContradictions(t *testing.T) {
+	vs := []systemone.Verdict{
+		{Verification: systemone.Contradicted, Confidence: 0.5},
+		{Verification: systemone.Contradicted, Confidence: 0.8},
+		{Verification: systemone.Verified, Confidence: 0.4},
+		{Verification: systemone.Unchecked},
+	}
+	softenContradictions(vs, 0.8)
+	got := []string{vs[0].Verification, vs[1].Verification, vs[2].Verification, vs[3].Verification}
+	want := []string{systemone.Unsupported, systemone.Contradicted, systemone.Verified, systemone.Unchecked}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("verdict %d = %s, want %s", i, got[i], want[i])
+		}
+	}
+	if vs[0].Confidence != 0.5 {
+		t.Errorf("confidence changed: %v", vs[0].Confidence)
+	}
+}

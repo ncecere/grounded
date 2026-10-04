@@ -23,6 +23,7 @@
 // supports with confidence 0.97, changed by markers in the claim:
 //
 //	CONTRADICTED  contradicts, 0.95
+//	WEAKCONTRA    contradicts, 0.5 (below the default auto-accept)
 //	UNSUPPORTED   says_nothing, 0.95
 //	LOWCONF       says_nothing, 0.5 (below the default auto-accept)
 //
@@ -361,6 +362,8 @@ func fakeCitationAnswer(claim string) map[string]any {
 	up := strings.ToUpper(claim)
 	choice, conf := "supports", 0.97
 	switch {
+	case strings.Contains(up, "WEAKCONTRA"):
+		choice, conf = "contradicts", 0.5
 	case strings.Contains(up, "CONTRADICTED"):
 		choice, conf = "contradicts", 0.95
 	case strings.Contains(up, "UNSUPPORTED"):

@@ -145,7 +145,7 @@ func (r *retriever) finishSearch(ctx context.Context, span trace.Span, c candida
 	var conflicting []*fusedHit
 	if r.judge != nil && len(merged) > 0 {
 		var js []systemone.Judgment
-		merged, conflicting, js = r.judgeCandidates(ctx, span, c.query, merged)
+		merged, conflicting, js = r.judgeCandidates(ctx, span, c.query, merged, false)
 		sj = &searchJudging{judged: len(js), dropped: countDropped(js)}
 	}
 

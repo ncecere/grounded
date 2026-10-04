@@ -6,6 +6,7 @@ package agents
 import (
 	"context"
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 
@@ -130,13 +131,14 @@ func (ru *run) finish(ctx context.Context, added []llm.Message, runErr error, st
 		ans.citePending = false
 		ru.checkCitations(ctx, &ans, sources, ru.citationMode(timing))
 	}
-	if ans.Text != "" {
-		blocks = append(blocks, llm.Text{Text: ans.Text})
-	}
 	if ctx.Err() != nil && ans.StopReason == string(llm.StopReasonStop) && timing != checkAfter {
 		// The reader pressed Stop (or left) after the model finished but before the answer reached them (checks,
-		// moderation): it's stored as stopped, as they saw it, not as a complete answer (v0.4.2 US-05).
+		// moderation): it's stored as stopped, as they saw it, not as a complete answer (v0.4.2 US-05, US2-12).
 		ans.StopReason = string(llm.StopReasonAborted)
+		ru.storeAsShown(&ans, sources)
+	}
+	if ans.Text != "" {
+		blocks = append(blocks, llm.Text{Text: ans.Text})
 	}
 	stored := llm.AssistantMessage{Content: blocks, Model: ru.model.ID, Usage: ans.Usage, StopReason: llm.StopReason(ans.StopReason)}
 	ans.toolCalls = st.toolCalls
@@ -153,6 +155,26 @@ func (ru *run) finish(ctx context.Context, added []llm.Message, runErr error, st
 	ru.storeCached(ctx, &ans)      // the answer cache (cache.go)
 	return ans, nil
 }
+
+// storeAsShown makes a stopped answer's text what the reader got before
+// they left (v0.4.2 US2-12): text the model wrote after that (a token or two
+// read from the model's stream before the stop reached it), or a buffered
+// answer they never got, isn't stored, so a reload shows what they saw. The
+// citations follow the text; claims checked on more text are dropped. Not
+// for JSON replies (nothing streamed) or a moderation notice.
+func (ru *run) storeAsShown(ans *Answer, sources []numberedHit) {
+	if ru.out == nil || ru.out.emit == nil || ans.Moderation != nil || ans.Refused {
+		return
+	}
+	shown := openMarkerEnd.ReplaceAllString(NormalizePunctuation(ru.out.shownText()), "") // as the chat drops it at Stop
+	text, cites := applyCitations(shown, sources, ru.cfg.CitationMode)
+	if text != ans.Text {
+		ans.Text, ans.Citations, ans.Claims, ans.Uncited = text, cites, nil, nil
+	}
+}
+
+// openMarkerEnd is a marker cut off at the end of a stopped answer ("[1").
+var openMarkerEnd = regexp.MustCompile(`\s*[\[\x{FF3B}\x{3010}][\d,\x{FF0C}\s]*(?:\x{2020}[^\]\x{FF3D}\x{3011}]*)?$`)
 
 // hasToolSource reports whether an MCP tool's result is among the sources.
 func hasToolSource(sources []numberedHit) bool {
@@ -195,6 +217,7 @@ func (ru *run) settle(ctx context.Context, ans *Answer, final llm.AssistantMessa
 	case ctx.Err() != nil || final.StopReason == llm.StopReasonAborted:
 		ans.StopReason = string(llm.StopReasonAborted)
 		ans.Text, ans.Citations = applyCitations(raw, sources, ru.cfg.CitationMode)
+		ru.storeAsShown(ans, sources)
 	case final.StopReason == llm.StopReasonError || runErr != nil:
 		if !st.answerStarts {
 			// The model failed before responding at all.

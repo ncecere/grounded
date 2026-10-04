@@ -56,13 +56,17 @@ const (
 // gateway (testutil) recognises it by "suggest follow-up questions". Each
 // question must come from one listed passage and add to the answer
 // (walkthrough, 2026-10-02: suggestions repeated what the answer said, and
-// one joined two passages' topics into a question neither answers).
+// one joined two passages' topics into a question neither answers; v0.4.2
+// US2-08: chips asked for a limit the answer gave, or which document says
+// something). parseSuggestions filters what slips through.
 const suggestPrompt = `You suggest follow-up questions for a chat with an assistant that answers from a knowledge base.
 You are given the user's question, the assistant's answer, and the titles and headings of the passages the assistant found, one passage per line.
 Write up to 3 short follow-up questions the user might ask next. Each question must:
 - be answered by one listed passage, as its title or headings show;
 - stay within that one passage: never combine topics, names or terms from different passages;
-- ask for something the answer doesn't already say (not its facts, numbers, times, steps or names again), and not repeat or reword the question asked;
+- ask for something the answer doesn't already say, even in other words: read the answer first, and never ask for a fact, number, limit, time, step, name or condition it gives (if the answer says graduate students may borrow 100 items, don't ask how many books a graduate student may borrow);
+- not repeat or reword the question asked;
+- ask about the subject itself, as the user would, never about the passages, documents, sources or knowledge base (not "Which document says …?");
 - be a complete question ending with a question mark, never a title, heading or topic on its own.
 Fewer questions, or none, are better than a weak one.
 Write the questions in the language of the user's question, each under 120 characters.
@@ -137,7 +141,7 @@ func (ru *run) writeSuggestions(ctx context.Context, answer string, passages []s
 		}
 		return nil, msg.Usage, err
 	}
-	return parseSuggestions(msg.Text(), ru.question, passages), msg.Usage, nil
+	return parseSuggestions(msg.Text(), ru.question, answer, passages), msg.Usage, nil
 }
 
 // suggestionsPass checks the suggestions like an answer when answers are
@@ -217,9 +221,10 @@ var listLead = regexp.MustCompile(`^(?:[-*•–]+|\d+[.)]|[Qq]\d+:)\s*`)
 // line, list markers, quotes, emphasis and citation markers removed;
 // empty, over-long or duplicate lines, labels, NONE, lines that aren't
 // questions (a passage's title, v0.4.2 US-04), a passage's title or
-// headings and the question asked are dropped; at most MaxSuggestions are
-// kept.
-func parseSuggestions(reply, question string, passages []string) []string {
+// headings, the question asked, questions about the sources themselves and
+// ones the answer already answers (v0.4.2 US2-08, suggestfilter.go) are
+// dropped; at most MaxSuggestions are kept.
+func parseSuggestions(reply, question, answer string, passages []string) []string {
 	var out []string
 	for _, line := range strings.Split(reply, "\n") {
 		q := cleanSuggestion(line)
@@ -227,7 +232,7 @@ func parseSuggestions(reply, question string, passages []string) []string {
 		switch {
 		case n < suggestMinChars, n > MaxSuggestionChars, !strings.ContainsFunc(q, unicode.IsLetter),
 			strings.EqualFold(strings.TrimRight(q, ".!"), suggestNoneReply), strings.HasSuffix(q, ":"), !isQuestion(q),
-			sameSuggestion(q, question), containsQuery(out, q), namesPassage(q, passages):
+			sameSuggestion(q, question), containsQuery(out, q), namesPassage(q, passages), aboutTheSources(q), answeredAlready(q, answer):
 			continue
 		}
 		out = append(out, q)

@@ -35,7 +35,7 @@ func TestParseSuggestions(t *testing.T) {
 		{"a passage's title or heading", "Transcripts?\nFees?\nWhat about diplomas?", []string{"What about diplomas?"}},
 	}
 	for _, c := range cases {
-		if got := parseSuggestions(c.reply, asked, []string{"Transcripts › Fees"}); !slices.Equal(got, c.want) {
+		if got := parseSuggestions(c.reply, asked, "", []string{"Transcripts › Fees"}); !slices.Equal(got, c.want) {
 			t.Errorf("%s: %q, want %q", c.name, got, c.want)
 		}
 	}

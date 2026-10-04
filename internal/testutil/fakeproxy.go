@@ -28,7 +28,8 @@ import (
 // it ("the current question"):
 //
 //  1. Query rewrite: no tools offered and the system prompt contains the word
-//     "standalone" (any case) → the last user message text, unchanged.
+//     "standalone" (any case) → the last user message text, unchanged
+//     (SetRewrite scripts the reply instead).
 //     Follow-up suggestions: no tools offered and the system prompt
 //     contains "suggest follow-up questions" → a numbered list of up to 3
 //     questions, FakeSuggestion of each passage line's deepest heading
@@ -40,8 +41,8 @@ import (
 //     text>}, split across several chunks, finish_reason "tool_calls".
 //     With SetToolCalls, the scripted calls come instead, one per turn: the
 //     k-th when k-1 "tool" messages follow the last user message and that
-//     tool is offered (MCP tools, docs/mcp-client.md); once they are used
-//     up, the rules below answer.
+//     tool is offered (MCP tools, docs/mcp-client.md), each after its Text
+//     when it has one; once they are used up, the rules below answer.
 //  3. Small talk: the system prompt contains "latest message is small talk"
 //     → FakeSmallTalk (the scope check's small-talk reply).
 //  4. Sources: the most recent of those messages containing `<source id="1"`
@@ -82,6 +83,7 @@ type FakeProxy struct {
 	rewriteDelay time.Duration   // pause before a query rewrite's
 	answer       string          // SetAnswer: the reply to a question with sources
 	suggestions  string          // SetSuggestions: the reply to the suggestions call
+	rewrite      string          // SetRewrite: the reply to a query rewrite
 	toolScript   []FakeToolCall  // SetToolCalls
 	chatBodies   []json.RawMessage
 	// suggestBodies are the follow-up suggestions calls' requests.
@@ -206,10 +208,23 @@ func (p *FakeProxy) SetSuggestions(text string) {
 	p.suggestions = text
 }
 
+// SetRewrite makes text the reply to a query rewrite (rule 1) instead of
+// the message unchanged, until it is set to "" again: a model that answers
+// instead of rewriting (v0.4.2 US2-01).
+func (p *FakeProxy) SetRewrite(text string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.rewrite = text
+}
+
 // FakeToolCall is a scripted tool call (SetToolCalls).
 type FakeToolCall struct {
 	Name string
 	Args string // JSON
+	// Text is written in the same turn before the call (narration or a
+	// draft, v0.4.2 BU2-01): streamed as content before the tool call's
+	// chunks, or the message's content beside tool_calls.
+	Text string
 }
 
 // SetToolCalls scripts the tool calls of every answer, one per turn (rule

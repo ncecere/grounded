@@ -147,6 +147,7 @@ func (ru *run) checkCitations(ctx context.Context, ans *Answer, sources []number
 	cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), plan.Settings.Timeout())
 	defer cancel()
 	verdicts, st := plan.Client.CheckClaims(cctx, pairs, plan.Settings.Timeout())
+	softenContradictions(verdicts, plan.Settings.AutoAccept)
 	rec := citationsRecord(mode, len(claims), verdicts, plan.Settings.AutoAccept)
 	if rec.Unchecked > 0 {
 		ru.s.Log.Warn("citation check requests failed; those citations stay unchecked", "agent", ru.agent.ID,
@@ -184,6 +185,22 @@ func claimPairs(claims []claim, byN map[int]numberedHit) (map[pairKey]int, []sys
 		}
 	}
 	return index, pairs
+}
+
+// softenContradictions reads a contradicting verdict below the auto-accept
+// threshold as unsupported (v0.4.2 US2-03): a claim copied almost word for
+// word from its source was marked contradicted, in red, at 50% confidence.
+// Below the threshold no verdict is acted on (enforce, docs/systemone.md
+// "Citation checks"); a contradiction is the strongest thing the chat says
+// about a claim, so it isn't shown on a weak verdict either: the claim reads
+// not supported (amber), and the record counts it as unsupported and low
+// confidence.
+func softenContradictions(vs []systemone.Verdict, autoAccept float64) {
+	for i, v := range vs {
+		if v.Verification == systemone.Contradicted && v.Confidence < autoAccept {
+			vs[i].Verification = systemone.Unsupported
+		}
+	}
 }
 
 // shownUncited are the uncited sentences the chat marks: none for an answer

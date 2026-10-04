@@ -302,6 +302,33 @@ type openaiChunks struct {
 	// may follow message_end and annotate its citations (the streamed text
 	// cannot change, so SystemOne citation checks only annotate here).
 	end *agents.MessageEndEvent
+	// hold: the model has tools, and text it streams may be taken back
+	// (text_reset, v0.4.2 BU2-01), which this stream can't do: the text is
+	// held until the answer ends. sent: some content was sent.
+	hold bool
+	held strings.Builder
+	sent bool
+}
+
+// content sends answer text (or holds it).
+func (c *openaiChunks) content(text string) {
+	if c.hold {
+		c.held.WriteString(text)
+		return
+	}
+	c.sent = c.sent || text != ""
+	c.sse.data(c.chunk(map[string]any{"content": text}, nil))
+}
+
+// release sends the held text.
+func (c *openaiChunks) release() {
+	if c.held.Len() == 0 {
+		return
+	}
+	text := c.held.String()
+	c.held.Reset()
+	c.sent = true
+	c.sse.data(c.chunk(map[string]any{"content": text}, nil))
 }
 
 func (c *openaiChunks) chunk(delta map[string]any, finish any) map[string]any {
@@ -313,14 +340,18 @@ func (c *openaiChunks) emit(ev agents.Event) {
 	switch d := ev.Data.(type) {
 	case agents.MessageStartEvent:
 		c.id = "chatcmpl-" + d.MessageID.String()
+		c.hold = d.ToolTurns
 		c.sse.data(c.chunk(map[string]any{"role": "assistant", "content": ""}, nil))
 	case agents.DeltaEvent:
 		if ev.Type == "thinking_delta" {
 			c.sse.data(c.chunk(map[string]any{"reasoning_content": d.Delta}, nil))
 		} else {
-			c.sse.data(c.chunk(map[string]any{"content": d.Delta}, nil))
+			c.content(d.Delta)
 		}
+	case agents.TextResetEvent:
+		c.held.Reset() // a tool turn's text: never sent
 	case agents.ErrorEvent:
+		c.release()
 		c.sse.data(map[string]any{"error": map[string]any{"message": d.Message, "type": "api_error", "code": d.Code, "param": nil}})
 	case agents.ModerationEvent:
 		if d.Action == agents.ModerationUnavailable {
@@ -332,12 +363,18 @@ func (c *openaiChunks) emit(ev agents.Event) {
 		// Streamed text cannot be taken back here: send the notice and end
 		// with finish_reason content_filter.
 		c.moderated = true
+		c.held.Reset() // held text is withheld, not retracted
 		sep := ""
-		if d.Action == agents.ModerationRetracted {
+		if d.Action == agents.ModerationRetracted && c.sent {
 			sep = "\n\n"
 		}
 		c.sse.data(c.chunk(map[string]any{"content": sep + d.Notice}, nil))
 	case agents.MessageEndEvent:
+		if c.hold && !c.moderated { // the final text, as stored
+			c.held.Reset()
+			c.held.WriteString(d.Text)
+			c.release()
+		}
 		c.ended, c.end = true, &d
 	case agents.CitationsCheckedEvent:
 		if c.end != nil {

@@ -96,7 +96,7 @@ func decideFakeReply(in *fakeChatRequest, answer string, script []FakeToolCall) 
 		out.text = fakeSuggestions(question)
 	case len(script) > 0:
 		if call, ok := scriptedCall(in, choice, script, toolResults); ok {
-			out.toolName, out.toolArgs = call.Name, call.Args
+			out.toolName, out.toolArgs, out.text = call.Name, call.Args, call.Text
 		} else {
 			out.text = fakeAnswer(sys, question, current, answer)
 		}
@@ -323,7 +323,7 @@ func (p *FakeProxy) completions(w http.ResponseWriter, r *http.Request) {
 	} else {
 		p.chatBodies = append(p.chatBodies, raw)
 	}
-	delay, answer, script, first, suggestions := p.chunkDelay, p.answer, p.toolScript, p.replyDelay, p.suggestions
+	delay, answer, script, first, suggestions, rewrite := p.chunkDelay, p.answer, p.toolScript, p.replyDelay, p.suggestions, p.rewrite
 	if isFakeRewrite(&in) {
 		first = p.rewriteDelay
 	}
@@ -339,6 +339,9 @@ func (p *FakeProxy) completions(w http.ResponseWriter, r *http.Request) {
 	reply := decideFakeReply(&in, answer, script)
 	if isFakeSuggestions(&in) && suggestions != "" {
 		reply.text = suggestions
+	}
+	if isFakeRewrite(&in) && rewrite != "" {
+		reply.text = rewrite
 	}
 	completion := len(strings.Fields(reply.text)) + len(strings.Fields(reply.toolArgs)) + len(FakeReasoning)
 	usage := map[string]any{
@@ -368,7 +371,8 @@ func writeFakeCompletion(w http.ResponseWriter, in *fakeChatRequest, reply fakeR
 	if reply.toolName != "" {
 		msg["tool_calls"] = []map[string]any{{"id": fakeCallID, "type": "function",
 			"function": map[string]string{"name": reply.toolName, "arguments": reply.toolArgs}}}
-	} else {
+	}
+	if reply.toolName == "" || reply.text != "" {
 		msg["content"] = reply.text
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -393,18 +397,19 @@ func fakeChunks(in *fakeChatRequest, reply fakeReply, usage map[string]any) []ma
 	for _, t := range FakeReasoning {
 		chunks = append(chunks, chunk(map[string]any{"reasoning_content": t}, nil))
 	}
+	if reply.toolName == "" || reply.text != "" { // a scripted call's text comes first
+		for _, word := range strings.SplitAfter(reply.text, " ") {
+			if word != "" {
+				chunks = append(chunks, chunk(map[string]any{"content": word}, nil))
+			}
+		}
+	}
 	if reply.toolName != "" {
 		chunks = append(chunks, chunk(map[string]any{"tool_calls": []map[string]any{{"index": 0, "id": fakeCallID, "type": "function",
 			"function": map[string]string{"name": reply.toolName, "arguments": ""}}}}, nil))
 		for _, frag := range splitN(reply.toolArgs, 4) {
 			chunks = append(chunks, chunk(map[string]any{"tool_calls": []map[string]any{{"index": 0,
 				"function": map[string]string{"arguments": frag}}}}, nil))
-		}
-	} else {
-		for _, word := range strings.SplitAfter(reply.text, " ") {
-			if word != "" {
-				chunks = append(chunks, chunk(map[string]any{"content": word}, nil))
-			}
 		}
 	}
 	chunks = append(chunks, chunk(map[string]any{}, reply.finishReason()))
