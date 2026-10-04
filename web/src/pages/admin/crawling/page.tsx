@@ -20,7 +20,7 @@ export function CrawlingPage() {
     <Stack gap={6} className={s.page}>
       <PageHeader
         title={terms.crawlDomains}
-        description="Which hosts web sources may crawl. Every team may crawl hosts on the allowlist. Teams request other domains, and platform admins review the requests here. Internal and private addresses are always blocked."
+        description="Which hosts web sources may crawl. Every team may crawl hosts on the allowlist. Teams request other domains, and platform admins review the requests here. The crawler never fetches private, loopback, link-local or cloud metadata addresses, including host names that resolve to them, so those can't be added."
       />
       {!isAdmin && <Alert tone="info">Auditors can view the allowlist and domain requests. Only platform admins can change them.</Alert>}
       <PageTabs

@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
+import { thinkingConflict } from "../pages/admin/models/model-form";
 import { initialProfileForm, missingPrefixes, prefillPrefixes, profileBody, profileErrors, profileFusionForm, profileFusionPatch, recommendedPrefixes } from "../pages/admin/models/profile-form";
 import { TeamContext, teamCtx } from "../pages/team/common";
 import { KBSettings } from "../pages/team/kbs/settings";
@@ -69,6 +70,44 @@ describe("admin model compatibility fields", () => {
     });
   });
 
+  it("shows a model's compatibility on its record, auditors included (AD-09)", async () => {
+    const qwen = { ...chat, compat: { thinkingOff: "enable_thinking_false", supportsReasoningEffort: false, extraBody: { top_k: 20 } } };
+    mockApi({ ...shellRoutes("platform_auditor"), "GET /v1/admin/connections": () => [connection], "GET /v1/admin/models": () => [qwen] });
+    const { container } = renderApp("/admin/models?record=m1");
+    const sheet = await screen.findByRole("region", { name: "Qwen" }, { timeout: 4000 });
+    expect(within(sheet).getByRole("heading", { name: "Compatibility" })).toBeInTheDocument();
+    expect(within(sheet).getByText('chat_template_kwargs: {"enable_thinking": false}')).toBeInTheDocument();
+    expect(within(sheet).getByText('{"top_k":20}')).toBeInTheDocument();
+    expect(within(sheet).getByText("Tool calling").nextSibling).toHaveTextContent("Supported");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("sets a connection's requests per minute (AD-12) and says in words why Delete is off (AD-33)", async () => {
+    const calls = mockApi({
+      ...shellRoutes("platform_admin"),
+      "GET /v1/admin/connections": () => [{ ...connection, requestsPerMinute: 0 }],
+      "GET /v1/admin/models": () => [chat],
+      "PATCH /v1/admin/connections/c1": (body) => ({ ...connection, ...(body as object) }),
+    });
+    renderApp("/admin/connections?record=c1");
+    const sheet = await screen.findByRole("region", { name: "Self-hosted" }, { timeout: 4000 });
+    expect(within(sheet).getByText("Unlimited")).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: /Delete/ })).toHaveAccessibleDescription("Remove or move this connection's models to delete it.");
+    await userEvent.click(within(sheet).getByRole("button", { name: /Edit/ }));
+    const form = await screen.findByRole("region", { name: "Edit Self-hosted" });
+    await userEvent.type(within(form).getByRole("textbox", { name: /Requests per minute/ }), "120");
+    await userEvent.click(within(form).getByRole("button", { name: "Save connection" }));
+    await waitFor(() => expect((calls.find((c) => c.method === "PATCH")?.body as { requestsPerMinute: number }).requestsPerMinute).toBe(120));
+  });
+
+  it("warns when extra request fields set thinking too (AD-10)", () => {
+    const base = { kind: "chat" as const, thinkingOff: "enable_thinking_false" as const };
+    expect(thinkingConflict({ ...base, extraBody: '{"chat_template_kwargs": {"enable_thinking": true}}' })).toMatch(/turn thinking on for every request; agents and audiences set to Off still turn it off/);
+    expect(thinkingConflict({ ...base, extraBody: '{"chat_template_kwargs": {"enable_thinking": false}}' })).toMatch(/can't turn it on/);
+    expect(thinkingConflict({ ...base, thinkingOff: "", extraBody: '{"chat_template_kwargs": {"enable_thinking": true}}' })).toMatch(/Off does nothing/);
+    expect(thinkingConflict({ ...base, extraBody: '{"top_k": 20}' })).toBeUndefined();
+  });
+
   it("offers the dimensions parameter for embedding models", async () => {
     const calls = mockApi({
       ...shellRoutes("platform_admin"),
@@ -111,8 +150,9 @@ describe("embedding profile output dimensions and fusion defaults", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Add profile" }));
     const dialog = await screen.findByRole("dialog");
-    await userEvent.type(within(dialog).getByRole("textbox", { name: "Name" }), "Qwen");
-    await userEvent.type(within(dialog).getByRole("textbox", { name: "Key" }), "qwen");
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Name" }), "Qwen 768");
+    // The key follows the name (AD-27).
+    expect(within(dialog).getByRole("textbox", { name: "Key" })).toHaveValue("qwen-768");
     const dims = within(dialog).getByRole("textbox", { name: /Output dimensions/ });
     await userEvent.type(dims, "3000");
     // Qwen3-Embedding: its query instruction is filled in (G7); an edit replaces it.
@@ -145,6 +185,8 @@ describe("embedding profile output dimensions and fusion defaults", () => {
     expect(within(sheet).getByText("Vector 1 · keyword 0.02")).toBeInTheDocument();
     expect(within(sheet).getByText(/shortened from the model's vectors/)).toBeInTheDocument();
     expect(await within(sheet).findByText("2 data sources")).toBeInTheDocument();
+    // Delete and Retire on the record (AD-15): Delete off while it's used, saying why.
+    expect(within(sheet).getByRole("button", { name: /Delete/ })).toHaveAccessibleDescription("A profile in use can't be deleted; retire it instead.");
   });
 
   it("edits a profile's fusion defaults", async () => {

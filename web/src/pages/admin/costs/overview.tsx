@@ -25,7 +25,7 @@ import { StatCard } from "@/components/ui/stat-card/stat-card";
 import { Table, Td, Tr } from "@/components/ui/table/table";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group/toggle-group";
-import { categories, type CostSettings, dayRangeLabel, requestsColumn, requestsHint } from "@/lib/costs";
+import { categories, chartSeries, type CostSettings, dayRangeLabel, requestsColumn, requestsHint } from "@/lib/costs";
 import { Money } from "@/components/money";
 import { formatMoney } from "@/lib/format";
 import { useSearchParams } from "@/lib/url-search";
@@ -111,8 +111,11 @@ function DailySpend({ report, currency }: { report: Report; currency: string }) 
         <div className={c.chartBody}>
           <BarChart
             layout="stack"
-            data={report.rows.map((r) => ({ label: dayLabel(r.key), values: Object.fromEntries(categories.map((k) => [k.key, Number(r.byKind[k.key])])) as Record<(typeof categories)[number]["key"], number> }))}
-            series={categories.map((k) => ({ key: k.key, label: k.label, tone: k.tone }))}
+            data={report.rows.map((r) => ({
+              label: dayLabel(r.key),
+              values: Object.fromEntries(chartSeries.map((k) => [k.key, k.kinds.reduce((sum, kind) => sum + Number(r.byKind[kind]), 0)])) as Record<(typeof chartSeries)[number]["key"], number>,
+            }))}
+            series={chartSeries.map(({ key, label, tone }) => ({ key, label, tone }))}
             formatValue={(v) => formatMoney(String(v), currency)}
             summary={summary}
           />

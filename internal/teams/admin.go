@@ -23,7 +23,9 @@ type Summary struct {
 	Team        dbgen.Team
 	MemberCount int64
 	OwnerCount  int64
-	Content     Content
+	// OwnerInvites are open, unexpired owner invites (AD-04: "Owner invited", not "No owner").
+	OwnerInvites int64
+	Content      Content
 }
 
 // Content counts what a team holds (the admin Teams list and team Overview).
@@ -102,7 +104,7 @@ func (s *Service) Create(ctx context.Context, a authz.Actor, in CreateInput) (Su
 
 func summary(ctx context.Context, q *dbgen.Queries, t dbgen.Team) (Summary, error) {
 	c, err := q.TeamCounts(ctx, t.ID)
-	return Summary{Team: t, MemberCount: c.MemberCount, OwnerCount: c.OwnerCount, Content: Content{
+	return Summary{Team: t, MemberCount: c.MemberCount, OwnerCount: c.OwnerCount, OwnerInvites: c.OwnerInvites, Content: Content{
 		Agents: c.AgentCount, Sources: c.SourceCount, KBs: c.KbCount, Documents: c.DocumentCount, StorageBytes: c.StorageBytes,
 	}}, err
 }
@@ -134,7 +136,7 @@ func (s *Service) ListAll(ctx context.Context, a authz.Actor, p ListParams) ([]S
 	}
 	out := make([]Summary, len(rows))
 	for i, r := range rows {
-		out[i] = Summary{Team: r.Team, MemberCount: r.MemberCount, OwnerCount: r.OwnerCount, Content: Content{
+		out[i] = Summary{Team: r.Team, MemberCount: r.MemberCount, OwnerCount: r.OwnerCount, OwnerInvites: r.OwnerInvites, Content: Content{
 			Agents: r.AgentCount, Sources: r.SourceCount, KBs: r.KbCount, Documents: r.DocumentCount, StorageBytes: r.StorageBytes,
 		}}
 	}

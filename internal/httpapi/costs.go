@@ -29,6 +29,7 @@ func (a *api) costsRoutes() []route {
 		{"GET", "/v1/admin/teams/{team}/budget", a.admin(a.adminGetTeamBudget)},
 		{"PUT", "/v1/admin/teams/{team}/budget", a.admin(a.adminUpdateTeamBudget)},
 		{"POST", "/v1/admin/teams/{team}/budget/extensions", a.admin(a.adminGrantBudgetExtension)},
+		{"DELETE", "/v1/admin/teams/{team}/budget/extensions/{extensionId}", a.admin(a.adminRevokeBudgetExtension)},
 		{"GET", "/v1/teams/{team}/spend", a.session(a.getTeamSpend)},
 		{"GET", "/v1/teams/{team}/budget-status", a.session(a.getTeamBudgetStatus)},
 	}

@@ -546,3 +546,21 @@ func TestProxyEnvironmentIgnored(t *testing.T) {
 		t.Fatalf("proxy used? %+v %v", p, err)
 	}
 }
+
+// BlocksPattern (AD-08): allowlist entries the guard would never fetch.
+func TestBlocksPattern(t *testing.T) {
+	f := NewFetcher(FetcherConfig{})
+	for _, p := range []string{"10.0.0.1", "169.254.169.254", "127.0.0.1", "192.168.1.1", "100.64.0.1", "0177.0.0.1", "0x7f.0.0.1", "127.1"} {
+		if !f.BlocksPattern(p) {
+			t.Errorf("%s not blocked", p)
+		}
+	}
+	for _, p := range []string{"8.8.8.8", "example.edu", "*.example.edu", "*", "1.example.edu"} {
+		if f.BlocksPattern(p) {
+			t.Errorf("%s blocked", p)
+		}
+	}
+	if NewFetcher(FetcherConfig{AllowPrivateForTests: true}).BlocksPattern("127.0.0.1") {
+		t.Error("blocked with AllowPrivateForTests")
+	}
+}

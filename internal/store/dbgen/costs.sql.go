@@ -24,6 +24,37 @@ func (q *Queries) BumpCostGeneration(ctx context.Context) error {
 	return err
 }
 
+const deleteBudgetExtension = `-- name: DeleteBudgetExtension :one
+DELETE FROM budget_extensions WHERE id = $1 AND team_id = $2 AND month = $3
+RETURNING id, month, amount::text AS amount, reason
+`
+
+type DeleteBudgetExtensionParams struct {
+	ID     uuid.UUID
+	TeamID uuid.UUID
+	Month  pgtype.Date
+}
+
+type DeleteBudgetExtensionRow struct {
+	ID     uuid.UUID
+	Month  pgtype.Date
+	Amount string
+	Reason string
+}
+
+// Revokes one of a team's extensions for a month (AD-35); no row: not that team's, or another month's.
+func (q *Queries) DeleteBudgetExtension(ctx context.Context, arg DeleteBudgetExtensionParams) (DeleteBudgetExtensionRow, error) {
+	row := q.db.QueryRow(ctx, deleteBudgetExtension, arg.ID, arg.TeamID, arg.Month)
+	var i DeleteBudgetExtensionRow
+	err := row.Scan(
+		&i.ID,
+		&i.Month,
+		&i.Amount,
+		&i.Reason,
+	)
+	return i, err
+}
+
 const deleteModelPrice = `-- name: DeleteModelPrice :execrows
 DELETE FROM model_prices WHERE id = $1 AND model_id = $2
 `

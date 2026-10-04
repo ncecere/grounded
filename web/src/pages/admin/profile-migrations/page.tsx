@@ -7,8 +7,7 @@
  * dialog for that knowledge base, from its page); auditors read.
  */
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Eye, Shuffle } from "lucide-react";
-import { type ActionItem } from "@/components/templates/action-menu";
+import { ArrowRight, Shuffle } from "lucide-react";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
 import { useRecordParam } from "@/components/templates/record-page";
 import { StatusBadge } from "@/components/ui/badge/badge";
@@ -109,7 +108,6 @@ export function ProfileMigrationsTab({ isAdmin, starting, onStartClosed }: TabPr
       { replace: true },
     );
   };
-  const actions = (m: Migration): ActionItem[] => [{ label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(m.id) }];
   const none = migrations.data?.length === 0;
   return (
     <Stack gap={4}>
@@ -127,7 +125,6 @@ export function ProfileMigrationsTab({ isAdmin, starting, onStartClosed }: TabPr
         error={migrations.error}
         onRetry={() => void migrations.refetch()}
         onRowClick={(m) => record.open(m.id)}
-        rowActions={actions}
         // No action: the header's "Migrate a knowledge base" is the view's one primary.
         empty={{
           icon: <Shuffle />,

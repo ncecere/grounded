@@ -4,7 +4,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Eye, Tags } from "lucide-react";
+import { Tags } from "lucide-react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ListPage } from "@/components/templates/list-page";
 import { Badge } from "@/components/ui/badge/badge";
@@ -92,7 +92,6 @@ export function PricesTab() {
       loading={list.isLoading}
       error={list.error}
       onRetry={() => void list.refetch()}
-      rowActions={(r) => [{ label: "View details", icon: <Eye aria-hidden />, render: itemLink(r) }]}
       empty={{ icon: <Tags />, title: "No priced models or MCP servers yet." }}
       // On a phone each row stacks, so the prices don't squash into a narrow column (VI-31).
       tableProps={{ stack: true }}

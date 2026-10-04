@@ -1,4 +1,5 @@
 /* The admin Overview's queries (A1). Each part of the page loads on its own, so one failure doesn't hide the rest. */
+import type { QueryClient } from "@tanstack/react-query";
 import { api, unwrap } from "@/api/client";
 
 export const overviewQuery = () => ({
@@ -54,16 +55,19 @@ export const recentChangesQuery = () => ({
 export const evaluationSettingsQuery = () => ({
   queryKey: ["admin", "evaluations"],
   queryFn: async () => unwrap(await api.GET("/v1/admin/settings/evaluations")),
+  staleTime: 30_000,
 });
 
 export const answerCacheSettingsQuery = () => ({
   queryKey: ["admin", "answer-cache"],
   queryFn: async () => unwrap(await api.GET("/v1/admin/settings/answer-cache")),
+  staleTime: 30_000,
 });
 
 export const mcpSettingsQuery = () => ({
   queryKey: ["admin", "mcp"],
   queryFn: async () => unwrap(await api.GET("/v1/admin/settings/mcp")),
+  staleTime: 30_000,
 });
 
 export const parsingSettingsQuery = () => ({
@@ -79,4 +83,21 @@ export const systemOneSettingsQuery = () => ({
 export const maintenanceSettingsQuery = () => ({
   queryKey: ["admin", "maintenance"],
   queryFn: async () => unwrap(await api.GET("/v1/admin/settings/maintenance")),
+});
+
+/*
+ * The Features card, the setup checklist and the public-access rows of Needs attention in one request
+ * (GET /v1/admin/features, AD-03): about 17 requests on every load before. The switches' settings come with their
+ * revisions, so the response primes their own queries and switching needs no extra read.
+ */
+export const featuresQuery = (qc: QueryClient) => ({
+  queryKey: ["admin", "features"],
+  queryFn: async () => {
+    const f = unwrap(await api.GET("/v1/admin/features"));
+    qc.setQueryData(evaluationSettingsQuery().queryKey, f.evaluations);
+    qc.setQueryData(mcpSettingsQuery().queryKey, f.mcp);
+    if (f.answerCache) qc.setQueryData(answerCacheSettingsQuery().queryKey, f.answerCache);
+    return f;
+  },
+  staleTime: 30_000,
 });

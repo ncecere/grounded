@@ -10,12 +10,37 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/ncecere/grounded/internal/apperr"
 	"github.com/ncecere/grounded/internal/authz"
 	"github.com/ncecere/grounded/internal/config"
 	"github.com/ncecere/grounded/internal/retention"
 	"github.com/ncecere/grounded/internal/teams"
 	"github.com/ncecere/grounded/internal/testutil"
 )
+
+// revokeMistake grants a mistaken extension and revokes it (AD-35): the limit drops back, and only an admin can.
+// It returns the extension that's left.
+func revokeMistake(t *testing.T, f *fixture) uuid.UUID {
+	t.Helper()
+	wrong, err := f.svc.GrantExtension(f.ctx, f.admin, "registrar", "150", "Typo")
+	if err != nil || len(wrong.Extensions) != 2 {
+		t.Fatalf("second extension = %+v %v", wrong.Extensions, err)
+	}
+	mistake := wrong.Extensions[1].ID
+	auditor := authz.Actor{UserID: uuid.New(), PlatformRole: authz.PlatformAuditor}
+	if _, err := f.svc.RevokeExtension(f.ctx, auditor, "registrar", mistake); err == nil {
+		t.Fatal("an auditor revoked an extension")
+	}
+	tb, err := f.svc.RevokeExtension(f.ctx, f.admin, "registrar", mistake)
+	if err != nil || Format(tb.Status.Limit) != "6.500000" || len(tb.Extensions) != 1 || tb.Extensions[0].Reason != "Exam period" {
+		t.Fatalf("after revoking = %+v %+v %v", tb.Status, tb.Extensions, err)
+	}
+	_, err = f.svc.RevokeExtension(f.ctx, f.admin, "registrar", mistake)
+	if e, ok := apperr.As(err); !ok || e.Code != "extension_not_found" {
+		t.Fatalf("revoking twice = %v", err)
+	}
+	return tb.Extensions[0].ID
+}
 
 type fixture struct {
 	t                  *testing.T
@@ -317,12 +342,16 @@ func TestBudgetCheckAndNotices(t *testing.T) {
 	if err != nil || len(list.Items) != 1 || list.Items[0].Status.State != StateWarning || Format(list.Items[0].Status.Spent) != "5.500000" {
 		t.Fatalf("budgets = %+v %v", list.Items, err)
 	}
+	september := revokeMistake(t, f)
 
 	// A new month: the extension lapses, the notices can fire again.
 	f.setClock("2026-10-01T00:30:00Z")
 	st, err := f.svc.status(f.ctx, f.team, true)
 	if err != nil || st.State != StateOK || Format(st.Extensions) != "0.000000" || Format(st.Spent) != "0.000000" {
 		t.Fatalf("October = %+v %v", st, err)
+	}
+	if _, err := f.svc.RevokeExtension(f.ctx, f.admin, "registrar", september); err == nil {
+		t.Fatal("revoked last month's extension")
 	}
 
 	// In Kolkata (+05:30) October starts at 18:30 UTC on 30 September; the

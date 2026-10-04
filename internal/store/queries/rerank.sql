@@ -26,3 +26,15 @@ JOIN teams t ON t.id = a.team_id
 JOIN agent_versions v ON v.id = a.published_version_id
 WHERE a.deleted_at IS NULL AND a.status = 'active' AND t.status = 'active'
   AND coalesce((v.config->>'rerank')::boolean, true);
+
+-- name: ListRerankOffAgents :many
+-- Published, active agents in active teams whose published version turns
+-- reranking off (Admin → Models → Reranking lists them, docs/v0.4.2.md OW-2).
+SELECT a.id, a.name, t.slug AS team_slug, t.name AS team_name
+FROM agents a
+JOIN teams t ON t.id = a.team_id
+JOIN agent_versions v ON v.id = a.published_version_id
+WHERE a.deleted_at IS NULL AND a.status = 'active' AND t.status = 'active'
+  AND NOT coalesce((v.config->>'rerank')::boolean, true)
+ORDER BY t.name, a.name
+LIMIT 100;

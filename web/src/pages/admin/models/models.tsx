@@ -5,7 +5,7 @@
  * (?form=new or ?form=<id>).
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Cpu, Eye, FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
+import { Cpu, FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
@@ -27,7 +27,6 @@ import { EnabledBadge, kindLabels, type Model, type ModelKind, type ModelUsage, 
 import { type HealthCheck, healthColumn, healthFacet, useHealthChecks } from "./health";
 import { ModelDialog } from "./model-dialog";
 import { ModelRecordPage, useModelTest } from "./model-record";
-import { RerankingNotice } from "./reranking";
 
 function useDeleteModel(onDeleted: () => void) {
   const qc = useQueryClient();
@@ -60,7 +59,7 @@ function useRecordBack(close: () => void) {
 
 function kindDetail(x: Model) {
   if (x.kind === "moderation") return providerName(x.moderationProvider, x.moderationFamily);
-  if (x.kind === "embedding" && x.dimensions != null) return `${x.dimensions} dimensions`;
+  if (x.kind === "embedding" && x.dimensions != null) return `${x.dimensions.toLocaleString()} dimensions`;
   if (x.kind === "chat" && x.contextWindow != null) return `${x.contextWindow.toLocaleString()} tokens`;
   return undefined;
 }
@@ -110,6 +109,12 @@ export function ModelsPage() {
   const health = useHealthChecks();
   const record = useRecordParam();
   const recordBack = useRecordBack(record.close);
+  // Reranking's setup guide opens Add model with kind Rerank chosen (?form=new&kind=rerank).
+  const [params] = useSearchParams();
+  const presetKind = params.get("kind") as ModelKind | null;
+  // ...and returns there afterwards (?from=reranking), saved or cancelled.
+  const navigate = useNavigate();
+  const backToReranking = params.get("from") === "reranking";
   const test = useModelTest();
   const form = useFormParam();
   const [deleting, setDeleting] = useState<Model | null>(null);
@@ -158,7 +163,6 @@ export function ModelsPage() {
         title="Models"
         description="Models offered to teams, each tagged with the most sensitive data it may process."
         primaryAction={add}
-        notices={<RerankingNotice models={list} isAdmin={isAdmin} />}
         caption="Models"
         columns={columns(levels.data, { connName, usage: usageById, health: health.get })}
         data={list}
@@ -171,7 +175,6 @@ export function ModelsPage() {
         onRetry={() => void models.refetch()}
         onRowClick={(x) => record.open(x.id)}
         rowActions={(x) => [
-          { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(x.id) },
           {
             label: "Test",
             icon: <FlaskConical aria-hidden />,
@@ -200,7 +203,12 @@ export function ModelsPage() {
         onEdit={setEditing}
         onDelete={setDeleting}
       />
-      {isAdmin && editing && <ModelDialog model={editing === "new" ? null : editing} connections={conns.data ?? []} onClose={form.close} />}
+      {isAdmin && editing && <ModelDialog
+          model={editing === "new" ? null : editing}
+          connections={conns.data ?? []}
+          kind={presetKind && presetKind in kindLabels ? presetKind : undefined}
+          onClose={backToReranking ? () => void navigate({ to: "/admin/reranking" }) : form.close}
+        />}
       <ConfirmMutationDialog
         target={deleting}
         onClose={() => setDeleting(null)}

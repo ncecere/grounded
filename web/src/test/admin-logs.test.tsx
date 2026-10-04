@@ -67,6 +67,17 @@ describe("admin logs", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("says once, in the log's words, that a filter matches nothing (AD-29)", async () => {
+    mockApi({
+      ...shellRoutes("platform_admin"),
+      "GET /v1/admin/audit": () => ({ items: [], nextCursor: null }),
+      "GET /v1/admin/users": () => users,
+    });
+    renderApp("/admin/logs?action=platform.");
+    expect(await screen.findByText("No entries match these filters.", undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.queryByText("No rows match these filters.")).toBeNull();
+  });
+
   it("shows a missing linked entry as not found", async () => {
     mockApi({
       ...shellRoutes("platform_auditor"),
@@ -103,8 +114,8 @@ describe("admin logs", () => {
       ).toBeNull(),
     );
 
-    await userEvent.click(within(table).getByRole("button", { name: /Actions for Changed model/ }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
+    // The row opens the entry (no one-item menu repeating it, AD-19).
+    await userEvent.click(within(table).getByRole("button", { name: /^Changed model/ }));
     const sheet = await screen.findByRole("region", { name: "Changed model" });
     expect(within(sheet).getByRole("heading", { name: "Changes" })).toBeInTheDocument();
     expect(within(sheet).getByText("req-1")).toBeInTheDocument();
@@ -145,17 +156,16 @@ describe("admin logs", () => {
     expect(row).toHaveTextContent("System (group mapping: advising-staff → Academic Advising)");
     expect(within(row).getByRole("link", { name: "Academic Advising" })).toHaveAttribute("href", "/admin/teams/advising");
     // A settings entry names its target once.
-    // The evaluations switch: which way it went, in words, and its place now (Overview → Features).
+    // The evaluations switch: which way it went, in words, and its place now (Settings → Features, AD-39).
     const evalsRow = within(table).getByText("Turned evaluations off").closest("tr")!;
     expect(evalsRow).toHaveTextContent("Evaluations On → Off");
-    expect(within(evalsRow).getByRole("link", { name: "Evaluations" })).toHaveAttribute("href", "/admin#features");
+    expect(within(evalsRow).getByRole("link", { name: "Evaluations" })).toHaveAttribute("href", "/admin/settings#features");
     // A budget's target is the team, by its slug like every other link to it.
     const budgetRow = within(table).getByText("Changed a team budget").closest("tr")!;
     for (const link of within(budgetRow).getAllByRole("link", { name: "Academic Advising" })) expect(link).toHaveAttribute("href", "/admin/teams/advising");
     const settingsRow = within(table).getByText("Changed cost settings").closest("tr")!;
     expect(within(settingsRow).getAllByText("Cost settings")).toHaveLength(1);
-    await userEvent.click(within(table).getByRole("button", { name: /Actions for Changed member role/ }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
+    await userEvent.click(within(table).getByRole("button", { name: /^Changed member role/ }));
     const page = await screen.findByRole("region", { name: "Changed member role" });
     expect(within(page).getByText("Academic Advising")).toBeInTheDocument();
     expect(within(page).getByText(/Sep 26, 2026/)).toBeInTheDocument();

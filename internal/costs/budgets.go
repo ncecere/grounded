@@ -303,3 +303,44 @@ func (s *Service) GrantExtension(ctx context.Context, a authz.Actor, teamRef, am
 	s.changed(ctx, uuid.NullUUID{UUID: teamID, Valid: true})
 	return s.teamBudget(ctx, acc.Team)
 }
+
+// RevokeExtension removes one of this month's extensions of a team's budget
+// (platform admins; AD-35). Correcting one is revoking it and granting the
+// right amount. Audited as costs.extension_revoke with what was revoked.
+func (s *Service) RevokeExtension(ctx context.Context, a authz.Actor, teamRef string, extensionID uuid.UUID) (TeamBudget, error) {
+	if !canWrite(a) {
+		return TeamBudget{}, errAdminOnly
+	}
+	acc, err := s.teams.Get(ctx, a, teamRef)
+	if err != nil {
+		return TeamBudget{}, err
+	}
+	st, err := s.current(ctx)
+	if err != nil {
+		return TeamBudget{}, err
+	}
+	month := MonthOf(s.now(), st.Location())
+	teamID := acc.Team.ID
+	err = store.InTx(ctx, s.pool, func(q *dbgen.Queries, _ pgx.Tx) error {
+		row, err := q.DeleteBudgetExtension(ctx, dbgen.DeleteBudgetExtensionParams{ID: extensionID, TeamID: teamID, Month: pgDate(month)})
+		if errors.Is(store.NotFound(err), store.ErrNotFound) {
+			return apperr.NotFound("extension_not_found", "This month's budget has no such extension")
+		}
+		if err != nil {
+			return err
+		}
+		if err := q.BumpCostGeneration(ctx); err != nil {
+			return err
+		}
+		e := a.Audit("costs.extension_revoke", "team", teamID.String())
+		e.TeamID = teamID
+		e.Before = map[string]any{"extensionId": row.ID, "month": row.Month.Time.Format("2006-01"), "amount": Format(mustRat(row.Amount)),
+			"reason": row.Reason}
+		return audit.Record(ctx, q, e)
+	})
+	if err != nil {
+		return TeamBudget{}, err
+	}
+	s.changed(ctx, uuid.NullUUID{UUID: teamID, Valid: true})
+	return s.teamBudget(ctx, acc.Team)
+}

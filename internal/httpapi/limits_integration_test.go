@@ -158,8 +158,15 @@ func TestLimitsAdministration(t *testing.T) {
 		}
 	}
 	// Lowering the ceiling caps the override; null removes it.
-	code, e = admin.call("PUT", "/v1/admin/limits", map[string]any{"items": []map[string]any{{"key": "data_sources", "default": 20, "ceiling": 25}}}, nil, ifMatch(2))
+	var lowered apitypes.PlatformLimits
+	code, e = admin.call("PUT", "/v1/admin/limits", map[string]any{"items": []map[string]any{{"key": "data_sources", "default": 20, "ceiling": 25}}}, &lowered, ifMatch(2))
 	mustCode(t, "lower ceiling", code, e, 200, "")
+	// The response names the teams the new ceiling caps (AD-14).
+	for _, it := range lowered.Items {
+		if it.Key == "data_sources" && (len(it.Capped) != 1 || it.Capped[0].TeamSlug != "registrar" || it.Capped[0].Override != 40) {
+			t.Errorf("capped = %+v", it.Capped)
+		}
+	}
 	if it := teamLimit(t, user, "registrar", "data_sources"); it.Max == nil || *it.Max != 25 || !it.Overridden {
 		t.Errorf("capped by ceiling = %+v", it)
 	}

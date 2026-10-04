@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
+import { Alert } from "@/components/ui/alert/alert";
 import { Card } from "@/components/ui/card/card";
 import { AlertDialog } from "@/components/ui/dialog/dialog";
 import { Field } from "@/components/ui/field/field";
@@ -9,8 +10,27 @@ import { Textarea } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
 import { type Decision, DomainRequestList } from "../../team/domain-request-list";
 import { type DomainRequest } from "../../team/domains";
+import { allowlistQuery } from "./allowlist";
 
 type Review = { request: DomainRequest; decision: Decision };
+
+/** Whether host pattern `a` allows every host `b` allows (internal/web Covers). */
+export function covers(a: string, b: string): boolean {
+  const match = (pattern: string, host: string) =>
+    pattern === "*" || (pattern.startsWith("*.") ? host === pattern.slice(2) || host.endsWith(`.${pattern.slice(2)}`) : host === pattern);
+  if (a === "*") return true;
+  if (b === "*") return false;
+  if (b.startsWith("*.")) return a.startsWith("*.") && match(a, b.slice(2));
+  return match(a, b);
+}
+
+/** Pending requests the allowlist already covers, with the pattern that does (AD-26). */
+export function alreadyAllowed(requests: DomainRequest[], allowlist: string[]) {
+  return requests.flatMap((r) => {
+    const by = r.status === "pending" ? allowlist.find((p) => covers(p, r.pattern)) : undefined;
+    return by ? [{ request: r, by }] : [];
+  });
+}
 
 export const adminDomainRequestsKey = ["admin", "domain-requests"];
 
@@ -49,6 +69,8 @@ export function DomainRequestsCard({ isAdmin }: { isAdmin: boolean }) {
     queryKey: [...adminDomainRequestsKey, "all"],
     queryFn: async () => unwrap(await api.GET("/v1/admin/domain-requests")),
   });
+  const allowlist = useQuery(allowlistQuery());
+  const covered = alreadyAllowed(requests.data ?? [], (allowlist.data ?? []).map((e) => e.pattern));
   const review = useMutation({
     mutationFn: async ({ request, decision }: Review) =>
       unwrap(
@@ -72,6 +94,12 @@ export function DomainRequestsCard({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <Card title="Domain requests" description="Teams' requests to crawl hosts outside the allowlist. Pending requests are listed first.">
+      {covered.length > 0 && (
+        <Alert tone="info" title={covered.length === 1 ? "1 pending request is already allowed" : `${covered.length} pending requests are already allowed`}>
+          {covered.map((c) => `${c.request.pattern} (${c.request.teamName}) is covered by ${c.by} on the allowlist.`).join(" ")} Approving changes nothing
+          while that pattern stays; deny with a note to say so.
+        </Alert>
+      )}
       <DomainRequestList
         list={requests.data ?? []}
         loading={requests.isLoading}

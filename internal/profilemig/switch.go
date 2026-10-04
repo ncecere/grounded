@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -188,14 +190,28 @@ func (s *Service) notifySwitch(ctx context.Context, q *dbgen.Queries, tx pgx.Tx,
 	if err := s.Notify.Emit(ctx, tx, notify.KBProfileChangedEvent(ref, kb.ID, kb.Name, fromName, toName, back).By(m.FinishedBy.UUID)); err != nil {
 		return err
 	}
-	if back {
-		return nil
-	}
 	admins, err := q.ActivePlatformAdminIDs(ctx)
-	if err != nil || len(admins) == 0 {
+	if err != nil {
 		return err
 	}
-	return s.Notify.Emit(ctx, tx, notify.ProfileSwitchedEvent(admins, ref, m.ID, kb.Name, fromName, toName, *m.OldVectorsUntil))
+	// One notification per person (AD-17): a platform admin who owns or runs the team has the team's already.
+	members, err := q.ListMembers(ctx, team.ID)
+	if err != nil {
+		return err
+	}
+	admins = slices.DeleteFunc(admins, func(id uuid.UUID) bool {
+		return slices.ContainsFunc(members, func(m dbgen.ListMembersRow) bool {
+			return m.TeamMember.UserID == id && (m.TeamMember.Role == authz.RoleOwner || m.TeamMember.Role == authz.RoleAdmin)
+		})
+	})
+	if len(admins) == 0 {
+		return nil
+	}
+	until := time.Now()
+	if m.OldVectorsUntil != nil {
+		until = *m.OldVectorsUntil
+	}
+	return s.Notify.Emit(ctx, tx, notify.ProfileSwitchedEvent(admins, ref, m.ID, kb.Name, fromName, toName, until, back))
 }
 
 // notifyAttention tells the platform admins, once per episode, that a

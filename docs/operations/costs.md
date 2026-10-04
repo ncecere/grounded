@@ -25,7 +25,7 @@ Prices can be entered while the mode is still Off, so tracking starts with corre
 - **A mistake:** delete the row from the model's price history. Usage on its days goes back to the row before it (or to unpriced). Adding and deleting prices are audited (`costs.price_add`, `costs.price_delete`).
 - **Unpriced usage costs nothing** and is flagged **Unpriced** in every report, so a missing price is visible rather than silently free. Check the Prices tab after adding a model.
 
-The currency (Settings) is a display code only; there is no conversion. Enter every price in that currency.
+The currency (**Admin → Settings**, [`settings.md`](settings.md)) is a display code only; there is no conversion. Enter every price in that currency.
 
 ## 2. Choose a mode
 
@@ -34,10 +34,9 @@ In **Admin → Costs → Settings**:
 | Setting | Default | Meaning |
 |---|---|---|
 | Cost tracking | Off | **Off**: nothing is tracked or refused. **Track only**: spend is reported to platform admins, auditors and each team's owners and admins; a team with a budget shows progress against it ("not enforced"), and nothing is refused or notified. **Enforce**: Track only, plus enforced monthly budgets. |
-| Currency | `USD` | The ISO 4217 code amounts are shown in. |
-| Time zone | `UTC` | The budget month and report days follow this zone (an IANA name such as `America/New_York`). Changing it needs no rebuild. Daily limits still reset at midnight UTC. |
 | Warning threshold | 80% | Owners and admins are notified once a month when spend reaches this share of the budget. |
-| Default monthly budget | none | The budget of teams without their own: enforced in Enforce, progress only in Track only. Without one, such teams are tracked but never refused. |
+
+The **currency**, **time zone** (the budget month and report days) and **default monthly budget** are in **Admin → Settings** since v0.4.2 ([`settings.md`](settings.md)).
 
 Saving is audited (`costs.settings_update`) and takes a revision check, so two admins can't overwrite each other.
 
@@ -74,7 +73,7 @@ Figures come from an hourly rollup of the ledger plus the last hour or so read l
 
 1. Check **Admin → Costs → Budgets** (or the team's Budget card): the spend, the budget and the projection. The Overview, filtered to the month, shows which agents and models used it.
 2. Decide:
-   - **Grant an extension** (**Grant extension** on the Budget card): an amount added to this month only, with a reason. It lapses when the month ends. Audited as `costs.extension_grant`.
+   - **Grant an extension** (**Grant extension** on the Budget card): an amount added to this month only, with a reason. It lapses when the month ends, and adds to this month whatever the budget is changed to. Audited as `costs.extension_grant`. An extension granted by mistake is revoked with **Revoke** on its row (audited as `costs.extension_revoke`); to correct one, revoke it and grant the right amount.
    - **Raise the budget** (**Change budget**): for this and later months. Audited as `costs.budget_update`.
    - **Do nothing:** the team resumes next month.
 3. Either change takes effect at once: waiting documents are queued and paused crawls continue within seconds, and chats and searches are admitted again.

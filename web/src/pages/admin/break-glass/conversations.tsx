@@ -14,6 +14,7 @@ import { RecordPage, useRecordParam } from "@/components/templates/record-page";
 import { Alert, ErrorAlert } from "@/components/ui/alert/alert";
 import { Badge } from "@/components/ui/badge/badge";
 import { Button } from "@/components/ui/button/button";
+import { CopyButton } from "@/components/ui/copy-button/copy-button";
 import { type DataTableColumn } from "@/components/ui/data-table/data-table";
 import { Stack } from "@/components/ui/layout/layout";
 import { PageHeader } from "@/components/ui/page-header/page-header";
@@ -130,7 +131,24 @@ function Transcript({ id, onClose }: { id: string | undefined; onClose: () => vo
       description="A transcript read under break-glass (read-only)."
       loading={q.isLoading}
       error={q.error}
-      facts={c ? [{ label: "Agent", value: c.agentName }, { label: "Started", value: formatDate(c.createdAt) }, { label: "Last active", value: formatDate(c.updatedAt) }] : undefined}
+      facts={
+        c
+          ? [
+              { label: "Agent", value: c.agentName },
+              { label: "Started", value: formatDate(c.createdAt) },
+              { label: "Last active", value: formatDate(c.updatedAt) },
+              // What Retention → Place a hold → Conversation asks for (AD-31).
+              {
+                label: "Conversation ID",
+                value: (
+                  <span className={s.mono}>
+                    {c.id} <CopyButton value={c.id} label="conversation ID" />
+                  </span>
+                ),
+              },
+            ]
+          : undefined
+      }
     >
       {c && (
         <ol className={b.transcript} aria-label="Messages">

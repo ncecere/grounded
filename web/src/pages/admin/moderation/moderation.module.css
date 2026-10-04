@@ -108,3 +108,13 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
 }
+
+/* Settings fields at the width other settings forms use (VI-25), not the whole card. */
+.field {
+  max-width: 27.5rem;
+}
+
+/* A model ID on one line ("openjev-latest", VI-25). */
+.noBreak {
+  white-space: nowrap;
+}

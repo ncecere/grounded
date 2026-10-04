@@ -31,6 +31,7 @@ export function TeamSettingsTab({ team, isAdmin, onArchive, status }: Props) {
       canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={status.isPending}
       error={status.error}
+      saveLabel="Save settings"
       onSave={() => status.mutate({ ...form, name: form.name.trim() })}
       onDiscard={() => setForm(saved)}
       saveDisabled={Boolean(nameError)}

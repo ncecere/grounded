@@ -9,6 +9,42 @@ import (
 	"context"
 )
 
+const classificationUsage = `-- name: ClassificationUsage :one
+SELECT (SELECT count(*) FROM teams t WHERE t.max_classification = $1::text)::bigint AS teams,
+       (SELECT count(*) FROM models m WHERE m.max_classification = $1::text)::bigint AS models,
+       (SELECT count(*) FROM data_sources ds WHERE ds.classification = $1::text)::bigint AS sources,
+       (SELECT count(*) FROM mcp_servers ms WHERE ms.max_classification = $1::text)::bigint AS mcp_servers
+`
+
+type ClassificationUsageRow struct {
+	Teams      int64
+	Models     int64
+	Sources    int64
+	McpServers int64
+}
+
+// What refers to a level (AD-05: only an unused level can be deleted).
+func (q *Queries) ClassificationUsage(ctx context.Context, key string) (ClassificationUsageRow, error) {
+	row := q.db.QueryRow(ctx, classificationUsage, key)
+	var i ClassificationUsageRow
+	err := row.Scan(
+		&i.Teams,
+		&i.Models,
+		&i.Sources,
+		&i.McpServers,
+	)
+	return i, err
+}
+
+const deleteClassification = `-- name: DeleteClassification :exec
+DELETE FROM classification_levels WHERE key = $1
+`
+
+func (q *Queries) DeleteClassification(ctx context.Context, key string) error {
+	_, err := q.db.Exec(ctx, deleteClassification, key)
+	return err
+}
+
 const getClassification = `-- name: GetClassification :one
 SELECT key, name, description, rank, max_audience, revision, created_at, updated_at, anonymous_retention_hours, conversation_retention_days, allowed_source_types, direct_retrieve FROM classification_levels WHERE key = $1
 `

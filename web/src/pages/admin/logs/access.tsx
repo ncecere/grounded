@@ -13,7 +13,7 @@ import type { Facet } from "@/components/ui/filter-bar/filter-bar";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import s from "../../shared.module.css";
 import { ClassificationBadge, useClassificationLevels } from "../../team/common";
-import { ExportButton, one, rangeWindow, useAgentOptions, usePeopleOptions } from "./common";
+import { dateFacet, ExportButton, noMatches, one, rangeWindow, useAgentOptions, usePeopleOptions } from "./common";
 import l from "./logs.module.css";
 
 type Entry = Schemas["AccessLogEntry"];
@@ -29,7 +29,7 @@ function useFacets(): Facet<Entry>[] {
     { id: "agent", label: "Agent", type: "select", placeholder: "All agents", options: agents },
     { id: "person", label: "Person", type: "select", placeholder: "Anyone", options: people },
     { id: "channel", label: "Channel", type: "select", placeholder: "Any channel", options: (Object.keys(channelLabels) as Channel[]).map((v) => ({ value: v, label: channelLabels[v] })) },
-    { id: "range", label: "Date", type: "date-range" },
+    dateFacet<Entry>(),
   ];
 }
 
@@ -103,12 +103,9 @@ export function AccessLogTab() {
       loading={log.isLoading}
       error={log.error}
       onRetry={() => void log.refetch()}
-      empty={{
-        icon: <FileClock />,
-        title: Object.values(query).some(Boolean) ? "No entries match these filters." : "No entries.",
-        description: "Only agents classified Sensitive or above are logged.",
-      }}
+      empty={{ icon: <FileClock />, title: "No entries.", description: "Only agents classified Sensitive or above are logged." }}
       tableProps={{
+        noResults: noMatches,
         facetCounts: false,
         loadMore: { hasMore: Boolean(log.hasNextPage), loading: log.isFetchingNextPage, onLoadMore: () => void log.fetchNextPage() },
         toolbar: (

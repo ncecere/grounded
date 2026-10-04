@@ -98,3 +98,25 @@ func TestAdminOverviewAndListCounts(t *testing.T) {
 	code, e = env.owner.call("GET", "/v1/admin/overview", nil, nil, nil)
 	mustCode(t, "owner reads overview", code, e, 403, "forbidden")
 }
+
+// TestAdminFeatures: the Overview's Features card and setup checklist in one
+// response (AD-03), each settings object as its own GET returns it.
+func TestAdminFeatures(t *testing.T) {
+	env := newRAGEnv(t)
+	var f apitypes.AdminFeatures
+	if code := env.app.signIn("auditor").get("/v1/admin/features", &f); code != 200 {
+		t.Fatalf("features = %d", code)
+	}
+	var mcp apitypes.MCPSettings
+	env.admin.get("/v1/admin/settings/mcp", &mcp)
+	var rr apitypes.RerankSettings
+	env.admin.get("/v1/admin/rerank", &rr)
+	if f.Mcp.Revision != mcp.Revision || f.Mcp.Enabled != mcp.Enabled || f.Rerank.Revision != rr.Revision || f.RerankModel != nil {
+		t.Errorf("settings = %+v %+v", f.Mcp, f.Rerank)
+	}
+	if f.Setup.Connections < 1 || f.Setup.Teams < 1 || !f.Setup.DefaultProfile || f.Costs.Teams == nil || f.Setup.ChatModelClassifications == nil {
+		t.Errorf("setup = %+v costs = %+v", f.Setup, f.Costs)
+	}
+	code, e := env.owner.call("GET", "/v1/admin/features", nil, nil, nil)
+	mustCode(t, "owner reads features", code, e, 403, "forbidden")
+}

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { holdProblems } from "../pages/admin/retention/hold-dialogs";
-import { changedPeriods, formOf, periodError, periodText, rangeText, shortened } from "../pages/admin/retention/labels";
+import { changedPeriods, conversationIdOf, formOf, periodError, periodText, rangeText, shortened } from "../pages/admin/retention/labels";
 import { mockApi, renderApp, shellRoutes } from "./harness";
 
 afterEach(() => {
@@ -116,15 +116,15 @@ describe("Admin → Retention", () => {
     await userEvent.selectOptions(select, "days");
     const days = screen.getByRole("textbox", { name: "Audit log: days" });
     await userEvent.type(days, "10");
-    await userEvent.click(screen.getByRole("button", { name: "Save periods" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     expect(await screen.findByText("From 30 to 36500 days.")).toBeInTheDocument();
     await userEvent.clear(days);
     await userEvent.type(days, "400");
-    await userEvent.click(screen.getByRole("button", { name: "Save periods" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     const dialog = await screen.findByRole("alertdialog", { name: "Delete more data?" });
     expect(within(dialog).getByText("Audit log")).toBeInTheDocument();
     expect(await axe(container.ownerDocument.body)).toHaveNoViolations();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Save periods" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save settings" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     const put = calls.find((c) => c.method === "PUT")!;
     expect(put.headers.get("If-Match")).toBe('"3"');
@@ -321,5 +321,16 @@ describe("retention helpers", () => {
       reason: "Give the reason for the hold, such as the matter or request it's for.",
       to: "The last day must be on or after the first.",
     });
+  });
+
+  it("takes a conversation's link or ID, and says when it's neither (AD-31)", () => {
+    const id = "3f2b8c1e-1d2a-4b5c-9e8f-0a1b2c3d4e5f";
+    expect(conversationIdOf(`https://grounded.example.edu/conversations/${id}`)).toBe(id);
+    expect(conversationIdOf(`https://grounded.example.edu/chat/registrar/advisor?c=${id.toUpperCase()}`)).toBe(id);
+    expect(conversationIdOf(` ${id} `)).toBe(id);
+    expect(conversationIdOf("3f2b")).toBeNull();
+    const form = { scopeType: "conversation" as const, scope: "3f2b", reason: "Request", from: "", to: "" };
+    expect(holdProblems(form).scope).toBe("That isn't a conversation link or ID. Paste the link from the conversation's address bar.");
+    expect(holdProblems({ ...form, scope: id })).toEqual({});
   });
 });

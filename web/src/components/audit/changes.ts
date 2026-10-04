@@ -6,6 +6,7 @@
  * status changing. Entries without a known shape are shown as recorded.
  */
 import type { Schemas } from "@/api/client";
+import { roleLabels } from "@/components/roles";
 import { modeLabels, monthLabel, overrideLabels, unitLabels } from "@/lib/costs";
 import { formatMoney, formatMoneyExact } from "@/lib/format";
 
@@ -44,6 +45,10 @@ const label =
   (labels: Record<string, string>): Format =>
   (v) =>
     typeof v === "string" ? (labels[v] ?? v) : v;
+/** Recorded statuses and roles in words, as their pages show them ("disabled_by_team" as "Disabled by team"). */
+const agentStatusLabels: Record<string, string> = { active: "Enabled", disabled_by_team: "Disabled by team", disabled_by_platform: "Disabled by platform" };
+const userStatusLabels: Record<string, string> = { active: "Active", suspended: "Suspended" };
+const platformRoleLabels: Record<string, string> = { none: "None", platform_admin: "Platform admin", platform_auditor: "Platform auditor" };
 const unitText = (unit: string) => {
   const u = unitLabels[unit as keyof typeof unitLabels];
   return u ? `${u.label} (${u.per})` : unit;
@@ -56,6 +61,7 @@ function fieldsFor(action: string, currency?: string): Fields | undefined {
     case "costs.budget_update":
       return { mode: ["Mode", label(overrideLabels)], amount: ["Monthly budget", money], warnPercent: ["Warn at", percent] };
     case "costs.extension_grant":
+    case "costs.extension_revoke":
       return { extensionId: null, month: ["Month", dateText], amount: ["Extension", money], reason: ["Reason"] };
     case "costs.settings_update":
       return {
@@ -67,6 +73,16 @@ function fieldsFor(action: string, currency?: string): Fields | undefined {
       };
     case "platform.evaluations":
       return { enabled: ["Evaluations", onOff] };
+    case "agent.status":
+      return { status: ["Status", label(agentStatusLabels)], reason: ["Reason"] };
+    case "platform.user_suspend":
+    case "platform.user_reactivate":
+    case "platform.user_role_change":
+    case "platform.user_update":
+      return { platformRole: ["Platform role", label(platformRoleLabels)], status: ["Status", label(userStatusLabels)] };
+    case "team.member_add":
+    case "team.member_role_change":
+      return { role: ["Role", label(roleLabels)] };
     case "platform.mcp":
       return { enabled: ["MCP server", onOff] };
     case "platform.answer_cache":
@@ -123,7 +139,7 @@ function readable(side: unknown, fields: Fields): Record<string, unknown> {
   if (!side || typeof side !== "object" || Array.isArray(side)) return {};
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(side)) {
-    if (value === null || value === undefined) continue;
+    if (value === null || value === undefined || value === "") continue;
     const field = fields[key];
     if (field === null) continue;
     out[field?.[0] ?? plainKey(key)] = field?.[1] ? field[1](value) : value;

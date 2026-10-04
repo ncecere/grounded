@@ -99,7 +99,7 @@ export function SourcesPage() {
 
 /** The Sources tab: the team's sources, with the knowledge bases using each. */
 function SourcesList() {
-  const { slug, canEdit } = useTeam();
+  const { slug, canEdit, archived } = useTeam();
   const sources = useSources(slug);
   const kbs = useKBs(slug);
   const levels = useClassificationLevels();
@@ -119,7 +119,11 @@ function SourcesList() {
         icon: <Database />,
         title: "No data sources yet.",
         // The header's New data source isn't repeated here (one primary per view).
-        description: canEdit ? "Create one with New data source above, to upload files or index a website." : "Editors, admins and owners can create data sources.",
+        description: canEdit
+          ? "Create one with New data source above, to upload files or index a website."
+          : archived
+            ? "This team is archived: nothing new can be added."
+            : "Editors, admins and owners can create data sources.",
       }}
     />
   );

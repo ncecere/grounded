@@ -47,6 +47,21 @@ export function parseExtraBody(text: string): { value?: Record<string, unknown>;
   return { value: value as Record<string, unknown> };
 }
 
+/**
+ * Whether the extra request fields set chat_template_kwargs.enable_thinking, and what that does next to "How to turn
+ * thinking off" (AD-10): the extra fields go with every request, while the setting only applies to agents set to Off.
+ */
+export function thinkingConflict(form: Pick<ModelForm, "kind" | "thinkingOff" | "extraBody">): string | undefined {
+  if (form.kind !== "chat") return undefined;
+  const kw = parseExtraBody(form.extraBody).value?.chat_template_kwargs;
+  const v = kw && typeof kw === "object" ? (kw as Record<string, unknown>).enable_thinking : undefined;
+  if (typeof v !== "boolean") return undefined;
+  if (!v && form.thinkingOff) return "The extra request fields turn thinking off for every request, so Low, Medium and High reasoning effort can't turn it on. Remove enable_thinking from them to let agents choose.";
+  if (!v) return "The extra request fields turn thinking off for every request. To let agents and audiences choose, set How to turn thinking off instead and remove enable_thinking here.";
+  if (form.thinkingOff === "enable_thinking_false") return "The extra request fields turn thinking on for every request; agents and audiences set to Off still turn it off (that setting wins for them).";
+  return "The extra request fields turn thinking on for every request, and How to turn thinking off isn't set, so reasoning effort Off does nothing.";
+}
+
 export function initialModelForm(model: Model | null, connections: Connection[]) {
   const compat: Compat = model?.compat ?? {};
   return {

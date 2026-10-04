@@ -60,8 +60,7 @@ describe("admin catalog", () => {
     const table = await screen.findByRole("table", { name: "Models" }, { timeout: 4000 });
     expect(await within(table).findByText("2 published agents")).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
-    await userEvent.click(within(table).getByRole("button", { name: "Actions for GPT-OSS 120B" }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "View details" }));
+    await userEvent.click(within(table).getByRole("button", { name: "GPT-OSS 120B" }));
     const sheet = await screen.findByRole("region", { name: "GPT-OSS 120B" });
     expect(within(sheet).getByText("Public moderation")).toBeInTheDocument();
     expect(within(sheet).getByRole("button", { name: /Delete/ })).toBeDisabled();

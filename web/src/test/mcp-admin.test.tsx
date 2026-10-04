@@ -102,6 +102,27 @@ describe("Admin → MCP servers: guarded changes", () => {
     expect(dialog).toHaveTextContent("Library Guide (Library), version 2");
   });
 
+  it("says when another server has the URL, and reads a new server's tools at once (AD-37)", async () => {
+    const added = { ...server, id: "s2", name: "Status again", toolCount: 0, approvedCount: 0, toolsRefreshedAt: null };
+    const calls = mockApi(
+      routes("platform_admin", {
+        "POST /v1/admin/mcp-servers": () => new Reply(201, { data: added }),
+        "POST /v1/admin/mcp-servers/s2/refresh": () => ({ listed: 3, added: 3, changed: 0, gone: 0, tools: [] }),
+      }),
+    );
+    const { container } = renderApp("/admin/mcp-servers?form=new");
+    const url = await screen.findByRole("textbox", { name: "URL" }, { timeout: 4000 });
+    // The harness signs in with DEV_AUTH on, where http on a loopback address is accepted too: the help says so.
+    expect(url).toHaveAccessibleDescription(/In development \(DEV_AUTH\) http on a loopback address and private addresses work too\./);
+    await userEvent.type(screen.getByRole("textbox", { name: "Name" }), "Status again");
+    await userEvent.type(url, "https://STATUS.example.edu/mcp/");
+    expect(screen.getByRole("textbox", { name: "URL" })).toHaveAccessibleDescription(/Service status already uses this URL: its tools would be listed twice\./);
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(screen.getByRole("button", { name: "Add MCP server" }));
+    await waitFor(() => expect(calls.some((c) => c.url === "/v1/admin/mcp-servers/s2/refresh")).toBe(true));
+    expect(await screen.findByText("Read 3 tools. Open it to approve the ones agents may use.")).toBeInTheDocument();
+  });
+
   it("tells auditors the pages are read-only", async () => {
     mockApi(routes("platform_auditor"));
     renderApp("/admin/mcp-servers");

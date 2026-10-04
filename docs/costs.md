@@ -65,7 +65,7 @@ Spend = rollup quantities × the price in effect on each (local) day, per unit, 
 - **A model's record page:** a **Pricing** section with the current prices and their history, and "Change prices".
 - **Admin → Teams → a team → Overview:** a **Budget** card (on the Limits tab, "Budget & limits", in v0.2.0): mode override, monthly budget, extensions this month, and the budget meter (enforced or tracked).
 - **Team settings → Usage & spend** (owners and admins; "Usage & limits" while the mode is Off): "Spend this month" as one strip with the budget meter (with "not enforced" in Track only), and spend by agent and model in a "Spend breakdown" disclosure. The same strip is on the team Overview, and each agent's Analytics tab shows its own spend this month (v0.2.1, I3, I4). Editors and members see no money.
-- **The team's audit log** follows the same rule: its cost entries (`costs.budget_update` and `costs.extension_grant`: the budget amount, the enforcement mode, and extensions with their reasons) are for the team's owners and admins and platform staff. Editors, who read the rest of the log, get neither them nor their record (the list leaves them out and `GET /v1/teams/{team}/audit/{id}` answers 404, v0.2.1); members can't read the log.
+- **The team's audit log** follows the same rule: its cost entries (`costs.budget_update`, `costs.extension_grant` and `costs.extension_revoke`: the budget amount, the enforcement mode, and extensions with their reasons) are for the team's owners and admins and platform staff. Editors, who read the rest of the log, get neither them nor their record (the list leaves them out and `GET /v1/teams/{team}/audit/{id}` answers 404, v0.2.1); members can't read the log.
 - **A banner** in the team's workspace at the threshold and when blocked, for everyone in the team (members need to know why chat stopped), without amounts for members.
 
 ## 6. API (OpenAPI first)
@@ -73,7 +73,7 @@ Spend = rollup quantities × the price in effect on each (local) day, per unit, 
 - `GET/PUT /v1/admin/costs/settings` (mode, currency, time zone, threshold, default budget; If-Match)
 - `GET /v1/admin/costs/prices` (every model's and MCP server's current prices) · `GET/POST /v1/admin/models/{modelId}/prices` · `DELETE /v1/admin/models/{modelId}/prices/{priceId}`
 - `GET /v1/admin/costs/report?from&to&groupBy=team|agent|model|day` and `…/report.csv`
-- `GET /v1/admin/costs/budgets` · `GET/PUT /v1/admin/teams/{team}/budget` (mode override, amount, threshold; If-Match) · `POST /v1/admin/teams/{team}/budget/extensions`
+- `GET /v1/admin/costs/budgets` · `GET/PUT /v1/admin/teams/{team}/budget` (mode override, amount, threshold; If-Match) · `POST /v1/admin/teams/{team}/budget/extensions` · `DELETE /v1/admin/teams/{team}/budget/extensions/{extensionId}` (revoke one of this month's, v0.4.2)
 - `GET /v1/teams/{team}/spend?from&to` (owners, admins; 404 while the effective mode is Off)
 - `GET /v1/teams/{team}/audit` and `…/audit/{entryId}` leave the cost entries out for editors (§5)
 
@@ -98,7 +98,7 @@ Pricing arithmetic and effective dating (unit), the rollup against `usage_events
 1. ~~Who sets a team's budget?~~ **Platform admins only** (owner, 2026-09-28). Team owners and admins see their spend and budget but can't change them, like limits.
 2. ~~Per-agent budgets in v0.2?~~ **No** (owner, 2026-09-28). Reports show spend per agent; per-agent caps can come later.
 3. ~~What is refused at 100%?~~ **Everything that calls a model** (owner, 2026-09-28): chats, retrieval queries (`/retrieve`, the Search tab) and ingestion.
-4. ~~Budget month?~~ **The calendar month in a platform time zone, default UTC** (owner, 2026-09-28). Admins set the zone (an IANA name such as `America/New_York`) in Admin → Costs → Settings; reports' days use it too. Daily limits still reset at midnight UTC. Since v0.4.1 the zone also gives agents today's date ("Today is …" in their instructions) and the day saved answers to questions about relative dates are kept for ([`answer-cache.md`](answer-cache.md)).
+4. ~~Budget month?~~ **The calendar month in a platform time zone, default UTC** (owner, 2026-09-28). Admins set the zone (an IANA name such as `America/New_York`) in Admin → Settings (Admin → Costs → Settings before v0.4.2); reports' days use it too. Daily limits still reset at midnight UTC. Since v0.4.1 the zone also gives agents today's date ("Today is …" in their instructions) and the day saved answers to questions about relative dates are kept for ([`answer-cache.md`](answer-cache.md)).
 
 ## 10. Implementation notes
 

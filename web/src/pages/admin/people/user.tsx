@@ -105,7 +105,7 @@ export function AdminUserPage() {
         }
       />
       <div className={p.sections}>
-        <UserAccessCard user={user} isAdmin={isAdmin} update={update} />
+        <UserAccessCard user={user} isAdmin={isAdmin} update={update} self={self} otherDialogOpen={confirmSuspend} />
         <UserTeamsCard teams={teams} />
         <ConnectedApps owner={{ self: false, userId, name }} canDisconnect={isAdmin} />
         <Card title="Activity" description={`Changes ${name} made, newest first, from the audit log.`}>
@@ -146,15 +146,28 @@ const rolePowers: Record<Schemas["PlatformRole"], { title: (name: string) => str
   },
 };
 
-function UserAccessCard({ user, isAdmin, update }: { user: UserDetail["user"]; isAdmin: boolean; update: Update }) {
+type AccessProps = { user: UserDetail["user"]; isAdmin: boolean; update: Update; self: boolean; otherDialogOpen: boolean };
+
+const selfDemotion: Record<string, string> = {
+  none: "You'll lose access to the admin portal at once. Your team memberships don't change.",
+  platform_auditor: "You'll keep read-only access to the admin portal and can't change anything. Your team memberships don't change.",
+};
+
+function UserAccessCard({ user, isAdmin, update, self, otherDialogOpen }: AccessProps) {
   const [pending, setPending] = useState<Schemas["PlatformRole"] | null>(null);
-  const powers = pending ? rolePowers[pending] : undefined;
+  const base = pending ? rolePowers[pending] : undefined;
+  // On your own record the dialog speaks to you (AD-18).
+  const powers =
+    base && self && pending !== "platform_admin"
+      ? { ...base, title: () => (pending === "none" ? "Remove your platform role?" : "Make yourself a platform auditor?"), description: selfDemotion[pending!] }
+      : base;
   // Cancelling returns focus to the select whose change opened the dialog (m10).
   const roleSelect = useRef<HTMLSelectElement>(null);
   return (
     <Card title="Profile and access">
       <Stack gap={5}>
-        <ErrorAlert error={update.error} />
+        {/* Said once (AD-18): while a dialog is open, its own alert shows the error. */}
+        {pending === null && !otherDialogOpen && <ErrorAlert error={update.error} />}
         <Field label="Platform role" description="Platform admins manage the platform. Auditors have read-only access to it. Neither role grants access to team content." className={s.form}>
           <NativeSelect ref={roleSelect} value={user.platformRole} disabled={!isAdmin || update.isPending} onChange={(e) => setPending(e.target.value as Schemas["PlatformRole"])}>
             {Object.entries(platformRoleLabels).map(([v, l]) => (

@@ -5,6 +5,7 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { AuditTarget } from "../components/audit/target";
 import { Money } from "../components/money";
+import { chartSeries } from "../lib/costs";
 import { formatMoney, formatMoneyExact } from "../lib/format";
 import { ModelPricingSection } from "../pages/admin/models/pricing";
 import { AdminTeamBudgetCard } from "../pages/admin/costs/team-budget-card";
@@ -95,6 +96,10 @@ describe("Admin → Costs", () => {
     expect(screen.queryByRole("table", { name: "Spend per day" })).toBeNull();
     await user.click(screen.getByRole("button", { name: /Show data/ }));
     expect(await screen.findByRole("table", { name: "Spend per day" })).toHaveTextContent(formatMoney("12.500000", "USD"));
+    // No two chart series share a colour: rerank is drawn with embedding, and the table keeps them apart (VI-26).
+    expect(new Set(chartSeries.map((x) => x.tone)).size).toBe(chartSeries.length);
+    expect(chartSeries.find((x) => x.key === "embedding")).toMatchObject({ label: "Embedding and rerank", kinds: ["embedding", "rerank"] });
+    expect(within(screen.getByRole("table", { name: "Spend per day" })).getByRole("columnheader", { name: "Rerank" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Download spend per day as CSV" }).getAttribute("href")).toMatch(/^\/v1\/admin\/costs\/report\.csv\?from=.*groupBy=day$/);
     // Top spenders: Teams first, one CSV that follows the grouping; only the grouping shown is fetched.
     const teams = await screen.findByRole("table", { name: "Top teams" });
@@ -180,22 +185,25 @@ describe("Admin → Costs", () => {
     expect(await screen.findByRole("link", { name: "Admin → Teams" })).toHaveAttribute("href", "/admin/teams");
   });
 
-  it("saves the settings with If-Match", async () => {
+  it("saves the mode and threshold with If-Match, keeping the settings that moved to Admin → Settings (AD-39)", async () => {
     const calls = mockApi({ ...costRoutes("off"), "PUT /v1/admin/costs/settings": (body) => ({ ...settings("track"), ...(body as object), revision: 5 }) });
     const { container } = renderApp("/admin/costs?tab=settings");
     const mode = await screen.findByRole("combobox", { name: "Cost tracking" });
+    expect(screen.queryByRole("textbox", { name: /Currency|Default monthly budget/ })).toBeNull();
+    expect(screen.getByRole("link", { name: "Admin → Settings" })).toHaveAttribute("href", "/admin/settings");
     await userEvent.selectOptions(mode, "track");
-    const budget = screen.getByRole("textbox", { name: /Default monthly budget/ });
-    await userEvent.type(budget, "abc");
-    await userEvent.click(screen.getByRole("button", { name: "Save cost settings" }));
-    expect(await screen.findByText(/Enter the default budget as a number/)).toBeInTheDocument();
-    await userEvent.clear(budget);
-    await userEvent.type(budget, "250");
-    await userEvent.click(screen.getByRole("button", { name: "Save cost settings" }));
+    const warn = screen.getByRole("textbox", { name: /Warning threshold/ });
+    await userEvent.clear(warn);
+    await userEvent.type(warn, "101");
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
+    expect(await screen.findByText("Enter a whole percentage from 1 to 100.")).toBeInTheDocument();
+    await userEvent.clear(warn);
+    await userEvent.type(warn, "90");
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     await waitFor(() => expect(calls.find((c) => c.method === "PUT")).toBeDefined());
     const put = calls.find((c) => c.method === "PUT")!;
     expect(put.headers.get("If-Match")).toBe('"4"');
-    expect(put.body).toEqual({ mode: "track", currency: "USD", timeZone: "America/New_York", warnPercent: 80, defaultBudget: "250" });
+    expect(put.body).toEqual({ mode: "track", currency: "USD", timeZone: "America/New_York", warnPercent: 90, defaultBudget: null });
     expect(await axe(container)).toHaveNoViolations();
   });
 });
@@ -280,7 +288,12 @@ describe("a team's Budget card", () => {
     expect(choices).toHaveTextContent("Track only: progress against the budget, never blocks.");
     expect(choices).toHaveTextContent("Enforce: chats, searches and ingestion stop at 100%");
     expect(within(dialog).getByRole("combobox", { name: "Cost tracking" })).toHaveValue("enforce");
-    expect(within(dialog).getByText("Leave empty for no budget: the platform has no default budget.")).toBeInTheDocument();
+    // Extensions add to this month whatever the budget becomes (AD-35).
+    expect(
+      within(dialog).getByText(
+        `Leave empty for no budget: the platform has no default budget. This month's extensions (${formatMoney("20", "USD")}) are added to it until the month ends.`,
+      ),
+    ).toBeInTheDocument();
     const amount = within(dialog).getByRole("textbox", { name: /Monthly budget/ });
     await userEvent.clear(amount);
     await userEvent.type(amount, "150");
@@ -296,6 +309,32 @@ describe("a team's Budget card", () => {
     await userEvent.type(within(ext).getByRole("textbox", { name: /Reason/ }), "Admissions week");
     await userEvent.click(within(ext).getByRole("button", { name: "Grant extension" }));
     await waitFor(() => expect(calls.find((c) => c.method === "POST")?.body).toEqual({ amount: "50", reason: "Admissions week" }));
+  });
+
+  it("revokes an extension granted by mistake (AD-35)", async () => {
+    const calls = mockApi({
+      "GET /v1/admin/costs/settings": () => settings("enforce"),
+      "GET /v1/admin/teams/registrar/budget": () => teamBudget(status("ok", { extensions: "20.000000", limit: "120.000000" })),
+      "DELETE /v1/admin/teams/registrar/budget/extensions/e1": () => ({ ...teamBudget(status("ok")), extensions: [] }),
+    });
+    const { container } = renderBare(<AdminTeamBudgetCard team="registrar" />, meFor("platform_admin"));
+    await userEvent.click(await screen.findByRole("button", { name: /^Revoke the extension of .*: Exam period$/ }));
+    const dialog = await screen.findByRole("alertdialog", { name: `Revoke the ${formatMoney("20", "USD")} extension?` });
+    expect(dialog).toHaveTextContent("To correct an extension, revoke it and grant the right amount.");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Revoke extension" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "DELETE")).toBe(true));
+    await waitFor(() => expect(screen.queryByRole("table", { name: "Extensions this month" })).toBeNull());
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("doesn't offer auditors Revoke", async () => {
+    mockApi({
+      "GET /v1/admin/costs/settings": () => settings("enforce"),
+      "GET /v1/admin/teams/registrar/budget": () => teamBudget(status("ok", { extensions: "20.000000", limit: "120.000000" })),
+    });
+    renderBare(<AdminTeamBudgetCard team="registrar" />, meFor("platform_auditor"));
+    expect(await screen.findByRole("table", { name: "Extensions this month" })).toHaveTextContent("Exam period");
+    expect(screen.queryByRole("button", { name: /^Revoke/ })).toBeNull();
   });
 
   it("labels extensions as history when no budget is in force", async () => {

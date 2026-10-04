@@ -4,6 +4,7 @@ import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { cleanOverride, parseThreshold } from "../lib/moderation";
 import { changedCount, formProblems, policyForm, policyInput } from "../pages/admin/moderation/policy-form";
+import { effortNote } from "../pages/admin/moderation/policy-editor";
 import { applyChatEvent, historyOf, itemsFromConversation, pendingAssistant, type ChatItem } from "../pages/chat/stream";
 import { ChatMessages } from "../pages/chat/thread";
 import { mockApi, renderApp, renderBare, shellRoutes } from "./harness";
@@ -67,7 +68,7 @@ describe("moderation with a SystemOne model", () => {
     await userEvent.clear(message);
     await userEvent.type(message, "You are not alone. Call your local crisis line.");
     expect(await axe(container)).toHaveNoViolations();
-    await userEvent.click(screen.getByRole("button", { name: "Save policy" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     const body = calls.find((c) => c.method === "PUT")!.body as Schemas["ModerationPolicyInput"];
     expect(body.severityBlock).toBe(2);
@@ -114,7 +115,7 @@ describe("admin moderation page", () => {
     expect(within(effort).getAllByRole("option").map((o) => o.textContent)).toEqual(["Model default", "Off", "Low", "Medium", "High"]);
     await userEvent.selectOptions(effort, "off");
     expect(screen.getByText("3 unsaved changes")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Save policy" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     const put = calls.find((c) => c.method === "PUT")!;
     expect(put.headers.get("If-Match")).toBe('"1"');
@@ -136,6 +137,19 @@ describe("admin moderation page", () => {
     expect(within(scores).getByText("Not supported by this provider")).toBeInTheDocument();
     expect(screen.getByText("Not calibrated")).toBeInTheDocument();
     expect(calls.find((c) => c.url === "/v1/admin/moderation/test")?.body).toEqual({ modelId: "m9", text: "How do I hurt someone?", stage: "input" });
+    // Another audience's policy can be chosen in the dialog (AD-16).
+    expect(within(sheet).getByRole("combobox", { name: /Policy/ })).toHaveValue("public");
+    await userEvent.selectOptions(within(sheet).getByRole("combobox", { name: /Policy/ }), "team");
+    await userEvent.click(within(sheet).getByRole("button", { name: "Run test" }));
+    expect(await within(sheet).findByText(/^Team policy:/)).toBeInTheDocument();
+  });
+
+  it("says when the reasoning effort chosen has no effect (AD-13)", () => {
+    const chat = (compat: Schemas["ModelCompat"]) => ({ kind: "chat" as const, enabled: true, compat });
+    expect(effortNote("high", [chat({})])).toMatch(/No enabled chat model accepts reasoning effort/);
+    expect(effortNote("high", [chat({ supportsReasoningEffort: true })])).toBeUndefined();
+    expect(effortNote("off", [chat({ supportsReasoningEffort: true })])).toMatch(/turn thinking off/);
+    expect(effortNote("default", [chat({})])).toBeUndefined();
   });
 
   it("lists providers with what uses them in the Providers tab", async () => {

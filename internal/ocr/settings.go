@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -162,6 +164,39 @@ func (s *Service) check(ctx context.Context, q *dbgen.Queries, in Settings) erro
 	return nil
 }
 
+// checkInstalled refuses languages the Tesseract sidecar doesn't have
+// (AD-07): saved unchecked, they made every scanned page fail until someone
+// pressed Test. Only for the Tesseract backend (Tika has its own install);
+// when the sidecar can't answer, the save goes on and Test still reports it.
+func (s *Service) checkInstalled(ctx context.Context, in Settings) error {
+	langs := in.Languages
+	if s.tesseract == nil || in.Backend != BackendTesseract || !ValidLanguages(langs) {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	installed, err := s.tesseract.Languages(ctx)
+	if err != nil || len(installed) == 0 {
+		return nil
+	}
+	var missing []string
+	for _, l := range strings.Split(langs, "+") {
+		if !slices.Contains(installed, l) {
+			missing = append(missing, l)
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	what := "isn't"
+	if len(missing) > 1 {
+		what = "aren't"
+	}
+	return &apperr.Error{Status: 400, Code: "language_not_installed",
+		Message: fmt.Sprintf("%s %s installed in the Tesseract sidecar. Installed: %s.", strings.Join(missing, ", "), what, strings.Join(installed, ", ")),
+		Details: map[string]any{"missing": missing, "installed": installed}}
+}
+
 func snapshot(st Settings) map[string]any {
 	return map[string]any{"ocrEnabled": st.Enabled, "backend": st.Backend, "visionModelId": st.VisionModelID, "languages": st.Languages}
 }
@@ -172,6 +207,9 @@ func snapshot(st Settings) map[string]any {
 func (s *Service) Put(ctx context.Context, a authz.Actor, in Settings, expectedRevision int64) (Stored, error) {
 	if a.Key != nil || !a.IsPlatformAdmin() {
 		return Stored{}, errAdminOnly
+	}
+	if err := s.checkInstalled(ctx, in); err != nil {
+		return Stored{}, err
 	}
 	var out Stored
 	err := store.InTx(ctx, s.Pool, func(q *dbgen.Queries, _ pgx.Tx) error {

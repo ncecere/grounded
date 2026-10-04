@@ -6,7 +6,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Bot, Eye, Power, PowerOff, ScrollText } from "lucide-react";
+import { Bot, Power, PowerOff, ScrollText } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
@@ -167,7 +167,6 @@ export function AdminAgentsPage() {
         <ActionMenu
           label={`Actions for ${r.name}`}
           actions={[
-            { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(r.id) },
             {
               label: "Open access log",
               icon: <ScrollText aria-hidden />,

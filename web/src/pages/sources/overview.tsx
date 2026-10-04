@@ -16,7 +16,7 @@ import { StatCard } from "@/components/ui/stat-card/stat-card";
 import { TextLink } from "@/components/ui/text-link/text-link";
 import { passagesCount } from "@/lib/terms";
 import s from "../shared.module.css";
-import { type KB, formatBytes, kbsKey, plural, profileName, useEmbeddingProfiles } from "../team/common";
+import { type KB, formatBytes, kbsKey, plural, profileName, useClassificationLevels, useEmbeddingProfiles } from "../team/common";
 import { ActiveCrawlPanel, isActiveCrawl } from "./crawls";
 import { useBudgetStatus } from "@/lib/costs";
 import { type DataSource, useSourceOwner } from "./owner";
@@ -69,15 +69,26 @@ function siteFact(source: DataSource): ReactNode {
   );
 }
 
+/**
+ * Who may attach a shared source (AD-25): every team at the lowest level, otherwise only teams approved for its
+ * classification.
+ */
+export function sharedWith(classification: string, levels: { key: string; name: string; rank: number }[] | undefined) {
+  const level = levels?.find((l) => l.key === classification);
+  if (!level || !levels || level.rank <= Math.min(...levels.map((l) => l.rank))) return "Shared with every team";
+  return `Shared with teams approved for ${level.name}`;
+}
+
 /** The header's facts: type, profile, site and schedule (web), last sync, counts. */
 export function useSourceFacts(source: DataSource): Fact[] {
   const owner = useSourceOwner();
+  const levels = useClassificationLevels();
   const profiles = useEmbeddingProfiles();
   const web = source.type === "web";
   const c = source.documents;
   return [
     { id: "type", label: "Type", icon: web ? <Globe /> : <FileUp />, value: web ? "Website" : "Upload" },
-    { id: "shared", value: owner.kind === "platform" ? "Shared with every team" : undefined },
+    { id: "shared", value: owner.kind === "platform" ? sharedWith(source.classification, levels.data) : undefined },
     { id: "site", label: "Site", value: web ? siteFact(source) : undefined },
     { id: "mode", label: "Mode", value: web && source.web ? describeWeb(source.web) : undefined },
     { id: "schedule", label: "Schedule", value: web ? scheduleFact(source) : undefined },

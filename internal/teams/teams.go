@@ -414,7 +414,10 @@ func (s *Service) RevokeInvite(ctx context.Context, a authz.Actor, ref string, i
 		} else if err != nil {
 			return err
 		}
-		if err := authz.CheckMemberChange(actorRole, inv.Role, ""); err != nil {
+		// Platform admins revoke any open invite, such as an owner invite they
+		// sent from Admin → Teams (AD-04); auditors and API keys can't.
+		platformAdmin := a.Key == nil && a.IsPlatformAdmin()
+		if err := authz.CheckMemberChange(actorRole, inv.Role, ""); err != nil && !platformAdmin {
 			return err
 		}
 		if err := q.RevokeInvite(ctx, inv.ID); err != nil {

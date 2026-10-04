@@ -88,6 +88,11 @@ func (s *Service) Get(ctx context.Context, a authz.Actor) (Stored, error) {
 // doesn't turn it off).
 func (s *Service) AgentCount(ctx context.Context) (int32, error) { return s.q.CountRerankAgents(ctx) }
 
+// AgentsOff are the published agents that turn reranking off (at most 100).
+func (s *Service) AgentsOff(ctx context.Context) ([]dbgen.ListRerankOffAgentsRow, error) {
+	return s.q.ListRerankOffAgents(ctx)
+}
+
 // Input is the settings to save; ModelID nil turns reranking off.
 type Input struct {
 	ModelID  *uuid.UUID

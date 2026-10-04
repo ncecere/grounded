@@ -74,6 +74,11 @@ FROM budget_extensions e LEFT JOIN users u ON u.id = e.created_by
 WHERE e.team_id = @team_id AND e.month = @month
 ORDER BY e.created_at, e.id;
 
+-- Revokes one of a team's extensions for a month (AD-35); no row: not that team's, or another month's.
+-- name: DeleteBudgetExtension :one
+DELETE FROM budget_extensions WHERE id = @id AND team_id = @team_id AND month = @month
+RETURNING id, month, amount::text AS amount, reason;
+
 -- name: SumBudgetExtensions :one
 SELECT coalesce(sum(amount), 0)::text AS total FROM budget_extensions WHERE team_id = @team_id AND month = @month;
 

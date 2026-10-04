@@ -392,6 +392,8 @@ const listTeamsAdmin = `-- name: ListTeamsAdmin :many
 SELECT t.id, t.slug, t.name, t.description, t.max_classification, t.status, t.created_by, t.revision, t.created_at, t.updated_at, t.archived_at,
        (SELECT count(*) FROM team_members m WHERE m.team_id = t.id)::bigint AS member_count,
        (SELECT count(*) FROM team_members m WHERE m.team_id = t.id AND m.role = 'owner')::bigint AS owner_count,
+       (SELECT count(*) FROM team_invites i WHERE i.team_id = t.id AND i.role = 'owner' AND i.accepted_at IS NULL AND i.revoked_at IS NULL
+          AND i.expires_at > now())::bigint AS owner_invites,
        (SELECT count(*) FROM agents ag WHERE ag.team_id = t.id AND ag.deleted_at IS NULL)::bigint AS agent_count,
        (SELECT count(*) FROM data_sources ds WHERE ds.team_id = t.id)::bigint AS source_count,
        (SELECT count(*) FROM knowledge_bases kb WHERE kb.team_id = t.id)::bigint AS kb_count,
@@ -418,6 +420,7 @@ type ListTeamsAdminRow struct {
 	Team          Team
 	MemberCount   int64
 	OwnerCount    int64
+	OwnerInvites  int64
 	AgentCount    int64
 	SourceCount   int64
 	KbCount       int64
@@ -453,6 +456,7 @@ func (q *Queries) ListTeamsAdmin(ctx context.Context, arg ListTeamsAdminParams) 
 			&i.Team.ArchivedAt,
 			&i.MemberCount,
 			&i.OwnerCount,
+			&i.OwnerInvites,
 			&i.AgentCount,
 			&i.SourceCount,
 			&i.KbCount,
@@ -561,6 +565,8 @@ func (q *Queries) RevokeInvite(ctx context.Context, id uuid.UUID) error {
 const teamCounts = `-- name: TeamCounts :one
 SELECT (SELECT count(*) FROM team_members m WHERE m.team_id = $1)::bigint AS member_count,
        (SELECT count(*) FROM team_members m WHERE m.team_id = $1 AND m.role = 'owner')::bigint AS owner_count,
+       (SELECT count(*) FROM team_invites i WHERE i.team_id = $1 AND i.role = 'owner' AND i.accepted_at IS NULL AND i.revoked_at IS NULL
+          AND i.expires_at > now())::bigint AS owner_invites,
        (SELECT count(*) FROM agents ag WHERE ag.team_id = $1 AND ag.deleted_at IS NULL)::bigint AS agent_count,
        (SELECT count(*) FROM data_sources ds WHERE ds.team_id = $1)::bigint AS source_count,
        (SELECT count(*) FROM knowledge_bases kb WHERE kb.team_id = $1)::bigint AS kb_count,
@@ -571,6 +577,7 @@ SELECT (SELECT count(*) FROM team_members m WHERE m.team_id = $1)::bigint AS mem
 type TeamCountsRow struct {
 	MemberCount   int64
 	OwnerCount    int64
+	OwnerInvites  int64
 	AgentCount    int64
 	SourceCount   int64
 	KbCount       int64
@@ -584,6 +591,7 @@ func (q *Queries) TeamCounts(ctx context.Context, teamID uuid.UUID) (TeamCountsR
 	err := row.Scan(
 		&i.MemberCount,
 		&i.OwnerCount,
+		&i.OwnerInvites,
 		&i.AgentCount,
 		&i.SourceCount,
 		&i.KbCount,

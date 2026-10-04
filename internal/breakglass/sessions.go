@@ -342,11 +342,25 @@ func (s *Service) describe(ctx context.Context, q *dbgen.Queries, row dbgen.Brea
 	if err != nil {
 		return notify.TeamRef{}, notify.BreakGlassInfo{}, err
 	}
-	info := notify.BreakGlassInfo{SessionID: row.ID, Admin: admin, Reason: row.Reason, Scopes: ScopeWords(row.Scopes)}
+	info := notify.BreakGlassInfo{SessionID: row.ID, Admin: admin, Reason: row.Reason, Scopes: ScopeWords(row.Scopes), Location: platformZone(ctx, q)}
 	if row.ExpiresAt != nil {
 		info.ExpiresAt = *row.ExpiresAt
 	}
 	return notify.TeamRef{ID: t.ID, Slug: t.Slug, Name: t.Name}, info, nil
+}
+
+// platformZone is the platform's time zone (Costs → Settings), so notices
+// give times as the platform reads them, not in UTC (AD-17); UTC without one.
+func platformZone(ctx context.Context, q *dbgen.Queries) *time.Location {
+	st, err := q.GetCostSettings(ctx)
+	if err != nil || st.TimeZone == "" {
+		return time.UTC
+	}
+	loc, err := time.LoadLocation(st.TimeZone)
+	if err != nil {
+		return time.UTC
+	}
+	return loc
 }
 
 func (s *Service) userName(ctx context.Context, q *dbgen.Queries, id uuid.UUID) (string, error) {

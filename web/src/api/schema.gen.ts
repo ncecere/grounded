@@ -414,7 +414,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Revoke an open invite */
+        /**
+         * Revoke an open invite
+         * @description Team owners and admins (within their role's reach), and platform admins for any open invite, such as an owner invite sent from Admin -> Teams.
+         */
         delete: operations["revokeInvite"];
         options?: never;
         head?: never;
@@ -779,7 +782,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete an unused classification level (platform admins; audited)
+         * @description 409 classification_in_use when teams, models, data sources or MCP servers use the level (details.uses counts each); 409 last_classification for the only level.
+         */
+        delete: operations["adminDeleteClassification"];
         options?: never;
         head?: never;
         /** Change a classification level's name, description or maximum audience */
@@ -2133,6 +2140,26 @@ export interface paths {
          * @description Teams, users and content counts, failed documents by team (top 10; a null team is the platform-shared sources), the resource caps of active teams used at 80% or more, fullest first, and the production-readiness warnings (also logged at startup and printed by `grounded doctor`). Pending domain requests are in GET /v1/admin/attention.
          */
         get: operations["adminGetOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The admin Overview's feature states and setup steps in one response (platform admins and auditors)
+         * @description What the Overview's Features card and setup checklist show, read in one request instead of one per setting (docs/v0.4.2.md M4). Each settings object is what its own GET returns, with its revision.
+         */
+        get: operations["adminGetFeatures"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4154,6 +4181,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/teams/{team}/budget/extensions/{extensionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                extensionId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke one of this month's extensions of a team's budget (platform admins; audited as costs.extension_revoke)
+         * @description To correct an extension, revoke it and grant the right amount. Only the current month's extensions can be revoked (404 otherwise); the audit log keeps the revoked one.
+         */
+        delete: operations["adminRevokeBudgetExtension"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/teams/{team}/spend": {
         parameters: {
             query?: never;
@@ -5047,6 +5098,52 @@ export interface components {
         Ok: {
             ok: boolean;
         };
+        AdminFeatures: {
+            evaluations: components["schemas"]["EvaluationSettings"];
+            mcp: components["schemas"]["MCPSettings"];
+            answerCache?: components["schemas"]["AnswerCacheSettings"];
+            costs: components["schemas"]["AdminFeatureCosts"];
+            ocr: components["schemas"]["AdminFeatureOCR"];
+            /** @description SSO group mapping rules */
+            groupMappingRules: number;
+            systemOne: components["schemas"]["SystemOneSettings"];
+            rerank: components["schemas"]["RerankSettings"];
+            rerankModel?: components["schemas"]["AdminFeatureModel"];
+            publicAccess: components["schemas"]["PublicAccessSettings"];
+            /** @description The public audience's moderation policy has a provider */
+            publicModeration: boolean;
+            maintenance: components["schemas"]["MaintenanceSettings"];
+            setup: components["schemas"]["AdminSetupState"];
+        };
+        AdminFeatureCosts: {
+            settings: components["schemas"]["CostSettings"];
+            /** @description Active teams whose effective cost mode isn't the platform's (a team setting) */
+            teams: components["schemas"]["AdminFeatureTeamMode"][];
+        };
+        AdminFeatureTeamMode: {
+            teamName: string;
+            mode: components["schemas"]["CostMode"];
+        };
+        AdminFeatureOCR: {
+            enabled: boolean;
+            backend: components["schemas"]["OcrBackend"];
+        };
+        /** @description The chosen rerank model (absent when none is chosen) */
+        AdminFeatureModel: {
+            displayName: string;
+            /** @description The model and its connection are enabled */
+            enabled: boolean;
+        };
+        /** @description What the Overview's "Set up this install" checklist needs */
+        AdminSetupState: {
+            connections: number;
+            /** @description The maximum classification of each enabled chat model */
+            chatModelClassifications: string[];
+            /** @description An active default embedding profile exists */
+            defaultProfile: boolean;
+            /** @description Teams (0 or 1: whether any exists) */
+            teams: number;
+        };
         AdminOverview: {
             teams: components["schemas"]["AdminOverviewTeams"];
             users: components["schemas"]["AdminOverviewUsers"];
@@ -5594,6 +5691,11 @@ export interface components {
             memberCount: number;
             /** Format: int64 */
             ownerCount: number;
+            /**
+             * Format: int64
+             * @description Open owner invites (an owner invited by email who hasn't signed in yet)
+             */
+            ownerInvites: number;
             /** Format: int64 */
             agentCount: number;
             /**
@@ -7947,6 +8049,17 @@ export interface components {
              * @description The most Grounded allows for this limit, whatever the ceiling: an empty default or ceiling means it, and higher values are refused. Absent when there is none.
              */
             max?: number;
+            /** @description Active teams whose own value is above the ceiling, so the ceiling applies to them */
+            capped: components["schemas"]["CappedTeam"][];
+        };
+        CappedTeam: {
+            teamSlug: string;
+            teamName: string;
+            /**
+             * Format: int64
+             * @description The team's own value
+             */
+            override: number;
         };
         PlatformLimits: {
             revision: components["schemas"]["Revision"];
@@ -8378,9 +8491,18 @@ export interface components {
             timeLimitMs: number;
             /** @description Published agents that rerank (they don't turn it off) */
             agents: number;
+            /** @description Published agents whose published version turns reranking off (at most 100, by team and name) */
+            agentsOff: components["schemas"]["RerankOffAgent"][];
             revision: components["schemas"]["Revision"];
             /** Format: date-time */
             updatedAt?: string | null;
+        };
+        RerankOffAgent: {
+            /** Format: uuid */
+            agentId: string;
+            name: string;
+            teamSlug: string;
+            teamName: string;
         };
         RerankSettingsInput: {
             /** Format: uuid */
@@ -9682,6 +9804,11 @@ export interface components {
             chatOutputTokens: number;
             /** Format: int64 */
             embeddingTokens: number;
+            /**
+             * Format: int64
+             * @description SystemOne, rerank and OCR (vision) tokens, as Costs counts them
+             */
+            otherTokens: number;
         };
         PlatformAnalyticsAgent: {
             /** Format: uuid */
@@ -12249,6 +12376,28 @@ export interface operations {
             400: components["responses"]["ErrorReply"];
             403: components["responses"]["ErrorReply"];
             409: components["responses"]["ErrorReply"];
+        };
+    };
+    adminDeleteClassification: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412. */
+                "If-Match": components["parameters"]["IfMatchHeader"];
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["OkReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+            409: components["responses"]["ErrorReply"];
+            412: components["responses"]["ErrorReply"];
+            428: components["responses"]["ErrorReply"];
         };
     };
     adminUpdateClassification: {
@@ -14887,6 +15036,29 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["AdminOverview"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetFeatures: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Features */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminFeatures"];
                     };
                 };
             };
@@ -18486,6 +18658,34 @@ export interface operations {
                 };
             };
             400: components["responses"]["ErrorReply"];
+            403: components["responses"]["ErrorReply"];
+            404: components["responses"]["ErrorReply"];
+        };
+    };
+    adminRevokeBudgetExtension: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team slug or ID */
+                team: components["parameters"]["TeamParam"];
+                extensionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The team's budget */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TeamBudget"];
+                    };
+                };
+            };
             403: components["responses"]["ErrorReply"];
             404: components["responses"]["ErrorReply"];
         };

@@ -272,6 +272,14 @@ func (a *api) adminUpdateClassification(w http.ResponseWriter, r *http.Request) 
 	writeRevised(w, http.StatusOK, c.Revision, toAPIClassification(c))
 }
 
+func (a *api) adminDeleteClassification(w http.ResponseWriter, r *http.Request) {
+	rev, ok := ifMatch(w, r)
+	if !ok {
+		return
+	}
+	writeOK(w, r, a.Platform.DeleteClassification(r.Context(), a.actor(r), r.PathValue("key"), rev))
+}
+
 func (a *api) adminListAudit(w http.ResponseWriter, r *http.Request) {
 	a.writeAuditPage(w, r, dbgen.ListAuditParams{})
 }

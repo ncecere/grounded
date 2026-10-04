@@ -36,7 +36,12 @@ export function policyVerdict(policy: Policy, result: ModerationResult, stage: S
 const verdictText = { allow: "Allowed", flag: "Flagged", support: "Support message", block: "Blocked" } as const;
 const verdictTone = { allow: "success", flag: "warning", support: "info", block: "danger" } as const;
 
-export function TestDialog({ providers, policy, onClose }: { providers: Schemas["Model"][]; policy?: Policy; onClose: () => void }) {
+type Props = { providers: Schemas["Model"][]; policies: Policy[]; initial?: Policy["audience"]; onClose: () => void };
+
+/** Judges a text with a provider, under the policy of the audience chosen in the dialog (AD-16), not only the open tab's. */
+export function TestDialog({ providers, policies, initial, onClose }: Props) {
+  const [audienceKey, setAudienceKey] = useState<Policy["audience"]>(initial ?? policies[0]?.audience ?? "team");
+  const policy = policies.find((p) => p.audience === audienceKey);
   const [modelId, setModelId] = useState(policy?.modelId ?? providers[0]?.id ?? "");
   const [stage, setStage] = useState<Stage>("input");
   const [text, setText] = useState("");
@@ -53,11 +58,7 @@ export function TestDialog({ providers, policy, onClose }: { providers: Schemas[
       onOpenChange={(o) => !o && onClose()}
       size="lg"
       title="Test a provider"
-      description={
-        audience
-          ? `Run a provider on any text and see what the ${audience} policy would do. Nothing is stored.`
-          : "Run a provider on any text and see its scores per category. Nothing is stored."
-      }
+      description="Run a provider on any text and see what an audience's policy would do with its scores. Nothing is stored."
     >
       <div className={md.testSheet}>
         <Form
@@ -67,6 +68,17 @@ export function TestDialog({ providers, policy, onClose }: { providers: Schemas[
             run.mutate(stage);
           }}
         >
+          <Field label="Policy" description="The audience whose policy judges the scores.">
+            <NativeSelect value={audienceKey} onChange={(e) => setAudienceKey(e.target.value as Policy["audience"])}>
+              {audienceTabs
+                .filter((a) => policies.some((p) => p.audience === a.value))
+                .map((a) => (
+                  <option key={a.value} value={a.value}>
+                    {a.label}
+                  </option>
+                ))}
+            </NativeSelect>
+          </Field>
           <Field label="Provider to test">
             <NativeSelect value={modelId} onChange={(e) => setModelId(e.target.value)}>
               {providers.map((m) => (
@@ -106,7 +118,7 @@ export function TestDialog({ providers, policy, onClose }: { providers: Schemas[
                 </Badge>
               )}
               <span>
-                {model?.displayName} answered in {run.data.latencyMs} ms
+                {model?.displayName} answered in {run.data.latencyMs.toLocaleString()} ms
               </span>
               <CalibrationBadge calibrated={run.data.calibrated} />
               {run.data.severity != null && <span>Severity {run.data.severity.toFixed(1)} of 3</span>}

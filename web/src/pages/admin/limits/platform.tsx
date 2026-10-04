@@ -54,7 +54,7 @@ function usePlatformLimitsForm() {
       qc.setQueryData(platformLimitsQuery().queryKey, p);
       qc.invalidateQueries({ queryKey: ["admin", "team"] });
       setSubmitted(false);
-      toast.success("Limits saved", `${changes.length === 1 ? "1 limit" : `${changes.length} limits`} changed for every team without an override.`);
+      toast.success("Limits saved", savedText(changes.length, p.items));
     },
     onError: () => qc.invalidateQueries({ queryKey: platformLimitsQuery().queryKey }),
   });
@@ -205,9 +205,17 @@ function PlatformLimitRow({ it, f, isAdmin, submitted, onChange }: RowProps) {
         ) : (
           formatLimitMax(it, it.ceiling)
         )}
+        {it.capped.length > 0 && <span className={s.secondary}>Caps {it.capped.map((c) => c.teamName).join(", ")}</span>}
       </Td>
     </Tr>
   );
+}
+
+/** What a save changed, naming the teams a ceiling now caps (AD-14): "No override" isn't the whole story. */
+export function savedText(changed: number, items: { label: string; capped: { teamName: string }[] }[]) {
+  const first = `${changed === 1 ? "1 limit" : `${changed} limits`} changed for every team without its own value.`;
+  const capped = items.filter((it) => it.capped.length > 0).map((it) => `${it.label}: ${it.capped.map((c) => c.teamName).join(", ")}`);
+  return capped.length ? `${first} Capped by the ceiling: ${capped.join("; ")}.` : first;
 }
 
 /** A row with typed (non-empty) values, checked before Save. */

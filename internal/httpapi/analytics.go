@@ -82,7 +82,7 @@ func (a *api) adminGetAnalytics(w http.ResponseWriter, r *http.Request) {
 	convertJSON(&out.Moderation, ov.Moderation)
 	for i, m := range ov.Models {
 		out.Models[i] = apitypes.PlatformAnalyticsModel{ModelId: m.ModelID, ModelName: m.ModelName, Kind: m.Kind,
-			ChatInputTokens: m.ChatInput, ChatOutputTokens: m.ChatOutput, EmbeddingTokens: m.Embedding}
+			ChatInputTokens: m.ChatInput, ChatOutputTokens: m.ChatOutput, EmbeddingTokens: m.Embedding, OtherTokens: m.Other}
 	}
 	for i, ag := range ov.TopAgents {
 		out.TopAgents[i] = apitypes.PlatformAnalyticsAgent{AgentId: ag.AgentID, AgentSlug: ag.AgentSlug, AgentName: ag.AgentName,

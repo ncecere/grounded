@@ -5,8 +5,9 @@ import type { Schemas } from "../api/client";
 import { CrawlingPage } from "../pages/admin/crawling/page";
 import { PlatformSources } from "../pages/admin/shared";
 import { SourceDetail } from "../pages/sources/detail";
+import { sharedWith } from "../pages/sources/overview";
 import { KBDetail } from "../pages/team/kbs/detail";
-import { common, counts, mockApi, renderWith, request, webSource } from "./web-harness";
+import { ApiFailure, common, counts, mockApi, renderWith, request, webSource } from "./web-harness";
 
 /* Admin crawling, shared sources and attaching sources to knowledge bases (fixtures in web-harness.tsx). */
 
@@ -60,7 +61,41 @@ describe("admin crawling page", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Allowlist" }));
     const allowlist = await screen.findByRole("table", { name: "Crawl allowlist" });
     expect(within(allowlist).getByText("*.example.edu")).toBeInTheDocument();
-    expect(within(allowlist).getByRole("button", { name: "Remove *.example.edu" })).toBeInTheDocument();
+    // A row menu like every other table's (VI-22).
+    await userEvent.click(within(allowlist).getByRole("button", { name: "Actions for *.example.edu" }));
+    expect(await screen.findByRole("menuitem", { name: "Remove…" })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("searchbox", { name: "Search the allowlist" })).toBeInTheDocument();
+  });
+
+  it("confirms *, puts a refused address on the field (AD-08), and says which requests are already allowed (AD-26)", async () => {
+    const calls = mockApi({
+      "GET /v1/admin/crawl-allowlist": () => [{ id: "a1", pattern: "*.example.org", note: "", createdBy: null, createdAt: "2026-09-01T10:00:00Z" }],
+      "GET /v1/admin/domain-requests": () => [request("r1", "pending", { pattern: "status.example.org" })],
+      "POST /v1/admin/crawl-allowlist": (body) =>
+        (body as { pattern: string }).pattern === "*"
+          ? { id: "a2", pattern: "*", note: "", createdBy: null, createdAt: "2026-09-02T10:00:00Z" }
+          : new ApiFailure(400, "blocked_address", "The crawler never fetches private, loopback, link-local or cloud metadata addresses, so this entry would do nothing."),
+    });
+    const { container } = renderWith(<CrawlingPage />, { platformRole: "platform_admin" });
+    expect(await screen.findByText("status.example.org (Academic Advising) is covered by *.example.org on the allowlist.", { exact: false })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(screen.getByRole("tab", { name: "Allowlist" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Add pattern" }));
+    const dialog = await screen.findByRole("dialog", { name: "Add an allowlist pattern" });
+    const input = within(dialog).getByRole("textbox", { name: "Host pattern" });
+    await userEvent.type(input, "169.254.169.254");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Add pattern" }));
+    expect(await within(dialog).findByText(/never fetches private, loopback, link-local or cloud metadata addresses/)).toBeInTheDocument();
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    await userEvent.clear(input);
+    await userEvent.type(input, "*");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Add pattern" }));
+    const confirm = await screen.findByRole("alertdialog", { name: "Allow every public host?" });
+    expect(calls.filter((c) => c.method === "POST")).toHaveLength(1);
+    await userEvent.click(within(confirm).getByRole("button", { name: "Allow every public host" }));
+    await waitFor(() => expect(calls.filter((c) => c.method === "POST").at(-1)?.body).toEqual({ pattern: "*" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Add an allowlist pattern" })).toBeNull());
   });
 
   it("is read-only for auditors", async () => {
@@ -81,6 +116,15 @@ describe("admin crawling page", () => {
 /* ---------- shared sources ---------- */
 
 describe("shared sources", () => {
+  it("says which teams may attach a classified shared source (AD-25)", () => {
+    const levels = [
+      { key: "open", name: "Open", rank: 0 },
+      { key: "restricted", name: "Restricted", rank: 2 },
+    ];
+    expect(sharedWith("open", levels)).toBe("Shared with every team");
+    expect(sharedWith("restricted", levels)).toBe("Shared with teams approved for Restricted");
+  });
+
   it("blocks raising the classification when team knowledge bases would be affected", async () => {
     const shared = { ...webSource({ id: "sh1", name: "Campus academic calendar" }), activeCrawl: null };
     const calls = mockApi({

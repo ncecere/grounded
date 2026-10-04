@@ -71,7 +71,8 @@ export function EditorAlerts({ current, d, onProblem }: { current: Agent; d: Age
       {current.status !== "active" && (
         <Alert tone={current.status === "disabled_by_platform" ? "danger" : "warning"} title={current.status === "disabled_by_platform" ? "Disabled by a platform admin" : "Disabled by your team"}>
           Nobody can chat with this agent.
-          {current.disabledReason && <> Reason: {current.disabledReason}</>}
+          {/* The reason with its full stop, so the next sentence doesn't run on (AD-36). */}
+          {current.disabledReason && <> Reason: {asSentence(current.disabledReason)}</>}
           {current.status === "disabled_by_platform" && " Only a platform admin can enable it."}
         </Alert>
       )}

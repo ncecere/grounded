@@ -198,10 +198,10 @@ func checkProfileInput(in *ProfileInput) (int32, error) {
 		in.ChunkSize = 512
 	}
 	if in.ChunkSize < 64 || in.ChunkSize > 8192 {
-		return 0, apperr.Invalid("invalid_chunk_size", "Chunk size must be between 64 and 8192 tokens")
+		return 0, apperr.Invalid("invalid_chunk_size", "Passage size must be between 64 and 8192 tokens")
 	}
 	if in.ChunkOverlap < 0 || in.ChunkOverlap >= in.ChunkSize {
-		return 0, apperr.Invalid("invalid_chunk_overlap", "Chunk overlap must be at least 0 and smaller than the chunk size")
+		return 0, apperr.Invalid("invalid_chunk_overlap", "Passage overlap must be at least 0 and smaller than the passage size")
 	}
 	if len(in.DocumentPrefix) > 200 || len(in.QueryPrefix) > 200 {
 		return 0, apperr.Invalid("invalid_prefix", "Prefixes must be at most 200 characters")
@@ -365,6 +365,12 @@ func (s *Service) DeleteProfile(ctx context.Context, a authz.Actor, id uuid.UUID
 			if n > 1 {
 				return apperr.Conflict("default_required", "Make another profile the default before deleting this one")
 			}
+		}
+		// Deleting it would also delete the profile migrations from or to it (AD-15).
+		if n, err := q.CountProfileMigrations(ctx, id); err != nil {
+			return err
+		} else if n > 0 {
+			return apperr.Conflict("profile_in_migrations", "Profile migrations refer to this profile, and deleting it would delete their history. Retire it instead.")
 		}
 		if err := q.DeleteEmbeddingProfile(ctx, id); apperr.IsForeignKeyViolation(err, "") {
 			return apperr.Conflict("profile_in_use", "This profile is in use. Retire it instead.")

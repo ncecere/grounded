@@ -381,6 +381,9 @@ func TestProfileMigrationRechunkSwitchBackCleanup(t *testing.T) {
 	if got["kb.profile_migration_start"] != 1 || got["kb.profile_switch"] != 1 || got["kb.profile_switch_back"] != 1 {
 		t.Errorf("audit = %v", got)
 	}
+	// AD-15: the unused profile keeps its migration's history: deleting it is refused (retire it instead).
+	code, e = env.admin.call("DELETE", "/v1/admin/embedding-profiles/"+env.wide.Id.String(), nil, nil, nil)
+	mustCode(t, "delete a profile with migrations", code, e, 409, "profile_in_migrations")
 	_ = ctx
 }
 

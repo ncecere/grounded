@@ -1,6 +1,6 @@
 # Cross-encoder reranking
 
-A rerank model (a cross-encoder such as bge-reranker or Qwen3-Reranker) reads the question together with each passage a search found and scores how well the passage answers it. That is more precise than the vector and keyword fusion, and it runs in one batched call. Once a platform admin chooses a rerank model, every search reranks: agents, a knowledge base's **Try it**, the retrieval API (`POST …/kbs/{kbId}/retrieve`) and the MCP server's `search` tool. Without a rerank model, retrieval is as before. The design is in [`v0.4.0.md` §3](../v0.4.0.md#3-cross-encoder-reranking-a1b).
+A rerank model (a cross-encoder such as bge-reranker or Qwen3-Reranker) reads the question together with each passage a search found and scores how well the passage answers it. That is more precise than the vector and keyword fusion, and it runs in one batched call. Once a platform admin chooses a rerank model on **Admin → Models → Reranking**, every search reranks: agents, a knowledge base's **Try it**, the retrieval API (`POST …/kbs/{kbId}/retrieve`) and the MCP server's `search` tool. Without a rerank model, retrieval is as before. The design is in [`v0.4.0.md` §3](../v0.4.0.md#3-cross-encoder-reranking-a1b).
 
 ## How a search uses it
 
@@ -31,14 +31,25 @@ and reads `{"results": [{"index": 1, "relevance_score": 0.98}, …]}` (a `data` 
 
 A reranker is small: bge-reranker-v2-m3 scores 40 passages in a few hundred milliseconds on one GPU.
 
+## Setting it up: Admin → Models → Reranking
+
+**Admin → Models → Reranking** (`/admin/reranking`, always in the admin sidebar, and in ⌘K as "Reranking") is where reranking is set up and checked. Auditors see everything on it read-only, with the reason.
+
+- **Status:** on or off and why (no model chosen, the model or its connection disabled), the model with its stored health, the candidate count, the time limit, how many published agents rerank, and the published agents that turned it off (each links to its admin record).
+- **Set up reranking:** until a model of kind Rerank exists, a three-step guide shows which steps are done, with a button for each: **Add connection** (a server that serves `/rerank`, above), **Add model** (opens Add model with kind **Rerank** chosen), and choosing it in Settings.
+- **Settings:** the rerank model, the candidate count and the time limit (below).
+- **Test:** a question against a knowledge base in one of your teams, searched once in the usual order and once reranked, side by side: each reranked passage shows its rerank score and where it was before ("was #3"). It uses the saved settings and the knowledge base's own search (as its **Try it** does), so it only offers your own teams: platform staff don't read team content without break-glass (ADR-0011). A failed or slow call says the search kept the usual order.
+
+Admin → Overview → Features has a **Reranking** row: "Off" with **Set up**, or "On · <model>", linking to the page.
+
 ## Adding the model
 
-1. **Admin → Models → Add model**, kind **Rerank**, on the connection that serves it. Set its **maximum classification** like any model's, and optionally **Max input tokens**: longer passages are shortened to fit with the question.
+1. **Admin → Models → Add model**, kind **Rerank** (the guide's **Add model** chooses it), on the connection that serves it. Set its **maximum classification** like any model's, and optionally **Max input tokens**: longer passages are shortened to fit with the question.
 2. **Compatibility**, for servers that differ: **Passages field** (`documents`, the default, or `texts`) and **Accepts top_n** (sent by default; turn it off for a server that rejects it). The API fields are `compat.rerankDocumentsField` and `compat.supportsRerankTopN`.
-3. **Test model** scores a passage that answers a fixed question and one that doesn't; the test passes when the first scores higher, and is stored as the model's health like other tests. The scheduled health check derives a rerank model's health from its connection's model list (`GET /models`), so it sends nothing to the reranker ([`health.md`](health.md)).
-4. **Admin → Models → Reranking settings** (above the list): choose the rerank model, the candidate count (5 to 50) and the time limit (200 to 10,000 ms). Saving is audited (`platform.rerank_settings_update`, "Changed reranking settings", with the model by name and each value); the dialog checks each field before saving, and **Save settings** stays off until something changed (saving the same settings would start a new revision, which retires every saved answer). Auditors see the button disabled. The API is `GET` and `PUT /v1/admin/rerank` (platform admins; auditors read), and any signed-in user can read `GET /v1/rerank/status`.
+3. **Test model** on its record page scores a passage that answers a fixed question and one that doesn't; the test passes when the first scores higher, and is stored as the model's health like other tests. The scheduled health check derives a rerank model's health from its connection's model list (`GET /models`), so it sends nothing to the reranker ([`health.md`](health.md)).
+4. **Admin → Models → Reranking → Settings:** choose the rerank model (each option shows its last test: Healthy, Failing or Not tested), the candidate count (5 to 50) and the time limit (200 to 10,000 ms). Choosing a model that is disabled, failed its last test or was never tested shows a warning on the page, and saving it asks first: until it works, every search waits for it up to the time limit and then keeps the usual order. Saving is audited (`platform.rerank_settings_update`, "Changed reranking settings", with the model by name and each value); the form checks each field before saving, and the save bar only appears once something changed (saving the same settings would start a new revision, which retires every saved answer). The API is `GET` and `PUT /v1/admin/rerank` (platform admins; auditors read; the response lists the agents that turn reranking off as `agentsOff`), and any signed-in user can read `GET /v1/rerank/status`.
 
-A rerank model in use can't be deleted (choose **None** first; its record page says so beside the disabled **Delete**); a disabled model, or one on a disabled connection, turns reranking off until it is enabled again.
+A rerank model in use can't be deleted (choose **None** on the Reranking page first; its record page says so beside the disabled **Delete**); a disabled model, or one on a disabled connection, turns reranking off until it is enabled again.
 
 ## For editors: the agent's setting
 

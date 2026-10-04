@@ -68,8 +68,10 @@ const actionLabels: Record<string, string> = {
   "costs.price_delete": "Deleted a price",
   "costs.budget_update": "Changed a team budget",
   "costs.extension_grant": "Granted a budget extension",
+  "costs.extension_revoke": "Revoked a budget extension",
   "platform.bootstrap_role": "Granted first admin role",
   "platform.classification_create": "Added classification level",
+  "platform.classification_delete": "Deleted classification level",
   "platform.classification_update": "Changed classification level",
   "platform.connection_create": "Added model connection",
   "platform.connection_update": "Changed model connection",
@@ -355,8 +357,11 @@ export const targetTypeLabels: Record<string, string> = {
   user: "User",
 };
 
-/** Target types that are a platform setting: an entry's action names it ("Turned OAuth sign-in for MCP clients on"). */
-const settingsTargets = new Set(["mcp_settings", "answer_cache_settings"]);
+/**
+ * Target types the action already names: platform settings ("Turned OAuth sign-in for MCP clients on") and a retention
+ * run ("Retention deleted expired data", not "…: Retention run", AD-36).
+ */
+const settingsTargets = new Set(["mcp_settings", "answer_cache_settings", "retention"]);
 
 /**
  * An entry's action and target in one line for a short list ("Changed a team budget: QA Team"), leaving out a target

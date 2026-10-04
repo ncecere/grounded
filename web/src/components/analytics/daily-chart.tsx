@@ -1,7 +1,10 @@
-/* Answers and conversations per day: a CSS bar chart (one image with a text summary) and the same data as a table. */
+/*
+ * Answers and conversations per day (Admin → Analytics): an area chart like the agent's Analytics tab (VI-08), with
+ * two distinct tones (VI-26), and the same data as a table.
+ */
 import { Activity, Download } from "lucide-react";
 import type { ReactNode } from "react";
-import { BarChart } from "@/components/ui/bar-chart/bar-chart";
+import { LineChart } from "@/components/ui/line-chart/line-chart";
 import { Button } from "@/components/ui/button/button";
 import { Card } from "@/components/ui/card/card";
 import { EmptyState } from "@/components/ui/empty-state/empty-state";
@@ -35,11 +38,12 @@ export function DailyChart<T extends DailyRow>({ days, description, extra = [], 
         <EmptyState size="compact" icon={<Activity />} title="No answers in this range." />
       ) : (
         <div className={an.chartBody}>
-          <BarChart
+          <LineChart
+            variant="area"
             data={days.map((d) => ({ label: dayLabel(d.date), values: { answers: d.answers, conversations: d.conversations } }))}
             series={[
               { key: "answers", label: "Answers", tone: "info" },
-              { key: "conversations", label: "Conversations started" },
+              { key: "conversations", label: "Conversations started", tone: "success" },
             ]}
             summary={dailySummary(days)}
           />

@@ -39,11 +39,15 @@ function useSaveModel(model: Model | null, form: ModelForm, onClose: () => void)
   });
 }
 
+type Props = { model: Model | null; connections: Connection[]; preset?: ModelPreset; kind?: ModelKind; onClose: () => void };
+
 /** Add or edit a model on a form page, the form in sections by kind (A5). */
-export function ModelDialog({ model, connections, preset, onClose }: { model: Model | null; connections: Connection[]; preset?: ModelPreset; onClose: () => void }) {
+export function ModelDialog({ model, connections, preset, kind, onClose }: Props) {
   const listId = useId();
   const [form, set] = useFormState(() => ({
     ...initialModelForm(model, connections),
+    // Chosen beforehand, e.g. Rerank from the Reranking page's setup guide (OW-2).
+    ...(kind && !model ? { kind } : {}),
     ...(preset && !model ? { ...preset, displayName: preset.upstreamModel, key: slugKey(preset.upstreamModel) } : {}),
   }));
   // Upstream model IDs advertised by the chosen connection, for suggestions.

@@ -101,9 +101,9 @@ func TestDemoCommand(t *testing.T) {
 	demoEnv(t)
 	fake := httptest.NewServer(demo.NewFakeModels(demo.FakeAPIKey))
 	defer fake.Close()
-	site := httptest.NewServer(http.NotFoundHandler()) // not crawled: no worker runs
-	defer site.Close()
-	args := []string{"--models", "fake", "--fake-url", fake.URL + "/v1", "--site-url", site.URL + "/doc/"}
+	// Not crawled (no worker runs), and a host name: the allowlist refuses an address the crawler never fetches,
+	// such as an httptest server's 127.0.0.1 (AD-08).
+	args := []string{"--models", "fake", "--fake-url", fake.URL + "/v1", "--site-url", "https://docs.example.edu/doc/"}
 	var out bytes.Buffer
 	if err := runDemo(context.Background(), args, &out); err != nil {
 		t.Fatal(err)

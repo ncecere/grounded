@@ -9,7 +9,7 @@ import { Input, NativeSelect, Textarea } from "@/components/ui/input/input";
 import { toast } from "@/components/ui/toast/toast";
 import { TeamPicker } from "../team-picker";
 import { retentionKey } from "./settings";
-import { scopeHelp, scopeTypeLabels } from "./labels";
+import { conversationIdOf, scopeHelp, scopeTypeLabels } from "./labels";
 import r from "./retention.module.css";
 
 type Hold = Schemas["LegalHold"];
@@ -24,10 +24,15 @@ type Form = { scopeType: ScopeType; scope: string; reason: string; from: string;
 export function holdProblems(f: Form): Partial<Record<keyof Form, string>> {
   const out: Partial<Record<keyof Form, string>> = {};
   if (!f.scope.trim()) out.scope = f.scopeType === "team" ? "Choose a team." : "Say what the hold covers.";
+  else if (f.scopeType === "conversation" && !conversationIdOf(f.scope))
+    out.scope = "That isn't a conversation link or ID. Paste the link from the conversation's address bar.";
   if (!f.reason.trim()) out.reason = "Give the reason for the hold, such as the matter or request it's for.";
   if (f.from && f.to && f.to < f.from) out.to = "The last day must be on or after the first.";
   return out;
 }
+
+/** What the API is sent: a pasted conversation link becomes its ID. */
+const scopeValue = (f: Form) => (f.scopeType === "conversation" ? (conversationIdOf(f.scope) ?? f.scope.trim()) : f.scope.trim());
 
 export function PlaceHoldDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
@@ -39,7 +44,7 @@ export function PlaceHoldDialog({ onClose }: { onClose: () => void }) {
     mutationFn: async () =>
       unwrap(
         await api.POST("/v1/admin/legal-holds", {
-          body: { scopeType: form.scopeType, scope: form.scope.trim(), reason: form.reason.trim(), coversFrom: form.from || null, coversTo: form.to || null },
+          body: { scopeType: form.scopeType, scope: scopeValue(form), reason: form.reason.trim(), coversFrom: form.from || null, coversTo: form.to || null },
         }),
       ),
     onSuccess: (h) => {
@@ -72,7 +77,7 @@ export function PlaceHoldDialog({ onClose }: { onClose: () => void }) {
           ))}
         </NativeSelect>
       </Field>
-      <Field label={help.label} error={problems.scope}>
+      <Field label={help.label} description={help.description} error={problems.scope}>
         {form.scopeType === "team" ? (
           <TeamPicker value={form.scope} onChange={(scope) => set({ scope })} />
         ) : (

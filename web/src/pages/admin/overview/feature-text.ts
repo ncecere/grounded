@@ -10,7 +10,7 @@ import type { Tone } from "@/lib/bitop-utils";
 import { type CostMode, modeDescriptions, modeLabels } from "@/lib/costs";
 
 export type FeatureState = { label: string; tone: Tone };
-type Budget = Pick<Schemas["BudgetListItem"], "teamName" | "status">;
+type Budget = { teamName: string; status: Pick<Schemas["BudgetListItem"]["status"], "mode"> };
 
 export const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
@@ -59,13 +59,34 @@ export function systemOneFeature(st: Pick<Schemas["SystemOneSettings"], "modelId
   }
   const a = st.agents;
   if (a.any === 0) return { state: { label: "Configured", tone: "neutral" }, description: "A model is chosen, but no published agent uses a SystemOne check." };
-  const checks = [
-    a.citations > 0 && `citation checks on ${plural(a.citations, "agent")}`,
-    a.scope > 0 && `the scope check on ${plural(a.scope, "agent")}`,
-    a.judging > 0 && `passage judging on ${plural(a.judging, "agent")}`,
-  ].filter(Boolean);
+  // "Citation checks on 2 published agents and passage judging on 1, by …" (AD-36: not "Published agents use … on 1 agent").
+  const counts = ([[a.citations, "citation checks"], [a.scope, "the scope check"], [a.judging, "passage judging"]] as const).filter(([n]) => n > 0);
+  const checks = counts.map(([n, label], i) => `${label} on ${i === 0 ? plural(n, "published agent") : n.toLocaleString()}`);
+  const text = names(checks, 3);
   return {
     state: { label: `Configured · checks on ${plural(a.any, "agent")}`, tone: "success" },
-    description: `Published agents use ${names(checks as string[], 3)}, by their own setting or the platform default.`,
+    description: `${text.charAt(0).toUpperCase()}${text.slice(1)}, by each agent's own setting or the platform default.`,
+  };
+}
+
+/** The Reranking row (OW-2): "Off" with "Set up", or "On · <model>". */
+export function rerankFeature(
+  st: Pick<Schemas["RerankSettings"], "modelId" | "candidates" | "agents">,
+  model?: Schemas["AdminFeatureModel"],
+): { state: FeatureState; description: string; action: string } {
+  if (!st.modelId || !model) {
+    return {
+      state: { label: "Off", tone: "neutral" },
+      description: "Searches keep the usual order. A rerank model puts the passages that answer the question first.",
+      action: "Set up",
+    };
+  }
+  if (!model.enabled) {
+    return { state: { label: "Off", tone: "warning" }, description: `${model.displayName} or its connection is disabled, so searches aren't reranked.`, action: "Reranking" };
+  }
+  return {
+    state: { label: `On · ${model.displayName}`, tone: "success" },
+    description: `Searches rerank their best ${st.candidates} passages; ${plural(st.agents, "published agent reranks", "published agents rerank")}.`,
+    action: "Reranking",
   };
 }

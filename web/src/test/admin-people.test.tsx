@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
 import { usageRows } from "../pages/admin/people/team-overview";
-import { type Handler, mockApi, renderApp, shellRoutes } from "./harness";
+import { type Handler, Reply, mockApi, renderApp, shellRoutes } from "./harness";
 
 afterEach(() => vi.unstubAllGlobals());
 beforeAll(() => {
@@ -22,7 +22,7 @@ const team = {
   createdAt: "",
   updatedAt: "",
 } as Schemas["Team"];
-const summary: Schemas["TeamSummary"] = { team, memberCount: 3, ownerCount: 1, agentCount: 4, sourceCount: 2, kbCount: 1, documentCount: 40, storageBytes: 2_000_000 };
+const summary: Schemas["TeamSummary"] = { team, memberCount: 3, ownerCount: 1, ownerInvites: 0, agentCount: 4, sourceCount: 2, kbCount: 1, documentCount: 40, storageBytes: 2_000_000 };
 const user = (id: string, extra: Partial<Schemas["User"]> = {}): Schemas["User"] => ({
   id,
   email: `${id}@example.edu`,
@@ -108,6 +108,42 @@ describe("admin users and teams", () => {
     expect(row).toHaveTextContent("1.9 MiB");
   });
 
+  it("says Owner invited, not No owner, while the invited owner hasn't signed in (AD-04)", async () => {
+    const invited = { ...summary, memberCount: 0, ownerCount: 0, ownerInvites: 1 };
+    mockApi(routes("platform_admin", { "GET /v1/admin/teams": () => ({ items: [invited], nextCursor: null }) }));
+    renderApp("/admin/teams");
+    const table = await screen.findByRole("table", { name: "Teams" });
+    expect(await within(table).findByText("Owner invited")).toBeInTheDocument();
+    expect(within(table).queryByText("No owner")).toBeNull();
+  });
+
+  it("lists open invites on an admin team's Members tab, and platform admins revoke them (AD-04)", async () => {
+    const invite = { id: "i1", email: "new.owner@example.edu", role: "owner", createdAt: "2026-10-01T10:00:00Z", expiresAt: "2026-10-31T10:00:00Z" };
+    const calls = mockApi(
+      routes("platform_admin", {
+        "GET /v1/teams/registrar/members": () => [],
+        "GET /v1/teams/registrar/invites": () => [invite],
+        "DELETE /v1/teams/registrar/invites/i1": () => ({ ok: true }),
+      }),
+    );
+    const { container } = renderApp("/admin/teams/registrar?tab=members");
+    const invites = (await screen.findByRole("heading", { name: "Open invites" })).closest("section")!;
+    expect(within(invites).getByText("new.owner@example.edu")).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(within(invites).getByRole("button", { name: "Revoke" }));
+    await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Revoke invite" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "DELETE" && c.url === "/v1/teams/registrar/invites/i1")).toBe(true));
+  });
+
+  it("shows auditors open invites without Revoke (AD-04)", async () => {
+    const invite = { id: "i1", email: "new.owner@example.edu", role: "owner", createdAt: "2026-10-01T10:00:00Z", expiresAt: "2026-10-31T10:00:00Z" };
+    mockApi(routes("platform_auditor", { "GET /v1/teams/registrar/invites": () => [invite] }));
+    renderApp("/admin/teams/registrar?tab=members");
+    const invites = (await screen.findByRole("heading", { name: "Open invites" })).closest("section")!;
+    expect(within(invites).getByText("new.owner@example.edu")).toBeInTheDocument();
+    expect(within(invites).queryByRole("button", { name: "Revoke" })).toBeNull();
+  });
+
   it("sums up budget changes in Recent changes, like the audit log", async () => {
     const change = {
       id: 9, occurredAt: "2026-09-26T10:00:00Z", actorKind: "user", actor: { kind: "user", displayName: "Dev Admin" }, action: "costs.budget_update",
@@ -152,11 +188,46 @@ describe("admin users and teams", () => {
     expect(screen.queryByRole("tab", { name: /Budget/ })).toBeNull();
   });
 
+  it("titles the page after the tab it lands on when changes are discarded (AD-38)", async () => {
+    const kb = { key: "knowledge_bases", group: "resources", unit: "count", period: "none", label: "Knowledge bases", description: "KBs." } as const;
+    mockApi(
+      routes("platform_admin", {
+        "GET /v1/admin/teams/registrar/limits": () => ({ teamId: "t1", revision: 1, items: [{ ...kb, default: 10, ceiling: null, override: null, effective: 10 }] }),
+      }),
+    );
+    renderApp("/admin/teams/registrar?tab=limits");
+    const table = await screen.findByRole("table", { name: "Team resources limits for Office of the Registrar" }, { timeout: 4000 });
+    await waitFor(() => expect(document.title).toMatch(/^Limits \u00b7 Office of the Registrar/));
+    await userEvent.selectOptions(within(table).getByRole("combobox", { name: "Knowledge bases: team setting" }), "blocked");
+    await userEvent.click(screen.getByRole("tab", { name: "Settings" }));
+    const guard = await screen.findByRole("alertdialog", { name: "Leave without saving?" });
+    await userEvent.click(within(guard).getByRole("button", { name: "Discard changes" }));
+    expect(await screen.findByRole("tab", { name: "Settings", selected: true })).toBeInTheDocument();
+    await waitFor(() => expect(document.title).toMatch(/^Settings \u00b7 Office of the Registrar/));
+  });
+
   it("puts Archive in the Settings danger zone", async () => {
     mockApi(routes());
     renderApp("/admin/teams/registrar?tab=settings");
     expect(await screen.findByText("Danger zone")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Archive team" })).toBeInTheDocument();
+  });
+
+  it("speaks to you on your own record, and shows a refusal once (AD-18)", async () => {
+    mockApi(
+      routes("platform_admin", {
+        "GET /v1/admin/users/u1": () => ({ user: user("u1", { platformRole: "platform_admin" }), teams: [] }),
+        "GET /v1/admin/audit": () => ({ items: [], nextCursor: null }),
+        "PATCH /v1/admin/users/u1": () => Reply.error(409, "last_platform_admin", "The platform needs at least one platform admin."),
+      }),
+    );
+    renderApp("/admin/users/u1");
+    await userEvent.selectOptions(await screen.findByRole("combobox", { name: /Platform role/ }), "none");
+    const dialog = await screen.findByRole("alertdialog", { name: "Remove your platform role?" });
+    expect(within(dialog).getByText(/You'll lose access to the admin portal/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Remove platform role" }));
+    expect(await within(dialog).findByText("The platform needs at least one platform admin.")).toBeInTheDocument();
+    expect(screen.getAllByText("The platform needs at least one platform admin.")).toHaveLength(1);
   });
 
   it("shows the user page as sections with sign-ins hidden in Activity (Q6)", async () => {

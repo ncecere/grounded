@@ -7,7 +7,7 @@
  * names the agents that block it (delete-dialog.tsx).
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Blocks, Eye, Pencil, Plus, Trash2 } from "lucide-react";
+import { Blocks, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { ListPage, timeColumn } from "@/components/templates/list-page";
@@ -108,7 +108,6 @@ export function MCPServersPage() {
         onRetry={() => void servers.refetch()}
         onRowClick={(x) => record.open(x.id)}
         rowActions={(x) => [
-          { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(x.id) },
           { label: "Edit", icon: <Pencil aria-hidden />, hidden: !isAdmin, onSelect: () => form.open(x.id) },
           { label: "Delete…", icon: <Trash2 aria-hidden />, danger: true, hidden: !isAdmin, onSelect: () => setDeleting(x) },
         ]}

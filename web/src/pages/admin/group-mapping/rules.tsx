@@ -124,7 +124,8 @@ export function RuleList({ team, isAdmin, title, description, notices }: Props) 
       data={rules.data ?? []}
       getRowId={(r) => r.id}
       rowLabel={(r) => `${r.group} → ${r.team.name}`}
-      search={team ? undefined : { label: "Search rules", placeholder: "Group or team" }}
+      // A search on the team's tab too, so Columns shares its row, as on Members (VI-23).
+      search={team ? { label: "Search rules", placeholder: "Group" } : { label: "Search rules", placeholder: "Group or team" }}
       loading={rules.isLoading}
       error={rules.error}
       onRetry={() => void rules.refetch()}
@@ -156,7 +157,8 @@ export function RuleList({ team, isAdmin, title, description, notices }: Props) 
   return (
     <>
       {title === undefined ? (
-        <Card title="SSO group rules" description={description} actions={addButton} flush>
+        // Padded like the Members tab's card, so the rows footer sits inside it (VI-23).
+        <Card title="SSO group rules" description={description} actions={addButton}>
           {list}
         </Card>
       ) : (

@@ -6,7 +6,7 @@
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Eye, Pencil, Plug, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plug, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap } from "@/api/client";
 import { ConfirmMutationDialog } from "@/components/confirm-dialog";
@@ -109,7 +109,6 @@ export function ConnectionsPage() {
         onRetry={() => void conns.refetch()}
         onRowClick={(c) => record.open(c.id)}
         rowActions={(c) => [
-          { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(c.id) },
           { label: "Edit", icon: <Pencil aria-hidden />, hidden: !isAdmin, onSelect: () => setEditing(c) },
           {
             label: "Delete…",

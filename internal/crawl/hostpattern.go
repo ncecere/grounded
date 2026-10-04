@@ -2,6 +2,7 @@ package crawl
 
 import (
 	"errors"
+	"net/netip"
 	"regexp"
 	"strings"
 
@@ -40,6 +41,10 @@ func NormalizeHostPattern(p string, allowStar bool) (string, error) {
 	}
 	full := prefix + ascii
 	if len(full) > 253 || !hostPatternRE.MatchString(full) {
+		return "", ErrHostPattern
+	}
+	// An address is one host: "*.10.0.0.1" matches nothing real.
+	if _, err := netip.ParseAddr(ascii); err == nil && prefix != "" {
 		return "", ErrHostPattern
 	}
 	return full, nil

@@ -9,7 +9,7 @@
  * Retention header's primary on this tab.
  */
 import { useQuery } from "@tanstack/react-query";
-import { Eye, Lock, LockOpen, Scale } from "lucide-react";
+import { Lock, LockOpen, Scale } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ListPage, timeColumn, useListFilters } from "@/components/templates/list-page";
@@ -117,7 +117,6 @@ export function LegalHoldsTab({ isAdmin }: { isAdmin: boolean }) {
         onRetry={() => void holds.refetch()}
         onRowClick={(h) => record.open(h.id)}
         rowActions={(h) => [
-          { label: "View details", icon: <Eye aria-hidden />, onSelect: () => record.open(h.id) },
           { label: "Release hold", danger: true, hidden: !isAdmin || h.status !== "active", onSelect: () => setReleasing(h) },
         ]}
         // No action here: the header's "Place a hold" is the view's one primary.

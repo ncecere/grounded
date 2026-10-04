@@ -1,13 +1,16 @@
 /*
  * Admin team › Members (A4): the read-only member list (team autonomy,
  * DESIGN §3.5) and "Assign owner", which picks someone who has signed in or
- * invites an email address.
+ * invites an email address. Open invites follow (AD-04): an owner invited
+ * by email shows there, and platform admins can revoke it.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlus, UserRound } from "lucide-react";
 import { useState } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { ssoGroup } from "@/components/member-list";
+import { InviteList } from "@/components/members";
+import { Stack } from "@/components/ui/layout/layout";
 import { PersonCell } from "@/components/person-cell";
 import { roleLabels } from "@/components/roles";
 import { ListPage } from "@/components/templates/list-page";
@@ -57,32 +60,36 @@ export function TeamMembersTab({ team, isAdmin }: { team: string; isAdmin: boole
     queryFn: async () => unwrap(await api.GET("/v1/teams/{team}/members", { params: { path: { team } } })),
   });
   return (
-    <Card
-      title="Members"
-      description="Owners manage their team's members. Platform admins assign owners, and map SSO groups to roles in the SSO groups tab."
-      actions={
-        isAdmin && (
-          <Button size="sm" variant="secondary" onClick={() => setAssigning(true)}>
-            <UserPlus aria-hidden /> Assign owner
-          </Button>
-        )
-      }
-    >
-      <ListPage<Member>
-        id="admin-team-members"
-        caption="Members"
-        columns={columns}
-        data={members.data ?? []}
-        getRowId={(m) => m.user.id}
-        rowLabel={(m) => m.user.displayName || m.user.email}
-        search={{ label: "Search members" }}
-        loading={members.isLoading}
-        error={members.error}
-        onRetry={() => void members.refetch()}
-        empty={{ icon: <UserRound />, title: "No members." }}
-      />
-      {assigning && <AssignOwnerDialog team={team} onClose={() => setAssigning(false)} />}
-    </Card>
+    <Stack gap={6}>
+      <Card
+        title="Members"
+        description="Owners manage their team's members. Platform admins assign owners, and map SSO groups to roles in the SSO groups tab."
+        actions={
+          isAdmin && (
+            <Button size="sm" variant="secondary" onClick={() => setAssigning(true)}>
+              <UserPlus aria-hidden /> Assign owner
+            </Button>
+          )
+        }
+      >
+        <ListPage<Member>
+          id="admin-team-members"
+          caption="Members"
+          columns={columns}
+          data={members.data ?? []}
+          getRowId={(m) => m.user.id}
+          rowLabel={(m) => m.user.displayName || m.user.email}
+          search={{ label: "Search members", placeholder: "Name or email" }}
+          loading={members.isLoading}
+          error={members.error}
+          onRetry={() => void members.refetch()}
+          empty={{ icon: <UserRound />, title: "No members yet.", description: "Invited people appear under Open invites until they sign in." }}
+        />
+        {assigning && <AssignOwnerDialog team={team} onClose={() => setAssigning(false)} />}
+      </Card>
+      {/* Platform admins revoke any invite, as an owner would; auditors see them. */}
+      <InviteList team={team} myRole={isAdmin ? "owner" : undefined} />
+    </Stack>
   );
 }
 

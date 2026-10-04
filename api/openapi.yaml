@@ -546,6 +546,10 @@ paths:
       tags: [teams]
       operationId: revokeInvite
       summary: Revoke an open invite
+      description: >-
+        Team owners and admins (within their role's reach), and platform
+        admins for any open invite, such as an owner invite sent from Admin ->
+        Teams.
       responses:
         "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
@@ -1173,6 +1177,23 @@ paths:
                 properties:
                   data: { $ref: "#/components/schemas/Classification" }
         "400": { $ref: "#/components/responses/ErrorReply" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
+        "409": { $ref: "#/components/responses/ErrorReply" }
+        "412": { $ref: "#/components/responses/ErrorReply" }
+        "428": { $ref: "#/components/responses/ErrorReply" }
+    delete:
+      tags: [admin]
+      operationId: adminDeleteClassification
+      summary: Delete an unused classification level (platform admins; audited)
+      description: >-
+        409 classification_in_use when teams, models, data sources or MCP
+        servers use the level (details.uses counts each); 409
+        last_classification for the only level.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchHeader"
+      responses:
+        "200": { $ref: "#/components/responses/OkReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
         "409": { $ref: "#/components/responses/ErrorReply" }
@@ -3392,6 +3413,26 @@ paths:
                 required: [data]
                 properties:
                   data: { $ref: "#/components/schemas/AdminOverview" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/features:
+    get:
+      tags: [admin]
+      operationId: adminGetFeatures
+      summary: The admin Overview's feature states and setup steps in one response (platform admins and auditors)
+      description: >-
+        What the Overview's Features card and setup checklist show, read in
+        one request instead of one per setting (docs/v0.4.2.md M4). Each
+        settings object is what its own GET returns, with its revision.
+      responses:
+        "200":
+          description: Features
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AdminFeatures" }
         "403": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/attention:
     get:
@@ -6553,6 +6594,33 @@ paths:
         "400": { $ref: "#/components/responses/ErrorReply" }
         "403": { $ref: "#/components/responses/ErrorReply" }
         "404": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/teams/{team}/budget/extensions/{extensionId}:
+    parameters:
+      - $ref: "#/components/parameters/TeamParam"
+      - name: extensionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [costs, admin]
+      operationId: adminRevokeBudgetExtension
+      summary: Revoke one of this month's extensions of a team's budget (platform admins; audited as costs.extension_revoke)
+      description: >-
+        To correct an extension, revoke it and grant the right amount. Only
+        the current month's extensions can be revoked (404 otherwise); the
+        audit log keeps the revoked one.
+      responses:
+        "200":
+          description: The team's budget
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/TeamBudget" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
+        "404": { $ref: "#/components/responses/ErrorReply" }
   /v1/teams/{team}/spend:
     parameters:
       - $ref: "#/components/parameters/TeamParam"
@@ -8207,6 +8275,63 @@ components:
       required: [ok]
       properties:
         ok: { type: boolean }
+    AdminFeatures:
+      type: object
+      required: [evaluations, mcp, costs, ocr, groupMappingRules, systemOne, rerank, publicAccess, publicModeration, maintenance, setup]
+      properties:
+        evaluations: { $ref: "#/components/schemas/EvaluationSettings" }
+        mcp: { $ref: "#/components/schemas/MCPSettings" }
+        answerCache: { $ref: "#/components/schemas/AnswerCacheSettings" }
+        costs: { $ref: "#/components/schemas/AdminFeatureCosts" }
+        ocr: { $ref: "#/components/schemas/AdminFeatureOCR" }
+        groupMappingRules: { type: integer, description: SSO group mapping rules }
+        systemOne: { $ref: "#/components/schemas/SystemOneSettings" }
+        rerank: { $ref: "#/components/schemas/RerankSettings" }
+        rerankModel: { $ref: "#/components/schemas/AdminFeatureModel" }
+        publicAccess: { $ref: "#/components/schemas/PublicAccessSettings" }
+        publicModeration: { type: boolean, description: The public audience's moderation policy has a provider }
+        maintenance: { $ref: "#/components/schemas/MaintenanceSettings" }
+        setup: { $ref: "#/components/schemas/AdminSetupState" }
+    AdminFeatureCosts:
+      type: object
+      required: [settings, teams]
+      properties:
+        settings: { $ref: "#/components/schemas/CostSettings" }
+        teams:
+          type: array
+          description: "Active teams whose effective cost mode isn't the platform's (a team setting)"
+          items: { $ref: "#/components/schemas/AdminFeatureTeamMode" }
+    AdminFeatureTeamMode:
+      type: object
+      required: [teamName, mode]
+      properties:
+        teamName: { type: string }
+        mode: { $ref: "#/components/schemas/CostMode" }
+    AdminFeatureOCR:
+      type: object
+      required: [enabled, backend]
+      properties:
+        enabled: { type: boolean }
+        backend: { $ref: "#/components/schemas/OcrBackend" }
+    AdminFeatureModel:
+      type: object
+      description: The chosen rerank model (absent when none is chosen)
+      required: [displayName, enabled]
+      properties:
+        displayName: { type: string }
+        enabled: { type: boolean, description: The model and its connection are enabled }
+    AdminSetupState:
+      type: object
+      description: What the Overview's "Set up this install" checklist needs
+      required: [connections, chatModelClassifications, defaultProfile, teams]
+      properties:
+        connections: { type: integer }
+        chatModelClassifications:
+          type: array
+          description: The maximum classification of each enabled chat model
+          items: { type: string }
+        defaultProfile: { type: boolean, description: An active default embedding profile exists }
+        teams: { type: integer, description: "Teams (0 or 1: whether any exists)" }
     AdminOverview:
       type: object
       required: [teams, users, content, failedIngest, teamsNearLimits]
@@ -8759,11 +8884,12 @@ components:
           allOf: [{ $ref: "#/components/schemas/TeamRole" }]
     TeamSummary:
       type: object
-      required: [team, memberCount, ownerCount, agentCount, sourceCount, kbCount, documentCount, storageBytes]
+      required: [team, memberCount, ownerCount, ownerInvites, agentCount, sourceCount, kbCount, documentCount, storageBytes]
       properties:
         team: { $ref: "#/components/schemas/Team" }
         memberCount: { type: integer, format: int64 }
         ownerCount: { type: integer, format: int64 }
+        ownerInvites: { type: integer, format: int64, description: "Open owner invites (an owner invited by email who hasn't signed in yet)" }
         agentCount: { type: integer, format: int64 }
         sourceCount: { type: integer, format: int64, description: The team's own data sources (shared sources aren't counted) }
         kbCount: { type: integer, format: int64 }
@@ -10827,7 +10953,7 @@ components:
             details: { $ref: "#/components/schemas/LimitErrorDetails" }
     PlatformLimit:
       type: object
-      required: [key, group, unit, period, label, description, default, ceiling, builtInDefault, custom]
+      required: [key, group, unit, period, label, description, default, ceiling, builtInDefault, custom, capped]
       properties:
         key: { $ref: "#/components/schemas/LimitKey" }
         group: { $ref: "#/components/schemas/LimitGroup" }
@@ -10849,6 +10975,17 @@ components:
           description: "The most Grounded allows for this limit, whatever the ceiling: an empty default or ceiling means it, and higher values are refused. Absent when there is none."
           type: integer
           format: int64
+        capped:
+          type: array
+          description: Active teams whose own value is above the ceiling, so the ceiling applies to them
+          items: { $ref: "#/components/schemas/CappedTeam" }
+    CappedTeam:
+      type: object
+      required: [teamSlug, teamName, override]
+      properties:
+        teamSlug: { type: string }
+        teamName: { type: string }
+        override: { type: integer, format: int64, description: "The team's own value" }
     PlatformLimits:
       type: object
       required: [revision, updatedAt, items]
@@ -11285,14 +11422,26 @@ components:
         defaultTopN: { type: integer, description: Passages an agent keeps after reranking unless it sets rerankTopN }
     RerankSettings:
       type: object
-      required: [modelId, candidates, timeLimitMs, agents, revision]
+      required: [modelId, candidates, timeLimitMs, agents, agentsOff, revision]
       properties:
         modelId: { type: string, format: uuid, nullable: true, description: "The rerank model; null: searches aren't reranked" }
         candidates: { type: integer, minimum: 5, maximum: 50, description: "Fused hits a search reranks (more when a search asks for more results)" }
         timeLimitMs: { type: integer, minimum: 200, maximum: 10000, description: "The longest a search waits for the rerank call; then it keeps the fusion order" }
         agents: { type: integer, description: "Published agents that rerank (they don't turn it off)" }
+        agentsOff:
+          type: array
+          description: "Published agents whose published version turns reranking off (at most 100, by team and name)"
+          items: { $ref: "#/components/schemas/RerankOffAgent" }
         revision: { $ref: "#/components/schemas/Revision" }
         updatedAt: { type: string, format: date-time, nullable: true }
+    RerankOffAgent:
+      type: object
+      required: [agentId, name, teamSlug, teamName]
+      properties:
+        agentId: { type: string, format: uuid }
+        name: { type: string }
+        teamSlug: { type: string }
+        teamName: { type: string }
     RerankSettingsInput:
       type: object
       required: [modelId, candidates, timeLimitMs]
@@ -12654,7 +12803,7 @@ components:
     PlatformAnalyticsModel:
       type: object
       description: One model's tokens in the usage ledger (all usage, including draft tests, and ingestion for embedding models)
-      required: [modelId, modelName, kind, chatInputTokens, chatOutputTokens, embeddingTokens]
+      required: [modelId, modelName, kind, chatInputTokens, chatOutputTokens, embeddingTokens, otherTokens]
       properties:
         modelId: { type: string, format: uuid }
         modelName: { type: string, description: '"" when the model was deleted' }
@@ -12662,6 +12811,7 @@ components:
         chatInputTokens: { type: integer, format: int64 }
         chatOutputTokens: { type: integer, format: int64 }
         embeddingTokens: { type: integer, format: int64 }
+        otherTokens: { type: integer, format: int64, description: "SystemOne, rerank and OCR (vision) tokens, as Costs counts them" }
     PlatformAnalyticsAgent:
       type: object
       required: [agentId, agentSlug, agentName, teamId, teamSlug, teamName, deleted, answers, noContextRate, satisfaction, citationSupportRate]

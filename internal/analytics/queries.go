@@ -90,23 +90,25 @@ func (s *Service) moderation(ctx context.Context, out *Overview, args []any) (er
 }
 
 // models fills the tokens by model from the usage ledger: chat input and
-// output, and embedding tokens of both retrieval and ingestion (of one team
+// output, embedding tokens of both retrieval and ingestion, and the other
+// tokens Costs counts (SystemOne, rerank, OCR vision; AD-28) (of one team
 // when team is set; the ledger has no audience). Events that retention
 // deleted count through their daily roll-ups (usage_daily), by UTC day.
 func (s *Service) models(ctx context.Context, out *Overview, from, end time.Time, team uuid.NullUUID) (err error) {
 	out.Models, err = QueryInto(ctx, s.Pool, []ModelTokens{}, func(r pgx.Rows, m *ModelTokens) error {
-		return r.Scan(&m.ModelID, &m.ModelName, &m.Kind, &m.ChatInput, &m.ChatOutput, &m.Embedding)
+		return r.Scan(&m.ModelID, &m.ModelName, &m.Kind, &m.ChatInput, &m.ChatOutput, &m.Embedding, &m.Other)
 	}, `SELECT u.model_id, coalesce(m.display_name, ''), coalesce(m.kind, ''),
 			coalesce(sum(u.quantity) FILTER (WHERE u.kind = 'chat_tokens_in'), 0)::bigint,
 			coalesce(sum(u.quantity) FILTER (WHERE u.kind = 'chat_tokens_out'), 0)::bigint,
-			coalesce(sum(u.quantity) FILTER (WHERE u.kind = 'embed_tokens'), 0)::bigint
+			coalesce(sum(u.quantity) FILTER (WHERE u.kind = 'embed_tokens'), 0)::bigint,
+			coalesce(sum(u.quantity) FILTER (WHERE u.kind IN ('systemone_tokens', 'rerank_tokens', 'vision_tokens_in', 'vision_tokens_out')), 0)::bigint
 		FROM (SELECT model_id, kind, quantity, team_id FROM usage_events WHERE occurred_at >= $1 AND occurred_at < $2
 			UNION ALL
 			SELECT model_id, kind, quantity, team_id FROM usage_daily
 			WHERE day >= ($1::timestamptz AT TIME ZONE 'UTC')::date AND day < $2::timestamptz AT TIME ZONE 'UTC') u
 		LEFT JOIN models m ON m.id = u.model_id
 		WHERE u.model_id IS NOT NULL
-			AND u.kind IN ('chat_tokens_in', 'chat_tokens_out', 'embed_tokens') AND ($3::uuid IS NULL OR u.team_id = $3)
+			AND u.kind IN ('chat_tokens_in', 'chat_tokens_out', 'embed_tokens', 'systemone_tokens', 'rerank_tokens', 'vision_tokens_in', 'vision_tokens_out') AND ($3::uuid IS NULL OR u.team_id = $3)
 		GROUP BY u.model_id, m.display_name, m.kind ORDER BY sum(u.quantity) DESC, 2`, from, end, team)
 	return err
 }

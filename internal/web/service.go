@@ -167,6 +167,9 @@ func (s *Service) AddAllowlist(ctx context.Context, a authz.Actor, pattern, note
 	if err != nil {
 		return dbgen.CrawlAllowlist{}, err
 	}
+	if s.Fetcher.BlocksPattern(p) {
+		return dbgen.CrawlAllowlist{}, errBlockedAddress
+	}
 	note = strings.TrimSpace(note)
 	if len(note) > 500 {
 		return dbgen.CrawlAllowlist{}, apperr.Invalid("invalid_note", "The note must be at most 500 characters")
@@ -283,6 +286,9 @@ func (s *Service) CreateRequest(ctx context.Context, a authz.Actor, teamRef, pat
 	p, err := NormalizePattern(pattern, false)
 	if err != nil {
 		return DomainRequest{}, err
+	}
+	if s.Fetcher.BlocksPattern(p) {
+		return DomainRequest{}, errBlockedAddress
 	}
 	reason = strings.TrimSpace(reason)
 	if len(reason) < 10 || len(reason) > 2000 {

@@ -79,7 +79,7 @@ export function ServerRecordPage({ server, health, open, loading, onClose, isAdm
                     </div>
                     <ErrorAlert error={test.error} />
                     {test.data?.ok ? (
-                      <Alert tone="success" title={`Connected in ${test.data.latencyMs} ms`}>
+                      <Alert tone="success" title={`Connected in ${test.data.latencyMs.toLocaleString()} ms`}>
                         The server lists {test.data.toolCount} tools. No tool was called.
                       </Alert>
                     ) : test.data ? (

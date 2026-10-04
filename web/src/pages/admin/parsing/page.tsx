@@ -10,7 +10,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { api, ifMatch, unwrap } from "@/api/client";
+import { ApiError, api, ifMatch, unwrap } from "@/api/client";
 import { QueryView } from "@/components/query-view";
 import { useRevisionForm } from "@/components/templates/revision-form";
 import { SettingsPage, SettingsSection } from "@/components/templates/settings-page";
@@ -75,7 +75,9 @@ function ParsingEditor({ saved, visionModels, isAdmin }: { saved: ParsingSetting
   const [submitted, setSubmitted] = useState(false);
   const save = useSave(saved, (st) => setForm(parsingForm(st)));
   const problems = parsingProblems(form, saved);
-  const shown = submitted ? problems : {};
+  // The server checks the languages against the Tesseract sidecar (AD-07): its answer goes on the field.
+  const langError = save.error instanceof ApiError && (save.error.code === "language_not_installed" || save.error.code === "invalid_languages") ? save.error.message : undefined;
+  const shown = { ...(langError ? { languages: langError } : {}), ...(submitted ? problems : {}) };
   const invalid = submitted && Object.keys(problems).length > 0;
   const changes = parsingChanges(saved, form);
   const set = (patch: Partial<ParsingForm>) => setForm((f) => ({ ...f, ...patch }));
@@ -86,14 +88,17 @@ function ParsingEditor({ saved, visionModels, isAdmin }: { saved: ParsingSetting
       canEdit={isAdmin}
       readOnlyNote={adminOnly}
       saving={save.isPending}
-      error={save.error}
+      error={langError ? undefined : save.error}
       saveLabel="Save settings"
-      message={invalid ? `Not saved: ${Object.values(problems)[0]}` : changes === 1 ? "1 unsaved change" : `${changes} unsaved changes`}
+      message={langError ? "Not saved: fix the languages." : invalid ? `Not saved: ${Object.values(problems)[0]}` : changes === 1 ? "1 unsaved change" : `${changes} unsaved changes`}
       onSave={() => {
         setSubmitted(true);
         if (Object.keys(problems).length === 0) save.mutate(form);
       }}
-      onDiscard={() => setForm(parsingForm(saved))}
+      onDiscard={() => {
+        setForm(parsingForm(saved));
+        save.reset();
+      }}
     >
       <SettingsSection
         title="OCR"
@@ -107,7 +112,7 @@ function ParsingEditor({ saved, visionModels, isAdmin }: { saved: ParsingSetting
           disabled={!isAdmin}
           onCheckedChange={(v) => set({ ocrEnabled: v })}
         />
-        <BackendFields form={form} set={set} saved={saved} visionModels={visionModels} disabled={!isAdmin} problems={shown} />
+        <BackendFields form={form} set={(p) => (save.reset(), set(p))} saved={saved} visionModels={visionModels} disabled={!isAdmin} problems={shown} />
       </SettingsSection>
       <SettingsSection title="Limits" description="Keep OCR's cost bounded. The daily limit is a team limit.">
         <DescriptionList
@@ -141,12 +146,13 @@ type BackendProps = {
 };
 
 function BackendFields({ form, set, saved, visionModels, disabled, problems }: BackendProps) {
-  const options = saved.backends.map((b) => ({
-    value: b.backend,
-    label: backendLabels[b.backend],
-    description: b.configured ? backendDescriptions[b.backend] : `Not configured: set ${b.configuredBy}.`,
-    disabled: !b.configured && b.backend !== form.backend,
-  }));
+  // Vision needs a vision model (AD-24): with none, it says so and can't be chosen.
+  const noVision = visionModels.length === 0;
+  const options = saved.backends.map((b) => {
+    const usable = b.configured && !(b.backend === "vision" && noVision);
+    const why = b.backend === "vision" && noVision ? "No vision models yet: add a model of kind Vision in Admin → Models." : `Not configured: set ${b.configuredBy}.`;
+    return { value: b.backend, label: backendLabels[b.backend], description: usable ? backendDescriptions[b.backend] : why, disabled: !usable && b.backend !== form.backend };
+  });
   const selected = visionModels.find((m) => m.id === form.visionModelId);
   return (
     <>

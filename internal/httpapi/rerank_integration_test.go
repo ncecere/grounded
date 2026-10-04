@@ -244,6 +244,18 @@ func TestRerankInChatAndEvaluations(t *testing.T) {
 	if n := env.scalar(t, `SELECT count(*) FROM usage_events WHERE kind = 'rerank_requests' AND agent_id = $1`, ag.Id); n != 1 {
 		t.Errorf("chat rerank usage = %d", n)
 	}
+	// Admin analytics count rerank tokens too, as Costs does (AD-28).
+	var pa apitypes.PlatformAnalytics
+	env.admin.get("/v1/admin/analytics", &pa)
+	other := int64(0)
+	for _, m := range pa.Models {
+		if m.ModelId == env.reranker.Id {
+			other = m.OtherTokens
+		}
+	}
+	if other <= 0 {
+		t.Errorf("rerank tokens in analytics = %d (%+v)", other, pa.Models)
+	}
 	var st apitypes.RerankSettings
 	if env.admin.get("/v1/admin/rerank", &st); st.Agents != 1 {
 		t.Errorf("agents reranking = %d", st.Agents)
@@ -259,6 +271,11 @@ func TestRerankInChatAndEvaluations(t *testing.T) {
 	evs.one(t, "retrieval", &ret)
 	if len(env.proxy.RerankRequests()) != before || len(ret.Hits) != 4 {
 		t.Errorf("reranked with rerank off: %d hits", len(ret.Hits))
+	}
+	// Admin > Models > Reranking lists the agents that turn it off (OW-2).
+	st = apitypes.RerankSettings{}
+	if env.admin.get("/v1/admin/rerank", &st); st.Agents != 1 || len(st.AgentsOff) != 1 || st.AgentsOff[0].Name != "Plain" || st.AgentsOff[0].TeamSlug == "" {
+		t.Errorf("agents off = %d %+v", st.Agents, st.AgentsOff)
 	}
 	code, raw := env.editor.raw("POST", env.base+"/agents", map[string]any{"name": "Bad", "config": map[string]any{"rerankTopN": 21}}, nil)
 	if pb := decodeProblems(t, raw); code != 400 || !hasField(pb.Error.Details.Problems, "rerankTopN") {

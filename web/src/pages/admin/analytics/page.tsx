@@ -65,9 +65,8 @@ export function AdminAnalyticsPage() {
       <PageHeader
         title="Analytics"
         description="How agents are used across the platform, in aggregates only: no questions, answers or people. Days are UTC (Costs uses the platform's time zone); draft test chats are left out except from token usage."
-        actions={<DateRangeFilter range={dates} label="Analytics date range" />}
       />
-      <AnalyticsFilters {...filters} />
+      <AnalyticsFilters {...filters} range={<DateRangeFilter range={dates} label="Analytics date range" />} />
       {data.isLoading ? (
         <Loading label="Loading analytics…" />
       ) : data.error ? (

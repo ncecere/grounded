@@ -1,6 +1,9 @@
 package httpapi_test
 
-import "time"
+import (
+	"testing"
+	"time"
+)
 
 // Classification of costs and budgets (docs/costs.md §6): platform admins
 // change prices, settings, budgets and extensions; auditors read the admin
@@ -48,6 +51,15 @@ var costAdminPolicies = map[string]policy{
 	"adminGrantBudgetExtension": {own: padmin, build: func(c *mctx) request {
 		return post("/v1/admin/teams/"+c.e.b.slug+"/budget/extensions", map[string]any{"amount": "1", "reason": "Authorization matrix"})
 	}},
+	"adminRevokeBudgetExtension": {own: padmin, build: func(c *mctx) request {
+		return del("/v1/admin/teams/" + c.e.b.slug + "/budget/extensions/" + c.e.freshExtension(c.t))
+	}},
+}
+
+// freshExtension grants team B an extension this month and returns its id.
+func (e *matrixEnv) freshExtension(t *testing.T) string {
+	body := map[string]any{"amount": "1", "reason": "Authorization matrix"}
+	return field(must(t, e.admin, "POST", "/v1/admin/teams/"+e.b.slug+"/budget/extensions", body, nil), "extensions.0.id")
 }
 
 var costTeamPolicies = map[string]policy{

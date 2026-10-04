@@ -61,6 +61,7 @@ People who run the admin portal: models, classifications, policies and governanc
 | [DESIGN §10, Models and gateway](DESIGN.md#10-models-and-gateway-adr-0005-adr-0007) | Connections, models, compatibility flags and embedding profiles |
 | [DESIGN §11, Limits and usage](DESIGN.md#11-limits-and-usage) | Limit defaults, ceilings and team overrides |
 | [`deployments/README.md`](deployments/README.md) | Deployment profiles, and recipes for self-hosted models (vLLM, SGLang) |
+| [`operations/settings.md`](operations/settings.md) | Admin → Settings: the currency, time zone and default budget, the feature switches, what the environment sets |
 | [`operations/retention.md`](operations/retention.md) | Retention periods, the dry run, and the legal hold procedure |
 | [`operations/break-glass.md`](operations/break-glass.md) | Reading a team's content under a break-glass session |
 | [`operations/profile-migration.md`](operations/profile-migration.md) | Moving a knowledge base to a new embedding profile |

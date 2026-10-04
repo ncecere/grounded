@@ -69,7 +69,7 @@ export function RetentionSettingsTab({ saved, isAdmin }: { saved: Settings; isAd
       canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={save.isPending && !confirming}
       error={confirming ? undefined : save.error}
-      saveLabel="Save periods"
+      saveLabel="Save settings"
       message={submitted && invalid ? "Not saved: fix the highlighted period" : undefined}
       onSave={() => {
         setSubmitted(true);
@@ -107,7 +107,7 @@ export function RetentionSettingsTab({ saved, isAdmin }: { saved: Settings; isAd
         tone="danger"
         title="Delete more data?"
         description="The next run, within 10 minutes, permanently deletes what's past these periods. Legal holds still apply. Check the dry run first."
-        confirmLabel="Save periods"
+        confirmLabel="Save settings"
         busy={save.isPending}
         error={save.error}
         onConfirm={() => save.mutate()}

@@ -16,6 +16,7 @@ export type AdminPath =
   | "/admin/embedding-profiles"
   | "/admin/mcp-servers"
   | "/admin/systemone"
+  | "/admin/reranking"
   | "/admin/shared-sources"
   | "/admin/crawl-domains"
   | "/admin/parsing"
@@ -26,6 +27,7 @@ export type AdminPath =
   | "/admin/moderation"
   | "/admin/public-access"
   | "/admin/maintenance"
+  | "/admin/settings"
   | "/admin/retention"
   | "/admin/break-glass"
   | "/admin/logs";
@@ -33,7 +35,8 @@ export type AdminPath =
 export type AdminNavItem = { to: AdminPath; label: string; icon: ReactNode; exact?: boolean; /** Only when a SystemOne model exists. */ systemOne?: boolean };
 
 /**
- * Admin sidebar groups (D6; regrouped in v0.2.1, I1): Overview and 7 groups, 22 items (MCP servers joined Models in v0.3).
+ * Admin sidebar groups (D6; regrouped in v0.2.1, I1): Overview and 7 groups, 24 items (MCP servers joined Models in v0.3, Reranking and
+ * Settings in v0.4.2).
  * Profile migrations is a tab of Embedding profiles and Legal holds a tab of
  * Retention (adminTabCommands keeps both in ⌘K).
  */
@@ -64,6 +67,8 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
       { to: "/admin/embedding-profiles", label: "Embedding profiles", icon: icon(Layers) },
       { to: "/admin/mcp-servers", label: "MCP servers", icon: icon(Blocks) },
       { to: "/admin/systemone", label: "SystemOne", icon: icon(Sparkles), systemOne: true },
+      // Always shown, so the app says reranking exists before a rerank model does (OW-2).
+      { to: "/admin/reranking", label: "Reranking", icon: icon(ArrowDownWideNarrow) },
     ],
   },
   {
@@ -90,7 +95,14 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
       { to: "/admin/break-glass", label: "Break-glass", icon: icon(LockOpen) },
     ],
   },
-  { label: "Operations", items: [{ to: "/admin/maintenance", label: "Maintenance", icon: icon(Wrench) }] },
+  {
+    label: "Operations",
+    items: [
+      { to: "/admin/maintenance", label: "Maintenance", icon: icon(Wrench) },
+      // The platform's general settings and feature switches, with links to the areas that keep their own (AD-39).
+      { to: "/admin/settings", label: "Settings", icon: icon(Settings) },
+    ],
+  },
 ];
 
 /** Admin group labels before v0.2.1 and the group each one's pages mostly went to (remembered open groups, admin-groups.ts). */
@@ -98,7 +110,7 @@ export const oldAdminGroups: Record<string, string[]> = { Policy: ["Safety"], Mo
 
 /**
  * Admin places inside a sidebar page, for ⌘K: tabs (Profile migrations and Legal holds, whose old pages
- * redirect there, router.tsx; Budgets) and the Overview's Features card. Their names rank above the page
+ * redirect there, router.tsx; Budgets) and the feature switches on Admin → Settings. Their names rank above the page
  * that holds them, so typing "legal holds" or "budget" and pressing Enter opens the place itself.
  */
 export const adminTabCommands: { id: string; label: string; to: AdminPath; tab?: string; hash?: string; icon: ReactNode; keywords: string[] }[] = [
@@ -129,7 +141,7 @@ export const adminTabCommands: { id: string; label: string; to: AdminPath; tab?:
   {
     id: "features",
     label: "Features",
-    to: "/admin",
+    to: "/admin/settings",
     hash: "features",
     icon: icon(ToggleRight),
     keywords: [
@@ -140,7 +152,7 @@ export const adminTabCommands: { id: string; label: string; to: AdminPath; tab?:
   {
     id: "saved-answers",
     label: "Saved answers",
-    to: "/admin",
+    to: "/admin/settings",
     hash: "features",
     icon: icon(BookmarkCheck),
     keywords: ["saved", "saved answers", "answer cache", "cache", "reuse answers", "reused answers", "feature", "turn on", "turn off"],
@@ -148,8 +160,8 @@ export const adminTabCommands: { id: string; label: string; to: AdminPath; tab?:
   {
     id: "reranking",
     label: "Reranking settings",
-    to: "/admin/models",
-    hash: "reranking",
+    to: "/admin/reranking",
+    hash: "settings",
     icon: icon(ArrowDownWideNarrow),
     keywords: ["rerank", "reranking", "re-rank", "reranker", "rerank model", "cross-encoder", "candidates", "time limit", "models"],
   },
@@ -186,6 +198,11 @@ export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
   "/admin/retention": ["records", "delete", "purge", "keep", "dry run", "transcripts", "period", "legal holds"],
   "/admin/break-glass": ["emergency access", "read team content", "transcripts", "approval", "investigate"],
   "/admin/embedding-profiles": ["embedding", "vectors", "chunking", "passages", "dimensions", "migrations"],
+  "/admin/reranking": ["rerank", "reranker", "rerank model", "cross-encoder", "candidates", "time limit", "bge-reranker", "test reranking"],
+  "/admin/settings": [
+    "settings", "platform settings", "general", "configuration", "time zone", "timezone", "currency", "default budget", "instance name",
+    "environment", "features", "feature switches",
+  ],
   "/admin/systemone": ["judging", "passages", "injection", "judgment", "citation check", "jev", "typesafe"],
 };
 

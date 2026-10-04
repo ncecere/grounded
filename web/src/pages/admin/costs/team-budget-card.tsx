@@ -12,6 +12,7 @@ import { dayLabel } from "@/components/analytics/format";
 import { Money } from "@/components/money";
 import { ErrorAlert } from "@/components/ui/alert/alert";
 import { Button } from "@/components/ui/button/button";
+import type { Schemas } from "@/api/client";
 import { Card } from "@/components/ui/card/card";
 import { DescriptionList } from "@/components/ui/description-list/description-list";
 import { Loading } from "@/components/ui/spinner/spinner";
@@ -19,7 +20,7 @@ import { Table, Td, Tr } from "@/components/ui/table/table";
 import { budgetThisMonth, monthLabel, trackingText, useCostSettings } from "@/lib/costs";
 import { useCurrentUser } from "@/session";
 import s from "../../shared.module.css";
-import { BudgetDialog, ExtensionDialog, teamBudgetQuery } from "./budget-dialogs";
+import { BudgetDialog, ExtensionDialog, RevokeExtensionDialog, teamBudgetQuery } from "./budget-dialogs";
 import { BudgetMeter, BudgetStateBadge, ModeText } from "./budget-parts";
 import c from "./costs.module.css";
 
@@ -29,6 +30,7 @@ export function AdminTeamBudgetCard({ team }: { team: string }) {
   const q = useQuery(teamBudgetQuery(team));
   const [editing, setEditing] = useState(false);
   const [extending, setExtending] = useState(false);
+  const [revoking, setRevoking] = useState<Schemas["BudgetExtension"] | null>(null);
   if (q.isLoading || settings.isLoading) return <Loading label="Loading the team's budget…" />;
   if (!q.data) return <ErrorAlert error={q.error ?? settings.error} title="Couldn't load the team's budget" />;
   const b = q.data;
@@ -98,7 +100,7 @@ export function AdminTeamBudgetCard({ team }: { team: string }) {
           <Table
             caption={inForce ? "Extensions this month" : "Extensions granted this month (not counted: no budget is in force)"}
             showCaption
-            columns={["Added", { label: "Amount", numeric: true }, "Reason", "By"]}
+            columns={["Added", { label: "Amount", numeric: true }, "Reason", "By", ...(isAdmin ? [{ label: "Actions", hideLabel: true }] : [])]}
             density="compact"
           >
             {b.extensions.map((e) => (
@@ -109,6 +111,13 @@ export function AdminTeamBudgetCard({ team }: { team: string }) {
                 </Td>
                 <Td>{e.reason}</Td>
                 <Td muted>{e.createdByName || "—"}</Td>
+                {isAdmin && (
+                  <Td>
+                    <Button size="sm" variant="ghost" aria-label={`Revoke the extension of ${dayLabel(e.createdAt.slice(0, 10))}: ${e.reason}`} onClick={() => setRevoking(e)}>
+                      Revoke
+                    </Button>
+                  </Td>
+                )}
               </Tr>
             ))}
           </Table>
@@ -117,6 +126,7 @@ export function AdminTeamBudgetCard({ team }: { team: string }) {
       </div>
       {editing && <BudgetDialog team={team} budget={b} onClose={() => setEditing(false)} />}
       {extending && <ExtensionDialog team={team} budget={b} onClose={() => setExtending(false)} />}
+      <RevokeExtensionDialog team={team} extension={revoking} currency={cur} onClose={() => setRevoking(null)} />
     </Card>
   );
 }

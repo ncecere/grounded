@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"regexp"
 )
 
 var deniedNetworks = func() []netip.Prefix {
@@ -58,6 +59,24 @@ func publicIP(ip netip.Addr) bool {
 	}
 	return true
 }
+
+// BlocksPattern reports whether a host pattern is an IP address this
+// fetcher never fetches (checkDestination refuses it), so an allowlist entry
+// for it would do nothing (AD-08). Host names are checked when they are
+// resolved, at crawl time; with AllowPrivateForTests nothing is blocked.
+func (f *Fetcher) BlocksPattern(pattern string) bool {
+	if f == nil || f.cfg.AllowPrivateForTests {
+		return false
+	}
+	if ip, err := netip.ParseAddr(pattern); err == nil {
+		return !publicIP(ip)
+	}
+	// Other notations of an address ("0177.0.0.1", "0x7f.0.0.1", "127.1")
+	// are what SSRF attempts use; the guard never treats them as public.
+	return numericHostRE.MatchString(pattern)
+}
+
+var numericHostRE = regexp.MustCompile(`^((0x[0-9a-f]+|[0-9]+)\.)*(0x[0-9a-f]+|[0-9]+)$`)
 
 func defaultPort(scheme string) string {
 	if scheme == "https" {

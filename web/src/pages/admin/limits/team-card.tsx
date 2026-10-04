@@ -74,7 +74,7 @@ export function AdminTeamLimitsCard({ team, teamName }: { team: string; teamName
       canEdit={isAdmin} readOnlyNote={adminOnly}
       saving={save.isPending}
       error={save.error}
-      saveLabel="Save team limits"
+      saveLabel="Save settings"
       message={invalid ? "Not saved: fix the highlighted limit" : unsaved(changes.length)}
       saveDisabled={submitted && invalid}
       onSave={() => {

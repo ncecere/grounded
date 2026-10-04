@@ -1,4 +1,7 @@
-/* Admin → Overview (A1, v0.2.1 I2): the platform at a glance, the attention queue, the Features card with the evaluations switch, the setup checklist and recent changes. */
+/*
+ * Admin → Overview (A1, v0.2.1 I2): the platform at a glance, the attention queue, the Features card, the setup checklist and recent changes;
+ * and the feature switches, on Admin → Settings since v0.4.2 (AD-39).
+ */
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
@@ -158,7 +161,7 @@ describe("admin overview", () => {
     const systemOne = await featureRow("SystemOne");
     // What agents use, not only the platform defaults.
     expect(await within(systemOne).findByText("Configured · checks on 2 agents")).toBeInTheDocument();
-    expect(within(systemOne).getByText("Published agents use citation checks on 2 agents and passage judging on 1 agent, by their own setting or the platform default.")).toBeInTheDocument();
+    expect(within(systemOne).getByText("Citation checks on 2 published agents and passage judging on 1, by each agent's own setting or the platform default.")).toBeInTheDocument();
     expect(within(systemOne).getByRole("link", { name: /SystemOne/ })).toHaveAttribute("href", "/admin/systemone");
     const pub = await featureRow("Public access");
     expect(await within(pub).findByText("On")).toBeInTheDocument();
@@ -166,19 +169,20 @@ describe("admin overview", () => {
     const maintenance = await featureRow("Maintenance");
     expect(await within(maintenance).findByText("Off")).toBeInTheDocument();
     expect(within(maintenance).getByRole("link", { name: /Maintenance/ })).toHaveAttribute("href", "/admin/maintenance");
-    // Evaluations: a state badge, the switch and a link to its limits; its whole description, not clamped.
+    // Evaluations: a state badge and a link to the switch on Admin → Settings (AD-39); its whole description, not clamped.
     const evals = await featureRow("Evaluations");
     expect(await within(evals).findByText("On")).toBeInTheDocument();
-    expect(within(evals).getByRole("link", { name: /Evaluation limits/ })).toHaveAttribute("href", "/admin/limits?tab=evaluations");
+    expect(within(evals).queryByRole("switch")).toBeNull();
+    expect(within(evals).getByRole("link", { name: /Settings/ })).toHaveAttribute("href", "/admin/settings#features");
     expect(within(evals).getByText(/Members never see them\.$/).className).toMatch(/fullText/);
     // The #features link lands below the sticky top bar.
     expect(screen.getByRole("heading", { level: 2, name: "Features" }).closest("section")!.className).toMatch(/features/);
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("turns evaluations off for the platform from the Features card, with If-Match", async () => {
+  it("turns evaluations off for the platform on Admin → Settings, with If-Match", async () => {
     const calls = mockApi(routes({ "PUT /v1/admin/settings/evaluations": (b) => ({ ...(b as object), revision: 3, updatedAt: "2026-09-28T10:00:00Z" }) }));
-    renderApp("/admin");
+    renderApp("/admin/settings");
     const row = await featureRow("Evaluations");
     const toggle = await within(row).findByRole("switch", { name: "Allow evaluations" });
     expect(toggle).toBeChecked();
@@ -195,11 +199,12 @@ describe("admin overview", () => {
     expect(put.headers.get("If-Match")).toBe('"2"');
     expect(await within(row).findByText(/Sets and runs are kept/)).toBeInTheDocument();
     expect(await within(row).findByText("Off")).toBeInTheDocument();
+    expect(within(row).getByRole("link", { name: /Evaluation limits/ })).toHaveAttribute("href", "/admin/limits?tab=evaluations");
   });
 
-  it("turns the MCP server on from the Features card, links its guide, and confirms before turning it off", async () => {
+  it("turns the MCP server on from Admin → Settings, links its guide, and confirms before turning it off", async () => {
     const calls = mockApi(routes({ "PUT /v1/admin/settings/mcp": (b) => ({ ...(b as object), revision: 5, updatedAt: "2026-09-28T10:00:00Z" }) }));
-    const { container } = renderApp("/admin");
+    const { container } = renderApp("/admin/settings");
     const row = await featureRow("MCP server");
     expect(await within(row).findByText("Off")).toBeInTheDocument();
     expect(within(row).getByText("No AI tool can connect over MCP. API keys with the MCP scope are kept.")).toBeInTheDocument();
@@ -235,7 +240,7 @@ describe("admin overview", () => {
         "PUT /v1/admin/settings/mcp": (b) => ({ ...(b as object), revision: 5, updatedAt: "2026-09-28T10:00:00Z" }),
       }),
     );
-    const { container } = renderApp("/admin");
+    const { container } = renderApp("/admin/settings");
     const row = await featureRow("OAuth sign-in for MCP clients");
     expect(within(row).getByText("Experimental")).toBeInTheDocument();
     expect(await within(row).findByText("AI tools connect with API keys only.")).toBeInTheDocument();
@@ -258,7 +263,7 @@ describe("admin overview", () => {
 
   it("shows auditors each feature's state, and the switch disabled with the reason", async () => {
     mockApi(routes({ "GET /v1/me": () => meFor("platform_auditor"), "GET /v1/admin/costs/settings": () => ({ mode: "off", currency: "USD", timeZone: "UTC", warnPercent: 80, defaultBudget: null, revision: 1, updatedAt: "" }) }));
-    renderApp("/admin");
+    renderApp("/admin/settings");
     const row = await featureRow("Evaluations");
     expect(await within(row).findByText("On")).toBeInTheDocument();
     const toggle = within(row).getByRole("switch", { name: "Allow evaluations" });
@@ -275,6 +280,11 @@ describe("admin overview", () => {
     await userEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-checked", checked);
     expect(await axe(document.body)).toHaveNoViolations();
+  });
+
+  it("shows auditors the Overview's requests to open and the cost mode", async () => {
+    mockApi(routes({ "GET /v1/me": () => meFor("platform_auditor"), "GET /v1/admin/costs/settings": () => ({ mode: "off", currency: "USD", timeZone: "UTC", warnPercent: 80, defaultBudget: null, revision: 1, updatedAt: "" }) }));
+    renderApp("/admin");
     // Read-only staff open the requests; they don't review them.
     const queue = (await screen.findByText("Needs attention")).closest("section")!;
     expect(await within(queue).findByRole("link", { name: /View requests/ })).toBeInTheDocument();
@@ -302,7 +312,7 @@ describe("admin overview", () => {
     const steps = setupSteps({
       connections: 1,
       chatModels: [{ maxClassification: "sensitive" }],
-      profiles: [{ status: "active", isDefault: true }],
+      defaultProfile: true,
       levels: [
         { key: "open", rank: 0, name: "Open" },
         { key: "sensitive", rank: 1, name: "Sensitive" },

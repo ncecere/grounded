@@ -4430,6 +4430,61 @@ type AdminFailedIngest struct {
 	TeamSlug *string `json:"teamSlug"`
 }
 
+// AdminFeatureCosts defines model for AdminFeatureCosts.
+type AdminFeatureCosts struct {
+	Settings CostSettings `json:"settings"`
+
+	// Teams Active teams whose effective cost mode isn't the platform's (a team setting)
+	Teams []AdminFeatureTeamMode `json:"teams"`
+}
+
+// AdminFeatureModel The chosen rerank model (absent when none is chosen)
+type AdminFeatureModel struct {
+	DisplayName string `json:"displayName"`
+
+	// Enabled The model and its connection are enabled
+	Enabled bool `json:"enabled"`
+}
+
+// AdminFeatureOCR defines model for AdminFeatureOCR.
+type AdminFeatureOCR struct {
+	// Backend tesseract: the grounded-ocr sidecar; tika: Apache Tika (the -full image); vision: a vision model
+	Backend OcrBackend `json:"backend"`
+	Enabled bool       `json:"enabled"`
+}
+
+// AdminFeatureTeamMode defines model for AdminFeatureTeamMode.
+type AdminFeatureTeamMode struct {
+	// Mode off: nothing is tracked or refused; track: spend is reported; enforce: track, plus monthly budgets
+	Mode     CostMode `json:"mode"`
+	TeamName string   `json:"teamName"`
+}
+
+// AdminFeatures defines model for AdminFeatures.
+type AdminFeatures struct {
+	AnswerCache *AnswerCacheSettings `json:"answerCache,omitempty"`
+	Costs       AdminFeatureCosts    `json:"costs"`
+	Evaluations EvaluationSettings   `json:"evaluations"`
+
+	// GroupMappingRules SSO group mapping rules
+	GroupMappingRules int                  `json:"groupMappingRules"`
+	Maintenance       MaintenanceSettings  `json:"maintenance"`
+	Mcp               MCPSettings          `json:"mcp"`
+	Ocr               AdminFeatureOCR      `json:"ocr"`
+	PublicAccess      PublicAccessSettings `json:"publicAccess"`
+
+	// PublicModeration The public audience's moderation policy has a provider
+	PublicModeration bool           `json:"publicModeration"`
+	Rerank           RerankSettings `json:"rerank"`
+
+	// RerankModel The chosen rerank model (absent when none is chosen)
+	RerankModel *AdminFeatureModel `json:"rerankModel,omitempty"`
+
+	// Setup What the Overview's "Set up this install" checklist needs
+	Setup     AdminSetupState   `json:"setup"`
+	SystemOne SystemOneSettings `json:"systemOne"`
+}
+
 // AdminGapCounts defines model for AdminGapCounts.
 type AdminGapCounts struct {
 	From      openapi_types.Date `json:"from"`
@@ -4543,6 +4598,19 @@ type AdminOverviewUsers struct {
 	SignedInLast7Days int64 `json:"signedInLast7Days"`
 	Suspended         int64 `json:"suspended"`
 	Total             int64 `json:"total"`
+}
+
+// AdminSetupState What the Overview's "Set up this install" checklist needs
+type AdminSetupState struct {
+	// ChatModelClassifications The maximum classification of each enabled chat model
+	ChatModelClassifications []string `json:"chatModelClassifications"`
+	Connections              int      `json:"connections"`
+
+	// DefaultProfile An active default embedding profile exists
+	DefaultProfile bool `json:"defaultProfile"`
+
+	// Teams Teams (0 or 1: whether any exists)
+	Teams int `json:"teams"`
 }
 
 // AdminWarning A setting that is allowed but deserves attention (DESIGN.md §16). Settings that are unsafe in production stop Grounded from starting instead.
@@ -5502,6 +5570,14 @@ type Capabilities struct {
 	McpOAuth        *bool `json:"mcpOAuth,omitempty"`
 	PlatformAdmin   bool  `json:"platformAdmin"`
 	PlatformAuditor bool  `json:"platformAuditor"`
+}
+
+// CappedTeam defines model for CappedTeam.
+type CappedTeam struct {
+	// Override The team's own value
+	Override int64  `json:"override"`
+	TeamName string `json:"teamName"`
+	TeamSlug string `json:"teamSlug"`
 }
 
 // CaptchaInfo defines model for CaptchaInfo.
@@ -9326,6 +9402,9 @@ type PlatformAnalyticsModel struct {
 
 	// ModelName "" when the model was deleted
 	ModelName string `json:"modelName"`
+
+	// OtherTokens SystemOne, rerank and OCR (vision) tokens, as Costs counts them
+	OtherTokens int64 `json:"otherTokens"`
 }
 
 // PlatformAnalyticsTeam defines model for PlatformAnalyticsTeam.
@@ -9378,6 +9457,9 @@ type PlatformAnalyticsTotals struct {
 type PlatformLimit struct {
 	// BuiltInDefault The default before any platform admin changed it
 	BuiltInDefault *LimitValue `json:"builtInDefault"`
+
+	// Capped Active teams whose own value is above the ceiling, so the ceiling applies to them
+	Capped []CappedTeam `json:"capped"`
 
 	// Ceiling The most a team override (and the default) may be; null = no ceiling
 	Ceiling *LimitValue `json:"ceiling"`
@@ -9813,10 +9895,21 @@ type RerankModelTest struct {
 	RelevantText   string  `json:"relevantText"`
 }
 
+// RerankOffAgent defines model for RerankOffAgent.
+type RerankOffAgent struct {
+	AgentId  openapi_types.UUID `json:"agentId"`
+	Name     string             `json:"name"`
+	TeamName string             `json:"teamName"`
+	TeamSlug string             `json:"teamSlug"`
+}
+
 // RerankSettings defines model for RerankSettings.
 type RerankSettings struct {
 	// Agents Published agents that rerank (they don't turn it off)
 	Agents int `json:"agents"`
+
+	// AgentsOff Published agents whose published version turns reranking off (at most 100, by team and name)
+	AgentsOff []RerankOffAgent `json:"agentsOff"`
 
 	// Candidates Fused hits a search reranks (more when a search asks for more results)
 	Candidates int `json:"candidates"`
@@ -10656,6 +10749,9 @@ type TeamSummary struct {
 	MemberCount   int64 `json:"memberCount"`
 	OwnerCount    int64 `json:"ownerCount"`
 
+	// OwnerInvites Open owner invites (an owner invited by email who hasn't signed in yet)
+	OwnerInvites int64 `json:"ownerInvites"`
+
 	// SourceCount The team's own data sources (shared sources aren't counted)
 	SourceCount  int64 `json:"sourceCount"`
 	StorageBytes int64 `json:"storageBytes"`
@@ -11187,6 +11283,12 @@ type AdminListBreakGlassReadsParams struct {
 	// Cursor nextCursor from the previous page
 	Cursor *CursorParam `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *LimitParam  `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// AdminDeleteClassificationParams defines parameters for AdminDeleteClassification.
+type AdminDeleteClassificationParams struct {
+	// IfMatch The resource's revision, as returned in ETag (for example "3"). Missing returns 428; stale returns 412.
+	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
 // AdminUpdateClassificationParams defines parameters for AdminUpdateClassification.

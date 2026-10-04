@@ -3,22 +3,20 @@
  * embedding profile → classification approvals → public moderation → first
  * team. Shown until every step is done or an admin dismisses it.
  */
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { api, unwrap } from "@/api/client";
 import { Checklist, type ChecklistStep } from "@/components/ui/checklist/checklist";
 import { useCurrentUser } from "@/session";
 import { useClassificationLevels } from "../../team/common";
-import { useConnections, useModels } from "../models/common";
-import { profilesQuery, publicPolicyQuery } from "./queries";
+import { featuresQuery } from "./queries";
 
 const DISMISS_KEY = "grounded.admin.setup-dismissed";
 
 type Inputs = {
   connections: number;
   chatModels: { maxClassification: string }[];
-  profiles: { status: string; isDefault: boolean }[];
+  defaultProfile: boolean;
   levels: { key: string; rank: number; name: string }[];
   publicModeration: boolean;
   teams: number;
@@ -48,7 +46,7 @@ export function setupSteps(x: Inputs): ChecklistStep[] {
       id: "profile",
       title: "Choose a default embedding profile",
       description: "Sources index their documents with it.",
-      done: x.profiles.some((p) => p.isDefault && p.status === "active"),
+      done: x.defaultProfile,
       action: { label: "Embedding profiles", render: <Link to="/admin/embedding-profiles" /> },
     },
     {
@@ -84,21 +82,18 @@ export function SetupChecklist() {
 
 function AdminSetupChecklist() {
   const [dismissed, setDismissed] = useState(() => globalThis.localStorage?.getItem(DISMISS_KEY) === "1");
-  const connections = useConnections();
-  const models = useModels();
-  const profiles = useQuery(profilesQuery());
+  // From the Overview's one features request (AD-03), not six of its own.
+  const features = useQuery(featuresQuery(useQueryClient()));
   const levels = useClassificationLevels();
-  const policy = useQuery(publicPolicyQuery());
-  const teams = useQuery({ queryKey: ["admin", "teams", "any"], queryFn: async () => unwrap(await api.GET("/v1/admin/teams", { params: { query: { limit: 1 } } })) });
-  const loading = [connections, models, profiles, levels, policy, teams].some((q) => q.isLoading);
-  if (dismissed || loading) return null;
+  if (dismissed || !features.data || !levels.data) return null;
+  const setup = features.data.setup;
   const steps = setupSteps({
-    connections: connections.data?.length ?? 0,
-    chatModels: (models.data ?? []).filter((m) => m.kind === "chat" && m.enabled),
-    profiles: profiles.data ?? [],
-    levels: levels.data ?? [],
-    publicModeration: Boolean(policy.data?.modelId),
-    teams: teams.data?.items.length ?? 0,
+    connections: setup.connections,
+    chatModels: setup.chatModelClassifications.map((maxClassification) => ({ maxClassification })),
+    defaultProfile: setup.defaultProfile,
+    levels: levels.data,
+    publicModeration: features.data.publicModeration,
+    teams: setup.teams,
   });
   if (steps.every((s) => s.done)) return null;
   return (

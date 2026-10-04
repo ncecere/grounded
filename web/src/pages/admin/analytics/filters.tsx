@@ -5,6 +5,7 @@
  * only (the usage ledger has no audience).
  */
 import { useQuery } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { api, unwrap, type Schemas } from "@/api/client";
 import { Select, type SelectItem } from "@/components/ui/select/select";
 import { audienceLabels } from "@/lib/terms";
@@ -33,7 +34,8 @@ export function useAnalyticsFilter() {
   return { filter: { team, audience } as AnalyticsFilter, set };
 }
 
-export function AnalyticsFilters({ filter, set }: ReturnType<typeof useAnalyticsFilter>) {
+/** The filter row; `range` (the date range) comes first, as Costs puts it first above what it filters (VI-27). */
+export function AnalyticsFilters({ filter, set, range }: ReturnType<typeof useAnalyticsFilter> & { range?: ReactNode }) {
   const teams = useQuery({
     queryKey: ["admin", "teams", "analytics-filter"],
     queryFn: async () => unwrap(await api.GET("/v1/admin/teams", { params: { query: { limit: 200 } } })),
@@ -48,6 +50,7 @@ export function AnalyticsFilters({ filter, set }: ReturnType<typeof useAnalytics
   const audienceItems: SelectItem[] = [{ value: ALL, label: "All audiences" }, ...audiences.map((a) => ({ value: a, label: audienceLabels[a] }))];
   return (
     <div className={an.filters} role="group" aria-label="Analytics filters">
+      {range}
       <Select label="Team" size="sm" items={teamItems} value={filter.team ?? ALL} onValueChange={(v) => set("team", v && v !== ALL ? v : undefined)} className={an.filter} />
       <Select
         label="Audience"

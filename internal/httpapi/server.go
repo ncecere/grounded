@@ -314,6 +314,7 @@ func (a *api) platformAdminRoutes() []route {
 		{"PUT", "/v1/admin/limits", a.admin(a.adminUpdateLimits)},
 		{"POST", "/v1/admin/classifications", a.admin(a.adminCreateClassification)},
 		{"PATCH", "/v1/admin/classifications/{key}", a.admin(a.adminUpdateClassification)},
+		{"DELETE", "/v1/admin/classifications/{key}", a.admin(a.adminDeleteClassification)},
 		{"GET", "/v1/admin/audit", a.admin(a.adminListAudit)},
 		{"GET", "/v1/admin/audit/{entryId}", a.admin(a.adminGetAuditEntry)},
 		{"GET", "/v1/admin/agents", a.admin(a.adminListAgents)},
@@ -356,6 +357,7 @@ func (a *api) sharedSourceAdminRoutes() []route {
 		{"GET", "/v1/admin/domain-requests", a.admin(a.adminListDomainRequests)},
 		{"GET", "/v1/admin/attention", a.admin(a.adminGetAttention)},
 		{"GET", "/v1/admin/overview", a.admin(a.adminGetOverview)},
+		{"GET", "/v1/admin/features", a.admin(a.adminGetFeatures)},
 		{"POST", "/v1/admin/domain-requests/{requestId}/review", a.admin(a.adminReviewDomainRequest)},
 		// Platform-shared sources: the team source handlers with the platform
 		// as owner (admins change them; auditors read).
