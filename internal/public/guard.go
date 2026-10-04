@@ -2,6 +2,7 @@ package public
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -100,7 +101,31 @@ func (g *Guard) Admit(ctx context.Context, in Admission) (release func(), err er
 // questions (per address and session, with a key's overrides), counted
 // apart from questions so rating an answer never costs the next question.
 func (g *Guard) AdmitFeedback(ctx context.Context, in Admission) error {
-	return g.perMinute(ctx, in, "pub:fb:")
+	return feedbackTooFast(g.perMinute(ctx, in, "pub:fb:"))
+}
+
+// feedbackTooFast words a feedback refusal as one: the limits are the
+// questions' numbers, but feedback has its own counters (v0.4.2 US-12), and
+// details.counter says which was full.
+func feedbackTooFast(err error) error {
+	var e *apperr.Error
+	if !errors.As(err, &e) || e.Code != "rate_limited" {
+		return err
+	}
+	f := *e
+	details := map[string]any{"counter": "feedback"}
+	if d, ok := e.Details.(map[string]any); ok {
+		for k, v := range d {
+			details[k] = v
+		}
+	}
+	f.Details = details
+	if limit, _ := details["max"].(int64); limit > 0 {
+		f.Message = fmt.Sprintf("You're rating answers too quickly (limit: %d per minute). Try again in a moment.", limit)
+	} else {
+		f.Message = "This assistant isn't taking feedback from visitors right now."
+	}
+	return &f
 }
 
 // perMinute applies the per-address and per-session limits, with counters

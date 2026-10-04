@@ -292,7 +292,7 @@ func (a *api) setPublicMessageFeedback(w http.ResponseWriter, r *http.Request) {
 		s := string(*in.Reason)
 		reason = &s
 	}
-	share := in.Share != nil && *in.Share && in.Rating == apitypes.Down
+	share := in.Share != nil && *in.Share && in.Rating == apitypes.FeedbackRatingDown
 	req := public.FeedbackRequest{MessageID: id, Rating: string(in.Rating), Reason: reason, Share: share}
 	if failed(w, r, a.Public.Feedback(r.Context(), sess, req)) {
 		return

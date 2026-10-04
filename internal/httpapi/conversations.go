@@ -177,7 +177,7 @@ func (a *api) setMessageFeedback(w http.ResponseWriter, r *http.Request) {
 		s := string(*in.Reason)
 		reason = &s
 	}
-	share := in.Share != nil && *in.Share && in.Rating == apitypes.Down
+	share := in.Share != nil && *in.Share && in.Rating == apitypes.FeedbackRatingDown
 	if err := a.Agents.SetFeedback(r.Context(), a.actor(r), id, string(in.Rating), reason, share); err != nil {
 		httpx.Fail(w, r, err)
 		return

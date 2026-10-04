@@ -9247,8 +9247,11 @@ export interface components {
             hitCount: number;
             judging?: components["schemas"]["RetrievalJudging"];
         };
-        /** @enum {string} */
-        FeedbackRating: "up" | "down";
+        /**
+         * @description up or down; none takes the reader's rating back (v0.4.2).
+         * @enum {string}
+         */
+        FeedbackRating: "up" | "down" | "none";
         /** @enum {string} */
         FeedbackReason: "incorrect" | "not_helpful" | "missing_sources" | "wrong_sources" | "outdated" | "harmful_or_unsafe" | "other";
         ConversationMessage: {

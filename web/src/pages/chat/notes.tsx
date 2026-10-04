@@ -5,13 +5,14 @@
  */
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { Ban, CircleStop, RotateCcw, Search, ThumbsDown, ThumbsUp, TriangleAlert, Wrench } from "lucide-react";
+import { Ban, CircleStop, RotateCcw, Search, ThumbsDown, ThumbsUp, TriangleAlert, Undo2, Wrench } from "lucide-react";
 import { Alert } from "@/components/ui/alert/alert";
 import { Button, IconButton } from "@/components/ui/button/button";
 import { Menu, MenuCheckboxItem, MenuGroup, MenuItem, MenuSeparator } from "@/components/ui/menu/menu";
 import { MessageAction } from "@/components/ui/message/message";
 import { Suggestion, Suggestions } from "@/components/ui/suggestion/suggestion";
 import { toast } from "@/components/ui/toast/toast";
+import { VisuallyHidden } from "@/components/ui/visually-hidden/visually-hidden";
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from "@/components/ui/tool/tool";
 import { judgedSummary } from "@/lib/systemone";
 import { useFeedbackSender } from "./feedback-sender";
@@ -199,10 +200,11 @@ export function Feedback({ item, onChange, send: sendProp }: FeedbackProps) {
   const save = useMutation({
     mutationFn: ({ body }: { body: FeedbackBody; shareOnly?: boolean }) => send(item.id!, body),
     onSuccess: (res, { shareOnly }) => {
-      onChange({ rating: res.rating, reason: res.reason, shared: res.shared });
+      onChange(res.rating === "none" ? undefined : { rating: res.rating, reason: res.reason, shared: res.shared });
       setShare(res.shared === true);
       if (shareOnly) toast.success(res.shared ? "Your question is shared with the team" : "Your question is no longer shared");
-      else toast.success("Thanks for the feedback");
+      // The pressed thumb shows it was saved; no toast over the conversation list (US-11). Screen readers hear it.
+      else setSaid(res.rating === "none" ? "Your rating was removed." : "Thanks for the feedback.");
     },
     onError: (err) => {
       setShare(item.feedback?.shared === true);
@@ -211,6 +213,7 @@ export function Feedback({ item, onChange, send: sendProp }: FeedbackProps) {
   });
   const rating = item.feedback?.rating;
   const [share, setShare] = useState(item.feedback?.shared === true);
+  const [said, setSaid] = useState("");
   const reason = feedbackReasons.find((r) => r.value === item.feedback?.reason)?.label;
   const submit = (body: FeedbackBody, shareOnly = false) => !save.isPending && save.mutate({ body, shareOnly });
   const changeShare = (v: boolean) => {
@@ -224,10 +227,12 @@ export function Feedback({ item, onChange, send: sendProp }: FeedbackProps) {
         label="Good answer"
         pressed={rating === "up"}
         className={c.feedbackAction}
-        onClick={() => rating !== "up" && submit({ rating: "up" })}
+        // Pressed again, it takes the rating back (US-11).
+        onClick={() => submit({ rating: rating === "up" ? "none" : "up" })}
       >
         <ThumbsUp aria-hidden />
       </MessageAction>
+      <VisuallyHidden role="status">{said}</VisuallyHidden>
       <Menu
         side="top"
         trigger={
@@ -253,6 +258,14 @@ export function Feedback({ item, onChange, send: sendProp }: FeedbackProps) {
             </MenuItem>
           ))}
         </MenuGroup>
+        {rating === "down" && (
+          <>
+            <MenuSeparator />
+            <MenuItem icon={<Undo2 aria-hidden />} onClick={() => submit({ rating: "none" })}>
+              Remove my rating
+            </MenuItem>
+          </>
+        )}
       </Menu>
     </>
   );
