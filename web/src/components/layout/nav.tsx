@@ -16,6 +16,7 @@ export type AdminPath =
   | "/admin/embedding-profiles"
   | "/admin/mcp-servers"
   | "/admin/systemone"
+  | "/admin/reranking"
   | "/admin/shared-sources"
   | "/admin/crawl-domains"
   | "/admin/parsing"
@@ -33,7 +34,7 @@ export type AdminPath =
 export type AdminNavItem = { to: AdminPath; label: string; icon: ReactNode; exact?: boolean; /** Only when a SystemOne model exists. */ systemOne?: boolean };
 
 /**
- * Admin sidebar groups (D6; regrouped in v0.2.1, I1): Overview and 7 groups, 22 items (MCP servers joined Models in v0.3).
+ * Admin sidebar groups (D6; regrouped in v0.2.1, I1): Overview and 7 groups, 23 items (MCP servers joined Models in v0.3, Reranking in v0.4.2).
  * Profile migrations is a tab of Embedding profiles and Legal holds a tab of
  * Retention (adminTabCommands keeps both in ⌘K).
  */
@@ -64,6 +65,8 @@ export const adminSections: { label?: string; items: AdminNavItem[] }[] = [
       { to: "/admin/embedding-profiles", label: "Embedding profiles", icon: icon(Layers) },
       { to: "/admin/mcp-servers", label: "MCP servers", icon: icon(Blocks) },
       { to: "/admin/systemone", label: "SystemOne", icon: icon(Sparkles), systemOne: true },
+      // Always shown, so the app says reranking exists before a rerank model does (OW-2).
+      { to: "/admin/reranking", label: "Reranking", icon: icon(ArrowDownWideNarrow) },
     ],
   },
   {
@@ -148,8 +151,8 @@ export const adminTabCommands: { id: string; label: string; to: AdminPath; tab?:
   {
     id: "reranking",
     label: "Reranking settings",
-    to: "/admin/models",
-    hash: "reranking",
+    to: "/admin/reranking",
+    hash: "settings",
     icon: icon(ArrowDownWideNarrow),
     keywords: ["rerank", "reranking", "re-rank", "reranker", "rerank model", "cross-encoder", "candidates", "time limit", "models"],
   },
@@ -186,6 +189,7 @@ export const adminKeywords: Partial<Record<AdminPath, string[]>> = {
   "/admin/retention": ["records", "delete", "purge", "keep", "dry run", "transcripts", "period", "legal holds"],
   "/admin/break-glass": ["emergency access", "read team content", "transcripts", "approval", "investigate"],
   "/admin/embedding-profiles": ["embedding", "vectors", "chunking", "passages", "dimensions", "migrations"],
+  "/admin/reranking": ["rerank", "reranker", "rerank model", "cross-encoder", "candidates", "time limit", "bge-reranker", "test reranking"],
   "/admin/systemone": ["judging", "passages", "injection", "judgment", "citation check", "jev", "typesafe"],
 };
 

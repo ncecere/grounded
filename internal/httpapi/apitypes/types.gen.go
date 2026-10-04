@@ -4406,6 +4406,61 @@ type AdminFailedIngest struct {
 	TeamSlug *string `json:"teamSlug"`
 }
 
+// AdminFeatureCosts defines model for AdminFeatureCosts.
+type AdminFeatureCosts struct {
+	Settings CostSettings `json:"settings"`
+
+	// Teams Active teams whose effective cost mode isn't the platform's (a team setting)
+	Teams []AdminFeatureTeamMode `json:"teams"`
+}
+
+// AdminFeatureModel The chosen rerank model (absent when none is chosen)
+type AdminFeatureModel struct {
+	DisplayName string `json:"displayName"`
+
+	// Enabled The model and its connection are enabled
+	Enabled bool `json:"enabled"`
+}
+
+// AdminFeatureOCR defines model for AdminFeatureOCR.
+type AdminFeatureOCR struct {
+	// Backend tesseract: the grounded-ocr sidecar; tika: Apache Tika (the -full image); vision: a vision model
+	Backend OcrBackend `json:"backend"`
+	Enabled bool       `json:"enabled"`
+}
+
+// AdminFeatureTeamMode defines model for AdminFeatureTeamMode.
+type AdminFeatureTeamMode struct {
+	// Mode off: nothing is tracked or refused; track: spend is reported; enforce: track, plus monthly budgets
+	Mode     CostMode `json:"mode"`
+	TeamName string   `json:"teamName"`
+}
+
+// AdminFeatures defines model for AdminFeatures.
+type AdminFeatures struct {
+	AnswerCache *AnswerCacheSettings `json:"answerCache,omitempty"`
+	Costs       AdminFeatureCosts    `json:"costs"`
+	Evaluations EvaluationSettings   `json:"evaluations"`
+
+	// GroupMappingRules SSO group mapping rules
+	GroupMappingRules int                  `json:"groupMappingRules"`
+	Maintenance       MaintenanceSettings  `json:"maintenance"`
+	Mcp               MCPSettings          `json:"mcp"`
+	Ocr               AdminFeatureOCR      `json:"ocr"`
+	PublicAccess      PublicAccessSettings `json:"publicAccess"`
+
+	// PublicModeration The public audience's moderation policy has a provider
+	PublicModeration bool           `json:"publicModeration"`
+	Rerank           RerankSettings `json:"rerank"`
+
+	// RerankModel The chosen rerank model (absent when none is chosen)
+	RerankModel *AdminFeatureModel `json:"rerankModel,omitempty"`
+
+	// Setup What the Overview's "Set up this install" checklist needs
+	Setup     AdminSetupState   `json:"setup"`
+	SystemOne SystemOneSettings `json:"systemOne"`
+}
+
 // AdminGapCounts defines model for AdminGapCounts.
 type AdminGapCounts struct {
 	From      openapi_types.Date `json:"from"`
@@ -4519,6 +4574,19 @@ type AdminOverviewUsers struct {
 	SignedInLast7Days int64 `json:"signedInLast7Days"`
 	Suspended         int64 `json:"suspended"`
 	Total             int64 `json:"total"`
+}
+
+// AdminSetupState What the Overview's "Set up this install" checklist needs
+type AdminSetupState struct {
+	// ChatModelClassifications The maximum classification of each enabled chat model
+	ChatModelClassifications []string `json:"chatModelClassifications"`
+	Connections              int      `json:"connections"`
+
+	// DefaultProfile An active default embedding profile exists
+	DefaultProfile bool `json:"defaultProfile"`
+
+	// Teams Teams (0 or 1: whether any exists)
+	Teams int `json:"teams"`
 }
 
 // AdminWarning A setting that is allowed but deserves attention (DESIGN.md §16). Settings that are unsafe in production stop Grounded from starting instead.

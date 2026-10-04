@@ -27,7 +27,6 @@ import { EnabledBadge, kindLabels, type Model, type ModelKind, type ModelUsage, 
 import { type HealthCheck, healthColumn, healthFacet, useHealthChecks } from "./health";
 import { ModelDialog } from "./model-dialog";
 import { ModelRecordPage, useModelTest } from "./model-record";
-import { RerankingNotice } from "./reranking";
 
 function useDeleteModel(onDeleted: () => void) {
   const qc = useQueryClient();
@@ -110,6 +109,9 @@ export function ModelsPage() {
   const health = useHealthChecks();
   const record = useRecordParam();
   const recordBack = useRecordBack(record.close);
+  // Reranking's setup guide opens Add model with kind Rerank chosen (?form=new&kind=rerank).
+  const [params] = useSearchParams();
+  const presetKind = params.get("kind") as ModelKind | null;
   const test = useModelTest();
   const form = useFormParam();
   const [deleting, setDeleting] = useState<Model | null>(null);
@@ -158,7 +160,6 @@ export function ModelsPage() {
         title="Models"
         description="Models offered to teams, each tagged with the most sensitive data it may process."
         primaryAction={add}
-        notices={<RerankingNotice models={list} isAdmin={isAdmin} />}
         caption="Models"
         columns={columns(levels.data, { connName, usage: usageById, health: health.get })}
         data={list}
@@ -200,7 +201,12 @@ export function ModelsPage() {
         onEdit={setEditing}
         onDelete={setDeleting}
       />
-      {isAdmin && editing && <ModelDialog model={editing === "new" ? null : editing} connections={conns.data ?? []} onClose={form.close} />}
+      {isAdmin && editing && <ModelDialog
+          model={editing === "new" ? null : editing}
+          connections={conns.data ?? []}
+          kind={presetKind && presetKind in kindLabels ? presetKind : undefined}
+          onClose={form.close}
+        />}
       <ConfirmMutationDialog
         target={deleting}
         onClose={() => setDeleting(null)}

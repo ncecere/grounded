@@ -2135,6 +2135,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The admin Overview's feature states and setup steps in one response (platform admins and auditors)
+         * @description What the Overview's Features card and setup checklist show, read in one request instead of one per setting (docs/v0.4.2.md M4). Each settings object is what its own GET returns, with its revision.
+         */
+        get: operations["adminGetFeatures"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/attention": {
         parameters: {
             query?: never;
@@ -5034,6 +5054,52 @@ export interface components {
         };
         Ok: {
             ok: boolean;
+        };
+        AdminFeatures: {
+            evaluations: components["schemas"]["EvaluationSettings"];
+            mcp: components["schemas"]["MCPSettings"];
+            answerCache?: components["schemas"]["AnswerCacheSettings"];
+            costs: components["schemas"]["AdminFeatureCosts"];
+            ocr: components["schemas"]["AdminFeatureOCR"];
+            /** @description SSO group mapping rules */
+            groupMappingRules: number;
+            systemOne: components["schemas"]["SystemOneSettings"];
+            rerank: components["schemas"]["RerankSettings"];
+            rerankModel?: components["schemas"]["AdminFeatureModel"];
+            publicAccess: components["schemas"]["PublicAccessSettings"];
+            /** @description The public audience's moderation policy has a provider */
+            publicModeration: boolean;
+            maintenance: components["schemas"]["MaintenanceSettings"];
+            setup: components["schemas"]["AdminSetupState"];
+        };
+        AdminFeatureCosts: {
+            settings: components["schemas"]["CostSettings"];
+            /** @description Active teams whose effective cost mode isn't the platform's (a team setting) */
+            teams: components["schemas"]["AdminFeatureTeamMode"][];
+        };
+        AdminFeatureTeamMode: {
+            teamName: string;
+            mode: components["schemas"]["CostMode"];
+        };
+        AdminFeatureOCR: {
+            enabled: boolean;
+            backend: components["schemas"]["OcrBackend"];
+        };
+        /** @description The chosen rerank model (absent when none is chosen) */
+        AdminFeatureModel: {
+            displayName: string;
+            /** @description The model and its connection are enabled */
+            enabled: boolean;
+        };
+        /** @description What the Overview's "Set up this install" checklist needs */
+        AdminSetupState: {
+            connections: number;
+            /** @description The maximum classification of each enabled chat model */
+            chatModelClassifications: string[];
+            /** @description An active default embedding profile exists */
+            defaultProfile: boolean;
+            /** @description Teams (0 or 1: whether any exists) */
+            teams: number;
         };
         AdminOverview: {
             teams: components["schemas"]["AdminOverviewTeams"];
@@ -14870,6 +14936,29 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["AdminOverview"];
+                    };
+                };
+            };
+            403: components["responses"]["ErrorReply"];
+        };
+    };
+    adminGetFeatures: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Features */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminFeatures"];
                     };
                 };
             };

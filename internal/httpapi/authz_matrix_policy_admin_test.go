@@ -190,6 +190,7 @@ var adminPolicies = map[string]policy{
 		return del("/v1/admin/crawl-allowlist/" + c.pickP(c.e.allowlist, c.e.freshAllowlist))
 	}},
 	"adminGetOverview":        adminRead("/v1/admin/overview"),
+	"adminGetFeatures":        adminRead("/v1/admin/features"),
 	"adminGetAttention":       adminRead("/v1/admin/attention"),
 	"adminListDomainRequests": adminRead("/v1/admin/domain-requests"),
 	"adminReviewDomainRequest": {own: padmin, build: func(c *mctx) request {

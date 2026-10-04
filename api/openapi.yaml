@@ -3389,6 +3389,26 @@ paths:
                 properties:
                   data: { $ref: "#/components/schemas/AdminOverview" }
         "403": { $ref: "#/components/responses/ErrorReply" }
+  /v1/admin/features:
+    get:
+      tags: [admin]
+      operationId: adminGetFeatures
+      summary: The admin Overview's feature states and setup steps in one response (platform admins and auditors)
+      description: >-
+        What the Overview's Features card and setup checklist show, read in
+        one request instead of one per setting (docs/v0.4.2.md M4). Each
+        settings object is what its own GET returns, with its revision.
+      responses:
+        "200":
+          description: Features
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AdminFeatures" }
+        "403": { $ref: "#/components/responses/ErrorReply" }
   /v1/admin/attention:
     get:
       tags: [admin]
@@ -8190,6 +8210,63 @@ components:
       required: [ok]
       properties:
         ok: { type: boolean }
+    AdminFeatures:
+      type: object
+      required: [evaluations, mcp, costs, ocr, groupMappingRules, systemOne, rerank, publicAccess, publicModeration, maintenance, setup]
+      properties:
+        evaluations: { $ref: "#/components/schemas/EvaluationSettings" }
+        mcp: { $ref: "#/components/schemas/MCPSettings" }
+        answerCache: { $ref: "#/components/schemas/AnswerCacheSettings" }
+        costs: { $ref: "#/components/schemas/AdminFeatureCosts" }
+        ocr: { $ref: "#/components/schemas/AdminFeatureOCR" }
+        groupMappingRules: { type: integer, description: SSO group mapping rules }
+        systemOne: { $ref: "#/components/schemas/SystemOneSettings" }
+        rerank: { $ref: "#/components/schemas/RerankSettings" }
+        rerankModel: { $ref: "#/components/schemas/AdminFeatureModel" }
+        publicAccess: { $ref: "#/components/schemas/PublicAccessSettings" }
+        publicModeration: { type: boolean, description: The public audience's moderation policy has a provider }
+        maintenance: { $ref: "#/components/schemas/MaintenanceSettings" }
+        setup: { $ref: "#/components/schemas/AdminSetupState" }
+    AdminFeatureCosts:
+      type: object
+      required: [settings, teams]
+      properties:
+        settings: { $ref: "#/components/schemas/CostSettings" }
+        teams:
+          type: array
+          description: "Active teams whose effective cost mode isn't the platform's (a team setting)"
+          items: { $ref: "#/components/schemas/AdminFeatureTeamMode" }
+    AdminFeatureTeamMode:
+      type: object
+      required: [teamName, mode]
+      properties:
+        teamName: { type: string }
+        mode: { $ref: "#/components/schemas/CostMode" }
+    AdminFeatureOCR:
+      type: object
+      required: [enabled, backend]
+      properties:
+        enabled: { type: boolean }
+        backend: { $ref: "#/components/schemas/OcrBackend" }
+    AdminFeatureModel:
+      type: object
+      description: The chosen rerank model (absent when none is chosen)
+      required: [displayName, enabled]
+      properties:
+        displayName: { type: string }
+        enabled: { type: boolean, description: The model and its connection are enabled }
+    AdminSetupState:
+      type: object
+      description: What the Overview's "Set up this install" checklist needs
+      required: [connections, chatModelClassifications, defaultProfile, teams]
+      properties:
+        connections: { type: integer }
+        chatModelClassifications:
+          type: array
+          description: The maximum classification of each enabled chat model
+          items: { type: string }
+        defaultProfile: { type: boolean, description: An active default embedding profile exists }
+        teams: { type: integer, description: "Teams (0 or 1: whether any exists)" }
     AdminOverview:
       type: object
       required: [teams, users, content, failedIngest, teamsNearLimits]

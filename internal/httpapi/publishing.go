@@ -169,6 +169,13 @@ func (a *api) adminSetAgentShortName(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) publicAccess(w http.ResponseWriter, r *http.Request, st apitypes.PublicAccessSettings) {
+	st = a.withPublicAccessInfo(st)
+	writeRevised(w, http.StatusOK, st.Revision, st)
+}
+
+// withPublicAccessInfo adds the anonymous session lifetime and the CAPTCHA
+// provider to the stored public access settings.
+func (a *api) withPublicAccessInfo(st apitypes.PublicAccessSettings) apitypes.PublicAccessSettings {
 	st.AnonSessionTtlSeconds = int(a.Config.Public.AnonSessionTTL.Seconds())
 	if a.Public != nil {
 		st.AnonSessionTtlSeconds = int(a.Public.SessionTTL.Seconds())
@@ -176,7 +183,7 @@ func (a *api) publicAccess(w http.ResponseWriter, r *http.Request, st apitypes.P
 	} else {
 		st.Captcha = apitypes.CaptchaInfo{Provider: apitypes.CaptchaInfoProviderNone}
 	}
-	writeRevised(w, http.StatusOK, st.Revision, st)
+	return st
 }
 
 func (a *api) adminGetPublicAccess(w http.ResponseWriter, r *http.Request) {

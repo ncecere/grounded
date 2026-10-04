@@ -356,6 +356,7 @@ func (a *api) sharedSourceAdminRoutes() []route {
 		{"GET", "/v1/admin/domain-requests", a.admin(a.adminListDomainRequests)},
 		{"GET", "/v1/admin/attention", a.admin(a.adminGetAttention)},
 		{"GET", "/v1/admin/overview", a.admin(a.adminGetOverview)},
+		{"GET", "/v1/admin/features", a.admin(a.adminGetFeatures)},
 		{"POST", "/v1/admin/domain-requests/{requestId}/review", a.admin(a.adminReviewDomainRequest)},
 		// Platform-shared sources: the team source handlers with the platform
 		// as owner (admins change them; auditors read).

@@ -22,23 +22,32 @@ func (a *api) rerankRoutes() []route {
 	}
 }
 
-// writeRerank writes the settings with how many published agents rerank,
-// and which turn it off (Admin → Models → Reranking links them).
+// writeRerank writes the settings (rerankSettings).
 func (a *api) writeRerank(w http.ResponseWriter, r *http.Request, st rerank.Stored) {
-	n, err := a.Rerank.AgentCount(r.Context())
+	out, err := a.rerankSettings(r, st)
 	if failed(w, r, err) {
 		return
 	}
+	writeRevised(w, http.StatusOK, st.Revision, out)
+}
+
+// rerankSettings are the settings with how many published agents rerank,
+// and which turn it off (Admin → Models → Reranking links them).
+func (a *api) rerankSettings(r *http.Request, st rerank.Stored) (apitypes.RerankSettings, error) {
+	n, err := a.Rerank.AgentCount(r.Context())
+	if err != nil {
+		return apitypes.RerankSettings{}, err
+	}
 	rows, err := a.Rerank.AgentsOff(r.Context())
-	if failed(w, r, err) {
-		return
+	if err != nil {
+		return apitypes.RerankSettings{}, err
 	}
 	off := make([]apitypes.RerankOffAgent, len(rows))
 	for i, row := range rows {
 		off[i] = apitypes.RerankOffAgent{AgentId: row.ID, Name: row.Name, TeamSlug: row.TeamSlug, TeamName: row.TeamName}
 	}
-	writeRevised(w, http.StatusOK, st.Revision, apitypes.RerankSettings{ModelId: st.ModelID, Candidates: st.Settings.Candidates,
-		TimeLimitMs: st.Settings.TimeLimitMs, Agents: int(n), AgentsOff: off, Revision: st.Revision, UpdatedAt: st.UpdatedAt})
+	return apitypes.RerankSettings{ModelId: st.ModelID, Candidates: st.Settings.Candidates, TimeLimitMs: st.Settings.TimeLimitMs,
+		Agents: int(n), AgentsOff: off, Revision: st.Revision, UpdatedAt: st.UpdatedAt}, nil
 }
 
 func (a *api) adminGetRerank(w http.ResponseWriter, r *http.Request) {
