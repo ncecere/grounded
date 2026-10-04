@@ -43,3 +43,8 @@
   max-height: var(--available-height, 100dvh);
   overflow-y: auto;
 }
+
+/* The composer is positioned: its ring above it paints over the conversation's scroll shadows, not under them (BU-19). */
+.raised {
+  position: relative;
+}

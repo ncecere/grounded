@@ -42,7 +42,7 @@ test("the chat's composer isn't cut off at the bottom, at any size, with the sou
   await composer.press("Enter");
   const answer = page.getByRole("article", { name: "Composer helper said" });
   await expect(answer).toContainText(handbook.answer);
-  for (const [width, height] of [[1440, 900], [1024, 768], [390, 844], [720, 450]] as const) {
+  for (const [width, height] of [[1440, 900], [1280, 720], [1024, 768], [768, 1024], [390, 844], [720, 450]] as const) {
     await page.setViewportSize({ width, height });
     await composer.focus();
     await expect.poll(() => composerClips(page), { message: `${width}x${height}` }).toEqual([]);
@@ -51,5 +51,9 @@ test("the chat's composer isn't cut off at the bottom, at any size, with the sou
   await answer.getByRole("button", { name: /^Used \d sources?$/ }).click();
   await answer.getByRole("button", { name: /^Show source 1: / }).click();
   await expect(page.getByTestId("source-viewer")).toBeVisible();
-  await expect.poll(() => composerClips(page), { message: "with the viewer open" }).toEqual([]);
+  // Beside the conversation, then under it (a tablet).
+  for (const [width, height] of [[1440, 900], [1280, 720], [768, 1024]] as const) {
+    await page.setViewportSize({ width, height });
+    await expect.poll(() => composerClips(page), { message: `viewer open, ${width}x${height}` }).toEqual([]);
+  }
 });

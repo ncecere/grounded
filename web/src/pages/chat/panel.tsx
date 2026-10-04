@@ -195,7 +195,7 @@ function ChatColumn(props: ColumnProps) {
           chat.stop();
           ref.current?.focus();
         }}
-        className={c.composer}
+        className={cx(c.composer, pm.raised)}
       >
         <PromptInputTextarea
           ref={ref}
