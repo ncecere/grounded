@@ -14,6 +14,11 @@
  * data-name and data-accent (otherwise read from the public profile), and
  * data-position="bottom-left".
  *
+ * Light or dark follows the visitor's system setting (VI-38): the embed page
+ * does so itself; in dark the launcher gets a light ring (a dark accent on a
+ * dark page would vanish) and a white focus ring, and the panel is dark
+ * before the frame loads.
+ *
  * Before showing anything it asks Grounded whether the key works on this page's
  * origin (GET /v1/public/agents/{id}/widget-check). On a site the key
  * doesn't allow (or with a revoked key, a disabled agent, public chat
@@ -33,7 +38,8 @@ const css = (accent: string, left: boolean) => `
 *{box-sizing:border-box}
 .l,.p{position:fixed;${left ? "left" : "right"}:20px;z-index:2147483000;font:14px/1.4 system-ui,sans-serif}
 .l{bottom:20px;width:56px;height:56px;border:0;border-radius:50%;background:${accent};color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 4px 16px rgba(0,0,0,.25)}
-.l:focus-visible,.x:focus-visible{outline:3px solid ${accent};outline-offset:3px}
+.l:focus-visible{outline:3px solid ${accent};outline-offset:3px}
+.x:focus-visible{outline:2px solid #fff;outline-offset:-2px}
 .l svg{width:26px;height:26px}
 .p{bottom:88px;width:380px;height:600px;max-height:calc(100vh - 108px);max-width:calc(100vw - 40px);background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.3);display:flex;flex-direction:column}
 .p[hidden]{display:none}
@@ -41,6 +47,7 @@ const css = (accent: string, left: boolean) => `
 .x{border:0;background:transparent;color:#fff;width:32px;height:32px;border-radius:6px;cursor:pointer;display:grid;place-items:center}
 .x svg{width:18px;height:18px}
 iframe{border:0;width:100%;flex:1}
+@media (prefers-color-scheme:dark){.l{box-shadow:0 0 0 2px rgba(255,255,255,.85),0 4px 16px rgba(0,0,0,.5)}.l:focus-visible{outline-color:#fff}.p{background:#0b0d12;box-shadow:0 0 0 1px rgba(255,255,255,.14),0 8px 32px rgba(0,0,0,.6)}}
 @media (max-width:480px){.p{${left ? "left" : "right"}:0;bottom:0;width:100vw;max-width:100vw;height:100%;max-height:100%;border-radius:0}.p:not([hidden])+.l{display:none}}
 @media (prefers-reduced-motion:no-preference){.p{transition:opacity .15s}}`;
 
