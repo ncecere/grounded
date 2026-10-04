@@ -20,6 +20,8 @@ Ready for a wider beta: every finding of a pre-beta bug hunt and its re-test fix
 
 ### Fixed
 
+- **The OCR image takes Debian's security updates when it's built**, so a fix published after the base image (here CVE-2026-103111 in `libpcre2-8-0`, fixed in `10.42-1+deb12u2`) is in the image.
+
 - **Agent editor (v0.4.2 M2; [`docs/v0.4.2.md`](docs/v0.4.2.md#as-built-m2)):**
   - The **Build** tab no longer scrolls past its content (OW-1): the split fills the window from its own top whatever the header holds, the panes keep their hidden labels inside them (the SystemOne checks legend made the page up to 1,355 px taller), and the 34 px every Build page scrolled is gone.
   - **Share** shows the new audience, links and widget right after publishing, without a reload (BU-03), and says "Both work without signing in" when there's no short address.
