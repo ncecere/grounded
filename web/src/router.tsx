@@ -1,4 +1,5 @@
 import { Outlet, createRootRoute, createRoute, createRouter, lazyRouteComponent, redirect, useRouterState } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, Suspense, lazy as reactLazy, useCallback } from "react";
 import { AppLayout } from "./components/layout/shell";
 import { NotFoundState } from "./components/not-found";
@@ -88,7 +89,9 @@ const PublicAgentPage = reactLazy(() => pages.publicPages().then((m) => ({ defau
 function SessionGate({ children }: { children: ReactNode }) {
   const me = useMe();
   const path = useRouterState({ select: (st) => st.location.pathname });
-  const retry = useCallback(() => void me.refetch(), [me.refetch]); // eslint-disable-line react-hooks/exhaustive-deps
+  const qc = useQueryClient();
+  // Starts over (a refetch would wait for the retry already scheduled): the countdown restarts if it's still refused.
+  const retry = useCallback(() => void qc.resetQueries({ queryKey: ["me"], exact: true }), [qc]);
   if (me.data === undefined) {
     // Loading, retrying after a failure (a rate limit waits for its Retry-After), or given up.
     const failure = me.error ?? (me.failureCount > 0 ? me.failureReason : null);

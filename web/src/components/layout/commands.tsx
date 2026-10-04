@@ -14,6 +14,7 @@ import { type ActiveTeam } from "./active-team";
 import { useCapabilities, useLocationInfo } from "./location";
 import { adminKeywords, adminNav, adminTabCommands, icon, teamNavFor, type AdminPath, type TeamPath } from "./nav";
 import { useSearchCommands } from "./search-commands";
+import { adminHealthCommands, adminPageTabCommands } from "./admin-tab-commands";
 import { teamPlacesGroup } from "./team-commands";
 
 type Navigate = ReturnType<typeof useNavigate>;
@@ -141,6 +142,21 @@ function adminGroup(navigate: Navigate, platformAdmin: boolean): CommandGroup {
       keywords: ["admin", ...t.keywords],
       onSelect: () => void navigate({ to: t.to, search: (t.tab ? { tab: t.tab } : {}) as never, hash: t.hash }),
     });
+  }
+  // Every other tab of an admin page ("Costs › Settings"), and the failing models and connections (AD-30).
+  const pageIcon = (to: AdminPath) => adminNav.find((n) => n.to === to)?.icon;
+  for (const t of adminPageTabCommands) {
+    items.push({
+      id: "admin:" + t.id,
+      label: t.label,
+      icon: pageIcon(t.to),
+      hint: "Admin",
+      keywords: ["admin", ...(t.keywords ?? [])],
+      onSelect: () => void navigate({ to: t.to, search: { tab: t.tab } as never }),
+    });
+  }
+  for (const h of adminHealthCommands) {
+    items.push({ id: h.id, label: h.label, icon: pageIcon(h.to), hint: "Admin", keywords: h.keywords, onSelect: () => void navigate({ to: h.to, search: { health: "failing" } as never }) });
   }
   if (platformAdmin) {
     const adminAct = (to: AdminPath, intent: Intent) => () => {
