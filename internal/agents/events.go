@@ -17,6 +17,7 @@ import (
 
 // Event is one step of an answer, for the SSE stream (docs/phase3-agents.md
 // §7): conversation, status (progress.go), retrieval, message_start, thinking_delta, text_delta,
+// text_reset (the text so far was a turn that called a tool, v0.4.2 BU2-01),
 // tool_call, tool_result, moderation (docs/phase4-publishing.md §4),
 // message_end, citations_checked (docs/systemone.md §3), error, suggestions
 // (suggest.go).
@@ -74,6 +75,16 @@ type (
 		// (stream_retract, stream_checked, buffer); stream_checked sends
 		// checked paragraphs and no thinking (streamcheck.go).
 		Mode string `json:"mode,omitempty"`
+		// ToolTurns: the model is offered tools, so text it streams may be
+		// taken back by text_reset (not sent: the OpenAI-compatible stream,
+		// which can't take text back, holds the text until message_end).
+		ToolTurns bool `json:"-"`
+	}
+	// TextResetEvent: the answer's text so far is discarded (the turn that
+	// wrote it called a tool: in tool mode the answer is the model's final
+	// turn only, v0.4.2 BU2-01); the next text_delta starts the answer.
+	TextResetEvent struct {
+		Reason string `json:"reason"`
 	}
 	// ModerationEvent says a message was blocked: the question (stage
 	// input: nothing was retrieved or generated) or the answer (stage
@@ -183,7 +194,13 @@ type loopState struct {
 	newThinking  bool
 	toolCalls    int
 	answerStarts bool // the model responded (streaming started)
+	// toolTurn: the current assistant message calls a tool, so its text
+	// isn't part of the answer (dropTurnText).
+	toolTurn bool
 }
+
+// textResetToolCall is the text_reset reason of a turn that called a tool.
+const textResetToolCall = "tool_call"
 
 func (ru *run) markFirstToken() {
 	if ru.firstToken == 0 {
@@ -195,7 +212,8 @@ func (ru *run) startAnswer(st *loopState) {
 	ru.out.start()
 	if !st.msgStarted {
 		st.msgStarted = true
-		ru.out.send(Event{"message_start", MessageStartEvent{MessageID: ru.msgID, Buffered: ru.mod.Buffered(), Mode: ru.mod.OutputMode()}})
+		ru.out.send(Event{"message_start", MessageStartEvent{MessageID: ru.msgID, Buffered: ru.mod.Buffered(), Mode: ru.mod.OutputMode(),
+			ToolTurns: ru.toolTurns}})
 	}
 }
 
@@ -203,7 +221,7 @@ func (ru *run) onEvent(ev agentloop.Event, st *loopState) {
 	switch ev.Type {
 	case agentloop.MessageStart:
 		if m, ok := ev.Message.(llm.AssistantMessage); ok {
-			st.newText, st.newThinking = true, true
+			st.newText, st.newThinking, st.toolTurn = true, true, false
 			if m.StopReason == "" {
 				st.answerStarts = true
 				ru.startAnswer(st)
@@ -212,6 +230,10 @@ func (ru *run) onEvent(ev agentloop.Event, st *loopState) {
 	case agentloop.MessageUpdate:
 		if ev.LLMEvent != nil {
 			ru.onDelta(ev.LLMEvent, st)
+		}
+	case agentloop.MessageEnd:
+		if m, ok := ev.Message.(llm.AssistantMessage); ok && hasToolCall(m) {
+			ru.dropTurnText(st) // a provider that sent the call without toolcall_start
 		}
 	case agentloop.ToolExecutionStart:
 		st.toolCalls++
@@ -238,6 +260,9 @@ func (ru *run) onDelta(le *llm.Event, st *loopState) {
 	switch le.Type {
 	case llm.EventTextDelta:
 		ru.markFirstToken()
+		if st.toolTurn {
+			return // text after a call in the same message: not the answer either
+		}
 		if st.newText {
 			st.msgText = st.textSoFar.Len()
 		}
@@ -263,7 +288,47 @@ func (ru *run) onDelta(le *llm.Event, st *loopState) {
 		ru.sendDelta("thinking_delta", le.Delta)
 	case llm.EventTextToThinking:
 		ru.textWasThinking(st)
+	case llm.EventToolCallStart:
+		ru.dropTurnText(st)
 	}
+}
+
+// hasToolCall reports an assistant message that calls a tool.
+func hasToolCall(m llm.AssistantMessage) bool {
+	for _, b := range m.Content {
+		if _, ok := b.(llm.ToolCall); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// dropTurnText discards the text of a turn that calls a tool (v0.4.2
+// BU2-01, owner decision): in tool mode the answer is the model's final
+// turn only, so narration ("I'll check the outage tool") or a first draft
+// written before the call is neither shown nor stored, nor kept as
+// thinking. Only tool turns come before the final one, so the whole text
+// so far goes. A reader who already got some of it gets text_reset
+// (streamed answers; a checked one when a paragraph was released); a
+// buffered answer never showed it.
+func (ru *run) dropTurnText(st *loopState) {
+	st.toolTurn = true
+	if st.newText {
+		return // this turn wrote nothing
+	}
+	st.textSoFar.Reset()
+	st.newText = true
+	reset := Event{"text_reset", TextResetEvent{Reason: textResetToolCall}}
+	switch {
+	case ru.mod.Buffered():
+	case ru.mod.Checked():
+		if ru.checked != nil {
+			ru.checked.reset(func() { ru.out.send(reset) })
+		}
+	default:
+		ru.out.send(reset)
+	}
+	ru.status(StepThinking) // the tool's step and the model's next turn come before the answer
 }
 
 // textWasThinking drops the current message's text: it was the model's

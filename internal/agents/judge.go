@@ -83,8 +83,10 @@ type searchJudging struct {
 // at most the time limit (and never more than twice the per-request
 // timeout): requests still running or waiting for a slot then are
 // cancelled and their passages kept unjudged (skipped). The counts go on
-// the search's span.
-func (r *retriever) judgeCandidates(ctx context.Context, span trace.Span, query string, merged []*fusedHit) (evidence, conflicting []*fusedHit, js []systemone.Judgment) {
+// the search's span. keep: nothing is dropped for relevance (a tool's
+// result, BU2-02): such a drop counts as evidence, ranked by its scores,
+// in the record too. A prompt injection is still dropped: that's safety.
+func (r *retriever) judgeCandidates(ctx context.Context, span trace.Span, query string, merged []*fusedHit, keep bool) (evidence, conflicting []*fusedHit, js []systemone.Judgment) {
 	plan := r.judge
 	cands := merged[:min(len(merged), plan.Candidates)]
 	ps := make([]systemone.Passage, len(cands))
@@ -95,6 +97,13 @@ func (r *retriever) judgeCandidates(ctx context.Context, span trace.Span, query 
 	jctx, cancel := context.WithTimeout(ctx, limit) // fail-open beyond this
 	defer cancel()
 	js, st := plan.Client.Judge(jctx, query, ps, plan.Options)
+	if keep {
+		for i := range js {
+			if js[i].Route == systemone.RouteDropped && js[i].Reason != systemone.ReasonInjection {
+				js[i].Route, js[i].Reason = systemone.RouteEvidence, ""
+			}
+		}
+	}
 	skipped := countSkipped(js)
 	cutShort := skipped > 0 && errors.Is(jctx.Err(), context.DeadlineExceeded) && ctx.Err() == nil
 	span.SetAttributes(attribute.Int("grounded.judging.candidates", len(js)), attribute.Int("grounded.judging.skipped", skipped),

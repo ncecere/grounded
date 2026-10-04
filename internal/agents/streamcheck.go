@@ -66,9 +66,11 @@ func chunkEnd(held string) int {
 }
 
 // checkedChunk is one paragraph to check: text is everything up to and
-// including it, chunk the paragraph itself.
+// including it, chunk the paragraph itself, gen the text it belongs to
+// (reset starts another).
 type checkedChunk struct {
 	text, chunk string
+	gen         int
 }
 
 // checkedStream chunks an answer's text and checks and releases its
@@ -91,10 +93,14 @@ type checkedStream struct {
 	closed bool
 	wake   chan struct{}
 	done   chan struct{}
+	// gen counts resets; shown: a paragraph of this text was released.
+	// Both under mu, which release is called with, so nothing of a reset
+	// text is released after the reset.
+	gen   int
+	shown bool
 
 	// The stream's goroutine (read by close once it is done).
 	checks int
-	shown  bool
 	failed bool
 	worst  *moderation.Decision
 }
@@ -118,12 +124,31 @@ func (c *checkedStream) write(delta string) {
 	}
 }
 
+// reset discards the text so far (a turn that called a tool, v0.4.2
+// BU2-01): paragraphs waiting for their check are dropped, one being
+// checked isn't released, and when some were released already, shownReset
+// is called (it sends text_reset). The next write starts a new text, checked
+// on its own. A block found before the reset still stands.
+func (c *checkedStream) reset(shownReset func()) {
+	c.text.Reset()
+	c.queued = 0
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.queue = nil
+	c.gen++
+	if c.shown {
+		c.shown = false
+		shownReset()
+	}
+}
+
 func (c *checkedStream) enqueue(ch checkedChunk) {
 	if !c.started {
 		c.started = true
 		go c.run()
 	}
 	c.mu.Lock()
+	ch.gen = c.gen
 	c.queue = append(c.queue, ch)
 	c.mu.Unlock()
 	c.signal()
@@ -192,13 +217,20 @@ func (c *checkedStream) process(ch checkedChunk) {
 	case c.failed:
 		return // nothing after a block is sent
 	case strings.TrimSpace(ch.chunk) == "":
-		if c.shown { // trailing white space adds nothing to check
+		c.mu.Lock()
+		if c.shown && ch.gen == c.gen { // trailing white space adds nothing to check
 			c.release(ch.chunk)
 		}
+		c.mu.Unlock()
 		return
 	}
 	c.checks++
 	d := c.check(ch.text, c.checks)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if ch.gen != c.gen {
+		return // its text was reset while it was checked: never shown, nothing to decide
+	}
 	c.keep(d)
 	if d.Blocked {
 		c.failed = true

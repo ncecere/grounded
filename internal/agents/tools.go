@@ -4,9 +4,11 @@
 // team's mcp_calls_per_answer limit), admitted by the team's budget,
 // checked against the server's classification ceiling right before it is
 // made, metered (one mcp_calls unit) and audited (mcp.tool_call, never the
-// arguments or the result). A result is untrusted: it is screened by
-// passage judging when that is on and given to the model as a numbered
-// source, so the answer cites it and claim checks verify against it.
+// arguments or the result). A result is untrusted: it is given to the
+// model as a numbered source, so the answer cites it and claim checks
+// verify against it. Passage judging, when on, judges it too but never
+// leaves it out for relevance (v0.4.2 BU2-02): the model asked for it. One
+// judged a prompt injection is left out, as passages are.
 
 package agents
 
@@ -254,8 +256,8 @@ func toolFailureReason(err error) string {
 	return strings.TrimSuffix(toolFailure(err), " Answer without it.")
 }
 
-// toolResult screens a result (passage judging, when on) and gives it to the
-// model as a numbered source.
+// toolResult gives a result to the model as a numbered source (judged,
+// when judging is on: left out only as a prompt injection).
 func (ru *run) toolResult(ctx context.Context, ref mcpclient.ToolRef, out mcpclient.CallOutcome) (agentloop.ToolResult, error) {
 	text := strings.TrimSpace(out.Result.Text)
 	if text == "" {
@@ -268,23 +270,27 @@ func (ru *run) toolResult(ctx context.Context, ref mcpclient.ToolRef, out mcpcli
 	src := &toolSource{ServerID: ref.ServerID, ServerName: name, Tool: ref.Name, Truncated: out.Result.Truncated}
 	hit, kept := ru.retr.addToolSource(ctx, ru.question, text, src)
 	if !kept {
-		return agentloop.ToolResult{Content: "The tool's result was screened out: it doesn't help answer the question.",
-			Details: toolDetails{Hits: []RetrievalHit{}, Note: "Left out: the result doesn't help answer the question."}}, nil
+		return agentloop.ToolResult{Content: "The tool's result was left out: it contained instructions to the assistant. Answer without it.",
+			Details: toolDetails{Hits: []RetrievalHit{}, Note: "Left out: the result contained instructions to the assistant."}}, nil
 	}
 	return agentloop.ToolResult{Content: formatSources([]numberedHit{hit}),
 		Details: toolDetails{Hits: ru.retrievalHits([]numberedHit{hit})}}, nil
 }
 
 // addToolSource numbers a tool's result as the answer's next source. With
-// passage judging, the result is judged against the question first: dropped
-// results are not given to the model, conflicting ones are marked.
+// passage judging, the result is judged against the question: a
+// conflicting one is marked, and one judged irrelevant or not usable is
+// kept all the same (v0.4.2 BU2-02, owner decision: results of tools the
+// model called aren't judged out; a two-part question's result answers one
+// part, and judged against the whole question it was dropped). One result
+// has no rank to change. A prompt injection is still left out (not kept).
 func (r *retriever) addToolSource(ctx context.Context, question, text string, src *toolSource) (numberedHit, bool) {
 	h := kbs.Hit{ChunkID: uuid.New(), Title: src.ServerName + " · " + src.Tool, Content: text, Distance: -1}
 	conflicting := false
 	if r.judge != nil {
-		evidence, conf, _ := r.judgeCandidates(ctx, trace.SpanFromContext(ctx), question, []*fusedHit{{hit: h}})
+		evidence, conf, _ := r.judgeCandidates(ctx, trace.SpanFromContext(ctx), question, []*fusedHit{{hit: h}}, true)
 		if len(evidence) == 0 && len(conf) == 0 {
-			return numberedHit{}, false
+			return numberedHit{}, false // a prompt injection
 		}
 		conflicting = len(conf) > 0
 	}

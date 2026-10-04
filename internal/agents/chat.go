@@ -197,8 +197,10 @@ type run struct {
 	// tag theirs with source: evaluation).
 	usageMeta map[string]any
 
-	// mcp is the answer's MCP tool calls (nil: the agent has none; tools.go).
-	mcp *mcpState
+	// mcp is the answer's MCP tool calls (nil: the agent has none; tools.go);
+	// toolTurns: the model is offered tools (message_start's ToolTurns).
+	mcp       *mcpState
+	toolTurns bool
 
 	// cache is the answer cache's part (nil: not used; cache.go).
 	cache *cacheRun
@@ -455,6 +457,7 @@ func (ru *run) answer(ctx context.Context, emit func(Event)) (Answer, error) {
 		msgs = append(msgs, msg)
 	}
 	tools = append(tools, mcpTools...)
+	ru.toolTurns = len(tools) > 0
 
 	// The model starts: "Thinking…" until its first words ("Writing…" before it read backwards, v0.4.2 US-08).
 	ru.status(StepThinking)
