@@ -3,7 +3,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "vitest-axe";
 import type { Schemas } from "../api/client";
-import { humanize, initialRevisionState, rebase, reconcile, serverChanges } from "../components/templates/revision-form";
+import { humanize, initialRevisionState, isOwnSave, rebase, reconcile, serverChanges } from "../components/templates/revision-form";
 import { mockApi, renderApp, Reply, shellRoutes } from "./harness";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -41,6 +41,19 @@ describe("revision form helpers", () => {
     expect(s.form).toEqual({ ...base, description: "Mine", level: "sensitive" });
     expect(s.theirs?.revision).toBe(2);
     expect(s.revision).toBe(1);
+  });
+
+  it("tells the person's own save (tidied by the server) from someone else's", () => {
+    const sent = { ...base, name: "Library  ", description: "New" };
+    expect(isOwnSave(base, sent, { ...base, name: "Library", description: "New" })).toBe(true);
+    expect(isOwnSave(base, sent, { ...base, description: "Theirs" })).toBe(false);
+  });
+
+  it("a submit that never saved (an invalid field) doesn't make someone else's version look like the person's own", () => {
+    const typed = { ...base, description: "Mine" };
+    const s = reconcile({ ...initialRevisionState(base, 1), form: typed, submitted: typed }, { ...base, description: "Theirs" }, 2);
+    expect(s.form.description).toBe("Mine");
+    expect(s.theirs?.values.description).toBe("Theirs");
   });
 
   it("takes the server's values after the person's own save, and waits while a save is in flight", () => {
@@ -137,7 +150,7 @@ describe("a settings form's save conflict (admin team settings)", () => {
     expect(screen.queryByRole("button", { name: "Save changes" })).toBeNull();
   });
 
-  it("after a successful save, shows the saved values with no conflict", async () => {
+  it("after a successful save, shows the saved (tidied) values with no conflict", async () => {
     const user = userEvent.setup();
     server();
     renderApp("/admin/teams/registrar?tab=settings");

@@ -18,6 +18,16 @@ import { ApiError } from "../../api/client";
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
+/** Equal once the server's tidying is allowed for: text trimmed. */
+const tidy = (v: unknown): unknown =>
+  typeof v === "string" ? v.trim() : Array.isArray(v) ? v.map(tidy) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, tidy(x)])) : v;
+const sameTidied = (a: unknown, b: unknown) => same(tidy(a), tidy(b));
+
+/** The new version is the person's own save: it has every change they submitted (allowing for tidying). */
+export function isOwnSave<T extends object>(base: T, submitted: T, saved: T): boolean {
+  return (Object.keys(submitted) as (keyof T)[]).every((k) => same(submitted[k], base[k]) || sameTidied(submitted[k], saved[k]));
+}
+
 /** A save refused because the object changed since it was loaded (412 revision_conflict). */
 export function isRevisionConflict(err: unknown): boolean {
   return err instanceof ApiError && err.status === 412;
@@ -71,7 +81,7 @@ export type RevisionState<T> = {
   base: T;
   revision: number | undefined;
   theirs: Theirs<T> | null;
-  /** The form as last submitted, until its save lands (a new revision) or fails. */
+  /** The form when its last save started, until that save lands (a new revision) or fails. */
   submitted: T | null;
   /** A save is in flight: a new revision waits until it ends (it may be this save's, or the one it lost to). */
   saving: boolean;
@@ -95,12 +105,22 @@ export function reconcile<T extends object>(s: RevisionState<T>, saved: T, revis
     return revision === s.revision && !s.theirs && same(s.form, s.base) && !same(s.base, saved) ? { ...s, form: saved, base: saved } : s;
   }
   const settled = { revision, theirs: null, submitted: null, waiting: false };
-  // The person's own save: the server's values (normalised) replace what they sent, unless they kept typing.
-  if (s.submitted) return { ...s, ...settled, form: same(s.form, s.submitted) ? saved : s.form, base: saved };
+  if (s.submitted && isOwnSave(s.base, s.submitted, saved)) return { ...s, ...settled, form: afterOwnSave(s.form, s.submitted, saved), base: saved };
   if (same(s.form, s.base) || same(s.form, saved)) return { ...s, ...settled, form: saved, base: saved };
   // Nothing the form shows changed (another field of the object did): keep the edits on the new revision.
   if (same(s.base, saved)) return { ...s, ...settled };
   return { ...s, form: rebase(s.base, s.form, saved), theirs: { values: saved, revision }, submitted: null, waiting: false };
+}
+
+/**
+ * The form once the person's own save landed: the server's values (it may
+ * have tidied one, "Name " → "Name"), except in fields they typed in since
+ * the save started.
+ */
+export function afterOwnSave<T extends object>(form: T, submitted: T, saved: T): T {
+  const out = { ...saved };
+  for (const key of Object.keys(form) as (keyof T)[]) if (!same(form[key], submitted[key])) out[key] = form[key];
+  return out;
 }
 
 /** What SettingsPage needs to show and resolve a conflict. */
@@ -111,7 +131,7 @@ export type RevisionControl = {
   waiting: boolean;
   /** The form differs from what its edits started from. */
   edited: boolean;
-  /** Called by SettingsPage just before onSave. */
+  /** Called by SettingsPage on Save, before onSave. */
   submitting: () => void;
   /** Called by SettingsPage whenever its save starts or ends (with the error of a failed one). */
   status: (saving: boolean, error: unknown) => void;
@@ -143,14 +163,15 @@ export function useRevisionForm<T extends object>(saved: T, revision: number | u
     status: useCallback(
       (saving: boolean, error: unknown) =>
         setState((s) => {
-          if (saving) return s.saving ? s : { ...s, saving };
+          // A save started: what it sends is the form now.
+          if (saving) return s.saving ? s : { ...s, saving, submitted: s.submitted ?? s.form };
           if (!error) return s.saving ? { ...s, saving } : s;
           // A failed save: whatever revision comes next isn't its own.
           return { ...s, saving, submitted: null, waiting: isRevisionConflict(error) && !s.theirs };
         }),
       [],
     ),
-    overwrite: () => setState((s) => (s.theirs ? { ...s, base: s.theirs.values, revision: s.theirs.revision, theirs: null, submitted: s.form } : s)),
+    overwrite: () => setState((s) => (s.theirs ? { ...s, base: s.theirs.values, revision: s.theirs.revision, theirs: null } : s)),
     discardMine: () =>
       setState((s) => (s.theirs ? { ...s, form: s.theirs.values, base: s.theirs.values, revision: s.theirs.revision, theirs: null } : { ...s, form: s.base, waiting: false })),
   };
