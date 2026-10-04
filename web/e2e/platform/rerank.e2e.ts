@@ -22,18 +22,14 @@ test.afterEach(async ({ admin }) => {
   if (st.modelId) await admin.putRevised("/v1/admin/rerank", { modelId: null, candidates: st.candidates, timeLimitMs: st.timeLimitMs });
 });
 
-test("reranking: an admin chooses the rerank model; Try it shows the reranked order and compares", async ({ as, admin, a11y }) => {
-  const conns = await admin.get<Schemas["Connection"][]>("/v1/admin/connections");
-  const conn = conns.find((c) => c.name === "E2E fake models");
-  if (!conn) throw new Error("the seed's connection is missing");
-  const models = await admin.get<Schemas["Model"][]>("/v1/admin/models");
-  if (!models.some((m) => m.key === "e2e-rerank")) {
-    await admin.post("/v1/admin/models", {
-      connectionId: conn.id, key: "e2e-rerank", upstreamModel: "fake-reranker", displayName: "E2E reranker", kind: "rerank", maxClassification: "restricted",
-    });
+test("reranking: an admin sets it up on Admin → Models → Reranking, tests it there; Try it shows the reranked order and compares", async ({ as, admin, a11y }) => {
+  // The setup path starts with no rerank model (an earlier run's is removed; afterEach turned reranking off).
+  for (const m of await admin.get<Schemas["Model"][]>("/v1/admin/models")) {
+    if (m.key === "e2e-rerank") await admin.del(`/v1/admin/models/${m.id}`);
   }
   const owner = await Api.signIn("alex");
-  const team = await createTeam(admin, owner, { prefix: "rerank" });
+  // The admin is a member, so the Reranking page's test can search the team's knowledge base (ADR-0011).
+  const team = await createTeam(admin, owner, { prefix: "rerank", members: { admin: "member" } });
   const base = `/v1/teams/${team}`;
   const src = await owner.post<Schemas["DataSource"]>(`${base}/sources`, { name: "Registrar", classification: "open" });
   await owner.upload(team, src.id, docs);
@@ -45,16 +41,45 @@ test("reranking: an admin chooses the rerank model; Try it shows the reranked or
   await owner.dispose();
 
   const adminPage = await as("admin");
-  await test.step("the admin chooses the rerank model", async () => {
-    await adminPage.goto("/admin/models");
-    await expect(adminPage.getByText("Reranking is off")).toBeVisible();
-    await adminPage.getByRole("button", { name: "Reranking settings" }).click();
-    const dialog = adminPage.getByRole("dialog", { name: "Reranking settings" });
-    await dialog.getByLabel("Rerank model").selectOption({ label: "E2E reranker (fake-reranker)" });
+  await test.step("the guide leads to Add model with kind Rerank", async () => {
+    await adminPage.goto("/admin");
+    await a11y(adminPage, "overview");
+    const row = adminPage.locator("#features").getByText("Reranking", { exact: true }).locator("xpath=ancestor::*[contains(@class,'item')][1]");
+    await row.getByRole("link", { name: /Set up/ }).click();
+    await expect(adminPage).toHaveURL(/\/admin\/reranking$/);
+    const guide = adminPage.getByRole("region", { name: "Set up reranking" });
+    await expect(guide.getByText("1 of 3 done")).toBeVisible();
+    await a11y(adminPage, "reranking setup guide");
+    await guide.getByRole("link", { name: "Add model" }).click();
+    await expect(adminPage.getByLabel("Kind")).toHaveValue("rerank");
+    await a11y(adminPage, "add rerank model");
+    await adminPage.getByLabel("Connection").selectOption({ label: "E2E fake models" });
+    await adminPage.getByLabel("Upstream model ID").fill("fake-reranker");
+    await adminPage.getByLabel("Key").fill("e2e-rerank");
+    await adminPage.getByLabel("Display name").fill("E2E reranker");
+    await adminPage.getByRole("button", { name: "Add model" }).click();
+    await expect(adminPage).toHaveURL(/\/admin\/reranking$/);
+  });
+
+  await test.step("choosing a model that was never tested asks first, then searches rerank", async () => {
+    await expect(adminPage.getByRole("region", { name: "Set up reranking" })).toHaveCount(0);
+    await adminPage.getByLabel("Rerank model").selectOption({ label: "E2E reranker (fake-reranker) · Not tested" });
+    await expect(adminPage.getByText(/E2E reranker hasn't been tested/)).toBeVisible();
     await a11y(adminPage, "reranking settings");
-    await dialog.getByRole("button", { name: "Save settings" }).click();
-    await expect(adminPage.getByText(/Searches rerank their best 40 passages with E2E reranker/)).toBeVisible();
-    await a11y(adminPage, "models with reranking");
+    await adminPage.getByRole("button", { name: "Save settings" }).click();
+    await adminPage.getByRole("alertdialog", { name: "Rerank with E2E reranker?" }).getByRole("button", { name: "Save anyway" }).click();
+    await expect(adminPage.getByRole("region", { name: "Status" }).getByText("On", { exact: true })).toBeVisible();
+  });
+
+  await test.step("the page's test compares the usual order with the reranked one", async () => {
+    await adminPage.getByLabel("Team").selectOption({ label: `E2E ${team}` });
+    await expect(adminPage.getByLabel("Knowledge base")).toHaveValue(kb.id);
+    await adminPage.getByLabel("Question").fill("transcript fee");
+    await adminPage.getByRole("button", { name: "Compare" }).click();
+    await expect(adminPage.getByText(/Reranked the best 2 passages in/)).toBeVisible();
+    await expect(adminPage.getByRole("list", { name: "Reranked" }).getByRole("listitem").first()).toContainText("FAKE-RERANK-TOP");
+    await expect(adminPage.getByRole("list", { name: "Usual order" }).getByRole("listitem").first()).not.toContainText("FAKE-RERANK-TOP");
+    await a11y(adminPage, "reranking test");
   });
 
   const page = await as("alex");
