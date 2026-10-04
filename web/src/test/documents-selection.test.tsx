@@ -75,6 +75,27 @@ describe("documents selection (BU-04)", () => {
   });
 });
 
+describe("bulk Delete (BU2-11)", () => {
+  it("names the documents it deletes", async () => {
+    const a = doc("d1", "Handbook");
+    const b = doc("d2", "Calendar");
+    mockApi({
+      ...common,
+      "GET /v1/teams/registrar/sources/s1": () => upload(),
+      "GET /v1/teams/registrar/sources/s1/tags": () => [],
+      "GET /v1/teams/registrar/kbs": () => [],
+      "GET /v1/teams/registrar/sources/s1/documents": () => ({ items: [a, b], nextCursor: null }),
+    });
+    renderWith(<SourceDetail sourceId="s1" />, { role: "editor" });
+    await userEvent.click(await screen.findByRole("tab", { name: /^Documents/ }));
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Select Handbook" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Select Calendar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Delete 2 documents?" });
+    expect(within(dialog).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Handbook", "Calendar"]);
+  });
+});
+
 describe("a retried document that fails again (BU-11)", () => {
   it("comes back in the Failed view without switching filters", async () => {
     const broken = doc("d2", "Broken scan", { status: "failed", errorCode: "corrupt", errorMessage: "This PDF appears to be damaged." });
